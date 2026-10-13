@@ -39,6 +39,9 @@ def sweeps(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     async def zero(*_: object, **__: object) -> int:
         return 0
 
+    async def zero_lock(*_: object, **__: object) -> bool:
+        return True
+
     async def sweep(*_: object, **__: object) -> int:
         state.sweeps += 1
         return 0
@@ -62,6 +65,7 @@ def sweeps(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     monkeypatch.setattr(reconciler.asyncio, "sleep", sleep)
     monkeypatch.setattr(db_base, "is_configured", lambda: True)
     monkeypatch.setattr(db_base, "session_factory", factory)
+    monkeypatch.setattr(reconciler, "acquire_cycle_lock", zero_lock)
     monkeypatch.setattr(reconciler, "sweep_abandoned", sweep)
     monkeypatch.setattr(job_dispatch, "redeliver_queued_jobs", zero)
     monkeypatch.setattr(sponsor_proposals, "sweep_expired", zero)
@@ -105,4 +109,5 @@ async def test_purge_failure_does_not_abort_the_sweep(
     assert sweeps.purges == 1
     assert "Purging old error events failed" in caplog.text
     assert "sweep failed" not in caplog.text
-    assert sweeps.sessions[0].commits == 2
+    # sessions[0] holds the cycle lock; the sweep itself runs on the next one.
+    assert sweeps.sessions[1].commits == 2

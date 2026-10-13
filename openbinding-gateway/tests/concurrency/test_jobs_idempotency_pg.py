@@ -18,7 +18,8 @@ from _repo import REPO_ROOT
 from openbinding_gateway import study_jobs
 from openbinding_gateway.db.models import Job, User
 from openbinding_gateway.routes import v1 as routes
-from openbinding_gateway.v1.package import load_package
+from openbinding_gateway.services.snapshots import compile_resolved, persist_snapshot
+from bim_core.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
@@ -36,9 +37,8 @@ async def test_concurrent_requests_with_one_key_create_one_job(two_sessions, mon
     user = User(username="pg-idem", email="pg-idem@example.org", password_hash="x", plan_cache="free")
     first.add(user)
     await first.commit()
-    package = load_package(EXAMPLE)
-    problem = await routes._compile_resolved(package, first, user)
-    snapshot_id = await routes._persist_snapshot(package, problem, user, first)
+    compilation = await compile_resolved(load_package(EXAMPLE).to_zip(), first, user)
+    snapshot_id = await persist_snapshot(compilation, user, first)
     await first.commit()
     assert snapshot_id
 

@@ -59,8 +59,10 @@ from ..security.redaction import (
     redact_provenance,
     redact_result,
 )
-from ..v1.canonical import CanonicalizationError, digest, digest_bytes
-from ..v1.package import PackageError, strict_json_loads
+from bim_core import PackageError
+from bim_core.canonical import CanonicalizationError, digest, digest_bytes
+from ..core.jsonio import strict_json_loads
+from ..services.snapshots import archive_matches_digest
 
 router = APIRouter(prefix="/v1/organizations/{org}/projects/{project}", tags=["Artifacts"])
 
@@ -628,7 +630,11 @@ async def export_project_package(
         if revision.source_snapshot_id:
             snapshot = await session.get(InstanceSnapshot, revision.source_snapshot_id)
             ir = await session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))
-            if not ir or digest_bytes(snapshot.source_archive) != snapshot.package_digest:
+            try:
+                intact = bool(ir) and await archive_matches_digest(snapshot.source_archive, snapshot.package_digest)
+            except PackageError:
+                intact = False
+            if not intact:
                 raise api_error(409, 'snapshot_integrity', 'Cannot export incomplete or corrupt historical inputs.')
             snapshots[str(snapshot.id)] = dict(archive=base64.b64encode(snapshot.source_archive).decode(),
                 packageDigest=snapshot.package_digest, compilationDigest=snapshot.compilation_digest,
@@ -858,7 +864,6 @@ async def import_project_package(
     from ..artifacts import case_composition_digest, resolve_version, seal_draft
     from ..models.artifacts import ArtifactRef, DraftContent
     from ..services.snapshots import compile_resolved, persist_snapshot
-    from ..v1.package import load_package
     from fastapi import HTTPException
     async def import_library_entry(entry) -> bool:
         ref = ArtifactRef.model_validate(entry.get('ref'))
@@ -934,15 +939,15 @@ async def import_project_package(
     for source_id, entry in package.get('snapshots', {}).items():
         try:
             archive_bytes = base64.b64decode(entry['archive'], validate=True)
-            source = load_package(archive_bytes)
+            matches = await archive_matches_digest(archive_bytes, entry.get('packageDigest'))
         except (KeyError, ValueError, PackageError) as exc:
             raise api_error(422, 'invalid_portable_package', 'Invalid snapshot archive.') from exc
-        if digest_bytes(archive_bytes) != entry.get('packageDigest'):
+        if not matches:
             raise api_error(422, 'checksum_mismatch', 'Snapshot archive digest mismatch.')
-        problem = await compile_resolved(source, session, user)
-        if problem.digest != entry.get('irDigest') or problem.document != entry.get('ir'):
+        compilation = await compile_resolved(archive_bytes, session, user)
+        if compilation.ir_digest != entry.get('irDigest') or compilation.ir != entry.get('ir'):
             raise api_error(409, 'toolchain_mismatch', 'The exact original compilation is not available.')
-        restored_id = await persist_snapshot(source, problem, user, session)
+        restored_id = await persist_snapshot(compilation, user, session)
         snapshot = await session.get(InstanceSnapshot, uuid.UUID(restored_id))
         if snapshot.compilation_digest != entry.get('compilationDigest'):
             raise api_error(409, 'toolchain_mismatch', 'The original snapshot toolchain is not installed.')

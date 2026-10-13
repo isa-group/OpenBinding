@@ -135,7 +135,7 @@ async def test_members_see_a_private_case_and_everyone_else_sees_nothing(api_cli
 
 async def test_a_document_is_computed_and_names_nothing(api_client, ctx):
     document = {"apiVersion": "bim/v1", "kind": "BindingCase", "title": "doc"}
-    from openbinding_gateway.v1.canonical import digest as canonical_digest
+    from bim_core.canonical import digest as canonical_digest
 
     expected = canonical_digest(document)
     response = await api_client.post(INSPECT, headers=ctx.headers["outsider"], json={"document": document})

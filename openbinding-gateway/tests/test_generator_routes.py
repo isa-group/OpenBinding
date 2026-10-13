@@ -10,8 +10,8 @@ import zipfile
 import pytest
 
 from openbinding_gateway import space_client
-from openbinding_gateway.v1.compiler import compile_instance
-from openbinding_gateway.v1.package import InstancePackage
+from bim_core.compiler import compile_instance
+from bim_core.package import InstancePackage
 from _pricing import fake_pricing_gate, largest_plan
 from _repo import REPO_ROOT
 

@@ -10,7 +10,6 @@ import argparse
 import hashlib
 import json
 import math
-import sys
 from collections import Counter
 from collections.abc import Mapping
 from itertools import product
@@ -18,9 +17,6 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-GATEWAY_SRC = ROOT / "openbinding-gateway" / "src"
-if str(GATEWAY_SRC) not in sys.path:
-    sys.path.insert(0, str(GATEWAY_SRC))
 
 BENCHMARKS = ROOT / "tools" / "bim_conciseness_benchmarks.json"
 SEMANTIC_IR_FIELDS = (
@@ -265,8 +261,7 @@ def _close(actual: Any, expected: Any) -> bool:
 
 
 def run_benchmarks() -> dict[str, Any]:
-    from openbinding_gateway.v1.compiler import compile_instance
-    from openbinding_gateway.v1.package import load_package
+    from bim_core import compile_instance, load_package
 
     configuration = json.loads(BENCHMARKS.read_text(encoding="utf-8"))
     minimum = float(configuration["minimumReduction"])

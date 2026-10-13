@@ -12,10 +12,10 @@ from __future__ import annotations
 import json
 
 from _repo import REPO_ROOT
-from openbinding_gateway.routes import v1 as routes
-from openbinding_gateway.v1.canonical import canonical_json, digest
-from openbinding_gateway.v1.compiler import compile_instance
-from openbinding_gateway.v1.package import load_package
+from openbinding_gateway.services.engines import protocol_digest
+from bim_core.canonical import canonical_json, digest
+from bim_core.compiler import compile_instance
+from bim_core.package import load_package
 
 DEMO = REPO_ROOT / "examples/demo/01_simple_seq"
 
@@ -61,7 +61,7 @@ def test_finite_range_ir_is_unchanged_literal_data() -> None:
 def test_protocol_digest_is_pinned_by_the_shipped_registration_and_engine_openapi() -> None:
     # The BindingProblem schema bytes changed for open ends, so the digest pinned
     # by the federated example must have been regenerated with them.
-    expected = routes._protocol_digest()
+    expected = protocol_digest()
     registration = json.loads(
         (REPO_ROOT / "examples/federation/multi-heuristic/registration.json").read_text(encoding="utf-8")
     )

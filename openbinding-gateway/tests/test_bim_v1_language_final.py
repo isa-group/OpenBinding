@@ -3,18 +3,17 @@ from copy import deepcopy
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
 
 from _repo import REPO_ROOT
 
-from openbinding_gateway.routes.v1 import _resolve_execution_optimization
-from openbinding_gateway.v1.analysis import analyze_neighborhood
-from openbinding_gateway.v1.compiler import (
+from openbinding_gateway.services.engines import schema_root as platform_schema_root
+from bim_core import ContractError, resolve_optimization
+from bim_core.neighborhood import analyze_neighborhood
+from bim_core.compiler import (
     CompiledProblem,
     CompileError,
     RegisteredResource,
     ResolvedInstance,
-    _schema_root,
     _schema_validator,
     _TaskFeatures,
     _validate_feature_value,
@@ -28,9 +27,9 @@ from openbinding_gateway.v1.compiler import (
     uninstall_profile_contract,
     manifest_reference,
 )
-from openbinding_gateway.v1.canonical import digest
-from openbinding_gateway.v1.expressions import ExpressionError, compile_expression
-from openbinding_gateway.v1.package import InstancePackage, PackageError, load_package, resource_digest
+from bim_core.canonical import digest
+from bim_core.expressions import ExpressionError, compile_expression
+from bim_core.package import InstancePackage, PackageError, load_package, resource_digest
 
 
 def envelope(kind, name, spec):
@@ -197,11 +196,11 @@ def test_execution_objective_type_has_the_declared_criteria_cardinality(
     problem = _problem_with_criteria(criteria_count)
     requested = {"type": objective_type, "scalarization": scalarization}
     if not valid:
-        with pytest.raises(HTTPException) as captured:
-            _resolve_execution_optimization(problem, EXECUTION_MODE, requested)
-        assert captured.value.status_code == 422
+        with pytest.raises(ContractError) as captured:
+            resolve_optimization(problem, EXECUTION_MODE, requested)
+        assert captured.value.http_status == 422
         return
-    resolved = _resolve_execution_optimization(problem, EXECUTION_MODE, requested)
+    resolved = resolve_optimization(problem, EXECUTION_MODE, requested)
     assert resolved["type"] == objective_type
     assert resolved["scalarization"] == scalarization
     if scalarization == "weighted-sum":
@@ -233,7 +232,7 @@ def test_compiled_optimization_declares_criteria_and_leaves_type_to_execution() 
             f"latency-{index}" for index in range(count)
         ]
         scalarization = "weighted-sum" if objective_type == "SINGLE" else "pareto-front"
-        resolved = _resolve_execution_optimization(
+        resolved = resolve_optimization(
             problem,
             EXECUTION_MODE,
             {"type": objective_type, "scalarization": scalarization},
@@ -288,7 +287,7 @@ def test_multiple_resources_keep_local_id_identity_and_evaluate_once_selected():
 
 
 def test_compile_diagnostic_serializes_an_ir_path():
-    from openbinding_gateway.v1.compiler import CompileDiagnostic
+    from bim_core.compiler import CompileDiagnostic
 
     assert CompileDiagnostic(
         code="ir",
@@ -395,7 +394,7 @@ def test_binding_problem_schema_closes_expression_workflow_and_placement_ir():
     malformed["spec"]["constraints"][0]["assert"]["undeclared"] = True
     assert list(validator.iter_errors(malformed))
 
-    from openbinding_gateway.v1.compiler import _schema_diagnostics
+    from bim_core.compiler import _schema_diagnostics
 
     diagnostic = _schema_diagnostics(malformed, "BindingProblem", "BindingProblem")[0]
     assert diagnostic.as_dict()["irPath"].startswith("/spec/constraints/0/assert")
@@ -668,7 +667,7 @@ def test_installed_profiles_and_dialects_form_a_closed_extensible_framework():
 
 
 def test_builtin_release_labels_pin_the_complete_contract_and_implementation(monkeypatch):
-    from openbinding_gateway.v1 import compiler
+    from bim_core import compiler
     original = compiler.installed_profile_manifests()[0]
     original_dialects = compiler.installed_dialect_manifests()
     assert compiler.installed_profile_manifests()[0] == original
@@ -909,9 +908,11 @@ def test_profile_adapter_receives_core_resolved_input_and_must_return_pinned_out
         uninstall_profile_contract(profile)
 
 
-def test_schema_root_prefers_the_deployment_configuration(monkeypatch, tmp_path):
+def test_the_platform_catalog_root_prefers_the_deployment_configuration(monkeypatch, tmp_path):
+    # bim_core reads its schemas as package resources and never SCHEMAS_DIR; the Engine manifests of
+    # the platform catalog still live under the deployment's schemas directory.
     monkeypatch.setenv("SCHEMAS_DIR", str(tmp_path))
-    assert _schema_root() == tmp_path / "bim" / "v1"
+    assert platform_schema_root() == tmp_path / "bim" / "v1"
 
 
 def test_inline_extension_validator_is_installed_by_exact_schema_digest():

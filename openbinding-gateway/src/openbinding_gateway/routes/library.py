@@ -192,11 +192,11 @@ async def publish_version(artifact_id: uuid.UUID, version_id: uuid.UUID, payload
     await owned_artifact(session, artifact_id, user, OrganizationRole.ADMIN)
     artifact, version = await _version(session, artifact_id, version_id, user)
     if artifact.kind in {'Study', 'ExecutionConfiguration'}:
-        from .v1 import _manifest_async
+        from ..services.engines import manifest_async
         content = json.loads((await version_content(session, version))[0])
         for engine in content['engines'] if artifact.kind == 'Study' else [content['engine']]:
             try:
-                await _manifest_async(engine['name'], session, namespace=engine['namespace'],
+                await manifest_async(engine['name'], session, namespace=engine['namespace'],
                     version=engine['version'], manifest_digest=engine['digest'])
             except HTTPException as exc:
                 raise api_error(422, 'private_engine_dependency', 'Publish the exact Engine contract before publishing this version.') from exc

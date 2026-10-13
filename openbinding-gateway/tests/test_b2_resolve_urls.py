@@ -27,7 +27,7 @@ from openbinding_gateway.db.models import (
 )
 from openbinding_gateway.db.platform_models import Report, ReportState
 from openbinding_gateway.routes import resolve as resolve_routes
-from openbinding_gateway.v1.package import load_package
+from bim_core.package import load_package
 from _pricing import fake_pricing_gate, largest_plan
 from _repo import REPO_ROOT
 

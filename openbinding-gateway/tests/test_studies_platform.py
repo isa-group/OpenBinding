@@ -16,10 +16,11 @@ from openbinding_gateway.db.models import Job, JobState, StudyCell
 from openbinding_gateway.models.platform import StudyDefinition
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import execution
+from openbinding_gateway.services.engines import engine_ref
 from openbinding_gateway.routes import studies as study_routes
 from _pricing import fake_pricing_gate, largest_plan
 from openbinding_gateway.studies import aggregate_metrics, expand_study, nondominated
-from openbinding_gateway.v1.package import load_package
+from bim_core.package import load_package
 
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
@@ -208,7 +209,7 @@ async def test_a_study_can_freeze_case_revisions_from_a_collection(
             "name": "From suite",
             "definition": {
                 "collection_version_id": collection_revision.json()["id"],
-                "engines": [study_engine(routes._engine_ref(routes._manifest("random-search")))],
+                "engines": [study_engine(engine_ref(routes._manifest("random-search")))],
                 "parameter_sets": [{}],
                 "seeds": [0],
             },
@@ -259,7 +260,7 @@ async def test_a_study_can_freeze_case_revisions_from_a_collection(
             "name": "Forbidden engine",
             "definition": {
                 "case_revision_ids": [revision.json()["id"]],
-                "engines": [study_engine(routes._engine_ref(routes._manifest("random-search")))],
+                "engines": [study_engine(engine_ref(routes._manifest("random-search")))],
                 "parameter_sets": [{}],
                 "seeds": [0],
             },
@@ -301,7 +302,7 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
         content=package.to_zip(),
     )
     manifest = routes._manifest("random-search")
-    exact_engine = study_engine(routes._engine_ref(manifest, "bim.builtin"))
+    exact_engine = study_engine(engine_ref(manifest, "bim.builtin"))
     org = await api_client.post(
         "/v1/organizations",
         headers=headers,
@@ -448,7 +449,7 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
     assert reused.json()['definition_artifact_id'] == artifact_id
     assert reused.json()['definition_version_id'] == original_version_id
     assert reused.json()['definition']['seeds'] == study.json()['definition']['seeds']
-    from openbinding_gateway.v1.canonical import digest
+    from bim_core.canonical import digest
     exported = await api_client.get('/v1/organizations/lab/projects/routing/package?format=json', headers=headers)
     assert exported.status_code == 200, exported.text
     package = exported.json()
@@ -469,7 +470,7 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
     import base64
     import json
     from copy import deepcopy
-    from openbinding_gateway.v1.canonical import canonical_json, digest_bytes
+    from bim_core.canonical import canonical_json, digest_bytes
     fresh = deepcopy(exported.json())
     fresh['studies'] = []
     fresh_revision_id = str(uuid.uuid4())
@@ -561,7 +562,7 @@ async def test_study_cancel_and_cell_retry_are_http_idempotent(
             "name": "Retry study",
             "definition": {
                 "case_revision_ids": [revision.json()["id"]],
-                "engines": [study_engine(routes._engine_ref(routes._manifest("random-search")))],
+                "engines": [study_engine(engine_ref(routes._manifest("random-search")))],
                 "parameter_sets": [{}],
                 "seeds": [0],
             },

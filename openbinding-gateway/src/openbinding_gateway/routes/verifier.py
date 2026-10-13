@@ -42,7 +42,7 @@ from ..models.platform import (
     VerifierInspectRequest,
     VerifierInspectResponse,
 )
-from ..v1.canonical import canonical_json, digest
+from bim_core.canonical import canonical_json, digest
 
 router = APIRouter(prefix="/v1/verifier", tags=["Verifier"])
 

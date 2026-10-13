@@ -14,8 +14,8 @@ from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job, User
 from openbinding_gateway.domain import idempotency
 from openbinding_gateway.routes import v1 as routes
-from openbinding_gateway.v1.canonical import digest
-from openbinding_gateway.v1.package import load_package
+from bim_core.canonical import digest
+from bim_core.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}

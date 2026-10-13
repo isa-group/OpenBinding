@@ -21,7 +21,7 @@ from ..jobs import limits as job_limits
 from ..models.errors import api_error
 from ..models.platform import JobView, job_view
 from ..repositories import jobs as job_repository
-from ..v1.canonical import digest
+from bim_core.canonical import digest
 
 router = APIRouter(prefix="/v1/jobs", tags=["Jobs"])
 

@@ -29,9 +29,8 @@ from _pricing import pricing_catalog
 from _repo import REPO_ROOT as EXAMPLES_ROOT
 from openbinding_gateway.db.models import Job, JobState, User, UserRole, utcnow
 from openbinding_gateway.jobs import clock, leases, reconciler
-from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import execution
-from openbinding_gateway.v1.package import load_package
+from bim_core.package import load_package
 
 ROOT = Path(__file__).parents[1]
 EXAMPLE = EXAMPLES_ROOT / "examples/demo/01_simple_seq"
@@ -277,7 +276,7 @@ async def test_a_failure_without_the_lease_is_not_recorded(db_session, owner):
     # Another worker's claim, as far as this session is concerned.
     db_session.info.pop(leases.lease_key(job.id))
 
-    await routes._fail_persisted_job(job, db_session, "boom", time.monotonic())
+    await execution.fail_persisted_job(job, db_session, "boom", time.monotonic())
 
     await db_session.refresh(job)
     assert job.state is JobState.RUNNING
@@ -289,7 +288,7 @@ async def test_a_failure_with_the_lease_is_recorded(db_session, owner):
     await leases.claim_job(db_session, job.id)
     await db_session.commit()
 
-    await routes._fail_persisted_job(job, db_session, "boom", time.monotonic())
+    await execution.fail_persisted_job(job, db_session, "boom", time.monotonic())
 
     await db_session.refresh(job)
     assert job.state is JobState.FAILED

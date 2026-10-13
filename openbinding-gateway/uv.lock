@@ -180,6 +180,41 @@ wheels = [
 ]
 
 [[package]]
+name = "bim-client"
+version = "0.1.0"
+source = { editable = "../bim-toolchain/packages/bim-client" }
+dependencies = [
+    { name = "bim-core" },
+    { name = "httpx" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "bim-core", editable = "../bim-toolchain/packages/bim-core" },
+    { name = "bim-service", marker = "extra == 'test'", editable = "../bim-toolchain/packages/bim-service" },
+    { name = "httpx", specifier = ">=0.27,<1.0" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=8.0,<9.0" },
+]
+provides-extras = ["test"]
+
+[[package]]
+name = "bim-core"
+version = "0.1.0"
+source = { editable = "../bim-toolchain/packages/bim-core" }
+dependencies = [
+    { name = "jsonschema" },
+    { name = "lxml" },
+    { name = "pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "jsonschema", specifier = ">=4.21,<5" },
+    { name = "lxml", specifier = ">=5.2,<7" },
+    { name = "pyyaml", specifier = ">=6,<7" },
+]
+
+[[package]]
 name = "certifi"
 version = "2026.7.22"
 source = { registry = "https://pypi.org/simple" }
@@ -1050,6 +1085,8 @@ dependencies = [
     { name = "alembic" },
     { name = "argon2-cffi" },
     { name = "asyncpg" },
+    { name = "bim-client" },
+    { name = "bim-core" },
     { name = "cryptography" },
     { name = "dramatiq", extra = ["redis"] },
     { name = "email-validator" },
@@ -1086,6 +1123,8 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.13,<2.0" },
     { name = "argon2-cffi", specifier = ">=23.1,<26.0" },
     { name = "asyncpg", specifier = ">=0.29,<1.0" },
+    { name = "bim-client", editable = "../bim-toolchain/packages/bim-client" },
+    { name = "bim-core", editable = "../bim-toolchain/packages/bim-core" },
     { name = "cryptography", specifier = ">=42.0" },
     { name = "dramatiq", extras = ["redis"], specifier = ">=1.17,<2.0" },
     { name = "email-validator", specifier = ">=2.0,<3.0" },

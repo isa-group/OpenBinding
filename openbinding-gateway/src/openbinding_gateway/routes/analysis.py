@@ -28,7 +28,7 @@ from ..models.analysis import (
 from ..models.platform import ReportCreate, ReportView
 from ..security.apikeys import allows_engine, allows_request, authenticated_api_key
 from ..v1.archive import VERSION, build_archive, candidate_detail, compact_archive, decide, query_archive, record, row_view, safe
-from ..v1.canonical import digest
+from bim_core.canonical import digest
 from ..services.engines import owned_job
 
 router = APIRouter(prefix="/v1/analysis", tags=["Binding analysis"])

@@ -5,7 +5,7 @@ from .artifacts import seal_draft, reference
 from .db.models import Artifact, ArtifactDraft, ProjectArtifact, Report, ReportState, StudyRun
 from .models.artifacts import DraftContent
 from .models.errors import api_error
-from .v1.canonical import digest
+from bim_core.canonical import digest
 
 
 async def create_report_context(session, project, user, *, slug, title, document, study_run_id=None):

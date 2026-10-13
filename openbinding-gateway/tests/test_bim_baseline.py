@@ -1,10 +1,13 @@
 """Semantic BIM baseline: what the extraction of BIM into its own repository must not change.
 
-`tools/bim_baseline.py` wrote the goldens in `tests/golden/bim_baseline` (see docs/qa/BIM_BASELINE.md).
-The default tests regenerate a sample of ten small packages plus the compatibility, negative, vector and
-protocol sections and compare them with the goldens.  `toolchain` fields (compilerDigest, irDigest) are
-informative and are never compared.  The comparison of all 82 packages is slow and runs only with
-`BIM_BASELINE_FULL=1`.
+The goldens in `tests/golden/bim_baseline` were written by the platform's own `tools/bim_baseline.py`
+before the language moved out (see docs/qa/BIM_BASELINE.md).  The toolchain computes the same documents
+with `bim_core` alone (`bim-toolchain/tools/baseline_core.py`); this test runs that tool against the
+platform's corpus and Engine manifests and compares the result with the goldens, which are not
+regenerated.  `toolchain` fields (compilerDigest, irDigest) change with the bytes of the toolchain and
+are never compared: only the semantic digest, the evaluations, the diagnostics, the Engine mode
+compatibility, the re-evaluation vectors and the protocol and schema digests must stay.  The
+comparison of all 82 packages is slow and runs only with `BIM_BASELINE_FULL=1`.
 """
 
 from __future__ import annotations
@@ -18,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from _repo import REPO_ROOT
+from openbinding_gateway.services.engines import MANIFEST_DIR
 
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden" / "bim_baseline"
 GOLDEN_FILES = ("corpus.json", "negatives.json", "compat.json", "vectors.json", "protocol.json")
@@ -27,15 +31,21 @@ SAMPLE_PER_ROOT = 4
 
 @pytest.fixture(scope="module")
 def tool():
-    path = REPO_ROOT / "tools" / "bim_baseline.py"
+    path = REPO_ROOT / "bim-toolchain" / "tools" / "baseline_core.py"
     if not path.is_file():
-        pytest.skip("tools/bim_baseline.py is not mounted in this environment")
-    spec = importlib.util.spec_from_file_location("bim_baseline", path)
+        pytest.skip("bim-toolchain/tools/baseline_core.py is not mounted in this environment")
+    spec = importlib.util.spec_from_file_location("baseline_core", path)
     module = importlib.util.module_from_spec(spec)
-    sys.modules["bim_baseline"] = module
+    sys.modules["baseline_core"] = module
     spec.loader.exec_module(module)
     yield module
-    sys.modules.pop("bim_baseline", None)
+    sys.modules.pop("baseline_core", None)
+
+
+@pytest.fixture(scope="module")
+def manifests(tool):
+    """The platform's own Engine catalog: the inputs of the compatibility and protocol goldens."""
+    return tool.engine_manifests(MANIFEST_DIR)
 
 
 def golden(name: str) -> dict:
@@ -62,9 +72,11 @@ def small_packages(corpus: dict) -> list[str]:
 
 
 @pytest.fixture(scope="module")
-def sample(tool):
+def sample(tool, manifests):
     paths = small_packages(golden("corpus.json"))
-    corpus, compat = tool.build_corpus([tool.ROOT / path for path in paths], jobs=1)
+    corpus, compat = tool.build_corpus_and_compat(
+        [REPO_ROOT / path for path in paths], REPO_ROOT, jobs=1, manifests=manifests
+    )
     return paths, corpus, compat
 
 
@@ -76,7 +88,7 @@ def test_every_golden_file_exists_and_is_in_the_canonical_byte_form(tool):
 
 def test_the_goldens_cover_exactly_the_discovered_corpus(tool):
     corpus = golden("corpus.json")
-    discovered = {directory.relative_to(tool.ROOT).as_posix() for directory in tool.package_directories()}
+    discovered = {directory.relative_to(REPO_ROOT).as_posix() for directory in tool.package_directories(REPO_ROOT)}
 
     assert set(corpus["packages"]) == discovered
     assert corpus["packageCount"] == len(discovered) == 82
@@ -87,10 +99,10 @@ def test_the_goldens_cover_exactly_the_discovered_corpus(tool):
     )
 
 
-def test_a_package_is_analyzed_exhaustively_and_deterministically(tool):
-    demo = tool.ROOT / "examples" / "demo" / "01_simple_seq"
-    first, compat = tool.build_corpus([demo])
-    second, _ = tool.build_corpus([demo])
+def test_a_package_is_analyzed_exhaustively_and_deterministically(tool, manifests):
+    demo = REPO_ROOT / "examples" / "demo" / "01_simple_seq"
+    first, compat = tool.build_corpus_and_compat([demo], REPO_ROOT, manifests=manifests)
+    second, _ = tool.build_corpus_and_compat([demo], REPO_ROOT, manifests=manifests)
     entry = first["packages"]["examples/demo/01_simple_seq"]
 
     assert tool.dump(first) == tool.dump(second)
@@ -108,9 +120,9 @@ def test_a_package_is_analyzed_exhaustively_and_deterministically(tool):
 
 def test_a_space_above_the_limit_is_sampled_with_the_fixed_seed(tool, monkeypatch):
     monkeypatch.setattr(tool, "EXHAUSTIVE_LIMIT", 1)
-    demo = tool.ROOT / "examples" / "demo" / "01_simple_seq"
-    first = tool.analyze_directory(demo)[0]["evaluation"]
-    second = tool.analyze_directory(demo)[0]["evaluation"]
+    demo = REPO_ROOT / "examples" / "demo" / "01_simple_seq"
+    first = tool.analyze_directory(demo, REPO_ROOT)["evaluation"]
+    second = tool.analyze_directory(demo, REPO_ROOT)["evaluation"]
 
     assert first == second
     assert (first["mode"], first["count"], first["seed"]) == ("sample", tool.SAMPLE_SIZE, 20261012)
@@ -147,28 +159,30 @@ def test_sampled_packages_keep_their_engine_mode_compatibility(tool, sample):
 
 
 def test_negative_cases_keep_their_diagnostic_codes_and_locations(tool):
-    assert tool.comparable(tool.build_negatives()) == tool.comparable(golden("negatives.json"))
+    assert tool.comparable(tool.build_negatives(REPO_ROOT)) == tool.comparable(golden("negatives.json"))
 
 
 def test_reevaluation_vectors_keep_the_current_output(tool):
-    assert tool.comparable(tool.build_vectors()) == tool.comparable(golden("vectors.json"))
+    assert tool.comparable(tool.build_vectors(REPO_ROOT)) == tool.comparable(golden("vectors.json"))
 
 
-def test_protocol_and_schema_digests_are_unchanged(tool):
-    assert tool.comparable(tool.build_protocol()) == tool.comparable(golden("protocol.json"))
+def test_protocol_and_schema_digests_are_unchanged(tool, manifests):
+    assert tool.comparable(tool.build_protocol(manifests)) == tool.comparable(golden("protocol.json"))
 
 
 def test_regenerating_negatives_and_vectors_gives_identical_bytes(tool):
-    assert tool.dump(tool.build_negatives()) == tool.dump(tool.build_negatives())
-    assert tool.dump(tool.build_vectors()) == tool.dump(tool.build_vectors())
+    assert tool.dump(tool.build_negatives(REPO_ROOT)) == tool.dump(tool.build_negatives(REPO_ROOT))
+    assert tool.dump(tool.build_vectors(REPO_ROOT)) == tool.dump(tool.build_vectors(REPO_ROOT))
 
 
 @pytest.mark.skipif(
     os.environ.get("BIM_BASELINE_FULL") != "1",
     reason="slow: recompiles and re-evaluates all 82 packages; run with BIM_BASELINE_FULL=1",
 )
-def test_the_whole_corpus_matches_the_goldens(tool):
-    corpus, compat = tool.build_corpus(tool.package_directories(), jobs=min(4, os.cpu_count() or 1))
+def test_the_whole_corpus_matches_the_goldens(tool, manifests):
+    corpus, compat = tool.build_corpus_and_compat(
+        tool.package_directories(REPO_ROOT), REPO_ROOT, jobs=min(4, os.cpu_count() or 1), manifests=manifests
+    )
     expected_corpus, expected_compat = golden("corpus.json"), golden("compat.json")
 
     assert sorted(corpus["packages"]) == sorted(expected_corpus["packages"])

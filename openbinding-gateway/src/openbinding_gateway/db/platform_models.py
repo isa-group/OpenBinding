@@ -536,12 +536,12 @@ class Report(Base):
         if self.draft is not None and self.draft.sealed_version_id is None:
             return self.draft.payload['content']
         from ..artifacts import verified_version_content
-        from ..v1.package import strict_json_loads
+        from ..core.jsonio import strict_json_loads
         return strict_json_loads(verified_version_content(self.version, self.version.blob)[0])
 
     @property
     def digest(self) -> str:
-        from ..v1.canonical import digest
+        from bim_core.canonical import digest
         return digest(self.document)
 
     state: Mapped[ReportState] = enum_column(ReportState, ReportState.DRAFT)

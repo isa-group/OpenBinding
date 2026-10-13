@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from typing import Any, Mapping
+from typing import Any
 
+from bim_core.canonical import digest
 from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,119 +20,18 @@ from ..db.models import (
     JobState,
     utcnow,
 )
+from ..integrations import bim
 from ..jobs import leases
-from ..v1.canonical import digest
-from ..v1.compiler import BindingProblem
 from ..v1.remote import RemoteEngineError, RemoteRegistration, cancel_remote, solve_remote
 from .engines import (
     installed_builtin_registration,
     persisted_engine_contract,
     persisted_mode_contract,
     registration_transport,
+    validate_engine_result,
 )
 
 logger = logging.getLogger(__name__)
-
-
-def candidate_ref(value: Any) -> tuple[str, str] | None:
-    if not isinstance(value, dict) or set(value) != {"resource", "id"}:
-        return None
-    if not isinstance(value.get("resource"), str) or not isinstance(value.get("id"), str):
-        return None
-    return value["resource"], value["id"]
-
-
-def binding_violations(problem: BindingProblem, binding: dict[str, Any]) -> list[dict[str, Any]]:
-    try:
-        problem.validate_binding(binding)
-    except (KeyError, TypeError, ValueError) as exc:
-        return [{"code": "binding_invalid", "message": str(exc), "enforcement": "hard"}]
-    return []
-
-
-def authoritative_evaluation(
-    problem: BindingProblem, binding: dict[str, Any], execution: Mapping[str, Any] | None = None
-) -> tuple[dict[str, float], dict[str, Any], list[dict[str, Any]]]:
-    """Reevaluate a returned decision against the gateway's canonical IR."""
-    violations = binding_violations(problem, binding)
-    feature_definitions = problem.document["spec"].get("application", {}).get("features", {})
-    empty_features = (
-        {feature_id: 0.0 for feature_id in feature_definitions}
-        if isinstance(feature_definitions, dict)
-        else {}
-    )
-    if violations:
-        return empty_features, {}, violations
-    try:
-        evaluation = problem.evaluate(binding, execution)
-        features = evaluation["features"]
-        objectives = evaluation["objectives"]
-        violations.extend(evaluation["violations"])
-    except (ArithmeticError, KeyError, TypeError, ValueError) as exc:
-        features = empty_features
-        objectives = {}
-        violations.append({"code": "binding_evaluation", "message": str(exc), "enforcement": "hard"})
-    return features, objectives, violations
-
-
-def reevaluate_result(
-    problem: BindingProblem,
-    result: dict[str, Any],
-    execution: Mapping[str, Any] | None = None,
-    allowed_terminations: list[str] | tuple[str, ...] | set[str] = ("FEASIBLE", "UNKNOWN"),
-) -> dict[str, Any]:
-    """Replace engine-reported QoS fields with authoritative gateway values."""
-    solutions: list[dict[str, Any]] = []
-    invalid = False
-    for item in result.get("solutions", []) if isinstance(result.get("solutions"), list) else []:
-        decision = item.get("decision") if isinstance(item, dict) else None
-        binding = decision.get("binding") if isinstance(decision, dict) else None
-        if (
-            not isinstance(decision, dict)
-            or decision.get("kind") != "binding"
-            or not isinstance(binding, dict)
-            or any(not isinstance(key, str) or candidate_ref(value) is None for key, value in binding.items())
-        ):
-            invalid = True
-            continue
-        features, objectives, violations = authoritative_evaluation(problem, binding, execution)
-        if not objectives and (problem.document["spec"]["optimization"].get("criteria") or violations):
-            invalid = True
-            continue
-        soft_by_ref = {
-            candidate_ref(entry["constraint"]): float(entry.get("penalty", 0.0))
-            for entry in violations
-            if entry.get("enforcement") == "soft"
-            and candidate_ref(entry.get("constraint")) is not None
-        }
-        penalties = [
-            soft_by_ref.get(candidate_ref(item["constraint"]), 0.0) * float(item["weight"])
-            for item in problem.document["spec"]["optimization"].get("penalties", [])
-        ]
-        solutions.append({
-            "decision": {"kind": "binding", "binding": binding},
-            "features": features,
-            "objectives": objectives,
-            "penalties": penalties,
-            "violations": violations,
-        })
-        if any(entry.get("enforcement") == "hard" for entry in violations):
-            invalid = True
-    termination = result.get("termination")
-    if termination not in {"OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"} or invalid:
-        termination = "UNKNOWN"
-    declared_terminations = {
-        value
-        for value in allowed_terminations
-        if value in {"OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"}
-    }
-    if termination != "UNKNOWN" and termination not in declared_terminations:
-        termination = "UNKNOWN"
-    if not solutions and termination in {"OPTIMAL", "FEASIBLE"}:
-        termination = "UNKNOWN"
-    if termination == "INFEASIBLE" and solutions:
-        termination = "UNKNOWN"
-    return {"termination": termination, "solutions": solutions, "provenance": result.get("provenance", {})}
 
 
 async def fail_persisted_job(
@@ -268,11 +168,6 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
         if not isinstance(document, dict):
             await fail_persisted_job(job, session, "persisted BindingProblem is missing", started)
             return
-        problem = BindingProblem(
-            document=document,
-            digest=job.provenance.get("irDigest", digest(document)) if isinstance(job.provenance, dict) else digest(document),
-            source_map=document.get("spec", {}).get("sourceMap", {}) if isinstance(document.get("spec"), dict) else {},
-        )
         mode_contract = persisted_mode_contract(request.get("mode"))
         if mode_contract is None:
             await fail_persisted_job(job, session, "Persisted Engine mode contract is invalid", started)
@@ -402,13 +297,14 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
         try:
             remote_result = await solve_remote(
                 transport,
-                problem.document,
+                document,
                 job.options,
                 request.get("optimization", provenance.get("optimization", {})),
                 timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
                 job_id=str(parsed),
                 attempt=attempt,
                 on_remote_id=remember_engine_job,
+                validate_result=validate_engine_result,
             )
         except RemoteEngineError as exc:
             # The gateway gives up on this attempt; the engine may still be working.
@@ -436,8 +332,8 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
             await session.commit()
             await cancel_engine_job(transport, engine["job_id"])
             return
-        reevaluated = reevaluate_result(
-            problem,
+        reevaluated = await bim.abim().reevaluate(
+            document,
             remote_result,
             request.get("optimization", provenance.get("optimization", {})),
             mode_contract["terminationGuarantees"],

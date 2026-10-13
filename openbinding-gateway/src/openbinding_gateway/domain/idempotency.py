@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..v1.canonical import digest
+from bim_core.canonical import digest
 
 V2_PREFIX = "v2:"
 

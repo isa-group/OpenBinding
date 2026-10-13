@@ -44,6 +44,32 @@ os.environ.pop("BOOTSTRAP_ADMIN_PASSWORD", None)
 os.environ.pop("BOOTSTRAP_ADMIN_EMAIL", None)
 
 
+# The suite always uses the toolchain installed beside the gateway: a ``BIM_MODE=http`` left in the environment
+# would point every test at a service that is not there.
+os.environ["BIM_MODE"] = "inproc"
+for _name in ("BIM_SERVICE_URL", "BIM_SERVICE_TOKEN_FILE", "BIM_TENANT"):
+    os.environ.pop(_name, None)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cheap_password_hashing():
+    """Argon2 at its cheapest cost.
+
+    Registering and signing in an account hashes and verifies a password twice, and the API tests do it for every
+    account of every test (about 100 ms with the production parameters), which was most of the time of the
+    suite. The hash format carries its parameters, so a hash made here still verifies anywhere and a hash made
+    with the production parameters still verifies here; only the cost of making one changes.
+    """
+    from argon2 import PasswordHasher
+
+    from openbinding_gateway.security import passwords
+
+    production = passwords._hasher
+    passwords._hasher = PasswordHasher(time_cost=1, memory_cost=8, parallelism=1)
+    yield
+    passwords._hasher = production
+
+
 @pytest.fixture
 def micro_placement_instance():
     """The shared placement instance, for tests that prefer injection."""
@@ -74,6 +100,16 @@ def isolated_auth_rate_limiter():
     set_auth_limiter(AuthRateLimiter(primary=None))
     yield
     set_auth_limiter(None)
+
+
+@pytest.fixture(autouse=True)
+def fresh_bim_port():
+    """Each test builds the BIM port its settings ask for (in process by default) and leaves none behind."""
+    from openbinding_gateway.integrations import bim
+
+    bim.set_bim(None)
+    yield
+    bim.set_bim(None)
 
 
 @pytest.fixture(autouse=True)

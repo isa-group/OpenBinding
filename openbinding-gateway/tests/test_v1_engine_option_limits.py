@@ -39,7 +39,7 @@ async def test_v1_option_names_are_bounded_by_their_declared_mode_limit(
     monkeypatch.setattr(engines, "manifest_async", installed_manifest)
 
     with pytest.raises(HTTPException) as raised:
-        await routes._engine_mode("bounded-engine", "bounded", {option: 101})
+        await engines.engine_mode("bounded-engine", "bounded", {option: 101})
 
     assert raised.value.status_code == 422
     assert raised.value.detail["code"] == "option_limit"

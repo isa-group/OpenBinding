@@ -26,7 +26,7 @@ routes/  ──►  services/  ──►  repositories/ , integrations  ──�
 | `core/` | `settings.py` (every environment variable in one place) and `logging.py` | `core/` |
 | `access/`, `security/` | Plan policy (`access/policy.py`: clamping and ceilings), contract bookkeeping (`access/contracts.py`), public-read matrix; hashing of passwords, tokens and API keys | respective files |
 | `jobs/` | The job lifecycle: `leases.py`, `reconciler.py`, `limits.py`, `lifecycle.py` ([IDEMPOTENCY.md](IDEMPOTENCY.md)) | `jobs/*.py` |
-| `v1/`, `generator/` | The BIM language implementation and the instance generator (see [the BIM boundary](#the-bim--platform-boundary)) | `v1/`, `generator/` |
+| `integrations/bim.py`, `v1/`, `generator/` | The BIM port (`BimPort`, settings, error translation), the remaining `v1/` platform code (archive, remote Engine transport) and the instance generator (see [the BIM boundary](#the-bim--platform-boundary)) | `integrations/`, `v1/`, `generator/` |
 
 Not every module follows the layer table yet: several top-level modules
 (`artifacts.py`, `reports.py`, `studies.py`, `study_jobs.py`, `analysis_jobs.py`,
@@ -62,7 +62,6 @@ layer may use `domain`, `models` and `core`. Forbidden: any of `services/`,
 
 Known exceptions to "downwards only", from reading the imports:
 
-- `domain/idempotency.py` imports `..v1.canonical` (the BIM canonical digest).
 - `domain/entitlements.py` refers to `space_client.PlanCaps` for typing only
   (`TYPE_CHECKING`).
 - `jobs/lifecycle.py` and `jobs/reconciler.py` import `..study_jobs`,
@@ -87,10 +86,10 @@ mechanically checkable, using `ast` so that imports inside functions count:
 - nothing imports a `metering` module (`test_nothing_imports_the_retired_metering_module`);
 - the detector itself recognises every import form (`test_detector_sees_every_import_form`).
 
-`tests/test_bim_core_boundary.py` checks the import rule of the in-place BIM
-copy. Neither test constrains `models/`, `db/` or integrations, so the rest of
-the table is convention, not enforcement. I did not run these tests for this
-document.
+`tests/test_bim_boundary.py` checks that only `integrations/bim*.py` import the
+BIM packages. `test_architecture_layers.py` also constrains `integrations/`; the
+rest of the table (`models/`, `db/`) is convention, not enforcement. I could not
+confirm these tests pass: the full gateway suite timed out in this environment.
 
 ## The BIM / platform boundary
 
@@ -101,17 +100,20 @@ projects, plans, jobs and queues, persistence, the artifact library, studies,
 reports, the resolver and the HTTP routes. The toolchain must not know the
 platform, and the platform reaches BIM through a small port.
 
-**Current state (transitional).** The gateway imports its own copy of the
-compiler as `openbinding_gateway.v1` (`routes/`, `services/`, `generator/`,
-`domain/idempotency.py`, `studies.py`, `reports.py`, `artifacts.py`, … all
-import it). A copy of the language was made in
-[`bim-toolchain/`](../bim-toolchain/README.md) (`bim-core`), which is the future
-private repository `javiercavlop/bim-toolchain`; the remote does not exist yet.
-The planned shape is `bim-core` (compilation and evaluation), `bim-service` (HTTP
-API under `/bim/v1`) and `bim-client` (a `BimPort` with in-process and HTTP
-implementations). In this tree only `bim-core` is present, and the gateway does
-not depend on it. The cut-over is **pending work**; see
-[BIM_CORE.md](BIM_CORE.md).
+**Current state.** The gateway depends on `bim-core` and `bim-client` from
+[`bim-toolchain/`](../bim-toolchain/README.md) (the future private repository
+`javiercavlop/bim-toolchain`; the remote does not exist yet) and reaches the
+language only through `bim_client.BimPort`, built in
+`openbinding_gateway/integrations/bim.py`. `BIM_MODE=inproc` (default) runs
+`InProcessBim`; `BIM_MODE=http` runs `HttpBim` against `bim-service` and refuses
+to start if the service `compilerDigest` differs from the local one. Routes,
+services, the generator, studies and reports use the port; BIM errors are
+translated to HTTP in one place. Details in [BIM_CORE.md](BIM_CORE.md).
+
+`integrations/` may import `core`, `models` and the BIM packages, and must not
+import `routes`, `services`, `repositories`, `jobs` or `db`
+(`test_architecture_layers.py`). The residual direct `bim_core` use in
+`integrations/bim_host.py` is enforced by `tests/test_bim_boundary.py`.
 
 ## Known debt (pending work)
 
@@ -120,9 +122,6 @@ These are real and not scheduled; no dates are promised.
 - `routes/v1.py` is about 3,250 lines and holds job creation, snapshot
   persistence, Engine registration and much else. Its logic should move into
   `services/` and `repositories/`.
-- The gateway still imports `openbinding_gateway.v1` (53 import occurrences in
-  25 files by a text search), so the BIM boundary above is not yet a real
-  boundary.
 - Five modules still import `routes` (`ALLOWED_LEGACY` above).
 - `repositories/` holds one module; most queries are in routes and top-level
   modules.

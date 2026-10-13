@@ -15,11 +15,12 @@ import jsonschema
 import pytest
 
 from _repo import REPO_ROOT
-from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.services.engines import MANIFEST_DIR
 from openbinding_gateway.v1 import remote
-from openbinding_gateway.v1.analysis import analyze_neighborhood
-from openbinding_gateway.v1.canonical import canonical_json, digest
-from openbinding_gateway.v1.compiler import (
+from bim_core import ir_features, mode_compatibility
+from bim_core.neighborhood import analyze_neighborhood
+from bim_core.canonical import canonical_json, digest
+from bim_core.compiler import (
     CompileError,
     _feature_slot_value,
     _schema_validator,
@@ -27,7 +28,7 @@ from openbinding_gateway.v1.compiler import (
     _validate_feature_value,
     compile_instance,
 )
-from openbinding_gateway.v1.package import PackageError, load_package, strict_json_loads
+from bim_core.package import PackageError, load_package, strict_json_loads
 
 from test_bim_v1_language_final import base_package, envelope
 
@@ -438,7 +439,7 @@ def test_fractional_product_accepts_scalars_and_ranges_whose_lower_end_is_non_ne
 
 
 def engine_modes():
-    paths = [*sorted(routes._MANIFEST_DIR.glob("*.json")), REPO_ROOT / "examples/federation/multi-heuristic/engine.json"]
+    paths = [*sorted(MANIFEST_DIR.glob("*.json")), REPO_ROOT / "examples/federation/multi-heuristic/engine.json"]
     manifests = [json.loads(path.read_text(encoding="utf-8")) for path in paths]
     return [
         (f"{manifest['metadata']['name']}/{mode['id']}", mode)
@@ -448,16 +449,16 @@ def engine_modes():
 
 
 def feature_value_diagnostics(problem, mode):
-    return [item for item in routes._mode_compatibility(problem, mode) if item.get("category") == "featureValues"]
+    return [item for item in mode_compatibility(problem, mode) if item.get("category") == "featureValues"]
 
 
 @pytest.mark.parametrize("latency", OPEN_RANGES)
 def test_an_open_range_counts_as_the_interval_feature_value_kind(latency):
-    assert routes._ir_features(compile_instance(demo_package(latency)))["featureValues"] == {"scalar", "interval"}
-    assert routes._ir_features(compile_instance(demo_package(5)))["featureValues"] == {"scalar"}
+    assert ir_features(compile_instance(demo_package(latency)))["featureValues"] == {"scalar", "interval"}
+    assert ir_features(compile_instance(demo_package(5)))["featureValues"] == {"scalar"}
     unused = compile_instance(demo_package(5, extra=latency))
     assert "extra" not in unused.document["spec"]["application"]["requiredFeatures"]
-    assert routes._ir_features(unused)["featureValues"] == {"scalar", "interval"}
+    assert ir_features(unused)["featureValues"] == {"scalar", "interval"}
 
 
 @pytest.mark.parametrize("latency", OPEN_RANGES)

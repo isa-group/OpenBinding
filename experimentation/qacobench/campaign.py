@@ -32,7 +32,7 @@ from _common import (
 ROOT = discover_project_root(Path(__file__))
 install_gateway_import(ROOT)
 
-from openbinding_gateway.v1.package import load_package  # noqa: E402
+from bim_core import load_package  # noqa: E402
 
 MAX_TIMEOUT_MS = 5_000
 

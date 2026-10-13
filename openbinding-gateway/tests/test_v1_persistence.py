@@ -11,7 +11,8 @@ from openbinding_gateway.db.models import InstanceResource, User, UserRole
 from openbinding_gateway.main import app
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import execution
-from openbinding_gateway.v1.package import InstancePackage, load_package, strict_json_loads
+from openbinding_gateway.services.engines import engine_ref
+from bim_core.package import InstancePackage, load_package, strict_json_loads
 
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
@@ -403,7 +404,7 @@ async def test_jobs_pin_reusable_execution_configuration_without_mutating_it(
     identity = await api_client.post('/v1/organizations/configured-jobs/library', headers=headers,
         json={'name': 'search-settings', 'display_name': 'Search settings', 'kind': 'ExecutionConfiguration'})
     artifact_id = identity.json()['id']
-    engine = routes._engine_ref(routes._manifest('random-search'))
+    engine = engine_ref(routes._manifest('random-search'))
     content = {'engine': engine, 'mode': 'seeded', 'options': {'iterations': 100, 'seed': 7}}
     draft = await api_client.post(f'/v1/artifacts/{artifact_id}/drafts', headers=headers, json={'content': content})
     sealed = await api_client.post(f"/v1/artifacts/{artifact_id}/drafts/{draft.json()['id']}/seal", headers=headers, json={'revision': 1})

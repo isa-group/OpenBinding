@@ -12,7 +12,7 @@ from openbinding_gateway import job_dispatch
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db import base as db_base
 from openbinding_gateway.db.models import Job, JobState, User
-from openbinding_gateway.routes import v1
+from openbinding_gateway.services import execution
 from _pricing import fake_pricing_gate, pricing_catalog
 
 
@@ -75,7 +75,7 @@ async def test_persisted_runner_never_silently_ignores_a_missing_database(monkey
     monkeypatch.setattr(db_base, "is_configured", lambda: False)
 
     with pytest.raises(RuntimeError, match="initialized database"):
-        await v1._run_persisted_job("00000000-0000-0000-0000-000000000000")
+        await execution.run_persisted_job("00000000-0000-0000-0000-000000000000")
 
 
 @pytest.mark.asyncio

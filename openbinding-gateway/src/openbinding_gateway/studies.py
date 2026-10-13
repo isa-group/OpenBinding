@@ -7,7 +7,7 @@ from collections import defaultdict
 from typing import Any
 
 from .models.platform import StudyDefinition
-from .v1.canonical import digest
+from bim_core.canonical import digest
 
 
 def expand_study(definition: StudyDefinition) -> list[dict[str, Any]]:
@@ -108,7 +108,7 @@ async def seal_study_definition(session, project, user, name, definition, *, cur
     from .db.models import Artifact, ArtifactDraft, ArtifactVersion, BindingCaseRevision, ProjectArtifact
     from .models.artifacts import DraftContent
     from .services.engines import engine_mode
-    from .v1.canonical import digest
+    from bim_core.canonical import digest
 
     definition = StudyDefinition.model_validate(definition)
     dependencies = []
@@ -158,7 +158,7 @@ async def seal_study_definition(session, project, user, name, definition, *, cur
 def definition_from_version(version) -> dict:
     from .artifacts import verified_version_content
     from .models.artifacts import StudyArtifactContent
-    from .v1.package import strict_json_loads
+    from .core.jsonio import strict_json_loads
     document = strict_json_loads(verified_version_content(version, version.blob)[0])
     if document.get('apiVersion') == 'openbinding/analysis-gallery/v1':
         return document['definition']

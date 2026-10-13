@@ -11,9 +11,9 @@ from openbinding_gateway.v1.archive import (
     build_archive, candidate_detail, decide, dominates, exact_layers, first_front, query_archive,
 )
 from openbinding_gateway.v1.archive_geometry import budget_map, preference_geometry
-from openbinding_gateway.v1.canonical import digest
-from openbinding_gateway.v1.compiler import compile_instance
-from openbinding_gateway.v1.package import load_package
+from bim_core.canonical import digest
+from bim_core.compiler import compile_instance
+from bim_core.package import load_package
 
 
 def example_archive(points=None, directions=None, constraints=None):
@@ -198,7 +198,7 @@ def test_pooling_deduplicates_occurrences_but_rejects_conflicting_evaluations():
 async def test_api_canonical_sources_revision_export_and_auth(api_client, db_session, registration, monkeypatch):
     from sqlalchemy import select
     from openbinding_gateway.db.models import Job, JobState, User
-    from openbinding_gateway.v1.compiler import BindingProblem, compiler_bundle_digest
+    from bim_core.compiler import BindingProblem, compiler_bundle_digest
 
     details = registration()
     await api_client.post("/v1/auth/register", json=details)

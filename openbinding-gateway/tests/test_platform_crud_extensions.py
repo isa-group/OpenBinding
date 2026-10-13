@@ -148,6 +148,7 @@ async def test_collection_and_study_patch_and_delete(api_client, registration, p
 
     from test_studies_platform import executable_revision_payload
     from openbinding_gateway.routes import v1 as routes
+    from openbinding_gateway.services.engines import engine_ref
 
     # Create Case and Revision for Study
     await api_client.post(
@@ -172,7 +173,7 @@ async def test_collection_and_study_patch_and_delete(api_client, registration, p
             "description": "Initial study",
             "definition": {
                 "case_revision_ids": [case_rev_id],
-                "engines": [{**routes._engine_ref(routes._manifest("random-search"), "bim.builtin"), "mode": "seeded",
+                "engines": [{**engine_ref(routes._manifest("random-search"), "bim.builtin"), "mode": "seeded",
                              "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}}],
                 "parameter_sets": [{}],
                 "seeds": [42],

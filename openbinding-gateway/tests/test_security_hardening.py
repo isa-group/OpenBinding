@@ -735,8 +735,9 @@ async def project_package_with_a_study_job(api_client, registration, db_session,
     ``(slug, owner headers, package url)``."""
     from _repo import REPO_ROOT
     from openbinding_gateway.routes import v1 as v1_routes
+    from openbinding_gateway.services.engines import engine_ref
     from openbinding_gateway.services import execution
-    from openbinding_gateway.v1.package import load_package
+    from bim_core.package import load_package
 
     async def solve(*args, **kwargs):
         return {"termination": "FEASIBLE", "solutions": []}
@@ -763,7 +764,7 @@ async def project_package_with_a_study_job(api_client, registration, db_session,
         json={"document": package.instance(), "source_snapshot_id": snapshot.json()["id"]},
     )
     assert revision.status_code == 201, revision.text
-    reference = v1_routes._engine_ref(v1_routes._manifest("random-search"), "bim.builtin")
+    reference = engine_ref(v1_routes._manifest("random-search"), "bim.builtin")
     study = await api_client.post(
         f"{base}/p/studies", headers=owner_h,
         json={"slug": "s", "name": "S", "definition": {

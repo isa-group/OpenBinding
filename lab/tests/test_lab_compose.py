@@ -62,10 +62,14 @@ JWT_HOLDERS = {"gateway"}
 SEED_OMITS = {
     JWT_SECRET: "the seed never signs or verifies a session",
     "FORWARDED_ALLOW_IPS": "the seed serves no HTTP",
-    "DEMO_BIM_TOKEN": "no BIM token file is created for the seed; a later phase may add it",
-    "BIM_MODE": "same",
-    "BIM_SERVICE_URL": "same",
-    "BIM_SERVICE_TOKEN_FILE": "same",
+}
+# The worker and the seed compile and re-evaluate through the BIM port, so they reach the service like the gateway.
+BIM_CLIENTS = ("gateway", "worker", "seed")
+BIM_VARIABLES = {
+    "BIM_MODE": "http",
+    "BIM_SERVICE_URL": "http://bim-service:8080",
+    "BIM_SERVICE_TOKEN_FILE": "/run/bim/token",
+    "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
 }
 # Variables only the seed gets (tools/remote_probe.py exits without it).
 SEED_EXTRAS = {"SPACE_ORGANIZATION_ID"}
@@ -189,7 +193,8 @@ def test_seed_exists_behind_the_seed_profile(services):
     assert services["seed"]["profiles"] == ["seed"]
     assert [name for name, s in services.items() if "profiles" in s] == ["seed"]
     assert services["seed"]["command"][:2] == ["sh", "-c"]
-    assert services["seed"]["command"][2] == "python tools/${DEMO_SEED_TOOL} ${DEMO_SEED_ARGS}"
+    # The token file is written first (see test_demo_bim_token_is_expanded_by_the_shell_not_by_compose).
+    assert services["seed"]["command"][2].endswith("&& python tools/${DEMO_SEED_TOOL} ${DEMO_SEED_ARGS}")
 
 
 # -- ports ---------------------------------------------------------------------------------------
@@ -359,12 +364,28 @@ def test_private_variables_are_passed_by_reference_only(services):
 def test_demo_bim_token_is_expanded_by_the_shell_not_by_compose(services):
     # `$$` is compose's escape: the token is read from the container's own environment and
     # never baked into the command line that `docker inspect` shows.
-    for name in ("bim-service", "gateway"):
+    for name in ("bim-service", "gateway", "worker", "seed"):
         command = " ".join(services[name]["command"])
+        assert services[name]["command"][:2] == ["sh", "-c"], name
         assert '"$$DEMO_BIM_TOKEN"' in command, name
         assert "${DEMO_BIM_TOKEN}" not in command, name
         assert "umask 077" in command, name
         assert _env(services[name])["DEMO_BIM_TOKEN"] == "${DEMO_BIM_TOKEN}", name
+
+
+def test_the_bim_clients_reach_the_service_with_a_token_file_on_a_tmpfs(services):
+    for name in BIM_CLIENTS:
+        env = _env(services[name])
+        assert {key: env[key] for key in BIM_VARIABLES} == BIM_VARIABLES, name
+        token_file = env["BIM_SERVICE_TOKEN_FILE"]
+        tmpfs = [m for m in services[name]["volumes"] if m["type"] == "tmpfs" and token_file.startswith(m["target"] + "/")]
+        assert len(tmpfs) == 1, name
+        # The file is written where BIM_SERVICE_TOKEN_FILE says, and never to a layer of the image.
+        assert f"> {token_file}" in " ".join(services[name]["command"]), name
+        if name != "gateway":
+            assert tmpfs[0].get("tmpfs") == {"mode": 1023}, name
+    assert services["worker"]["depends_on"]["bim-service"] == {"condition": "service_healthy"}
+    assert services["seed"]["depends_on"]["bim-service"] == {"condition": "service_healthy"}
 
 
 # -- who holds the session-signing secret ---------------------------------------------------------
@@ -459,7 +480,7 @@ def test_gateway_waits_for_what_it_uses(services):
     depends = services["gateway"]["depends_on"]
     assert {"postgres", "redis", "bim-service"} <= set(depends)
     assert {n for n in services if n.startswith("engine-")} <= set(depends)
-    assert set(services["worker"]["depends_on"]) == {"gateway", "redis"}
+    assert set(services["worker"]["depends_on"]) == {"gateway", "redis", "bim-service"}
     assert set(services["web"]["depends_on"]) == {"gateway"}
 
 

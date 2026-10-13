@@ -1,8 +1,10 @@
 FROM python:3.12.9-slim-bookworm@sha256:48a11b7ba705fd53bf15248d1f94d36c39549903c5d59edcfa2f3f84126e7b44
 COPY --from=ghcr.io/astral-sh/uv:0.8.22@sha256:9874eb7afe5ca16c363fe80b294fe700e460df29a55532bbfea234a0f12eddb1 /uv /bin/uv
-ENV PYTHONUNBUFFERED=1 PYTHONPATH=/workspace/openbinding-gateway/src:/workspace MPLBACKEND=Agg
+ENV PYTHONUNBUFFERED=1 PYTHONPATH=/workspace/openbinding-gateway/src:/workspace/bim-toolchain/packages/bim-core/src:/workspace MPLBACKEND=Agg
 WORKDIR /workspace
 COPY openbinding-gateway/ openbinding-gateway/
+# The BIM language the benchmark compiles and evaluates with (bim-core; its dependencies are in requirements.lock).
+COPY bim-toolchain/packages/bim-core/src/ bim-toolchain/packages/bim-core/src/
 COPY schemas/ schemas/
 COPY experimentation/qacobench/ experimentation/qacobench/
 COPY datasets/scripts/transform_*.py transformations/scripts/

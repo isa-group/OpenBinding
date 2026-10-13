@@ -14,10 +14,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "openbinding-gateway" / "src"))
+sys.path.insert(0, str(ROOT / "bim-toolchain" / "packages" / "bim-core" / "src"))
 
-from openbinding_gateway.v1.compiler import compile_instance
-from openbinding_gateway.v1.package import load_package
+from bim_core import compile_instance, load_package
 
 DEFAULT_SOURCE = ROOT / "experimentation" / "icws" / "instances"
 DEFAULT_TARGET = ROOT / "datasets" / "01_icws"

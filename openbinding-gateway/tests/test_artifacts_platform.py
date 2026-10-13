@@ -13,7 +13,7 @@ from openbinding_gateway import space_client
 from openbinding_gateway.core.settings import get_settings
 from _pricing import fake_pricing_gate, largest_plan
 from test_studies_platform import executable_revision_payload
-from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.services.engines import engine_ref, manifest as engine_manifest
 
 
 @pytest_asyncio.fixture
@@ -115,7 +115,7 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
                 "slug": "engine-benchmark", "name": "Engine benchmark",
                 "definition": {
                     "case_revision_ids": [case_revision.json()["id"]],
-                    "engines": [{**routes._engine_ref(routes._manifest("random-search")), "mode": "seeded",
+                    "engines": [{**engine_ref(engine_manifest("random-search")), "mode": "seeded",
                                  "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}}],
                     "parameter_sets": [{}], "seeds": [7],
                 },
@@ -224,7 +224,7 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
         report_entry = portable['reports'][0]
         portable['publications'].append({'reportId': report_entry['id'], 'slug': 'forged-publication',
             'versionRef': report_entry['versionRef'], 'citation': {}})
-        from openbinding_gateway.v1.canonical import digest
+        from bim_core.canonical import digest
         portable['packageDigest'] = digest({key: value for key, value in portable.items() if key != 'packageDigest'})
         forged = await api_client.post(f'{base}/package', headers=headers, json=portable)
         assert forged.status_code == 409, forged.text

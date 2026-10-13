@@ -4,7 +4,7 @@ import struct
 
 import pytest
 
-from openbinding_gateway.v1.canonical import CanonicalizationError, canonical_json
+from bim_core.canonical import CanonicalizationError, canonical_json
 
 
 def _double(bits: str) -> float:

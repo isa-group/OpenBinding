@@ -236,10 +236,9 @@
       "image": "openbinding-lab-gateway:latest",
       "entrypoint": [],
       "command": [
-        "dramatiq", "openbinding_gateway.worker",
-        "--processes", "1",
-        "--threads", "2",
-        "--queues", "default", "analysis"
+        "sh",
+        "-c",
+        "umask 077; printf '%s\\n' \"$$DEMO_BIM_TOKEN\" > /run/bim/token && exec dramatiq openbinding_gateway.worker --processes 1 --threads 2 --queues default analysis"
       ],
       "environment": {
         "APP_ENV": "dev",
@@ -264,18 +263,30 @@
         "ENGINE_MINIZINC_URL": "http://engine-minizinc:3000",
         "ENGINE_RANDOM_SEARCH_URL": "http://engine-random-search:8080",
         "ENGINE_MANY_HEURISTIC_URL": "http://engine-many-heuristic:8080",
-        "ENGINE_EVOLUTIONARY_HEURISTICS_URL": "http://engine-evolutionary-heuristics:8080"
+        "ENGINE_EVOLUTIONARY_HEURISTICS_URL": "http://engine-evolutionary-heuristics:8080",
+        "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
+        "BIM_MODE": "http",
+        "BIM_SERVICE_URL": "http://bim-service:8080",
+        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token"
       },
       "volumes": [
         {
           "type": "volume",
           "source": "lab-artifacts",
           "target": "/var/lib/openbinding/artifacts"
+        },
+        {
+          "type": "tmpfs",
+          "target": "/run/bim",
+          "tmpfs": {
+            "mode": 1023
+          }
         }
       ],
       "depends_on": {
         "gateway": {"condition": "service_healthy"},
-        "redis": {"condition": "service_healthy"}
+        "redis": {"condition": "service_healthy"},
+        "bim-service": {"condition": "service_healthy"}
       },
       "mem_limit": "448m",
       "healthcheck": {
@@ -340,7 +351,11 @@
     "seed": {
       "profiles": ["seed"],
       "image": "openbinding-lab-gateway:latest",
-      "command": ["sh", "-c", "python tools/${DEMO_SEED_TOOL} ${DEMO_SEED_ARGS}"],
+      "command": [
+        "sh",
+        "-c",
+        "umask 077; printf '%s\\n' \"$$DEMO_BIM_TOKEN\" > /run/bim/token && python tools/${DEMO_SEED_TOOL} ${DEMO_SEED_ARGS}"
+      ],
       "environment": {
         "APP_ENV": "dev",
         "SCHEMAS_DIR": "/app/schemas",
@@ -369,7 +384,11 @@
         "ENGINE_MINIZINC_URL": "http://engine-minizinc:3000",
         "ENGINE_RANDOM_SEARCH_URL": "http://engine-random-search:8080",
         "ENGINE_MANY_HEURISTIC_URL": "http://engine-many-heuristic:8080",
-        "ENGINE_EVOLUTIONARY_HEURISTICS_URL": "http://engine-evolutionary-heuristics:8080"
+        "ENGINE_EVOLUTIONARY_HEURISTICS_URL": "http://engine-evolutionary-heuristics:8080",
+        "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
+        "BIM_MODE": "http",
+        "BIM_SERVICE_URL": "http://bim-service:8080",
+        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token"
       },
       "volumes": [
         {
@@ -381,8 +400,18 @@
           "type": "volume",
           "source": "lab-artifacts",
           "target": "/var/lib/openbinding/artifacts"
+        },
+        {
+          "type": "tmpfs",
+          "target": "/run/bim",
+          "tmpfs": {
+            "mode": 1023
+          }
         }
       ],
+      "depends_on": {
+        "bim-service": {"condition": "service_healthy"}
+      },
       "mem_limit": "384m"
     }
   },

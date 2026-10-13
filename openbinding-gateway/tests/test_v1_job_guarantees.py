@@ -8,10 +8,11 @@ from _repo import REPO_ROOT
 
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job
+from openbinding_gateway.integrations import bim, packages
 from openbinding_gateway.routes import v1 as routes
-from openbinding_gateway.services import execution
-from openbinding_gateway.v1.canonical import digest
-from openbinding_gateway.v1.package import load_package
+from openbinding_gateway.services import engines, execution
+from bim_core.canonical import digest
+from bim_core.package import load_package
 
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
@@ -54,7 +55,9 @@ def _valid_result(termination: str) -> dict:
                 "decision": {
                     "kind": "binding",
                     "binding": {
-                        "task": {"resource": "catalog", "id": "candidate"}
+                        "t1": {"resource": "catalog", "id": "c1a"},
+                        "t2": {"resource": "catalog", "id": "c2a"},
+                        "t3": {"resource": "catalog", "id": "c3a"},
                     },
                 }
             }
@@ -62,57 +65,36 @@ def _valid_result(termination: str) -> dict:
     }
 
 
-class _FakeProblem:
-    document = {
-        "spec": {
-            "application": {"features": {"latency": {}}},
-            "optimization": {"penalties": []},
-        }
-    }
-
-    def validate_binding(self, binding):
-        if binding != {"task": {"resource": "catalog", "id": "candidate"}}:
-            raise ValueError("invalid binding")
-
-    def evaluate(self, binding, execution=None):
-        self.validate_binding(binding)
-        return {
-            "features": {"latency": 1.0},
-            "objectives": {"mode": "satisfy", "satisfied": True},
-            "violations": [],
-        }
-
-
 def test_builtin_registration_is_deterministic_and_pins_the_whole_deployment() -> None:
     manifest = routes._manifest("random-search")
     endpoint = get_settings().engine_urls["random-search"]
 
-    first = routes._installed_builtin_registration(manifest, endpoint)
-    second = routes._installed_builtin_registration(manifest, endpoint)
+    first = engines.installed_builtin_registration(manifest, endpoint)
+    second = engines.installed_builtin_registration(manifest, endpoint)
 
     assert first is not None
     assert second is not None
-    assert routes._registration_reference(first) == routes._registration_reference(second)
+    assert engines.registration_reference(first) == engines.registration_reference(second)
     assert first["digest"] == digest(first["document"])
     assert first["document"]["spec"] == {
-        "engine": routes._engine_ref(manifest, "bim.builtin"),
+        "engine": engines.engine_ref(manifest, "bim.builtin"),
         "endpoint": endpoint,
         "protocol": {
             "id": "bim-engine/v1",
             "mediaType": "application/json",
-            "digest": routes._protocol_digest(),
+            "digest": engines.protocol_digest(),
         },
-        "mappings": routes._BUILTIN_ENGINE_MAPPINGS,
+        "mappings": engines.BUILTIN_ENGINE_MAPPINGS,
         "auth": {"scheme": "none"},
         "openapi": {
-            **routes._protocol_document(),
+            **engines.protocol_document(),
             "x-bim-protocol": "bim-engine/v1",
-            "x-bim-protocol-digest": routes._protocol_digest(),
+            "x-bim-protocol-digest": engines.protocol_digest(),
         },
     }
-    assert routes._registration_transport(first).allow_internal_http is True
+    assert engines.registration_transport(first).allow_internal_http is True
 
-    changed = routes._installed_builtin_registration(manifest, endpoint + "-changed")
+    changed = engines.installed_builtin_registration(manifest, endpoint + "-changed")
     assert changed is not None
     assert changed["version"] != first["version"]
     assert changed["digest"] != first["digest"]
@@ -123,14 +105,14 @@ def test_builtin_registration_documents_accept_their_internal_http_endpoint(
     engine: str,
     endpoint: str,
 ) -> None:
-    registration = routes._installed_builtin_registration(routes._manifest(engine), endpoint)
+    registration = engines.installed_builtin_registration(routes._manifest(engine), endpoint)
 
     assert registration is not None
-    assert routes._schema_diagnostics(registration["document"], "EngineRegistration") == []
+    assert engines.schema_diagnostics(registration["document"], "EngineRegistration") == []
 
 
 def test_registration_schema_leaves_https_to_the_runtime_transport_policy() -> None:
-    installed = routes._installed_builtin_registration(
+    installed = engines.installed_builtin_registration(
         routes._manifest("random-search"),
         BUILTIN_DEPLOYMENTS["random-search"],
     )
@@ -138,7 +120,7 @@ def test_registration_schema_leaves_https_to_the_runtime_transport_policy() -> N
     document = deepcopy(installed["document"])
     document["metadata"]["namespace"] = "example.team"
 
-    diagnostics = routes._schema_diagnostics(document, "EngineRegistration")
+    diagnostics = engines.schema_diagnostics(document, "EngineRegistration")
 
     assert diagnostics == []
 
@@ -160,7 +142,7 @@ async def test_production_registration_route_rejects_http(
         },
     )
     headers = {"Authorization": f"Bearer {logged.json()['access_token']}"}
-    installed = routes._installed_builtin_registration(
+    installed = engines.installed_builtin_registration(
         routes._manifest("random-search"),
         BUILTIN_DEPLOYMENTS["random-search"],
     )
@@ -179,33 +161,17 @@ async def test_production_registration_route_rejects_http(
 def test_gateway_downgrades_termination_claims_not_declared_by_the_mode() -> None:
     heuristic = ["FEASIBLE", "UNKNOWN"]
     exact = ["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"]
+    port = bim.get_bim()
+    ir = port.compile(packages.zip_directory(EXAMPLE))["ir"]
 
+    assert port.reevaluate(ir, _valid_result("OPTIMAL"), None, heuristic)["termination"] == "UNKNOWN"
     assert (
-        routes._reevaluate_result(
-            _FakeProblem(), _valid_result("OPTIMAL"), allowed_terminations=heuristic
-        )["termination"]
+        port.reevaluate(ir, {"termination": "INFEASIBLE", "solutions": []}, None, heuristic)["termination"]
         == "UNKNOWN"
     )
+    assert port.reevaluate(ir, _valid_result("OPTIMAL"), None, exact)["termination"] == "OPTIMAL"
     assert (
-        routes._reevaluate_result(
-            _FakeProblem(),
-            {"termination": "INFEASIBLE", "solutions": []},
-            allowed_terminations=heuristic,
-        )["termination"]
-        == "UNKNOWN"
-    )
-    assert (
-        routes._reevaluate_result(
-            _FakeProblem(), _valid_result("OPTIMAL"), allowed_terminations=exact
-        )["termination"]
-        == "OPTIMAL"
-    )
-    assert (
-        routes._reevaluate_result(
-            _FakeProblem(),
-            {"termination": "INFEASIBLE", "solutions": []},
-            allowed_terminations=exact,
-        )["termination"]
+        port.reevaluate(ir, {"termination": "INFEASIBLE", "solutions": []}, None, exact)["termination"]
         == "INFEASIBLE"
     )
 
@@ -293,7 +259,7 @@ async def test_persisted_builtin_job_pins_registration_and_mode_guarantees(
     assert stored.idempotency_fingerprint.startswith("v2:sha256-")
     assert len(stored.idempotency_fingerprint) == 74
     assert (
-        await routes._persisted_engine_contract(
+        await engines.persisted_engine_contract(
             stored.engine_id,
             stored.provenance["engine"],
             stored.original_request["mode"],
@@ -302,7 +268,7 @@ async def test_persisted_builtin_job_pins_registration_and_mode_guarantees(
         is not None
     )
     assert (
-        await routes._persisted_engine_contract(
+        await engines.persisted_engine_contract(
             stored.engine_id,
             stored.provenance["engine"],
             {"id": "seeded", "terminationGuarantees": ["OPTIMAL", "UNKNOWN"]},
@@ -314,10 +280,10 @@ async def test_persisted_builtin_job_pins_registration_and_mode_guarantees(
     installed_key = tuple(
         reference[field] for field in ("namespace", "name", "version", "digest")
     )
-    installed = routes._BUILTIN_REGISTRATIONS[installed_key]
+    installed = engines.BUILTIN_REGISTRATIONS[installed_key]
     assert digest(installed["document"]) == reference["digest"]
     assert transports and transports[0].allow_internal_http is True
-    assert transports[0].mappings == routes._BUILTIN_ENGINE_MAPPINGS
+    assert transports[0].mappings == engines.BUILTIN_ENGINE_MAPPINGS
 
     fetched = await api_client.get(f"/v1/jobs/{stored.id}", headers=headers)
     assert fetched.status_code == 200, fetched.text

@@ -7,8 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from openbinding_gateway.v1.compiler import CompileError, compile_instance
-from openbinding_gateway.v1.package import InstancePackage, load_package
+from bim_core import CompileError, InstancePackage, compile_instance, load_package
 
 
 @dataclass

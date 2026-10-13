@@ -27,8 +27,8 @@ from openbinding_gateway.models.problem import (
     summarize,
     validation_diagnostics,
 )
-from openbinding_gateway.v1.compiler import CompileDiagnostic, CompileError
-from openbinding_gateway.v1.package import InstancePackage, load_package
+from bim_core.compiler import CompileDiagnostic, CompileError
+from bim_core.package import InstancePackage, load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 CANONICAL = {"type", "title", "status", "code", "detail", "diagnostics"}
@@ -284,7 +284,7 @@ async def test_the_domain_exception_handler_keeps_every_compiler_field():
         span={"line": 21, "column": 13},
         related=({"resource": "application.json", "pointer": "/spec/tasks"},),
     )
-    response = await gateway_main.compile_error(request_to("/v1/validate"), CompileError([diagnostic]))
+    response = await gateway_main.bim_error(request_to("/v1/validate"), CompileError([diagnostic]))
     assert response.status_code == 422
     assert response.media_type == "application/problem+json"
     body = json.loads(response.body)

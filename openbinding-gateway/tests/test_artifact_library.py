@@ -129,7 +129,8 @@ async def test_case_composition_closes_exact_resources_without_copying_authority
     from sqlalchemy import select
     from openbinding_gateway.db.models import ArtifactCaseReference, BindingCase, BindingCaseRevision, Project
     from openbinding_gateway.artifacts import case_composition_digest
-    from openbinding_gateway.routes.v1 import _engine_ref, _manifest
+    from openbinding_gateway.services.engines import engine_ref as _engine_ref
+    from openbinding_gateway.services.engines import manifest as _manifest
     project = Project(organization_id=org.id, slug='experiment', name='Experiment', created_by_id=user.id)
     db_session.add(project)
     await db_session.flush()

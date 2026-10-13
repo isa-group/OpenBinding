@@ -9,7 +9,7 @@ from functools import lru_cache
 from typing import Any, Callable
 
 from ..models.analysis import AnalysisDimension, AnalysisQuery, AnalysisRow, AnalysisSource
-from .canonical import canonical_json, digest, digest_bytes
+from bim_core.canonical import canonical_json, digest, digest_bytes
 
 VERSION = "binding-analysis/3"
 NEAR_TIE = 1e-10

@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "openbinding-gateway" / "src"))
 DERIVED_ROOTS = {
     ROOT / "experimentation" / "icsoc" / "out" / "bim-v1",
     ROOT / "datasets",
@@ -36,8 +34,7 @@ def package_directories(base: Path = ROOT, excluded: set[Path] | None = None) ->
 
 
 def compile_one(directory: Path) -> tuple[str, str | None, str | None]:
-    from openbinding_gateway.v1.compiler import compile_instance
-    from openbinding_gateway.v1.package import load_package
+    from bim_core import compile_instance, load_package
 
     try:
         problem = compile_instance(load_package(directory))

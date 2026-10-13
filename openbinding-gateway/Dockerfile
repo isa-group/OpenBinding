@@ -16,10 +16,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 
 WORKDIR /app
 
-# Install dependencies
+# The BIM toolchain. The language (compile, evaluate, re-evaluate) is bim-core and the
+# port the gateway calls it through is bim-client; both come from this repository, never
+# from a private index, and bim-service (the HTTP service) is not part of this image. The
+# gateway's pyproject names them by the relative paths below (../bim-toolchain from /app),
+# which is where they are put.
+COPY bim-toolchain/packages/bim-core/pyproject.toml bim-toolchain/packages/bim-core/README.md bim-toolchain/packages/bim-core/NOTICE.md /bim-toolchain/packages/bim-core/
+COPY bim-toolchain/packages/bim-core/src/ /bim-toolchain/packages/bim-core/src/
+COPY bim-toolchain/packages/bim-client/pyproject.toml bim-toolchain/packages/bim-client/README.md bim-toolchain/packages/bim-client/NOTICE.md /bim-toolchain/packages/bim-client/
+COPY bim-toolchain/packages/bim-client/src/ /bim-toolchain/packages/bim-client/src/
+RUN uv pip install --system --no-sources /bim-toolchain/packages/bim-core /bim-toolchain/packages/bim-client
+
+# Install dependencies (bim-core and bim-client are already installed above)
 COPY openbinding-gateway/pyproject.toml .
 COPY openbinding-gateway/src/ src/
-RUN uv pip install --system ".[test]"
+RUN uv pip install --system --no-sources ".[test]"
 
 # Migrations. Copied rather than relied on from the bind mount, so that an
 # image built for a deployment that does not mount the source still knows how

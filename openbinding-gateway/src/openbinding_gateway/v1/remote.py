@@ -1,8 +1,12 @@
 """Pinned, bounded transport for registered v1 engines.
 
 The gateway never gives a remote engine the source package.  Only the
-canonical BindingProblem envelope crosses this boundary, and the response is
-validated before it is allowed into the normal reevaluation path.
+canonical BindingProblem envelope crosses this boundary.  This module only
+carries bytes: it checks the endpoint policy, the size of what comes back, and
+the envelope of an asynchronous job (receipt, status).  Whether an answer is
+shaped like a ``bim-engine/v1`` result is the toolchain's to judge, and the
+caller says how through ``validate_result`` (``services.engines.validate_engine_result``)
+before the answer is allowed into the normal reevaluation path.
 """
 
 from __future__ import annotations
@@ -17,12 +21,17 @@ from dataclasses import dataclass
 from urllib.parse import SplitResult, quote, urljoin, urlparse, urlsplit, urlunsplit
 
 import httpx
+from bim_core import PackageError
 
-from .package import PackageError, strict_json_loads
+from ..core.jsonio import strict_json_loads
 
 
 class RemoteEngineError(RuntimeError):
     pass
+
+
+#: Judges a decoded engine answer and raises ``RemoteEngineError`` if it is not a valid result.
+ResultValidator = Callable[[object], Awaitable[None]]
 
 
 @dataclass(frozen=True)
@@ -159,107 +168,6 @@ def _headers(registration: RemoteRegistration) -> dict[str, str]:
     return headers
 
 
-def _validate_result(payload: object) -> dict:
-    if not isinstance(payload, dict):
-        raise RemoteEngineError("engine response must be an object")
-    termination = payload.get("termination")
-    if termination not in {"OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"}:
-        raise RemoteEngineError("engine response has an invalid termination")
-    solutions = payload.get("solutions")
-    if not isinstance(solutions, list):
-        raise RemoteEngineError("engine response must contain a solutions array")
-
-    def number(value: object) -> bool:
-        return isinstance(value, (int, float)) and not isinstance(value, bool)
-
-    def valid_ref(value: object) -> bool:
-        return (
-            isinstance(value, dict)
-            and isinstance(value.get("resource"), str)
-            and bool(value.get("resource"))
-            and isinstance(value.get("id"), str)
-            and bool(value.get("id"))
-            and set(value) == {"resource", "id"}
-        )
-
-    for solution in solutions:
-        decision = solution.get("decision") if isinstance(solution, dict) else None
-        binding = decision.get("binding") if isinstance(decision, dict) else None
-        if (
-            not isinstance(solution, dict)
-            or set(solution)
-            != {"decision", "features", "objectives", "penalties", "violations"}
-            or not isinstance(decision, dict)
-            or set(decision) != {"kind", "binding"}
-            or decision.get("kind") != "binding"
-            or not isinstance(binding, dict)
-            or any(not isinstance(key, str) or not valid_ref(value) for key, value in binding.items())
-        ):
-            raise RemoteEngineError("every engine solution must contain a canonical binding decision")
-        features = solution["features"]
-        if (
-            not isinstance(features, dict)
-            or any(not isinstance(key, str) or not number(value) for key, value in features.items())
-        ):
-            raise RemoteEngineError("every engine solution must contain numeric features")
-        objectives = solution["objectives"]
-        if (
-            not isinstance(objectives, dict)
-            or set(objectives) != {"type", "scalarization", "components", "penalty", "score"}
-            or objectives.get("type") not in {"SINGLE", "MULTI", "MANY"}
-            or not isinstance(objectives.get("scalarization"), str)
-            or not isinstance(objectives.get("components"), list)
-            or not number(objectives.get("penalty"))
-            or objectives["penalty"] < 0
-            or not (
-                number(objectives.get("score"))
-                or (
-                    isinstance(objectives.get("score"), list)
-                    and all(number(value) for value in objectives["score"])
-                )
-            )
-        ):
-            raise RemoteEngineError("every engine solution must contain a canonical objective evaluation")
-        for component in objectives["components"]:
-            if (
-                not isinstance(component, dict)
-                or set(component) != {"criteria", "feature", "value", "loss", "weight"}
-                or not isinstance(component.get("criteria"), str)
-                or not valid_ref(component.get("feature"))
-                or not number(component.get("value"))
-                or not number(component.get("loss"))
-                or not number(component.get("weight"))
-                or component["weight"] < 0
-            ):
-                raise RemoteEngineError("engine objective components must satisfy bim-engine/v1")
-        penalties = solution["penalties"]
-        if (
-            not isinstance(penalties, list)
-            or any(not number(value) or value < 0 for value in penalties)
-        ):
-            raise RemoteEngineError("engine penalties must be non-negative numbers")
-        violations = solution["violations"]
-        if not isinstance(violations, list):
-            raise RemoteEngineError("engine violations must be an array")
-        for violation in violations:
-            if (
-                not isinstance(violation, dict)
-                or not {"constraint", "enforcement", "penalty"} <= set(violation)
-                or not set(violation) <= {"constraint", "enforcement", "penalty", "message"}
-                or not valid_ref(violation.get("constraint"))
-                or violation.get("enforcement") not in {"hard", "soft"}
-                or not number(violation.get("penalty"))
-                or violation["penalty"] < 0
-                or ("message" in violation and not isinstance(violation["message"], str))
-            ):
-                raise RemoteEngineError("engine violations must satisfy bim-engine/v1")
-    if not set(payload) <= {"termination", "solutions", "provenance"}:
-        raise RemoteEngineError("engine response contains fields outside bim-engine/v1")
-    if "provenance" in payload and not isinstance(payload["provenance"], dict):
-        raise RemoteEngineError("engine provenance must be an object")
-    return payload
-
-
 def _validate_job_receipt(payload: object) -> str:
     if (
         not isinstance(payload, dict)
@@ -272,7 +180,8 @@ def _validate_job_receipt(payload: object) -> str:
     return payload["id"]
 
 
-def _validate_job(payload: object, expected_id: str) -> dict | None:
+def _validate_job(payload: object, expected_id: str) -> object | None:
+    """The result carried by a finished job (still to be judged by the caller), ``None`` while it runs."""
     if not isinstance(payload, dict):
         raise RemoteEngineError("engine polling returned a non-object response")
     job_id = payload.get("id")
@@ -299,7 +208,7 @@ def _validate_job(payload: object, expected_id: str) -> dict | None:
         raise RemoteEngineError(payload["error"] or "remote engine failed")
     if set(payload) != {"id", "status", "created_at", "result"}:
         raise RemoteEngineError("engine polling response must satisfy EngineJob")
-    return _validate_result(payload["result"])
+    return payload["result"]
 
 
 async def _bounded_bytes(response: httpx.Response, *, limit: int | None = None) -> bytes:
@@ -387,13 +296,17 @@ async def solve_remote(
     job_id: str | None = None,
     attempt: int | None = None,
     on_remote_id: Callable[[str], Awaitable[None]] | None = None,
+    validate_result: ResultValidator | None = None,
 ) -> dict:
     """Submit a BindingProblem and wait for its result.
 
     ``job_id`` and ``attempt`` travel as ``X-Openbinding-Job-Id`` and
     ``X-Openbinding-Attempt``. ``on_remote_id`` is awaited with the engine's own
     job id as soon as the engine has accepted the work and before the first poll,
-    so the caller can make that id durable before it waits.
+    so the caller can make that id durable before it waits. ``validate_result`` is
+    awaited with the decoded answer (synchronous or from a finished job) and
+    raises ``RemoteEngineError`` for one that is not a ``bim-engine/v1`` result;
+    without it the answer is returned as received.
     """
     addresses = await avalidate_endpoint(
         registration.endpoint, allow_internal_http=registration.allow_internal_http
@@ -433,9 +346,12 @@ async def solve_remote(
             raise RemoteEngineError(f"engine request failed: {exc}") from exc
         if response.status_code == 200:
             try:
-                return _validate_result(await _bounded_json(response))
+                answer = await _bounded_json(response)
             finally:
                 await response.aclose()
+            if validate_result is not None:
+                await validate_result(answer)
+            return answer  # type: ignore[return-value]
         if response.status_code != 202:
             await response.aclose()
             raise RemoteEngineError(f"engine rejected BindingProblem ({response.status_code})")
@@ -474,7 +390,9 @@ async def solve_remote(
             if result is None:
                 await asyncio.sleep(0.05)
                 continue
-            return result
+            if validate_result is not None:
+                await validate_result(result)
+            return result  # type: ignore[return-value]
         raise RemoteEngineError("remote engine timed out")
 
 

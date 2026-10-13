@@ -8,9 +8,11 @@ import json
 import pytest
 
 from _repo import REPO_ROOT
-from openbinding_gateway.routes import v1 as routes
-from openbinding_gateway.v1.compiler import CompileError, compile_instance
-from openbinding_gateway.v1.package import load_package
+from openbinding_gateway.integrations import bim, packages
+from openbinding_gateway.services.engines import MANIFEST_DIR
+from bim_core import ir_features, mode_compatibility
+from bim_core.compiler import CompileError, compile_instance
+from bim_core.package import load_package
 
 DEMOS = ["01_simple_seq", "02_parallel", "05_multi_obj"]
 OPEN_RANGES = {
@@ -30,14 +32,23 @@ def load_corpus_tool():
 
 def test_the_complete_corpus_still_compiles_with_the_same_package_count():
     tool = load_corpus_tool()
-    directories = tool.package_directories()
+    # bim-toolchain carries packages of its own (test fixtures); they are not the platform's corpus.
+    directories = [
+        directory
+        for directory in tool.package_directories()
+        if "bim-toolchain" not in directory.relative_to(REPO_ROOT).parts
+    ]
 
     assert len(directories) == 82
     failures = []
     for directory in directories:
-        name, package_digest, error = tool.compile_one(directory)
-        if error or not package_digest:
-            failures.append((name, error))
+        try:
+            package_digest = bim.get_bim().compile(packages.zip_directory(directory))["packageDigest"]
+        except Exception as exc:  # a package that stops compiling must be named
+            failures.append((directory.name, f"{type(exc).__name__}: {exc}"))
+            continue
+        if not package_digest:
+            failures.append((directory.name, "no package digest"))
     assert failures == []
 
 
@@ -72,7 +83,7 @@ def with_range(name: str, make):
 
 
 def scalar_engine_modes():
-    manifests = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(routes._MANIFEST_DIR.glob("*.json"))]
+    manifests = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(MANIFEST_DIR.glob("*.json"))]
     return [mode for manifest in manifests for mode in manifest["spec"]["modes"]]
 
 
@@ -86,13 +97,13 @@ def test_corpus_packages_with_an_open_range_compile_and_scalar_engines_refuse_th
 
     assert expected in first["features"].values()
     assert None in expected.values()
-    assert routes._ir_features(problem)["featureValues"] >= {"interval"}
+    assert ir_features(problem)["featureValues"] >= {"interval"}
     modes = scalar_engine_modes()
     assert modes
     for mode in modes:
         refusals = [
             item
-            for item in routes._mode_compatibility(problem, mode)
+            for item in mode_compatibility(problem, mode)
             if item.get("category") == "featureValues"
         ]
         assert [item["code"] for item in refusals] == ["unsupported_capability_value"]

@@ -108,6 +108,61 @@ def test_services_domain_and_jobs_do_not_import_routes() -> None:
     assert not offenders, "services/domain/jobs must not import routes:\n" + "\n".join(offenders)
 
 
+#: ``integrations/`` is infrastructure boundary code: it may use ``core`` (settings), ``models`` (the problem
+#: document) and its own modules, and nothing above them.
+INTEGRATION_DEPENDENCIES = frozenset({"core", "models", "integrations"})
+
+
+def gateway_imports(source: str, package: str) -> list[tuple[int, str]]:
+    """Every import of a module of ``openbinding_gateway`` in ``source``, resolved to its absolute name."""
+    found: list[tuple[int, str]] = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import):
+            found.extend((node.lineno, alias.name) for alias in node.names if alias.name.startswith(PACKAGE))
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                parts = package.split(".")
+                parts = parts[: len(parts) - (node.level - 1)]
+                base = ".".join(parts + ([node.module] if node.module else []))
+            else:
+                base = node.module or ""
+            if not (base == PACKAGE or base.startswith(PACKAGE + ".")):
+                continue
+            # ``from pkg import name`` imports the module ``pkg.name`` when there is one, and the object otherwise.
+            reported = {base}
+            reported.update(f"{base}.{alias.name}" for alias in node.names if _is_module(f"{base}.{alias.name}"))
+            found.extend((node.lineno, name) for name in sorted(reported - {base} or reported))
+    return found
+
+
+def _is_module(name: str) -> bool:
+    path = SOURCE.parent.joinpath(*name.split("."))
+    return path.with_suffix(".py").is_file() or path.is_dir()
+
+
+def test_the_integrations_detector_resolves_relative_imports() -> None:
+    source = "from ..core.settings import get_settings\nfrom . import bim\nfrom ..services import engines\n"
+
+    assert gateway_imports(source, "openbinding_gateway.integrations") == [
+        (1, "openbinding_gateway.core.settings"),
+        (2, "openbinding_gateway.integrations.bim"),
+        (3, "openbinding_gateway.services.engines"),
+    ]
+
+
+def test_integrations_depend_on_nothing_above_them() -> None:
+    offenders: list[str] = []
+    files = _python_files(SOURCE / "integrations")
+    assert files, "integrations/ has no modules to check"
+    for path in files:
+        for line, name in gateway_imports(path.read_text(encoding="utf-8"), _package_of(path)):
+            layer = name.split(".")[1]
+            if layer not in INTEGRATION_DEPENDENCIES:
+                offenders.append(f"{path.relative_to(SOURCE.parent)}:{line} imports {name}")
+
+    assert not offenders, "integrations/ must not import upwards:\n" + "\n".join(offenders)
+
+
 def test_nothing_imports_the_retired_metering_module() -> None:
     offenders: list[str] = []
     for path in _python_files(SOURCE):

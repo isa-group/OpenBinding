@@ -1,18 +1,7 @@
-"""BIM v1 language implementation for the OpenBinding platform.
+"""Platform-side pieces that sit next to the BIM v1 language.
 
-The v1 package is deliberately independent from the historical instance
-model.  Documents are loaded as a package, validated against their kind, and
-lowered to the one canonical :class:`BindingProblem` consumed by engines.
+The language itself (loading, compiling and evaluating packages, the engine protocol) lives in
+``bim-toolchain`` and is reached through ``integrations.bim``. What remains here is the
+platform's: ``remote`` (the bounded, SSRF-safe transport to registered engines) and ``archive``
+(the analysis archive of binding solutions).
 """
-
-from .compiler import BindingProblem, CompileDiagnostic, compile_instance
-from .package import InstancePackage, PackageError, load_package
-
-__all__ = [
-    "BindingProblem",
-    "CompileDiagnostic",
-    "InstancePackage",
-    "PackageError",
-    "compile_instance",
-    "load_package",
-]

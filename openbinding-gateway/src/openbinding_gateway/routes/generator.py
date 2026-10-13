@@ -8,11 +8,14 @@ attaching the result to a project needs MEMBER access to that project.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 import uuid
 import zipfile
 from typing import Any, Optional
+
+from bim_core.canonical import digest
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field, model_validator
@@ -42,10 +45,10 @@ from ..generator.config import FeatureDefinition, GenerationDistributions, Stric
 from ..generator.legacy_parser import parse_legacy_file
 from ..generator.postprocessor import BIMPostprocessor
 from ..generator.synthesizer import generate_instance_package
+from ..generator.package import GeneratedPackage
+from ..integrations import bim
 from ..models.errors import api_error
-from ..v1.compiler import compile_instance
-from ..v1.package import InstancePackage
-from ..services.snapshots import persist_snapshot
+from ..services.snapshots import Compilation, persist_snapshot
 
 router = APIRouter(prefix="/v1/generator", tags=["generator"])
 
@@ -200,6 +203,12 @@ class ConvertLegacyRequest(BaseModel):
     case_name: Optional[str] = Field(default=None, description="BindingCase name.")
 
 
+async def _compile(package: GeneratedPackage) -> Compilation:
+    """Compile a generated package with the toolchain."""
+    archive = package.to_zip()
+    return Compilation.from_result(archive, await bim.abim().compile(archive))
+
+
 async def _verify_project_member(session: AsyncSession, project_id: uuid.UUID, caller: User) -> Project:
     project = await session.get(Project, project_id)
     if project is None:
@@ -219,7 +228,9 @@ async def generate_instance(
 ) -> Any:
     """Synthesize a single valid BIM v1 QACO instance."""
     try:
-        package = generate_instance_package(
+        # Synthesis is synchronous (and asks the toolchain to compile and evaluate): off the event loop.
+        package = await asyncio.to_thread(
+            generate_instance_package,
             tasks=request.tasks,
             candidates=request.candidates,
             control_flow=request.control_flow,
@@ -242,7 +253,7 @@ async def generate_instance(
             seed=request.seed,
             use_legacy_engine=request.use_legacy_engine,
         )
-        compiled = compile_instance(package)
+        compiled = await _compile(package)
     except IncompatibleTargetEnginesError as exc:
         raise api_error(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -260,7 +271,7 @@ async def generate_instance(
     if request.persist:
         if caller is None:
             raise HTTPException(status_code=401, detail="Authentication required to persist instances")
-        snapshot_id = await persist_snapshot(package, compiled, caller, session)
+        snapshot_id = await persist_snapshot(compiled, caller, session)
         if request.project_id is not None:
             await _verify_project_member(session, request.project_id, caller)
             case_slug = f"case-{uuid.uuid4().hex[:8]}"
@@ -268,7 +279,7 @@ async def generate_instance(
                 project_id=request.project_id,
                 slug=case_slug,
                 name=request.case_name or request.name,
-                description=f"Generated QACO instance {package.package_digest[:12]}",
+                description=f"Generated QACO instance {compiled.package_digest[:12]}",
                 created_by_id=caller.id,
             )
             session.add(case_obj)
@@ -276,7 +287,7 @@ async def generate_instance(
             case_rev = BindingCaseRevision(
                 binding_case_id=case_obj.id,
                 revision=1,
-                digest=package.package_digest,
+                digest=compiled.package_digest,
                 document=package.instance(),
                 source_snapshot_id=uuid.UUID(snapshot_id),
                 created_by_id=caller.id,
@@ -292,9 +303,9 @@ async def generate_instance(
 
     return InstanceGeneratedResponse(
         name=request.name,
-        package_digest=package.package_digest,
+        package_digest=compiled.package_digest,
         instance_digest=package.instance()["metadata"].get("name", request.name),
-        compilation_digest=compiled.digest,
+        compilation_digest=compiled.ir_digest,
         snapshot_id=snapshot_id,
         case_id=case_id,
         target_engines=request.target_engines,
@@ -313,7 +324,7 @@ async def generate_corpus(
     """Generate a corpus of problem instances with optional Collection & Study initialization."""
     base = request.base_config
     instances: list[dict[str, Any]] = []
-    packages: list[InstancePackage] = []
+    archives: list[bytes] = []
     snapshot_ids: list[str] = []
 
     if request.persist and caller is None:
@@ -323,7 +334,8 @@ async def generate_corpus(
         seed_val = (base.seed + idx) if base.seed is not None else None
         inst_name = f"{request.name}_{idx + 1}"
         try:
-            pkg = generate_instance_package(
+            pkg = await asyncio.to_thread(
+                generate_instance_package,
                 tasks=base.tasks,
                 candidates=base.candidates,
                 control_flow=base.control_flow,
@@ -346,7 +358,7 @@ async def generate_corpus(
                 seed=seed_val,
                 use_legacy_engine=base.use_legacy_engine,
             )
-            compiled = compile_instance(pkg)
+            compiled = await _compile(pkg)
         except IncompatibleTargetEnginesError as exc:
             raise api_error(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -357,18 +369,18 @@ async def generate_corpus(
         except (ValueError, OverflowError) as exc:
             raise api_error(status_code=422, code="invalid_generation_config",
                             message=f"base_config.features/distributions: {exc}; adjust bounds or aggregation") from exc
-        packages.append(pkg)
+        archives.append(compiled.archive)
 
         snap_id: Optional[str] = None
         if request.persist:
-            snap_id = await persist_snapshot(pkg, compiled, caller, session)
+            snap_id = await persist_snapshot(compiled, caller, session)
             if snap_id:
                 snapshot_ids.append(snap_id)
 
         instances.append({
             "name": inst_name,
-            "package_digest": pkg.package_digest,
-            "compilation_digest": compiled.digest,
+            "package_digest": compiled.package_digest,
+            "compilation_digest": compiled.ir_digest,
             "snapshot_id": snap_id,
             "actual_constraint_count": len(pkg.json("constraints.json")["spec"]["constraints"]),
         })
@@ -390,7 +402,6 @@ async def generate_corpus(
         session.add(collection)
         await session.flush()
 
-        from ..v1.crypto import digest
         col_digest = digest({"snapshots": snapshot_ids})
         col_rev = CollectionRevision(
             collection_id=collection.id,
@@ -427,8 +438,8 @@ async def generate_corpus(
     if request.as_archive:
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-            for idx, p in enumerate(packages):
-                zf.writestr(f"{instances[idx]['name']}.bim.zip", p.to_zip())
+            for idx, archive in enumerate(archives):
+                zf.writestr(f"{instances[idx]['name']}.bim.zip", archive)
         return Response(
             content=zip_buffer.getvalue(),
             media_type="application/zip",
@@ -460,8 +471,8 @@ async def convert_legacy(
         tension=request.tension,
         repair_empty_branches=request.repair_empty_branches,
     )
-    package = postprocessor.process(problem)
-    compiled = compile_instance(package)
+    package = await asyncio.to_thread(postprocessor.process, problem)
+    compiled = await _compile(package)
 
     snapshot_id: Optional[str] = None
     case_id: Optional[str] = None
@@ -469,7 +480,7 @@ async def convert_legacy(
     if request.persist:
         if caller is None:
             raise HTTPException(status_code=401, detail="Authentication required to persist instances")
-        snapshot_id = await persist_snapshot(package, compiled, caller, session)
+        snapshot_id = await persist_snapshot(compiled, caller, session)
 
         if request.project_id is not None:
             await _verify_project_member(session, request.project_id, caller)
@@ -478,7 +489,7 @@ async def convert_legacy(
                 project_id=request.project_id,
                 slug=case_slug,
                 name=request.case_name or request.name,
-                description=f"Converted QACO instance {package.package_digest[:12]}",
+                description=f"Converted QACO instance {compiled.package_digest[:12]}",
                 created_by_id=caller.id,
             )
             session.add(case_obj)
@@ -486,7 +497,7 @@ async def convert_legacy(
             case_rev = BindingCaseRevision(
                 binding_case_id=case_obj.id,
                 revision=1,
-                digest=package.package_digest,
+                digest=compiled.package_digest,
                 document=package.instance(),
                 source_snapshot_id=uuid.UUID(snapshot_id),
                 created_by_id=caller.id,
@@ -503,9 +514,9 @@ async def convert_legacy(
 
     return InstanceGeneratedResponse(
         name=request.name,
-        package_digest=package.package_digest,
+        package_digest=compiled.package_digest,
         instance_digest=package.instance()["metadata"].get("name", request.name),
-        compilation_digest=compiled.digest,
+        compilation_digest=compiled.ir_digest,
         snapshot_id=snapshot_id,
         case_id=case_id,
         target_engines=[],

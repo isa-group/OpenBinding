@@ -1,17 +1,26 @@
-"""Compile an Instance package and persist it as an immutable snapshot."""
+"""Compile an Instance package and persist it as an immutable snapshot.
+
+The compilation itself is the toolchain's (``integrations.bim``). What the platform keeps of one is a
+``Compilation``: the package bytes, the IR as the plain document the toolchain returned, and the
+identities and analysis that came with it. No language object crosses this module.
+"""
 
 from __future__ import annotations
 
-import json
+import math
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Mapping
+from dataclasses import dataclass, field
+from functools import cached_property
+from typing import Any, Mapping, NamedTuple
 
+from bim_core import CompileError
+from bim_core.canonical import digest, digest_bytes
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..core.jsonio import strict_json_loads
 from ..db.models import (
     BindingIRSnapshot,
     InstanceResource,
@@ -19,49 +28,184 @@ from ..db.models import (
     RegisteredResourceRevision,
     User,
 )
-from ..v1.canonical import digest, digest_bytes
-from ..v1.compiler import (
-    BindingProblem,
-    CompileError,
-    RegisteredResource,
-    compile_instance,
-    _dialect_descriptor,
-    _profile_descriptor,
-    _dialect_type_matches,
-    installed_dialect_manifests,
-    installed_profile_manifests,
-    instance_digest,
-    manifest_id,
-)
-from ..v1.package import InstancePackage, PackageError, load_package, strict_json_loads
+from ..integrations import bim, packages
+from ..integrations.bim_host import dialect_type_matches
+
+
+class RegisteredResource(NamedTuple):
+    """The exact bytes of an approved registry resource that an Instance pins."""
+
+    content: bytes
+    media_type: str
+    version_manifest: dict[str, Any] | None = None
+
+
+RegisteredKey = tuple[str, str, str, str]
 
 #: Registered resources uploaded to this process (no database), keyed by
 #: (namespace, name, version, digest).  ``routes.v1`` shares this very dict.
-CUSTOM_RESOURCES: dict[tuple[str, str, str, str], RegisteredResource] = {}
+CUSTOM_RESOURCES: dict[RegisteredKey, RegisteredResource] = {}
 
 
-def instance_identity(package: InstancePackage) -> str:
-    """Identity of the strict root index plus every package resource."""
-    portable = load_package(package.to_zip())
-    return instance_digest(portable.instance(), portable.resource_digests)
+def ir_analysis(ir: Mapping[str, Any]) -> dict[str, Any]:
+    """The size of the binding space of a stored IR, in the shape of ``CompileResult.analysis``.
+
+    A fresh compilation brings its own analysis; this is for a snapshot read back from the
+    database, where only the IR document is kept. It reads the eligibility matrix of the IR
+    (a published interchange format) and nothing else; ``tests/test_bim_port_integration.py``
+    checks it against the toolchain's.
+    """
+    spec = ir.get("spec", {}) if isinstance(ir, Mapping) else {}
+    tasks = spec.get("application", {}).get("tasks", {})
+    eligibility = spec.get("eligibility", {})
+    breakdown = (
+        {
+            task_id: len(eligibility.get(task_id, []))
+            for task_id, task in sorted(tasks.items())
+            if isinstance(task, dict) and task.get("kind") == "service"
+        }
+        if isinstance(tasks, dict) and isinstance(eligibility, dict)
+        else {}
+    )
+    cardinality = 1
+    for count in breakdown.values():
+        cardinality *= count
+    log10 = 0.0 if not breakdown or 0 in breakdown.values() else float(sum(math.log10(c) for c in breakdown.values()))
+    catalogs = spec.get("candidates", {})
+    candidates = sum(
+        len(catalog.get("candidates", {}))
+        for catalog in catalogs.values()
+        if isinstance(catalog, dict) and isinstance(catalog.get("candidates"), dict)
+    ) if isinstance(catalogs, dict) else 0
+    return {
+        "bindingSpaceLog10": log10,
+        "bindingSpaceCardinality": str(cardinality),
+        "bindingSpaceBreakdown": breakdown,
+        "serviceTasks": len(breakdown),
+        "candidates": candidates,
+    }
 
 
-def compile_package(
-    package: InstancePackage,
-    registered_resources: Mapping[tuple[str, str, str, str], RegisteredResource] | None = None,
-) -> BindingProblem:
+def package_file_digests(instance: Mapping[str, Any] | None, ir: Mapping[str, Any]) -> dict[str, str]:
+    """Digest of every file of a package: ``instance.json`` and each resource stored at a path.
+
+    The toolchain refuses an entry the Instance does not declare, so these are all the files.
+    """
+    resources = ir.get("spec", {}).get("instance", {}).get("resources", {})
+    digests = {
+        item["path"]: item["digest"]
+        for item in (resources.values() if isinstance(resources, dict) else ())
+        if isinstance(item, dict) and isinstance(item.get("path"), str) and isinstance(item.get("digest"), str)
+    }
+    if instance is not None:
+        digests["instance.json"] = digest(instance)
+    return dict(sorted(digests.items()))
+
+
+@dataclass(frozen=True)
+class Compilation:
+    """One compilation, as the platform keeps it: the package and what the toolchain said about it."""
+
+    archive: bytes
+    ir: dict[str, Any]
+    ir_digest: str
+    instance_digest: str | None
+    package_digest: str
+    compilation_digest: str
+    source_map: dict[str, Any]
+    analysis: dict[str, Any]
+    toolchain: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_result(cls, archive: bytes, result: Mapping[str, Any]) -> "Compilation":
+        ir = result["ir"]
+        return cls(
+            archive=archive,
+            ir=ir,
+            ir_digest=result["irDigest"],
+            instance_digest=result.get("instanceDigest"),
+            package_digest=result["packageDigest"],
+            compilation_digest=result["compilationDigest"],
+            source_map=result.get("sourceMap") or {},
+            analysis=result.get("analysis") or ir_analysis(ir),
+            toolchain=dict(result.get("toolchain") or {}),
+        )
+
+    @property
+    def spec(self) -> dict[str, Any]:
+        return self.ir["spec"]
+
+    @property
+    def binding_space_log10(self) -> float:
+        return float(self.analysis["bindingSpaceLog10"])
+
+    @property
+    def binding_space_cardinality(self) -> int:
+        return int(self.analysis["bindingSpaceCardinality"])
+
+    @cached_property
+    def instance(self) -> dict[str, Any]:
+        """The root index (``instance.json``) of the package."""
+        document = packages.instance_document(self.archive)
+        if document is None:
+            raise RuntimeError("compiled package has no readable instance.json")
+        return document
+
+    @cached_property
+    def file_digests(self) -> dict[str, str]:
+        return package_file_digests(self.instance, self.ir)
+
+    @cached_property
+    def resource_digests(self) -> dict[str, str]:
+        return source_resource_digests(self)
+
+
+def registered_specs(resources: Mapping[RegisteredKey, RegisteredResource]) -> list[dict[str, Any]]:
+    """The registered resources in the shape the port takes."""
+    return [
+        {
+            "namespace": key[0],
+            "name": key[1],
+            "version": key[2],
+            "digest": key[3],
+            "mediaType": resource.media_type,
+            "content": resource.content,
+            **({"versionManifest": resource.version_manifest} if resource.version_manifest else {}),
+        }
+        for key, resource in resources.items()
+    ]
+
+
+async def compile_package(
+    archive: bytes,
+    registered_resources: Mapping[RegisteredKey, RegisteredResource] | None = None,
+) -> Compilation:
+    """Compile ``archive`` with the toolchain; a refused source is ``422 invalid_instance``."""
     try:
-        return compile_instance(package, registered_resources)
+        result = await bim.abim().compile(archive, registered_specs(registered_resources or {}))
     except CompileError as exc:
-        raise HTTPException(status_code=422, detail={"code": "invalid_instance", "diagnostics": [item.as_dict() for item in exc.diagnostics]}) from exc
+        raise bim.http_exception_for(exc) from exc
+    return Compilation.from_result(archive, result)
 
 
-def registered_keys(package: InstancePackage) -> set[tuple[str, str, str, str]]:
-    instance = package.instance()
-    resources = instance.get("spec", {}).get("resources", {})
+async def archive_matches_digest(archive: bytes, package_digest: str | None) -> bool:
+    """Whether ``archive`` is the package whose ``packageDigest`` is ``package_digest``.
+
+    An archive in the toolchain's canonical form is its own digest. Any other archive of the same
+    package is judged by the toolchain, which reads it and reports the digest of its canonical form
+    (``PackageError`` if it cannot be read).
+    """
+    if digest_bytes(archive) == package_digest:
+        return True
+    return (await bim.abim().validate(archive))["packageDigest"] == package_digest
+
+
+def registered_keys(instance: Mapping[str, Any] | None) -> set[RegisteredKey]:
+    """The registry resources an Instance pins by ``namespace/name/version/digest``."""
+    resources = instance.get("spec", {}).get("resources", {}) if isinstance(instance, Mapping) else {}
     if not isinstance(resources, dict):
         return set()
-    keys: set[tuple[str, str, str, str]] = set()
+    keys: set[RegisteredKey] = set()
     for group in resources.values():
         if not isinstance(group, dict):
             continue
@@ -75,22 +219,24 @@ def registered_keys(package: InstancePackage) -> set[tuple[str, str, str, str]]:
 
 
 async def installed_registered_resources(
-    package: InstancePackage,
+    archive: bytes,
     session: AsyncSession | None,
     caller: User | None = None,
-) -> dict[tuple[str, str, str, str], RegisteredResource]:
-    library_resources = {}
+) -> dict[RegisteredKey, RegisteredResource]:
+    instance = packages.instance_document(archive)
+    library_resources: dict[RegisteredKey, RegisteredResource] = {}
     if session is not None:
         from ..artifacts import resolve_version, version_content
         from ..models.artifacts import ArtifactRef
-        for group in package.instance().get("spec", {}).get("resources", {}).values():
+        resources = instance.get("spec", {}).get("resources", {}) if instance is not None else {}
+        for group in resources.values() if isinstance(resources, dict) else ():
             for target in group.values() if isinstance(group, dict) else []:
                 if isinstance(target, dict) and "versionDigest" in target:
                     _, version = await resolve_version(session, ArtifactRef.model_validate(target), caller)
                     content, media_type = await version_content(session, version)
                     key = tuple(target[field] for field in ("namespace", "name", "version", "versionDigest"))
                     library_resources[key] = RegisteredResource(content, media_type, version.manifest)
-    keys = registered_keys(package)
+    keys = registered_keys(instance)
     resolved = {**library_resources, **{key: value for key, value in CUSTOM_RESOURCES.items() if key in keys}}
     if not keys or session is None:
         return resolved
@@ -111,28 +257,16 @@ async def installed_registered_resources(
 
 
 async def compile_resolved(
-    package: InstancePackage,
+    archive: bytes,
     session: AsyncSession | None,
     caller: User | None = None,
-) -> BindingProblem:
-    return compile_package(package, await installed_registered_resources(package, session, caller))
+) -> Compilation:
+    return await compile_package(archive, await installed_registered_resources(archive, session, caller))
 
 
-def snapshot_payload(package: InstancePackage, problem: BindingProblem) -> dict[str, Any]:
-    portable = load_package(package.to_zip())
-    return {
-        "package": portable,
-        "problem": problem,
-        "digest": instance_identity(portable),
-        "packageDigest": portable.package_digest,
-        "fileDigests": portable.resource_digests,
-        "resourceDigests": source_resource_digests(problem),
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-    }
-
-
-def source_resource_digests(problem: BindingProblem) -> dict[str, str]:
-    resources = problem.document.get("spec", {}).get("instance", {}).get("resources", {})
+def source_resource_digests(compilation: Compilation | Mapping[str, Any]) -> dict[str, str]:
+    ir = compilation.ir if isinstance(compilation, Compilation) else compilation
+    resources = ir.get("spec", {}).get("instance", {}).get("resources", {})
     return {
         resource_id: descriptor["digest"]
         for resource_id, descriptor in sorted(resources.items())
@@ -141,7 +275,7 @@ def source_resource_digests(problem: BindingProblem) -> dict[str, str]:
 
 
 def snapshot_resource_contract(
-    problem: BindingProblem,
+    ir: Mapping[str, Any],
     descriptor: Mapping[str, Any],
     role: str,
     media_type: str,
@@ -158,16 +292,15 @@ def snapshot_resource_contract(
 
     pinned_dialects = {
         item.get("id"): item
-        for item in problem.document.get("spec", {}).get("dialects", [])
+        for item in ir.get("spec", {}).get("dialects", [])
         if isinstance(item, Mapping) and isinstance(item.get("id"), str)
     }
     matches = [
-        manifest_id(dialect)
-        for dialect, resource_type in _dialect_type_matches(
-            installed_dialect_manifests(), api_version, kind, media_type
-        )
+        entry["descriptor"]["id"]
+        for entry in bim.dialect_entries()
+        for _, resource_type in dialect_type_matches([entry["manifest"]], api_version, kind, media_type)
         if role in resource_type.get("roles", [])
-        and pinned_dialects.get(manifest_id(dialect)) == _dialect_descriptor(dialect)
+        and pinned_dialects.get(entry["descriptor"]["id"]) == entry["descriptor"]
     ]
     if len(matches) != 1:
         raise RuntimeError(
@@ -177,24 +310,18 @@ def snapshot_resource_contract(
 
 
 async def persist_snapshot(
-    package: InstancePackage,
-    problem: BindingProblem,
+    compilation: Compilation,
     caller: User | None,
     session: AsyncSession | None,
 ) -> str | None:
     """Persist a source snapshot and its canonical IR when accounts are enabled."""
     if session is None:
         return None
-    archive = package.to_zip()
-    portable = load_package(archive)
-    instance = portable.instance()
-    instance_hash = instance_identity(package)
-    package_hash = digest_bytes(archive)
-    from ..v1.compiler import compiler_bundle_digest
-    compilation_hash = digest({"packageDigest": package_hash,
-        "profile": problem.document.get("spec", {}).get("profile"),
-        "dialects": problem.document.get("spec", {}).get("dialects", []),
-        "compilerDigest": compiler_bundle_digest()})
+    archive = compilation.archive
+    instance = compilation.instance
+    instance_hash = compilation.instance_digest
+    package_hash = compilation.package_digest
+    compilation_hash = compilation.compilation_digest
     owner_id = caller.id if caller else None
     query = select(InstanceSnapshot).where(
         InstanceSnapshot.package_digest == package_hash,
@@ -210,8 +337,8 @@ async def persist_snapshot(
         name=instance.get("metadata", {}).get("name", "instance"),
         instance_digest=instance_hash,
         package_digest=package_hash,
-        root_document=portable.json("instance.json"),
-        resource_digests=source_resource_digests(problem),
+        root_document=instance,
+        resource_digests=source_resource_digests(compilation),
         source_archive=archive,
         compilation_digest=compilation_hash,
     )
@@ -226,9 +353,10 @@ async def persist_snapshot(
         raise
 
 
+    files = packages.read_files(archive)
     resources = instance.get("spec", {}).get("resources", {})
-    manifest = problem.document.get("spec", {}).get("instance", {}).get("resources", {})
-    installed_registered = await installed_registered_resources(portable, session, caller)
+    manifest = compilation.spec.get("instance", {}).get("resources", {})
+    installed_registered = await installed_registered_resources(archive, session, caller)
     for role, group in resources.items() if isinstance(resources, dict) else []:
         if not isinstance(group, dict):
             continue
@@ -237,19 +365,21 @@ async def persist_snapshot(
             registered = target if isinstance(target, dict) else None
             descriptor = manifest.get(resource_id, {}) if isinstance(manifest, dict) else {}
             if isinstance(path, str):
-                content = portable.bytes(path)
+                content = files[path]
                 document = None
                 if path.lower().endswith(".json"):
                     try:
-                        document = portable.json(path)
-                    except PackageError:
+                        document = strict_json_loads(content)
+                    except ValueError:
+                        document = None
+                    if not isinstance(document, dict):
                         document = None
                 media_type = (
                     "application/json"
                     if path.lower().endswith(".json")
                     else "application/xml" if path.lower().endswith(".xml") else "application/vnd.omg.bpmn+xml"
                 )
-                resource_digest = portable.digest(path)
+                resource_digest = descriptor["digest"]
             elif registered is not None:
                 key = tuple(
                     registered.get(field, "")
@@ -268,7 +398,7 @@ async def persist_snapshot(
             else:
                 continue
             api_version, kind, dialect_id = snapshot_resource_contract(
-                problem, descriptor, role, media_type
+                compilation.ir, descriptor, role, media_type
             )
             session.add(
                 InstanceResource(
@@ -292,9 +422,9 @@ async def persist_snapshot(
     session.add(
         BindingIRSnapshot(
             snapshot_id=snapshot.id,
-            ir_digest=problem.digest,
-            document=problem.document,
-            source_map=problem.source_map,
+            ir_digest=compilation.ir_digest,
+            document=compilation.ir,
+            source_map=compilation.source_map,
             compiler_version="bim-compiler/v1",
         )
     )
@@ -302,27 +432,29 @@ async def persist_snapshot(
     return str(snapshot.id)
 
 
-async def snapshot_problem(snapshot: InstanceSnapshot, session: AsyncSession) -> BindingProblem:
-    """A snapshot is already compiled. Never reinterpret it using current sources."""
+async def snapshot_ir(snapshot: InstanceSnapshot, session: AsyncSession) -> Compilation:
+    """A snapshot is already compiled. Never reinterpret it using current sources.
+
+    The IR comes back exactly as stored. Its integrity is not re-derived here: every operation of
+    the toolchain that receives an IR recomputes its digest and requires the Profile and Dialects it
+    pins to be installed (``ir_digest_mismatch``, ``contract_not_installed``, ...), so a stored IR that
+    was altered, or compiled by another toolchain, is refused by the first thing done with it.
+    """
     ir = await session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))
     if ir is None:
         raise HTTPException(409, detail={"code": "snapshot_ir_missing", "message": "Snapshot IR is unavailable"})
     if ir.document.get('apiVersion') != 'bim/v1' or ir.document.get('kind') != 'BindingProblem':
         raise HTTPException(422, detail={"code": "execution_capability_unavailable", "message": "This output has no installed execution evaluator"})
-    semantic = json.loads(json.dumps(ir.document))
-    semantic.pop('metadata', None)
-    for key in ('instance', 'dialects', 'sourceMap'):
-        semantic.get('spec', {}).pop(key, None)
-    if digest(semantic) != ir.ir_digest:
-        raise HTTPException(409, detail={"code": "snapshot_ir_integrity", "message": "Stored IR does not match its semantic digest"})
-    spec = ir.document.get("spec", {})
-    profile = spec.get("profile", {})
-    if profile not in [_profile_descriptor(item) for item in installed_profile_manifests()]:
-        raise HTTPException(409, detail={"code": "contract_not_installed", "message": "The exact snapshot Profile is not installed"})
-    available = [_dialect_descriptor(item) for item in installed_dialect_manifests()]
-    if any(item not in available for item in spec.get("dialects", [])):
-        raise HTTPException(409, detail={"code": "contract_not_installed", "message": "An exact snapshot Dialect is not installed"})
-    return BindingProblem(document=ir.document, digest=ir.ir_digest, source_map=ir.source_map)
+    return Compilation(
+        archive=snapshot.source_archive,
+        ir=ir.document,
+        ir_digest=ir.ir_digest,
+        instance_digest=snapshot.instance_digest,
+        package_digest=snapshot.package_digest,
+        compilation_digest=snapshot.compilation_digest,
+        source_map=ir.source_map or {},
+        analysis=ir_analysis(ir.document),
+    )
 
 
 async def owned_snapshot(snapshot_id: str, caller: User | None, session: AsyncSession | None):

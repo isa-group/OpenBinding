@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openbinding_gateway.v1 import compile_instance
-from openbinding_gateway.v1.package import load_package
+from bim_core import compile_instance, load_package
 
 from experimentation.icws.generator import scale_package
 from experimentation.icws.run_experiments import (

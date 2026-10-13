@@ -73,7 +73,7 @@ from openbinding_gateway.db.platform_models import (
 from openbinding_gateway.space_client import OpenGate
 from openbinding_gateway.security.apikeys import ADMIN_PERMISSIONS, ALL_PERMISSIONS, hash_key
 from openbinding_gateway.security.passwords import hash_password, password_complaint, verify_password
-from openbinding_gateway.v1.package import load_package
+from bim_core.package import load_package
 
 logger = logging.getLogger("seed_lab")
 
@@ -223,7 +223,7 @@ async def ensure_library_composition(session: AsyncSession, project: Project, us
     """
     from openbinding_gateway.artifacts import materialize_case, reference, seal_draft, validate_content
     from openbinding_gateway.models.artifacts import ArtifactUse, DraftContent
-    from openbinding_gateway.v1.canonical import digest_bytes
+    from bim_core.canonical import digest_bytes
 
     organization = await session.get(Organization, project.organization_id)
     uses = []

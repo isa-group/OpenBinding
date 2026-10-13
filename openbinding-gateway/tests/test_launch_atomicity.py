@@ -204,7 +204,7 @@ async def test_a_failure_between_the_limit_check_and_the_commit_leaves_no_job(
     patches = {
         "commit": (AsyncSession, "commit", commit),
         "job_flush": (AsyncSession, "flush", flush),
-        "persist_snapshot": (v1, "_persist_snapshot", persist),
+        "persist_snapshot": (v1, "persist_snapshot", persist),
     }
     target, name, replacement = patches[failing]
     request = study_jobs._job_request(_body(snapshot))

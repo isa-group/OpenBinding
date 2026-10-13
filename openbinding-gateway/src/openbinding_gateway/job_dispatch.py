@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from . import space_client
 from .core.settings import get_settings
 from .db import base as db_base
+from .integrations import bim
 from .jobs import publisher
 
 _configured_url: Optional[str] = None
@@ -32,6 +33,8 @@ async def start_worker_runtime() -> None:
     settings = get_settings()
     if not settings.database_url:
         raise RuntimeError("Dramatiq workers require DATABASE_URL; queued jobs cannot run in memory.")
+    # The worker reevaluates every answer through the BIM port: refuse to boot without a usable toolchain.
+    await bim.startup_check()
     db_base.init_engine(settings.database_url)
 
     space_client.set_gate(space_client.build_gate(settings))
@@ -60,6 +63,7 @@ async def stop_worker_runtime() -> None:
         await gate.aclose()
     space_client.set_gate(None)
     await db_base.dispose_engine()
+    bim.close_bim()
     _runtime_started = False
 
 

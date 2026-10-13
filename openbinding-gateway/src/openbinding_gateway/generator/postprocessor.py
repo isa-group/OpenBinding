@@ -7,10 +7,9 @@ import math
 from decimal import Decimal
 from typing import Any
 
-from ..v1.package import InstancePackage
-from ..v1.compiler import compile_instance
 from .compatibility import TargetCapabilities
 from .legacy_parser import LegacyProblem, StructureNode
+from .package import GeneratedPackage, compile_generated, evaluate_features
 
 
 def normalize_probabilities(probs: list[float], precision: int = 4) -> list[float]:
@@ -44,7 +43,7 @@ def _clean_id(raw: str) -> str:
 
 
 class BIMPostprocessor:
-    """Transforms a parsed or synthesized LegacyProblem into a valid BIM v1 InstancePackage."""
+    """Transforms a parsed or synthesized LegacyProblem into a valid BIM v1 package."""
 
     def __init__(
         self,
@@ -179,8 +178,8 @@ class BIMPostprocessor:
 
         return {"empty": True}
 
-    def process(self, problem: LegacyProblem) -> InstancePackage:
-        """Convert LegacyProblem to a complete BIM v1 InstancePackage."""
+    def process(self, problem: LegacyProblem) -> GeneratedPackage:
+        """Convert LegacyProblem to a complete BIM v1 package."""
         self.branch_counter = 0
         self.routing_entries.clear()
 
@@ -615,7 +614,7 @@ class BIMPostprocessor:
             "optimization.json": json.dumps(optimization_doc, indent=2).encode("utf-8"),
         }
 
-        package = InstancePackage(files)
+        package = GeneratedPackage(files)
         if self.feature_definitions is not None:
             package = self._finish_custom(package, problem)
         if self.dialects == ["bpmn-workflow/v1"]:
@@ -623,33 +622,39 @@ class BIMPostprocessor:
             package = workflow_as_bpmn(package, self.name)
         # Validate that compiler can lower it without errors
         if self.validate_compile:
-            compile_instance(package)
+            compile_generated(package)
         return package
 
-    def _finish_custom(self, package: InstancePackage, problem: LegacyProblem) -> InstancePackage:
+    def _finish_custom(self, package: GeneratedPackage, problem: LegacyProblem) -> GeneratedPackage:
         """Use compiled BIM evaluation for aggregate bounds, constraints and objective normalization."""
-        compiled = compile_instance(package)
-        eligibility = compiled.document["spec"]["eligibility"]
+        compiled = compile_generated(package)
+        eligibility = compiled["ir"]["spec"]["eligibility"]
         candidate_values = package.json("candidates.json")["spec"]["candidates"]
         minima: dict[str, float] = {}
         maxima: dict[str, float] = {}
-        witness = compiled.evaluate_binding({task_id: options[0] for task_id, options in eligibility.items()})
         needed = {item["id"] for item in self.feature_definitions or [] if item["objective"]}
         needed.update(constraint.property_name for constraint in problem.constraints)
+        # One request for every binding the bounds need: the witness first, then the cheapest and the
+        # dearest choice per needed feature.
+        requests: list[dict[str, Any]] = [{task_id: options[0] for task_id, options in eligibility.items()}]
+        measured: list[str] = []
         for feature in self.feature_definitions or []:
             feature_id = feature["id"]
             if feature_id not in needed:
                 continue
-            bindings = []
+            measured.append(feature_id)
             for choose_max in (False, True):
                 binding = {}
                 for task_id, options in eligibility.items():
                     selected = min(options, key=lambda ref: candidate_values[ref["id"]]["features"][feature_id]
                                    * (-1 if choose_max else 1))
                     binding[task_id] = selected
-                bindings.append(binding)
-            minima[feature_id] = compiled.evaluate_binding(bindings[0])[feature_id]
-            maxima[feature_id] = compiled.evaluate_binding(bindings[1])[feature_id]
+                requests.append(binding)
+        values = evaluate_features(compiled["ir"], requests)
+        witness = values[0]
+        for position, feature_id in enumerate(measured):
+            minima[feature_id] = values[1 + 2 * position][feature_id]
+            maxima[feature_id] = values[2 + 2 * position][feature_id]
 
         constraints_doc = package.json("constraints.json")
         for index, constraint in enumerate(problem.constraints, 1):
@@ -672,4 +677,4 @@ class BIMPostprocessor:
         files = dict(package.files)
         files["constraints.json"] = json.dumps(constraints_doc, indent=2).encode("utf-8")
         files["optimization.json"] = json.dumps(optimization_doc, indent=2).encode("utf-8")
-        return InstancePackage(files)
+        return GeneratedPackage(files)

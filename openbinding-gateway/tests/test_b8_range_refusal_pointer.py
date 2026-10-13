@@ -9,9 +9,10 @@ from dataclasses import replace
 import pytest
 
 from _repo import REPO_ROOT
-from openbinding_gateway.routes import v1 as routes
-from openbinding_gateway.v1.compiler import compile_instance
-from openbinding_gateway.v1.package import load_package
+from openbinding_gateway.services.engines import MANIFEST_DIR
+from bim_core import mode_compatibility
+from bim_core.compiler import compile_instance
+from bim_core.package import load_package
 
 DEMO = REPO_ROOT / "examples/demo/01_simple_seq"
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
@@ -34,7 +35,7 @@ def package_with(latency):
 
 
 def scalar_mode():
-    manifests = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(routes._MANIFEST_DIR.glob("*.json"))]
+    manifests = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(MANIFEST_DIR.glob("*.json"))]
     return next(
         mode
         for manifest in manifests
@@ -46,7 +47,7 @@ def scalar_mode():
 def range_refusals(problem):
     return [
         item
-        for item in routes._mode_compatibility(problem, scalar_mode())
+        for item in mode_compatibility(problem, scalar_mode())
         if item["code"] == "unsupported_capability_value" and item["category"] == "featureValues"
     ]
 

@@ -1,6 +1,7 @@
 import httpx
 import pytest
 
+from openbinding_gateway.services.engines import validate_engine_result
 from openbinding_gateway.v1 import remote
 
 
@@ -258,15 +259,48 @@ def test_basic_credentials_are_encoded_and_mtls_is_not_silently_ignored() -> Non
         remote._headers(remote.RemoteRegistration("https://engine.example", {}, "mtls", "bundle"))
 
 
-def test_remote_result_must_satisfy_the_complete_binding_result_contract() -> None:
+@pytest.mark.asyncio
+async def test_remote_result_must_satisfy_the_complete_binding_result_contract(monkeypatch) -> None:
+    # The transport only carries the answer; the shape is judged by the toolchain, through the hook.
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    registration = remote.RemoteRegistration("https://engine.example", {})
+    incomplete = {"termination": "FEASIBLE", "solutions": [{"decision": {"kind": "binding", "binding": {}}}]}
+
     with pytest.raises(remote.RemoteEngineError, match="canonical binding decision"):
-        remote._validate_result(
-            {
-                "termination": "FEASIBLE",
-                "solutions": [{"decision": {"kind": "binding", "binding": {}}}],
-            }
+        await remote.solve_remote(
+            registration, {}, {}, OPTIMIZATION,
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, json=incomplete)),
+            validate_result=validate_engine_result,
         )
-    assert remote._validate_result(_result())["termination"] == "FEASIBLE"
+    accepted = await remote.solve_remote(
+        registration, {}, {}, OPTIMIZATION,
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=_result())),
+        validate_result=validate_engine_result,
+    )
+    assert accepted["termination"] == "FEASIBLE"
+    unjudged = await remote.solve_remote(
+        registration, {}, {}, OPTIMIZATION,
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=incomplete)),
+    )
+    assert unjudged == incomplete
+
+
+@pytest.mark.asyncio
+async def test_the_result_of_a_polled_job_is_judged_too(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    incomplete = {"termination": "FEASIBLE", "solutions": [{"decision": {"kind": "binding", "binding": {}}}]}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(202, json={"id": "job-1", "status": "queued"})
+        return httpx.Response(200, json={"id": "job-1", "status": "completed", "created_at": 1, "result": incomplete})
+
+    with pytest.raises(remote.RemoteEngineError, match="canonical binding decision"):
+        await remote.solve_remote(
+            remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}), {}, {}, OPTIMIZATION,
+            transport=httpx.MockTransport(handler),
+            validate_result=validate_engine_result,
+        )
 
 
 # -- Idempotency hints, the remote id and cancellation -----------------------

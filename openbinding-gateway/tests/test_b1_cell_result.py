@@ -15,7 +15,8 @@ from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job, JobState, StudyCell
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import execution
-from openbinding_gateway.v1.package import load_package
+from openbinding_gateway.services.engines import engine_ref
+from bim_core.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
@@ -46,7 +47,7 @@ async def build_world(api_client, db_session, registration, gate, monkeypatch, *
     )
     assert snapshot.status_code == 201, snapshot.text
     exact_engine = {
-        **routes._engine_ref(routes._manifest("random-search"), "bim.builtin"),
+        **engine_ref(routes._manifest("random-search"), "bim.builtin"),
         "mode": "seeded",
         "optimization": dict(OPTIMIZATION),
     }

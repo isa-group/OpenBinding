@@ -9,7 +9,9 @@ from _repo import REPO_ROOT
 
 from openbinding_gateway.db.models import EngineRegistrationRevision, EngineRevision, User, UserRole
 from openbinding_gateway.routes import v1 as routes
-from openbinding_gateway.v1.canonical import digest
+from openbinding_gateway.services import engines
+from openbinding_gateway.services.probe import probe_ir
+from bim_core.canonical import digest
 
 
 EXAMPLE = REPO_ROOT / "examples/federation/multi-heuristic"
@@ -23,23 +25,24 @@ def documents() -> tuple[dict, dict, dict]:
     )
 
 
-def test_federated_example_pins_valid_immutable_contracts() -> None:
+@pytest.mark.asyncio
+async def test_federated_example_pins_valid_immutable_contracts() -> None:
     engine, registration, deployment_openapi = documents()
 
     assert engine["metadata"]["namespace"] == "admin"
     assert registration["metadata"]["namespace"] == "admin"
     assert registration["spec"]["engine"]["namespace"] == "admin"
-    assert routes._schema_diagnostics(engine, "Engine") == []
-    assert routes._engine_contract_diagnostics(engine) == []
-    assert routes._schema_diagnostics(registration, "EngineRegistration") == []
+    assert engines.schema_diagnostics(engine, "Engine") == []
+    assert engines.engine_contract_diagnostics(engine) == []
+    assert engines.schema_diagnostics(registration, "EngineRegistration") == []
     assert registration["spec"]["engine"]["digest"] == digest(engine)
-    assert registration["spec"]["protocol"]["digest"] == routes._protocol_digest()
-    assert deployment_openapi["x-bim-protocol-digest"] == routes._protocol_digest()
+    assert registration["spec"]["protocol"]["digest"] == engines.protocol_digest()
+    assert deployment_openapi["x-bim-protocol-digest"] == engines.protocol_digest()
     assert registration["spec"]["openapi"] == deployment_openapi
-    assert routes._installed_builtin_registration(engine, "http://engine-multi-heuristic:8080") is None
+    assert engines.installed_builtin_registration(engine, "http://engine-multi-heuristic:8080") is None
 
     mode = engine["spec"]["modes"][0]
-    problem = routes._conformance_problem(mode)
+    problem = await probe_ir(routes._conformance_shape(mode)[2])
     # The IR only lists criteria; type and scalarization are chosen at execution.
     assert len(problem["spec"]["optimization"]["criteria"]) == 2
     execution = routes._conformance_optimization(mode)
@@ -52,7 +55,7 @@ def test_federated_example_pins_valid_immutable_contracts() -> None:
 
 def test_federated_example_openapi_is_protocol_equivalent() -> None:
     _, _, deployed = documents()
-    canonical = routes._protocol_document()
+    canonical = engines.protocol_document()
     deployed_operation = deployed["paths"]["/internal/v1/binding-problems"]["post"]
     canonical_operation = canonical["paths"]["/internal/v1/binding-problems"]["post"]
     routes._assert_protocol_schema(
@@ -174,7 +177,7 @@ async def test_admin_owns_and_manages_the_federated_example(
         return (
             {
                 "protocol": "bim-engine/v1",
-                "protocolDigest": routes._protocol_digest(),
+                "protocolDigest": engines.protocol_digest(),
                 "status": "verified",
                 "checks": [],
                 "durationMs": 0.0,

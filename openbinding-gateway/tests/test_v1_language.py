@@ -6,9 +6,9 @@ from fastapi.testclient import TestClient
 from _repo import REPO_ROOT
 
 from openbinding_gateway.main import app
-from openbinding_gateway.v1.compiler import CompileError, compile_instance, instance_digest
-from openbinding_gateway.v1.expressions import ExpressionError, compile_expression
-from openbinding_gateway.v1.package import InstancePackage, PackageError, load_package
+from bim_core.compiler import CompileError, compile_instance, instance_digest
+from bim_core.expressions import ExpressionError, compile_expression
+from bim_core.package import InstancePackage, PackageError, load_package
 
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"

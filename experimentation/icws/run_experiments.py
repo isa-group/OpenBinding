@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
-from openbinding_gateway.v1.package import InstancePackage, load_package
+from bim_core import InstancePackage, load_package
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_INSTANCES_DIR = ROOT_DIR / "icws" / "instances"

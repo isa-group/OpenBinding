@@ -10,9 +10,9 @@ from sqlalchemy import select
 
 from _repo import REPO_ROOT
 from openbinding_gateway.db.models import BindingIRSnapshot, InstanceResource, InstanceSnapshot
-from openbinding_gateway.routes import v1 as routes
-from openbinding_gateway.v1.compiler import compile_instance
-from openbinding_gateway.v1.package import load_package
+from openbinding_gateway.services.snapshots import snapshot_ir
+from bim_core.compiler import compile_instance
+from bim_core.package import load_package
 
 DEMO = REPO_ROOT / "examples/demo/01_simple_seq"
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
@@ -76,10 +76,10 @@ async def test_open_ranges_round_trip_through_the_snapshot_store(api_client, db_
     ir = await db_session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot_id))
     assert stored(ir.document) == latency
 
-    # The restore path recomputes the semantic digest of the stored JSON and refuses a mismatch.
-    restored = await routes._snapshot_problem(snapshot, db_session)
-    assert stored(restored.document) == latency
-    assert restored.digest == compile_instance(package).digest == ir.ir_digest
+    # The restore path hands back the stored IR; the toolchain checks its digest when it is used.
+    restored = await snapshot_ir(snapshot, db_session)
+    assert stored(restored.ir) == latency
+    assert restored.ir_digest == compile_instance(package).digest == ir.ir_digest
 
 
 @pytest.mark.asyncio

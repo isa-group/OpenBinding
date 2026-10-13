@@ -90,9 +90,9 @@ from .. import sponsor_proposals
 from ..access import public_read
 from ..repositories import jobs as job_repository
 from ..access.dependencies import get_current_user, session_dependency
-from ..v1.canonical import digest
+from bim_core.canonical import digest
 from ..artifacts import store_blob, version_content
-from ..v1.canonical import canonical_json, digest_bytes
+from bim_core.canonical import canonical_json, digest_bytes
 import json
 
 router = APIRouter(prefix="/v1/organizations", tags=["Organizations"])

@@ -16,7 +16,8 @@ from openbinding_gateway.db.models import Job, Organization, RunState, StudyCell
 from openbinding_gateway.routes import studies as study_routes
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import execution
-from openbinding_gateway.v1.package import load_package
+from openbinding_gateway.services.engines import engine_ref
+from bim_core.package import load_package
 from _pricing import fake_pricing_gate
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
@@ -81,7 +82,7 @@ async def _study(client, registration, seeds):
         json={"document": package.instance(), "source_snapshot_id": snapshot.json()["id"]},
     )
     assert revision.status_code == 201, revision.text
-    reference = routes._engine_ref(routes._manifest("random-search"), "bim.builtin")
+    reference = engine_ref(routes._manifest("random-search"), "bim.builtin")
     created = await client.post(
         "/v1/organizations/lab/projects/routing/studies",
         headers=headers,

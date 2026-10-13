@@ -10,7 +10,6 @@ import asyncio
 import copy
 import json
 import logging
-import math
 import time
 import uuid
 from email.parser import BytesParser
@@ -51,29 +50,16 @@ from ..jobs import limits as job_limits
 from ..models.problem import VALIDATION_ERROR, problem_response, split_detail
 from ..security.apikeys import allows_engine
 from ..domain import entitlements, idempotency
-from ..v1.canonical import CanonicalizationError, canonical_json, digest, digest_bytes
-from ..v1.compiler import (
-    BindingProblem,
-    RegisteredResource,
-    compile_instance,
-    compiler_bundle_digest,
-    _dialect_type_matches,
-    _dialect_xml_type_matches,
-    _resource_schema_diagnostics,
-    installed_dialect_manifests,
-    installed_profile,
-    installed_profile_manifests,
-    instance_digest,
-    manifest_id,
-)
-from ..v1.package import (
-    MAX_COMPRESSED,
-    MAX_EXPANDED,
-    InstancePackage,
-    PackageError,
-    load_package,
-    resource_digest,
-    strict_json_loads,
+from bim_core import CanonicalizationError, ContractError, PackageError
+from bim_core.canonical import canonical_json, digest, digest_bytes
+from ..core.jsonio import strict_json_loads
+from ..integrations import bim, packages
+from ..integrations.bim_host import (
+    XmlResource,
+    dialect_type_matches,
+    dialect_xml_type_matches,
+    engine_contract_diagnostics,
+    resource_schema_diagnostics,
 )
 from ..v1.remote import (
     RemoteEngineError,
@@ -84,129 +70,55 @@ from ..v1.remote import (
     validate_endpoint,
 )
 from ..services.engines import (
-    BUILTIN_ENGINE_MAPPINGS,
-    BUILTIN_REGISTRATIONS,
-    ENGINE_PROTOCOL_PATH,
     MANIFEST_DIR,
     available_engine_documents,
-    builtin_engine_registration,
-    candidate_count,
     compatible_modes,
     embedded_secret_paths,
-    engine_contract_diagnostics,
-    engine_mode,
     engine_ref,
     installed_builtin_registration,
-    ir_features,
     is_installed_builtin_registration,
-    mode_compatibility,
     mode_execution_contract,
     owned_job,
-    persisted_engine_contract,
-    persisted_mode_contract,
     protocol_digest,
     protocol_document,
     registration_engine_reference,
     registration_for_engine,
     registration_reference,
     registration_summary,
-    registration_transport,
     schema_diagnostics,
-    selector_values,
-    visible_engine_registrations,
+    select_engine,
+    validate_engine_result,
 )
 from ..services.engines import manifest as _manifest
 from ..services.engines import manifest_async
-from ..services.execution import (
-    authoritative_evaluation,
-    binding_violations,
-    candidate_ref,
-    fail_persisted_job,
-    finish_persisted_job,
-    reevaluate_result,
-    run_claimed_job,
-    run_persisted_job,
-)
+from ..services.probe import probe_ir
 from ..services.snapshots import (
     CUSTOM_RESOURCES,
-    compile_package,
+    Compilation,
+    RegisteredResource,
     compile_resolved,
-    installed_registered_resources,
-    instance_identity,
     owned_snapshot,
+    package_file_digests,
     persist_snapshot,
-    registered_keys,
-    snapshot_payload,
-    snapshot_problem,
-    snapshot_resource_contract,
-    source_resource_digests,
+    snapshot_ir,
 )
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["BIM v1"])
 
-_SNAPSHOTS: dict[str, dict[str, Any]] = {}
-_JOBS: dict[str, dict[str, Any]] = {}
-_BUILTIN_REGISTRATIONS = BUILTIN_REGISTRATIONS  # the same dict the engine service reads
-_CUSTOM_RESOURCES = CUSTOM_RESOURCES  # the same dict the snapshot service reads
 _CUSTOM_RESOURCE_RECORDS: dict[tuple[str, str, str, str], dict[str, Any]] = {}
-_MANIFEST_DIR = MANIFEST_DIR
-_ENGINE_PROTOCOL_PATH = ENGINE_PROTOCOL_PATH
 _BIM_ZIP_TYPES = {"application/zip", "application/octet-stream", "application/vnd.bim+zip", "application/x-bim+zip"}
 
-# Compatibility aliases: the snapshot code lives in services.snapshots.
-_compile = compile_package
-_registered_keys = registered_keys
-_installed_registered_resources = installed_registered_resources
-_compile_resolved = compile_resolved
-_snapshot_payload = snapshot_payload
-_source_resource_digests = source_resource_digests
-_snapshot_resource_contract = snapshot_resource_contract
-_persist_snapshot = persist_snapshot
-_snapshot_problem = snapshot_problem
-_owned_snapshot = owned_snapshot
-_instance_identity = instance_identity
 
-# Compatibility aliases: the engine code lives in services.engines.
-_protocol_document = protocol_document
-_protocol_digest = protocol_digest
-_BUILTIN_ENGINE_MAPPINGS = BUILTIN_ENGINE_MAPPINGS
-_builtin_engine_registration = builtin_engine_registration
-_installed_builtin_registration = installed_builtin_registration
-_manifest_async = manifest_async
-_engine_contract_diagnostics = engine_contract_diagnostics
-_embedded_secret_paths = embedded_secret_paths
-_schema_diagnostics = schema_diagnostics
-_engine_mode = engine_mode
-_engine_ref = engine_ref
-_available_engine_documents = available_engine_documents
-_registration_engine_reference = registration_engine_reference
-_visible_engine_registrations = visible_engine_registrations
-_compatible_modes = compatible_modes
-_registration_for_engine = registration_for_engine
-_registration_reference = registration_reference
-_registration_summary = registration_summary
-_is_installed_builtin_registration = is_installed_builtin_registration
-_registration_transport = registration_transport
-_mode_execution_contract = mode_execution_contract
-_persisted_mode_contract = persisted_mode_contract
-_persisted_engine_contract = persisted_engine_contract
-_selector_values = selector_values
-_mode_compatibility = mode_compatibility
-_ir_features = ir_features
-_candidate_count = candidate_count
-_owned_job = owned_job
+def _max_expanded() -> int:
+    """Largest JSON document or registered resource the gateway reads: the toolchain's expanded-package limit."""
+    return bim.package_limits()["max_expanded_bytes"]
 
-# Compatibility aliases: the job execution code lives in services.execution.
-_candidate_ref = candidate_ref
-_binding_violations = binding_violations
-_authoritative_evaluation = authoritative_evaluation
-_reevaluate_result = reevaluate_result
-_fail_persisted_job = fail_persisted_job
-_finish_persisted_job = finish_persisted_job
-_run_claimed_job = run_claimed_job
-_run_persisted_job = run_persisted_job
+
+def _max_compressed() -> int:
+    """Largest ``.bim.zip`` upload: the toolchain's compressed-package limit."""
+    return bim.package_limits()["max_compressed_bytes"]
 
 
 def _problem(
@@ -387,84 +299,6 @@ def _conformance_options(mode: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _conformance_problem(mode: Mapping[str, Any]) -> dict[str, Any]:
-    scalarization, objective_type, objective_count = _conformance_shape(mode)
-    feature_ids = [f"probe-objective-{index + 1}" for index in range(objective_count)]
-    application = {
-        "apiVersion": "qos-binding/v1",
-        "kind": "Application",
-        "metadata": {"name": "probe-application"},
-        "spec": {
-            "tasks": {"probe-task": {"requires": "bim.conformance.probe"}},
-            "features": {
-                feature_id: {
-                    "unit": "1",
-                    "direction": "minimize",
-                    "scope": "selectedCandidate",
-                    "aggregation": "sum",
-                    "domain": {"kind": "real", "minimum": 0, "maximum": 1},
-                }
-                for feature_id in feature_ids
-            },
-            "workflow": {
-                "task": {"resource": "probe-application", "id": "probe-task"}
-            },
-        },
-    }
-    candidates = {
-        "apiVersion": "qos-binding/v1",
-        "kind": "CandidateCatalog",
-        "metadata": {"name": "probe-catalog"},
-        "spec": {
-            "featureBindings": {
-                feature_id: {"resource": "probe-application", "id": feature_id}
-                for feature_id in feature_ids
-            },
-            "candidates": {
-                "probe-candidate": {
-                    "provides": "bim.conformance.probe",
-                    "features": {feature_id: 0 for feature_id in feature_ids},
-                }
-            }
-        },
-    }
-    optimization = {
-        "apiVersion": "qos-binding/v1",
-        "kind": "Optimization",
-        "metadata": {"name": "probe-optimization"},
-        "spec": {
-            "criteria": [
-                {"id": feature_id, "feature": {"resource": "probe-application", "id": feature_id}}
-                for feature_id in feature_ids
-            ],
-        },
-    }
-    instance = {
-        "apiVersion": "bim/v1",
-        "kind": "Instance",
-        "metadata": {"name": "bim-engine-conformance-probe"},
-        "spec": {
-            "profile": "qos-binding/v1",
-            "resources": {
-                "application": {"probe-application": "application.json"},
-                "candidateCatalog": {"probe-catalog": "candidates.json"},
-                "optimization": {"probe-optimization": "optimization.json"},
-            }
-        },
-    }
-    package = load_package(
-        InstancePackage(
-            {
-                "instance.json": canonical_json(instance),
-                "application.json": canonical_json(application),
-                "candidates.json": canonical_json(candidates),
-                "optimization.json": canonical_json(optimization),
-            }
-        ).to_zip()
-    )
-    return compile_instance(package).document
-
-
 def _conformance_optimization(mode: Mapping[str, Any]) -> dict[str, Any]:
     _, objective_type, objective_count = _conformance_shape(mode)
     scalarization, _, _ = _conformance_shape(mode)
@@ -519,8 +353,8 @@ async def _verify_registration(
         if openapi_document.get("x-bim-protocol-digest") != expected_digest:
             raise RemoteEngineError("deployment OpenAPI does not pin the canonical bim-engine/v1 digest")
 
-        canonical_document = _protocol_document()
-        if expected_digest != _protocol_digest():
+        canonical_document = protocol_document()
+        if expected_digest != protocol_digest():
             raise RemoteEngineError("registration does not pin the installed bim-engine/v1 contract")
         request_path = spec.get("mappings", {}).get("request", "/internal/v1/binding-problems")
         operation = openapi_document.get("paths", {}).get(request_path, {}).get("post")
@@ -611,10 +445,11 @@ async def _verify_registration(
         conformance_mode = _conformance_mode(engine)
         result = await solve_remote(
             transport,
-            _conformance_problem(conformance_mode),
+            await probe_ir(_conformance_shape(conformance_mode)[2]),
             _conformance_options(conformance_mode),
             _conformance_optimization(conformance_mode),
             timeout_s=10.0,
+            validate_result=validate_engine_result,
         )
         expected_binding = {"probe-task": {"resource": "probe-catalog", "id": "probe-candidate"}}
         bindings = [
@@ -651,91 +486,42 @@ async def _verify_registration(
     )
 
 
-def _resolve_execution_optimization(
-    problem: BindingProblem,
-    mode: Mapping[str, Any],
+async def _resolve_execution_optimization(
+    ir: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    mode_id: str,
     requested: Any,
 ) -> dict[str, Any]:
-    """Validate and canonicalize the execution-time optimization selection."""
-    if not isinstance(requested, Mapping):
-        raise HTTPException(status_code=422, detail={
-            "code": "optimization_required",
-            "message": "job execution requires an optimization object",
-        })
-    objective_type = requested.get("type")
-    scalarization = requested.get("scalarization")
-    if objective_type not in {"SINGLE", "MULTI", "MANY"}:
-        raise HTTPException(status_code=422, detail={"code": "invalid_optimization_type", "message": "optimization.type must be SINGLE, MULTI or MANY"})
-    if not isinstance(scalarization, str) or not scalarization:
-        raise HTTPException(status_code=422, detail={"code": "scalarization_required", "message": "optimization.scalarization is required"})
-    criteria = problem.document.get("spec", {}).get("optimization", {}).get("criteria", [])
-    criteria_ids = [item.get("id") for item in criteria if isinstance(item, Mapping)]
-    if len(criteria_ids) != len(set(criteria_ids)):
-        raise HTTPException(status_code=422, detail={"code": "invalid_criteria", "message": "BindingProblem contains duplicate criterion ids"})
-    count = len(criteria_ids)
-    if objective_type == "MULTI" and not 2 <= count <= 3:
-        raise HTTPException(status_code=422, detail={"code": "objective_cardinality", "message": "MULTI requires two or three criteria"})
-    if objective_type == "MANY" and count < 3:
-        raise HTTPException(status_code=422, detail={"code": "objective_cardinality", "message": "MANY requires at least three criteria"})
-    capabilities = mode.get("capabilities", {})
-    declaration = capabilities.get("scalarizations") if isinstance(capabilities, Mapping) else None
-    descriptors = declaration.get("values", []) if isinstance(declaration, Mapping) else []
-    descriptor = next((item for item in descriptors if isinstance(item, Mapping) and item.get("id") == scalarization), None)
-    if descriptor is None:
-        raise HTTPException(status_code=422, detail={"code": "scalarization_incompatible", "message": f"engine mode does not support scalarization {scalarization!r}"})
-    if objective_type not in descriptor.get("objectiveTypes", []):
-        raise HTTPException(status_code=422, detail={"code": "optimization_type_incompatible", "message": f"scalarization {scalarization!r} does not support {objective_type}"})
-    weight_policy = descriptor.get("weightPolicy")
-    supplied = requested.get("weights")
-    if supplied is not None and not isinstance(supplied, list):
-        raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "optimization.weights must be an array"})
-    if weight_policy == "forbidden" and supplied not in (None, []):
-        raise HTTPException(status_code=422, detail={"code": "weights_forbidden", "message": f"scalarization {scalarization!r} does not accept weights"})
-    if weight_policy == "required" and supplied is None:
-        if count == 0:
-            raise HTTPException(status_code=422, detail={"code": "weights_required", "message": "a weighted scalarization requires at least one criterion"})
-        supplied = [{"criteria": criterion_id, "value": 1.0 / count} for criterion_id in criteria_ids]
-    if supplied is None:
-        supplied = []
-    weights: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for item in supplied:
-        if not isinstance(item, Mapping) or set(item) != {"criteria", "value"}:
-            raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "each weight must contain exactly criteria and value"})
-        criterion_id = item.get("criteria")
-        value = item.get("value")
-        if criterion_id not in criteria_ids or criterion_id in seen:
-            raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "weights must reference each criterion exactly once"})
-        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)) or float(value) <= 0:
-            raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "criterion weights must be positive finite numbers"})
-        seen.add(criterion_id)
-        weights.append({"criteria": criterion_id, "value": float(value)})
-    if weight_policy == "required" and set(seen) != set(criteria_ids):
-        raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "weights must cover all criteria"})
-    if weights:
-        total = sum(item["value"] for item in weights)
-        weights = [{**item, "value": item["value"] / total} for item in weights]
-    if count == 0 and scalarization != "feasibility":
-        raise HTTPException(status_code=422, detail={"code": "criteria_required", "message": "criteria are required unless using feasibility scalarization"})
-    return {"type": objective_type, "scalarization": scalarization, "weights": weights}
+    """Validate and canonicalize the execution-time optimization selection (the toolchain's rules)."""
+    try:
+        resolved = await bim.abim().resolve_optimization(ir, manifest, requested, mode=mode_id)
+    except ContractError as exc:
+        raise bim.http_exception_for(exc) from exc
+    return resolved["optimization"]
 
 
-async def _read_package(request: Request) -> InstancePackage:
+async def _read_package(request: Request) -> bytes:
+    """The body of a ``.bim.zip`` upload, within the package size limit (the toolchain judges its content)."""
     content_type = (request.headers.get("content-type") or "").split(";", 1)[0].lower()
     if content_type not in _BIM_ZIP_TYPES:
         raise HTTPException(
             status_code=415,
             detail="BIM source uploads must use a .bim.zip media type",
         )
-    ceiling = MAX_COMPRESSED
+    ceiling = _max_compressed()
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > ceiling:
         raise HTTPException(status_code=413, detail=f"request body exceeds {ceiling} bytes")
     body = await request.body()
     if len(body) > ceiling:
         raise HTTPException(status_code=413, detail=f"request body exceeds {ceiling} bytes")
+    return body
+
+
+async def _compile_upload(archive: bytes, session: AsyncSession | None, caller: User | None = None) -> Compilation:
+    """Compile an upload; a package the toolchain cannot read is ``422`` with its message."""
     try:
-        return load_package(body)
+        return await compile_resolved(archive, session, caller)
     except PackageError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -764,8 +550,8 @@ def _multipart_zip(body: bytes, content_type: str) -> bytes:
         content = part.get_payload(decode=True)
         if not isinstance(content, bytes) or not content:
             raise PackageError("multipart ZIP part is empty")
-        if len(content) > MAX_COMPRESSED:
-            raise PackageError(f"compressed package exceeds {MAX_COMPRESSED} bytes")
+        if len(content) > _max_compressed():
+            raise PackageError(f"compressed package exceeds {_max_compressed()} bytes")
         files.append(content)
     if len(files) != 1:
         raise PackageError("multipart request must contain exactly one ZIP file part")
@@ -784,24 +570,24 @@ async def list_profiles() -> dict[str, Any]:
     return {
         "profiles": [
             {
-                **profile,
-                "id": manifest_id(profile),
-                "digest": digest(profile),
-                "output": profile["spec"]["output"],
-                "protocol": profile["spec"]["output"]["engineProtocol"],
-                "protocolDigest": _protocol_digest(),
+                **entry["manifest"],
+                "id": entry["descriptor"]["id"],
+                "digest": entry["descriptor"]["digest"],
+                "output": entry["manifest"]["spec"]["output"],
+                "protocol": entry["manifest"]["spec"]["output"]["engineProtocol"],
+                "protocolDigest": protocol_digest(),
             }
-            for profile in installed_profile_manifests()
+            for entry in bim.profile_entries()
         ]
     }
 
 
 def _builtin_profiles() -> list[dict[str, Any]]:
-    return installed_profile_manifests()
+    return bim.profile_manifests()
 
 
 def _builtin_dialects() -> list[dict[str, Any]]:
-    return installed_dialect_manifests()
+    return bim.dialect_manifests()
 
 
 def _installed_dialect_contract(document: Mapping[str, Any]) -> bool:
@@ -841,17 +627,17 @@ async def publish_dialect(
 ):
     try:
         body = await request.body()
-        if len(body) > MAX_EXPANDED:
-            return _problem(413, "payload_too_large", f"request body exceeds {MAX_EXPANDED} bytes")
+        if len(body) > _max_expanded():
+            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
         document = strict_json_loads(body)
     except PackageError as exc:
         return _problem(422, "invalid_dialect", str(exc))
     diagnostics = (
-        _schema_diagnostics(document, "Dialect")
+        schema_diagnostics(document, "Dialect")
         if isinstance(document, dict)
         else [{"code": "document", "message": "Dialect must be an object"}]
     )
-    secret_paths = _embedded_secret_paths(document)
+    secret_paths = embedded_secret_paths(document)
     diagnostics.extend(
         {"code": "secret_in_document", "pointer": path, "message": "secret-like field is forbidden"}
         for path in secret_paths
@@ -996,10 +782,10 @@ async def register_bim_resource(
             return _problem(403, "forbidden", "Resource namespace must match the caller")
     content_type = (request.headers.get("content-type") or "").split(";", 1)[0].casefold()
     body = await request.body()
-    if len(body) > MAX_EXPANDED:
-        return _problem(413, "payload_too_large", f"resource exceeds {MAX_EXPANDED} bytes")
+    if len(body) > _max_expanded():
+        return _problem(413, "payload_too_large", f"resource exceeds {_max_expanded()} bytes")
     document: dict[str, Any] | None = None
-    dialects = installed_dialect_manifests()
+    dialects = bim.dialect_manifests()
     dialect_id: str
     api_version: str
     if content_type == "application/json":
@@ -1015,7 +801,7 @@ async def register_bim_resource(
         if not isinstance(api_version, str) or not isinstance(kind, str):
             return _problem(422, "invalid_resource_identity", "resource requires string apiVersion and kind")
         matches = [
-            pair for pair in _dialect_type_matches(dialects, api_version, kind, content_type)
+            pair for pair in dialect_type_matches(dialects, api_version, kind, content_type)
             if role in pair[1].get("roles", [])
         ]
         if not matches:
@@ -1027,8 +813,8 @@ async def register_bim_resource(
         if len(matches) != 1:
             return _problem(409, "ambiguous_resource_contract", "more than one installed Dialect claims this resource identity")
         dialect, resource_type = matches[0]
-        dialect_id = manifest_id(dialect)
-        diagnostics = _resource_schema_diagnostics(document, api_version, kind, content_type, "resource")
+        dialect_id = bim.manifest_id(dialect)
+        diagnostics = resource_schema_diagnostics(document, api_version, kind, content_type, "resource")
         if diagnostics:
             return _problem(422, "invalid_resource", "resource does not satisfy its installed Dialect schema", [item.as_dict() for item in diagnostics])
         metadata = document.get("metadata", {})
@@ -1040,12 +826,11 @@ async def register_bim_resource(
             )
         content = canonical_json(document)
         media_type = "application/json"
-        filename = "resource.json"
     elif content_type in {"application/vnd.omg.bpmn+xml", "application/xml", "text/xml"} or content_type.endswith("+xml"):
         content = body.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
         try:
-            source_package = InstancePackage({"instance.json": b"{}", "resource.xml": content})
-            xml_root = source_package.xml_root("resource.xml")
+            source_package = XmlResource(content)
+            xml_root = source_package.root()
         except PackageError as exc:
             return _problem(422, "invalid_resource", str(exc))
         if isinstance(xml_root.tag, str) and xml_root.tag.startswith("{") and "}" in xml_root.tag:
@@ -1053,7 +838,7 @@ async def register_bim_resource(
         else:
             xml_namespace, local_name = "", str(xml_root.tag)
         matches = [
-            pair for pair in _dialect_xml_type_matches(dialects, xml_namespace, local_name, content_type)
+            pair for pair in dialect_xml_type_matches(dialects, xml_namespace, local_name, content_type)
             if role in pair[1].get("roles", [])
         ]
         if not matches:
@@ -1067,23 +852,23 @@ async def register_bim_resource(
         dialect, resource_type = matches[0]
         if dialect.get("spec", {}).get("adapter", {}).get("id") == "bim-bpmn":
             try:
-                source_package.xml("resource.xml")
+                source_package.validate_bpmn()
             except PackageError as exc:
                 return _problem(422, "invalid_resource", str(exc))
         else:
             return _problem(409, "adapter_not_installed", "the XML Dialect has no deployed validator adapter")
-        dialect_id = manifest_id(dialect)
+        dialect_id = bim.manifest_id(dialect)
         api_version = str(resource_type["apiVersion"])
         kind = str(resource_type["kind"])
         media_type = content_type
-        filename = "resource.xml"
     else:
         return _problem(
             415,
             "unsupported_media_type",
             "BIM resources use application/json or application/vnd.omg.bpmn+xml",
         )
-    revision_digest = resource_digest(filename, content)
+    # ``content`` is already in the form the package contract digests: canonical JSON, or LF-normalised XML.
+    revision_digest = digest_bytes(content)
     key = (namespace, name, version, revision_digest)
     state = "published" if (caller is None or (caller.is_admin and namespace in SYSTEM_NAMESPACES)) else "pending_review"
     if session is not None:
@@ -1156,7 +941,7 @@ async def register_bim_resource(
         )
         if conflicting is not None:
             return _problem(409, "immutable_resource", "resource revisions are immutable; register a new version")
-        _CUSTOM_RESOURCES[key] = RegisteredResource(content, media_type)
+        CUSTOM_RESOURCES[key] = RegisteredResource(content, media_type)
         _CUSTOM_RESOURCE_RECORDS[key] = {
             "namespace": namespace,
             "name": name,
@@ -1225,7 +1010,7 @@ async def get_registered_bim_resource(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
     key = (namespace, name, version, revision)
-    local = _CUSTOM_RESOURCES.get(key)
+    local = CUSTOM_RESOURCES.get(key)
     if local is not None:
         return Response(
             local.content,
@@ -1324,21 +1109,18 @@ async def get_v1_schema(kind: str):
     if kind in {"engine-contract", "bim-engine-v1"}:
         return {
             "protocol": "bim-engine/v1",
-            "digest": _protocol_digest(),
-            "openapi": _protocol_document(),
+            "digest": protocol_digest(),
+            "openapi": protocol_document(),
         }
-    filename = {"Instance": "instance.schema.json", "Profile": "profile.schema.json", "Application": "application.schema.json", "CandidateCatalog": "candidate-catalog.schema.json", "ConstraintSet": "constraint-set.schema.json", "Optimization": "optimization.schema.json", "Placement": "placement.schema.json", "RoutingOverlay": "routing-overlay.schema.json", "BindingProblem": "binding-problem.schema.json", "Engine": "engine.schema.json", "Dialect": "dialect.schema.json", "EngineRegistration": "engine-registration.schema.json"}.get(kind)
-    if not filename:
+    try:
+        return await asyncio.to_thread(bim.schema_document, kind)
+    except ContractError:
         return _problem(404, "not_found", "Unknown v1 kind")
-    path = _MANIFEST_DIR.parent / filename
-    if not path.exists():
-        return _problem(404, "not_found", "Schema not found")
-    return json.loads(path.read_text(encoding="utf-8"))
 
 
 @router.get("/examples")
 async def list_examples() -> dict[str, Any]:
-    root = _MANIFEST_DIR.parents[3] / "examples"
+    root = MANIFEST_DIR.parents[3] / "examples"
     paths = []
     for path in root.rglob("instance.json"):
         try:
@@ -1353,7 +1135,7 @@ async def list_examples() -> dict[str, Any]:
 
 @router.get("/examples/{example_path:path}")
 async def get_example_package(example_path: str):
-    root = (_MANIFEST_DIR.parents[3] / "examples").resolve()
+    root = (MANIFEST_DIR.parents[3] / "examples").resolve()
     requested = (root / example_path).resolve()
     try:
         requested.relative_to(root)
@@ -1363,8 +1145,10 @@ async def get_example_package(example_path: str):
         requested = requested.parent
     if not requested.is_dir() or not (requested / "instance.json").is_file():
         return _problem(404, "not_found", "Example not found")
+    archive = packages.zip_directory(requested)
     try:
-        archive = load_package(requested).to_zip()
+        # The toolchain reads the archive (without keeping anything): an example it cannot load is refused.
+        await bim.abim().validate(archive)
     except PackageError as exc:
         return _problem(422, "invalid_example", str(exc))
     safe_name = requested.name.replace('"', "") or "example"
@@ -1384,8 +1168,8 @@ async def list_v1_engines(
     caller: User = Depends(solve_caller),
 ) -> dict[str, Any]:
     engines = []
-    for document, namespace in await _available_engine_documents(session, caller):
-        reference = _engine_ref(document, namespace)
+    for document, namespace in await available_engine_documents(session, caller):
+        reference = engine_ref(document, namespace)
         if not allows_engine(caller, reference):
             continue
         engines.append(
@@ -1429,12 +1213,12 @@ async def list_engine_revisions(
                 "state": rev.state,
                 "createdAt": rev.created_at.isoformat() if rev.created_at else None,
                 "document": rev.document,
-                "registration": _registration_summary(reg) if reg else None,
+                "registration": registration_summary(reg) if reg else None,
             })
 
     if not revisions:
-        for doc, ns in await _available_engine_documents(session, caller):
-            ref = _engine_ref(doc, ns)
+        for doc, ns in await available_engine_documents(session, caller):
+            ref = engine_ref(doc, ns)
             revisions.append({
                 "id": f"{ref['namespace']}:{ref['name']}:{ref['version']}",
                 "namespace": ref["namespace"],
@@ -1470,7 +1254,7 @@ async def get_v1_engine(
     ):
         return _problem(404, "not_found", "Engine revision not found")
     try:
-        return await _manifest_async(
+        return await manifest_async(
             name,
             session,
             caller=caller,
@@ -1557,7 +1341,7 @@ async def get_snapshot_detail(
 ) -> dict[str, Any]:
     if session is None:
         return _problem(503, "database_unavailable", "Snapshots require database")
-    snapshot = await _owned_snapshot(str(snapshot_id), caller, session)
+    snapshot = await owned_snapshot(str(snapshot_id), caller, session)
     if snapshot is None:
         return _problem(404, "not_found", "Snapshot not found")
     ir = (await session.execute(
@@ -1594,7 +1378,7 @@ async def download_snapshot_archive(
 ) -> Response:
     if session is None:
         return _problem(503, "database_unavailable", "Snapshots require database")
-    snapshot = await _owned_snapshot(str(snapshot_id), caller, session)
+    snapshot = await owned_snapshot(str(snapshot_id), caller, session)
     if snapshot is None or not snapshot.source_archive:
         return _problem(404, "not_found", "Snapshot archive not found")
     return Response(
@@ -1620,14 +1404,14 @@ async def create_engine(
 ):
     try:
         body = await request.body()
-        if len(body) > MAX_EXPANDED:
-            return _problem(413, "payload_too_large", f"request body exceeds {MAX_EXPANDED} bytes")
+        if len(body) > _max_expanded():
+            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
         document = strict_json_loads(body)
     except PackageError as exc:
         return _problem(422, "invalid_engine", str(exc))
-    diagnostics = _schema_diagnostics(document, "Engine") if isinstance(document, dict) else [{"code": "document", "message": "Engine must be an object"}]
+    diagnostics = schema_diagnostics(document, "Engine") if isinstance(document, dict) else [{"code": "document", "message": "Engine must be an object"}]
     if isinstance(document, Mapping):
-        diagnostics.extend(_engine_contract_diagnostics(document))
+        diagnostics.extend(engine_contract_diagnostics(document))
     if diagnostics:
         return _problem(422, "invalid_engine", "Engine manifest does not satisfy bim/v1", diagnostics)
     name = document["metadata"]["name"]
@@ -1689,12 +1473,12 @@ async def register_engine(
 ):
     try:
         body = await request.body()
-        if len(body) > MAX_EXPANDED:
-            return _problem(413, "payload_too_large", f"request body exceeds {MAX_EXPANDED} bytes")
+        if len(body) > _max_expanded():
+            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
         document = strict_json_loads(body)
     except PackageError as exc:
         return _problem(422, "invalid_registration", str(exc))
-    diagnostics = _schema_diagnostics(document, "EngineRegistration") if isinstance(document, dict) else [{"code": "document", "message": "EngineRegistration must be an object"}]
+    diagnostics = schema_diagnostics(document, "EngineRegistration") if isinstance(document, dict) else [{"code": "document", "message": "EngineRegistration must be an object"}]
     if diagnostics:
         return _problem(422, "invalid_registration", "registration must satisfy bim/v1", diagnostics)
     spec = document.get("spec", {})
@@ -1708,7 +1492,7 @@ async def register_engine(
         )
     except RemoteEngineError as exc:
         return _problem(422, "invalid_registration", str(exc))
-    secret_paths = _embedded_secret_paths(document)
+    secret_paths = embedded_secret_paths(document)
     if secret_paths:
         return _problem(
             422,
@@ -1730,16 +1514,16 @@ async def register_engine(
         return _problem(403, "forbidden", "EngineRegistration namespace must match the caller")
     version = document["metadata"]["version"]
     revision = digest(document)
-    protocol_digest = spec.get("protocol", {}).get("digest")
+    submitted_digest = spec.get("protocol", {}).get("digest")
     protocol_id = spec.get("protocol", {}).get("id", "bim-engine/v1")
     if protocol_id != "bim-engine/v1":
         return _problem(409, "protocol_mismatch", "registration must use bim-engine/v1")
-    if protocol_digest != _protocol_digest():
+    if submitted_digest != protocol_digest():
         return _problem(409, "protocol_digest_mismatch", "registration must pin the exact bim-engine/v1 OpenAPI digest")
     submitted_openapi = spec.get("openapi")
     if (
         not isinstance(submitted_openapi, dict)
-        or submitted_openapi.get("x-bim-protocol-digest") != protocol_digest
+        or submitted_openapi.get("x-bim-protocol-digest") != submitted_digest
     ):
         return _problem(
             409,
@@ -1751,7 +1535,7 @@ async def register_engine(
     if not allows_engine(caller, engine_ref if isinstance(engine_ref, Mapping) else {}):
         return _problem(404, "not_found", "Engine revision not found")
     try:
-        engine_document = await _manifest_async(
+        engine_document = await manifest_async(
             engine_name,
             session,
             caller=caller,
@@ -1776,7 +1560,7 @@ async def register_engine(
         if existing is not None:
             if existing.manifest_digest != revision:
                 return _problem(409, "immutable_registration", "Registration revisions are immutable; use a new version")
-            return _registration_summary(existing)
+            return registration_summary(existing)
         registration = EngineRegistrationRevision(
             owner_id=caller.id,
             namespace=namespace,
@@ -1786,12 +1570,12 @@ async def register_engine(
             engine_digest=engine_ref["digest"],
             document=document,
             endpoint=endpoint,
-            protocol_digest=protocol_digest,
+            protocol_digest=submitted_digest,
             openapi_document=submitted_openapi,
             openapi_digest=digest(submitted_openapi),
             mappings=spec.get("mappings", {}),
             auth_scheme=spec.get("auth", {}).get("scheme", "none"),
-            verification_report={"protocol": "bim-engine/v1", "protocolDigest": protocol_digest, "status": "pending", "checks": []},
+            verification_report={"protocol": "bim-engine/v1", "protocolDigest": submitted_digest, "status": "pending", "checks": []},
             publication_status="private",
             is_active=False,
         )
@@ -1801,7 +1585,7 @@ async def register_engine(
                 await session.flush()
         except IntegrityError:
             return _problem(409, "immutable_registration", "Registration identity already exists with different content")
-        return _registration_summary(registration)
+        return registration_summary(registration)
     return _problem(503, "accounts_unavailable", "Registering an engine requires the accounts database")
 
 
@@ -1831,9 +1615,9 @@ async def list_engine_registrations(
         rows = (await session.execute(query.order_by(EngineRegistrationRevision.namespace, EngineRegistrationRevision.name, EngineRegistrationRevision.version))).scalars().all()
         return {
             "registrations": [
-                _registration_summary(row)
+                registration_summary(row)
                 for row in rows
-                if allows_engine(caller, _registration_engine_reference(row) or {})
+                if allows_engine(caller, registration_engine_reference(row) or {})
             ]
         }
     return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
@@ -1866,7 +1650,7 @@ async def get_engine_registration(
         query = query.where(or_(*visible))
         row = (await session.execute(query)).scalars().first()
         if row is None or not allows_engine(
-            caller, _registration_engine_reference(row) or {}
+            caller, registration_engine_reference(row) or {}
         ):
             return _problem(404, "not_found", "Engine registration not found")
         return row.document
@@ -1920,7 +1704,7 @@ async def _verify_registration_row(
     registration: EngineRegistrationRevision,
     session: AsyncSession,
 ) -> JSONResponse | None:
-    if registration.protocol_digest != _protocol_digest():
+    if registration.protocol_digest != protocol_digest():
         return _problem(
             409,
             "protocol_digest_mismatch",
@@ -2028,7 +1812,7 @@ async def _change_registration(
     registration = (await session.execute(query)).scalars().first()
     if registration is None:
         return _problem(404, "not_found", "Engine registration not found")
-    if not allows_engine(caller, _registration_engine_reference(registration) or {}):
+    if not allows_engine(caller, registration_engine_reference(registration) or {}):
         return _problem(404, "not_found", "Engine registration not found")
 
     if action == "activate":
@@ -2055,7 +1839,7 @@ async def _change_registration(
             )
     elif action == "request_publication":
         if registration.publication_status == "published":
-            return _registration_summary(registration)
+            return registration_summary(registration)
         if not registration.is_active:
             return _problem(
                 409,
@@ -2127,7 +1911,7 @@ async def _change_registration(
     else:
         raise AssertionError(f"unknown EngineRegistration action: {action}")
     await session.flush()
-    return _registration_summary(registration)
+    return registration_summary(registration)
 
 
 @router.post("/engine-registrations/{name}/approve")
@@ -2280,7 +2064,7 @@ async def get_engine_registration_report(
         query = query.where(or_(*visible))
         row = (await session.execute(query)).scalars().first()
         if row is None or not allows_engine(
-            caller, _registration_engine_reference(row) or {}
+            caller, registration_engine_reference(row) or {}
         ):
             return _problem(404, "not_found", "Engine registration not found")
         try:
@@ -2288,7 +2072,7 @@ async def get_engine_registration_report(
         except HTTPException:
             engine_document = None
         return {
-            **_registration_summary(row),
+            **registration_summary(row),
             "openapiDigest": row.openapi_digest,
             "openapi": row.openapi_document,
             "engine": engine_document,
@@ -2310,8 +2094,8 @@ async def set_engine_registration_credential(
     """Replace a deployment credential without ever placing it in a manifest."""
     try:
         body = await request.body()
-        if len(body) > MAX_EXPANDED:
-            return _problem(413, "payload_too_large", f"request body exceeds {MAX_EXPANDED} bytes")
+        if len(body) > _max_expanded():
+            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
         payload = strict_json_loads(body)
     except PackageError as exc:
         return _problem(422, "invalid_credential", str(exc))
@@ -2330,7 +2114,7 @@ async def set_engine_registration_credential(
         query = query.where(EngineRegistrationRevision.owner_id == caller.id)
         row = (await session.execute(query)).scalars().first()
         if row is None or not allows_engine(
-            caller, _registration_engine_reference(row) or {}
+            caller, registration_engine_reference(row) or {}
         ):
             return _problem(404, "not_found", "Engine registration not found")
         if row.publication_status == "published":
@@ -2374,7 +2158,7 @@ async def set_engine_registration_credential(
         row.openapi_document = row.document["spec"]["openapi"]
         row.openapi_digest = digest(row.openapi_document)
         await session.flush()
-        return _registration_summary(row)
+        return registration_summary(row)
     return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
 
 
@@ -2384,18 +2168,16 @@ async def validate_legacy_instance(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
     try:
-        package = await _read_package(request)
-        problem = await _compile_resolved(package, session)
+        compilation = await _compile_upload(await _read_package(request), session)
     except HTTPException as exc:
         return _error_from_http(exc)
-    portable = load_package(package.to_zip())
     return {
         "valid": True,
-        "instanceDigest": _instance_identity(package),
-        "packageDigest": package.package_digest,
-        "fileDigests": portable.resource_digests,
-        "resourceDigests": _source_resource_digests(problem),
-        "irDigest": problem.digest,
+        "instanceDigest": compilation.instance_digest,
+        "packageDigest": compilation.package_digest,
+        "fileDigests": compilation.file_digests,
+        "resourceDigests": compilation.resource_digests,
+        "irDigest": compilation.ir_digest,
         "diagnostics": [],
     }
 
@@ -2413,11 +2195,11 @@ async def validate_instance(
     try:
         content_type = (request.headers.get("content-type") or "").split(";", 1)[0].lower()
         if content_type in _BIM_ZIP_TYPES:
-            package = await _read_package(request)
+            archive = await _read_package(request)
         else:
             body = await request.body()
-            if len(body) > MAX_EXPANDED:
-                return _problem(413, "payload_too_large", f"request body exceeds {MAX_EXPANDED} bytes")
+            if len(body) > _max_expanded():
+                return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
             payload = strict_json_loads(body)
             snapshot_id = payload.get("snapshot") if isinstance(payload, dict) else None
             if not isinstance(payload, dict) or set(payload) != {"snapshot"} or not isinstance(snapshot_id, str) or not snapshot_id:
@@ -2426,17 +2208,11 @@ async def validate_instance(
                     "snapshot_or_package_required",
                     "BIM validation accepts an exact snapshot reference or a .bim.zip upload",
                 )
-            if session is not None:
-                snapshot = await _owned_snapshot(snapshot_id, caller, session)
-                if snapshot is None:
-                    return _problem(404, "not_found", "Snapshot not found")
-                package = load_package(snapshot.source_archive)
-            else:
-                snapshot = _SNAPSHOTS.get(snapshot_id)
-                if snapshot is None:
-                    return _problem(404, "not_found", "Snapshot not found")
-                package = snapshot["package"]
-        problem = await _compile_resolved(package, session, caller)
+            snapshot = await owned_snapshot(snapshot_id, caller, session)
+            if snapshot is None:
+                return _problem(404, "not_found", "Snapshot not found")
+            archive = snapshot.source_archive
+        compilation = await _compile_upload(archive, session, caller)
     except PackageError as exc:
         return _problem(422, "invalid_request", str(exc))
     except HTTPException as exc:
@@ -2446,30 +2222,28 @@ async def validate_instance(
             caps = await space_client.get_gate().caps(caller.id)
         except space_client.PricingUnavailable as exc:
             return _problem(503, "pricing_unavailable", str(exc))
-        if instance_complexity_too_large(problem.binding_space_log10, caps):
+        if instance_complexity_too_large(compilation.binding_space_log10, caps):
             return _problem(
                 402,
                 "instance_complexity_too_large",
                 "instance binding space exceeds the caller plan limit",
             )
-    spec = problem.document["spec"]
-    candidate_count = _candidate_count(spec)
-    compatible_modes = await _compatible_modes(problem, caller, session)
+    spec = compilation.spec
     return {
         "valid": True,
-        "instanceDigest": _instance_identity(package),
-        "packageDigest": package.package_digest,
-        "fileDigests": load_package(package.to_zip()).resource_digests,
-        "resourceDigests": _source_resource_digests(problem),
-        "irDigest": problem.digest,
+        "instanceDigest": compilation.instance_digest,
+        "packageDigest": compilation.package_digest,
+        "fileDigests": compilation.file_digests,
+        "resourceDigests": compilation.resource_digests,
+        "irDigest": compilation.ir_digest,
         "analysis": {
             "tasks": len(spec.get("application", {}).get("tasks", [])),
-            "candidates": candidate_count,
+            "candidates": compilation.analysis["candidates"],
             "constraints": len(spec.get("constraints", [])),
             "placement": bool(spec.get("placement")),
-            "bindingSpace": str(problem.binding_space_cardinality),
+            "bindingSpace": str(compilation.binding_space_cardinality),
         },
-        "compatibleModes": compatible_modes,
+        "compatibleModes": await compatible_modes(compilation.ir, caller, session),
         "diagnostics": [],
     }
 
@@ -2481,23 +2255,20 @@ async def create_snapshot(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
     try:
-        package = await _read_package(request)
-        problem = await _compile_resolved(package, session, caller)
+        compilation = await _compile_upload(await _read_package(request), session, caller)
     except HTTPException as exc:
         return _error_from_http(exc)
-    snapshot_id = await _persist_snapshot(package, problem, caller, session)
+    snapshot_id = await persist_snapshot(compilation, caller, session)
     if snapshot_id is None:
-        snapshot_id = str(uuid.uuid4())
-        _SNAPSHOTS[snapshot_id] = _snapshot_payload(package, problem)
-    portable = load_package(package.to_zip())
+        return _problem(503, "database_unavailable", "Snapshots require database")
     return {
         "id": snapshot_id,
         "kind": "InstanceSnapshot",
-        "instanceDigest": _instance_identity(package),
-        "packageDigest": package.package_digest,
-        "irDigest": problem.digest,
-        "fileDigests": portable.resource_digests,
-        "resourceDigests": _source_resource_digests(problem),
+        "instanceDigest": compilation.instance_digest,
+        "packageDigest": compilation.package_digest,
+        "irDigest": compilation.ir_digest,
+        "fileDigests": compilation.file_digests,
+        "resourceDigests": compilation.resource_digests,
     }
 
 
@@ -2507,35 +2278,20 @@ async def get_snapshot(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        snapshot = await _owned_snapshot(snapshot_id, caller, session)
-        if snapshot is None:
-            return _problem(404, "not_found", "Snapshot not found")
-        ir = (await session.execute(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))).scalars().first()
-        return {
-            "id": snapshot_id,
-            "kind": "InstanceSnapshot",
-            "instanceDigest": snapshot.instance_digest,
-            "packageDigest": snapshot.package_digest,
-            "irDigest": ir.ir_digest if ir else None,
-            "fileDigests": load_package(snapshot.source_archive).resource_digests,
-            "resourceDigests": snapshot.resource_digests,
-            "instance": snapshot.root_document,
-            "createdAt": snapshot.created_at.isoformat(),
-        }
-    snapshot = _SNAPSHOTS.get(snapshot_id)
-    if not snapshot:
+    snapshot = await owned_snapshot(snapshot_id, caller, session)
+    if snapshot is None:
         return _problem(404, "not_found", "Snapshot not found")
+    ir = (await session.execute(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))).scalars().first()
     return {
         "id": snapshot_id,
         "kind": "InstanceSnapshot",
-        "instanceDigest": snapshot["digest"],
-        "packageDigest": snapshot["packageDigest"],
-        "irDigest": snapshot["problem"].digest,
-        "fileDigests": snapshot["fileDigests"],
-        "resourceDigests": snapshot["resourceDigests"],
-        "instance": snapshot["package"].json("instance.json"),
-        "createdAt": snapshot["createdAt"],
+        "instanceDigest": snapshot.instance_digest,
+        "packageDigest": snapshot.package_digest,
+        "irDigest": ir.ir_digest if ir else None,
+        "fileDigests": package_file_digests(snapshot.root_document, ir.document if ir else {}),
+        "resourceDigests": snapshot.resource_digests,
+        "instance": snapshot.root_document,
+        "createdAt": snapshot.created_at.isoformat(),
     }
 
 
@@ -2545,16 +2301,10 @@ async def get_snapshot_source(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        snapshot = await _owned_snapshot(snapshot_id, caller, session)
-        if snapshot is None:
-            return _problem(404, "not_found", "Snapshot not found")
-        archive = snapshot.source_archive
-    else:
-        snapshot = _SNAPSHOTS.get(snapshot_id)
-        if snapshot is None:
-            return _problem(404, "not_found", "Snapshot not found")
-        archive = snapshot["package"].to_zip()
+    snapshot = await owned_snapshot(snapshot_id, caller, session)
+    if snapshot is None:
+        return _problem(404, "not_found", "Snapshot not found")
+    archive = snapshot.source_archive
     return Response(
         archive,
         media_type="application/vnd.bim+zip",
@@ -2568,18 +2318,13 @@ async def get_snapshot_ir(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        snapshot = await _owned_snapshot(snapshot_id, caller, session)
-        if snapshot is None:
-            return _problem(404, "not_found", "Snapshot not found")
-        ir = (await session.execute(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))).scalars().first()
-        if ir is None:
-            return _problem(404, "not_found", "IR not found")
-        return ir.document
-    snapshot = _SNAPSHOTS.get(snapshot_id)
-    if not snapshot:
+    snapshot = await owned_snapshot(snapshot_id, caller, session)
+    if snapshot is None:
         return _problem(404, "not_found", "Snapshot not found")
-    return snapshot["problem"].as_dict()
+    ir = (await session.execute(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))).scalars().first()
+    if ir is None:
+        return _problem(404, "not_found", "IR not found")
+    return ir.document
 
 
 #: Idempotency keys the gateway writes for study cells; clients cannot claim them.
@@ -2649,7 +2394,7 @@ async def _create_job_core(
             "Idempotency-Key must contain between 1 and 255 characters",
         )
     body_size = 0
-    pinned_problem = None
+    pinned: Compilation | None = None
     configuration_version = None
     configuration_ref = None
     request_body: Any = {}
@@ -2658,19 +2403,19 @@ async def _create_job_core(
         if content_type.startswith("multipart/form-data"):
             body = await request.body()
             body_size = len(body)
-            if body_size > MAX_COMPRESSED + 1024 * 1024:
+            if body_size > _max_compressed() + 1024 * 1024:
                 return _problem(413, "payload_too_large", "multipart BIM package is too large")
-            package = load_package(_multipart_zip(body, request.headers.get("content-type", "")))
+            archive = _multipart_zip(body, request.headers.get("content-type", ""))
             payload = {}
         elif content_type in _BIM_ZIP_TYPES:
-            package = await _read_package(request)
+            archive = await _read_package(request)
             body_size = int(request.headers.get("content-length", "0") or 0)
             payload: dict[str, Any] = {}
         else:
             body = await request.body()
             body_size = len(body)
-            if body_size > MAX_EXPANDED:
-                return _problem(413, "payload_too_large", f"request body exceeds {MAX_EXPANDED} bytes")
+            if body_size > _max_expanded():
+                return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
             payload = strict_json_loads(body)
             request_body = payload
             snapshot_id = payload.get("snapshot") if isinstance(payload, dict) else None
@@ -2700,29 +2445,23 @@ async def _create_job_core(
                     configuration_ref = reference(configuration_artifact, configuration_version)
                     settings_document = strict_json_loads((await version_content(session, configuration_version))[0])
                     payload = {**payload, **settings_document}
-                if session is not None:
-                    snapshot = await _owned_snapshot(snapshot_id, caller, session)
-                    if snapshot is None:
-                        return _problem(404, "not_found", "Snapshot not found")
-                    package = load_package(snapshot.source_archive)
-                    pinned_problem = await _snapshot_problem(snapshot, session)
-                else:
-                    snapshot = _SNAPSHOTS.get(snapshot_id)
-                    if not snapshot:
-                        return _problem(404, "not_found", "Snapshot not found")
-                    package = snapshot["package"]
+                snapshot = await owned_snapshot(snapshot_id, caller, session)
+                if snapshot is None:
+                    return _problem(404, "not_found", "Snapshot not found")
+                archive = snapshot.source_archive
+                pinned = await snapshot_ir(snapshot, session)
             else:
                 return _problem(
                     422,
                     "snapshot_or_package_required",
                     "BIM v1 jobs accept an existing snapshot or a ZIP package upload",
                 )
-        problem = pinned_problem or await _compile_resolved(package, session, caller)
+        compilation = pinned or await compile_resolved(archive, session, caller)
     except PackageError as exc:
         return _problem(422, "invalid_request", str(exc))
     except HTTPException as exc:
         return _error_from_http(exc)
-    package_hash = digest_bytes(package.to_zip())
+    package_hash = compilation.package_digest
     request_fingerprint = None
     legacy_existing = None
     if session is not None and caller is not None:
@@ -2764,7 +2503,7 @@ async def _create_job_core(
         requested_mode = payload.get("mode") if isinstance(payload, dict) else None
     if not isinstance(engine, str) or not engine:
         return _problem(422, "invalid_engine", "engine must be a name or immutable reference")
-    if not isinstance(engine_selector, dict) and not (_MANIFEST_DIR / f"{engine}.json").is_file():
+    if not isinstance(engine_selector, dict) and not (MANIFEST_DIR / f"{engine}.json").is_file():
         return _problem(
             422,
             "immutable_engine_required",
@@ -2772,7 +2511,7 @@ async def _create_job_core(
         )
     engine_options = payload.get("options", {}) if isinstance(payload, dict) else {}
     try:
-        manifest, selected_mode, effective_options = await _engine_mode(
+        selection = await select_engine(
             engine,
             requested_mode,
             engine_options,
@@ -2781,19 +2520,19 @@ async def _create_job_core(
             namespace=engine_namespace,
             version=engine_version,
             manifest_digest=requested_engine_digest,
+            ir=compilation.ir,
         )
-    except HTTPException as exc:
-        return _error_from_http(exc)
-    engine_hash = digest(manifest)
-    try:
-        execution_optimization = _resolve_execution_optimization(
-            problem,
-            selected_mode,
+        manifest, selected_mode, effective_options = selection.manifest, selection.mode, selection.options
+        engine_hash = digest(manifest)
+        execution_optimization = await _resolve_execution_optimization(
+            compilation.ir,
+            manifest,
+            selected_mode["id"],
             payload.get("optimization") if isinstance(payload, dict) else None,
         )
     except HTTPException as exc:
         return _error_from_http(exc)
-    immutable_engine_ref = _engine_ref(manifest, engine_namespace or "bim.builtin")
+    immutable_engine_ref = engine_ref(manifest, engine_namespace or "bim.builtin")
     if caller is not None and not allows_engine(caller, immutable_engine_ref):
         return _problem(404, "not_found", "Engine revision not found")
     settings = get_settings()
@@ -2808,7 +2547,7 @@ async def _create_job_core(
             caps, 512 * 1024 * 1024
         ):
             return _problem(413, "payload_too_large", "BIM package exceeds the caller plan limit")
-        if instance_complexity_too_large(problem.binding_space_log10, caps):
+        if instance_complexity_too_large(compilation.binding_space_log10, caps):
             return _problem(
                 402,
                 "instance_complexity_too_large",
@@ -2818,20 +2557,19 @@ async def _create_job_core(
         effective_options = clamped.options
         option_warnings = [warning.model_dump(mode="json") for warning in clamped.warnings]
         effective_timeout = solve_timeout_s(caps, settings.engine_solve_timeout_s)
-    compatibility_diagnostics = _mode_compatibility(problem, selected_mode)
-    if compatibility_diagnostics:
+    if selection.diagnostics:
         return _problem(
             422,
             "engine_mode_incompatible",
             "selected engine mode cannot execute every construct in this BindingProblem",
-            compatibility_diagnostics,
+            selection.diagnostics,
         )
     limits = dict(selected_mode.get("limits", {}))
-    tasks = problem.document["spec"].get("application", {}).get("tasks", {})
+    tasks = compilation.spec.get("application", {}).get("tasks", {})
     task_count = len(tasks) if isinstance(tasks, (dict, list)) else 0
-    candidate_count = _candidate_count(problem.document["spec"])
+    candidate_count = compilation.analysis["candidates"]
     mode = selected_mode["id"]
-    mode_contract = _mode_execution_contract(selected_mode)
+    mode_contract = mode_execution_contract(selected_mode)
     requested_registration = payload.get("registration") if isinstance(payload, dict) else None
     if requested_registration is not None and (
         not isinstance(requested_registration, dict)
@@ -2843,7 +2581,7 @@ async def _create_job_core(
             "invalid_registration",
             "registration references require exactly namespace, name, version and digest",
         )
-    registration = await _registration_for_engine(
+    registration = await registration_for_engine(
         requested_registration.get("namespace") if requested_registration else None,
         requested_registration.get("name") if requested_registration else None,
         requested_registration.get("version") if requested_registration else None,
@@ -2851,7 +2589,7 @@ async def _create_job_core(
         caller,
         session,
     )
-    builtin_registration = _installed_builtin_registration(
+    builtin_registration = installed_builtin_registration(
         manifest,
         settings.engine_urls.get(engine),
         requested_registration,
@@ -2867,35 +2605,34 @@ async def _create_job_core(
             "the selected Engine revision has no installed EngineRegistration",
         )
     if isinstance(registration, EngineRegistrationRevision):
-        registration_ref = _registration_reference(registration)
+        registration_ref = registration_reference(registration)
         if (
             registration.engine_digest != engine_hash
-            or _registration_engine_reference(registration) != immutable_engine_ref
+            or registration_engine_reference(registration) != immutable_engine_ref
         ):
             return _problem(409, "engine_reference_mismatch", "registration does not pin the exact selected Engine revision")
         endpoint = registration.endpoint
         protocol_hash = registration.protocol_digest
     elif isinstance(registration, dict):
-        registration_ref = _registration_reference(registration)
-        if _registration_engine_reference(registration) != immutable_engine_ref:
+        registration_ref = registration_reference(registration)
+        if registration_engine_reference(registration) != immutable_engine_ref:
             return _problem(409, "engine_reference_mismatch", "registration does not pin the exact selected Engine revision")
         endpoint = registration["document"]["spec"]["endpoint"]
         protocol_hash = registration["document"]["spec"]["protocol"]["digest"]
 
-    portable = load_package(package.to_zip())
-    instance_hash = _instance_identity(package)
-    profile = problem.document["spec"]["profile"]
-    evaluator_hash = compiler_bundle_digest()
-    dialects = problem.document["spec"]["dialects"]
+    instance_hash = compilation.instance_digest
+    profile = compilation.spec["profile"]
+    evaluator_hash = bim.toolchain_digest()
+    dialects = compilation.spec["dialects"]
     adapters = [item["adapter"] for item in dialects if isinstance(item, dict) and isinstance(item.get("adapter"), dict)]
     if legacy_existing is not None:
         legacy_fingerprint = digest({
             "configuration": configuration_ref,
             "requestedOptions": engine_options,
             "packageDigest": package_hash,
-            "fileDigests": portable.resource_digests,
-            "resourceDigests": _source_resource_digests(problem),
-            "irDigest": problem.digest,
+            "fileDigests": compilation.file_digests,
+            "resourceDigests": compilation.resource_digests,
+            "irDigest": compilation.ir_digest,
             "dialects": dialects,
             "adapters": adapters,
             "engineDigest": engine_hash,
@@ -2919,12 +2656,12 @@ async def _create_job_core(
         "algorithm": selected_mode.get("algorithm"),
         "profile": profile,
         "profileDigest": profile["digest"],
-        "ir": {"apiVersion": problem.document["apiVersion"], "kind": problem.document["kind"]},
-        "irDigest": problem.digest,
+        "ir": {"apiVersion": compilation.ir["apiVersion"], "kind": compilation.ir["kind"]},
+        "irDigest": compilation.ir_digest,
         "instanceDigest": instance_hash,
         "packageDigest": package_hash,
-        "fileDigests": portable.resource_digests,
-        "resourceDigests": _source_resource_digests(problem),
+        "fileDigests": compilation.file_digests,
+        "resourceDigests": compilation.resource_digests,
         "dialects": dialects,
         "adapters": adapters,
         "compiler": "bim-compiler/v1",
@@ -2943,7 +2680,7 @@ async def _create_job_core(
         if session is None:
             return _problem(401, "unauthorized", "Submitting a job requires an account.")
         federated = not (
-            isinstance(registration, dict) and _is_installed_builtin_registration(registration)
+            isinstance(registration, dict) and is_installed_builtin_registration(registration)
         )
         # Lock the account row first: a request that waited behind the one that
         # created this job now sees it, and two creations cannot both take the
@@ -2966,7 +2703,7 @@ async def _create_job_core(
             )
         try:
             async with session.begin_nested():
-                snapshot_db_id = await _persist_snapshot(package, problem, caller, session)
+                snapshot_db_id = await persist_snapshot(compilation, caller, session)
         except IntegrityError:
             raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
             if raced is not None:
@@ -2984,7 +2721,7 @@ async def _create_job_core(
             service_url=endpoint,
             state=JobState.QUEUED,
             original_request={
-                "bindingProblem": problem.document,
+                "bindingProblem": compilation.ir,
                 "timeout": effective_timeout,
                 "mode": mode_contract,
                 "optimization": execution_optimization,
@@ -2994,10 +2731,10 @@ async def _create_job_core(
             warnings=option_warnings,
             instance_complexity={
                 "instanceDigest": instance_hash,
-                "resourceCount": len(portable.resource_digests),
+                "resourceCount": len(compilation.file_digests),
                 "tasks": task_count,
                 "candidates": candidate_count,
-                "bindingSpace": str(problem.binding_space_cardinality),
+                "bindingSpace": str(compilation.binding_space_cardinality),
             },
             instance_snapshot_id=parsed_snapshot_id,
             configuration_version_id=configuration_version.id if configuration_version else None,
@@ -3037,7 +2774,7 @@ async def _create_job_core(
             pending_launches(session).append(db_job.id)
         if dispatch:
             await dispatch_persisted_job(job_id, None if db_base.is_configured() else session)
-        return {"id": job_id, "status": "queued", "profile": profile["id"], "irDigest": problem.digest}
+        return {"id": job_id, "status": "queued", "profile": profile["id"], "irDigest": compilation.ir_digest}
     return _problem(401, "unauthorized", "Submitting a job requires an account.")
 
 
@@ -3047,24 +2784,14 @@ async def get_v1_job(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        job = await _owned_job(job_id, caller, session)
-        if job is None:
-            return _problem(404, "not_found", "Job not found")
-        result = {"id": job_id, "status": job.state.value, "provenance": dict(job.provenance or {})}
-        if job.result is not None:
-            result["result"] = job.result
-            if isinstance(job.result, dict) and "error" in job.result:
-                result["error"] = job.result["error"]
-        return result
-    job = _JOBS.get(job_id)
-    if not job:
+    job = await owned_job(job_id, caller, session)
+    if job is None:
         return _problem(404, "not_found", "Job not found")
-    result = {"id": job_id, "status": job["status"], "provenance": dict(job.get("provenance") or {})}
-    if "result" in job:
-        result["result"] = job["result"]
-        if isinstance(job["result"], dict) and "error" in job["result"]:
-            result["error"] = job["result"]["error"]
+    result = {"id": job_id, "status": job.state.value, "provenance": dict(job.provenance or {})}
+    if job.result is not None:
+        result["result"] = job.result
+        if isinstance(job.result, dict) and "error" in job.result:
+            result["error"] = job.result["error"]
     return result
 
 
@@ -3088,10 +2815,7 @@ async def get_v1_job_neighborhood(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    from starlette.concurrency import run_in_threadpool
-    from ..v1.analysis import analyze_neighborhood
-
-    job = await _owned_job(job_id, caller, session)
+    job = await owned_job(job_id, caller, session)
     if job is None:
         return _problem(404, "not_found", "Job not found")
     solutions = (job.result or {}).get("solutions", [])
@@ -3109,20 +2833,19 @@ async def get_v1_job_neighborhood(
         if ir is not None:
             if ir_digest and ir_digest != ir.ir_digest:
                 return _problem(409, "analysis_unavailable", "Job and snapshot IR identities disagree")
-            document, ir_digest = ir.document, ir.ir_digest
+            document = ir.document
     if not isinstance(document, dict) or document.get("kind") != "BindingProblem":
         return _problem(409, "analysis_unavailable", "The pinned BindingProblem is unavailable")
     if _ANALYSIS_SLOTS.locked():
         return _problem(429, "analysis_busy", "The analysis evaluator is busy; retry shortly")
-    problem = BindingProblem(document=document, digest=ir_digest or digest(document), source_map={})
     # Compare under the job's execution optimization, as the gateway re-evaluation did.
     execution = (job.original_request or {}).get("optimization") or (job.provenance or {}).get("optimization")
     if not isinstance(execution, dict):
         execution = None
     async with _ANALYSIS_SLOTS:
         try:
-            result = await run_in_threadpool(
-                analyze_neighborhood, problem, decision["binding"], task=task, limit=limit, execution=execution
+            result = await bim.abim().neighborhood(
+                document, decision["binding"], task=task, limit=limit, execution=execution
             )
         except (ValueError, ArithmeticError) as exc:
             return _problem(422, "analysis_invalid", str(exc)[:300])
@@ -3135,24 +2858,18 @@ async def get_v1_job_ir(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        job = await _owned_job(job_id, caller, session)
-        if job is None:
-            return _problem(404, "not_found", "Job not found")
-        document = (job.original_request or {}).get("bindingProblem")
-        if not isinstance(document, dict) and job.instance_snapshot_id is not None:
-            ir = (await session.execute(select(BindingIRSnapshot).where(
-                BindingIRSnapshot.snapshot_id == job.instance_snapshot_id
-            ))).scalars().first()
-            if ir is not None:
-                if (job.provenance or {}).get("irDigest") not in (None, ir.ir_digest):
-                    return _problem(409, "analysis_unavailable", "Job and snapshot IR identities disagree")
-                document = ir.document
-    else:
-        job = _JOBS.get(job_id)
-        if job is None:
-            return _problem(404, "not_found", "Job not found")
-        document = job["problem"].document
+    job = await owned_job(job_id, caller, session)
+    if job is None:
+        return _problem(404, "not_found", "Job not found")
+    document = (job.original_request or {}).get("bindingProblem")
+    if not isinstance(document, dict) and job.instance_snapshot_id is not None:
+        ir = (await session.execute(select(BindingIRSnapshot).where(
+            BindingIRSnapshot.snapshot_id == job.instance_snapshot_id
+        ))).scalars().first()
+        if ir is not None:
+            if (job.provenance or {}).get("irDigest") not in (None, ir.ir_digest):
+                return _problem(409, "analysis_unavailable", "Job and snapshot IR identities disagree")
+            document = ir.document
     if not isinstance(document, dict):
         return _problem(404, "not_found", "BindingProblem not found")
     return document
@@ -3164,35 +2881,30 @@ async def get_v1_job_instance(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        job = await _owned_job(job_id, caller, session)
-        if job is None:
-            return _problem(404, "not_found", "Job not found")
-        if job.instance_snapshot_id is None:
-            return _problem(404, "not_found", "Instance snapshot not found")
-        snapshot = (
-            await session.execute(
-                select(InstanceSnapshot).where(
-                    InstanceSnapshot.id == job.instance_snapshot_id,
-                    InstanceSnapshot.owner_id == caller.id,
-                )
-            )
-        ).scalars().first()
-        if snapshot is None:
-            return _problem(404, "not_found", "Instance snapshot not found")
-        return {
-            "id": str(snapshot.id),
-            "instanceDigest": snapshot.instance_digest,
-            "packageDigest": snapshot.package_digest,
-            "fileDigests": load_package(snapshot.source_archive).resource_digests,
-            "resourceDigests": snapshot.resource_digests,
-            "instance": snapshot.root_document,
-        }
-    job = _JOBS.get(job_id)
+    job = await owned_job(job_id, caller, session)
     if job is None:
         return _problem(404, "not_found", "Job not found")
-    spec = job["problem"].document.get("spec", {})
-    return {"instance": spec.get("instance"), "instanceDigest": job["provenance"].get("instanceDigest")}
+    if job.instance_snapshot_id is None:
+        return _problem(404, "not_found", "Instance snapshot not found")
+    snapshot = (
+        await session.execute(
+            select(InstanceSnapshot).where(
+                InstanceSnapshot.id == job.instance_snapshot_id,
+                InstanceSnapshot.owner_id == caller.id,
+            )
+        )
+    ).scalars().first()
+    if snapshot is None:
+        return _problem(404, "not_found", "Instance snapshot not found")
+    ir = (await session.execute(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))).scalars().first()
+    return {
+        "id": str(snapshot.id),
+        "instanceDigest": snapshot.instance_digest,
+        "packageDigest": snapshot.package_digest,
+        "fileDigests": package_file_digests(snapshot.root_document, ir.document if ir else {}),
+        "resourceDigests": snapshot.resource_digests,
+        "instance": snapshot.root_document,
+    }
 
 
 @router.get("/jobs/{job_id}/report")
@@ -3201,18 +2913,11 @@ async def get_v1_job_report(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        job = await _owned_job(job_id, caller, session)
-        if job is None:
-            return _problem(404, "not_found", "Job not found")
-        result = job.result or {}
-        provenance = job.provenance or {}
-    else:
-        job = _JOBS.get(job_id)
-        if job is None:
-            return _problem(404, "not_found", "Job not found")
-        result = job.get("result", {})
-        provenance = job["provenance"]
+    job = await owned_job(job_id, caller, session)
+    if job is None:
+        return _problem(404, "not_found", "Job not found")
+    result = job.result or {}
+    provenance = job.provenance or {}
     return {
         "id": job_id,
         "gatewayEvaluation": {

@@ -1,8 +1,9 @@
 from _repo import REPO_ROOT
 
-from openbinding_gateway.routes import v1 as routes
-from openbinding_gateway.v1.compiler import compile_instance
-from openbinding_gateway.v1.package import load_package
+from openbinding_gateway.services.engines import manifest
+from bim_core import mode_compatibility
+from bim_core.compiler import compile_instance
+from bim_core.package import load_package
 
 
 EXAMPLE = REPO_ROOT / "examples/demo/15_bpmn_complete"
@@ -50,6 +51,6 @@ def test_complete_bpmn_example_lowers_every_showcase_construct() -> None:
 
 def test_complete_bpmn_example_is_eligible_for_minizinc() -> None:
     problem = compile_instance(load_package(EXAMPLE))
-    mode = routes._manifest("minizinc-csp")["spec"]["modes"][0]
+    mode = manifest("minizinc-csp")["spec"]["modes"][0]
 
-    assert routes._mode_compatibility(problem, mode) == []
+    assert mode_compatibility(problem, mode) == []

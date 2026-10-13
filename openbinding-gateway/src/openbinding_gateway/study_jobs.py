@@ -6,6 +6,7 @@ import json
 import uuid
 from typing import Any
 
+from bim_core import PackageError
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
@@ -28,9 +29,8 @@ from .db.models import (
 from .jobs import lifecycle
 from .jobs.leases import aware
 from .services.engines import engine_mode, manifest_async
-from .services.snapshots import persist_snapshot, snapshot_problem
+from .services.snapshots import persist_snapshot, snapshot_ir
 from .studies import aggregate_metrics
-from .v1.package import PackageError, load_package
 
 
 class StudyLaunchError(RuntimeError):
@@ -243,14 +243,13 @@ async def launch_study_cell(
             "snapshot_not_found", "The BIM snapshot pinned by this case revision no longer exists."
         )
     try:
-        package = load_package(source.source_archive)
-        problem = await snapshot_problem(source, session)
+        compilation = await snapshot_ir(source, session)
     except (HTTPException, PackageError, RuntimeError) as exc:
         raise StudyLaunchError("invalid_case_revision", str(exc)) from exc
 
     # A project member may run a teammate's case. Persisting the same immutable
     # package for the actor keeps the existing owner-scoped snapshot contract.
-    snapshot_id = await persist_snapshot(package, problem, user, session)
+    snapshot_id = await persist_snapshot(compilation, user, session)
     if snapshot_id is None:
         raise StudyLaunchError("snapshot_persistence_failed", "The BIM snapshot could not be persisted.")
 

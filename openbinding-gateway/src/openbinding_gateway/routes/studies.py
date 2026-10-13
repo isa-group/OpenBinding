@@ -81,7 +81,7 @@ from ..study_jobs import (
     metrics_from_job,
 )
 from ..studies import aggregate_metrics, expand_study
-from ..v1.canonical import canonical_json, digest
+from bim_core.canonical import canonical_json, digest
 from ..artifacts import store_blob, version_content
 from ..models.artifacts import CollectionArtifactContent, ArtifactRef
 import json
@@ -502,7 +502,7 @@ async def create_study(
         from ..artifacts import can_read, version_content
         from ..db.models import Artifact, ArtifactVersion
         from ..models.artifacts import CollectionArtifactContent, CaseRevisionRef
-        from ..v1.package import strict_json_loads
+        from ..core.jsonio import strict_json_loads
         version = await session.get(ArtifactVersion, payload.definition.collection_version_id)
         artifact = await session.get(Artifact, version.artifact_id) if version else None
         if artifact is None or artifact.kind != 'Collection' or not await can_read(session, artifact, user, version):
@@ -1469,11 +1469,11 @@ async def explore_engines(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> dict[str, Any]:
     response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
-    from .v1 import _available_engine_documents, _engine_ref
+    from ..services.engines import available_engine_documents, engine_ref
 
     engines = []
-    for document, namespace in await _available_engine_documents(session, caller=None):
-        reference = _engine_ref(document, namespace)
+    for document, namespace in await available_engine_documents(session, caller=None):
+        reference = engine_ref(document, namespace)
         engines.append(
             {
                 "id": reference["name"],

@@ -31,7 +31,9 @@ from openbinding_gateway.db.models import (
     User,
 )
 from openbinding_gateway.routes import v1 as routes
-from openbinding_gateway.v1.package import load_package
+from openbinding_gateway.services.engines import engine_ref
+from openbinding_gateway.services.snapshots import compile_resolved, persist_snapshot
+from bim_core.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 
@@ -157,12 +159,11 @@ async def test_two_sessions_launching_one_cell_create_one_job_and_one_reservatio
     first, second = two_sessions
 
     async def prepare(session, owner):
-        package = load_package(EXAMPLE)
-        problem = await routes._compile_resolved(package, session, owner)
-        snapshot_id = await routes._persist_snapshot(package, problem, owner, session)
+        compilation = await compile_resolved(load_package(EXAMPLE).to_zip(), session, owner)
+        snapshot_id = await persist_snapshot(compilation, owner, session)
         await session.flush()
         return uuid.UUID(snapshot_id), {
-            **routes._engine_ref(routes._manifest("random-search"), "bim.builtin"),
+            **engine_ref(routes._manifest("random-search"), "bim.builtin"),
             "mode": "seeded",
             "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
         }

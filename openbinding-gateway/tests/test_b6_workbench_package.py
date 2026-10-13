@@ -16,14 +16,14 @@ from pathlib import Path
 
 import pytest
 
-from openbinding_gateway.v1.compiler import (
+from bim_core.compiler import (
     CompileError,
     compile_instance,
     installed_dialect_manifests,
     installed_profile_manifests,
     manifest_reference,
 )
-from openbinding_gateway.v1.package import InstancePackage
+from bim_core.package import InstancePackage
 
 FIXTURES = Path(__file__).resolve().parents[2] / "frontend" / "src" / "test" / "fixtures" / "bim-package"
 

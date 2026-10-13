@@ -14,7 +14,7 @@ from test_api_keys import key_payload
 from openbinding_gateway import space_client
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import ApiErrorEvent, Job, JobState, User, UserRole, utcnow
-from openbinding_gateway.v1.package import load_package
+from bim_core.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 CATALOG = pricing_catalog()

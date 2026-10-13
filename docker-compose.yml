@@ -85,6 +85,12 @@ services:
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
       - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
+      # BIM (compile, evaluate, re-evaluate) runs in this process by default. To use a
+      # bim-service instead: BIM_MODE=http, BIM_SERVICE_URL=https://bim.internal and
+      # BIM_SERVICE_TOKEN_FILE=/run/secrets/bim_token (a mounted secret file, never the
+      # token). The service must run the same bim-toolchain release or the gateway
+      # refuses to start.
+      - BIM_MODE=${BIM_MODE:-inproc}
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
       interval: 10s
@@ -161,6 +167,14 @@ services:
       - CAS_ENVIRONMENT=${CAS_ENVIRONMENT:-preproduction}
       - CAS_STORE_BACKEND=redis
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      # BIM (compile, evaluate, re-evaluate) runs in this process by default. To use a
+      # bim-service instead: BIM_MODE=http, BIM_SERVICE_URL=http://bim-service:8080 and
+      # BIM_SERVICE_TOKEN_FILE=/run/secrets/bim_token (a mounted secret file, never the
+      # token). The client refuses a token over plain http to a host that is not loopback,
+      # so a development service on this network runs with BIM_SERVICE_ALLOW_ANONYMOUS_DEV=1
+      # and the gateway has no token file. The service must run the same bim-toolchain
+      # release or startup fails.
+      - BIM_MODE=${BIM_MODE:-inproc}
       # Comma-separated Fernet keys for stored engine credentials: the first
       # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
       # single key, still read after them.
@@ -224,6 +238,8 @@ services:
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
       - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
+      # The worker re-evaluates every engine answer through BIM: same choice as the gateway.
+      - BIM_MODE=${BIM_MODE:-inproc}
       - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-https://openbinding.score.us.es}
       - SPHERE_ENABLED=${SPHERE_ENABLED:-false}
@@ -282,6 +298,8 @@ services:
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
       - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
+      # The worker re-evaluates every engine answer through BIM: same choice as the gateway.
+      - BIM_MODE=${BIM_MODE:-inproc}
       - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:8000}
       - SPHERE_ENABLED=${SPHERE_ENABLED:-false}

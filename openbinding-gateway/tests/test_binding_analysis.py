@@ -7,9 +7,9 @@ import pytest
 from sqlalchemy import select
 
 from openbinding_gateway.db.models import Job, JobState, User
-from openbinding_gateway.v1.analysis import analyze_neighborhood
-from openbinding_gateway.v1.compiler import BindingProblem, compile_instance
-from openbinding_gateway.v1.package import load_package
+from bim_core.neighborhood import analyze_neighborhood
+from bim_core.compiler import BindingProblem, compile_instance
+from bim_core.package import load_package
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples/demo"
 

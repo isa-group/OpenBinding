@@ -35,7 +35,12 @@ dependencies = [
     "dramatiq[redis]>=1.17,<2.0",
     "redis>=5.0,<7.0",
     # SPACE 1.5 is exposed through the native async v1 client.
-    "space-python-client>=1.0,<2.0"
+    "space-python-client>=1.0,<2.0",
+    # The BIM language (compile, evaluate, re-evaluate) lives in bim-toolchain and
+    # is reached through bim_client.BimPort, in process or over HTTP. bim-service
+    # is deliberately not a dependency of the gateway.
+    "bim-core>=0.1,<0.2",
+    "bim-client>=0.1,<0.2",
 ]
 
 [project.optional-dependencies]
@@ -48,6 +53,13 @@ test = [
     "ruff>=0.4,<1.0",
     "scipy>=1.11,<2.0"
 ]
+
+# bim-toolchain is a uv workspace, so bim-client resolves its own bim-core as an
+# editable path. The gateway has to name the same source (editable) or uv sees
+# two conflicting URLs for bim-core.
+[tool.uv.sources]
+bim-core = { path = "../bim-toolchain/packages/bim-core", editable = true }
+bim-client = { path = "../bim-toolchain/packages/bim-client", editable = true }
 
 [tool.ruff]
 line-length = 110

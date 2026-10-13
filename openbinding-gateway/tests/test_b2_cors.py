@@ -22,7 +22,7 @@ from openbinding_gateway.db.models import Job, JobState, User
 from sqlalchemy import select
 from _pricing import fake_pricing_gate
 from _repo import REPO_ROOT
-from openbinding_gateway.v1.package import load_package
+from bim_core.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 FRONTEND_DEV = "http://localhost:5173"

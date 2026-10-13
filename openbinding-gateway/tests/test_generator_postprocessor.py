@@ -16,7 +16,13 @@ from openbinding_gateway.generator.postprocessor import (
     BIMPostprocessor,
     normalize_probabilities,
 )
-from openbinding_gateway.v1.compiler import compile_instance
+from bim_core.compiler import compile_instance
+from bim_core.package import load_package
+
+
+def compile_generated_package(package):
+    """The generator's package, compiled in process with ``bim_core`` for the assertions on the IR object."""
+    return compile_instance(load_package(package.to_zip()))
 
 
 def test_normalize_probabilities_sum_to_exact_one():
@@ -119,7 +125,7 @@ def test_postprocessor_produces_valid_bim_v1():
     assert "routing.json" in package.files
 
     # Verify that it compiles through BIM compiler with 0 errors
-    compiled = compile_instance(package)
+    compiled = compile_generated_package(package)
     assert compiled is not None
     assert compiled.digest is not None
     assert len(compiled.binding_space_breakdown) == 4
@@ -206,7 +212,7 @@ def test_postprocessor_empty_branch_repair():
     assert any(b.get("flow") == {"empty": True} for b in branches)
 
     # Must compile cleanly
-    compiled = compile_instance(pkg)
+    compiled = compile_generated_package(pkg)
     assert compiled is not None
 
 
@@ -253,5 +259,5 @@ def test_postprocessor_pareto_optimization_for_many_heuristic():
     assert "terms" not in opt_doc["spec"]
     assert len(opt_doc["spec"]["criteria"]) >= 3
 
-    compiled = compile_instance(pkg)
+    compiled = compile_generated_package(pkg)
     assert compiled is not None

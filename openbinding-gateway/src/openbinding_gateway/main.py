@@ -14,6 +14,7 @@ import os
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
+from bim_core import BimError
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -35,6 +36,7 @@ from .db.bootstrap import (
     ensure_administrator,
     seed_default_administrator,
 )
+from .integrations import bim as bim_integration
 from .models.problem import (
     JSON_MEDIA_TYPE,
     PROBLEM_MEDIA_TYPE,
@@ -73,7 +75,6 @@ from .security.apikeys import (
 )
 from .security.bodylimit import BodyLimitMiddleware
 from .telemetry import ErrorTelemetryMiddleware
-from .v1.compiler import CompileError
 
 
 
@@ -110,6 +111,8 @@ configure_logging(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+    # Fails the start when the BIM service is unreachable or runs another toolchain.
+    await bim_integration.startup_check()
     if settings.database_url:
         db_base.init_engine(settings.database_url)
 
@@ -145,6 +148,7 @@ async def lifespan(app: FastAPI):
             await gate.aclose()
         space_client.set_gate(None)
         await db_base.dispose_engine()
+        bim_integration.close_bim()
 
 
 TAGS_METADATA = [
@@ -224,17 +228,16 @@ async def request_validation_error(request: Request, exc: RequestValidationError
     )
 
 
-@app.exception_handler(CompileError)
-async def compile_error(request: Request, exc: CompileError):
-    """A BIM source the compiler refused, from any route that did not catch it itself."""
-    diagnostics = [item.as_dict() for item in exc.diagnostics]
-    return problem_response(
-        422,
-        "invalid_instance",
-        summarize(diagnostics, prefix="The BIM source was refused"),
-        diagnostics,
-        media_type=_problem_media_type(request),
-    )
+@app.exception_handler(BimError)
+async def bim_error(request: Request, exc: BimError):
+    """What the BIM toolchain refused, from any route that did not catch it itself.
+
+    A source the compiler refused is 422 ``invalid_instance``; any other error about the input
+    carries the toolchain's own status (422 unless it says otherwise), code and diagnostics; a
+    toolchain that cannot be reached or is overloaded is 503 (``Retry-After`` when it says how
+    long) and one that answers badly is 502.
+    """
+    return bim_integration.problem_response_for(exc, media_type=_problem_media_type(request))
 
 
 @app.exception_handler(HTTPException)
