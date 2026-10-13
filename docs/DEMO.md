@@ -49,12 +49,22 @@ secrets**; use your own.
 | `DEMO_JWT_SECRET` | gateway **only** (as `GATEWAY_JWT_SECRET`) | `lab-example-jwt-signing-value` (make it long and random) |
 | `DEMO_FERNET_KEY` | gateway, worker, seed (as `FEDERATION_SECRET_KEY`, the name `core/settings.py` reads) | a Fernet key: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 | `DEMO_BIM_TOKEN` | bim-service, gateway | `lab-example-bim-token-0123456789abcdef` (one line, 32 to 127 printable ASCII characters without spaces: `bim-service` refuses to start otherwise) |
-| `DEMO_SPACE_PRICING_VERSION` | gateway, worker, seed (as `SPACE_PRICING_VERSION`) | `0.1.0` (must exist in SPACE/SPHERE) |
+| `DEMO_SPACE_PRICING_VERSION` | gateway, worker, seed (as `SPACE_PRICING_VERSION`); seed also as `SPACE_DEV_PRICING_VERSION` | `0.1.0` (must exist in SPACE/SPHERE) |
 | `DEMO_SPACE_DEFAULT_PLAN` | gateway, worker, seed (as `SPACE_DEFAULT_PLAN`) | `BASIC` (must exist in the pricing) |
+| `DEMO_SPACE_DEV_SERVICE` | seed **only** (as `SPACE_DEV_SERVICE_NAME`) | the name of a SPACE *development* service that exists in SPACE; `seed_lab.py --space-contracts` refuses a production name and exits without it |
+| `DEMO_SPACE_DEV_PLAN` | seed **only** (as `SPACE_DEV_PLAN`) | a plan of that service's pricing version, for the contracts of the synthetic users |
 | `DEMO_SEED_TOOL` | seed | `seed_lab.py`, or `smoke_lab.py` for the API smoke (a file of `openbinding-gateway/tools/`; `seed_dev.py` also exists) |
 | `DEMO_SEED_ARGS` | seed | `--verbose` for a seed, `--with-space` for the smoke (see "Seeding" and "API smoke") |
 | `DEMO_SEED_PASSWORD` | seed (`seed_lab.py`, `smoke_lab.py`) | any synthetic value of 10+ characters; the supervisor injects it; `compose.lab.json` passes it only to `seed`, as `${DEMO_SEED_PASSWORD}` with no value and no default |
 | `SMOKE_BASE_URL` | seed (`smoke_lab.py`) | fixed in the file to `http://web:8080` on `seed` only |
+
+The file writes no SPACE service or plan name: those three come from `DEMO_*`
+references. There is **no `DEMO_SPACE_SERVICE`** (nor a gateway/worker variable
+for it): `core/settings.py` has no setting that selects the SPACE service, the
+gateway asks SPACE for the fixed name `SERVICE_NAME` in `space_client/gate.py`,
+and `compose.lab.json` does not invent one. Contracts made on a development
+service therefore only help the gateway if that service is the one it asks for
+(see "API smoke", `blockedByRemote`).
 
 Private, supplied by the supervisor and only referenced as `${NAME}` (the file
 holds no value and no default): `SPACE_URL`, `SPACE_API_KEY`, `SPHERE_URL`,
@@ -167,14 +177,27 @@ Use `DEMO_SEED_ARGS='--skip 6,7,8,9'` to leave out the optional steps and drop
 `--with-space` when the users have no SPACE contract. It reads `DEMO_SEED_PASSWORD`
 from the environment (the same value used to seed), takes the base URL from
 `SMOKE_BASE_URL` or `--base-url` (default `http://web:8080`), prints one JSON
-document with `{name, ok, detail}` per step, never prints passwords, tokens or
-headers, and exits non-zero if any step fails.
+document with `{name, ok, blockedByRemote, detail}` per step, never prints
+passwords, tokens or headers, and exits non-zero if any step fails (1), is only
+blocked by the remote (3) or the configuration is wrong (2).
+
+**Blocked by the remote.** With `SPACE_ENABLED=true` the gateway fails closed when
+it cannot read an account's entitlements: `GET /v1/users/me`, `/v1/users/me/usage`,
+job launches and study runs answer `503 pricing_unavailable`. When SPACE has no
+service or contract for the synthetic users that is not a defect of the gateway,
+so the step that meets it is reported `ok: false, blockedByRemote: true` with the
+reason ("SPACE has no service/contract for the synthetic users; run seed_lab
+--space-contracts after remote_provision --apply") and the server's own message.
+The summary keeps `failed` for real failures and counts `blocked` / `blockedSteps`
+apart; a step with a real failure is never reported as blocked. The 503 text cannot
+tell a missing contract from an unreachable SPACE (the gateway wraps both), so
+check `remote_probe.py` before reading it as a seeding gap.
 
 | Step | Checks |
 | --- | --- |
 | `proxy_and_spa` | `/healthz`, SPA index, SPA fallback on an unknown route, `/api/health/ready` |
 | `login` | `lab-admin`, `lab-owner`, `lab-member`, `lab-viewer` and `lab-outsider` sign in with Bearer tokens |
-| `owner_job` | `lab-owner` profile and projects; a minimal `random-search` job on the seeded package; result shape and the gateway's reevaluation provenance |
+| `owner_job` | `lab-owner` profile and projects; a minimal `random-search` job (`mode: seeded`, `optimization: {type: SINGLE, scalarization: weighted-sum}`, which the gateway requires in the request and the package does not carry) on the seeded package; result shape and the gateway's reevaluation provenance |
 | `idempotency` | same key and body, same job; same key and other body, 409; another account, another job |
 | `authorization` | 401 without token; viewer cannot launch but reads the project job with redacted options; outsider reads neither; non-admins get 403 on `/api/v1/admin/*` |
 | `concurrency_limit` | 5 simultaneous launches against `MAX_CONCURRENT_JOBS_PER_USER=3`: a 429 with `Retry-After`, slot freed afterwards |
@@ -189,7 +212,10 @@ has a job the viewer can read); it never registers users and never touches
 SPACE or SPHERE. Running it again within five minutes finds the login throttle
 already tripped for its probe user, which still counts as a pass. What it does
 not cover (browser, Playwright, the visual mobile/desktop check) and the
-assumptions of its first run are in `docs/qa/E2E_PLAN.md`. **Not run yet.**
+assumptions of its first run are in `docs/qa/E2E_PLAN.md`. First real run: `proxy_and_spa`,
+`cors`, `body_limit` and `login_throttle` passed; the rest were blocked by SPACE having no
+contracts for the synthetic users (503 `pricing_unavailable`) or refused for a job
+body without `optimization` (422, fixed); see that file.
 
 ## Mobile and desktop check
 

@@ -43,6 +43,8 @@ class FakeLab:
         self.keys: dict[tuple[str, str], tuple[str, str]] = {}
         self.project_jobs: list[dict] = []
         self.studies: set[str] = set()
+        self.job_bodies: list[dict] = []
+        self.study_definitions: list[dict] = []
 
     def transport(self) -> httpx.MockTransport:
         return httpx.MockTransport(self.handle)
@@ -62,6 +64,14 @@ class FakeLab:
     def problem(self, status: int, code: str, headers=None) -> httpx.Response:
         return self.reply(status, {"type": code, "title": code, "status": status, "code": code, "detail": code}, headers,
                           media="application/problem+json")
+
+    def pricing_unavailable(self, shape: str = "platform") -> httpx.Response:
+        """What the gateway answers when SPACE cannot tell the plan: platform shape on /users/*, problem+json on /v1/jobs."""
+        message = "SPACE has no contract for this account."
+        if shape == "problem":
+            return self.reply(503, {"type": "pricing_unavailable", "title": "pricing_unavailable", "status": 503,
+                                    "code": "pricing_unavailable", "detail": message}, media="application/problem+json")
+        return self.reply(503, {"detail": {"code": "pricing_unavailable", "error": f"Entitlements cannot be read right now: {message}"}})
 
     def user_of(self, request: httpx.Request) -> str | None:
         header = request.headers.get("authorization", "")
@@ -97,6 +107,10 @@ class FakeLab:
             return httpx.Response(200, content=b"PK-example", headers={"content-type": "application/vnd.bim+zip"})
         if user is None:
             return self.problem(401, "unauthorized")
+        if sub in {"/v1/users/me", "/v1/users/me/usage"} and "pricing_blocked" in self.faults:
+            return self.pricing_unavailable()
+        if sub == "/v1/users/me" and "me_503_other" in self.faults:
+            return self.problem(503, "database_unavailable")
         if sub == "/v1/users/me":
             return self.reply(200, {"username": user, "role": "admin" if user == "lab-admin" else "user"})
         if sub == "/v1/users/me/usage":
@@ -175,7 +189,12 @@ class FakeLab:
         if sub == f"{base}/bim-demo/studies" and request.method == "POST":
             if role == "VIEWER":
                 return self.problem(403, "organization_forbidden")
-            slug = json.loads(request.content)["slug"]
+            document = json.loads(request.content)
+            slug = document["slug"]
+            engines = document["definition"]["engines"]
+            if not all(engine.get("mode") and isinstance(engine.get("optimization"), dict) for engine in engines):
+                return self.problem(422, "validation_error")
+            self.study_definitions.append(document["definition"])
             created = slug not in self.studies
             self.studies.add(slug)
             return self.reply(201, {"slug": slug}) if created else self.problem(409, "slug_conflict")
@@ -204,6 +223,14 @@ class FakeLab:
         body = json.loads(request.content)
         if self.snapshots.get(body["snapshot"]) != user:
             return self.problem(404, "not_found")
+        self.job_bodies.append(body)
+        # The gateway resolves the optimization (bim-service) before it reads the plan (SPACE).
+        if not isinstance(body.get("optimization"), dict):
+            return self.problem(422, "optimization_required")
+        if body.get("mode") != "seeded":
+            return self.problem(422, "engine_mode_incompatible")
+        if "pricing_blocked" in self.faults:
+            return self.pricing_unavailable("problem")
         key = request.headers.get("idempotency-key")
         fingerprint = json.dumps(body, sort_keys=True)
         if key and (user, key) in self.keys and "broken_idempotency" not in self.faults:
@@ -300,6 +327,99 @@ def test_every_step_passes_against_a_healthy_lab():
     assert failing(report) == [], [step for step in report["steps"] if not step["ok"]]
     assert [step["name"] for step in report["steps"]] == ALL_STEPS
     assert report["ok"] is True and report["passed"] == 10 and report["failed"] == 0 and report["skipped"] == []
+    assert report["blocked"] == 0 and report["blockedSteps"] == []
+    assert not any(step["blockedByRemote"] for step in report["steps"])
+
+
+def test_jobs_and_study_engines_carry_the_mode_and_the_execution_optimization():
+    fake = FakeLab()
+    report = smoke(fake)
+    assert report["ok"] is True, [step for step in report["steps"] if not step["ok"]]
+    assert fake.job_bodies and all(
+        body["mode"] == "seeded" and body["optimization"] == {"type": "SINGLE", "scalarization": "weighted-sum"}
+        for body in fake.job_bodies
+    )
+    assert len(fake.study_definitions) == 1
+    assert all(engine["mode"] == "seeded" and engine["optimization"]["scalarization"] == "weighted-sum"
+               for engine in fake.study_definitions[0]["engines"])
+
+
+def test_a_job_without_the_execution_optimization_is_what_the_gateway_refuses_with_422():
+    fake = FakeLab()
+    token = "access-token-lab-owner-0"
+    fake.tokens[token] = "lab-owner"
+    with httpx.Client(transport=fake.transport(), base_url="http://web:8080") as client:
+        refused = client.post("/api/v1/jobs", headers={"Authorization": f"Bearer {token}"},
+                              json={"snapshot": "snap-seed", "engine": "random-search", "options": smoke_lab.MIN_OPTIONS})
+    assert refused.status_code == 422 and smoke_lab.code_of(refused) == "optimization_required"
+
+
+# -- steps blocked by the remote -----------------------------------------------
+
+BLOCKED_STEPS = ["login", "owner_job", "idempotency", "authorization", "concurrency_limit", "plan_usage"]
+
+
+def test_missing_spaces_contracts_block_the_steps_that_need_a_plan_and_are_not_failures():
+    fake = FakeLab("pricing_blocked")
+    report = smoke(fake, with_space=True)
+    assert report["ok"] is False
+    assert report["failed"] == 0 and report["blocked"] == len(BLOCKED_STEPS)
+    assert report["blockedSteps"] == [name for name in ALL_STEPS if name in BLOCKED_STEPS]
+    by_name = steps_of(report)
+    for name in BLOCKED_STEPS:
+        step = by_name[name]
+        assert step["ok"] is False and step["blockedByRemote"] is True, step
+        assert "BLOCKED BY REMOTE" in step["detail"]
+        assert "seed_lab --space-contracts after remote_provision --apply" in step["detail"]
+        assert "pricing_unavailable" in step["detail"]
+    for name in ("proxy_and_spa", "cors", "body_limit", "login_throttle"):
+        assert by_name[name]["ok"] is True and by_name[name]["blockedByRemote"] is False
+    # the study run would be accepted and then just sit queued: no study is started
+    assert fake.studies == set() and fake.project_jobs == []
+
+
+def test_a_blocked_step_still_judges_what_does_not_depend_on_the_plan():
+    step = steps_of(smoke(FakeLab("pricing_blocked")))["authorization"]
+    assert step["blockedByRemote"] is True and "lab-owner GET /v1/users/me" in step["detail"]
+    broken = steps_of(smoke(FakeLab("pricing_blocked", "admin_open")))["authorization"]
+    assert broken["ok"] is False and broken["blockedByRemote"] is False
+    assert "403" in broken["detail"] and "also blocked by remote" in broken["detail"]
+
+
+def test_the_login_step_reports_every_blocked_user_and_still_checks_the_others():
+    step = steps_of(smoke(FakeLab("pricing_blocked", "missing:lab-viewer")))["login"]
+    assert step["ok"] is False and step["blockedByRemote"] is False
+    assert "lab-viewer" in step["detail"] and "also blocked by remote" in step["detail"]
+    only_blocked = steps_of(smoke(FakeLab("pricing_blocked")))["login"]
+    for username in smoke_lab.USERS.values():
+        assert username in only_blocked["detail"]
+
+
+def test_a_503_that_is_not_pricing_unavailable_stays_a_failure():
+    report = smoke(FakeLab("me_503_other"))
+    login = steps_of(report)["login"]
+    assert login["ok"] is False and login["blockedByRemote"] is False and "503" in login["detail"]
+    assert report["blocked"] == 0 and report["failed"] >= 1
+
+
+def test_main_exits_three_when_the_only_problem_is_the_remote(capsys):
+    code, report, _ = run_main(FakeLab("pricing_blocked"), capsys)
+    assert code == 3 and report["ok"] is False
+    assert report["failed"] == 0 and report["blocked"] == len(report["blockedSteps"]) > 0
+
+
+def test_main_exits_one_when_a_real_failure_comes_with_the_blocks(capsys):
+    code, report, _ = run_main(FakeLab("pricing_blocked", "spa_404"), capsys)
+    assert code == 1 and report["failed"] == 1 and report["blocked"] > 0
+
+
+def test_only_a_503_pricing_unavailable_counts_as_blocked_by_the_remote():
+    platform = httpx.Response(503, json={"detail": {"code": "pricing_unavailable", "error": "no plan"}})
+    problem = httpx.Response(503, json={"code": "pricing_unavailable", "detail": "no plan"})
+    assert smoke_lab.pricing_block(platform) == smoke_lab.pricing_block(problem) == "503 pricing_unavailable: no plan"
+    assert smoke_lab.pricing_block(httpx.Response(503, json={"code": "database_unavailable"})) is None
+    assert smoke_lab.pricing_block(httpx.Response(503, text="<html>bad gateway</html>")) is None
+    assert smoke_lab.pricing_block(httpx.Response(429, json={"code": "pricing_unavailable"})) is None
 
 
 def test_the_login_throttle_runs_last_so_it_cannot_block_the_other_steps():
@@ -320,7 +440,7 @@ def test_the_smoke_never_registers_users_and_only_uses_the_seeded_ones():
 def test_main_prints_one_json_document_and_exits_zero(capsys):
     code, report, out = run_main(FakeLab(), capsys)
     assert code == 0 and report["tool"] == "smoke_lab" and report["ok"] is True
-    assert set(report["steps"][0]) == {"name", "ok", "detail"}
+    assert set(report["steps"][0]) == {"name", "ok", "blockedByRemote", "detail"}
     assert out.count('"tool"') == 1
 
 

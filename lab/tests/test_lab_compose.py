@@ -73,8 +73,14 @@ BIM_VARIABLES = {
     "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
     "BIM_SERVICE_ALLOW_INSECURE_HTTP": "true",
 }
-# Variables only the seed gets (tools/remote_probe.py exits without it).
-SEED_EXTRAS = {"SPACE_ORGANIZATION_ID", "DEMO_SEED_PASSWORD", "SMOKE_BASE_URL"}
+# Variables only the seed gets (tools/remote_probe.py exits without SPACE_ORGANIZATION_ID;
+# tools/seed_lab.py --space-contracts requires the three SPACE_DEV_* ones).
+SPACE_DEV_VARIABLES = {
+    "SPACE_DEV_SERVICE_NAME": "${DEMO_SPACE_DEV_SERVICE}",
+    "SPACE_DEV_PLAN": "${DEMO_SPACE_DEV_PLAN}",
+    "SPACE_DEV_PRICING_VERSION": "${DEMO_SPACE_PRICING_VERSION}",
+}
+SEED_EXTRAS = {"SPACE_ORGANIZATION_ID", "DEMO_SEED_PASSWORD", "SMOKE_BASE_URL", *SPACE_DEV_VARIABLES}
 
 
 @pytest.fixture(scope="module")
@@ -446,6 +452,25 @@ def test_seed_password_is_a_bare_reference_only_in_the_seed_and_the_smoke_target
     assert seed["DEMO_SEED_PASSWORD"] == "${DEMO_SEED_PASSWORD}"
     assert seed["SMOKE_BASE_URL"] == "http://web:8080"
     assert [n for n, s in services.items() if "SMOKE_BASE_URL" in _env(s)] == ["seed"]
+
+
+def test_space_dev_contract_variables_are_bare_references_only_in_the_seed(services):
+    # seed_lab.py --space-contracts reads them; no service or plan name is written in the file, and
+    # the development service must never reach the gateway or the worker.
+    seed = _env(services["seed"])
+    assert {key: seed[key] for key in SPACE_DEV_VARIABLES} == SPACE_DEV_VARIABLES
+    for name, service in services.items():
+        if name != "seed":
+            assert not [key for key in _env(service) if key.startswith("SPACE_DEV_")], name
+    assert "DEMO_SPACE_DEV" not in json.dumps({n: s for n, s in services.items() if n != "seed"})
+
+
+def test_no_space_service_or_plan_name_is_written_in_the_file(services):
+    # What names SPACE's service and plan is the supervisor's, through DEMO_* references.
+    for name, service in services.items():
+        for key, value in _env(service).items():
+            if re.search(r"SPACE_.*(SERVICE|PLAN)", key):
+                assert WHOLE_REFERENCE.fullmatch(value) and value.startswith("${DEMO_"), f"{name}:{key}"
 
 
 def test_worker_has_the_variables_it_needs(services):

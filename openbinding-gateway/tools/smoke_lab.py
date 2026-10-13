@@ -6,8 +6,14 @@ logs in as the synthetic users that ``tools/seed_lab.py`` created. It never call
 registration endpoint (registration creates a SPACE contract), never writes to
 SPACE/SPHERE, and never prints a password, a token or a header.
 
-Output: ONE JSON document on stdout, ``{"tool", "ok", "steps": [{name, ok, detail}], ...}``.
-Exit code: 0 when every step that ran passed, 1 when any failed, 2 on a configuration error.
+Output: ONE JSON document on stdout, ``{"tool", "ok", "steps": [{name, ok, blockedByRemote, detail}], ...}``.
+Exit code: 0 when every step that ran passed, 1 when any failed, 2 on a configuration error, 3 when nothing
+failed but some steps were blocked by the remote.
+
+A gateway that cannot read an account's entitlements answers ``503 pricing_unavailable`` (it fails closed). When
+SPACE has no service or contract for the synthetic users that is not a defect of the gateway, so the step that
+met it is reported ``ok: false, blockedByRemote: true`` with the reason, and the summary counts it under
+``blocked`` (and ``blockedSteps``) instead of ``failed``. A step with a real failure is never reported as blocked.
 
 Environment (the ``seed`` compose service passes the gateway's, so nothing is specific to this tool):
     DEMO_SEED_PASSWORD   required; the password the seed gave every synthetic user.
@@ -51,7 +57,7 @@ from typing import Any
 import httpx
 
 DEFAULT_BASE_URL = "http://web:8080"
-EXIT_OK, EXIT_FAILED, EXIT_CONFIG = 0, 1, 2
+EXIT_OK, EXIT_FAILED, EXIT_CONFIG, EXIT_BLOCKED = 0, 1, 2, 3
 
 #: Synthetic users created by tools/seed_lab.py (name -> platform role).
 USERS = {
@@ -71,13 +77,25 @@ STUDY_SLUG = "smoke-lab"
 
 TERMINAL = frozenset({"completed", "failed", "cancelled"})
 TERMINATIONS = frozenset({"OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"})
+#: random-search has one mode; a job and every study engine must name it explicitly.
+MODE = "seeded"
+#: Execution-time selection a job must carry (the package's optimization.json only declares the criteria):
+#: one criterion, weighted-sum without weights -> the toolchain fills in equal weights.
+OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
 #: The smallest meaningful random-search budget.
 MIN_OPTIONS = {"iterations": 10, "seed": 1}
 #: Long enough to hold a slot while five launches race, short enough to end by itself.
 SLOW_OPTIONS = {"iterations": 1_000_000, "seed": 1, "time_budget_ms": 20_000}
 JSON_LIMIT_BYTES = 16 * 1024 * 1024
 BIM_ZIP = "application/vnd.bim+zip"
-DETAIL_MAX = 300
+DETAIL_MAX = 500
+
+#: Code of the 503 the gateway answers when SPACE cannot tell what an account's plan allows.
+PRICING_UNAVAILABLE = "pricing_unavailable"
+BLOCKED_HINT = (
+    "SPACE has no service/contract for the synthetic users; "
+    "run seed_lab --space-contracts after remote_provision --apply"
+)
 
 #: Step number -> optional via --skip.
 SKIPPABLE = (6, 7, 8, 9)
@@ -151,13 +169,24 @@ class StepError(Exception):
     """A step cannot continue (a prerequisite is missing); the message is the step's detail."""
 
 
+class RemoteBlocked(Exception):
+    """SPACE cannot say what the account may do, so the request cannot be judged; not a gateway defect."""
+
+    def __init__(self, label: str, cause: str) -> None:
+        super().__init__(label)
+        self.label = label
+        self.cause = cause
+
+
 class Checks:
-    """Named expectations of one step; the step passes when none failed."""
+    """Named expectations of one step; the step passes when none failed and nothing was blocked."""
 
     def __init__(self) -> None:
         self.passed = 0
         self.failed: list[str] = []
         self.notes: list[str] = []
+        self.blocked: list[str] = []
+        self.cause = ""
 
     def expect(self, condition: object, label: str) -> bool:
         if condition:
@@ -169,14 +198,31 @@ class Checks:
     def note(self, text: str) -> None:
         self.notes.append(text)
 
+    def block(self, label: str, cause: str) -> None:
+        """Record a request that SPACE's missing contract kept from being judged (once per label)."""
+        if label not in self.blocked:
+            self.blocked.append(label)
+        self.cause = self.cause or cause
+
     @property
     def ok(self) -> bool:
-        return not self.failed
+        return not self.failed and not self.blocked
+
+    @property
+    def blocked_by_remote(self) -> bool:
+        """Blocked and nothing else wrong: a real failure keeps the step a failure."""
+        return bool(self.blocked) and not self.failed
 
     def detail(self) -> str:
         notes = f" [{'; '.join(self.notes)}]" if self.notes else ""
+        blocked = f"; also blocked by remote at {', '.join(self.blocked)}" if self.blocked else ""
         if self.failed:
-            return f"FAILED {len(self.failed)}/{self.passed + len(self.failed)}: {'; '.join(self.failed)}{notes}"
+            return f"FAILED {len(self.failed)}/{self.passed + len(self.failed)}: {'; '.join(self.failed)}{blocked}{notes}"
+        if self.blocked:
+            return (
+                f"BLOCKED BY REMOTE: {BLOCKED_HINT}. Cause: {self.cause}. "
+                f"Blocked at: {', '.join(self.blocked)}. {self.passed} checks passed{notes}"
+            )
         return f"{self.passed} checks passed{notes}"
 
 
@@ -198,6 +244,25 @@ def code_of(response: httpx.Response) -> str:
     if not isinstance(code, str):
         code = mapping(body.get("detail")).get("code")
     return code if isinstance(code, str) else ""
+
+
+def message_of(response: httpx.Response) -> str:
+    """The human text of an error body (platform shape ``detail.error``, problem+json ``detail``)."""
+    body = mapping(body_of(response))
+    detail = body.get("detail")
+    message = body.get("error") or mapping(detail).get("error") or (detail if isinstance(detail, str) else "")
+    return message if isinstance(message, str) else ""
+
+
+def pricing_block(response: httpx.Response) -> str | None:
+    """Why the gateway could not read the entitlements (``503 pricing_unavailable``), else ``None``.
+
+    The text cannot tell "SPACE has no contract for this account" from "SPACE is not reachable" (the
+    gateway wraps both), so the server's message is carried along for whoever reads the report.
+    """
+    if response.status_code != 503 or code_of(response) != PRICING_UNAVAILABLE:
+        return None
+    return f"503 {PRICING_UNAVAILABLE}: {message_of(response)}"[:160]
 
 
 def retry_after_of(response: httpx.Response) -> int | None:
@@ -270,6 +335,23 @@ class Lab:
         self.example_zip: bytes | None = None
         self.owner_job_id: str | None = None
         self.project_job_id: str | None = None
+        self.checks = Checks()
+
+    def begin(self) -> Checks:
+        """The checks of the step that starts now; kept so a step cut short by a block still reports them."""
+        self.checks = Checks()
+        return self.checks
+
+    def guard(self, response: httpx.Response, method: str, path: str, user: str | None) -> httpx.Response:
+        """Raise ``RemoteBlocked`` when the gateway could not read the entitlements for this request."""
+        cause = pricing_block(response)
+        if cause is not None:
+            raise RemoteBlocked(f"{USERS.get(user or '', 'anonymous')} {method} {path[:40]}", cause)
+        return response
+
+    def require_entitlements(self, user: str) -> None:
+        """Fail fast as blocked when ``user``'s plan cannot be read (study runs would otherwise just stay queued)."""
+        self.call("GET", "/v1/users/me", user)
 
     # -- requests ----------------------------------------------------------
 
@@ -289,7 +371,7 @@ class Lab:
             merged["Authorization"] = f"Bearer {self.login(user)}"
         target = f"/api{path}" if api else path
         kwargs.setdefault("timeout", self.config.request_timeout_s)
-        return self.client.request(method, target, headers=merged, **kwargs)
+        return self.guard(self.client.request(method, target, headers=merged, **kwargs), method, path, user)
 
     def login(self, user: str, *, username: str | None = None, password: str | None = None) -> str:
         """The Bearer token of a seeded user; signs in once and remembers the outcome."""
@@ -358,7 +440,10 @@ class Lab:
     def launch(
         self, user: str, *, key: str | None = None, options: Mapping[str, Any] | None = None, snapshot: str | None = None
     ) -> httpx.Response:
-        body = {"snapshot": snapshot or self.snapshot(user), "engine": "random-search", "options": dict(options or MIN_OPTIONS)}
+        body = {
+            "snapshot": snapshot or self.snapshot(user), "engine": "random-search", "mode": MODE,
+            "optimization": dict(OPTIMIZATION), "options": dict(options or MIN_OPTIONS),
+        }
         headers = {"Idempotency-Key": key} if key else {}
         return self.call("POST", "/v1/jobs", user, headers=headers, json=body)
 
@@ -396,7 +481,7 @@ class Lab:
 
 
 def step_proxy_and_spa(lab: Lab) -> Checks:
-    checks = Checks()
+    checks = lab.begin()
     health = lab.call("GET", "/healthz", api=False)
     checks.expect(health.status_code == 200 and health.text.strip() == "ok", f"/healthz answers ok ({health.status_code})")
 
@@ -418,14 +503,18 @@ def step_proxy_and_spa(lab: Lab) -> Checks:
 
 
 def step_login(lab: Lab) -> Checks:
-    checks = Checks()
+    checks = lab.begin()
     for user, username in USERS.items():
         try:
             lab.login(user)
         except StepError as error:
             checks.expect(False, str(error))
             continue
-        me = lab.call("GET", "/v1/users/me", user)
+        try:
+            me = lab.call("GET", "/v1/users/me", user)
+        except RemoteBlocked as blocked:
+            checks.block(blocked.label, blocked.cause)
+            continue
         profile = mapping(body_of(me))
         expected_role = ADMIN_ROLE if user == "admin" else "user"
         checks.expect(
@@ -472,9 +561,12 @@ def inspect_result(checks: Checks, job: Mapping[str, Any]) -> None:
 
 
 def step_owner_job(lab: Lab) -> Checks:
-    checks = Checks()
-    me = mapping(body_of(lab.call("GET", "/v1/users/me", "owner")))
-    checks.expect(me.get("username") == USERS["owner"], "owner profile")
+    checks = lab.begin()
+    try:
+        me = mapping(body_of(lab.call("GET", "/v1/users/me", "owner")))
+        checks.expect(me.get("username") == USERS["owner"], "owner profile")
+    except RemoteBlocked as blocked:
+        checks.block(blocked.label, blocked.cause)
 
     organizations = body_of(lab.call("GET", "/v1/organizations", "owner")) or []
     main = next((item for item in organizations if mapping(item).get("slug") == ORG), None)
@@ -501,7 +593,7 @@ def step_owner_job(lab: Lab) -> Checks:
 
 
 def step_idempotency(lab: Lab) -> Checks:
-    checks = Checks()
+    checks = lab.begin()
     key = f"smoke-{lab.run_id}-idem"
     first = lab.launch("owner", key=key)
     first_id = mapping(body_of(first)).get("id")
@@ -552,6 +644,8 @@ def ensure_project_job(lab: Lab) -> str:
     if lab.project_job_id is not None:
         return lab.project_job_id
 
+    # A study run is accepted (202) even when the plan cannot be read, and then just stays queued.
+    lab.require_entitlements("owner")
     revision = lab.case_revision().get("id")
     engines = mapping(body_of(lab.call("GET", "/v1/engines", "owner"))).get("engines") or []
     engine = next((item for item in engines if mapping(item).get("name") == "random-search"), None)
@@ -564,7 +658,10 @@ def ensure_project_job(lab: Lab) -> str:
             "slug": STUDY_SLUG, "name": "Smoke lab study", "description": "Created by tools/smoke_lab.py.",
             "definition": {
                 "case_revision_ids": [revision],
-                "engines": [{key: engine[key] for key in ("namespace", "name", "version", "digest")}],
+                "engines": [{
+                    **{key: engine[key] for key in ("namespace", "name", "version", "digest")},
+                    "mode": MODE, "optimization": dict(OPTIMIZATION),
+                }],
                 "parameter_sets": [{"iterations": MIN_OPTIONS["iterations"]}],
                 "seeds": [MIN_OPTIONS["seed"]],
             },
@@ -606,7 +703,7 @@ def check_viewer_redaction(checks: Checks, job: Mapping[str, Any]) -> None:
 
 
 def step_authorization(lab: Lab) -> Checks:
-    checks = Checks()
+    checks = lab.begin()
     job_id = lab.owner_job_id or str(uuid.uuid4())
     base = f"/v1/organizations/{ORG}/projects/{PROJECT}"
 
@@ -621,6 +718,8 @@ def step_authorization(lab: Lab) -> Checks:
 
     try:
         project_job = ensure_project_job(lab)
+    except RemoteBlocked as blocked:
+        checks.block(blocked.label, blocked.cause)
     except StepError as error:
         checks.expect(False, f"no project job to read as viewer: {error}")
     else:
@@ -649,13 +748,16 @@ def step_authorization(lab: Lab) -> Checks:
 
 
 def step_concurrency_limit(lab: Lab) -> Checks:
-    checks = Checks()
+    checks = lab.begin()
     snapshot = lab.snapshot("owner")
     token = lab.login("owner")
     tag = f"smoke-{lab.run_id}-race"
 
     def attempt(index: int) -> httpx.Response:
-        body = {"snapshot": snapshot, "engine": "random-search", "options": SLOW_OPTIONS}
+        body = {
+            "snapshot": snapshot, "engine": "random-search", "mode": MODE,
+            "optimization": dict(OPTIMIZATION), "options": SLOW_OPTIONS,
+        }
         return lab.client.post(
             "/api/v1/jobs", json=body, headers={"Authorization": f"Bearer {token}", "Idempotency-Key": f"{tag}-{index}"},
             timeout=lab.config.request_timeout_s,
@@ -666,6 +768,9 @@ def step_concurrency_limit(lab: Lab) -> Checks:
     accepted = [mapping(body_of(item)).get("id") for item in responses if item.status_code == 202]
     refused = [item for item in responses if item.status_code == 429]
     accepted_ids = [item for item in accepted if isinstance(item, str)]
+    blocks = [cause for cause in map(pricing_block, responses) if cause]
+    if blocks and not accepted_ids:
+        raise RemoteBlocked(f"{USERS['owner']} POST /v1/jobs x{len(blocks)}", blocks[0])
     checks.expect(
         len(accepted_ids) + len(refused) == len(responses),
         f"every launch is 202 or 429 ({sorted(item.status_code for item in responses)})",
@@ -687,7 +792,7 @@ def step_concurrency_limit(lab: Lab) -> Checks:
 
 
 def step_cors(lab: Lab) -> Checks:
-    checks = Checks()
+    checks = lab.begin()
     request_headers = {"Access-Control-Request-Method": "GET", "Access-Control-Request-Headers": "authorization"}
     allowed = lab.call("OPTIONS", "/v1/users/me", headers={"Origin": lab.config.origin, **request_headers})
     checks.expect(
@@ -708,7 +813,7 @@ def step_cors(lab: Lab) -> Checks:
 
 
 def step_body_limit(lab: Lab) -> Checks:
-    checks = Checks()
+    checks = lab.begin()
     prefix, suffix = b'{"username_or_email":"x","password":"', b'"}'
     padding = JSON_LIMIT_BYTES + 1024 - len(prefix) - len(suffix)
     started = lab.clock()
@@ -728,7 +833,7 @@ def step_body_limit(lab: Lab) -> Checks:
 
 
 def step_login_throttle(lab: Lab) -> Checks:
-    checks = Checks()
+    checks = lab.begin()
     statuses: list[int] = []
     limited: httpx.Response | None = None
     for _ in range(THROTTLE_ATTEMPTS):
@@ -750,7 +855,7 @@ def step_login_throttle(lab: Lab) -> Checks:
 
 
 def step_plan_usage(lab: Lab) -> Checks:
-    checks = Checks()
+    checks = lab.begin()
     response = lab.call("GET", "/v1/users/me/usage", "owner")
     body = mapping(body_of(response))
     if not checks.expect(response.status_code == 200, f"GET /v1/users/me/usage ({describe(response)})"):
@@ -789,14 +894,19 @@ STEPS: dict[int, tuple[str, Callable[[Lab], Checks]]] = {
 
 def run_step(lab: Lab, number: int) -> dict[str, Any]:
     name, function = STEPS[number]
+    blocked = False
     try:
         checks = function(lab)
-        ok, detail = checks.ok, checks.detail()
+        ok, detail, blocked = checks.ok, checks.detail(), checks.blocked_by_remote
+    except RemoteBlocked as error:
+        checks = lab.checks
+        checks.block(error.label, error.cause)
+        ok, detail, blocked = False, checks.detail(), checks.blocked_by_remote
     except StepError as error:
         ok, detail = False, str(error)
     except Exception as error:  # noqa: BLE001 - one step's crash must not stop the next ones
         ok, detail = False, f"{type(error).__name__}: {str(error)[:160]}"
-    return {"name": name, "ok": ok, "detail": lab.redact(detail)[:DETAIL_MAX]}
+    return {"name": name, "ok": ok, "blockedByRemote": blocked, "detail": lab.redact(detail)[:DETAIL_MAX]}
 
 
 def run_smoke(
@@ -817,12 +927,15 @@ def run_smoke(
             skipped.append(name)
             continue
         steps.append(run_step(lab, number))
+    blocked_steps = [step["name"] for step in steps if step["blockedByRemote"]]
     return {
         "tool": "smoke_lab",
         "baseUrl": config.base_url,
         "ok": bool(steps) and all(step["ok"] for step in steps),
         "passed": sum(1 for step in steps if step["ok"]),
-        "failed": sum(1 for step in steps if not step["ok"]),
+        "failed": sum(1 for step in steps if not step["ok"] and not step["blockedByRemote"]),
+        "blocked": len(blocked_steps),
+        "blockedSteps": blocked_steps,
         "skipped": skipped,
         "elapsedS": round(clock() - started, 1),
         "steps": steps,
@@ -873,7 +986,9 @@ def main(
     with httpx.Client(base_url=base_url, transport=transport, follow_redirects=False) as client:
         report = run_smoke(config, client, sleep=sleep)
     print(Redactor([password])(json.dumps(report, indent=2)))
-    return EXIT_OK if report["ok"] else EXIT_FAILED
+    if report["ok"]:
+        return EXIT_OK
+    return EXIT_BLOCKED if report["failed"] == 0 and report["blocked"] else EXIT_FAILED
 
 
 if __name__ == "__main__":

@@ -1,23 +1,45 @@
 # End-to-end plan: API smoke test of the lab demo
 
-**Status: `tools/smoke_lab.py` has not run against the lab.** It was written without a Docker daemon and
-tested only against a simulated gateway (`tools/tests/test_smoke_lab.py`, `httpx.MockTransport`). The
-routes, bodies and status codes it expects were read from `routes/`, `models/` and the existing tests, not
-observed. The first lab run is the first real contact; "Assumptions not verified" lists what that run can
-break. Send the JSON back and the tool gets corrected.
+**Status: `tools/smoke_lab.py` ran once against the lab (stack healthy, web OK); the corrected version has not.**
+It was written without a Docker daemon and tested against a simulated gateway
+(`tools/tests/test_smoke_lab.py`, `httpx.MockTransport`). The first real run passed `proxy_and_spa`, `cors`,
+`body_limit` and `login_throttle` and failed the rest, for two reasons, both now handled:
+
+- **`GET /v1/users/me` answered 503 for all five users.** The profile reads the plan through
+  `get_gate().caps()` (`routes/users.py`); `SpacePricingGate.caps()` raises `PricingUnavailable` when SPACE gives
+  no entitlements token or no contract, and the route turns it into `503 pricing_unavailable`. This is the
+  intended fail-closed behaviour (`space_client/gate.py`), not a bug, and the real SPACE had no service or
+  contract for the synthetic users. The smoke now reports such a step as `ok: false, blockedByRemote: true`
+  (reason: "SPACE has no service/contract for the synthetic users; run seed_lab --space-contracts after
+  remote_provision --apply") and counts it under `blocked`, apart from `failed`; exit code 3.
+- **`POST /v1/jobs` answered 422 `optimization_required` and the study creation 422 `validation_error`.** The
+  package `examples/demo/01_simple_seq` is fine (its `optimization.json` declares the criterion `latency`). What
+  was missing is the *execution-time* selection the request must carry: `"mode": "seeded"` and
+  `"optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}` (equal weights are filled in by the
+  toolchain). A study needs the same two fields inside every `definition.engines[]` item. The smoke sends them.
+  The gateway resolves the optimization before it reads the plan, so once the 422 was fixed the next answer for
+  a user without a contract is the 503 above.
 
 ## What the smoke covers
 
 One run goes through the nginx proxy (`web`, port 8080 inside the lab network) the way the browser does,
 using only the users `tools/seed_lab.py` created (names and roles in `docs/DEMO.md`). It prints **one JSON
-document** with `{name, ok, detail}` per step and exits 0 (all passed), 1 (a step failed) or 2 (configuration:
-no `DEMO_SEED_PASSWORD`). A failing step never stops the next one. It prints no password, token or header.
+document** with `{name, ok, blockedByRemote, detail}` per step and exits 0 (all passed), 1 (a step failed),
+2 (configuration: no `DEMO_SEED_PASSWORD`) or 3 (nothing failed, but at least one step was blocked by the
+remote, see below). A failing step never stops the next one. It prints no password, token or header.
+
+`blockedByRemote: true` means the step met `503 pricing_unavailable` (the gateway could not read the account's
+plan) and could not be judged; `ok` stays `false`. The summary has `failed` (real failures), `blocked` and
+`blockedSteps`. Steps that need a plan (2 `login`, 3, 4, 5, 6 and 10) are the ones that can be blocked; what in
+them does not depend on the plan is still checked, and a real failure in the same step makes it a failure, not a
+block. The 503 text cannot tell "no contract" from "SPACE unreachable" (`SpacePricingGate._call` wraps both), so
+the detail carries the server's message and `remote_probe.py` settles it.
 
 | # | Step | What is asserted |
 | --- | --- | --- |
 | 1 | `proxy_and_spa` | `GET /healthz` is `ok`; `GET /` is the SPA's HTML; a made-up deep route returns the same index (SPA fallback); `GET /api/health/ready` is 200 `ready` |
 | 2 | `login` | `POST /api/v1/auth/login` for admin, owner, member, viewer, outsider returns a Bearer token; `GET /api/v1/users/me` shows the username and the platform role (`admin` / `user`) |
-| 3 | `owner_job` | owner profile; `lab-main` shows `OWNER`; project `bim-demo` visible; a `random-search` job (10 iterations, seed 1) on the **seeded** snapshot of case `simple-seq` reaches `completed` within 120 s; result has `termination`, and per solution `decision.binding`, `features`, `objectives`, `penalties`, `violations`; the provenance names `bim-reference-evaluator` with its digest and pins compiler and IR; `engineReported` is kept apart from the authoritative values; if the provenance has a field with "toolchain" in its name it is reported |
+| 3 | `owner_job` | owner profile; `lab-main` shows `OWNER`; project `bim-demo` visible; a `random-search` job (`mode: seeded`, `optimization` SINGLE / weighted-sum, 10 iterations, seed 1) on the **seeded** snapshot of case `simple-seq` reaches `completed` within 120 s; result has `termination`, and per solution `decision.binding`, `features`, `objectives`, `penalties`, `violations`; the provenance names `bim-reference-evaluator` with its digest and pins compiler and IR; `engineReported` is kept apart from the authoritative values; if the provenance has a field with "toolchain" in its name it is reported |
 | 4 | `idempotency` | same `Idempotency-Key` and body: 202 with the same id and `idempotent: true`; same key, other body: 409 `idempotency_conflict`; the same key from `lab-member` (with the member's own snapshot): a different job, not marked idempotent, and the member cannot read the owner's job |
 | 5 | `authorization` | no token: 401 on profile, organizations, job read, launch, project jobs and admin; the viewer cannot launch (403/404) nor start a study run; the viewer **does** read the project's job (state and result) and its `options`, `original_request` and provenance are redacted (allow-listed option names only, no credential- or address-like keys, registration only as a pinned reference); the outsider cannot read organization, project, project jobs (403/404) or the owner's job (404); owner, member, viewer and outsider get 403 on `/api/v1/admin/overview`, the admin gets 200 |
 | 6 | `concurrency_limit` (optional) | 5 simultaneous launches with different keys and slow options (1,000,000 iterations, 20 s budget): at most `--max-concurrent` (3) are accepted, at least one is a 429 `concurrency_limit_exceeded` with `Retry-After`; the accepted jobs are cancelled and awaited, and a new launch is accepted again |
@@ -65,8 +87,13 @@ Steps 1 to 5 cannot be skipped. Step 10 only runs with `--with-space`.
 
 Preconditions: the stack is up and healthy, and the users exist (`seed_lab.py` ran; see `docs/DEMO.md`). With
 `SPACE_ENABLED=true` the gateway asks SPACE for the plan of every account, so the synthetic users need a
-contract on the development service (`seed_lab.py --space-contracts`, see `docs/qa/REMOTE_TOOLS.md`);
-without one, launching (steps 3 to 6) is refused and the step reports the status and code it got.
+contract on the development service (`seed_lab.py --space-contracts`, see `docs/qa/REMOTE_TOOLS.md`; the
+`seed` service gets the service, plan and version from `DEMO_SPACE_DEV_SERVICE`, `DEMO_SPACE_DEV_PLAN` and
+`DEMO_SPACE_PRICING_VERSION`). Without one the gateway answers 503 `pricing_unavailable` and the steps that
+need a plan (2, 3, 4, 5, 6, 10) are reported as blocked by the remote, not as failures. The gateway asks SPACE
+for a fixed service name that no setting changes (`SERVICE_NAME` in `space_client/gate.py`) while
+`seed_lab.py` refuses to write contracts on that production name, so contracts on a development service do not
+by themselves satisfy the gateway; see `docs/DEMO.md`.
 
 The smoke is a seed tool: it runs in the `seed` service, inside the lab network, so `web` resolves.
 
@@ -89,15 +116,13 @@ Options: `--base-url`, `--skip`, `--with-space`, `--origin` (default `http://loc
 the lab's `MAX_CONCURRENT_JOBS_PER_USER`).
 
 Reading the result: `ok` and the exit code are the verdict; `steps[].detail` says `N checks passed [notes]`
-or `FAILED k/n: <the failed expectations>`, at most 300 characters, with every secret and token-shaped string
-replaced by `***`. Run the unit tests with `cd openbinding-gateway && uv run pytest tools/tests/test_smoke_lab.py`.
+or `FAILED k/n: <the failed expectations>` or `BLOCKED BY REMOTE: <reason>. Cause: <server message>. Blocked
+at: <requests>`, at most 500 characters, with every secret and token-shaped string replaced by `***`. Run the unit tests with `cd openbinding-gateway && uv run pytest tools/tests/test_smoke_lab.py`.
 
 ## Assumptions not verified
 
-1. **Compose environment.** `compose.lab.json` lists no `DEMO_SEED_PASSWORD` (nor `SMOKE_BASE_URL`) in the
-   `seed` service's `environment`. Unless the supervisor injects `DEMO_SEED_PASSWORD` into the container, both
-   `seed_lab.py` and `smoke_lab.py` stop with "DEMO_SEED_PASSWORD is required". `compose.lab.json` was outside
-   this change.
+1. **Compose environment.** *Resolved:* `compose.lab.json` passes `DEMO_SEED_PASSWORD`, `SMOKE_BASE_URL` and
+   the three `SPACE_DEV_*` variables to `seed` only, as references to `DEMO_*` variables the supervisor supplies.
 2. **`httpx` in the gateway image.** It is a runtime dependency in `pyproject.toml`; not confirmed inside the
    built image. `tools/` is bind-mounted, so the script runs from the checkout.
 3. **Example package.** Members upload the package served by `GET /api/v1/examples/demo/01_simple_seq`. It
@@ -106,7 +131,9 @@ replaced by `***`. Run the unit tests with `cd openbinding-gateway && uv run pyt
    that snapshot cannot be read it falls back to uploading the example package.
 5. **Study entitlement.** The viewer's read needs a project job, which needs the `studies` feature on the
    owner's plan (and on the sponsor's capacity). If the plan refuses it, step 5 fails with "no project job to
-   read as viewer" and the code of the refusal; nothing else in the step is skipped.
+   read as viewer" and the code of the refusal; nothing else in the step is skipped. A study run is accepted
+   (202) even when the plan cannot be read and then stays queued, so step 5 reads the owner's profile first and
+   reports the block at once instead of waiting `--job-timeout`.
 6. **Slow options.** Step 6 assumes the plan's caps do not clamp `iterations`/`time_budget_ms` so far that a
    job ends before the five launches have arrived. If it does, no 429 appears and the step fails; lower
    `--max-concurrent` does not help, raise the budget in `SLOW_OPTIONS`.
