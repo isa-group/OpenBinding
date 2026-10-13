@@ -199,7 +199,7 @@ class FakeLab:
             self.studies.add(slug)
             return self.reply(201, {"slug": slug}) if created else self.problem(409, "slug_conflict")
         if sub == f"{base}/bim-demo/studies/smoke-lab/runs" and request.method == "POST":
-            if role == "VIEWER":
+            if role == "VIEWER" and "viewer_run_open" not in self.faults:
                 return self.problem(403, "organization_forbidden")
             self.project_jobs.append({"id": str(uuid.uuid4()), "project_id": "project-1"})
             return self.reply(202, {"id": "run-1", "state": "running"})
@@ -380,7 +380,8 @@ def test_missing_spaces_contracts_block_the_steps_that_need_a_plan_and_are_not_f
 
 def test_a_blocked_step_still_judges_what_does_not_depend_on_the_plan():
     step = steps_of(smoke(FakeLab("pricing_blocked")))["authorization"]
-    assert step["blockedByRemote"] is True and "lab-owner GET /v1/users/me" in step["detail"]
+    # the viewer's personal launch is the first call that needs a plan
+    assert step["blockedByRemote"] is True and "lab-viewer POST /v1/jobs" in step["detail"]
     broken = steps_of(smoke(FakeLab("pricing_blocked", "admin_open")))["authorization"]
     assert broken["ok"] is False and broken["blockedByRemote"] is False
     assert "403" in broken["detail"] and "also blocked by remote" in broken["detail"]
@@ -592,6 +593,19 @@ def test_a_second_run_reuses_the_project_job_instead_of_starting_another_study()
     smoke(fake, skip=frozenset({6, 7, 8, 9}))
     smoke(fake, skip=frozenset({6, 7, 8, 9}))
     assert len(fake.project_jobs) == 1
+
+
+def test_the_viewer_launches_a_personal_job_but_cannot_start_a_study_run():
+    fake = FakeLab()
+    step = steps_of(smoke(fake))["authorization"]
+    assert step["ok"], step["detail"]
+    assert any(job["owner"] == "lab-viewer" for job in fake.jobs.values())
+
+
+def test_a_viewer_that_can_start_a_study_run_fails_the_authorization_step():
+    step = steps_of(smoke(FakeLab("viewer_run_open")))["authorization"]
+    assert not step["ok"]
+    assert "CANNOT start a study run" in step["detail"]
 
 
 def test_options_that_leak_to_the_viewer_fail_the_authorization_step():

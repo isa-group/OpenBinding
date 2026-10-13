@@ -230,7 +230,7 @@ check `remote_probe.py` before reading it as a seeding gap.
 | `login` | `lab-admin`, `lab-owner`, `lab-member`, `lab-viewer` and `lab-outsider` sign in with Bearer tokens |
 | `owner_job` | `lab-owner` profile and projects; a minimal `random-search` job (`mode: seeded`, `optimization: {type: SINGLE, scalarization: weighted-sum}`, which the gateway requires in the request and the package does not carry) on the seeded package; result shape and the gateway's reevaluation provenance |
 | `idempotency` | same key and body, same job; same key and other body, 409; another account, another job |
-| `authorization` | 401 without token; viewer cannot launch but reads the project job with redacted options; outsider reads neither; non-admins get 403 on `/api/v1/admin/*` |
+| `authorization` | 401 without token; viewer can launch a personal job on their own snapshot but cannot start a study run in the project, and reads the project job with redacted options; outsider reads neither; non-admins get 403 on `/api/v1/admin/*` |
 | `concurrency_limit` | 5 simultaneous launches against `MAX_CONCURRENT_JOBS_PER_USER=3`: a 429 with `Retry-After`, slot freed afterwards |
 | `cors` | preflight allowed from `http://localhost:18100`, refused from `http://evil.example` |
 | `body_limit` | JSON over 16 MiB gets a 413 problem+json |

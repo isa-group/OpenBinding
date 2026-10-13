@@ -24,7 +24,7 @@ Steps (a failure never aborts the next one; 6-9 can be dropped with ``--skip``):
     2 login             admin, owner, member, viewer and outsider sign in (Bearer tokens)
     3 owner_job         owner: profile, projects, a random-search job on the seeded package, result shape
     4 idempotency       same key + body -> same job; same key + other body -> 409; other account -> other job
-    5 authorization     401 without token, the viewer/outsider/admin matrix, redacted options for the viewer
+    5 authorization     401 without token, the viewer/outsider/admin matrix (the viewer launches a personal job but cannot start a study run), redacted options for the viewer
     6 concurrency_limit 5 simultaneous launches -> a 429 with Retry-After, and the slot is freed afterwards
     7 cors              preflight allowed from the lab origin, refused from another origin
     8 body_limit        a JSON body over 16 MiB -> 413 problem+json
@@ -712,9 +712,19 @@ def step_authorization(lab: Lab) -> Checks:
         response = lab.call(method, path)
         checks.expect(response.status_code == 401, f"anonymous {method} {path[:40]} -> 401 ({response.status_code})")
 
-    owner_snapshot = lab.snapshot("owner")
-    viewer_launch = lab.launch("viewer", snapshot=owner_snapshot)
-    checks.expect(viewer_launch.status_code in {403, 404}, f"viewer cannot launch ({describe(viewer_launch)})")
+    # POST /v1/jobs is personal work on snapshots the caller owns and stores no project, so an
+    # organization role does not gate it; the role gates the organization's resources (study runs).
+    try:
+        viewer_launch = lab.launch("viewer")
+    except RemoteBlocked as blocked:
+        checks.block(blocked.label, blocked.cause)
+    else:
+        checks.expect(viewer_launch.status_code == 202, f"viewer CAN launch a personal job on their own snapshot ({describe(viewer_launch)})")
+        if viewer_launch.status_code == 202:
+            viewer_job = mapping(body_of(viewer_launch)).get("id")
+            if isinstance(viewer_job, str):
+                stuck = lab.drain("viewer", [viewer_job], cancel=True)
+                checks.expect(not stuck, "the viewer's personal job ended or was cancelled within the timeout")
 
     try:
         project_job = ensure_project_job(lab)
@@ -731,7 +741,7 @@ def step_authorization(lab: Lab) -> Checks:
             checks.expect(job.get("status") == "completed" and job.get("result") is not None, "viewer sees the state and the result")
             check_viewer_redaction(checks, job)
     run = lab.call("POST", f"{base}/studies/{STUDY_SLUG}/runs", "viewer")
-    checks.expect(run.status_code in {403, 404}, f"viewer cannot start a study run ({describe(run)})")
+    checks.expect(run.status_code in {403, 404}, f"viewer CANNOT start a study run in the org project ({describe(run)})")
 
     for label, path in (("project", base), ("project jobs", f"{base}/jobs"), ("organization", f"/v1/organizations/{ORG}")):
         denied = lab.call("GET", path, "outsider")
