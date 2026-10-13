@@ -224,13 +224,17 @@ gateway now refuses this flag (and `FEDERATION_REQUIRE_HTTPS=false`) when
 
 ### Seeding
 
-The image does not contain `tools/`, so `seed` bind-mounts
-`./openbinding-gateway/tools` on `/app/tools`, read-only (all binds are). Two
-consequences: a tool cannot write beside itself (`seed_dev.py` writes
-`tools/analysis-manifest.json` by default; pass
+The seed tools travel in the gateway image (`COPY openbinding-gateway/tools/
+tools/` in the Dockerfile); `seed` mounts no host code. They used to be
+bind-mounted, but the seed runs as uid 10001 and under rootless Docker a
+bind-mounted `tools/` can be unreadable for that uid (`python: can't open file
+'/app/tools/seed_lab.py': [Errno 13] Permission denied`). Two consequences: when
+a tool changes you must rebuild with `up` before running `seed`, because the
+seed runs the code of the image, not of the checkout; and the tools are
+read-only to the unprivileged user, so a tool cannot write beside itself
+(`seed_dev.py` writes `tools/analysis-manifest.json` by default; pass
 `--analysis-manifest /tmp/analysis-manifest.json` when you use the analysis
-options), and the seed runs the code of the checkout, not of the image. Add
-`COPY openbinding-gateway/tools/ tools/` to the Dockerfile to remove the bind.
+options).
 
 `seed_dev.py` creates its users directly in the database; it does not call the
 API. For that reason `seed` does not get `GATEWAY_JWT_SECRET`: a tool that logs
@@ -486,8 +490,8 @@ diagnostic guide, not a list of verified results.
    produces a downloadable artifact. The volume is theirs because it is new and
    inherits the owner of the image directory (there is no chown service: the
    container has no `CAP_CHOWN`). `docker-entrypoint.sh` does no
-   `chown`. The seed reads the bind-mounted `tools/` as "other", so those files
-   must be world-readable (the default).
+   `chown`. The seed's `tools/` is part of the image (made
+   world-readable by the Dockerfile's `chmod -R a+rX /app`), not a bind.
 4. **Tokens file.** `logs bim-service`: `bearer authentication enabled with 1
    token(s)`. The tmpfs is created root-owned, mode 1777, and the service runs
    as uid 10001 (it writes its own file, `umask 077`). An error saying the

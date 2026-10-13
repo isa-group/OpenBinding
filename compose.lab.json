@@ -403,11 +403,6 @@
       },
       "volumes": [
         {
-          "type": "bind",
-          "source": "./openbinding-gateway/tools",
-          "target": "/app/tools"
-        },
-        {
           "type": "volume",
           "source": "lab-artifacts-2",
           "target": "/var/lib/openbinding/artifacts"

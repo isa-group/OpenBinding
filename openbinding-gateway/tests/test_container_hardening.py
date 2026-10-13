@@ -167,7 +167,7 @@ def test_code_stays_readable_and_curl_stays_for_the_healthcheck(instructions: li
     text = "\n".join(instructions)
     assert re.search(r"apt-get install[^&]*\bcurl\b", text)
     assert "chmod -R a+rX /app" in text
-    for source in ("alembic/", "schemas/", "examples/"):
+    for source in ("alembic/", "schemas/", "examples/", "openbinding-gateway/tools/"):
         assert any(line.startswith("COPY ") and source in line for line in instructions), source
     assert not re.search(r"chmod\b[^&]*\b(?:700|o-r|go-r|go-rwx|o-rwx)\b", text)
 

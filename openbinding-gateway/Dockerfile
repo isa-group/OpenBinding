@@ -51,6 +51,12 @@ COPY openbinding-gateway/alembic/ alembic/
 COPY schemas/ schemas/
 COPY examples/ examples/
 
+# The seed tools travel in the image instead of a bind mount of the host checkout. The
+# seed runs as uid 10001, and under rootless Docker a bind-mounted tools/ can be
+# unreadable for that uid ("Permission denied" on seed_lab.py). Copied before the
+# chmod -R a+rX /app below, so they are world-readable like the rest of the code.
+COPY openbinding-gateway/tools/ tools/
+
 # Add test runner script
 RUN echo '#!/bin/sh\npytest "$@"' > /usr/local/bin/test && \
     chmod +x /usr/local/bin/test

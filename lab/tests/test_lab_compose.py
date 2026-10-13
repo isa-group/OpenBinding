@@ -280,7 +280,6 @@ def test_volumes_are_structured_and_declared(compose, services):
 
 def test_binds_are_relative_literal_and_exist(services):
     binds = [(n, m) for n, m in _mounts(services) if m["type"] == "bind"]
-    assert binds
     for name, mount in binds:
         source = mount["source"]
         parts = source.split("/")
@@ -288,14 +287,18 @@ def test_binds_are_relative_literal_and_exist(services):
         assert (ROOT / source).is_dir(), (name, mount)
 
 
-def test_only_seed_tools_are_bound(services):
-    # The only thing the lab mounts is the seed tools directory (the image does not carry
-    # tools/).  nginx's configuration is baked into the image: a bind mount of it can be
-    # unreadable for uid 101 under rootless docker, and nginx then starts with no server.
-    binds = {(n, m["source"], m["target"]) for n, m in _mounts(services) if m["type"] == "bind"}
-    assert binds == {("seed", "./openbinding-gateway/tools", "/app/tools")}
-    assert not [m for m in services["web"]["volumes"] if m["type"] == "bind"]
+def test_no_host_code_is_bind_mounted_and_the_image_carries_the_seed_tools(services):
+    # The seed runs as uid 10001; under rootless docker a bind-mounted tools/ can be unreadable
+    # for it ("Permission denied" on seed_lab.py), so the tools travel in the image.  nginx's
+    # configuration is baked into its image for the same reason (uid 101).
+    assert not [(n, m) for n, m in _mounts(services) if m["type"] == "bind"]
+    assert not [m for m in services["seed"]["volumes"] if m["target"].startswith("/app")]
     assert not [m for m in services["web"]["volumes"] if m["target"].startswith("/etc/nginx")]
+    dockerfile = (ROOT / "openbinding-gateway" / "Dockerfile").read_text(encoding="utf-8")
+    lines = [line.strip() for line in dockerfile.splitlines()]
+    copy = lines.index("COPY openbinding-gateway/tools/ tools/")
+    chmod = next(i for i, line in enumerate(lines) if line.startswith("&& chmod -R a+rX /app"))
+    assert copy < chmod
 
 
 def test_builds_use_only_allowed_keys_and_literal_paths_inside_the_repo(services):
