@@ -126,7 +126,7 @@ describe('Project files', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('No storage left for the sponsor (402 · storage_quota_exceeded). 5 GiB of 5 GiB used. This limit doesn’t renew; delete files or ask for more room. Nothing was stored.');
-    expect(within(alert).getByRole('link', { name: 'See usage' })).toHaveAttribute('href', '/app/account/usage');
+    expect(within(alert).getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
   });
 
   it('says a file is too large for the plan (413) when the gateway refuses it', async () => {

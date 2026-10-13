@@ -51,7 +51,7 @@ const type = (label: string | RegExp, value: string, index = 0) =>
 describe('Profile & security', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    api.getOwnUsage.mockResolvedValue({ plan: 'BASIC', contract_pending: false, features: {}, capabilities: {}, limits: {} });
+    api.getOwnUsage.mockResolvedValue({ plan: 'BASIC', contract_pending: false, features: {}, capabilities: {} });
     api.updateOwnProfile.mockResolvedValue(alice);
     api.deleteOwnAccount.mockResolvedValue(undefined);
   });
@@ -82,7 +82,7 @@ describe('Profile & security', () => {
   });
 
   it('says when the contract is still pending', async () => {
-    api.getOwnUsage.mockResolvedValue({ plan: 'BASIC', contract_pending: true, features: {}, capabilities: {}, limits: {} });
+    api.getOwnUsage.mockResolvedValue({ plan: 'BASIC', contract_pending: true, features: {}, capabilities: {} });
     renderAccount();
     expect(await screen.findByText('Contract pending')).toBeInTheDocument();
   });

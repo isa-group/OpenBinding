@@ -127,7 +127,7 @@ export function OrgCreate() {
   if (sponsor?.key === 'self' && usage.data) room = roomFromUsage(usage.data, ROOM_FOR_CREATE, added);
   else if (sponsor?.plan && catalog.data) room = roomFromCatalog(catalog.data, sponsor.plan, ROOM_FOR_CREATE, added);
   const organizationsRow = room.find((item) => item.id === 'organizations');
-  const limitText = organizationsRow ? `${organizationsRow.used ?? '?'} of ${organizationsRow.limit ?? 'unlimited'} organizations` : 'its organization limit';
+  const limitText = organizationsRow?.limit != null ? `${organizationsRow.limit} organizations, the most its plan allows` : 'its organization limit';
 
   // --- the tree preview
   const above = parent ? pathOf(parent, organizations) : [];
@@ -340,7 +340,7 @@ export function OrgCreate() {
                 <Notice tone="error">
                   <span>{refusal.text}</span>
                   <span className="org-notice-links">
-                    <Link to="/app/account/usage">See usage</Link>
+                    <Link to="/app/account/usage">See your plan</Link>
                     <button type="button" className="org-link-button" onClick={() => goTo(3)}>Choose another sponsor</button>
                     <Link to="/pricing">Compare plans</Link>
                   </span>
@@ -397,7 +397,7 @@ export function OrgCreate() {
               <span className="org-muted">
                 {sponsor?.key === 'self' && usage.status === 'ready'
                   ? 'Your limits can’t be read right now. Creating checks them again.'
-                  : 'This sponsor’s usage is visible only to them. The server checks their limits and answers 402 if there’s no room.'}
+                  : 'This sponsor’s plan is visible only to them. The server checks their limits and answers 402 if there’s no room.'}
               </span>
             )}
             {room.length > 0 && (

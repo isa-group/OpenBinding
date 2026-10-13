@@ -29,7 +29,7 @@ export const toolLinks: readonly NavLinkItem[] = [
 
 export const accountLinks: readonly NavLinkItem[] = [
   { to: '/app/account', label: 'Account' },
-  { to: '/app/account/usage', label: 'Usage & plan' },
+  { to: '/app/account/usage', label: 'Plan & permissions' },
   { to: '/app/account/keys', label: 'API keys' },
   { to: '/app/account/notifications', label: 'Notifications' },
 ];

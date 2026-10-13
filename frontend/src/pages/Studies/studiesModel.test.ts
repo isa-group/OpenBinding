@@ -4,7 +4,7 @@ import { CHECKOUT, REVISION_1, REVISION_2, cellsFixture, studyFixture, revisionF
 import {
   MAX_SEEDS, collectionMembers, defaultSelection, definitionGrid, definitionSize, describeParameters, emptyVariant, engineChoices, enginesOf, explainFailure,
   formatMeasure, formatSeconds, formulaOf, heatLevel, matrixView, measureValue, measuresOf, metricsOf, parametersKey, readSeeds, readVariant, revisionIndex,
-  revisionLabel, rivalsOf, seedsOf, studyContentSize, breakdownText, slot,
+  revisionLabel, rivalsOf, seedsOf, studyContentSize, breakdownText, slot, definitionEngines, studyCriteriaCount, studyOptimization,
 } from './studiesModel';
 
 const cases: CaseContent[] = [{ item: CHECKOUT, revisions: [REVISION_1, REVISION_2, revisionFixture(3, { source_snapshot_id: null })] }];
@@ -80,6 +80,56 @@ describe('the engine choices of a study', () => {
     expect(choices).toHaveLength(1);
     expect(choices[0]).toMatchObject({ mode: 'sampling', title: 'random-search 1.0.0', defaultSeconds: 30, federated: false });
     expect(choices[0].key).toBe('bim.builtin/random-search@1.0.0#sha256-x#sampling');
+  });
+});
+
+describe('the optimization of each engine of a study', () => {
+  const declaring = (values: unknown[]) => ({ capabilities: { scalarizations: { selector: 'only', values } } }) as never;
+  const mode = declaring([
+    { id: 'weighted-sum', objectiveTypes: ['SINGLE', 'MULTI'] },
+    { id: 'nsga', objectiveTypes: ['MULTI', 'MANY'] },
+    { id: 'feasibility', objectiveTypes: ['SINGLE'] },
+  ]);
+  const goal = (criteria: number) => ({ document: { spec: { optimization: { criteria: Array.from({ length: criteria }, () => ({})) } } } });
+  const choice = (declared: never) => ({ ...engineChoices([{
+    id: 'e1', namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-x', ref: { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-x' },
+    modes: [{ id: 'sampling', ...(declared as object) } as never],
+  }])[0] });
+
+  it('is SINGLE with the first scalarization the mode declares for one criterion', () => {
+    expect(studyOptimization(mode, 1)).toEqual({ type: 'SINGLE', scalarization: 'weighted-sum' });
+  });
+
+  it('is MULTI for two or three criteria and MANY beyond, from the scalarizations that fit', () => {
+    expect(studyOptimization(mode, 2)).toEqual({ type: 'MULTI', scalarization: 'weighted-sum' });
+    expect(studyOptimization(mode, 3)).toEqual({ type: 'MULTI', scalarization: 'weighted-sum' });
+    expect(studyOptimization(mode, 4)).toEqual({ type: 'MANY', scalarization: 'nsga' });
+  });
+
+  it('asks for feasibility when the goal has no criteria', () => {
+    expect(studyOptimization(mode, 0)).toEqual({ type: 'SINGLE', scalarization: 'feasibility' });
+    expect(studyOptimization(declaring([]), 0)).toEqual({ type: 'SINGLE', scalarization: 'feasibility' });
+  });
+
+  it('still sends one when the mode declares none that fits, or the goal cannot be read', () => {
+    expect(studyOptimization(declaring([]), 5)).toEqual({ type: 'MANY', scalarization: 'weighted-sum' });
+    expect(studyOptimization(undefined, null)).toEqual({ type: 'SINGLE', scalarization: 'weighted-sum' });
+  });
+
+  it('counts the criteria of the most demanding chosen revision', () => {
+    expect(studyCriteriaCount([goal(1), goal(3), goal(2)])).toBe(3);
+    expect(studyCriteriaCount([{ document: {} }, goal(0)])).toBe(0);
+    expect(studyCriteriaCount([{ document: {} }])).toBeNull();
+    expect(studyCriteriaCount([])).toBeNull();
+  });
+
+  it('puts the optimization on every engine of the definition', () => {
+    const chosen = [choice(mode), choice(declaring([{ id: 'nsga', objectiveTypes: ['MANY'] }]))];
+    const engines = definitionEngines(chosen, 4);
+    expect(engines).toHaveLength(2);
+    expect(engines[0]).toMatchObject({ name: 'random-search', mode: 'sampling', optimization: { type: 'MANY', scalarization: 'nsga' } });
+    expect(engines[1].optimization).toEqual({ type: 'MANY', scalarization: 'nsga' });
+    expect(definitionEngines(chosen, 1).map((engine) => engine.optimization?.type)).toEqual(['SINGLE', 'SINGLE']);
   });
 });
 

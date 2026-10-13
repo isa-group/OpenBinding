@@ -444,7 +444,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       });
       await main.getByLabel('Files to upload').setInputFiles(csvFile('more.csv', 'x,y\n3,4\n'));
       await expect(main.getByRole('alert')).toContainText('No storage left for the sponsor (402 · storage_quota_exceeded). 5 GiB of 5 GiB used.');
-      await expect(main.getByRole('link', { name: 'See usage' })).toHaveAttribute('href', '/app/account/usage');
+      await expect(main.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       await capture(page, testInfo, `files-${name}-402`);
       state.refuse.upload = detail(413, 'artifact_too_large', 'The artifact exceeds this account’s per-request payload limit.');
       await main.getByLabel('Files to upload').setInputFiles(csvFile('more.csv', 'x,y\n3,4\n'));

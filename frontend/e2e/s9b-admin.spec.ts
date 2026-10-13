@@ -27,7 +27,7 @@ const token = (expiresInSeconds: number) => [
 
 type Key =
   | 'moderation' | 'registrations' | 'report' | 'approve' | 'reject' | 'extension'
-  | 'preview' | 'purge' | 'jobs' | 'contracts';
+  | 'preview' | 'purge' | 'jobs';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
@@ -43,7 +43,6 @@ interface State {
     previewDays: string[];
     purge: Array<Record<string, unknown>>;
     jobs: number;
-    contracts: number;
   };
 }
 
@@ -74,7 +73,7 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
     dialects: 1,
     abandoned: 1,
     purgeable: 14,
-    sent: { approved: [], rejected: [], extension: [], previewDays: [], purge: [], jobs: 0, contracts: 0 },
+    sent: { approved: [], rejected: [], extension: [], previewDays: [], purge: [], jobs: 0 },
   };
   const me = options.role === 'user' ? { ...MARIA, role: 'user' } : { ...ALEX, institutional_branding: false };
   const answer = (key: Key, body: unknown | (() => unknown)): Handler => (route) => (
@@ -163,12 +162,6 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
       state.abandoned = 0;
       return json({ settled: 1 })(route);
     }
-    if (path === 'maintenance/reconcile-contracts' && method === 'POST') {
-      if (state.refuse.contracts) return state.refuse.contracts(route);
-      state.sent.contracts += 1;
-      return json({ renewed: 2 })(route);
-    }
-
     return detail(404, 'not_found', 'not mocked')(route);
   });
   return state;
@@ -310,7 +303,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('admin-maintenance /app/admin/maintenance · preview, purge with a typed confirmation, reconcile jobs and contracts', async ({ page }, testInfo) => {
+    test('admin-maintenance /app/admin/maintenance · preview, purge with a typed confirmation and reconcile jobs, with no contract action', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin/maintenance');
@@ -321,7 +314,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(impact.getByRole('listitem')).toHaveCount(4);
       await expect(impact.getByRole('listitem').filter({ hasText: 'Finished jobs to purge' }).getByText('14', { exact: true })).toBeVisible();
       await expect(main.getByText('Finished before Oct 9, 2025, more than 365 days ago.')).toBeVisible();
-      await expect(main.getByText('0.1.0', { exact: true })).toBeVisible();
       expect(state.sent.previewDays[0]).toBe('365');
       await capture(page, testInfo, `maintenance-${name}-preview`, { height: tall(2300) });
 
@@ -364,15 +356,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByLabel('What was purged').getByText('Api keys')).toBeVisible();
       await capture(page, testInfo, `maintenance-${name}-purged`, { height: tall(2300) });
 
-      // Abandoned jobs are settled, and contracts moved to LIVE after a confirmation.
+      // Abandoned jobs are settled. There is no contract action here: contracts live in SPACE.
       await main.getByRole('button', { name: 'Reconcile jobs' }).click();
       await expect(main.getByText('1 abandoned job settled. Recorded in the audit log.')).toBeVisible();
       expect(state.sent.jobs).toBe(1);
-      await main.getByRole('button', { name: 'Reconcile contracts' }).click();
-      await capture(page, testInfo, `maintenance-${name}-contracts-dialog`);
-      await page.getByRole('dialog', { name: 'Move expired contracts to LIVE?' }).getByRole('button', { name: 'Reconcile contracts' }).click();
-      await expect(main.getByText('Expired contracts were renewed onto the LIVE pricing. Recorded in the audit log.')).toBeVisible();
-      expect(state.sent.contracts).toBe(1);
+      await expect(main.getByRole('button', { name: /contract/i })).toHaveCount(0);
       await capture(page, testInfo, `maintenance-${name}-done`);
 
       // Nothing left to purge, a dependency down, a key without the permission.

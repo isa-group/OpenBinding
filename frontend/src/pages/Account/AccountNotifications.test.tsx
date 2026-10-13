@@ -113,7 +113,7 @@ describe('Notifications', () => {
     expect(change.getByText('RESEARCH')).toBeInTheDocument();
     expect(change.getAllByText('Add-ons: none')).toHaveLength(2);
     expect(screen.getByText('Reason: institutional agreement · pricing version 0.1.0')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See my usage' })).toHaveAttribute('href', '/app/account/usage');
+    expect(screen.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
   });
 
   it('marks one as read and tells the header bell', async () => {

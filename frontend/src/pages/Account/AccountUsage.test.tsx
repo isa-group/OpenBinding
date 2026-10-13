@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError, type UsageView, type UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
+import { config } from '../../config';
 import { AuthContext } from '../../contexts/auth';
 import { CURRENT_FIXTURE, catalogFixture } from '../Pricing/pricingFixture';
 import { AccountUsage } from './AccountUsage';
@@ -20,31 +21,14 @@ const lucia: UserProfile = {
   id: 'user-id', username: 'lucia', email: 'lucia@example.test', role: 'user', is_active: true, plan: 'BASIC', created_at: '2026-03-02T00:00:00Z',
 };
 
-const limit = (id: string, value: number, used: number, unit: string, renews: string | null = null) => ({
-  limit_id: id, limit: value, used, remaining: Math.max(0, value - used), unit, renews_at: renews,
-});
-
-const RENEWS = '2026-11-01T00:00:00Z';
-
 const basicUsage = (): UsageView => ({
   plan: 'BASIC',
   contract_pending: false,
   features: { authoring: true, solve: true, advancedAnalytics: false, institutionalBranding: false },
   capabilities: {
-    studyRuns: 3, concurrentJobs: 1, federatedEngines: 1, apiKeys: 1,
+    concurrentJobs: 1, federatedEngines: 1, apiKeys: 1,
     maxTimeoutSeconds: 60, maxIterations: 10_000, maxPayloadBytes: 8_388_608, maxInstanceComplexityLog10: 9, jobHistoryDays: 7,
     organizations: 1, storageBytes: 104_857_600,
-  },
-  limits: {
-    studyRuns: limit('studyRuns', 3, 3, 'run/month', RENEWS),
-    concurrentJobs: limit('concurrentJobs', 1, 1, 'job'),
-    apiKeys: limit('apiKeys', 1, 1, 'key'),
-    maxTimeoutSeconds: limit('maxTimeoutSeconds', 60, 0, 'second'),
-    maxPayloadBytes: limit('maxPayloadBytes', 8_388_608, 0, 'byte'),
-    maxInstanceComplexityLog10: limit('maxInstanceComplexityLog10', 9, 0, 'log10 combinations'),
-    jobHistoryDays: limit('jobHistoryDays', 7, 0, 'day'),
-    organizations: limit('organizations', 1, 1, 'organization'),
-    storageBytes: limit('storageBytes', 104_857_600, 52_428_800, 'byte'),
   },
 });
 
@@ -52,7 +36,7 @@ const basicUsage = (): UsageView => ({
 const token = (expiresInSeconds: number) =>
   ['header', btoa(JSON.stringify({ sub: 'user-id', exp: Math.floor(Date.now() / 1000) + expiresInSeconds })), 'signature'].join('.');
 
-function renderUsage(user: UserProfile = lucia) {
+function renderPlan(user: UserProfile = lucia) {
   render(
     <MemoryRouter>
       <AuthContext.Provider value={{ user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: false }}>
@@ -62,7 +46,7 @@ function renderUsage(user: UserProfile = lucia) {
   );
 }
 
-describe('Usage & plan', () => {
+describe('Plan & permissions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     stored.token = token(3600);
@@ -71,58 +55,64 @@ describe('Usage & plan', () => {
     api.getCurrentPricing.mockResolvedValue(CURRENT_FIXTURE);
   });
 
-  it('shows the plan, what it costs (nothing, or an agreement), the live pricing and when the month renews', async () => {
-    renderUsage();
+  it('shows the plan, what it costs (nothing, or an agreement) and the published pricing version', async () => {
+    renderPlan();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Usage & plan' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Plan & permissions' })).toBeInTheDocument();
     const plan = within(await screen.findByRole('region', { name: 'Your plan' }));
     expect(plan.getByText('BASIC')).toBeInTheDocument();
     expect(await plan.findByText('Free')).toBeInTheDocument();
-    expect(await plan.findByText(/Live pricing 0\.1\.0 · Monthly allowances renew Nov 1, 2026 · New pricing versions apply when your contract renews/)).toBeInTheDocument();
+    expect(await plan.findByText(/Published pricing 0\.1\.0 · A new pricing version applies when your contract is renewed in SPACE/)).toBeInTheDocument();
     expect(plan.getByRole('link', { name: 'See plans' })).toHaveAttribute('href', '/pricing');
-    expect(plan.getByRole('link', { name: 'Request a change' })).toHaveAttribute('href', '/pricing');
-    expect(screen.getByRole('link', { name: 'Usage & plan' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Plan & permissions' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('draws the monthly allowances with what is left, and says what a used-up one stops', async () => {
-    renderUsage();
-    await screen.findByRole('heading', { name: 'This month' });
+  it('links to the native SPACE and SPHERE consoles and manages no price, version or contract itself', async () => {
+    renderPlan();
+    const section = within((await screen.findByRole('heading', { name: 'Plans, prices and contracts' })).closest('section') as HTMLElement);
 
-    expect(screen.getByText(/Renews Nov 1, 2026 \(in \d+ days\)\./)).toBeInTheDocument();
-    const runs = screen.getByRole('meter', { name: 'Study runs' });
-    expect(runs).toHaveAttribute('aria-valuenow', '3');
-    expect(runs).toHaveAttribute('aria-valuemax', '3');
-
-    expect(screen.getAllByText('0 left')).toHaveLength(1);
-    expect(screen.getByText('Used up. New study runs can’t start until it renews; a request now gets a 402.')).toBeInTheDocument();
+    const space = section.getByRole('link', { name: 'Open SPACE console' });
+    const sphere = section.getByRole('link', { name: 'Open SPHERE console' });
+    expect(space).toHaveAttribute('href', config.spaceFrontendUrl);
+    expect(sphere).toHaveAttribute('href', config.sphereUrl);
+    for (const link of [space, sphere]) {
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link.getAttribute('rel')).toContain('noopener');
+    }
+    expect(screen.queryByRole('button', { name: /request a change|change plan|publish|upgrade/i })).not.toBeInTheDocument();
   });
 
-  it('does not invent what was used for an allowance the gateway does not count', async () => {
-    const usage = basicUsage();
-    delete usage.limits.studyRuns;
-    api.getOwnUsage.mockResolvedValue(usage);
-    renderUsage();
-    await screen.findByRole('heading', { name: 'This month' });
+  it('says what the account may do: the platform role and where the organization roles are', async () => {
+    renderPlan();
+    const section = within((await screen.findByRole('heading', { name: 'Your permissions' })).closest('section') as HTMLElement);
 
-    const card = screen.getByText('Study runs').closest('.usage-card') as HTMLElement;
-    expect(within(card).getByText('Used: not reported')).toBeInTheDocument();
-    expect(within(card).getByText('3 limit')).toBeInTheDocument();
+    expect(section.getByText('user')).toBeInTheDocument();
+    expect(section.getByRole('link', { name: 'Your organizations and roles' })).toHaveAttribute('href', '/app');
+    expect(section.getByRole('link', { name: 'Your API keys' })).toHaveAttribute('href', '/app/account/keys');
   });
 
-  it('shows the capacity in use with the way to manage it', async () => {
-    renderUsage();
-    const section = within((await screen.findByRole('heading', { name: 'Capacity in use' })).closest('section') as HTMLElement);
+  it('draws no meter and no monthly or consumed figure: nothing is counted per account', async () => {
+    renderPlan();
+    await screen.findByRole('heading', { name: 'What your plan allows' });
 
-    expect(section.getByText('API keys')).toBeInTheDocument();
-    expect(section.getAllByText('1 / 1')).toHaveLength(2);
-    expect(section.getByText('– / 1')).toBeInTheDocument();
-    expect(section.getByText(/Engine revisions in use · used not reported/)).toBeInTheDocument();
-    expect(section.getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/app/account/keys');
+    expect(screen.queryByRole('meter')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'This month' })).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/\bused\b|\bleft\b|renews \w+ \d|credits?|compute units?/i);
+  });
+
+  it('shows what the plan allows at a time, with the way to manage it', async () => {
+    renderPlan();
+    const section = within((await screen.findByRole('heading', { name: 'What your plan allows' })).closest('section') as HTMLElement);
+
+    const keys = section.getByText('API keys').closest('.usage-card') as HTMLElement;
+    expect(within(keys).getByText('1')).toBeInTheDocument();
+    expect(within(keys).getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/app/account/keys');
     expect(section.getByRole('link', { name: 'My engines' })).toHaveAttribute('href', '/app/engines/registrations');
+    expect(section.getByText('Jobs that may run at once')).toBeInTheDocument();
   });
 
   it('lists the per-request ceilings with their exact values, and links to the job history', async () => {
-    renderUsage();
+    renderPlan();
     const table = within(await screen.findByRole('region', { name: 'Ceilings table' }));
 
     expect(within(table.getByRole('row', { name: /Max time per job/ })).getByText('1 min')).toBeInTheDocument();
@@ -133,40 +123,39 @@ describe('Usage & plan', () => {
     expect(screen.getByRole('link', { name: 'Open job history' })).toHaveAttribute('href', '/app/jobs');
   });
 
-  it('shows the sponsored limits and says sponsoring is not a role', async () => {
-    renderUsage();
+  it('shows the limits across the sponsored organizations and says sponsoring is not a role', async () => {
+    renderPlan();
     const section = within((await screen.findByRole('heading', { name: 'Organizations you sponsor' })).closest('section') as HTMLElement);
 
     expect(section.getByText(/it doesn’t give you any role in those organizations/)).toBeInTheDocument();
-    expect(section.getByRole('meter', { name: 'Storage' })).toHaveAttribute('aria-valuenow', '52428800');
-    expect(section.getByText('50 MiB / 100 MiB')).toBeInTheDocument();
+    expect(section.getByText('Storage')).toBeInTheDocument();
+    expect(section.getByText('Up to 100 MiB')).toBeInTheDocument();
   });
 
   it('reads an unlimited allowance as Unlimited', async () => {
     const usage = basicUsage();
     usage.plan = 'PRO';
-    usage.capabilities.studyRuns = null;
-    delete usage.limits.studyRuns;
+    usage.capabilities.apiKeys = null;
     api.getOwnUsage.mockResolvedValue(usage);
-    renderUsage();
+    renderPlan();
 
-    await screen.findByRole('heading', { name: 'This month' });
-    const card = screen.getByText('Study runs').closest('.usage-card') as HTMLElement;
+    const section = within((await screen.findByRole('heading', { name: 'What your plan allows' })).closest('section') as HTMLElement);
+    const card = section.getByText('API keys').closest('.usage-card') as HTMLElement;
     expect(within(card).getByText('Unlimited')).toBeInTheDocument();
   });
 
   it('keeps every entitlement value reachable', async () => {
-    renderUsage();
+    renderPlan();
     fireEvent.click(await screen.findByText('All entitlement values'));
     expect(screen.getByText('storageBytes')).toBeInTheDocument();
   });
 
   describe('features and the pricing token', () => {
     it('shows each feature as enabled or not in the plan when the token is valid', async () => {
-      renderUsage();
+      renderPlan();
       const section = within((await screen.findByRole('heading', { name: 'Features' })).closest('section') as HTMLElement);
 
-      expect(section.getByText('From your usage')).toBeInTheDocument();
+      expect(section.getByText('Confirmed by your plan check')).toBeInTheDocument();
       expect(section.getByText('Authoring').closest('li')).toHaveTextContent('Enabled');
       expect(section.getByText('Advanced analytics').closest('li')).toHaveTextContent('Not in plan');
       expect(section.queryByRole('status')).not.toBeInTheDocument();
@@ -174,7 +163,7 @@ describe('Usage & plan', () => {
 
     it('warns in plain words that an expired token cannot confirm features, and never shows the token', async () => {
       stored.token = token(-60);
-      renderUsage();
+      renderPlan();
       const section = within((await screen.findByRole('heading', { name: 'Features' })).closest('section') as HTMLElement);
 
       expect(section.getByText('Plan check expired · can’t confirm')).toBeInTheDocument();
@@ -186,7 +175,7 @@ describe('Usage & plan', () => {
 
     it('warns that a missing token cannot confirm features', async () => {
       stored.token = null;
-      renderUsage();
+      renderPlan();
       const section = within((await screen.findByRole('heading', { name: 'Features' })).closest('section') as HTMLElement);
 
       expect(section.getByText('Can’t confirm features')).toBeInTheDocument();
@@ -198,54 +187,61 @@ describe('Usage & plan', () => {
       const usage = basicUsage();
       usage.contract_pending = true;
       api.getOwnUsage.mockResolvedValue(usage);
-      renderUsage();
+      renderPlan();
 
       expect(await screen.findByText('Your contract is pending.')).toBeInTheDocument();
       expect(screen.getByText('Contract pending')).toBeInTheDocument();
       expect(screen.getByText('Authoring').closest('li')).toHaveTextContent('Can’t confirm');
-      expect(screen.queryByRole('heading', { name: 'This month' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'What your plan allows' })).not.toBeInTheDocument();
     });
   });
 
   it('says so when the plan declares no limits', async () => {
-    api.getOwnUsage.mockResolvedValue({ ...basicUsage(), capabilities: {}, limits: {} });
-    renderUsage();
-    expect(await screen.findByText('Your plan declares no usage limits, so there’s nothing to track here.')).toBeInTheDocument();
+    api.getOwnUsage.mockResolvedValue({ ...basicUsage(), capabilities: {} });
+    renderPlan();
+    expect(await screen.findByText('Your plan declares no limits.')).toBeInTheDocument();
   });
 
-  it('does not show old figures when pricing is unavailable (503), and tries again on request', async () => {
+  it('reads an answer that carries no limits at all, as the gateway sends it when there are none', async () => {
+    api.getOwnUsage.mockResolvedValue({ plan: 'BASIC', contract_pending: false, features: {} });
+    renderPlan();
+    expect(await screen.findByText('Your plan declares no limits.')).toBeInTheDocument();
+  });
+
+  it('does not show old figures when pricing is unavailable (503), keeps the console links, and tries again on request', async () => {
     api.getOwnUsage.mockRejectedValueOnce(new PricingUnavailableError('SPACE is down'));
-    renderUsage();
+    renderPlan();
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('We can’t read your usage right now (503 · pricing_unavailable).');
-    expect(alert).toHaveTextContent('this doesn’t mean you’re out of quota');
-    expect(screen.queryByRole('heading', { name: 'This month' })).not.toBeInTheDocument();
+    expect(alert).toHaveTextContent('We can’t read your plan right now (503 · pricing_unavailable).');
+    expect(alert).toHaveTextContent('this doesn’t mean your plan has changed');
+    expect(screen.queryByRole('heading', { name: 'What your plan allows' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute('href', config.spaceFrontendUrl);
 
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByRole('heading', { name: 'This month' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'What your plan allows' })).toBeInTheDocument();
   });
 
   it('explains a refused read (403)', async () => {
     api.getOwnUsage.mockRejectedValue(new HttpError(403, 'forbidden'));
-    renderUsage();
+    renderPlan();
     expect(await screen.findByRole('alert')).toHaveTextContent('account:read');
   });
 
   it('asks the gateway again when refreshed', async () => {
-    renderUsage();
-    await screen.findByRole('heading', { name: 'This month' });
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh usage' }));
+    renderPlan();
+    await screen.findByRole('heading', { name: 'What your plan allows' });
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh plan' }));
 
     await waitFor(() => expect(api.getOwnUsage).toHaveBeenCalledTimes(2));
-    expect(await screen.findByRole('heading', { name: 'This month' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'What your plan allows' })).toBeInTheDocument();
   });
 
   it('still works when the pricing catalog cannot be read', async () => {
     api.getPricingCatalog.mockRejectedValue(new HttpError(503, 'down'));
-    renderUsage();
+    renderPlan();
 
-    expect(await screen.findByRole('heading', { name: 'This month' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'What your plan allows' })).toBeInTheDocument();
     expect(screen.getByText('Authoring')).toBeInTheDocument();
     expect(screen.queryByText('Free')).not.toBeInTheDocument();
   });

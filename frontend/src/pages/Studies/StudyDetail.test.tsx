@@ -97,7 +97,7 @@ describe('One study', () => {
   });
 
   it.each([
-    ['402 out of study runs', new QuotaError('quota_exceeded', 'full', { limit_id: 'studyRuns', limit: 100, used: 100, renews_at: '2026-11-01T00:00:00Z' }), 'No study runs left this month (402 · quota_exceeded)'],
+    ['402 out of storage', new QuotaError('quota_exceeded', 'full', { limit_id: 'storageBytes', limit: 100, used: 100 }), 'Out of storage (402 · quota_exceeded)'],
     ['429 job slots busy', refusal(429, 'concurrency_limit_exceeded', 'busy', { concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 }, retryAfter: 15 }), 'All your job slots are busy (429 · concurrency_limit_exceeded)'],
     ['403 feature', refusal(403, 'feature_not_entitled', 'No studies.'), 'Your plan doesn’t include studies right now (403 · feature_not_entitled)'],
     ['409 evidence only', refusal(409, 'evidence_only_study'), 'This study only holds stored evidence (409 · evidence_only_study)'],

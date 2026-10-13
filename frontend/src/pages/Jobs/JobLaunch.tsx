@@ -26,8 +26,8 @@ import { refusalOf, type Refusal } from './jobErrors';
 import { shortJobId } from './jobsModel';
 import { EngineStep, ForecastBars, SettingsStep, SlotCountdown, SourceStep, type Prepared } from './LaunchSteps';
 import {
-  buildRequest, forecastOf, initialChoice, modeChoices, modeOfCatalog, optionInputs, parseEngineParam, planCeilingsOf,
-  planOptions, requestOptions, sourceChoices, type SettingsSource, type SourceChoice,
+  buildRequest, criteriaCountOf, forecastOf, initialChoice, modeChoices, modeOfCatalog, optimizationFor, optionInputs, parseEngineParam,
+  planCeilingsOf, planOptions, requestOptions, sourceChoices, type SettingsSource, type SourceChoice,
 } from './launchModel';
 import { JobFrame, RefusalNotice } from './parts';
 
@@ -35,13 +35,16 @@ const STEPS = ['What', 'Engine', 'Settings', 'Send'] as const;
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/** Does the compiled form of the snapshot hold a range? Not being able to read it is not a reason to stop: every mode is then offered. */
-async function packageHasRanges(snapshotId: string): Promise<boolean> {
+/**
+ * Does the compiled form of the snapshot hold a range, and how many criteria does it optimize? Not being able to read it is not a reason
+ * to stop: every mode is then offered, and the gateway decides about the optimization.
+ */
+async function readCompiled(snapshotId: string): Promise<{ ranges: boolean; criteria: number | null }> {
   try {
     const compiled: unknown = await casesApi.instanceIr(snapshotId);
-    return irHasRanges(isRecord(compiled) && isRecord(compiled.document) ? compiled.document : compiled);
+    return { ranges: irHasRanges(isRecord(compiled) && isRecord(compiled.document) ? compiled.document : compiled), criteria: criteriaCountOf(compiled) };
   } catch {
-    return false;
+    return { ranges: false, criteria: null };
   }
 }
 
@@ -102,8 +105,9 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   const plans = planOptions(inputs, values);
   const invalid = plans.some((plan) => plan.invalid);
   const reduced = plans.filter((plan) => plan.reduced);
+  const optimization = optimizationFor(modeOfCatalog(catalog.data ?? [], mode), ready?.criteria ?? null);
   const request = buildRequest({
-    snapshot: ready?.snapshotId ?? '', settings, configuration: configuration?.ref ?? null, mode, options: requestOptions(plans),
+    snapshot: ready?.snapshotId ?? '', settings, configuration: configuration?.ref ?? null, mode, options: requestOptions(plans), optimization,
   });
   const sendable = canLaunch && request !== null && !invalid && !sending && receipt === null;
 
@@ -126,9 +130,9 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
         return;
       }
       // What the engines will receive decides whether a mode that takes single values only can be offered; not knowing it offers every mode.
-      const hasRanges = await packageHasRanges(snapshotId);
+      const compiled = await readCompiled(snapshotId);
       setPrepared({
-        choiceId: choice.id, snapshotId, ranges: hasRanges,
+        choiceId: choice.id, snapshotId, ranges: compiled.ranges, criteria: compiled.criteria,
         analysis: analysis.state === 'ok' ? analysis : { state: 'failed', refusal: refusalOf(analysis.caught, 'launch') },
       });
       setStep(2);
@@ -156,7 +160,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   };
 
   const bindingSpace = ready && ready.analysis.state === 'ok' ? ready.analysis.result.analysis.bindingSpace : null;
-  const forecast = forecastOf({ usage: usage.data ?? null, ceilings, bindingSpace, plan: user?.plan });
+  const forecast = forecastOf({ ceilings, bindingSpace, plan: user?.plan });
 
   const modeLabel = mode ? `${mode.engine.name} · ${mode.mode}` : 'the engine you pick';
   const engineText = settings === 'saved' ? 'From the saved settings'

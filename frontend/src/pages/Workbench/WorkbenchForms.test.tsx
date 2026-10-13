@@ -43,7 +43,7 @@ describe('Workbench · forms of the editor', () => {
     platform.cases.mockResolvedValue([]);
     platform.caseRevisions.mockResolvedValue([]);
     client.getBimExamples.mockResolvedValue([]);
-    client.getOwnUsage.mockResolvedValue({ plan: 'RESEARCH', capabilities: {}, limits: {}, features: {}, contract_pending: false });
+    client.getOwnUsage.mockResolvedValue({ plan: 'RESEARCH', capabilities: {}, features: {}, contract_pending: false });
     client.getPricingCatalog.mockResolvedValue(null);
     workbench.validate.mockResolvedValue(analysis());
   });

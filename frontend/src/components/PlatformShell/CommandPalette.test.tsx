@@ -139,7 +139,7 @@ describe('CommandPalette', () => {
   it('navigates and closes when a result is chosen', () => {
     renderPalette();
     openWithShortcut();
-    fireEvent.click(within(dialog()).getByRole('link', { name: /^Usage & plan/ }));
+    fireEvent.click(within(dialog()).getByRole('link', { name: /^Plan & permissions/ }));
 
     expect(screen.getByTestId('location')).toHaveTextContent('/app/account/usage');
     expect(screen.queryByRole('dialog')).toBeNull();

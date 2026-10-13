@@ -30,12 +30,8 @@ const engineEntry = (ref: typeof RANDOM_SEARCH) => {
   return { ...identity, id: `engine-${identity.name}`, ref: identity, modes: [mode(id, 30)] };
 };
 
-const tracked = (id: string, limit: number, used: number) => ({ limit_id: id, limit, used, remaining: Math.max(0, limit - used), unit: null, renews_at: null });
 const usage = {
-  plan: 'RESEARCH', contract_pending: false, features: {}, capabilities: { maxTimeoutSeconds: 60 },
-  limits: {
-    studies: tracked('studies', 25, 1), studyRuns: tracked('studyRuns', 100, 4),
-  },
+  plan: 'RESEARCH', contract_pending: false, features: {}, capabilities: { maxTimeoutSeconds: 60, studies: 25 },
 };
 
 const refusal = (status: number, code: string, message = 'refused') => Object.assign(new HttpError(status, message), { code });
@@ -91,16 +87,13 @@ describe('A new study', () => {
     expect(within(needed).getByText('Choose at least one engine mode.')).toBeInTheDocument();
   });
 
-  it('counts the cells as the choices are made and shows what one run uses of the study allowances', async () => {
+  it('counts the cells as the choices are made and meters nothing: a run consumes no allowance', async () => {
     renderBuilder();
     await chooseMatrix();
 
     const aside = screen.getByRole('complementary', { name: 'Matrix and plan' });
     expect(within(aside).getByText('2 case revisions × 2 engines × 1 setting × 2 seeds')).toBeInTheDocument();
-    expect(within(aside).getByText('Study definitions of the sponsor')).toBeInTheDocument();
-    expect(within(aside).getByText('1 used + up to 1 = 2 of 25')).toBeInTheDocument();
-    expect(within(aside).getByText('4 used + up to 1 = 5 of 100')).toBeInTheDocument();
-    expect(within(aside).getByText(/Each run uses 1 of your study runs this month \(96 left\)/)).toBeInTheDocument();
+    expect(within(aside).queryByText(/used \+ up to|study runs this month|Study definitions of the sponsor/)).not.toBeInTheDocument();
     expect(within(aside).getByText(/your plan lets one solve run for up to 60 s/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(SEEDS), { target: { value: '1-5' } });
     expect(within(aside).getByText('2 case revisions × 2 engines × 1 setting × 5 seeds')).toBeInTheDocument();
@@ -122,11 +115,16 @@ describe('A new study', () => {
       slug: 'engines-vs-seeds', name: 'Engines vs seeds', description: '',
       definition: {
         case_revision_ids: [REVISION_1.id, REVISION_2.id],
-        engines: [{ ...randomIdentity, mode: randomMode }, { ...evolutionaryIdentity, mode: evolutionaryMode }],
+        engines: [
+          { ...randomIdentity, mode: randomMode, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' } },
+          { ...evolutionaryIdentity, mode: evolutionaryMode, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' } },
+        ],
         parameter_sets: [{}],
         seeds: [1, 2],
       },
     });
+    const sent = platform.createStudy.mock.calls[0][2] as { definition: { engines: Array<{ optimization?: unknown }> } };
+    expect(sent.definition.engines.every((engine) => engine.optimization !== undefined)).toBe(true);
     expect(await screen.findByRole('heading', { name: 'Study created' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the study' })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds`);
   });

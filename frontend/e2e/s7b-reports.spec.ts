@@ -185,7 +185,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(lucia));
-  await page.route(`${API}/v1/users/me/usage`, json(usageOf({ plan: 'RESEARCH', capabilities: {}, limits: {} })));
+  await page.route(`${API}/v1/users/me/usage`, json(usageOf({ plan: 'RESEARCH', capabilities: {} })));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
   await page.route(`${API}/v1/engines`, json({ engines: [] }));

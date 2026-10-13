@@ -263,8 +263,6 @@
 .adm-compare tr.is-up .adm-after { color: var(--color-success); font-weight: 600; }
 .adm-compare tr.is-down .adm-after { color: var(--color-error); font-weight: 600; }
 
-.adm-usage { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.adm-usage > li { display: flex; flex-direction: column; gap: 4px; }
 .adm-usage-line { display: flex; justify-content: space-between; gap: var(--tp-spacing-xs); font-size: 0.8125rem; }
 .adm-usage-line strong.is-full { color: var(--color-error); }
 

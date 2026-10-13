@@ -242,12 +242,12 @@ function SettingsBody({ organization, project, canEdit, reloadProject, reloadWor
             </div>
           </div>
           {toPrivate && (room.length > 0
-            ? <div><RoomBars rows={room} /><span className="org-muted">Striped = this project, once it is private.</span></div>
+            ? <div><RoomBars rows={room} /><span className="org-muted">The sponsor’s plan limit. This project counts as private once you change it.</span></div>
             : <span className="org-muted">The sponsor’s private-project count is checked when you change it; if there’s no room the answer is 402.</span>)}
           {errors.visibility && (
             <Notice tone="error">
               <span>{errors.visibility.text}</span>
-              {errors.visibility.kind === 'quota' && <span className="org-notice-links"><Link to="/app/account/usage">Usage</Link></span>}
+              {errors.visibility.kind === 'quota' && <span className="org-notice-links"><Link to="/app/account/usage">Your plan</Link></span>}
             </Notice>
           )}
           {canEdit && <Action variant="secondary" onClick={() => void saveVisibility()} disabled={visibilityUnchanged} busy={busy === 'visibility'}>Change visibility</Action>}

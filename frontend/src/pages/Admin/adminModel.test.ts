@@ -188,7 +188,7 @@ describe('error events', () => {
   });
 
   it('explains a code, and falls back to its status for one it does not know', () => {
-    expect(errorMeaning('quota_exceeded', 402)).toMatch(/allowance ran out/);
+    expect(errorMeaning('quota_exceeded', 402)).toMatch(/limit of the plan was reached/);
     expect(errorMeaning('mystery', 500)).toMatch(/worth a look/);
     expect(errorMeaning('mystery', 429)).toBe('Too many requests at once.');
     expect(errorMeaning('mystery', 418)).toBe('The gateway refused the request.');

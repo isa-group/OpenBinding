@@ -150,7 +150,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const account = header.getByRole('button', { name: 'Account menu' });
           await account.click();
           const accountMenu = header.locator('#app-account-menu');
-          await expect(accountMenu.getByRole('link', { name: 'Usage & plan' })).toHaveAttribute('href', '/app/account/usage');
+          await expect(accountMenu.getByRole('link', { name: 'Plan & permissions' })).toHaveAttribute('href', '/app/account/usage');
           await expect(accountMenu.getByRole('link', { name: 'Administration' })).toHaveCount(0);
           if (persona === 'research') await expect(accountMenu.getByText('Universidad de Sevilla · Institutional account')).toBeVisible();
           else await expect(accountMenu.getByText(/Institutional account/)).toHaveCount(0);

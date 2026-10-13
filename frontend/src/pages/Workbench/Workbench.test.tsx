@@ -67,7 +67,7 @@ describe('Workbench', () => {
     platform.publicProjects.mockResolvedValue([]);
     client.getBimExamples.mockResolvedValue(['demo/01_simple_seq']);
     client.getOwnUsage.mockResolvedValue({
-      plan: 'RESEARCH', capabilities: { maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20 }, limits: {}, features: {}, contract_pending: false,
+      plan: 'RESEARCH', capabilities: { maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20 }, features: {}, contract_pending: false,
     });
     client.getPricingCatalog.mockResolvedValue(null);
     client.createBimJob.mockResolvedValue({ id: 'job-1', status: 'queued', irDigest: 'sha256-ir' });
@@ -289,7 +289,7 @@ describe('Workbench', () => {
     });
 
     it('does not send a file that is over the plan’s ceiling', async () => {
-      client.getOwnUsage.mockResolvedValue({ plan: 'RESEARCH', capabilities: { maxPayloadBytes: 100 }, limits: {}, features: {}, contract_pending: false });
+      client.getOwnUsage.mockResolvedValue({ plan: 'RESEARCH', capabilities: { maxPayloadBytes: 100 }, features: {}, contract_pending: false });
       await openWorkbench();
       fireEvent.click(screen.getByRole('tab', { name: 'Upload file' }));
       expect(await screen.findByText('Up to 100 bytes on your plan (RESEARCH)')).toBeInTheDocument();

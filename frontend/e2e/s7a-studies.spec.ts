@@ -96,7 +96,6 @@ const engineEntry = (ref: typeof RANDOM_SEARCH) => {
   return { ...identity, id: `engine-${identity.name}`, ref: identity, modes: [mode(id, { time_budget_ms: { type: 'integer', default: 30000 } })] };
 };
 
-const tracked = (id: string, limit: number, used: number, extra: Record<string, unknown> = {}) => ({ limit_id: id, limit, used, remaining: limit - used, unit: null, renews_at: null, ...extra });
 
 const artifact = (id: string, kind: string, display: string) => ({
   id, organization_id: 'org-isa-demo', namespace: 'isa-demo', name: id, display_name: display, kind, description: '', labels: {}, archived: false, created_at: '2026-08-01T00:00:00Z',
@@ -157,12 +156,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf({
     plan: 'RESEARCH',
-    capabilities: { maxPayloadBytes: 134_217_728, maxTimeoutSeconds: 60, maxIterations: 1_000_000 },
-    limits: {
-      studies: tracked('studies', 25, 1),
-      studyRuns: tracked('studyRuns', 100, 4, { renews_at: '2026-11-01T00:00:00Z' }),
-      concurrentJobs: tracked('concurrentJobs', 3, 1),
-    },
+    capabilities: { maxPayloadBytes: 134_217_728, maxTimeoutSeconds: 60, maxIterations: 1_000_000, studies: 25, concurrentJobs: 3 },
   })));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
@@ -378,7 +372,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test.describe.configure({ mode: 'default' });
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('study-list /app/:org/:project/studies · rows, meters, archive and delete', async ({ page }, testInfo) => {
+    test('study-list /app/:org/:project/studies · rows, archive and delete, with no allowance meter', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/studies`);
@@ -394,9 +388,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(list.getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeVisible();
       await expect(list.getByRole('img', { name: '2 completed, 2 running, 2 queued of 6 cells' })).toBeVisible();
       await expect(list.getByText('Never run')).toBeVisible();
-      await expect(main.getByText('1 of 25')).toBeVisible();
-      await expect(main.getByText('4 of 100')).toBeVisible();
-      await expect(main.getByText('Renews Nov 1, 2026')).toBeVisible();
+      await expect(main.getByText(/study runs this month|Renews/i)).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-rows`);
 
       // Archived studies appear on request.
@@ -488,9 +480,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       const aside = main.getByRole('complementary', { name: 'Matrix and plan' });
       await expect(aside.getByText('2 case revisions × 2 engines × 2 settings × 3 seeds')).toBeVisible();
-      await expect(aside.getByText('1 used + up to 1 = 2 of 25')).toBeVisible();
-      await expect(aside.getByText('4 used + up to 1 = 5 of 100')).toBeVisible();
-      await expect(aside.getByText(/Each run uses 1 of your study runs this month \(96 left\)/)).toBeVisible();
+      await expect(aside.getByText(/used \+ up to|study runs this month/)).toHaveCount(0);
+      await expect(aside.getByText(/your plan lets one solve run for up to 60 s/)).toBeVisible();
       await expect(create).toBeEnabled();
       await capture(page, testInfo, `builder-${name}-filled`);
 
@@ -626,10 +617,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `detail-${name}-run-accepted`);
 
       // Every way the gateway refuses to start one.
-      state.refuse.run = detail(402, 'quota_exceeded', 'Study-run quota exhausted.', { quota: { limit_id: 'studyRuns', limit: 100, used: 100, renews_at: '2026-11-01T00:00:00Z' } });
+      state.refuse.run = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'storageBytes', limit: 100, used: 100 } });
       await main.getByRole('button', { name: 'Run study' }).click();
-      await expect(main.getByText('No study runs left this month (402 · quota_exceeded)')).toBeVisible();
-      await expect(main.getByText('You’ve used 100 of 100 study runs. They renew on Nov 1, 2026. Nothing was started.')).toBeVisible();
+      await expect(main.getByText('Out of storage (402 · quota_exceeded)')).toBeVisible();
+      await expect(main.getByText('You’ve used 100 of 100 storage. Nothing was started.')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-402`, { height: 1300 });
       state.refuse.run = (route) => route.fulfill({
         status: 429, headers: { 'Retry-After': '15' },
@@ -857,9 +848,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Failed: The engine deployment didn’t answer in time.')).toBeVisible();
       await expect(main.getByText(/Code engine_unreachable · timeout\./)).toBeVisible();
       await capture(page, testInfo, `cell-${name}-failed`, { height: 1500 });
-      state.refuse.retry = detail(402, 'quota_exceeded', 'Study runs exhausted.', { quota: { limit_id: 'studyRuns', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' } });
+      state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'storageBytes', limit: 50, used: 50 } });
       await main.getByRole('button', { name: 'Retry this cell' }).click();
-      await expect(main.getByText('No study runs left this month (402 · quota_exceeded)')).toBeVisible();
+      await expect(main.getByText('Out of storage (402 · quota_exceeded)')).toBeVisible();
       await capture(page, testInfo, `cell-${name}-402`, { height: 1500 });
       state.refuse.retry = (route) => route.fulfill({
         status: 429, headers: { 'Retry-After': '15' },

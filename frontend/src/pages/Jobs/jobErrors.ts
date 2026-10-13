@@ -2,7 +2,6 @@ import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { diagnosticLines } from '../../api/problem';
 import { RANGE_CODE } from '../../utils/featureRange';
-import { formatDate } from '../../utils/format';
 import { limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 
@@ -61,11 +60,6 @@ function detailsOf(caught: unknown): string[] {
   return caught instanceof HttpError ? diagnosticLines(caught, 8) : [];
 }
 
-function renewal(renewsAt: string | null | undefined): string {
-  const date = formatDate(renewsAt);
-  return date ? ` They renew on ${date}.` : '';
-}
-
 function permissionOf(message: string | undefined): string | undefined {
   return message?.match(/\b([a-z]+:[a-z]+)\b/)?.[1];
 }
@@ -97,7 +91,7 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
     return {
       ...base, kind: 'quota', limitId: quota?.limit_id,
       title: `${retry}Out of ${noun}${at}`,
-      text: `${spent}${renewal(quota?.renews_at)} ${nothing}`,
+      text: `${spent} ${nothing}`,
     };
   }
 

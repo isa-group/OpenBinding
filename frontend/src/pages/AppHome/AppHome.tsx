@@ -7,17 +7,17 @@ import type { Notification } from '../../api/auth';
 import { platformApi } from '../../api/platform';
 import type { Organization } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
-import { QuotaBar } from '../../components/QuotaBar';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { config } from '../../config';
 import { useAuth } from '../../contexts/auth';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { formatCount, formatDuration } from '../../utils/limits';
 import { useResource } from '../../utils/useResource';
 import { contractChange } from '../Account/notificationsModel';
-import { nextRenewal, usageRows } from '../Account/usageModel';
+import { usageRows } from '../Account/usageModel';
 import { classifyAuthError, generalFailure, isForbidden, marker } from '../Organization/orgErrors';
 import { buildForest, roleSource, type TreeNode } from '../Organization/orgModel';
 import { OrgTile, RoleChip } from '../Organization/parts';
@@ -124,29 +124,28 @@ function ActivityBlock() {
   );
 }
 
-function QuotaBlock() {
+function PlanBlock() {
   const usage = useResource('home-usage', () => apiClient.getOwnUsage());
   const failure = usage.status === 'error' ? classifyAuthError(usage.error) : null;
   const data = usage.data;
   const rows = data ? usageRows(data) : [];
   const picks: Array<{ id: string; label: string; format: (value: number) => string }> = [
-    { id: 'studyRuns', label: 'Study runs', format: formatCount },
-    { id: 'concurrentJobs', label: 'Jobs running now', format: formatCount },
+    { id: 'concurrentJobs', label: 'Jobs at once', format: formatCount },
+    { id: 'apiKeys', label: 'API keys', format: formatCount },
   ];
-  const renewal = nextRenewal(rows);
   return (
-    <section className="apphome-card is-padded" aria-labelledby="home-quota-title" aria-busy={usage.status === 'loading'}>
+    <section className="apphome-card is-padded" aria-labelledby="home-plan-title" aria-busy={usage.status === 'loading'}>
       <header className="home-card-head is-bare">
-        <h2 id="home-quota-title">This month</h2>
-        <Link to="/app/account/usage" viewTransition>Usage</Link>
+        <h2 id="home-plan-title">Your plan</h2>
+        <Link to="/app/account/usage" viewTransition>Plan &amp; permissions</Link>
       </header>
       {usage.status === 'loading' && <Skeleton variant="panel" />}
       {failure && isForbidden(failure) && <p className="home-blocked">Not available with this key (needs account: read).</p>}
       {failure && !isForbidden(failure) && (
         <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={usage.reload}>Retry</Action>}>
           {failure.code === 'pricing_unavailable' || failure.kind === 'unavailable'
-            ? `Your plan limits can’t be loaded right now${marker(failure)}. Nothing else on this page depends on them.`
-            : generalFailure(failure, 'no limits are shown')}
+            ? `Your plan can’t be loaded right now${marker(failure)}. Nothing else on this page depends on it.`
+            : generalFailure(failure, 'no plan is shown')}
         </Notice>
       )}
       {data?.contract_pending && (
@@ -154,17 +153,20 @@ function QuotaBlock() {
       )}
       {data && !data.contract_pending && (
         <>
+          <div className="home-untracked"><span>Plan</span><strong>{data.plan}</strong></div>
           {picks.map((pick) => {
             const row = rows.find((item) => item.id === pick.id);
-            if (row?.tracked) return <QuotaBar key={pick.id} limit={row.tracked} label={pick.label} format={pick.format} />;
-            if (row) return <div key={pick.id} className="home-untracked"><span>{pick.label}</span><strong>{row.limit === null ? 'Unlimited' : `Up to ${pick.format(row.limit)}`}</strong></div>;
-            return null;
+            if (!row) return null;
+            return <div key={pick.id} className="home-untracked"><span>{pick.label}</span><strong>{row.limit === null ? 'Unlimited' : `Up to ${pick.format(row.limit)}`}</strong></div>;
           })}
-          <span className="home-muted">
-            {renewal ? `Monthly limits renew ${formatDate(renewal)}. ` : ''}Job slots free up as runs finish.
-          </span>
         </>
       )}
+      <span className="home-muted">
+        Plans and contracts are managed in the native consoles:{' '}
+        <a href={config.spaceFrontendUrl} target="_blank" rel="noopener noreferrer">SPACE</a>
+        {' · '}
+        <a href={config.sphereUrl} target="_blank" rel="noopener noreferrer">SPHERE</a>.
+      </span>
     </section>
   );
 }
@@ -224,7 +226,7 @@ function NotificationsBlock({ announce }: { announce: (text: string) => void }) 
   );
 }
 
-/** Home (`app-home`, `/app`): the organizations you can reach, recent jobs, this month’s limits and unread notices. */
+/** Home (`app-home`, `/app`): the organizations you can reach, recent jobs, your plan and unread notices. */
 export function AppHome() {
   const context = useOutletContext<PlatformOutletContext>();
   const { user, isAdmin } = useAuth();
@@ -325,7 +327,7 @@ export function AppHome() {
         <div className="home-side">
           <ActivityBlock />
           <div className="home-pair">
-            <QuotaBlock />
+            <PlanBlock />
             <NotificationsBlock announce={setAnnouncement} />
           </div>
         </div>

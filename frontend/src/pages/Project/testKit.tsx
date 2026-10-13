@@ -51,15 +51,12 @@ export async function ensureSubtleCrypto(): Promise<void> {
   vi.stubGlobal('crypto', webcrypto);
 }
 
-const tracked = (id: string, limit: number, used: number) => ({ limit_id: id, limit, used, remaining: Math.max(0, limit - used), unit: null, renews_at: null });
-
 export function usageWithProjects(): UsageView {
   return {
     plan: 'RESEARCH',
     contract_pending: false,
     features: {},
     capabilities: { projects: 50, privateProjects: 30, maxPayloadBytes: 134_217_728 },
-    limits: { projects: tracked('projects', 50, 3), privateProjects: tracked('privateProjects', 30, 2) },
   };
 }
 

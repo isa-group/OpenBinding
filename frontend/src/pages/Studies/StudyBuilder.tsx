@@ -10,8 +10,6 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
-import { ForecastBars } from '../Jobs/LaunchSteps';
-import { forecastBar, type ForecastBar } from '../Jobs/jobsModel';
 import { planCeilingsOf } from '../Jobs/launchModel';
 import { RefusalNotice } from '../Jobs/parts';
 import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts';
@@ -21,8 +19,8 @@ import { useRouteProject } from '../Project/useRouteProject';
 import { AdoptPanel, CasesField, EnginesField, SettingsField } from './BuilderFields';
 import { StudyFrame } from './parts';
 import {
-  MAX_CASES, MAX_CELLS, MAX_ENGINES, MAX_SETTINGS, collectionMembers, defaultSelection, emptyVariant, engineChoices, formulaOf,
-  matrixSize, parametersKey, plural, readSeeds, readVariant, studyContentSize, type Variant,
+  MAX_CASES, MAX_CELLS, MAX_ENGINES, MAX_SETTINGS, collectionMembers, defaultSelection, definitionEngines, emptyVariant, engineChoices, formulaOf,
+  matrixSize, parametersKey, plural, readSeeds, readVariant, revisionsOf, studyContentSize, studyCriteriaCount, type Variant,
 } from './studiesModel';
 import { studyRefusal, type Refusal } from './studyErrors';
 
@@ -31,21 +29,6 @@ type Mode = 'new' | 'adopt';
 interface PinnedCollection {
   name: string;
   ids: string[];
-}
-
-const usedOf = (usage: UsageView | null | undefined, id: string): { used: number | null; limit: number | null } => {
-  const entry = usage?.limits?.[id];
-  return entry ? { used: entry.used, limit: entry.limit } : { used: usage ? 0 : null, limit: null };
-};
-
-/** What one run of this study adds to the sponsor's and the account's allowances. */
-function forecastFor(input: { usage: UsageView | null; sponsor: boolean }): ForecastBar[] {
-  const runs = usedOf(input.usage, 'studyRuns');
-  const studies = usedOf(input.usage, 'studies');
-  const bars: ForecastBar[] = [];
-  if (input.sponsor) bars.push(forecastBar('Study definitions of the sponsor', studies.used, studies.limit, 1, ''));
-  bars.push(forecastBar('Study runs this month', runs.used, runs.limit, 1, ''));
-  return bars;
 }
 
 function BuilderBody({ organization, project, canCreate }: { organization: Organization; project: Project; canCreate: boolean }) {
@@ -125,10 +108,7 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
   const adoptedSize = adoptContent.data ?? null;
 
   const ceilings = planCeilingsOf(usage.data ?? null, pricing.data ?? null, user?.plan);
-  const sponsor = organization.billing_sponsor_user_id === user?.id;
   const cells = mode === 'adopt' ? adoptedSize?.cells ?? 0 : size.cells;
-  const bars = forecastFor({ usage: usage.data ?? null, sponsor });
-  const left = usage.data?.limits?.studyRuns?.remaining;
 
   const effectiveName = name || (mode === 'adopt' ? studyArtifacts.find((item) => item.id === adoptArtifact)?.display_name ?? '' : '');
   const effectiveAddress = address ?? slugFromName(effectiveName);
@@ -164,7 +144,7 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
           definition: {
             case_revision_ids: selected,
             ...(collectionVersion ? { collection_version_id: collectionVersion } : {}),
-            engines: chosen.map((choice) => ({ ...choice.ref, mode: choice.mode })),
+            engines: definitionEngines(chosen, studyCriteriaCount(revisionsOf(caseList ?? [], [...selected, ...joined]))),
             parameter_sets: settings,
             seeds: seeds.seeds,
           },
@@ -300,11 +280,9 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
                 <span className="st-cap" aria-hidden="true"><i className={cells > MAX_CELLS ? 'is-over' : undefined} style={{ width: `${Math.min(100, Math.max(cells > 0 ? 1 : 0, Math.round((cells / MAX_CELLS) * 100)))}%` }} /></span>
                 <small className="org-muted">Up to {MAX_CELLS.toLocaleString('en-US')} cells, {MAX_CASES} case revisions, {MAX_ENGINES} engine modes and {MAX_SETTINGS} settings per study</small>
               </section>
-              <section className="st-plan" aria-label="What a run uses">
-                <ForecastBars bars={bars} />
+              <section className="st-plan" aria-label="How a run proceeds">
                 <p className="st-plan-note">
-                  Each run uses 1 of your study runs this month{typeof left === 'number' ? ` (${left.toLocaleString('en-US')} left)` : ''}.
-                  {' '}Cells start as job slots free up{ceilings.seconds !== null ? `; your plan lets one solve run for up to ${ceilings.seconds} s` : ''}.
+                  Cells start as job slots free up{ceilings.seconds !== null ? `; your plan lets one solve run for up to ${ceilings.seconds} s` : ''}.
                 </p>
               </section>
               {refusal && <RefusalNotice refusal={refusal} usageTo />}

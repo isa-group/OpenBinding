@@ -116,38 +116,16 @@ const ORG_AUDIT = [
   { id: 'e0000000-0000-0000-0000-0000000000e2', organizationId: 'org-isa-demo', actorId: ME_ID, action: 'organization.created', targetType: 'Organization', targetId: 'org-isa-demo', detail: {}, createdAt: '2026-03-03T08:00:00Z' },
 ];
 
-// -- What the plan allows and how much is used
+// -- What the plan allows (nothing is counted per account)
 
-const RENEWS = '2026-11-01T00:00:00Z';
-const tracked = (id: string, limit: number, used: number, unit: string, renews: string | null = null) => (
-  { limit_id: id, limit, used, remaining: Math.max(0, limit - used), unit, renews_at: renews }
-);
 const USAGE = {
   plan: 'RESEARCH',
   contract_pending: false,
   features: { authoring: true, solve: true, federatedEngines: true, apiAccess: true, collaboration: true, studies: true, advancedAnalytics: true, reproducibleExport: true, publishing: true, reproducibilityArchive: false, institutionalBranding: true },
   capabilities: {
     concurrentJobs: 3, federatedEngines: 5, apiKeys: 25,
-    maxTimeoutSeconds: 900, maxIterations: 1_000_000, maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20, jobHistoryDays: 180, studyRuns: 100,
+    maxTimeoutSeconds: 900, maxIterations: 1_000_000, maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20, jobHistoryDays: 180,
     organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120,
-  },
-  limits: {
-    studyRuns: tracked('studyRuns', 100, 4, 'run/month', RENEWS),
-    concurrentJobs: tracked('concurrentJobs', 3, 1, 'job'),
-    federatedEngines: tracked('federatedEngines', 5, 3, 'engine'),
-    apiKeys: tracked('apiKeys', 25, 2, 'key'),
-    maxTimeoutSeconds: tracked('maxTimeoutSeconds', 900, 0, 'second'),
-    maxIterations: tracked('maxIterations', 1_000_000, 0, 'iteration'),
-    maxPayloadBytes: tracked('maxPayloadBytes', 134_217_728, 0, 'byte'),
-    maxInstanceComplexityLog10: tracked('maxInstanceComplexityLog10', 20, 0, 'log10 combinations'),
-    jobHistoryDays: tracked('jobHistoryDays', 180, 0, 'day'),
-    organizations: tracked('organizations', 5, 2, 'organization'),
-    members: tracked('members', 15, 3, 'member'),
-    projects: tracked('projects', 50, 4, 'project'),
-    privateProjects: tracked('privateProjects', 30, 3, 'project'),
-    collections: tracked('collections', 50, 2, 'collection'),
-    studies: tracked('studies', 25, 2, 'study'),
-    storageBytes: tracked('storageBytes', 5_368_709_120, 52_428_800, 'byte'),
   },
 };
 
@@ -452,7 +430,7 @@ const ADMIN_OVERVIEW = {
   contracts: { BASIC: 3, ADVANCED: 1, RESEARCH: 2 },
 };
 const PENDING_REGISTRATION = { ...SOLVER_IN_REVIEW, namespace: 'sam.okafor' };
-const emailOfAccount = (id: string | null) => (id ? `${(accountOf(id)?.username ?? 'sam.okafor').replace('.', '-')}@example.org` : null);
+const emailOfAccount = (id: string | null | undefined) => (id ? `${(accountOf(id)?.username ?? 'sam.okafor').replace('.', '-')}@example.org` : null);
 const ERRORS = ERROR_EVENTS.map((event) => ({ ...event, user_email: emailOfAccount(event.user_id), userEmail: emailOfAccount(event.user_id) }));
 
 // -- The router
@@ -693,7 +671,7 @@ function adminRoutes(request: Request): Reply {
     const tail = parts.slice(4).join('/');
     if (!tail) return ok(account);
     if (tail === 'subscription') return ok(subscriptionOf(account, {}));
-    if (tail === 'usage') return ok(adminUsageOf(account.plan, 10));
+    if (tail === 'usage') return ok(adminUsageOf(account.plan));
   }
   return notFound('not mocked');
 }
@@ -777,8 +755,8 @@ function route(request: Request): Reply | null {
     }
     case 'analysis':
       if (second === 'sources') return ok({ items: ARCHIVE_SOURCES, nextCursor: null });
-      if (second === 'query') return ok(archiveAnswer(request.body() as ArchiveQuery));
-      if (second === 'candidate') return ok(candidateOf((request.body() as ArchiveQuery).selected === ID_FASTPAY ? ROWS.fastpay : ROWS.payco));
+      if (second === 'query') return ok(archiveAnswer(request.body() as unknown as ArchiveQuery));
+      if (second === 'candidate') return ok(candidateOf((request.body() as unknown as ArchiveQuery).selected === ID_FASTPAY ? ROWS.fastpay : ROWS.payco));
       return null;
     default: return null;
   }

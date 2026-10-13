@@ -32,7 +32,6 @@ const runner: ApiKeySummary = {
 
 const usageWith = (apiKeys: number | null) => ({
   plan: 'PRO', contract_pending: false, features: {}, capabilities: { apiKeys },
-  limits: apiKeys === null ? {} : { apiKeys: { limit_id: 'apiKeys', limit: apiKeys, used: 2, remaining: Math.max(0, apiKeys - 2), unit: 'key' } },
 });
 
 function renderKeys() {

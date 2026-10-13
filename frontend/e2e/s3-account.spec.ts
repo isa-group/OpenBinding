@@ -34,55 +34,24 @@ const marco = { ...lucia, username: 'marco.diaz', email: 'marco@example.org', pl
 const iker = { ...marco, username: 'iker.mora', email: 'iker@example.org', role: 'admin', plan: 'PRO' };
 type Account = typeof lucia;
 
-const RENEWS = '2026-11-01T00:00:00Z';
-const tracked = (id: string, limit: number, used: number, unit: string, renews: string | null = null) =>
-  ({ limit_id: id, limit, used, remaining: Math.max(0, limit - used), unit, renews_at: renews });
-
-/** What the gateway reports for the RESEARCH plan of the pricing 0.1.0, with some of it used. */
+/** What the gateway reports for the RESEARCH plan of the pricing 0.1.0: the plan, its features and its limits, with no consumption. */
 const researchUsage = () => ({
   plan: 'RESEARCH',
   contract_pending: false,
   features: { authoring: true, solve: true, federatedEngines: true, apiAccess: true, collaboration: true, studies: true, advancedAnalytics: true, reproducibleExport: true, publishing: true, reproducibilityArchive: false, institutionalBranding: true },
   capabilities: {
     concurrentJobs: 3, federatedEngines: 5, apiKeys: 25,
-    maxTimeoutSeconds: 900, maxIterations: 1_000_000, maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20, jobHistoryDays: 180, studyRuns: 100,
+    maxTimeoutSeconds: 900, maxIterations: 1_000_000, maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20, jobHistoryDays: 180,
     organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120,
-  },
-  limits: {
-    studyRuns: tracked('studyRuns', 100, 4, 'run/month', RENEWS),
-    concurrentJobs: tracked('concurrentJobs', 3, 1, 'job'),
-    federatedEngines: tracked('federatedEngines', 5, 1, 'engine'),
-    apiKeys: tracked('apiKeys', 25, 2, 'key'),
-    maxTimeoutSeconds: tracked('maxTimeoutSeconds', 900, 0, 'second'),
-    maxIterations: tracked('maxIterations', 1_000_000, 0, 'iteration'),
-    maxPayloadBytes: tracked('maxPayloadBytes', 134_217_728, 0, 'byte'),
-    maxInstanceComplexityLog10: tracked('maxInstanceComplexityLog10', 20, 0, 'log10 combinations'),
-    jobHistoryDays: tracked('jobHistoryDays', 180, 0, 'day'),
-    organizations: tracked('organizations', 5, 2, 'organization'),
-    members: tracked('members', 15, 3, 'member'),
-    projects: tracked('projects', 50, 3, 'project'),
-    privateProjects: tracked('privateProjects', 30, 2, 'project'),
-    collections: tracked('collections', 50, 1, 'collection'),
-    studies: tracked('studies', 25, 1, 'study'),
-    storageBytes: tracked('storageBytes', 5_368_709_120, 52_428_800, 'byte'),
   },
 });
 
-/** BASIC with the monthly study runs used up and the only API key in use. */
-const spentUsage = () => ({
+/** BASIC, with the only API key allowed. */
+const basicUsage = () => ({
   plan: 'BASIC',
   contract_pending: false,
   features: { authoring: true, solve: true, advancedAnalytics: false, institutionalBranding: false },
-  capabilities: { studyRuns: 3, concurrentJobs: 1, apiKeys: 1, maxTimeoutSeconds: 60, maxPayloadBytes: 8_388_608, maxInstanceComplexityLog10: 9, jobHistoryDays: 7 },
-  limits: {
-    studyRuns: tracked('studyRuns', 3, 3, 'run/month', RENEWS),
-    concurrentJobs: tracked('concurrentJobs', 1, 1, 'job'),
-    apiKeys: tracked('apiKeys', 1, 1, 'key'),
-    maxTimeoutSeconds: tracked('maxTimeoutSeconds', 60, 0, 'second'),
-    maxPayloadBytes: tracked('maxPayloadBytes', 8_388_608, 0, 'byte'),
-    maxInstanceComplexityLog10: tracked('maxInstanceComplexityLog10', 9, 0, 'log10 combinations'),
-    jobHistoryDays: tracked('jobHistoryDays', 7, 0, 'day'),
-  },
+  capabilities: { concurrentJobs: 1, apiKeys: 1, maxTimeoutSeconds: 60, maxPayloadBytes: 8_388_608, maxInstanceComplexityLog10: 9, jobHistoryDays: 7 },
 });
 
 const DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
@@ -100,7 +69,17 @@ const runner = {
 };
 type ApiKey = typeof reader | typeof runner;
 
-const notifications = () => [
+interface Notice {
+  id: string;
+  kind: string;
+  subject: string;
+  body: string;
+  payload: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
+}
+
+const notifications = (): Notice[] => [
   {
     id: 'n1', kind: 'contract.changed', subject: 'Your OpenBinding agreement changed', body: 'Plan: BASIC → RESEARCH. Add-ons: {} → {}. Reason: institutional_agreement.',
     payload: { reason: 'institutional_agreement', previous: { plan: 'BASIC', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} }, pricingVersion: '0.1.0' },
@@ -287,7 +266,7 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
 async function expectAccountNav(main: Locator, current: string) {
   const nav = main.getByRole('navigation', { name: 'Account' });
   const destinations: Array<[string, string]> = [
-    ['Profile & security', '/app/account'], ['Usage & plan', '/app/account/usage'], ['API keys', '/app/account/keys'],
+    ['Profile & security', '/app/account'], ['Plan & permissions', '/app/account/usage'], ['API keys', '/app/account/keys'],
     ['Identities', '/app/account/identities'], ['Notifications', '/app/account/notifications'],
   ];
   for (const [label, href] of destinations) await expect(nav.getByRole('link', { name: label })).toHaveAttribute('href', href);
@@ -400,7 +379,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     });
 
     test('acct-profile: logging out, a pending contract and a refused read', async ({ page }, testInfo) => {
-      const state = await mockApi(page, marco, { usage: json({ ...spentUsage(), contract_pending: true }) });
+      const state = await mockApi(page, marco, { usage: json({ ...basicUsage(), contract_pending: true }) });
       await page.goto('/app/account');
       const main = page.locator('#platform-main');
 
@@ -420,33 +399,35 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(page).toHaveURL(/\/login$/);
     });
 
-    test('acct-usage /app/account/usage', async ({ page }, testInfo) => {
+    test('acct-usage /app/account/usage · plan and permissions, with links to the native consoles', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, lucia);
       await page.goto('/app/account/usage');
       const main = page.locator('#platform-main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Usage & plan' })).toBeVisible();
-      await expectAccountNav(main, 'Usage & plan');
+      await expect(main.getByRole('heading', { level: 1, name: 'Plan & permissions' })).toBeVisible();
+      await expectAccountNav(main, 'Plan & permissions');
       const plan = main.getByRole('region', { name: 'Your plan' });
       await expect(plan.getByText('RESEARCH', { exact: true })).toBeVisible();
       await expect(plan.getByText('Free with verified CAS')).toBeVisible();
-      await expect(plan.getByText(/Live pricing 0\.1\.0 · Monthly allowances renew Nov 1, 2026/)).toBeVisible();
+      await expect(plan.getByText(/Published pricing 0\.1\.0 · A new pricing version applies when your contract is renewed in SPACE/)).toBeVisible();
       await expect(plan.getByRole('link', { name: 'See plans' })).toHaveAttribute('href', '/pricing');
 
-      await expect(main.getByRole('meter', { name: 'Study runs', exact: true })).toHaveAttribute('aria-valuenow', '4');
-      await expect(main.getByRole('meter', { name: 'Study runs', exact: true })).toHaveAttribute('aria-valuemax', '100');
-      await expect(main.getByText(/Renews Nov 1, 2026 \(in \d+ days\)\./)).toBeVisible();
-      const capacity = main.getByRole('heading', { name: 'Capacity in use' }).locator('xpath=ancestor::section[1]');
-      await expect(capacity.getByText('2 / 25')).toBeVisible();
-      await expect(capacity.getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/app/account/keys');
+      // Prices, versions and contracts are managed in the native consoles; this page only links to them.
+      await expect(main.getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute('href', 'https://space.score.us.es');
+      await expect(main.getByRole('link', { name: 'Open SPHERE console' })).toHaveAttribute('href', 'https://sphere.score.us.es');
+      await expect(main.getByRole('meter')).toHaveCount(0);
+      await expect(main.getByRole('heading', { name: 'This month' })).toHaveCount(0);
+      const allowances = main.getByRole('heading', { name: 'What your plan allows' }).locator('xpath=ancestor::section[1]');
+      await expect(allowances.getByText('25', { exact: true })).toBeVisible();
+      await expect(allowances.getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/app/account/keys');
       const ceilings = main.getByRole('region', { name: 'Ceilings table' });
       await expect(ceilings.getByRole('row', { name: /Max time per job/ })).toContainText('15 min');
       await expect(ceilings.getByRole('row', { name: /Max time per job/ })).toContainText('900 s');
       await expect(ceilings.getByRole('row', { name: /Max problem size/ })).toContainText('10²⁰');
       await expect(main.getByRole('link', { name: 'Open job history' })).toHaveAttribute('href', '/app/jobs');
       await expect(main.getByRole('heading', { name: 'Organizations you sponsor' })).toBeVisible();
-      await expect(main.getByText('From your usage')).toBeVisible();
+      await expect(main.getByText('Confirmed by your plan check')).toBeVisible();
       await expect(main.getByText('Authoring', { exact: true }).locator('..')).toContainText('Enabled');
       await expect(main.getByText('Reproducibility archive', { exact: true }).locator('..')).toContainText('Not in plan');
       await capture(page, testInfo, `usage-${name}-research`);
@@ -469,32 +450,33 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.reload();
       await expect(main.getByText('Can’t confirm features')).toBeVisible();
       await expect(main.getByText(/No plan check is available yet/)).toBeVisible();
-      // The allowances change without leaving the page: Refresh usage asks the gateway again.
-      const refresh = () => main.getByRole('button', { name: 'Refresh usage' }).click();
+      // The plan changes without leaving the page: Refresh plan asks the gateway again.
+      const refresh = () => main.getByRole('button', { name: 'Refresh plan' }).click();
       state.usage = json({ ...researchUsage(), contract_pending: true });
       await refresh();
       await expect(main.getByText('Your contract is pending.')).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'This month' })).toHaveCount(0);
-      state.usage = json(spentUsage());
+      await expect(main.getByRole('heading', { name: 'What your plan allows' })).toHaveCount(0);
+      state.usage = json(basicUsage());
       await refresh();
-      await expect(main.getByText('Used up. New study runs can’t start until it renews; a request now gets a 402.')).toBeVisible();
-      await expect(main.getByText('0 left', { exact: true })).toHaveCount(1);
-      await capture(page, testInfo, `usage-${name}-spent`);
+      await expect(main.getByRole('heading', { name: 'What your plan allows' })).toBeVisible();
+      await expect(main.getByText('BASIC', { exact: true })).toBeVisible();
+      await capture(page, testInfo, `usage-${name}-basic`);
 
-      state.usage = json({ ...spentUsage(), capabilities: {}, limits: {} });
+      state.usage = json({ ...basicUsage(), capabilities: {} });
       await refresh();
-      await expect(main.getByText('Your plan declares no usage limits, so there’s nothing to track here.')).toBeVisible();
-      state.usage = detail(503, 'pricing_unavailable', 'Quotas cannot be read right now.');
+      await expect(main.getByText('Your plan declares no limits.')).toBeVisible();
+      state.usage = detail(503, 'pricing_unavailable', 'The plan cannot be read right now.');
       await refresh();
-      await expect(main.getByRole('alert')).toContainText('We can’t read your usage right now (503 · pricing_unavailable).');
-      await expect(main.getByRole('heading', { name: 'This month' })).toHaveCount(0);
+      await expect(main.getByRole('alert')).toContainText('We can’t read your plan right now (503 · pricing_unavailable).');
+      await expect(main.getByRole('link', { name: 'Open SPACE console' })).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'What your plan allows' })).toHaveCount(0);
       await capture(page, testInfo, `usage-${name}-503`);
       state.usage = json(researchUsage());
       await main.getByRole('alert').getByRole('button', { name: 'Try again' }).click();
-      await expect(main.getByRole('heading', { name: 'This month' })).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'What your plan allows' })).toBeVisible();
 
       state.usage = detail(403, 'forbidden', 'The API key lacks account:read.');
-      await main.getByRole('button', { name: 'Refresh usage' }).click();
+      await main.getByRole('button', { name: 'Refresh plan' }).click();
       await expect(main.getByRole('alert')).toContainText('account:read');
       expect(critical).toEqual([]);
     });
@@ -562,7 +544,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The plan's limit is a warning here and a 402 in the wizard.
       state.keys = [reader, runner];
-      state.usage = json({ ...researchUsage(), limits: { ...researchUsage().limits, apiKeys: tracked('apiKeys', 2, 2, 'key') } });
+      state.usage = json({ ...researchUsage(), capabilities: { ...researchUsage().capabilities, apiKeys: 2 } });
       await page.reload();
       await expect(main.getByText(/You’ve reached your plan’s API key limit \(2\)\./)).toBeVisible();
       await expect(main.getByRole('meter', { name: 'Active keys' })).toHaveAttribute('aria-valuenow', '2');
@@ -869,7 +851,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(change).toContainText('BASIC');
       await expect(change).toContainText('RESEARCH');
       await expect(main.getByText('Reason: institutional agreement · pricing version 0.1.0')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'See my usage' })).toHaveAttribute('href', '/app/account/usage');
+      await expect(main.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       await capture(page, testInfo, `notifications-${name}-contract-change`);
 
       const read = page.waitForRequest((request) => request.method() === 'POST' && request.url() === `${API}/v1/notifications/n1/read`);

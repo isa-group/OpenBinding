@@ -205,7 +205,7 @@ function FilesBody({ organization, project, access }: { organization: Organizati
         </div>
       )}
       {uploading && <div className="res-uploading" role="status"><span className="org-spinner" aria-hidden="true" />Uploading and fingerprinting {uploading}…</div>}
-      {problem && !keyCannotWrite && <div className="org-dialog-error" role="alert"><TriangleAlert aria-hidden="true" /><span>{problem.text}</span>{problem.kind === 'quota' && <Link to="/app/account/usage">See usage</Link>}</div>}
+      {problem && !keyCannotWrite && <div className="org-dialog-error" role="alert"><TriangleAlert aria-hidden="true" /><span>{problem.text}</span>{problem.kind === 'quota' && <Link to="/app/account/usage">See your plan</Link>}</div>}
       {toast && <div className="org-toast" role="status"><CheckCircle2 aria-hidden="true" /><span>{toast}</span></div>}
 
       {files.status === 'loading' && <div role="status" aria-busy="true" className="case-skeletons"><span className="sr-only">Loading files…</span><Skeleton variant="panel" /></div>}

@@ -76,7 +76,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     sent: { activated: [], deactivated: [], publication: [], deleted: [] },
   };
   const user = options.admin ? { ...alex, role: 'admin' } : alex;
-  const ownCount = () => state.registrations.filter((item) => item.namespace === alex.username).length;
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 's8a-access');
     localStorage.setItem('openbinding-refresh-token', 's8a-refresh');
@@ -88,7 +87,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(user));
-  await page.route(`${API}/v1/users/me/usage`, (route) => json(usageOf('RESEARCH', ownCount(), options.limit === undefined ? 3 : options.limit))(route));
+  await page.route(`${API}/v1/users/me/usage`, (route) => json(usageOf('RESEARCH', options.limit === undefined ? 3 : options.limit))(route));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
   await page.route(`${API}/v1/engines`, (route) => {
@@ -382,7 +381,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.refuse.createRegistration = json({ detail: { code: 'quota_exceeded', error: 'Federated engines limit reached', quota: { limit_id: 'federatedEngines', limit: 3, used: 3 } } }, 402);
       await main.getByRole('button', { name: 'Create registration' }).click();
       await expect(main.getByText('Engine limit reached (402)')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'See your usage' })).toHaveAttribute('href', '/app/account/usage');
+      await expect(main.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       await capture(page, testInfo, `register-${name}-402`, { height: tall(2400) });
       state.refuse.createRegistration = problem(422, 'secret_in_document', 'credentials must be supplied through the secret store', [{ code: 'secret_in_document', pointer: '/spec/endpoint', message: 'secret-like field is forbidden' }]);
       await main.getByRole('button', { name: 'Create registration' }).click();

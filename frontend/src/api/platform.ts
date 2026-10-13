@@ -193,6 +193,16 @@ export interface Publication {
   published_at: string;
 }
 
+/** One engine of a study definition: the pinned revision, the mode and the optimization the gateway requires of each. */
+export interface StudyEngine {
+  namespace?: string;
+  name?: string;
+  version?: string;
+  digest?: string;
+  mode?: string;
+  optimization?: { type: string; scalarization: string };
+}
+
 export interface Study {
   archived: boolean;
   id: string;
@@ -205,7 +215,7 @@ export interface Study {
   definition: {
     case_revision_ids: string[];
     collection_version_id?: string;
-    engines: Array<Record<string, string>>;
+    engines: StudyEngine[];
     parameter_sets: Array<Record<string, unknown>>;
     seeds: number[];
   };
@@ -648,7 +658,7 @@ export const platformApi = {
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/analytics`,
     ),
   /**
-   * Needs MEMBER. 202 with the new run. 402 `quota_exceeded` (study runs of the month), 429 `concurrency_limit_exceeded`, 403 `feature_not_entitled`
+   * Needs MEMBER. 202 with the new run. 402 `quota_exceeded`, 429 `concurrency_limit_exceeded`, 403 `feature_not_entitled`
    * or `api_key_engine_forbidden`, 409 `study_archived` or `evidence_only_study`, 503 `pricing_unavailable`.
    */
   runStudy: (org: string, project: string, study: string, version: string) =>

@@ -249,13 +249,14 @@ describe('One run of a study', () => {
     expect(screen.getByText('Showing 51–100 of 700')).toBeInTheDocument();
   });
 
-  it('keeps the quota in the words of a retry that is out of study runs', async () => {
-    platform.retryStudyCell.mockRejectedValue(new QuotaError('quota_exceeded', 'full', { limit_id: 'studyRuns', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' }));
+  it('keeps the quota in the words of a retry that is refused for a plan limit', async () => {
+    platform.retryStudyCell.mockRejectedValue(new QuotaError('quota_exceeded', 'full', { limit_id: 'storageBytes', limit: 50, used: 50 }));
     renderRun();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retry cell 1' }));
 
-    expect(await screen.findByText(/No study runs left this month \(402 · quota_exceeded\)/)).toBeInTheDocument();
-    expect(screen.getByText(/You’ve used 50 of 50 study runs\. They renew on Nov 1, 2026\./)).toBeInTheDocument();
+    expect(await screen.findByText(/Out of storage \(402 · quota_exceeded\)/)).toBeInTheDocument();
+    expect(screen.getByText(/You’ve used 50 of 50 storage\./)).toBeInTheDocument();
+    expect(screen.queryByText(/renew/i)).not.toBeInTheDocument();
   });
 });

@@ -99,7 +99,7 @@ function SponsorScreen({ param }: { param: string }) {
   const currentSponsor = (sponsor.data ?? sponsor.stale)?.user ?? null;
   const tree = visible.data ?? visible.stale ?? [];
   const eligible = target ? target.is_active && target.id !== sponsorId : false;
-  const carried = limits.data?.limits ?? null;
+  const carried = limits.data?.capabilities ?? null;
 
   const open = (event: FormEvent) => {
     event.preventDefault();
@@ -302,7 +302,7 @@ function SponsorScreen({ param }: { param: string }) {
               <tbody>
                 {SPONSORED.filter((id) => id in carried).map((id) => {
                   const info = limitInfo(id, definitions[id]);
-                  const allowed = describeLimit(info.kind, carried[id].limit);
+                  const allowed = describeLimit(info.kind, carried[id]);
                   return <tr key={id}><td>{info.label}</td><td title={allowed.exact}>{allowed.text}</td></tr>;
                 })}
               </tbody>

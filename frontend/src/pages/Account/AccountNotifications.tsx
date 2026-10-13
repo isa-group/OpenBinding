@@ -49,7 +49,7 @@ function Detail({ item, onMarkRead, busy }: { item: Notification; onMarkRead: ()
             {change.reason ? `Reason: ${change.reason}` : 'Reason: not given'}
             {change.pricingVersion && ` · pricing version ${change.pricingVersion}`}
           </span>
-          <Link to="/app/account/usage" viewTransition>See my usage</Link>
+          <Link to="/app/account/usage" viewTransition>See your plan</Link>
         </>
       )}
       {!change && <p className="notif-body-full">{item.body}</p>}

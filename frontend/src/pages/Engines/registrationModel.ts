@@ -350,10 +350,6 @@ export interface Allowance {
 /** How many federated engines the plan allows and how many are in use, from the usage view; `null` when it says nothing. */
 export function allowanceOf(usage: UsageView | null | undefined, ownCount: number): Allowance | null {
   if (!usage) return null;
-  const reported = usage.limits?.federatedEngines;
-  if (reported) {
-    return { plan: usage.plan, used: Math.max(0, reported.used), limit: Number.isFinite(reported.limit) ? reported.limit : null };
-  }
   const capability = usage.capabilities?.federatedEngines;
   if (capability === undefined) return null;
   return { plan: usage.plan, used: ownCount, limit: capability };

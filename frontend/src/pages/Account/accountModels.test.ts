@@ -4,7 +4,7 @@ import {
   ADMIN_ONLY, ALL_PERMISSIONS, ENGINE_LIMITED, PERMISSION_GROUPS, PRESETS, boundaryLabels, describeEngineAccess, expiryFor, needsEngines,
 } from './keysModel';
 import { contractChange, groupOf, unreadCount } from './notificationsModel';
-import { daysUntil, nextRenewal, usageRows } from './usageModel';
+import { usageRows } from './usageModel';
 
 describe('API-key permissions', () => {
   it('offers every permission of the closed set exactly once', () => {
@@ -53,45 +53,32 @@ describe('API-key permissions', () => {
   });
 });
 
-describe('usage rows', () => {
+describe('plan rows', () => {
   const usage: UsageView = {
     plan: 'PRO',
     contract_pending: false,
     features: { solve: true },
-    capabilities: { studyRuns: 1000, federatedEngines: null, apiKeys: 25, maxTimeoutSeconds: 1800, organizations: 10, newThing: 5 },
-    limits: {
-      studyRuns: { limit_id: 'studyRuns', limit: 1000, used: 40, remaining: 960, unit: 'run/month', renews_at: '2026-11-01T00:00:00Z' },
-      apiKeys: { limit_id: 'apiKeys', limit: 25, used: 2, remaining: 23, unit: 'key', renews_at: null },
-      maxTimeoutSeconds: { limit_id: 'maxTimeoutSeconds', limit: 1800, used: 0, remaining: 1800, unit: 'second' },
-      organizations: { limit_id: 'organizations', limit: 10, used: 2, remaining: 8 },
-    },
+    capabilities: { federatedEngines: null, apiKeys: 25, maxTimeoutSeconds: 1800, organizations: 10, newThing: 5 },
   };
   const rows = usageRows(usage);
   const row = (id: string) => rows.find((item) => item.id === id)!;
 
-  it('joins what is counted with what the plan allows, in a stable order', () => {
-    expect(rows.map((item) => item.id)).toEqual(['studyRuns', 'federatedEngines', 'apiKeys', 'maxTimeoutSeconds', 'organizations', 'newThing']);
-    expect(row('studyRuns')).toMatchObject({ limit: 1000, used: 40, unit: 'run/month', renewsAt: '2026-11-01T00:00:00Z' });
-    expect(row('apiKeys')).toMatchObject({ limit: 25, used: 2 });
+  it('lists what the plan allows, in a stable order, with the unknown ones last', () => {
+    expect(rows.map((item) => item.id)).toEqual(['federatedEngines', 'apiKeys', 'maxTimeoutSeconds', 'organizations', 'newThing']);
+    expect(row('apiKeys')).toMatchObject({ limit: 25 });
+    expect(row('maxTimeoutSeconds')).toMatchObject({ limit: 1800 });
   });
 
-  it('reads an unlimited allowance (null capability, not counted) as no limit', () => {
-    expect(row('federatedEngines')).toMatchObject({ limit: null, used: null, tracked: null });
+  it('reads a null capability as no limit', () => {
+    expect(row('federatedEngines')).toMatchObject({ limit: null });
   });
 
-  it('does not count a per-request ceiling as used', () => {
-    expect(row('maxTimeoutSeconds')).toMatchObject({ limit: 1800, used: null, tracked: null });
+  it('carries no consumption at all', () => {
+    for (const item of rows) expect(Object.keys(item).sort()).toEqual(['id', 'info', 'limit']);
   });
 
-  it('finds the soonest renewal among the monthly allowances', () => {
-    expect(nextRenewal(rows)).toBe('2026-11-01T00:00:00Z');
-    expect(nextRenewal(usageRows({ ...usage, limits: {} }))).toBeNull();
-  });
-
-  it('counts whole days to a date and never goes below zero', () => {
-    const now = Date.UTC(2026, 9, 9, 12);
-    expect(daysUntil('2026-11-01T00:00:00Z', now)).toBe(23);
-    expect(daysUntil('2026-01-01T00:00:00Z', now)).toBe(0);
+  it('reads an answer without capabilities as no rows', () => {
+    expect(usageRows({ plan: 'BASIC', contract_pending: true, features: {} } as UsageView)).toEqual([]);
   });
 });
 

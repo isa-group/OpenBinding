@@ -1,7 +1,9 @@
 import type { CaseRevision, Study, StudyCell, StudyRun } from '../../api/platform';
-import type { BimResourceRef, EngineCatalogEntry } from '../../api/client';
+import type { BimResourceRef, EngineCatalogEntry, EngineMode } from '../../api/client';
 import { bimResourceKey } from '../../api/client';
+import type { ExecutionOptimization } from '../../api/jobs';
 import type { CaseContent } from '../Project/projectModel';
+import { criteriaCountOf, optimizationFor, optimizationTypeOf } from '../Jobs/launchModel';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -148,6 +150,8 @@ export interface EngineChoice {
   /** The engine's own time budget for this mode, in seconds, when its options schema declares one. */
   defaultSeconds: number | null;
   federated: boolean;
+  /** The mode as the catalog declares it; its scalarizations decide the optimization the study sends. */
+  declared: EngineMode;
 }
 
 /** One choice per exact engine revision and mode: the study pins both. */
@@ -162,8 +166,34 @@ export function engineChoices(engines: readonly EngineCatalogEntry[]): EngineCho
       title: `${engine.name} ${engine.version}`,
       defaultSeconds: fallback,
       federated: engine.namespace !== 'bim.builtin',
+      declared: mode,
     };
   }));
+}
+
+/**
+ * How many criteria the goal of the chosen case revisions has: the most any of them optimizes. `null` when none of the documents can be
+ * read, which {@link studyOptimization} treats as a single criterion.
+ */
+export function studyCriteriaCount(revisions: readonly Pick<CaseRevision, 'document'>[]): number | null {
+  const counts = revisions.map((revision) => criteriaCountOf(revision.document)).filter((count): count is number => count !== null);
+  return counts.length > 0 ? Math.max(...counts) : null;
+}
+
+/**
+ * The optimization one engine of the definition carries (`definition.engines[].optimization`, required by `StudyDefinition`). It is derived
+ * as for a job, from the first scalarization the mode declares for the goal type; a mode that declares none that fits still gets the
+ * conventional one (`feasibility` without criteria, `weighted-sum` otherwise), so the gateway answers about compatibility rather than a
+ * missing field.
+ */
+export function studyOptimization(mode: EngineMode | undefined, criteria: number | null): ExecutionOptimization {
+  const count = criteria ?? 1;
+  return optimizationFor(mode, count) ?? { type: optimizationTypeOf(count), scalarization: count === 0 ? 'feasibility' : 'weighted-sum' };
+}
+
+/** The `definition.engines[]` entries for the chosen engine modes: the pinned revision, the mode and its optimization. */
+export function definitionEngines(chosen: readonly EngineChoice[], criteria: number | null): Study['definition']['engines'] {
+  return chosen.map((choice) => ({ ...choice.ref, mode: choice.mode, optimization: studyOptimization(choice.declared, criteria) }));
 }
 
 // --- case revisions
@@ -189,6 +219,12 @@ export function revisionIndex(cases: readonly CaseContent[]): Map<string, Revisi
     }
   }
   return index;
+}
+
+/** The revisions of the project's cases that have one of the given ids; ids the project doesn't hold (a collection's) are skipped. */
+export function revisionsOf(cases: readonly CaseContent[], ids: readonly string[]): CaseRevision[] {
+  const wanted = new Set(ids);
+  return cases.flatMap((entry) => entry.revisions.filter((revision) => wanted.has(revision.id)));
 }
 
 /** `Flujo de checkout · revision 2`; a revision this project doesn't hold reads by the start of its id. */

@@ -40,7 +40,7 @@ describe('admin-user-detail · one account', () => {
     vi.clearAllMocks();
     api.adminGetSubscription.mockImplementation(async (id: string) => subscriptionOf(USERS.find((account) => account.id === id) ?? SAM));
     api.adminListUsers.mockResolvedValue(userPage());
-    api.adminGetUserUsage.mockResolvedValue(usageOf('BASIC', 10));
+    api.adminGetUserUsage.mockResolvedValue(usageOf('BASIC'));
     api.getPricingCatalog.mockResolvedValue(catalogFixture);
     api.getCurrentPricing.mockResolvedValue(CURRENT_FIXTURE);
     api.getPricingToken.mockResolvedValue('token');
@@ -55,7 +55,7 @@ describe('admin-user-detail · one account', () => {
     vi.restoreAllMocks();
   });
 
-  it('shows who the account is, where its agreement stands and what it has used', async () => {
+  it('shows who the account is, where its agreement stands and what its plan allows', async () => {
     open();
     await ready();
     expect(screen.getByText(/sam-okafor@example\.invalid · since Jun 15, 2026/)).toBeInTheDocument();
@@ -63,8 +63,10 @@ describe('admin-user-detail · one account', () => {
     expect(screen.getByText('None linked')).toBeInTheDocument();
     expect(screen.queryByText('Institutional identity verified')).not.toBeInTheDocument();
     expect(screen.getByText(/Pinned to pricing 0\.1\.0 · renews Nov 1, 2026/)).toBeInTheDocument();
-    expect(await screen.findByText('10 of 10')).toBeInTheDocument();
-    expect(screen.getByText('Study runs')).toBeInTheDocument();
+    const allowances = within(await screen.findByRole('group', { name: 'Allowances' }));
+    expect(allowances.getByText('Concurrent jobs')).toBeInTheDocument();
+    expect(screen.queryByText(/\d+ of \d+/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Usage' })).not.toBeInTheDocument();
     const ceilings = screen.getByRole('group', { name: 'Ceilings for each request' });
     expect(within(ceilings).getByText('Max time per job')).toBeInTheDocument();
     expect(within(ceilings).getByText('1 min')).toBeInTheDocument();
@@ -207,10 +209,10 @@ describe('admin-user-detail · one account', () => {
     await screen.findByRole('heading', { level: 1, name: 'sam.okafor' });
     expect(await screen.findByText('The active pricing couldn’t be read')).toBeInTheDocument();
     expect(screen.queryByRole('radiogroup', { name: 'New plan' })).not.toBeInTheDocument();
-    expect(await screen.findByText('10 of 10')).toBeInTheDocument();
+    expect(await screen.findByRole('group', { name: 'Allowances' })).toBeInTheDocument();
   });
 
-  it('reports usage that cannot be read without hiding the agreement', async () => {
+  it('reports plan limits that cannot be read without hiding the agreement', async () => {
     api.adminGetUserUsage.mockRejectedValue(refusal(503, 'pricing_unavailable', 'down'));
     open();
     await ready();

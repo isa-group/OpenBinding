@@ -62,7 +62,7 @@ describe('eng-registrations · my engines', () => {
     vi.clearAllMocks();
     api.listEngineRegistrations.mockResolvedValue(MINE);
     api.adminListEngineRegistrations.mockResolvedValue([SOLVER_IN_REVIEW]);
-    api.getOwnUsage.mockResolvedValue(usageOf('RESEARCH', 3, 5));
+    api.getOwnUsage.mockResolvedValue(usageOf('RESEARCH', 5));
     api.getEngineRegistrationReport.mockImplementation(async (ref: EngineRegistrationRevision) => (
       reportOf(ref, ref.name === 'edge-solver' ? REPORT_VERIFIED : ref.name === 'paused-solver' ? REPORT_FAILED : REPORT_PENDING)
     ));

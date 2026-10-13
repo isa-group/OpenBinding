@@ -119,12 +119,12 @@ function OverviewScreen() {
 
   const tools: Array<[string, string, string]> = [
     ['Accounts', 'Search accounts, activate or deactivate, change global role.', '/app/admin/users'],
-    ['Account agreement', 'Plan, add-ons, usage drift and keys of one account: open it from Accounts.', '/app/admin/users'],
+    ['Account agreement', 'Plan, add-ons, plan limits and keys of one account: open it from Accounts.', '/app/admin/users'],
     ['Audit log', 'Every contract, pricing and maintenance change.', '/app/admin/audit'],
     ['Errors', 'Error codes, routes and trends, without request bodies.', '/app/admin/errors'],
     ['Queues', 'Jobs by state and the oldest ones waiting.', '/app/admin/queues'],
     ['Moderation', 'Review engine publication requests, and approve dialects and resources.', '/app/admin/moderation'],
-    ['Maintenance', 'Preview, then purge expired data or reconcile jobs and contracts.', '/app/admin/maintenance'],
+    ['Maintenance', 'Preview, then purge expired data or reconcile abandoned jobs.', '/app/admin/maintenance'],
   ];
 
   return (

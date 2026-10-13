@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FlaskConical } from 'lucide-react';
-import type { LimitUsage, UsageView } from '../../api/auth';
-import { apiClient, HttpError } from '../../api/client';
+import { HttpError } from '../../api/client';
 import { platformApi, type Organization, type Project, type Study } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
@@ -10,7 +9,6 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useAuth } from '../../contexts/auth';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
@@ -28,31 +26,6 @@ const WITH_CELLS = 12;
 
 type Outcome = { tone: 'success'; text: string } | { tone: 'error'; refusal: Refusal };
 
-interface MeterProps {
-  label: string;
-  usage: LimitUsage | undefined;
-  /** What to say instead of a figure: why this one isn't known. */
-  missing: string;
-  note: (usage: LimitUsage) => string;
-}
-
-function Meter({ label, usage, missing, note }: MeterProps) {
-  const pct = usage && usage.limit > 0 ? Math.min(100, Math.round((usage.used / usage.limit) * 100)) : 0;
-  const spent = Boolean(usage && usage.limit > 0 && usage.used >= usage.limit);
-  return (
-    <div className="st-meter">
-      <span className="st-meter-head"><span>{label}</span><strong>{usage ? `${usage.used.toLocaleString('en-US')} of ${usage.limit.toLocaleString('en-US')}` : '—'}</strong></span>
-      <span className="st-meter-track" aria-hidden="true"><i className={spent ? 'is-spent' : undefined} style={{ width: `${pct}%` }} /></span>
-      <small>{usage ? note(usage) : missing}</small>
-    </div>
-  );
-}
-
-function renews(usage: LimitUsage): string {
-  const date = formatDate(usage.renews_at);
-  return date ? `${usage.used >= usage.limit ? 'Used up · renews' : 'Renews'} ${date}` : usage.used >= usage.limit ? 'Used up' : 'Renews every month';
-}
-
 function DemoGrid() {
   return (
     <div className="st-demo" aria-hidden="true">
@@ -62,14 +35,12 @@ function DemoGrid() {
 }
 
 function StudyListBody({ organization, project, canCreate, canAdminister }: { organization: Organization; project: Project; canCreate: boolean; canAdminister: boolean }) {
-  const { user } = useAuth();
   const org = organization.slug;
   const slug = project.slug;
   const root = `/app/${org}/${slug}`;
-  // A visitor of a public project reads the studies; the sponsor’s allowances are not theirs to see.
+  // A visitor of a public project reads the studies.
   const publicRead = project.access === 'public_read';
   const studies = useResource<StudyContent[]>(`studies-list:${org}/${slug}`, () => loadStudies(org, slug, WITH_CELLS));
-  const usage = useResource<UsageView | null>('studies-usage', () => apiClient.getOwnUsage().catch(() => null));
   const [showArchived, setShowArchived] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -79,7 +50,6 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
   const rows = (data ?? []).filter((entry) => showArchived || !entry.study.archived);
   const archivedCount = (data ?? []).filter((entry) => entry.study.archived).length;
   const failure = studies.status === 'error' ? classifyAuthError(studies.error) : null;
-  const mySponsorship = organization.billing_sponsor_user_id === user?.id;
   const reload = studies.reload;
 
   const archive = async (study: Study) => {
@@ -131,23 +101,6 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
         </div>
         {canCreate && <div className="proj-actions"><Action to={`${root}/studies/new`} variant="primary">New study</Action></div>}
       </header>
-
-      {!publicRead && (
-        <div className="st-meters">
-          <Meter
-            label="Study definitions (sponsor)"
-            usage={mySponsorship ? usage.data?.limits?.studies : undefined}
-            missing={mySponsorship ? 'Your usage isn’t available right now' : 'Counted against the sponsor’s plan; their usage isn’t shown to you'}
-            note={() => 'Counted across the sponsor’s organizations · doesn’t renew'}
-          />
-          <Meter
-            label="Study runs this month (you)"
-            usage={usage.data?.limits?.studyRuns}
-            missing="Your usage isn’t available right now"
-            note={renews}
-          />
-        </div>
-      )}
 
       {data && archivedCount > 0 && (
         <label className="st-check">
@@ -242,7 +195,7 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
   );
 }
 
-/** The studies of a project (`study-list`, `/app/:org/:project/studies`): the matrix of each, its latest run, and what the sponsor’s plan has left. */
+/** The studies of a project (`study-list`, `/app/:org/:project/studies`): the matrix of each and its latest run. */
 export function StudyList() {
   const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   if (waiting) return <ProjectSkeleton />;

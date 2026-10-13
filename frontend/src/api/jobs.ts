@@ -62,10 +62,19 @@ export interface JobInstanceView {
   instance: Record<string, unknown>;
 }
 
-/** What `POST /v1/jobs` takes: sealed settings alone, or one exact engine mode with its options. */
+/**
+ * The optimization an execution selects (`optimization` of `POST /v1/jobs`). The gateway answers 422 `optimization_required` without it;
+ * weights are left out and the toolchain fills equal ones where the scalarization needs them.
+ */
+export interface ExecutionOptimization {
+  type: 'SINGLE' | 'MULTI' | 'MANY';
+  scalarization: string;
+}
+
+/** What `POST /v1/jobs` takes: sealed settings alone, or one exact engine mode with its options and optimization. */
 export type LaunchRequest =
   | { snapshot: string; configuration: ArtifactRef }
-  | { snapshot: string; engine: BimResourceRef; registration?: BimResourceRef; mode: string; options: Record<string, unknown> };
+  | { snapshot: string; engine: BimResourceRef; registration?: BimResourceRef; mode: string; options: Record<string, unknown>; optimization?: ExecutionOptimization };
 
 /**
  * The calls of the job screens. The mutations throw on a 422 (a refused submission) instead of handing its body back as if it were

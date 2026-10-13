@@ -32,12 +32,10 @@ describe('the plan summaries of the home page', () => {
     const id = plan.name.toUpperCase();
     const keys = limitOf(id, 'apiKeys');
     const jobs = limitOf(id, 'concurrentJobs') ?? 0;
-    const runs = limitOf(id, 'studyRuns') ?? 0;
 
     expect(plan.chips).toEqual([
       keys === null ? 'Unlimited API keys' : plural(keys, 'API key'),
       plural(jobs, 'concurrent job'),
-      `${count(runs)} study runs / month`,
     ]);
 
     const price = pricing.plans[id]?.price;

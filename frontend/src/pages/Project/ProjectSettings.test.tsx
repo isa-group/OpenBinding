@@ -113,19 +113,20 @@ describe('Project settings', () => {
       expect(await screen.findByText('Visibility changed to public. An audit entry was recorded.')).toBeInTheDocument();
     });
 
-    it('shows the sponsor’s private projects after making a public project private, and the 402 when there is no room', async () => {
+    it('shows the sponsor’s private-project limit after making a public project private, and the 402 when there is no room', async () => {
       platform.project.mockResolvedValue({ ...qos, visibility: 'public' });
       platform.updateProject.mockRejectedValue(new QuotaError('sponsor_quota_exceeded', 'full', { limit_id: 'privateProjects', limit: 30, used: 30 }));
       renderSettings();
       fireEvent.click(await screen.findByRole('radio', { name: 'Private' }));
 
-      expect(await screen.findByRole('meter', { name: 'Private projects' })).toHaveAttribute('aria-valuenow', '3');
+      expect(await screen.findByText('Up to 30')).toBeInTheDocument();
+      expect(screen.queryByRole('meter')).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Change visibility' }));
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('The sponsor has no private projects left (402 · sponsor_quota_exceeded). 30 of 30 private projects.');
       expect(alert).toHaveTextContent('Nothing changed.');
-      expect(within(alert).getByRole('link', { name: 'Usage' })).toHaveAttribute('href', '/app/account/usage');
+      expect(within(alert).getByRole('link', { name: 'Your plan' })).toHaveAttribute('href', '/app/account/usage');
     });
   });
 

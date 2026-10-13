@@ -228,7 +228,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const mine = main.getByRole('region', { name: 'Available to your account' });
       await expect(mine).toBeVisible();
       await expect(mine.getByText('Read from your signed pricing token for the RESEARCH plan.')).toBeVisible();
-      await expect(mine.getByRole('link', { name: 'See my usage' })).toHaveAttribute('href', '/app/account/usage');
+      await expect(mine.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       await expect(mine.getByText('Authoring', { exact: true }).locator('..')).toContainText('Enabled');
       await expect(mine.getByText('Solve', { exact: true }).locator('..')).toContainText('Not enabled');
       expect(await page.content()).not.toContain(signed);

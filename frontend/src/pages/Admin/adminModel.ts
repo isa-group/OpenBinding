@@ -563,7 +563,7 @@ export function groupErrors(rows: ErrorRow[]): ErrorGroup[] {
 }
 
 const MEANINGS: Record<string, string> = {
-  quota_exceeded: 'A monthly or capacity allowance ran out. Expected: it renews, or the account can ask for a larger agreement.',
+  quota_exceeded: 'A limit of the plan was reached. Expected: the account frees something, or asks for a larger agreement.',
   instance_complexity_too_large: 'The problem is bigger than the plan allows. The answer doesn’t carry the measured size.',
   concurrency_limit_exceeded: 'Too many jobs were running at once for the plan. Clients are told to retry after 15 s.',
   not_found: 'Something private or missing was asked for. The answer is the same either way, by design.',

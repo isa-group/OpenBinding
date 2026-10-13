@@ -6,7 +6,6 @@ import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { ConfirmDialog } from '../Engines/EngineDialogs';
 import { FailureNotice, Tag } from './AdminChrome';
 import { count, describeAdminFailure, humanize, type Failure } from './adminModel';
 
@@ -41,18 +40,17 @@ function Counters({ result, label }: { result: Record<string, number>; label: st
 
 /**
  * Preview first, then act: the impact of a retention period, the purge of expired data (after typing the confirmation the
- * gateway demands), the settling of abandoned jobs and the renewal of expired contracts onto the LIVE pricing.
+ * gateway demands) and the settling of abandoned jobs. Contracts are not touched here: they live in SPACE.
  */
 export function AdminMaintenanceTools() {
   const [retention, setRetention] = useState(String(DEFAULT_RETENTION));
   const [days, setDays] = useState(DEFAULT_RETENTION);
   const [errorRetention, setErrorRetention] = useState(String(DEFAULT_ERROR_RETENTION));
-  const [busy, setBusy] = useState<'purge' | 'jobs' | 'contracts' | null>(null);
-  const [asking, setAsking] = useState<'purge' | 'contracts' | null>(null);
+  const [busy, setBusy] = useState<'purge' | 'jobs' | null>(null);
+  const [asking, setAsking] = useState<'purge' | null>(null);
   const [typed, setTyped] = useState('');
   const [purged, setPurged] = useState<{ result: Record<string, number>; message: Message } | null>(null);
   const [jobsMessage, setJobsMessage] = useState<Message | null>(null);
-  const [contracts, setContracts] = useState<{ result: Record<string, number> | null; message: Message } | null>(null);
   const typedId = useId();
   const retentionId = useId();
   const errorId = useId();
@@ -61,9 +59,6 @@ export function AdminMaintenanceTools() {
   const errorValid = whole(errorRetention, 1, 3650);
 
   const preview = useResource(`admin-maintenance:${days}`, () => apiClient.adminMaintenancePreview(days));
-  const live = useResource('admin-maintenance-live', async () => {
-    try { return (await apiClient.getCurrentPricing()).version; } catch { return null; }
-  });
   const data = preview.data ?? preview.stale;
   const failure = preview.status === 'error' ? maintenanceFailure(preview.error, 'The maintenance preview couldn’t be calculated') : null;
   const calculating = preview.status === 'loading';
@@ -89,25 +84,6 @@ export function AdminMaintenanceTools() {
       setJobsMessage({ tone: refused.tone, title: refused.title, text: `${refused.text} Inspect the worker and SPACE health before retrying.` });
     } finally {
       setBusy(null);
-    }
-  };
-
-  const reconcileContracts = async () => {
-    setBusy('contracts');
-    setContracts(null);
-    try {
-      const result = await apiClient.adminReconcileContracts();
-      const moved = Object.values(result).reduce((sum, value) => sum + (typeof value === 'number' ? value : 0), 0);
-      setContracts({
-        result,
-        message: { tone: moved > 0 ? 'success' : 'info', text: moved > 0 ? 'Expired contracts were renewed onto the LIVE pricing. Recorded in the audit log.' : 'Nothing to move: no contract has expired yet. Contracts renew on their own dates.' },
-      });
-    } catch (error: unknown) {
-      const refused = maintenanceFailure(error, 'Contracts weren’t reconciled');
-      setContracts({ result: null, message: { tone: refused.tone, title: refused.title, text: `${refused.text} Check the audit log before retrying.` } });
-    } finally {
-      setBusy(null);
-      setAsking(null);
     }
   };
 
@@ -207,18 +183,6 @@ export function AdminMaintenanceTools() {
           </div>
         </section>
 
-        <section className="adm-card" aria-labelledby="adm-contracts-title">
-          <h2 id="adm-contracts-title">4 · Move expired contracts to LIVE</h2>
-          <p>
-            Contracts stay on the pricing version they were made under until they renew. This renews the expired ones now,
-            onto LIVE pricing {live.data ?? live.stale ? <strong className="is-mono">{live.data ?? live.stale}</strong> : 'the active release'}.
-          </p>
-          {contracts && <Notice tone={contracts.message.tone} title={contracts.message.title}>{contracts.message.text}</Notice>}
-          {contracts?.result && <Counters result={contracts.result} label="What was moved" />}
-          <div className="adm-buttons">
-            <Action variant="secondary" busy={busy === 'contracts'} disabled={busy !== null} onClick={() => setAsking('contracts')}>Reconcile contracts</Action>
-          </div>
-        </section>
       </div>
 
       {asking === 'purge' && (
@@ -237,18 +201,6 @@ export function AdminMaintenanceTools() {
             </div>
           </form>
         </Modal>
-      )}
-
-      {asking === 'contracts' && (
-        <ConfirmDialog
-          title="Move expired contracts to LIVE?"
-          confirmLabel="Reconcile contracts"
-          busy={busy === 'contracts'}
-          onConfirm={() => void reconcileContracts()}
-          onClose={() => setAsking(null)}
-        >
-          <p>Every expired contract is renewed now onto the LIVE pricing instead of waiting for its account’s next request. Contracts that haven’t expired are left alone.</p>
-        </ConfirmDialog>
       )}
     </>
   );

@@ -84,11 +84,10 @@ describe('New organization', () => {
     expect(within(preview).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['IDISA Demo Group', 'DSDistributed Systems LabNEW']);
     expect(screen.getByText(/Everyone with a role in ISA Demo Group gets at least the same role/)).toBeInTheDocument();
 
-    // 2 of 5 organizations are used; this one makes 3. The member is already counted, so 3 of 15 stays.
-    const organizations = await screen.findByRole('meter', { name: 'Organizations' });
-    expect(organizations).toHaveAttribute('aria-valuenow', '3');
-    expect(organizations).toHaveAttribute('aria-valuetext', '3 of 5 after this change');
-    expect(screen.getByRole('meter', { name: 'Unique members' })).toHaveAttribute('aria-valuenow', '3');
+    // The gateway counts nothing per account, so the preview states the plan's limits and draws no meter.
+    expect(await screen.findByText('Up to 5')).toBeInTheDocument();
+    expect(screen.getByText('Up to 15')).toBeInTheDocument();
+    expect(screen.queryByRole('meter')).not.toBeInTheDocument();
   });
 
   it('creates the organization under the chosen parent and sponsor, then offers to open it', async () => {
@@ -143,7 +142,7 @@ describe('New organization', () => {
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('The sponsor has no organizations left (402 · sponsor_quota_exceeded). You already sponsor 5 of 5 organizations.');
-      expect(within(alert).getByRole('link', { name: 'See usage' })).toHaveAttribute('href', '/app/account/usage');
+      expect(within(alert).getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       expect(within(alert).getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
       fireEvent.click(within(alert).getByRole('button', { name: 'Choose another sponsor' }));
       expect(screen.getByRole('heading', { name: 'Who sponsors it' })).toBeInTheDocument();

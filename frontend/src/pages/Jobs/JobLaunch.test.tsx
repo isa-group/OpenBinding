@@ -61,8 +61,6 @@ const analysis = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-const tracked = (id: string, limit: number, used: number) => ({ limit_id: id, limit, used, remaining: limit - used, unit: null, renews_at: null });
-
 function renderLaunch(search = '?case=flujo&revision=2', slug = 'isa-demo') {
   return renderProjectScreen(<JobLaunch />, {
     path: '/app/:org/:project/jobs/new', url: `/app/${slug}/qos-benchmarks/jobs/new${search}`, organizations: [group, viewing],
@@ -91,8 +89,7 @@ describe('Start a run', () => {
     platform.revisions.mockResolvedValue([revisionOf(flujo, 1, { source_snapshot_id: 'snap-1' }), revisionOf(flujo, 2, { source_snapshot_id: 'snap-2' })]);
     client.getOwnUsage.mockResolvedValue(usageOf({
       plan: 'RESEARCH',
-      capabilities: { maxTimeoutSeconds: 60, maxIterations: 1_000_000, maxInstanceComplexityLog10: 20 },
-      limits: { concurrentJobs: tracked('concurrentJobs', 3, 1) },
+      capabilities: { maxTimeoutSeconds: 60, maxIterations: 1_000_000, maxInstanceComplexityLog10: 20, concurrentJobs: 3 },
     }));
     client.getPricingCatalog.mockResolvedValue({});
     client.getEngines.mockResolvedValue(engines);
@@ -265,7 +262,7 @@ describe('Start a run', () => {
     expect(within(table).getByText('A positive number')).toBeInTheDocument();
   });
 
-  it('reviews the run with what it adds to the job slots, then sends it with a one-time key', async () => {
+  it('reviews the run against the plan’s size ceiling, then sends it with a one-time key', async () => {
     renderLaunch();
     await toReview();
 
@@ -273,7 +270,7 @@ describe('Start a run', () => {
     expect(within(review).getByText('Flujo de checkout · revision 2')).toBeInTheDocument();
     expect(within(review).getByText('random-search 1.0.0 · mode sampling')).toBeInTheDocument();
     expect(within(review).getByText('Time budget 30 s · Iterations 100,000 iterations')).toBeInTheDocument();
-    expect(screen.getByText('1 used + up to 1 = 2 of 3')).toBeInTheDocument();
+    expect(screen.queryByText(/used \+ up to/)).not.toBeInTheDocument();
     expect(screen.getByText('≈ 10^5.1 of up to 10^20 on your RESEARCH plan')).toBeInTheDocument();
     expect(screen.getByText('Sending twice by accident won’t start two runs: each send carries a one-time key.')).toBeInTheDocument();
 
@@ -286,6 +283,36 @@ describe('Start a run', () => {
     );
     expect(screen.getByText(/Nothing was reduced\./)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Follow the run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-7`);
+  });
+
+  it('sends the optimization the gateway requires: one criterion and a weighted-sum mode make a SINGLE weighted-sum run', async () => {
+    const withWeightedSum: EngineCatalogEntry[] = [{
+      ...engines[0],
+      modes: [{
+        ...engines[0].modes[0],
+        capabilities: { scalarizations: { selector: 'only', values: [{ id: 'weighted-sum', objectiveTypes: ['SINGLE'], weightPolicy: 'required' }] } } as unknown as EngineMode['capabilities'],
+      }],
+    }, engines[1]];
+    client.getEngines.mockResolvedValue(withWeightedSum);
+    casesApi.instanceIr.mockResolvedValue({ spec: { optimization: { criteria: [{ id: 'latency' }] }, candidates: { providers: { candidates: { a: { features: { latency: 40 } } } } } } });
+    renderLaunch();
+    await toReview();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
+    await screen.findByRole('heading', { name: 'Run accepted · queued' });
+    expect(jobsApi.launch).toHaveBeenCalledWith(
+      expect.objectContaining({ engine: ENGINE, mode: 'sampling', optimization: { type: 'SINGLE', scalarization: 'weighted-sum' } }),
+      expect.any(String),
+    );
+  });
+
+  it('leaves the optimization out when the mode declares no scalarization, and lets the gateway answer', async () => {
+    renderLaunch();
+    await toReview();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
+    await screen.findByRole('heading', { name: 'Run accepted · queued' });
+    expect(jobsApi.launch.mock.calls[0][0]).not.toHaveProperty('optimization');
   });
 
   it('says what the plan reduced once the run is accepted', async () => {
@@ -393,14 +420,14 @@ describe('Start a run', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
     }
 
-    it('402 out of an allowance: what was used, when it renews, and where to look', async () => {
-      jobsApi.launch.mockRejectedValue(new QuotaError('quota_exceeded', 'Study runs exhausted.', { limit_id: 'studyRuns', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' }));
+    it('402 out of an allowance: what the plan allows and where to look', async () => {
+      jobsApi.launch.mockRejectedValue(new QuotaError('quota_exceeded', 'Storage exhausted.', { limit_id: 'storageBytes', limit: 50, used: 50 }));
       await send();
 
       const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('Out of study runs (402 · quota_exceeded)');
-      expect(alert).toHaveTextContent('You’ve used 50 of 50 study runs. They renew on Nov 1, 2026. Nothing was started.');
-      expect(within(alert).getByRole('link', { name: 'See usage' })).toHaveAttribute('href', '/app/account/usage');
+      expect(alert).toHaveTextContent('Out of storage (402 · quota_exceeded)');
+      expect(alert).toHaveTextContent('You’ve used 50 of 50 storage. Nothing was started.');
+      expect(within(alert).getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       expect(within(alert).getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
       expect(screen.getByRole('button', { name: 'Send run' })).toBeEnabled();
     });

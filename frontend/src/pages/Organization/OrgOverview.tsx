@@ -199,7 +199,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
             )}
             {room.status === 'ready' && !sponsorIsMe && (
               <div className="org-note-dashed">
-                {sponsor}’s usage is visible only to them. Their plan sets this organization’s limits, and the server refuses (402) anything that would go past them.
+                {sponsor}’s plan is visible only to them. Their plan sets this organization’s limits, and the server refuses (402) anything that would go past them.
               </div>
             )}
             {roomRows.length > 0 && (

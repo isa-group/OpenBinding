@@ -1,5 +1,10 @@
 # End-to-end plan: API smoke test of the lab demo
 
+> **Browser specs (`frontend/e2e/live/*.spec.ts`): WRITTEN, NOT EXECUTED.** They were produced where there is no browser
+> and no lab. They are checked for TypeScript errors (`src/test/e2eSpecs.test.ts`, inside `pnpm test`) and nothing else: no
+> selector has been run against a real page, and `playwright test --list` has not been run either. Expect to correct
+> selectors on their first run. See [Browser specs of the `live` project](#browser-specs-of-the-live-project-written-not-executed).
+
 **Status: `tools/smoke_lab.py` ran once against the lab (stack healthy, web OK); the corrected version has not.**
 It was written without a Docker daemon and tested against a simulated gateway
 (`tools/tests/test_smoke_lab.py`, `httpx.MockTransport`). The first real run passed `proxy_and_spa`, `cors`,
@@ -73,7 +78,9 @@ Steps 1 to 5 cannot be skipped. Step 10 only runs with `--with-space`.
   serves the index". The Playwright specs in `frontend/e2e` (`s1a`..`s9b`, `routes-smoke`, `responsive`,
   `visual-*`, `qa-gallery`, `analysis-live`, `pricing`) need a browser; most of them run against the Vite dev
   server with mocked API (`helpers/mockApi.ts`), and `analysis-live.spec.ts` with `ANALYSIS_LIVE=1` against
-  a live frontend. They stay for an execution with a browser and the SSH tunnel to `127.0.0.1:18100`.
+  a live frontend. They stay for an execution with a browser and the SSH tunnel to `127.0.0.1:18100`. The
+  specs written for the lab are described [below](#browser-specs-of-the-live-project-written-not-executed);
+  they are **not executed**.
 - **Mobile and desktop visual checks** (390 x 844 and 1440 x 900 in `docs/DEMO.md`) and the **screenshot
   plan**: the capture specs (`visual-foundations`, `visual-shell`, `responsive`, `qa-gallery`) produce images
   and are judged by eye.
@@ -125,6 +132,72 @@ the lab's `MAX_CONCURRENT_JOBS_PER_USER`).
 Reading the result: `ok` and the exit code are the verdict; `steps[].detail` says `N checks passed [notes]`
 or `FAILED k/n: <the failed expectations>` or `BLOCKED BY REMOTE: <reason>. Cause: <server message>. Blocked
 at: <requests>`, at most 500 characters, with every secret and token-shaped string replaced by `***`. Run the unit tests with `cd openbinding-gateway && uv run pytest tools/tests/test_smoke_lab.py`.
+
+## Browser specs of the `live` project (written, NOT executed)
+
+**None of these specs has been run.** The environment that wrote them had no browser, no Docker daemon and no lab. What was
+done, and what was not:
+
+| Check | Result |
+| --- | --- |
+| `tsc` over `frontend/e2e/**` and `playwright.config.ts` | Done, as the test `src/test/e2eSpecs.test.ts` (TypeScript API, strict, same rules as `src`) inside `pnpm test`: no diagnostics |
+| `playwright test --list --project=live` | **Not run** (only the registered checks can be run here; `pnpm exec playwright` is not one of them) |
+| `playwright test --project=live` against the lab | **Not run** |
+| Screenshots at 1440x900 and 390x844 | **None exist**: the specs take them when they run |
+
+The same test also asserts that the specs read the password only from `LAB_SEED_PASSWORD` (no literal, no fallback, no `.env`), that
+the two viewport sizes are in the capture helper, and that the `live` project exists with its default address.
+
+### What they cover
+
+One Playwright project, `live` (`frontend/playwright.config.ts`), `frontend/e2e/live/*.spec.ts`, against `PLAYWRIGHT_BASE_URL`
+(default `http://localhost:18100`, the lab through the SSH tunnel). The users are the synthetic ones of `docs/DEMO.md`; the
+password is the one the lab was seeded with (`DEMO_SEED_PASSWORD` there) and reaches the specs **only** through the environment
+variable `LAB_SEED_PASSWORD`. Each spec but the login ones signs in through `POST /api/v1/auth/login` and hands the session to the
+page, so the throttled login form is used once per user.
+
+| Spec | What it asserts |
+| --- | --- |
+| `01-login` | each of `lab-owner`, `lab-member`, `lab-viewer`, `lab-outsider` signs in through the form and lands on Home; a wrong password (unknown account `lab-login-probe`, so no real user is throttled) gets the neutral refusal; an anonymous visit to `/app` goes to `/login` |
+| `02-navigation` | owner: Home → organization `lab-main` (role `OWNER`) → project `bim-demo` → its sections; member: sees `MEMBER`, opens the case list |
+| `03-case-simple-seq` | owner and member open the case `simple-seq`: slug, revisions, `New revision` and `Run latest`; no read-only note; no `Delete case` for the member |
+| `04-job-random-search` | owner walks the four steps of a run (case, engine `random-search`, 50 iterations, review), checks that `POST /v1/jobs` answers 202 **and carries `optimization`**, follows the run and waits for a result heading (`Best combination found`, `Solution n of m` or the infeasibility explanation) |
+| `05-viewer-read-only` | `lab-viewer`: the case list and the case say `VIEWER` and offer no `New case`, `New revision`, `Delete`; the run launch says starting a run needs MEMBER and has no enabled `Send run`; no `New study`; project settings read-only; no `New project` |
+| `06-outsider-no-access` | `lab-outsider`: Home lists only `lab-other`; `/app/lab-main` shows `Organization not available` and the project `Project not found`; every call the interface makes about `lab-main` answers 403 or 404; cases, launch and studies are as hidden |
+| `07-plan-and-consoles` | for the four users: `/app/account/usage` ("Plan & permissions") shows the plan block **or** the 503 explanation, links `Open SPACE console` / `Open SPHERE console` (`https://space.score.us.es`, `https://sphere.score.us.es`, `target=_blank`, `rel=noopener`), no meter, no monthly counter, no credits, no control that changes a price, version or contract; Home carries a plan block with the same links; the public `/pricing` page sells nothing |
+
+Every spec that opens a page of the application watches `pageerror` and fails on any. Screenshots (`capture` in `e2e/live/support.ts`) are taken at **1440x900** and
+**390x844** for each key screen and saved with `testInfo.outputPath` (`frontend/test-results/<spec>/<name>-desktop.png` and
+`-mobile.png`), also attached to the Playwright report.
+
+### Running them
+
+```sh
+# once, the lab up and the users seeded (docs/DEMO.md); the tunnel: ssh -L 18100:127.0.0.1:18100 <host-lab>
+cd frontend
+PLAYWRIGHT_BASE_URL=http://localhost:18100 LAB_SEED_PASSWORD="$LAB_SEED_PASSWORD" \
+  pnpm exec playwright test --project=live --workers=1 --reporter=line
+pnpm exec playwright test --list --project=live      # lists the specs without a browser
+```
+
+`LAB_SEED_PASSWORD` must be exported by whoever runs them (the same value as the seed's `DEMO_SEED_PASSWORD`); it is never written in
+the repository and no spec reads `/workspace/.env`. Setting `PLAYWRIGHT_BASE_URL` also stops the local Vite server from starting.
+`PLAYWRIGHT_API_URL` names the API when it is not `<base>/api`; `PLAYWRIGHT_SPACE_URL` / `PLAYWRIGHT_SPHERE_URL` name the console
+addresses when the build overrides `VITE_SPACE_FRONTEND_URL` / `VITE_SPHERE_URL`.
+
+### What to expect on the first run
+
+- **`04` depends on the plan being readable.** With `SPACE_ENABLED=true` and no contract for the synthetic users the gateway answers
+  503 `pricing_unavailable` (see "Current state" below); the spec then fails at `Send run` with that status in its message. Run the
+  lab with `DEMO_SPACE_ENABLED=false` (open gate) or seed the contracts first.
+- **`04` needs the launch to send `optimization`.** The gateway answers 422 `optimization_required` otherwise (first real run of the
+  smoke, above). The run screen now derives it (`SINGLE` for one criterion, `MULTI` for two or three, `MANY` beyond; the first
+  scalarization the engine mode declares for that type; `feasibility` for no criterion) and sends none when the mode declares no
+  fitting one. This is covered by unit tests only.
+- **The study builder does not send it yet.** A study definition needs the same two fields in every `definition.engines[]` item (422
+  `validation_error` in the smoke). `frontend/src/pages/Studies/StudyBuilder.tsx` does not add them; no live spec creates a study.
+- Selectors were written from the components and their unit tests, not from a rendered page. The most likely to need a touch are the
+  engine radio name (`/^random-search/`), the `Iterations` field and the result heading of a run.
 
 ## Assumptions not verified
 

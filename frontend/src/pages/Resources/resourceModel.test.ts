@@ -4,8 +4,6 @@ import {
   allowanceOf, belongsInLibrary, downloadName, fileTitle, GATEWAY_BLOB_LIMIT, isZipFile, plural, resourceKindLabel, totalBytes, typeLabel, uploadCeiling,
 } from './resourceModel';
 
-const tracked = (id: string, limit: number, used: number) => ({ limit_id: id, limit, used, remaining: limit - used });
-
 describe('allowanceOf', () => {
   it('does not show the sponsor’s figures to someone who is not the sponsor', () => {
     expect(allowanceOf(usageOf(), 'storageBytes', false)).toEqual({ known: false, limit: null, used: null });
@@ -16,12 +14,11 @@ describe('allowanceOf', () => {
     expect(allowanceOf(undefined, 'collections', true).known).toBe(false);
   });
 
-  it('prefers what the gateway tracks, with what has been used', () => {
-    const usage = usageOf({ limits: { collections: tracked('collections', 50, 12) } });
-    expect(allowanceOf(usage, 'collections', true)).toEqual({ known: true, limit: 50, used: 12 });
+  it('reads the plan’s limit and never invents a use: nothing is counted per account', () => {
+    expect(allowanceOf(usageOf(), 'collections', true)).toEqual({ known: true, limit: 50, used: null });
   });
 
-  it('falls back to the plan’s ceiling when nothing is tracked, without inventing a use', () => {
+  it('gives the plan’s ceiling for a sponsored allowance, without inventing a use', () => {
     expect(allowanceOf(usageOf(), 'storageBytes', true)).toEqual({ known: true, limit: 5_368_709_120, used: null });
   });
 

@@ -470,9 +470,6 @@
 }
 
 .org-seats > span:first-child { flex: 1; min-width: 14rem; font-size: 0.8125rem; }
-.org-seat-dots { display: flex; gap: 3px; }
-.org-seat-dots i { width: 8px; height: 14px; border-radius: 3px; background: var(--tp-hairline-soft); }
-.org-seat-dots i.is-used { background: var(--tp-primary); }
 
 .org-queue {
   position: sticky;

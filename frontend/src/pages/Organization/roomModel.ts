@@ -26,12 +26,9 @@ function row(id: string, limit: number | null, used: number | null, added: numbe
 
 /** The room as the signed-in sponsor’s own usage reports it (`GET /v1/users/me/usage`). */
 export function roomFromUsage(usage: UsageView, ids: readonly string[] = ROOM_IDS, added: Record<string, number> = {}): RoomRow[] {
-  return ids.filter((id) => id in usage.capabilities || id in usage.limits).map((id) => {
-    const tracked = usage.limits[id];
-    const finite = tracked && Number.isFinite(tracked.limit) ? tracked : null;
+  return ids.filter((id) => id in usage.capabilities).map((id) => {
     const capability = usage.capabilities[id];
-    const limit = finite ? finite.limit : capability === undefined ? null : capability;
-    return row(id, limit, finite ? Math.max(0, finite.used) : null, added[id] ?? 0);
+    return row(id, capability === undefined || !Number.isFinite(capability) ? null : capability, null, added[id] ?? 0);
   });
 }
 

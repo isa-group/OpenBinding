@@ -19,12 +19,6 @@ const member = org('team-lab', { name: 'Team Lab', effective_role: 'MEMBER' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const ROOT = '/app/isa-demo/qos-benchmarks';
 
-const tracked = (id: string, limit: number, used: number, extra: Record<string, unknown> = {}) => ({ limit_id: id, limit, used, remaining: Math.max(0, limit - used), unit: null, renews_at: null, ...extra });
-const usage = (runsUsed = 4) => ({
-  plan: 'RESEARCH', contract_pending: false, features: {}, capabilities: {},
-  limits: { studies: tracked('studies', 25, 1), studyRuns: tracked('studyRuns', 100, runsUsed, { renews_at: '2026-11-01T00:00:00Z' }) },
-});
-
 const refusal = (status: number, code: string) => Object.assign(new HttpError(status, 'refused'), { code });
 
 function renderList(options: { organizations?: ReturnType<typeof org>[]; slug?: string } = {}) {
@@ -41,7 +35,6 @@ describe('Studies of a project', () => {
     platform.studies.mockResolvedValue([studyFixture()]);
     platform.studyRuns.mockResolvedValue([runFixture()]);
     platform.studyCells.mockResolvedValue(cellsFixture());
-    client.getOwnUsage.mockResolvedValue(usage());
   });
 
   it('lists each study with its matrix, its latest run and how that run ended', async () => {
@@ -59,21 +52,13 @@ describe('Studies of a project', () => {
     expect(platform.studies).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', true);
   });
 
-  it('shows what the sponsor’s plan and the month have left', async () => {
-    client.getOwnUsage.mockResolvedValue(usage(100));
+  it('shows no allowance meter and asks for no usage: nothing is counted per account', async () => {
     renderList();
 
-    expect(await screen.findByText('1 of 25')).toBeInTheDocument();
-    expect(screen.getByText('Counted across the sponsor’s organizations · doesn’t renew')).toBeInTheDocument();
-    expect(screen.getByText('100 of 100')).toBeInTheDocument();
-    expect(screen.getByText('Used up · renews Nov 1, 2026')).toBeInTheDocument();
-  });
-
-  it('does not show the sponsor’s figures to someone who is not the sponsor, and says why', async () => {
-    renderList({ organizations: [org('isa-demo', { name: 'ISA Demo Group', billing_sponsor_user_id: 'user-nora' })] });
-
-    expect(await screen.findByText('Counted against the sponsor’s plan; their usage isn’t shown to you')).toBeInTheDocument();
-    expect(screen.queryByText('1 of 25')).not.toBeInTheDocument();
+    await screen.findByRole('list', { name: 'Studies of the project' });
+    expect(client.getOwnUsage).not.toHaveBeenCalled();
+    expect(screen.queryByText(/study runs this month|Study definitions \(sponsor\)|renews/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\d+ of \d+/)).not.toBeInTheDocument();
   });
 
   it('explains what a study is when there are none, and offers to build one', async () => {

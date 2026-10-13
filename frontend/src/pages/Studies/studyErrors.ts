@@ -1,7 +1,6 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { diagnosticLines, problemField } from '../../api/problem';
-import { formatDate } from '../../utils/format';
 import { limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import type { Refusal } from '../Jobs/jobErrors';
@@ -55,11 +54,6 @@ export function mismatchedFields(caught: unknown): Array<{ field: string; label:
   });
 }
 
-function renewal(renewsAt: string | null | undefined): string {
-  const date = formatDate(renewsAt);
-  return date ? ` They renew on ${date}.` : '';
-}
-
 /**
  * The words for each way the gateway can refuse to create, run, cancel, retry or change a study. The same `Refusal` the job screens use,
  * so one notice component draws both; what changes is what each status means for a study.
@@ -77,7 +71,7 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
   }
 
   if (failure.status === 402) {
-    const limitId = quota?.limit_id ?? (action === 'create' ? 'studies' : 'studyRuns');
+    const limitId = quota?.limit_id ?? 'studies';
     const info = limitInfo(limitId);
     const used = quota ? ` ${(quota.used ?? quota.limit).toLocaleString('en-US')} of ${quota.limit.toLocaleString('en-US')} used.` : '';
     if (limitId === 'studies') {
@@ -89,8 +83,8 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
     }
     return {
       ...base, kind: 'quota', limitId,
-      title: limitId === 'studyRuns' ? `No study runs left this month${at}` : `Out of ${info.short}${at}`,
-      text: `${quota ? `You’ve used ${(quota.used ?? quota.limit).toLocaleString('en-US')} of ${quota.limit.toLocaleString('en-US')} ${info.short}.` : `You’ve used all your ${info.short}.`}${renewal(quota?.renews_at)} ${nothing}`,
+      title: `Out of ${info.short}${at}`,
+      text: `${quota ? `You’ve used ${(quota.used ?? quota.limit).toLocaleString('en-US')} of ${quota.limit.toLocaleString('en-US')} ${info.short}.` : `You’ve used all your ${info.short}.`} ${nothing}`,
     };
   }
 

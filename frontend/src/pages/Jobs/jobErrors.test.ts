@@ -6,10 +6,15 @@ import { rangeFailureOf, refusalOf } from './jobErrors';
 const refused = (status: number, code: string, extra: Partial<HttpError> = {}) => Object.assign(new HttpError(status, 'refused'), { code }, extra);
 
 describe('refusals of a launch', () => {
-  it('402 out of an allowance says how much was used and when it renews', () => {
-    const refusal = refusalOf(new QuotaError('quota_exceeded', 'Study runs exhausted.', { limit_id: 'studyRuns', limit: 10, used: 10, renews_at: '2026-11-01T00:00:00Z' }));
-    expect(refusal).toMatchObject({ kind: 'quota', limitId: 'studyRuns', title: 'Out of study runs (402 · quota_exceeded)' });
-    expect(refusal.text).toBe('You’ve used 10 of 10 study runs. They renew on Nov 1, 2026. Nothing was started.');
+  it('402 out of an allowance says what the plan allows and that nothing was started', () => {
+    const refusal = refusalOf(new QuotaError('quota_exceeded', 'API keys exhausted.', { limit_id: 'apiKeys', limit: 10, used: 10 }));
+    expect(refusal).toMatchObject({ kind: 'quota', limitId: 'apiKeys', title: 'Out of API keys (402 · quota_exceeded)' });
+    expect(refusal.text).toBe('You’ve used 10 of 10 API keys. Nothing was started.');
+  });
+
+  it('402 never promises a renewal, even if the answer names a date: nothing renews', () => {
+    const refusal = refusalOf(new QuotaError('quota_exceeded', 'API keys exhausted.', { limit_id: 'apiKeys', limit: 10, used: 10, renews_at: '2026-11-01T00:00:00Z' }));
+    expect(refusal.text).not.toMatch(/renew/i);
   });
 
   it('402 names any other allowance by its own words', () => {
@@ -114,8 +119,8 @@ describe('refusals of an action on a run', () => {
 
   it('retrying a run that cannot be retried, or without allowance left', () => {
     expect(refusalOf(refused(409, 'job_not_retryable'), 'retry').title).toBe('This run can’t be retried (409 · job_not_retryable)');
-    const quota = refusalOf(new QuotaError('quota_exceeded', 'Study runs exhausted.', { limit_id: 'studyRuns', limit: 10, used: 10 }), 'retry');
-    expect(quota.title).toBe('Retry refused: Out of study runs (402 · quota_exceeded)');
+    const quota = refusalOf(new QuotaError('quota_exceeded', 'API keys exhausted.', { limit_id: 'apiKeys', limit: 10, used: 10 }), 'retry');
+    expect(quota.title).toBe('Retry refused: Out of API keys (402 · quota_exceeded)');
   });
 
   it('a run that is not yours reads as missing', () => {

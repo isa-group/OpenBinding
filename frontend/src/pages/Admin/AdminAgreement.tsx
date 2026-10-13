@@ -12,7 +12,7 @@ import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ConfirmDialog } from '../Engines/EngineDialogs';
 import { featureName } from '../Pricing/pricingModel';
-import { FailureNotice, Meter, Tag } from './AdminChrome';
+import { FailureNotice, Tag } from './AdminChrome';
 import {
   agreementIssues, compareLimits, describeAdminFailure, isCeiling, limitsOf,
   type ContractCatalog, type Failure,
@@ -291,74 +291,54 @@ interface UsageProps {
   version: string;
 }
 
-/** What an account has used, as its holder sees it. */
+/** What an account's plan allows, as its holder sees it. Nothing is counted per account, so there is no consumption here. */
 export function UsageCard({ userId, catalog, version }: UsageProps) {
   const usage = useResource(`admin-usage:${userId}:${version}`, () => apiClient.adminGetUserUsage(userId));
   const view = usage.data ?? usage.stale;
-  const failure = usage.status === 'error' ? describeAdminFailure(usage.error, 'Usage couldn’t be read') : null;
+  const failure = usage.status === 'error' ? describeAdminFailure(usage.error, 'The plan limits couldn’t be read') : null;
 
-  const limits = Object.values(view?.limits ?? {});
+  const limits = Object.entries(view?.capabilities ?? {}).map(([limitId, limit]) => ({ limitId, limit }));
   const groupOf = (limitId: string) => limitInfo(limitId, catalog?.limitDefinitions[limitId]).group;
-  // Sponsored limits cap everything under the organizations an account sponsors; SPACE keeps no running count of them.
-  const sponsored = limits.filter((limit) => groupOf(limit.limit_id) === 'sponsored');
-  const consumed = limits.filter((limit) => groupOf(limit.limit_id) !== 'sponsored' && !isCeiling(limit.limit_id, catalog?.limitDefinitions[limit.limit_id]) && (limit.limit === null || limit.limit > 0));
-  const ceilings = limits.filter((limit) => isCeiling(limit.limit_id, catalog?.limitDefinitions[limit.limit_id]));
+  // Sponsored limits cap everything under the organizations an account sponsors.
+  const sponsored = limits.filter(({ limitId }) => groupOf(limitId) === 'sponsored');
+  const allowances = limits.filter(({ limitId }) => groupOf(limitId) !== 'sponsored' && !isCeiling(limitId, catalog?.limitDefinitions[limitId]));
+  const ceilings = limits.filter(({ limitId }) => isCeiling(limitId, catalog?.limitDefinitions[limitId]));
   const features = Object.entries(view?.features ?? {});
+  const listOf = (rows: typeof limits) => rows.map(({ limitId, limit }) => {
+    const info = limitInfo(limitId, catalog?.limitDefinitions[limitId]);
+    return <li key={limitId}><span>{info.label}</span><strong>{describeLimit(info.kind, limit).text}</strong></li>;
+  });
 
   return (
     <section className="adm-card" aria-labelledby="adm-usage-title">
       <div className="adm-card-head">
-        <h2 id="adm-usage-title">Usage</h2>
+        <h2 id="adm-usage-title">Plan limits</h2>
         <span className="adm-muted">Same view the account holder sees</span>
       </div>
 
-      {usage.status === 'loading' && !view && <div aria-busy="true"><span className="sr-only">Reading usage</span><Skeleton variant="panel" /></div>}
+      {usage.status === 'loading' && !view && <div aria-busy="true"><span className="sr-only">Reading the plan limits</span><Skeleton variant="panel" /></div>}
       {failure && <FailureNotice failure={failure} onRetry={usage.reload} />}
-      {view?.contract_pending && <Notice tone="warning" title="Contract pending">The account has no contract yet; it settles on its next authenticated request, so there is no usage to show.</Notice>}
+      {view?.contract_pending && <Notice tone="warning" title="Contract pending">The account has no contract yet; it settles on its next authenticated request, so there are no limits to show.</Notice>}
 
-      {view && !view.contract_pending && consumed.length === 0 && <p className="adm-muted">No consumable limits are active on this contract.</p>}
-      <ul className="adm-usage" aria-label="Consumption">
-        {consumed.map((limit) => {
-          const info = limitInfo(limit.limit_id, catalog?.limitDefinitions[limit.limit_id]);
-          const unlimited = limit.limit === null || !Number.isFinite(limit.limit);
-          const full = !unlimited && limit.used >= limit.limit;
-          const ratio = unlimited ? 0 : (limit.used / limit.limit) * 100;
-          const used = describeLimit(info.kind, limit.used).text;
-          const cap = describeLimit(info.kind, unlimited ? null : limit.limit).text;
-          return (
-            <li key={limit.limit_id}>
-              <span className="adm-usage-line">
-                <span>{info.label}</span>
-                <strong className={full ? 'is-full' : undefined}>{used} of {cap}</strong>
-              </span>
-              {!unlimited && <Meter value={ratio} tone={full ? 'error' : ratio >= 80 ? 'warning' : 'info'} />}
-              {limit.renews_at && <small className="adm-muted">Renews {formatDateTime(limit.renews_at)}</small>}
-            </li>
-          );
-        })}
-      </ul>
+      {view && !view.contract_pending && allowances.length === 0 && <p className="adm-muted">No allowances are declared on this contract.</p>}
+      {allowances.length > 0 && (
+        <div className="adm-ceilings" role="group" aria-label="Allowances">
+          <span className="adm-label">Allowances</span>
+          <ul>{listOf(allowances)}</ul>
+        </div>
+      )}
 
       {ceilings.length > 0 && (
         <div className="adm-ceilings" role="group" aria-label="Ceilings for each request">
           <span className="adm-label">Ceilings for each request</span>
-          <ul>
-            {ceilings.map((limit) => {
-              const info = limitInfo(limit.limit_id, catalog?.limitDefinitions[limit.limit_id]);
-              return <li key={limit.limit_id}><span>{info.label}</span><strong>{describeLimit(info.kind, limit.limit).text}</strong></li>;
-            })}
-          </ul>
+          <ul>{listOf(ceilings)}</ul>
         </div>
       )}
 
       {sponsored.length > 0 && (
         <div className="adm-ceilings" role="group" aria-label="Limits across sponsored organizations">
           <span className="adm-label">Limits across the organizations this account sponsors</span>
-          <ul>
-            {sponsored.map((limit) => {
-              const info = limitInfo(limit.limit_id, catalog?.limitDefinitions[limit.limit_id]);
-              return <li key={limit.limit_id}><span>{info.label}</span><strong>{describeLimit(info.kind, limit.limit).text}</strong></li>;
-            })}
-          </ul>
+          <ul>{listOf(sponsored)}</ul>
         </div>
       )}
 

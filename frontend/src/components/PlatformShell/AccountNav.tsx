@@ -8,7 +8,7 @@ export type AccountSection = 'profile' | 'usage' | 'keys' | 'identities' | 'noti
 
 const sections: ReadonlyArray<{ key: AccountSection; label: string; to: string; icon: LucideIcon }> = [
   { key: 'profile', label: 'Profile & security', to: '/app/account', icon: User },
-  { key: 'usage', label: 'Usage & plan', to: '/app/account/usage', icon: BarChart3 },
+  { key: 'usage', label: 'Plan & permissions', to: '/app/account/usage', icon: BarChart3 },
   { key: 'keys', label: 'API keys', to: '/app/account/keys', icon: KeyRound },
   { key: 'identities', label: 'Identities', to: '/app/account/identities', icon: Fingerprint },
   { key: 'notifications', label: 'Notifications', to: '/app/account/notifications', icon: Bell },

@@ -85,21 +85,20 @@ describe('names', () => {
 });
 
 describe('the sponsor’s room', () => {
-  it('reads used and limit from the sponsor’s own usage and marks what a change adds', () => {
+  it('reads the limits from the sponsor’s own plan, marks what a change adds and counts nothing', () => {
     const rows = roomFromUsage(researchUsage(), ['organizations', 'members', 'projects'], { organizations: 1, members: 1 });
     expect(rows.map((row) => [row.label, row.used, row.limit, row.added])).toEqual([
-      ['Organizations', 2, 5, 1], ['Unique members', 3, 15, 1], ['Projects', 3, 50, 0],
+      ['Organizations', null, 5, 1], ['Unique members', null, 15, 1], ['Projects', null, 50, 0],
     ]);
-    expect(roomText(rows[0])).toBe('3 of 5');
+    expect(roomText(rows[0])).toBe('Up to 5');
     expect(roomTone(rows[0])).toBe('ok');
   });
 
-  it('warns at the limit and past it', () => {
-    const usage = researchUsage();
-    usage.limits.organizations = { ...usage.limits.organizations, used: 4 };
-    expect(roomTone(roomFromUsage(usage, ['organizations'], { organizations: 1 })[0])).toBe('full');
-    usage.limits.organizations = { ...usage.limits.organizations, used: 5 };
-    expect(roomTone(roomFromUsage(usage, ['organizations'], { organizations: 1 })[0])).toBe('over');
+  it('reads an unlimited allowance as unlimited and leaves out what the plan does not name', () => {
+    const usage = { ...researchUsage(), capabilities: { organizations: null } };
+    const rows = roomFromUsage(usage, ['organizations', 'members']);
+    expect(rows.map((row) => [row.id, row.limit])).toEqual([['organizations', null]]);
+    expect(roomText(rows[0])).toBe('Unlimited');
   });
 
   it('falls back to the plan ceilings of the catalog when the usage of the sponsor is not visible', () => {

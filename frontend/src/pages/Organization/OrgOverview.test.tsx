@@ -99,7 +99,7 @@ describe('Organization overview', () => {
 
     expect(await screen.findByText('Projects couldn’t be loaded (500). Sub-organizations and usage are unaffected.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Sub-organizations' })).toBeInTheDocument();
-    expect(await screen.findByRole('meter', { name: 'Organizations' })).toBeInTheDocument();
+    expect(await screen.findByText('Up to 5')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByRole('link', { name: /QoS Benchmarks/ })).toBeInTheDocument();
@@ -130,13 +130,12 @@ describe('Organization overview', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /QoS Lab/ })).toBeInTheDocument();
   });
 
-  it('shows the sponsor’s room from the sponsor’s own usage', async () => {
+  it('shows what the sponsor’s plan allows, from the sponsor’s own plan, without inventing a count', async () => {
     renderOverview();
 
     const room = (await screen.findByRole('heading', { name: 'Sponsor’s room' })).closest('section')!;
-    const organizations = await within(room).findByRole('meter', { name: 'Organizations' });
-    expect(organizations).toHaveAttribute('aria-valuenow', '2');
-    expect(organizations).toHaveAttribute('aria-valuemax', '5');
+    expect(await within(room).findByText('Up to 5')).toBeInTheDocument();
+    expect(within(room).queryByRole('meter')).not.toBeInTheDocument();
     expect(within(room).getByText('Up to 5 GiB')).toBeInTheDocument();
     expect(within(room).getByText('Counted across every organization you sponsor.')).toBeInTheDocument();
   });
@@ -145,7 +144,7 @@ describe('Organization overview', () => {
     platform.members.mockResolvedValue([member('nora', 'OWNER')]);
     renderOverview([{ ...group, billing_sponsor_user_id: 'user-nora' }]);
 
-    expect(await screen.findByText(/nora’s usage is visible only to them/)).toBeInTheDocument();
+    expect(await screen.findByText(/nora’s plan is visible only to them/)).toBeInTheDocument();
     expect(screen.getByText('nora')).toBeInTheDocument();
     expect(screen.queryByRole('meter')).not.toBeInTheDocument();
   });

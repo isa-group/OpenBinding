@@ -83,7 +83,7 @@ describe('eng-register · the registration wizard', () => {
     vi.clearAllMocks();
     api.getProfiles.mockResolvedValue([QOS_PROFILE]);
     api.getBimProfile.mockResolvedValue({ id: 'qos-binding/v1', output: QOS_PROFILE.output, protocol: 'bim-engine/v1', protocolDigest: PROTOCOL_DIGEST, digest: QOS_PROFILE.digest });
-    api.getOwnUsage.mockResolvedValue(usageOf('RESEARCH', 1, 3));
+    api.getOwnUsage.mockResolvedValue(usageOf('RESEARCH', 3));
     api.listEngineRegistrations.mockResolvedValue([EDGE_SOLVER]);
     api.createEngine.mockResolvedValue(engineRevision);
     api.createEngineRegistration.mockResolvedValue(registrationRevision);
@@ -108,7 +108,8 @@ describe('eng-register · the registration wizard', () => {
     expect(api.createEngine).not.toHaveBeenCalled();
   });
 
-  it('shows the plan’s room for federated engines', async () => {
+  it('shows the plan’s room for federated engines, counting the registrations of the account itself', async () => {
+    api.listEngineRegistrations.mockResolvedValue([{ ...EDGE_SOLVER, namespace: 'alice' }]);
     renderPage();
     expect(await screen.findByText('1 of 3 used')).toBeInTheDocument();
     expect(await screen.findByRole('progressbar', { name: 'Federated engines used' })).toHaveAttribute('aria-valuenow', '1');
@@ -257,7 +258,7 @@ describe('eng-register · the registration wizard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create registration' }));
     expect(await screen.findByText('Engine limit reached (402)')).toBeInTheDocument();
     expect(screen.getByText(/You’ve used 3 of 3/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See your usage' })).toHaveAttribute('href', '/app/account/usage');
+    expect(screen.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
     expect(screen.getByRole('button', { name: 'Create registration' })).toBeEnabled();
   });
 

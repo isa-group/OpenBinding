@@ -96,7 +96,7 @@ export function RefusalNotice({ refusal, action, usageTo, extra, editTo }: {
       )}
       {usageTo && (refusal.kind === 'quota' || refusal.kind === 'too-big' || refusal.kind === 'busy' || refusal.kind === 'plan') && (
         <span className="job-refusal-links">
-          <Action to="/app/account/usage" variant="link" size="sm">See usage</Action>
+          <Action to="/app/account/usage" variant="link" size="sm">See your plan</Action>
           <Action to="/pricing" variant="link" size="sm">Compare plans</Action>
         </span>
       )}

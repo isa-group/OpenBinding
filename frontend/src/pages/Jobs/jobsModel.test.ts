@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bindingRows, canRetryState, forecastBar, formatOption, formatTook, isActive, metricEntries, normalizeStatus, optionRows, outcomeOf,
+  bindingRows, canRetryState, formatOption, formatTook, isActive, metricEntries, normalizeStatus, optionRows, outcomeOf,
   readPins, scoreText, secondsBetween, statusCounts, timelineOf, tookPercent,
 } from './jobsModel';
 
@@ -107,18 +107,5 @@ describe('results', () => {
     expect(metricEntries(solution)).toEqual([['cost', 0.118]]);
     expect(scoreText(solution)).toBe('[1.5, 2]');
     expect(bindingRows(undefined)).toEqual([]);
-  });
-});
-
-describe('limits forecast', () => {
-  it('adds this run to what is used and says when it goes over', () => {
-    expect(forecastBar('Jobs running at once', 1, 3, 1, '')).toMatchObject({ before: 33, over: false, text: '1 used + up to 1 = 2 of 3' });
-    expect(forecastBar('Jobs running at once', 3, 3, 1, '')).toMatchObject({ over: true, text: '3 used + up to 1 = 4 of 3 · over the limit' });
-    expect(forecastBar('Timeout', 610, 900, 60, ' s').text).toBe('610 used + up to 60 = 670 of 900 s');
-  });
-
-  it('says so when there is no limit or the usage cannot be read', () => {
-    expect(forecastBar('Jobs', 1, null, 1, '').text).toBe('No limit on your plan');
-    expect(forecastBar('Jobs', null, 3, 1, '').text).toBe('Your usage can’t be read right now · limit 3');
   });
 });

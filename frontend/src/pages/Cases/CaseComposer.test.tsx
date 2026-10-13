@@ -77,7 +77,7 @@ describe('Case composer', () => {
     library.drafts.mockResolvedValue([]);
     library.content.mockImplementation(async (id: string) => JSON.stringify(CONTENT_OF[id] ?? {}));
     client.getProfiles.mockResolvedValue([{ id: 'qos-binding/v1', digest: digestOf('a') }]);
-    client.getOwnUsage.mockResolvedValue({ plan: 'RESEARCH', capabilities: { maxInstanceComplexityLog10: 20 }, limits: {}, features: {}, contract_pending: false });
+    client.getOwnUsage.mockResolvedValue({ plan: 'RESEARCH', capabilities: { maxInstanceComplexityLog10: 20 }, features: {}, contract_pending: false });
     client.getPricingCatalog.mockResolvedValue(null);
   });
 
@@ -186,7 +186,7 @@ describe('Case composer', () => {
     });
 
     it('turns the meter over the line and says so when the problem is bigger than the plan allows', async () => {
-      client.getOwnUsage.mockResolvedValue({ plan: 'BASIC', capabilities: { maxInstanceComplexityLog10: 0.5 }, limits: {}, features: {}, contract_pending: false });
+      client.getOwnUsage.mockResolvedValue({ plan: 'BASIC', capabilities: { maxInstanceComplexityLog10: 0.5 }, features: {}, contract_pending: false });
       renderComposer();
       await settled();
 
@@ -200,7 +200,7 @@ describe('Case composer', () => {
     });
 
     it('says the plan has no ceiling when it does not', async () => {
-      client.getOwnUsage.mockResolvedValue({ plan: 'PRO', capabilities: { maxInstanceComplexityLog10: null }, limits: {}, features: {}, contract_pending: false });
+      client.getOwnUsage.mockResolvedValue({ plan: 'PRO', capabilities: { maxInstanceComplexityLog10: null }, features: {}, contract_pending: false });
       renderComposer();
       await settled();
 

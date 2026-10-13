@@ -119,7 +119,6 @@ const analysisBody = () => ({
   analysis: { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '125892' },
 });
 
-const tracked = (id: string, limit: number, used: number) => ({ limit_id: id, limit, used, remaining: limit - used, unit: null, renews_at: null });
 
 const summaryOf = (row: Job) => ({
   id: row.id, engine_id: row.engine_id, status: row.status, termination: row.termination ?? null,
@@ -167,8 +166,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf({
     plan: 'RESEARCH',
-    capabilities: { maxPayloadBytes: 134_217_728, maxTimeoutSeconds: 60, maxIterations: 1_000_000, maxInstanceComplexityLog10: 20 },
-    limits: { concurrentJobs: tracked('concurrentJobs', 3, 1) },
+    capabilities: { maxPayloadBytes: 134_217_728, maxTimeoutSeconds: 60, maxIterations: 1_000_000, maxInstanceComplexityLog10: 20, concurrentJobs: 3 },
   })));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
@@ -331,11 +329,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-9`);
       expect(state.sent.retry).toBe('job-failed-4');
       await capture(page, testInfo, `list-${name}-retry`);
-      state.refuse.retry = detail(402, 'quota_exceeded', 'Study runs exhausted.', {
-        quota: { limit_id: 'studyRuns', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' },
+      state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', {
+        quota: { limit_id: 'storageBytes', limit: 50, used: 50 },
       });
       await table.getByRole('button', { name: 'Retry' }).last().click();
-      await expect(main.getByText('Retry refused: Out of study runs (402 · quota_exceeded)')).toBeVisible();
+      await expect(main.getByText('Retry refused: Out of storage (402 · quota_exceeded)')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
       await capture(page, testInfo, `list-${name}-402`);
       expect(critical).toEqual([]);
@@ -546,7 +544,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await next.click();
       await expect(main.getByRole('heading', { name: 'Before you send' })).toBeVisible();
       await expect(main.getByText('Time budget 60 s (reduced) · Iterations 100,000 iterations')).toBeVisible();
-      await expect(main.getByText('1 used + up to 1 = 2 of 3')).toBeVisible();
+      await expect(main.getByText(/used \+ up to/)).toHaveCount(0);
       await expect(main.getByText('≈ 10^5.1 of up to 10^20 on your RESEARCH plan')).toBeVisible();
       await capture(page, testInfo, `launch-${name}-step4`);
 
@@ -581,13 +579,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const send = main.getByRole('button', { name: 'Send run' });
 
       // 402: out of an allowance.
-      state.refuse.launch = detail(402, 'quota_exceeded', 'Study runs exhausted.', { quota: { limit_id: 'studyRuns', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' } });
+      state.refuse.launch = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'storageBytes', limit: 50, used: 50 } });
       await send.click();
       // An error is an alert; a refusal that is about the plan or the credential is a status. Either way it is the one notice on screen.
       const refusal = main.locator('.ui-notice');
-      await expect(refusal).toContainText('Out of study runs (402 · quota_exceeded)');
-      await expect(refusal).toContainText('You’ve used 50 of 50 study runs. They renew on Nov 1, 2026. Nothing was started.');
-      await expect(refusal.getByRole('link', { name: 'See usage' })).toHaveAttribute('href', '/app/account/usage');
+      await expect(refusal).toContainText('Out of storage (402 · quota_exceeded)');
+      await expect(refusal).toContainText('You’ve used 50 of 50 storage. Nothing was started.');
+      await expect(refusal.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       await expect(send).toBeEnabled();
       await capture(page, testInfo, `launch-${name}-402`);
       expect(state.sent.launch).toMatchObject({ snapshot: 'snapshot-2', engine: ENGINE, mode: 'sampling' });
@@ -700,9 +698,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await list.getByRole('listitem').filter({ hasText: 'evolutionary' }).first().getByRole('button', { name: 'Retry' }).click();
       await expect(main.getByText('Retry queued.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-9`);
-      state.refuse.retry = detail(402, 'quota_exceeded', 'Study runs exhausted.', { quota: { limit_id: 'studyRuns', limit: 10, used: 10 } });
+      state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'storageBytes', limit: 10, used: 10 } });
       await list.getByRole('listitem').filter({ hasText: 'random-search' }).getByRole('button', { name: 'Retry' }).first().click();
-      await expect(main.getByText('Retry refused: Out of study runs (402 · quota_exceeded)')).toBeVisible();
+      await expect(main.getByText('Retry refused: Out of storage (402 · quota_exceeded)')).toBeVisible();
       await capture(page, testInfo, `history-${name}-402`);
       expect(critical).toEqual([]);
     });

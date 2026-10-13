@@ -51,7 +51,7 @@ describe('Members', () => {
     expect(within(own).getByText('Mar 4, 2026')).toBeInTheDocument();
     expect(roleSelect('marco')).toHaveValue('MEMBER');
     expect(screen.getByRole('navigation', { name: 'Organization settings' })).toBeInTheDocument();
-    expect(screen.getByText(/Unique members across everything you sponsor:/)).toHaveTextContent('3 of 15');
+    expect(screen.getByText(/unique members across everything you sponsor/)).toHaveTextContent('Your plan allows up to 15 unique members');
   });
 
   it('tells apart the role someone holds here from the one that reaches them from a parent', async () => {
@@ -146,7 +146,7 @@ describe('Members', () => {
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('The sponsor has no member seats left (402 · sponsor_quota_exceeded): 15 of 15 used. Nothing changed.');
-      expect(within(alert).getByRole('link', { name: 'See sponsor usage' })).toHaveAttribute('href', '/app/account/usage');
+      expect(within(alert).getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       expect(within(alert).getByRole('link', { name: 'Change sponsor' })).toHaveAttribute('href', '/app/isa-demo/settings');
     });
 

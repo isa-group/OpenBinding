@@ -4,8 +4,8 @@ import type { EngineCatalogEntry, EngineMode } from '../../api/client';
 import type { CaseRevision } from '../../api/platform';
 import { RANGE_REFUSAL } from '../../utils/featureRange';
 import {
-  acceptsIntervals, buildRequest, ceilingOf, forecastOf, initialChoice, modeChoices, modeOfCatalog, optionInputs, parseAmount, parseEngineParam, planCeilingsOf,
-  planOptions, requestOptions, sourceChoices,
+  acceptsIntervals, buildRequest, ceilingOf, criteriaCountOf, forecastOf, initialChoice, modeChoices, modeOfCatalog, optimizationFor, optionInputs, parseAmount,
+  parseEngineParam, planCeilingsOf, planOptions, requestOptions, sourceChoices,
 } from './launchModel';
 
 const ENGINE = { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-a' };
@@ -19,7 +19,7 @@ const revision = (n: number, over: Partial<CaseRevision> = {}): CaseRevision => 
 const cases = [{ item: { id: 'case-1', project_id: 'p', slug: 'flujo', name: 'Flujo de checkout', description: '', created_by_id: 'u', created_at: '2026-08-01T00:00:00Z' }, revisions: [revision(1), revision(2)] }];
 
 const usage = (over: Partial<UsageView> = {}): UsageView => ({
-  plan: 'BASIC', contract_pending: false, features: {}, capabilities: { maxTimeoutSeconds: 60, maxIterations: 10_000, maxInstanceComplexityLog10: 9 }, limits: {}, ...over,
+  plan: 'BASIC', contract_pending: false, features: {}, capabilities: { maxTimeoutSeconds: 60, maxIterations: 10_000, maxInstanceComplexityLog10: 9 }, ...over,
 });
 
 const mode = (id: string, properties: Record<string, Record<string, unknown>>): EngineMode => ({
@@ -183,9 +183,17 @@ describe('the request', () => {
     expect(buildRequest({ ...base, mode: unchecked })).toEqual({ snapshot: 'snap-2', engine: ENGINE, mode: 'sampling', options: { iterations: 100 } });
   });
 
+  it('carries the optimization the gateway requires when one is known', () => {
+    const optimization = { type: 'SINGLE' as const, scalarization: 'weighted-sum' };
+    expect(buildRequest({ ...base, optimization })).toEqual({
+      snapshot: 'snap-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { iterations: 100 }, optimization,
+    });
+    expect(buildRequest({ ...base, optimization: null })).not.toHaveProperty('optimization');
+  });
+
   it('sends sealed settings alone: they carry their own engine, mode and options', () => {
     const configuration = { namespace: 'isa-demo', name: 'rs-60s', version: '1', versionDigest: 'sha256-v' };
-    expect(buildRequest({ ...base, settings: 'saved', configuration })).toEqual({ snapshot: 'snap-2', configuration });
+    expect(buildRequest({ ...base, settings: 'saved', configuration, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' } })).toEqual({ snapshot: 'snap-2', configuration });
     expect(buildRequest({ ...base, settings: 'saved' })).toBeNull();
   });
 
@@ -196,21 +204,58 @@ describe('the request', () => {
   });
 });
 
-describe('forecast', () => {
-  it('adds this run to the job slots and measures the problem against the plan', () => {
-    const bars = forecastOf({
-      usage: usage({ plan: 'RESEARCH', limits: { concurrentJobs: { limit_id: 'concurrentJobs', limit: 3, used: 1, remaining: 2 } } }),
-      ceilings: { seconds: 900, iterations: null, complexity: 20 }, bindingSpace: '1000', plan: 'RESEARCH',
-    });
-    expect(bars.map((bar) => bar.text)).toEqual([
-      '1 used + up to 1 = 2 of 3',
-      '≈ 10^3 of up to 10^20 on your RESEARCH plan',
-    ]);
+describe('the optimization of a run', () => {
+  const withScalarizations = (values: unknown[]): EngineMode => (
+    { ...mode('sampling', {}), capabilities: { scalarizations: { selector: 'only', values } } as unknown as EngineMode['capabilities'] }
+  );
+  const weighted = { id: 'weighted-sum', objectiveTypes: ['SINGLE', 'MULTI'], weightPolicy: 'required' };
+  const pareto = { id: 'pareto', objectiveTypes: ['MULTI', 'MANY'], weightPolicy: 'forbidden' };
+  const feasibility = { id: 'feasibility', objectiveTypes: ['SINGLE'], weightPolicy: 'forbidden' };
+
+  it('counts the criteria of the compiled problem, with or without the wrapper of the answer', () => {
+    const document = { spec: { optimization: { criteria: [{ id: 'latency' }, { id: 'cost' }] } } };
+    expect(criteriaCountOf(document)).toBe(2);
+    expect(criteriaCountOf({ document })).toBe(2);
+    expect(criteriaCountOf({ spec: {} })).toBe(0);
+    expect(criteriaCountOf({ spec: { optimization: {} } })).toBe(0);
   });
 
-  it('does not invent usage that could not be read', () => {
-    const bars = forecastOf({ usage: null, ceilings: { seconds: null, iterations: null, complexity: null }, bindingSpace: null, plan: undefined });
-    expect(bars[0].text).toBe('No limit on your plan');
-    expect(bars[1].text).toBe('The size of this problem isn’t known yet');
+  it('does not guess when the compiled form cannot be read', () => {
+    expect(criteriaCountOf(null)).toBeNull();
+    expect(criteriaCountOf('text')).toBeNull();
+    expect(criteriaCountOf({})).toBeNull();
+  });
+
+  it('selects SINGLE for one criterion, MULTI for two or three and MANY beyond, with the first scalarization the mode declares for it', () => {
+    const mode = withScalarizations([weighted, pareto]);
+    expect(optimizationFor(mode, 1)).toEqual({ type: 'SINGLE', scalarization: 'weighted-sum' });
+    expect(optimizationFor(mode, 2)).toEqual({ type: 'MULTI', scalarization: 'weighted-sum' });
+    expect(optimizationFor(mode, 3)).toEqual({ type: 'MULTI', scalarization: 'weighted-sum' });
+    expect(optimizationFor(mode, 4)).toEqual({ type: 'MANY', scalarization: 'pareto' });
+  });
+
+  it('asks for feasibility alone when the problem has no criterion', () => {
+    expect(optimizationFor(withScalarizations([weighted, feasibility]), 0)).toEqual({ type: 'SINGLE', scalarization: 'feasibility' });
+    expect(optimizationFor(withScalarizations([weighted]), 0)).toBeNull();
+  });
+
+  it('selects nothing when the mode declares no scalarization that fits, or nothing is known', () => {
+    expect(optimizationFor(withScalarizations([pareto]), 1)).toBeNull();
+    expect(optimizationFor(mode('sampling', {}), 1)).toBeNull();
+    expect(optimizationFor(undefined, 1)).toBeNull();
+    expect(optimizationFor(withScalarizations([weighted]), null)).toBeNull();
+  });
+});
+
+describe('forecast', () => {
+  it('measures the problem against the plan and adds nothing to a counter', () => {
+    const bars = forecastOf({ ceilings: { seconds: 900, iterations: null, complexity: 20 }, bindingSpace: '1000', plan: 'RESEARCH' });
+    expect(bars.map((bar) => bar.text)).toEqual(['≈ 10^3 of up to 10^20 on your RESEARCH plan']);
+    expect(bars.every((bar) => bar.add === 0)).toBe(true);
+  });
+
+  it('does not invent a size that is not known', () => {
+    const bars = forecastOf({ ceilings: { seconds: null, iterations: null, complexity: null }, bindingSpace: null, plan: undefined });
+    expect(bars.map((bar) => bar.text)).toEqual(['The size of this problem isn’t known yet']);
   });
 });

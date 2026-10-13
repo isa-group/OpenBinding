@@ -37,9 +37,7 @@ interface Snapshot {
 
 async function loadSnapshot(): Promise<Snapshot> {
   const [keys, usage] = await Promise.all([apiClient.listApiKeys(), apiClient.getOwnUsage().catch(() => null)]);
-  const tracked = usage?.limits.apiKeys;
-  const limit = tracked && Number.isFinite(tracked.limit) ? tracked.limit : usage?.capabilities.apiKeys;
-  return { keys, limit, loadedAt: Date.now() };
+  return { keys, limit: usage?.capabilities.apiKeys, loadedAt: Date.now() };
 }
 
 function KeyCard({ apiKey, expired, onRotate, onRevoke }: {

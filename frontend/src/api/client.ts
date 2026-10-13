@@ -1347,11 +1347,6 @@ export class ApiClient {
     });
   }
 
-  /** Renew the expired contracts onto the LIVE pricing release now. The answer is a map of counters. 503 when accounts or pricing can't be read. */
-  async adminReconcileContracts(): Promise<Record<string, number>> {
-    return this.request('/v1/admin/maintenance/reconcile-contracts', { method: 'POST' });
-  }
-
   /**
    * Publish a Dialect or registered resource revision that waits for review (`extensions:moderate`). The gateway lists no pending
    * dialects or resources, so the exact revision is named by the caller; there is no reject for them.

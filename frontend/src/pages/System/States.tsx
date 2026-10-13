@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import type { LimitUsage } from '../../api/auth';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
-import { QuotaBar } from '../../components/QuotaBar';
 import { Chip } from '../../components/ui/Chip';
 import { ErrorState, StateAction } from '../../components/ui/ErrorState';
 import { FilterPills } from '../../components/ui/FilterPills';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { formatDate } from '../../utils/format';
 import './States.css';
 
 type Family = 'all' | 'session' | 'permission' | 'quota' | 'availability' | 'warnings';
@@ -37,7 +34,7 @@ const TOKEN_STATES: Record<TokenState, { label: string; verdict: string; text: s
   present: {
     label: 'Present',
     verdict: 'confirmed',
-    text: 'Features shown come from a signed token. They only guide the interface; the server still checks every action and your real balance.',
+    text: 'Features shown come from a signed token. They only guide the interface; the server still checks every action.',
   },
   expired: {
     label: 'Expired',
@@ -59,22 +56,17 @@ const ANATOMY = [
     ],
   },
   {
-    title: 'Monthly quota used up (402)',
+    title: 'Plan allowance reached (402)',
     format: 'Format used by the remaining routes',
     rows: [
-      ['Error code', 'Headline: “You’ve used this month’s study runs”'],
+      ['Error code', 'Headline: “You’ve reached your API key limit”'],
       ['Message', 'Body text'],
-      ['Limit 10 · used 10', 'Gauge: 10 of 10 study runs'],
-      ['Unit run/month', 'Gauge label'],
-      ['Renews on a date', 'Renewal date under the gauge'],
+      ['Limit 1', 'The plan’s limit, named in the body'],
+      ['Unit key', 'Written after the limit'],
+      ['Where to go', 'Link to the plan page'],
     ],
   },
 ] as const;
-
-/** First day of next month, 00:00 UTC: the example renewal date of the quota card. */
-function nextRenewal(now: Date): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-}
 
 /**
  * Reference gallery of the platform's states and recoverable errors: what each failure says, what it
@@ -86,7 +78,6 @@ export function States() {
   const [family, setFamily] = useState<Family>('all');
   const [token, setToken] = useState<TokenState>('absent');
   const [checking, setChecking] = useState(false);
-  const [now] = useState(() => new Date());
   const checkTimer = useRef<number | undefined>(undefined);
   const stopChecking = useCallback(() => window.clearTimeout(checkTimer.current), []);
 
@@ -97,12 +88,6 @@ export function States() {
   const orgName = organization?.name ?? 'your organization';
   const role = organization?.effective_role ?? 'MEMBER';
   const membersPath = organization ? `/app/${organization.slug}/settings/members` : '/app';
-
-  const renewal = nextRenewal(now);
-  const daysToRenew = Math.max(0, Math.ceil((renewal.getTime() - now.getTime()) / 86_400_000));
-  const studyRuns: LimitUsage = {
-    limit_id: 'studyRuns', limit: 10, used: 10, remaining: 0, unit: 'run/month', renews_at: renewal.toISOString(),
-  };
 
   const tryAgain = () => {
     setChecking(true);
@@ -176,11 +161,10 @@ export function States() {
           <>
             <ErrorState
               variant="402"
-              code="quota_exceeded · studyRuns"
-              title="You’ve used all your study runs for this month"
-              details={<QuotaBar limit={studyRuns} />}
+              code="quota_exceeded · apiKeys"
+              title="You’ve reached your API key limit"
             >
-              Renews {formatDate(renewal.toISOString())} (in {daysToRenew} {daysToRenew === 1 ? 'day' : 'days'}). Reducing the time budget doesn’t help here: it’s the number of study runs that ran out.
+              Your plan allows a fixed number of active keys. Revoke a key you no longer use, or ask for a plan with more. Revoked keys don’t count.
             </ErrorState>
             <ErrorState
               variant="402"
@@ -215,16 +199,16 @@ export function States() {
               onRetry={() => undefined}
               actions={<StateAction tone="link" to="/app/jobs">View the running job</StateAction>}
             >
-              You have 1 of 1 concurrent jobs running. If a monthly quota were also exhausted you’d see the 402 instead, because waiting wouldn’t help.
+              You have 1 of 1 concurrent jobs running. Waiting helps here: a slot frees up as soon as one of your jobs finishes.
             </ErrorState>
             <ErrorState
               variant="503"
               code="pricing_unavailable"
-              title="We can’t check your quota right now"
+              title="We can’t check your plan right now"
               onRetry={tryAgain}
               checking={checking}
             >
-              The pricing service didn’t answer. This says nothing about your balance: you haven’t run out. Try again in a moment; nothing retries automatically.
+              The pricing service didn’t answer. This says nothing about your plan: it hasn’t changed. Try again in a moment; nothing retries automatically.
             </ErrorState>
           </>
         )}
@@ -271,7 +255,7 @@ export function States() {
               <span className="states-dates">
                 <span><strong>API key</strong> · stops working on its expiry date. Rotate or create a new one.</span>
                 <span><strong>Invitation</strong> · valid for 7 days from the day it is created, and works once.</span>
-                <span><strong>Plan contract</strong> · renews on the date your usage page shows. A new pricing version applies when it renews.</span>
+                <span><strong>Plan contract</strong> · renews on the date set in SPACE. A new pricing version applies when it renews.</span>
                 <span><strong>Contract pending</strong> · if pricing was down at sign-up, your plan is settled on your next visit.</span>
               </span>
             </ErrorState>

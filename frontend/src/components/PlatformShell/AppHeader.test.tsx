@@ -209,7 +209,7 @@ describe('AppHeader', () => {
     expect(within(menu).getByText('alice@example.com')).toBeInTheDocument();
     expect(within(menu).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Account', '/app/account'],
-      ['Usage & plan', '/app/account/usage'],
+      ['Plan & permissions', '/app/account/usage'],
       ['API keys', '/app/account/keys'],
       ['Notifications', '/app/account/notifications'],
     ]);

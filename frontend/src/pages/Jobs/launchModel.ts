@@ -1,6 +1,6 @@
 import type { UsageView } from '../../api/auth';
 import type { BimResourceRef, EngineCatalogEntry, EngineMode } from '../../api/client';
-import type { LaunchRequest } from '../../api/jobs';
+import type { ExecutionOptimization, LaunchRequest } from '../../api/jobs';
 import type { ArtifactRef } from '../../api/library';
 import type { CaseRevision } from '../../api/platform';
 import type { CaseContent } from '../Project/projectModel';
@@ -10,7 +10,7 @@ import { formatDate } from '../../utils/format';
 import { shortDigest } from '../../utils/digest';
 import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
 import { optionFacts } from '../Engines/enginesModel';
-import { forecastBar, type ForecastBar } from './jobsModel';
+import type { ForecastBar } from './jobsModel';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -258,23 +258,17 @@ export function requestOptions(plans: readonly OptionPlan[]): Record<string, unk
   return options;
 }
 
-// --- the limits forecast
+// --- the size forecast
 
 interface ForecastInput {
-  usage: UsageView | null;
   ceilings: PlanCeilings;
   /** The size of the problem, as the exact number of bindings. */
   bindingSpace: string | null;
   plan: string | undefined;
 }
 
-/** What this run adds to the technical limits: one job slot, and how big the problem is for the plan. */
-export function forecastOf({ usage, ceilings, bindingSpace, plan }: ForecastInput): ForecastBar[] {
-  const read = (id: string): { used: number | null; limit: number | null } => {
-    const entry = usage?.limits?.[id];
-    return entry ? { used: entry.used, limit: entry.limit } : { used: usage ? 0 : null, limit: null };
-  };
-  const slots = read('concurrentJobs');
+/** How big the problem is against the plan's ceiling. Nothing is consumed by a run, so this is the only measure. */
+export function forecastOf({ ceilings, bindingSpace, plan }: ForecastInput): ForecastBar[] {
   const size = bindingSpace ? parseBindingSpace(bindingSpace).log10 : null;
   const reference = ceilings.complexity ?? Math.max(30, Math.ceil((size ?? 0) * 1.2));
   const sizeBar: ForecastBar = {
@@ -286,10 +280,41 @@ export function forecastOf({ usage, ceilings, bindingSpace, plan }: ForecastInpu
       ? 'The size of this problem isn’t known yet'
       : `≈ 10^${Math.round(size * 10) / 10} of up to ${ceilings.complexity !== null ? `10^${ceilings.complexity}` : 'no ceiling'}${plan ? ` on your ${plan} plan` : ''}`,
   };
-  return [
-    forecastBar('Jobs running at once', slots.used, slots.limit, 1, ''),
-    sizeBar,
-  ];
+  return [sizeBar];
+}
+
+// --- the optimization a run selects
+
+/**
+ * How many criteria the compiled problem optimizes (`spec.optimization.criteria`), or `null` when the form can't be read. Not knowing it
+ * sends no optimization and leaves the gateway to refuse the run in its own words.
+ */
+export function criteriaCountOf(compiled: unknown): number | null {
+  const document = isRecord(compiled) && isRecord(compiled.document) ? compiled.document : compiled;
+  if (!isRecord(document) || !isRecord(document.spec)) return null;
+  const optimization = document.spec.optimization;
+  if (!isRecord(optimization)) return 0;
+  return Array.isArray(optimization.criteria) ? optimization.criteria.length : 0;
+}
+
+/** SINGLE for at most one criterion, MULTI for two or three, MANY beyond. */
+export function optimizationTypeOf(criteria: number): ExecutionOptimization['type'] {
+  return criteria <= 1 ? 'SINGLE' : criteria <= 3 ? 'MULTI' : 'MANY';
+}
+
+/**
+ * The execution-time optimization for a mode: SINGLE for one criterion, MULTI for two or three, MANY beyond; the first scalarization the
+ * mode declares for that type (`feasibility` when there is no criterion at all). `null` when the mode declares none that fits, or the
+ * number of criteria is not known.
+ */
+export function optimizationFor(mode: EngineMode | undefined, criteria: number | null): ExecutionOptimization | null {
+  if (!mode || criteria === null) return null;
+  const declared = (mode.capabilities as unknown as Record<string, unknown>).scalarizations;
+  const values = isRecord(declared) && Array.isArray(declared.values) ? declared.values.filter(isRecord) : [];
+  const type = optimizationTypeOf(criteria);
+  const fits = (item: Record<string, unknown>) => typeof item.id === 'string' && Array.isArray(item.objectiveTypes) && item.objectiveTypes.includes(type);
+  const picked = criteria === 0 ? values.find((item) => item.id === 'feasibility' && fits(item)) : values.find(fits);
+  return picked ? { type, scalarization: picked.id as string } : null;
 }
 
 // --- the request
@@ -302,6 +327,8 @@ export interface RequestInput {
   configuration: ArtifactRef | null;
   mode: ModeChoice | null;
   options: Record<string, unknown>;
+  /** What the mode and the problem allow, from {@link optimizationFor}; left out of the request when `null`. */
+  optimization?: ExecutionOptimization | null;
 }
 
 /** What `POST /v1/jobs` gets, or `null` while something is missing. Sealed settings go alone: they carry their own engine, mode and options. */
@@ -313,5 +340,6 @@ export function buildRequest(input: RequestInput): LaunchRequest | null {
   return {
     snapshot: input.snapshot, engine: input.mode.engine, mode: input.mode.mode, options: input.options,
     ...(input.mode.registration ? { registration: input.mode.registration } : {}),
+    ...(input.optimization ? { optimization: input.optimization } : {}),
   };
 }

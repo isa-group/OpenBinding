@@ -71,15 +71,6 @@
 .st-legend i:not([class]) { background: var(--tp-muted); border-radius: 9999px; }
 
 /* List */
-.st-meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--tp-spacing-sm); }
-.st-meter { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid var(--tp-hairline); border-radius: 14px; background: var(--tp-canvas); }
-.st-meter-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px; font-size: 0.8125rem; }
-.st-meter-head strong { font-weight: 600; }
-.st-meter-track { display: block; height: 8px; overflow: hidden; border-radius: var(--tp-radius-full); background: var(--tp-hairline-soft); }
-.st-meter-track i { display: block; height: 100%; border-radius: var(--tp-radius-full); background: var(--tp-primary); transform-origin: left; animation: st-grow 600ms cubic-bezier(0.4, 0, 0.2, 1) both; }
-.st-meter-track i.is-spent { background: var(--tp-severity-error); }
-.st-meter small { color: var(--tp-steel); font-size: 0.75rem; }
-
 .st-intro {
   display: flex;
   flex-wrap: wrap;
@@ -335,7 +326,7 @@
 @keyframes st-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .st-meter-track i, .st-bars i, .st-heat.is-running { animation: none; }
+  .st-bars i, .st-heat.is-running { animation: none; }
 }
 
 @media (max-width: 767px) {

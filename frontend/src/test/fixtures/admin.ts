@@ -1,5 +1,5 @@
 import type {
-  AdminAuditPage, AdminModerationOverview, AdminOverview, AdminQueueStatus, AdminSubscriptionView, AdminUserPage, AdminUserView, LimitUsage, UsageView,
+  AdminAuditPage, AdminModerationOverview, AdminOverview, AdminQueueStatus, AdminSubscriptionView, AdminUserPage, AdminUserView, UsageView,
 } from '../../api/auth';
 import type { Organization } from '../../api/platform';
 import type { AdminErrorListResponse, AdminErrorOverview, ApiErrorEventItem } from '../../pages/Admin/types';
@@ -43,27 +43,22 @@ export function subscriptionOf(user: AdminUserView, addOns: Record<string, numbe
   };
 }
 
-const limit = (limitId: string, max: number, used: number, unit: string | null = null): LimitUsage => ({
-  limit_id: limitId, limit: max, used, remaining: Math.max(0, max - used), unit, renews_at: '2026-11-01T00:00:00Z',
-});
-
-export function usageOf(plan: string, studyRuns = 1, concurrent = 1): UsageView {
+export function usageOf(plan: string): UsageView {
+  const basic = plan === 'BASIC';
   return {
     plan,
     contract_pending: false,
-    features: { solve: true, advancedAnalytics: plan !== 'BASIC', reproducibilityArchive: false },
-    capabilities: {},
-    limits: {
-      studyRuns: limit('studyRuns', plan === 'BASIC' ? 10 : 50, studyRuns, 'run/month'),
-      concurrentJobs: limit('concurrentJobs', plan === 'BASIC' ? 1 : 3, concurrent, 'job'),
-      maxTimeoutSeconds: limit('maxTimeoutSeconds', plan === 'BASIC' ? 60 : 900, 0, 'second'),
-      organizations: limit('organizations', plan === 'BASIC' ? 1 : 5, 0, 'organization'),
-      members: limit('members', plan === 'BASIC' ? 2 : 15, 0, 'member'),
-      projects: limit('projects', plan === 'BASIC' ? 3 : 50, 0, 'project'),
-      privateProjects: limit('privateProjects', plan === 'BASIC' ? 1 : 30, 0, 'project'),
-      collections: limit('collections', plan === 'BASIC' ? 2 : 50, 0, 'collection'),
-      studies: limit('studies', plan === 'BASIC' ? 1 : 25, 0, 'study'),
-      storageBytes: limit('storageBytes', plan === 'BASIC' ? 104857600 : 5368709120, 0, 'byte'),
+    features: { solve: true, advancedAnalytics: !basic, reproducibilityArchive: false },
+    capabilities: {
+      concurrentJobs: basic ? 1 : 3,
+      maxTimeoutSeconds: basic ? 60 : 900,
+      organizations: basic ? 1 : 5,
+      members: basic ? 2 : 15,
+      projects: basic ? 3 : 50,
+      privateProjects: basic ? 1 : 30,
+      collections: basic ? 2 : 50,
+      studies: basic ? 1 : 25,
+      storageBytes: basic ? 104857600 : 5368709120,
     },
   };
 }
@@ -168,7 +163,7 @@ const event = (n: number, statusCode: number, category: ApiErrorEventItem['categ
 
 export const ERROR_EVENTS: ApiErrorEventItem[] = [
   event(1, 402, 'pricing_quota', 'quota_exceeded', '/v1/jobs', SAM, '2026-10-09T07:40:00Z', {
-    quota: { limit_id: 'studyRuns', used: 10, limit: 10, unit: 'run/month', renews_at: '2026-11-01T00:00:00Z' },
+    quota: { limit_id: 'apiKeys', used: 10, limit: 10, unit: 'key' },
   }),
   event(2, 402, 'pricing_quota', 'quota_exceeded', '/v1/jobs', SAM, '2026-10-09T06:10:00Z'),
   event(3, 429, 'concurrency', 'concurrency_limit_exceeded', '/v1/jobs', SAM, '2026-10-08T18:20:00Z'),

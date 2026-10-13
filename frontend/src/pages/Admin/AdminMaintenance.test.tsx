@@ -8,7 +8,6 @@ const api = vi.hoisted(() => ({
   adminMaintenancePreview: vi.fn(),
   adminReconcileJobs: vi.fn(),
   adminPurgeExpired: vi.fn(),
-  adminReconcileContracts: vi.fn(),
   getCurrentPricing: vi.fn(),
 }));
 
@@ -28,13 +27,12 @@ const tile = async (label: string) => {
   return within(within(list).getByText(label).closest('[role="listitem"]') as HTMLElement);
 };
 
-describe('admin-maintenance · preview, purge and reconcile', { timeout: 30000 }, () => {
+describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30000 }, () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.adminMaintenancePreview.mockResolvedValue(PREVIEW);
     api.adminReconcileJobs.mockResolvedValue({ settled: 1 });
     api.adminPurgeExpired.mockResolvedValue({ artifacts: 2, apiKeys: 1, jobs: 14 });
-    api.adminReconcileContracts.mockResolvedValue({ renewed: 2 });
     api.getCurrentPricing.mockResolvedValue({ version: '0.1.0', digest: 'sha256-x', url: 'https://sphere.example.test/0.1.0' });
   });
 
@@ -147,26 +145,11 @@ describe('admin-maintenance · preview, purge and reconcile', { timeout: 30000 }
     expect(screen.getByText(/Inspect the worker and SPACE health before retrying/)).toBeInTheDocument();
   });
 
-  it('renews expired contracts onto the LIVE pricing after a confirmation', async () => {
+  it('offers no contract or pricing action: contracts live in SPACE', async () => {
     renderAdmin(<AdminMaintenance />);
     await tile('Abandoned jobs');
-    expect(await screen.findByText('0.1.0')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Reconcile contracts' }));
-    const dialog = screen.getByRole('dialog', { name: 'Move expired contracts to LIVE?' });
-    expect(api.adminReconcileContracts).not.toHaveBeenCalled();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Reconcile contracts' }));
-    await waitFor(() => expect(api.adminReconcileContracts).toHaveBeenCalledOnce());
-    expect(await screen.findByText('Expired contracts were renewed onto the LIVE pricing. Recorded in the audit log.')).toBeInTheDocument();
-    expect(within(screen.getByLabelText('What was moved')).getByText('Renewed')).toBeInTheDocument();
-  });
-
-  it('says when no contract had expired', async () => {
-    api.adminReconcileContracts.mockResolvedValue({ renewed: 0 });
-    renderAdmin(<AdminMaintenance />);
-    await tile('Abandoned jobs');
-    fireEvent.click(screen.getByRole('button', { name: 'Reconcile contracts' }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reconcile contracts' }));
-    expect(await screen.findByText(/Nothing to move: no contract has expired yet/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /contract/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/LIVE/)).not.toBeInTheDocument();
   });
 
   it('words a preview that fails, apart from an empty one, and tries again', async () => {
@@ -190,5 +173,6 @@ describe('admin-maintenance · preview, purge and reconcile', { timeout: 30000 }
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(api.adminMaintenancePreview).not.toHaveBeenCalled();
     expect(api.getCurrentPricing).not.toHaveBeenCalled();
+    expect(api.adminReconcileJobs).not.toHaveBeenCalled();
   });
 });

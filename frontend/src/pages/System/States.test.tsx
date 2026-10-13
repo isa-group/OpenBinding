@@ -24,7 +24,7 @@ describe('States gallery', () => {
     expect(chips).toEqual(expect.arrayContaining(['401', '402', '403', '404', '429', '503', 'OPTION_CLAMPED', 'token', 'dates']));
     expect(screen.getByRole('heading', { name: 'Your session ended' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Log in again' })).toHaveAttribute('href', '/login');
-    expect(screen.getByRole('link', { name: 'See my usage' })).toHaveAttribute('href', '/app/account/usage');
+    expect(screen.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
     expect(screen.getByRole('link', { name: 'Create a key with this permission' })).toHaveAttribute('href', '/app/account/keys/new');
     expect(screen.getByRole('link', { name: 'Go to my jobs' })).toHaveAttribute('href', '/app/jobs');
   });
@@ -36,7 +36,8 @@ describe('States gallery', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Quota' }));
     expect(screen.getByRole('button', { name: 'Quota' })).toHaveAttribute('aria-pressed', 'true');
     expect(cards().map((card) => card.querySelector('.ui-state-chip')?.textContent)).toEqual(['402', '402', '402']);
-    expect(screen.getByRole('meter')).toHaveAttribute('aria-valuenow', '10');
+    expect(screen.queryByRole('meter')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'You’ve reached your API key limit' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Session' }));
     expect(cards()).toHaveLength(1);

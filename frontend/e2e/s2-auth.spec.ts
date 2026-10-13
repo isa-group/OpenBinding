@@ -502,7 +502,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { name: 'This needs ADMIN in ISA Demo Group' })).toBeVisible();
       await expect(main.getByRole('link', { name: 'See who manages this organization' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
       await expect(main.getByRole('button', { name: 'Retry now' })).toBeDisabled();
-      await expect(main.getByRole('meter')).toHaveAttribute('aria-valuenow', '10');
+      await expect(main.getByRole('meter')).toHaveCount(0);
       await capture(page, testInfo, `states-${name}-all`);
 
       await main.getByRole('button', { name: 'Quota', exact: true }).click();

@@ -97,7 +97,7 @@ export function Account() {
           </div>
           <p className="acct-profile-note">
             Plan tiers and quotas are governed by administrators; there is no payment gateway.{' '}
-            <Link to="/app/account/usage" viewTransition>See your usage &amp; plan</Link>.
+            <Link to="/app/account/usage" viewTransition>See your plan &amp; permissions</Link>.
           </p>
         </div>
       </section>

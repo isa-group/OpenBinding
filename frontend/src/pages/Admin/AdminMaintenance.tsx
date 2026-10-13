@@ -1,7 +1,7 @@
 import { AdminFrame, AdminOnly } from './AdminChrome';
 import { AdminMaintenanceTools } from './AdminMaintenanceTools';
 
-/** admin-maintenance: preview what a retention period would touch, then purge expired data, settle abandoned jobs and renew expired contracts. */
+/** admin-maintenance: preview what a retention period would touch, then purge expired data, and settle abandoned jobs. */
 export function AdminMaintenance() {
   return (
     <AdminOnly>

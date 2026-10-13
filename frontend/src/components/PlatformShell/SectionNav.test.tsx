@@ -15,7 +15,7 @@ describe('AccountNav', () => {
     const nav = screen.getByRole('navigation', { name: 'Account' });
     expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Profile & security', '/app/account'],
-      ['Usage & plan', '/app/account/usage'],
+      ['Plan & permissions', '/app/account/usage'],
       ['API keys', '/app/account/keys'],
       ['Identities', '/app/account/identities'],
       ['Notifications', '/app/account/notifications'],
@@ -24,7 +24,7 @@ describe('AccountNav', () => {
 
   it.each([
     ['profile', 'Profile & security'],
-    ['usage', 'Usage & plan'],
+    ['usage', 'Plan & permissions'],
     ['keys', 'API keys'],
     ['identities', 'Identities'],
     ['notifications', 'Notifications'],

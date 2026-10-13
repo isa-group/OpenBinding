@@ -145,13 +145,12 @@ export function reportOf(registration: EngineRegistrationRevision, report: Recor
 
 // -- Plan
 
-export function usageOf(plan = 'RESEARCH', used = 1, limit: number | null = 5): UsageView {
+export function usageOf(plan = 'RESEARCH', limit: number | null = 5): UsageView {
   return {
     plan,
     contract_pending: false,
     features: { federatedEngines: true },
     capabilities: { federatedEngines: limit },
-    limits: limit === null ? {} : { federatedEngines: { limit_id: 'federatedEngines', limit, used, remaining: limit - used } },
   };
 }
 

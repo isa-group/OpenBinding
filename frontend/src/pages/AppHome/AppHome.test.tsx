@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError } from '../../api/auth';
 import { HttpError } from '../../api/client';
+import { config } from '../../config';
 import { org, renderScreen, researchUsage } from '../Organization/testKit';
 import { AppHome } from './AppHome';
 
@@ -70,7 +71,7 @@ describe('Home', () => {
     expect(screen.getByText(/the highest of your own role there and the one inherited from above/)).toBeInTheDocument();
   });
 
-  it('lists recent jobs, this month’s limits and the unread notifications', async () => {
+  it('lists recent jobs, your plan with the native consoles, and the unread notifications', async () => {
     renderHome();
 
     const activity = await screen.findByRole('region', { name: 'Recent activity' });
@@ -80,10 +81,13 @@ describe('Home', () => {
     expect(within(activity).getAllByRole('link', { name: /minizinc/ })[0]).toHaveAttribute('href', '/app/jobs');
     expect(within(activity).getByRole('link', { name: 'All jobs' })).toHaveAttribute('href', '/app/jobs');
 
-    const month = screen.getByRole('region', { name: 'This month' });
-    expect(await within(month).findByRole('meter', { name: 'Study runs' })).toHaveAttribute('aria-valuenow', '18');
-    expect(within(month).getByRole('meter', { name: 'Jobs running now' })).toHaveAttribute('aria-valuemax', '3');
-    expect(within(month).getByText(/Monthly limits renew Nov 1, 2026/)).toBeInTheDocument();
+    const plan = screen.getByRole('region', { name: 'Your plan' });
+    expect(await within(plan).findByText('RESEARCH')).toBeInTheDocument();
+    expect(within(plan).getByText('Up to 3')).toBeInTheDocument();
+    expect(within(plan).queryByRole('meter')).not.toBeInTheDocument();
+    expect(within(plan).getByRole('link', { name: 'Plan & permissions' })).toHaveAttribute('href', '/app/account/usage');
+    expect(within(plan).getByRole('link', { name: 'SPACE' })).toHaveAttribute('href', config.spaceFrontendUrl);
+    expect(within(plan).getByRole('link', { name: 'SPHERE' })).toHaveAttribute('href', config.sphereUrl);
 
     const notices = screen.getByRole('region', { name: 'Unread notifications' });
     expect(await within(notices).findByText('Your OpenBinding agreement changed')).toBeInTheDocument();
@@ -106,27 +110,28 @@ describe('Home', () => {
 
     const activity = await screen.findByRole('region', { name: 'Recent activity' });
     expect(await within(activity).findByRole('alert')).toHaveTextContent('Recent jobs couldn’t be loaded (503). The other blocks are unaffected.');
-    // The tree and the limits are on the page regardless.
+    // The tree and the plan are on the page regardless.
     expect(await screen.findByRole('list', { name: 'Organizations' })).toBeInTheDocument();
-    expect(await screen.findByRole('meter', { name: 'Study runs' })).toBeInTheDocument();
+    expect(await screen.findByText('Up to 3')).toBeInTheDocument();
 
     fireEvent.click(within(activity).getByRole('button', { name: 'Retry' }));
     expect(await within(activity).findByText('Running')).toBeInTheDocument();
     expect(api.listOwnJobs).toHaveBeenCalledTimes(2);
   });
 
-  it('explains a pricing outage in the limits block alone, and a pending contract', async () => {
+  it('explains a pricing outage in the plan block alone, and a pending contract', async () => {
     api.getOwnUsage.mockRejectedValue(new PricingUnavailableError('pricing is down'));
     renderHome();
 
-    const month = await screen.findByRole('region', { name: 'This month' });
-    expect(await within(month).findByRole('alert')).toHaveTextContent('Your plan limits can’t be loaded right now (503 · pricing_unavailable). Nothing else on this page depends on them.');
+    const plan = await screen.findByRole('region', { name: 'Your plan' });
+    expect(await within(plan).findByRole('alert')).toHaveTextContent('Your plan can’t be loaded right now (503 · pricing_unavailable). Nothing else on this page depends on it.');
+    expect(within(plan).getByRole('link', { name: 'SPACE' })).toHaveAttribute('href', config.spaceFrontendUrl);
     expect(await screen.findByRole('list', { name: 'Organizations' })).toBeInTheDocument();
 
     api.getOwnUsage.mockResolvedValue({ ...researchUsage(), contract_pending: true });
-    fireEvent.click(within(month).getByRole('button', { name: 'Retry' }));
-    expect(await within(month).findByText(/Your plan is still being settled \(contract pending\)/)).toBeInTheDocument();
-    expect(within(month).queryByRole('meter')).not.toBeInTheDocument();
+    fireEvent.click(within(plan).getByRole('button', { name: 'Retry' }));
+    expect(await within(plan).findByText(/Your plan is still being settled \(contract pending\)/)).toBeInTheDocument();
+    expect(within(plan).queryByText('Up to 3')).not.toBeInTheDocument();
   });
 
   it('says the block is not available when the credential lacks the permission (403)', async () => {

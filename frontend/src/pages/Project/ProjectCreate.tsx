@@ -212,13 +212,13 @@ export function ProjectCreate() {
             {room.length > 0 ? (
               <>
                 <RoomBars rows={room} />
-                <span className="org-muted">Striped = this project. Private projects count twice: once as a project, once as private.</span>
+                <span className="org-muted">The sponsor’s plan limits. A private project counts twice: once as a project, once as private.</span>
               </>
             ) : (
               <span className="org-muted">
                 {sponsorIsMe
                   ? 'Your limits can’t be read right now. Creating checks them again.'
-                  : `${sponsor}’s usage is visible only to them. The server checks their limits and answers 402 if there’s no room.`}
+                  : `${sponsor}’s plan is visible only to them. The server checks their limits and answers 402 if there’s no room.`}
               </span>
             )}
           </section>
@@ -236,7 +236,7 @@ export function ProjectCreate() {
                     {isPrivate && refusal.limitId === 'privateProjects' && (
                       <button type="button" className="org-link-button" onClick={() => { setVisibility('public'); setRefusal(null); }}>Make it public instead</button>
                     )}
-                    <Link to="/app/account/usage">Usage</Link>
+                    <Link to="/app/account/usage">Your plan</Link>
                   </span>
                 )}
                 {refusal.kind === 'pricing' && (

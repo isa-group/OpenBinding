@@ -114,21 +114,15 @@ export interface CreatedApiKey extends ApiKeySummary {
   secret: string;
 }
 
-export interface LimitUsage {
-  limit_id: string;
-  limit: number;
-  used: number;
-  remaining: number;
-  unit?: string | null;
-  renews_at?: string | null;
-}
-
+/**
+ * `GET /v1/users/me/usage`: what an account is on and what its plan allows. `capabilities` holds the functional
+ * limits (`null` is unlimited). Nothing is counted per account, so there is no consumption in it.
+ */
 export interface UsageView {
   plan: string;
   contract_pending: boolean;
   features: Record<string, boolean>;
   capabilities: Record<string, number | null>;
-  limits: Record<string, LimitUsage>;
 }
 
 /**

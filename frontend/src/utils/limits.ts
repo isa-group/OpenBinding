@@ -20,6 +20,7 @@ export interface LimitInfo {
 }
 
 const KNOWN: Record<string, LimitInfo> = {
+  // Only a label for the published pricing document, which the Pricing page renders as it is; the gateway counts none of it.
   studyRuns: { label: 'Study runs', short: 'study runs', group: 'monthly', kind: 'count' },
   concurrentJobs: { label: 'Concurrent jobs', short: 'jobs', group: 'capacity', kind: 'count' },
   federatedEngines: { label: 'Federated engines', short: 'federated engines', group: 'capacity', kind: 'count' },

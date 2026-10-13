@@ -78,12 +78,9 @@
 .usage-card-head { display: flex; justify-content: space-between; gap: var(--tp-spacing-xs); font-weight: 500; }
 .usage-card-small .usage-card-head { font-weight: 400; }
 .usage-card-small .usage-card-head span:first-child { font-weight: 500; }
-.usage-card-unit { color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 400; }
-.usage-card-figures { display: flex; justify-content: space-between; gap: var(--tp-spacing-xs); font-size: 0.8125rem; }
-.usage-card-figures strong { font-weight: 600; }
 
-.usage-mini-track { height: 6px; overflow: hidden; border-radius: 9999px; background: var(--tp-hairline-soft); }
-.usage-mini-track div { height: 100%; background: var(--tp-primary); }
+.usage-consoles { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs) var(--tp-spacing-md); margin: 0; font-size: 0.875rem; }
+.usage-consoles a { font-weight: 500; }
 
 .usage-table-wrap { overflow-x: auto; border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); }
 .usage-table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: 0.8125rem; }

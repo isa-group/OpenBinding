@@ -74,24 +74,20 @@ describe('New project', () => {
     expect(screen.getByText('15 / 2,000')).toBeInTheDocument();
   });
 
-  it('shows the sponsor’s room with what this project adds, counting a private project twice', async () => {
+  it('shows the sponsor’s plan limits, says a private project counts twice, and draws no meter', async () => {
     renderCreate();
-    const projects = await screen.findByRole('meter', { name: 'Projects' });
 
-    expect(projects).toHaveAttribute('aria-valuenow', '4');
-    expect(projects).toHaveAttribute('aria-valuetext', '4 of 50 after this change');
-    expect(screen.getByRole('meter', { name: 'Private projects' })).toHaveAttribute('aria-valuenow', '3');
-
-    fireEvent.click(screen.getByRole('radio', { name: /^Public/ }));
-    expect(screen.getByRole('meter', { name: 'Private projects' })).toHaveAttribute('aria-valuenow', '2');
-    expect(screen.getByText(/Striped = this project\./)).toBeInTheDocument();
+    expect(await screen.findByText('Up to 50')).toBeInTheDocument();
+    expect(screen.getByText('Up to 30')).toBeInTheDocument();
+    expect(screen.queryByRole('meter')).not.toBeInTheDocument();
+    expect(screen.getByText(/A private project counts twice: once as a project, once as private\./)).toBeInTheDocument();
   });
 
   it('says whose usage is hidden when someone else sponsors the organization', async () => {
     platform.members.mockResolvedValue([{ id: 'm', organization_id: group.id, user_id: 'user-nora', username: 'nora', email: 'nora@example.test', role: 'OWNER', created_at: '2026-03-04T00:00:00Z' }]);
     renderCreate([org('isa-demo', { name: 'ISA Demo Group', billing_sponsor_user_id: 'user-nora' })]);
 
-    expect(await screen.findByText(/nora’s usage is visible only to them/)).toBeInTheDocument();
+    expect(await screen.findByText(/nora’s plan is visible only to them/)).toBeInTheDocument();
     expect(screen.queryByRole('meter')).not.toBeInTheDocument();
   });
 
@@ -145,7 +141,7 @@ describe('New project', () => {
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('The sponsor has no private projects left (402 · sponsor_quota_exceeded). 30 of 30 private projects.');
-      expect(within(alert).getByRole('link', { name: 'Usage' })).toHaveAttribute('href', '/app/account/usage');
+      expect(within(alert).getByRole('link', { name: 'Your plan' })).toHaveAttribute('href', '/app/account/usage');
       fireEvent.click(within(alert).getByRole('button', { name: 'Make it public instead' }));
 
       expect(screen.getByRole('radio', { name: /^Public/ })).toBeChecked();

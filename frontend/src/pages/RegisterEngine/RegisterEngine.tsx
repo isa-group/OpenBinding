@@ -361,7 +361,7 @@ function Wizard({ username, setup, allowance, allowanceLoading, onAllowanceChang
           action={!done && error.step !== step && reached[error.step - 1] ? <Action size="sm" variant="secondary" onClick={() => go(error.step)}>Show me where (step {error.step})</Action> : undefined}
         >
           {[error.failure.text, ...error.failure.details].join(' ')}
-          {error.failure.status === 402 && <> <Link to="/app/account/usage">See your usage</Link></>}
+          {error.failure.status === 402 && <> <Link to="/app/account/usage">See your plan</Link></>}
         </Notice>
       )}
       {toast && <Notice tone="success">{toast}</Notice>}

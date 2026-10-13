@@ -22,7 +22,7 @@ export interface Allowance {
   known: boolean;
   /** `null` is unlimited (or not known). */
   limit: number | null;
-  /** What the sponsor has used across every organization, when the gateway tracks it. */
+  /** What the sponsor has used across every organization. The gateway counts nothing per account, so this is always `null`. */
   used: number | null;
 }
 
@@ -32,8 +32,6 @@ export interface Allowance {
  */
 export function allowanceOf(usage: UsageView | null | undefined, id: string, isSponsor: boolean): Allowance {
   if (!usage || !isSponsor) return { known: false, limit: null, used: null };
-  const tracked = usage.limits?.[id];
-  if (tracked) return { known: true, limit: Number.isFinite(tracked.limit) ? tracked.limit : null, used: tracked.used };
   const capability = usage.capabilities?.[id];
   return { known: true, limit: typeof capability === 'number' && Number.isFinite(capability) ? capability : null, used: null };
 }

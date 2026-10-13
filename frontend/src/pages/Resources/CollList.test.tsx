@@ -65,14 +65,6 @@ describe('Collections', () => {
     expect(screen.getByText('2 in this project · allowance 50')).toBeInTheDocument();
   });
 
-  it('shows the exact figure when the gateway tracks the sponsor’s collections', async () => {
-    client.getOwnUsage.mockResolvedValue(usageOf({ limits: { collections: { limit_id: 'collections', limit: 50, used: 50, remaining: 0 } } }));
-    renderList();
-
-    expect(await screen.findByText('50 of 50')).toBeInTheDocument();
-    expect(screen.getByRole('meter', { name: 'Sponsor’s collections used' })).toHaveAttribute('aria-valuenow', '100');
-  });
-
   it('says the sponsor’s allowance is not shown to someone who is not the sponsor', async () => {
     renderList(sponsoredByOthers);
 

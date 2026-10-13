@@ -65,11 +65,11 @@ describe('admin-errors · what is failing on the platform', () => {
     renderAdmin(<AdminErrors />);
     const aside = await screen.findByRole('complementary', { name: 'Error detail' });
     expect(within(aside).getByText('402 · quota_exceeded')).toBeInTheDocument();
-    expect(within(aside).getByText(/A monthly or capacity allowance ran out/)).toBeInTheDocument();
+    expect(within(aside).getByText(/A limit of the plan was reached/)).toBeInTheDocument();
     expect(within(aside).getByText('POST /v1/jobs')).toBeInTheDocument();
     expect(within(aside).getByRole('link', { name: SAM.email })).toHaveAttribute('href', `/app/admin/users/${SAM.id}`);
     const quota = within(aside).getByLabelText('Quota at the time');
-    expect(within(quota).getByText('10 of 10 run/month')).toBeInTheDocument();
+    expect(within(quota).getByText('10 of 10 key')).toBeInTheDocument();
     expect(within(aside).getByText('View source')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /pricing_unavailable/ }));

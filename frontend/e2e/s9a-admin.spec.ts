@@ -192,7 +192,7 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
         account.plan = String(body.plan);
         return json(account)(route);
       }
-      if (rest === 'usage') return answer('usage', usageOf(account.plan, 10))(route);
+      if (rest === 'usage') return answer('usage', usageOf(account.plan))(route);
       if (rest.startsWith('api-keys/') && method === 'DELETE') {
         const keyId = rest.slice('api-keys/'.length);
         if (keyId === KEY_MISSING) return detail(404, 'not_found', 'No such API key.')(route);
@@ -425,7 +425,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('admin-user-detail /app/admin/users/:user · agreement, usage, keys and organizations of one account', async ({ page }, testInfo) => {
+    test('admin-user-detail /app/admin/users/:user · agreement, plan limits, keys and organizations of one account', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`/app/admin/users/${SAM.id}`);
@@ -434,7 +434,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'sam.okafor', exact: true })).toBeVisible();
       await expect(main.getByText(/sam-okafor@example\.invalid · since Jun 15, 2026/)).toBeVisible();
       await expect(main.getByText(/Pinned to pricing 0\.1\.0 · renews Nov 1, 2026/)).toBeVisible();
-      await expect(main.getByText('10 of 10')).toBeVisible();
+      await expect(main.getByRole('group', { name: 'Allowances' }).getByText('Concurrent jobs')).toBeVisible();
       await expect(main.getByRole('group', { name: 'Ceilings for each request' }).getByText('Max time per job')).toBeVisible();
       const plans = main.getByRole('radiogroup', { name: 'New plan' });
       await expect(plans.getByRole('radio')).toHaveCount(4);
@@ -602,7 +602,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(groups.getByRole('listitem')).toHaveCount(3);
       const aside = main.getByRole('complementary', { name: 'Error detail' });
       await expect(aside.getByText('402 · quota_exceeded')).toBeVisible();
-      await expect(aside.getByLabel('Quota at the time').getByText('10 of 10 run/month')).toBeVisible();
+      await expect(aside.getByLabel('Quota at the time').getByText('10 of 10 key')).toBeVisible();
       await capture(page, testInfo, `errors-${name}-list`, { height: tall(2300) });
       await capture(page, testInfo, `errors-${name}-full`);
 

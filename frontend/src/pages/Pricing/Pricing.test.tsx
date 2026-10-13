@@ -285,7 +285,7 @@ describe('Pricing', () => {
     expect(await screen.findByText('Available to your account')).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByText('Can’t confirm').length).toBeGreaterThanOrEqual(1));
     expect(screen.getByText(/We can’t confirm your features right now, so none is shown as enabled or disabled/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See my usage' })).toHaveAttribute('href', '/app/account/usage');
+    expect(screen.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
   });
 
   it('draws the long form of the document with pricing-renderer when asked', async () => {

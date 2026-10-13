@@ -12,7 +12,7 @@ describe('ErrorState', () => {
 
   it.each<[ErrorVariant, string, string, string, string]>([
     ['401', 'Your session ended', 'Log in again', '/login', 'unauthorized · invalid_token'],
-    ['402', 'You’ve used all of an allowance', 'See my usage', '/app/account/usage', 'quota_exceeded'],
+    ['402', 'You’ve used all of an allowance', 'See your plan', '/app/account/usage', 'quota_exceeded'],
     ['403', 'You can’t do this', 'Back to the workspace', '/app', 'forbidden'],
     ['404', 'Not found', 'Back to the workspace', '/app', 'not_found'],
     ['503', 'This isn’t available right now', 'Service status', '/status', 'unavailable'],

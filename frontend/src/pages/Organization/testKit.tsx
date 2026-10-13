@@ -35,22 +35,13 @@ export function project(slug: string, over: Partial<Project> = {}): Project {
   };
 }
 
-const tracked = (id: string, limit: number, used: number) => ({ limit_id: id, limit, used, remaining: Math.max(0, limit - used), unit: null, renews_at: null });
-
-/** The RESEARCH plan of pricing 0.1.0 with some of the sponsor’s room used. */
+/** The RESEARCH plan of pricing 0.1.0. */
 export function researchUsage(): UsageView {
   return {
     plan: 'RESEARCH',
     contract_pending: false,
     features: {},
-    capabilities: { organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120, studyRuns: 100, concurrentJobs: 3 },
-    limits: {
-      organizations: tracked('organizations', 5, 2),
-      members: tracked('members', 15, 3),
-      projects: tracked('projects', 50, 3),
-      studyRuns: { ...tracked('studyRuns', 100, 18), renews_at: '2026-11-01T00:00:00Z' },
-      concurrentJobs: tracked('concurrentJobs', 3, 1),
-    },
+    capabilities: { organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120, concurrentJobs: 3 },
   };
 }
 

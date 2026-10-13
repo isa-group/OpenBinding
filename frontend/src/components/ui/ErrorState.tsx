@@ -26,7 +26,7 @@ const PRESETS: Record<ErrorVariant, Preset> = {
   '402': {
     code: 'quota_exceeded',
     title: 'You’ve used all of an allowance',
-    body: 'Waiting won’t help until the allowance renews, and reducing the size of the request doesn’t either: this is a count that ran out.',
+    body: 'Waiting won’t help until you free something or your plan changes, and reducing the size of the request doesn’t either: this is a limit of your plan that was reached.',
   },
   '403': {
     code: 'forbidden',
@@ -41,12 +41,12 @@ const PRESETS: Record<ErrorVariant, Preset> = {
   '429': {
     code: 'concurrency_limit_exceeded',
     title: 'All your job slots are busy',
-    body: 'Every concurrent slot your plan allows is in use. If a monthly quota were also exhausted you’d see the 402 instead, because waiting wouldn’t help.',
+    body: 'Every concurrent slot is in use. A slot frees up as soon as one of your jobs finishes, so waiting helps here.',
   },
   '503': {
     code: 'unavailable',
     title: 'This isn’t available right now',
-    body: 'A service OpenBinding depends on didn’t answer. This says nothing about your account or your balance. Try again in a moment; nothing retries automatically.',
+    body: 'A service OpenBinding depends on didn’t answer. This says nothing about your account or your plan. Try again in a moment; nothing retries automatically.',
   },
 };
 
@@ -146,7 +146,7 @@ function defaultActionsFor(variant: ErrorVariant, options: { onRetry?: () => voi
     case '402':
       return (
         <>
-          <StateAction tone="primary" to="/app/account/usage">See my usage</StateAction>
+          <StateAction tone="primary" to="/app/account/usage">See your plan</StateAction>
           <StateAction to="/pricing">Request an agreement</StateAction>
         </>
       );

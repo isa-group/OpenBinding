@@ -139,14 +139,14 @@ describe('what a registration points at', () => {
 });
 
 describe('the plan’s room for federated engines', () => {
-  it('uses the usage the gateway reports', () => {
-    expect(allowanceOf(usageOf('RESEARCH', 2, 5), 0)).toEqual({ plan: 'RESEARCH', used: 2, limit: 5 });
+  it('takes the plan’s allowance from the plan and counts the own registrations itself', () => {
+    expect(allowanceOf(usageOf('RESEARCH', 5), 2)).toEqual({ plan: 'RESEARCH', used: 2, limit: 5 });
+    expect(allowanceOf(usageOf('BASIC', 1), 1)).toEqual({ plan: 'BASIC', used: 1, limit: 1 });
   });
 
-  it('falls back to the allowance and the count of own registrations, and says nothing when there is none', () => {
-    const noLimits = { ...usageOf('BASIC', 0, 1), limits: {} };
-    expect(allowanceOf(noLimits, 1)).toEqual({ plan: 'BASIC', used: 1, limit: 1 });
-    expect(allowanceOf({ ...noLimits, capabilities: {} }, 1)).toBeNull();
+  it('reads an unlimited allowance as no limit, and says nothing when the plan names none', () => {
+    expect(allowanceOf(usageOf('PRO', null), 3)).toEqual({ plan: 'PRO', used: 3, limit: null });
+    expect(allowanceOf({ ...usageOf('BASIC', 1), capabilities: {} }, 1)).toBeNull();
     expect(allowanceOf(null, 1)).toBeNull();
   });
 });

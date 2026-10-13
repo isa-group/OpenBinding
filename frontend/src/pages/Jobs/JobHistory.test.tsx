@@ -146,13 +146,13 @@ describe('My jobs', () => {
   });
 
   it('refuses a retry when an allowance is used up and says so (402)', async () => {
-    jobsApi.retry.mockRejectedValue(new QuotaError('quota_exceeded', 'Study runs exhausted.', { limit_id: 'studyRuns', limit: 10, used: 10, renews_at: '2026-11-01T00:00:00Z' }));
+    jobsApi.retry.mockRejectedValue(new QuotaError('quota_exceeded', 'API keys exhausted.', { limit_id: 'apiKeys', limit: 10, used: 10 }));
     renderHistory();
 
     const list = await screen.findByRole('list', { name: 'Your jobs' });
     fireEvent.click(within(within(list).getAllByRole('listitem')[2]).getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByText('Retry refused: Out of study runs (402 · quota_exceeded)')).toBeInTheDocument();
-    expect(screen.getByText(/They renew on Nov 1, 2026\./)).toBeInTheDocument();
+    expect(await screen.findByText('Retry refused: Out of API keys (402 · quota_exceeded)')).toBeInTheDocument();
+    expect(screen.getByText(/You’ve used 10 of 10 API keys\./)).toBeInTheDocument();
   });
 
   it('starts a run from nothing when there is nothing within the retention window', async () => {

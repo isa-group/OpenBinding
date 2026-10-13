@@ -37,8 +37,8 @@ const LIMIT_OUTCOMES = [
   },
   {
     mark: 'Wait',
-    title: 'Out of monthly quota or busy slots',
-    body: 'A used-up monthly quota (402) renews on its date. Busy job slots (429) free up in seconds. If both happen, you see the 402.',
+    title: 'A plan allowance reached or busy slots',
+    body: 'A plan allowance that is full (402) stays full until you free something or change plan. Busy job slots (429) free up in seconds.',
   },
   {
     mark: 'Rejected',
@@ -189,7 +189,7 @@ function ContactDialog({ plan, onClose }: { plan: string; onClose: () => void })
       <p>{plan} is arranged as an institutional agreement. An administrator updates your contract; nothing is charged here.</p>
       <ul className="pricing-contact-list">
         <li>Who it’s for: your organization or group</li>
-        <li>Expected usage: concurrent jobs, study runs, storage</li>
+        <li>What you need: concurrent jobs, studies, storage</li>
         <li>Add-ons you’d need</li>
       </ul>
       <p className="pricing-contact-note">This page doesn’t send anything. Take these details to the people who run this OpenBinding deployment, or to your institution’s administrator.</p>
@@ -223,8 +223,8 @@ function Entitlements({ view, plan }: { view: PricingView; plan: string }) {
         ))}
       </div>
       <p className="pricing-mine-foot">
-        <Link to="/app/account/usage" viewTransition>See my usage</Link>
-        <span>These states only guide the interface. The server checks every action and your real balance.</span>
+        <Link to="/app/account/usage" viewTransition>See your plan</Link>
+        <span>These states only guide the interface. The server checks every action.</span>
       </p>
     </section>
   );

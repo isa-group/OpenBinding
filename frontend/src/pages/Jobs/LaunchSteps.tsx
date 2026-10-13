@@ -18,6 +18,8 @@ export interface Prepared {
   analysis: { state: 'ok'; result: SnapshotAnalysis } | { state: 'failed'; refusal: Refusal };
   /** Some candidate of the compiled form holds a range, so only a mode that declares interval values can run it. */
   ranges?: boolean;
+  /** How many criteria the compiled problem optimizes; `null` when the compiled form could not be read. */
+  criteria?: number | null;
 }
 
 // --- 1 · what to solve

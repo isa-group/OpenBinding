@@ -43,7 +43,7 @@ interface Snapshot {
   /** The direct members of each visible ancestor: the roles that reach this organization from above. */
   above: Array<{ organization: Organization; members: OrganizationMember[] }>;
   /** `null`: the sponsor’s own usage is not visible, or could not be read. */
-  seats: { used: number; limit: number } | null;
+  seats: { limit: number } | null;
 }
 
 interface PendingInvitation {
@@ -226,8 +226,8 @@ function MembersBody({ organization }: { organization: Organization }) {
     let seats: Snapshot['seats'] = null;
     if (sponsorIsMe) {
       const usage = await apiClient.getOwnUsage().catch(() => null);
-      const tracked = usage?.limits.members;
-      if (tracked && Number.isFinite(tracked.limit)) seats = { used: Math.max(0, tracked.used), limit: tracked.limit };
+      const limit = usage?.capabilities.members;
+      if (typeof limit === 'number' && Number.isFinite(limit)) seats = { limit };
     }
     return { direct, above: levels.filter((level): level is NonNullable<typeof level> => level !== null), seats };
   });
@@ -360,7 +360,7 @@ function MembersBody({ organization }: { organization: Organization }) {
           tone="error"
           action={refusal.quota ? (
             <span className="org-notice-links">
-              <Link to="/app/account/usage">See sponsor usage</Link>
+              <Link to="/app/account/usage">See your plan</Link>
               <Link to={`/app/${slug}/settings`}>Change sponsor</Link>
             </span>
           ) : undefined}
@@ -372,11 +372,8 @@ function MembersBody({ organization }: { organization: Organization }) {
       {seats && (
         <div className="org-seats">
           <span>
-            Unique members across everything {sponsorIsMe ? 'you' : sponsor} sponsor{sponsorIsMe ? '' : 's'}: <strong>{seats.used} of {seats.limit}</strong>.
+            Your plan allows up to <strong>{seats.limit}</strong> unique members across everything you sponsor.
             {' '}Someone in two of those organizations counts once.
-          </span>
-          <span className="org-seat-dots" aria-hidden="true">
-            {Array.from({ length: Math.min(seats.limit, 20) }, (_, index) => <i key={index} className={index < seats.used ? 'is-used' : undefined} />)}
           </span>
         </div>
       )}

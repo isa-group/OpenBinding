@@ -42,7 +42,7 @@ const HEADING: Record<string, RegExp> = {
   'sys-states': /States and recoverable errors/,
   'pub-pricing': /Plans for every kind of binding work/,
   'acct-profile': /^Account$/,
-  'acct-usage': /Usage & plan/,
+  'acct-usage': /Plan & permissions/,
   'acct-keys': /^API keys$/,
   'acct-key-new': /New API key/,
   'acct-identities': /^Identities$/,

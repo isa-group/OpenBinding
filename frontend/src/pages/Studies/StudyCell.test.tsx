@@ -108,7 +108,7 @@ describe('One cell of a run', () => {
   });
 
   it.each([
-    ['402', new QuotaError('quota_exceeded', 'full', { limit_id: 'studyRuns', limit: 50, used: 50 }), /No study runs left this month \(402 · quota_exceeded\)/],
+    ['402', new QuotaError('quota_exceeded', 'full', { limit_id: 'studies', limit: 50, used: 50 }), /The sponsor has no study definitions left \(402 · quota_exceeded\)/],
     ['429', refusal(429, 'concurrency_limit_exceeded', 'busy'), /All your job slots are busy \(429 · concurrency_limit_exceeded\)/],
     ['409', refusal(409, 'sealed_evidence'), /A sealed report cites this run \(409 · sealed_evidence\)/],
   ])('says why a retry was refused: %s', async (_name, failure, expected) => {

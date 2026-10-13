@@ -263,33 +263,14 @@ export function numberText(value: number): string {
   return value.toLocaleString('en-US', { maximumFractionDigits: 4 });
 }
 
-// --- the quota forecast of a launch
+// --- the size forecast of a launch
 
 export interface ForecastBar {
   label: string;
-  /** Share of the limit already used, 0-100. */
+  /** Share of the plan's ceiling the problem takes, 0-100. */
   before: number;
-  /** Share this run adds, 0-100. */
+  /** Always 0: a run adds nothing to a counter, because nothing is metered. */
   add: number;
   over: boolean;
   text: string;
-}
-
-/**
- * A used/limit bar with the part this run adds. `used` is `null` when the usage could not be read, and `limit` is `null`
- * (or 0) when the plan has no limit.
- */
-export function forecastBar(label: string, used: number | null, limit: number | null, add: number, unit: string): ForecastBar {
-  const n = (value: number) => value.toLocaleString('en-US');
-  if (!limit) return { label, before: 0, add: 0, over: false, text: 'No limit on your plan' };
-  if (used === null) {
-    return { label, before: 0, add: Math.min(100, Math.round((add / limit) * 100)), over: false, text: `Your usage can’t be read right now · limit ${n(limit)}${unit}` };
-  }
-  const before = Math.min(100, Math.round((used / limit) * 100));
-  const over = used + add > limit;
-  return {
-    label, before, over,
-    add: Math.max(2, Math.min(100 - before, Math.round((add / limit) * 100))),
-    text: `${n(used)} used + up to ${n(add)} = ${n(used + add)} of ${n(limit)}${unit}${over ? ' · over the limit' : ''}`,
-  };
 }

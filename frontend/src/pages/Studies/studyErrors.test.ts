@@ -15,10 +15,10 @@ describe('why the gateway refuses a study', () => {
     expect(refusal.limitId).toBe('studies');
   });
 
-  it('says the month’s study runs are used up, and when they renew', () => {
-    const refusal = studyRefusal(new QuotaError('quota_exceeded', 'full', { limit_id: 'studyRuns', limit: 3, used: 3, renews_at: '2026-11-01T00:00:00Z' }), 'run');
-    expect(refusal.title).toBe('No study runs left this month (402 · quota_exceeded)');
-    expect(refusal.text).toBe('You’ve used 3 of 3 study runs. They renew on Nov 1, 2026. Nothing was started.');
+  it('says which limit of the plan was reached, and promises no renewal: nothing renews', () => {
+    const refusal = studyRefusal(new QuotaError('quota_exceeded', 'full', { limit_id: 'storageBytes', limit: 3, used: 3, renews_at: '2026-11-01T00:00:00Z' }), 'run');
+    expect(refusal.title).toBe('Out of storage (402 · quota_exceeded)');
+    expect(refusal.text).toBe('You’ve used 3 of 3 storage. Nothing was started.');
   });
 
   it('keeps the slots a 429 names and how long to wait', () => {

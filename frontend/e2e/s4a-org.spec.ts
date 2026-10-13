@@ -110,27 +110,13 @@ const auditEvents = [
   },
 ];
 
-const tracked = (id: string, limit: number, used: number, unit: string, renews: string | null = null) =>
-  ({ limit_id: id, limit, used, remaining: Math.max(0, limit - used), unit, renews_at: renews });
-
-const RENEWS = '2026-11-01T00:00:00Z';
-
-/** What the gateway reports for the RESEARCH plan of the pricing 0.1.0, with some of the sponsor's room used. */
+/** What the gateway reports for the RESEARCH plan of the pricing 0.1.0: the plan and its limits, with no consumption. */
 const researchUsage = () => ({
   plan: 'RESEARCH',
   contract_pending: false,
   features: { collaboration: true, solve: true },
   capabilities: {
-    studyRuns: 100, concurrentJobs: 3, organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120,
-  },
-  limits: {
-    studyRuns: tracked('studyRuns', 100, 18, 'run/month', RENEWS),
-    concurrentJobs: tracked('concurrentJobs', 3, 1, 'job'),
-    organizations: tracked('organizations', 5, 2, 'organization'),
-    members: tracked('members', 15, 3, 'member'),
-    projects: tracked('projects', 50, 3, 'project'),
-    privateProjects: tracked('privateProjects', 30, 2, 'project'),
-    storageBytes: tracked('storageBytes', 5_368_709_120, 52_428_800, 'byte'),
+    concurrentJobs: 3, organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120,
   },
 });
 
@@ -378,8 +364,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(activity.getByText('Running')).toBeVisible();
       await expect(activity.getByText('No feasible binding')).toBeVisible();
       await expect(activity.getByRole('link', { name: 'All jobs' })).toHaveAttribute('href', '/app/jobs');
-      await expect(main.getByRole('meter', { name: 'Study runs' })).toHaveAttribute('aria-valuenow', '18');
-      await expect(main.getByText('Monthly limits renew Nov 1, 2026. Job slots free up as runs finish.')).toBeVisible();
+      const plan = main.getByRole('region', { name: 'Your plan' });
+      await expect(plan.getByText('RESEARCH', { exact: true })).toBeVisible();
+      await expect(plan.getByText('Up to 3')).toBeVisible();
+      await expect(plan.getByRole('link', { name: 'SPACE' })).toHaveAttribute('href', 'https://space.score.us.es');
+      await expect(plan.getByRole('link', { name: 'SPHERE' })).toHaveAttribute('href', 'https://sphere.score.us.es');
+      await expect(main.getByRole('meter')).toHaveCount(0);
       await expect(main.getByText('Your OpenBinding agreement changed')).toBeVisible();
       await capture(page, testInfo, `home-${name}-success`);
       if (isMobile) {
@@ -392,19 +382,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.reload();
       await expect(main.getByRole('region', { name: 'Recent activity' }).getByRole('alert')).toContainText('Recent jobs couldn’t be loaded (503). The other blocks are unaffected.');
       await expect(main.getByRole('list', { name: 'Organizations' }).getByRole('link')).toHaveCount(5);
-      await expect(main.getByRole('meter', { name: 'Study runs' })).toBeVisible();
+      await expect(main.getByRole('region', { name: 'Your plan' }).getByText('RESEARCH', { exact: true })).toBeVisible();
       await capture(page, testInfo, `home-${name}-activity-503`);
       state.refuse.jobs = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
       await expect(main.getByRole('region', { name: 'Recent activity' }).getByText('Running')).toBeVisible();
 
-      // Limits can be unavailable on their own too.
-      state.refuse.usage = detail(503, 'pricing_unavailable', 'Quotas cannot be read right now.');
+      // The plan can be unavailable on its own too.
+      state.refuse.usage = detail(503, 'pricing_unavailable', 'The plan cannot be read right now.');
       await page.reload();
-      await expect(main.getByRole('region', { name: 'This month' }).getByRole('alert')).toContainText('Your plan limits can’t be loaded right now (503 · pricing_unavailable).');
+      await expect(main.getByRole('region', { name: 'Your plan' }).getByRole('alert')).toContainText('Your plan can’t be loaded right now (503 · pricing_unavailable).');
       state.refuse.usage = undefined;
-      await main.getByRole('region', { name: 'This month' }).getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('meter', { name: 'Study runs' })).toBeVisible();
+      await main.getByRole('region', { name: 'Your plan' }).getByRole('button', { name: 'Retry' }).click();
+      await expect(main.getByRole('region', { name: 'Your plan' }).getByText('RESEARCH', { exact: true })).toBeVisible();
 
       const read = request(page, 'POST', '/v1/notifications/n1/read');
       await main.getByRole('button', { name: 'Mark as read' }).click();
@@ -451,7 +441,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const preview = main.getByRole('list', { name: 'Organization tree preview' });
       await expect(preview.getByRole('listitem')).toHaveCount(2);
       await expect(preview.getByText('NEW', { exact: true })).toBeVisible();
-      await expect(main.getByRole('meter', { name: 'Organizations' })).toHaveAttribute('aria-valuenow', '3');
+      await expect(main.getByText('Up to 5', { exact: true })).toBeVisible();
+      await expect(main.getByRole('meter')).toHaveCount(0);
       await capture(page, testInfo, `create-${name}-2-place`);
 
       await next();
@@ -479,7 +470,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await create.click();
       const full = main.getByRole('alert');
       await expect(full).toContainText('The sponsor has no organizations left (402 · sponsor_quota_exceeded). You already sponsor 5 of 5 organizations.');
-      await expect(full.getByRole('link', { name: 'See usage' })).toHaveAttribute('href', '/app/account/usage');
+      await expect(full.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       await expect(full.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
       await capture(page, testInfo, `create-${name}-402`);
 
@@ -528,7 +519,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(subs.getByRole('link', { name: /QoS Lab/ })).toHaveAttribute('href', '/app/qos-lab');
       await expect(subs.getByText('Inherited from ISA Demo Group')).toBeVisible();
       const room = main.getByRole('heading', { name: 'Sponsor’s room' }).locator('xpath=ancestor::section[1]');
-      await expect(room.getByRole('meter', { name: 'Organizations' })).toHaveAttribute('aria-valuenow', '2');
+      await expect(room.getByText('Up to 5', { exact: true })).toBeVisible();
+      await expect(room.getByRole('meter')).toHaveCount(0);
       await expect(room.getByText('Counted across every organization you sponsor.')).toBeVisible();
       await capture(page, testInfo, `overview-${name}-success`);
 
@@ -540,7 +532,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'New project' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'Create the first project' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'Audit' })).toHaveCount(0);
-      await expect(main.getByText(/nora’s usage is visible only to them/)).toBeVisible();
+      await expect(main.getByText(/nora’s plan is visible only to them/)).toBeVisible();
       await capture(page, testInfo, `overview-${name}-viewer-empty`);
 
       // The same neutral message for an organization that does not exist and one the account is not in.
@@ -560,7 +552,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto('/app/isa-demo');
       await expect(main.getByText('Projects couldn’t be loaded (503). Sub-organizations and usage are unaffected.')).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Sub-organizations' })).toBeVisible();
-      await expect(main.getByRole('meter', { name: 'Organizations' })).toBeVisible();
+      await expect(main.getByText('Up to 5', { exact: true })).toBeVisible();
       await capture(page, testInfo, `overview-${name}-projects-503`);
       state.refuse.projects = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();

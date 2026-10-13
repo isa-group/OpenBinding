@@ -53,7 +53,6 @@ export function usageOf(over: Partial<UsageView> = {}): UsageView {
     contract_pending: false,
     features: {},
     capabilities: { maxPayloadBytes: 134_217_728, storageBytes: 5_368_709_120, collections: 50 },
-    limits: {},
     ...over,
   };
 }
