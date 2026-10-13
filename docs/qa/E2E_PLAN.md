@@ -224,11 +224,9 @@ owner's walk and of the viewer's walk (`Error: mobile login` / `mobile panel` / 
   disabled while any settings field is `invalid`, and `parseAmount` (`launchModel.ts`) accepts only values `> 0`. The manifest of
   `random-search` (`schemas/bim/v1/manifests/random-search.json`) declares `seed` with `"default": 0`, a numeric option, so
   `optionInputs` offers it with `0` and `planOptions` marks it invalid: **the launch screen cannot send random-search with the engine's own
-  defaults** (a product defect in `frontend/src`, outside this task's scope; `parseAmount` should accept `0` for the options that are not
-  budgets, or the form should not validate the default). The click on a disabled button waited 30 s and the unhandled `waitForResponse`
-  promise, started just before it, was what the report showed. The spec now (a) types `1` into any field that is marked invalid, as a
-  person has to, recording a `product-finding` annotation and an `E2E_FINDING …` log line so the defect is not silently absorbed;
-  (b) asserts that `Send run` is enabled, with the text of the review in the message; (c) starts `waitForResponse` and the click together
+  defaults** (a product defect in `frontend/src`; fixed afterwards, see "Second real run" below). The click on a disabled button waited 30 s and the unhandled `waitForResponse`
+  promise, started just before it, was what the report showed. The spec then (a) typed `1` into any field marked invalid, as a
+  person had to (removed once the defect was fixed); (b) asserts that `Send run` is enabled, with the text of the review in the message; (c) starts `waitForResponse` and the click together
   (`Promise.all`) and matches on the path of the URL. The assertions on the result (202, `optimization`, the result heading) are as they
   were. If the next run still fails there, the message now says which of the two it is.
 - **The three visual QA failures** are failures of the programmatic checks (`VQA_PROBLEM`). Not knowing which one, **no criterion was
@@ -244,6 +242,35 @@ owner's walk and of the viewer's walk (`Error: mobile login` / `mobile panel` / 
   If the next run shows a finding that is a legitimate pattern, the criterion is to be changed in `visual-qa.spec.ts` with the reason
   written beside it and here.
 
+### Second real run in the lab: 27 passed, 3 failed (before the change below)
+
+Same lab, Chromium in the container (27 passed / 3 failed, as reported by the controller). The visual QA reported 131 `VQA_PROBLEM`;
+the ones that were visible were all `touch target under 24px` on mobile: `a.app-brand "OpenBinding home"` 123x22 (in
+`.app-header-start`), the `Home` link 34x19, `+ Add` 37x20 (in `.org-card-head`), and a list of links 358x22 (`Explore`, `Engines`,
+`Pricing`, `Status`, `Profiles & dialects`, `Schemas`, `Examples`, `Workbench`: navigation and footer). The other 121 were not seen,
+because the summary cut the list at 35 lines. The settings defect of `04` described above is confirmed by spec 04 (it needed the
+workaround). No criterion was relaxed. What changed (not yet run in the lab):
+
+- **`summary.mjs` groups the findings.** Between `VQA_PROBLEMS_BEGIN` and `VQA_PROBLEMS_END` it prints `VQA_TOTAL problems=N groups=N` and
+  one line per (viewport, page, kind of problem), the biggest first and at most 40:
+  `VQA_GROUP viewport=mobile page=panel kind="touch target under 24px" count=12 examples=["a.app-brand \"OpenBinding home\" 123x22 …", …]`
+  (the kind is the text before the first `: ` of the finding; at most 3 examples of 110 characters). A kind with many findings can no
+  longer hide another; if there are more than 40 groups, `VQA_GROUPS_OMITTED groups=N problems=N` counts what is left out. The raw
+  `VQA_PROBLEM` lines are still in the log above. `E2E_SUMMARY` stays the last line.
+- **Touch targets on a phone** (`frontend/src/styles/globals.css`, `@media (max-width: 640px)`): buttons, summaries, selects, `role`
+  buttons/tabs and text fields get `min-height: 24px`; links inside `nav`, `header`, `footer`, `aside` or an element whose class
+  contains `crumb`, `-head`, `-nav`, `-actions` or `-brand` become `inline-flex` with `align-items: center` and `min-height: 24px`,
+  except those inside a paragraph, heading, `dd` or `small` (a link in a sentence is exempt, as in the check). The link rule is inside
+  `:where()`, so it has no specificity: a component that sets its own `display` keeps it and the desktop layout is untouched (the rule
+  only exists under 640 px). The criterion in `visual-qa.spec.ts` is unchanged. Whether it clears all 131 findings is for the next run
+  to say; a link outside those contexts that is shorter than 24 px will still be reported, by name.
+- **Product defect fixed: `Send run` was disabled with the engine's own defaults.** `parseAmount` accepted only values `> 0`, and
+  `random-search` declares `seed` with default `0`. Now a budget (`time_budget_ms`, `iterations`, `max_evaluations`) must still be
+  above 0, while any other numeric option accepts `0` (and must be a whole number, `0` or more, when its schema type is `integer`); the
+  message reads `A whole number, 0 or more` for those and `A positive number` for a budget. Unit tests in `launchModel.test.ts`.
+  Spec `04` no longer types over any field except `Iterations`: it asserts that no field is invalid and that `Send run` is enabled with
+  the defaults, and keeps the assertions on the 202, `optimization` and the result.
+
 ### Inside the lab (the `e2e` service)
 
 Nothing is needed on a workstation or through a tunnel. Sequence with `lab_compose` (variables in `docs/DEMO.md`):
@@ -258,10 +285,11 @@ Nothing is needed on a workstation or through a tunnel. Sequence with `lab_compo
 5. `logs e2e`.
 
 What `logs e2e` contains: the `list` reporter, then (from `e2e/live/summary.mjs`, in the last lines, which are the ones the controller
-sees; at most about 60 lines in all) `E2E_FAILED project=… spec=… title="…" error="<first line>"` and, right after it,
+sees; at most about 70 lines in all) `E2E_FAILED project=… spec=… title="…" error="<first line>"` and, right after it,
 `E2E_FAILED_DETAIL project=… title="…" error="<every error of the test, one line, at most 1200 characters>"` for each failure (at most 10),
-`E2E_ERROR …` for errors of the run itself, every finding of the visual QA again between `VQA_PROBLEMS_BEGIN` and `VQA_PROBLEMS_END`
-(one `VQA_PROBLEM …` per line, at most 300 characters and 35 lines), and the parseable verdict, always the last of them
+`E2E_ERROR …` for errors of the run itself, every finding of the visual QA again, grouped, between `VQA_PROBLEMS_BEGIN` and
+`VQA_PROBLEMS_END` (`VQA_TOTAL`, then one `VQA_GROUP …` per viewport, page and kind, at most 40; see the second run above), and the
+parseable verdict, always the last of them
 
 ```
 E2E_SUMMARY passed=N failed=N skipped=N

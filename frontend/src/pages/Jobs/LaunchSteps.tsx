@@ -10,6 +10,7 @@ import { useCountdown } from '../../components/ui/useCountdown';
 import { Choice } from '../Organization/parts';
 import type { Refusal } from './jobErrors';
 import type { ForecastBar } from './jobsModel';
+import { allowsZero } from './launchModel';
 import type { ModeChoice, OptionPlan, SettingsSource, SourceChoice } from './launchModel';
 
 export interface Prepared {
@@ -113,7 +114,7 @@ function OptionsTable({ plans, values, onChange }: { plans: readonly OptionPlan[
                       />
                     </label>{' '}
                     <span className="org-muted">{input.unit}</span>
-                    {plan.invalid && <small className="job-invalid">A positive number</small>}
+                    {plan.invalid && <small className="job-invalid">{allowsZero(input) ? `${input.integer ? 'A whole number' : 'A number'}, 0 or more` : 'A positive number'}</small>}
                   </td>
                   <td data-label="Your plan allows">{input.kind === 'other' ? 'Not reduced (shape)' : input.ceiling !== null ? amount(input.ceiling, input.unit) : 'No ceiling on your plan'}</td>
                   <td data-label="Will run with">

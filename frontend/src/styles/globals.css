@@ -472,6 +472,23 @@ html:active-view-transition :where(
   .page-intro { grid-template-columns: 1fr; align-items: start; }
 }
 
+/*
+ * Touch targets on a phone: every control is at least 24 px high (WCAG 2.5.8; e2e/live/visual-qa.spec.ts measures it). The links of the
+ * navigation, the header, the footer, the breadcrumbs and the head of a card are laid out as a box that centres its text; a link that sits
+ * in a line of text keeps its line, which the criterion exempts. The link rule has no specificity (`:where()`), so a component that sets
+ * its own `display` (a card laid out as a grid, say) keeps it; the minimum height is only ever added.
+ */
+@media (max-width: 640px) {
+  button, summary, select, [role='button'], [role='tab'],
+  input:not([type='hidden'], [type='checkbox'], [type='radio']) { min-height: 24px; }
+
+  :where(:is(nav, header, footer, aside, [class*='crumb'], [class*='-head'], [class*='-nav'], [class*='-actions'], [class*='-brand']) a[href]:not(:is(p, h1, h2, h3, h4, h5, h6, dd, small) a)) {
+    display: inline-flex;
+    min-height: 24px;
+    align-items: center;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after {

@@ -230,17 +230,24 @@ export interface OptionPlan {
   invalid: boolean;
 }
 
-export function parseAmount(raw: string): number | null | 'invalid' {
+/** A budget (time, iterations, evaluations) must be above 0; any other option (a seed, say) may be 0, and a whole number when its schema says integer. */
+export function allowsZero(input: OptionInput): boolean {
+  return input.kind === 'other';
+}
+
+export function parseAmount(raw: string, { zero = false, integer = false }: { zero?: boolean; integer?: boolean } = {}): number | null | 'invalid' {
   const cleaned = raw.replace(/[\s,]/g, '');
   if (!cleaned) return null;
   const value = Number(cleaned);
-  return Number.isFinite(value) && value > 0 ? value : 'invalid';
+  if (!Number.isFinite(value) || (zero ? value < 0 : value <= 0)) return 'invalid';
+  return integer && !Number.isInteger(value) ? 'invalid' : value;
 }
 
 export function planOptions(inputs: readonly OptionInput[], values: Readonly<Record<string, string>>): OptionPlan[] {
   return inputs.map((input) => {
     const raw = input.name in values ? values[input.name] : input.default !== null ? String(input.default) : '';
-    const parsed = parseAmount(raw);
+    const zero = allowsZero(input);
+    const parsed = parseAmount(raw, { zero, integer: zero && input.integer });
     if (parsed === 'invalid') return { input, asked: null, effective: null, reduced: false, invalid: true };
     const effective = parsed === null ? null : input.ceiling !== null ? Math.min(parsed, input.ceiling) : parsed;
     return { input, asked: parsed, effective, reduced: parsed !== null && effective !== null && effective < parsed, invalid: false };

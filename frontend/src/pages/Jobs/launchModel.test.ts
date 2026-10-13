@@ -168,6 +168,26 @@ describe('settings against the plan', () => {
     expect(parseAmount(' 1,200 ')).toBe(1200);
     expect(parseAmount('')).toBeNull();
   });
+
+  it('accepts 0 for an option that is not a budget, such as a seed, and keeps refusing it for a budget', () => {
+    const seeded = optionInputs(
+      modeOfCatalog([{ ...catalog[0], modes: [mode('sampling', { seed: { type: 'integer', default: 0 }, iterations: { type: 'integer', default: 100 }, temperature: { type: 'number', default: 0.5 } })] }], modeChoices(null, catalog)[0]),
+      planCeilingsOf(usage(), null, 'BASIC'),
+    );
+    // The defaults the manifest declares are sendable as they are.
+    const defaults = planOptions(seeded, {});
+    expect(defaults.map((plan) => [plan.input.name, plan.invalid, plan.asked])).toEqual([['seed', false, 0], ['iterations', false, 100], ['temperature', false, 0.5]]);
+    expect(requestOptions(defaults)).toEqual({ seed: 0, iterations: 100, temperature: 0.5 });
+    // A budget is still above 0; a seed is a whole number, 0 or more.
+    expect(planOptions(seeded, { iterations: '0' })[1].invalid).toBe(true);
+    expect(planOptions(seeded, { seed: '7' })[0]).toMatchObject({ invalid: false, asked: 7 });
+    expect(planOptions(seeded, { seed: '-1' })[0].invalid).toBe(true);
+    expect(planOptions(seeded, { seed: '1.5' })[0].invalid).toBe(true);
+    expect(planOptions(seeded, { temperature: '0' })[2]).toMatchObject({ invalid: false, asked: 0 });
+    expect(parseAmount('0', { zero: true })).toBe(0);
+    expect(parseAmount('-1', { zero: true })).toBe('invalid');
+    expect(parseAmount('2.5', { zero: true, integer: true })).toBe('invalid');
+  });
 });
 
 describe('the request', () => {
