@@ -1,13 +1,13 @@
 """B6 at head cd0e05f: internal error text reaching public responses.
 
-Closed here: a VIEWER's view of a failed job carries a fixed sentence, and an
-unhandled exception does not put its text in the public 500.
+Closed here: a VIEWER's view of a failed job carries a fixed sentence, an
+unhandled exception does not put its text in the public 500, and that 500
+carries a ``correlationId`` (contract C1; ``tests/test_public_errors.py``).
 
 Open here (``xfail(strict=True)``): the owner's view of ``result.error`` is the
 raw ``str(exc)`` (host names of engine endpoints, driver messages, whatever an
-engine wrote), the pricing 503s repeat the reason the SPACE / SPHERE clients
-gave (one of them to anonymous callers), and the gateway has no correlation id
-on its errors.
+engine wrote) and the pricing 503s repeat the reason the SPACE / SPHERE clients
+gave (one of them to anonymous callers).
 """
 
 from __future__ import annotations
@@ -177,9 +177,9 @@ async def test_an_unhandled_exception_does_not_put_its_text_in_the_public_500(
     assert "Traceback" not in response.text
 
 
-@OPEN
 async def test_the_public_500_carries_a_correlation_id(api_client, registration, monkeypatch):
-    """B6 open: no module of the gateway defines one (only ``bim-service`` does); a 500 cannot be matched to its log."""
+    """Closed (contract C1): the 500 is ``internal_error`` and names its log line in ``correlationId``."""
     response = await _unhandled_500(api_client, registration, monkeypatch)
 
     assert "correlation" in (response.text + repr(dict(response.headers))).lower()
+    assert response.json()["code"] == "internal_error"

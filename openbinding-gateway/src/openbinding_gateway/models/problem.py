@@ -13,6 +13,8 @@ Shape (RFC 9457 problem details, extended with ``code`` and ``diagnostics``)::
       ]
     }
 
+A 5xx document also carries ``correlationId`` (``core/public_errors.py``); a 4xx never does.
+
 Every 422 - a request Pydantic refuses, an ``HTTPException(422)`` raised by a
 route, a BIM compiler refusal, a refused pricing document - goes through
 :func:`problem_response`, so a client parses one shape.  The handlers that call
@@ -35,6 +37,18 @@ VALIDATION_ERROR = "validation_error"
 
 #: Keys the problem document owns; a route's extra fields never replace them.
 CANONICAL_KEYS = frozenset({"type", "title", "status", "code", "detail", "diagnostics"})
+
+#: Optional member of a 5xx document (never of a 4xx): the id that names the log line of the failure.
+CORRELATION_ID_KEY = "correlationId"
+
+#: Its declaration in the OpenAPI ``Problem`` schema.
+CORRELATION_ID_SCHEMA = {
+    "type": "string",
+    "description": (
+        "Only on 5xx. Identifies this failure in the gateway log, which records the cause; "
+        "the response never states it. Quote this id when reporting the error."
+    ),
+}
 
 #: Where FastAPI says a value came from (the first element of ``loc``).
 _PARAMETER_LOCATIONS = frozenset({"body", "query", "path", "header", "cookie"})

@@ -9064,6 +9064,10 @@
             "description": "Stable, machine-readable (`validation_error` by default).",
             "type": "string"
           },
+          "correlationId": {
+            "description": "Only on 5xx. Identifies this failure in the gateway log, which records the cause; the response never states it. Quote this id when reporting the error.",
+            "type": "string"
+          },
           "detail": {
             "description": "Human-readable summary.",
             "type": "string"

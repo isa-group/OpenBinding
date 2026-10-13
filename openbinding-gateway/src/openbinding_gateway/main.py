@@ -37,7 +37,10 @@ from .db.bootstrap import (
     seed_default_administrator,
 )
 from .integrations import bim as bim_integration
+from .core.public_errors import CorrelationIdMiddleware, internal_error_response
 from .models.problem import (
+    CORRELATION_ID_KEY,
+    CORRELATION_ID_SCHEMA,
     JSON_MEDIA_TYPE,
     PROBLEM_MEDIA_TYPE,
     PROBLEM_TYPE_BASE,
@@ -274,6 +277,11 @@ async def http_error(request: Request, exc: HTTPException):
     return await http_exception_handler(request, exc)
 
 
+async def unhandled_error(request: Request, exc: Exception):
+    """An exception nobody handled: a fixed 500 with the correlation id; the cause goes to the log only."""
+    return internal_error_response(request.scope, exc)
+
+
 async def health() -> dict[str, str]:
     return {"status": "ok"}
 
@@ -337,10 +345,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_exception_handler(RequestValidationError, request_validation_error)
     app.add_exception_handler(BimError, bim_error)
     app.add_exception_handler(HTTPException, http_error)
+    app.add_exception_handler(Exception, unhandled_error)
 
     # Added first, so it is the innermost: a 413 still leaves through the CORS and
     # telemetry layers, and nothing inside it reads a body it has not counted.
     app.add_middleware(BodyLimitMiddleware)
+    # Next, so telemetry and CORS see the 5xx documents with their correlationId.
+    app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
@@ -454,6 +465,7 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             "code": {"type": "string", "description": "Stable, machine-readable (`validation_error` by default)."},
             "detail": {"type": "string", "description": "Human-readable summary."},
             "diagnostics": {"type": "array", "items": {"$ref": "#/components/schemas/Diagnostic"}},
+            CORRELATION_ID_KEY: CORRELATION_ID_SCHEMA,
         },
         "additionalProperties": True,
     }
