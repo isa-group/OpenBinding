@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-slim AS base
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG NO_PROXY
@@ -80,6 +80,19 @@ RUN groupadd --system --gid 10001 openbinding \
  && mkdir -p /var/lib/openbinding/artifacts \
  && chown -R 10001:10001 /var/lib/openbinding \
  && chmod 750 /var/lib/openbinding/artifacts
+
+# The PostgreSQL test harness (compose.pgtest.json) builds this stage. It adds only the
+# tests on top of base, so the production image below never carries them and the harness
+# needs neither a bind mount of the checkout nor root. The tests are made world-readable
+# while still root, before USER takes effect.
+FROM base AS test
+COPY openbinding-gateway/tests/ tests/
+RUN chmod -R a+rX /app/tests
+USER 10001:10001
+
+# The final stage is the production image: builds without a `target` (docker-compose.yml,
+# compose.lab.json) end here. Keep it last.
+FROM base AS production
 
 USER 10001:10001
 

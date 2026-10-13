@@ -139,12 +139,12 @@ def test_compose_does_not_bind_the_space_directory(compose):
             assert "space" not in mount.get("source", "").split("/"), mount
 
 
-def test_the_only_mount_of_the_seed_is_the_tests_directory(compose):
-    # The image carries the code; the tests are the one thing it lacks.  Binds are read-only in the lab.
-    mounts = compose["services"]["seed"]["volumes"]
-    assert [(m["type"], m["source"], m["target"]) for m in mounts] == [
-        ("bind", "./openbinding-gateway/tests", "/app/tests")
-    ]
+def test_the_seed_bind_mounts_no_code(compose):
+    # The tests travel in the ``test`` stage of the image, so the seed needs no bind at all.
+    assert not compose["services"]["seed"].get("volumes")
+    for name, service in compose["services"].items():
+        for mount in service.get("volumes", []):
+            assert mount["type"] != "bind", f"{name} bind-mounts {mount.get('source')}"
 
 
 def test_postgres_has_healthcheck_and_seed_waits_for_it(compose):
@@ -170,16 +170,54 @@ def test_postgres_runs_as_non_root_with_pgdata_in_a_subdirectory(compose):
     assert postgres["environment"]["PGDATA"] == "/var/lib/postgresql/data/pgdata"
 
 
-def test_only_the_seed_runs_as_root_and_only_to_read_the_tests_bind(compose):
-    # The gateway image ends on USER 10001, and under rootless Docker that uid can be refused on a
-    # bind-mounted tests directory ("Permission denied", as the lab seed once was).  Root in a rootless
-    # container is the host user, so the seed reads the bind as its owner without any capability.  It is
-    # an ephemeral, tests-only container: read-only bind, no ports, no cap_add, no privileged, no
-    # socket, a private network.  The production image and Dockerfile are untouched.
-    services = compose["services"]
-    assert services["seed"]["user"] == "0:0"
-    for name in ("postgres", "image-builder"):
-        assert str(services[name]["user"]).split(":")[0] not in {"0", "root"}, name
+def test_no_service_runs_as_root(compose):
+    # The seed has no ``user``: it inherits USER 10001 of the ``test`` stage.
+    for name, service in compose["services"].items():
+        user = service.get("user")
+        if user is not None:
+            assert str(user).split(":")[0] not in {"0", "root"}, name
+    assert "user" not in compose["services"]["seed"]
+
+
+def test_image_builder_builds_the_test_stage(compose):
+    builder, seed = compose["services"]["image-builder"], compose["services"]["seed"]
+    assert builder["build"]["target"] == "test"
+    assert builder["image"] == seed["image"]
+
+
+def _dockerfile_stages() -> list[tuple[str, list[str]]]:
+    path = REPO_ROOT / "openbinding-gateway" / "Dockerfile"
+    if not path.is_file():
+        if os.environ.get(SKIP_VARIABLE) == "1":
+            pytest.skip(f"Dockerfile not found ({SKIP_VARIABLE}=1)")
+        pytest.fail(f"{path} not found")
+    stages: list[tuple[str, list[str]]] = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.upper().startswith("FROM "):
+            words = line.split()
+            name = words[3] if len(words) >= 4 and words[2].upper() == "AS" else ""
+            stages.append((name, []))
+        elif stages:
+            stages[-1][1].append(line)
+    return stages
+
+
+def test_dockerfile_last_stage_is_production_and_only_test_copies_the_tests(compose):
+    stages = _dockerfile_stages()
+    assert [name for name, _ in stages] == ["base", "test", "production"]
+    by_name = dict(stages)
+    for name in ("base", "production"):
+        assert not [l for l in by_name[name] if l.startswith("COPY") and "tests/" in l], name
+    assert any(l.startswith("COPY openbinding-gateway/tests/ tests/") for l in by_name["test"])
+    production = by_name["production"]
+    for keyword in ("USER ", "EXPOSE ", "ENV FORWARDED_ALLOW_IPS", "ENTRYPOINT ", "CMD "):
+        assert any(l.startswith(keyword) for l in production), keyword
+    for keyword in ("EXPOSE ", "ENTRYPOINT ", "CMD "):
+        assert not [l for l in by_name["base"] if l.startswith(keyword)], keyword
+    assert not [l for l in by_name["base"] if l.startswith("USER ")]
 
 
 def test_names_match_the_lab_compose_pattern(compose):
@@ -209,11 +247,9 @@ def test_seed_uses_the_gateway_dockerfile(compose):
     build = compose["services"]["image-builder"]["build"]
     dev = yaml.safe_load(dev_file.read_text(encoding="utf-8"))
     dev_build = dev["services"]["gateway-dev"]["build"]
-    assert (build["context"], build["dockerfile"], build.get("target")) == (
-        dev_build["context"],
-        dev_build["dockerfile"],
-        dev_build.get("target"),
-    )
+    assert (build["context"], build["dockerfile"]) == (dev_build["context"], dev_build["dockerfile"])
+    # The dev build takes the final (production) stage; only the harness selects ``test``.
+    assert build["target"] == "test" and "target" not in dev_build
 
 
 def test_seed_migrates_then_runs_pytest_and_keeps_its_exit_code(compose):

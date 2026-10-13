@@ -40,7 +40,8 @@
     "image-builder": {
       "build": {
         "context": ".",
-        "dockerfile": "openbinding-gateway/Dockerfile"
+        "dockerfile": "openbinding-gateway/Dockerfile",
+        "target": "test"
       },
       "image": "openbinding-pgtest-gateway:latest",
       "user": "65534:65534",
@@ -57,7 +58,6 @@
     "seed": {
       "profiles": ["seed"],
       "image": "openbinding-pgtest-gateway:latest",
-      "user": "0:0",
       "entrypoint": [],
       "working_dir": "/app",
       "command": [
@@ -75,13 +75,6 @@
         "PYTHONPATH": "/app/src",
         "PYTHONDONTWRITEBYTECODE": "1"
       },
-      "volumes": [
-        {
-          "type": "bind",
-          "source": "./openbinding-gateway/tests",
-          "target": "/app/tests"
-        }
-      ],
       "depends_on": {
         "postgres": {
           "condition": "service_healthy"

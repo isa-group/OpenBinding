@@ -21,8 +21,9 @@ What changed after the earlier run:
 - The compose-shape tests moved from `tests/concurrency/test_pg_harness.py` to
   `tests/test_pg_harness.py`, the ordinary gateway suite, where the checkout and the file exist.
   They are not skipped any more (see [Compose-shape tests](#compose-shape-tests)).
-- `seed` runs as `user: "0:0"` so it can read the bind-mounted tests (see
-  [Why the seed runs as root](#why-the-seed-runs-as-root)).
+- `seed` ran as `user: "0:0"` to read the bind-mounted tests. That is superseded: the tests now
+  come from the `test` stage of the image and nothing runs as root (see
+  [Design](#design-a-test-stage-no-root-no-bind)); the run above predates this change.
 
 ## Running
 
@@ -54,8 +55,8 @@ Services:
   database, healthcheck `pg_isready`, `mem_limit` 384m. No profile, so `up`
   starts it and `--wait` returns once it is healthy.
 - `image-builder` (no profile, so `up` builds and starts it): builds
-  `openbinding-gateway/Dockerfile` with the same context as `gateway-dev` (the
-  Dockerfile has no stages, so no `target`) and tags it
+  `openbinding-gateway/Dockerfile` with the same context as `gateway-dev` and
+  `target: "test"` (the stage with the tests) and tags it
   `openbinding-pgtest-gateway:latest`. It does nothing: `entrypoint: []`,
   `user: "65534:65534"`, `sleep 3600`, healthcheck `true`, no ports or mounts,
   `mem_limit` 64m, nothing that needs capabilities. It exists because `up --build`
@@ -63,7 +64,7 @@ Services:
   existing image: a `seed` with its own `build` ran stale code (missing new
   modules and migrations). Sharing the image makes every `up` refresh it.
 - `seed` (`profiles: ["seed"]`, so `up` does not start it): `image:
-  openbinding-pgtest-gateway:latest`, no `build`, `user: "0:0"`. It runs `alembic upgrade head`,
+  openbinding-pgtest-gateway:latest`, no `build`, no `user`, no volumes. It runs `alembic upgrade head`,
   then `pytest -p no:cacheprovider $DEMO_PYTEST_ARGS`; the container exit
   code is pytest's. The arguments come from the `DEMO_PYTEST_ARGS` variable,
   declared in the service `environment` as `"${DEMO_PYTEST_ARGS}"` (Compose
@@ -91,43 +92,32 @@ Format rules of lab_compose that the file follows (checked by
   the limits sum to 1216 MiB (384 + 64 + 768; lab ceiling: 4 GiB, harness test: 1.3 GiB =
   1331 MiB). The `user` change adds no memory.
 
-### Why the seed runs as root
+### Design: a `test` stage, no root, no bind
 
-The gateway image ends on `USER 10001:10001`. Under rootless Docker that uid can be refused on a
-bind-mounted directory of the host checkout (`Permission denied`, which is how the lab `seed`
-failed on `tools/`; that case was fixed by `COPY tools/` into the image). The tests are still
-bind-mounted here, so the options were:
+`openbinding-gateway/Dockerfile` has three stages:
 
-1. A test stage in the Dockerfile that copies `tests/` (the lab's own fix). It keeps the
-   production image untouched and needs no root, and it is the better long-term answer. It was
-   **not done**: `openbinding-gateway/Dockerfile` is outside the file scope of this change.
-   Pending, see below.
-2. Copy the tests into the production image: rejected, it thickens that image.
-3. `user: "0:0"` on `seed` only: chosen. In a rootless container uid 0 is the host user that owns
-   the checkout, so the bind is read as its owner, without any capability (the supervisor drops
-   them all). The container is ephemeral and tests-only: the bind is read-only, nothing is
-   published, there is no `cap_add`, `privileged` or socket, and the only network is the private
-   Compose one, where it reaches the test database. `postgres` (70:70) and `image-builder`
-   (65534:65534) stay non-root, and `tests/test_pg_harness.py` pins both facts.
+- `base`: everything the gateway needs (dependencies, code, alembic, schemas, examples, tools,
+  the 10001 user). No `USER`, `EXPOSE`, `ENV FORWARDED_ALLOW_IPS`, `ENTRYPOINT` or `CMD`.
+- `test`: `FROM base`, adds `tests/` (`chmod -R a+rX /app/tests`) and ends on `USER 10001:10001`.
+- `production`: `FROM base` plus the production metadata (`USER`, `EXPOSE`, `ENV`, `ENTRYPOINT`,
+  `CMD`). It is the **last** stage, so a build without `target` (`docker-compose.yml`,
+  `compose.lab.json`) still yields the production image, which never carries the tests.
 
-Record: the `seed` service runs as container root (`0:0`) of a **rootless** runtime, only in this
-ephemeral harness. The pending alternative is a dedicated `test` stage in the Dockerfile.
+`image-builder` sets `build.target: "test"`; `seed` reuses that image, has no `user` (it runs as
+10001 from the image) and no bind mount, so no rootless-Docker permission issue on a host
+directory arises and nothing runs as root. Only `postgres` (70:70) and `image-builder`
+(65534:65534) set a `user`, both non-root. `tests/test_pg_harness.py` pins this, and also that
+the last Dockerfile stage is production and that `tests/` is copied only in `test`.
 
-If the Dockerfile gets a `test` stage, set `target` on `image-builder`, drop the bind mount and
-the `user`, and update the tests.
+**Not yet verified:** whether the lab provider accepts `build.target`. Nothing here could run
+Docker; the controller's first real `lab_compose` run decides it. If it is refused, the fallback
+is a separate Dockerfile for the harness.
 
 ### Mounts
 
-The runner image already contains `src`, `alembic`, `alembic.ini`,
-`schemas`, `examples` and `space/pricing/openbinding.yml` (see the Dockerfile),
-but not the tests, so the only mount is `./openbinding-gateway/tests` on
-`/app/tests` (bind, read-only); the image is enough otherwise (no further mount
-or image change was needed in the 2026-10-13 run). The earlier mounts of the whole source tree
-and of `docs`, `engines`, `pricings` and `space` are gone: nothing in
-`tests/concurrency` reads `docs`, `engines` or `pricings`, and binds are always
-read-only, so nested mounts below a mounted `/app` could not create their mount
-points. lab_compose accepted the bind in the 2026-10-13 run. The postgres data directory is a `tmpfs` volume of 160 MiB,
-inside the 384m container limit.
+None. The `test` image holds `src`, `alembic`, `alembic.ini`, `schemas`, `examples`, `tools` and
+`tests`. The postgres data directory is a `tmpfs` volume of 160 MiB, inside the 384m container
+limit.
 
 `space/` dependency: `tests/concurrency/test_job_leases_pg.py` reads the pricing
 catalogue through `tests/_pricing.py`, which finds `/app/space/pricing/openbinding.yml`
@@ -141,11 +131,11 @@ candidate paths must be updated, or the image build and this test fail.
 sh tools/test_pg.sh
 ```
 
-Needs Docker with the compose plugin. It is the supervisor's flow:
-`docker compose -f compose.pgtest.json up --detach --wait postgres`, then
-`run --rm --no-deps seed` (the script's exit code is pytest's; set
-`DEMO_PYTEST_ARGS`, e.g. `-rfE --tb=short tests/concurrency`), then `down
---volumes` (the data is in a tmpfs; no named volume exists).
+The official harness is `lab_compose` (above); the script mirrors it for a machine with Docker and
+the compose plugin: `docker compose -f compose.pgtest.json up --build --detach --wait postgres
+image-builder`, then `run --rm --no-deps seed` (the script's exit code is pytest's;
+`DEMO_PYTEST_ARGS` defaults to `-rfE --tb=short tests/concurrency`), then `down --volumes` (the
+data is in a tmpfs; no named volume exists). There is no `runner` service.
 
 Against your own server instead:
 
@@ -250,7 +240,7 @@ audit event.
 Observed in the lab at base `d823cd8d` (PostgreSQL 16, `compose.pgtest.json`, `lab_compose up` +
 `seed`, `DEMO_PYTEST_ARGS='-rfEs --tb=short --durations=8 tests/concurrency'`):
 **58 passed, 0 skipped in 12 s** (files and counts in the Status paragraph at the top). The seed ran as
-`0:0` and read the bind without `Permission denied`.
+`0:0` and read the bind without `Permission denied` (old design; the `test` stage design has not run yet).
 
 For comparison, the ordinary-suite run (no `TEST_DATABASE_URL`) of
 `tests/concurrency tests/test_pg_harness.py ../lab/tests` gave **129 passed, 31 skipped**
@@ -258,12 +248,12 @@ For comparison, the ordinary-suite run (no `TEST_DATABASE_URL`) of
 compose-shape test is skipped).
 
 - Exit code 0. Any `SKIPPED` in the lab run is a defect (`-rs` prints the reasons).
-- If `seed` shows `Permission denied` on `/app/tests`, the `user: "0:0"` did not take effect
-  or the runtime refuses even the bind owner: report it, do not add capabilities.
+- If `seed` cannot find or read `/app/tests`, the image was not built from the `test` stage (the
+  provider may have ignored `build.target`): report it, do not add capabilities or a root user.
 
 ### Tool limitation: the 420 s limit of lab_compose
 
-The `lab_compose` operation has a **420 s limit**. A hung run exhausts it, the output is lost, and
+Each `lab_compose` operation (the `up` that builds the image included) has a **420 s limit**. A hung run exhausts it, the output is lost, and
 the `seed-run` container is left **orphaned**: no MCP tool stops it. That is why the per-test
 watchdog exists (see below). If the suite grows, split it into chunks (several `seed` runs with
 different `DEMO_PYTEST_ARGS` paths) so that each stays well under the limit.
@@ -294,8 +284,7 @@ postgres data directory started). What remains unknown:
 
 - Whether the skip reason described under Compose-shape tests is exactly what happened: it
   is derived from the code, and the run used `-rfE`, which does not print skip reasons (`-rs`).
-- The Dockerfile `test` stage that would replace `user: "0:0"` (see Why the seed runs as root);
-  the root user did read the bind in the lab run.
+- Whether the provider accepts `build.target: "test"` (see Design). The first real run decides.
 - Timing assertions (`wait_for(..., timeout=10)`, `sleep(0.2/0.5)`) on a loaded
   host: the run took 11 s on one host; no other load was measured.
 - `tmpfs` ownership for the postgres data directory on other runtimes (mitigated

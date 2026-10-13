@@ -96,9 +96,17 @@ def test_uv_is_pinned_to_a_release_and_nothing_uses_latest(instructions: list[st
         if line.startswith("FROM ") or " --from=" in line:
             assert ":latest" not in line, line
     # An untagged FROM is :latest too.
+    # A FROM naming an earlier stage (``FROM base AS test``) is not an image.
+    stages: set[str] = set()
     for line in instructions:
         if line.startswith("FROM "):
-            image = line.split()[1]
+            words = line.split()
+            image = words[1]
+            is_stage = image in stages
+            if len(words) >= 4 and words[2].upper() == "AS":
+                stages.add(words[3])
+            if is_stage:
+                continue
             assert ":" in image.rsplit("/", 1)[-1] or "@sha256:" in image, f"untagged base image: {line}"
 
 
