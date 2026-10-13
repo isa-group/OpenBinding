@@ -146,7 +146,7 @@ done, and what was not:
 | --- | --- |
 | `tsc` over `frontend/e2e/**`, `playwright.config.ts` and `playwright.live.config.ts` | Done, as the test `src/test/e2eSpecs.test.ts` (TypeScript API, strict, same rules as `src`) inside `pnpm test`: no diagnostics |
 | Selectors, texts and routes against `frontend/src` | Read by hand against the components (not rendered); the corrections are listed under "What was corrected before the first run" |
-| `compose.lab.json` (`e2e`, volumes `lab-pg-2` and `lab-artifacts-2`), `Dockerfile.e2e` against `pnpm-lock.yaml` | Static tests only (`lab/tests`, `test_container_hardening.py`): the Playwright image is `v1.62.1-jammy`, the version the lock resolves |
+| `compose.lab.json` (`e2e`, volumes `lab-pg-3` and `lab-artifacts-2`), `Dockerfile.e2e` against `pnpm-lock.yaml` | Static tests only (`lab/tests`, `test_container_hardening.py`): the Playwright image is `v1.62.1-jammy`, the version the lock resolves |
 | `playwright test --list` | **Not run** (only the registered checks can be run here; `pnpm exec playwright` is not one of them) |
 | `docker build` of `Dockerfile.e2e`, `up`, the run against the lab | **Not run** |
 | Screenshots (`<results>/screenshots/<desktop\|mobile>-<screen>.png`) | **None exist**: the specs take them when they run, in a volume the controller cannot open |
@@ -367,7 +367,7 @@ Nothing is needed on a workstation or through a tunnel. Sequence with `lab_compo
 
 1. `down` if the checkout (the SHA) changed. It keeps the volumes.
 2. `up` with `DEMO_E2E=0`: builds the images (`frontend/Dockerfile.e2e` is the Playwright image `v1.62.1-jammy` with
-   `pnpm install --frozen-lockfile` and `frontend/` copied in) and starts everything. The volumes `lab-pg-2` and `lab-artifacts-2` are new, so the database starts empty and
+   `pnpm install --frozen-lockfile` and `frontend/` copied in) and starts everything. The volumes `lab-pg-3` and `lab-artifacts-2` are new, so the database starts empty and
    `seed` populates it. `e2e` creates `/results/done` and sleeps, so `--wait` returns.
 3. `seed` (`DEMO_SEED_TOOL=seed_lab.py`, `DEMO_SEED_ARGS=--verbose`, a `DEMO_SEED_PASSWORD`).
 4. `up` with `DEMO_E2E=1` and the same `DEMO_SEED_PASSWORD`: `e2e` is recreated and runs `playwright test -c playwright.live.config.ts`;
@@ -486,7 +486,7 @@ addresses when the build overrides `VITE_SPACE_FRONTEND_URL` / `VITE_SPHERE_URL`
 Secuencia exacta con `lab_compose` (variables en `docs/DEMO.md`):
 
 1. `down` si cambia el SHA del checkout (conserva los volúmenes).
-2. `up` con `DEMO_E2E=0`: construye las imágenes y arranca todo; los volúmenes `lab-pg-2` y `lab-artifacts-2` son nuevos (sin `CAP_CHOWN` no se puede cambiar el propietario de los antiguos), así que la base empieza vacía y `seed` la puebla; `e2e` crea `/results/done` y espera.
+2. `up` con `DEMO_E2E=0`: construye las imágenes y arranca todo; los volúmenes `lab-pg-3` y `lab-artifacts-2` son nuevos (sin `CAP_CHOWN` no se puede cambiar el propietario de los antiguos), así que la base empieza vacía y `seed` la puebla; `e2e` crea `/results/done` y espera.
 3. `seed` (`DEMO_SEED_TOOL=seed_lab.py`, `DEMO_SEED_ARGS=--verbose`, con `DEMO_SEED_PASSWORD`).
 4. `up` con `DEMO_E2E=1` y el mismo `DEMO_SEED_PASSWORD`: `e2e` se recrea y ejecuta `playwright test -c playwright.live.config.ts`.
 5. `logs e2e` y buscar `E2E_SUMMARY`, `E2E_FAILED` y `VQA_PROBLEM`.

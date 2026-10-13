@@ -14,7 +14,7 @@ thing published on the host is `127.0.0.1:18100`.
 
 **Since that run** one service was added (`e2e`, see "What
 runs" and "Browser specs and visual QA inside the lab") and the volumes were renamed
-to `lab-pg-2` and `lab-artifacts-2` (see "Unprivileged containers"). The observations above
+to `lab-pg-3` and `lab-artifacts-2` (see "Unprivileged containers"). The observations above
 are from before them; the new file, the images `frontend/Dockerfile.e2e` and the
 sequence below have been checked **statically only** (tests, `tsc`, lint), never
 built or started.
@@ -31,7 +31,7 @@ A static check also exists (`lab/tests/test_lab_compose.py`).
 
 | Service | Image / build | `mem_limit` | Notes |
 | --- | --- | --- | --- |
-| `postgres` | `postgres:16-alpine` | 384 MiB | volume `lab-pg-2`, `PGDATA=/var/lib/postgresql/data/pgdata`, `pg_isready` healthcheck, `user: 70:70` |
+| `postgres` | `postgres:16-alpine` | 384 MiB | volume `lab-pg-3`, `PGDATA=/var/lib/postgresql/data/pgdata`, `pg_isready` healthcheck, `user: 70:70` |
 | `redis` | `redis:7-alpine` | 96 MiB | volume `lab-redis`, AOF, `maxmemory 64mb` + `noeviction`, `user: 999:1000` |
 | `engine-random-search` | `engines/random-search/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
 | `engine-many-heuristic` | `engines/many-heuristic/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
@@ -65,13 +65,14 @@ that limits a compromised process. Consequences for the lab:
   chown one-shot service (`artifacts-init`) was tried and failed with `chown: changing
   ownership ... Operation not permitted`: the supervisor drops every capability, so the
   container has no `CAP_CHOWN`. It was removed, and the lab uses **new volumes**
-  instead: `lab-artifacts` became `lab-artifacts-2` and `lab-pg` became `lab-pg-2`
-  (`gateway`, `worker` and `seed` mount `lab-artifacts-2`; `postgres` mounts `lab-pg-2`).
+  instead: `lab-artifacts` became `lab-artifacts-2` and `lab-pg` became `lab-pg-3`
+  (`gateway`, `worker` and `seed` mount `lab-artifacts-2`; `postgres` mounts `lab-pg-3`).
   No service runs as root and none depends on a one-shot.
 - **Orphaned volumes.** The old `lab-artifacts` and `lab-pg` are not deleted and no
   service mounts them any more. The old synthetic database and its artifacts are kept
-  unused. Recreating the database on `lab-pg-2` means it starts empty: run `seed`
-  again to populate it.
+  unused. Recreating the database on `lab-pg-3` means it starts empty: run `seed`
+  again to populate it. `lab-pg-2` is also kept unused: its initial password was lost
+  (the data is synthetic).
 - The gateway `Dockerfile` installs `bim-core`, `bim-client` and `".[test]"` in **one**
   `uv pip install --system --no-sources` command. With uv pinned to 0.8.22 the resolver does
   not count an already installed `bim-core` as a candidate, so a separate earlier install
@@ -219,7 +220,7 @@ gateway now refuses this flag (and `FEDERATION_REQUIRE_HTTPS=false`) when
    `DEMO_SEED_ARGS`, repeat `up` with the new values and then run `seed`.
 4. `status` / `logs`: look at `web`, `gateway`, `worker` first.
 5. `down` removes containers and the network and **keeps the named volumes**
-   (`lab-pg-2`, `lab-redis`, `lab-artifacts-2`), so data survives a restart. Only
+   (`lab-pg-3`, `lab-redis`, `lab-artifacts-2`), so data survives a restart. Only
    an explicit volume removal deletes it.
 
 ### Seeding

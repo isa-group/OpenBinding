@@ -563,7 +563,7 @@ def test_gateway_waits_for_what_it_uses(services):
 
 
 def test_named_volumes_back_the_stateful_services(services):
-    assert {"type": "volume", "source": "lab-pg-2", "target": "/var/lib/postgresql/data"} in services["postgres"]["volumes"]
+    assert {"type": "volume", "source": "lab-pg-3", "target": "/var/lib/postgresql/data"} in services["postgres"]["volumes"]
     assert {"type": "volume", "source": "lab-redis", "target": "/data"} in services["redis"]["volumes"]
     assert services["postgres"]["image"] == "postgres:16-alpine"
     assert services["redis"]["image"] == "redis:7-alpine"
@@ -603,7 +603,7 @@ def test_there_is_no_artifacts_init_and_the_app_mounts_the_new_artifact_volume(s
     for name in ("gateway", "worker", "seed"):
         assert {"type": "volume", "source": "lab-artifacts-2", "target": ARTIFACT_DIR} in services[name]["volumes"], name
     volumes = json.loads(COMPOSE.read_text(encoding="utf-8"))["volumes"]
-    assert "lab-artifacts-2" in volumes and "lab-pg-2" in volumes
+    assert "lab-artifacts-2" in volumes and "lab-pg-3" in volumes
     assert "lab-artifacts" not in volumes and "lab-pg" not in volumes
 
 
