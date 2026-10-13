@@ -69,6 +69,10 @@ class BimServiceSettings:
     #: Memory the operations in flight may be estimated to need (bytes); 0 disables the budget.  An operation is
     #: charged :data:`BODY_MEMORY_FACTOR` times its request body while its thread runs.
     memory_budget_bytes: int = 0
+    #: Request-body bytes that may be in flight at once, waiting for a slot or admitted, counted from the moment the body
+    #: starts to be read until the operation's thread ends; 0 disables the cap.  ``None`` (not set) derives it from the
+    #: memory budget, see :attr:`effective_max_pending_body_bytes`.
+    max_pending_body_bytes: int | None = None
     log_level: str = "INFO"
     limits: Limits = field(default_factory=Limits)
 
@@ -86,6 +90,19 @@ class BimServiceSettings:
         if self.switch_interval_seconds is not None:
             _positive("BIM_SERVICE_SWITCH_INTERVAL", self.switch_interval_seconds)
         _positive("BIM_SERVICE_MEMORY_BUDGET_BYTES", self.memory_budget_bytes, allow_zero=True)
+        if self.max_pending_body_bytes is not None:
+            _positive("BIM_SERVICE_MAX_PENDING_BODY_BYTES", self.max_pending_body_bytes, allow_zero=True)
+
+    @property
+    def effective_max_pending_body_bytes(self) -> int:
+        """The cap on in-flight request-body bytes in force (0 = none).
+
+        Explicit setting, else with a memory budget twice what the budget can admit as raw bodies
+        (``budget // BODY_MEMORY_FACTOR``): as many bytes may wait for a slot as may run.  Without a budget, none.
+        """
+        if self.max_pending_body_bytes is not None:
+            return self.max_pending_body_bytes
+        return 2 * (self.memory_budget_bytes // BODY_MEMORY_FACTOR)
 
     def for_tenants(self, count: int) -> BimServiceSettings:
         """These settings once the tokens file is known to name ``count`` tenants."""
@@ -141,6 +158,7 @@ class BimServiceSettings:
             ),
             switch_interval_seconds=read("SWITCH_INTERVAL", float, defaults.switch_interval_seconds),
             memory_budget_bytes=read("MEMORY_BUDGET_BYTES", int, defaults.memory_budget_bytes),
+            max_pending_body_bytes=read("MAX_PENDING_BODY_BYTES", int, defaults.max_pending_body_bytes),
             log_level=read("LOG_LEVEL", str, defaults.log_level).upper(),
             limits=limits,
         )
@@ -160,4 +178,5 @@ class BimServiceSettings:
             # The interval in force in the process: the configured one once the application runs, else the interpreter's.
             "switchIntervalSeconds": sys.getswitchinterval(),
             "memoryBudgetBytes": self.memory_budget_bytes,
+            "maxPendingBodyBytes": self.effective_max_pending_body_bytes,
         }

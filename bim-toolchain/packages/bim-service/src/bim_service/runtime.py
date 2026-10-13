@@ -18,10 +18,19 @@ threads slow the loop down.  Moving the work to the pool bounds how many such st
 memory; it does not remove them.  Only processes would.
 
 Optional memory budget (``memory_budget_bytes``, off by default).  An operation is charged
-:data:`~bim_service.settings.BODY_MEMORY_FACTOR` times its request body from the moment it holds a slot until its
-thread ends.  A charge that does not fit in what is left is answered 429 ``memory_budget`` with ``Retry-After``; a
-single request larger than the whole budget is admitted only when nothing else is charged (otherwise it could never run
-at all), and while it runs everything else is refused.  The charge is returned when the thread ends, like the slot.
+:data:`~bim_service.settings.BODY_MEMORY_FACTOR` times its request body (an estimate, not a guarantee) from the moment
+it holds a slot until its thread ends.  A charge that does not fit in what is left is answered 429 ``memory_budget``
+with ``Retry-After``: it would fit once the other operations finish.  A charge larger than the whole budget can never
+fit: it is answered 413 ``memory_budget_exceeded`` (no ``Retry-After``) before a tenant share or a slot is taken and
+before anything is decoded, whatever else is in flight.  The charge is returned when the thread ends, like the slot.
+
+Optional cap on in-flight request bodies (``max_pending_body_bytes``, derived from the budget when one is set).  The
+ASGI layer buffers a whole body before the gate is asked for a slot, so without a cap the bodies of the requests that
+wait (or are about to be refused) are bounded only by the number of connections.  :class:`BodyLedger` counts the bytes
+of every body from the moment it starts to be read (the declared ``Content-Length`` up front, else the bytes as they
+arrive) until the operation's thread ends, and refuses a body that does not fit in what is left with 429
+``pending_body_bytes`` and ``Retry-After``; one that is larger than the whole cap, or whose estimate is larger than the
+whole budget, with 413 and no ``Retry-After``.
 """
 
 from __future__ import annotations
@@ -33,7 +42,111 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
 
 from .problems import ServiceProblem
-from .settings import BimServiceSettings
+from .settings import BODY_MEMORY_FACTOR, BimServiceSettings
+
+
+def _retry_headers(settings: BimServiceSettings) -> dict[str, str]:
+    return {"Retry-After": str(settings.retry_after_seconds)}
+
+
+def check_memory_fits(settings: BimServiceSettings, cost: int) -> None:
+    """Raise 413 ``memory_budget_exceeded`` when ``cost`` bytes can never fit an enabled memory budget."""
+    budget = settings.memory_budget_bytes
+    if budget and cost > budget:
+        raise ServiceProblem(
+            413,
+            "memory_budget_exceeded",
+            f"the request needs an estimated {cost} bytes of memory, which can never fit the configured memory budget "
+            f"of {budget} bytes; send a smaller request",
+        )
+
+
+class BodyReservation:
+    """The bytes of one request body held in a :class:`BodyLedger`.
+
+    ``ensure`` grows it as the size becomes known, ``release`` gives everything back (idempotent).  Once the gate has
+    started the operation's thread it takes the release over (:meth:`hand_off`): the bytes stay counted until the
+    thread ends, not until the response is out.  :meth:`close` is what the request does when it is finished with it.
+    """
+
+    def __init__(self, ledger: "BodyLedger") -> None:
+        self._ledger = ledger
+        self._held = 0
+        self._handed_off = False
+
+    @property
+    def held(self) -> int:
+        return self._held
+
+    def ensure(self, total: int) -> None:
+        """Hold at least ``total`` bytes; raises the 413 or 429 problem when they do not fit."""
+        if total <= self._held:
+            return
+        self._ledger._check_fits(total)
+        self._ledger._take(total - self._held)
+        self._held = total
+
+    def hand_off(self) -> None:
+        self._handed_off = True
+
+    def release(self) -> None:
+        held, self._held = self._held, 0
+        self._ledger._give(held)
+
+    def close(self) -> None:
+        if not self._handed_off:
+            self.release()
+
+
+class BodyLedger:
+    """Total request-body bytes in flight, bounded by the effective ``max_pending_body_bytes``."""
+
+    def __init__(self, settings: BimServiceSettings) -> None:
+        self._settings = settings
+        self._cap = settings.effective_max_pending_body_bytes
+        self._lock = threading.Lock()
+        self._held = 0
+
+    @property
+    def enabled(self) -> bool:
+        """Whether a body is checked at all: a cap, or a memory budget that a body can exceed."""
+        return self._cap > 0 or self._settings.memory_budget_bytes > 0
+
+    @property
+    def held(self) -> int:
+        return self._held
+
+    def reservation(self) -> BodyReservation:
+        return BodyReservation(self)
+
+    def _check_fits(self, total: int) -> None:
+        check_memory_fits(self._settings, total * BODY_MEMORY_FACTOR)
+        if self._cap and total > self._cap:
+            raise ServiceProblem(
+                413,
+                "pending_body_too_large",
+                f"the request body of {total} bytes can never fit the configured limit of {self._cap} bytes of "
+                "request bodies in flight; send a smaller request",
+            )
+
+    def _take(self, amount: int) -> None:
+        if not self._cap or amount <= 0:
+            return
+        with self._lock:
+            if self._held + amount > self._cap:
+                raise ServiceProblem(
+                    429,
+                    "pending_body_bytes",
+                    "the request bodies in flight already use the limit of the service; retry later",
+                    headers=_retry_headers(self._settings),
+                )
+            self._held += amount
+
+    def _give(self, amount: int) -> None:
+        if not self._cap or amount <= 0:
+            return
+        with self._lock:
+            self._held -= amount
 
 
 class Gate:
@@ -44,10 +157,11 @@ class Gate:
         self._tenants: dict[str, int] = {}
         self._charged = 0
         self._chargers = 0
+        self.bodies = BodyLedger(settings)
         self._executor = ThreadPoolExecutor(max_workers=settings.max_concurrency, thread_name_prefix="bim-op")
 
     def _retry_headers(self) -> dict[str, str]:
-        return {"Retry-After": str(self._settings.retry_after_seconds)}
+        return _retry_headers(self._settings)
 
     def _take_tenant(self, tenant: str | None) -> None:
         limit = self._settings.effective_max_concurrency_per_tenant
@@ -79,9 +193,9 @@ class Gate:
         budget = self._settings.memory_budget_bytes
         if budget == 0 or cost <= 0:
             return 0
+        check_memory_fits(self._settings, cost)  # a cost above the whole budget is never admitted, alone or not
         with self._lock:
-            # A request bigger than the whole budget runs alone; anything else must fit in what is left.
-            if self._chargers and self._charged + cost > budget:
+            if self._charged + cost > budget:
                 raise ServiceProblem(
                     429,
                     "memory_budget",
@@ -112,21 +226,33 @@ class Gate:
                 )
             await asyncio.sleep(min(0.01, remaining))
 
-    def _finish(self, tenant: str | None, charged: int, future: "asyncio.Future[Any]") -> None:
+    def _finish(
+        self, tenant: str | None, charged: int, reservation: BodyReservation | None, future: "asyncio.Future[Any]"
+    ) -> None:
         self._slots.release()
         self._release_memory(charged)
         self._release_tenant(tenant)
+        if reservation is not None:
+            reservation.release()
         if not future.cancelled():
             future.exception()  # retrieved: a failure nobody waits for any more is not an "unretrieved" error
 
     async def run(
-        self, function: Callable[..., Any], *args: Any, tenant: str | None = None, cost_bytes: int = 0
+        self,
+        function: Callable[..., Any],
+        *args: Any,
+        tenant: str | None = None,
+        cost_bytes: int = 0,
+        reservation: BodyReservation | None = None,
     ) -> Any:
         """``function(*args)`` in the pool, within the concurrency, memory and time limits.
 
         ``cost_bytes`` is the estimated memory the call needs (see the module docstring); ``function`` is what decodes
-        the request, so it only starts once the slot and the budget are held.
+        the request, so it only starts once the slot and the budget are held.  A cost that can never fit the budget is
+        refused first, holding nothing.  ``reservation`` (the body bytes of the request in :attr:`bodies`) is released
+        by the gate when the thread ends if it got that far, and by whoever owns the request otherwise.
         """
+        check_memory_fits(self._settings, cost_bytes)
         self._take_tenant(tenant)
         try:
             await self._take_slot()
@@ -146,7 +272,9 @@ class Gate:
             self._release_memory(charged)
             self._release_tenant(tenant)
             raise
-        future.add_done_callback(lambda done: self._finish(tenant, charged, done))
+        if reservation is not None:
+            reservation.hand_off()
+        future.add_done_callback(lambda done: self._finish(tenant, charged, reservation, done))
         finished, _ = await asyncio.wait({future}, timeout=self._settings.operation_timeout_seconds)
         if not finished:
             raise ServiceProblem(

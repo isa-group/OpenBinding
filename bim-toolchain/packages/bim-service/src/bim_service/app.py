@@ -31,7 +31,7 @@ from starlette.responses import JSONResponse, Response
 from . import operations
 from ._version import API_PREFIX, API_VERSION, __version__
 from .auth import Authenticator, load_authenticator
-from .middleware import AuthMiddleware, BodyLimitMiddleware, ContextMiddleware
+from .middleware import AuthMiddleware, BodyLimitMiddleware, ContextMiddleware, PendingBodyMiddleware
 from .models import (
     CompatibilityRequest,
     CompatibilityResponse,
@@ -71,13 +71,21 @@ logger = logging.getLogger("bim_service")
 
 _PROBLEMS: dict[int | str, dict[str, Any]] = {
     401: {"model": Problem, "description": "Missing or invalid bearer token."},
-    413: {"model": Problem, "description": "The request body exceeds the configured size."},
+    413: {
+        "model": Problem,
+        "description": (
+            "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and "
+            "`pending_body_too_large`: the request can never fit the configured memory budget or limit of request "
+            "bodies in flight (not retryable, no `Retry-After`)."
+        ),
+    },
     422: {"model": Problem, "description": "The input is invalid; `code` and `diagnostics` say why."},
     429: {
         "model": Problem,
         "description": (
             "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the "
-            "operations in flight already use the memory budget (see `Retry-After`)."
+            "operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight "
+            "already use their limit (see `Retry-After`)."
         ),
     },
     500: {"model": Problem, "description": "Unexpected failure of the service."},
@@ -146,6 +154,7 @@ async def _serve(request: Request, job: Callable[[str | None, bytes], bytes]) ->
         body,
         tenant=_tenant(request),
         cost_bytes=len(body) * BODY_MEMORY_FACTOR,
+        reservation=request.scope.get("state", {}).get("body_reservation"),
     )
     return Response(content=content, media_type="application/json")
 
@@ -541,6 +550,7 @@ def build_app(settings: BimServiceSettings, authenticator: Authenticator) -> Fas
     app.add_exception_handler(RequestValidationError, _invalid_request)  # type: ignore[arg-type]
     app.add_exception_handler(StarletteHTTPException, _http_exception)  # type: ignore[arg-type]
     # The last middleware added is the outermost.
+    app.add_middleware(PendingBodyMiddleware, bodies=app.state.gate.bodies)
     app.add_middleware(BodyLimitMiddleware, max_body_bytes=settings.max_body_bytes)
     app.add_middleware(AuthMiddleware, authenticator=authenticator)
     app.add_middleware(ContextMiddleware)

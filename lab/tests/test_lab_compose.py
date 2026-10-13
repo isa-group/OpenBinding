@@ -554,6 +554,24 @@ def test_bim_service_reads_its_tokens_from_a_tmpfs(services):
     assert "/healthz" in " ".join(bim["healthcheck"]["test"])
 
 
+def test_bim_service_memory_limits_fit_its_mem_limit(services):
+    """The body-proportional memory of bim-service, by the figures of bim-toolchain/docs/SERVICE.md, fits its mem_limit."""
+    bim = services["bim-service"]
+    env = _env(bim)
+    body = int(env["BIM_SERVICE_MAX_BODY_BYTES"])
+    budget = int(env["BIM_SERVICE_MEMORY_BUDGET_BYTES"])
+    pending = int(env["BIM_SERVICE_MAX_PENDING_BODY_BYTES"])
+    assert int(env["BIM_SERVICE_MAX_CONCURRENCY"]) <= 2
+    assert body * 8 <= budget, "a request at the body limit must be admissible (BODY_MEMORY_FACTOR = 8)"
+    limit = _mib(bim["mem_limit"]) * 1024 * 1024
+    idle = 55451648  # RSS of the process at rest, measured
+    worst_case_per_byte = 8.4  # resident memory per body byte of the first admitted request, measured
+    admitted = budget // 8  # raw bytes the budget admits
+    waiting = max(pending - admitted, 0)
+    # the waiting bodies are buffered twice while their chunks are joined
+    assert idle + worst_case_per_byte * admitted + 2 * waiting <= limit, "bim-service could exceed its mem_limit"
+
+
 def test_gateway_waits_for_what_it_uses(services):
     depends = services["gateway"]["depends_on"]
     assert {"postgres", "redis", "bim-service"} <= set(depends)

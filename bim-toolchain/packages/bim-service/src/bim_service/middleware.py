@@ -8,7 +8,9 @@ they arrive and answers 413 as soon as the limit is crossed.  From outermost to 
    problem for whatever escapes;
 2. :class:`AuthMiddleware`: every path except ``/healthz`` and ``/readyz`` needs a valid bearer token; the tenant
    bound to that token is the caller's identity (``state["tenant"]``) and the only key of the per-tenant share;
-3. :class:`BodyLimitMiddleware`: 413 before reading a body that is too large.
+3. :class:`BodyLimitMiddleware`: 413 before reading a body that is too large;
+4. :class:`PendingBodyMiddleware`: counts the body in the ledger of in-flight bodies and refuses what does not fit
+   (only when a pending-body cap or a memory budget is configured).
 
 ``X-BIM-Tenant`` is what the caller *claims*: it is kept (sanitized and bounded) as ``state["claimed_tenant"]`` for the
 log and decides nothing.  Nothing here logs a body, a header value other than the sanitized claim, or a token.
@@ -28,6 +30,7 @@ from starlette.datastructures import MutableHeaders
 
 from .auth import TENANT_PATTERN, Authenticator
 from .problems import ServiceProblem, problem_response, respond
+from .runtime import BodyLedger
 
 logger = logging.getLogger("bim_service")
 
@@ -220,3 +223,81 @@ class BodyLimitMiddleware:
             # Once the 413 is out, whatever the application does with the disconnect is of no interest.
             if not refused:
                 raise
+
+
+class PendingBodyMiddleware:
+    """Counts the bytes of a request body in the :class:`~bim_service.runtime.BodyLedger` before they are buffered.
+
+    A declared ``Content-Length`` is reserved before a byte is read, so a body that does not fit is refused without
+    reading it; without one (chunked) the bytes are counted as they arrive and the request is cut off when they do not
+    fit.  The reservation travels in ``state["body_reservation"]``: the route hands it to the gate, which releases it
+    when the operation's thread ends; a request that never gets that far releases it here, whatever way it ends.
+    Innermost of the three, so the size limit has already refused what is over ``max_body_bytes``.
+    """
+
+    def __init__(self, app: ASGIApp, bodies: BodyLedger) -> None:
+        self.app = app
+        self.bodies = bodies
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or not self.bodies.enabled:
+            await self.app(scope, receive, send)
+            return
+        reservation = self.bodies.reservation()
+        scope.setdefault("state", {})["body_reservation"] = reservation
+        refused = False
+        received = 0
+
+        async def refuse(problem: ServiceProblem) -> None:
+            nonlocal refused
+            refused = True
+            await respond(problem)(scope, receive, send)
+
+        async def guarded_send(message: Message) -> None:
+            if not refused:
+                await send(message)
+
+        async def counting_receive() -> Message:
+            nonlocal received
+            if refused:
+                return {"type": "http.disconnect"}
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                try:
+                    reservation.ensure(received)
+                except ServiceProblem as problem:
+                    await refuse(_unread(problem))
+                    return {"type": "http.disconnect"}
+            return message
+
+        try:
+            declared = header_value(scope, b"content-length")
+            if declared is not None:
+                try:
+                    reservation.ensure(int(declared))
+                except ServiceProblem as problem:
+                    await refuse(_unread(problem))
+                    return
+                except ValueError:
+                    pass  # not a number: the size limit answers 400 before this middleware is reached
+            try:
+                await self.app(scope, counting_receive, guarded_send)
+            except Exception:
+                # Once the refusal is out, whatever the application does with the disconnect is of no interest.
+                if not refused:
+                    raise
+        finally:
+            reservation.close()
+
+
+def _unread(problem: ServiceProblem) -> ServiceProblem:
+    """``problem`` as an answer given while the body is still on the wire: the connection is closed after it."""
+    return ServiceProblem(
+        problem.status,
+        problem.code,
+        problem.detail,
+        diagnostics=problem.diagnostics,
+        headers={**problem.headers, "Connection": "close"},
+        extensions=problem.extensions,
+    )

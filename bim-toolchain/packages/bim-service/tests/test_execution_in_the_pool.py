@@ -339,23 +339,26 @@ def test_a_client_that_goes_away_returns_the_charge_when_the_thread_ends(make_ap
     assert held == COST and refused.json()["code"] == "memory_budget" and after == 200
 
 
-def test_a_request_larger_than_the_whole_budget_runs_alone_and_nothing_runs_beside_it(make_app, hold) -> None:
+def test_a_request_larger_than_the_whole_budget_is_never_admitted_not_even_alone(make_app, hold) -> None:
+    """The estimate of the request is above the budget: 413, nothing runs, nothing is held, and it is not retryable."""
     app = make_app(max_concurrency=4, max_concurrency_per_tenant=0, acquire_timeout_ms=30, memory_budget_bytes=COST - 1)
 
     async def scenario():
         async with async_client(app) as client:
-            big = asyncio.create_task(post(client))  # bigger than the budget, but nothing else is in flight
-            await wait_until(lambda: hold.running == 1)
-            beside = await post(client)
-            hold.release.set()
-            return (await big).status_code, beside
+            refused = await post(client)
+            return refused, await post(client)
 
-    big, beside = run(scenario())
-    assert big == 200
-    assert (beside.status_code, beside.json()["code"]) == (429, "memory_budget")
+    refused, again = run(scenario())
+    for response in (refused, again):
+        assert response.status_code == 413
+        assert response.headers["content-type"].startswith("application/problem+json")
+        assert "retry-after" not in response.headers
+        assert response.json()["code"] == "memory_budget_exceeded" and response.json()["status"] == 413
+        assert "never fit" in response.json()["detail"]
+    assert hold.running == 0
 
 
-def test_a_request_larger_than_the_budget_is_refused_while_something_else_runs(make_app, hold) -> None:
+def test_a_request_larger_than_the_budget_is_refused_whatever_else_runs(make_app, hold) -> None:
     app = make_app(max_concurrency=4, max_concurrency_per_tenant=0, acquire_timeout_ms=30, memory_budget_bytes=COST + 10)
 
     async def scenario():
@@ -368,8 +371,10 @@ def test_a_request_larger_than_the_budget_is_refused_while_something_else_runs(m
             return big, await post(client, PAYLOAD + b" " * 100)
 
     big, alone = run(scenario())
-    assert (big.status_code, big.json()["code"]) == (429, "memory_budget")
-    assert alone.status_code == 200  # the same request, alone: admitted although it exceeds the budget
+    # not 429: waiting for the other operation would not help
+    for response in (big, alone):
+        assert (response.status_code, response.json()["code"]) == (413, "memory_budget_exceeded")
+        assert "retry-after" not in response.headers
 
 
 def test_the_budget_charge_accounting_of_the_gate() -> None:
@@ -408,7 +413,7 @@ def test_the_defaults_change_nothing() -> None:
     assert settings.switch_interval_seconds is None and settings.memory_budget_bytes == 0
     assert BimServiceSettings.from_env({}) == settings
     published = settings.public_limits()
-    assert published["memoryBudgetBytes"] == 0
+    assert published["memoryBudgetBytes"] == 0 and published["maxPendingBodyBytes"] == 0
     assert published["switchIntervalSeconds"] == sys.getswitchinterval()
 
 
@@ -446,6 +451,7 @@ def test_the_published_limits_carry_the_effective_values(make_app, restore_switc
 
     published = run(scenario())
     assert published["memoryBudgetBytes"] == 4096
+    assert published["maxPendingBodyBytes"] == 2 * (4096 // BODY_MEMORY_FACTOR)
     assert published["switchIntervalSeconds"] == pytest.approx(0.0002)
 
 

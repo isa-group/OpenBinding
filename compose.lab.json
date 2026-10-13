@@ -135,7 +135,11 @@
       ],
       "environment": {
         "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
-        "BIM_SERVICE_TOKENS_FILE": "/run/bim/tokens"
+        "BIM_SERVICE_TOKENS_FILE": "/run/bim/tokens",
+        "BIM_SERVICE_MAX_BODY_BYTES": "16777216",
+        "BIM_SERVICE_MAX_CONCURRENCY": "2",
+        "BIM_SERVICE_MEMORY_BUDGET_BYTES": "134217728",
+        "BIM_SERVICE_MAX_PENDING_BODY_BYTES": "33554432"
       },
       "volumes": [
         {

@@ -866,7 +866,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -886,7 +886,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -954,7 +954,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -974,7 +974,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1061,7 +1061,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -1081,7 +1081,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1137,7 +1137,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -1157,7 +1157,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1225,7 +1225,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -1245,7 +1245,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1313,7 +1313,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -1333,7 +1333,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1399,7 +1399,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -1419,7 +1419,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1487,7 +1487,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -1507,7 +1507,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1563,7 +1563,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -1583,7 +1583,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1639,7 +1639,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -1659,7 +1659,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1725,7 +1725,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -1745,7 +1745,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1813,7 +1813,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -1833,7 +1833,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1901,7 +1901,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -1921,7 +1921,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1989,7 +1989,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -2009,7 +2009,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -2086,7 +2086,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -2106,7 +2106,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -2193,7 +2193,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -2213,7 +2213,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -2281,7 +2281,7 @@
                 }
               }
             },
-            "description": "The request body exceeds the configured size."
+            "description": "`payload_too_large`: the request body exceeds the configured size; `memory_budget_exceeded` and `pending_body_too_large`: the request can never fit the configured memory budget or limit of request bodies in flight (not retryable, no `Retry-After`)."
           },
           "422": {
             "content": {
@@ -2301,7 +2301,7 @@
                 }
               }
             },
-            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget (see `Retry-After`)."
+            "description": "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the operations in flight already use the memory budget; `pending_body_bytes`: the request bodies in flight already use their limit (see `Retry-After`)."
           },
           "500": {
             "content": {

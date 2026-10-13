@@ -142,7 +142,10 @@ Problems about the service rather than the input have no `errorType`:
 | 422 | `request_invalid` | the body does not match the contract (a `ContractError`; `diagnostics` hold JSON pointers and messages, never the offending values) |
 | 422 | `limit_exceeded` | more bindings, registered resources or `seconds` than the service allows |
 | 429 | `rate_limited` | the tenant bound to the caller's token already has its share of operations in flight (`Retry-After`) |
-| 429 | `memory_budget` | `BIM_SERVICE_MEMORY_BUDGET_BYTES` is set and the operations in flight already use it, or the request is larger than the whole budget and something else is in flight (`Retry-After`); never sent when the budget is off |
+| 413 | `memory_budget_exceeded` | `BIM_SERVICE_MEMORY_BUDGET_BYTES` is set and the estimate of the request (8 times its body) is larger than the whole budget: it can never fit, alone or not. Not retryable, no `Retry-After`; refused before the body is read when `Content-Length` says so, and in any case before anything is decoded or a slot is taken; the connection is closed when the body was not read. Never sent when the budget is off |
+| 413 | `pending_body_too_large` | the body alone is larger than the whole limit of request bodies in flight (`BIM_SERVICE_MAX_PENDING_BODY_BYTES`). Not retryable, no `Retry-After`, same timing as above |
+| 429 | `memory_budget` | `BIM_SERVICE_MEMORY_BUDGET_BYTES` is set and the request would fit the budget, but not what the operations in flight leave of it (`Retry-After`: it may fit once they finish); never sent when the budget is off |
+| 429 | `pending_body_bytes` | the request bodies in flight (waiting for a slot or running) plus this one exceed `BIM_SERVICE_MAX_PENDING_BODY_BYTES` (`Retry-After`). Refused before the body is read when `Content-Length` says so, else when the bytes received cross the limit; the connection is closed |
 | 503 | `service_busy` | no slot became free within `BIM_SERVICE_ACQUIRE_TIMEOUT_MS` (`Retry-After`) |
 | 503 | `operation_timeout` | the operation exceeded `BIM_SERVICE_OPERATION_TIMEOUT_SECONDS` |
 | 503 | `not_ready` | `/readyz` before the service is ready |
@@ -173,7 +176,8 @@ values, by `GET /bim/v1/capabilities` (`limits.service`; `limits.package` are th
 | `BIM_SERVICE_MAX_BINDINGS` | 1000 | bindings per `/evaluate` |
 | `BIM_SERVICE_NEIGHBORHOOD_MAX_SECONDS` | 10 | largest `seconds` of `/neighborhood` (its own budget is cooperative between evaluations) |
 | `BIM_SERVICE_SWITCH_INTERVAL` | unset (the interpreter's, 0.005) | seconds, positive. `sys.setswitchinterval` applied while the application runs (by its lifespan, not when it is created) and restored at shutdown. A shorter one (0.0001) gives the event loop the GIL more often while pool threads run CPU-bound Python, at a cost of about 10% of the evaluator's throughput measured (see "What thread mode cannot do"). `limits.service.switchIntervalSeconds` publishes the interval in force in the process |
-| `BIM_SERVICE_MEMORY_BUDGET_BYTES` | 0 (off) | memory that the operations in flight may be estimated to need. Each operation is charged **8 times its request body** (`BODY_MEMORY_FACTOR`; measured 3.8x for a package and 7.9x for an IR of small objects with `tracemalloc`, and 7.5x per additional concurrent request in resident memory at the body limit, so an estimate, not a guarantee) from the moment it holds a slot until its thread ends. See "Memory budget". `limits.service.memoryBudgetBytes` publishes it (0 = off) |
+| `BIM_SERVICE_MEMORY_BUDGET_BYTES` | 0 (off) | memory that the operations in flight may be estimated to need. Each operation is charged **8 times its request body** (`BODY_MEMORY_FACTOR`; measured 3.8x for a package and 7.9x for an IR of small objects with `tracemalloc`, and 7.5x per additional concurrent request in resident memory at the body limit, so an estimate, not a guarantee) from the moment it holds a slot until its thread ends. A request whose estimate is larger than the whole budget is never admitted (413 `memory_budget_exceeded`). See "Memory budget". `limits.service.memoryBudgetBytes` publishes it (0 = off) |
+| `BIM_SERVICE_MAX_PENDING_BODY_BYTES` | unset: twice `budget // 8` with a memory budget, else 0 (off) | request-body bytes that may be in flight at once, waiting for a slot or running, counted from the moment the body starts to be read until the operation's thread ends. 0 = off, whatever the budget. More is 429 `pending_body_bytes`; a body larger than the whole limit is 413 `pending_body_too_large`. `limits.service.maxPendingBodyBytes` publishes the value in force (0 = off), not the nominal default. See "Memory budget" |
 | `BIM_MAX_COMPRESSED_BYTES`, `BIM_MAX_EXPANDED_BYTES`, `BIM_MAX_ENTRY_BYTES`, `BIM_MAX_ENTRIES`, `BIM_MAX_COMPRESSION_RATIO`, `BIM_MAX_PATH_DEPTH` | 16 MiB, 64 MiB, 16 MiB, 256, 100, 16 | the `bim_core.Limits` applied to every package (passed to `load_package(limits=)`, never installed globally) |
 | `BIM_SERVICE_LOG_LEVEL` | `INFO` | |
 
@@ -193,8 +197,11 @@ memory budget, then in the pool thread the decoding (`json.loads`, validation of
 refuses NaN and infinity, base64, multipart), the operation and the rendering of the answer. Consequences:
 
 * A request that finds no slot decodes nothing: the number of decoded bodies in memory is bounded by the number of slots,
-  not by the number of requests that arrive. The raw bytes of a request that is waiting for a slot are still held (at most
-  `BIM_SERVICE_MAX_BODY_BYTES` each, once).
+  not by the number of requests that arrive. The raw bytes of a request that is waiting for a slot are still held, because
+  the framework buffers the whole body before the gate is asked for a slot (at most `BIM_SERVICE_MAX_BODY_BYTES` each,
+  once). Without `BIM_SERVICE_MAX_PENDING_BODY_BYTES` (or a memory budget, which derives it) nothing bounds how many such
+  bodies exist at once but the number of connections; with it, the bodies in flight are counted before they are read
+  (`Content-Length`) or as they arrive (chunked), and the excess is refused (see "Memory budget").
 * The answers for bad input are the same as before (422 `request_invalid` with pointers below `/body`, 400 `http_error`,
   415, 413), but they now come from the pool: while every slot is taken a malformed body is answered 503 `service_busy`
   (or 429) like any other request, instead of 422.
@@ -313,13 +320,32 @@ The memory table was produced by the test measurement fixture (report values pri
 
 Off by default (0): nothing changes. When `BIM_SERVICE_MEMORY_BUDGET_BYTES` is set, an operation that holds a slot is
 charged 8 times its body and the charge is returned when its thread ends (not at the timeout, not when the client goes
-away). A charge that does not fit in what is left is refused at once with **429 `memory_budget`** and `Retry-After`
-(there is no queue; retry after the interval). A request whose charge is larger than the whole budget is **admitted
-when nothing else is charged** (otherwise it could never run) and, while it runs, every other request is refused with
-the same 429; when something else is in flight it is refused with 429 `memory_budget` too. 429 is stable and the client
-should retry after `Retry-After`; unlike a 503 it means "this process is using its memory", not "busy". The budget does not
-count the raw bytes of requests waiting for a slot, the memory of the interpreter, or anything that is not a request;
-set it from `(memory limit - resident size at rest) / 8`, which needs to be measured in the target container.
+away). `BODY_MEMORY_FACTOR` (8) is an **estimate, not a guarantee**: it was measured at 3.8x to 7.9x with `tracemalloc` and
+7.5x to 8.4x in resident memory, and a request can cost more (a package that inflates, for one).
+
+* A charge that would fit the budget but not what the operations in flight leave of it is refused at once with
+  **429 `memory_budget`** and `Retry-After` (there is no queue; retry after the interval). 429 is stable and the client
+  should retry after `Retry-After`; unlike a 503 it means "this process is using its memory", not "busy".
+* A request whose charge is larger than the whole budget can **never** run, so it is not admitted, not even when nothing
+  else is in flight (an earlier version admitted it alone; that let a single request exceed the budget, and the container
+  with it). It is refused with **413 `memory_budget_exceeded`**, no `Retry-After`, and a detail that says it can never fit
+  the configured budget. The check comes first: before the tenant share and the slot are taken (so the refusal holds
+  nothing, and no counter changes), before the body is decoded, and, when `Content-Length` is declared, before a byte of
+  the body is read. For a chunked body the bytes are counted as they arrive and the request is cut off at the first chunk
+  that makes the estimate exceed the budget.
+* **Request bodies in flight.** The framework buffers a whole body before the gate is asked for a slot, so the bodies of
+  the requests waiting for one were bounded only by the number of connections. `BIM_SERVICE_MAX_PENDING_BODY_BYTES` bounds
+  the total of body bytes in flight, waiting or running, from the first byte read until the operation's thread ends (so,
+  like the slot and the charge, a timed-out or abandoned operation keeps its bytes counted until its thread finishes).
+  The declared `Content-Length` is reserved before reading; without one the bytes received are counted. What does not fit
+  is refused with **429 `pending_body_bytes`** and `Retry-After`; a body larger than the whole limit with
+  **413 `pending_body_too_large`**. With a budget and no explicit value the limit is twice what the budget admits as raw
+  bodies (`budget // 8`): as many bytes may wait as may run, so the worst case is about `1.25 x budget` plus the memory at
+  rest. Set to 0 it is off (the 413 `memory_budget_exceeded` check stays); with neither a budget nor a value nothing is
+  counted and the wire behaviour is the one of the earlier versions.
+
+The budget does not count the memory of the interpreter or anything that is not proportional to a request body; set it
+from `(memory limit - resident size at rest - pending bytes) / 8`, which needs to be measured in the target container.
 
 **Measured resident memory at the body limit.** `packages/bim-service/tests/analysis/test_analysis_b8_rss.py` starts a fresh
 Python process per row (`rss_support.py`), builds the application, and sends N = 1, 2 and 4 concurrent `/evaluate` requests
@@ -343,11 +369,16 @@ one 32 MiB request body, shared by all the requests, is in these figures.
   measured separately).
 * Nothing is kept: after the requests the process is within 3-7 MiB of where it was with the request loaded, and `malloc_trim`
   gives back little.
-* Against the 256 MiB `mem_limit` of the laboratory container (quoted from the analysis document, `compose.lab.json` was not
-  re-read here): idle 54.5 MiB plus about 268 MiB for one request at the limit is more than 256 MiB. A single request at the
-  body limit would not fit in that container, and the memory budget does not prevent it because a request larger than the whole
-  budget is admitted when nothing else is in flight. Only a lower `BIM_SERVICE_MAX_BODY_BYTES` (about `(limit - idle) / 8`, 25
-  MiB for 256 MiB) or a larger container does. This was **not run in a 256 MiB container**: it follows from the figures above.
+* Against the 256 MiB `mem_limit` (268435456 bytes) of the laboratory container: idle 54.5 MiB (the lab container's PID 1
+  was measured at 55451648 bytes) plus about 268 MiB for one request at the limit is more than 256 MiB. A single request of
+  32 MiB cannot be run in that container. The default limit of 32 MiB is therefore not what the laboratory advertises:
+  `compose.lab.json` sets `BIM_SERVICE_MAX_BODY_BYTES=16777216`, `BIM_SERVICE_MAX_CONCURRENCY=2`,
+  `BIM_SERVICE_MEMORY_BUDGET_BYTES=134217728` (8 x 16 MiB, so a request at the limit is admissible, alone) and
+  `BIM_SERVICE_MAX_PENDING_BODY_BYTES=33554432`, and `limits.service` publishes those values. Worst case from these figures:
+  55451648 at rest + 8.4 x 16 MiB admitted (the 8.4x of the first request) + 2 x 16 MiB waiting (the chunks and the joined
+  body coexist while it is assembled) = 229.9 million bytes, 38.5 million (36.7 MiB) below the limit. This is arithmetic on
+  the measurements above and was **not run in a 256 MiB container**; it covers memory proportional to request bodies, not
+  what a hostile package inflates to (`BIM_MAX_EXPANDED_BYTES`, 64 MiB by default, per request).
 
 The cgroup figures are reported apart by the test because they are not the process's: the cgroup of the run has
 `memory.max` 2684354560 (2560 MiB) and held 1255 MiB (the test runner, page cache) before each row; `memory.current` sampled
@@ -357,8 +388,8 @@ before the test and says nothing about it. The host reported `MemAvailable` 1073
 memory it can see (the smaller of `MemAvailable` and the cgroup headroom including page cache) holds `(8 x N + 2)` bodies, and
 prints what it did not run.
 
-`BIM_SERVICE_MEMORY_BUDGET_BYTES` stays **off by default**: the right value is `(limit of the target container - idle) / 8`
-and the only container measured is the one above, 2.5 GiB. `BIM_SERVICE_SWITCH_INTERVAL` stays unset for the reasons given
+`BIM_SERVICE_MEMORY_BUDGET_BYTES` stays **off by default**: the right value is
+`(limit of the target container - idle - pending bytes) / 8` and the only container measured is the one above, 2.5 GiB. `BIM_SERVICE_SWITCH_INTERVAL` stays unset for the reasons given
 under "What thread mode cannot do". `BODY_MEMORY_FACTOR` stays 8: the measured 7.5x does not justify changing it.
 
 A thread cannot be interrupted. When an operation exceeds its time budget the *response* is 503 `operation_timeout`,

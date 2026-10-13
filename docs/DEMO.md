@@ -86,6 +86,28 @@ that limits a compromised process. Consequences for the lab:
   These are plain Compose service attributes; `mem_limit` is unchanged, so the sum
   above is too. If the `lab_compose` validator of the controller rejects either key,
   remove them (the memory ceiling does not depend on them).
+- **`bim-service` memory (256 MiB, unchanged).** Its environment sets
+  `BIM_SERVICE_MAX_BODY_BYTES=16777216` (16 MiB, not the 32 MiB default),
+  `BIM_SERVICE_MAX_CONCURRENCY=2`, `BIM_SERVICE_MEMORY_BUDGET_BYTES=134217728` (128 MiB)
+  and `BIM_SERVICE_MAX_PENDING_BODY_BYTES=33554432` (32 MiB). Why not 32 MiB: the measured
+  figures (`bim-toolchain/docs/SERVICE.md`, "Memory budget") are 55451648 bytes of resident
+  memory at rest and about 268 MiB for one request of 32 MiB, against a limit of 268435456
+  bytes, so a body of 32 MiB cannot be run in this container and the lab does not advertise
+  it (`GET /bim/v1/capabilities` publishes the 16 MiB). The sizing: a request is charged 8
+  times its body (`BODY_MEMORY_FACTOR`, an **estimate, not a guarantee**: 7.5x to 8.4x was
+  measured), so the 128 MiB budget admits at most 16 MiB of bodies at once, the one request
+  at the limit alone or two smaller ones; a request whose estimate can never fit the budget is
+  refused with 413 `memory_budget_exceeded` before it is read, and one that fits later with
+  429 `memory_budget` (`Retry-After`). The bodies waiting for a slot or running add up to at
+  most 32 MiB; more is refused before the body is read (429 `pending_body_bytes`). Worst
+  case from these numbers: 52.9 MiB at rest + 8.4 x 16 MiB admitted + 2 x 16 MiB waiting
+  (buffered twice while joined) = about 219 MiB, 37 MiB below the limit.
+  `test_bim_service_memory_limits_fit_its_mem_limit` recomputes it. This follows from the
+  measurements and was **not run in a 256 MiB container**; the memory that is not
+  proportional to a request body (a package that inflates to up to
+  `BIM_MAX_EXPANDED_BYTES`, 64 MiB by default) is not covered by the budget. The default
+  `MAX_JSON_BODY_BYTES` of the gateway is also 16 MiB; the size of the requests it sends to
+  `bim-service` was not checked against the new limit.
 - Not executed: the image build, `up` and the new ownership have not been run (no
   Docker in the authoring environment); only the static checks cover them.
 
