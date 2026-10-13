@@ -665,7 +665,9 @@ def test_the_migration_hangs_from_the_previous_head_and_its_downgrade_drops_the_
     database = tmp_path / "evidence.db"
 
     heads = run(database, "heads")
-    assert heads.count("(head)") == 1 and THIS_REVISION in heads
+    # Later migrations hang from this revision, so it is no longer the head;
+    # it only has to stay in the single linear history.
+    assert heads.count("(head)") == 1 and THIS_REVISION in run(database, "history")
 
     run(database, "upgrade", PREVIOUS_REVISION)
     assert not has_table(database)

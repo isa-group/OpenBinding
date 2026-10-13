@@ -17,6 +17,7 @@ redirects), the immutable revisions, the publication lifecycle and the conforman
 from __future__ import annotations
 
 import copy
+import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -63,6 +64,8 @@ from .engines import (
     validate_engine_result,
 )
 from .probe import probe_ir
+
+logger = logging.getLogger(__name__)
 
 _ACCOUNTS_REQUIRED = "Engine registrations require the accounts database"
 _NOT_FOUND = "Engine registration not found"
@@ -284,6 +287,73 @@ def conformance_optimization(mode: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+#: ``spec.extensions`` key under which a deployment declares that it can stop a job (open by schema:
+#: ``bim-engine/v1`` has no cancellation operation and the registration schema's ``mappings`` is closed).
+CANCELLATION_EXTENSION = "cancellation"
+
+#: ``idScope`` that says the engine does not deduplicate by ``X-Openbinding-Job-Id`` (the id of the gateway's
+#: job, the same in every attempt), so the id it hands out is per attempt and cancelling one attempt cannot
+#: reach another.
+ATTEMPT_ID_SCOPE = "attempt"
+
+
+@dataclass(frozen=True)
+class CancellationCapability:
+    """What a registration promises about stopping a remote job, and whether the gateway may rely on it.
+
+    ``supported`` is true only for a declaration (``extensions.cancellation = {"supported": true,
+    "idScope": "attempt"}``) whose deployment OpenAPI also describes ``DELETE`` on the mapped job path with
+    a 2xx response and the registered authentication. A declaration the OpenAPI does not back is off:
+    ``declared`` stays true and ``reason`` says why, so it can be logged and shown in the report; the
+    registration itself is not changed.
+    """
+
+    declared: bool = False
+    supported: bool = False
+    id_scope: str | None = None
+    reason: str | None = None
+
+    @property
+    def per_attempt(self) -> bool:
+        return self.supported and self.id_scope == ATTEMPT_ID_SCOPE
+
+
+def cancellation_capability(spec: Any, openapi_document: Any) -> CancellationCapability:
+    """The cancellation capability of a registration ``spec`` against its pinned OpenAPI document."""
+    extensions = spec.get("extensions") if isinstance(spec, Mapping) else None
+    declaration = extensions.get(CANCELLATION_EXTENSION) if isinstance(extensions, Mapping) else None
+    if not isinstance(declaration, Mapping) or declaration.get("supported") is not True:
+        return CancellationCapability()
+    scope = declaration.get("idScope")
+    scope = scope if isinstance(scope, str) else None
+    mappings = spec.get("mappings") if isinstance(spec.get("mappings"), Mapping) else {}
+    job_path = mappings.get("job", "/internal/v1/jobs/{id}")
+    paths = openapi_document.get("paths") if isinstance(openapi_document, Mapping) else None
+    path_item = paths.get(job_path) if isinstance(paths, Mapping) else None
+    operation = path_item.get("delete") if isinstance(path_item, Mapping) else None
+    reason = None
+    if not isinstance(operation, Mapping):
+        reason = "the deployment OpenAPI does not describe DELETE on the mapped job path"
+    else:
+        responses = operation.get("responses")
+        if not isinstance(responses, Mapping) or not any(str(code).startswith("2") for code in responses):
+            reason = "the deployment OpenAPI does not describe a 2xx response of DELETE on the mapped job path"
+        else:
+            auth = spec.get("auth")
+            try:
+                assert_operation_auth(
+                    openapi_document,
+                    operation,
+                    auth.get("scheme", "none") if isinstance(auth, Mapping) else "none",
+                    "cancellation operation",
+                )
+            except RemoteEngineError as exc:
+                reason = str(exc)
+    if reason is not None:
+        return CancellationCapability(declared=True, supported=False, id_scope=scope, reason=reason)
+    return CancellationCapability(declared=True, supported=True, id_scope=scope)
+
+
 async def verify_registration(
     document: dict[str, Any],
     credential: str | None,
@@ -421,6 +491,21 @@ async def verify_registration(
         )
         await fetch(transport, health_path)
         checks.append({"id": "health", "status": "passed"})
+
+        capability = cancellation_capability(spec, openapi_document)
+        if capability.declared:
+            # Informational: a declaration the OpenAPI does not back turns the capability off, it does not
+            # fail the registration.
+            if capability.supported:
+                checks.append({"id": "cancellation", "status": "passed", "idScope": capability.id_scope})
+            else:
+                logger.warning(
+                    "Registration %s/%s declares cancellation but it is off: %s",
+                    document.get("metadata", {}).get("namespace"),
+                    document.get("metadata", {}).get("name"),
+                    capability.reason,
+                )
+                checks.append({"id": "cancellation", "status": "disabled", "message": capability.reason})
 
         probe_mode = conformance_mode(engine)
         result = await solve(

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 import uuid
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from bim_core.canonical import digest
@@ -29,8 +32,9 @@ from ..db.models import (
 )
 from ..integrations import bim
 from ..jobs import evidence as job_evidence
-from ..jobs import leases
+from ..jobs import leases, remote_attempts
 from ..v1.remote import RemoteEngineError, RemoteRegistration, cancel_remote, solve_remote
+from .engine_registry import CancellationCapability, cancellation_capability
 from .engines import (
     installed_builtin_registration,
     persisted_engine_contract,
@@ -143,27 +147,33 @@ REMOTE_CANCEL_TIMEOUT_S = 3.0
 ENGINE_JOB_ID_MAX = 128
 
 
-async def record_engine_job_id(session: AsyncSession, job_id: uuid.UUID, engine_job_id: str) -> None:
-    """Make the engine's id for this job durable before waiting for the result.
+#: How long a worker that is being cancelled waits for the write of an engine id that has already started.
+RECORD_GRACE_S = 10.0
 
-    A crash after this commit leaves the id on the row, so whoever recovers the
-    job (or an operator) knows which remote job to look for or cancel. It is
-    best effort: a failure here is logged and the attempt goes on, because
-    failing a solve the engine has already accepted would not stop it.
-    """
-    if len(engine_job_id) > ENGINE_JOB_ID_MAX:
-        logger.warning("The engine id for job %s is too long to store; not recording it", job_id)
-        return
+
+async def _write_engine_job_id(
+    session: AsyncSession, job_id: uuid.UUID, engine_job_id: str, attempt: int | None, endpoint: str | None
+) -> None:
     try:
         if not await leases.hold_lease(session, job_id, leases.held_token(session, job_id)):
             await session.rollback()
-            return  # The lease is gone; the check after the solve discards the answer.
+            # The lease is gone and the check after the solve discards the answer, but the engine is still
+            # running this attempt: keep its id, already pending, so that it can be asked to stop.
+            if attempt is not None and endpoint is not None:
+                await remote_attempts.record(session, job_id, attempt, engine_job_id, endpoint, lost=True)
+                await session.commit()
+            return
+        if attempt is None or endpoint is None:
+            current = (await session.execute(select(Job.attempt, Job.service_url).where(Job.id == job_id))).one()
+            attempt = current.attempt if attempt is None else attempt
+            endpoint = current.service_url if endpoint is None else endpoint
         await session.execute(
             update(Job)
             .where(Job.id == job_id)
             .values(engine_job_id=engine_job_id)
             .execution_options(synchronize_session=False)
         )
+        await remote_attempts.record(session, job_id, attempt, engine_job_id, endpoint)
         await session.commit()
     except Exception:
         logger.warning("Could not record the engine id for job %s", job_id, exc_info=True)
@@ -173,14 +183,306 @@ async def record_engine_job_id(session: AsyncSession, job_id: uuid.UUID, engine_
             logger.warning("Could not roll back after recording the engine id of job %s", job_id, exc_info=True)
 
 
-async def cancel_engine_job(transport: RemoteRegistration, engine_job_id: str | None) -> None:
-    """Best-effort cancellation of a remote job whose result the gateway no longer wants."""
-    if engine_job_id is None:
+async def record_engine_job_id(
+    session: AsyncSession,
+    job_id: uuid.UUID,
+    engine_job_id: str,
+    *,
+    attempt: int | None = None,
+    endpoint: str | None = None,
+) -> None:
+    """Make the engine's id for this attempt durable before waiting for the result.
+
+    A crash after this commit leaves the id on the row, so whoever recovers the
+    job (or an operator) knows which remote job to look for or cancel. Besides
+    ``jobs.engine_job_id`` (the latest id, overwritten by the next attempt) it is
+    written to ``job_engine_attempts`` with the endpoint it came from, one row per
+    attempt, which is what a later cancellation reads. ``attempt`` and ``endpoint``
+    default to the job's current claim and ``service_url``. It is best effort: a
+    failure here is logged and the attempt goes on, because failing a solve the
+    engine has already accepted would not stop it.
+
+    The write runs shielded: if the worker is cancelled while it is in flight the
+    write is allowed to finish first (a task cancelled in the middle of a query
+    leaves the connection in an unusable state), and only then does the
+    cancellation go on.
+    """
+    if len(engine_job_id) > ENGINE_JOB_ID_MAX:
+        logger.warning("The engine id for job %s is too long to store; not recording it", job_id)
+        return
+    write = asyncio.ensure_future(_write_engine_job_id(session, job_id, engine_job_id, attempt, endpoint))
+    try:
+        await asyncio.shield(write)
+    except asyncio.CancelledError:
+        await asyncio.wait({write}, timeout=RECORD_GRACE_S)
+        raise
+
+
+# -- Remote cancellation: one guarded door ---------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CancelContext:
+    """What a cancellation needs to know of the registration an attempt used.
+
+    ``capability`` is what the registration declares; ``endpoint`` is where it points *now*;
+    ``load_transport`` produces the transport with its credential and is only called once every guard has
+    passed, so a credential is never decrypted for a request that will not be made.
+    """
+
+    capability: CancellationCapability
+    endpoint: str
+    load_transport: Callable[[], Awaitable[RemoteRegistration]]
+
+
+def attempt_cancel_context(
+    capability: CancellationCapability | None, transport: RemoteRegistration | None
+) -> CancelContext | None:
+    """The context of a worker that holds the transport of its own attempt."""
+    if capability is None or transport is None:
+        return None
+
+    async def load() -> RemoteRegistration:
+        return transport
+
+    return CancelContext(capability, transport.endpoint, load)
+
+
+def registration_cancellation(registration: EngineRegistrationRevision | Mapping[str, Any]) -> CancellationCapability:
+    """The cancellation a registration declares and its OpenAPI backs (see ``cancellation_capability``).
+
+    A declaration the OpenAPI does not back is off, and that is logged here: the registration keeps its
+    state. The built-in registrations declare nothing.
+    """
+    if isinstance(registration, EngineRegistrationRevision):
+        document, openapi = registration.document, registration.openapi_document
+    else:
+        document = registration.get("document") if isinstance(registration, Mapping) else None
+        built_in_spec = document.get("spec") if isinstance(document, Mapping) else None
+        openapi = built_in_spec.get("openapi") if isinstance(built_in_spec, Mapping) else None
+    spec = document.get("spec") if isinstance(document, Mapping) else None
+    capability = cancellation_capability(spec, openapi)
+    if capability.declared and not capability.supported:
+        logger.warning("The registration declares cancellation but it is off: %s", capability.reason)
+    return capability
+
+
+async def find_registration_revision(
+    session: AsyncSession, job: Job, registration_ref: Mapping[str, Any]
+) -> EngineRegistrationRevision | None:
+    """The stored revision a job's registration reference names, if the job's owner may still use it."""
+    return (
+        await session.execute(
+            select(EngineRegistrationRevision).where(
+                EngineRegistrationRevision.namespace == registration_ref["namespace"],
+                EngineRegistrationRevision.name == registration_ref["name"],
+                EngineRegistrationRevision.version == registration_ref["version"],
+                EngineRegistrationRevision.manifest_digest == registration_ref["digest"],
+                or_(
+                    (
+                        (EngineRegistrationRevision.owner_id == job.owner_id)
+                        & EngineRegistrationRevision.is_active.is_(True)
+                    ),
+                    (
+                        (EngineRegistrationRevision.owner_id != job.owner_id)
+                        & (EngineRegistrationRevision.publication_status == "published")
+                    ),
+                ),
+            )
+        )
+    ).scalars().first()
+
+
+async def revision_transport(session: AsyncSession, registration: EngineRegistrationRevision) -> RemoteRegistration:
+    """The transport of a stored revision, with its credential decrypted. Raises ``SecretsUnavailable``."""
+    credential_value = None
+    credential_row = (
+        await session.execute(select(EngineCredential).where(EngineCredential.registration_id == registration.id))
+    ).scalars().first()
+    if credential_row is not None:
+        from ..security.secrets import CredentialStore
+
+        credential_value = CredentialStore.from_settings(get_settings()).decrypt(credential_row.credential_encrypted)
+    return RemoteRegistration(
+        endpoint=registration.endpoint,
+        mappings=registration.mappings,
+        auth_scheme=registration.auth_scheme,
+        credential=credential_value,
+        allow_internal_http=not get_settings().federation_require_https,
+    )
+
+
+async def resolve_cancel_context(session: AsyncSession, job_id: uuid.UUID) -> CancelContext | None:
+    """The context for cancelling an attempt of a job from the sweep, which holds no transport.
+
+    The registration is the one the job names, as it is now: if it is gone or deactivated there is nothing
+    to send the credential to. The built-in registrations declare nothing and have no context.
+    """
+    job = await session.get(Job, job_id, populate_existing=True)
+    if job is None:
+        return None
+    reference = (job.original_request or {}).get("registration")
+    if (
+        not isinstance(reference, dict)
+        or set(reference) != {"namespace", "name", "version", "digest"}
+        or not all(isinstance(value, str) and value for value in reference.values())
+        or reference["namespace"] == "bim.builtin"
+    ):
+        return None
+    revision = await find_registration_revision(session, job, reference)
+    if revision is None:
+        return None
+
+    async def load() -> RemoteRegistration:
+        return await revision_transport(session, revision)
+
+    return CancelContext(registration_cancellation(revision), revision.endpoint, load)
+
+
+async def _plan_cancellation(
+    session: AsyncSession, item: remote_attempts.ClaimedAttempt, context: CancelContext | None
+) -> tuple[str | None, RemoteRegistration | None]:
+    """``(state, None)`` to settle without sending, ``(None, transport)`` to send, ``(None, None)`` to wait."""
+    if context is None:
+        logger.info("Not cancelling attempt %s of job %s: its registration cannot be used", item.attempt, item.job_id)
+        return remote_attempts.SKIPPED, None
+    job = await remote_attempts.view(session, item.job_id)
+    if job is None:
+        return remote_attempts.SKIPPED, None
+    decision = remote_attempts.decide(
+        job,
+        remote_attempts.AttemptView(item.attempt, item.engine_job_id, item.endpoint),
+        supported=context.capability.supported,
+        per_attempt=context.capability.per_attempt,
+        current_endpoint=context.endpoint,
+    )
+    if decision.action is remote_attempts.Action.CANCEL:
+        transport = await context.load_transport()
+        if transport.endpoint != item.endpoint:  # the one that carries the credential is checked too
+            logger.info("Not cancelling attempt %s of job %s: the endpoint changed", item.attempt, item.job_id)
+            return remote_attempts.SKIPPED, None
+        return None, transport
+    if decision.action is remote_attempts.Action.DEFER:
+        if item.cancel_attempts >= get_settings().remote_cancel_defer_limit:
+            logger.warning(
+                "Giving up cancelling attempt %s of job %s after %d deferrals: %s",
+                item.attempt,
+                item.job_id,
+                item.cancel_attempts,
+                decision.reason,
+            )
+            return remote_attempts.SKIPPED, None
+        logger.info("Deferring the cancellation of attempt %s of job %s: %s", item.attempt, item.job_id, decision.reason)
+        return None, None
+    logger.info("Not cancelling attempt %s of job %s: %s", item.attempt, item.job_id, decision.reason)
+    return remote_attempts.SKIPPED, None
+
+
+async def _send_cancellation(item: remote_attempts.ClaimedAttempt, transport: RemoteRegistration) -> str:
+    """The only place that asks an engine to stop a job. Returns the state the attempt ends in."""
+    statuses: list[int] = []
+    try:
+        acknowledged = await cancel_remote(
+            transport, item.engine_job_id, timeout_s=REMOTE_CANCEL_TIMEOUT_S, on_status=statuses.append
+        )
+    except Exception:
+        logger.warning("Could not cancel attempt %s of job %s", item.attempt, item.job_id, exc_info=True)
+        return remote_attempts.FAILED
+    if acknowledged:
+        return remote_attempts.SENT
+    if statuses and statuses[-1] in (404, 405, 501):
+        logger.info("The engine does not implement cancellation (attempt %s of job %s)", item.attempt, item.job_id)
+        return remote_attempts.SKIPPED
+    return remote_attempts.FAILED
+
+
+async def cancel_engine_attempts(
+    session: AsyncSession,
+    claimed: Sequence[remote_attempts.ClaimedAttempt],
+    *,
+    context: CancelContext | None = None,
+) -> int:
+    """Carry out claimed cancellations of lost attempts, best effort. Returns how many engines acknowledged.
+
+    The door every remote cancellation goes through (the worker's three paths and the reconciler's sweep).
+    For each claim the engine id and the endpoint are read from the attempt's row, and ``remote_attempts.decide``
+    says whether a ``DELETE`` may go out: only if the registration declares the capability, points at the
+    endpoint the attempt used, and the attempt is not the one that runs the job. ``context`` is the worker's
+    own; without it the registration of each job is resolved from the database. The claims are already
+    committed; no transaction is open while the engines are asked (the requests run concurrently up to
+    ``remote_cancel_concurrency``, each bounded by ``REMOTE_CANCEL_TIMEOUT_S``), and the outcomes are
+    written afterwards. A failure to send leaves the row due again after its backoff, until its claims run out.
+    """
+    settings = get_settings()
+    contexts: dict[uuid.UUID, CancelContext | None] = {}
+    settled: list[tuple[remote_attempts.ClaimedAttempt, str]] = []
+    to_send: list[tuple[remote_attempts.ClaimedAttempt, RemoteRegistration]] = []
+    for item in claimed:
+        try:
+            item_context = context
+            if item_context is None:
+                if item.job_id not in contexts:
+                    contexts[item.job_id] = await resolve_cancel_context(session, item.job_id)
+                item_context = contexts[item.job_id]
+            state, transport = await _plan_cancellation(session, item, item_context)
+        except Exception:
+            logger.warning("Could not plan the cancellation of attempt %s of job %s", item.attempt, item.job_id, exc_info=True)
+            settled.append((item, remote_attempts.FAILED))
+            continue
+        if transport is not None:
+            to_send.append((item, transport))
+        elif state is not None:
+            settled.append((item, state))
+    await session.commit()  # reads only; nothing may stay open while the engines are asked
+
+    gate = asyncio.Semaphore(settings.remote_cancel_concurrency)
+
+    async def send(item: remote_attempts.ClaimedAttempt, transport: RemoteRegistration) -> tuple[remote_attempts.ClaimedAttempt, str]:
+        async with gate:
+            return item, await _send_cancellation(item, transport)
+
+    settled.extend(await asyncio.gather(*(send(item, transport) for item, transport in to_send)))
+    try:
+        for item, state in settled:
+            if state == remote_attempts.FAILED and item.cancel_attempts >= settings.remote_cancel_max_attempts:
+                logger.warning(
+                    "Giving up cancelling attempt %s of job %s after %d claims", item.attempt, item.job_id, item.cancel_attempts
+                )
+            await remote_attempts.settle(session, item, state)
+        await session.commit()
+    except Exception:
+        logger.warning("Could not record the outcome of %d cancellation(s)", len(settled), exc_info=True)
+        try:
+            await session.rollback()
+        except Exception:
+            logger.warning("Could not roll back after recording cancellations", exc_info=True)
+    return sum(1 for _, state in settled if state == remote_attempts.SENT)
+
+
+async def cancel_engine_attempt(
+    session: AsyncSession, job_id: uuid.UUID, attempt: int, context: CancelContext | None
+) -> None:
+    """The worker's side of the door: ask the engine to stop attempt ``attempt`` of the job, if that is allowed.
+
+    Marks the attempt as lost if the sweep has not, claims its cancellation and goes through
+    ``cancel_engine_attempts``; whatever the guards decide (an attempt that has to wait stays pending for the
+    sweep). Never raises. The caller has committed the job's outcome and has no transaction open.
+    """
+    if context is None or not context.capability.supported:
         return
     try:
-        await cancel_remote(transport, engine_job_id, timeout_s=REMOTE_CANCEL_TIMEOUT_S)
+        claimed = await remote_attempts.claim_one(
+            session, job_id, attempt, max_attempts=get_settings().remote_cancel_max_attempts
+        )
+        await session.commit()
+        if claimed is not None:
+            await cancel_engine_attempts(session, [claimed], context=context)
     except Exception:
-        logger.warning("Could not cancel engine job %s", engine_job_id, exc_info=True)
+        logger.warning("Could not cancel attempt %s of job %s", attempt, job_id, exc_info=True)
+        try:
+            await session.rollback()
+        except Exception:
+            logger.warning("Could not roll back after cancelling attempt %s of job %s", attempt, job_id, exc_info=True)
 
 
 async def keep_engine_answer(
@@ -251,9 +553,15 @@ async def settle_engine_answer(
     termination_guarantees: list[str],
     provenance: dict[str, Any],
     transport: RemoteRegistration | None,
-    engine_job_id: str | None,
+    engine_job_id: str | None = None,
+    capability: CancellationCapability | None = None,
 ) -> None:
     """Turn the engine's answer into the job's outcome, in the order that loses nothing.
+
+    Whatever remote job of this attempt is no longer wanted (the lease was lost, or the job was cancelled)
+    is cancelled through ``cancel_engine_attempt``, which reads the attempt's id from its row and sends
+    nothing unless ``capability`` says the registration declares cancellation. ``engine_job_id`` is not
+    used any more and stays only so that existing callers keep working.
 
     The caller holds the lease token in ``session.info`` and no transaction is
     open. The row lock of the job is held only in short transactions: the raw
@@ -264,6 +572,7 @@ async def settle_engine_answer(
     is FAILED ``bim_evaluation_failed`` with a reference to the kept answer.
     """
     job_id = job.id
+    cancel_context = attempt_cancel_context(capability, transport)
     # Lock first, read second: the refresh then sees the row as it will stay
     # until this transaction ends.
     if not await leases.hold_lease(session, job_id, leases.held_token(session, job_id)):
@@ -271,7 +580,7 @@ async def settle_engine_answer(
         # (or failed). The answer arrived too late to be the job's answer.
         logger.warning("Lost the lease on job %s; discarding its result", job_id)
         await session.rollback()
-        await cancel_engine_job(transport, engine_job_id)
+        await cancel_engine_attempt(session, job_id, attempt, cancel_context)
         return
     await session.refresh(job)
     if job.cancellation_requested:
@@ -283,7 +592,7 @@ async def settle_engine_answer(
         # Durable first: the cancel call is a network round trip and must
         # not run inside the transaction that holds the row lock.
         await session.commit()
-        await cancel_engine_job(transport, engine_job_id)
+        await cancel_engine_attempt(session, job_id, attempt, cancel_context)
         return
     # The raw answer is durable before BIM is asked about it, and the commit
     # also releases the row lock: BIM is a network call and neither its
@@ -300,7 +609,7 @@ async def settle_engine_answer(
         logger.warning("Lost the lease on job %s during its evaluation; discarding its result", job_id)
         await session.rollback()
         await job_evidence.discard_attempt(session, job_id, attempt)
-        await cancel_engine_job(transport, engine_job_id)
+        await cancel_engine_attempt(session, job_id, attempt, cancel_context)
         return
     await session.refresh(job)
     # The cancellation may have come in while BIM was working and the lock was free.
@@ -312,7 +621,7 @@ async def settle_engine_answer(
         await job_evidence.delete_for_job(session, job_id)
         await session.flush()
         await session.commit()
-        await cancel_engine_job(transport, engine_job_id)
+        await cancel_engine_attempt(session, job_id, attempt, cancel_context)
         return
     if evaluation_error is not None:
         await fail_persisted_job(
@@ -410,29 +719,7 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
                 registration_ref,
             )
         if registration is None:
-            registration = (
-                await session.execute(
-                    select(EngineRegistrationRevision).where(
-                        EngineRegistrationRevision.namespace == registration_ref["namespace"],
-                        EngineRegistrationRevision.name == registration_ref["name"],
-                        EngineRegistrationRevision.version == registration_ref["version"],
-                        EngineRegistrationRevision.manifest_digest == registration_ref["digest"],
-                        or_(
-                            (
-                                (EngineRegistrationRevision.owner_id == job.owner_id)
-                                & EngineRegistrationRevision.is_active.is_(True)
-                            ),
-                            (
-                                (EngineRegistrationRevision.owner_id != job.owner_id)
-                                & (
-                                    EngineRegistrationRevision.publication_status
-                                    == "published"
-                                )
-                            ),
-                        ),
-                    )
-                )
-            ).scalars().first()
+            registration = await find_registration_revision(session, job, registration_ref)
         if registration is None:
             await fail_persisted_job(
                 job, session, "registration_changed", started, reason="Engine registration is no longer active"
@@ -454,29 +741,14 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
             )
             return
 
-        credential_value = None
         if isinstance(registration, EngineRegistrationRevision):
-            credential_value = None
-            credential_row = (
-                await session.execute(
-                    select(EngineCredential).where(EngineCredential.registration_id == registration.id)
-                )
-            ).scalars().first()
-            if credential_row is not None:
-                from ..security.secrets import CredentialStore, SecretsUnavailable
+            from ..security.secrets import SecretsUnavailable
 
-                try:
-                    credential_value = CredentialStore.from_settings(get_settings()).decrypt(credential_row.credential_encrypted)
-                except SecretsUnavailable as exc:
-                    await fail_persisted_job(job, session, "credential_unavailable", started, cause=exc)
-                    return
-            transport = RemoteRegistration(
-                endpoint=registration.endpoint,
-                mappings=registration.mappings,
-                auth_scheme=registration.auth_scheme,
-                credential=credential_value,
-                allow_internal_http=not get_settings().federation_require_https,
-            )
+            try:
+                transport = await revision_transport(session, registration)
+            except SecretsUnavailable as exc:
+                await fail_persisted_job(job, session, "credential_unavailable", started, cause=exc)
+                return
             protocol_digest = registration.protocol_digest
         else:
             try:
@@ -503,12 +775,11 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
         # engine works. The lease token lives in session.info, which a commit
         # leaves alone, and is checked again once the answer is back.
         attempt = job.attempt
+        capability = registration_cancellation(registration)
         await session.commit()
-        engine = {"job_id": None}
 
         async def remember_engine_job(engine_job_id: str) -> None:
-            engine["job_id"] = engine_job_id
-            await record_engine_job_id(session, parsed, engine_job_id)
+            await record_engine_job_id(session, parsed, engine_job_id, attempt=attempt, endpoint=transport.endpoint)
 
         try:
             remote_result = await solve_remote(
@@ -523,9 +794,11 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
                 validate_result=validate_engine_result,
             )
         except RemoteEngineError as exc:
-            # The gateway gives up on this attempt; the engine may still be working.
-            await cancel_engine_job(transport, engine["job_id"])
+            # The gateway gives up on this attempt; the engine may still be working. The job is failed and
+            # that is made durable first: an attempt is only cancelled once the job no longer runs it.
             await fail_persisted_job(job, session, classify_job_failure(exc), started, cause=exc)
+            await session.commit()
+            await cancel_engine_attempt(session, parsed, attempt, attempt_cancel_context(capability, transport))
             return
         await settle_engine_answer(
             session,
@@ -538,7 +811,7 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
             termination_guarantees=mode_contract["terminationGuarantees"],
             provenance={**provenance, "registration": registration_ref, "protocolDigest": protocol_digest},
             transport=transport,
-            engine_job_id=engine["job_id"],
+            capability=capability,
         )
     except Exception as exc:
         await fail_persisted_job(job, session, classify_job_failure(exc), started, cause=exc)

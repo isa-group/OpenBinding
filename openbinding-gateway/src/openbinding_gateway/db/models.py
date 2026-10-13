@@ -538,6 +538,45 @@ class JobEngineEvidence(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class JobEngineAttempt(Base):
+    """The engine's own id for one attempt of a job, and the state of its best-effort cancellation.
+
+    ``jobs.engine_job_id`` holds one id, which the next attempt overwrites; this
+    table keeps the id (and the endpoint it was obtained from) of every attempt,
+    so that the remote job of an attempt that lost its lease can still be asked
+    to stop. ``cancel_state`` is ``none`` until the attempt is lost, ``pending``
+    from then on, and ends ``sent``, ``skipped`` (never sent, on purpose) or
+    ``failed`` (sent and not acknowledged, retried with ``next_cancel_at`` until
+    ``cancel_attempts`` runs out). ``cancel_attempts`` counts every claim of the
+    row for cancellation, deferrals included. Nothing here is returned by a route.
+    """
+
+    __tablename__ = "job_engine_attempts"
+    __table_args__ = (
+        Index("uq_job_engine_attempts_job_attempt", "job_id", "attempt", unique=True),
+        Index("ix_job_engine_attempts_cancel_due", "cancel_state", "next_cancel_at"),
+        CheckConstraint(
+            "cancel_state IN ('none', 'pending', 'sent', 'skipped', 'failed')",
+            name="ck_job_engine_attempts_cancel_state",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    #: ``jobs.attempt`` of the claim that received the id.
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False)
+    engine_job_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    #: The endpoint of the registration used by this attempt; a cancellation (which carries the
+    #: credential) is only sent to the same endpoint.
+    endpoint: Mapped[str] = mapped_column(String(512), nullable=False)
+    registered_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    cancel_state: Mapped[str] = mapped_column(String(16), nullable=False, default="none", server_default="none")
+    cancel_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    next_cancel_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 # Re-exporting these keeps one stable import location for persistence models,
 # while the platform domain remains readable in its own module.
 from .platform_models import (  # noqa: E402,F401

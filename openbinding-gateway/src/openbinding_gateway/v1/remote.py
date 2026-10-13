@@ -469,6 +469,7 @@ async def cancel_remote(
     *,
     timeout_s: float = 3.0,
     transport: httpx.AsyncBaseTransport | None = None,
+    on_status: Callable[[int], None] | None = None,
 ) -> bool:
     """Ask an engine to stop one of its jobs. Best effort: it never raises.
 
@@ -476,7 +477,13 @@ async def cancel_remote(
     the engine's job resource (the ``job`` mapping), which an engine may honour
     or answer with 404/405. The result is whether the engine acknowledged it;
     every failure, a timeout included, is swallowed because the caller has
-    already decided what happens to the gateway's job.
+    already decided what happens to the gateway's job. ``on_status`` is called
+    with the HTTP status when the engine answered at all.
+
+    This is the transport only and it carries the credential: it does not know
+    whether the registration declares the capability or whether the id still
+    belongs to a job nobody wants. Callers go through
+    ``services.execution.cancel_engine_attempts``, which does.
     """
 
     async def attempt() -> bool:
@@ -504,6 +511,8 @@ async def cancel_remote(
                 request.extensions["sni_hostname"] = original.hostname
             response = await client.send(request, stream=True)
             await response.aclose()
+            if on_status is not None:
+                on_status(response.status_code)
             return response.status_code in (200, 202, 204)
 
     try:

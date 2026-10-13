@@ -6,6 +6,7 @@ import pytest_asyncio
 from _pricing import pricing_catalog
 from openbinding_gateway.db.models import User, UserRole
 from openbinding_gateway.services import execution
+from openbinding_gateway.services.engine_registry import CancellationCapability
 from openbinding_gateway.v1 import remote
 
 
@@ -41,3 +42,11 @@ def remote_stub(monkeypatch) -> RemoteStub:
     monkeypatch.setattr(execution, "cancel_remote", stub.cancel)
     monkeypatch.setattr(remote, "cancel_remote", stub.cancel)
     return stub
+
+
+@pytest.fixture
+def declared_cancellation(monkeypatch) -> CancellationCapability:
+    """The built-in engines of the jobs submitted over HTTP declare nothing; this one declares per-attempt cancellation."""
+    capability = CancellationCapability(declared=True, supported=True, id_scope="attempt")
+    monkeypatch.setattr(execution, "registration_cancellation", lambda _registration: capability)
+    return capability

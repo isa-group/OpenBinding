@@ -23,7 +23,7 @@ from ..core.public_errors import current_correlation_id, job_failure_fields
 from ..core.settings import get_settings
 from ..db import base as db_base
 from ..db.models import Job, JobState, RunState, StudyCell
-from . import clock
+from . import clock, remote_attempts
 from .leases import MAX_ATTEMPTS, aware
 from .lifecycle import sync_study_cell
 
@@ -97,6 +97,8 @@ async def _requeue(session: AsyncSession, job: Job) -> bool:
     )
     if requeued.first() is None:
         return False
+    # Only rows, in this transaction: the engines are asked after it has committed (cancel_lost_attempts).
+    await remote_attempts.mark_lost(session, job.id, job.attempt)
     await session.refresh(job)
     return True
 
@@ -137,6 +139,7 @@ async def _fail_abandoned(session: AsyncSession, job: Job) -> bool:
     logger.warning(
         "Failed abandoned job %s: code=%s correlation_id=%s", job.id, code, result["correlationId"]
     )
+    await remote_attempts.mark_lost(session, job.id, job.attempt)
     await session.refresh(job)
     return True
 
@@ -284,6 +287,29 @@ async def sweep_abandoned(session: AsyncSession) -> int:
     return len(ended)
 
 
+async def cancel_lost_attempts(session: AsyncSession) -> int:
+    """Ask the engines to stop the remote jobs of attempts that lost their lease; returns how many acknowledged.
+
+    Runs after the sweep has committed, never inside it: the sweep only marks the attempts (``mark_lost``)
+    and this step claims a bounded batch of them (``remote_cancel_batch``), commits the claim, and only then
+    goes to the network, with short timeouts and at most ``remote_cancel_concurrency`` requests at once.
+    Every cancellation goes through ``services.execution.cancel_engine_attempts``, which sends nothing
+    unless the registration declares the capability and the fencing rules of ``remote_attempts.decide``
+    allow it. A network error leaves the attempt ``failed``, due again after a backoff, a bounded number
+    of times; an attempt that has to wait for the running one is deferred and finally skipped.
+    """
+    from ..services import execution  # the services layer imports this one
+
+    settings = get_settings()
+    claimed = await remote_attempts.claim_due(
+        session, limit=settings.remote_cancel_batch, max_attempts=settings.remote_cancel_max_attempts
+    )
+    await session.commit()  # the claim is durable (and its row locks released) before any request
+    if not claimed:
+        return 0
+    return await execution.cancel_engine_attempts(session, claimed)
+
+
 async def purge_expired_evidence(session: AsyncSession) -> int:
     """Delete the engine answers kept past their retention: one bounded batch per cycle, the caller commits."""
     from .evidence import purge_expired
@@ -310,6 +336,15 @@ async def _reconcile_cycle(factory) -> None:
         from ..job_dispatch import redeliver_queued_jobs
 
         redelivered = await redeliver_queued_jobs(session)
+        try:
+            cancelled = await cancel_lost_attempts(session)
+        except Exception:
+            cancelled = 0
+            logger.warning("Cancelling the remote jobs of lost attempts failed; continuing", exc_info=True)
+            try:
+                await session.rollback()
+            except Exception:
+                logger.warning("Could not roll back after cancelling lost attempts", exc_info=True)
         from ..sponsor_proposals import sweep_expired
 
         proposals_expired = await sweep_expired(session)
@@ -342,6 +377,8 @@ async def _reconcile_cycle(factory) -> None:
         logger.info("Failed %d abandoned job(s)", failed)
     if redelivered:
         logger.info("Redelivered %d queued job(s)", redelivered)
+    if cancelled:
+        logger.info("Asked engines to stop %d remote job(s) of lost attempts", cancelled)
     if proposals_expired:
         logger.info("Expired %d sponsorship proposal(s)", proposals_expired)
     if purged:

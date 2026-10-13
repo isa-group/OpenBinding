@@ -11,7 +11,7 @@ checked and where. Distributed exactly-once execution is **not** claimed.
 | **G1** | At most one job per `(account, Idempotency-Key)` | Unique constraint `uq_jobs_owner_idempotency_key` on `(owner_id, idempotency_key)` (`db/models.py`) plus the `v2:` request fingerprint |
 | **G2** | One *current* execution per lease | A single conditional `UPDATE ... WHERE state = 'queued'` claims the job under a 60 s lease renewed every 20 s (`jobs/leases.py`). **Two solves can run in parallel** (a worker presumed dead that is in fact alive, and its replacement) until the old holder's next `hold_lease`; its result is then **discarded** |
 | **G3** | The queue is at-least-once | The `queued` row is the outbox. Messages may be duplicated or lost; the publisher republishes due rows (`jobs/publisher.py`) and the claim makes duplicates harmless |
-| **G4** | Effects on remote Engines are at-least-once | An Engine can see the same job again after a crash or a lost lease. Mitigated, not removed: idempotency *hints* in request headers and best-effort cancellation of the remote job |
+| **G4** | Effects on remote Engines are at-least-once | An Engine can see the same job again after a crash or a lost lease. Mitigated, not removed: idempotency *hints* in request headers and, **only for an Engine whose registration declares the capability**, best-effort cancellation of the remote job of an attempt that was lost (never of the one that runs the job) |
 | End to end | **Not** exactly once | See [failure modes](#failure-modes) |
 
 ## Where the flow lives
@@ -194,11 +194,75 @@ change does not alter the protocol (its digest is pinned). What the gateway does
   commits. (Until then that column holds the gateway job id.) If the commit fails
   the attempt goes on and the id is simply not recorded; an id longer than the
   column (128) is not recorded either.
-- When the gateway discards a late result (lease lost), notices a cancellation, or
-  gives up on an accepted job (error, timeout), it sends a best-effort
-  `DELETE` on the Engine's job resource (the registration's `job` mapping), with a
-  3 s timeout and without propagating any error. Engines may answer 404/405; that
-  is not an error. The cancel call is made outside any transaction.
+- The id is also written to `job_engine_attempts`, one row per attempt
+  (`job_id`, `attempt`, `engine_job_id`, `endpoint`, `registered_at`,
+  `cancel_state`, `cancel_attempts`, `next_cancel_at`; unique on `(job_id, attempt)`,
+  `ON DELETE CASCADE`; migration `b6c7d8e9f0a1`, hanging from `a5b6c7d8e9f0`), in the
+  same transaction. `jobs.engine_job_id` keeps only the latest id, because the next
+  attempt overwrites it; the table keeps the id and the endpoint of **every** attempt,
+  so the first attempt is still known when the second is lost too. The downgrade drops
+  the table: the ids and the pending cancellations in it are destroyed, and the
+  remote jobs of lost attempts that were not yet cancelled can no longer be asked to
+  stop. An id that arrives after the worker already lost its lease is still
+  recorded, as pending cancellation, and writes nothing on the job.
+- **Cancelling a remote job is best effort and conditioned on a declared
+  capability.** `bim-engine/v1` has no cancellation operation and no Engine in the
+  tree implements `DELETE` today. A registration declares it in
+  `spec.extensions.cancellation`, for example `{"supported": true, "idScope": "attempt"}`
+  (`extensions` is open in the registration schema; the schema and the manifest are
+  unchanged). `idScope: "attempt"` means that the Engine does **not** deduplicate by
+  `X-Openbinding-Job-Id` (the gateway job id, the same in every attempt) and that the
+  id it hands out is per attempt, so stopping one attempt cannot reach another. The
+  declaration is only trusted if the deployment's pinned OpenAPI describes `DELETE` on the
+  mapped `job` path with a 2xx response and the registered authentication; if it does
+  not, the capability is **off**, the finding is logged and shown as a
+  `cancellation` check with status `disabled` in the verification report, and the
+  registration itself keeps its state. The built-in Engines declare nothing.
+- **One door.** Every remote cancellation (the three paths of the worker: the Engine
+  failed after accepting, the late result of a lost lease is discarded, a cancellation
+  is noticed after the solve; and the reconciler's step) goes through
+  `services.execution.cancel_engine_attempts`, the only caller of the transport.
+  It reads the id and the endpoint of the attempt from its row `job_engine_attempts`,
+  never from a variable of the worker, and sends nothing unless the rules below
+  (`jobs/remote_attempts.py`, `decide`) allow it:
+  1. Without the declared capability: nothing.
+  2. Attempt `k` is cancelled only if the job is terminal, or if the job is not
+     running (it is queued again: `k` was the last claim and it was lost, nothing else can
+     hold that id), or if the attempt that runs now has already registered an id
+     **different** from `k`'s. If the running attempt has no id yet, the cancellation is
+     **deferred** with backoff and, after `REMOTE_CANCEL_DEFER_LIMIT` deferrals (default
+     5), **skipped**: it is never sent blind. The attempt that runs the job is never
+     cancelled, and neither is an id that a newer attempt also holds.
+  3. Without `idScope: "attempt"`, only when the job is terminal.
+  4. The `DELETE` carries the credential, so it is not sent if the current registration
+     points at a host or endpoint other than the one the attempt used. The credential is not
+     even decrypted in that case.
+  5. The worker's three paths first make their outcome durable (the job is
+     `FAILED`/`CANCELLED`, or the lease is gone) and only then ask: an attempt is not
+     cancelled while the job still runs it.
+- **The sweep does no network.** `_requeue` and `_fail_abandoned` only mark the lost
+  attempts (`cancel_state = 'pending'`) in their own transaction. After it commits, the
+  reconciler cycle claims a bounded batch (`REMOTE_CANCEL_BATCH`, 20) with a
+  compare-and-swap on `cancel_attempts` (and `FOR UPDATE SKIP LOCKED` on PostgreSQL),
+  commits the claim, and only then asks the Engines, at most `REMOTE_CANCEL_CONCURRENCY` (4)
+  at a time, each with a 3 s timeout and no transaction open. Two replicas never send the
+  same `DELETE`. A network error leaves the attempt `failed`, due again after an exponential
+  backoff (15 s ... 300 s); the claims of one cancellation, deferrals included, are bounded
+  by `REMOTE_CANCEL_MAX_ATTEMPTS` (8), after which it is given up. 404, 405 and 501 are
+  `skipped`, not retried. An error never reaches a response and never changes the
+  outcome of the job.
+- **The fencing is unchanged.** The lease token still decides who may write; the late
+  result of a superseded attempt is still discarded by `hold_lease`.
+- **Limit: the slow worker keeps waiting.** `leases.beat` returns when a renewal says
+  the lease was lost, but nothing interrupts `solve_remote`: the worker waits for the
+  Engine up to the solve timeout (`ENGINE_SOLVE_TIMEOUT_S`, 1800 s by default) and then
+  discards its result. Until then two solves run. The cancellation reaches the lost
+  attempt from the sweep, if the Engine supports it, not from the slow worker.
+- **Limit: the gateway can crash** between the Engine's `202` and the commit of the id;
+  then there is no id and nothing to cancel.
+- **Not proven against a real Engine.** No Engine in the tree implements `DELETE`;
+  how a real one reacts is unknown (including one that treats `DELETE` as "delete the
+  result"). The tests use local HTTP doubles.
 
 ## Engine answers kept for re-evaluation (B4)
 
@@ -255,8 +319,8 @@ minute, so the raw answer is no longer lost when BIM fails.
   meanwhile wins. The winner deletes the job's evidence and writes a `job.reevaluated`
   audit event in the same transaction.
 
-The row of *Failure modes* below that says the engine's result is lost when BIM
-fails (B4) describes the behaviour before this section.
+The engine's result is no longer lost when BIM fails: see the *Failure modes* row
+for B4.
 
 ## Failure modes
 
@@ -266,13 +330,14 @@ fails (B4) describes the behaviour before this section.
 | Redis down after commit | `202` is still returned; the job stays `queued` and the publisher sends it, with backoff, when Redis returns |
 | Message lost after commit | Same: the publisher covers it after 30 s |
 | Queue backed up | Republished messages accumulate, at most one per backoff step per job (15 s ... 300 s); duplicates are harmless. After `QUEUE_TIMEOUT_S` the job fails with `queue_timeout` |
-| Worker dies mid-solve | Lease lapses; the job runs again once, then fails. **The Engine may have run the first attempt to completion or partly** (the gateway then asks it to cancel, best effort) |
-| Worker is slow, not dead, and loses its lease (long pause, missed beats) | The job is requeued and runs a second time; for a while **two solves run in parallel**. The first worker's late answer is discarded by `hold_lease` and the remote job is cancelled best effort. The Engine did the work twice |
+| Worker dies mid-solve | Lease lapses; the job runs again once, then fails. **The Engine may have run the first attempt to completion or partly.** The reconciler marks the lost attempt and, after its commit, asks the Engine to stop that attempt's remote job **only if the registration declares cancellation** and the fencing rules allow it (best effort, bounded retries). Otherwise it runs on until it ends by itself |
+| Worker is slow, not dead, and loses its lease (long pause, missed beats) | The job is requeued and runs a second time; for a while **two solves run in parallel**, and the slow worker waits for its Engine up to the solve timeout (1800 s by default) without being interrupted. Its late answer is discarded by `hold_lease`, and its remote job is cancelled best effort if the registration declares cancellation and the new attempt has registered a different id (or the job is not running). The Engine did the work twice |
 | Gateway crashes after the Engine accepted a job and before the id was committed | The id is not recorded and the remote job is orphaned. Only the idempotency hints can mitigate it |
 | Gateway restarts between the Engine's answer and the database commit | The result is lost for that attempt; the job is requeued or failed by the reconciler |
 | Replica with a skewed clock | No effect on PostgreSQL (all comparisons use the database clock); on SQLite there is only one process |
 | Database connection holding the reconciler lock drops | Two replicas may run a cycle at once; harmless, every step is conditioned |
-| Lease lost (B3) or bim fails during re-evaluation (B4) | B3: the old holder keeps waiting for the engine and `_requeue` does not cancel the remote job; only its late result is discarded. B4: if bim fails when the result is re-evaluated, the job becomes `FAILED` and the engine's result is lost. Both open, see [qa/SECURITY_REVIEW.md](qa/SECURITY_REVIEW.md) |
+| Lease lost (B3) | The late result is discarded (fencing, unchanged). The remote job of the lost attempt is asked to stop only for an Engine that declares the capability, never the one that runs the job and never an id a newer attempt also holds; the slow holder still waits for its Engine (limit above). Execution on the Engine stays at-least-once. See [qa/SECURITY_REVIEW.md](qa/SECURITY_REVIEW.md) |
+| BIM fails during re-evaluation (B4) | The job becomes `FAILED` (`bim_evaluation_failed`) but the engine's raw answer is **kept** in `job_engine_evidence` and can be evaluated again without solving (see *Engine answers kept for re-evaluation*) |
 | Analysis task whose worker keeps dying | Requeued twice, failed as `analysis_abandoned` on the third lost lease |
 | Client retries after a timeout with the same key | Replay of the original job |
 | Client retries with a new key (or none) | A new job; nothing links it to the first |
@@ -330,8 +395,11 @@ list as scope, not as a per-test result:
 **Covered by SQLite only:** the controlled-clock lease tests, the publisher's
 claim / backoff / commit-before-send ordering, the queue limit, analysis-task
 attempts and heartbeat, remote ids / hints / cancellation against a simulated
-transport (`httpx.MockTransport`). SQLite has no row locks or `SKIP LOCKED`; the
-claim race there is decided by the single `UPDATE`.
+transport (`httpx.MockTransport`; `tests/test_remote_cancel.py`, with the fencing rules
+checked over every combination of states). SQLite has no row locks or `SKIP LOCKED`; the
+claim race there is decided by the single `UPDATE`. Two replicas claiming the same
+cancellation at once is `tests/concurrency/test_remote_cancel_pg.py`, written to run on
+PostgreSQL in the lab and not executed in the SQLite runs.
 
 **Not exercised anywhere:** a real Redis / Dramatiq broker failing mid-batch,
 real remote Engines under crash injection, the cancel call against an Engine that

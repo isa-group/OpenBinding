@@ -31,6 +31,7 @@ from openbinding_gateway.core.public_errors import JOB_FAILURES
 from openbinding_gateway.db.models import Job, JobState, User, UserRole, utcnow
 from openbinding_gateway.jobs import clock, leases, reconciler
 from openbinding_gateway.services import execution
+from openbinding_gateway.services.engine_registry import CancellationCapability
 from bim_core.package import load_package
 
 ROOT = Path(__file__).parents[1]
@@ -739,7 +740,19 @@ class RemoteStub:
 
 
 @pytest.fixture
-def remote_stub(monkeypatch) -> RemoteStub:
+def declared_cancellation(monkeypatch) -> CancellationCapability:
+    """These jobs run on a built-in engine, which declares no cancellation: this makes it declare the per-attempt kind.
+
+    Remote cancellation goes through one guarded door that sends nothing to an engine whose registration
+    does not declare the capability, so a test that expects a ``DELETE`` has to say who declares it.
+    """
+    capability = CancellationCapability(declared=True, supported=True, id_scope="attempt")
+    monkeypatch.setattr(execution, "registration_cancellation", lambda _registration: capability)
+    return capability
+
+
+@pytest.fixture
+def remote_stub(monkeypatch, declared_cancellation) -> RemoteStub:
     stub = RemoteStub()
     monkeypatch.setattr(execution, "cancel_remote", stub.cancel)
     return stub
@@ -844,7 +857,7 @@ async def test_an_engine_failure_after_acceptance_cancels_the_remote_job_and_fai
 
 
 async def test_a_cancellation_that_cannot_be_delivered_does_not_change_the_outcome(
-    api_client, db_session, registration, monkeypatch
+    api_client, db_session, registration, monkeypatch, declared_cancellation
 ):
     async def broken(*_args, **_kwargs):
         raise RuntimeError("engine unreachable")

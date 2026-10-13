@@ -105,6 +105,18 @@ class Settings(BaseSettings):
     #: so the evaluation can be retried without solving again; the reconciler
     #: deletes it after that (``EVIDENCE_RETENTION_DAYS``). At most 90.
     evidence_retention_days: int = Field(default=14, ge=1, le=90)
+    #: Best-effort cancellation of the remote job of an attempt that lost its
+    #: lease. A cancellation that must wait (the newer attempt has not yet
+    #: registered an id, so cancelling could hit the running one) is deferred at
+    #: most this many times and then skipped (``REMOTE_CANCEL_DEFER_LIMIT``).
+    remote_cancel_defer_limit: int = Field(default=5, ge=1, le=100)
+    #: Claims of one cancellation in all, deferrals included; past it a
+    #: cancellation that keeps failing is given up (``REMOTE_CANCEL_MAX_ATTEMPTS``).
+    remote_cancel_max_attempts: int = Field(default=8, ge=1, le=100)
+    #: Cancellations one reconciler cycle sends at most, and how many at once
+    #: (``REMOTE_CANCEL_BATCH``, ``REMOTE_CANCEL_CONCURRENCY``).
+    remote_cancel_batch: int = Field(default=20, ge=1, le=500)
+    remote_cancel_concurrency: int = Field(default=4, ge=1, le=32)
 
     # -- v1 schemas ------------------------------------------------------
     #: Directory holding the BIM v1 schemas and manifests.
