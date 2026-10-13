@@ -25,7 +25,7 @@ Within `v1` changes are additive (new optional members, new routes, new error co
   wire: do not expose the service over plain HTTP outside a trusted network.
 * **No shared rate limiting.** The limits below are per process.
 * **No interruption of a running operation.** A time budget releases the *request*; the thread that computes keeps its
-  slot until it ends (see Limits).
+  slot until it ends (see Limits). Threads also share the GIL with the event loop: see "Where the work runs".
 
 ## Endpoints
 
@@ -142,6 +142,7 @@ Problems about the service rather than the input have no `errorType`:
 | 422 | `request_invalid` | the body does not match the contract (a `ContractError`; `diagnostics` hold JSON pointers and messages, never the offending values) |
 | 422 | `limit_exceeded` | more bindings, registered resources or `seconds` than the service allows |
 | 429 | `rate_limited` | the tenant bound to the caller's token already has its share of operations in flight (`Retry-After`) |
+| 429 | `memory_budget` | `BIM_SERVICE_MEMORY_BUDGET_BYTES` is set and the operations in flight already use it, or the request is larger than the whole budget and something else is in flight (`Retry-After`); never sent when the budget is off |
 | 503 | `service_busy` | no slot became free within `BIM_SERVICE_ACQUIRE_TIMEOUT_MS` (`Retry-After`) |
 | 503 | `operation_timeout` | the operation exceeded `BIM_SERVICE_OPERATION_TIMEOUT_SECONDS` |
 | 503 | `not_ready` | `/readyz` before the service is ready |
@@ -163,7 +164,7 @@ values, by `GET /bim/v1/capabilities` (`limits.service`; `limits.package` are th
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `BIM_SERVICE_MAX_BODY_BYTES` | 32 MiB | largest request body. Declared `Content-Length` over it: 413 **without reading a byte**; otherwise the bytes are counted as they arrive and the request is cut off with 413 when the limit is crossed |
-| `BIM_SERVICE_MAX_CONCURRENCY` | 4 | CPU operations at once (size of the worker thread pool); compile, evaluate and the rest run in it, never in the event loop |
+| `BIM_SERVICE_MAX_CONCURRENCY` | 4 | CPU operations at once (size of the worker thread pool); decoding and validating the body, compile, evaluate and the rest, and rendering the answer, all run in it (see "Where the work runs") |
 | `BIM_SERVICE_ACQUIRE_TIMEOUT_MS` | 250 | how long a request waits for a slot before 503 |
 | `BIM_SERVICE_MAX_CONCURRENCY_PER_TENANT` | unset (2 with two or more tenants, else none) | operations one **tenant** (the one bound to the token of the request, never the `X-BIM-Tenant` header) may have in flight; more is 429. 0 = unlimited. Unset: the limit of 2 applies only when the tokens file names **two or more tenants**; with one tenant (every caller shares a token) it would only halve the service, so none applies. Set explicitly, it applies whatever the number of tenants. `limits.service.maxConcurrentOperationsPerTenant` publishes the value in force (0 = none), not the nominal default |
 | `BIM_SERVICE_OPERATION_TIMEOUT_SECONDS` | 60 | time budget of one operation |
@@ -171,6 +172,8 @@ values, by `GET /bim/v1/capabilities` (`limits.service`; `limits.package` are th
 | `BIM_SERVICE_MAX_REGISTERED_RESOURCES` | 64 | registered resources per request |
 | `BIM_SERVICE_MAX_BINDINGS` | 1000 | bindings per `/evaluate` |
 | `BIM_SERVICE_NEIGHBORHOOD_MAX_SECONDS` | 10 | largest `seconds` of `/neighborhood` (its own budget is cooperative between evaluations) |
+| `BIM_SERVICE_SWITCH_INTERVAL` | unset (the interpreter's, 0.005) | seconds, positive. `sys.setswitchinterval` applied while the application runs (by its lifespan, not when it is created) and restored at shutdown. A shorter one (0.0001) gives the event loop the GIL more often while pool threads run CPU-bound Python, at some cost in their throughput (see "Where the work runs"). `limits.service.switchIntervalSeconds` publishes the interval in force in the process |
+| `BIM_SERVICE_MEMORY_BUDGET_BYTES` | 0 (off) | memory that the operations in flight may be estimated to need. Each operation is charged **8 times its request body** (`BODY_MEMORY_FACTOR`; measured 3.8x for a package and 7.9x for an IR of small objects, so an estimate, not a guarantee) from the moment it holds a slot until its thread ends. See "Memory budget". `limits.service.memoryBudgetBytes` publishes it (0 = off) |
 | `BIM_MAX_COMPRESSED_BYTES`, `BIM_MAX_EXPANDED_BYTES`, `BIM_MAX_ENTRY_BYTES`, `BIM_MAX_ENTRIES`, `BIM_MAX_COMPRESSION_RATIO`, `BIM_MAX_PATH_DEPTH` | 16 MiB, 64 MiB, 16 MiB, 256, 100, 16 | the `bim_core.Limits` applied to every package (passed to `load_package(limits=)`, never installed globally) |
 | `BIM_SERVICE_LOG_LEVEL` | `INFO` | |
 
@@ -181,6 +184,43 @@ without looking at its body.
 The global ceiling (`BIM_SERVICE_MAX_CONCURRENCY` slots, `BIM_SERVICE_ACQUIRE_TIMEOUT_MS`) is independent of the
 per-tenant share: the sum of the shares may exceed the slots, and the slots are never exceeded whatever a request
 claims or however many tenants exist.
+
+### Where the work runs
+
+The event loop reads the body (bytes only; the 413 limit counts them as they arrive) and moves bytes. Everything that
+costs CPU or memory in proportion to the request runs in the worker pool, in this order: tenant share, **slot**, optional
+memory budget, then in the pool thread the decoding (`json.loads`, validation of the models including the walk that
+refuses NaN and infinity, base64, multipart), the operation and the rendering of the answer. Consequences:
+
+* A request that finds no slot decodes nothing: the number of decoded bodies in memory is bounded by the number of slots,
+  not by the number of requests that arrive. The raw bytes of a request that is waiting for a slot are still held (at most
+  `BIM_SERVICE_MAX_BODY_BYTES` each, once).
+* The answers for bad input are the same as before (422 `request_invalid` with pointers below `/body`, 400 `http_error`,
+  415, 413), but they now come from the pool: while every slot is taken a malformed body is answered 503 `service_busy`
+  (or 429) like any other request, instead of 422.
+* The slot is never released before the thread ends (timeout or client gone), because that would allow more threads than
+  slots. A client that disconnects frees its slot (and its memory charge) when its thread finishes.
+
+This **bounds** the cost; it does not remove it. `json.loads` and pydantic-core are C code that does not release the GIL
+while they run, and the compiler and the evaluator are pure Python that the interpreter switches between threads only
+every switch interval (5 ms by default). So in thread mode a large body being parsed can still stall the event loop for
+about as long as the parse takes (about 40 ms per MB, measured), and CPU-bound operations make `/healthz` slower
+(median 60-120 ms with four of them, against 0.3 ms idle, measured locally with the interpreter's interval; a few ms
+with `BIM_SERVICE_SWITCH_INTERVAL=0.0001`, at some cost in throughput that has not been established). Both are pinned as
+open defects (strict `xfail`) in `packages/bim-service/tests/analysis/test_analysis_b8_probe.py`. Only worker processes
+would remove them; that mode does not exist.
+
+### Memory budget
+
+Off by default (0): nothing changes. When `BIM_SERVICE_MEMORY_BUDGET_BYTES` is set, an operation that holds a slot is
+charged 8 times its body and the charge is returned when its thread ends (not at the timeout, not when the client goes
+away). A charge that does not fit in what is left is refused at once with **429 `memory_budget`** and `Retry-After`
+(there is no queue; retry after the interval). A request whose charge is larger than the whole budget is **admitted
+when nothing else is charged** (otherwise it could never run) and, while it runs, every other request is refused with
+the same 429; when something else is in flight it is refused with 429 `memory_budget` too. 429 is stable and the client
+should retry after `Retry-After`; unlike a 503 it means "this process is using its memory", not "busy". The budget does not
+count the raw bytes of requests waiting for a slot, the memory of the interpreter, or anything that is not a request;
+set it from `(memory limit - resident size at rest) / 8`, which needs to be measured in the target container.
 
 A thread cannot be interrupted. When an operation exceeds its time budget the *response* is 503 `operation_timeout`,
 but the thread keeps its slot (and its tenant's share) until it ends, so a runaway operation cannot be used to start

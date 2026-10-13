@@ -7,6 +7,9 @@
 
 ``build_app(settings, authenticator)`` assembles the same application from objects, which is what tests and
 the OpenAPI generator use.  The service keeps no state besides the in-flight counters of its concurrency gate.
+
+The routes that take a body read its bytes and hand them to the gate (:func:`_serve`): the slot is taken first and the
+decoding, validation, operation and rendering happen in the pool thread (see :mod:`bim_service.runtime`).
 """
 
 from __future__ import annotations
@@ -15,11 +18,13 @@ import logging
 import os
 import sys
 from contextlib import asynccontextmanager
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from bim_core import BimError
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel
+from pydantic.json_schema import models_json_schema
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse, Response
 
@@ -52,8 +57,15 @@ from .models import (
 )
 from .problems import ServiceProblem, bim_error_problem, problem_response, respond
 from .runtime import Gate
-from .settings import BimServiceSettings
-from .wire import decode_base64, decode_package_request, request_invalid, validation_diagnostics
+from .settings import BODY_MEMORY_FACTOR, BimServiceSettings
+from .wire import (
+    decode_base64,
+    decode_model_body,
+    decode_package_request,
+    render_json,
+    request_invalid,
+    validation_diagnostics,
+)
 
 logger = logging.getLogger("bim_service")
 
@@ -61,7 +73,13 @@ _PROBLEMS: dict[int | str, dict[str, Any]] = {
     401: {"model": Problem, "description": "Missing or invalid bearer token."},
     413: {"model": Problem, "description": "The request body exceeds the configured size."},
     422: {"model": Problem, "description": "The input is invalid; `code` and `diagnostics` say why."},
-    429: {"model": Problem, "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."},
+    429: {
+        "model": Problem,
+        "description": (
+            "`rate_limited`: the tenant of the bearer token has too many operations in flight; `memory_budget`: the "
+            "operations in flight already use the memory budget (see `Retry-After`)."
+        ),
+    },
     500: {"model": Problem, "description": "Unexpected failure of the service."},
     503: {"model": Problem, "description": "All slots are busy, or the operation ran out of time."},
 }
@@ -89,19 +107,72 @@ _PACKAGE_BODY: dict[str, Any] = {
 }
 
 
+#: The request models of the routes that read and validate their body themselves (see :func:`_serve`); FastAPI cannot
+#: see them in a signature, so the OpenAPI document declares them by hand.
+_JSON_REQUESTS: tuple[type[BaseModel], ...] = (
+    CompatibilityRequest,
+    OptimizationResolveRequest,
+    EvaluateRequest,
+    ReevaluateRequest,
+    ValidateResultRequest,
+    NeighborhoodRequest,
+    ResourceValidateRequest,
+    EngineValidateRequest,
+    XmlResourceRequest,
+)
+
+
 def _tenant(request: Request) -> str | None:
     """The identity bound to the token that authenticated the request (never the ``X-BIM-Tenant`` header)."""
     return request.scope.get("state", {}).get("tenant")
 
 
-async def _run(request: Request, function: Any, *args: Any) -> JSONResponse:
-    """Run ``function(*args)`` within the gate and answer its result as JSON."""
-    result = await request.app.state.gate.run(function, *args, tenant=_tenant(request))
-    return JSONResponse(result)
-
-
 def _settings(request: Request) -> BimServiceSettings:
     return request.app.state.settings
+
+
+async def _serve(request: Request, job: Callable[[str | None, bytes], bytes]) -> Response:
+    """Read the body, then run ``job(content_type, body)`` in the pool and answer the bytes it returns as JSON.
+
+    The event loop only moves bytes.  Everything that costs CPU or memory in proportion to the body (``json.loads``,
+    validation of the models, base64, the operation and rendering the answer) is the ``job``, which starts once a
+    slot (and, when configured, the memory budget) is held, so a request that finds no slot decodes nothing.  Errors
+    the job raises (``BimError``, ``ServiceProblem``, ``RequestValidationError``) reach the handlers below unchanged.
+    """
+    body = await request.body()
+    content = await request.app.state.gate.run(
+        job,
+        request.headers.get("content-type"),
+        body,
+        tenant=_tenant(request),
+        cost_bytes=len(body) * BODY_MEMORY_FACTOR,
+    )
+    return Response(content=content, media_type="application/json")
+
+
+def _package_job(settings: BimServiceSettings, call: Callable[..., Any]) -> Callable[[str | None, bytes], bytes]:
+    def job(content_type: str | None, body: bytes) -> bytes:
+        data, registered = decode_package_request(content_type or "", body, settings)
+        return render_json(call(data, registered, settings.limits))
+
+    return job
+
+
+def _model_job(model: type[BaseModel], call: Callable[[Any], Any]) -> Callable[[str | None, bytes], bytes]:
+    def job(content_type: str | None, body: bytes) -> bytes:
+        return render_json(call(decode_model_body(model, content_type, body)))
+
+    return job
+
+
+def _json_body(model: type[BaseModel]) -> dict[str, Any]:
+    """The request body of a route that reads and validates it itself, as OpenAPI declares it."""
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {"$ref": f"#/components/schemas/{model.__name__}"}}},
+        }
+    }
 
 
 def _router() -> APIRouter:
@@ -141,11 +212,8 @@ def _router() -> APIRouter:
         openapi_extra=_PACKAGE_BODY,
     )
     async def compile_package(request: Request) -> Response:
-        settings = _settings(request)
-        data, registered = decode_package_request(
-            request.headers.get("content-type", ""), await request.body(), settings
-        )
-        return await _run(request, operations.compile_package, data, registered, settings.limits)
+        job = _package_job(_settings(request), lambda *args: operations.compile_package(*args))
+        return await _serve(request, job)
 
     @router.post(
         "/validate",
@@ -156,11 +224,8 @@ def _router() -> APIRouter:
         openapi_extra=_PACKAGE_BODY,
     )
     async def validate_package(request: Request) -> Response:
-        settings = _settings(request)
-        data, registered = decode_package_request(
-            request.headers.get("content-type", ""), await request.body(), settings
-        )
-        return await _run(request, operations.validate_package, data, registered, settings.limits)
+        job = _package_job(_settings(request), lambda *args: operations.validate_package(*args))
+        return await _serve(request, job)
 
     @router.post(
         "/compatibility",
@@ -168,9 +233,16 @@ def _router() -> APIRouter:
         summary="Why an Engine mode can or cannot run an IR",
         response_model=None,
         responses={200: {"model": CompatibilityResponse}},
+        openapi_extra=_json_body(CompatibilityRequest),
     )
-    async def compatibility(body: CompatibilityRequest, request: Request) -> Response:
-        return await _run(request, operations.compatibility, body.ir, body.manifest, body.mode, body.options)
+    async def compatibility(request: Request) -> Response:
+        return await _serve(
+            request,
+            _model_job(
+                CompatibilityRequest,
+                lambda body: operations.compatibility(body.ir, body.manifest, body.mode, body.options),
+            ),
+        )
 
     @router.post(
         "/optimization/resolve",
@@ -178,9 +250,16 @@ def _router() -> APIRouter:
         summary="Validate and canonicalize an execution-time optimization selection",
         response_model=None,
         responses={200: {"model": OptimizationResolveResponse}},
+        openapi_extra=_json_body(OptimizationResolveRequest),
     )
-    async def resolve_optimization(body: OptimizationResolveRequest, request: Request) -> Response:
-        return await _run(request, operations.optimization, body.ir, body.manifest, body.mode, body.optimization)
+    async def resolve_optimization(request: Request) -> Response:
+        return await _serve(
+            request,
+            _model_job(
+                OptimizationResolveRequest,
+                lambda body: operations.optimization(body.ir, body.manifest, body.mode, body.optimization),
+            ),
+        )
 
     @router.post(
         "/evaluate",
@@ -188,12 +267,17 @@ def _router() -> APIRouter:
         summary="Evaluate bindings with the canonical evaluator",
         response_model=None,
         responses={200: {"model": EvaluateResponse}},
+        openapi_extra=_json_body(EvaluateRequest),
     )
-    async def evaluate(body: EvaluateRequest, request: Request) -> Response:
+    async def evaluate(request: Request) -> Response:
         limit = _settings(request).max_bindings
-        if len(body.bindings) > limit:
-            raise ServiceProblem(422, "limit_exceeded", f"at most {limit} bindings per request")
-        return await _run(request, operations.evaluate, body.ir, body.bindings, body.execution, body.onError)
+
+        def call(body: EvaluateRequest) -> Any:
+            if len(body.bindings) > limit:
+                raise ServiceProblem(422, "limit_exceeded", f"at most {limit} bindings per request")
+            return operations.evaluate(body.ir, body.bindings, body.execution, body.onError)
+
+        return await _serve(request, _model_job(EvaluateRequest, call))
 
     @router.post(
         "/reevaluate",
@@ -201,10 +285,15 @@ def _router() -> APIRouter:
         summary="Replace an engine's claims with the authoritative evaluation",
         response_model=None,
         responses={200: {"description": "`{termination, solutions, provenance}`; only the bindings are the engine's."}},
+        openapi_extra=_json_body(ReevaluateRequest),
     )
-    async def reevaluate(body: ReevaluateRequest, request: Request) -> Response:
-        return await _run(
-            request, operations.reevaluate, body.ir, body.result, body.execution, body.allowedTerminations
+    async def reevaluate(request: Request) -> Response:
+        return await _serve(
+            request,
+            _model_job(
+                ReevaluateRequest,
+                lambda body: operations.reevaluate(body.ir, body.result, body.execution, body.allowedTerminations),
+            ),
         )
 
     @router.post(
@@ -213,9 +302,12 @@ def _router() -> APIRouter:
         summary="Is this payload shaped like a bim-engine/v1 result? (shape only)",
         response_model=None,
         responses={200: {"model": ValidateResultResponse}},
+        openapi_extra=_json_body(ValidateResultRequest),
     )
-    async def validate_result(body: ValidateResultRequest, request: Request) -> Response:
-        return await _run(request, operations.check_result, body.result)
+    async def validate_result(request: Request) -> Response:
+        return await _serve(
+            request, _model_job(ValidateResultRequest, lambda body: operations.check_result(body.result))
+        )
 
     @router.post(
         "/neighborhood",
@@ -223,14 +315,19 @@ def _router() -> APIRouter:
         summary="Evaluate the one-task alternatives of a binding",
         response_model=None,
         responses={200: {"description": "The counterfactual analysis."}},
+        openapi_extra=_json_body(NeighborhoodRequest),
     )
-    async def neighborhood(body: NeighborhoodRequest, request: Request) -> Response:
+    async def neighborhood(request: Request) -> Response:
         ceiling = _settings(request).neighborhood_max_seconds
-        if body.seconds > ceiling:
-            raise ServiceProblem(422, "limit_exceeded", f"`seconds` is at most {ceiling:g}")
-        return await _run(
-            request, operations.neighborhood, body.ir, body.binding, body.task, body.limit, body.seconds, body.execution
-        )
+
+        def call(body: NeighborhoodRequest) -> Any:
+            if body.seconds > ceiling:
+                raise ServiceProblem(422, "limit_exceeded", f"`seconds` is at most {ceiling:g}")
+            return operations.neighborhood(
+                body.ir, body.binding, body.task, body.limit, body.seconds, body.execution
+            )
+
+        return await _serve(request, _model_job(NeighborhoodRequest, call))
 
     @router.post(
         "/resources/validate",
@@ -238,17 +335,17 @@ def _router() -> APIRouter:
         summary="A resource document against the schema of the installed Dialect that claims its type",
         response_model=None,
         responses={200: {"model": DiagnosticsResponse, "description": "The findings; empty when the document is valid."}},
+        openapi_extra=_json_body(ResourceValidateRequest),
     )
-    async def validate_resource(body: ResourceValidateRequest, request: Request) -> Response:
-        return await _run(
+    async def validate_resource(request: Request) -> Response:
+        return await _serve(
             request,
-            operations.validate_resource,
-            body.document,
-            body.apiVersion,
-            body.kind,
-            body.mediaType,
-            body.resource,
-            body.dialects,
+            _model_job(
+                ResourceValidateRequest,
+                lambda body: operations.validate_resource(
+                    body.document, body.apiVersion, body.kind, body.mediaType, body.resource, body.dialects
+                ),
+            ),
         )
 
     @router.post(
@@ -257,9 +354,12 @@ def _router() -> APIRouter:
         summary="An Engine manifest against the installed Profile it declares",
         response_model=None,
         responses={200: {"model": DiagnosticsResponse, "description": "The findings; empty when the manifest is valid."}},
+        openapi_extra=_json_body(EngineValidateRequest),
     )
-    async def validate_engine(body: EngineValidateRequest, request: Request) -> Response:
-        return await _run(request, operations.validate_engine, body.document)
+    async def validate_engine(request: Request) -> Response:
+        return await _serve(
+            request, _model_job(EngineValidateRequest, lambda body: operations.validate_engine(body.document))
+        )
 
     @router.post(
         "/resources/xml/root",
@@ -267,10 +367,17 @@ def _router() -> APIRouter:
         summary="The root element of a standalone XML resource, parsed securely",
         response_model=None,
         responses={200: {"model": XmlRootResponse}},
+        openapi_extra=_json_body(XmlResourceRequest),
     )
-    async def xml_resource_root(body: XmlResourceRequest, request: Request) -> Response:
-        content = decode_base64(body.contentBase64, "/contentBase64")
-        return await _run(request, operations.xml_resource_root, content, _settings(request).limits)
+    async def xml_resource_root(request: Request) -> Response:
+        limits = _settings(request).limits
+        return await _serve(
+            request,
+            _model_job(
+                XmlResourceRequest,
+                lambda body: operations.xml_resource_root(decode_base64(body.contentBase64, "/contentBase64"), limits),
+            ),
+        )
 
     @router.post(
         "/resources/xml/validate-bpmn",
@@ -278,10 +385,19 @@ def _router() -> APIRouter:
         summary="A standalone XML resource against OMG BPMN 2.0.2",
         response_model=None,
         responses={200: {"model": XmlValidResponse}},
+        openapi_extra=_json_body(XmlResourceRequest),
     )
-    async def validate_bpmn_resource(body: XmlResourceRequest, request: Request) -> Response:
-        content = decode_base64(body.contentBase64, "/contentBase64")
-        return await _run(request, operations.validate_bpmn_resource, content, _settings(request).limits)
+    async def validate_bpmn_resource(request: Request) -> Response:
+        limits = _settings(request).limits
+        return await _serve(
+            request,
+            _model_job(
+                XmlResourceRequest,
+                lambda body: operations.validate_bpmn_resource(
+                    decode_base64(body.contentBase64, "/contentBase64"), limits
+                ),
+            ),
+        )
 
     return router
 
@@ -312,12 +428,26 @@ async def _http_exception(request: Request, exc: StarletteHTTPException) -> Resp
 # --- OpenAPI ---------------------------------------------------------------------------------------
 
 
+def _without_nulls(value: Any) -> Any:
+    """``value`` without the object members that are ``null``: what FastAPI does to the schemas it generates itself
+    (``exclude_none``), so that the schemas added by hand read the same (no ``"default": null``)."""
+    if isinstance(value, dict):
+        return {key: _without_nulls(item) for key, item in value.items() if item is not None}
+    if isinstance(value, list):
+        return [_without_nulls(item) for item in value]
+    return value
+
+
 def _patch_openapi(schema: dict[str, Any]) -> None:
     """Add the request schema that routes reading the body themselves cannot declare, and tidy the errors."""
     components = schema.setdefault("components", {}).setdefault("schemas", {})
     package = PackageRequest.model_json_schema(ref_template="#/components/schemas/{model}")
     components.update(package.pop("$defs", {}))
     components["PackageRequest"] = package
+    _, requests = models_json_schema(
+        [(model, "validation") for model in _JSON_REQUESTS], ref_template="#/components/schemas/{model}"
+    )
+    components.update(_without_nulls(requests.get("$defs", {})))
     for name in ("HTTPValidationError", "ValidationError"):
         components.pop(name, None)
     schema["components"]["securitySchemes"] = {
@@ -363,8 +493,18 @@ def build_app(settings: BimServiceSettings, authenticator: Authenticator) -> Fas
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
-        yield
-        application.state.gate.close()
+        # The interval is process-wide state: it is applied while the application runs (not when it is created, which
+        # tests and the OpenAPI generator do without serving) and put back at shutdown.
+        configured = settings.switch_interval_seconds
+        previous = sys.getswitchinterval()
+        if configured is not None:
+            sys.setswitchinterval(configured)
+        try:
+            yield
+        finally:
+            if configured is not None:
+                sys.setswitchinterval(previous)
+            application.state.gate.close()
 
     app = FastAPI(
         title="BIM service",

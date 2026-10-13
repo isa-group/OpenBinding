@@ -59,6 +59,12 @@ documentation only), so `compilerDigest` and every `irDigest` are as before, and
 
 ### Added
 
+- `bim-service` (B8-2, both off by default, so behaviour is unchanged unless set): `BIM_SERVICE_SWITCH_INTERVAL`
+  (seconds; `sys.setswitchinterval` applied by the lifespan and restored at shutdown) and
+  `BIM_SERVICE_MEMORY_BUDGET_BYTES` (each operation is charged 8 times its body from the slot until its thread ends; a
+  request that does not fit is `429 memory_budget` with `Retry-After`, a request larger than the whole budget runs only
+  when nothing else is in flight). `limits.service` of `GET /bim/v1/capabilities` publishes `switchIntervalSeconds` and
+  `memoryBudgetBytes` (additive). See `docs/SERVICE.md`, "Where the work runs" and "Memory budget".
 - Tests without the corpus: `packages/bim-core/tests/test_zip_dir_equivalence.py` (synthetic packages written by
   `synthetic_packages.py`: directory, raw ZIP in any entry order and canonical ZIP compared on semantic digest, IR,
   `irDigest`, `packageDigest` and eligibility order; the divergence above is a strict `xfail`) and
@@ -86,6 +92,17 @@ documentation only), so `compilerDigest` and every `irDigest` are as before, and
 
 ### Changed
 
+- `bim-service` (B8-1): decoding and validating a request body (`json.loads`, validation of the models including the
+  NaN/infinity walk, base64, multipart) and rendering the answer move from the event loop to the existing bounded worker
+  pool (same `BIM_SERVICE_MAX_CONCURRENCY` slots and semaphore; no new pool, no limit raised). The slot is taken
+  **before** the body is decoded, so a request that finds no slot decodes nothing and the decoded bodies in memory are
+  bounded by the slots. The 422 `request_invalid` (pointers below `/body`), 400 `http_error`, 415 and 413 answers are
+  unchanged; the one visible difference is that while every slot is taken a malformed body is answered 503
+  `service_busy` (or 429) instead of 422. The slot is still released when the *thread* ends, not at the timeout. In
+  thread mode this bounds the cost, it does not remove it: `json.loads` and pydantic-core hold the GIL, so a large body
+  can still stall the loop (the strict `xfail` for that, for CPU-bound threads and for the slot kept after a timeout
+  stay). `contracts/openapi/bim-service.v1.json` is regenerated: the request bodies are declared by hand with the same
+  schemas, and the `429` description names `memory_budget`.
 - `bim-client`: `HttpBim` no longer raises `BimOperationUnavailable` for those four operations; it sends them.
   `BimOperationUnavailable` stays exported (compatibility) but nothing raises it.
 - **Contract change, `bim-service`: the per-tenant concurrency share is keyed by the authenticated identity, not by

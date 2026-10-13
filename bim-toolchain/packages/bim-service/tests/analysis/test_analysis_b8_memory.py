@@ -1,10 +1,10 @@
-"""B8 (analysis): what a request body costs in memory before it reaches a slot.
+"""B8 (analysis): what decoding a request body costs in memory.
 
-The body is read, parsed and validated in the handler (``app.py:144``, FastAPI's body parsing) before
-``Gate.run`` takes a slot, so this cost is paid by every request in flight, not only by the ``max_concurrency`` that
-may run.  Measured with ``tracemalloc`` (Python allocations only; no RSS, no container limit) with the operations
-replaced by stand-ins, so this is the pre-gate path alone.  The bounds are wide on purpose: they catch an unbounded
-copy, not a regression of a few.
+Measured with ``tracemalloc`` (Python allocations only; no RSS, no container limit) with the operations replaced by
+stand-ins, so this is the decode-and-validate path alone.  The bounds are wide on purpose: they catch an unbounded
+copy, not a regression of a few.  Before B8-1 this was paid in the event loop by every request in flight; now it is
+paid in a pool thread that holds a slot, so by at most ``max_concurrency`` requests (and the optional memory budget
+charges ``BODY_MEMORY_FACTOR`` times the body for each).
 
 Measured on 2026-10-13: compile, 8.4 MB body: peak 31.9 MB (3.8x); evaluate, 7.1 MB body of many small objects: peak
 55.9 MB (7.9x).  For a body at the 32 MiB limit that extrapolates to about 130 MiB and 250 MiB per request (not

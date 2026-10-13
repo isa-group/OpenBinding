@@ -8,6 +8,7 @@ called ``bim-service``.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field, replace
 from typing import Any, Mapping
 
@@ -15,6 +16,11 @@ from bim_core import ContractError, Limits
 
 #: Per-tenant limit when none is set and the tokens file names at least two tenants.
 DEFAULT_MAX_CONCURRENCY_PER_TENANT = 2
+
+#: Estimated peak memory of decoding and validating a request, as a multiple of its body.  Measured with
+#: ``tracemalloc`` before the change that moved decoding to the pool: 3.8x for a package, 7.9x for an IR of small
+#: objects (``docs/qa/analysis/BIM_B5_B8_M4_IR.md``).  An estimate, not a guarantee.
+BODY_MEMORY_FACTOR = 8
 
 
 class ServiceConfigError(Exception):
@@ -56,6 +62,12 @@ class BimServiceSettings:
     max_bindings: int = 1000
     #: Largest ``seconds`` a neighbourhood analysis may ask for.
     neighborhood_max_seconds: float = 10.0
+    #: ``sys.setswitchinterval`` to apply while the application runs (seconds); ``None`` leaves the interpreter's value
+    #: alone.  Applied by the lifespan of the application, never when it is created, and restored at shutdown.
+    switch_interval_seconds: float | None = None
+    #: Memory the operations in flight may be estimated to need (bytes); 0 disables the budget.  An operation is
+    #: charged :data:`BODY_MEMORY_FACTOR` times its request body while its thread runs.
+    memory_budget_bytes: int = 0
     log_level: str = "INFO"
     limits: Limits = field(default_factory=Limits)
 
@@ -70,6 +82,9 @@ class BimServiceSettings:
         _positive("BIM_SERVICE_MAX_REGISTERED_RESOURCES", self.max_registered_resources)
         _positive("BIM_SERVICE_MAX_BINDINGS", self.max_bindings)
         _positive("BIM_SERVICE_NEIGHBORHOOD_MAX_SECONDS", self.neighborhood_max_seconds)
+        if self.switch_interval_seconds is not None:
+            _positive("BIM_SERVICE_SWITCH_INTERVAL", self.switch_interval_seconds)
+        _positive("BIM_SERVICE_MEMORY_BUDGET_BYTES", self.memory_budget_bytes, allow_zero=True)
 
     def for_tenants(self, count: int) -> BimServiceSettings:
         """These settings once the tokens file is known to name ``count`` tenants."""
@@ -123,6 +138,8 @@ class BimServiceSettings:
             neighborhood_max_seconds=read(
                 "NEIGHBORHOOD_MAX_SECONDS", float, defaults.neighborhood_max_seconds
             ),
+            switch_interval_seconds=read("SWITCH_INTERVAL", float, defaults.switch_interval_seconds),
+            memory_budget_bytes=read("MEMORY_BUDGET_BYTES", int, defaults.memory_budget_bytes),
             log_level=read("LOG_LEVEL", str, defaults.log_level).upper(),
             limits=limits,
         )
@@ -139,4 +156,7 @@ class BimServiceSettings:
             "maxRegisteredResources": self.max_registered_resources,
             "maxBindingsPerRequest": self.max_bindings,
             "neighborhoodMaxSeconds": self.neighborhood_max_seconds,
+            # The interval in force in the process: the configured one once the application runs, else the interpreter's.
+            "switchIntervalSeconds": sys.getswitchinterval(),
+            "memoryBudgetBytes": self.memory_budget_bytes,
         }

@@ -4,19 +4,30 @@ from __future__ import annotations
 
 import base64
 import binascii
+import email.message
 import json
 import re
 from dataclasses import dataclass
-from typing import Any
+from functools import cache
+from typing import Any, TypeVar
 
 from bim_core import ContractError
-from pydantic import TypeAdapter, ValidationError
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .models import PackageRequest, RegisteredResourceModel
 from .problems import ServiceProblem
 from .settings import BimServiceSettings
 
+M = TypeVar("M", bound=BaseModel)
+
 _REGISTERED_LIST = TypeAdapter(list[RegisteredResourceModel])
+
+
+@cache
+def _adapter(model: type[BaseModel]) -> TypeAdapter[Any]:
+    return TypeAdapter(model)
 _NAME = re.compile(rb'(?:^|[;\s])name="([^"]*)"', re.IGNORECASE)
 _BOUNDARY = re.compile(r'boundary="?([^";]+)"?', re.IGNORECASE)
 
@@ -115,6 +126,65 @@ def parse_multipart(content_type: str, body: bytes) -> dict[str, bytes]:
             raise request_invalid(f"the multipart field {name!r} appears twice")
         parts[name] = content.removesuffix(b"\r\n")
     return parts
+
+
+def _declares_json(content_type: str | None) -> bool:
+    """``application/json`` or ``application/*+json``, with the parsing of media types that FastAPI itself applies."""
+    if not content_type:
+        return False
+    message = email.message.Message()
+    message["content-type"] = content_type
+    if message.get_content_maintype() != "application":
+        return False
+    subtype = message.get_content_subtype()
+    return subtype == "json" or subtype.endswith("+json")
+
+
+def decode_model_body(model: type[M], content_type: str | None, body: bytes) -> M:
+    """The request model in ``body``, with the errors and codes that FastAPI gives a body parameter of that type.
+
+    Runs in a pool thread (the caller holds a slot).  The errors are those the framework used to raise in the event
+    loop, so the answers are unchanged: ``RequestValidationError`` (422 ``request_invalid``, pointers below ``/body``) for
+    a body that is missing, is not JSON text or does not match the model, and a 400 ``http_error`` ("There was an error
+    parsing the body") for bytes that cannot be parsed at all (not UTF-8, nested deeper than the parser allows).  A body
+    that does not declare a JSON media type is validated as raw bytes, which no model accepts.
+    """
+    value: Any = None
+    if body:
+        value = body
+        if _declares_json(content_type):
+            try:
+                value = json.loads(body)
+            except json.JSONDecodeError as exc:
+                raise RequestValidationError(
+                    [
+                        {
+                            "type": "json_invalid",
+                            "loc": ("body", exc.pos),
+                            "msg": "JSON decode error",
+                            "input": {},
+                            "ctx": {"error": exc.msg},
+                        }
+                    ],
+                    body=exc.doc,
+                ) from exc
+            except Exception as exc:  # UnicodeDecodeError, RecursionError
+                raise StarletteHTTPException(status_code=400, detail="There was an error parsing the body") from exc
+    if value is None:
+        raise RequestValidationError(
+            [{"type": "missing", "loc": ("body",), "msg": "Field required", "input": None}]
+        )
+    try:
+        return _adapter(model).validate_python(value, from_attributes=True)
+    except ValidationError as exc:
+        raise RequestValidationError(
+            [{**item, "loc": ("body", *item.get("loc", ()))} for item in exc.errors(include_url=False)]
+        ) from exc
+
+
+def render_json(content: Any) -> bytes:
+    """The bytes of a JSON answer, exactly as ``starlette.responses.JSONResponse`` renders them."""
+    return json.dumps(content, ensure_ascii=False, allow_nan=False, indent=None, separators=(",", ":")).encode("utf-8")
 
 
 def decode_package_request(

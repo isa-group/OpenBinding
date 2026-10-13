@@ -213,11 +213,6 @@ def test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool(make_app, m
     defect(median < 0.02, f"/healthz median {median * 1000:.0f} ms with 4 CPU-bound operations running")
 
 
-@pytest.mark.xfail(
-    raises=OpenDefect,
-    strict=True,
-    reason="B8: decode_package_request (json.loads of up to 32 MiB, pydantic, base64) runs in the event loop (app.py:144, :159).",
-)
 def test_a_package_body_is_decoded_off_the_event_loop(make_app, monkeypatch) -> None:
     monkeypatch.setattr(operations, "compile_package", lambda data, registered, limits: {"ir": {}})
     original = app_module.decode_package_request
@@ -237,17 +232,9 @@ def test_a_package_body_is_decoded_off_the_event_loop(make_app, monkeypatch) -> 
 
     loop_ident = run(scenario())
     assert idents
-    defect(loop_ident not in idents, "the package body was decoded on the event-loop thread")
+    assert loop_ident not in idents, "the package body was decoded on the event-loop thread"
 
 
-@pytest.mark.xfail(
-    raises=OpenDefect,
-    strict=True,
-    reason=(
-        "B8: FastAPI parses the JSON body and validates the models in the event loop; `_finite` "
-        "(models.py:15, bim_core.protocol.contains_non_finite) walks the whole IR in pure Python there."
-    ),
-)
 def test_a_request_model_is_validated_off_the_event_loop(make_app, monkeypatch) -> None:
     monkeypatch.setattr(operations, "evaluate", lambda ir, bindings, execution, on_error: {"results": []})
     original = models.contains_non_finite
@@ -267,7 +254,7 @@ def test_a_request_model_is_validated_off_the_event_loop(make_app, monkeypatch) 
 
     loop_ident = run(scenario())
     assert idents
-    defect(loop_ident not in idents, "the request model was validated on the event-loop thread")
+    assert loop_ident not in idents, "the request model was validated on the event-loop thread"
 
 
 def big_ir(approximate_bytes: int) -> dict:
@@ -279,7 +266,9 @@ def big_ir(approximate_bytes: int) -> dict:
     strict=True,
     reason=(
         "B8: a 12 MiB body below the 32 MiB limit stalls the loop for about as long as parsing it synchronously "
-        "(measured 0.6 s for 14 MB, 1.15 s for 28 MB: about 40 ms per MB), before any slot or tenant limit applies."
+        "(measured 0.6 s for 14 MB, 1.15 s for 28 MB: about 40 ms per MB). The parse now runs in a pool thread, after "
+        "the slot, but json.loads and pydantic-core do not release the GIL, so in thread mode the loop still waits for "
+        "it. Only processes (B8-3) close this."
     ),
 )
 def test_the_loop_is_not_stalled_while_a_large_body_is_parsed(make_app, monkeypatch) -> None:
@@ -306,14 +295,6 @@ def test_the_loop_is_not_stalled_while_a_large_body_is_parsed(make_app, monkeypa
     defect(max(lags) < 0.3 * synchronous, f"loop stalled {max(lags):.2f} s; the same parse alone takes {synchronous:.2f} s")
 
 
-@pytest.mark.xfail(
-    raises=OpenDefect,
-    strict=True,
-    reason=(
-        "B8: the body is decoded before a slot is taken (app.py:144 then runtime.py:79), so N waiting requests cost N "
-        "decoded bodies in memory although only `max_concurrency` can run."
-    ),
-)
 def test_no_body_is_decoded_for_a_request_that_finds_no_free_slot(make_app, monkeypatch) -> None:
     hold = Hold()
     monkeypatch.setattr(operations, "compile_package", hold)
@@ -342,7 +323,7 @@ def test_no_body_is_decoded_for_a_request_that_finds_no_free_slot(make_app, monk
     finally:
         hold.release.set()
     assert statuses == [503] * 4
-    defect(len(decoded) == 2, f"{len(decoded)} bodies decoded for 2 slots")
+    assert len(decoded) == 2, f"{len(decoded)} bodies decoded for 2 slots"
 
 
 @pytest.mark.xfail(
@@ -350,7 +331,8 @@ def test_no_body_is_decoded_for_a_request_that_finds_no_free_slot(make_app, monk
     strict=True,
     reason=(
         "B8: an operation that outran its time budget answers 503 but its thread cannot be stopped, so the slot stays "
-        "taken until the CPU work ends (runtime.py:7-8, :92-98). bim-core has no time budget for compile/evaluate."
+        "taken until the CPU work ends (runtime.py, module docstring). Giving the slot back earlier would allow more "
+        "threads than slots, so thread mode keeps it on purpose; bim-core has no time budget for compile/evaluate."
     ),
 )
 def test_a_timed_out_operation_gives_its_slot_back(make_app, monkeypatch) -> None:
