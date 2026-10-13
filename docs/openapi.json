@@ -19860,6 +19860,122 @@
         ]
       }
     },
+    "/v1/jobs/{job_id}/reevaluate": {
+      "post": {
+        "description": "Evaluate again the engine answer kept for a job that failed with ``bim_evaluation_failed``.\n\nThe engine does not run again. BIM is called with no transaction open; the\njob then goes FAILED -> COMPLETED in one conditional UPDATE, so of two\nsimultaneous calls (or a call and a cancellation or a retry) one wins and the\nothers answer 409. If BIM fails again the job and its evidence are untouched.",
+        "operationId": "reevaluateJob",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential is valid but not allowed to do this."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with something that already exists."
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The kept answer of the engine has expired."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the BIM v1 contract."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Reevaluate Job",
+        "tags": [
+          "Jobs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "engines:execute"
+        ]
+      }
+    },
     "/v1/jobs/{job_id}/report": {
       "get": {
         "operationId": "get_v1_job_report_v1_jobs__job_id__report_get",

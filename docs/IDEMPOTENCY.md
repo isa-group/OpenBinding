@@ -200,6 +200,64 @@ change does not alter the protocol (its digest is pinned). What the gateway does
   3 s timeout and without propagating any error. Engines may answer 404/405; that
   is not an error. The cancel call is made outside any transaction.
 
+## Engine answers kept for re-evaluation (B4)
+
+An Engine's answer is accepted as a result only after BIM recomputes it from the
+IR. The solve can take up to half an hour and BIM can be unavailable for a
+minute, so the raw answer is no longer lost when BIM fails.
+
+- **Order.** In `services/execution.py` (`settle_engine_answer`) the worker takes
+  the lease (`hold_lease`, which locks the row) and checks the cancellation; it
+  then **writes the raw answer to `job_engine_evidence` and commits** (which
+  releases the row lock) *before* calling BIM. BIM runs with no transaction open.
+  Afterwards the worker takes the lease again and **checks `cancellation_requested`
+  again**: a cancellation can arrive while BIM works, and then the job ends
+  `CANCELLED` and its evidence is deleted. If the lease was lost after the commit,
+  the worker deletes its own row (best effort) and writes nothing else.
+- **The table.** `job_engine_evidence`: `id`, `job_id` (`ON DELETE CASCADE`),
+  `attempt` (the `jobs.attempt` of the claim that received the answer),
+  `raw_result` (JSON, at most 4 MiB, the bound of `v1.remote.MAX_REMOTE_RESPONSE`;
+  an answer over it is not kept), `digest`, `created_at`, `expires_at`; unique on
+  `(job_id, attempt)`. Migration `a5b6c7d8e9f0`, hanging from `f2a3b4c5d6e7`. Its
+  downgrade drops the table, so the answers still kept are destroyed and those
+  jobs can only be retried (which runs the Engine again).
+- **BIM fails.** The job is `FAILED`, `termination = UNKNOWN`, `solutions = []`,
+  with `result.code = "bim_evaluation_failed"`, the fixed sentence of the catalog,
+  `correlationId` and `result.evidence = {id, digest, expiresAt}`: a reference,
+  never the body. Something that was not evaluated is never recorded as valid or
+  completed. The exception goes to the log with the same id.
+- **Success.** Any success deletes **every** evidence row of the job, in the
+  transaction that writes `COMPLETED`.
+- **No `GET /evidence`.** The body of an Engine published by another owner can carry
+  that owner's text, so no route returns it. It is only read to be evaluated again.
+- **Retention.** `EVIDENCE_RETENTION_DAYS` (default 14, from 1 to 90). The
+  reconciler's cycle deletes expired rows in a bounded batch (500 per cycle,
+  `FOR UPDATE SKIP LOCKED`), comparing with the database clock like the leases.
+- **Re-evaluating: `POST /v1/jobs/{id}/reevaluate`.** Only the owner of the job,
+  with MEMBER in its organization when it has one (`require_work_role`); an API key
+  needs `engines:execute`, so a read-only key is refused, and a key inherits the
+  role of its user (a VIEWER's key is refused). A job that is not the caller's is
+  `404`. It does not run the Engine again; it uses only the row whose `attempt`
+  equals `jobs.attempt`. Refusals, all `409` unless said: `job_in_study` (the job
+  has a `study_cell_id`: `study_jobs.py` protects only `FAILED`, and a cell of a
+  cancelled run must not become `COMPLETED`), `job_already_retried` (a `retry`
+  exists), `cancellation_requested`, `job_not_reevaluable` (not `FAILED` with code
+  `bim_evaluation_failed`, or it lost the race below), and `410 evidence_expired`
+  (no evidence row, an expired one, or a row that is not the one the job refers to).
+  If BIM fails again the answer is `503 bim_evaluation_failed` and nothing changes:
+  the job stays `FAILED` with the same evidence, and no row is added.
+- **The transition is a compare-and-set.** BIM is called with no lock; the job row
+  is then locked, every refusal above is checked again, and one `UPDATE ... SET
+  state = 'completed' ... WHERE state = 'failed' AND NOT cancellation_requested AND
+  study_cell_id IS NULL AND result->>'code' = 'bim_evaluation_failed' AND EXISTS
+  (the evidence row of that id and of the job's current attempt)` decides. Of two
+  simultaneous calls one wins and the other gets `409`; a cancellation that came in
+  meanwhile wins. The winner deletes the job's evidence and writes a `job.reevaluated`
+  audit event in the same transaction.
+
+The row of *Failure modes* below that says the engine's result is lost when BIM
+fails (B4) describes the behaviour before this section.
+
 ## Failure modes
 
 | Failure | Result |

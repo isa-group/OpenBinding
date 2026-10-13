@@ -269,6 +269,29 @@ def classify_job_failure(error: BaseException) -> str:
     return UNCLASSIFIED_JOB_FAILURE
 
 
+# -- Evaluating the kept answer of an engine again --------------------------------
+
+#: Why ``POST /v1/jobs/{id}/reevaluate`` refuses; every sentence is fixed.
+JOB_NOT_REEVALUABLE = PublicProblem(
+    409,
+    "job_not_reevaluable",
+    "Only a job that failed with bim_evaluation_failed can be evaluated again.",
+)
+JOB_IN_STUDY = PublicProblem(
+    409, "job_in_study", "The job belongs to a study run; it cannot be evaluated again on its own."
+)
+JOB_ALREADY_RETRIED = PublicProblem(409, "job_already_retried", "The job has already been retried.")
+CANCELLATION_REQUESTED = PublicProblem(
+    409, "cancellation_requested", "The job was asked to stop; it cannot be evaluated again."
+)
+EVIDENCE_EXPIRED = PublicProblem(
+    410, "evidence_expired", "The answer of the engine is no longer kept; retry the job to solve it again."
+)
+BIM_EVALUATION_UNAVAILABLE = PublicProblem(
+    503, "bim_evaluation_failed", JOB_FAILURES["bim_evaluation_failed"]
+)
+
+
 # -- A pricing service that cannot be read --------------------------------------
 
 PRICING_UNAVAILABLE = PublicProblem(503, "pricing_unavailable", "The pricing service is unavailable.")

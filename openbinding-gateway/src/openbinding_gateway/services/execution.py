@@ -28,6 +28,7 @@ from ..db.models import (
     utcnow,
 )
 from ..integrations import bim
+from ..jobs import evidence as job_evidence
 from ..jobs import leases
 from ..v1.remote import RemoteEngineError, RemoteRegistration, cancel_remote, solve_remote
 from .engines import (
@@ -49,13 +50,15 @@ async def fail_persisted_job(
     *,
     reason: str | None = None,
     cause: BaseException | None = None,
+    evidence: dict[str, str] | None = None,
 ) -> None:
     """Record that the job failed for ``code`` (a key of ``JOB_FAILURES``).
 
     The job shows the fixed sentence of the catalog, the code and a correlation
     id; nothing the failure said about itself is stored. ``reason`` (a text the
     gateway wrote) and ``cause`` (the exception) go to the log with that id,
-    masked and bounded.
+    masked and bounded. ``evidence`` is the reference (id, digest, expiry, never
+    the body) of the engine answer that was kept for a later evaluation.
     """
     if not await leases.hold_lease(session, job.id, leases.held_token(session, job.id)):
         # The reconciler took the job back, so the outcome of this attempt is
@@ -73,6 +76,7 @@ async def fail_persisted_job(
         "solutions": [],
         **fields,
         "provenance": job.provenance or {},
+        **({"evidence": evidence} if evidence else {}),
     }
     job.termination = "UNKNOWN"
     job.finished_at = utcnow()
@@ -83,6 +87,27 @@ async def fail_persisted_job(
         pass
 
     await session.flush()
+
+
+async def evaluate_engine_result(
+    document: dict[str, Any],
+    remote_result: dict[str, Any],
+    optimization: Any,
+    termination_guarantees: list[str],
+    provenance: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """BIM's canonical evaluation of an engine answer: the provenance to keep and the job's result.
+
+    The one path from a raw answer to a result, for the worker and for the
+    re-evaluation of a kept answer. It raises when BIM cannot evaluate; nothing
+    that was not evaluated is ever returned.
+    """
+    reevaluated = await bim.abim().reevaluate(document, remote_result, optimization, termination_guarantees)
+    if not isinstance(reevaluated, dict) or "termination" not in reevaluated:
+        raise ValueError("BIM returned an evaluation without a termination")
+    final_provenance = {**provenance, "engineReported": remote_result.get("provenance", {})}
+    reevaluated["provenance"] = final_provenance
+    return final_provenance, reevaluated
 
 
 def _log_job_failure(
@@ -158,6 +183,29 @@ async def cancel_engine_job(transport: RemoteRegistration, engine_job_id: str | 
         logger.warning("Could not cancel engine job %s", engine_job_id, exc_info=True)
 
 
+async def keep_engine_answer(
+    session: AsyncSession, job_id: uuid.UUID, attempt: int, answer: dict[str, Any]
+) -> job_evidence.StoredEvidence | None:
+    """Write the engine's raw answer and commit, which also releases the row lock taken by ``hold_lease``.
+
+    Best effort: if the answer cannot be kept (over the bound, or the write
+    fails) the evaluation goes on without it, and a BIM failure then leaves no
+    evidence to retry from.
+    """
+    kept = None
+    try:
+        kept = await job_evidence.store(session, job_id, attempt, answer)
+        await session.commit()
+    except Exception:
+        kept = None
+        logger.warning("Could not keep the engine answer for job %s", job_id, exc_info=True)
+        try:
+            await session.rollback()
+        except Exception:
+            logger.warning("Could not roll back after keeping the answer of job %s", job_id, exc_info=True)
+    return kept
+
+
 async def finish_persisted_job(job_id: str, session: AsyncSession) -> None:
     """Dispatch a persisted BIM v1 job using only its stored canonical IR."""
     try:
@@ -189,6 +237,103 @@ async def finish_persisted_job(job_id: str, session: AsyncSession) -> None:
         await session.commit()
     finally:
         await leases.stop_heartbeat(heartbeat)
+
+
+async def settle_engine_answer(
+    session: AsyncSession,
+    job: Job,
+    started: float,
+    *,
+    attempt: int,
+    remote_result: dict[str, Any],
+    document: dict[str, Any],
+    optimization: Any,
+    termination_guarantees: list[str],
+    provenance: dict[str, Any],
+    transport: RemoteRegistration | None,
+    engine_job_id: str | None,
+) -> None:
+    """Turn the engine's answer into the job's outcome, in the order that loses nothing.
+
+    The caller holds the lease token in ``session.info`` and no transaction is
+    open. The row lock of the job is held only in short transactions: the raw
+    answer is written and committed before BIM is called (which then runs with
+    no transaction open), and the lease is taken again afterwards, with the
+    cancellation checked once more, because a cancellation can arrive while BIM
+    works. A job is COMPLETED only with an evaluated result; when BIM fails it
+    is FAILED ``bim_evaluation_failed`` with a reference to the kept answer.
+    """
+    job_id = job.id
+    # Lock first, read second: the refresh then sees the row as it will stay
+    # until this transaction ends.
+    if not await leases.hold_lease(session, job_id, leases.held_token(session, job_id)):
+        # The worker was presumed dead and the job went back in the queue
+        # (or failed). The answer arrived too late to be the job's answer.
+        logger.warning("Lost the lease on job %s; discarding its result", job_id)
+        await session.rollback()
+        await cancel_engine_job(transport, engine_job_id)
+        return
+    await session.refresh(job)
+    if job.cancellation_requested:
+        job.state = JobState.CANCELLED
+        job.lease_token = None
+        job.lease_until = None
+        job.finished_at = utcnow()
+        await session.flush()
+        # Durable first: the cancel call is a network round trip and must
+        # not run inside the transaction that holds the row lock.
+        await session.commit()
+        await cancel_engine_job(transport, engine_job_id)
+        return
+    # The raw answer is durable before BIM is asked about it, and the commit
+    # also releases the row lock: BIM is a network call and neither its
+    # failure nor its slowness may lose the solve or hold up a cancellation.
+    kept = await keep_engine_answer(session, job_id, attempt, remote_result)
+    try:
+        final_provenance, reevaluated = await evaluate_engine_result(
+            document, remote_result, optimization, termination_guarantees, provenance
+        )
+        evaluation_error = None
+    except Exception as exc:
+        final_provenance, reevaluated, evaluation_error = None, None, exc
+    if not await leases.hold_lease(session, job_id, leases.held_token(session, job_id)):
+        logger.warning("Lost the lease on job %s during its evaluation; discarding its result", job_id)
+        await session.rollback()
+        await job_evidence.discard_attempt(session, job_id, attempt)
+        await cancel_engine_job(transport, engine_job_id)
+        return
+    await session.refresh(job)
+    # The cancellation may have come in while BIM was working and the lock was free.
+    if job.cancellation_requested:
+        job.state = JobState.CANCELLED
+        job.lease_token = None
+        job.lease_until = None
+        job.finished_at = utcnow()
+        await job_evidence.delete_for_job(session, job_id)
+        await session.flush()
+        await session.commit()
+        await cancel_engine_job(transport, engine_job_id)
+        return
+    if evaluation_error is not None:
+        await fail_persisted_job(
+            job,
+            session,
+            "bim_evaluation_failed",
+            started,
+            cause=evaluation_error,
+            evidence=kept.reference() if kept is not None else None,
+        )
+        return
+    job.provenance = final_provenance
+    job.result = reevaluated
+    job.termination = reevaluated["termination"]
+    job.state = JobState.COMPLETED
+    job.lease_token = None
+    job.lease_until = None
+    job.finished_at = utcnow()
+    # A success leaves no raw answer behind, whichever attempt wrote it.
+    await job_evidence.delete_for_job(session, job_id)
+    await session.flush()
 
 
 async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
@@ -382,51 +527,19 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
             await cancel_engine_job(transport, engine["job_id"])
             await fail_persisted_job(job, session, classify_job_failure(exc), started, cause=exc)
             return
-        # Lock first, read second: the refresh then sees the row as it will stay
-        # until this transaction ends.
-        if not await leases.hold_lease(session, job.id, leases.held_token(session, job.id)):
-            # The worker was presumed dead and the job went back in the queue
-            # (or failed). The answer arrived too late to be the job's answer.
-            logger.warning("Lost the lease on job %s; discarding its result", job.id)
-            await session.rollback()
-            await cancel_engine_job(transport, engine["job_id"])
-            return
-        await session.refresh(job)
-        if job.cancellation_requested:
-            job.state = JobState.CANCELLED
-            job.lease_token = None
-            job.lease_until = None
-            job.finished_at = utcnow()
-            await session.flush()
-            # Durable first: the cancel call is a network round trip and must
-            # not run inside the transaction that holds the row lock.
-            await session.commit()
-            await cancel_engine_job(transport, engine["job_id"])
-            return
-        try:
-            reevaluated = await bim.abim().reevaluate(
-                document,
-                remote_result,
-                request.get("optimization", provenance.get("optimization", {})),
-                mode_contract["terminationGuarantees"],
-            )
-        except Exception as exc:
-            await fail_persisted_job(job, session, "bim_evaluation_failed", started, cause=exc)
-            return
-        job.provenance = {
-            **provenance,
-            "registration": registration_ref,
-            "protocolDigest": protocol_digest,
-            "engineReported": remote_result.get("provenance", {}),
-        }
-        reevaluated["provenance"] = job.provenance
-        job.result = reevaluated
-        job.termination = reevaluated["termination"]
-        job.state = JobState.COMPLETED
-        job.lease_token = None
-        job.lease_until = None
-        job.finished_at = utcnow()
-        await session.flush()
+        await settle_engine_answer(
+            session,
+            job,
+            started,
+            attempt=attempt,
+            remote_result=remote_result,
+            document=document,
+            optimization=request.get("optimization", provenance.get("optimization", {})),
+            termination_guarantees=mode_contract["terminationGuarantees"],
+            provenance={**provenance, "registration": registration_ref, "protocolDigest": protocol_digest},
+            transport=transport,
+            engine_job_id=engine["job_id"],
+        )
     except Exception as exc:
         await fail_persisted_job(job, session, classify_job_failure(exc), started, cause=exc)
 

@@ -3,10 +3,10 @@
 Closed here: an answer that was not re-evaluated is never recorded as a valid
 result (the job is FAILED, ``termination`` UNKNOWN, no solutions).
 
-Open here (``xfail(strict=True)``): the engine's raw answer is a local variable
-of ``run_claimed_job`` and is lost with the failure, the failure has no
-explicit diagnostic code, and there is no authorized way to retry the
-evaluation without running the engine again.
+Closed by contract C4 (they were ``xfail(strict=True)``): the engine's raw
+answer is kept before BIM is called, the failure has the code
+``bim_evaluation_failed``, and ``POST /v1/jobs/{id}/reevaluate`` evaluates the
+kept answer without running the engine again.
 """
 
 from __future__ import annotations
@@ -29,7 +29,8 @@ from ._helpers import (
     submit,
 )
 
-OPEN = pytest.mark.xfail(strict=True, raises=AssertionError)
+#: Taken before any test patches it.
+REAL_REEVALUATE = bim.AsyncBim.reevaluate
 
 #: Present only in the engine's raw answer, so finding it means the raw answer was kept.
 MARKER = "raw-engine-marker-7f3a"
@@ -71,32 +72,31 @@ async def test_an_unevaluated_result_is_never_recorded_as_valid(
     assert MARKER not in json.dumps(job.result)
 
 
-@OPEN
 async def test_a_bim_failure_during_reevaluation_keeps_the_engines_raw_result(
     api_client, db_session, registration, bim_down, engine_answers
 ):
-    """B4 open: ``services/execution.py:335-357`` – the raw answer is only in memory when BIM raises."""
+    """Closed (C4): the raw answer is written to ``job_engine_evidence`` before BIM is called."""
     await _failed_job(api_client, db_session, registration)
 
     assert await persisted_anywhere(db_session, MARKER)
 
 
-@OPEN
 async def test_a_failed_reevaluation_has_an_explicit_diagnostic_code(
     api_client, db_session, registration, bim_down, engine_answers
 ):
-    """B4 open: the job says ``Execution failed: <exception text>`` and no ``code`` (fail_persisted_job, execution.py:52)."""
+    """Closed (C4): the job says ``bim_evaluation_failed`` with a fixed sentence and a reference, not the body."""
     _, job = await _failed_job(api_client, db_session, registration)
 
-    assert job.result.get("code") in {"reevaluation_unavailable", "reevaluation_failed"}
+    assert job.result.get("code") == "bim_evaluation_failed"
+    assert set(job.result["evidence"]) == {"id", "digest", "expiresAt"}
 
 
-@OPEN
 async def test_there_is_an_authorized_way_to_retry_the_evaluation(
-    api_client, db_session, registration, bim_down, engine_answers
+    api_client, db_session, registration, bim_down, engine_answers, monkeypatch
 ):
-    """B4 open: ``routes/jobs.py`` has cancel and retry (which runs the engine again), nothing re-evaluates."""
+    """Closed (C4): ``POST /v1/jobs/{id}/reevaluate`` evaluates the kept answer once BIM answers again."""
     headers, job = await _failed_job(api_client, db_session, registration)
+    monkeypatch.setattr(bim.AsyncBim, "reevaluate", REAL_REEVALUATE)
 
     response = await api_client.post(f"/v1/jobs/{job.id}/reevaluate", headers=headers)
 

@@ -512,6 +512,32 @@ class JobProvenance(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
 
 
+class JobEngineEvidence(Base):
+    """The raw answer of an engine, kept until BIM has evaluated it (or the retention ends).
+
+    Written and committed before BIM is called, so that a BIM that is down or
+    slow does not cost the solve. A successful evaluation deletes every row of
+    the job; a failed one leaves the row that ``jobs.result.evidence`` refers to.
+    The body can carry text written by the engine's publisher, so no route
+    returns it: it is only read to evaluate it again.
+    """
+
+    __tablename__ = "job_engine_evidence"
+    __table_args__ = (
+        Index("uq_job_engine_evidence_job_attempt", "job_id", "attempt", unique=True),
+        Index("ix_job_engine_evidence_expires_at", "expires_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    #: ``jobs.attempt`` of the claim that received the answer; only the row of the current attempt is used.
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False)
+    raw_result: Mapped[dict] = mapped_column(JSON, nullable=False)
+    digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 # Re-exporting these keeps one stable import location for persistence models,
 # while the platform domain remains readable in its own module.
 from .platform_models import (  # noqa: E402,F401

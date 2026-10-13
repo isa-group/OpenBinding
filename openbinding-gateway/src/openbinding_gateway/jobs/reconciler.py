@@ -284,6 +284,13 @@ async def sweep_abandoned(session: AsyncSession) -> int:
     return len(ended)
 
 
+async def purge_expired_evidence(session: AsyncSession) -> int:
+    """Delete the engine answers kept past their retention: one bounded batch per cycle, the caller commits."""
+    from .evidence import purge_expired
+
+    return await purge_expired(session)
+
+
 async def _reconcile_cycle(factory) -> None:
     """One pass: sweep, resync cells, publish due jobs, then the other housekeeping."""
     global _last_purge
@@ -316,6 +323,16 @@ async def _reconcile_cycle(factory) -> None:
             except Exception:
                 logger.warning("Purging old error events failed; continuing", exc_info=True)
         await session.commit()
+        try:
+            evidence_purged = await purge_expired_evidence(session)
+            await session.commit()
+        except Exception:
+            evidence_purged = 0
+            logger.warning("Purging expired engine evidence failed; continuing", exc_info=True)
+            try:
+                await session.rollback()
+            except Exception:
+                logger.warning("Could not roll back after purging engine evidence", exc_info=True)
     # Analysis recovery commits before dispatch; isolate it from the sweep's transaction.
     from ..analysis_jobs import redeliver_analysis
 
@@ -329,6 +346,8 @@ async def _reconcile_cycle(factory) -> None:
         logger.info("Expired %d sponsorship proposal(s)", proposals_expired)
     if purged:
         logger.info("Purged %d old error event(s)", purged)
+    if evidence_purged:
+        logger.info("Purged %d expired engine evidence row(s)", evidence_purged)
 
 
 async def run_reconciler(interval_s: float = SWEEP_INTERVAL_S) -> None:

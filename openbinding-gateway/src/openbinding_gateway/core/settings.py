@@ -101,6 +101,10 @@ class Settings(BaseSettings):
     #: job was queued, whatever budget it was given to run
     #: (``QUEUE_TIMEOUT_S``).
     queue_timeout_s: float = Field(default=1800.0, ge=60.0)
+    #: Days the raw answer of an engine is kept when BIM could not evaluate it,
+    #: so the evaluation can be retried without solving again; the reconciler
+    #: deletes it after that (``EVIDENCE_RETENTION_DAYS``). At most 90.
+    evidence_retention_days: int = Field(default=14, ge=1, le=90)
 
     # -- v1 schemas ------------------------------------------------------
     #: Directory holding the BIM v1 schemas and manifests.
