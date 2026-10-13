@@ -447,6 +447,53 @@ def registration_engine_reference(
     return {field: str(engine[field]) for field in ("namespace", "name", "version", "digest")}
 
 
+async def engine_document_for_registration(
+    registration: EngineRegistrationRevision | Mapping[str, Any],
+    session: AsyncSession | None,
+) -> dict[str, Any]:
+    """The Engine revision a registration pins: a bundled manifest or a stored revision its owner may use.
+
+    ``HTTPException`` (409 for a malformed registration, 404 when the revision is gone) otherwise.
+    """
+    document = (
+        registration.document
+        if isinstance(registration, EngineRegistrationRevision)
+        else registration.get("document", {})
+    )
+    if not isinstance(document, Mapping):
+        raise HTTPException(status_code=409, detail="EngineRegistration document is missing")
+    engine = document.get("spec", {}).get("engine", {})
+    if not isinstance(engine, Mapping):
+        raise HTTPException(status_code=409, detail="EngineRegistration has no immutable Engine reference")
+    try:
+        return manifest(
+            str(engine.get("name", "")),
+            namespace=str(engine.get("namespace", "")),
+            version=str(engine.get("version", "")),
+            manifest_digest=str(engine.get("digest", "")),
+        )
+    except HTTPException:
+        pass
+    if session is not None and isinstance(registration, EngineRegistrationRevision):
+        revision = (
+            await session.execute(
+                select(EngineRevision).where(
+                    EngineRevision.namespace == engine.get("namespace"),
+                    EngineRevision.name == engine.get("name"),
+                    EngineRevision.version == engine.get("version"),
+                    EngineRevision.digest == engine.get("digest"),
+                    or_(
+                        EngineRevision.state == "published",
+                        EngineRevision.owner_id == registration.owner_id,
+                    ),
+                )
+            )
+        ).scalars().first()
+        if revision is not None:
+            return revision.document
+    raise HTTPException(status_code=404, detail="Engine revision not found")
+
+
 async def visible_engine_registrations(
     engine_reference: dict[str, str],
     engine_document: dict[str, Any],

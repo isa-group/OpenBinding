@@ -7,10 +7,8 @@ a source ZIP to an engine: engines receive only the compiled BindingProblem.
 from __future__ import annotations
 
 import asyncio
-import copy
 import json
 import logging
-import time
 import uuid
 from email.parser import BytesParser
 from email.policy import default as email_policy
@@ -19,7 +17,7 @@ from typing import Any, Mapping
 from ..models.analysis import NeighborhoodResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import delete, or_, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,15 +27,12 @@ from ..db import base as db_base
 from ..db.models import (
     BindingIRSnapshot,
     DialectRevision,
-    EngineCredential,
     EngineRegistrationRevision,
     EngineRevision,
     InstanceSnapshot,
     ManifestPublication,
-    Notification,
     RegisteredResourceRevision,
     User,
-    UserRole,
     utcnow,
 )
 from ..job_dispatch import dispatch_persisted_job
@@ -51,17 +46,13 @@ from ..integrations.bim_host import (
     XmlResource,
     dialect_type_matches,
     dialect_xml_type_matches,
-    engine_contract_diagnostics,
     resource_schema_diagnostics,
 )
-from ..v1.remote import (
-    RemoteEngineError,
-    RemoteRegistration,
-    avalidate_endpoint,
-    fetch_remote_document,
-    solve_remote,
-    validate_endpoint,
-)
+from ..v1.remote import fetch_remote_document, solve_remote, validate_endpoint
+
+from ..v1.remote import RemoteEngineError as RemoteEngineError  # re-exported for the tests
+from ..services import engine_registry
+from ..services.engine_registry import RegistrationKey
 from ..services.engines import (
     MANIFEST_DIR,
     available_engine_documents,
@@ -71,10 +62,8 @@ from ..services.engines import (
     owned_job,
     protocol_digest,
     protocol_document,
-    registration_engine_reference,
     registration_summary,
     schema_diagnostics,
-    validate_engine_result,
 )
 from ..services.engines import manifest as _manifest
 from ..services.engines import manifest_async
@@ -89,7 +78,6 @@ from ..services.job_submission import (
 # Re-exported for ``study_jobs`` and the tests that read the pending launches through this module.
 from ..services.job_submission import discard_pending_launches as discard_pending_launches
 from ..services.job_submission import pending_launches as pending_launches
-from ..services.probe import probe_ir
 from ..services.snapshots import (
     CUSTOM_RESOURCES,
     Compilation,
@@ -129,184 +117,12 @@ def _problem(
     return problem_response(status_code, code, detail, diagnostics, headers=headers, extra=extra)
 
 
-_SCHEMA_ANNOTATIONS = {"title", "description", "$comment", "examples", "deprecated", "readOnly", "writeOnly"}
-_BINDING_PROBLEM_SCHEMA_REF = "./bim/v1/binding-problem.schema.json"
-
-
-def _pointer(document: dict[str, Any], reference: str) -> Any:
-    if not reference.startswith("#/"):
-        raise RemoteEngineError(f"deployment OpenAPI uses a non-local schema reference: {reference}")
-    value: Any = document
-    for raw in reference[2:].split("/"):
-        token = raw.replace("~1", "/").replace("~0", "~")
-        if not isinstance(value, dict) or token not in value:
-            raise RemoteEngineError(f"deployment OpenAPI has an unresolved schema reference: {reference}")
-        value = value[token]
-    return value
-
-
-def _schema_semantics(document: dict[str, Any], value: Any, trail: tuple[str, ...] = ()) -> Any:
-    """Dereference a bounded OpenAPI schema into a comparable closed form."""
-    if isinstance(value, list):
-        return [_schema_semantics(document, item, trail) for item in value]
-    if not isinstance(value, dict):
-        return value
-    reference = value.get("$ref")
-    if isinstance(reference, str):
-        siblings = set(value) - {"$ref"} - _SCHEMA_ANNOTATIONS
-        if siblings:
-            raise RemoteEngineError("deployment OpenAPI schema references cannot have semantic siblings")
-        if reference == _BINDING_PROBLEM_SCHEMA_REF:
-            return {"$ref": "bim-binding-problem/v1"}
-        if not reference.startswith("#/"):
-            raise RemoteEngineError(f"deployment OpenAPI uses an unapproved schema reference: {reference}")
-        if reference in trail:
-            raise RemoteEngineError(f"deployment OpenAPI contains a recursive schema reference: {reference}")
-        return _schema_semantics(document, _pointer(document, reference), (*trail, reference))
-    return {
-        key: _schema_semantics(document, child, trail)
-        for key, child in value.items()
-        if key not in _SCHEMA_ANNOTATIONS
-    }
-
-
-def _operation_schema(operation: Any, *, request: bool = False, response: str | None = None) -> dict[str, Any]:
-    try:
-        if request:
-            schema = operation["requestBody"]["content"]["application/json"]["schema"]
-        else:
-            schema = operation["responses"][response]["content"]["application/json"]["schema"]
-    except (KeyError, TypeError) as exc:
-        location = "request" if request else f"response {response}"
-        raise RemoteEngineError(f"deployment OpenAPI is missing the application/json {location} schema") from exc
-    if not isinstance(schema, dict):
-        raise RemoteEngineError("deployment OpenAPI operation schema must be an object")
-    return schema
-
-
-def _assert_operation_auth(
-    document: Mapping[str, Any],
-    operation: Mapping[str, Any],
-    expected: str,
-    label: str,
-) -> None:
-    """Ensure the submitted OpenAPI matches the registration transport auth."""
-
-    security = operation.get("security", document.get("security", []))
-    if not isinstance(security, list):
-        raise RemoteEngineError(f"deployment OpenAPI {label} security must be an array")
-    if any(not isinstance(requirement, Mapping) for requirement in security):
-        raise RemoteEngineError(
-            f"deployment OpenAPI {label} security requirements must be objects"
-        )
-    if expected == "none":
-        if security and not any(not requirement for requirement in security):
-            raise RemoteEngineError(
-                f"deployment OpenAPI {label} requires authentication but registration auth is none"
-            )
-        return
-
-    if not security or any(not requirement for requirement in security):
-        raise RemoteEngineError(
-            f"deployment OpenAPI {label} permits anonymous access but registration auth is {expected}"
-        )
-
-    schemes = document.get("components", {}).get("securitySchemes", {})
-    if not isinstance(schemes, Mapping):
-        raise RemoteEngineError("deployment OpenAPI has no securitySchemes object")
-    matching_names = {
-        name
-        for name, declaration in schemes.items()
-        if isinstance(name, str)
-        and isinstance(declaration, Mapping)
-        and declaration.get("type") == "http"
-        and str(declaration.get("scheme", "")).casefold() == expected
-    }
-    if not any(
-        isinstance(requirement, Mapping)
-        and len(requirement) == 1
-        and next(iter(requirement), None) in matching_names
-        for requirement in security
-    ):
-        raise RemoteEngineError(
-            f"deployment OpenAPI {label} does not offer the registered {expected} authentication"
-        )
-
-
-def _assert_protocol_schema(
-    label: str,
-    deployed_document: dict[str, Any],
-    deployed_schema: dict[str, Any],
-    canonical_document: dict[str, Any],
-    canonical_schema: dict[str, Any],
-) -> None:
-    deployed = _schema_semantics(deployed_document, deployed_schema)
-    canonical = _schema_semantics(canonical_document, canonical_schema)
-    if digest(deployed) != digest(canonical):
-        raise RemoteEngineError(f"deployment OpenAPI {label} schema is not equivalent to bim-engine/v1")
-
-
-def _conformance_shape(mode: Mapping[str, Any]) -> tuple[str, str, int]:
-    scalarizations = mode.get("capabilities", {}).get("scalarizations", {})
-    descriptors = scalarizations.get("values", []) if isinstance(scalarizations, Mapping) else []
-    limits = mode.get("limits", {})
-    minimum = limits.get("minObjectives", 0) if isinstance(limits, Mapping) else 0
-    maximum = limits.get("maxObjectives") if isinstance(limits, Mapping) else None
-    minimum = minimum if isinstance(minimum, int) else 0
-    maximum = maximum if isinstance(maximum, int) else None
-    for descriptor in descriptors:
-        if not isinstance(descriptor, Mapping):
-            continue
-        scalarization = descriptor.get("id")
-        for objective_type in descriptor.get("objectiveTypes", []):
-            if not isinstance(scalarization, str) or objective_type not in {"SINGLE", "MULTI", "MANY"}:
-                continue
-            if scalarization == "feasibility" and objective_type == "SINGLE" and minimum == 0:
-                return scalarization, objective_type, 0
-            objective_count = max(minimum, {"SINGLE": 1, "MULTI": 2, "MANY": 3}[objective_type])
-            if objective_type == "MULTI" and objective_count > 3:
-                continue
-            if maximum is not None and objective_count > maximum:
-                continue
-            return scalarization, objective_type, objective_count
-    raise RemoteEngineError("Engine has no mode shape suitable for a deterministic conformance probe")
-
-
-def _conformance_mode(engine: Mapping[str, Any]) -> Mapping[str, Any]:
-    modes = engine.get("spec", {}).get("modes", [])
-    for mode in modes if isinstance(modes, list) else []:
-        if not isinstance(mode, Mapping):
-            continue
-        try:
-            _conformance_shape(mode)
-            return mode
-        except RemoteEngineError:
-            continue
-    raise RemoteEngineError("Engine has no published mode suitable for a deterministic conformance probe")
-
-
-def _conformance_options(mode: Mapping[str, Any]) -> dict[str, Any]:
-    properties = mode.get("optionsSchema", {}).get("properties", {})
-    if not isinstance(properties, Mapping):
-        return {}
-    return {
-        name: copy.deepcopy(option["default"])
-        for name, option in properties.items()
-        if isinstance(name, str) and isinstance(option, Mapping) and "default" in option
-    }
-
-
-def _conformance_optimization(mode: Mapping[str, Any]) -> dict[str, Any]:
-    _, objective_type, objective_count = _conformance_shape(mode)
-    scalarization, _, _ = _conformance_shape(mode)
-    return {
-        "type": objective_type,
-        "scalarization": scalarization,
-        "weights": [
-            {"criteria": f"probe-objective-{index + 1}", "value": 1.0 / objective_count}
-            for index in range(objective_count)
-        ],
-    }
+# The conformance helpers live in ``services.engine_registry``; the tests reach them through this module.
+_assert_operation_auth = engine_registry.assert_operation_auth
+_assert_protocol_schema = engine_registry.assert_protocol_schema
+_conformance_optimization = engine_registry.conformance_optimization
+_conformance_shape = engine_registry.conformance_shape
+_operation_schema = engine_registry.operation_schema
 
 
 async def _verify_registration(
@@ -314,172 +130,18 @@ async def _verify_registration(
     credential: str | None,
     engine: Mapping[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any] | None, str | None]:
-    """Fetch the pinned OpenAPI and execute a deterministic response probe."""
+    """``engine_registry.verify_registration`` over this module's transport and settings.
 
-    spec = document["spec"]
-    transport = RemoteRegistration(
-        endpoint=spec["endpoint"],
-        mappings=spec.get("mappings", {}),
-        auth_scheme=spec.get("auth", {}).get("scheme", "none"),
-        credential=credential,
-        allow_internal_http=not get_settings().federation_require_https,
-    )
-    expected_digest = spec["protocol"]["digest"]
-    checks: list[dict[str, Any]] = []
-    submitted_openapi = spec.get("openapi")
-    openapi_document: dict[str, Any] | None = (
-        submitted_openapi if isinstance(submitted_openapi, dict) else None
-    )
-    openapi_digest: str | None = (
-        digest(openapi_document) if openapi_document is not None else None
-    )
-    started = time.monotonic()
-    try:
-        openapi_path = spec.get("mappings", {}).get("openapi", "/openapi.json")
-        if openapi_document is None:
-            raise RemoteEngineError("registration must include the deployment OpenAPI document")
-        live_openapi = await fetch_remote_document(transport, openapi_path)
-        if digest(live_openapi) != openapi_digest:
-            raise RemoteEngineError(
-                "served OpenAPI differs from the immutable document submitted for review"
-            )
-        if openapi_document.get("openapi") != "3.1.0":
-            raise RemoteEngineError("served OpenAPI must declare version 3.1.0")
-        if openapi_document.get("x-bim-protocol") != "bim-engine/v1":
-            raise RemoteEngineError("deployment OpenAPI must declare x-bim-protocol: bim-engine/v1")
-        if openapi_document.get("x-bim-protocol-digest") != expected_digest:
-            raise RemoteEngineError("deployment OpenAPI does not pin the canonical bim-engine/v1 digest")
-
-        canonical_document = protocol_document()
-        if expected_digest != protocol_digest():
-            raise RemoteEngineError("registration does not pin the installed bim-engine/v1 contract")
-        request_path = spec.get("mappings", {}).get("request", "/internal/v1/binding-problems")
-        operation = openapi_document.get("paths", {}).get(request_path, {}).get("post")
-        if not isinstance(operation, dict):
-            raise RemoteEngineError("deployment OpenAPI does not describe the mapped solve operation")
-        _assert_operation_auth(
-            openapi_document,
-            operation,
-            spec.get("auth", {}).get("scheme", "none"),
-            "solve operation",
-        )
-        canonical_operation = canonical_document["paths"]["/internal/v1/binding-problems"]["post"]
-        _assert_protocol_schema(
-            "solve request",
-            openapi_document,
-            _operation_schema(operation, request=True),
-            canonical_document,
-            _operation_schema(canonical_operation, request=True),
-        )
-        responses = operation.get("responses", {})
-        if not isinstance(responses, dict) or not ({"200", "202"} & set(responses)):
-            raise RemoteEngineError("deployment OpenAPI does not describe a synchronous or asynchronous result")
-        response_modes: list[str] = []
-        if "200" in responses:
-            _assert_protocol_schema(
-                "synchronous result",
-                openapi_document,
-                _operation_schema(operation, response="200"),
-                canonical_document,
-                _operation_schema(canonical_operation, response="200"),
-            )
-            response_modes.append("synchronous")
-        if "202" in responses:
-            _assert_protocol_schema(
-                "asynchronous receipt",
-                openapi_document,
-                _operation_schema(operation, response="202"),
-                canonical_document,
-                _operation_schema(canonical_operation, response="202"),
-            )
-            job_path = spec.get("mappings", {}).get("job")
-            if not isinstance(job_path, str) or "{id}" not in job_path:
-                raise RemoteEngineError("an asynchronous deployment requires a mapped job path containing {id}")
-            job_operation = openapi_document.get("paths", {}).get(job_path, {}).get("get")
-            if not isinstance(job_operation, dict):
-                raise RemoteEngineError("deployment OpenAPI does not describe the mapped async job operation")
-            _assert_operation_auth(
-                openapi_document,
-                job_operation,
-                spec.get("auth", {}).get("scheme", "none"),
-                "asynchronous job operation",
-            )
-            canonical_job = canonical_document["paths"]["/internal/v1/jobs/{id}"]["get"]
-            _assert_protocol_schema(
-                "asynchronous job",
-                openapi_document,
-                _operation_schema(job_operation, response="200"),
-                canonical_document,
-                _operation_schema(canonical_job, response="200"),
-            )
-            response_modes.append("asynchronous")
-        checks.append(
-            {
-                "id": "openapi",
-                "status": "passed",
-                "deploymentDigest": openapi_digest,
-                "protocolDigest": expected_digest,
-                "requestPath": request_path,
-                "responseModes": response_modes,
-            }
-        )
-
-        health_path = spec.get("mappings", {}).get("health", "/health")
-        health_operation = openapi_document.get("paths", {}).get(health_path, {}).get("get")
-        if not isinstance(health_operation, dict) or "200" not in health_operation.get("responses", {}):
-            raise RemoteEngineError(
-                "deployment OpenAPI must describe the mapped GET health operation and its 200 response"
-            )
-        _assert_operation_auth(
-            openapi_document,
-            health_operation,
-            spec.get("auth", {}).get("scheme", "none"),
-            "health operation",
-        )
-        await fetch_remote_document(transport, health_path)
-        checks.append({"id": "health", "status": "passed"})
-
-        conformance_mode = _conformance_mode(engine)
-        result = await solve_remote(
-            transport,
-            await probe_ir(_conformance_shape(conformance_mode)[2]),
-            _conformance_options(conformance_mode),
-            _conformance_optimization(conformance_mode),
-            timeout_s=10.0,
-            validate_result=validate_engine_result,
-        )
-        expected_binding = {"probe-task": {"resource": "probe-catalog", "id": "probe-candidate"}}
-        bindings = [
-            item.get("decision", {}).get("binding")
-            for item in result.get("solutions", [])
-            if isinstance(item, dict)
-        ]
-        if result.get("termination") not in {"OPTIMAL", "FEASIBLE"} or expected_binding not in bindings:
-            raise RemoteEngineError("engine did not solve the deterministic conformance problem")
-        checks.append({"id": "binding-result", "status": "passed", "termination": result["termination"]})
-    except (RemoteEngineError, KeyError, TypeError, ValueError) as exc:
-        checks.append({"id": "conformance", "status": "failed", "message": str(exc)})
-        return (
-            {
-                "protocol": "bim-engine/v1",
-                "protocolDigest": expected_digest,
-                "status": "failed",
-                "checks": checks,
-                "durationMs": round((time.monotonic() - started) * 1000, 3),
-            },
-            openapi_document,
-            openapi_digest,
-        )
-    return (
-        {
-            "protocol": "bim-engine/v1",
-            "protocolDigest": expected_digest,
-            "status": "verified",
-            "checks": checks,
-            "durationMs": round((time.monotonic() - started) * 1000, 3),
-        },
-        openapi_document,
-        openapi_digest,
+    The names are looked up here on every call, so replacing ``fetch_remote_document``, ``solve_remote`` or
+    ``get_settings`` on this module (as the tests do) keeps working.
+    """
+    return await engine_registry.verify_registration(
+        document,
+        credential,
+        engine,
+        settings=get_settings(),
+        fetch=fetch_remote_document,
+        solve=solve_remote,
     )
 
 
@@ -546,6 +208,21 @@ def _error_from_http(exc: HTTPException) -> JSONResponse:
     default_code = VALIDATION_ERROR if exc.status_code == 422 else "request_invalid"
     code, message, diagnostics, extra = split_detail(exc.detail, default_code)
     return _problem(exc.status_code, code, message, diagnostics, extra=extra, headers=exc.headers)
+
+
+async def _read_json_body(request: Request, invalid_code: str) -> Any | JSONResponse:
+    """The JSON body of a registry request, within the expanded-document limit, or the problem to answer."""
+    try:
+        body = await request.body()
+        if len(body) > _max_expanded():
+            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
+        return strict_json_loads(body)
+    except PackageError as exc:
+        return _problem(422, invalid_code, str(exc))
+
+
+def _registry_problem(exc: engine_registry.RegistryProblem) -> JSONResponse:
+    return _problem(exc.status, exc.code, exc.detail, exc.diagnostics)
 
 
 @router.get("/profiles")
@@ -1385,67 +1062,13 @@ async def create_engine(
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
+    document = await _read_json_body(request, "invalid_engine")
+    if isinstance(document, JSONResponse):
+        return document
     try:
-        body = await request.body()
-        if len(body) > _max_expanded():
-            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
-        document = strict_json_loads(body)
-    except PackageError as exc:
-        return _problem(422, "invalid_engine", str(exc))
-    diagnostics = schema_diagnostics(document, "Engine") if isinstance(document, dict) else [{"code": "document", "message": "Engine must be an object"}]
-    if isinstance(document, Mapping):
-        diagnostics.extend(engine_contract_diagnostics(document))
-    if diagnostics:
-        return _problem(422, "invalid_engine", "Engine manifest does not satisfy bim/v1", diagnostics)
-    name = document["metadata"]["name"]
-    version = document["metadata"].get("version", "1.0.0")
-    revision_digest = digest(document)
-    target_reference = {
-        "namespace": document["metadata"]["namespace"],
-        "name": name,
-        "version": version,
-        "digest": revision_digest,
-    }
-    if not allows_engine(caller, target_reference):
-        return _problem(
-            403,
-            "engine_not_granted",
-            "This API key does not grant this exact Engine revision; use an all-Engines key to create new revisions",
-        )
-    if session is not None:
-        namespace = document["metadata"]["namespace"]
-        if namespace != caller.username:
-            return _problem(403, "forbidden", "Engine namespace must match the caller")
-        existing = (
-            await session.execute(
-                select(EngineRevision).where(
-                    EngineRevision.namespace == namespace,
-                    EngineRevision.name == name,
-                    EngineRevision.version == version,
-                )
-            )
-        ).scalars().first()
-        if existing is not None:
-            if existing.digest != revision_digest:
-                return _problem(409, "immutable_engine", "Engine revisions are immutable; create a new version")
-            return {"namespace": namespace, "name": name, "version": version, "digest": existing.digest, "status": existing.state}
-        row = EngineRevision(
-                owner_id=caller.id,
-                namespace=namespace,
-                name=name,
-                version=version,
-                digest=revision_digest,
-                document=document,
-                state="private",
-            )
-        try:
-            async with session.begin_nested():
-                session.add(row)
-                await session.flush()
-        except IntegrityError:
-            return _problem(409, "immutable_engine", "Engine identity already exists with different content")
-        return {"namespace": namespace, "name": name, "version": version, "digest": revision_digest, "status": "private"}
-    return _problem(503, "accounts_unavailable", "Registering an Engine requires the accounts database")
+        return await engine_registry.create_engine_revision(document, caller, session)
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 @router.post("/engine-registrations", status_code=status.HTTP_201_CREATED)
@@ -1454,122 +1077,15 @@ async def register_engine(
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
+    document = await _read_json_body(request, "invalid_registration")
+    if isinstance(document, JSONResponse):
+        return document
     try:
-        body = await request.body()
-        if len(body) > _max_expanded():
-            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
-        document = strict_json_loads(body)
-    except PackageError as exc:
-        return _problem(422, "invalid_registration", str(exc))
-    diagnostics = schema_diagnostics(document, "EngineRegistration") if isinstance(document, dict) else [{"code": "document", "message": "EngineRegistration must be an object"}]
-    if diagnostics:
-        return _problem(422, "invalid_registration", "registration must satisfy bim/v1", diagnostics)
-    spec = document.get("spec", {})
-    endpoint = spec.get("endpoint")
-    if not isinstance(endpoint, str):
-        return _problem(422, "invalid_registration", "registration endpoint must be a URI")
-    allow_internal_http = not get_settings().federation_require_https
-    try:
-        await avalidate_endpoint(
-            endpoint, allow_internal_http=allow_internal_http, validate=validate_endpoint
+        return await engine_registry.register_engine(
+            document, caller, session, settings=get_settings(), validate=validate_endpoint
         )
-    except RemoteEngineError as exc:
-        return _problem(422, "invalid_registration", str(exc))
-    secret_paths = embedded_secret_paths(document)
-    if secret_paths:
-        return _problem(
-            422,
-            "secret_in_document",
-            "credentials must be supplied through the secret store",
-            [{"code": "secret_in_document", "pointer": path, "message": "secret-like field is forbidden"} for path in secret_paths],
-        )
-    if spec.get("auth", {}).get("scheme") == "mtls":
-        return _problem(
-            422,
-            "unsupported_auth",
-            "mTLS needs a versioned certificate-bundle credential contract and is not available in BIM v1",
-        )
-    name = document.get("metadata", {}).get("name")
-    if not isinstance(name, str) or not name:
-        return _problem(422, "invalid_registration", "metadata.name is required")
-    namespace = document["metadata"]["namespace"]
-    if namespace != caller.username:
-        return _problem(403, "forbidden", "EngineRegistration namespace must match the caller")
-    version = document["metadata"]["version"]
-    revision = digest(document)
-    submitted_digest = spec.get("protocol", {}).get("digest")
-    protocol_id = spec.get("protocol", {}).get("id", "bim-engine/v1")
-    if protocol_id != "bim-engine/v1":
-        return _problem(409, "protocol_mismatch", "registration must use bim-engine/v1")
-    if submitted_digest != protocol_digest():
-        return _problem(409, "protocol_digest_mismatch", "registration must pin the exact bim-engine/v1 OpenAPI digest")
-    submitted_openapi = spec.get("openapi")
-    if (
-        not isinstance(submitted_openapi, dict)
-        or submitted_openapi.get("x-bim-protocol-digest") != submitted_digest
-    ):
-        return _problem(
-            409,
-            "openapi_protocol_mismatch",
-            "submitted OpenAPI must pin the same bim-engine/v1 digest as the registration",
-        )
-    engine_ref = spec.get("engine", {})
-    engine_name = engine_ref.get("name") if isinstance(engine_ref, dict) else None
-    if not allows_engine(caller, engine_ref if isinstance(engine_ref, Mapping) else {}):
-        return _problem(404, "not_found", "Engine revision not found")
-    try:
-        engine_document = await manifest_async(
-            engine_name,
-            session,
-            caller=caller,
-            namespace=engine_ref.get("namespace"),
-            version=engine_ref.get("version"),
-            manifest_digest=engine_ref.get("digest"),
-        )
-    except HTTPException:
-        return _problem(422, "unknown_engine", "registration references an unknown Engine revision")
-    if digest(engine_document) != engine_ref.get("digest"):
-        return _problem(409, "engine_digest_mismatch", "registration must pin the exact Engine revision digest")
-    if session is not None:
-        existing = (
-            await session.execute(
-                select(EngineRegistrationRevision).where(
-                    EngineRegistrationRevision.namespace == namespace,
-                    EngineRegistrationRevision.name == name,
-                    EngineRegistrationRevision.version == version,
-                )
-            )
-        ).scalars().first()
-        if existing is not None:
-            if existing.manifest_digest != revision:
-                return _problem(409, "immutable_registration", "Registration revisions are immutable; use a new version")
-            return registration_summary(existing)
-        registration = EngineRegistrationRevision(
-            owner_id=caller.id,
-            namespace=namespace,
-            name=name,
-            version=version,
-            manifest_digest=revision,
-            engine_digest=engine_ref["digest"],
-            document=document,
-            endpoint=endpoint,
-            protocol_digest=submitted_digest,
-            openapi_document=submitted_openapi,
-            openapi_digest=digest(submitted_openapi),
-            mappings=spec.get("mappings", {}),
-            auth_scheme=spec.get("auth", {}).get("scheme", "none"),
-            verification_report={"protocol": "bim-engine/v1", "protocolDigest": submitted_digest, "status": "pending", "checks": []},
-            publication_status="private",
-            is_active=False,
-        )
-        try:
-            async with session.begin_nested():
-                session.add(registration)
-                await session.flush()
-        except IntegrityError:
-            return _problem(409, "immutable_registration", "Registration identity already exists with different content")
-        return registration_summary(registration)
-    return _problem(503, "accounts_unavailable", "Registering an engine requires the accounts database")
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 @router.get("/engine-registrations")
@@ -1581,29 +1097,10 @@ async def list_engine_registrations(
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        if review:
-            if not caller.is_admin:
-                return _problem(403, "forbidden", "Only an administrator may read publication requests")
-            query = select(EngineRegistrationRevision).where(
-                EngineRegistrationRevision.publication_status == "pending_review"
-            )
-        else:
-            query = select(EngineRegistrationRevision).where(
-                or_(
-                    EngineRegistrationRevision.owner_id == caller.id,
-                    EngineRegistrationRevision.publication_status == "published",
-                )
-            )
-        rows = (await session.execute(query.order_by(EngineRegistrationRevision.namespace, EngineRegistrationRevision.name, EngineRegistrationRevision.version))).scalars().all()
-        return {
-            "registrations": [
-                registration_summary(row)
-                for row in rows
-                if allows_engine(caller, registration_engine_reference(row) or {})
-            ]
-        }
-    return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
+    try:
+        return await engine_registry.list_registrations(caller, session, review=review)
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 @router.get("/engine-registrations/{name}")
@@ -1615,154 +1112,11 @@ async def get_engine_registration(
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        query = select(EngineRegistrationRevision).where(
-            EngineRegistrationRevision.namespace == namespace,
-            EngineRegistrationRevision.name == name,
-            EngineRegistrationRevision.version == version,
-            EngineRegistrationRevision.manifest_digest == manifest_digest,
-        )
-        visible = [
-            EngineRegistrationRevision.owner_id == caller.id,
-            EngineRegistrationRevision.publication_status == "published",
-        ]
-        if caller.is_admin:
-            visible.append(
-                EngineRegistrationRevision.publication_status == "pending_review"
-            )
-        query = query.where(or_(*visible))
-        row = (await session.execute(query)).scalars().first()
-        if row is None or not allows_engine(
-            caller, registration_engine_reference(row) or {}
-        ):
-            return _problem(404, "not_found", "Engine registration not found")
-        return row.document
-    return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
-
-
-async def _engine_document_for_registration(
-    registration: EngineRegistrationRevision | Mapping[str, Any],
-    session: AsyncSession | None,
-) -> dict[str, Any]:
-    document = (
-        registration.document
-        if isinstance(registration, EngineRegistrationRevision)
-        else registration.get("document", {})
-    )
-    if not isinstance(document, Mapping):
-        raise HTTPException(status_code=409, detail="EngineRegistration document is missing")
-    engine = document.get("spec", {}).get("engine", {})
-    if not isinstance(engine, Mapping):
-        raise HTTPException(status_code=409, detail="EngineRegistration has no immutable Engine reference")
+    key = RegistrationKey(namespace, name, version, manifest_digest)
     try:
-        return _manifest(
-            str(engine.get("name", "")),
-            namespace=str(engine.get("namespace", "")),
-            version=str(engine.get("version", "")),
-            manifest_digest=str(engine.get("digest", "")),
-        )
-    except HTTPException:
-        pass
-    if session is not None and isinstance(registration, EngineRegistrationRevision):
-        revision = (
-            await session.execute(
-                select(EngineRevision).where(
-                    EngineRevision.namespace == engine.get("namespace"),
-                    EngineRevision.name == engine.get("name"),
-                    EngineRevision.version == engine.get("version"),
-                    EngineRevision.digest == engine.get("digest"),
-                    or_(
-                        EngineRevision.state == "published",
-                        EngineRevision.owner_id == registration.owner_id,
-                    ),
-                )
-            )
-        ).scalars().first()
-        if revision is not None:
-            return revision.document
-    raise HTTPException(status_code=404, detail="Engine revision not found")
-
-
-async def _verify_registration_row(
-    registration: EngineRegistrationRevision,
-    session: AsyncSession,
-) -> JSONResponse | None:
-    if registration.protocol_digest != protocol_digest():
-        return _problem(
-            409,
-            "protocol_digest_mismatch",
-            "Registration protocol is no longer the pinned bim-engine/v1 contract",
-        )
-    try:
-        engine_document = await _engine_document_for_registration(registration, session)
-    except HTTPException:
-        return _problem(409, "engine_revision_unavailable", "Registration Engine revision is unavailable")
-
-    credential_value = None
-    credential_row = (
-        await session.execute(
-            select(EngineCredential).where(
-                EngineCredential.registration_id == registration.id
-            )
-        )
-    ).scalars().first()
-    if credential_row is not None:
-        from ..security.secrets import CredentialStore, SecretsUnavailable
-
-        try:
-            credential_value = CredentialStore.from_settings(get_settings()).decrypt(
-                credential_row.credential_encrypted
-            )
-        except SecretsUnavailable as exc:
-            return _problem(503, "credential_store_unavailable", str(exc))
-
-    report, openapi_document, openapi_digest = await _verify_registration(
-        registration.document,
-        credential_value,
-        engine_document,
-    )
-    registration.verification_report = report
-    registration.openapi_document = openapi_document
-    registration.openapi_digest = openapi_digest
-    if report["status"] != "verified":
-        registration.is_active = False
-        await session.flush()
-        return _problem(
-            409,
-            "conformance_failed",
-            "Engine registration failed its OpenAPI and response-contract checks",
-            report["checks"],
-        )
-    registration.verified_at = utcnow()
-    registration.verification_report = {
-        **report,
-        "verifiedAt": registration.verified_at.isoformat(),
-    }
-    return None
-
-
-async def _notify_admins_of_engine_event(
-    session: AsyncSession,
-    kind: str,
-    subject: str,
-    body: str,
-    payload: dict[str, Any],
-) -> None:
-    admins = (
-        await session.execute(
-            select(User).where(User.role == UserRole.ADMIN, User.is_active.is_(True))
-        )
-    ).scalars().all()
-    for admin in admins:
-        session.add(
-            Notification(
-                user_id=admin.id,
-                kind=kind,
-                subject=subject,
-                body=body,
-                payload=payload,
-            )
-        )
+        return await engine_registry.read_registration(key, caller, session)
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 async def _change_registration(
@@ -1775,126 +1129,17 @@ async def _change_registration(
     *,
     action: str,
 ):
-    if session is None:
-        return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
-    admin_action = action in {"approve", "reject"}
-    if admin_action and not caller.is_admin:
-        return _problem(403, "forbidden", "Only an administrator may review publication requests")
-    query = select(EngineRegistrationRevision).where(
-        EngineRegistrationRevision.namespace == namespace,
-        EngineRegistrationRevision.name == name,
-        EngineRegistrationRevision.version == version,
-        EngineRegistrationRevision.manifest_digest == manifest_digest,
-    )
-    if admin_action:
-        query = query.where(
-            EngineRegistrationRevision.publication_status == "pending_review"
-        )
-    else:
-        query = query.where(EngineRegistrationRevision.owner_id == caller.id)
-    registration = (await session.execute(query)).scalars().first()
-    if registration is None:
-        return _problem(404, "not_found", "Engine registration not found")
-    if not allows_engine(caller, registration_engine_reference(registration) or {}):
-        return _problem(404, "not_found", "Engine registration not found")
-
-    if action == "activate":
-        failure = await _verify_registration_row(registration, session)
-        if failure is not None:
-            return failure
-        registration.is_active = True
-    elif action == "deactivate":
-        was_published = registration.publication_status == "published"
-        registration.is_active = False
-        if was_published:
-            await _notify_admins_of_engine_event(
-                session,
-                kind="engine.deactivated",
-                subject=f"Published engine paused: {registration.namespace}/{registration.name}",
-                body=f"The published federated engine {registration.namespace}/{registration.name}@{registration.version} has been paused by {caller.username}.",
-                payload={
-                    "namespace": registration.namespace,
-                    "name": registration.name,
-                    "version": registration.version,
-                    "digest": registration.manifest_digest,
-                    "actor": caller.username,
-                },
-            )
-    elif action == "request_publication":
-        if registration.publication_status == "published":
-            return registration_summary(registration)
-        if not registration.is_active:
-            return _problem(
-                409,
-                "registration_inactive",
-                "Activate and verify the private registration before requesting publication",
-            )
-        failure = await _verify_registration_row(registration, session)
-        if failure is not None:
-            return failure
-        registration.publication_status = "pending_review"
-        await _notify_admins_of_engine_event(
+    try:
+        return await engine_registry.change_registration(
+            RegistrationKey(namespace, name, version, manifest_digest),
+            caller,
             session,
-            kind="engine.publication_requested",
-            subject=f"Engine publication requested: {registration.namespace}/{registration.name}",
-            body=f"User {caller.username} has requested publication for engine registration {registration.namespace}/{registration.name}@{registration.version}.",
-            payload={
-                "namespace": registration.namespace,
-                "name": registration.name,
-                "version": registration.version,
-                "digest": registration.manifest_digest,
-                "actor": caller.username,
-            },
+            action=action,
+            settings=get_settings(),
+            verify=_verify_registration,
         )
-    elif action == "reject":
-        registration.publication_status = "rejected"
-    elif action == "approve":
-        failure = await _verify_registration_row(registration, session)
-        if failure is not None:
-            return failure
-        registration.publication_status = "published"
-        registration.published_at = utcnow()
-        engine_ref = registration.document.get("spec", {}).get("engine", {})
-        engine_revision = (
-            await session.execute(
-                select(EngineRevision).where(
-                    EngineRevision.namespace == engine_ref.get("namespace"),
-                    EngineRevision.name == engine_ref.get("name"),
-                    EngineRevision.version == engine_ref.get("version"),
-                    EngineRevision.digest == engine_ref.get("digest"),
-                )
-            )
-        ).scalars().first()
-        publications = [
-            ("EngineRegistration", registration.manifest_digest),
-        ]
-        if engine_revision is not None:
-            engine_revision.state = "published"
-            publications.append(("Engine", engine_revision.digest))
-        for resource_kind, resource_digest in publications:
-            publication = (
-                await session.execute(
-                    select(ManifestPublication).where(
-                        ManifestPublication.resource_kind == resource_kind,
-                        ManifestPublication.resource_digest == resource_digest,
-                    )
-                )
-            ).scalars().first()
-            if publication is None:
-                session.add(
-                    ManifestPublication(
-                        resource_kind=resource_kind,
-                        resource_digest=resource_digest,
-                        publisher_id=caller.id,
-                        state="public",
-                    )
-                )
-            else:
-                publication.state = "public"
-    else:
-        raise AssertionError(f"unknown EngineRegistration action: {action}")
-    await session.flush()
-    return registration_summary(registration)
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 @router.post("/engine-registrations/{name}/approve")
@@ -1967,57 +1212,13 @@ async def delete_engine_registration(
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is None:
-        return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
-    query = select(EngineRegistrationRevision).where(
-        EngineRegistrationRevision.namespace == namespace,
-        EngineRegistrationRevision.name == name,
-        EngineRegistrationRevision.version == version,
-        EngineRegistrationRevision.manifest_digest == manifest_digest,
-    )
-    if not caller.is_admin:
-        query = query.where(EngineRegistrationRevision.owner_id == caller.id)
-    registration = (await session.execute(query)).scalars().first()
-    if registration is None:
-        return _problem(404, "not_found", "Engine registration not found")
-
-    was_published = registration.publication_status == "published"
-
-    publication = (
-        await session.execute(
-            select(ManifestPublication).where(
-                ManifestPublication.resource_kind == "EngineRegistration",
-                ManifestPublication.resource_digest == registration.manifest_digest,
-            )
+    try:
+        await engine_registry.delete_registration(
+            RegistrationKey(namespace, name, version, manifest_digest), caller, session
         )
-    ).scalars().first()
-    if publication is not None:
-        await session.delete(publication)
-
-    if was_published:
-        await _notify_admins_of_engine_event(
-            session,
-            kind="engine.deregistered",
-            subject=f"Published engine deregistered: {registration.namespace}/{registration.name}",
-            body=f"The published federated engine {registration.namespace}/{registration.name}@{registration.version} has been deregistered by {caller.username}.",
-            payload={
-                "namespace": registration.namespace,
-                "name": registration.name,
-                "version": registration.version,
-                "digest": registration.manifest_digest,
-                "actor": caller.username,
-            },
-        )
-
-    await session.execute(
-        delete(EngineCredential).where(
-            EngineCredential.registration_id == registration.id
-        )
-    )
-    await session.delete(registration)
-    await session.flush()
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
 
 
 @router.get("/engine-registrations/{name}/report")
@@ -2029,39 +1230,11 @@ async def get_engine_registration_report(
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        query = select(EngineRegistrationRevision).where(
-            EngineRegistrationRevision.namespace == namespace,
-            EngineRegistrationRevision.name == name,
-            EngineRegistrationRevision.version == version,
-            EngineRegistrationRevision.manifest_digest == manifest_digest,
-        )
-        visible = [
-            EngineRegistrationRevision.owner_id == caller.id,
-            EngineRegistrationRevision.publication_status == "published",
-        ]
-        if caller.is_admin:
-            visible.append(
-                EngineRegistrationRevision.publication_status == "pending_review"
-            )
-        query = query.where(or_(*visible))
-        row = (await session.execute(query)).scalars().first()
-        if row is None or not allows_engine(
-            caller, registration_engine_reference(row) or {}
-        ):
-            return _problem(404, "not_found", "Engine registration not found")
-        try:
-            engine_document = await _engine_document_for_registration(row, session)
-        except HTTPException:
-            engine_document = None
-        return {
-            **registration_summary(row),
-            "openapiDigest": row.openapi_digest,
-            "openapi": row.openapi_document,
-            "engine": engine_document,
-            "report": row.verification_report,
-        }
-    return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
+    key = RegistrationKey(namespace, name, version, manifest_digest)
+    try:
+        return await engine_registry.registration_report(key, caller, session)
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 @router.put("/engine-registrations/{name}/credential")
@@ -2075,74 +1248,22 @@ async def set_engine_registration_credential(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
     """Replace a deployment credential without ever placing it in a manifest."""
-    try:
-        body = await request.body()
-        if len(body) > _max_expanded():
-            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
-        payload = strict_json_loads(body)
-    except PackageError as exc:
-        return _problem(422, "invalid_credential", str(exc))
+    payload = await _read_json_body(request, "invalid_credential")
+    if isinstance(payload, JSONResponse):
+        return payload
     secret = payload.get("secret") if isinstance(payload, dict) else None
     if not isinstance(secret, str) or not secret:
         return _problem(422, "invalid_credential", "credential payload requires a non-empty secret")
-    from ..security.secrets import CredentialStore, SecretsUnavailable
-
-    if session is not None:
-        query = select(EngineRegistrationRevision).where(
-            EngineRegistrationRevision.namespace == namespace,
-            EngineRegistrationRevision.name == name,
-            EngineRegistrationRevision.version == version,
-            EngineRegistrationRevision.manifest_digest == manifest_digest,
+    try:
+        return await engine_registry.set_credential(
+            RegistrationKey(namespace, name, version, manifest_digest),
+            secret,
+            caller,
+            session,
+            settings=get_settings(),
         )
-        query = query.where(EngineRegistrationRevision.owner_id == caller.id)
-        row = (await session.execute(query)).scalars().first()
-        if row is None or not allows_engine(
-            caller, registration_engine_reference(row) or {}
-        ):
-            return _problem(404, "not_found", "Engine registration not found")
-        if row.publication_status == "published":
-            return _problem(
-                409,
-                "immutable_published_registration",
-                "A published registration cannot change credentials; create a new revision",
-            )
-        try:
-            encrypted = CredentialStore.from_settings(get_settings()).encrypt(secret)
-        except SecretsUnavailable as exc:
-            return _problem(503, "credential_store_unavailable", str(exc))
-        credential = (
-            await session.execute(
-                select(EngineCredential).where(EngineCredential.registration_id == row.id)
-            )
-        ).scalars().first()
-        if credential is None:
-            credential = EngineCredential(
-                registration_id=row.id,
-                credential_ref=f"registration:{row.manifest_digest}",
-                credential_encrypted=encrypted,
-            )
-            session.add(credential)
-        else:
-            credential.credential_encrypted = encrypted
-            credential.updated_at = utcnow()
-        # Credentials are deployment material.  Replacing one does not mutate
-        # the immutable manifest, but any previous live conformance result is no
-        # longer evidence for the new authentication context.
-        row.is_active = False
-        row.publication_status = "private"
-        row.verified_at = None
-        row.published_at = None
-        row.verification_report = {
-            "protocol": "bim-engine/v1",
-            "protocolDigest": row.protocol_digest,
-            "status": "pending",
-            "checks": [],
-        }
-        row.openapi_document = row.document["spec"]["openapi"]
-        row.openapi_digest = digest(row.openapi_document)
-        await session.flush()
-        return registration_summary(row)
-    return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 @router.post("/instances/validate")

@@ -118,6 +118,64 @@ and the router's position in the OpenAPI path order (checked by the contract
 test) must not change. Moving the router is a follow-up that needs those callers
 changed first.
 
+## Engine registry
+
+`POST /v1/engines` and the `/v1/engine-registrations` family (register, list,
+read, report, activate, deactivate, publication request, approve, reject, delete,
+`PUT .../credential`) are thin controllers over `services/engine_registry.py`:
+
+1. `routes/v1.py` authenticates the caller, reads the body within the
+   expanded-document limit (`_read_json_body`: `413`, or `422` with the route's
+   own code for malformed JSON) and builds a `RegistrationKey` from the query
+   string;
+2. the service does the application work and answers with a plain value or raises
+   `RegistryProblem(status, code, detail, diagnostics)`:
+   - **destination policy** (`register_engine`): HTTPS, or trusted internal HTTP
+     only where `federation_require_https` is off, no userinfo or fragment, and
+     every address the name resolves to must be in the permitted network class
+     (no private, loopback, link-local, multicast, reserved or unspecified address
+     over HTTPS). The check is `v1.remote.validate_endpoint`, run off the event
+     loop by `avalidate_endpoint` (its blocking `getaddrinfo` runs in a worker
+     thread), and the transport pins the validated address and never follows a
+     redirect (`fetch_remote_document`);
+   - **registration** is idempotent: the same identity with the same digest returns
+     the stored summary, the same identity with other content is
+     `409 immutable_registration`; it stores a private, inactive registration with
+     a `pending` report and fetches nothing from the endpoint;
+   - **state changes** (`change_registration`) verify the deployment first
+     (`verify_registration`: pinned OpenAPI, auth, health, a deterministic solve
+     probe) for `activate`, `request_publication` and `approve`. A deployment that
+     is down or answers something else is a `failed` report and
+     `409 conformance_failed` with the checks, and leaves the registration
+     inactive; it is never an exception;
+   - **credentials** (`set_credential`) are encrypted with
+     `security.secrets.CredentialStore` (`MultiFernet`) and decrypted only to
+     talk to the deployment; every answer is a registration summary, report or
+     document, none of which carries a credential or its ciphertext, and no
+     message the service builds contains one;
+3. the route turns a `RegistryProblem` into `application/problem+json`.
+
+The Engine resolution a registration pins (`engine_document_for_registration`)
+lives in `services/engines.py` beside the manifest catalog it uses.
+
+The service does not import `routes`, takes `fastapi` only for `HTTPException`
+and holds no mutable module state (`test_engine_registry_is_independent_of_routes_and_fastapi_responses`).
+The process settings, the endpoint validator, the transport (`fetch`, `solve`) and
+the deployment check (`verify`) are arguments. `routes/v1.py` hands over its own
+bindings of `get_settings`, `validate_endpoint`, `fetch_remote_document`,
+`solve_remote` and `_verify_registration` on every call, so the tests that replace
+them there (`tests/test_v1_platform_contracts.py`,
+`tests/test_v1_lifecycle_rbac.py`, `tests/test_federated_multi_heuristic_example.py`)
+are unchanged. `v1.py` also keeps `_verify_registration` (a wrapper) and the names
+`_conformance_shape`, `_conformance_optimization`, `_assert_protocol_schema`,
+`_assert_operation_auth`, `_operation_schema` and `RemoteEngineError`, which those
+tests read; no existing test had to change its patch target.
+`tests/test_engine_registry_service.py` calls the service directly.
+
+Not moved: the read-only engine discovery (`GET /v1/engines`, `/engines/revisions`,
+`/engines/{name}`, `/engines/{namespace}/{name}/revisions/{version}`), which stays
+with the rest of discovery below.
+
 ## MVC in a JSON API
 
 OpenBinding does not render HTML on the server, so the classic triad maps like
@@ -153,7 +211,8 @@ Known exceptions to "downwards only", from reading the imports:
   `..job_dispatch`, `..sponsor_proposals`, `..telemetry` and
   `..analysis_jobs` lazily, inside functions, because those modules still live
   at the top level.
-- `services/engines.py`, `services/snapshots.py`, `services/job_submission.py`
+- `services/engines.py`, `services/engine_registry.py`, `services/snapshots.py`,
+  `services/job_submission.py`
   and `services/entitlements.py` import FastAPI's `HTTPException` (the last one only for its HTTP-raising
   helpers, `*_or_503`, `require_*` and `enforce_*`; `caps_for` raises a plain
   domain exception), so services
@@ -173,6 +232,9 @@ mechanically checkable, using `ast` so that imports inside functions count:
   (`test_no_new_module_imports_routes`, `test_allowed_legacy_has_no_stale_entries`);
 - `services/job_submission.py` imports `routes` nowhere and uses `fastapi` only for
   `HTTPException` (`test_job_submission_is_independent_of_routes_and_fastapi_responses`);
+- `services/engine_registry.py` imports `routes` nowhere, uses `fastapi` only for
+  `HTTPException` and keeps no mutable module state
+  (`test_engine_registry_is_independent_of_routes_and_fastapi_responses`);
 - `routes/v1.py` is frozen at `MAX_LINES` lines, a ratchet that may only go down
   (`test_v1_router_does_not_grow`);
 - plan capabilities are read only in `services/entitlements.py` ([Entitlements](#entitlements));
@@ -211,17 +273,19 @@ import `routes`, `services`, `repositories`, `jobs` or `db`
 
 These are real and not scheduled; no dates are promised.
 
-- `routes/v1.py` is about 2,570 lines (frozen at 2,600 by
+- `routes/v1.py` is 1,692 lines (frozen at 1,700 by
   `test_v1_router_does_not_grow`; it was about 2,960 before job creation moved
-  to `services/job_submission.py`). What is left to extract, in this order of
-  expected size: the Engine registry (`/engines`, `/engine-registrations`:
-  verification of a registration against the deployed OpenAPI, publication
-  lifecycle, credentials, and the dialect and resource registries beside it),
-  instances and snapshots (`/instances`, `/snapshots`, validation and
-  `persist_snapshot` callers), and discovery (`/profiles`, `/dialects`,
-  `/catalog`, `/schemas`, `/examples`). The job read routes (`/jobs/{id}`,
-  neighbourhood, IR, instance, report) also remain there. Each should move into
-  `services/` and `repositories/` and lower `MAX_LINES` when it does.
+  to `services/job_submission.py` and about 2,570 before the Engine registry
+  moved to `services/engine_registry.py`). What is left to extract, in this order
+  of expected size: instances and snapshots (`/instances`, `/snapshots`,
+  validation and the `persist_snapshot` callers), discovery (`/profiles`,
+  `/dialects`, `/catalog`, `/schemas`, `/examples` and the read-only `/engines`
+  routes: list, revisions, detail), and the dialect and resource registries
+  (`/dialects` publication and approval, `/resources`), which still hold their
+  own publication logic inline and an in-module `_CUSTOM_RESOURCE_RECORDS`. The job
+  read routes (`/jobs/{id}`, neighbourhood, IR, instance, report) also remain
+  there. Each should move into `services/` and `repositories/` and lower
+  `MAX_LINES` when it does.
 - Four modules still import `routes` (`ALLOWED_LEGACY` above). `study_jobs.py`
   still calls `v1._create_job_core` and the pending-launch helpers through the
   router; once it calls `JobSubmission` directly it can leave the list.

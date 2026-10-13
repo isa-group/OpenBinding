@@ -280,7 +280,7 @@ def test_gate_lifecycle_legacy_has_no_stale_entries() -> None:
 #: ceiling is the size of ``routes/v1.py`` rounded up to the hundred, and it can only go down.  Lower it when an
 #: extraction brings the file under the previous hundred; never raise it.
 V1_ROUTER = SOURCE / "routes" / "v1.py"
-MAX_LINES = 2600
+MAX_LINES = 1700
 RATCHET_STEP = 100
 
 
@@ -370,6 +370,19 @@ def test_job_submission_is_independent_of_routes_and_fastapi_responses() -> None
         "services/job_submission.py may use fastapi only for HTTPException; return a JobSubmissionResult"
     )
     assert module_level_mutables(source) == [], "services/job_submission.py must not keep mutable module state"
+
+
+ENGINE_REGISTRY = SOURCE / "services" / "engine_registry.py"
+
+
+def test_engine_registry_is_independent_of_routes_and_fastapi_responses() -> None:
+    source = ENGINE_REGISTRY.read_text(encoding="utf-8")
+
+    assert routes_imports(source, "openbinding_gateway.services") == []
+    assert {name for _, name in fastapi_imports(source)} <= {"fastapi.HTTPException"}, (
+        "services/engine_registry.py may use fastapi only for HTTPException; raise a RegistryProblem"
+    )
+    assert module_level_mutables(source) == [], "services/engine_registry.py must not keep mutable module state"
 
 
 def _modules_importing_routes() -> set[str]:
