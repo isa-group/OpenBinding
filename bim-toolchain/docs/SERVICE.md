@@ -201,6 +201,9 @@ Service-to-service, one shared secret with room for a rotation.
   write `new` alone and restart. Callers that use `bim_client.HttpBim(token_file=...)` pick the new token up without a
   restart. The file is read at start only.
 
+The rotation, saturation and memory behaviour is exercised locally (in process, no real load) by
+`packages/bim-service/tests/test_rotation_and_saturation.py`; `docs/qa/BIM_LOAD.md` lists what is and is not measured.
+
 `GET /healthz` and `/readyz` need no token and reveal nothing (no version, no digest, no configuration).
 
 ### Tenant and trace
