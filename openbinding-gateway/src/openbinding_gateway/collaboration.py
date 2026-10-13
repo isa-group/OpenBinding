@@ -20,7 +20,7 @@ from .db.models import (
     User,
 )
 from .models.errors import api_error
-from .space_client import PricingUnavailable, get_gate
+from .services.entitlements import entitlement_service
 
 ROLE_STRENGTH = {
     OrganizationRole.VIEWER: 1,
@@ -278,24 +278,7 @@ async def enforce_sponsor_usage(
 ) -> None:
     """Validate a complete hypothetical sponsor total in one contract read."""
 
-    try:
-        caps = await get_gate().caps(sponsor.id)
-    except PricingUnavailable as exc:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)
-        ) from exc
-    for dimension, used in usage.items():
-        allowance = caps.limit(dimension)
-        if allowance is None:
-            continue
-        limit = int(allowance)
-        if used > limit:
-            raise api_error(
-                status.HTTP_402_PAYMENT_REQUIRED,
-                "sponsor_quota_exceeded",
-                f"The sponsor contract allows {limit} {dimension}; this operation would exceed it.",
-                quota={"limit_id": dimension, "limit": limit, "used": used},
-            )
+    await entitlement_service.enforce_sponsor_usage(sponsor.id, usage)
 
 
 async def enforce_sponsor_capacity(

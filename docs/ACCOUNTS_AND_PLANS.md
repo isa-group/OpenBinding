@@ -335,8 +335,25 @@ counter.
 | A budget you asked for | `time_budget_ms`, `iterations`, `max_evaluations` (ceilings `maxTimeoutSeconds`, `maxIterations`) | **Reduced** to what the plan allows, with an `OPTION_CLAMPED` warning alongside the result | `access/policy.py` |
 | An unentitled capability | `solve`, `federatedEngines`, `studies` | **Refused** with `403` (`feature_not_entitled`), because retrying without a plan change will never succeed | `domain/entitlements.py` |
 | A fact about the work | instance complexity (`maxInstanceComplexityLog10` against log10 of the Binding Space size) | **Refused** with `402` (`instance_complexity_too_large`): there is no smaller version of the instance to run | `access/policy.py` |
-| A size or count allowance in the plan | `apiKeys`, `maxPayloadBytes`, `storageBytes`, organization/member/project counts of the sponsor | **Refused**: `402 quota_exceeded` / `storage_quota_exceeded` / `sponsor_quota_exceeded`, or a payload ceiling | `routes/users.py`, `routes/artifacts.py`, `collaboration.py` |
+| A size or count allowance in the plan | `apiKeys`, `maxPayloadBytes`, `storageBytes`, organization/member/project counts of the sponsor | **Refused**: `402 quota_exceeded` / `storage_quota_exceeded` / `sponsor_quota_exceeded`, or a payload ceiling | `access/policy.py` (rules) through `services/entitlements.py`; `apiKeys` is still counted in `routes/users.py` |
 | Technical concurrency | queued plus running jobs of one account | **Throttled** with `429 concurrency_limit_exceeded`, `Retry-After: 15` and a `concurrency: {limit, active}` object | `jobs/limits.py` |
+
+### One reader of the plan
+
+Every decision above starts from the account's capabilities, and they are read in
+exactly one place: `services/entitlements.py` (`EntitlementService`, see
+[ARCHITECTURE.md](ARCHITECTURE.md#entitlements)). It is the only module that calls
+`get_gate().caps(...)` (enforced by `tests/test_architecture_layers.py`). The rules
+stay in `access/policy.py` and `domain/entitlements.py`; the service names them
+(`require_feature`, `payload_ceiling`, `solve_timeout`, `clamp_options`,
+`complexity_too_large`, `enforce_sponsor_usage`, `enforce_storage_quota`). When the
+pricing service cannot be read the answer is always `503 pricing_unavailable`
+(never a refusal, never a grant); code running outside a request gets the
+`EntitlementsUnavailable` exception instead, and a study cell launch treats it as
+retryable: if the plan becomes unreadable after the run was accepted, the run
+still answers `202` and the cell waits (an unreadable plan at the very start of
+`POST .../studies/{study}/runs` is the `503`, as before). `GET /v1/users/me` and `/me/usage` keep their own wording, prefixed with
+"Entitlements cannot be read right now:".
 
 Clamping rather than refusing matters more than it sounds: defaults are applied
 before plan ceilings, so refusing an otherwise valid default could make a new
@@ -348,11 +365,10 @@ Not every plan limit in the published pricing is read by this code. The ones
 read at the time of writing are the identifiers found by searching the gateway
 for `caps.limit(...)` and `feature_refusal(...)`: `apiKeys`, `jobHistoryDays`,
 `maxTimeoutSeconds`, `maxIterations`, `maxPayloadBytes`, `storageBytes`,
-`maxInstanceComplexityLog10` and the features `solve`, `federatedEngines`,
+`maxInstanceComplexityLog10`, the sponsor structure limits passed to
+`enforce_sponsor_usage`, and the features `solve`, `federatedEngines`,
 `studies` and `institutionalBranding`. Other identifiers in the pricing
-fixture (`space/pricing/openbinding.yml`) may be unused by the gateway; the
-fixture still declares consumption-style limits from before the retirement,
-which is pending clean-up and which this document does not describe as behaviour.
+fixture (`tests/fixtures/pricing_test.yml`) may be unused by the gateway.
 
 ## The technical concurrency limit
 

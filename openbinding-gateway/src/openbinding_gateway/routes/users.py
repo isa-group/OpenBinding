@@ -52,6 +52,7 @@ from ..security.apikeys import (
     permissions_of,
 )
 from ..security.passwords import hash_password, password_complaint, verify_password
+from ..services.entitlements import entitlement_service
 from ..space_client import PricingUnavailable, get_gate
 
 router = APIRouter(prefix="/v1/users", tags=["Users"])
@@ -59,14 +60,9 @@ router = APIRouter(prefix="/v1/users", tags=["Users"])
 
 async def _caps_for(user: User):
     """Read authoritative entitlements; unavailable pricing fails closed."""
-    try:
-        return await get_gate().caps(user.id)
-    except PricingUnavailable as error:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "pricing_unavailable",
-            f"Entitlements cannot be read right now: {error}",
-        ) from error
+    return await entitlement_service.caps_or_503(
+        user.id, prefix="Entitlements cannot be read right now: "
+    )
 
 
 CAS_PROVIDER = "us-cas"

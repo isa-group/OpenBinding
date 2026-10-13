@@ -180,6 +180,102 @@ def test_nothing_imports_the_retired_metering_module() -> None:
     assert not offenders, "the metering module was retired; use jobs/:\n" + "\n".join(offenders)
 
 
+#: Plans are read in one place: ``services/entitlements.py``.  ``space_client/`` is the gate itself and ``main``
+#: installs it (composition root); nobody else calls ``.caps(...)``.
+ENTITLEMENT_READERS = frozenset({"services/entitlements.py", "main.py"})
+
+#: Modules that still reach the gate for something other than capabilities: the contract lifecycle (create,
+#: novate, read the subscription, mint the pricing token, remove) and the worker's gate lifetime.  That is
+#: SPACE account administration, not plan decisions, so it is not an entitlement read; no module here may call
+#: ``.caps(...)`` (the first test below holds for them too).  Frozen debt: it can only shrink, e.g. by moving
+#: the contract lifecycle behind a service of its own.
+GATE_LIFECYCLE_LEGACY = frozenset(
+    {
+        "access/contracts.py",  # creates the contract an account was promised
+        "job_dispatch.py",  # installs and closes the gate in the Dramatiq worker process
+        "routes/admin.py",  # subscription reads and novations on behalf of an administrator
+        "routes/auth.py",  # creates the contract at registration
+        "routes/cas.py",  # creates the contract and upgrades the default plan on a CAS sign-in
+        "routes/users.py",  # pricing token and contract removal on account deletion
+    }
+)
+
+
+def _is_gate_package(relative: Path) -> bool:
+    return relative.parts[0] == "space_client"
+
+
+def entitlement_gate_uses(source: str) -> tuple[list[int], list[int]]:
+    """Lines that call ``.caps(...)`` and lines that reach ``get_gate`` (import or attribute), in ``source``."""
+    caps_calls: list[int] = []
+    gate_uses: list[int] = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "caps":
+            caps_calls.append(node.lineno)
+        elif isinstance(node, ast.ImportFrom) and any(alias.name == "get_gate" for alias in node.names):
+            gate_uses.append(node.lineno)
+        elif isinstance(node, ast.Attribute) and node.attr == "get_gate":
+            gate_uses.append(node.lineno)
+    return sorted(caps_calls), sorted(gate_uses)
+
+
+def _gate_uses_by_module() -> tuple[dict[str, list[int]], dict[str, list[int]]]:
+    caps: dict[str, list[int]] = {}
+    gate: dict[str, list[int]] = {}
+    for path in _python_files(SOURCE):
+        relative = path.relative_to(SOURCE)
+        if _is_gate_package(relative):
+            continue
+        caps_calls, gate_uses = entitlement_gate_uses(path.read_text(encoding="utf-8"))
+        if caps_calls:
+            caps[relative.as_posix()] = caps_calls
+        if gate_uses:
+            gate[relative.as_posix()] = gate_uses
+    return caps, gate
+
+
+def test_the_gate_detector_sees_calls_imports_and_attributes() -> None:
+    source = "\n".join(
+        [
+            "from ..space_client import PricingUnavailable, get_gate",
+            "from .. import space_client",
+            "async def read(user):",
+            "    a = await get_gate().caps(user.id)",
+            "    b = await space_client.get_gate().caps(user.id)",
+            "    return caps.limit('x')",
+        ]
+    )
+
+    # The import is the use of a bare ``get_gate()``; ``space_client.get_gate`` is an attribute.
+    assert entitlement_gate_uses(source) == ([4, 5], [1, 5])
+
+
+def test_only_the_entitlement_service_reads_plan_capabilities() -> None:
+    caps, _ = _gate_uses_by_module()
+
+    offenders = [f"{module}:{line}" for module, lines in sorted(caps.items()) for line in lines]
+    assert set(caps) == {"services/entitlements.py"}, (
+        "Only services/entitlements.py may call .caps(...); use EntitlementService:\n" + "\n".join(offenders)
+    )
+
+
+def test_no_new_module_reaches_for_the_gate() -> None:
+    _, gate = _gate_uses_by_module()
+
+    new = set(gate) - GATE_LIFECYCLE_LEGACY - ENTITLEMENT_READERS
+    assert not new, (
+        "get_gate is for the entitlement service and the contract lifecycle only; "
+        f"read plans through services.entitlements instead of extending GATE_LIFECYCLE_LEGACY: {sorted(new)}"
+    )
+
+
+def test_gate_lifecycle_legacy_has_no_stale_entries() -> None:
+    _, gate = _gate_uses_by_module()
+
+    stale = GATE_LIFECYCLE_LEGACY - set(gate)
+    assert not stale, f"These modules no longer use get_gate; remove them from GATE_LIFECYCLE_LEGACY: {sorted(stale)}"
+
+
 def _modules_importing_routes() -> set[str]:
     importing: set[str] = set()
     for path in _python_files(SOURCE):

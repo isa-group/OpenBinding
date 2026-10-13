@@ -20,7 +20,6 @@ from ..collaboration import (
     effective_role,
     enforce_sponsor_capacity,
     enforce_sponsor_usage,
-    organization_usage,
     organization_by_ref,
     project_by_ref,
     require_project,
@@ -37,7 +36,6 @@ from ..db.models import (
     BindingCase,
     BindingCaseRevision,
     Collection,
-    CollectionItem,
     CollectionRevision,
     InstanceSnapshot,
     Job,
@@ -92,7 +90,7 @@ from ..repositories import jobs as job_repository
 from ..access.dependencies import get_current_user, session_dependency
 from bim_core.canonical import digest
 from ..artifacts import store_blob, version_content
-from bim_core.canonical import canonical_json, digest_bytes
+from bim_core.canonical import canonical_json
 import json
 
 router = APIRouter(prefix="/v1/organizations", tags=["Organizations"])

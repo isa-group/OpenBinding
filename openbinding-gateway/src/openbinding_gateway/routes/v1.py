@@ -23,9 +23,7 @@ from sqlalchemy import delete, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import space_client
 from ..access.dependencies import optional_session, require_v1_admin, solve_caller
-from ..access.policy import clamp_options, instance_complexity_too_large, payload_ceiling_bytes, solve_timeout_s
 from ..core.settings import get_settings
 from ..db import base as db_base
 from ..db.models import (
@@ -49,7 +47,7 @@ from ..job_dispatch import dispatch_persisted_job
 from ..jobs import limits as job_limits
 from ..models.problem import VALIDATION_ERROR, problem_response, split_detail
 from ..security.apikeys import allows_engine
-from ..domain import entitlements, idempotency
+from ..domain import idempotency
 from bim_core import CanonicalizationError, ContractError, PackageError
 from bim_core.canonical import canonical_json, digest, digest_bytes
 from ..core.jsonio import strict_json_loads
@@ -91,6 +89,7 @@ from ..services.engines import (
 )
 from ..services.engines import manifest as _manifest
 from ..services.engines import manifest_async
+from ..services.entitlements import EntitlementsUnavailable, entitlement_service
 from ..services.probe import probe_ir
 from ..services.snapshots import (
     CUSTOM_RESOURCES,
@@ -2219,10 +2218,10 @@ async def validate_instance(
         return _error_from_http(exc)
     if caller is not None:
         try:
-            caps = await space_client.get_gate().caps(caller.id)
-        except space_client.PricingUnavailable as exc:
-            return _problem(503, "pricing_unavailable", str(exc))
-        if instance_complexity_too_large(compilation.binding_space_log10, caps):
+            caps = await entitlement_service.caps_for(caller.id)
+        except EntitlementsUnavailable as exc:
+            return _problem(exc.status, exc.code, str(exc))
+        if entitlement_service.complexity_too_large(compilation.binding_space_log10, caps):
             return _problem(
                 402,
                 "instance_complexity_too_large",
@@ -2539,24 +2538,25 @@ async def _create_job_core(
     option_warnings: list[dict[str, Any]] = []
     effective_timeout = settings.engine_solve_timeout_s
     if caller is not None:
+        # A study cell launch treats this 503 as retryable (study_jobs.RETRYABLE_LAUNCH_CODES).
         try:
-            caps = await space_client.get_gate().caps(caller.id)
-        except space_client.PricingUnavailable as exc:
-            return _problem(503, "pricing_unavailable", str(exc))
-        if body_size and body_size > payload_ceiling_bytes(
+            caps = await entitlement_service.caps_for(caller.id)
+        except EntitlementsUnavailable as exc:
+            return _problem(exc.status, exc.code, str(exc))
+        if body_size and body_size > entitlement_service.payload_ceiling(
             caps, 512 * 1024 * 1024
         ):
             return _problem(413, "payload_too_large", "BIM package exceeds the caller plan limit")
-        if instance_complexity_too_large(compilation.binding_space_log10, caps):
+        if entitlement_service.complexity_too_large(compilation.binding_space_log10, caps):
             return _problem(
                 402,
                 "instance_complexity_too_large",
                 "instance binding space exceeds the caller plan limit",
             )
-        clamped = clamp_options(effective_options, caps)
+        clamped = entitlement_service.clamp_options(effective_options, caps)
         effective_options = clamped.options
         option_warnings = [warning.model_dump(mode="json") for warning in clamped.warnings]
-        effective_timeout = solve_timeout_s(caps, settings.engine_solve_timeout_s)
+        effective_timeout = entitlement_service.solve_timeout(caps, settings.engine_solve_timeout_s)
     if selection.diagnostics:
         return _problem(
             422,
@@ -2690,7 +2690,7 @@ async def _create_job_core(
             raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
             if raced is not None:
                 return raced
-        refusal = entitlements.feature_refusal(caps, "federatedEngines" if federated else "solve")
+        refusal = entitlement_service.feature_refusal(caps, "federatedEngines" if federated else "solve")
         if refusal is None:
             refusal = await job_limits.enforce_concurrency_limit(session, caller.id)
         if refusal is not None:

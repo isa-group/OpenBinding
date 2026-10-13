@@ -23,16 +23,11 @@ from ..db.models import (
     BindingCase,
     BindingCaseRevision,
     BindingIRSnapshot,
-    Collection,
-    CollectionItem,
-    CollectionRevision,
     Job,
     JobState,
     Organization,
     OrganizationRole,
     Project,
-    ProjectResource,
-    ProjectResourceRevision,
     Publication,
     Report,
     ReportState,
@@ -44,7 +39,6 @@ from ..db.models import (
     User,
     utcnow,
 )
-from ..domain import entitlements
 from ..models.errors import ErrorResponse, api_error
 from ..models.platform import (
     AnalyticsView,
@@ -66,7 +60,7 @@ from ..models.platform import (
     StudyUpdate,
     StudyView,
 )
-from ..space_client import PricingUnavailable, get_gate
+from ..services.entitlements import EntitlementService, get_entitlements
 from ..security.apikeys import allows_engine
 from ..study_jobs import (
     RETRYABLE_LAUNCH_CODES,
@@ -83,7 +77,7 @@ from ..study_jobs import (
 from ..studies import aggregate_metrics, expand_study
 from bim_core.canonical import canonical_json, digest
 from ..artifacts import store_blob, version_content
-from ..models.artifacts import CollectionArtifactContent, ArtifactRef
+from ..models.artifacts import CollectionArtifactContent
 import json
 
 router = APIRouter(prefix="/v1/organizations/{org}/projects/{project}", tags=["Studies"])
@@ -609,6 +603,7 @@ async def run_study(
     org: str, project: str, study: str, definition_version_id: uuid.UUID | None = None,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
+    plans: EntitlementService = Depends(get_entitlements),
 ) -> StudyRunView:
     # Start a run and launch its cells one by one, each committed before it is queued.
     #
@@ -633,15 +628,8 @@ async def run_study(
     await resolve_version(session, reference(selected_artifact, selected_version), user)
     if not _study_engines_allowed(user, definition_from_version(selected_version)):
         raise api_error(403, 'api_key_engine_forbidden', 'This key does not grant the Engines pinned by the selected version.')
-    try:
-        caps = await get_gate().caps(user.id)
-    except PricingUnavailable as exc:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
-    refusal = entitlements.feature_refusal(
-        caps, "studies", default_not_entitled_detail="The current plan does not entitle studies."
-    )
-    if refusal is not None:
-        raise api_error(refusal.status, refusal.code, refusal.detail, **refusal.extra)
+    caps = await plans.caps_or_503(user.id)
+    plans.require_feature(caps, "studies", detail="The current plan does not entitle studies.")
     if selected_version.manifest['kind'] != 'Study':
         raise api_error(409, 'evidence_only_study', 'This gallery contains stored evidence and is not an executable study definition.')
     definition = StudyCreate(

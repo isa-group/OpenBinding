@@ -25,7 +25,7 @@ result that gets published.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -179,6 +179,41 @@ def payload_ceiling_bytes(caps: PlanCaps, gateway_ceiling: int) -> int:
     if payload is None or payload > gateway_ceiling:
         raise pricing_misconfigured("SPACE entitlement exceeds the configured technical payload ceiling")
     return int(payload)
+
+
+@dataclass(frozen=True)
+class QuotaBreach:
+    """A plan allowance that an operation would exceed."""
+
+    limit_id: str
+    limit: int
+    used: int
+
+
+def sponsor_quota_breach(caps: PlanCaps, usage: Mapping[str, int]) -> Optional[QuotaBreach]:
+    """The first dimension of ``usage`` (a hypothetical sponsor total) above the contract, if any."""
+    for dimension, used in usage.items():
+        allowance = caps.limit(dimension)
+        if allowance is None:
+            continue
+        limit = int(allowance)
+        if used > limit:
+            return QuotaBreach(dimension, limit, used)
+    return None
+
+
+def storage_quota_breach(caps: PlanCaps, used: int, incoming: int) -> Optional[QuotaBreach]:
+    """Whether storing ``incoming`` more bytes on top of ``used`` passes the sponsor's allowance.
+
+    ``used`` in the breach is what is stored already, not the hypothetical total.
+    """
+    allowance = caps.limit("storageBytes")
+    if allowance is None:
+        return None
+    limit = int(allowance)
+    if used + incoming > limit:
+        return QuotaBreach("storageBytes", limit, used)
+    return None
 
 
 def instance_complexity_too_large(log10_cardinality: Optional[float], caps: PlanCaps) -> bool:

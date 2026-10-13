@@ -10,17 +10,16 @@ from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import space_client
 from ..access.dependencies import get_current_user, session_dependency
 from ..db import base as db_base
 from ..db.models import AuditEvent, Job, JobProvenance, JobState, User
-from ..domain import entitlements
 from ..job_dispatch import dispatch_persisted_job
 from ..jobs import lifecycle
 from ..jobs import limits as job_limits
 from ..models.errors import api_error
 from ..models.platform import JobView, job_view
 from ..repositories import jobs as job_repository
+from ..services.entitlements import EntitlementService, get_entitlements
 from bim_core.canonical import digest
 
 router = APIRouter(prefix="/v1/jobs", tags=["Jobs"])
@@ -89,6 +88,7 @@ async def retry_job(
     job_id: uuid.UUID,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
+    plans: EntitlementService = Depends(get_entitlements),
 ) -> JobView:
     original = await _owned(session, job_id, user.id, lock=True)
     if original.state not in {JobState.FAILED, JobState.CANCELLED}:
@@ -103,11 +103,8 @@ async def retry_job(
         and bool(registration)
         and registration.get("namespace") != "bim.builtin"
     )
-    try:
-        caps = await space_client.get_gate().caps(user.id)
-    except space_client.PricingUnavailable as exc:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
-    refusal = entitlements.feature_refusal(caps, "federatedEngines" if federated else "solve")
+    caps = await plans.caps_or_503(user.id)
+    refusal = plans.feature_refusal(caps, "federatedEngines" if federated else "solve")
     if refusal is None:
         refusal = await job_limits.enforce_concurrency_limit(session, user.id)
     if refusal is not None:

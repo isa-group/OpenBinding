@@ -17,21 +17,68 @@ routes/  ──►  services/  ──►  repositories/ , integrations  ──�
 | Package | Role | Evidence |
 |---|---|---|
 | `routes/` | HTTP: FastAPI routers, request parsing, authentication dependencies, translation of results and refusals to responses. `main.py` is the composition root: it includes every router (`app.include_router(...)`) and starts the lifespan, which installs the pricing gate and the job reconciler | `main.py` |
-| `services/` | Use cases that are not HTTP: `execution.py` (run a persisted job), `engines.py` (Engine selection and compatibility), `snapshots.py` (persist a compilation) | `services/*.py` |
+| `services/` | Use cases that are not HTTP: `execution.py` (run a persisted job), `engines.py` (Engine selection and compatibility), `snapshots.py` (persist a compilation), `entitlements.py` (the only reader of an account's plan, see [Entitlements](#entitlements)) | `services/*.py` |
 | `repositories/` | Database queries. At present only `jobs.py` (`get_owned`, `list_owned`, `find_retry_of`, `list_for_project`) | `repositories/jobs.py` |
 | Integrations | `space_client/` (the pricing gate over the SPACE client, plus a fake for tests), `sphere_client.py` (read-only pricing source), `cas.py`, `mailer.py`, `job_dispatch.py` (Dramatiq/Redis) | respective files |
 | `db/` | SQLAlchemy ORM models and session handling (`models.py`, `platform_models.py`, `artifact_models.py`, `base.py`) | `db/` |
 | `domain/` | Rules without I/O: `entitlements.py` (transport-neutral `Refusal`, e.g. `concurrency_refusal`), `idempotency.py` (request fingerprint) | `domain/*.py` |
 | `models/` | Pydantic request/response schemas (DTO), see below | `models/*.py` |
 | `core/` | `settings.py` (every environment variable in one place) and `logging.py` | `core/` |
-| `access/`, `security/` | Plan policy (`access/policy.py`: clamping and ceilings), contract bookkeeping (`access/contracts.py`), public-read matrix; hashing of passwords, tokens and API keys | respective files |
+| `access/`, `security/` | Plan policy (`access/policy.py`: clamping, ceilings and quota rules, applied through `services/entitlements.py`), contract bookkeeping (`access/contracts.py`), public-read matrix; hashing of passwords, tokens and API keys | respective files |
 | `jobs/` | The job lifecycle: `leases.py`, `reconciler.py`, `limits.py`, `lifecycle.py` ([IDEMPOTENCY.md](IDEMPOTENCY.md)) | `jobs/*.py` |
 | `integrations/bim.py`, `v1/`, `generator/` | The BIM port (`BimPort`, settings, error translation), the remaining `v1/` platform code (archive, remote Engine transport) and the instance generator (see [the BIM boundary](#the-bim--platform-boundary)) | `integrations/`, `v1/`, `generator/` |
 
 Not every module follows the layer table yet: several top-level modules
 (`artifacts.py`, `reports.py`, `studies.py`, `study_jobs.py`, `analysis_jobs.py`,
-`collaboration.py`, `sponsor_proposals.py`, `pricing_bootstrap.py`, `telemetry.py`)
+`collaboration.py`, `sponsor_proposals.py`, `telemetry.py`)
 mix use-case logic and persistence outside `services/` and `repositories/`.
+
+## Entitlements
+
+`services/entitlements.py` is the **only** module that reads an account's plan
+(`get_gate().caps(user_id)`). `EntitlementService` is stateless (the gate is
+looked up on every call, so the one installed by the lifespan or by a test is
+the one consulted) and is usable from routes, `jobs/` and plain modules:
+
+| Intent | Method | Rule it delegates to |
+|---|---|---|
+| read the plan | `caps_for(user_id)` raises the domain exception `EntitlementsUnavailable` (a `PricingUnavailable`, so retrying callers keep working); `caps_or_503(user_id, prefix="")` raises the stable `503 pricing_unavailable` | `space_client` gate |
+| a feature the plan must have | `require_feature(caps, feature, detail=...)` (403 `feature_not_entitled`), `feature_refusal(...)` for callers that combine refusals | `domain/entitlements.py` |
+| ceilings and clamps | `payload_ceiling`, `solve_timeout`, `clamp_options`, `complexity_too_large` | `access/policy.py` |
+| per-request upload limit | `upload_limit(user_id)` | plan `maxPayloadBytes`, capped at 512 MiB |
+| sponsor and storage quotas | `enforce_sponsor_usage(sponsor_id, usage)` (402 `sponsor_quota_exceeded`), `enforce_storage_quota(sponsor_id, incoming, stored_bytes)` (402 `storage_quota_exceeded`) | `access/policy.py` (`sponsor_quota_breach`, `storage_quota_breach`) |
+
+Routes that want it take it as a dependency (`Depends(get_entitlements)`,
+`routes/jobs.py` `retry_job`, `routes/studies.py` `run_study`); the others use the
+shared `entitlement_service`. The order of the checks around each read was kept:
+the gateway validates the optimization before reading the plan, and a study cell
+launch that finds pricing unavailable stays retryable
+(`study_jobs.RETRYABLE_LAUNCH_CODES`), so `POST .../runs` still answers `202` when
+only the cell launch fails (`run_study` itself still answers `503` if the plan is
+unreadable before the run is created).
+
+**Inventory of plan reads** (`grep -n '\.caps(\|get_gate' src/`), before the
+service existed: `routes/jobs.py:107`, `routes/artifacts.py:173` and `:199`,
+`routes/v1.py:2222` and `:2543`, `routes/users.py:63`, `routes/studies.py:637`,
+`collaboration.py:282`. `study_jobs.py`, `studies.py`, `analysis_jobs.py` and
+`sponsor_proposals.py` never read the gate; they reach it through
+`collaboration.enforce_sponsor_usage` and the job-creation path. Now the only
+`.caps(` call is `services/entitlements.py:63`.
+
+`get_gate` is still used for the **contract lifecycle**, which is not a plan
+decision: `routes/admin.py:88` (import; calls at `:230`, `:285`, `:345`, `:394`,
+`:473`), `routes/auth.py:191`, `routes/cas.py:160`, `:306`, `:397`, `:418`,
+`routes/users.py:56` (import; calls at `:571` and `:782`),
+`access/contracts.py:57`, `job_dispatch.py:45` and `:61` (worker gate lifetime),
+`main.py:146` (lifespan). `space_client/` is the gate itself.
+
+`tests/test_architecture_layers.py` enforces it: no module but
+`services/entitlements.py` calls `.caps(...)`, and the modules allowed to reach
+`get_gate` are the frozen list `GATE_LIFECYCLE_LEGACY` (plus the composition root
+and `space_client/`); the list can only shrink
+(`test_only_the_entitlement_service_reads_plan_capabilities`,
+`test_no_new_module_reaches_for_the_gate`,
+`test_gate_lifecycle_legacy_has_no_stale_entries`).
 
 ## MVC in a JSON API
 
@@ -68,8 +115,11 @@ Known exceptions to "downwards only", from reading the imports:
   `..job_dispatch`, `..sponsor_proposals`, `..telemetry` and
   `..analysis_jobs` lazily, inside functions, because those modules still live
   at the top level.
-- `services/engines.py` and `services/snapshots.py` import FastAPI's
-  `HTTPException`, so services are not completely framework-free.
+- `services/engines.py`, `services/snapshots.py` and `services/entitlements.py`
+  import FastAPI's `HTTPException` (the last one only for its HTTP-raising
+  helpers, `*_or_503`, `require_*` and `enforce_*`; `caps_for` raises a plain
+  domain exception), so services
+  are not completely framework-free.
 
 ### Architecture tests
 
@@ -80,16 +130,16 @@ mechanically checkable, using `ast` so that imports inside functions count:
   (`test_services_domain_and_jobs_do_not_import_routes`);
 - no module outside `routes/` and those three layers may start importing
   `routes`: the existing offenders are frozen in `ALLOWED_LEGACY`
-  (`analysis_jobs`, `artifacts`, `pricing_bootstrap`, `reports`, `study_jobs`;
+  (`analysis_jobs`, `artifacts`, `reports`, `study_jobs`;
   `main` is exempt as the composition root), the list may only shrink
   (`test_no_new_module_imports_routes`, `test_allowed_legacy_has_no_stale_entries`);
+- plan capabilities are read only in `services/entitlements.py` ([Entitlements](#entitlements));
 - nothing imports a `metering` module (`test_nothing_imports_the_retired_metering_module`);
 - the detector itself recognises every import form (`test_detector_sees_every_import_form`).
 
 `tests/test_bim_boundary.py` checks that only `integrations/bim*.py` import the
 BIM packages. `test_architecture_layers.py` also constrains `integrations/`; the
-rest of the table (`models/`, `db/`) is convention, not enforcement. I could not
-confirm these tests pass: the full gateway suite timed out in this environment.
+rest of the table (`models/`, `db/`) is convention, not enforcement.
 
 ## The BIM / platform boundary
 
@@ -122,16 +172,17 @@ These are real and not scheduled; no dates are promised.
 - `routes/v1.py` is about 3,250 lines and holds job creation, snapshot
   persistence, Engine registration and much else. Its logic should move into
   `services/` and `repositories/`.
-- Five modules still import `routes` (`ALLOWED_LEGACY` above).
+- Four modules still import `routes` (`ALLOWED_LEGACY` above).
 - `repositories/` holds one module; most queries are in routes and top-level
   modules.
-- Code from before the removal of metering and pricing administration is still
-  present: `routes/pricing.py`, `space_client/deployments.py` and the
-  contract-renewal sweeps called by `jobs/reconciler.py`. Which of them are
-  still reachable was not traced. The pricing fixture
-  `space/pricing/openbinding.yml` still declares consumption-style limits that
-  no code reads, and `core/settings.py` still has a second, destructive-operation
-  SPACE key setting used by the deployment client.
+- The contract lifecycle (create, novate, read the subscription, pricing token,
+  remove) still calls `get_gate()` from `routes/admin.py`, `routes/auth.py`,
+  `routes/cas.py`, `routes/users.py` and `access/contracts.py`
+  (`GATE_LIFECYCLE_LEGACY`). It is not a plan read, but it should move behind a
+  service of its own like entitlements did.
+- The per-account `apiKeys` limit in `routes/users.py` is still decided inline
+  (it needs the session for the count); only the read of the plan goes through
+  the service.
 
 Related: [ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md),
 [IDEMPOTENCY.md](IDEMPOTENCY.md), [qa/JOINT_STATUS.md](qa/JOINT_STATUS.md).

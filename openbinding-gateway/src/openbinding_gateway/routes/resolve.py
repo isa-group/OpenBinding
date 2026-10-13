@@ -33,14 +33,12 @@ from ..db.models import (
     Organization,
     OrganizationMembership,
     Project,
-    ProjectResource,
-    ProjectResourceRevision,
     RegisteredResourceRevision,
     Report,
     User,
     Visibility,
 )
-from ..artifacts import can_read, version_content, reference
+from ..artifacts import can_read, version_content
 from ..models.errors import api_error
 from ..models.platform import (
     ReplicationCitation,

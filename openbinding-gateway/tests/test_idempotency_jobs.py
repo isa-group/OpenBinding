@@ -14,6 +14,7 @@ from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job, User
 from openbinding_gateway.domain import idempotency
 from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.services.entitlements import entitlement_service
 from bim_core.canonical import digest
 from bim_core.package import load_package
 
@@ -105,7 +106,7 @@ async def test_same_key_with_a_different_body_conflicts(api_client, db_session, 
 
 async def test_plan_clamping_is_not_part_of_the_fingerprint(api_client, db_session, account, monkeypatch):
     headers, snapshot = account
-    real = routes.clamp_options
+    real = entitlement_service.clamp_options
     calls = []
 
     def clamp(options, caps):
@@ -115,7 +116,7 @@ async def test_plan_clamping_is_not_part_of_the_fingerprint(api_client, db_sessi
             clamped.options["iterations"] = 1
         return clamped
 
-    monkeypatch.setattr(routes, "clamp_options", clamp)
+    monkeypatch.setattr(entitlement_service, "clamp_options", clamp)
     first = await _post(api_client, headers, _body(snapshot))
     second = await _post(api_client, headers, _body(snapshot))
 

@@ -62,6 +62,7 @@ from ..security.redaction import (
 from bim_core import PackageError
 from bim_core.canonical import CanonicalizationError, digest, digest_bytes
 from ..core.jsonio import strict_json_loads
+from ..services.entitlements import entitlement_service
 from ..services.snapshots import archive_matches_digest
 
 router = APIRouter(prefix="/v1/organizations/{org}/projects/{project}", tags=["Artifacts"])
@@ -168,41 +169,19 @@ def _artifact_path(settings: Settings, digest_value: str) -> Path:
 async def _storage_limit(session: AsyncSession, organization: Organization, incoming: int) -> None:
     sponsor = await session.get(User, organization.billing_sponsor_user_id)
     await session.execute(select(User.id).where(User.id == sponsor.id).with_for_update())
-    from ..space_client import PricingUnavailable, get_gate
-    try:
-        caps = await get_gate().caps(sponsor.id)
-    except PricingUnavailable as exc:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
-    storage_limit = caps.limit("storageBytes")
-    if storage_limit is None:
-        return
-    used = int(await session.scalar(
-        select(func.coalesce(func.sum(Blob.size_bytes), 0))
-        .join(Organization, Organization.id == Blob.organization_id)
-        .where(Organization.billing_sponsor_user_id == sponsor.id)
-    ) or 0)
-    limit = int(storage_limit)
-    if used + incoming > limit:
-        raise api_error(
-            status.HTTP_402_PAYMENT_REQUIRED, "storage_quota_exceeded",
-            "The sponsor storage allowance would be exceeded.",
-            quota={"limit_id": "storageBytes", "limit": limit, "used": used},
-        )
+    async def stored_bytes() -> int:
+        return int(await session.scalar(
+            select(func.coalesce(func.sum(Blob.size_bytes), 0))
+            .join(Organization, Organization.id == Blob.organization_id)
+            .where(Organization.billing_sponsor_user_id == sponsor.id)
+        ) or 0)
+
+    await entitlement_service.enforce_storage_quota(sponsor.id, incoming, stored_bytes)
 
 
 async def _payload_limit(user: User) -> int:
     """Return the actor's per-request ceiling, capped by the platform maximum."""
-
-    from ..space_client import PricingUnavailable, get_gate
-
-    try:
-        caps = await get_gate().caps(user.id)
-    except PricingUnavailable as exc:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)
-        ) from exc
-    limit = caps.limit("maxPayloadBytes")
-    return 512 * 1024 * 1024 if limit is None else min(512 * 1024 * 1024, int(limit))
+    return await entitlement_service.upload_limit(user.id)
 
 
 @router.get("/blobs", response_model=list[BlobView], operation_id="listBlobs")

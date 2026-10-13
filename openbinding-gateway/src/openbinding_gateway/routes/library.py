@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 import json
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import delete, select, update, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..access import public_read
 from ..access.dependencies import get_current_user, get_optional_user, session_dependency
 from ..artifacts import (artifact_boundary_allows, artifact_view, can_read, owned_artifact, reference, resolve_version,
-    seal_draft, validate_content, version_content, version_view)
+    seal_draft, version_content, version_view)
 from ..collaboration import organization_by_ref, require_role, require_project
 from ..db.models import (Artifact, ArtifactDependency, ArtifactDraft, ArtifactPublication,
     ArtifactVersion, ArtifactCaseReference, BindingCase, BindingCaseRevision, Project, Visibility, CaseArtifact, OrganizationRole, ProjectArtifact, User)
@@ -201,7 +201,7 @@ async def publish_version(artifact_id: uuid.UUID, version_id: uuid.UUID, payload
             except HTTPException as exc:
                 raise api_error(422, 'private_engine_dependency', 'Publish the exact Engine contract before publishing this version.') from exc
     if artifact.kind == 'Report':
-        from ..db.models import ArtifactEvidence, Job, StudyRun, Study
+        from ..db.models import ArtifactEvidence, Job, StudyRun
         for evidence in await session.scalars(select(ArtifactEvidence).where(ArtifactEvidence.version_id == version.id)):
             if evidence.study_run_id:
                 study_version = await session.scalar(select(StudyRun.definition_version_id).where(StudyRun.id == evidence.study_run_id))
