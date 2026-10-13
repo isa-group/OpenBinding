@@ -26,10 +26,12 @@ def corpus_root() -> Path:
 
 
 def require_corpus_path(relative: str) -> Path:
-    """The corpus directory ``relative``, or skip the test with a warning when it is absent."""
+    """The corpus directory ``relative``; skip the test with a warning when it is absent (fail with BIM_REQUIRE_CORPUS=1)."""
     path = corpus_root() / relative
     if not (corpus_root() / CORPUS_MARKER).is_file() or not path.is_dir():
         message = f"BIM corpus not available at {corpus_root()} (set BIM_CORPUS_ROOT): skipping {relative}"
+        if os.environ.get("BIM_REQUIRE_CORPUS") == "1":
+            pytest.fail(message)
         warnings.warn(message, stacklevel=2)
         pytest.skip(message)
     return path

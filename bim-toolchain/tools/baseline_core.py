@@ -19,6 +19,12 @@ writes three documents that have no OpenBinding original (see ``docs/DIGESTS.md`
 * ``golden/bim_core/evaluator_errors.json``: the binding negatives seen through ``bim_core.evaluator``,
   which raises ``EvaluationError`` where ``BindingProblem.validate_binding`` raises ``ValueError``.
 * ``golden/vectors_extra.json``: adversarial re-evaluation and result-validation vectors.
+* ``golden/bim_core/zip_equivalence.json``: for every package, whether the package compiled from its ZIP is the
+  package the golden recorded from its directory.  Two ZIPs are compared: the raw one (the bytes as written, which
+  is what the platform stores and compiles) must give the same semantic digest and IR as the directory for every
+  package, and ``--check`` fails otherwise; the canonical one (``InstancePackage.to_zip()``, JSON with sorted
+  members) is known to differ for the packages that declare their objects out of alphabetical order, and the
+  document pins which ones, in which sections and with which semantic digest (``docs/DIGESTS.md``).
 
 The corpus is not part of this directory.  It is looked up under ``BIM_CORPUS_ROOT`` (default: the
 directory that contains ``bim-toolchain/``).  Golden paths are relative to that root.  The Engine
@@ -96,7 +102,7 @@ CORE_GOLDEN_DIR = ROOT / "golden" / "bim_core"
 EXTRA_VECTORS = ROOT / "golden" / "vectors_extra.json"
 MANIFEST_DIR = ROOT / "packages" / "bim-core" / "tests" / "fixtures" / "manifests"
 GOLDEN_FILES = ("corpus.json", "negatives.json", "vectors.json")
-CORE_GOLDEN_FILES = ("compat.json", "protocol.json", "evaluator_errors.json")
+CORE_GOLDEN_FILES = ("compat.json", "protocol.json", "evaluator_errors.json", "zip_equivalence.json")
 #: Engines whose manifest is in the OpenBinding goldens but not in the repository.
 MISSING_MANIFESTS = ("meta-router-csp",)
 DEMO_RELATIVE = Path("examples") / "demo" / "01_simple_seq"
@@ -443,6 +449,99 @@ def build_corpus(directories: list[Path], corpus_root: Path, jobs: int = 1) -> d
         with ProcessPoolExecutor(max_workers=jobs) as executor:
             results = list(executor.map(analyze_directory, directories, itertools.repeat(corpus_root)))
     return _corpus_document(results)
+
+
+# --- directory versus ZIP ----------------------------------------------------------------------------------
+
+
+def stored_zip(files: dict[str, bytes]) -> bytes:
+    """The bytes as written in a STORED archive (entries sorted by path), as the platform stores them."""
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
+        for path in sorted(files, key=lambda value: value.encode("utf-8")):
+            info = zipfile.ZipInfo(path, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_STORED
+            info.create_system = 3
+            info.external_attr = 0o100644 << 16
+            archive.writestr(info, files[path])
+    return output.getvalue()
+
+
+def differing_sections(left: dict[str, Any], right: dict[str, Any]) -> list[str]:
+    """Sections of two IR documents whose canonical form differs (``spec`` is split by member)."""
+    names: list[str] = []
+    for key in sorted(set(left) | set(right)):
+        if key == "spec":
+            names.extend(
+                f"spec.{name}"
+                for name in sorted(set(left[key]) | set(right[key]))
+                if digest(left[key].get(name)) != digest(right[key].get(name))
+            )
+        elif digest(left.get(key)) != digest(right.get(key)):
+            names.append(key)
+    return names
+
+
+def analyze_zip_equivalence(directory: Path, corpus_root: Path) -> dict[str, Any]:
+    """Compile one package from its directory, from the raw ZIP of its bytes and from its canonical ZIP."""
+    relative = directory.relative_to(corpus_root).as_posix()
+    try:
+        package = load_package(directory)
+        from_directory = compile_instance(package)
+        raw = load_package(stored_zip(package.files))
+        from_raw = compile_instance(raw)
+        canonical = load_package(package.to_zip())
+        from_canonical = compile_instance(canonical)
+    except Exception as exc:  # a package that stops compiling must show up in the baseline
+        return {"path": relative, "status": "error", "error": f"{type(exc).__name__}: {exc}"}
+    expected = semantic_digest(from_directory)
+    return {
+        "path": relative,
+        "status": "compiled",
+        "packageDigest": package.package_digest,
+        "packageDigestsEqual": package.package_digest == raw.package_digest == canonical.package_digest,
+        "rawZip": {
+            "sameIr": digest(from_raw.document) == digest(from_directory.document),
+            "sameSemanticDigest": semantic_digest(from_raw) == expected,
+        },
+        "canonicalZip": {
+            "sameSemanticDigest": semantic_digest(from_canonical) == expected,
+            "semanticDigest": semantic_digest(from_canonical),
+            "differingSections": differing_sections(from_directory.document, from_canonical.document),
+        },
+    }
+
+
+def build_zip_equivalence(directories: list[Path], corpus_root: Path, jobs: int = 1) -> dict[str, Any]:
+    """The ``zip_equivalence.json`` document for ``directories``."""
+    if jobs <= 1:
+        results = [analyze_zip_equivalence(directory, corpus_root) for directory in directories]
+    else:
+        with ProcessPoolExecutor(max_workers=jobs) as executor:
+            results = list(executor.map(analyze_zip_equivalence, directories, itertools.repeat(corpus_root)))
+    return {
+        "schema": "bim-baseline/zip-equivalence/1",
+        "note": (
+            "rawZip: the package compiled from the ZIP of its bytes (the platform's form) against the package compiled "
+            "from its directory, which is what golden/bim_baseline records; it must be equal. canonicalZip: the same "
+            "against InstancePackage.to_zip(), whose JSON has sorted members; it differs when a package declares "
+            "eligible candidates, constraints or placement demands out of alphabetical order (docs/DIGESTS.md)."
+        ),
+        "packageCount": len(results),
+        "canonicalZipDivergent": sum(1 for item in results if not item.get("canonicalZip", {}).get("sameSemanticDigest", True)),
+        "packages": {item["path"]: item for item in results},
+    }
+
+
+def zip_equivalence_failures(document: dict[str, Any]) -> dict[str, str]:
+    """Packages whose golden (by directory) is not the package compiled from its ZIP, the production route."""
+    failures: dict[str, str] = {}
+    for path, entry in document["packages"].items():
+        if entry["status"] != "compiled":
+            failures[path] = entry["error"]
+        elif not (entry["rawZip"]["sameIr"] and entry["rawZip"]["sameSemanticDigest"] and entry["packageDigestsEqual"]):
+            failures[path] = "the package compiled from its ZIP is not the package the golden recorded from its directory"
+    return failures
 
 
 def _corpus_document(entries: list[dict[str, Any]]) -> dict[str, Any]:
@@ -1013,6 +1112,7 @@ def build_all(
         "compat.json": compat,
         "protocol.json": build_protocol(manifests),
         "evaluator_errors.json": build_evaluator_errors(corpus_root),
+        "zip_equivalence.json": build_zip_equivalence(directories, corpus_root, jobs),
         "vectors_extra.json": build_vectors_extra(corpus_root),
     }
 
@@ -1056,6 +1156,7 @@ def main(argv: list[str] | None = None) -> int:
     documents = build_all(corpus_root, directories, args.jobs, engine_manifests(args.manifests))
     corpus = documents["corpus.json"]
     failures = {path: entry["error"] for path, entry in corpus["packages"].items() if entry["status"] != "compiled"}
+    failures.update(zip_equivalence_failures(documents["zip_equivalence.json"]))
     if len(directories) != args.expected:
         failures["corpus"] = f"expected {args.expected} packages, found {len(directories)}"
     if failures:

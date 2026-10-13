@@ -55,49 +55,125 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install ${{ env.DEPS }}
       # The corpus of BIM packages is not in this repository: the tests that need it skip with a warning
-      # (see the golden-corpus job).
+      # (see the golden-corpus job, which fails without it). The equivalence of a directory and its ZIP is
+      # exercised without the corpus by the `equivalence` job below.
       - name: Tests of ${{ matrix.package }}
         run: python -m pytest -p no:cacheprovider --rootdir=. packages/${{ matrix.package }}/tests -rs
         env:
           PYTHONPATH: ${{ env.SRC }}
 
-  golden-corpus:
-    # The corpus lives in OpenBinding, not here. Without BIM_CORPUS_ROOT this job only warns; when a corpus is
-    # provided (a repository variable pointing to a checked-out directory on a self-hosted runner, for example),
-    # it compares every package with golden/bim_baseline.
+  all-packages:
+    # The release workflow runs the three suites in ONE pytest session; running them only one by one here let a
+    # collision between their conftest/helper module names appear first on a tag. Same command, on every change.
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install ${{ env.DEPS }}
+      - name: Tests of bim-core, bim-service and bim-client in one session
+        run: python -m pytest -p no:cacheprovider --rootdir=. packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests -rs
+        env:
+          PYTHONPATH: ${{ env.SRC }}
+
+  equivalence:
+    # Directory versus ZIP on synthetic packages written by the tests (no corpus, no dataset), and Limits at their
+    # boundary. Nothing here may skip: a skip would be a pass that compared nothing.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install ${{ env.DEPS }}
+      - name: Directory/ZIP equivalence and Limits near their boundary (no test may be skipped)
+        shell: bash
+        run: |
+          python -m pytest -p no:cacheprovider --rootdir=. -rs \
+            packages/bim-core/tests/test_zip_dir_equivalence.py \
+            packages/bim-core/tests/test_limits_near_boundary.py | tee pytest.out
+          if grep -q "SKIPPED" pytest.out; then
+            echo "::error::a test of the directory/ZIP equivalence was SKIPPED; it must run"
+            exit 1
+          fi
+        env:
+          PYTHONPATH: ${{ env.SRC }}
+
+  golden-corpus:
+    # The corpus lives in OpenBinding, not here. This job compares every package with golden/bim_baseline and
+    # golden/bim_core (including the package compiled from its ZIP) and FAILS when no corpus is available: a green
+    # run must mean that something was compared. BIM_CORPUS_ROOT (a repository variable pointing to a checked-out
+    # directory on a self-hosted runner, for example) provides it. A repository that deliberately has none sets the
+    # variable BIM_CORPUS_OPTIONAL to "true"; the job then reports in its summary that the comparison was SKIPPED.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
       - run: python -m pip install ${{ env.DEPS }}
       - name: Compare with the baseline goldens
         env:
           PYTHONPATH: ${{ env.SRC }}
           BIM_CORPUS_ROOT: ${{ vars.BIM_CORPUS_ROOT }}
+          BIM_CORPUS_OPTIONAL: ${{ vars.BIM_CORPUS_OPTIONAL }}
+          # With the corpus required, a corpus test that cannot find it fails instead of skipping.
+          BIM_REQUIRE_CORPUS: "1"
         run: |
           if [ -z "${BIM_CORPUS_ROOT}" ] || [ ! -d "${BIM_CORPUS_ROOT}" ]; then
-            echo "::warning::The BIM corpus is not available (BIM_CORPUS_ROOT is unset or missing): the golden/corpus comparison was SKIPPED."
-            exit 0
+            if [ "${BIM_CORPUS_OPTIONAL}" = "true" ]; then
+              echo "::warning::The BIM corpus is not available (BIM_CORPUS_ROOT is unset or missing) and BIM_CORPUS_OPTIONAL=true: the golden/corpus comparison was SKIPPED."
+              echo "### Golden/corpus comparison SKIPPED: no BIM corpus (BIM_CORPUS_OPTIONAL=true)" >> "${GITHUB_STEP_SUMMARY}"
+              exit 0
+            fi
+            echo "::error::The BIM corpus is not available (BIM_CORPUS_ROOT is unset or missing): nothing was compared. Provide it, or set the variable BIM_CORPUS_OPTIONAL to true to accept that explicitly."
+            exit 1
           fi
           python tools/baseline_core.py --check
           python -m pytest -p no:cacheprovider --rootdir=. packages/bim-core/tests/test_baseline_equivalence.py -rs
 
   contracts:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
       - run: python -m pip install ${{ env.DEPS }}
-      - name: OpenAPI document is the generated one
+      - name: OpenAPI snapshot is the generated document
         run: python tools/dump_service_openapi.py --check
         env:
           PYTHONPATH: ${{ env.SRC }}
       - name: Consumer contracts replay against the service
         run: python tools/consumer_fixtures.py --check
+        env:
+          PYTHONPATH: ${{ env.SRC }}
+      - name: Goldens are in their canonical byte form and match the protocol (no corpus needed, no skips)
+        shell: bash
+        run: |
+          python -m pytest -p no:cacheprovider --rootdir=. -rs packages/bim-core/tests/test_baseline_equivalence.py \
+            -k "canonical_byte_form or engine_contract_and_protocol_digest or carry_the_four_engines_only" | tee pytest.out
+          if grep -q "SKIPPED" pytest.out; then
+            echo "::error::a golden test was SKIPPED; it must run"
+            exit 1
+          fi
         env:
           PYTHONPATH: ${{ env.SRC }}
 
@@ -159,3 +235,22 @@ jobs:
         run: |
           env -i .verify-venv/bin/python -I tools/toolchain_json.py --output toolchain.json
           env -i .verify-venv/bin/python -I tools/toolchain_json.py --check toolchain.json
+
+  gate:
+    # The one check to require in branch protection. A job that was skipped or cancelled is not a pass: the gate
+    # fails unless every job ended as `success`.
+    if: ${{ always() }}
+    needs: [lint, tests, all-packages, equivalence, golden-corpus, contracts, build, clean-install]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: ${RESULTS}"
+          for result in ${RESULTS}; do
+            if [ "${result}" != "success" ]; then
+              echo "::error::a job ended as '${result}', not 'success'"
+              exit 1
+            fi
+          done

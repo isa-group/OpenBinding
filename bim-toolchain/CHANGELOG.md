@@ -35,6 +35,22 @@ changes anything else.
 `expressions.py`, `compiler.py` and `package.py` changed); no semantic digest, evaluation, diagnostic of the
 baseline or protocol digest moved. See `docs/DIGESTS.md`.
 
+The directory/ZIP work below changes **no** digest: no file of `bim_core` was edited (tests, `tools/`, goldens, CI and
+documentation only), so `compilerDigest` and every `irDigest` are as before, and the version stays `0.1.0`.
+
+### Known issue (documented, not fixed)
+
+- `bim-core`: the IR of a package depends on the order in which it declares JSON object members, so the package compiled
+  from its **canonical ZIP** (`InstancePackage.to_zip()`, members sorted) differs from the one compiled from its
+  directory or from the ZIP of its bytes whenever the package declares eligible candidates, constraints or placement
+  demands out of alphabetical order: **64 of the 82 corpus packages** have another `irDigest` and semantic digest (18
+  are equal), in `spec.eligibility`, `spec.constraints`, `spec.placement` and `spec.sourceMap` only. `packageDigest` is
+  identical in every form. The enumeration order of the file system and of the ZIP entries plays no part. A canonical
+  order would move the semantic digest recorded in `golden/bim_baseline` for those 64 packages and the order (and, for
+  sampled evaluations, the summaries) of their evaluations: a MAJOR change by `docs/DIGESTS.md`, not made. The
+  divergence is pinned by `golden/bim_core/zip_equivalence.json` and by strict `xfail` tests that carry the cause. See
+  `docs/DIGESTS.md#directory-raw-zip-and-canonical-zip`.
+
 ### Fixed
 
 - `POST /bim/v1/engines/validate` and `InProcessBim.validate_engine` answer an engine document whose `spec` is not
@@ -43,6 +59,21 @@ baseline or protocol digest moved. See `docs/DIGESTS.md`.
 
 ### Added
 
+- Tests without the corpus: `packages/bim-core/tests/test_zip_dir_equivalence.py` (synthetic packages written by
+  `synthetic_packages.py`: directory, raw ZIP in any entry order and canonical ZIP compared on semantic digest, IR,
+  `irDigest`, `packageDigest` and eligibility order; the divergence above is a strict `xfail`) and
+  `test_limits_near_boundary.py` (`Limits` at their boundary for ZIP, directory and in-memory packages, with bounded
+  memory and time near the limit).
+- `tools/baseline_core.py` compiles every package from its directory, from the raw ZIP of its bytes and from its
+  canonical ZIP and writes `golden/bim_core/zip_equivalence.json`; `--check` fails if the package compiled from its
+  ZIP (the production route) is not the one the goldens recorded from its directory. The golden is new; no existing
+  golden was regenerated.
+- `BIM_REQUIRE_CORPUS=1` makes the corpus tests fail instead of skip.
+- CI: the corpus job fails without a corpus unless the repository variable `BIM_CORPUS_OPTIONAL` is `true` (and then it
+  says in its summary that it skipped); new jobs `equivalence` (synthetic directory/ZIP equivalence, no skips),
+  `all-packages` (the three suites in one session, as the release workflow runs them) and `gate` (fails unless every
+  job succeeded, so a skipped job is not a pass); the corpus, contract, equivalence and all-packages jobs run on
+  Python 3.11 and 3.12; the contract job also checks the goldens' byte form and protocol digests without the corpus.
 - `bim-service`: four endpoints for single documents, additive within `bim-service/v1` (a MINOR change of the HTTP API;
   `bim-core` is untouched): `POST /bim/v1/resources/validate`, `POST /bim/v1/engines/validate`,
   `POST /bim/v1/resources/xml/root` and `POST /bim/v1/resources/xml/validate-bpmn`. Same bearer authentication, body

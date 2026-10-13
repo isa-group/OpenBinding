@@ -21,6 +21,8 @@ from pathlib import Path
 import pytest
 
 from _repo import REPO_ROOT
+from bim_core import compile_instance, load_package
+from openbinding_gateway.integrations import packages
 from openbinding_gateway.services.engines import MANIFEST_DIR
 
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden" / "bim_baseline"
@@ -146,6 +148,34 @@ def test_sampled_packages_keep_their_semantic_digest_and_evaluations(tool, sampl
         if tool.comparable(corpus["packages"][path]) != tool.comparable(expected["packages"][path])
     ]
     assert mismatches == []
+
+
+def zip_mismatches(tool, paths: list[str]) -> list[str]:
+    """Packages whose semantic digest, compiled from the ZIP the platform builds, is not the golden's."""
+    expected = golden("corpus.json")["packages"]
+    return [
+        path
+        for path in paths
+        if tool.semantic_digest(compile_instance(load_package(packages.zip_directory(REPO_ROOT / path))))
+        != expected[path]["semanticDigest"]
+    ]
+
+
+def test_the_golden_by_directory_is_the_package_compiled_from_the_production_zip(tool, sample):
+    """The goldens are generated from directories; the platform compiles ZIPs (``packages.zip_directory``).  For the
+    sample they agree.  The canonical ZIP of ``to_zip()`` is another matter, see test_bim_zip_dir_equivalence.py."""
+    paths, _, _ = sample
+    assert zip_mismatches(tool, paths) == []
+
+
+@pytest.mark.skipif(
+    os.environ.get("BIM_BASELINE_FULL") != "1",
+    reason="slow: recompiles all 82 packages from their ZIP; run with BIM_BASELINE_FULL=1",
+)
+def test_the_whole_corpus_compiled_from_the_production_zip_matches_the_directory_goldens(tool):
+    paths = sorted(golden("corpus.json")["packages"])
+    assert len(paths) == 82
+    assert zip_mismatches(tool, paths) == []
 
 
 def test_sampled_packages_keep_their_engine_mode_compatibility(tool, sample):

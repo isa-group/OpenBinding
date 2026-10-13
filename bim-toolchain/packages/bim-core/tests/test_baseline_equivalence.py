@@ -11,8 +11,11 @@ the repository (only four manifests are).  They are compared with that Engine re
 documents are pinned in ``golden/bim_core`` (see ``docs/DIGESTS.md``).
 
 The corpus is not part of this directory.  It is looked up under ``BIM_CORPUS_ROOT`` (default: the directory that
-contains ``bim-toolchain/``) and the tests that need it skip with a warning when it is absent.  All packages are
-compared by default; ``BIM_BASELINE_SAMPLE_ONLY=1`` skips the full comparison and keeps the ten-package sample.
+contains ``bim-toolchain/``) and the tests that need it skip with a warning when it is absent, unless
+``BIM_REQUIRE_CORPUS=1``, which makes them fail (the CI job that is meant to compare with the corpus sets it).  All
+packages are compared by default; ``BIM_BASELINE_SAMPLE_ONLY=1`` skips the full comparison and keeps the
+ten-package sample.  The directory/ZIP equivalence on synthetic packages needs no corpus
+(``test_zip_dir_equivalence.py``).
 """
 
 import json
@@ -40,6 +43,8 @@ def root():
     path = corpus_root()
     if not (path / CORPUS_MARKER).is_file():
         message = f"BIM corpus not available at {path} (set BIM_CORPUS_ROOT): baseline equivalence not checked"
+        if os.environ.get("BIM_REQUIRE_CORPUS") == "1":
+            pytest.fail(message)
         warnings.warn(message, stacklevel=2)
         pytest.skip(message)
     return path
@@ -256,9 +261,45 @@ def test_nothing_differs_from_any_golden(baseline_tool, everything) -> None:
 
 
 @full_corpus_only
-@pytest.mark.parametrize("name", ["compat.json", "protocol.json", "evaluator_errors.json"])
+@pytest.mark.parametrize("name", ["compat.json", "protocol.json", "evaluator_errors.json", "zip_equivalence.json"])
 def test_the_pinned_bim_core_goldens_match(baseline_tool, everything, name) -> None:
     check_or_create_golden(baseline_tool, CORE_GOLDEN_DIR / name, everything[name])
+
+
+@full_corpus_only
+def test_the_golden_by_directory_is_the_package_compiled_from_its_zip(baseline_tool, everything) -> None:
+    """The production route: the platform stores and compiles the ZIP of the bytes it received, not the directory the
+    goldens were generated from.  For all 82 packages that ZIP gives the golden's semantic digest and the same IR."""
+    document = everything["zip_equivalence.json"]
+    corpus = golden("corpus.json")
+
+    assert baseline_tool.zip_equivalence_failures(document) == {}
+    assert sorted(document["packages"]) == sorted(corpus["packages"]) and document["packageCount"] == 82
+    for path, entry in document["packages"].items():
+        assert entry["rawZip"] == {"sameIr": True, "sameSemanticDigest": True}, path
+        assert entry["packageDigestsEqual"], path
+
+
+@full_corpus_only
+def test_the_canonical_zip_is_the_golden_except_for_the_packages_that_declare_objects_out_of_order(
+    baseline_tool, everything
+) -> None:
+    """The canonical form (JSON members sorted) is another IR for the packages listed in ``zip_equivalence.json``;
+    for every other package it is the golden's semantic digest.  Only lists built from objects differ."""
+    document = everything["zip_equivalence.json"]
+    corpus = golden("corpus.json")
+    ordered_lists = {"spec.eligibility", "spec.constraints", "spec.placement", "spec.sourceMap"}
+
+    divergent = {path for path, entry in document["packages"].items() if not entry["canonicalZip"]["sameSemanticDigest"]}
+    assert len(divergent) == document["canonicalZipDivergent"]
+    for path, entry in document["packages"].items():
+        canonical = entry["canonicalZip"]
+        if path in divergent:
+            assert canonical["semanticDigest"] != corpus["packages"][path]["semanticDigest"], path
+            assert canonical["differingSections"] and set(canonical["differingSections"]) <= ordered_lists, path
+        else:
+            assert canonical["semanticDigest"] == corpus["packages"][path]["semanticDigest"], path
+            assert canonical["differingSections"] == [], path
 
 
 @full_corpus_only
@@ -283,7 +324,7 @@ def test_the_command_line_writes_documents_equal_to_the_goldens(baseline_tool, r
         **{name: CORE_GOLDEN_DIR / name for name in baseline_tool.CORE_GOLDEN_FILES},
         "vectors_extra.json": GOLDEN_DIR.parent / "vectors_extra.json",
     }
-    assert sorted(written) == sorted(expected) and len(written) == 7
+    assert sorted(written) == sorted(expected) and len(written) == 8
     for name, path in written.items():
         assert path.read_bytes() == baseline_tool.dump(json.loads(path.read_text(encoding="utf-8"))), name
         found = baseline_tool.comparable(json.loads(path.read_text(encoding="utf-8")))

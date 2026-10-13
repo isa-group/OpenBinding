@@ -54,6 +54,33 @@ def test_ci_has_the_agreed_jobs() -> None:
     assert "SKIPPED" in text, "the missing corpus must be announced"
 
 
+def test_ci_cannot_pass_without_comparing_something() -> None:
+    """A green run means that the equivalence was exercised: no silent skip of the corpus, no skipped job."""
+    workflow = load("ci.yml")
+    jobs = workflow["jobs"]
+    assert {"all-packages", "equivalence", "gate"} <= set(jobs)
+
+    # The corpus job fails without a corpus unless the repository opts out explicitly (and says so).
+    comparison = next(step for step in jobs["golden-corpus"]["steps"] if step.get("name") == "Compare with the baseline goldens")
+    assert comparison["env"]["BIM_REQUIRE_CORPUS"] == "1"
+    script = comparison["run"]
+    assert "BIM_CORPUS_OPTIONAL" in script and "GITHUB_STEP_SUMMARY" in script
+    assert script.count("exit 0") == 1 and script.index("exit 0") < script.index("exit 1")
+    assert "tools/baseline_core.py --check" in script
+
+    # The equivalence on synthetic packages does not need the corpus and refuses to skip.
+    run = next(step["run"] for step in jobs["equivalence"]["steps"] if "run" in step and "test_zip_dir_equivalence" in step["run"])
+    assert "test_limits_near_boundary" in run and 'grep -q "SKIPPED"' in run and "exit 1" in run
+
+    # The suites run together as the release does, on both Pythons, and the gate needs every job to succeed.
+    for name in ("all-packages", "equivalence", "golden-corpus", "contracts"):
+        assert jobs[name]["strategy"]["matrix"]["python-version"] == ["3.11", "3.12"], name
+    gate = jobs["gate"]
+    assert set(gate["needs"]) == set(jobs) - {"gate"}
+    assert gate["if"] == "${{ always() }}"
+    assert "success" in gate["steps"][0]["run"]
+
+
 def test_release_runs_on_version_tags_and_only_drafts() -> None:
     workflow = load("release.yml")
     assert triggers(workflow) == {"push": {"tags": ["v*.*.*"]}}

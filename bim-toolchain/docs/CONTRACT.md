@@ -147,6 +147,16 @@ See [`DIGESTS.md`](DIGESTS.md). In short: `compiler_bundle_digest()` covers all 
 `BindingProblem.digest` is the `irDigest`; equivalence between toolchains is shown with the semantic digest and
 evaluations.
 
+**`packageDigest` identifies the canonical package, not the IR.** `InstancePackage.package_digest` is the digest of
+`to_zip()`, which writes every JSON resource with sorted object members, so two uploads of the same package (a
+directory, the ZIP of its bytes, `to_zip()`) have the same `packageDigest`. The compiled IR, however, lists the
+eligible candidates, the constraints and the placement demands in the order the package *declares* them, so a package
+that declares them out of alphabetical order has another IR, `irDigest` and semantic digest when it is compiled from
+its canonical ZIP than from its directory or from the ZIP of its bytes. `compilation_digest(package_digest, problem)`
+does not include the IR, so it does not tell them apart either. See
+[`DIGESTS.md`](DIGESTS.md#directory-raw-zip-and-canonical-zip); a host that stores one compilation per
+`packageDigest` must always compile the same form of the package.
+
 ## What stays in OpenBinding
 
 - The Engine manifests (`schemas/bim/v1/manifests/*.json`): they describe the engines OpenBinding runs, a

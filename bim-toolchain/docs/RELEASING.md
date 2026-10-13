@@ -24,8 +24,10 @@ A change to `bim_core/toolchain.py` (the definition of what the digest covers) i
 1. Choose the version. Edit `version` in the three `pyproject.toml` and `__version__` in the three `_version.py`
    (a test fails if they differ). Move `[Unreleased]` in `CHANGELOG.md` to `## [X.Y.Z] - YYYY-MM-DD` and say whether
    the semantic digests, evaluations, diagnostics, OpenAPI or protocol changed.
-2. Tests of all packages and `tools/`, with the corpus when available (`BIM_CORPUS_ROOT`), and
-   `tools/baseline_core.py --check`. A skipped corpus test is not a pass: say so in the release notes.
+2. Tests of all packages and `tools/`, with the corpus when available (`BIM_CORPUS_ROOT`; set `BIM_REQUIRE_CORPUS=1`
+   so that a missing corpus fails instead of skipping), and `tools/baseline_core.py --check` (it also compares the
+   package compiled from its ZIP with the directory the goldens were generated from). A skipped corpus test is not a
+   pass: say so in the release notes. The directory/ZIP equivalence on synthetic packages never skips.
 3. `python tools/dump_service_openapi.py --check` and `python tools/consumer_fixtures.py --check`. The OpenAPI
    document changes only with the API; review the diff as a contract change.
 4. Build the three wheels and sdists, install them in a clean venv, run `tools/smoke_installed.py` with `-I` and
@@ -76,5 +78,9 @@ holds only the commits that touched the prefix, with their original messages), a
    licence is invented.
 2. **Whether the history may travel.** The split carries the commit messages of this directory.
 3. **Private index or release assets.** Whether `Private :: Do Not Upload` stays and how OpenBinding fetches releases.
-4. **Corpus access** in CI (`vars.BIM_CORPUS_ROOT` points to a runner path; without it the golden/corpus job only warns).
-5. **The `meta-router-csp` manifest and the eligibility-order question** listed in `EXTRACTION_LOG.md`.
+4. **Corpus access** in CI (`vars.BIM_CORPUS_ROOT` points to a runner path; without it the golden/corpus job fails,
+   unless `vars.BIM_CORPUS_OPTIONAL` is `true`, which skips it and says so in the job summary).
+5. **The `meta-router-csp` manifest and the eligibility-order question** listed in `EXTRACTION_LOG.md`. The latter is
+   measured now: 64 of 82 packages compile to another IR from their canonical ZIP (`DIGESTS.md`, "Directory, raw ZIP
+   and canonical ZIP"). Canonicalising the order is a MAJOR change (it moves `golden/bim_baseline`); until it is made
+   the host must compile always the same form of a package.
