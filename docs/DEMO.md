@@ -23,7 +23,7 @@ user/permission settings and the whole startup order are untested. Read
 | `bim-service` | `bim-toolchain`, `packages/bim-service/Dockerfile` | 256 MiB | port 8080, `/healthz`, tokens file in a tmpfs |
 | `gateway` | `openbinding-gateway/Dockerfile`, tagged `openbinding-lab-gateway:latest` (the only build of this image) | 640 MiB | `alembic upgrade head` through the image entrypoint, then uvicorn with `--proxy-headers` |
 | `worker` | `image: openbinding-lab-gateway:latest`, no build | 448 MiB | dramatiq, one process, 2 threads, queues `default` and `analysis` |
-| `web` | `frontend/Dockerfile`, target `prod` | 96 MiB | nginx: production build of the frontend, `/api/` to the gateway without the prefix; **the only published port** |
+| `web` | `frontend/Dockerfile`, target `lab` (config `frontend/nginx.lab.conf` baked in) | 96 MiB | nginx: production build of the frontend, `/api/` to the gateway without the prefix; **the only published port** |
 | `seed` | `image: openbinding-lab-gateway:latest`, no build | 384 MiB | `profiles: ["seed"]`; not started by `up` |
 
 **Memory sum of all `mem_limit`: 3456 MiB** (3.375 GiB; lab ceiling 4096 MiB,
@@ -227,19 +227,32 @@ Everything here is a hypothesis until it is observed.
    tmpfs mounts (`/run`, `/var/cache/nginx`). Its `entrypoint` is
    `nginx -g "daemon off;"`, which skips the image's `/docker-entrypoint.sh`:
    that script and `/docker-entrypoint.d/*` (`10-listen-on-ipv6-by-default.sh`,
-   `20-envsubst-on-templates.sh`) try to write `/etc/nginx/conf.d/default.conf`,
-   which is the read-only bind mount of `lab/nginx`, so the first real start
-   exited with code 1. `lab/nginx/default.conf` is complete by itself. Look at `logs web` for
+   `20-envsubst-on-templates.sh`) try to rewrite `/etc/nginx/conf.d/default.conf`
+   as uid 101, which fails. `frontend/nginx.lab.conf` is complete by itself.
+   Look at `logs web` for
    `Permission denied`, `setgid`/`setuid`, or `open() "/run/nginx.pid" failed`.
+
+   **The configuration is baked into the image, not bind-mounted.** The
+   `lab` stage of `frontend/Dockerfile` (`FROM prod AS lab`) copies
+   `frontend/nginx.lab.conf` over `/etc/nginx/conf.d/default.conf`; `prod`,
+   which Kubernetes uses, is unchanged. An earlier version bind-mounted
+   `lab/nginx`; with rootless docker and an extracted, read-only copy of the
+   tree that directory could be empty or unreadable for uid 101, so nginx
+   started its workers with no `server` block: nothing listened on 80 or 8080
+   (`Connection refused`) and the healthcheck failed. If `web` is unhealthy
+   with `Connection refused`, check the loaded configuration:
+   `docker compose exec web nginx -T` must show `listen 8080;`, and
+   `docker compose exec web ls -l /etc/nginx/conf.d` must list `default.conf`.
+   The server block logs requests to stdout and errors (level `warn`) to
+   stderr, so `logs web` shows them; `/healthz` is not logged.
    `curl http://127.0.0.1:18100/healthz` on the lab host must answer `ok`, and
    `/api/health/ready` must answer through the proxy.
 
    **Diagnosing an unhealthy `web`.** The image is `nginx:1.27-alpine` (target
-   `prod` of `frontend/Dockerfile` adds only the build output). Its stock
+   `lab` of `frontend/Dockerfile` adds the build output and the lab config). Its stock
    `/etc/nginx/nginx.conf` has `pid /run/nginx.pid` (a tmpfs), includes
-   `conf.d/*.conf` and defines no server of its own; `./lab/nginx` holds only
-   `default.conf` and replaces the whole `conf.d`, so the stock server on port 80
-   cannot clash. `wget` is the busybox applet. The healthcheck is
+   `conf.d/*.conf` and defines no server of its own; the `lab` stage replaces
+   the stock `default.conf`, so the stock server on port 80 cannot clash. `wget` is the busybox applet. The healthcheck is
    `http_proxy= HTTP_PROXY= wget -T 3 -O /dev/null http://127.0.0.1:8080/healthz || exit 1`
    (15 s start period, 10 s interval, 6 retries). It has no `-q` so the reason
    is kept in the health log, and it blanks the proxy variables because busybox

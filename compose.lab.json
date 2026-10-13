@@ -303,7 +303,7 @@
       "build": {
         "context": "frontend",
         "dockerfile": "Dockerfile",
-        "target": "prod",
+        "target": "lab",
         "args": {
           "VITE_API_BASE_URL": "/api"
         }
@@ -318,11 +318,6 @@
         }
       ],
       "volumes": [
-        {
-          "type": "bind",
-          "source": "./lab/nginx",
-          "target": "/etc/nginx/conf.d"
-        },
         {
           "type": "tmpfs",
           "target": "/run",

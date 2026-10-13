@@ -21,7 +21,8 @@ ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = ROOT / "compose.lab.json"
 PGTEST_COMPOSE = ROOT / "compose.pgtest.json"
 NAME_PATTERN = re.compile(r"[a-z][a-z0-9-]{0,62}")
-NGINX_DIR = ROOT / "lab" / "nginx"
+NGINX_CONF = ROOT / "frontend" / "nginx.lab.conf"
+DOCKERFILE = ROOT / "frontend" / "Dockerfile"
 DEMO_DOC = ROOT / "docs" / "DEMO.md"
 
 ALLOWED_TOP_LEVEL = {"name", "services", "networks", "volumes"}
@@ -276,14 +277,14 @@ def test_binds_are_relative_literal_and_exist(services):
         assert (ROOT / source).is_dir(), (name, mount)
 
 
-def test_only_configuration_and_seed_tools_are_bound(services):
-    # The only code the lab mounts is the seed tools directory (the image does not carry
-    # tools/); nginx gets its configuration.  Nothing else.
+def test_only_seed_tools_are_bound(services):
+    # The only thing the lab mounts is the seed tools directory (the image does not carry
+    # tools/).  nginx's configuration is baked into the image: a bind mount of it can be
+    # unreadable for uid 101 under rootless docker, and nginx then starts with no server.
     binds = {(n, m["source"], m["target"]) for n, m in _mounts(services) if m["type"] == "bind"}
-    assert binds == {
-        ("web", "./lab/nginx", "/etc/nginx/conf.d"),
-        ("seed", "./openbinding-gateway/tools", "/app/tools"),
-    }
+    assert binds == {("seed", "./openbinding-gateway/tools", "/app/tools")}
+    assert not [m for m in services["web"]["volumes"] if m["type"] == "bind"]
+    assert not [m for m in services["web"]["volumes"] if m["target"].startswith("/etc/nginx")]
 
 
 def test_builds_use_only_allowed_keys_and_literal_paths_inside_the_repo(services):
@@ -315,7 +316,7 @@ def test_gateway_worker_and_seed_share_one_always_rebuilt_image(services):
 
 def test_frontend_is_built_for_the_api_prefix(services):
     build = services["web"]["build"]
-    assert build["context"] == "frontend" and build["target"] == "prod"
+    assert build["context"] == "frontend" and build["target"] == "lab"
     assert build["args"] == {"VITE_API_BASE_URL": "/api"}
     assert not [k for k in build["args"] if k.startswith("VITE_") and SECRET_NAME.search(k)]
 
@@ -537,10 +538,7 @@ def test_depends_on_points_to_existing_services_with_healthchecks(services):
 
 
 def _nginx_conf() -> str:
-    confs = sorted(NGINX_DIR.glob("*.conf"))
-    assert [c.name for c in confs] == ["default.conf"]
-    assert sorted(p.name for p in NGINX_DIR.iterdir()) == ["default.conf"], "the whole directory is mounted"
-    return confs[0].read_text(encoding="utf-8")
+    return NGINX_CONF.read_text(encoding="utf-8")
 
 
 def test_nginx_listens_on_the_published_target_and_strips_the_api_prefix(services):
@@ -558,21 +556,41 @@ def test_nginx_listens_on_the_published_target_and_strips_the_api_prefix(service
     assert 1 <= int(check["retries"]) <= 10
 
 
-def test_web_image_is_stock_nginx_whose_main_conf_includes_conf_d():
-    # frontend/Dockerfile target `prod` is nginx:1.27-alpine plus the build output, with no nginx
-    # configuration of its own: the stock nginx.conf (pid /run/nginx.pid, include conf.d/*.conf,
-    # no server of its own) and busybox wget apply.  The bind mount replaces conf.d wholesale.
-    dockerfile = (ROOT / "frontend" / "Dockerfile").read_text(encoding="utf-8")
-    prod = dockerfile.split("AS prod\n", 1)[1]
+def test_prod_stage_is_stock_nginx_and_lab_stage_bakes_in_the_lab_config():
+    # Target `prod` (used by Kubernetes) is nginx:1.27-alpine plus the build output and must not
+    # change; target `lab` is built FROM it and only replaces conf.d/default.conf.
+    dockerfile = DOCKERFILE.read_text(encoding="utf-8")
     assert dockerfile.count("FROM nginx:1.27-alpine AS prod") == 1
+    prod_and_lab = dockerfile.split("AS prod\n", 1)[1]
+    prod, lab = prod_and_lab.split("FROM prod AS lab\n", 1)
+    assert "nginx.lab.conf" not in prod
     assert not re.search(r"^\s*(COPY .*/etc/nginx|ADD |RUN )", prod, re.MULTILINE)
+    assert dockerfile.count("AS lab") == 1
+    copies = [line for line in lab.splitlines() if line.startswith(("COPY", "ADD", "RUN"))]
+    assert copies == ["COPY nginx.lab.conf /etc/nginx/conf.d/default.conf"]
+
+
+def test_nginx_lab_conf_reaches_the_build_context():
+    assert NGINX_CONF.is_file()
+    ignore = (ROOT / "frontend" / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    patterns = [p.strip() for p in ignore if p.strip() and not p.startswith("#")]
+    assert not [p for p in patterns if p.lstrip("/") in {"*.conf", "nginx.lab.conf", "**/*.conf"}] or \
+        "!nginx.lab.conf" in patterns
+
+
+def test_nginx_lab_conf_logs_to_the_container_and_keeps_healthz_quiet():
+    conf = _nginx_conf()
+    assert "access_log /dev/stdout;" in conf and "error_log /dev/stderr warn;" in conf
+    health = re.search(r"location = /healthz \{([^}]*)\}", conf)
+    assert health and "access_log off;" in health.group(1)
+    assert "pid " not in re.sub(r"#.*", "", conf)  # not valid in a server block
 
 
 def test_web_runs_unprivileged_with_writable_runtime_directories(services):
     web = services["web"]
     assert web["user"] == "101:101"
-    # The stock docker-entrypoint.sh would write /etc/nginx/conf.d/default.conf, which is a
-    # read-only bind mount, and exit 1.
+    # The stock docker-entrypoint.sh would rewrite /etc/nginx/conf.d/default.conf as uid 101 and
+    # fail; the configuration is complete in the image, so the script is skipped.
     assert web["entrypoint"] == ["nginx", "-g", "daemon off;"]
     tmpfs = {m["target"]: m for m in web["volumes"] if m["type"] == "tmpfs"}
     assert {"/run", "/var/cache/nginx"} <= set(tmpfs)
