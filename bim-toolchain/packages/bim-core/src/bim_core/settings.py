@@ -20,19 +20,24 @@ _ENV_NAMES = {
     "max_entries": "BIM_MAX_ENTRIES",
     "max_compression_ratio": "BIM_MAX_COMPRESSION_RATIO",
     "max_path_depth": "BIM_MAX_PATH_DEPTH",
+    "max_integer_bits": "BIM_MAX_INTEGER_BITS",
 }
 
 
 @dataclass(frozen=True)
 class Limits:
-    """Resource limits applied when a package is read."""
+    """Resource limits applied when a package is read and when its expressions are evaluated.
 
+    ``max_integer_bits`` bounds the size of any integer an expression produces (``pow``, products);
+    expressions read the process default (:func:`default_limits`).
+    """
     max_compressed_bytes: int = 16 * 1024 * 1024
     max_expanded_bytes: int = 64 * 1024 * 1024
     max_entry_bytes: int = 16 * 1024 * 1024
     max_entries: int = 256
     max_compression_ratio: int = 100
     max_path_depth: int = 16
+    max_integer_bits: int = 1_000_000
 
     def __post_init__(self) -> None:
         for field in fields(self):

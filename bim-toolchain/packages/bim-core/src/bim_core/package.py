@@ -10,6 +10,7 @@ import stat
 import re
 import unicodedata
 import zipfile
+import zlib
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -112,6 +113,30 @@ def _normal_name(name: str, limits: Limits) -> str:
     return name
 
 
+#: The only compression methods that are read.  BZIP2 and LZMA inflate a whole stream per call and
+#: a package never needs them: the archives this toolchain writes are STORED.
+_ALLOWED_COMPRESSION = frozenset({zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED})
+_READ_CHUNK = 64 * 1024
+
+
+def _read_bounded(handle: Any, limit: int, name: str) -> bytes:
+    """Read ``handle`` in chunks, refusing it as soon as it yields more than ``limit`` bytes.
+
+    ``limit`` is the declared size of the entry (itself already within the package limits); a header
+    that lies about it cannot make the reader hold more than ``limit`` plus one chunk.
+    """
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = handle.read(min(_READ_CHUNK, limit - total + 1))
+        if not chunk:
+            return b"".join(chunks)
+        total += len(chunk)
+        if total > limit:
+            raise PackageError(f"package entry exceeds its declared size of {limit} bytes: {name!r}")
+        chunks.append(chunk)
+
+
 def _validate_zip(data: bytes, limits: Limits) -> dict[str, bytes]:
     if len(data) > limits.max_compressed_bytes:
         raise PackageError(f"compressed package exceeds {limits.max_compressed_bytes} bytes")
@@ -137,6 +162,8 @@ def _validate_zip(data: bytes, limits: Limits) -> dict[str, bytes]:
         mode = (info.external_attr >> 16) & 0o170000
         if mode == stat.S_IFLNK or info.flag_bits & 0x1:
             raise PackageError(f"symlink or encrypted package entry: {name!r}")
+        if info.compress_type not in _ALLOWED_COMPRESSION:
+            raise PackageError(f"unsupported compression method {info.compress_type}: {name!r}")
         if info.file_size > limits.max_entry_bytes:
             raise PackageError(f"package entry exceeds {limits.max_entry_bytes} bytes: {name!r}")
         expanded += info.file_size
@@ -147,8 +174,9 @@ def _validate_zip(data: bytes, limits: Limits) -> dict[str, bytes]:
         if info.compress_size and info.file_size / info.compress_size > limits.max_compression_ratio:
             raise PackageError(f"compression ratio exceeds {limits.max_compression_ratio}: {name!r}")
         try:
-            content = archive.read(info)
-        except (OSError, RuntimeError, zipfile.BadZipFile) as exc:
+            with archive.open(info) as handle:
+                content = _read_bounded(handle, info.file_size, name)
+        except (OSError, RuntimeError, EOFError, zlib.error, zipfile.BadZipFile) as exc:
             raise PackageError(f"could not read package entry {name!r}") from exc
         if len(content) != info.file_size:
             raise PackageError(f"truncated package entry: {name!r}")

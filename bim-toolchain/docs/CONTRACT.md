@@ -114,10 +114,16 @@ Nothing is read from the environment, ever, by the library.
 
 - `Limits` is a frozen dataclass with `max_compressed_bytes` (16 MiB), `max_expanded_bytes` (64 MiB),
   `max_entry_bytes` (16 MiB), `max_entries` (256), `max_compression_ratio` (100), `max_path_depth` (16): the former
-  `BIM_MAX_*` values.
+  `BIM_MAX_*` values; and `max_integer_bits` (1 000 000), the largest integer an expression may produce with `pow`,
+  products or weighted products (a larger one is `ExpressionError` with code `integer_limit`). Expressions read it
+  from the process default (`configure`), not from the package: `Limits.from_env` reads `BIM_MAX_INTEGER_BITS`, but a
+  host that wants another value than 1 000 000 must install it with `configure`; the service and `InProcessBim`
+  pass their `Limits` to `load_package` only, so they keep the default.
 - `Limits.from_env(environ)` is pure: it reads `BIM_MAX_COMPRESSED_BYTES`, `BIM_MAX_EXPANDED_BYTES`,
-  `BIM_MAX_ENTRY_BYTES`, `BIM_MAX_ENTRIES`, `BIM_MAX_COMPRESSION_RATIO`, `BIM_MAX_PATH_DEPTH` from the mapping it is
-  given; the host passes `os.environ` if it wants that.
+  `BIM_MAX_ENTRY_BYTES`, `BIM_MAX_ENTRIES`, `BIM_MAX_COMPRESSION_RATIO`, `BIM_MAX_PATH_DEPTH`, `BIM_MAX_INTEGER_BITS`
+  from the mapping it is given; the host passes `os.environ` if it wants that.
+- A ZIP entry is read only if its compression method is STORED or DEFLATED, in chunks, and is refused as soon as it
+  yields more than the size its header declares (`PackageError`).
 - `load_package(source, *, limits=None)`; an `InstancePackage` remembers the limits it was built with
   (`package.limits`) and uses them again for `to_zip()`.
 - `configure(limits)` replaces the process default used when no `limits=` is passed. It is the only module-level

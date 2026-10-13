@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 from .errors import BimError
+from .settings import default_limits
 
 
 class ExpressionError(BimError, ValueError):
@@ -110,6 +111,52 @@ def _compare(op: str, left: Any, right: Any) -> bool:
         raise ExpressionError(f"invalid comparison {op}") from exc
 
 
+#: Stable ``ExpressionError.code`` of an integer result above ``Limits.max_integer_bits``.
+INTEGER_LIMIT_CODE = "integer_limit"
+
+
+def _is_integer(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _integer_limit_error(limit: int) -> ExpressionError:
+    return ExpressionError(
+        f"integer result exceeds the limit of {limit} bits", code=INTEGER_LIMIT_CODE
+    )
+
+
+def _bounded(result: Any, limit: int) -> Any:
+    if _is_integer(result) and result.bit_length() > limit:
+        raise _integer_limit_error(limit)
+    return result
+
+
+def _checked_mul(left: Any, right: Any) -> Any:
+    """``left * right``; an integer product above the limit is refused before it is computed.
+
+    The product of two non-zero integers has at least ``bits(left) + bits(right) - 1`` bits, so the
+    refusal never rejects a result that fits.
+    """
+    limit = default_limits().max_integer_bits
+    if _is_integer(left) and _is_integer(right) and left and right:
+        if left.bit_length() + right.bit_length() - 1 > limit:
+            raise _integer_limit_error(limit)
+    return _bounded(left * right, limit)
+
+
+def _checked_pow(base: Any, exponent: Any) -> Any:
+    """``base ** exponent``; an integer power above the limit is refused before it is computed.
+
+    ``|base| >= 2 ** (bits(base) - 1)``, so the power has at least ``(bits(base) - 1) * exponent + 1``
+    bits.  Bases 0, 1 and -1 never grow; negative and non-integer exponents give floats.
+    """
+    limit = default_limits().max_integer_bits
+    if _is_integer(base) and _is_integer(exponent) and exponent > 0 and abs(base) > 1:
+        if (base.bit_length() - 1) * exponent >= limit:
+            raise _integer_limit_error(limit)
+    return _bounded(base**exponent, limit)
+
+
 def _flatten_numeric_args(args: list[Any], name: str) -> list[float | int]:
     if len(args) == 1 and isinstance(args[0], (list, tuple)):
         args = list(args[0])
@@ -149,7 +196,12 @@ def _evaluate(node: dict[str, Any], context: Mapping[str, Any]) -> Any:
         left = _numeric(_evaluate(node["left"], context), "left arithmetic operand")
         right = _numeric(_evaluate(node["right"], context), "right arithmetic operand")
         try:
-            result = _OPERATORS[node["op"]](left, right)
+            if node["op"] == "mul":
+                result = _checked_mul(left, right)
+            elif node["op"] == "pow":
+                result = _checked_pow(left, right)
+            else:
+                result = _OPERATORS[node["op"]](left, right)
         except (KeyError, TypeError, ZeroDivisionError, OverflowError) as exc:
             raise ExpressionError(f"invalid arithmetic {node.get('op')}") from exc
         return _numeric(result, "arithmetic result")
@@ -165,39 +217,49 @@ def _evaluate(node: dict[str, Any], context: Mapping[str, Any]) -> Any:
             except ExpressionError:
                 return False
         args = [_evaluate(arg, context) for arg in node.get("args", [])]
-        if name in {"weightedSum", "weightedProduct"}:
-            if len(args) != 2 or not isinstance(args[0], (list, tuple)) or not isinstance(args[1], (list, tuple)):
-                raise ExpressionError(f"{name} requires values and weights lists")
-            values = _flatten_numeric_args([args[0]], name)
-            weights = _flatten_numeric_args([args[1]], name)
-            if len(values) != len(weights):
-                raise ExpressionError(f"{name} values and weights must have equal length")
-            if name == "weightedSum":
-                return _numeric(sum(value * weight for value, weight in zip(values, weights, strict=True)), "weightedSum result")
-            result: float | int = 1
-            for value, weight in zip(values, weights, strict=True):
-                if weight == 0:
-                    continue
-                if value < 0 and not float(weight).is_integer():
-                    raise ExpressionError("weightedProduct cannot use a negative value with a fractional weight")
-                result *= value ** weight
-            return _numeric(result, "weightedProduct result")
-        values = _flatten_numeric_args(args, str(name))
-        if not values:
-            raise ExpressionError(f"{name} requires at least one argument")
-        if name == "min":
-            return min(values)
-        if name == "max":
-            return max(values)
-        if name == "sum":
-            return _numeric(sum(values), "sum result")
-        if name == "product":
-            result: float | int = 1
-            for value in values:
-                result *= value
-            return _numeric(result, "product result")
-        raise ExpressionError(f"function is not approved: {name}")
+        try:
+            return _evaluate_call(name, args)
+        except (OverflowError, ZeroDivisionError) as exc:
+            raise ExpressionError(f"invalid call {name}") from exc
     raise ExpressionError(f"unknown expression node: {kind}")
+
+
+def _evaluate_call(name: Any, args: list[Any]) -> Any:
+    if name in {"weightedSum", "weightedProduct"}:
+        if len(args) != 2 or not isinstance(args[0], (list, tuple)) or not isinstance(args[1], (list, tuple)):
+            raise ExpressionError(f"{name} requires values and weights lists")
+        values = _flatten_numeric_args([args[0]], name)
+        weights = _flatten_numeric_args([args[1]], name)
+        if len(values) != len(weights):
+            raise ExpressionError(f"{name} values and weights must have equal length")
+        if name == "weightedSum":
+            return _numeric(
+                sum(_checked_mul(value, weight) for value, weight in zip(values, weights, strict=True)),
+                "weightedSum result",
+            )
+        result: float | int = 1
+        for value, weight in zip(values, weights, strict=True):
+            if weight == 0:
+                continue
+            if value < 0 and not float(weight).is_integer():
+                raise ExpressionError("weightedProduct cannot use a negative value with a fractional weight")
+            result = _checked_mul(result, _checked_pow(value, weight))
+        return _numeric(result, "weightedProduct result")
+    values = _flatten_numeric_args(args, str(name))
+    if not values:
+        raise ExpressionError(f"{name} requires at least one argument")
+    if name == "min":
+        return min(values)
+    if name == "max":
+        return max(values)
+    if name == "sum":
+        return _numeric(sum(values), "sum result")
+    if name == "product":
+        result = 1
+        for value in values:
+            result = _checked_mul(result, value)
+        return _numeric(result, "product result")
+    raise ExpressionError(f"function is not approved: {name}")
 
 
 def _literal_type(value: Any) -> str:

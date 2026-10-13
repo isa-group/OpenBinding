@@ -12,6 +12,7 @@ from __future__ import annotations
 import io
 import unicodedata
 import zipfile
+import zlib
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -66,16 +67,54 @@ def instance_document(archive: bytes) -> dict[str, Any] | None:
     """``instance.json`` of an archive, or ``None`` if it cannot be read as a bounded JSON object.
 
     This runs before the toolchain has judged the archive (the platform needs the Instance to find
-    the registry resources it pins), so it reads one entry, no larger than the toolchain's own
-    entry limit, and gives up quietly: the compilation that follows reports the real error.
+    the registry resources it pins), so it trusts nothing in it: it reads one STORED or DEFLATED
+    entry, no larger than the toolchain's own entry limit and within its compression ratio, in
+    chunks that stop at the declared size, and gives up quietly: the compilation that follows
+    reports the real error.
     """
-    limit = bim.package_limits().get("max_entry_bytes", 16 * 1024 * 1024)
+    limits = bim.package_limits()
+    limit = limits.get("max_entry_bytes", 16 * 1024 * 1024)
+    max_ratio = limits.get("max_compression_ratio", 100)
     try:
         with zipfile.ZipFile(io.BytesIO(archive)) as handle:
             info = next((item for item in handle.infolist() if item.filename == "instance.json"), None)
-            if info is None or info.file_size > limit:
+            if info is None or not _readable(info, limit, max_ratio):
                 return None
-            document = strict_json_loads(handle.read(info))
-    except (zipfile.BadZipFile, ValueError, OSError, RuntimeError, NotImplementedError):
+            with handle.open(info) as entry:
+                content = _read_bounded(entry, info.file_size)
+            if content is None:
+                return None
+            document = strict_json_loads(content)
+    except (zipfile.BadZipFile, ValueError, OSError, RuntimeError, EOFError, zlib.error, NotImplementedError):
         return None
     return document if isinstance(document, dict) else None
+
+
+#: The compression methods the toolchain reads; BZIP2 and LZMA inflate a whole stream per call.
+_ALLOWED_COMPRESSION = frozenset({zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED})
+_READ_CHUNK = 64 * 1024
+
+
+def _readable(info: zipfile.ZipInfo, limit: int, max_ratio: int) -> bool:
+    """Whether the header of ``info`` describes an entry worth reading (the toolchain's own rules)."""
+    if info.flag_bits & 0x1 or info.compress_type not in _ALLOWED_COMPRESSION:
+        return False
+    if info.file_size > limit or (info.file_size and not info.compress_size):
+        return False
+    return not (info.compress_size and info.file_size / info.compress_size > max_ratio)
+
+
+def _read_bounded(entry: Any, limit: int) -> bytes | None:
+    """The bytes of ``entry``, or ``None`` as soon as it yields more than ``limit`` (a lying header)."""
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = entry.read(min(_READ_CHUNK, limit - total + 1))
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > limit:
+            return None
+        chunks.append(chunk)
+    content = b"".join(chunks)
+    return content if len(content) == limit else None

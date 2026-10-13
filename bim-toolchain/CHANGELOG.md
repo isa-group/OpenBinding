@@ -7,6 +7,34 @@ changes anything else.
 
 ## [Unreleased]
 
+### Security
+
+- `bim-core`: integer results of expressions are bounded. `pow`, `mul`, `product`, `weightedSum` and
+  `weightedProduct` refuse, before computing it, an integer result above the new `Limits.max_integer_bits`
+  (`BIM_MAX_INTEGER_BITS`, default 1 000 000 bits) with `ExpressionError(code="integer_limit")`. Before, a literal
+  such as `10 ** (10 ** 10)` in a package kept a thread at 100% and grew memory without bound, both when the
+  package was compiled (constant soft penalties are evaluated at compile time) and when a binding was evaluated;
+  `POST /bim/v1/compile` and the gateway's `POST /v1/instances/validate` were reachable with it. A constant soft
+  penalty above the limit is now a `soft_penalty` diagnostic of the compilation, and a constraint that exceeds it
+  while evaluating a binding is an `EvaluationError` (`evaluation_failed`). Float overflow and `0 ** -n` inside
+  `product`, `weightedSum` and `weightedProduct` are `ExpressionError`s too instead of a bare `OverflowError` /
+  `ZeroDivisionError`. Results that fit are computed exactly as before; the limit is read from the process default
+  (`bim_core.configure`).
+- `bim-core`: the ZIP reader no longer trusts the declared size or the compression method of an entry. Only STORED
+  and DEFLATED entries are read (any other method is a `PackageError`, `unsupported compression method`), an entry
+  is read in 64 KiB chunks and refused as soon as it yields more than its declared size, and a corrupt DEFLATE
+  stream is a `PackageError` (`could not read package entry`) instead of a `zlib.error`. Valid packages, whose
+  sizes are honest, load unchanged.
+- `openbinding-gateway`: `integrations.packages.instance_document`, which reads `instance.json` before the toolchain
+  has judged an archive, applies the same rules (STORED/DEFLATED only, entry limit, compression ratio, chunked read
+  bounded by the declared size) with the standard library; the compilation that follows reports the real error.
+
+### Toolchain digests
+
+`compilerDigest` and the builtin Profile and Dialect versions change with these edits (`settings.py`,
+`expressions.py`, `compiler.py` and `package.py` changed); no semantic digest, evaluation, diagnostic of the
+baseline or protocol digest moved. See `docs/DIGESTS.md`.
+
 ### Fixed
 
 - `POST /bim/v1/engines/validate` and `InProcessBim.validate_engine` answer an engine document whose `spec` is not

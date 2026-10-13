@@ -40,6 +40,7 @@ def test_defaults_are_the_documented_package_limits() -> None:
     assert limits.max_entries == 256
     assert limits.max_compression_ratio == 100
     assert limits.max_path_depth == 16
+    assert limits.max_integer_bits == 1_000_000
 
 
 def test_limits_are_immutable() -> None:

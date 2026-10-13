@@ -20,7 +20,7 @@ from ._version import __version__
 from .assets import BPMN_SCHEMA_ENTRY, bpmn_vendor_root, schema_root
 from .canonical import canonical_json, digest, digest_bytes
 from .errors import CompileError, ContractError
-from .expressions import Expression, ExpressionError, compile_expression
+from .expressions import INTEGER_LIMIT_CODE, Expression, ExpressionError, compile_expression
 from .package import InstancePackage, PackageError, resource_digest
 from .toolchain import compiler_bundle_digest
 
@@ -581,6 +581,19 @@ def _finite(value: Any, pointer: str, diagnostics: list[CompileDiagnostic], reso
         diagnostics.append(_diag("nonnegative_number", "value must be non-negative", resource, pointer))
         return False
     return True
+
+
+def _valid_penalty(value: Any) -> bool:
+    """A finite, non-negative number (an integer too large for a float is not finite here)."""
+    try:
+        return (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(float(value))
+            and value >= 0
+        )
+    except OverflowError:
+        return False
 
 
 def _ref_key(ref: Mapping[str, Any]) -> tuple[str, str]:
@@ -2800,9 +2813,11 @@ def _constraints(
                     # penalties are checked authoritatively for every solution.
                     try:
                         constant = penalty.evaluate({})
-                    except ExpressionError:
+                    except ExpressionError as exc:
+                        if exc.code == INTEGER_LIMIT_CODE:
+                            raise
                         constant = None
-                    if constant is not None and (not isinstance(constant, (int, float)) or isinstance(constant, bool) or not math.isfinite(float(constant)) or constant < 0):
+                    if constant is not None and not _valid_penalty(constant):
                         diagnostics.append(_diag("soft_penalty", "soft penalty must be finite and non-negative", resource.path, pointer + "/penalty"))
                     item["penalty"] = penalty.ast
                 except ExpressionError as exc:
