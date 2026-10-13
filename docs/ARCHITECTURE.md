@@ -16,9 +16,9 @@ routes/  ──►  services/  ──►  repositories/ , integrations  ──�
 
 | Package | Role | Evidence |
 |---|---|---|
-| `routes/` | HTTP: FastAPI routers, request parsing, authentication dependencies, translation of results and refusals to responses. `main.py` is the composition root: it includes every router (`app.include_router(...)`) and starts the lifespan, which installs the pricing gate and the job reconciler | `main.py` |
+| `routes/` | HTTP: FastAPI routers, request parsing, authentication dependencies, translation of results and refusals to responses. `main.py` is the composition root: `create_app()` includes every router (`app.include_router(...)`) and the lifespan installs the pricing gate and the job reconciler, see [Composition layer](#composition-layer-create_app) | `main.py` |
 | `services/` | Use cases that are not HTTP: `execution.py` (run a persisted job), `engines.py` (Engine selection and compatibility), `snapshots.py` (compile and persist a snapshot, who may see it), `instances.py` (upload, validate, snapshot and read back a package, see [Instances and snapshots](#instances-and-snapshots)), `discovery.py` (the read-only catalog documents, see [Discovery](#discovery)), `job_submission.py` (validate, reserve and persist a job, see [Job submission](#job-submission)), `engine_registry.py` (the Engine registry, see [Engine registry](#engine-registry)), `entitlements.py` (the only reader of an account's plan, see [Entitlements](#entitlements)) | `services/*.py` |
-| `repositories/` | Database queries. At present only `jobs.py` (`get_owned`, `list_owned`, `find_retry_of`, `list_for_project`) | `repositories/jobs.py` |
+| `repositories/` | Database queries: `jobs.py` (`get_owned`, `list_owned`, `find_retry_of`, `list_for_project`) and `organizations.py`, see [Repositories](#repositories) | `repositories/*.py` |
 | Integrations | `space_client/` (the pricing gate over the SPACE client, plus a fake for tests), `sphere_client.py` (read-only pricing source), `cas.py`, `mailer.py`, `job_dispatch.py` (Dramatiq/Redis) | respective files |
 | `db/` | SQLAlchemy ORM models and session handling (`models.py`, `platform_models.py`, `artifact_models.py`, `base.py`) | `db/` |
 | `domain/` | Rules without I/O: `entitlements.py` (transport-neutral `Refusal`, e.g. `concurrency_refusal`), `idempotency.py` (request fingerprint) | `domain/*.py` |
@@ -32,6 +32,62 @@ Not every module follows the layer table yet: several top-level modules
 (`artifacts.py`, `reports.py`, `studies.py`, `study_jobs.py`, `analysis_jobs.py`,
 `collaboration.py`, `sponsor_proposals.py`, `telemetry.py`)
 mix use-case logic and persistence outside `services/` and `repositories/`.
+
+## Composition layer (`create_app`)
+
+`openbinding_gateway.main.create_app(settings=None)` builds routers, middleware,
+handlers and lifespan with no shared state. `app = create_app()` stays at the end
+of `main.py` for `uvicorn openbinding_gateway.main:app`. No engine, session, Redis
+connection or task is created at import or by `create_app`; they start in the
+lifespan.
+
+Import effects that remain:
+
+- `main.py` (module bottom): `load_environment_file()` reads `OPENBINDING_ENV_FILE`
+  or `./.env` into `os.environ` on import.
+- `main.py` (module bottom): `settings = get_settings()` caches the process
+  settings on import; `tests/test_b2_cors.py` reads `main.settings`.
+- `main.py` (`create_app`, only when called without settings):
+  `configure_logging()` replaces the root and uvicorn log handlers, so
+  `app = create_app()` does this on import.
+- `job_dispatch.py:120`: `_TIME_LIMIT_MS` calls `get_settings()` on import;
+  `main.py` imports it through the routes, before `load_environment_file()` runs,
+  so it sees `.env` values only if they are already in the process environment.
+- `security/bodylimit.py:108`: `BodyLimitMiddleware` calls `get_settings()` per
+  request, so an explicit `Settings` given to `create_app` does not set the body
+  limits.
+- `main.py` (`readiness`): the dependency uses `Depends(get_settings)`, so an
+  explicit `Settings` does not reach `/health/ready`.
+
+## Repositories
+
+`openbinding_gateway/repositories/` holds async functions that take the session,
+return ORM entities, import no FastAPI, never commit, and never decide who may do
+what.
+
+- `repositories/jobs.py`: job lookups and listings by owner, project and retry
+  origin; the owner filter is part of every query, and a missing row is reported
+  by the caller.
+- `repositories/organizations.py`: organization listing, direct memberships (one,
+  listed, locked, owner count), project listing and slug check per organization,
+  invitation lookup by token prefix, and audit events per organization; every
+  query is filtered by the organization id it is given.
+
+Queries that were left where they are, and why:
+
+- `collaboration.py`: organization/project resolution by slug or id, effective role
+  over the ancestor chain, `require_role`/`require_project`, sponsor usage and
+  capacity. They are tied to the authorization rules (role strength, public read,
+  401/403/404 choice), so they stay with the rules instead of moving into the data
+  layer.
+- `access/public_read.py`: `admit_public_project`, because the public-read grant,
+  rate limit and visibility decision are an access policy, not a lookup.
+- `routes/organizations.py`: the cascade delete of a project or organization,
+  binding cases and revisions, project resources (artifact joins and visitor
+  filtering), user and sponsor lookups through `session.get`, sponsor-wide
+  membership counts for quotas, and `select ... for update` on the sponsor row.
+  They are single-use or tied to a handler's transaction and rule, and moving them
+  would only relocate code without removing duplication.
 
 ## Entitlements
 
@@ -67,11 +123,11 @@ service existed: `routes/jobs.py:107`, `routes/artifacts.py:173` and `:199`,
 `.caps(` call is `services/entitlements.py:63`.
 
 `get_gate` is still used for the **contract lifecycle**, which is not a plan
-decision: `routes/admin.py:88` (import; calls at `:230`, `:285`, `:345`, `:394`,
-`:473`), `routes/auth.py:191`, `routes/cas.py:160`, `:306`, `:397`, `:418`,
+decision: `routes/admin.py:84` (import; calls at `:226`, `:281`, `:341`, `:390`,
+`:469`), `routes/auth.py:191`, `routes/cas.py:160`, `:306`, `:397`, `:418`,
 `routes/users.py:56` (import; calls at `:571` and `:782`),
 `access/contracts.py:57`, `job_dispatch.py:45` and `:61` (worker gate lifetime),
-`main.py:146` (lifespan). `space_client/` is the gate itself.
+`main.py:155` (lifespan). `space_client/` is the gate itself.
 
 `tests/test_architecture_layers.py` enforces it: no module but
 `services/entitlements.py` calls `.caps(...)`, and the modules allowed to reach
@@ -358,8 +414,9 @@ These are real and not scheduled; no dates are promised.
 - Four modules still import `routes` (`ALLOWED_LEGACY` above). `study_jobs.py`
   still calls `v1._create_job_core` and the pending-launch helpers through the
   router; once it calls `JobSubmission` directly it can leave the list.
-- `repositories/` holds one module; most queries are in routes and top-level
-  modules.
+- `repositories/` holds two modules (`jobs.py`, `organizations.py`); the remaining
+  queries are in routes and top-level modules, some deliberately
+  ([Repositories](#repositories)).
 - The contract lifecycle (create, novate, read the subscription, pricing token,
   remove) still calls `get_gate()` from `routes/admin.py`, `routes/auth.py`,
   `routes/cas.py`, `routes/users.py` and `access/contracts.py`

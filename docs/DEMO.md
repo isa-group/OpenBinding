@@ -4,11 +4,14 @@
 demo on one lab host. It is reached from a Mac through an SSH tunnel; the only
 thing published on the host is `127.0.0.1:18100`.
 
-**Status: nothing in this file has been run.** The file was written without a
-Docker daemon. What exists is a static check without Docker
-(`lab/tests/test_lab_compose.py`); every image build, every healthcheck, the
-user/permission settings and the whole startup order are untested. Read
-"Known limits" before the first start.
+**Status: first real start done on 2026-10-13.** With `lab_compose up` every
+service became healthy; the seed and the API smoke were run (results under
+"Seeding", "API smoke" and "Known limits"). **Not executed**: Playwright against
+the live lab, the mobile/desktop visual check, the PostgreSQL concurrency run at
+this SHA, and the lab with `DEMO_SPACE_ENABLED=true` and real contracts (SPACE
+has no service or contracts, see "SPACE status"). The lab currently runs with
+`DEMO_SPACE_ENABLED=false`: an open development gate with no real entitlements.
+A static check also exists (`lab/tests/test_lab_compose.py`).
 
 ## What runs
 
@@ -104,6 +107,17 @@ key (the frontend is built with `VITE_API_BASE_URL=/api` only).
   intended fail-closed behaviour). See `docs/qa/REMOTE_TOOLS.md`, "First real
   application".
 
+Observed remotely on 2026-10-13:
+
+- **SPACE**: healthy (healthcheck 200) but with **no services and no contracts**,
+  and it **rejected with 400** the pricing whose `createdAt` was
+  `YYYY-MM-DDTHH:mm:ssZ` ("The createdAt field must be a string in the format
+  yyyy-mm-dd or a valid Date object"). The lab therefore runs with
+  `DEMO_SPACE_ENABLED=false` until the human decides how to proceed.
+- **SPHERE**: **accepted** the private pricing `openbinding-dev` 0.1.0 (id
+  `6acda0164b2b5b01c587c19a`, `private=true` verified, `createdAt`
+  `2026-10-13T03:05:58Z`).
+
 Fixed in the file: `APP_ENV=dev`, `CAS_ENABLED=false`,
 `SPHERE_ENABLED=true`, `MAX_CONCURRENT_JOBS_PER_USER=3`,
 `CORS_ALLOW_ORIGINS=http://localhost:18100,http://127.0.0.1:18100`,
@@ -133,6 +147,9 @@ gateway logs a warning at startup. Do not copy this to a real deployment.
 3. `seed`: `docker compose run --rm --no-deps seed`. Runs
    `python tools/${DEMO_SEED_TOOL} ${DEMO_SEED_ARGS}` in the gateway image with
    the gateway's environment (minus the session secret and BIM; see below).
+   **`lab_compose seed` uses the environment saved by the last `up`; an
+   environment passed to `seed` itself is ignored.** To change `DEMO_SEED_TOOL` or
+   `DEMO_SEED_ARGS`, repeat `up` with the new values and then run `seed`.
 4. `status` / `logs`: look at `web`, `gateway`, `worker` first.
 5. `down` removes containers and the network and **keeps the named volumes**
    (`lab-pg`, `lab-redis`, `lab-artifacts`), so data survives a restart. Only
@@ -188,7 +205,9 @@ least 10 characters). It is not documented here and has no default. Emails are
 
 Data: organizations `lab-main` (sponsor `lab-owner`) and `lab-other`; project
 `lab-main/bim-demo` (private) with case `simple-seq`, built from
-`examples/demo/01_simple_seq`. The seed launches no jobs. With `SPACE_ENABLED=true`
+`examples/demo/01_simple_seq`. The seed launches no jobs. Observed with
+`seed_lab.py --verbose`: 6 users, 2 organizations, 1 project, 1 case with 3
+artifacts and 6 API keys. With `SPACE_ENABLED=true`
 the users also need a contract on the development service
 (`DEMO_SEED_ARGS='--space-contracts'`, see `docs/qa/REMOTE_TOOLS.md`).
 
@@ -243,10 +262,20 @@ has a job the viewer can read); it never registers users and never touches
 SPACE or SPHERE. Running it again within five minutes finds the login throttle
 already tripped for its probe user, which still counts as a pass. What it does
 not cover (browser, Playwright, the visual mobile/desktop check) and the
-assumptions of its first run are in `docs/qa/E2E_PLAN.md`. First real run: `proxy_and_spa`,
-`cors`, `body_limit` and `login_throttle` passed; the rest were blocked by SPACE having no
-contracts for the synthetic users (503 `pricing_unavailable`) or refused for a job
-body without `optimization` (422, fixed); see that file.
+assumptions of its first run are in `docs/qa/E2E_PLAN.md`.
+
+**First complete run (2026-10-13, `DEMO_SPACE_ENABLED=false`, without
+`--with-space`): 8 of 9 steps passed.** Passed: `proxy_and_spa`, `login`,
+`owner_job` (a real `random-search` job with the gateway's authoritative
+reevaluation), `idempotency`, `concurrency_limit` (429), `cors`, `body_limit` and
+`login_throttle`. The ninth, `authorization` ("viewer cannot launch"), failed
+because of a wrong expectation in the smoke: `POST /v1/jobs` is personal work, so
+a viewer can launch on their own snapshot. The expectation is corrected in
+`smoke_lab.py` (as described in the table above); that corrected step has not
+been re-run since in a full run recorded here. `plan_usage` needs `--with-space`
+and was **not executed**. An earlier attempt had been blocked by SPACE having no
+contracts (503 `pricing_unavailable`) and by a job body without `optimization`
+(422, fixed).
 
 ## Mobile and desktop check
 
@@ -260,9 +289,12 @@ In the browser on the Mac (DevTools, device toolbar):
 Reload with the cache disabled after a rebuild: `index.html` is served with
 `no-cache`, hashed assets for a year.
 
-## Checks for the first start (not done)
+## Checks for the first start
 
-Everything here is a hypothesis until it is observed.
+These were the checks written before the first start. On 2026-10-13 every
+service came up healthy; the only cause of a failure found was the `web` item
+below (item 2). The other items were not individually recorded and remain a
+diagnostic guide, not a list of verified results.
 
 1. **Volume ownership.** `postgres` and `redis` run as explicit users
    (`70:70`, `999:1000`) because the supervisor drops every capability and the
@@ -289,7 +321,8 @@ Everything here is a hypothesis until it is observed.
    Look at `logs web` for
    `Permission denied`, `setgid`/`setuid`, or `open() "/run/nginx.pid" failed`.
 
-   **The configuration is baked into the image, not bind-mounted.** The
+   **Observed cause of the unhealthy `web`:** the configuration bind mount was
+   empty for uid 101 under rootless docker. **The configuration is baked into the image, not bind-mounted.** The
    `lab` stage of `frontend/Dockerfile` (`FROM prod AS lab`) copies
    `frontend/nginx.lab.conf` over `/etc/nginx/conf.d/default.conf`; `prod`,
    which Kubernetes uses, is unchanged. An earlier version bind-mounted
@@ -343,12 +376,18 @@ Everything here is a hypothesis until it is observed.
 
 ## Known limits
 
-- Nothing was run: no build, no start, no healthcheck. The static test checks the
-  file against the validator's rules as described to me, not against the
-  validator itself.
-- `user` on `postgres`, `redis` and `web`, the `tmpfs` mounts of `web`, and
-  `entrypoint: []` on `worker` are not in the list of keys `lab_compose` is
-  known to refuse, but the validator has not been run against this file either.
+- Observed on 2026-10-13: build and `lab_compose up` completed with every
+  service healthy, so the validator accepted the file, including `user` on
+  `postgres`, `redis` and `web`, the `tmpfs` mounts of `web` and
+  `entrypoint: []` on `worker`. The `web` failure on the way was the empty
+  configuration bind mount (now baked into the `lab` target).
+- Not executed: Playwright against the live lab, the mobile/desktop visual check,
+  the PostgreSQL concurrency run at this SHA, and SPACE enabled with real
+  contracts (SPACE has no service or contracts and rejects the pricing
+  `createdAt` format; see "SPACE status"). `DEMO_SPACE_ENABLED=false` gives no
+  real entitlements.
+- `lab_compose seed` ignores the environment passed to it and uses the one saved
+  by the last `up`.
 - The proxy-header trust list covers the three private ranges Docker allocates
   networks from, because the address of `web` is not known in advance. The
   gateway is only reachable from the compose network, so those are its only
