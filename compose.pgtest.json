@@ -57,6 +57,7 @@
     "seed": {
       "profiles": ["seed"],
       "image": "openbinding-pgtest-gateway:latest",
+      "user": "0:0",
       "entrypoint": [],
       "working_dir": "/app",
       "command": [

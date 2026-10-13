@@ -4,23 +4,42 @@
 and partial unique indexes, which SQLite does not exercise. Without
 `TEST_DATABASE_URL` they are skipped.
 
-**Status: executed on a real PostgreSQL 16 on 2026-10-13, at SHA `5aebc7c8`.**
-Run with `lab_compose` (`compose.pgtest.json`,
-`DEMO_PYTEST_ARGS='-rfE --tb=short tests/concurrency'`): **45 passed, 26
-skipped** in 11 s. The passing tests cover leases, job publication, idempotency,
-study cancellation, sweep versus cancellation, study cells and a two-session
-smoke test. The 26 skipped tests are all in `test_pg_harness.py`; see
-[Why 26 tests are skipped](#why-26-tests-are-skipped). `lab_compose` accepted the file. Only that one run
-is recorded: no repeat runs, no timing statistics, no run on another SHA.
+**Status: executed once on a real PostgreSQL 16 on 2026-10-13, at SHA `5aebc7c8`:**
+`lab_compose` (`compose.pgtest.json`, `DEMO_PYTEST_ARGS='-rfE --tb=short tests/concurrency'`)
+gave **45 passed, 26 skipped** in 11 s. The 26 skips were the compose-shape tests, which could not
+find `compose.pgtest.json` inside the image. **That is fixed in the repository, but the fixed harness
+has not been run in the lab yet**: the numbers under [Expected results](#expected-results) are
+derived from the code and the ordinary-suite run, not observed in a container. No repeat runs, no
+timing statistics.
+
+What changed after that run:
+
+- The compose-shape tests moved from `tests/concurrency/test_pg_harness.py` to
+  `tests/test_pg_harness.py`, the ordinary gateway suite, where the checkout and the file exist.
+  They are not skipped any more (see [Compose-shape tests](#compose-shape-tests)).
+- `seed` runs as `user: "0:0"` so it can read the bind-mounted tests (see
+  [Why the seed runs as root](#why-the-seed-runs-as-root)).
 
 ## Running
 
 ### lab_compose
 
-Submit `compose.pgtest.json` (repository root) as the Compose file. The
-supervisor's `up` starts `postgres` and `image-builder`; the tests run as the `seed` service
-(`docker compose run --rm --no-deps seed`), the same pattern as
-`compose.lab.json`:
+Submit `compose.pgtest.json` (repository root) as the Compose file (`file=compose.pgtest.json`)
+with the environment variable `DEMO_PYTEST_ARGS`. The supervisor's `up` starts `postgres` and
+`image-builder`; the tests run as the `seed` service (`docker compose run --rm --no-deps seed`),
+the same pattern as `compose.lab.json`.
+
+Exact sequence:
+
+1. `lab_compose` with `file=compose.pgtest.json`, action `up` (builds the image, starts
+   `postgres`, waits until it is healthy; `seed` is behind a profile and does not start).
+2. `lab_compose` with `file=compose.pgtest.json`, running `seed`, with
+   `environment: {"DEMO_PYTEST_ARGS": "-rfE --tb=short tests/concurrency"}`. Use `-rsfE`
+   instead to print skip reasons. The exit code of the service is pytest's.
+3. `lab_compose` with `file=compose.pgtest.json`, `down` (the data is in a tmpfs; nothing to
+   remove).
+
+Services:
 
 - `postgres`: `postgres:16-alpine`, running as `user: "70:70"` (every capability
   is dropped, so the root entrypoint cannot `chown`), `PGDATA` the `pgdata`
@@ -40,7 +59,7 @@ supervisor's `up` starts `postgres` and `image-builder`; the tests run as the `s
   existing image: a `seed` with its own `build` ran stale code (missing new
   modules and migrations). Sharing the image makes every `up` refresh it.
 - `seed` (`profiles: ["seed"]`, so `up` does not start it): `image:
-  openbinding-pgtest-gateway:latest`, no `build`. It runs `alembic upgrade head`,
+  openbinding-pgtest-gateway:latest`, no `build`, `user: "0:0"`. It runs `alembic upgrade head`,
   then `pytest -p no:cacheprovider $DEMO_PYTEST_ARGS`; the container exit
   code is pytest's. The arguments come from the `DEMO_PYTEST_ARGS` variable,
   declared in the service `environment` as `"${DEMO_PYTEST_ARGS}"` (Compose
@@ -50,7 +69,7 @@ supervisor's `up` starts `postgres` and `image-builder`; the tests run as the `s
   service_healthy` for a plain `run`; with `--no-deps` the wait is done by `up`.
 
 Format rules of lab_compose that the file follows (checked by
-`test_pg_harness.py`, without Docker):
+`openbinding-gateway/tests/test_pg_harness.py`, without Docker):
 
 - No top-level `networks` or `volumes` (they would only admit `labels`), no
   `networks` on services: all services use the Compose-managed default network
@@ -65,9 +84,34 @@ Format rules of lab_compose that the file follows (checked by
   read-only.
 - None of `container_name`, `env_file`, `secrets`, `configs`, `cap_add`,
   `privileged`, `deploy`, `extends`. `mem_limit` is an integer with `m` or `g`;
-  the limits sum to 1216 MiB (lab ceiling: 4 GiB, harness test: 1.5 GiB).
+  the limits sum to 1216 MiB (384 + 64 + 768; lab ceiling: 4 GiB, harness test: 1.3 GiB =
+  1331 MiB). The `user` change adds no memory.
 
-Mounts: the runner image already contains `src`, `alembic`, `alembic.ini`,
+### Why the seed runs as root
+
+The gateway image ends on `USER 10001:10001`. Under rootless Docker that uid can be refused on a
+bind-mounted directory of the host checkout (`Permission denied`, which is how the lab `seed`
+failed on `tools/`; that case was fixed by `COPY tools/` into the image). The tests are still
+bind-mounted here, so the options were:
+
+1. A test stage in the Dockerfile that copies `tests/` (the lab's own fix). It keeps the
+   production image untouched and needs no root, and it is the better long-term answer. It was
+   **not done**: `openbinding-gateway/Dockerfile` is outside the file scope of this change.
+   Pending, see below.
+2. Copy the tests into the production image: rejected, it thickens that image.
+3. `user: "0:0"` on `seed` only: chosen. In a rootless container uid 0 is the host user that owns
+   the checkout, so the bind is read as its owner, without any capability (the supervisor drops
+   them all). The container is ephemeral and tests-only: the bind is read-only, nothing is
+   published, there is no `cap_add`, `privileged` or socket, and the only network is the private
+   Compose one, where it reaches the test database. `postgres` (70:70) and `image-builder`
+   (65534:65534) stay non-root, and `tests/test_pg_harness.py` pins both facts.
+
+If the Dockerfile gets a `test` stage, set `target` on `image-builder`, drop the bind mount and
+the `user`, and update the tests.
+
+### Mounts
+
+The runner image already contains `src`, `alembic`, `alembic.ini`,
 `schemas`, `examples` and `space/pricing/openbinding.yml` (see the Dockerfile),
 but not the tests, so the only mount is `./openbinding-gateway/tests` on
 `/app/tests` (bind, read-only); the image is enough otherwise (no further mount
@@ -119,36 +163,46 @@ Do not point other suites (`db_session` in `tests/conftest.py`) at this URL:
 that fixture still uses `drop_all/create_all` and would remove the migrated
 schema.
 
-## Why 26 tests are skipped
+## Compose-shape tests
 
-Read from the code on 2026-10-13 (the run's output was not kept, and `-rfE` does not
-list skips, so this is derived, not observed).
+Diagnosis of the 26 skips of the 2026-10-13 run (derived from the code; `-rfE` does not print
+skip reasons): the old `compose` fixture in `tests/concurrency/test_pg_harness.py` called
+`pytest.skip("compose.pgtest.json not found under ...")` when `REPO_ROOT / "compose.pgtest.json"`
+was not a file. In the `seed` container `REPO_ROOT` (`tests/_repo.py`, with
+`OPENBINDING_REPO_ROOT=/app`) is `/app`, which has `schemas` and `examples` but not the compose
+file. 18 plain tests + 8 for `test_compose_services_use_no_forbidden_key` (one per key) = 26.
 
-- `openbinding-gateway/tests/concurrency/test_pg_harness.py:46-50`: the module
-  fixture `compose` calls `pytest.skip(f"compose.pgtest.json not found under
-  {REPO_ROOT}")` (line 49) when `REPO_ROOT / "compose.pgtest.json"` (line 19) is not
-  a file.
-- `REPO_ROOT` comes from `openbinding-gateway/tests/_repo.py:9-21`: the first of
-  `parents[2]`, `parents[1]` of the test file that contains `schemas/bim/v1` and
-  `examples`. Inside the `seed` container the tests are mounted at `/app/tests`
-  (`compose.pgtest.json:80-81`) and the image carries `schemas` and `examples` but
-  not `compose.pgtest.json`, so `REPO_ROOT` resolves to `/app` and the file is
-  absent.
-- Tests that request `compose`: 18 plain tests plus `test_compose_services_use_no_forbidden_key`
-  (line 156-157), parametrized over 8 keys. 18 + 8 = **26**, which matches the
-  count. The remaining 15 tests of the file (the URL guard, lines 53-108) do not
-  use `compose` and passed. `test_seed_uses_the_gateway_dockerfile` also has its own
-  skip (line 236-237, no `docker-compose.yml`), which is never reached here.
+Fix: these static checks do not need a database, so they run where the file exists, in the
+ordinary gateway suite, instead of mounting the compose file into the container.
 
-So the skips are not the `TEST_DATABASE_URL` guard: the variable was set and valid
-(the other 45 tests used PostgreSQL). They are the static checks of the shape of
-`compose.pgtest.json`, which need a repository checkout.
+- `openbinding-gateway/tests/test_pg_harness.py` holds the shape tests: 28 tests (the 26 plus two
+  new ones that pin the seed's single `tests` bind and the root/non-root users).
+- A missing `compose.pgtest.json` **fails** them. The only way to skip is the explicit variable
+  `OPENBINDING_SKIP_COMPOSE_SHAPE=1`, which also covers the missing `docker-compose.yml` of
+  `test_seed_uses_the_gateway_dockerfile`. Nothing in the harness sets it.
+- Do not put `tests/test_pg_harness.py` (or the whole `tests`) in `DEMO_PYTEST_ARGS`: the container
+  has no checkout, so they would fail by design. The default `tests/concurrency` does not collect them.
+- `tests/concurrency/test_pg_harness.py` now holds only the 15 URL-guard tests (they need no
+  checkout and run in the container). `tests/concurrency/test_pg_guard.py` asserts that no file
+  there skips except through `_two_sessions.py` (missing `TEST_DATABASE_URL`).
 
-Coverage gap: none of the PostgreSQL behaviour is hidden. But these 26 checks do
-**not run in the lab PostgreSQL run**; they run only in an ordinary checkout. Whether
-they pass in a checkout at this SHA was **not measured here**; this update did not
-run `tests/concurrency`. To run them in the lab run, mount `compose.pgtest.json`
-(or set `OPENBINDING_REPO_ROOT` to a tree that has it): pending.
+## Expected results
+
+Derived, not observed in a container. The ordinary-suite run (no `TEST_DATABASE_URL`) of
+`tests/concurrency tests/test_pg_harness.py ../lab/tests` gave **118 passed, 30 skipped**
+(the 30 are the PostgreSQL tests, skipped only for the missing `TEST_DATABASE_URL`; no
+compose-shape test is skipped).
+
+In the lab (`DEMO_PYTEST_ARGS='-rfE --tb=short tests/concurrency'`), with a working PostgreSQL:
+
+- **46 passed, 0 skipped**: the 45 that passed on 2026-10-13 (30 PostgreSQL tests and the 15
+  guard tests) plus the one in `test_pg_guard.py`. The 30 count assumes the 30 skipped above
+  are exactly the ones that ran; it is the same set.
+- Exit code 0. Any `SKIPPED` in this run is a defect (use `-rsfE` to see them).
+- If `seed` shows `Permission denied` on `/app/tests`, the `user: "0:0"` did not take effect
+  or the runtime refuses even the bind owner: report it, do not add capabilities.
+
+Not yet run: the whole sequence above in the lab, on this change.
 
 ## What it validates
 
@@ -174,8 +228,10 @@ The earlier "expected failures" did not occur in the 2026-10-13 run (the bind
 mount and the structured `tmpfs` volume were accepted, seed data inserted, the
 postgres data directory started). What remains unknown:
 
-- Whether the skip reason given below is exactly what happened: it is derived from
-  the code, and the run used `-rfE`, which does not print skip reasons (`-rs`).
+- Whether the skip reason described under Compose-shape tests is exactly what happened: it
+  is derived from the code, and the run used `-rfE`, which does not print skip reasons (`-rs`).
+- Whether `user: "0:0"` reads the bind on the lab runtime (see Why the seed runs as root), and
+  the Dockerfile `test` stage that would replace it.
 - Timing assertions (`wait_for(..., timeout=10)`, `sleep(0.2/0.5)`) on a loaded
   host: the run took 11 s on one host; no other load was measured.
 - `tmpfs` ownership for the postgres data directory on other runtimes (mitigated
