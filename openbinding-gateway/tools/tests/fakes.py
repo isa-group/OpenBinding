@@ -37,6 +37,7 @@ def pricing_yaml(
     version: str = "1.0.0",
     created: str | None = "2026-09-01T10:00:00Z",
     cu: bool = False,
+    counters: bool = False,
     quote: str = "'",
     crlf: bool = False,
 ) -> bytes:
@@ -44,6 +45,12 @@ def pricing_yaml(
     capacity = (
         "  capacityUnits:\n    valueType: NUMERIC\n    defaultValue: 10\n    unit: CU\n" if cu else ""
     )
+    if counters:  # class B: monthly usage counters, no credits
+        capacity += (
+            "  taskStarts:\n    valueType: NUMERIC\n    defaultValue: 50\n    unit: task\n"
+            "  solverSeconds:\n    valueType: NUMERIC\n    defaultValue: 600\n    unit: second\n"
+            "  concurrentJobs:\n    valueType: NUMERIC\n    defaultValue: 2\n    unit: job\n"
+        )
     text = (
         "# synthetic test pricing\n"
         "syntaxVersion: '3.1'\n"

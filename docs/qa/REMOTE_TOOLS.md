@@ -4,7 +4,7 @@ Four tools in `openbinding-gateway/tools/`, with shared code in `_remote_common.
 
 | Tool | Writes | What it does |
 |---|---|---|
-| `remote_probe.py` | nothing (GET only) | One JSON report of the organizations in SPACE and SPHERE, and the newest pricing version without capacity units (CU). |
+| `remote_probe.py` | nothing (GET only) | One JSON report of the organizations in SPACE and SPHERE, and the newest pricing version without credits/CU (class A) and the newest one also without usage counters (class B). |
 | `remote_provision.py` | `--apply` only | Uploads **one private development pricing `0.1.0`** to SPHERE and SPACE, behind explicit guards. |
 | `seed_lab.py` | local database (+ SPACE contracts only with `--space-contracts`) | Idempotent synthetic demo data with the real roles. |
 
@@ -83,8 +83,37 @@ DEMO_SEED_PASSWORD=... python tools/seed_lab.py --print-keys          # also pri
 DEMO_SEED_PASSWORD=... SPACE_DEV_SERVICE_NAME=... SPACE_DEV_PLAN=... python tools/seed_lab.py --space-contracts
 ```
 
-The base arguments come from the probe's `candidates.mostRecentWithoutCu` (`slug`, `version`, `digest`); the
-production names are the ones the probe shows for the organization's real pricing/service.
+The base arguments come from the probe's `candidates.mostRecentWithoutCu` (`slug`, `version`, `digest`; in
+`--summary` mode `candidates.latestWithoutCu`); the production names are the ones the probe shows for the
+organization's real pricing/service. If that base declares usage counters (class B, see below) add
+`--accept-usage-counters` to both the plan and the apply command.
+
+## Two classes of findings: A (credits/CU) and B (usage counters)
+
+The human decision is to retire the *currency* (credits, CU, capacity) and the monthly counters from the
+OpenBinding system (already done in the code). For the **remote development pricing** the base is "the most
+recent remote version without CU". The scan therefore separates two classes, and every finding carries
+`"class": "A"` or `"B"`:
+
+| Class | What it is | Matches |
+|---|---|---|
+| **A** credits / CU | a currency of capacity | a key `capacityUnits` anywhere (case and separator insensitive: `capacity_units`, `CapacityUnits`); a usage limit (top level, plan limits, add-on extensions) whose name or unit suggests credits (word `credit(s)`), CU (word `cu`) or capacity/compute units; a feature expression that references any of those names |
+| **B** usage counters | a monthly allowance of work | keys `taskStarts`, `solverSeconds`, `federatedTaskStarts`, `concurrentJobs`, `studyRuns` anywhere (same insensitivity); a usage limit whose name or unit combines `solver` with a time word (second/minute/hour/time/duration); a feature expression that references any of those names |
+
+When a name could be both (a counter limit measured in `CU`), class A is checked first and a class A finding is
+added; the key itself is still reported as class B. Description text is never scanned.
+
+Scan result: `hasCu` (any A), `hasUsageCounters` (any B), `cuCount`, `counterCount`, `findings`
+(`kind`, `class`, `path`, `name`, `unit`), `status`: `cu` (any A, whatever B), `counters` (only B), `clean`, or
+`unparsed` (never clean; `hasCu`/`hasUsageCounters` are `null`).
+
+**Observed fact in the real SPHERE** (organization `openbinding`, slug `openbinding`, 7 versions: `0.1.0`,
+`0.1.1`, `0.1.1-draft.1` [private], `0.1.2`, `0.1.3`, `0.1.4`, `0.1.5`) from the first probe: none contains
+`capacityUnits`, but all declare the usage counters `concurrentJobs`, `federatedTaskStarts`, `solverSeconds`,
+`studyRuns` and `taskStarts` (33 findings per version). With the old single-class rule that gave
+`candidates.latestWithoutCu = null`. With the two classes, `latestWithoutCu` is the newest of those versions
+(class B does not exclude it) and `latestWithoutUsageCounters` is `null` (probably, until a version without
+counters exists).
 
 ## remote_probe.py
 
@@ -102,8 +131,10 @@ Single JSON document on stdout, sections:
   and the names of the usage limits (`limitNames`, `planLimitNames`). No YAML body is printed.
 - `capabilities`: each read call with its status and verdict (`allowed`/`unauthorized`/`forbidden`/
   `not-found`/`unreachable`/`error`), and `denied` (401/403). Write scope cannot be observed without writing.
-- `candidates`: `mostRecentWithoutCu` with `why`; `ranking` (top 5); `excluded` (with CU, unreadable, not
-  downloadable); `ambiguous` if another version ties on `createdAt` and version order.
+- `candidates`: `mostRecentWithoutCu` (no class A; class B does not exclude) with `why`; `ranking` (top 5);
+  `excluded` (`has-cu`, `yaml-unparsed`, `yaml-not-downloadable`); `ambiguous` if another version ties on
+  `createdAt` and version order. `candidates.withoutUsageCounters` has the same fields for the stricter rule (no
+  A and no B; its head is `mostRecent`, `null` when none; extra exclusion reason `has-usage-counters`).
 
 **Compact mode** `--summary` (for runners that keep only the last ~5000 characters of output; lab command:
 `DEMO_SEED_TOOL=remote_probe.py DEMO_SEED_ARGS=--summary`). The full report goes to **stderr**; the **last line
@@ -111,26 +142,27 @@ of stdout** is one JSON line without indentation (under 4000 characters for a fe
 
 - `sphere.orgs`: `[name, maskedId, isConfigured]`; `sphere.pricings.<slug>`: `saasName` (the most common one),
   `versions` sorted by `createdAt` then version, each `[version, private(bool|null), createdAt as text,
-  kind(date|datetime|other|missing), hasCu(bool|null), number of CU findings, digest (12 hex), saasName]` where
-  the last item is `null` when it equals the pricing's `saasName` (to stay short); `status`/`total` appear only
-  when the call was not 200 or versions were cut by `--max-versions`.
+  kind(date|datetime|other|missing), hasCu(bool|null), number of class A findings, hasCounters(bool|null),
+  number of class B findings, digest (12 hex), saasName]` where the last item is `null` when it equals the
+  pricing's `saasName` (to stay short); `status`/`total` appear only when the call was not 200 or versions were
+  cut by `--max-versions`.
 - `space.health` `[ok, status]`; `space.services` `[name, maskedId, versionCount, {status: [versions]}]`.
-- `denied`: `[service, call, status]` for 401/403; `cuNames`: CU counter names found in any version; `errors`:
-  failed sections.
-- `candidates.latestWithoutCu` `[slug, version, createdAt, digest12]` or `null`, with `candidates.reason`.
+- `denied`: `[service, call, status]` for 401/403; `cuNames`: names of class A findings found in any version;
+  `counterNames`: names of class B findings found in any version; `errors`: failed sections.
+- `candidates.latestWithoutCu` and `candidates.latestWithoutUsageCounters`, each `[slug, version, createdAt,
+  digest12]` or `null`, with their reasons `candidates.reason` and `candidates.reasonCounters`.
 
-Keys, headers and YAML bodies are never included. Without `--summary` the output is unchanged.
+Keys, headers and YAML bodies are never included. Without `--summary` the output is unchanged in structure
+(plus the class fields above). The summary stays under 4000 characters for about 30 versions (the real remote
+has 7); the test asserts that with every version carrying both classes.
 
-Candidate criterion: latest YAML `createdAt` (a date means 00:00:00Z) among versions whose scan is `clean`;
-ties by numeric dotted version order. A document that cannot be parsed is never considered clean.
+Candidate criteria: latest YAML `createdAt` (a date means 00:00:00Z) among versions without class A
+(`mostRecentWithoutCu`) or without A and B (`withoutUsageCounters`); ties by numeric dotted version order. A
+document that cannot be parsed is never eligible.
 
-**CU scan** (`scan_cu`, deterministic): flags (a) any key named `capacityUnits`, `taskStarts`, `solverSeconds`,
-`federatedTaskStarts`, `concurrentJobs` or `studyRuns` anywhere in the document (case/separator-insensitive),
-(b) any usage limit (top level, plan limits, add-on extensions) whose name or unit suggests credits, CU/capacity
-units, or solver time (words credit(s), `cu`, capacity+unit, compute+unit, solver together with second/minute/
-hour/time), and (c) feature expressions that reference a forbidden counter. Description text is not scanned.
-Note that the repository's own test fixture `tests/fixtures/pricing_test.yml` declares `concurrentJobs`, so it
-is flagged; that is correct for this scan.
+**Scan** (`scan_cu`, deterministic): see "Two classes of findings" above. Note that the repository's own test
+fixture `tests/fixtures/pricing_test.yml` declares `concurrentJobs`, so it has class B findings; that is
+correct for this scan.
 
 ## remote_provision.py
 
@@ -148,12 +180,20 @@ All identifying arguments are required, in both modes. `--plan` (default) perfor
 | `sphere-organization-identified`: `GET /orgs/{id}` works (name printed) and reports that id | — |
 | `space-organization-identified`: healthcheck + `GET /services` work and no service belongs to another organization | services of another organization |
 | `production-slug-identified`, `production-service-identified`: they exist remotely | missing slug / service |
-| `base-version-found` (exactly once), `base-digest-matches` (digest of the re-downloaded YAML equals `--base-digest`), `base-has-no-cu` (re-scan) | missing version, digest mismatch, CU present, unreadable base |
+| `base-version-found` (exactly once), `base-digest-matches` (digest of the re-downloaded YAML equals `--base-digest`), `base-has-no-cu` (re-scan; fails only on **class A** or an unreadable base) | missing version, digest mismatch, CU present, unreadable base |
+| `base-usage-counters`: if the base has **class B** findings it needs `--accept-usage-counters` | counters without the flag (exit 2), with the flag (OK), flag with a CU base (still refused by `base-has-no-cu`) |
 | `dev-slug-state-known`, `dev-service-state-known`: absence/presence could be established | 500 answers |
 | collision: the dev slug has **any** version in SPHERE, or the dev service exists in SPACE | exit 3 with identity (`has010`, `private`, SPHERE `digest`) |
-| `dev-yaml-built`: only `version`, `createdAt`, `saasName` differ from the base, and the result scans clean | unparsable/duplicate-key bases |
+| `dev-yaml-built`: only `version`, `createdAt`, `saasName` differ from the base, the result has no class A finding and exactly the base's class B findings | unparsable/duplicate-key bases |
 
 Static guards run before any network call. Exit 3 is used only when the sole problem is a collision.
+
+**Usage counters (`--accept-usage-counters`).** Without the flag, a base with class B findings exits `2`; the
+guard detail and `outcome.reason` list the counter names and say to rerun with the flag or choose another
+base. With the flag the guard passes, `plan.usageCounters` is `{"status": "accepted", "names": [...]}`
+(`"none"` for a base without counters, `"refused"` when blocked) and the development YAML keeps the base
+content: only `version`, `createdAt` and `saasName` change, **no counter is removed**. The flag never excuses
+class A. `arguments.acceptUsageCounters` echoes it.
 
 ### The YAML (`build_dev_yaml`)
 
@@ -233,10 +273,11 @@ Contract and user ids are the stable UUIDv5s, so they cannot collide with real a
 cd openbinding-gateway && uv run --locked pytest tools/tests
 ```
 
-`test_remote_common.py` (environment, redaction, createdAt, digests, CU scan, tolerant parsers),
-`test_remote_probe.py` (simulated organizations, denied/unreachable/malformed answers, candidate ordering),
-`test_remote_provision.py` (plan, apply, one negative test per guard, collisions, createdAt rejection without
-retry, YAML builder), `test_redaction.py` (the synthetic keys never reach stdout, stderr, logs, exceptions or
+`test_remote_common.py` (environment, redaction, createdAt, digests, class A/B scan, tolerant parsers),
+`test_remote_probe.py` (simulated organizations, denied/unreachable/malformed answers, candidate ordering for
+both lists, summary size),
+`test_remote_provision.py` (plan, apply, one negative test per guard, class A base refused, class B base refused
+without the flag and accepted with it, collisions, createdAt rejection without retry, YAML builder), `test_redaction.py` (the synthetic keys never reach stdout, stderr, logs, exceptions or
 tracebacks even when the simulated remote echoes them), `test_seed_lab.py` (SQLite in memory, real roles,
 idempotence, SPACE contracts against a simulated SPACE). No test uses the network.
 

@@ -157,49 +157,85 @@ def test_scan_is_clean_for_functional_limits():
     assert result["limitNames"] == ["maxIterations"] and result["planLimitNames"] == ["maxIterations"]
 
 
-def test_scan_flags_a_capacity_counter_everywhere_it_appears():
+def test_scan_flags_a_capacity_counter_as_class_a_everywhere_it_appears():
     result = common.scan_cu(pricing_yaml(cu=True))
-    assert result["status"] == "cu" and result["hasCu"] is True
+    assert result["status"] == "cu" and result["hasCu"] is True and result["hasUsageCounters"] is False
     assert {item["name"] for item in result["findings"]} == {"capacityUnits"}
+    assert {item["class"] for item in result["findings"]} == {"A"}
+    assert (result["cuCount"], result["counterCount"]) == (len(result["findings"]), 0)
     assert "capacityUnits" in result["limitNames"]
 
 
-@pytest.mark.parametrize("counter", list(common.FORBIDDEN_COUNTERS))
-def test_every_forbidden_counter_is_detected_even_when_spelled_differently(counter):
+def test_usage_counters_alone_are_class_b_and_not_cu():
+    result = common.scan_cu(pricing_yaml(counters=True))
+    assert (result["status"], result["hasCu"], result["hasUsageCounters"]) == ("counters", False, True)
+    assert {item["class"] for item in result["findings"]} == {"B"}
+    assert common.finding_names(result, "B") == ["concurrentJobs", "solverSeconds", "taskStarts"]
+    assert common.finding_names(result, "A") == []
+    assert result["cuCount"] == 0 and result["counterCount"] == len(result["findings"]) > 0
+
+
+def test_both_classes_in_one_document_are_reported_separately_and_status_is_cu():
+    result = common.scan_cu(pricing_yaml(cu=True, counters=True))
+    assert (result["status"], result["hasCu"], result["hasUsageCounters"]) == ("cu", True, True)
+    assert common.finding_names(result, "A") == ["capacityUnits"]
+    assert "taskStarts" in common.finding_names(result, "B")
+
+
+@pytest.mark.parametrize("counter", list(common.CU_COUNTERS))
+def test_capacity_units_key_is_class_a_even_when_spelled_differently(counter):
+    for spelled in (counter, counter.lower(), "capacity_units", "Capacity-Units", counter[0].upper() + counter[1:]):
+        result = common.scan_cu({"usageLimits": {spelled: {"unit": "x"}}})
+        assert (result["hasCu"], result["hasUsageCounters"]) == (True, False), spelled
+        assert (result["findings"][0]["kind"], result["findings"][0]["class"]) == ("counter-key", "A")
+
+
+@pytest.mark.parametrize("counter", list(common.USAGE_COUNTERS))
+def test_every_usage_counter_is_class_b_even_when_spelled_differently(counter):
     for spelled in (counter, counter.lower(), counter[0].upper() + counter[1:]):
-        document = {"usageLimits": {spelled: {"unit": "x"}}}
-        result = common.scan_cu(document)
-        assert result["hasCu"] is True, spelled
-        assert result["findings"][0]["kind"] == "forbidden-counter"
+        result = common.scan_cu({"usageLimits": {spelled: {"unit": "x"}}})
+        assert (result["hasCu"], result["hasUsageCounters"]) == (False, True), spelled
+        assert (result["findings"][0]["kind"], result["findings"][0]["class"]) == ("counter-key", "B")
 
 
 @pytest.mark.parametrize(
-    "name, unit, kind",
+    "name, unit, kind, finding_class",
     [
-        ("monthlyCredits", "credit", "credit-like"),
-        ("budget", "Credits", "credit-like"),
-        ("compute", "CU", "capacity-unit-like"),
-        ("pool", "capacity units", "capacity-unit-like"),
-        ("quota", "solver seconds", "solver-time-like"),
-        ("solverTime", "minute", "solver-time-like"),
+        ("monthlyCredits", "credit", "credit-like", "A"),
+        ("budget", "Credits", "credit-like", "A"),
+        ("compute", "CU", "capacity-unit-like", "A"),
+        ("pool", "capacity units", "capacity-unit-like", "A"),
+        ("quota", "solver seconds", "solver-time-like", "B"),
+        ("solverTime", "minute", "solver-time-like", "B"),
     ],
 )
-def test_limits_whose_name_or_unit_suggest_credits_cu_or_solver_time_are_flagged(name, unit, kind):
+def test_limits_whose_name_or_unit_suggest_credits_cu_or_solver_time_are_classified(name, unit, kind, finding_class):
     result = common.scan_cu({"usageLimits": {name: {"unit": unit}}})
-    assert [item["kind"] for item in result["findings"]] == [kind]
+    assert [(item["kind"], item["class"]) for item in result["findings"]] == [(kind, finding_class)]
+
+
+def test_a_counter_limit_measured_in_cu_is_also_class_a():
+    result = common.scan_cu({"usageLimits": {"taskStarts": {"unit": "CU"}}})
+    assert result["hasCu"] is True and result["hasUsageCounters"] is True
 
 
 def test_scan_flags_plan_limits_addon_extensions_and_expression_references():
     document = {
-        "features": {"solve": {"expression": "subscriptionContext['studyRuns'] < pricingContext['usageLimits']['maxIterations']"}},
+        "features": {
+            "solve": {"expression": "subscriptionContext['studyRuns'] < pricingContext['usageLimits']['maxIterations']"},
+            "bill": {"expression": "subscriptionContext['capacityUnits'] > 0"},
+            "pay": {"expression": "pricingContext['usageLimits']['extraCredits'] > 0"},
+        },
         "usageLimits": {"maxIterations": {"unit": "iteration"}},
         "plans": {"PRO": {"usageLimits": {"taskStarts": {"value": 5}}}},
         "addOns": {"X": {"usageLimitsExtensions": {"extraCredits": {"value": 1}}}},
     }
-    kinds = {(item["kind"], item["path"]) for item in common.scan_cu(document)["findings"]}
-    assert ("expression-reference", "features.solve.expression") in kinds
-    assert ("forbidden-counter", "plans.PRO.usageLimits.taskStarts") in kinds
-    assert ("credit-like", "addOns.X.usageLimitsExtensions.extraCredits") in kinds
+    kinds = {(item["kind"], item["class"], item["path"]) for item in common.scan_cu(document)["findings"]}
+    assert ("expression-reference", "B", "features.solve.expression") in kinds
+    assert ("expression-reference", "A", "features.bill.expression") in kinds
+    assert ("expression-reference", "A", "features.pay.expression") in kinds
+    assert ("counter-key", "B", "plans.PRO.usageLimits.taskStarts") in kinds
+    assert ("credit-like", "A", "addOns.X.usageLimitsExtensions.extraCredits") in kinds
 
 
 def test_functional_look_alikes_are_not_flagged():
@@ -211,7 +247,8 @@ def test_functional_look_alikes_are_not_flagged():
 def test_unreadable_documents_are_unparsed_never_clean():
     for content in (b"a: [broken", b"- list\n", b"\xff\xfe"):
         result = common.scan_cu(content)
-        assert (result["status"], result["hasCu"], result["parsed"]) == ("unparsed", None, False)
+        assert (result["status"], result["hasCu"], result["hasUsageCounters"], result["parsed"]) == ("unparsed", None, None, False)
+        assert result == common.unparsed_scan()
 
 
 def test_scan_is_deterministic():

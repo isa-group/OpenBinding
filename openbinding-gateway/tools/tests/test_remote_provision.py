@@ -62,10 +62,12 @@ def test_plan_is_the_default_and_writes_nothing(capsys):
     assert report["plan"]["sphere"]["fields"]["private"] == "true"
     assert "delete" in report["plan"]["neverDone"] and "publish" in report["plan"]["neverDone"]
     assert report["base"]["digest"] == BASE_DIGEST and report["base"]["cu"]["status"] == "clean"
+    assert report["plan"]["usageCounters"] == {"status": "none", "names": []}
     assert {item["name"] for item in report["guards"]} >= {
         "dev-names-valid", "dev-slug-is-not-production", "dev-service-is-not-production", "sphere-organization-identified",
         "space-organization-identified", "production-slug-identified", "production-service-identified", "base-version-found",
-        "base-digest-matches", "base-has-no-cu", "dev-slug-state-known", "dev-service-state-known", "dev-yaml-built",
+        "base-digest-matches", "base-has-no-cu", "base-usage-counters", "dev-slug-state-known", "dev-service-state-known",
+        "dev-yaml-built",
     }
 
 
@@ -202,7 +204,78 @@ def test_a_base_with_capacity_units_aborts_even_when_the_digest_matches(capsys):
     code, report, _ = provision(fake, capsys, "--apply", base_version="0.9.0", base_digest=common.sha256_digest(bad))
     assert code == 2 and fake.posts() == []
     assert "base-has-no-cu" in failed_guards(report) and "base-digest-matches" not in failed_guards(report)
+    assert "base-usage-counters" not in failed_guards(report)
     assert report["base"]["cu"]["findings"][0]["name"] == "capacityUnits"
+    assert report["base"]["cu"]["findings"][0]["class"] == "A"
+
+
+def counters_world(*, cu: bool = False) -> tuple[FakeRemotes, bytes]:
+    """The production world plus a base 2.0.0 that declares usage counters (class B), optionally also CU."""
+    fake = production_world()
+    base = pricing_yaml(version="2.0.0", created="2026-09-20T10:00:00Z", cu=cu, counters=True)
+    fake.add_sphere("openbinding", "2.0.0", base)
+    fake.add_space("openbinding", ["0.9.0", "1.0.0", "2.0.0"])
+    return fake, base
+
+
+def test_a_base_with_usage_counters_is_refused_without_the_flag_with_the_names_and_the_remedy(capsys):
+    fake, base = counters_world()
+    code, report, _ = provision(fake, capsys, "--apply", base_version="2.0.0", base_digest=common.sha256_digest(base))
+    assert code == 2 and fake.posts() == []
+    assert failed_guards(report) == {"base-usage-counters"}
+    detail = next(item["detail"] for item in report["guards"] if item["name"] == "base-usage-counters")
+    reason = report["outcome"]["reason"]
+    for text in (detail, reason):
+        assert "--accept-usage-counters" in text
+        assert all(name in text for name in ("concurrentJobs", "solverSeconds", "taskStarts"))
+    assert report["plan"]["usageCounters"] == {"status": "refused", "names": ["concurrentJobs", "solverSeconds", "taskStarts"]}
+    assert report["arguments"]["acceptUsageCounters"] is False
+
+
+def test_a_base_with_usage_counters_is_refused_in_plan_mode_too(capsys):
+    fake, base = counters_world()
+    code, report, _ = provision(fake, capsys, base_version="2.0.0", base_digest=common.sha256_digest(base))
+    assert code == 2 and report["mode"] == "plan" and failed_guards(report) == {"base-usage-counters"}
+
+
+def test_accepting_usage_counters_plans_them_as_accepted_and_keeps_the_content(capsys):
+    fake, base = counters_world()
+    code, report, _ = provision(fake, capsys, "--accept-usage-counters", base_version="2.0.0", base_digest=common.sha256_digest(base))
+    assert code == 0 and not failed_guards(report) and fake.posts() == []
+    assert report["plan"]["usageCounters"] == {"status": "accepted", "names": ["concurrentJobs", "solverSeconds", "taskStarts"]}
+    assert report["base"]["cu"]["hasCu"] is False and report["base"]["cu"]["hasUsageCounters"] is True
+    assert report["arguments"]["acceptUsageCounters"] is True
+
+
+def test_apply_with_accepted_usage_counters_uploads_the_base_content_unchanged(capsys):
+    fake, base = counters_world()
+    code, report, captured = provision(fake, capsys, "--apply", "--accept-usage-counters",
+                                       base_version="2.0.0", base_digest=common.sha256_digest(base))
+    assert code == 0, captured.out
+    built = fake.uploads[0]["file"]
+    assert built == fake.uploads[1]["file"]
+    assert lines_changed(base, built) == [
+        ("saasName: openbinding", f"saasName: {DEV_SERVICE}"),
+        ("version: 2.0.0", "version: 0.1.0"),
+        ("createdAt: '2026-09-20T10:00:00Z'", f"createdAt: '{NOW_TEXT}'"),
+    ]
+    kept = common.scan_cu(built)
+    assert common.finding_names(kept, "B") == ["concurrentJobs", "solverSeconds", "taskStarts"]
+    assert kept["counterCount"] == common.scan_cu(base)["counterCount"] and kept["hasCu"] is False
+
+
+def test_the_flag_does_not_excuse_credits_or_cu(capsys):
+    fake, base = counters_world(cu=True)
+    code, report, _ = provision(fake, capsys, "--apply", "--accept-usage-counters",
+                                base_version="2.0.0", base_digest=common.sha256_digest(base))
+    assert code == 2 and fake.posts() == []
+    assert "base-has-no-cu" in failed_guards(report) and "base-usage-counters" not in failed_guards(report)
+    assert "capacityUnits" in next(item["detail"] for item in report["guards"] if item["name"] == "base-has-no-cu")
+
+
+def test_the_flag_is_harmless_with_a_clean_base(capsys):
+    code, report, _ = provision(production_world(), capsys, "--accept-usage-counters")
+    assert code == 0 and report["plan"]["usageCounters"]["status"] == "none"
 
 
 def test_an_unreadable_base_aborts(capsys):

@@ -12,6 +12,10 @@ Exit codes: 0 ok, 2 bad arguments/configuration or a guard refused, 3 developmen
 target already exists (nothing written), 4 a remote rejected or did not confirm a
 step (reported verbatim, redacted, never retried with another format), 5 tool bug.
 
+A base with credits/CU (class A) is always refused. A base with usage counters (class B: taskStarts,
+solverSeconds, ...) is refused with exit 2 unless --accept-usage-counters is given; the content is then kept
+as is (only version/createdAt/saasName change).
+
 Never done: deleting or updating a version, overwriting an existing 0.1.0,
 publishing, touching a resource named as production, retrying a rejected upload.
 """
@@ -31,6 +35,8 @@ import httpx
 import yaml
 
 from _remote_common import (
+    CLASS_COUNTER,
+    CLASS_CU,
     EXIT_COLLISION,
     EXIT_GUARD,
     EXIT_INTERNAL,
@@ -43,6 +49,7 @@ from _remote_common import (
     SpaceRemote,
     SphereRemote,
     emit_json,
+    finding_names,
     load_env,
     mask_id,
     normalize_digest,
@@ -261,6 +268,7 @@ async def run(
             "prodSlug": args.prod_slug,
             "prodServiceName": args.prod_service_name,
             "sphereEndpoint": args.sphere_endpoint,
+            "acceptUsageCounters": bool(args.accept_usage_counters),
         },
         "base": {},
         "production": {},
@@ -319,6 +327,7 @@ async def run(
 
         # -- re-download and verify the base ---------------------------------------------
         base_content: bytes | None = None
+        usage_counters: dict[str, Any] = {"status": "unknown", "names": []}
         base_result = await sphere.pricing_versions(args.base_pricing_slug)
         base_versions, base_notes = _versions_of(base_result)
         match = [item for item in (base_versions or []) if item["version"] == args.base_version]
@@ -336,11 +345,25 @@ async def run(
             base["cu"] = scan_cu(base_content)
             guards.check("base-digest-matches", normalize_digest(digest) == normalize_digest(args.base_digest),
                          f"downloaded digest {digest} vs --base-digest {args.base_digest}")
-            guards.check("base-has-no-cu", base["cu"]["status"] == "clean",
-                         f"capacity-unit scan status: {base['cu']['status']} ({len(base['cu']['findings'])} finding(s))")
+            scan = base["cu"]
+            guards.check("base-has-no-cu", scan["parsed"] and not scan["hasCu"],
+                         f"credit/CU (class A) scan status: {scan['status']} ({scan['cuCount']} class A finding(s)"
+                         + (f": {', '.join(finding_names(scan, CLASS_CU))}" if scan["cuCount"] else "") + ")")
+            counter_names = finding_names(scan, CLASS_COUNTER)
+            usage_counters["names"] = counter_names
+            if scan["parsed"] and scan["hasUsageCounters"]:
+                usage_counters["status"] = "accepted" if args.accept_usage_counters else "refused"
+            elif scan["parsed"]:
+                usage_counters["status"] = "none"
+            guards.check("base-usage-counters", usage_counters["status"] != "refused",
+                         f"the base declares {scan['counterCount']} usage-counter finding(s) (class B: {', '.join(counter_names)}); "
+                         "pass --accept-usage-counters to keep them unchanged in the development pricing, or choose another base"
+                         if usage_counters["status"] == "refused"
+                         else f"usage counters (class B): {usage_counters['status']}")
         elif len(match) == 1:
             guards.check("base-downloaded", False, f"the base YAML could not be downloaded: {base.get('downloadError')}")
         report["base"] = base
+        report["plan"]["usageCounters"] = usage_counters
 
         # -- the development target must be new ------------------------------------------
         dev_versions, dev_notes = _versions_of(await sphere.pricing_versions(args.dev_slug))
@@ -372,8 +395,11 @@ async def run(
             created_at = utc_timestamp_z(now)
             try:
                 built, changes = build_dev_yaml(base_content, saas_name=args.dev_service_name, created_at=created_at)
-                clean = scan_cu(built)["status"] == "clean"
-                guards.check("dev-yaml-built", clean, "only version/createdAt/saasName changed; capacity-unit scan of the result must be clean")
+                result_scan = scan_cu(built)
+                clean = result_scan["parsed"] and not result_scan["hasCu"] and result_scan["counterCount"] == base["cu"]["counterCount"]
+                guards.check("dev-yaml-built", clean,
+                             "only version/createdAt/saasName changed; the result has no credit/CU (class A) finding and "
+                             "exactly the base's usage-counter findings (class B)")
                 if not clean:
                     built = None
                 else:
@@ -403,7 +429,11 @@ async def run(
 
         non_collision = guards.failed
         if non_collision:
-            outcome.fail(EXIT_GUARD, "guard(s) failed: " + ", ".join(item["name"] for item in non_collision))
+            reason = "guard(s) failed: " + ", ".join(item["name"] for item in non_collision)
+            if any(item["name"] == "base-usage-counters" for item in non_collision):
+                reason += (f"; the base declares usage counters ({', '.join(usage_counters['names'])}): rerun with "
+                           "--accept-usage-counters to keep them unchanged, or choose another base")
+            outcome.fail(EXIT_GUARD, reason)
         elif collisions:
             outcome.fail(EXIT_COLLISION, "the development target already exists; choose another development slug/service name (nothing was written, nothing deleted)")
         if outcome.code != EXIT_OK or not apply or built is None:
@@ -498,6 +528,8 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--apply", action="store_true", help="Execute the plan if every guard passes.")
     for name in ("base-pricing-slug", "base-version", "base-digest", "dev-slug", "dev-service-name", "prod-slug", "prod-service-name"):
         parser.add_argument(f"--{name}", required=True)
+    parser.add_argument("--accept-usage-counters", action="store_true",
+                        help="Accept a base that declares usage counters (taskStarts, solverSeconds, ...); they are kept unchanged.")
     parser.add_argument("--sphere-endpoint", choices=("create", "version"), default="create",
                         help="create: POST /pricings/{org}; version: POST /pricings/{org}/{slug}/0.1.0 (default: create).")
     return parser

@@ -51,14 +51,18 @@ __all__ = [
     "EXIT_INTERNAL",
     "EXIT_OK",
     "EXIT_REJECTED",
-    "FORBIDDEN_COUNTERS",
+    "CLASS_COUNTER",
+    "CLASS_CU",
+    "CU_COUNTERS",
     "Redactor",
     "RemoteEnv",
     "RemoteError",
     "SphereRemote",
     "SpaceRemote",
+    "USAGE_COUNTERS",
     "classify_created_at",
     "emit_json",
+    "finding_names",
     "load_env",
     "mask_id",
     "normalize_digest",
@@ -68,6 +72,7 @@ __all__ = [
     "scan_cu",
     "sha256_digest",
     "shape_of",
+    "unparsed_scan",
     "utc_timestamp_z",
     "version_key",
     "yaml_meta",
@@ -441,22 +446,27 @@ def yaml_meta(content: bytes) -> dict[str, Any]:
 # Capacity-unit scan
 # --------------------------------------------------------------------------
 
-#: Counters that must never be present in a development pricing.
-FORBIDDEN_COUNTERS = (
-    "capacityUnits",
+#: Class A: credits / capacity units. The OpenBinding system has no currency of this kind.
+CU_COUNTERS = ("capacityUnits",)
+#: Class B: monthly usage counters declared by the remote pricings. Also retired from OpenBinding,
+#: but a base that declares them can be used for development when the operator accepts it.
+USAGE_COUNTERS = (
     "taskStarts",
     "solverSeconds",
     "federatedTaskStarts",
     "concurrentJobs",
     "studyRuns",
 )
+CLASS_CU = "A"
+CLASS_COUNTER = "B"
 
 
 def _alnum(text: str) -> str:
     return re.sub(r"[^a-z0-9]", "", text.lower())
 
 
-_FORBIDDEN_NORMALIZED = {_alnum(name) for name in FORBIDDEN_COUNTERS}
+_CU_NORMALIZED = {_alnum(name) for name in CU_COUNTERS}
+_COUNTER_NORMALIZED = {_alnum(name) for name in USAGE_COUNTERS}
 _TIME_WORDS = {"second", "seconds", "sec", "secs", "minute", "minutes", "hour", "hours", "time", "runtime", "duration"}
 
 
@@ -469,13 +479,15 @@ def _tokens(*texts: Any) -> list[str]:
     return words
 
 
-def _suggests_credits(name: str, unit: Any) -> str | None:
+def _classify(name: str, unit: Any = None) -> tuple[str, str] | None:
+    """``(kind, class)`` of a limit/identifier by its name and unit; class A is checked before B."""
     words = _tokens(name, unit)
     pairs = set(zip(words, words[1:], strict=False))
-    if _alnum(name) in _FORBIDDEN_NORMALIZED:
-        return "forbidden-counter"
+    normalized = _alnum(name)
+    if normalized in _CU_NORMALIZED:
+        return "counter-key", CLASS_CU
     if {"credit", "credits"} & set(words):
-        return "credit-like"
+        return "credit-like", CLASS_CU
     if {"cu", "cus"} & set(words) or pairs & {
         ("capacity", "unit"),
         ("capacity", "units"),
@@ -483,10 +495,32 @@ def _suggests_credits(name: str, unit: Any) -> str | None:
         ("compute", "units"),
         ("capacity", "credit"),
     }:
-        return "capacity-unit-like"
+        return "capacity-unit-like", CLASS_CU
+    if normalized in _COUNTER_NORMALIZED:
+        return "counter-key", CLASS_COUNTER
     if "solver" in words and _TIME_WORDS & set(words):
-        return "solver-time-like"
+        return "solver-time-like", CLASS_COUNTER
     return None
+
+
+def unparsed_scan() -> dict[str, Any]:
+    """The scan result for a document that is missing or cannot be read (never clean)."""
+    return {
+        "status": "unparsed",
+        "parsed": False,
+        "hasCu": None,
+        "hasUsageCounters": None,
+        "cuCount": 0,
+        "counterCount": 0,
+        "findings": [],
+        "limitNames": [],
+        "planLimitNames": [],
+    }
+
+
+def finding_names(scan: Mapping[str, Any], finding_class: str) -> list[str]:
+    """Sorted distinct names of the findings of one class in a ``scan_cu`` result."""
+    return sorted({str(item.get("name")) for item in scan.get("findings") or [] if item.get("class") == finding_class})
 
 
 def _walk_keys(node: Any, path: str = ""):
@@ -501,12 +535,16 @@ def _walk_keys(node: Any, path: str = ""):
 
 
 def scan_cu(content: bytes | Mapping[str, Any]) -> dict[str, Any]:
-    """Deterministic capacity-unit scan.
+    """Deterministic scan of a pricing for two classes of findings.
 
-    Flags (a) any key anywhere named as a forbidden counter, (b) any usage-limit
-    whose name or unit suggests credits/CU/solver time, and (c) feature
-    expressions that reference a forbidden counter. ``status`` is ``unparsed``
-    when the document cannot be read: that is never treated as clean.
+    Class A (credits/CU): any key named ``capacityUnits``, limits whose name or unit
+    suggest credits, CU or capacity/compute units, and expressions referencing them.
+    Class B (usage counters): keys named ``taskStarts``, ``solverSeconds``,
+    ``federatedTaskStarts``, ``concurrentJobs`` or ``studyRuns``, limits whose
+    name or unit suggest solver time, and expressions referencing them.
+    Every finding carries its ``class``. ``status`` is ``cu`` (any A), ``counters``
+    (B only), ``clean``, or ``unparsed`` when the document cannot be read: that is
+    never treated as clean.
     """
     if isinstance(content, (bytes, bytearray)):
         try:
@@ -516,19 +554,22 @@ def scan_cu(content: bytes | Mapping[str, Any]) -> dict[str, Any]:
     else:
         data = dict(content)
     if not isinstance(data, dict):
-        return {"status": "unparsed", "parsed": False, "hasCu": None, "findings": [], "limitNames": [], "planLimitNames": []}
+        return unparsed_scan()
 
-    findings: dict[tuple[str, str], dict[str, Any]] = {}
+    findings: dict[tuple[str, str, str], dict[str, Any]] = {}
 
-    def add(kind: str, path: str, name: str, unit: Any = None) -> None:
-        entry: dict[str, Any] = {"kind": kind, "path": path, "name": name}
+    def add(kind: str, finding_class: str, path: str, name: str, unit: Any = None) -> None:
+        entry: dict[str, Any] = {"kind": kind, "class": finding_class, "path": path, "name": name}
         if isinstance(unit, str):
             entry["unit"] = unit
-        findings.setdefault((kind, path), entry)
+        findings.setdefault((kind, path, name), entry)
 
     for path, key in _walk_keys(data):
-        if _alnum(key) in _FORBIDDEN_NORMALIZED:
-            add("forbidden-counter", path, key)
+        normalized = _alnum(key)
+        if normalized in _CU_NORMALIZED:
+            add("counter-key", CLASS_CU, path, key)
+        elif normalized in _COUNTER_NORMALIZED:
+            add("counter-key", CLASS_COUNTER, path, key)
 
     def limits_in(container: Any, base: str) -> list[str]:
         names: list[str] = []
@@ -536,9 +577,9 @@ def scan_cu(content: bytes | Mapping[str, Any]) -> dict[str, Any]:
             for name, spec in container.items():
                 names.append(str(name))
                 unit = spec.get("unit") if isinstance(spec, dict) else None
-                reason = _suggests_credits(str(name), unit)
-                if reason:
-                    add(reason, f"{base}.{name}", str(name), unit)
+                verdict = _classify(str(name), unit)
+                if verdict:
+                    add(verdict[0], verdict[1], f"{base}.{name}", str(name), unit)
         return names
 
     limit_names = limits_in(data.get("usageLimits"), "usageLimits")
@@ -555,15 +596,21 @@ def scan_cu(content: bytes | Mapping[str, Any]) -> dict[str, Any]:
         for name, feature in features.items():
             expression = feature.get("expression") if isinstance(feature, dict) else None
             if isinstance(expression, str):
-                for counter in FORBIDDEN_COUNTERS:
-                    if re.search(rf"\b{re.escape(counter)}\b", expression):
-                        add("expression-reference", f"features.{name}.expression", counter)
+                for identifier in dict.fromkeys(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", expression)):
+                    verdict = _classify(identifier)
+                    if verdict:
+                        add("expression-reference", verdict[1], f"features.{name}.expression", identifier)
 
-    ordered = sorted(findings.values(), key=lambda item: (item["kind"], item["path"]))
+    ordered = sorted(findings.values(), key=lambda item: (item["kind"], item["path"], item["name"]))
+    cu_count = sum(1 for item in ordered if item["class"] == CLASS_CU)
+    counter_count = sum(1 for item in ordered if item["class"] == CLASS_COUNTER)
     return {
-        "status": "cu" if ordered else "clean",
+        "status": "cu" if cu_count else "counters" if counter_count else "clean",
         "parsed": True,
-        "hasCu": bool(ordered),
+        "hasCu": cu_count > 0,
+        "hasUsageCounters": counter_count > 0,
+        "cuCount": cu_count,
+        "counterCount": counter_count,
         "findings": ordered,
         "limitNames": sorted(limit_names),
         "planLimitNames": sorted(plan_names),

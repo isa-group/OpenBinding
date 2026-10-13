@@ -72,6 +72,9 @@ def test_probe_reports_everything_read_only_and_picks_the_most_recent_version_wi
     assert [(item["slug"], item["version"]) for item in report["candidates"]["ranking"]] == [
         ("other", "0.1.0"), ("openbinding", "1.1.0"), ("openbinding", "1.0.0")
     ]
+    strict = report["candidates"]["withoutUsageCounters"]  # no counters anywhere in this world: same answer
+    assert (strict["mostRecent"]["slug"], strict["mostRecent"]["version"]) == ("other", "0.1.0")
+    assert versions["1.0.0"]["cu"]["hasUsageCounters"] is False and versions["0.9.0"]["cu"]["hasCu"] is True
 
 
 def test_probe_lists_capabilities_with_the_status_of_every_call(capsys):
@@ -188,14 +191,74 @@ def test_candidates_prefer_the_latest_created_at_over_a_higher_version():
     assert result["mostRecentWithoutCu"]["version"] == "1.0.0"
 
 
-def big_world(count: int = 40) -> FakeRemotes:
+def test_candidates_rank_both_lists_class_a_excludes_from_both_class_b_only_from_the_strict_one():
+    def entry(version, created, status):
+        return {"slug": "s", "version": version, "createdAt": created, "createdAtKind": "datetime", "digest": "sha256-x",
+                "download": {"ok": True}, "cu": {"status": status}}
+
+    versions = [
+        entry("1.0.0", "2026-01-01T00:00:00Z", "clean"),
+        entry("2.0.0", "2026-02-01T00:00:00Z", "counters"),
+        entry("3.0.0", "2026-03-01T00:00:00Z", "counters"),
+        entry("4.0.0", "2026-04-01T00:00:00Z", "cu"),
+    ]
+    result = remote_probe.compute_candidates([{"slug": "s", "versions": versions}])
+    assert result["mostRecentWithoutCu"]["version"] == "3.0.0"
+    assert [item["version"] for item in result["ranking"]] == ["3.0.0", "2.0.0", "1.0.0"]
+    assert {(item["version"], item["reason"]) for item in result["excluded"]} == {("4.0.0", "has-cu")}
+    assert "3 version(s) without CU;" in result["why"] and "1 with CU" in result["why"]
+    strict = result["withoutUsageCounters"]
+    assert strict["mostRecent"]["version"] == "1.0.0" and strict["eligibleCount"] == 1
+    assert [item["version"] for item in strict["ranking"]] == ["1.0.0"]
+    assert {(item["version"], item["reason"]) for item in strict["excluded"]} == {
+        ("2.0.0", "has-usage-counters"), ("3.0.0", "has-usage-counters"), ("4.0.0", "has-cu")
+    }
+    assert "without CU or usage counters" in strict["why"]
+
+
+def test_candidates_when_every_version_has_usage_counters_like_the_real_remote():
+    def entry(version, created):
+        return {"slug": "s", "version": version, "createdAt": created, "createdAtKind": "datetime", "digest": "sha256-x",
+                "download": {"ok": True}, "cu": {"status": "counters"}}
+
+    result = remote_probe.compute_candidates(
+        [{"slug": "s", "versions": [entry("0.1.0", "2026-01-01T00:00:00Z"), entry("0.1.5", "2026-05-01T00:00:00Z")]}]
+    )
+    assert result["mostRecentWithoutCu"]["version"] == "0.1.5"
+    assert result["withoutUsageCounters"]["mostRecent"] is None
+    assert "no version without CU or usage counters" in result["withoutUsageCounters"]["why"]
+
+
+def test_probe_scans_the_class_b_world_and_summary_lists_both_name_sets(capsys):
+    fake = FakeRemotes()
+    fake.add_sphere("openbinding", "0.1.0", pricing_yaml(version="0.1.0", created="2026-05-01T10:00:00Z", counters=True))
+    fake.add_sphere("openbinding", "0.1.1", pricing_yaml(version="0.1.1", created="2026-06-01T10:00:00Z", counters=True), private=True)
+    fake.add_sphere("openbinding", "0.1.2", pricing_yaml(version="0.1.2", created="2026-07-01T10:00:00Z", cu=True, counters=True))
+    code, out, err = run(fake, capsys, "--summary")
+    assert code == 0
+    summary = summary_of(out)
+    assert summary["cuNames"] == ["capacityUnits"]
+    assert summary["counterNames"] == ["concurrentJobs", "solverSeconds", "taskStarts"]
+    rows = {row[0]: row for row in summary["sphere"]["pricings"]["openbinding"]["versions"]}
+    # [version, private, createdAt, kind, hasCu, nA, hasCounters, nB, digest12, saasName]
+    assert rows["0.1.0"][4:8] == [False, 0, True, 3]
+    assert rows["0.1.2"][4] is True and rows["0.1.2"][5] == 1 and rows["0.1.2"][6] is True
+    candidates = summary["candidates"]
+    assert candidates["latestWithoutCu"][:2] == ["openbinding", "0.1.1"]
+    assert candidates["latestWithoutUsageCounters"] is None
+    assert "without CU" in candidates["reason"] and "no version without CU or usage counters" in candidates["reasonCounters"]
+    full = json.loads(err)
+    assert full["candidates"]["withoutUsageCounters"]["mostRecent"] is None
+
+
+def big_world(count: int = 32) -> FakeRemotes:
     fake = FakeRemotes()
     for index in range(count):
         # Inserted in scrambled order so the summary has to sort; createdAt grows with the version.
         position = (index * 7) % count
         version = f"1.{position}.0"
         created = f"2026-0{1 + position // 28}-{1 + position % 28:02d}T10:00:00Z"
-        fake.add_sphere("openbinding", version, pricing_yaml(version=version, created=created, cu=position == 39),
+        fake.add_sphere("openbinding", version, pricing_yaml(version=version, created=created, cu=position == count - 1),
                         private=position % 2 == 0)
     fake.add_space("openbinding", [f"1.{i}.0" for i in range(count)])
     return fake
@@ -217,18 +280,33 @@ def test_summary_is_the_last_stdout_line_compact_ordered_and_secret_free(capsys)
     assert json.loads(err)["readOnly"] is True  # the full report moved to stderr
 
     rows = summary["sphere"]["pricings"]["openbinding"]["versions"]
-    assert len(rows) == 40
-    assert [row[0] for row in rows] == [f"1.{i}.0" for i in range(40)]
+    assert len(rows) == 32
+    assert [row[0] for row in rows] == [f"1.{i}.0" for i in range(32)]
     assert [row[2] for row in rows] == sorted(row[2] for row in rows)
-    version, private, created, kind, has_cu, n_cu, digest, saas = rows[0]
-    assert (kind, has_cu, n_cu) == ("datetime", False, 0)
+    version, private, created, kind, has_cu, n_cu, has_counters, n_counters, digest, saas = rows[0]
+    assert (kind, has_cu, n_cu, has_counters, n_counters) == ("datetime", False, 0, False, 0)
     assert saas is None and summary["sphere"]["pricings"]["openbinding"]["saasName"] == "openbinding"  # null = the common name
     assert isinstance(private, bool) and re.fullmatch(r"[0-9a-f]{12}", digest)
     assert summary["sphere"]["orgs"] == [["OpenBinding", "sphe...0002", True]]
     assert summary["space"]["health"] == [True, 200]
-    assert summary["space"]["services"][0][2] == 40 and summary["space"]["services"][0][1] == "svc-...ding"
+    assert summary["space"]["services"][0][2] == 32 and summary["space"]["services"][0][1] == "svc-...ding"
     assert summary["denied"] == []
     assert "syntaxVersion" not in out and "currency" not in out
+
+
+def test_summary_stays_under_4000_characters_when_every_version_has_both_classes(capsys):
+    fake = FakeRemotes()
+    for position in range(30):
+        version = f"1.{position}.0"
+        created = f"2026-0{1 + position // 28}-{1 + position % 28:02d}T10:00:00Z"
+        fake.add_sphere("openbinding", version, pricing_yaml(version=version, created=created, cu=position % 5 == 0, counters=True),
+                        private=position % 2 == 0)
+    fake.add_space("openbinding", [f"1.{i}.0" for i in range(30)])
+    code, out, err = run(fake, capsys, "--summary")
+    assert code == 0 and len(out) < 4000 and len(out.rstrip("\n").splitlines()) == 1
+    summary = summary_of(out)
+    assert summary["cuNames"] == ["capacityUnits"] and len(summary["counterNames"]) == 3
+    assert all(row[6] is True and row[7] == 3 for row in summary["sphere"]["pricings"]["openbinding"]["versions"])
 
 
 def test_summary_candidate_is_the_latest_version_without_cu(capsys):
@@ -238,12 +316,14 @@ def test_summary_candidate_is_the_latest_version_without_cu(capsys):
     rows = summary["sphere"]["pricings"]["openbinding"]["versions"]
     with_cu = [row for row in rows if row[4]]
     assert len(with_cu) == 1 and with_cu[0][2] == max(row[2] for row in rows)  # the newest one has CU
-    assert summary["cuNames"] == ["capacityUnits"]
+    assert summary["cuNames"] == ["capacityUnits"] and summary["counterNames"] == []
     clean = [row for row in rows if row[4] is False]
     slug, version, created, digest = summary["candidates"]["latestWithoutCu"]
     assert (slug, version, created) == ("openbinding", clean[-1][0], clean[-1][2])
-    assert digest == clean[-1][6]
+    assert digest == clean[-1][8]
+    assert summary["candidates"]["latestWithoutUsageCounters"] == summary["candidates"]["latestWithoutCu"]
     assert "latest createdAt" in summary["candidates"]["reason"]
+    assert "latest createdAt" in summary["candidates"]["reasonCounters"]
 
 
 def test_summary_without_candidate_and_with_denied_calls(capsys):
@@ -260,7 +340,9 @@ def test_summary_without_candidate_and_with_denied_calls(capsys):
         ("sphere", "GET /users/me/orgs", 401),
     }
     assert summary["candidates"]["latestWithoutCu"] is None and summary["sphere"]["orgs"] == []
+    assert summary["candidates"]["latestWithoutUsageCounters"] is None
     assert "no version without CU" in summary["candidates"]["reason"]
+    assert "no version without CU or usage counters" in summary["candidates"]["reasonCounters"]
 
 
 def test_without_summary_stdout_is_still_the_single_full_document(capsys):

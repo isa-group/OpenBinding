@@ -39,6 +39,7 @@ from _remote_common import (
     _first,
     _slug_names,
     emit_json,
+    finding_names,
     load_env,
     mask_id,
     normalize_space_services,
@@ -47,6 +48,7 @@ from _remote_common import (
     scan_cu,
     sha256_digest,
     shape_of,
+    unparsed_scan,
     utc_timestamp_z,
     version_key,
     yaml_meta,
@@ -183,7 +185,7 @@ async def _inspect_version(sphere: SphereRemote, slug: str, item: dict[str, Any]
     download = await sphere.download_yaml(item["yamlUrl"])
     entry["download"] = {"ok": download.content is not None, "error": download.error, "status": download.status}
     if download.content is None:
-        entry.update(digest=None, bytes=None, cu={"status": "unparsed", "parsed": False, "hasCu": None, "findings": [], "limitNames": [], "planLimitNames": []})
+        entry.update(digest=None, bytes=None, cu=unparsed_scan())
         return entry
     meta = yaml_meta(download.content)
     entry.update(
@@ -265,8 +267,17 @@ async def probe_sphere(
     return section
 
 
-def compute_candidates(pricings: Sequence[dict[str, Any]], space_services: Sequence[dict[str, Any]] = ()) -> dict[str, Any]:
-    """Most recent version without capacity units: by YAML createdAt, then by version order."""
+def _rank_candidates(
+    pricings: Sequence[dict[str, Any]],
+    space_services: Sequence[dict[str, Any]],
+    *,
+    allow_counters: bool,
+) -> dict[str, Any]:
+    """Most recent eligible version: by YAML createdAt, then by version order.
+
+    A version is eligible when its scan has no class A finding (credits/CU) and,
+    unless ``allow_counters``, no class B finding (usage counters) either.
+    """
     eligible: list[dict[str, Any]] = []
     excluded: list[dict[str, Any]] = []
     for pricing in pricings:
@@ -277,6 +288,8 @@ def compute_candidates(pricings: Sequence[dict[str, Any]], space_services: Seque
                 reason = "yaml-not-downloadable"
             elif status == "cu":
                 reason = "has-cu"
+            elif status == "counters":
+                reason = None if allow_counters else "has-usage-counters"
             elif status != "clean":
                 reason = "yaml-unparsed"
             if reason:
@@ -299,24 +312,28 @@ def compute_candidates(pricings: Sequence[dict[str, Any]], space_services: Seque
         }
         for entry in eligible[:5]
     ]
+    subject = "without CU" if allow_counters else "without CU or usage counters"
     result: dict[str, Any] = {
-        "criteria": "latest YAML createdAt among versions without CU; ties by version order (numeric dotted)",
+        "criteria": f"latest YAML createdAt among versions {subject}; ties by version order (numeric dotted)",
         "eligibleCount": len(eligible),
         "excluded": excluded,
         "ranking": ranking,
-        "mostRecentWithoutCu": None,
+        "mostRecent": None,
         "ambiguous": False,
-        "why": "no version without CU could be downloaded and read",
+        "why": f"no version {subject} could be downloaded and read",
     }
     if eligible:
         head = eligible[0]
         tied = [item for item in eligible[1:] if sort_key(item) == sort_key(head)]
         counts = {
             reason: sum(1 for item in excluded if item["reason"] == reason)
-            for reason in ("has-cu", "yaml-unparsed", "yaml-not-downloadable")
+            for reason in ("has-cu", "has-usage-counters", "yaml-unparsed", "yaml-not-downloadable")
         }
         exact = [service["name"] for service in space_services if service["name"] == head.get("saasName")]
-        result["mostRecentWithoutCu"] = {
+        excluded_text = f"{counts['has-cu']} with CU, "
+        if not allow_counters:
+            excluded_text += f"{counts['has-usage-counters']} with usage counters, "
+        result["mostRecent"] = {
             "slug": head["slug"],
             "version": head["version"],
             "createdAt": head.get("createdAt"),
@@ -330,13 +347,26 @@ def compute_candidates(pricings: Sequence[dict[str, Any]], space_services: Seque
         result["ambiguous"] = bool(tied)
         result["why"] = (
             f"{head['slug']}@{head['version']} has the latest createdAt ({head.get('createdAt')}, "
-            f"{head.get('createdAtKind')}) of {len(eligible)} version(s) without CU; excluded: "
-            f"{counts['has-cu']} with CU, {counts['yaml-unparsed']} unreadable, "
+            f"{head.get('createdAtKind')}) of {len(eligible)} version(s) {subject}; excluded: "
+            f"{excluded_text}{counts['yaml-unparsed']} unreadable, "
             f"{counts['yaml-not-downloadable']} not downloadable."
             + (" Another version ties on createdAt and version order." if tied else "")
             + (" createdAt is date-only, so same-day versions are ordered by version." if head.get("createdAtKind") == "date" else "")
         )
     return result
+
+
+def compute_candidates(pricings: Sequence[dict[str, Any]], space_services: Sequence[dict[str, Any]] = ()) -> dict[str, Any]:
+    """Two rankings over the same versions.
+
+    ``mostRecentWithoutCu`` (top level, with ``why``/``ranking``/``excluded``) ignores class B
+    usage counters: it is the base for remote development pricing. ``withoutUsageCounters`` has the
+    same fields for the stricter rule (neither class A nor class B), with ``mostRecent`` as its head.
+    """
+    ranked = _rank_candidates(pricings, space_services, allow_counters=True)
+    ranked["mostRecentWithoutCu"] = ranked.pop("mostRecent")
+    ranked["withoutUsageCounters"] = _rank_candidates(pricings, space_services, allow_counters=False)
+    return ranked
 
 
 async def run_probe(
@@ -381,6 +411,7 @@ def _short_digest(value: Any) -> str | None:
 def _summary_version(entry: dict[str, Any], common_saas: str | None) -> list[Any]:
     cu = entry.get("cu") or {}
     findings = cu.get("findings") or []
+    parsed = bool(cu.get("parsed"))
     saas = entry.get("saasName")
     return [
         entry["version"],
@@ -388,25 +419,32 @@ def _summary_version(entry: dict[str, Any], common_saas: str | None) -> list[Any
         entry.get("createdAt"),
         entry.get("createdAtKind", "missing"),
         cu.get("hasCu"),
-        len(findings) if cu.get("parsed") else None,
+        sum(1 for item in findings if item.get("class") == "A") if parsed else None,
+        cu.get("hasUsageCounters"),
+        sum(1 for item in findings if item.get("class") == "B") if parsed else None,
         _short_digest(entry.get("digest")),
         None if saas is not None and saas == common_saas else saas,
     ]
 
 
-def _short_reason(candidates: dict[str, Any]) -> str | None:
-    head = candidates.get("mostRecentWithoutCu")
+def _short_reason(ranking: dict[str, Any], head: dict[str, Any] | None, subject: str) -> str | None:
     if not head:
-        return candidates.get("why")
+        return ranking.get("why")
     counts: dict[str, int] = {}
-    for item in candidates.get("excluded", []):
+    for item in ranking.get("excluded", []):
         counts[item["reason"]] = counts.get(item["reason"], 0) + 1
     excluded = ",".join(f"{n} {reason}" for reason, n in sorted(counts.items())) or "none"
-    tie = "; tie on createdAt+version" if candidates.get("ambiguous") else ""
+    tie = "; tie on createdAt+version" if ranking.get("ambiguous") else ""
     return (
-        f"latest createdAt ({head.get('createdAtKind')}) of {candidates.get('eligibleCount')} "
-        f"without CU; excluded: {excluded}{tie}"
+        f"latest createdAt ({head.get('createdAtKind')}) of {ranking.get('eligibleCount')} "
+        f"{subject}; excluded: {excluded}{tie}"
     )
+
+
+def _short_candidate(candidate: dict[str, Any] | None) -> list[Any] | None:
+    if not candidate:
+        return None
+    return [candidate["slug"], candidate["version"], candidate.get("createdAt"), _short_digest(candidate.get("digest"))]
 
 
 def build_summary(report: dict[str, Any]) -> dict[str, Any]:
@@ -420,6 +458,7 @@ def build_summary(report: dict[str, Any]) -> dict[str, Any]:
     ]
 
     cu_names: set[str] = set()
+    counter_names: set[str] = set()
     pricings: dict[str, Any] = {}
     for pricing in sphere.get("pricings", []):
         ordered = sorted(
@@ -429,8 +468,8 @@ def build_summary(report: dict[str, Any]) -> dict[str, Any]:
         names = [entry.get("saasName") for entry in ordered if entry.get("saasName")]
         common = max(set(names), key=names.count) if names else None
         for entry in ordered:
-            for finding in (entry.get("cu") or {}).get("findings", []):
-                cu_names.add(str(finding.get("name")))
+            cu_names.update(finding_names(entry.get("cu") or {}, "A"))
+            counter_names.update(finding_names(entry.get("cu") or {}, "B"))
         record: dict[str, Any] = {"saasName": common, "versions": [_summary_version(e, common) for e in ordered]}
         if pricing.get("status") != 200:
             record["status"] = pricing.get("status")
@@ -456,7 +495,10 @@ def build_summary(report: dict[str, Any]) -> dict[str, Any]:
         [item["service"], item["call"], item["status"]]
         for item in (report.get("capabilities") or {}).get("denied", [])
     ]
-    candidate = (report.get("candidates") or {}).get("mostRecentWithoutCu")
+    candidates = report.get("candidates") or {}
+    candidate = candidates.get("mostRecentWithoutCu")
+    strict = candidates.get("withoutUsageCounters") or {}
+    strict_candidate = strict.get("mostRecent")
     return {
         "summary": 1,
         "sphere": {"orgs": orgs, "pricings": pricings},
@@ -466,14 +508,13 @@ def build_summary(report: dict[str, Any]) -> dict[str, Any]:
         },
         "denied": denied,
         "cuNames": sorted(cu_names),
+        "counterNames": sorted(counter_names),
         "errors": [item.get("section") for item in report.get("errors", [])],
         "candidates": {
-            "latestWithoutCu": (
-                [candidate["slug"], candidate["version"], candidate.get("createdAt"), _short_digest(candidate.get("digest"))]
-                if candidate
-                else None
-            ),
-            "reason": _short_reason(report.get("candidates") or {}),
+            "latestWithoutCu": _short_candidate(candidate),
+            "reason": _short_reason(candidates, candidate, "without CU"),
+            "latestWithoutUsageCounters": _short_candidate(strict_candidate),
+            "reasonCounters": _short_reason(strict, strict_candidate, "without CU or usage counters"),
         },
     }
 
