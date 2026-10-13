@@ -17,12 +17,15 @@ from _repo import REPO_ROOT
 from openbinding_gateway import study_jobs
 from openbinding_gateway.db.artifact_models import Artifact, ArtifactVersion
 from openbinding_gateway.db.models import (
+    AuditEvent,
     BindingCase,
     BindingCaseRevision,
     Blob,
     Job,
     JobState,
     Organization,
+    OrganizationMembership,
+    OrganizationRole,
     Project,
     RunState,
     Study,
@@ -38,8 +41,10 @@ from bim_core.package import load_package
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 
 
-async def _seed(session, prepare=None):
+async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
     """A run of two cells: the first has a finished job, the second waits to be launched.
+
+    The run's owner is also a member of the organization, with ``owner_role``.
 
     ``prepare(session, user)`` may return ``(source_snapshot_id, engine_ref)``. They are
     written at INSERT time because PostgreSQL's triggers reject updating either
@@ -52,6 +57,9 @@ async def _seed(session, prepare=None):
     organization = Organization(slug=f"o{suffix}", name="Org", billing_sponsor_user_id=user.id, created_by_id=user.id)
     session.add(organization)
     await session.flush()
+    # The creator of an organization is always a member; ``study_jobs._sync`` stops launching
+    # cells for a run whose owner no longer has MEMBER access.
+    session.add(OrganizationMembership(organization_id=organization.id, user_id=user.id, role=owner_role))
     project = Project(organization_id=organization.id, slug="p", name="P", created_by_id=user.id)
     session.add(project)
     await session.flush()
@@ -147,6 +155,47 @@ async def test_two_concurrent_syncs_launch_the_next_cell_once(two_sessions, monk
     assert launched == [waiting_id]
     jobs = await first.scalar(select(func.count()).select_from(Job).where(Job.study_cell_id == waiting_id))
     assert jobs == 1
+
+
+@pytest.mark.asyncio
+async def test_two_concurrent_syncs_of_a_demoted_owner_launch_nothing_and_fail_the_cell_once(
+    two_sessions, monkeypatch
+):
+    first, second = two_sessions
+    finished_id, waiting_id = await _seed(first)
+    owner_id = await first.scalar(select(User.id))
+    # The owner was demoted after the run began.
+    membership = await first.scalar(
+        select(OrganizationMembership).where(OrganizationMembership.user_id == owner_id)
+    )
+    membership.role = OrganizationRole.VIEWER
+    await first.commit()
+    launched: list[uuid.UUID] = []
+
+    async def launch(session, cell, user, organization, project_id):
+        launched.append(cell.id)
+        raise AssertionError("a VIEWER's run must not launch a cell")
+
+    monkeypatch.setattr(study_jobs, "launch_study_cell", launch)
+
+    async def sync(session):
+        await study_jobs._sync(session, finished_id)
+        await session.commit()
+
+    await asyncio.gather(sync(first), sync(second))
+
+    assert launched == []
+    assert await first.scalar(select(func.count()).select_from(Job).where(Job.study_cell_id == waiting_id)) == 0
+    cell = await first.scalar(
+        select(StudyCell).where(StudyCell.id == waiting_id).execution_options(populate_existing=True)
+    )
+    assert cell.state is RunState.FAILED
+    assert cell.metrics["code"] == study_jobs.OWNER_ROLE_REVOKED == "owner_role_revoked"
+    assert await first.scalar(select(StudyRun.state)) is RunState.PARTIAL
+    audited = await first.scalar(
+        select(func.count()).select_from(AuditEvent).where(AuditEvent.action == "study.run.owner_role_revoked")
+    )
+    assert audited == 1  # the second sync found the cell already failed
 
 
 @pytest.mark.asyncio

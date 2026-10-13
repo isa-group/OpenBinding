@@ -186,18 +186,72 @@ ordinary gateway suite, instead of mounting the compose file into the container.
   checkout and run in the container). `tests/concurrency/test_pg_guard.py` asserts that no file
   there skips except through `_two_sessions.py` (missing `TEST_DATABASE_URL`).
 
+## Per-test watchdog
+
+`tests/concurrency/conftest.py` has an autouse fixture that fails any test of the directory that
+outlives its limit, so a hang is a diagnosable failure instead of a harness that runs until its
+outer timeout and loses the output (a `test_study_cancel_pg.py` run once did exactly that).
+
+- Limit: **60 s** per test, fixture setup and teardown included (the schema upgrade counts). Change
+  it with `OPENBINDING_PG_TEST_TIMEOUT` (seconds, a positive number); in the lab put it in the
+  environment of the `seed` service next to `DEMO_PYTEST_ARGS`. A malformed or non-positive value is
+  an error, not a disabled watchdog.
+- Mechanism (`tests/concurrency/_watchdog.py`): `signal.setitimer(ITIMER_REAL)` and a `SIGALRM`
+  handler on the main thread that raises `WatchdogTimeout`. For an async test the exception is raised
+  from inside the event loop's `select`, so the loop stops and pytest-asyncio (auto mode) reports the
+  test as failed; no plugin is needed. After the first expiry the timer repeats every 15 s, so a hang
+  in a fixture's teardown is reported as well. It needs SIGALRM and the main thread (not Windows, not
+  a worker thread); otherwise it warns and does not protect.
+- A test that waits legitimately longer than 60 s needs a higher variable value, not a code change.
+
+### Reading a timeout failure
+
+The failure is `WatchdogTimeout: test exceeded 60 s (OPENBINDING_PG_TEST_TIMEOUT changes the limit)`
+followed by:
+
+1. `Threads:` - `faulthandler` stacks of every thread, most recent call first. The main thread
+   normally sits in the event loop's `select`; look at the other threads for blocking calls.
+2. `asyncio tasks:` - one entry per task of the running loop with its coroutine stack (most recent call
+   last). A test's tasks are the `gather`ed coroutines: the line each task is suspended on (`await
+   event.wait()`, a `session.execute`, `asyncio.sleep`) says what it waits for. Two tasks both in
+   `session.execute`/`lock_run`/`lock_cells` point to a lock cycle or a lock never released (check the
+   other session's `commit`); a task in `Event.wait` whose setter is not in the list means the setter
+   returned early or raised.
+
+The waits on events in `test_study_cancel_pg.py` go through `_happens(...)`, which fails after 10 s
+naming what did not happen, before the watchdog would. `tests/concurrency/test_watchdog.py` tests the
+mechanism without a database and without hanging for real (0.2 s limits).
+
+## Study tests need the owner's membership
+
+`study_jobs._sync` launches the next cell only if the run's owner still has MEMBER or more in the
+organization; otherwise it fails the waiting cells with `owner_role_revoked`. The `_seed` fixture of
+`test_study_cells_pg.py` (shared with `test_study_cancel_pg.py`) therefore creates the
+`OrganizationMembership` of the owner (OWNER, as in production, where the creator is a member).
+Without it `test_two_concurrent_syncs_launch_the_next_cell_once` saw no launch, and
+`test_study_cancel_pg.py::test_a_cancellation_that_waits_for_a_sync_cancels_the_cell_it_launched`
+hangs **by reading the code**: its `cancel()` waits on `launching.wait()`, an event set only inside the
+launch, which never happens, so `gather` never finishes. That is a test defect, not a production
+deadlock; the lock order (run, cells, jobs) is not involved. This is derived from the code, not
+observed: the hanging lab run printed nothing. The other tests of the file do not wait on a launch.
+`test_two_concurrent_syncs_of_a_demoted_owner_launch_nothing_and_fail_the_cell_once` pins the opposite
+behaviour: owner demoted to VIEWER, no cell launched, the cell failed with `owner_role_revoked`, one
+audit event.
+
 ## Expected results
 
 Derived, not observed in a container. The ordinary-suite run (no `TEST_DATABASE_URL`) of
-`tests/concurrency tests/test_pg_harness.py ../lab/tests` gave **118 passed, 30 skipped**
-(the 30 are the PostgreSQL tests, skipped only for the missing `TEST_DATABASE_URL`; no
-compose-shape test is skipped).
+`tests/concurrency tests/test_pg_harness.py ../lab/tests` gave **129 passed, 31 skipped**
+(observed; the 31 are the PostgreSQL tests, skipped only for the missing `TEST_DATABASE_URL`; no
+compose-shape test is skipped; 11 of the passes are the new `test_watchdog.py`).
 
 In the lab (`DEMO_PYTEST_ARGS='-rfE --tb=short tests/concurrency'`), with a working PostgreSQL:
 
-- **46 passed, 0 skipped**: the 45 that passed on 2026-10-13 (30 PostgreSQL tests and the 15
-  guard tests) plus the one in `test_pg_guard.py`. The 30 count assumes the 30 skipped above
-  are exactly the ones that ran; it is the same set.
+- **58 passed, 0 skipped**: the 39 that passed in the lab run at base `762f495e` (guard tests, smoke,
+  leases 9, publication 9, idempotency 1, sweep 3), plus the 8 study tests (3 in `test_study_cells_pg.py`,
+  5 in `test_study_cancel_pg.py`; one of the 3 is new) plus the 11 of `test_watchdog.py`. The 31 skipped
+  without a database are the 31 PostgreSQL tests (smoke 1, leases 9, publication 9, idempotency 1,
+  sweep 3, study 8).
 - Exit code 0. Any `SKIPPED` in this run is a defect (use `-rsfE` to see them).
 - If `seed` shows `Permission denied` on `/app/tests`, the `user: "0:0"` did not take effect
   or the runtime refuses even the bind owner: report it, do not add capabilities.

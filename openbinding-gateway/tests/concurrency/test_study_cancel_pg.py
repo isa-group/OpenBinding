@@ -52,6 +52,18 @@ async def _world(session, **kwargs) -> SimpleNamespace:
     )
 
 
+async def _happens(event: asyncio.Event, what: str, seconds: float = 10.0) -> None:
+    """Wait for ``event``, but fail by name if it never comes instead of waiting forever.
+
+    The other session of these tests blocks on one of these events; if the first never reaches
+    the point that sets it (a sync that launched nothing, say), a bare ``wait()`` hangs the run.
+    """
+    try:
+        await asyncio.wait_for(event.wait(), seconds)
+    except asyncio.TimeoutError:
+        raise AssertionError(f"{what} did not happen within {seconds:g} s") from None
+
+
 def _launcher(launched: list[uuid.UUID], entered: asyncio.Event | None = None, pause: float = 0.2):
     """A ``launch_study_cell`` that takes a while to create its job, as the real one does."""
 
@@ -104,7 +116,7 @@ async def test_a_cancellation_that_waits_for_a_sync_cancels_the_cell_it_launched
         await first.commit()
 
     async def cancel():
-        await launching.wait()  # the sync is inside the launch, holding the run
+        await _happens(launching, "the sync's launch of the waiting cell")  # it holds the run meanwhile
         await study_jobs.cancel_run(second, world.run_id)
         order.append("cancel locked")
         await second.commit()
@@ -135,7 +147,7 @@ async def test_a_sync_that_waits_for_a_cancellation_launches_no_cell(two_session
         await first.commit()
 
     async def sync():
-        await cancelling.wait()
+        await _happens(cancelling, "the cancellation taking the run lock")
         await study_jobs._sync(second, world.finished_id)
         await second.commit()
 
@@ -222,7 +234,7 @@ async def test_two_syncs_of_the_last_two_jobs_leave_the_run_finished(two_session
         await first.commit()
 
     async def finish_last():
-        await synced.wait()
+        await _happens(synced, "the first sync")
         job = await second.get(Job, running_id)
         job.state = JobState.COMPLETED
         await second.flush()
@@ -266,7 +278,7 @@ async def test_cancelling_a_study_job_and_its_run_at_once_does_not_deadlock(two_
         await first.commit()
 
     async def cancel_job():
-        await holding.wait()
+        await _happens(holding, "the run cancellation taking the run lock")
         owner = await second.get(User, world.user_id)
         try:
             return await job_routes.cancel_job(job_id=queued_id, user=owner, session=second)
