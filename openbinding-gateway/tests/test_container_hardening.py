@@ -149,6 +149,21 @@ def test_the_user_instruction_comes_after_the_dependencies_are_installed(instruc
     assert any(line.startswith("ENTRYPOINT ") for line in instructions[user_at:])
 
 
+def test_the_local_bim_packages_install_in_the_same_command_as_the_gateway(instructions: list[str]) -> None:
+    # uv 0.8.22 ignores an already installed bim-core when resolving the gateway, so one command must name all three.
+    installs = [line for line in instructions if line.startswith("RUN ") and "uv pip install" in line]
+    assert len(installs) == 1, installs
+    command = installs[0]
+    assert "--no-sources" in command
+    assert "/bim-toolchain/packages/bim-core" in command
+    assert "/bim-toolchain/packages/bim-client" in command
+    assert '".[test]"' in command
+    # Their sources are copied before the install, so the layers still cache.
+    install_at = instructions.index(command)
+    for source in ("bim-core/src/", "bim-client/src/", "openbinding-gateway/pyproject.toml", "openbinding-gateway/src/"):
+        assert any(i < install_at and line.startswith("COPY ") and source in line for i, line in enumerate(instructions)), source
+
+
 def test_code_stays_readable_and_curl_stays_for_the_healthcheck(instructions: list[str]) -> None:
     text = "\n".join(instructions)
     assert re.search(r"apt-get install[^&]*\bcurl\b", text)

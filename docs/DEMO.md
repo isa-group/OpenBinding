@@ -68,6 +68,13 @@ that limits a compromised process. Consequences for the lab:
   `chown -R 10001:10001 /var/lib/openbinding/artifacts`, mounts only `lab-artifacts`, has
   no environment, no secret and no port, `restart: "no"`, 16 MiB. `gateway`, `worker` and
   `seed` depend on it with `service_completed_successfully`.
+- The gateway `Dockerfile` installs `bim-core`, `bim-client` and `".[test]"` in **one**
+  `uv pip install --system --no-sources` command. With uv pinned to 0.8.22 the resolver does
+  not count an already installed `bim-core` as a candidate, so a separate earlier install
+  made `".[test]"` fail with "bim-core was not found in the package registry ...
+  unsatisfiable". As direct requirements in the same command, the local packages satisfy
+  the `bim-core>=0.1,<0.2` dependency by name. Keep them together
+  (`test_the_local_bim_packages_install_in_the_same_command_as_the_gateway`).
   - It has `image:` and `pull_policy: never`, no `build`: `up --build` builds `gateway`
     first (it tags `openbinding-lab-gateway:latest`) and compose creates containers after the
     builds, the same way `worker` already relies on that tag. If a clean `up` ever says the

@@ -27,12 +27,17 @@ COPY bim-toolchain/packages/bim-core/pyproject.toml bim-toolchain/packages/bim-c
 COPY bim-toolchain/packages/bim-core/src/ /bim-toolchain/packages/bim-core/src/
 COPY bim-toolchain/packages/bim-client/pyproject.toml bim-toolchain/packages/bim-client/README.md bim-toolchain/packages/bim-client/NOTICE.md /bim-toolchain/packages/bim-client/
 COPY bim-toolchain/packages/bim-client/src/ /bim-toolchain/packages/bim-client/src/
-RUN uv pip install --system --no-sources /bim-toolchain/packages/bim-core /bim-toolchain/packages/bim-client
 
-# Install dependencies (bim-core and bim-client are already installed above)
 COPY openbinding-gateway/pyproject.toml .
 COPY openbinding-gateway/src/ src/
-RUN uv pip install --system --no-sources ".[test]"
+
+# One single install command. uv 0.8.22 does not take an already installed bim-core as a
+# candidate for the gateway's bim-core>=0.1,<0.2 requirement (with --no-sources it looks
+# for it in the package registry and reports it unsatisfiable), so installing bim-core and
+# bim-client in a separate earlier step does not work. Given as direct requirements next to
+# ".[test]" the local packages satisfy that dependency by name. Their sources are copied
+# above, before the gateway's, so the layer order still caches.
+RUN uv pip install --system --no-sources /bim-toolchain/packages/bim-core /bim-toolchain/packages/bim-client ".[test]"
 
 # Migrations. Copied rather than relied on from the bind mount, so that an
 # image built for a deployment that does not mount the source still knows how
