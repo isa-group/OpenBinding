@@ -271,6 +271,25 @@ workaround). No criterion was relaxed. What changed (not yet run in the lab):
   Spec `04` no longer types over any field except `Iterations`: it asserts that no field is invalid and that `Send run` is enabled with
   the defaults, and keeps the assertions on the 202, `optimization` and the result.
 
+### Third real run in the lab: 28 passed, 2 failed (131 -> 15 problems)
+
+The second change worked: 131 findings fell to 15, all `touch target under 24px` on mobile (390x844):
+
+- `[case] 6`: `Open` 34x20, `Run` 24x20, `Add to study` 77x20 in `.case-rev-links`.
+- `[plan-permissions] 5`: `Open SPACE console` 140x22, `Open SPHERE console` 149x22, `See the published plans` 162x22 in `.usage-consoles`.
+- `[job-result] 2`: `Snapshot 23d976b7…` 133x16 and `Sequential Service Workflow …` 244x16. Markup: `Fact` in `pages/Jobs/JobFacts.tsx`, a `div.job-fact` (not a `dd`).
+- `[project] 1`: `Open random-search job from Oc…` 30x19 in `.proj-job`.
+- `[viewer-job-launch] 1`: `a.ui-action.is-link` `Upload a new package in the Wo…` 324x20 in `.job-wizard`.
+
+What changed (`globals.css`, `@media (max-width: 640px)` only; desktop untouched; not yet run in the lab):
+
+- The link rule is now global: every `a[href]` that is not inside `p`, `h1`-`h6`, `dd`, `small`, `label` or a `prose` container is
+  `inline-flex`, `align-items: center`, `min-height: 24px`, inside `:where()` (zero specificity).
+- An explicit rule, also zero specificity, names `.ui-action`, `.ui-action.is-link`, `.case-rev-links a`, `.usage-consoles a`,
+  `.proj-job a`, `.job-wizard a` and `.job-fact a` (the job-result links).
+- The nav/header/footer/crumb rule stays. The criterion in `visual-qa.spec.ts` is unchanged.
+- `src/test/mobileTouchTargets.test.ts` reads the CSS and checks that these selectors are in the phone block (jsdom cannot measure pixels).
+
 ### Inside the lab (the `e2e` service)
 
 Nothing is needed on a workstation or through a tunnel. Sequence with `lab_compose` (variables in `docs/DEMO.md`):
