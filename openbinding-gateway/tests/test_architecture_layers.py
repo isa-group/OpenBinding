@@ -280,7 +280,7 @@ def test_gate_lifecycle_legacy_has_no_stale_entries() -> None:
 #: ceiling is the size of ``routes/v1.py`` rounded up to the hundred, and it can only go down.  Lower it when an
 #: extraction brings the file under the previous hundred; never raise it.
 V1_ROUTER = SOURCE / "routes" / "v1.py"
-MAX_LINES = 1700
+MAX_LINES = 1400
 RATCHET_STEP = 100
 
 
@@ -383,6 +383,27 @@ def test_engine_registry_is_independent_of_routes_and_fastapi_responses() -> Non
         "services/engine_registry.py may use fastapi only for HTTPException; raise a RegistryProblem"
     )
     assert module_level_mutables(source) == [], "services/engine_registry.py must not keep mutable module state"
+
+
+#: Services extracted from ``routes/v1.py`` after the registry: they raise a problem of their own and never build a
+#: response, never import ``routes`` and keep no mutable module state (what they read of the process, such as the
+#: resources registered without a database, the route passes in or the snapshot service owns).
+V1_SERVICES = {
+    "instances": "InstanceProblem",
+    "discovery": "DiscoveryProblem",
+}
+
+
+def test_the_v1_services_are_independent_of_routes_and_fastapi_responses() -> None:
+    for module, problem in V1_SERVICES.items():
+        path = SOURCE / "services" / f"{module}.py"
+        source = path.read_text(encoding="utf-8")
+
+        assert routes_imports(source, "openbinding_gateway.services") == [], f"services/{module}.py imports routes"
+        assert {name for _, name in fastapi_imports(source)} <= {"fastapi.HTTPException"}, (
+            f"services/{module}.py may use fastapi only for HTTPException; raise a {problem}"
+        )
+        assert module_level_mutables(source) == [], f"services/{module}.py must not keep mutable module state"
 
 
 def _modules_importing_routes() -> set[str]:

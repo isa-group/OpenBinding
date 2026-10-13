@@ -7,11 +7,8 @@ a source ZIP to an engine: engines receive only the compiled BindingProblem.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import uuid
-from email.parser import BytesParser
-from email.policy import default as email_policy
 from typing import Any, Mapping
 
 from ..models.analysis import NeighborhoodResponse
@@ -27,21 +24,18 @@ from ..db import base as db_base
 from ..db.models import (
     BindingIRSnapshot,
     DialectRevision,
-    EngineRegistrationRevision,
-    EngineRevision,
     InstanceSnapshot,
     ManifestPublication,
     RegisteredResourceRevision,
     User,
-    utcnow,
 )
 from ..job_dispatch import dispatch_persisted_job
 from ..models.problem import PROBLEM_MEDIA_TYPE, VALIDATION_ERROR, problem_response, split_detail
 from ..security.apikeys import allows_engine
-from bim_core import ContractError, PackageError
+from bim_core import PackageError
 from bim_core.canonical import canonical_json, digest, digest_bytes
 from ..core.jsonio import strict_json_loads
-from ..integrations import bim, packages
+from ..integrations import bim
 from ..integrations.bim_host import (
     XmlResource,
     dialect_type_matches,
@@ -51,23 +45,16 @@ from ..integrations.bim_host import (
 from ..v1.remote import fetch_remote_document, solve_remote, validate_endpoint
 
 from ..v1.remote import RemoteEngineError as RemoteEngineError  # re-exported for the tests
-from ..services import engine_registry
+from ..services import discovery, engine_registry, instances
 from ..services.engine_registry import RegistrationKey
 from ..services.engines import (
-    MANIFEST_DIR,
-    available_engine_documents,
-    compatible_modes,
     embedded_secret_paths,
-    engine_ref,
     owned_job,
-    protocol_digest,
-    protocol_document,
-    registration_summary,
     schema_diagnostics,
 )
+from ..services.engines import protocol_digest as protocol_digest  # re-exported for the tests
 from ..services.engines import manifest as _manifest
 from ..services.engines import manifest_async
-from ..services.entitlements import EntitlementsUnavailable, entitlement_service
 from ..services.job_submission import (
     STUDY_CELL_KEY_PREFIX,
     JobSubmission,
@@ -80,10 +67,8 @@ from ..services.job_submission import discard_pending_launches as discard_pendin
 from ..services.job_submission import pending_launches as pending_launches
 from ..services.snapshots import (
     CUSTOM_RESOURCES,
-    Compilation,
     RegisteredResource,
     compile_resolved,
-    owned_snapshot,
     package_file_digests,
     persist_snapshot,
 )
@@ -93,7 +78,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=["BIM v1"])
 
 _CUSTOM_RESOURCE_RECORDS: dict[tuple[str, str, str, str], dict[str, Any]] = {}
-_BIM_ZIP_TYPES = {"application/zip", "application/octet-stream", "application/vnd.bim+zip", "application/x-bim+zip"}
+_BIM_ZIP_TYPES = instances.BIM_ZIP_TYPES
 
 
 def _max_expanded() -> int:
@@ -145,62 +130,25 @@ async def _verify_registration(
     )
 
 
+def _package_request(request: Request) -> instances.PackageRequest:
+    """The upload as ``services.instances`` takes it.
+
+    The limits are looked up in this module when the service asks for them (hence the lambdas), so replacing
+    ``_max_compressed`` here, as the tests do, takes effect.
+    """
+    return instances.PackageRequest(request.headers, request.body, lambda: _max_compressed(), lambda: _max_expanded())
+
+
 async def _read_package(request: Request) -> bytes:
-    """The body of a ``.bim.zip`` upload, within the package size limit (the toolchain judges its content)."""
-    content_type = (request.headers.get("content-type") or "").split(";", 1)[0].lower()
-    if content_type not in _BIM_ZIP_TYPES:
-        raise HTTPException(
-            status_code=415,
-            detail="BIM source uploads must use a .bim.zip media type",
-        )
-    ceiling = _max_compressed()
-    declared = request.headers.get("content-length")
-    if declared and declared.isdigit() and int(declared) > ceiling:
-        raise HTTPException(status_code=413, detail=f"request body exceeds {ceiling} bytes")
-    body = await request.body()
-    if len(body) > ceiling:
-        raise HTTPException(status_code=413, detail=f"request body exceeds {ceiling} bytes")
-    return body
-
-
-async def _compile_upload(archive: bytes, session: AsyncSession | None, caller: User | None = None) -> Compilation:
-    """Compile an upload; a package the toolchain cannot read is ``422`` with its message."""
-    try:
-        return await compile_resolved(archive, session, caller)
-    except PackageError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return await instances.read_package(_package_request(request))
 
 
 def _multipart_zip(body: bytes, content_type: str) -> bytes:
-    """Parse one bounded MIME file part without trusting its supplied name."""
-    if "\r" in content_type or "\n" in content_type or len(content_type) > 4096:
-        raise PackageError("invalid multipart Content-Type")
-    try:
-        envelope = (
-            f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode("ascii")
-            + body
-        )
-    except UnicodeEncodeError as exc:
-        raise PackageError("multipart Content-Type must be ASCII") from exc
-    message = BytesParser(policy=email_policy).parsebytes(envelope)
-    if not message.is_multipart():
-        raise PackageError("multipart/form-data requires a valid boundary")
-    files: list[bytes] = []
-    for part in message.iter_parts():
-        if part.get_content_disposition() != "form-data" or part.get_filename() is None:
-            continue
-        transfer_encoding = (part.get("Content-Transfer-Encoding") or "binary").casefold()
-        if transfer_encoding not in {"binary", "8bit"}:
-            raise PackageError("multipart ZIP must use binary transfer encoding")
-        content = part.get_payload(decode=True)
-        if not isinstance(content, bytes) or not content:
-            raise PackageError("multipart ZIP part is empty")
-        if len(content) > _max_compressed():
-            raise PackageError(f"compressed package exceeds {_max_compressed()} bytes")
-        files.append(content)
-    if len(files) != 1:
-        raise PackageError("multipart request must contain exactly one ZIP file part")
-    return files[0]
+    return instances.multipart_zip(body, content_type, lambda: _max_compressed())
+
+
+def _service_problem(exc: instances.InstanceProblem | discovery.DiscoveryProblem) -> JSONResponse:
+    return _problem(exc.status, exc.code, exc.detail)
 
 
 def _error_from_http(exc: HTTPException) -> JSONResponse:
@@ -227,19 +175,7 @@ def _registry_problem(exc: engine_registry.RegistryProblem) -> JSONResponse:
 
 @router.get("/profiles")
 async def list_profiles() -> dict[str, Any]:
-    return {
-        "profiles": [
-            {
-                **entry["manifest"],
-                "id": entry["descriptor"]["id"],
-                "digest": entry["descriptor"]["digest"],
-                "output": entry["manifest"]["spec"]["output"],
-                "protocol": entry["manifest"]["spec"]["output"]["engineProtocol"],
-                "protocolDigest": protocol_digest(),
-            }
-            for entry in bim.profile_entries()
-        ]
-    }
+    return discovery.profiles_document()
 
 
 def _builtin_profiles() -> list[dict[str, Any]]:
@@ -247,33 +183,19 @@ def _builtin_profiles() -> list[dict[str, Any]]:
 
 
 def _builtin_dialects() -> list[dict[str, Any]]:
-    return bim.dialect_manifests()
+    return discovery.builtin_dialects()
 
 
 def _installed_dialect_contract(document: Mapping[str, Any]) -> bool:
     """Whether a manifest exactly describes a locally installed adapter ABI."""
-
-    metadata = document.get("metadata")
-    spec = document.get("spec")
-    if not isinstance(metadata, Mapping) or not isinstance(spec, Mapping):
-        return False
-    for installed in _builtin_dialects():
-        if digest(document) == digest(installed):
-            return True
-    return False
+    return discovery.installed_dialect_contract(document, _builtin_dialects())
 
 
 @router.get("/dialects")
 async def list_dialects(session: AsyncSession | None = Depends(optional_session, scope="function")) -> dict[str, Any]:
-    # Publication records are audit state, not an installation mechanism.
-    # Expose only contracts backed by the adapter/schema registry active in
-    # this process, so the catalog can never promise a stale deployment.
+    # Publication records are audit state, not an installation mechanism: only the installed contracts are listed.
     del session
-    return {
-        "dialects": [
-            {**item, "digest": digest(item)} for item in _builtin_dialects()
-        ]
-    }
+    return discovery.dialects_document(_builtin_dialects())
 
 
 SYSTEM_NAMESPACES = frozenset({"system", "openbinding"})
@@ -628,37 +550,7 @@ async def register_bim_resource(
 async def list_registered_bim_resources(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ) -> dict[str, Any]:
-    resources = list(_CUSTOM_RESOURCE_RECORDS.values())
-    if session is not None:
-        rows = (
-            await session.execute(
-                select(RegisteredResourceRevision)
-                .where(RegisteredResourceRevision.state == "published")
-                .order_by(
-                    RegisteredResourceRevision.namespace,
-                    RegisteredResourceRevision.name,
-                    RegisteredResourceRevision.version,
-                )
-            )
-        ).scalars().all()
-        resources.extend({
-            "namespace": row.namespace,
-            "name": row.name,
-            "version": row.version,
-            "digest": row.digest,
-            "role": row.role,
-            "apiVersion": row.api_version,
-            "kind": row.kind,
-            "dialect": row.dialect_id,
-            "mediaType": row.media_type,
-            "status": row.state,
-        } for row in rows)
-    unique = {
-        (item["namespace"], item["name"], item["version"], item["digest"]): item
-        for item in resources
-        if item.get("status") == "published"
-    }
-    return {"resources": [unique[key] for key in sorted(unique)]}
+    return await discovery.registered_resources_document(session, _CUSTOM_RESOURCE_RECORDS)
 
 
 @router.get("/resources/{name}")
@@ -669,33 +561,15 @@ async def get_registered_bim_resource(
     revision: str,
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    key = (namespace, name, version, revision)
-    local = CUSTOM_RESOURCES.get(key)
-    if local is not None:
-        return Response(
-            local.content,
-            media_type=local.media_type,
-            headers={"Digest": f"sha-256={revision.removeprefix('sha256-')}"},
-        )
-    if session is not None:
-        row = (
-            await session.execute(
-                select(RegisteredResourceRevision).where(
-                    RegisteredResourceRevision.namespace == namespace,
-                    RegisteredResourceRevision.name == name,
-                    RegisteredResourceRevision.version == version,
-                    RegisteredResourceRevision.digest == revision,
-                    RegisteredResourceRevision.state == "published",
-                )
-            )
-        ).scalars().first()
-        if row is not None:
-            return Response(
-                row.content,
-                media_type=row.media_type,
-                headers={"Digest": f"sha-256={row.digest.removeprefix('sha256-')}"},
-            )
-    return _problem(404, "not_found", "Registered BIM resource not found")
+    try:
+        resource = await discovery.registered_resource(namespace, name, version, revision, session)
+    except discovery.DiscoveryProblem as exc:
+        return _service_problem(exc)
+    return Response(
+        resource.content,
+        media_type=resource.media_type,
+        headers={"Digest": f"sha-256={resource.digest.removeprefix('sha256-')}"},
+    )
 
 
 @router.post("/resources/{name}/approve")
@@ -766,58 +640,29 @@ async def get_catalog(
 
 @router.get("/schemas/{kind}")
 async def get_v1_schema(kind: str):
-    if kind in {"engine-contract", "bim-engine-v1"}:
-        return {
-            "protocol": "bim-engine/v1",
-            "digest": protocol_digest(),
-            "openapi": protocol_document(),
-        }
     try:
-        return await asyncio.to_thread(bim.schema_document, kind)
-    except ContractError:
-        return _problem(404, "not_found", "Unknown v1 kind")
+        return await discovery.schema_document(kind)
+    except discovery.DiscoveryProblem as exc:
+        return _service_problem(exc)
 
 
 @router.get("/examples")
 async def list_examples() -> dict[str, Any]:
-    root = MANIFEST_DIR.parents[3] / "examples"
-    paths = []
-    for path in root.rglob("instance.json"):
-        try:
-            document = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        if isinstance(document, dict) and document.get("apiVersion") == "bim/v1" and document.get("kind") == "Instance":
-            paths.append(path.parent.relative_to(root).as_posix())
-    paths.sort()
-    return {"examples": paths}
+    return {"examples": discovery.example_paths()}
 
 
 @router.get("/examples/{example_path:path}")
 async def get_example_package(example_path: str):
-    root = (MANIFEST_DIR.parents[3] / "examples").resolve()
-    requested = (root / example_path).resolve()
     try:
-        requested.relative_to(root)
-    except ValueError:
-        return _problem(404, "not_found", "Example not found")
-    if requested.name == "instance.json":
-        requested = requested.parent
-    if not requested.is_dir() or not (requested / "instance.json").is_file():
-        return _problem(404, "not_found", "Example not found")
-    archive = packages.zip_directory(requested)
-    try:
-        # The toolchain reads the archive (without keeping anything): an example it cannot load is refused.
-        await bim.abim().validate(archive)
-    except PackageError as exc:
-        return _problem(422, "invalid_example", str(exc))
-    safe_name = requested.name.replace('"', "") or "example"
+        example = await discovery.example_package(example_path)
+    except discovery.DiscoveryProblem as exc:
+        return _service_problem(exc)
     return Response(
-        archive,
+        example.archive,
         media_type="application/vnd.bim+zip",
         headers={
-            "Content-Disposition": f'attachment; filename="{safe_name}.bim.zip"',
-            "Digest": f"sha-256={digest_bytes(archive).removeprefix('sha256-')}",
+            "Content-Disposition": f'attachment; filename="{example.name}.bim.zip"',
+            "Digest": f"sha-256={digest_bytes(example.archive).removeprefix('sha256-')}",
         },
     )
 
@@ -827,23 +672,7 @@ async def list_v1_engines(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
     caller: User = Depends(solve_caller),
 ) -> dict[str, Any]:
-    engines = []
-    for document, namespace in await available_engine_documents(session, caller):
-        reference = engine_ref(document, namespace)
-        if not allows_engine(caller, reference):
-            continue
-        engines.append(
-            {
-                "id": reference["name"],
-                "name": reference["name"],
-                "namespace": reference["namespace"],
-                "version": reference["version"],
-                "digest": reference["digest"],
-                "ref": reference,
-                "modes": document.get("spec", {}).get("modes", []),
-            }
-        )
-    return {"engines": engines}
+    return await discovery.engines_document(session, caller)
 
 
 @router.get("/engines/revisions")
@@ -851,47 +680,7 @@ async def list_engine_revisions(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
     caller: User = Depends(solve_caller),
 ) -> dict[str, Any]:
-    revisions: list[dict[str, Any]] = []
-    if session is not None:
-        db_revs = (await session.execute(
-            select(EngineRevision).order_by(EngineRevision.namespace, EngineRevision.name, EngineRevision.version.desc())
-        )).scalars().all()
-        reg_rows = (await session.execute(
-            select(EngineRegistrationRevision)
-        )).scalars().all()
-        reg_by_engine_digest = {r.engine_digest: r for r in reg_rows}
-        reg_by_name = {(r.namespace, r.name, r.version): r for r in reg_rows}
-
-        for rev in db_revs:
-            reg = reg_by_engine_digest.get(rev.digest) or reg_by_name.get((rev.namespace, rev.name, rev.version))
-            revisions.append({
-                "id": str(rev.id),
-                "namespace": rev.namespace,
-                "name": rev.name,
-                "version": rev.version,
-                "digest": rev.digest,
-                "state": rev.state,
-                "createdAt": rev.created_at.isoformat() if rev.created_at else None,
-                "document": rev.document,
-                "registration": registration_summary(reg) if reg else None,
-            })
-
-    if not revisions:
-        for doc, ns in await available_engine_documents(session, caller):
-            ref = engine_ref(doc, ns)
-            revisions.append({
-                "id": f"{ref['namespace']}:{ref['name']}:{ref['version']}",
-                "namespace": ref["namespace"],
-                "name": ref["name"],
-                "version": ref["version"],
-                "digest": ref["digest"],
-                "state": "published",
-                "createdAt": utcnow().isoformat(),
-                "document": doc,
-                "registration": None,
-            })
-
-    return {"revisions": revisions}
+    return await discovery.engine_revisions_document(session, caller)
 
 
 @router.get("/engines/{name}")
@@ -934,63 +723,11 @@ async def get_engine_revision_detail(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
     caller: User = Depends(solve_caller),
 ) -> dict[str, Any]:
-    rev = None
-    reg = None
-    if session is not None:
-        rev = (await session.execute(
-            select(EngineRevision).where(
-                EngineRevision.namespace == namespace,
-                EngineRevision.name == name,
-                EngineRevision.version == version,
-            )
-        )).scalars().first()
-
-        reg = (await session.execute(
-            select(EngineRegistrationRevision).where(
-                EngineRegistrationRevision.namespace == namespace,
-                EngineRegistrationRevision.name == name,
-                EngineRegistrationRevision.version == version,
-            )
-        )).scalars().first()
-
-    if rev is None:
-        try:
-            doc = _manifest(name, namespace=namespace, version=version)
-            rev_digest = digest(doc)
-            return {
-                "namespace": namespace,
-                "name": name,
-                "version": version,
-                "digest": rev_digest,
-                "document": doc,
-                "state": "published",
-                "registration": None,
-            }
-        except HTTPException:
-            return _problem(404, "not_found", "Engine revision not found")
-
-    return {
-        "id": str(rev.id),
-        "namespace": rev.namespace,
-        "name": rev.name,
-        "version": rev.version,
-        "digest": rev.digest,
-        "state": rev.state,
-        "createdAt": rev.created_at.isoformat() if rev.created_at else None,
-        "document": rev.document,
-        "registration": {
-            "id": str(reg.id),
-            "manifestDigest": reg.manifest_digest,
-            "endpoint": reg.endpoint,
-            "protocolDigest": reg.protocol_digest,
-            "openapiDigest": reg.openapi_digest,
-            "openapiDocument": reg.openapi_document,
-            "verificationReport": reg.verification_report,
-            "verifiedAt": reg.verified_at.isoformat() if reg.verified_at else None,
-            "publicationStatus": reg.publication_status,
-            "isActive": reg.is_active,
-        } if reg else None,
-    }
+    try:
+        # ``_manifest`` is resolved here on every call: the tests replace it on this module.
+        return await discovery.engine_revision_document(namespace, name, version, session, manifest=_manifest)
+    except discovery.DiscoveryProblem as exc:
+        return _service_problem(exc)
 
 
 @router.get("/snapshots/{snapshot_id}")
@@ -999,30 +736,10 @@ async def get_snapshot_detail(
     caller: User = Depends(solve_caller),
     session: AsyncSession = Depends(optional_session, scope="function"),
 ) -> dict[str, Any]:
-    if session is None:
-        return _problem(503, "database_unavailable", "Snapshots require database")
-    snapshot = await owned_snapshot(str(snapshot_id), caller, session)
-    if snapshot is None:
-        return _problem(404, "not_found", "Snapshot not found")
-    ir = (await session.execute(
-        select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id)
-    )).scalars().first()
-    return {
-        "id": str(snapshot.id),
-        "ownerId": str(snapshot.owner_id) if snapshot.owner_id else None,
-        "instanceDigest": snapshot.instance_digest,
-        "packageDigest": snapshot.package_digest,
-        "archiveSize": len(snapshot.source_archive) if snapshot.source_archive else 0,
-        "createdAt": snapshot.created_at.isoformat() if snapshot.created_at else None,
-        "ir": {
-            "id": str(ir.id),
-            "digest": ir.ir_digest,
-            "document": ir.document,
-            "sourceMap": ir.source_map,
-            "compilerVersion": ir.compiler_version,
-            "createdAt": ir.created_at.isoformat() if ir.created_at else None,
-        } if ir else None,
-    }
+    try:
+        return await instances.snapshot_detail(str(snapshot_id), caller, session)
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
 
 
 @router.get(
@@ -1036,17 +753,16 @@ async def download_snapshot_archive(
     caller: User = Depends(solve_caller),
     session: AsyncSession = Depends(optional_session, scope="function"),
 ) -> Response:
-    if session is None:
-        return _problem(503, "database_unavailable", "Snapshots require database")
-    snapshot = await owned_snapshot(str(snapshot_id), caller, session)
-    if snapshot is None or not snapshot.source_archive:
-        return _problem(404, "not_found", "Snapshot archive not found")
+    try:
+        archive = await instances.snapshot_archive(str(snapshot_id), caller, session)
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
     return Response(
-        content=snapshot.source_archive,
+        content=archive.content,
         media_type="application/zip",
         headers={
-            "Content-Disposition": f'attachment; filename="snapshot-{snapshot.id}.bim.zip"',
-            "ETag": f'"{snapshot.package_digest}"',
+            "Content-Disposition": f'attachment; filename="snapshot-{archive.snapshot_id}.bim.zip"',
+            "ETag": f'"{archive.package_digest}"',
             "Cache-Control": "no-store",
         },
     )
@@ -1272,18 +988,9 @@ async def validate_legacy_instance(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
     try:
-        compilation = await _compile_upload(await _read_package(request), session)
+        return await instances.validate_legacy(_package_request(request), session, compiler=compile_resolved)
     except HTTPException as exc:
         return _error_from_http(exc)
-    return {
-        "valid": True,
-        "instanceDigest": compilation.instance_digest,
-        "packageDigest": compilation.package_digest,
-        "fileDigests": compilation.file_digests,
-        "resourceDigests": compilation.resource_digests,
-        "irDigest": compilation.ir_digest,
-        "diagnostics": [],
-    }
 
 
 @router.post(
@@ -1297,59 +1004,11 @@ async def validate_instance(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
     try:
-        content_type = (request.headers.get("content-type") or "").split(";", 1)[0].lower()
-        if content_type in _BIM_ZIP_TYPES:
-            archive = await _read_package(request)
-        else:
-            body = await request.body()
-            if len(body) > _max_expanded():
-                return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
-            payload = strict_json_loads(body)
-            snapshot_id = payload.get("snapshot") if isinstance(payload, dict) else None
-            if not isinstance(payload, dict) or set(payload) != {"snapshot"} or not isinstance(snapshot_id, str) or not snapshot_id:
-                return _problem(
-                    422,
-                    "snapshot_or_package_required",
-                    "BIM validation accepts an exact snapshot reference or a .bim.zip upload",
-                )
-            snapshot = await owned_snapshot(snapshot_id, caller, session)
-            if snapshot is None:
-                return _problem(404, "not_found", "Snapshot not found")
-            archive = snapshot.source_archive
-        compilation = await _compile_upload(archive, session, caller)
-    except PackageError as exc:
-        return _problem(422, "invalid_request", str(exc))
+        return await instances.validate_package(_package_request(request), caller, session, compiler=compile_resolved)
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
     except HTTPException as exc:
         return _error_from_http(exc)
-    if caller is not None:
-        try:
-            caps = await entitlement_service.caps_for(caller.id)
-        except EntitlementsUnavailable as exc:
-            return _problem(exc.status, exc.code, str(exc))
-        if entitlement_service.complexity_too_large(compilation.binding_space_log10, caps):
-            return _problem(
-                402,
-                "instance_complexity_too_large",
-                "instance binding space exceeds the caller plan limit",
-            )
-    spec = compilation.spec
-    return {
-        "valid": True,
-        "instanceDigest": compilation.instance_digest,
-        "packageDigest": compilation.package_digest,
-        "fileDigests": compilation.file_digests,
-        "resourceDigests": compilation.resource_digests,
-        "irDigest": compilation.ir_digest,
-        "analysis": {
-            "tasks": len(spec.get("application", {}).get("tasks", [])),
-            "candidates": compilation.analysis["candidates"],
-            "constraints": len(spec.get("constraints", [])),
-            "placement": bool(spec.get("placement")),
-            "bindingSpace": str(compilation.binding_space_cardinality),
-        },
-        "compatibleModes": await compatible_modes(compilation.ir, caller, session),
-        "diagnostics": [],
-    }
 
 
 @router.post("/instances", status_code=status.HTTP_201_CREATED)
@@ -1359,21 +1018,13 @@ async def create_snapshot(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
     try:
-        compilation = await _compile_upload(await _read_package(request), session, caller)
+        return await instances.create_snapshot(
+            _package_request(request), caller, session, compiler=compile_resolved, persist=persist_snapshot
+        )
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
     except HTTPException as exc:
         return _error_from_http(exc)
-    snapshot_id = await persist_snapshot(compilation, caller, session)
-    if snapshot_id is None:
-        return _problem(503, "database_unavailable", "Snapshots require database")
-    return {
-        "id": snapshot_id,
-        "kind": "InstanceSnapshot",
-        "instanceDigest": compilation.instance_digest,
-        "packageDigest": compilation.package_digest,
-        "irDigest": compilation.ir_digest,
-        "fileDigests": compilation.file_digests,
-        "resourceDigests": compilation.resource_digests,
-    }
 
 
 @router.get("/instances/{snapshot_id}")
@@ -1382,21 +1033,10 @@ async def get_snapshot(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    snapshot = await owned_snapshot(snapshot_id, caller, session)
-    if snapshot is None:
-        return _problem(404, "not_found", "Snapshot not found")
-    ir = (await session.execute(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))).scalars().first()
-    return {
-        "id": snapshot_id,
-        "kind": "InstanceSnapshot",
-        "instanceDigest": snapshot.instance_digest,
-        "packageDigest": snapshot.package_digest,
-        "irDigest": ir.ir_digest if ir else None,
-        "fileDigests": package_file_digests(snapshot.root_document, ir.document if ir else {}),
-        "resourceDigests": snapshot.resource_digests,
-        "instance": snapshot.root_document,
-        "createdAt": snapshot.created_at.isoformat(),
-    }
+    try:
+        return await instances.instance_view(snapshot_id, caller, session)
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
 
 
 @router.get("/instances/{snapshot_id}/source")
@@ -1405,10 +1045,10 @@ async def get_snapshot_source(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    snapshot = await owned_snapshot(snapshot_id, caller, session)
-    if snapshot is None:
-        return _problem(404, "not_found", "Snapshot not found")
-    archive = snapshot.source_archive
+    try:
+        archive = await instances.instance_source(snapshot_id, caller, session)
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
     return Response(
         archive,
         media_type="application/vnd.bim+zip",
@@ -1422,13 +1062,10 @@ async def get_snapshot_ir(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    snapshot = await owned_snapshot(snapshot_id, caller, session)
-    if snapshot is None:
-        return _problem(404, "not_found", "Snapshot not found")
-    ir = (await session.execute(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))).scalars().first()
-    if ir is None:
-        return _problem(404, "not_found", "IR not found")
-    return ir.document
+    try:
+        return await instances.instance_ir(snapshot_id, caller, session)
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
 
 
 @router.post("/jobs", status_code=status.HTTP_202_ACCEPTED)

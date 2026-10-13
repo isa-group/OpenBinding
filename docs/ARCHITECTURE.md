@@ -17,7 +17,7 @@ routes/  ──►  services/  ──►  repositories/ , integrations  ──�
 | Package | Role | Evidence |
 |---|---|---|
 | `routes/` | HTTP: FastAPI routers, request parsing, authentication dependencies, translation of results and refusals to responses. `main.py` is the composition root: it includes every router (`app.include_router(...)`) and starts the lifespan, which installs the pricing gate and the job reconciler | `main.py` |
-| `services/` | Use cases that are not HTTP: `execution.py` (run a persisted job), `engines.py` (Engine selection and compatibility), `snapshots.py` (persist a compilation), `job_submission.py` (validate, reserve and persist a job, see [Job submission](#job-submission)), `entitlements.py` (the only reader of an account's plan, see [Entitlements](#entitlements)) | `services/*.py` |
+| `services/` | Use cases that are not HTTP: `execution.py` (run a persisted job), `engines.py` (Engine selection and compatibility), `snapshots.py` (compile and persist a snapshot, who may see it), `instances.py` (upload, validate, snapshot and read back a package, see [Instances and snapshots](#instances-and-snapshots)), `discovery.py` (the read-only catalog documents, see [Discovery](#discovery)), `job_submission.py` (validate, reserve and persist a job, see [Job submission](#job-submission)), `engine_registry.py` (the Engine registry, see [Engine registry](#engine-registry)), `entitlements.py` (the only reader of an account's plan, see [Entitlements](#entitlements)) | `services/*.py` |
 | `repositories/` | Database queries. At present only `jobs.py` (`get_owned`, `list_owned`, `find_retry_of`, `list_for_project`) | `repositories/jobs.py` |
 | Integrations | `space_client/` (the pricing gate over the SPACE client, plus a fake for tests), `sphere_client.py` (read-only pricing source), `cas.py`, `mailer.py`, `job_dispatch.py` (Dramatiq/Redis) | respective files |
 | `db/` | SQLAlchemy ORM models and session handling (`models.py`, `platform_models.py`, `artifact_models.py`, `base.py`) | `db/` |
@@ -172,9 +172,71 @@ are unchanged. `v1.py` also keeps `_verify_registration` (a wrapper) and the nam
 tests read; no existing test had to change its patch target.
 `tests/test_engine_registry_service.py` calls the service directly.
 
-Not moved: the read-only engine discovery (`GET /v1/engines`, `/engines/revisions`,
-`/engines/{name}`, `/engines/{namespace}/{name}/revisions/{version}`), which stays
-with the rest of discovery below.
+The read-only engine discovery (`GET /v1/engines`, `/engines/revisions`,
+`/engines/{namespace}/{name}/revisions/{version}`) is in `services/discovery.py`
+([Discovery](#discovery)).
+
+## Instances and snapshots
+
+`POST /v1/instances`, `POST /v1/validate`, `POST /v1/instances/validate`,
+`GET /v1/instances/{id}` (with `/source` and `/ir`) and `GET /v1/snapshots/{id}`
+(with `/archive`) are thin controllers over `services/instances.py`:
+
+1. `routes/v1.py` authenticates the caller and wraps the request in a
+   `PackageRequest` (the headers, the way to read the body and the two package size
+   limits, which the service asks for only when they apply);
+2. the service does the application work and answers with a plain value, raises
+   `InstanceProblem(status, code, detail)` for a refusal with a code of its own, or
+   the `HTTPException` it always raised for what the toolchain refuses (`415`/`413`
+   for the media type and size of an upload, `422` for a package it cannot read,
+   with the toolchain's message):
+   - `read_package`, `multipart_zip` and `compile_upload` (upload limits and
+     toolchain errors);
+   - `validate_legacy` and `validate_package` (an upload or an exact snapshot
+     reference; the plan's complexity limit; the compatible Engine modes);
+   - `create_snapshot` (compile, then persist);
+   - `instance_view`, `instance_source`, `instance_ir`, `snapshot_detail` and
+     `snapshot_archive` (the readers: a snapshot is found only for its owner);
+3. the route turns the outcome into the response (`_service_problem` for an
+   `InstanceProblem`, `_error_from_http` for an `HTTPException`).
+
+What decides *which* snapshot is stored or seen is `services/snapshots.py`, not
+repeated in `instances.py`: `persist_snapshot` deduplicates by package and
+compilation digest **inside the owner** (the unique constraint is
+`owner, package, compilation`), so the same package uploaded by two accounts is two
+independent snapshots and neither account can read the other's, and
+`owned_snapshot` is the single visibility rule (the owner, or a member of an
+organization the snapshot is shared with through a case).
+`tests/test_instances_service.py` calls the service directly and pins those
+properties, the upload limits and the controlled error for a corrupt package.
+
+`routes/v1.py` resolves on every call the names that tests replace and hands them
+over: `persist_snapshot` and `compile_resolved` (arguments of `create_snapshot`,
+`validate_*`), and `_max_compressed` / `_max_expanded` (the lambdas of
+`_package_request`). `_read_package`, `_multipart_zip`, `_error_from_http` and
+`_BIM_ZIP_TYPES` stay as thin names in `v1.py` because the job upload path and the
+tests use them. The responses and `docs/openapi.json` are unchanged.
+
+There is no HTTP handler for the deterministic probe: it is `services/probe.py`,
+used by `verify_registration` (Engine registry).
+
+## Discovery
+
+`GET /v1/profiles`, `/dialects`, `/resources` (and `/resources/{name}`),
+`/schemas/{kind}`, `/examples` (and `/examples/{path}`), `/engines`,
+`/engines/revisions` and `/engines/{namespace}/{name}/revisions/{version}` build
+their documents in `services/discovery.py`; `/catalog` is the composition of
+those handlers and stays in the route. The service raises
+`DiscoveryProblem(status, code, detail)`; the route renders it. It reads, never
+writes, and keeps no state: the resources registered without a database are held by
+the route that registers them (`_CUSTOM_RESOURCE_RECORDS`) and passed in, and the
+installed Dialects are always the ones of this process. `v1.py` keeps
+`_builtin_dialects` and `_installed_dialect_contract` as wrappers (the
+publication routes and the tests use them) and passes its own `_manifest` to
+`engine_revision_document`.
+
+`GET /v1/engines/{name}` stays in the route: the permission check
+(`allows_engine`) is its whole decision and the rest is `services.engines`.
 
 ## MVC in a JSON API
 
@@ -212,7 +274,7 @@ Known exceptions to "downwards only", from reading the imports:
   `..analysis_jobs` lazily, inside functions, because those modules still live
   at the top level.
 - `services/engines.py`, `services/engine_registry.py`, `services/snapshots.py`,
-  `services/job_submission.py`
+  `services/instances.py`, `services/discovery.py`, `services/job_submission.py`
   and `services/entitlements.py` import FastAPI's `HTTPException` (the last one only for its HTTP-raising
   helpers, `*_or_503`, `require_*` and `enforce_*`; `caps_for` raises a plain
   domain exception), so services
@@ -235,8 +297,11 @@ mechanically checkable, using `ast` so that imports inside functions count:
 - `services/engine_registry.py` imports `routes` nowhere, uses `fastapi` only for
   `HTTPException` and keeps no mutable module state
   (`test_engine_registry_is_independent_of_routes_and_fastapi_responses`);
+- `services/instances.py` and `services/discovery.py` import `routes` nowhere, use
+  `fastapi` only for `HTTPException` and keep no mutable module state
+  (`test_the_v1_services_are_independent_of_routes_and_fastapi_responses`);
 - `routes/v1.py` is frozen at `MAX_LINES` lines, a ratchet that may only go down
-  (`test_v1_router_does_not_grow`);
+  (`test_v1_router_does_not_grow`, `test_the_v1_ceiling_follows_the_file_down`);
 - plan capabilities are read only in `services/entitlements.py` ([Entitlements](#entitlements));
 - nothing imports a `metering` module (`test_nothing_imports_the_retired_metering_module`);
 - the detector itself recognises every import form (`test_detector_sees_every_import_form`).
@@ -273,19 +338,23 @@ import `routes`, `services`, `repositories`, `jobs` or `db`
 
 These are real and not scheduled; no dates are promised.
 
-- `routes/v1.py` is 1,692 lines (frozen at 1,700 by
+- `routes/v1.py` is 1,329 lines (frozen at 1,400 by
   `test_v1_router_does_not_grow`; it was about 2,960 before job creation moved
-  to `services/job_submission.py` and about 2,570 before the Engine registry
-  moved to `services/engine_registry.py`). What is left to extract, in this order
-  of expected size: instances and snapshots (`/instances`, `/snapshots`,
-  validation and the `persist_snapshot` callers), discovery (`/profiles`,
-  `/dialects`, `/catalog`, `/schemas`, `/examples` and the read-only `/engines`
-  routes: list, revisions, detail), and the dialect and resource registries
-  (`/dialects` publication and approval, `/resources`), which still hold their
-  own publication logic inline and an in-module `_CUSTOM_RESOURCE_RECORDS`. The job
-  read routes (`/jobs/{id}`, neighbourhood, IR, instance, report) also remain
-  there. Each should move into `services/` and `repositories/` and lower
-  `MAX_LINES` when it does.
+  to `services/job_submission.py`, about 2,570 before the Engine registry
+  moved to `services/engine_registry.py`, and 1,692 before instances, snapshots
+  and discovery moved to `services/instances.py` and `services/discovery.py`).
+  What is left, and why: the controllers of every service above (authentication,
+  permission, service call, translation to a response, plus the names the tests
+  replace); the job routes and their transport (`create_job`, `_create_job_core`,
+  `_read_job_request`, which `study_jobs.py` and many tests reach through the
+  router); and the code that still has not moved, in this order of expected size:
+  the dialect and resource registries (`POST /dialects`, `POST /resources` and
+  their approvals), which hold their own publication logic inline and the
+  in-module `_CUSTOM_RESOURCE_RECORDS` that `discovery` receives as an argument;
+  the job read routes (`/jobs/{id}`, neighbourhood with its `_ANALYSIS_SLOTS`
+  semaphore, IR, instance, report), whose queries belong in
+  `repositories/jobs.py`; and `GET /engines/{name}`. Each should move into
+  `services/` and `repositories/` and lower `MAX_LINES` when it does.
 - Four modules still import `routes` (`ALLOWED_LEGACY` above). `study_jobs.py`
   still calls `v1._create_job_core` and the pending-launch helpers through the
   router; once it calls `JobSubmission` directly it can leave the list.
