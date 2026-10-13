@@ -290,6 +290,21 @@ What changed (`globals.css`, `@media (max-width: 640px)` only; desktop untouched
 - The nav/header/footer/crumb rule stays. The criterion in `visual-qa.spec.ts` is unchanged.
 - `src/test/mobileTouchTargets.test.ts` reads the CSS and checks that these selectors are in the phone block (jsdom cannot measure pixels).
 
+### Fourth real run in the lab: 29 passed, 1 failed (131 -> 1 problem)
+
+One finding is left, `touch target under 24px` on mobile (390x844): `[viewer-job-launch]` `a.ui-action.is-link` `Upload a new package in the Wo…`
+324x20 in `.job-wizard` (the link `Upload a new package in the Workbench`, step 1 of the launch wizard). The screenshots
+`mobile-plan-permissions` and `mobile-job-result` were opened and reviewed: `.inf` now reads `No limit` and the tables scroll
+(see the visual review below).
+
+Cause: `components/ui/Action.css` has `.ui-action.is-link { min-height: 0; padding: 0; ... }` (specificity 0,2,0). The phone rules of
+`globals.css` are inside `:where()` (specificity 0), so they lost against it. `.ui-action` in general is not affected: `is-sm` and
+`is-md` already set 2rem and 2.5rem.
+
+Fix (`globals.css`, `@media (max-width: 640px)` only; desktop untouched; not yet run in the lab): `:is(a, button).ui-action.is-link`
+(specificity 0,2,1) gets `min-height: 24px`, `align-items: center` and `vertical-align: middle`. The criterion in `visual-qa.spec.ts` is
+unchanged. `mobileTouchTargets.test.ts` checks the rule is in the phone block, not outside it, and that `Action.css` still sets `min-height: 0`.
+
 ### Visual review of the real screenshots (opened through the lab MCP): findings the assertions did not catch
 
 The programmatic checks above passed on these screens, yet looking at the pictures showed defects that no assertion measured. This

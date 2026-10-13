@@ -35,6 +35,13 @@ describe('mobile touch targets (max-width: 640px)', () => {
     }
   });
 
+  it('beats the min-height: 0 of the link action with a specific selector, on phones only', () => {
+    const rule = /:is\(a, button\)\.ui-action\.is-link \{\s*min-height: 24px;\s*align-items: center;\s*vertical-align: middle;\s*\}/;
+    expect(block).toMatch(rule);
+    expect(read('components/ui/Action.css')).toMatch(/\.ui-action\.is-link \{ min-height: 0;/);
+    expect(css.slice(0, css.indexOf(block))).not.toMatch(rule);
+  });
+
   it('keeps the job-result links in a container that exists in the markup', () => {
     const facts = read('pages/Jobs/JobFacts.tsx');
     expect(facts).toContain('className="job-fact"');
