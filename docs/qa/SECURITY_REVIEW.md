@@ -38,7 +38,7 @@ verification checks of this change are reported separately.
 | B5 | Per-tenant limit in `bim-service` | It can be evaded by rotating `X-BIM-Tenant`; the global ceiling still holds |
 | B6 | Internal error messages reach the user | For example `Execution failed: {exc}` (`services/execution.py:357`) and the reason returned by SPACE |
 | B8 | Work in the event loop of `bim-service` | Not addressed |
-| T1 | The 26 compose-shape checks in `tests/concurrency/test_pg_harness.py` are skipped in the lab PostgreSQL run | The `compose` fixture skips when `compose.pgtest.json` is not found (`test_pg_harness.py:48-49`); the file is not in the container. These checks (no ports, no `cap_add`/`privileged`, no docker socket, no real secrets, memory limits) are not enforced by that run. See [PG_HARNESS.md](PG_HARNESS.md) |
+| T1 | **Closed.** The 26 compose-shape checks were skipped in the lab PostgreSQL run (45 passed, 26 skipped) | The 26 tests moved to the normal suite (`tests/test_pg_harness.py`) and no longer skip. Lab evidence: PostgreSQL 16, `tests/concurrency` with `compose.pgtest.json`: 58 passed, 0 skipped in 12 s; the studies fixture creates the owner's membership; 60 s watchdog per test. See [PG_HARNESS.md](PG_HARNESS.md) |
 
 ## Related, from `EXTRACTION_LOG.md`
 

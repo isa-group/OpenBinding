@@ -30,6 +30,16 @@ def load_corpus_tool():
     return module
 
 
+def test_package_discovery_skips_hidden_directories(tmp_path):
+    tool = load_corpus_tool()
+    (tmp_path / ".qa-tmp-1" / "fixture").mkdir(parents=True)
+    (tmp_path / ".qa-tmp-1" / "fixture" / "instance.json").write_text("{}")
+    (tmp_path / "visible").mkdir()
+    (tmp_path / "visible" / "instance.json").write_text("{}")
+
+    assert tool.package_directories(tmp_path, excluded=set()) == [tmp_path / "visible"]
+
+
 def test_the_complete_corpus_still_compiles_with_the_same_package_count():
     tool = load_corpus_tool()
     # bim-toolchain carries packages of its own (test fixtures); they are not the platform's corpus.
@@ -40,6 +50,7 @@ def test_the_complete_corpus_still_compiles_with_the_same_package_count():
         # pytest's tmp_path lives in the QA worktree's hidden TMPDIR and may hold instance.json fixtures.
         and not any(part.startswith(".") for part in directory.relative_to(REPO_ROOT).parts)
     ]
+    # The hidden-part filter above is kept as a second guard; the tool itself skips hidden directories.
 
     assert len(directories) == 82
     failures = []

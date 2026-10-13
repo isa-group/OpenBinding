@@ -244,11 +244,14 @@ concurrent creation; study-cell launch races. These are the `test_*_pg.py` files
 that existed before this change (`test_job_leases_pg.py` first four tests,
 `test_jobs_idempotency_pg.py`, `test_study_cells_pg.py`).
 
-**Executed on PostgreSQL 16 on 2026-10-13 (SHA `5aebc7c8`, `lab_compose` with
-`compose.pgtest.json`): `tests/concurrency` gave 45 passed, 26 skipped** (the 26
-skipped are in `test_pg_harness.py`; see [qa/PG_HARNESS.md](qa/PG_HARNESS.md)).
+**Executed on PostgreSQL 16 in the lab (`lab_compose` with
+`compose.pgtest.json`): `tests/concurrency` gave 58 passed, 0 skipped in 12 s.**
+The 26 compose-shape tests now live in the normal suite
+(`tests/test_pg_harness.py`) and are no longer skipped; the studies fixture
+creates the owner's membership; each test has a 60 s watchdog. An earlier run
+(SHA `5aebc7c8`) gave 45 passed, 26 skipped. See [qa/PG_HARNESS.md](qa/PG_HARNESS.md).
 The tests listed below were written in an earlier change; they skip without
-`TEST_DATABASE_URL`. This page did not break the 45 down per file, so treat the
+`TEST_DATABASE_URL`. This page does not break the 58 down per file, so treat the
 list as scope, not as a per-test result:
 
 - `tests/concurrency/test_job_leases_pg.py`: leases written by the database clock
