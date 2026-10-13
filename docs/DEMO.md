@@ -51,8 +51,10 @@ secrets**; use your own.
 | `DEMO_BIM_TOKEN` | bim-service, gateway | `lab-example-bim-token-0123456789abcdef` (one line, 32 to 127 printable ASCII characters without spaces: `bim-service` refuses to start otherwise) |
 | `DEMO_SPACE_PRICING_VERSION` | gateway, worker, seed (as `SPACE_PRICING_VERSION`) | `0.1.0` (must exist in SPACE/SPHERE) |
 | `DEMO_SPACE_DEFAULT_PLAN` | gateway, worker, seed (as `SPACE_DEFAULT_PLAN`) | `BASIC` (must exist in the pricing) |
-| `DEMO_SEED_TOOL` | seed | `seed_dev.py` (a file of `openbinding-gateway/tools/`; `seed_lab.py` does not exist yet) |
-| `DEMO_SEED_ARGS` | seed | `--verbose` (see "Seeding") |
+| `DEMO_SEED_TOOL` | seed | `seed_lab.py`, or `smoke_lab.py` for the API smoke (a file of `openbinding-gateway/tools/`; `seed_dev.py` also exists) |
+| `DEMO_SEED_ARGS` | seed | `--verbose` for a seed, `--with-space` for the smoke (see "Seeding" and "API smoke") |
+| `DEMO_SEED_PASSWORD` | seed (`seed_lab.py`, `smoke_lab.py`) | any synthetic value of 10+ characters; the supervisor injects it, `compose.lab.json` does not list it |
+| `SMOKE_BASE_URL` | seed (`smoke_lab.py`) | optional, default `http://web:8080` |
 
 Private, supplied by the supervisor and only referenced as `${NAME}` (the file
 holds no value and no default): `SPACE_URL`, `SPACE_API_KEY`, `SPHERE_URL`,
@@ -124,14 +126,64 @@ example the lab host's name) is not. Through the proxy the API is at
 
 ## Synthetic users
 
-To be filled in after `seed_lab` exists. Until then, `seed_dev.py` creates the
-development users listed in its own docstring and constants; check
-`openbinding-gateway/tools/seed_dev.py` for the names. Do not reuse these
-passwords anywhere.
+`openbinding-gateway/tools/seed_lab.py` (`DEMO_SEED_TOOL=seed_lab.py`) creates
+them, idempotently, with the real roles. Every user has the same password: the
+value of the variable `DEMO_SEED_PASSWORD` (chosen by whoever runs the seed, at
+least 10 characters). It is not documented here and has no default. Emails are
+`<username>@example.org`. Do not reuse that password anywhere.
 
-| Role | Username | Password |
+| Username | Platform role | Organization role |
 | --- | --- | --- |
-| _pending_ | _pending_ | _pending_ |
+| `lab-admin` | `ADMIN` | none |
+| `lab-owner` | `USER` | `OWNER` of `lab-main` |
+| `lab-orgadmin` | `USER` | `ADMIN` of `lab-main` |
+| `lab-member` | `USER` | `MEMBER` of `lab-main` |
+| `lab-viewer` | `USER` | `VIEWER` of `lab-main` |
+| `lab-outsider` | `USER` | `OWNER` of `lab-other` (no access to `lab-main`) |
+
+Data: organizations `lab-main` (sponsor `lab-owner`) and `lab-other`; project
+`lab-main/bim-demo` (private) with case `simple-seq`, built from
+`examples/demo/01_simple_seq`. The seed launches no jobs. With `SPACE_ENABLED=true`
+the users also need a contract on the development service
+(`DEMO_SEED_ARGS='--space-contracts'`, see `docs/qa/REMOTE_TOOLS.md`).
+
+## API smoke
+
+`openbinding-gateway/tools/smoke_lab.py` checks the demo end to end through the
+proxy, with the users above and no browser. It runs in the `seed` service (inside
+the lab network, where `web:8080` resolves):
+
+```sh
+DEMO_SEED_TOOL=smoke_lab.py DEMO_SEED_ARGS='--with-space' docker compose run --rm --no-deps seed
+```
+
+Use `DEMO_SEED_ARGS='--skip 6,7,8,9'` to leave out the optional steps and drop
+`--with-space` when the users have no SPACE contract. It reads `DEMO_SEED_PASSWORD`
+from the environment (the same value used to seed), takes the base URL from
+`SMOKE_BASE_URL` or `--base-url` (default `http://web:8080`), prints one JSON
+document with `{name, ok, detail}` per step, never prints passwords, tokens or
+headers, and exits non-zero if any step fails.
+
+| Step | Checks |
+| --- | --- |
+| `proxy_and_spa` | `/healthz`, SPA index, SPA fallback on an unknown route, `/api/health/ready` |
+| `login` | `lab-admin`, `lab-owner`, `lab-member`, `lab-viewer` and `lab-outsider` sign in with Bearer tokens |
+| `owner_job` | `lab-owner` profile and projects; a minimal `random-search` job on the seeded package; result shape and the gateway's reevaluation provenance |
+| `idempotency` | same key and body, same job; same key and other body, 409; another account, another job |
+| `authorization` | 401 without token; viewer cannot launch but reads the project job with redacted options; outsider reads neither; non-admins get 403 on `/api/v1/admin/*` |
+| `concurrency_limit` | 5 simultaneous launches against `MAX_CONCURRENT_JOBS_PER_USER=3`: a 429 with `Retry-After`, slot freed afterwards |
+| `cors` | preflight allowed from `http://localhost:18100`, refused from `http://evil.example` |
+| `body_limit` | JSON over 16 MiB gets a 413 problem+json |
+| `plan_usage` | (`--with-space`) plan and capabilities of the owner, no usage counters |
+| `login_throttle` | 12 failed logins of a made-up user end in a 429 with `Retry-After`; the counter is per address and identifier |
+
+It writes to the lab database only through the API (jobs of `lab-owner` and
+`lab-member`, and once a study `smoke-lab` in `lab-main/bim-demo` so the project
+has a job the viewer can read); it never registers users and never touches
+SPACE or SPHERE. Running it again within five minutes finds the login throttle
+already tripped for its probe user, which still counts as a pass. What it does
+not cover (browser, Playwright, the visual mobile/desktop check) and the
+assumptions of its first run are in `docs/qa/E2E_PLAN.md`. **Not run yet.**
 
 ## Mobile and desktop check
 
