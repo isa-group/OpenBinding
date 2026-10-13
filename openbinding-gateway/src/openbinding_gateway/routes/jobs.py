@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, session_dependency
 from ..db import base as db_base
-from ..db.models import AuditEvent, Job, JobProvenance, JobState, User
+from ..db.models import AuditEvent, InstanceSnapshot, Job, JobProvenance, JobState, User
 from ..job_dispatch import dispatch_persisted_job
 from ..jobs import lifecycle
 from ..jobs import limits as job_limits
@@ -21,6 +21,7 @@ from ..models.platform import JobView, job_view
 from ..repositories import jobs as job_repository
 from ..security.roles import require_work_role
 from ..services.entitlements import EntitlementService, get_entitlements
+from ..services.job_submission import _sharing_organizations
 from bim_core.canonical import digest
 
 router = APIRouter(prefix="/v1/jobs", tags=["Jobs"])
@@ -56,6 +57,11 @@ async def _owned(
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Job not found.")
     if work_by is not None:
         await require_work_role(session, work_by, [job.organization_id])
+        if job.organization_id is None and job.instance_snapshot_id is not None:
+            # Same rule as the launch: a snapshot shared by organizations is run with MEMBER in one of them.
+            snapshot = await session.get(InstanceSnapshot, job.instance_snapshot_id)
+            if snapshot is not None:
+                await require_work_role(session, work_by, await _sharing_organizations(session, snapshot, work_by))
     return job
 
 

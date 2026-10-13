@@ -15,6 +15,7 @@ from starlette.requests import Request
 
 from .db import base as db_base
 from .db.models import (
+    AuditEvent,
     BindingCaseRevision,
     InstanceSnapshot,
     Job,
@@ -28,6 +29,7 @@ from .db.models import (
 )
 from .jobs import lifecycle
 from .jobs.leases import aware
+from .security.roles import require_work_role
 from .services.engines import engine_mode, manifest_async
 from .services.snapshots import persist_snapshot, snapshot_ir
 from .studies import aggregate_metrics
@@ -383,6 +385,10 @@ async def commit_launched(session: AsyncSession) -> None:
 RETRYABLE_LAUNCH_CODES = frozenset({"concurrency_limit_exceeded", "pricing_unavailable"})
 
 
+#: Stable code of a cell left unlaunched because its run's owner lost the work role.
+OWNER_ROLE_REVOKED = "owner_role_revoked"
+
+
 def fail_cell(cell: StudyCell, error: StudyLaunchError) -> None:
     """Record that a cell can never be launched, so the cells after it are not held up."""
 
@@ -482,6 +488,18 @@ async def cancel_run(session: AsyncSession, run_id: uuid.UUID) -> tuple[StudyRun
     return run, cells
 
 
+async def _owner_may_work(session: AsyncSession, owner: User, organization: Organization) -> bool:
+    """Whether the run's owner still holds MEMBER or more in the organization."""
+
+    try:
+        await require_work_role(session, owner, [organization.id])
+    except HTTPException as exc:
+        if exc.status_code != 403:
+            raise
+        return False
+    return True
+
+
 async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
     job = await session.get(Job, job_id)
     if job is None:
@@ -527,7 +545,30 @@ async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
             # and reloaded above, so a launch committed by another worker
             # meanwhile shows up in job_id here.
             if user and org and job.project_id:
-                for queued_cell in cells:
+                waiting = [
+                    value for value in cells
+                    if value.job_id is None and value.state is RunState.QUEUED
+                ]
+                if waiting and not await _owner_may_work(session, user, org):
+                    # The owner was demoted or removed since the run began: the
+                    # cells still waiting are not launched, and the run closes.
+                    for queued_cell in waiting:
+                        fail_cell(queued_cell, StudyLaunchError(
+                            OWNER_ROLE_REVOKED,
+                            "The run's owner no longer has MEMBER access to the organization.",
+                        ))
+                    session.add(AuditEvent(
+                        organization_id=org.id, actor_id=user.id,
+                        action="study.run.owner_role_revoked",
+                        target_type=StudyRun.__name__, target_id=run.id,
+                        detail={
+                            "runId": str(run.id), "ownerId": str(user.id),
+                            "cells": len(waiting), "code": OWNER_ROLE_REVOKED,
+                        },
+                    ))
+                    await session.flush()
+                    waiting = []
+                for queued_cell in waiting:
                     if queued_cell.job_id is not None or queued_cell.state is not RunState.QUEUED:
                         continue
                     try:
