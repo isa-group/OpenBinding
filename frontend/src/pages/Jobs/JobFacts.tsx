@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { JobInstanceView } from '../../api/jobs';
 import { Chip } from '../../components/ui/Chip';
+import { DataTable } from '../../components/ui/DataTable';
 import { useCopy } from '../../components/ui/useCopy';
 import { shortDigest } from '../../utils/digest';
 import { formatDateTime } from '../../utils/format';
@@ -48,21 +49,19 @@ export function Settings({ provenance }: { provenance: Record<string, unknown> }
         <p className="org-muted">Run with the sealed settings <Chip mono>{pins.configuration}</Chip>; the engine, mode and options come from them.</p>
       )}
       {rows.length > 0 && (
-        <div className="job-table" role="region" aria-label="Settings asked and used" tabIndex={0}>
-          <table>
-            <thead><tr><th scope="col">Setting</th><th scope="col">Asked</th><th scope="col">Used</th><th scope="col">Note</th></tr></thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.key}>
-                  <td>{row.label}</td>
-                  <td>{row.asked}</td>
-                  <td><strong>{row.used}</strong></td>
-                  <td>{row.reduced ? <Chip tone="warning">Reduced to the plan’s ceiling</Chip> : null}{row.note && <small className="org-muted job-note">{row.note}</small>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable label="Settings asked and used" minWidth={520}>
+          <thead><tr><th scope="col">Setting</th><th scope="col">Asked</th><th scope="col">Used</th><th scope="col">Note</th></tr></thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.key}>
+                <td>{row.label}</td>
+                <td>{row.asked}</td>
+                <td><strong>{row.used}</strong></td>
+                <td>{row.reduced ? <Chip tone="warning">Reduced to the plan’s ceiling</Chip> : null}{row.note && <small className="org-muted job-note">{row.note}</small>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </DataTable>
       )}
     </section>
   );

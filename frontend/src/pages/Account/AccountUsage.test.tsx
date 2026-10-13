@@ -123,6 +123,37 @@ describe('Plan & permissions', () => {
     expect(screen.getByRole('link', { name: 'Open job history' })).toHaveAttribute('href', '/app/jobs');
   });
 
+  it('says "No limit" for the exact value of an unlimited ceiling, and never shows the YAML artefact `.inf`', async () => {
+    const usage = basicUsage();
+    usage.plan = 'PRO';
+    usage.capabilities.maxTimeoutSeconds = null;
+    usage.capabilities.maxPayloadBytes = null;
+    usage.capabilities.apiKeys = null;
+    api.getOwnUsage.mockResolvedValue(usage);
+    renderPlan();
+    const table = within(await screen.findByRole('region', { name: 'Ceilings table' }));
+
+    for (const name of [/Max time per job/, /Max package size/]) {
+      const row = within(table.getByRole('row', { name }));
+      expect(row.getByText('Unlimited')).toBeInTheDocument();
+      expect(row.getByText('No limit')).toBeInTheDocument();
+    }
+    // The technical list shows the same words for the same limit, finite ones as plain figures.
+    fireEvent.click(screen.getByText('All entitlement values'));
+    const value = (id: string) => screen.getByText(id).closest('div')?.querySelector('dd')?.textContent;
+    expect(value('apiKeys')).toBe('No limit');
+    expect(value('maxTimeoutSeconds')).toBe('No limit');
+    expect(value('maxIterations')).toBe('10,000');
+    expect(document.body.textContent).not.toMatch(/\.inf|Infinity/);
+  });
+
+  it('keeps the ceilings table in a keyboard-reachable scroll region so a narrow screen scrolls it instead of cutting it', async () => {
+    renderPlan();
+    const region = await screen.findByRole('region', { name: 'Ceilings table' });
+    expect(region).toHaveAttribute('tabindex', '0');
+    expect(region).toHaveClass('ui-table-wrap');
+  });
+
   it('shows the limits across the sponsored organizations and says sponsoring is not a role', async () => {
     renderPlan();
     const section = within((await screen.findByRole('heading', { name: 'Organizations you sponsor' })).closest('section') as HTMLElement);

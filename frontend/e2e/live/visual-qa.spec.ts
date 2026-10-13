@@ -14,6 +14,8 @@ import { API, CASE, ORG, PROJECT_PATH, RESULTS_DIR, signInByApi } from './suppor
  * - on mobile, every visible button, link, summary and field at least 24 px high (WCAG 2.5.8; a link inside a line of text is exempt,
  *   as the criterion says);
  * - no text that is clipped without an ellipsis (`overflow: hidden|clip` and `scrollWidth > clientWidth`), no broken image;
+ * - no clipped content: nothing visible sticks out past a container that cuts it (`overflow-x: hidden|clip`, or the page edge) without
+ *   being scrollable (`overflow-x: auto|scroll`) or an ellipsis; a table wider than the screen belongs in a scroll region;
  * - a full-page screenshot in `<results>/screenshots/<size>-<screen>.png`.
  *
  * One summary line per screen and size goes to the log (`VQA ...`, and `VQA_PROBLEM ...` for each finding): that log is all the
@@ -22,6 +24,8 @@ import { API, CASE, ORG, PROJECT_PATH, RESULTS_DIR, signInByApi } from './suppor
  */
 
 const MIN_TARGET_PX = 24;
+/** The kind of a finding is what comes before the first colon of its text; this is the one for content a container cuts off. */
+const CLIPPED_KIND = 'clipped content';
 const RESULT_HEADING = /Best combination found|Solution \d+ of \d+|Why no combination works/;
 /** Chromium logs every 4xx/5xx of a sub-resource as a console error; the answers are counted on their own. */
 const STATUS_LOG = /^Failed to load resource: the server responded with a status of \d{3}/;
@@ -96,6 +100,57 @@ function smallTargets(page: Page): Promise<string[]> {
   }, MIN_TARGET_PX);
 }
 
+/**
+ * Content that a container cuts off with no way to reach it: a visible element that sticks out past the right (or left) edge of
+ * the nearest ancestor that clips (`overflow-x: hidden|clip`). An ancestor that scrolls (`auto|scroll`) is the legitimate case and
+ * stops the walk, as does a clipping ancestor that shows an ellipsis. The page edge counts when `html` or `body` clips. One finding
+ * per clipping container, with the first elements that are cut, as `tag#id.class > ...` selectors.
+ */
+function clippedContent(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const found = new Map<Element, { cut: string[]; by: number }>();
+    const describe = (element: Element): string => {
+      const parts: string[] = [];
+      for (let node: Element | null = element; node && node !== document.body && parts.length < 3; node = node.parentElement) {
+        const classes = String(node.getAttribute('class') ?? '').split(/\s+/).filter(Boolean).slice(0, 2).join('.');
+        parts.unshift(`${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ''}${classes ? `.${classes}` : ''}`);
+      }
+      return parts.join(' > ');
+    };
+    const hides = (value: string) => value === 'hidden' || value === 'clip';
+    const scrolls = (value: string) => value === 'auto' || value === 'scroll';
+
+    for (const element of document.body.querySelectorAll('*')) {
+      const box = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      if (box.width === 0 || box.height === 0 || style.visibility === 'hidden' || style.display === 'none') continue;
+      // Taken out of the flow (a popover, the skip link) or not for the eye: neither is cut by the container it is written in.
+      if (style.position === 'fixed' || style.position === 'absolute') continue;
+      if (element.closest('.sr-only, [aria-hidden="true"], [hidden], details:not([open]) > :not(summary)')) continue;
+
+      for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+        const parent = getComputedStyle(ancestor);
+        if (scrolls(parent.overflowX)) break;
+        if (!hides(parent.overflowX)) continue;
+        if (parent.textOverflow === 'ellipsis') break;
+        const root = ancestor === document.body || ancestor === document.documentElement;
+        const edge = root ? { left: 0, right: window.innerWidth } : ancestor.getBoundingClientRect();
+        const cutBy = Math.max(box.right - edge.right, edge.left - box.left);
+        // The container must really be cut (`scrollWidth > clientWidth`), not only drawn narrower than a child that is itself clipped.
+        if (cutBy > 1 && (root || ancestor.scrollWidth > ancestor.clientWidth + 1)) {
+          const entry = found.get(ancestor) ?? { cut: [], by: 0 };
+          if (entry.cut.length < 3) entry.cut.push(describe(element));
+          entry.by = Math.max(entry.by, Math.round(cutBy));
+          found.set(ancestor, entry);
+        }
+        break;
+      }
+      if (found.size >= 8) break;
+    }
+    return [...found].map(([container, entry]) => `${describe(container)} cuts ${entry.by}px off: ${entry.cut.join(' | ')}`);
+  });
+}
+
 /** Looks at the screen that is open and returns what is wrong with it. */
 async function inspect(page: Page, mobile: boolean): Promise<{ problems: string[]; overflowPx: number }> {
   const problems: string[] = [];
@@ -112,6 +167,7 @@ async function inspect(page: Page, mobile: boolean): Promise<{ problems: string[
   if (overflowPx > 0) problems.push(`horizontal overflow: scrollWidth ${width.scroll} > innerWidth ${width.inner}; outside: ${measured.offenders.slice(0, 3).join(' | ') || 'none found (inside a scroll container?)'}`);
   for (const clipped of measured.clipped) problems.push(`clipped text without ellipsis: ${clipped}`);
   for (const image of measured.brokenImages) problems.push(`broken image: ${image}`);
+  for (const cut of await clippedContent(page)) problems.push(`${CLIPPED_KIND}: ${cut}`);
 
   if (mobile) {
     for (const target of await smallTargets(page)) problems.push(`touch target under ${MIN_TARGET_PX}px: ${target}`);
@@ -153,12 +209,17 @@ async function walk(page: Page, testInfo: TestInfo, stops: Stop[], skipped: Arra
   return rows;
 }
 
+function kindOf(problem: string): string {
+  return problem.split(':')[0].trim();
+}
+
 /** The summary of the run, in the log (and in the report, and in the results directory when it can be written). */
 async function report(testInfo: TestInfo, name: string, rows: Row[]): Promise<void> {
   const lines: string[] = [];
   for (const row of rows) {
-    lines.push(`VQA viewport=${row.viewport} page=${row.page} result=${row.result} overflow_px=${row.overflowPx} http4xx=${row.http4xx.length} problems=${row.problems.length}`);
-    for (const problem of row.problems) lines.push(`VQA_PROBLEM viewport=${row.viewport} page=${row.page} ${JSON.stringify(problem)}`);
+    const clipped = row.problems.filter((problem) => kindOf(problem) === CLIPPED_KIND).length;
+    lines.push(`VQA viewport=${row.viewport} page=${row.page} result=${row.result} overflow_px=${row.overflowPx} clipped_content=${clipped} http4xx=${row.http4xx.length} problems=${row.problems.length}`);
+    for (const problem of row.problems) lines.push(`VQA_PROBLEM viewport=${row.viewport} page=${row.page} kind=${JSON.stringify(kindOf(problem))} ${JSON.stringify(problem)}`);
     if (row.http4xx.length) lines.push(`VQA_HTTP4XX viewport=${row.viewport} page=${row.page} ${JSON.stringify([...new Set(row.http4xx)].slice(0, 8))}`);
   }
   console.log(lines.join('\n'));

@@ -290,6 +290,39 @@ What changed (`globals.css`, `@media (max-width: 640px)` only; desktop untouched
 - The nav/header/footer/crumb rule stays. The criterion in `visual-qa.spec.ts` is unchanged.
 - `src/test/mobileTouchTargets.test.ts` reads the CSS and checks that these selectors are in the phone block (jsdom cannot measure pixels).
 
+### Visual review of the real screenshots (opened through the lab MCP): findings the assertions did not catch
+
+The programmatic checks above passed on these screens, yet looking at the pictures showed defects that no assertion measured. This
+review is manual (the screenshots were opened, not inferred from the log), so its findings are recorded here with the fix. None of
+the fixes has been run in the lab yet; the unit tests and the build are the only evidence so far.
+
+1. **`.inf` on Plan & permissions.** In `Per-request ceilings`, the `Exact value` column showed the YAML artefact `.inf` for a limit
+   with no ceiling, next to `Unlimited` in `Your limit`. Cause: `AccountUsage.tsx` fell back to the literal `'.inf'` when
+   `describeLimit` had no exact figure and the limit was `null`. Fix: `exactValueText()` in `usageModel.ts` returns `No limit` for
+   `null` or a non-finite value and the exact figure otherwise; the table uses it. The `All entitlement values` list (a technical view
+   by the gateway's own names, e.g. `maxTimeoutSeconds`) kept raw figures for finite limits but now also says `No limit` instead of
+   `Unlimited`, so the same limit has the same words on the whole page; it never showed `.inf` and no raw `null` is shown either,
+   because a technical view that is only labelled "technical" still reads better with one phrase per meaning. Tests:
+   `AccountUsage.test.tsx` (table and technical list, no `.inf`/`Infinity` anywhere in the page) and `accountModels.test.ts`.
+2. **Wide tables cut on the right at 390 px, with no hint that they scroll.** Seen in `Per-request ceilings` (`Exact value`),
+   `Settings: asked vs used` of a job (`Used` cut as `Us`, `50` half drawn) and the project's job list (`Outcome` cut). The tables
+   were already inside a keyboard-focusable scroll region (`role="region"`, `aria-label`, `tabindex="0"`), so the content was reachable,
+   but nothing showed it: a touch screen has no visible scrollbar and the picture looked like a truncated table. Fix: one shared
+   component, `components/ui/DataTable` (it already existed and the job list used it), now draws a fading shadow at the side where
+   more columns wait (`background-attachment: local` gradients: no JavaScript, it disappears at the edge). `Per-request ceilings` and
+   `Settings: asked vs used` moved from their own wrappers (`.usage-table-wrap`, `.job-table`) to it, and their duplicated CSS was
+   removed. `Settings against your plan` in the launch wizard already stacks its columns on phones and was left alone.
+   Not verified: the real pixels at 390 px. If the next capture still shows a table cut with no shadow, the cause is an ancestor and
+   not the table, and finding 3 will name it.
+3. **New criterion in `visual-qa.spec.ts`: `clipped content`.** Per screen and size, every visible element (not fixed/absolute, not
+   `.sr-only`/`aria-hidden`, not in a closed `details`) is checked against its nearest ancestor with `overflow-x` other than `visible`.
+   If that ancestor scrolls (`auto`/`scroll`) the content is reachable and fine; if it shows an ellipsis it is fine; if it is
+   `hidden`/`clip` (or `html`/`body`, measured against the window) and the element sticks out by more than 1 px while the container
+   has `scrollWidth > clientWidth + 1`, it is a finding: `clipped content: <container> cuts Npx off: <selectors of the first three cut elements>`.
+   The log line of the screen gains `clipped_content=N` and each `VQA_PROBLEM` gains `kind="..."` (the text before the first colon,
+   so `clipped content`, `clipped text without ellipsis`, `touch target under 24px`, ...). No existing criterion was relaxed. The new one
+   has not run yet; a first run may report legitimate patterns, which are to be handled here with the reason, not silenced.
+
 ### Inside the lab (the `e2e` service)
 
 Nothing is needed on a workstation or through a tunnel. Sequence with `lab_compose` (variables in `docs/DEMO.md`):

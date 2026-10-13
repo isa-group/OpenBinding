@@ -82,13 +82,7 @@
 .usage-consoles { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs) var(--tp-spacing-md); margin: 0; font-size: 0.875rem; }
 .usage-consoles a { font-weight: 500; }
 
-.usage-table-wrap { overflow-x: auto; border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); }
-.usage-table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: 0.8125rem; }
-.usage-table thead tr { background: var(--tp-surface); }
-.usage-table th { padding: 10px 16px; color: var(--tp-ink); text-align: left; font-weight: 400; }
-.usage-table thead th { color: var(--tp-steel); font-size: 0.75rem; }
-.usage-table tbody tr { border-top: 1px solid var(--tp-hairline-soft); }
-.usage-table td { padding: 10px 16px; }
+.ui-table th.usage-ceiling { color: var(--tp-ink); font-size: inherit; font-weight: 400; }
 .usage-exact { color: var(--tp-steel); font-family: var(--font-mono); }
 .usage-retention { margin: 0; font-size: 0.8125rem; }
 .usage-retention a { font-weight: 500; }

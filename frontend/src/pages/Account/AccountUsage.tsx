@@ -4,6 +4,7 @@ import type { PricingCatalog, UsageView } from '../../api/auth';
 import { INSTITUTION_NAME, useInstitutionalBranding } from '../../components/InstitutionMark/institution';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
+import { DataTable } from '../../components/ui/DataTable';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { config } from '../../config';
@@ -14,7 +15,7 @@ import { useResource } from '../../utils/useResource';
 import { featureName, readCatalog, type PricingView } from '../Pricing/pricingModel';
 import { classifyAuthError, fallbackMessage } from './accountErrors';
 import { AccountLayout, LoadFailure, PermissionNotice } from './AccountLayout';
-import { usageRows, type UsageRow } from './usageModel';
+import { NO_LIMIT_TEXT, exactValueText, usageRows, type UsageRow } from './usageModel';
 import './AccountUsage.css';
 
 const ALLOWANCE_NOTES: Record<string, { note: string; link?: { to: string; label: string } }> = {
@@ -188,25 +189,20 @@ function UsageBody({ usage, catalog, release, token }: {
             <h2 id="usage-ceilings">Per-request ceilings</h2>
             <p className="acct-muted">Budgets above these are reduced with an OPTION_CLAMPED note; bigger problems are rejected.</p>
           </div>
-          <div className="usage-table-wrap" role="region" aria-label="Ceilings table" tabIndex={0}>
-            <table className="usage-table">
-              <thead>
-                <tr><th scope="col">Ceiling</th><th scope="col">Your limit</th><th scope="col">Exact value</th></tr>
-              </thead>
-              <tbody>
-                {ceilings.map((row) => {
-                  const described = describeLimit(row.info.kind, row.limit);
-                  return (
-                    <tr key={row.id}>
-                      <th scope="row">{row.info.label}</th>
-                      <td><strong>{described.text}</strong></td>
-                      <td className="usage-exact">{described.exact ?? (row.limit === null ? '.inf' : formatCount(row.limit))}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable label="Ceilings table" minWidth={480}>
+            <thead>
+              <tr><th scope="col">Ceiling</th><th scope="col">Your limit</th><th scope="col">Exact value</th></tr>
+            </thead>
+            <tbody>
+              {ceilings.map((row) => (
+                <tr key={row.id}>
+                  <th scope="row" className="usage-ceiling">{row.info.label}</th>
+                  <td><strong>{valueText(row)}</strong></td>
+                  <td className="usage-exact">{exactValueText(row)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
           {retention && retention.limit !== null && (
             <p className="usage-retention">
               Finished jobs are kept for {valueText(retention)}. <Link to="/app/jobs" viewTransition>Open job history</Link>
@@ -238,12 +234,12 @@ function UsageBody({ usage, catalog, release, token }: {
 
       <details className="usage-all">
         <summary>All entitlement values</summary>
-        <p className="acct-muted">Every limit of your plan as the gateway reports it. Nothing here is secret: it is the contract, not a credential.</p>
+        <p className="acct-muted">Every limit of your plan as the gateway reports it, by its technical name. Nothing here is secret: it is the contract, not a credential.</p>
         <dl>
           {rows.map((row) => (
             <div key={row.id}>
               <dt><code>{row.id}</code></dt>
-              <dd>{row.limit === null ? 'Unlimited' : formatCount(row.limit)}</dd>
+              <dd>{row.limit === null || !Number.isFinite(row.limit) ? NO_LIMIT_TEXT : formatCount(row.limit)}</dd>
             </div>
           ))}
         </dl>

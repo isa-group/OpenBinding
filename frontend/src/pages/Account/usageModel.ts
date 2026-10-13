@@ -1,5 +1,5 @@
 import type { UsageView } from '../../api/auth';
-import { LIMIT_ORDER, limitInfo, type LimitDefinition, type LimitInfo } from '../../utils/limits';
+import { LIMIT_ORDER, describeLimit, formatCount, limitInfo, type LimitDefinition, type LimitInfo } from '../../utils/limits';
 
 /**
  * What `GET /v1/users/me/usage` says, arranged for the plan screen.
@@ -23,4 +23,13 @@ export function usageRows(usage: UsageView, definitions: Record<string, LimitDef
   return Object.entries(usage.capabilities ?? {})
     .map(([id, limit]): UsageRow => ({ id, info: limitInfo(id, definitions[id]), limit }))
     .sort((a, b) => orderOf(a.id) - orderOf(b.id));
+}
+
+/** What the "Exact value" column says for a limit that has no ceiling. The YAML's `.inf` is a file artefact, never shown. */
+export const NO_LIMIT_TEXT = 'No limit';
+
+/** The exact figure of a limit in words: `60 s`, `8,388,608 bytes`, `No limit`. Never the raw `.inf`/`null`/`Infinity`. */
+export function exactValueText(row: UsageRow): string {
+  if (row.limit === null || !Number.isFinite(row.limit)) return NO_LIMIT_TEXT;
+  return describeLimit(row.info.kind, row.limit).exact ?? formatCount(row.limit);
 }

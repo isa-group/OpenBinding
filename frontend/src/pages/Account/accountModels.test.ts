@@ -4,7 +4,7 @@ import {
   ADMIN_ONLY, ALL_PERMISSIONS, ENGINE_LIMITED, PERMISSION_GROUPS, PRESETS, boundaryLabels, describeEngineAccess, expiryFor, needsEngines,
 } from './keysModel';
 import { contractChange, groupOf, unreadCount } from './notificationsModel';
-import { usageRows } from './usageModel';
+import { exactValueText, usageRows } from './usageModel';
 
 describe('API-key permissions', () => {
   it('offers every permission of the closed set exactly once', () => {
@@ -71,6 +71,14 @@ describe('plan rows', () => {
 
   it('reads a null capability as no limit', () => {
     expect(row('federatedEngines')).toMatchObject({ limit: null });
+  });
+
+  it('words the exact value: a figure when there is a ceiling, "No limit" (never `.inf`) when there is none', () => {
+    expect(exactValueText(row('maxTimeoutSeconds'))).toBe('1,800 s');
+    expect(exactValueText(row('apiKeys'))).toBe('25');
+    expect(exactValueText(row('federatedEngines'))).toBe('No limit');
+    expect(exactValueText({ ...row('apiKeys'), limit: Number.POSITIVE_INFINITY })).toBe('No limit');
+    for (const item of rows) expect(exactValueText(item)).not.toMatch(/\.inf|Infinity|null/);
   });
 
   it('carries no consumption at all', () => {
