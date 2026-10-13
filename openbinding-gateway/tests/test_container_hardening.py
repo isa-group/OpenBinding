@@ -225,7 +225,7 @@ def test_the_artifact_volume_is_the_one_the_image_directory_seeds(services: dict
         assert mounts and all(m["type"] == "volume" and m["source"] == "lab-artifacts-2" for m in mounts), name
         assert service["environment"]["ARTIFACT_ROOT"] == ARTIFACT_DIR, name
     volumes = json.loads(COMPOSE.read_text(encoding="utf-8"))["volumes"]
-    assert "lab-artifacts-2" in volumes and "lab-pg-2" in volumes
+    assert "lab-artifacts-2" in volumes and "lab-pg-3" in volumes
     assert "lab-artifacts" not in volumes and "lab-pg" not in volumes
 
 
