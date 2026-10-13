@@ -18,8 +18,7 @@ import time
 import pytest
 from service_support import async_client, bearer, run
 
-from bim_service import app as app_module
-from bim_service import operations
+from bim_service import jobs, operations
 from bim_service.problems import ServiceProblem
 from bim_service.runtime import Gate
 from bim_service.settings import BODY_MEMORY_FACTOR, BimServiceSettings, ServiceConfigError
@@ -283,8 +282,8 @@ def test_an_oversized_request_is_refused_before_it_is_decoded(make_app, hold, mo
     def decoder(*args, **kwargs):
         raise AssertionError("the body must not be decoded")
 
-    monkeypatch.setattr(app_module, "decode_package_request", decoder)
-    monkeypatch.setattr(app_module, "decode_model_body", decoder)
+    monkeypatch.setattr(jobs, "decode_package_request", decoder)
+    monkeypatch.setattr(jobs, "decode_model_body", decoder)
     app = make_app(max_concurrency=2, max_concurrency_per_tenant=1, memory_budget_bytes=COST - 1)
 
     async def scenario():

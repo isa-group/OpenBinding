@@ -9,11 +9,13 @@
 the OpenAPI generator use.  The service keeps no state besides the in-flight counters of its concurrency gate.
 
 The routes that take a body read its bytes and hand them to the gate (:func:`_serve`): the slot is taken first and the
-decoding, validation, operation and rendering happen in the pool thread (see :mod:`bim_service.runtime`).
+decoding, validation, operation and rendering (the job of the operation, :mod:`bim_service.jobs`) happen in a pool
+thread or, with ``BIM_SERVICE_EXECUTOR=process``, in a worker process (see :mod:`bim_service.runtime`).
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import sys
@@ -55,17 +57,11 @@ from .models import (
     XmlRootResponse,
     XmlValidResponse,
 )
-from .problems import ServiceProblem, bim_error_problem, problem_response, respond
+from .jobs import JOBS
+from .problems import ServiceProblem, failure_response, problem_response, respond
 from .runtime import Gate
 from .settings import BODY_MEMORY_FACTOR, BimServiceSettings
-from .wire import (
-    decode_base64,
-    decode_model_body,
-    decode_package_request,
-    render_json,
-    request_invalid,
-    validation_diagnostics,
-)
+from .workers import BufferResponse, ClientDisconnected, Disconnect
 
 logger = logging.getLogger("bim_service")
 
@@ -139,39 +135,58 @@ def _settings(request: Request) -> BimServiceSettings:
     return request.app.state.settings
 
 
-async def _serve(request: Request, job: Callable[[str | None, bytes], bytes]) -> Response:
-    """Read the body, then run ``job(content_type, body)`` in the pool and answer the bytes it returns as JSON.
+async def _watch_disconnect(receive: Callable[[], Any], disconnect: Disconnect) -> None:
+    """Tell ``disconnect`` when the client goes away (the body has been read: the next message is the disconnect)."""
+    while True:
+        message = await receive()
+        if message["type"] == "http.disconnect":
+            disconnect.fire()
+            return
+
+
+async def _serve(request: Request, op_id: str) -> Response:
+    """Read the body, then run the job ``op_id`` (:data:`bim_service.jobs.JOBS`) on it and answer its bytes as JSON.
 
     The event loop only moves bytes.  Everything that costs CPU or memory in proportion to the body (``json.loads``,
-    validation of the models, base64, the operation and rendering the answer) is the ``job``, which starts once a
-    slot (and, when configured, the memory budget) is held, so a request that finds no slot decodes nothing.  Errors
-    the job raises (``BimError``, ``ServiceProblem``, ``RequestValidationError``) reach the handlers below unchanged.
+    validation of the models, base64, the operation and rendering the answer) is the job, which starts once a slot (and,
+    when configured, the memory budget) is held, so a request that finds no slot decodes nothing.  In a pool thread
+    the errors the job raises (``BimError``, ``ServiceProblem``, ``RequestValidationError``) reach the handlers below
+    unchanged; in a worker process the child renders the same problem with :func:`~bim_service.problems.failure_response`
+    and the answer is relayed byte for byte.
     """
     body = await request.body()
-    content = await request.app.state.gate.run(
-        job,
-        request.headers.get("content-type"),
-        body,
-        tenant=_tenant(request),
-        cost_bytes=len(body) * BODY_MEMORY_FACTOR,
-        reservation=request.scope.get("state", {}).get("body_reservation"),
-    )
-    return Response(content=content, media_type="application/json")
-
-
-def _package_job(settings: BimServiceSettings, call: Callable[..., Any]) -> Callable[[str | None, bytes], bytes]:
-    def job(content_type: str | None, body: bytes) -> bytes:
-        data, registered = decode_package_request(content_type or "", body, settings)
-        return render_json(call(data, registered, settings.limits))
-
-    return job
-
-
-def _model_job(model: type[BaseModel], call: Callable[[Any], Any]) -> Callable[[str | None, bytes], bytes]:
-    def job(content_type: str | None, body: bytes) -> bytes:
-        return render_json(call(decode_model_body(model, content_type, body)))
-
-    return job
+    gate: Gate = request.app.state.gate
+    content_type = request.headers.get("content-type")
+    state = request.scope.get("state", {})
+    cost = len(body) * BODY_MEMORY_FACTOR
+    if not gate.process_mode:
+        content = await gate.run(
+            JOBS[op_id](_settings(request)),
+            content_type,
+            body,
+            tenant=_tenant(request),
+            cost_bytes=cost,
+            reservation=state.get("body_reservation"),
+        )
+        return Response(content=content, media_type="application/json")
+    disconnect = Disconnect()
+    watcher = asyncio.ensure_future(_watch_disconnect(request.receive, disconnect))
+    try:
+        answer = await gate.run_process(
+            op_id,
+            content_type,
+            body,
+            tenant=_tenant(request),
+            cost_bytes=cost,
+            reservation=state.get("body_reservation"),
+            correlation_id=str(state.get("traceparent", "--")).split("-")[1],
+            disconnect=disconnect,
+        )
+    except ClientDisconnected:
+        return Response(status_code=499)  # nobody is listening any more
+    finally:
+        watcher.cancel()
+    return BufferResponse(answer)
 
 
 def _json_body(model: type[BaseModel]) -> dict[str, Any]:
@@ -221,8 +236,7 @@ def _router() -> APIRouter:
         openapi_extra=_PACKAGE_BODY,
     )
     async def compile_package(request: Request) -> Response:
-        job = _package_job(_settings(request), lambda *args: operations.compile_package(*args))
-        return await _serve(request, job)
+        return await _serve(request, "compile")
 
     @router.post(
         "/validate",
@@ -233,8 +247,7 @@ def _router() -> APIRouter:
         openapi_extra=_PACKAGE_BODY,
     )
     async def validate_package(request: Request) -> Response:
-        job = _package_job(_settings(request), lambda *args: operations.validate_package(*args))
-        return await _serve(request, job)
+        return await _serve(request, "validate")
 
     @router.post(
         "/compatibility",
@@ -245,13 +258,7 @@ def _router() -> APIRouter:
         openapi_extra=_json_body(CompatibilityRequest),
     )
     async def compatibility(request: Request) -> Response:
-        return await _serve(
-            request,
-            _model_job(
-                CompatibilityRequest,
-                lambda body: operations.compatibility(body.ir, body.manifest, body.mode, body.options),
-            ),
-        )
+        return await _serve(request, "compatibility")
 
     @router.post(
         "/optimization/resolve",
@@ -262,13 +269,7 @@ def _router() -> APIRouter:
         openapi_extra=_json_body(OptimizationResolveRequest),
     )
     async def resolve_optimization(request: Request) -> Response:
-        return await _serve(
-            request,
-            _model_job(
-                OptimizationResolveRequest,
-                lambda body: operations.optimization(body.ir, body.manifest, body.mode, body.optimization),
-            ),
-        )
+        return await _serve(request, "resolveOptimization")
 
     @router.post(
         "/evaluate",
@@ -279,14 +280,7 @@ def _router() -> APIRouter:
         openapi_extra=_json_body(EvaluateRequest),
     )
     async def evaluate(request: Request) -> Response:
-        limit = _settings(request).max_bindings
-
-        def call(body: EvaluateRequest) -> Any:
-            if len(body.bindings) > limit:
-                raise ServiceProblem(422, "limit_exceeded", f"at most {limit} bindings per request")
-            return operations.evaluate(body.ir, body.bindings, body.execution, body.onError)
-
-        return await _serve(request, _model_job(EvaluateRequest, call))
+        return await _serve(request, "evaluate")
 
     @router.post(
         "/reevaluate",
@@ -297,13 +291,7 @@ def _router() -> APIRouter:
         openapi_extra=_json_body(ReevaluateRequest),
     )
     async def reevaluate(request: Request) -> Response:
-        return await _serve(
-            request,
-            _model_job(
-                ReevaluateRequest,
-                lambda body: operations.reevaluate(body.ir, body.result, body.execution, body.allowedTerminations),
-            ),
-        )
+        return await _serve(request, "reevaluate")
 
     @router.post(
         "/validate-result",
@@ -314,9 +302,7 @@ def _router() -> APIRouter:
         openapi_extra=_json_body(ValidateResultRequest),
     )
     async def validate_result(request: Request) -> Response:
-        return await _serve(
-            request, _model_job(ValidateResultRequest, lambda body: operations.check_result(body.result))
-        )
+        return await _serve(request, "validateResult")
 
     @router.post(
         "/neighborhood",
@@ -327,16 +313,7 @@ def _router() -> APIRouter:
         openapi_extra=_json_body(NeighborhoodRequest),
     )
     async def neighborhood(request: Request) -> Response:
-        ceiling = _settings(request).neighborhood_max_seconds
-
-        def call(body: NeighborhoodRequest) -> Any:
-            if body.seconds > ceiling:
-                raise ServiceProblem(422, "limit_exceeded", f"`seconds` is at most {ceiling:g}")
-            return operations.neighborhood(
-                body.ir, body.binding, body.task, body.limit, body.seconds, body.execution
-            )
-
-        return await _serve(request, _model_job(NeighborhoodRequest, call))
+        return await _serve(request, "neighborhood")
 
     @router.post(
         "/resources/validate",
@@ -347,15 +324,7 @@ def _router() -> APIRouter:
         openapi_extra=_json_body(ResourceValidateRequest),
     )
     async def validate_resource(request: Request) -> Response:
-        return await _serve(
-            request,
-            _model_job(
-                ResourceValidateRequest,
-                lambda body: operations.validate_resource(
-                    body.document, body.apiVersion, body.kind, body.mediaType, body.resource, body.dialects
-                ),
-            ),
-        )
+        return await _serve(request, "validateResource")
 
     @router.post(
         "/engines/validate",
@@ -366,9 +335,7 @@ def _router() -> APIRouter:
         openapi_extra=_json_body(EngineValidateRequest),
     )
     async def validate_engine(request: Request) -> Response:
-        return await _serve(
-            request, _model_job(EngineValidateRequest, lambda body: operations.validate_engine(body.document))
-        )
+        return await _serve(request, "validateEngine")
 
     @router.post(
         "/resources/xml/root",
@@ -379,14 +346,7 @@ def _router() -> APIRouter:
         openapi_extra=_json_body(XmlResourceRequest),
     )
     async def xml_resource_root(request: Request) -> Response:
-        limits = _settings(request).limits
-        return await _serve(
-            request,
-            _model_job(
-                XmlResourceRequest,
-                lambda body: operations.xml_resource_root(decode_base64(body.contentBase64, "/contentBase64"), limits),
-            ),
-        )
+        return await _serve(request, "xmlResourceRoot")
 
     @router.post(
         "/resources/xml/validate-bpmn",
@@ -397,16 +357,7 @@ def _router() -> APIRouter:
         openapi_extra=_json_body(XmlResourceRequest),
     )
     async def validate_bpmn_resource(request: Request) -> Response:
-        limits = _settings(request).limits
-        return await _serve(
-            request,
-            _model_job(
-                XmlResourceRequest,
-                lambda body: operations.validate_bpmn_resource(
-                    decode_base64(body.contentBase64, "/contentBase64"), limits
-                ),
-            ),
-        )
+        return await _serve(request, "validateBpmnResource")
 
     return router
 
@@ -414,24 +365,28 @@ def _router() -> APIRouter:
 # --- errors ----------------------------------------------------------------------------------------
 
 
+def _failure(exc: Exception) -> Response:
+    """The problem response for an error of the four kinds below (the worker processes render the same ones)."""
+    failure = failure_response(exc)
+    assert failure is not None
+    status, body, headers = failure
+    return problem_response(status, body, headers)
+
+
 async def _bim_error(request: Request, exc: BimError) -> Response:
-    status, body = bim_error_problem(exc)
-    return problem_response(status, body)
+    return _failure(exc)
 
 
 async def _service_problem(request: Request, exc: ServiceProblem) -> Response:
-    return respond(exc)
+    return _failure(exc)
 
 
 async def _invalid_request(request: Request, exc: RequestValidationError) -> Response:
-    error = request_invalid("the request does not match the contract", validation_diagnostics(exc))
-    status, body = bim_error_problem(error)
-    return problem_response(status, body)
+    return _failure(exc)
 
 
 async def _http_exception(request: Request, exc: StarletteHTTPException) -> Response:
-    code = {404: "not_found", 405: "method_not_allowed"}.get(exc.status_code, "http_error")
-    return respond(ServiceProblem(exc.status_code, code, str(exc.detail), headers=exc.headers))
+    return _failure(exc)
 
 
 # --- OpenAPI ---------------------------------------------------------------------------------------
@@ -509,6 +464,9 @@ def build_app(settings: BimServiceSettings, authenticator: Authenticator) -> Fas
         if configured is not None:
             sys.setswitchinterval(configured)
         try:
+            if settings.executor == "process":
+                # Start every worker and check that they fit the container; a service that cannot does not start.
+                await asyncio.to_thread(application.state.gate.start_workers)
             yield
         finally:
             if configured is not None:
@@ -541,7 +499,7 @@ def build_app(settings: BimServiceSettings, authenticator: Authenticator) -> Fas
 
     @app.get("/readyz", include_in_schema=False)
     async def readyz(request: Request) -> Response:
-        if not request.app.state.ready:
+        if not request.app.state.ready or not request.app.state.gate.ready():
             return respond(ServiceProblem(503, "not_ready", "the service is not ready"))
         return JSONResponse({"status": "ready"})
 

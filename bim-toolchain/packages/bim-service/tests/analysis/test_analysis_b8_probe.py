@@ -23,8 +23,7 @@ import time
 import pytest
 from service_support import async_client, run
 
-from bim_service import app as app_module
-from bim_service import models, operations
+from bim_service import jobs, models, operations
 
 COMPILE = "/bim/v1/compile"
 EVALUATE = "/bim/v1/evaluate"
@@ -176,25 +175,41 @@ def test_a_shorter_switch_interval_keeps_healthz_fast_under_the_same_cpu_load(ma
 # --- open defects ----------------------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    raises=OpenDefect,
-    strict=True,
-    reason=(
+def executors(reason: str) -> list:
+    """``thread`` keeps the open defect (strict xfail); ``process`` is the executor that closes it (a normal test)."""
+    return [pytest.param("thread", marks=pytest.mark.xfail(raises=OpenDefect, strict=True, reason=reason)), "process"]
+
+
+def command_body(command: str) -> dict:
+    """The body of a ``/compile`` request that the worker stand-ins (``process_standins``) read as a command."""
+    return {"package": base64.b64encode(command.encode()).decode()}
+
+
+@pytest.mark.parametrize(
+    "executor",
+    executors(
         "B8, GIL switching (reproduced, test_analysis_b8_evidence.py): with the interpreter's 5 ms switch interval "
         "the event loop gets the GIL one interval at a time while 4 pool threads run long pure Python. Synthetic "
         "load: /healthz median 60-118 ms; the real evaluator (1000 bindings): 26-80 ms (6-9 ms at 0.1 ms); a short "
         "real compile does not show it (2 ms). BIM_SERVICE_SWITCH_INTERVAL fixes it but costs about 10% of the "
-        "evaluator's throughput, so it stays off by default; only processes remove it without a cost."
+        "evaluator's throughput, so it stays off by default; BIM_SERVICE_EXECUTOR=process removes it."
     ),
 )
-def test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool(make_app, monkeypatch) -> None:
+def test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool(executor, make_app, process_app, monkeypatch) -> None:
     stop = threading.Event()
-    monkeypatch.setattr(operations, "compile_package", lambda data, registered, limits: (busy(stop), {"ir": {}})[1])
-    app = make_app(max_concurrency=4, max_concurrency_per_tenant=0, operation_timeout_seconds=30)
+    if executor == "thread":
+        monkeypatch.setattr(
+            operations, "compile_package", lambda data, registered, limits: (busy(stop), {"ir": {}})[1]
+        )
+        app = make_app(max_concurrency=4, max_concurrency_per_tenant=0, operation_timeout_seconds=30)
+        request_body = PACKAGE_BODY
+    else:
+        app = process_app(max_concurrency=4, max_concurrency_per_tenant=0, operation_timeout_seconds=30)
+        request_body = command_body("spin:3")
 
     async def scenario() -> list[float]:
         async with async_client(app) as client:
-            tasks = [asyncio.create_task(client.post(COMPILE, json=PACKAGE_BODY)) for _ in range(4)]
+            tasks = [asyncio.create_task(client.post(COMPILE, json=request_body)) for _ in range(4)]
             await asyncio.sleep(0.2)
             latencies = []
             for _ in range(15):
@@ -216,14 +231,14 @@ def test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool(make_app, m
 
 def test_a_package_body_is_decoded_off_the_event_loop(make_app, monkeypatch) -> None:
     monkeypatch.setattr(operations, "compile_package", lambda data, registered, limits: {"ir": {}})
-    original = app_module.decode_package_request
+    original = jobs.decode_package_request
     idents: list[int] = []
 
     def recording(*args, **kwargs):
         idents.append(threading.get_ident())
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(app_module, "decode_package_request", recording)
+    monkeypatch.setattr(jobs, "decode_package_request", recording)
     app = make_app()
 
     async def scenario() -> int:
@@ -262,20 +277,22 @@ def big_ir(approximate_bytes: int) -> dict:
     return {"items": [{"id": i, "w": 1.5, "tags": ["a", "b"], "n": None} for i in range(approximate_bytes // 50)]}
 
 
-@pytest.mark.xfail(
-    raises=OpenDefect,
-    strict=True,
-    reason=(
+@pytest.mark.parametrize(
+    "executor",
+    executors(
         "B8, one C call (reproduced, test_analysis_b8_evidence.py): json.loads and pydantic_core.from_json hold the "
         "GIL for the whole parse, also in a pool thread; for a 13.6 MiB body the loop stalls 316-324 ms of a 350-457 "
         "ms parse (json.dumps of the answer: 139-147 of 149-163 ms), while validation and the finiteness walk, pure Python, "
         "stall it 6-10 ms. No bounded thread-mode fix: only a hand-written chunked parser (a new parser on the "
-        "request path) or processes."
+        "request path); BIM_SERVICE_EXECUTOR=process parses in another interpreter."
     ),
 )
-def test_the_loop_is_not_stalled_while_a_large_body_is_parsed(make_app, monkeypatch) -> None:
-    monkeypatch.setattr(operations, "evaluate", lambda ir, bindings, execution, on_error: {"results": []})
-    app = make_app()
+def test_the_loop_is_not_stalled_while_a_large_body_is_parsed(executor, make_app, process_app, monkeypatch) -> None:
+    if executor == "thread":
+        monkeypatch.setattr(operations, "evaluate", lambda ir, bindings, execution, on_error: {"results": []})
+        app = make_app()
+    else:
+        app = process_app()
     payload = json.dumps({"ir": big_ir(12 * 1024 * 1024), "bindings": [{}]}).encode()
     started = time.perf_counter()
     json.loads(payload)
@@ -300,14 +317,14 @@ def test_the_loop_is_not_stalled_while_a_large_body_is_parsed(make_app, monkeypa
 def test_no_body_is_decoded_for_a_request_that_finds_no_free_slot(make_app, monkeypatch) -> None:
     hold = Hold()
     monkeypatch.setattr(operations, "compile_package", hold)
-    original = app_module.decode_package_request
+    original = jobs.decode_package_request
     decoded: list[int] = []
 
     def counting(*args, **kwargs):
         decoded.append(1)
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(app_module, "decode_package_request", counting)
+    monkeypatch.setattr(jobs, "decode_package_request", counting)
     app = make_app(max_concurrency=2, max_concurrency_per_tenant=0, acquire_timeout_ms=30)
 
     async def scenario() -> list[int]:
@@ -328,27 +345,35 @@ def test_no_body_is_decoded_for_a_request_that_finds_no_free_slot(make_app, monk
     assert len(decoded) == 2, f"{len(decoded)} bodies decoded for 2 slots"
 
 
-@pytest.mark.xfail(
-    raises=OpenDefect,
-    strict=True,
-    reason=(
+@pytest.mark.parametrize(
+    "executor",
+    executors(
         "B8, a thread cannot be stopped (reproduced, test_analysis_b8_evidence.py): the slot stays taken until the "
         "work ends, on purpose (more threads than slots otherwise). An asynchronous exception ends pure Python in "
         "0.4-5 ms but cannot reach a C call (json.loads: the sender itself ran only after 342-386 ms) and may land "
-        "inside the executor or a cache of bim-core, so it is not used. Hard limits need processes."
+        "inside the executor or a cache of bim-core, so it is not used. BIM_SERVICE_EXECUTOR=process kills the worker."
     ),
 )
-def test_a_timed_out_operation_gives_its_slot_back(make_app, monkeypatch) -> None:
+def test_a_timed_out_operation_gives_its_slot_back(executor, make_app, process_app, monkeypatch) -> None:
     stop = threading.Event()
-    monkeypatch.setattr(operations, "compile_package", lambda data, registered, limits: (busy(stop), {"ir": {}})[1])
-    app = make_app(max_concurrency=1, max_concurrency_per_tenant=0, acquire_timeout_ms=20, operation_timeout_seconds=0.2)
+    settings = {"max_concurrency": 1, "max_concurrency_per_tenant": 0, "acquire_timeout_ms": 20}
+    if executor == "thread":
+        monkeypatch.setattr(
+            operations, "compile_package", lambda data, registered, limits: (busy(stop), {"ir": {}})[1]
+        )
+        app = make_app(operation_timeout_seconds=0.2, **settings)
+        first_body = second_body = PACKAGE_BODY
+    else:
+        app = process_app(operation_timeout_seconds=0.2, **settings)
+        first_body, second_body = command_body("spin:forever"), PACKAGE_BODY
 
     async def scenario() -> tuple[int, int]:
         async with async_client(app) as client:
-            first = await client.post(COMPILE, json=PACKAGE_BODY)
+            first = await client.post(COMPILE, json=first_body)
             await asyncio.sleep(0.3)
-            monkeypatch.setattr(operations, "compile_package", lambda data, registered, limits: {"ir": {}})
-            second = await client.post(COMPILE, json=PACKAGE_BODY)
+            if executor == "thread":
+                monkeypatch.setattr(operations, "compile_package", lambda data, registered, limits: {"ir": {}})
+            second = await client.post(COMPILE, json=second_body)
             return first.status_code, second.status_code
 
     try:

@@ -20,8 +20,7 @@ import pytest
 from service_support import async_client, run
 from starlette.responses import JSONResponse
 
-from bim_service import app as app_module
-from bim_service import operations
+from bim_service import jobs, operations
 from bim_service.problems import ServiceProblem
 from bim_service.runtime import Gate
 from bim_service.settings import BODY_MEMORY_FACTOR, BimServiceSettings, ServiceConfigError
@@ -172,14 +171,14 @@ def test_an_answer_with_a_non_finite_number_is_still_a_generic_500(client, monke
 
 def test_the_answer_is_rendered_off_the_event_loop(make_app, monkeypatch) -> None:
     monkeypatch.setattr(operations, "compile_package", lambda data, registered, limits: {"ir": {}})
-    original = app_module.render_json
+    original = jobs.render_json
     idents: list[int] = []
 
     def recording(content):
         idents.append(threading.get_ident())
         return original(content)
 
-    monkeypatch.setattr(app_module, "render_json", recording)
+    monkeypatch.setattr(jobs, "render_json", recording)
     app = make_app()
 
     async def scenario() -> int:

@@ -24,6 +24,11 @@ DEFAULT_MAX_CONCURRENCY_PER_TENANT = 2
 BODY_MEMORY_FACTOR = 8
 
 
+#: The values of ``BIM_SERVICE_EXECUTOR``.  ``thread`` (the default) runs the operations in a thread pool, ``process`` in
+#: worker processes (Linux only, see :mod:`bim_service.workers`).
+EXECUTORS = ("thread", "process")
+
+
 class ServiceConfigError(Exception):
     """The configuration is invalid or incomplete: the service refuses to start."""
 
@@ -75,8 +80,15 @@ class BimServiceSettings:
     max_pending_body_bytes: int | None = None
     log_level: str = "INFO"
     limits: Limits = field(default_factory=Limits)
+    #: Where the operations run: ``thread`` (the default) or ``process`` (``BIM_SERVICE_EXECUTOR``).
+    executor: str = "thread"
+    #: Modules that every worker process imports before it warms up.  Test-only: set by the constructor, never read
+    #: from the environment and never published.
+    worker_preload: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        if self.executor not in EXECUTORS:
+            raise ServiceConfigError(f"BIM_SERVICE_EXECUTOR must be one of {', '.join(EXECUTORS)}")
         _positive("BIM_SERVICE_MAX_BODY_BYTES", self.max_body_bytes)
         _positive("BIM_SERVICE_MAX_CONCURRENCY", self.max_concurrency)
         if self.max_concurrency_per_tenant is not None:
@@ -103,6 +115,14 @@ class BimServiceSettings:
         if self.max_pending_body_bytes is not None:
             return self.max_pending_body_bytes
         return 2 * (self.memory_budget_bytes // BODY_MEMORY_FACTOR)
+
+    @property
+    def worker_allowance_bytes(self) -> int:
+        """Memory a worker process may add to what it holds when it is ready, and the largest answer it may send.
+
+        The estimate that the memory budget charges for the largest body (:data:`BODY_MEMORY_FACTOR` times it).
+        """
+        return BODY_MEMORY_FACTOR * self.max_body_bytes
 
     def for_tenants(self, count: int) -> BimServiceSettings:
         """These settings once the tokens file is known to name ``count`` tenants."""
@@ -161,6 +181,7 @@ class BimServiceSettings:
             max_pending_body_bytes=read("MAX_PENDING_BODY_BYTES", int, defaults.max_pending_body_bytes),
             log_level=read("LOG_LEVEL", str, defaults.log_level).upper(),
             limits=limits,
+            executor=read("EXECUTOR", str, defaults.executor).strip().lower(),
         )
 
     def public_limits(self) -> dict[str, Any]:
@@ -179,4 +200,5 @@ class BimServiceSettings:
             "switchIntervalSeconds": sys.getswitchinterval(),
             "memoryBudgetBytes": self.memory_budget_bytes,
             "maxPendingBodyBytes": self.effective_max_pending_body_bytes,
+            "executor": self.executor,
         }

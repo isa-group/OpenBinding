@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import os
+import signal
 from pathlib import Path
 
 import pytest
@@ -73,6 +75,30 @@ def make_tenant_app(tenant_tokens_path: Path):
         return create_app(BimServiceSettings(tokens_file=str(tenant_tokens_path), **overrides))
 
     return make
+
+
+@pytest.fixture
+def process_app(make_app):
+    """``process_app(**settings)``: an application whose operations run in worker processes (``executor="process"``).
+
+    The workers load ``process_standins`` (operations driven by the request data, see that module); pass
+    ``worker_preload=()`` for the real ones.  Every worker is started before the function returns, without the memory
+    fit check (which depends on the container the tests run in), and the applications are closed at teardown.
+    """
+    if not (hasattr(os, "pidfd_open") and hasattr(signal, "pidfd_send_signal")):
+        pytest.skip("process mode needs Linux with pidfd")
+    apps = []
+
+    def make(**overrides):
+        overrides.setdefault("worker_preload", ("process_standins",))
+        app = make_app(executor="process", **overrides)
+        apps.append(app)
+        app.state.gate.start_workers(check_fit=False)
+        return app
+
+    yield make
+    for application in apps:
+        application.state.gate.close()
 
 
 @pytest.fixture

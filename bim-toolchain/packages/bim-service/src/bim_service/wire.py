@@ -168,6 +168,8 @@ def decode_model_body(model: type[M], content_type: str | None, body: bytes) -> 
                     ],
                     body=exc.doc,
                 ) from exc
+            except MemoryError:
+                raise  # the service ran out of memory: not a malformed body (500, not 400)
             except Exception as exc:  # UnicodeDecodeError, RecursionError
                 raise StarletteHTTPException(status_code=400, detail="There was an error parsing the body") from exc
     if value is None:

@@ -17,6 +17,8 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from bim_core import BimError
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
 
 PROBLEM_BASE = "urn:bim-toolchain:problem:"
@@ -126,3 +128,32 @@ def problem_response(status: int, body: dict[str, Any], headers: Mapping[str, st
 def respond(problem: ServiceProblem) -> ProblemResponse:
     status, body = service_problem(problem)
     return problem_response(status, body, problem.headers)
+
+
+def failure_response(error: BaseException) -> tuple[int, dict[str, Any], dict[str, str]] | None:
+    """``(status, problem body, headers)`` of an error that a job raises, or ``None`` for any other exception.
+
+    The application's exception handlers and the worker processes both call this, so a request gives the same problem
+    whichever executor ran it: ``BimError``, :class:`ServiceProblem`, ``RequestValidationError`` and the HTTP
+    exceptions of the framework.  ``None`` is an unexpected failure.
+    """
+    if isinstance(error, BimError):
+        status, body = bim_error_problem(error)
+        return status, body, {}
+    if isinstance(error, ServiceProblem):
+        status, body = service_problem(error)
+        return status, body, dict(error.headers)
+    if isinstance(error, RequestValidationError):
+        from .wire import request_invalid, validation_diagnostics  # wire imports this module
+
+        status, body = bim_error_problem(
+            request_invalid("the request does not match the contract", validation_diagnostics(error))
+        )
+        return status, body, {}
+    if isinstance(error, StarletteHTTPException):
+        code = {404: "not_found", 405: "method_not_allowed"}.get(error.status_code, "http_error")
+        status, body = service_problem(
+            ServiceProblem(error.status_code, code, str(error.detail), headers=error.headers)
+        )
+        return status, body, dict(error.headers or {})
+    return None

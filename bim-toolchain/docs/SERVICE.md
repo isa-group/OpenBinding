@@ -24,8 +24,10 @@ Within `v1` changes are additive (new optional members, new routes, new error co
 * **No TLS.** Terminate it in front of the service (ingress, sidecar, service mesh). The bearer token is a secret on the
   wire: do not expose the service over plain HTTP outside a trusted network.
 * **No shared rate limiting.** The limits below are per process.
-* **No interruption of a running operation.** A time budget releases the *request*; the thread that computes keeps its
-  slot until it ends (see Limits). Threads also share the GIL with the event loop: see "Where the work runs".
+* **No interruption of a running operation in thread mode (the default).** A time budget releases the *request*; the
+  thread that computes keeps its slot until it ends (see Limits). Threads also share the GIL with the event loop: see
+  "Where the work runs". `BIM_SERVICE_EXECUTOR=process` (opt-in, Linux only) runs the operations in worker processes
+  that are killed at the time budget or when the client goes away: see "Worker processes".
 
 ## Endpoints
 
@@ -149,7 +151,7 @@ Problems about the service rather than the input have no `errorType`:
 | 503 | `service_busy` | no slot became free within `BIM_SERVICE_ACQUIRE_TIMEOUT_MS` (`Retry-After`) |
 | 503 | `operation_timeout` | the operation exceeded `BIM_SERVICE_OPERATION_TIMEOUT_SECONDS` |
 | 503 | `not_ready` | `/readyz` before the service is ready |
-| 500 | `internal_error` | anything unexpected: a fixed `detail`, no exception message, traceback or path, and the extension member `correlationId` (the trace id of the `traceparent` that the answer carries; a request without a valid one gets a fresh id). The log line of the same request has `correlation_id=<id>`, the exception class and the frames (file, function, line), never the exception message, which may quote the input |
+| 500 | `internal_error` | anything unexpected: a fixed `detail`, no exception message, traceback or path, and the extension member `correlationId` (the trace id of the `traceparent` that the answer carries; a request without a valid one gets a fresh id). The log line of the same request has `correlation_id=<id>`, the exception class and the frames (file, function, line), never the exception message, which may quote the input. With `BIM_SERVICE_EXECUTOR=process` also a worker that crashed, was killed from outside (the OOM killer), ran out of its memory allowance or broke the protocol; the log line is `worker_exit pid= signal= op= rss_ready= correlation_id=`, again without input. A `MemoryError` while the body is parsed is a 500 in both executors (before this change thread mode answered 400 `http_error`, as it does for bytes that are not UTF-8) |
 
 Input that is hostile but small is still a client error, never a 500: JSON nested deeper than the parser accepts is
 `request_invalid` (422) or `http_error` (400, from the framework's body parsing), and a corrupt or truncated ZIP is a
@@ -167,7 +169,8 @@ values, by `GET /bim/v1/capabilities` (`limits.service`; `limits.package` are th
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `BIM_SERVICE_MAX_BODY_BYTES` | 32 MiB | largest request body. Declared `Content-Length` over it: 413 **without reading a byte**; otherwise the bytes are counted as they arrive and the request is cut off with 413 when the limit is crossed |
-| `BIM_SERVICE_MAX_CONCURRENCY` | 4 | CPU operations at once (size of the worker thread pool); decoding and validating the body, compile, evaluate and the rest, and rendering the answer, all run in it (see "Where the work runs") |
+| `BIM_SERVICE_EXECUTOR` | `thread` | where the operations run: `thread` (a pool of `BIM_SERVICE_MAX_CONCURRENCY` threads, the behaviour described everywhere else in this document) or `process` (`BIM_SERVICE_MAX_CONCURRENCY` worker processes, Linux only; see "Worker processes"). Any other value stops the start; `process` stops it on a system without `os.pidfd_open` and `signal.pidfd_send_signal`. `limits.service.executor` publishes the value in force |
+| `BIM_SERVICE_MAX_CONCURRENCY` | 4 | CPU operations at once (size of the worker thread pool, or the number of worker processes); decoding and validating the body, compile, evaluate and the rest, and rendering the answer, all run in it (see "Where the work runs") |
 | `BIM_SERVICE_ACQUIRE_TIMEOUT_MS` | 250 | how long a request waits for a slot before 503 |
 | `BIM_SERVICE_MAX_CONCURRENCY_PER_TENANT` | unset (2 with two or more tenants, else none) | operations one **tenant** (the one bound to the token of the request, never the `X-BIM-Tenant` header) may have in flight; more is 429. 0 = unlimited. Unset: the limit of 2 applies only when the tokens file names **two or more tenants**; with one tenant (every caller shares a token) it would only halve the service, so none applies. Set explicitly, it applies whatever the number of tenants. `limits.service.maxConcurrentOperationsPerTenant` publishes the value in force (0 = none), not the nominal default |
 | `BIM_SERVICE_OPERATION_TIMEOUT_SECONDS` | 60 | time budget of one operation |
@@ -205,18 +208,25 @@ refuses NaN and infinity, base64, multipart), the operation and the rendering of
 * The answers for bad input are the same as before (422 `request_invalid` with pointers below `/body`, 400 `http_error`,
   415, 413), but they now come from the pool: while every slot is taken a malformed body is answered 503 `service_busy`
   (or 429) like any other request, instead of 422.
-* The slot is never released before the thread ends (timeout or client gone), because that would allow more threads than
-  slots. A client that disconnects frees its slot (and its memory charge) when its thread finishes.
+* In thread mode the slot is never released before the thread ends (timeout or client gone), because that would allow
+  more threads than slots. A client that disconnects frees its slot (and its memory charge) when its thread finishes. In
+  process mode they are released when the worker has been killed and reaped.
 
 This **bounds** the cost; it does not remove it. `json.loads` and pydantic-core are C code that does not release the GIL
 while they run, and the compiler and the evaluator are pure Python that the interpreter switches between threads only
 every switch interval (5 ms by default). So in thread mode a large body being parsed can still stall the event loop for
 most of the time the parse takes, and long CPU-bound operations make `/healthz` slower. The three open defects are
 pinned as strict `xfail` in `packages/bim-service/tests/analysis/test_analysis_b8_probe.py`; each was reproduced, and
-the root causes and numbers are in "What thread mode cannot do" below. Only worker processes would remove them; that mode
-does not exist (the reviewed design is at the end of that section).
+the root causes and numbers are in "What thread mode cannot do" below. Worker processes remove them
+(`BIM_SERVICE_EXECUTOR=process`, opt-in, "Worker processes" below): the same three tests run against that executor as normal
+passing tests.
 
-### What thread mode cannot do
+### What thread mode cannot do (and what process mode does instead)
+
+Thread mode (`BIM_SERVICE_EXECUTOR=thread`, the default) keeps the three limitations below; they are documented, not
+fixed, and the strict `xfail` of each in `tests/analysis/test_analysis_b8_probe.py` is the `[thread]` parameter of a test
+whose `[process]` parameter passes. `BIM_SERVICE_EXECUTOR=process` closes all three at the costs listed under "Worker
+processes"; each item ends with what process mode did in the same test.
 
 Reproduced with `packages/bim-service/tests/analysis/test_analysis_b8_evidence.py` on 2026-10-13: CPython 3.11.2, Linux
 7.0.0-30-generic, 16 CPUs, in a cgroup v2 with `memory.max` 2684354560 (2.5 GiB). The figures vary between runs; the ones
@@ -247,6 +257,11 @@ differences in what it accepts, in the positions of the 422 diagnostics and in t
 behaviour) and slower in CPU (not measured, not tried), and it would still leave single large leaves (one base64 string,
 `base64.b64decode`) as one call. Lowering `BIM_SERVICE_MAX_BODY_BYTES` bounds the stall but is a different limit, not a fix.
 
+*Process mode:* the parent never parses the body, so the loop does not wait for it. The test passes with the same
+12 MiB body and the same threshold (longest lag of a 5 ms timer under 0.3 times the synchronous `json.loads`). A request of
+33553091 bytes (just under the 32 MiB limit) took 184 ms from the first byte offered to the answer, with the longest stall
+of the 5 ms timer at 13 ms (the worker was a stand-in that parses the body and answers at once).
+
 **2. `/healthz` under CPU-bound operations** (`test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool`, xfail:
 it runs with the interpreter's default interval). Four clients in a loop, four slots, 30 probes per round, three rounds
 per interval, medians per round:
@@ -275,6 +290,11 @@ healthcheck timeout of 3 s that it quotes and that was not re-read here), not an
 latency can set 0.0001-0.001 knowing that cost. The test that keeps the xfail measures the defaults, so it stays an open
 defect.
 
+*Process mode:* the test passes (median under 20 ms with four slots busy for 3 s each). On the real evaluator (1000
+bindings of the demo IR, four clients, four slots, `/healthz` probed every 20 ms meanwhile) the `/healthz` medians were 28.8,
+45.2, 17.4 and 42.0 ms in thread mode and 1.2, 1.1, 1.1 and 1.2 ms in process mode (longest probe 225, 135, 179, 152 ms
+against 36, 36, 36, 47 ms), in four runs of the same test on the machine of "Measurements" below.
+
 **3. A timed-out operation keeps its slot** (`test_a_timed_out_operation_gives_its_slot_back`, xfail). A running thread has
 no stop. The one lever CPython offers is `PyThreadState_SetAsyncExc` (an exception raised inside the thread), and its
 behaviour was measured: in a thread running pure Python it ended the thread 0.4-5 ms after it was sent; in a thread inside
@@ -287,32 +307,148 @@ released) or half-way through the fill of a process-wide cache of `bim_core`, wh
 Giving the slot back at the timeout without stopping the thread would allow more threads than slots. So thread mode keeps
 the slot until the thread ends, as documented under Limits.
 
-**Worker processes: reviewed design (not implemented).** The bounded alternative that removes the three defects:
+*Process mode:* the worker is signalled and reaped at the time budget, the slot goes back after the child is gone, and
+the next request is served (the test passes; the next request waits for the replacement worker to start, see below).
 
-* `BIM_SERVICE_EXECUTOR=thread|process`, default `thread` (today's behaviour, unchanged). In `process` mode the pool is
-  `BIM_SERVICE_MAX_CONCURRENCY` worker processes started with `spawn` or `forkserver` (never `fork` from a process that has an
-  event loop and threads), pre-imported, one per slot, so the slot count and the process count are the same number. The
-  wait for a slot, the tenant share, the memory budget and the answers (503 `service_busy`, 429) are the ones in force.
-* The loop reads the bytes and hands the **bytes** to the worker over a pipe; the worker decodes, validates, runs the
-  operation, renders, and sends bytes back. The event loop never holds a parsed body or a GIL-bound call: the three
-  stalls above disappear because they happen in another interpreter.
-* Timeout and client disconnect **kill** the worker (`SIGKILL`); the slot and the charge are returned at the kill, not when
-  the computation would have ended, and a new worker is started with a rate limit (a storm of timeouts must not become a
-  storm of spawns; while the worker is being replaced its slot is not available).
-* Hard limits per worker, set in the child before it reads any request: `RLIMIT_AS` (or the cgroup memory of the worker where
-  the runtime allows creating one) from the memory budget divided by the slots, `RLIMIT_CPU` above the operation timeout,
-  `RLIMIT_NOFILE`, and no network or file writes needed (the service writes nothing). A worker that is killed for exceeding
-  them answers 503 `operation_timeout` (CPU, wall clock) or 500 `internal_error` with the fixed detail (memory), never the
-  input.
-* Sizing: slots = `min(BIM_SERVICE_MAX_CONCURRENCY, floor((memory limit - resident size of the parent) / resident size of a
-  worker))`. The resident size of a worker was **not measured**; the whole service process measured 54.5 MiB idle (below), which
-  is an upper reference for a worker that imports `bim_core` only. Copy-on-write sharing from a forkserver zygote was not
-  measured either.
-* Open points that need measurement before building: spawn latency of a pre-imported worker, cost of the byte copy through the
-  pipe at 32 MiB, SIGTERM behaviour of the parent with live children, and the behaviour of the lab container's `pids_limit`.
-* Tests that would close the defects: `/healthz` p95 under N CPU-bound operations, children never above N, the child gone
-  (`os.kill(pid, 0)` raises `ProcessLookupError`) and the slot back within 1 s after a timeout or a disconnect, 50 consecutive
-  timeouts without a spawn storm, the three xfails passing unchanged. See `docs/qa/analysis/BIM_B5_B8_M4_IR.md` (3.5, 3.6).
+### Worker processes (`BIM_SERVICE_EXECUTOR=process`)
+
+Opt-in; the default stays `thread` and nothing changes for it (the wire behaviour is byte-identical, with one documented
+exception: a `MemoryError` while a body is parsed is now a 500 and not a 400, in both executors). Linux only: the service
+refuses to start (`ServiceConfigError`) without `os.pidfd_open` and `signal.pidfd_send_signal`, or when the kernel has no
+pidfd. The code is `bim_service/workers.py` (parent), `bim_service/_worker.py` (child) and `bim_service/jobs.py` (the table
+`JOBS` of operation id to job, which is the code of the routes: the same job runs in a pool thread and in a worker).
+
+**Slots.** `BIM_SERVICE_MAX_CONCURRENCY` (N) worker slots each own at most one child. A slot is `EMPTY`, `STARTING`,
+`IDLE`, `BUSY` or `DYING`; a child is started only from `EMPTY` and a slot becomes `EMPTY` only after `waitpid` returned
+for its previous child, so there are never more than N children and no zombies. The concurrency token is still the
+`BoundedSemaphore` of the gate: whoever holds one takes one slot that is not busy from a free list. The order in the gate
+is the one of thread mode (memory check, tenant share, slot, memory charge, dispatch); what an operation holds is given
+back after its worker has returned or been reaped, in the order memory charge, tenant share, slot, body reservation.
+Workers are started lazily by the first requests, or all at once by the lifespan of the application (which is what
+`uvicorn` runs); clients that never run the lifespan (`httpx.ASGITransport` in tests) still get their children stopped, by
+`Gate.close()`, by a `weakref.finalize` of the gate and by a hook that runs before the interpreter joins its threads.
+Nothing is bound to an event loop: no asyncio transports or child watchers. The blocking parent I/O (sending the request,
+reading the answer, waiting on a pidfd) runs in a `ThreadPoolExecutor(max_workers=N)` named `bim-io`; the loop awaits it.
+
+**The child** is started with `python -s -c 'from bim_service._worker import main; main()' <fd>` (no `preexec_fn`, its own
+session, `close_fds`, working directory `/`, stdin/stdout/stderr on `/dev/null`) and an environment of `PATH`,
+`LANG=C.UTF-8`, `PYTHONPATH` (the directories that hold `bim_service` and `bim_core`), `PYTHONDONTWRITEBYTECODE=1`,
+`MALLOC_ARENA_MAX=2` and `PYTHONHASHSEED` only if the parent has one. It has **no `BIM_SERVICE_*` variable and no token**
+(`/proc/<pid>/environ` is checked by a test); everything it needs arrives in the first frame. `PR_SET_PDEATHSIG` is not
+used: a worker that sees the socket close (the parent died, or closed it) exits at once if it is idle; a busy one exits
+when it tries to answer or at its CPU limit.
+
+**The wire between them** is one `AF_UNIX` `SOCK_STREAM` socket pair per child. A frame is `struct.pack('!4sBII', b'BIMW',
+kind, header_len, body_len)` + header + body, `kind` 1 `CONFIG` (parent to child, once), 2 `REQUEST`, 3 `READY`, 4
+`RESPONSE`; the header is UTF-8 JSON built by the sender, the body is opaque bytes, and **nothing is pickled**. A
+`REQUEST` carries the operation id, the content type and the raw request bytes; a `RESPONSE` carries the sequence
+number, status, media type, `Retry-After` if any, the resident size of the worker and the outcome (`ok`, `problem`,
+`crash`, `memory`) and, as its body, the JSON that the client receives. The parent checks, before it allocates anything for
+what a worker sent: the magic, the kind, a header of at most 16 KiB, a body of at most the allowance (below), a header that
+is a JSON object, the sequence number of the outstanding request, a status in {200, 400, 413, 415, 422, 429, 500, 503}, the
+media type `application/json` or `application/problem+json`, and no header but `Retry-After` of at most 64 printable
+characters. A violation kills the child and answers 500. The body is read into **one** `bytearray` allocated after those
+checks and relayed in 1 MiB slices with a `Content-Length`; the parent never parses or renders it again.
+
+**Start of a worker.** The child reads its configuration, applies the interpreter limits of the parent
+(`sys.set_int_max_str_digits`, the recursion limit), imports the service and warms it up (so a broken installation stops
+the start), lowers its priority (`nice 10`, so that the parent keeps the CPU), writes 1000 to `oom_score_adj` (the OOM killer
+takes a worker before the parent), and then limits itself: `RLIMIT_AS` = its `VmSize` when ready + the **allowance** + a
+slack, `RLIMIT_CORE` 0 (no core file), `RLIMIT_FSIZE` 0, `RLIMIT_NOFILE` 64. The allowance is `8 x BIM_SERVICE_MAX_BODY_BYTES`
+(the estimate the memory budget charges for the largest body; it is also the largest answer a worker may send), the slack
+is `max(32 MiB, BIM_SERVICE_MAX_BODY_BYTES)`. `RLIMIT_AS` limits the *virtual* size of the address space, not resident memory.
+Before every request it sets a soft `RLIMIT_CPU` of the CPU used so far + the operation timeout + 2 s. It then sends `READY`
+with its pid, resident and virtual size, the limits it applied and a digest of the static capabilities of its toolchain: a
+parent that sees another digest kills the child (it would answer from another toolchain).
+
+**What happens to a request.**
+
+| Event | The worker | The client sees |
+| --- | --- | --- |
+| Answer (200) or a deterministic error (400, 413, 415, 422 including `limit_exceeded`) | kept | the same bytes thread mode gives |
+| Time budget exceeded (it starts when the request is first written to a ready worker; the start of a child is bounded apart, by 30 s) | `SIGTERM` through its pidfd, `SIGKILL` after 0.2 s, reaped | 503 `operation_timeout` |
+| The CPU limit of the request (`SIGXCPU`) | killed by the kernel, reaped | 503 `operation_timeout` |
+| Client disconnects (task cancelled, or `http.disconnect` seen by a watcher once the body is read) | stopped and reaped as above | none (logged; the access line says 499) |
+| Killed from outside (the OOM killer), `SIGSEGV`, `SIGABRT`, non-zero exit, an exception the service does not map, `MemoryError`, or a peak of virtual size within 1 MiB of its limit | reaped, replaced | 500 `internal_error` with `correlationId`, nothing else |
+| A frame that breaks the protocol, or another toolchain | killed, replaced | 500 `internal_error` (a start failure at start) |
+| No worker could be started | the slot backs off | 503 `service_busy` with `Retry-After` |
+| Shutdown while the request runs | stopped | 503 `service_busy` |
+
+A worker is **never reused** after a timeout, a disconnect, a crash, a memory failure, a protocol violation or an identity
+mismatch. A healthy one is retired after its answer when its resident size is more than 16 MiB above the one at `READY`
+or after 1000 answers. Signals are sent only through the pidfd, which cannot reach a recycled pid.
+
+**Replacement.** A slot whose child was reaped is refilled in the background if its previous start was at least 0.5 s ago,
+and otherwise by the next request that takes the slot (which waits for the rest of the 0.5 s), so a storm of timeouts is not a
+storm of spawns (50 consecutive timeouts with two slots: never more than two children, and never more than two starts in 0.5
+s, tested). Consecutive start failures back off 0.5 s, 1 s, 2 s, ... up to 30 s per slot; a request that finds its slot
+backing off is 503 `service_busy` at once, and while **every** slot backs off `/readyz` is 503 `not_ready`. `/healthz` is
+always 200.
+
+**Shutdown.** The lifespan (and `Gate.close()`) closes the write side of the socket of every idle worker, sends `SIGTERM` to
+the busy ones, waits up to 2 s on the pidfds, kills what is left and calls `waitpid` on every child (a test: 2 busy and 2 idle
+workers, all reaped in under 3 s, no zombie, no pidfd left).
+
+**Memory composition and the fit rule.** After all N workers report `READY` (the start made by the lifespan) the service
+checks `P + Q + N*C + B + N*(L + R) + margin <= M` and refuses to start (`ServiceConfigError`) when it fails; it never
+reduces N by itself. `M` is `/sys/fs/cgroup/memory.max` of cgroup v2 (`max` or no such file: no check), `margin` is 10% of `M`, `P` the
+resident size of the parent when it checks, `Q` the request bodies that may wait (`BIM_SERVICE_MAX_PENDING_BODY_BYTES` in
+force, 0 if none), `C` the resident size of the largest worker when ready, `B` the memory budget (without one, N times the
+allowance, which is the hard bound of the workers' address space), `L` the body limit and `R` the largest answer (the
+allowance), buffered by the parent per slot. It is arithmetic on a model, not a measurement of a running service: answers
+that wait to be sent to slow clients are not bounded by the slots, and workers that are started lazily without the
+lifespan are not checked.
+
+**Measurements** (`tests/analysis/test_analysis_b8_workers.py`, printed in the "measurements" section of the pytest session;
+2026-10-13; CPython 3.11.2, Linux 7.0.0-30-generic, 16 CPUs, a cgroup v2 with `memory.max` 2684354560, which is a limit and not a
+resident size; client and service share one process):
+
+* A worker when ready (`bim_core` imported, warmed up, `C`): `VmRSS` 51564544 bytes (49.2 MiB, the same in three starts),
+  `VmSize` 58.6 MiB (61452288 bytes), `RLIMIT_AS` 363442176 bytes at the default body limit (61452288 + 256 MiB allowance + 32
+  MiB slack). The parent in that run was the test process, 274.0 MiB, the runner included.
+* Cold start to `READY` (spawn, imports, warm-up, handshake): 294, 261 and 262 ms (median 262 ms), with the files cached.
+* A 33553091-byte request (just under 32 MiB) to a worker that answers at once: 184 ms from the first byte offered to the
+  answer; the longest stall of a 5 ms timer on the loop meanwhile, 13 ms (43 ticks). The parent does not parse it; the worker
+  does (the stand-in parses the JSON and decodes the base64).
+* The same `/evaluate` payload (1000 bindings of the demo IR), four concurrent clients with six requests each, four slots,
+  four runs: thread mode 12.0, 13.1, 12.5 and 12.8 requests/s, latency median 324, 302, 270 and 307 ms, p95 456, 402, 447 and 398
+  ms; process mode 22.2, 23.4, 23.7 and 23.6 requests/s, latency median 182, 176, 179 and 178 ms, p95 202, 195, 201 and 197 ms. On this
+  machine (16 CPUs) four workers gave about 1.9 times the throughput of four threads, because the evaluator is pure Python
+  and threads share the GIL; on a machine with fewer CPUs than slots the gain is smaller. The latency of a *single* request
+  with nothing else running was not measured, and process mode adds the copy of the body and of the answer through the
+  socket and the parse of the answer's header, so no claim is made that it costs nothing there.
+* **The fit rule for the laboratory** (`mem_limit` 256 MiB, N=2, L=16 MiB, B=128 MiB, Q=32 MiB as in `compose.lab.json`),
+  with the `C` above and `P` = 55451648 (the lab container's PID 1 in thread mode, measured earlier; the parent of a
+  process-mode service was not measured in that container): `P` 55451648 + `Q` 33554432 + `N*C` 103129088 + `B` 134217728 +
+  `N*(L+R)` 301989888 (R = 8 x 16 MiB = 128 MiB) + margin 26843545 = **655186329 bytes against 268435456: process mode does
+  not fit the laboratory container with those settings** (it needs about 2.4 times the memory). With the same proportions
+  (B = 8 L, Q = 2 L) the largest body limit that fits is **2 MiB with N=2** (B 16 MiB, Q 4 MiB: 244144537 bytes required) and **6
+  MiB with N=1** (B 48 MiB, Q 12 MiB: 253397401 bytes). `compose.lab.json` was not changed: another contract owns the
+  laboratory configuration, and thread mode there is as documented under "Memory budget".
+
+**What process mode does not do.** It does not make the service faster per request (see the single-request note above) and
+it does not make an operation cheaper in memory: each worker holds `C` at rest plus what a request needs, so N workers cost
+about N times `C` more than N threads. It limits the address space of a worker, not its resident memory, so a request can
+still use up to the allowance; the memory budget (an estimate, 8 times the body) is still what refuses work in advance.
+The parent holds each request body until its worker has answered and each answer until it is sent. A worker killed by
+the OOM killer is a 500 for the request it was serving. Python limits are copied from the parent at start
+(`sys.set_int_max_str_digits`, recursion limit); other process-wide state the parent changes later (for instance
+`bim_core.configure`) is not propagated. `limits.service.executor` is the only change to the published contract
+(`capabilities` is not typed in the OpenAPI document, which is unchanged). The behaviour of the `pids_limit` of the lab container
+with N+1 processes was not measured.
+
+Tests (`tests/test_process_executor.py`, with `tests/process_standins.py` loaded in the workers through the constructor-only,
+unpublished setting `worker_preload`, and `tests/fake_worker.py` for the protocol violations): children never above N with
+2N concurrent requests; a timeout and a disconnect reap the child and give back slot, tenant share, memory charge and body
+bytes within 1 s; 50 consecutive timeouts; a worker killed from outside; memory above the allowance; a crash; garbage on the
+standard streams; ten kinds of protocol violation without allocating the declared length; shutdown with busy and idle
+workers; no `BIM_SERVICE_*` or token in the environment of a worker; retiring on memory growth; and a corpus of 37 requests
+(deep nesting, NaN and infinity, a 5000-digit integer, invalid UTF-8, bad base64, duplicate and unknown multipart parts, a
+missing boundary, 415, unknown members, XXE, billion laughs, a ZIP bomb, too many registered resources or bindings, and
+one request for every route) plus the 31 steps of the consumer fixtures, whose status, content type, `Retry-After` and body
+bytes are equal in thread mode and in three fresh workers (three hash seeds): no difference was found, so no
+determinism problem of `bim-core` was observed. The path of `SIGXCPU` and the retirement after 1000 answers by the real
+constant (the test lowers it) are implemented but not reached by a test of the real limits: the wall-clock budget fires first.
 
 The memory table was produced by the test measurement fixture (report values printed in the 'measurements' section of the pytest session), and its figures are the RSS of a fresh Python process, not cgroup totals.
 
@@ -392,7 +528,10 @@ prints what it did not run.
 `(limit of the target container - idle - pending bytes) / 8` and the only container measured is the one above, 2.5 GiB. `BIM_SERVICE_SWITCH_INTERVAL` stays unset for the reasons given
 under "What thread mode cannot do". `BODY_MEMORY_FACTOR` stays 8: the measured 7.5x does not justify changing it.
 
-A thread cannot be interrupted. When an operation exceeds its time budget the *response* is 503 `operation_timeout`,
+In process mode the charge, the tenant share, the slot and the body bytes are returned once the worker has been killed and
+reaped (at the time budget or when the client goes away), not when the computation would have ended.
+
+In thread mode a thread cannot be interrupted. When an operation exceeds its time budget the *response* is 503 `operation_timeout`,
 but the thread keeps its slot (and its tenant's share) until it ends, so a runaway operation cannot be used to start
 more work than `BIM_SERVICE_MAX_CONCURRENCY` allows. Size the budgets from the package limits: compiling a package at
 the default limits can take far longer than evaluating a binding. The pool is per process; compile and evaluate are
@@ -491,6 +630,11 @@ exits non-zero, so a bad rollout never takes traffic. Kubernetes injects `BIM_SE
 into the pods of a Service called `bim-service`; unknown `BIM_SERVICE_*` variables are ignored for that reason. Put the
 service behind TLS and restrict it with a network policy to the pods that call it: the token is a defence in depth, not
 the perimeter.
+
+`BIM_SERVICE_EXECUTOR=process` needs Linux with pidfd (kernel 5.3 or later; the service says so and stops otherwise) and a
+container whose memory limit holds the parent, N workers and their buffers: size it with the fit rule under "Worker
+processes", which the start enforces. The workers are children of the `uvicorn` process (`N` plus the process itself under
+a `pids_limit`; not measured). Under `uvicorn --workers K` every process has its own N workers.
 
 The process-wide state is the installed toolchain, memoised descriptors, and the caches of `bim_core` (compiled XSD,
 schema validators, the bundle digest). Importing `bim_service` reads nothing from the environment; only

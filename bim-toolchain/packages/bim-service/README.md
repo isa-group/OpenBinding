@@ -16,4 +16,8 @@ The service refuses to start without a valid tokens file (`BIM_SERVICE_ALLOW_ANO
 development only). The OpenAPI document is committed at `contracts/openapi/bim-service.v1.json` and
 regenerated with `tools/dump_service_openapi.py`.
 
+The operations run in a pool of threads by default. `BIM_SERVICE_EXECUTOR=process` (opt-in, Linux only) runs them in
+worker processes that are killed at the time budget or when the client goes away, at a memory cost that
+[`docs/SERVICE.md`](../../docs/SERVICE.md#worker-processes-bim_service_executorprocess) measures and checks at start.
+
 License: undecided, see [`NOTICE.md`](../../NOTICE.md).

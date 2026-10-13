@@ -15,7 +15,11 @@ Limits of the thread mode.  ``json.loads`` and pydantic-core are C code that doe
 and the compiler and the evaluator are pure Python that the interpreter switches every ``sys.setswitchinterval``: a large
 body being parsed in a pool thread can still stall the event loop for about as long as the parse takes, and CPU-bound
 threads slow the loop down.  Moving the work to the pool bounds how many such stalls run at once and what they hold in
-memory; it does not remove them.  Only processes would.
+memory; it does not remove them.  Only processes do: ``BIM_SERVICE_EXECUTOR=process`` (opt-in, Linux only) runs the
+same jobs in worker processes (:mod:`bim_service.workers`, :meth:`Gate.run_process`).  The wait for a slot, the tenant
+share, the memory charge and the answers for them are the ones of thread mode; what an operation holds is given back when
+its worker has been killed and reaped (a timeout or a client that goes away stops the worker) and not when a computation
+that nobody waits for would have ended.
 
 Optional memory budget (``memory_budget_bytes``, off by default).  An operation is charged
 :data:`~bim_service.settings.BODY_MEMORY_FACTOR` times its request body (an estimate, not a guarantee) from the moment
@@ -38,11 +42,13 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
+import weakref
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
 
 from .problems import ServiceProblem
 from .settings import BODY_MEMORY_FACTOR, BimServiceSettings
+from .workers import Answer, ClientDisconnected, Disconnect, WorkerFailed, WorkerPool
 
 
 def _retry_headers(settings: BimServiceSettings) -> dict[str, str]:
@@ -158,7 +164,29 @@ class Gate:
         self._charged = 0
         self._chargers = 0
         self.bodies = BodyLedger(settings)
-        self._executor = ThreadPoolExecutor(max_workers=settings.max_concurrency, thread_name_prefix="bim-op")
+        #: The worker processes of ``BIM_SERVICE_EXECUTOR=process`` (refuses to exist where they cannot run); else ``None``.
+        self.pool: WorkerPool | None = WorkerPool(settings) if settings.executor == "process" else None
+        self._executor = (
+            ThreadPoolExecutor(max_workers=settings.max_concurrency, thread_name_prefix="bim-op")
+            if self.pool is None
+            else None
+        )
+        if self.pool is not None:
+            # Tests that never run the lifespan still stop the children when the gate goes away (or at interpreter exit).
+            self._finalizer = weakref.finalize(self, self.pool.close)
+
+    @property
+    def process_mode(self) -> bool:
+        return self.pool is not None
+
+    def ready(self) -> bool:
+        """Whether the executor can take work: always in thread mode, in process mode unless every worker slot is backing off."""
+        return self.pool is None or self.pool.ready()
+
+    def start_workers(self, check_fit: bool = True) -> None:
+        """Start the worker processes now and check that they fit the container (process mode; blocking)."""
+        if self.pool is not None:
+            self.pool.start(check_fit)
 
     def _retry_headers(self) -> dict[str, str]:
         return _retry_headers(self._settings)
@@ -265,6 +293,7 @@ class Gate:
             self._slots.release()
             self._release_tenant(tenant)
             raise
+        assert self._executor is not None, "Gate.run is the thread executor; use run_process"
         try:
             future = asyncio.get_running_loop().run_in_executor(self._executor, function, *args)
         except BaseException:
@@ -284,5 +313,82 @@ class Gate:
             )
         return future.result()
 
+    def _finish_process(self, tenant: str | None, charged: int, reservation: BodyReservation | None) -> None:
+        """What a process-mode operation gives back once its worker has returned or been reaped, in this order."""
+        self._release_memory(charged)
+        self._release_tenant(tenant)
+        self._slots.release()
+        if reservation is not None:
+            reservation.release()
+
+    async def run_process(
+        self,
+        op: str,
+        content_type: str | None,
+        body: bytes,
+        *,
+        tenant: str | None = None,
+        cost_bytes: int = 0,
+        reservation: BodyReservation | None = None,
+        correlation_id: str = "-",
+        disconnect: Disconnect | None = None,
+    ) -> Answer:
+        """The operation ``op`` on ``body`` in a worker process, within the same limits as :meth:`run`.
+
+        The order is the one of :meth:`run` (memory check, tenant share, slot, memory charge, dispatch).  What the
+        operation holds is given back when its worker has returned or been reaped, so a timeout or a disconnect frees
+        the slot as soon as the child is gone.
+        """
+        assert self.pool is not None
+        check_memory_fits(self._settings, cost_bytes)
+        self._take_tenant(tenant)
+        try:
+            await self._take_slot()
+        except BaseException:
+            self._release_tenant(tenant)
+            raise
+        try:
+            charged = self._take_memory(cost_bytes)
+        except BaseException:
+            self._slots.release()
+            self._release_tenant(tenant)
+            raise
+        try:
+            call = self.pool.submit(op, content_type, body, correlation_id)
+        except BaseException:
+            self._release_memory(charged)
+            self._release_tenant(tenant)
+            self._slots.release()
+            raise
+        if reservation is not None:
+            reservation.hand_off()
+        assert call.future is not None
+        call.future.add_done_callback(lambda done: self._finish_process(tenant, charged, reservation))
+        if disconnect is not None:
+            disconnect.bind(call)
+        try:
+            outcome = await asyncio.wrap_future(call.future)
+        except asyncio.CancelledError:
+            call.abort("disconnect")
+            raise
+        if outcome.kind == "answer" and outcome.answer is not None:
+            return outcome.answer
+        if outcome.kind == "timeout":
+            raise ServiceProblem(
+                503,
+                "operation_timeout",
+                f"the operation exceeded its time budget of {self._settings.operation_timeout_seconds:g} s",
+            )
+        if outcome.kind == "busy":
+            raise ServiceProblem(
+                503, "service_busy", "all operation slots are busy; retry later", headers=self._retry_headers()
+            )
+        if outcome.kind == "cancelled":
+            raise ClientDisconnected()
+        raise WorkerFailed(f"the worker failed while serving {op}")
+
     def close(self) -> None:
-        self._executor.shutdown(wait=False, cancel_futures=True)
+        if self.pool is not None:
+            self.pool.close()
+        if self._executor is not None:
+            self._executor.shutdown(wait=False, cancel_futures=True)
