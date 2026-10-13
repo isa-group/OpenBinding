@@ -159,6 +159,26 @@
         "start_period": "20s"
       }
     },
+    "artifacts-init": {
+      "image": "openbinding-lab-gateway:latest",
+      "pull_policy": "never",
+      "user": "0:0",
+      "entrypoint": [],
+      "command": [
+        "sh",
+        "-c",
+        "chown -R 10001:10001 /var/lib/openbinding/artifacts && echo 'artifacts-init: lab-artifacts is owned by 10001' || { [ \"$$(stat -c %u /var/lib/openbinding/artifacts)\" = 10001 ] && echo 'artifacts-init: chown not permitted, but lab-artifacts is already owned by 10001'; }"
+      ],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "lab-artifacts",
+          "target": "/var/lib/openbinding/artifacts"
+        }
+      ],
+      "restart": "no",
+      "mem_limit": "16m"
+    },
     "gateway": {
       "build": {
         "context": ".",
@@ -222,6 +242,7 @@
         }
       ],
       "depends_on": {
+        "artifacts-init": {"condition": "service_completed_successfully"},
         "postgres": {"condition": "service_healthy"},
         "redis": {"condition": "service_healthy"},
         "bim-service": {"condition": "service_healthy"},
@@ -293,6 +314,7 @@
         }
       ],
       "depends_on": {
+        "artifacts-init": {"condition": "service_completed_successfully"},
         "gateway": {"condition": "service_healthy"},
         "redis": {"condition": "service_healthy"},
         "bim-service": {"condition": "service_healthy"}
@@ -421,14 +443,48 @@
         }
       ],
       "depends_on": {
+        "artifacts-init": {"condition": "service_completed_successfully"},
         "bim-service": {"condition": "service_healthy"}
       },
       "mem_limit": "384m"
+    },
+    "e2e": {
+      "build": {
+        "context": "frontend",
+        "dockerfile": "Dockerfile.e2e"
+      },
+      "user": "pwuser",
+      "command": ["sh", "/app/e2e/live/run.sh"],
+      "environment": {
+        "BASE_URL": "http://web:8080",
+        "DEMO_E2E": "${DEMO_E2E}",
+        "DEMO_SEED_PASSWORD": "${DEMO_SEED_PASSWORD}"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "lab-e2e",
+          "target": "/results"
+        }
+      ],
+      "depends_on": {
+        "web": {"condition": "service_healthy"}
+      },
+      "restart": "no",
+      "mem_limit": "576m",
+      "healthcheck": {
+        "test": ["CMD-SHELL", "test -f /results/done"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 3,
+        "start_period": "3600s"
+      }
     }
   },
   "volumes": {
     "lab-pg": {},
     "lab-redis": {},
-    "lab-artifacts": {}
+    "lab-artifacts": {},
+    "lab-e2e": {}
   }
 }

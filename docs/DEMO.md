@@ -12,8 +12,14 @@ thing published on the host is `127.0.0.1:18100`.
 - `smoke_lab.py` gives **9/9** steps in 24.4 s with `DEMO_SPACE_ENABLED=false`.
   `plan_usage` is omitted (it needs SPACE, i.e. `--with-space`).
 
-**Not executed**: Playwright against the live lab (the specs are written, see
-`docs/qa/E2E_PLAN.md`), the mobile/desktop visual check, and the lab with
+**Since that run** two services were added (`artifacts-init` and `e2e`, see "What
+runs" and "Browser specs and visual QA inside the lab"). The observations above
+are from before them; the new file, the images `frontend/Dockerfile.e2e` and the
+sequence below have been checked **statically only** (tests, `tsc`, lint), never
+built or started.
+
+**Not executed**: Playwright against the live lab (the specs and the `e2e` service
+are written, see `docs/qa/E2E_PLAN.md`), the mobile/desktop visual check, and the lab with
 `DEMO_SPACE_ENABLED=true` and real contracts (SPACE has no service or contracts,
 see "SPACE status"). The PostgreSQL concurrency harness was run separately, not
 as part of the lab: see [PG_HARNESS.md](qa/PG_HARNESS.md). The lab runs with
@@ -31,14 +37,18 @@ A static check also exists (`lab/tests/test_lab_compose.py`).
 | `engine-evolutionary-heuristics` | `engines/evolutionary-heuristics/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
 | `engine-minizinc` | `engines/minizinc-csp/Dockerfile` | 192 MiB | Node, `--max-old-space-size=96` |
 | `bim-service` | `bim-toolchain`, `packages/bim-service/Dockerfile` | 256 MiB | port 8080, `/healthz`, tokens file in a tmpfs |
+| `artifacts-init` | `image: openbinding-lab-gateway:latest`, `pull_policy: never`, no build; `user: 0:0`, `entrypoint: []` | 16 MiB | one-shot, `restart: "no"`: `chown -R 10001:10001` on `lab-artifacts`; `gateway`, `worker` and `seed` wait for it with `service_completed_successfully` |
 | `gateway` | `openbinding-gateway/Dockerfile`, tagged `openbinding-lab-gateway:latest` (the only build of this image) | 640 MiB | `alembic upgrade head` through the image entrypoint, then uvicorn with `--proxy-headers` |
 | `worker` | `image: openbinding-lab-gateway:latest`, no build | 448 MiB | dramatiq, one process, 2 threads, queues `default` and `analysis` |
 | `web` | `frontend/Dockerfile`, target `lab` (config `frontend/nginx.lab.conf` baked in) | 96 MiB | nginx: production build of the frontend, `/api/` to the gateway without the prefix; **the only published port** |
 | `seed` | `image: openbinding-lab-gateway:latest`, no build | 384 MiB | `profiles: ["seed"]`; not started by `up` |
+| `e2e` | `frontend/Dockerfile.e2e` (`mcr.microsoft.com/playwright:v1.62.1-jammy`, the version `pnpm-lock.yaml` resolves for `@playwright/test`) | 576 MiB | `user: pwuser`, volume `lab-e2e` on `/results`; runs the live specs when `DEMO_E2E=1`, then stays alive; healthy when `/results/done` exists |
 
-**Memory sum of all `mem_limit`: 3456 MiB** (3.375 GiB; lab ceiling 4096 MiB,
-target 3481 MiB = 3.4 GiB). It includes `seed`, which only runs on demand, so
-the steady state is 3072 MiB. `test_lab_compose.py` recomputes the sum and fails
+**Memory sum of all `mem_limit`: 4048 MiB** (3.953 GiB; lab ceiling 4096 MiB,
+48 MiB to spare). It was 3456 MiB before `artifacts-init` (16) and `e2e` (576).
+It includes `seed`, which only runs on demand, and `artifacts-init`, which exits,
+so the steady state is 3648 MiB. `test_lab_compose.py` and
+`test_container_hardening.py` recompute the sum and fail if it is not 4048 or
 if this document does not state it. `mem_limit` bounds the container, not the
 page cache of the named volumes, and image builds are not limited by it.
 
@@ -51,8 +61,29 @@ that limits a compromised process. Consequences for the lab:
   so UID 10001 can write the token file (still created with `umask 077`).
 - `lab-artifacts` is writable by 10001 because `/var/lib/openbinding/artifacts` exists in
   the image owned by 10001 and an empty named volume inherits that owner. A
-  `lab-artifacts` volume created by an earlier image (owned by root) keeps its owner:
-  recreate it (`down -v`) or `chown 10001:10001` it once.
+  `lab-artifacts` volume created by an earlier image (owned by root) keeps its owner,
+  and the controller has no access to volumes, so a one-shot service fixes it:
+  **`artifacts-init`** runs the gateway image as `user: 0:0` (root of a rootless
+  container, not root of the host) with `entrypoint: []` and
+  `chown -R 10001:10001 /var/lib/openbinding/artifacts`, mounts only `lab-artifacts`, has
+  no environment, no secret and no port, `restart: "no"`, 16 MiB. `gateway`, `worker` and
+  `seed` depend on it with `service_completed_successfully`.
+  - It has `image:` and `pull_policy: never`, no `build`: `up --build` builds `gateway`
+    first (it tags `openbinding-lab-gateway:latest`) and compose creates containers after the
+    builds, the same way `worker` already relies on that tag. If a clean `up` ever says the
+    image is missing for `artifacts-init`, give it the same `build` block as `gateway`
+    (and relax `test_gateway_worker_and_seed_share_one_always_rebuilt_image`).
+  - The supervisor drops every capability, and `chown` to another owner needs `CAP_CHOWN`.
+    So the command is `chown -R ... && echo ... || { [ "$(stat -c %u dir)" = 10001 ] && echo ...; }`:
+    on a **new** volume (already owned by 10001 through the image directory) it succeeds even
+    if the `chown` is refused; on a **stale root-owned** volume with no `CAP_CHOWN` it exits 1
+    and, because the gateway waits for it, `up` fails. Then `logs artifacts-init` shows the
+    `chown` error: the only remedies are to remove that volume (`down` plus an explicit
+    volume removal, losing its artifacts) or to let that service have `CAP_CHOWN`.
+  - `up --wait` and a container that exits 0: if the compose version treats `artifacts-init`
+    exiting as a failure of `--wait`, that is the first thing to look at in `status`.
+  - `test_container_hardening.py` keeps `artifacts-init` as the single exception to "no
+    service runs as root" and checks that its command does nothing else.
 - `bim-service` has `cpus: 1.5` and `pids_limit: 256` in addition to `mem_limit`.
   These are plain Compose service attributes; `mem_limit` is unchanged, so the sum
   above is too. If the `lab_compose` validator of the controller rejects either key,
@@ -84,7 +115,8 @@ secrets**; use your own.
 | `DEMO_SPACE_DEV_PLAN` | seed **only** (as `SPACE_DEV_PLAN`) | a plan of that service's pricing version, for the contracts of the synthetic users |
 | `DEMO_SEED_TOOL` | seed | `seed_lab.py`, or `smoke_lab.py` for the API smoke (a file of `openbinding-gateway/tools/`; `seed_dev.py` also exists) |
 | `DEMO_SEED_ARGS` | seed | `--verbose` for a seed, `--with-space` for the smoke (see "Seeding" and "API smoke") |
-| `DEMO_SEED_PASSWORD` | seed (`seed_lab.py`, `smoke_lab.py`) | any synthetic value of 10+ characters; the supervisor injects it; `compose.lab.json` passes it only to `seed`, as `${DEMO_SEED_PASSWORD}` with no value and no default |
+| `DEMO_SEED_PASSWORD` | seed (`seed_lab.py`, `smoke_lab.py`) and e2e (the live specs sign the synthetic users in with it) | any synthetic value of 10+ characters; the supervisor injects it; `compose.lab.json` passes it only to `seed` and `e2e`, as `${DEMO_SEED_PASSWORD}` with no value and no default |
+| `DEMO_E2E` | e2e | `1` runs the live specs when the service starts; anything else (`0`, unset) only creates `/results/done` and sleeps. See "Browser specs and visual QA inside the lab" |
 | `SMOKE_BASE_URL` | seed (`smoke_lab.py`) | fixed in the file to `http://web:8080` on `seed` only |
 
 The file writes no SPACE service or plan name: those come from `DEMO_*`
@@ -211,6 +243,61 @@ never needs the secret, and keeping the secret in one service is the point of
 If a later seed tool needs either, change `SEED_OMITS` in
 `lab/tests/test_lab_compose.py` together with the compose file.
 
+## Browser specs and visual QA inside the lab
+
+The `e2e` service runs Playwright (Chromium) **inside** the lab network against
+`http://web:8080` with the synthetic users, so nothing has to be done on a Mac.
+It is built from `frontend/Dockerfile.e2e` and runs `frontend/e2e/live/run.sh`
+with `frontend/playwright.live.config.ts`:
+
+- `DEMO_E2E=1`: `pnpm exec playwright test -c playwright.live.config.ts` (one
+  worker, `list` reporter plus a JSON report, trace on failure), then it prints
+  `E2E_FAILED ...` for each failing test and one final line
+  `E2E_SUMMARY passed=N failed=N skipped=N`. The visual QA prints one
+  `VQA viewport=<desktop|mobile> page=<screen> result=<PASS|FAIL|SKIPPED> ...` line per
+  screen and size, and a `VQA_PROBLEM ...` line per finding.
+- Whatever `DEMO_E2E` is, it ends by creating `/results/done` and sleeping
+  (`sleep infinity`). Its healthcheck is `test -f /results/done`, so `up --wait`
+  returns when the run is over (the start period is 3600 s) and does not fail on a
+  stopped container. An earlier run's `done` is deleted first.
+- `/results` is the named volume `lab-e2e`: `done`, `report.json`,
+  `screenshots/<desktop|mobile>-<screen>.png`, `visual-qa-*.json` and
+  `test-output/` (traces of failures). **The controller cannot open volumes**, so
+  none of that is readable: only `logs e2e` is.
+
+Exact sequence with `lab_compose`:
+
+1. `down` **if the checkout changed** (a new SHA): it removes the containers and
+   keeps the volumes. The `e2e` image is rebuilt by `up` because it copies `frontend/`.
+2. `up` with `DEMO_E2E=0`: builds everything (the first time the Playwright image
+   and `pnpm install` take a while), starts the stack and `e2e` creates `done` and sleeps.
+3. `seed` with `DEMO_SEED_TOOL=seed_lab.py` (`DEMO_SEED_ARGS=--verbose`) and a
+   `DEMO_SEED_PASSWORD`. Wait for it to finish; `seed` uses the environment saved by the
+   last `up`.
+4. `up` again with `DEMO_E2E=1` (and the **same** `DEMO_SEED_PASSWORD`): the changed
+   variable recreates `e2e`, which runs the specs; `--wait` returns when it is done.
+   (`up` with an unchanged environment does not rerun anything: to repeat a run, `up`
+   with `DEMO_E2E=0` and then with `DEMO_E2E=1`, or `down` and `up`.)
+5. `logs e2e`: look for `E2E_SUMMARY`, then `E2E_FAILED`, `E2E_ERROR`, `VQA_PROBLEM`
+   and `VQA_HTTP4XX`. `logs gateway` and `logs web` show what the specs did on the other side.
+
+Things to know before reading the result:
+
+- The gateway throttles logins to 10 per user per 5 minutes. The functional specs
+  run only in the `desktop` project, `mobile` runs only the visual QA, and the
+  helper waits out a `429`; still, two complete runs within five minutes can wait.
+- `04-job-random-search` starts one real job as `lab-owner` (so the lab keeps it) and
+  the visual QA opens a finished job of `lab-owner` as "a result". With
+  `DEMO_SPACE_ENABLED=true` and no contract the launch is `503 pricing_unavailable` and
+  `04` fails; with `false` (the lab's current mode) there is no plan: the plan page shows
+  an empty plan name and features it "Can’t confirm" (the frontend has no dedicated
+  notice for the open gate).
+- **Not verifiable from here**: the screenshots (they are in a volume the controller
+  cannot open; only the numbers in the log can be read), anything a human would
+  judge by eye (spacing, colour, taste), the run itself (it has never been executed),
+  and the Chromium flags in a real container (`--no-sandbox`, `--disable-dev-shm-usage`,
+  one worker, 576 MiB).
+
 ## Reaching it from the Mac
 
 On the Mac:
@@ -317,7 +404,12 @@ body without `optimization` (422, fixed).
 
 ## Mobile and desktop check
 
-In the browser on the Mac (DevTools, device toolbar):
+The measurable part is automated: `e2e/live/visual-qa.spec.ts` (see above and
+`docs/qa/E2E_PLAN.md`) checks horizontal overflow, console and page errors, 5xx
+answers, the main landmark, touch targets (mobile), clipped text and broken images on
+the main screens at 1280 x 800 and 390 x 844, and takes a screenshot of each. It has
+not been run. What follows is the by-eye check that stays manual, in the browser on
+the Mac (DevTools, device toolbar):
 
 - Mobile: 390 x 844 (iPhone 14 class). Navigate home, login, cases, a job, the
   workbench; check the navigation, tables that scroll horizontally and the
@@ -393,12 +485,11 @@ diagnostic guide, not a list of verified results.
    container, which tells a broken nginx from a broken probe: if it passes, the
    server is fine and only the probe inside `web` is at fault.
 3. **Artifacts.** `lab-artifacts` is written by `gateway`, `worker` and
-   `seed`, all root in their containers; check that a job produces a
-   downloadable artifact. Root needs no capability for this: the volume is
-   created root-owned, and uvicorn listens on 8000, `alembic` and the seed
-   tools only read the image and write the database and this volume.
-   `docker-entrypoint.sh` does no `chown`. The seed reads the bind-mounted
-   `tools/` as "other", so those files must be world-readable (the default).
+   `seed`, which run as 10001 (see "Unprivileged containers"); check that a job
+   produces a downloadable artifact. `artifacts-init` makes the volume theirs
+   before they start (`logs artifacts-init`). `docker-entrypoint.sh` does no
+   `chown`. The seed reads the bind-mounted `tools/` as "other", so those files
+   must be world-readable (the default).
 4. **Tokens file.** `logs bim-service`: `bearer authentication enabled with 1
    token(s)`. The tmpfs is created root-owned, mode 1777, and the service runs
    as uid 10001 (it writes its own file, `umask 077`). An error saying the
@@ -420,11 +511,14 @@ diagnostic guide, not a list of verified results.
   `postgres`, `redis` and `web`, the `tmpfs` mounts of `web` and
   `entrypoint: []` on `worker`. The `web` failure on the way was the empty
   configuration bind mount (now baked into the `lab` target).
-- Not executed: Playwright against the live lab, the mobile/desktop visual check,
-  and SPACE enabled with real
+- Not executed: Playwright against the live lab (the `e2e` service has never been built
+  or started), the mobile/desktop visual check, the `artifacts-init` chown, and SPACE
+  enabled with real
   contracts (SPACE has no service or contracts and rejects the pricing
   `createdAt` format; see "SPACE status"). `DEMO_SPACE_ENABLED=false` gives no
   real entitlements.
+- The `e2e` screenshots and report stay in the volume `lab-e2e`, which the controller
+  cannot open: only `logs e2e` is readable.
 - `lab_compose seed` ignores the environment passed to it and uses the one saved
   by the last `up`.
 - The proxy-header trust list covers the three private ranges Docker allocates
@@ -433,7 +527,7 @@ diagnostic guide, not a list of verified results.
   possible peers.
 - `engine-minizinc` at 192 MiB runs Node plus MiniZinc and its solver as child
   processes; a large model may not fit. Raising it means lowering something
-  else to stay under 3481 MiB (the current total leaves 25 MiB).
+  else to stay under 4096 MiB (the current total, 4048 MiB, leaves 48 MiB).
 - A single worker serves both queues with two threads; analysis jobs and solve
   jobs can delay each other.
 - `gateway`, `worker` and `seed` share one image, `openbinding-lab-gateway:latest`,

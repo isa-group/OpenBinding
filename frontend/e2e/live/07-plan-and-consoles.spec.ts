@@ -25,8 +25,16 @@ test.describe('live · plan, permissions and the native consoles', () => {
       const main = page.locator('#platform-main');
       await expect(main.getByRole('heading', { level: 1, name: 'Plan & permissions' })).toBeVisible();
       await expect(main.getByRole('link', { name: 'Plan & permissions' })).toHaveAttribute('aria-current', 'page');
-      // Either the plan is read, or the gateway says the pricing is unavailable (no contract for the lab user in SPACE): both are honest.
-      await expect(main.getByRole('region', { name: 'Your plan' }).or(main.getByRole('alert'))).toBeVisible();
+      // Either the plan is read, or the gateway says the pricing is unavailable (SPACE enabled and no contract for the lab user): both
+      // are honest. The lab normally runs with SPACE disabled (the open gate): there is no plan name and no remote entitlement, and
+      // the page says what it can ("Features", each one "Enabled" or "Can’t confirm"); it has no notice of its own for that mode.
+      const plan = main.getByRole('region', { name: 'Your plan' });
+      await expect(plan.or(main.getByRole('alert')).first()).toBeVisible();
+      if (await plan.count()) {
+        await expect(main.getByRole('heading', { level: 2, name: 'Features' })).toBeVisible();
+        const named = (await plan.locator('.usage-plan-name strong').first().innerText()).trim();
+        if (!named) testInfo.annotations.push({ type: 'open-gate', description: 'no plan name: the gateway has no remote entitlements (DEMO_SPACE_ENABLED=false)' });
+      }
       await expectConsoleLinks(main, { space: 'Open SPACE console', sphere: 'Open SPHERE console' });
 
       // Nothing is metered: no meter, no monthly counter, no credits.

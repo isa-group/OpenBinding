@@ -31,10 +31,11 @@ const options: ts.CompilerOptions = {
   noUnusedParameters: true,
 };
 
+const configs = [`${root}/playwright.config.ts`, `${root}/playwright.live.config.ts`];
 const liveFiles = ts.sys.readDirectory(live, ['.ts']);
-const rootNames = [...ts.sys.readDirectory(e2e, ['.ts']), `${root}/playwright.config.ts`];
+const rootNames = [...ts.sys.readDirectory(e2e, ['.ts']), ...configs];
 const program = ts.createProgram({ rootNames, options });
-const own = (name: string) => name.startsWith(`${e2e}/`) || name === `${root}/playwright.config.ts`;
+const own = (name: string) => name.startsWith(`${e2e}/`) || configs.includes(name);
 const diagnostics = ts.getPreEmitDiagnostics(program)
   .filter((item) => item.file !== undefined && own(item.file.fileName))
   .map((item) => {
@@ -56,23 +57,25 @@ describe('the Playwright specs', () => {
   describe('the live project', () => {
     const specs = liveFiles.filter((name) => name.endsWith('.spec.ts'));
 
-    it('covers login, navigation, the case, a job, the viewer, the outsider and the plan page', () => {
+    it('covers login, navigation, the case, a job, the viewer, the outsider, the plan page and the visual QA', () => {
       expect(specs.map((name) => name.replace(`${live}/`, ''))).toEqual([
         '01-login.spec.ts', '02-navigation.spec.ts', '03-case-simple-seq.spec.ts', '04-job-random-search.spec.ts',
-        '05-viewer-read-only.spec.ts', '06-outsider-no-access.spec.ts', '07-plan-and-consoles.spec.ts',
+        '05-viewer-read-only.spec.ts', '06-outsider-no-access.spec.ts', '07-plan-and-consoles.spec.ts', 'visual-qa.spec.ts',
       ]);
       for (const name of specs) expect(read(name), name).toMatch(/\btest\(|\btest\.describe\(/);
     });
 
     it('takes the synthetic users from the lab and the password from the environment only', () => {
       const support = read(`${live}/support.ts`);
-      expect(support).toContain('process.env.LAB_SEED_PASSWORD');
+      // From a workstation LAB_SEED_PASSWORD; inside the `e2e` service of the lab, DEMO_SEED_PASSWORD (the name compose.lab.json uses).
+      const either = 'process.env.LAB_SEED_PASSWORD || process.env.DEMO_SEED_PASSWORD';
+      expect(support).toContain(either);
       for (const user of ['lab-owner', 'lab-member', 'lab-viewer', 'lab-outsider']) expect(support).toContain(user);
       for (const name of liveFiles) {
         const text = read(name);
-        // No literal password, no fallback for the variable, and nothing that reads a .env file.
+        // No literal password, no other fallback for the variables, and nothing that reads a .env file.
         expect(text, name).not.toMatch(/password['"]?\s*[:=]\s*['"`]/i);
-        expect(text, name).not.toMatch(/LAB_SEED_PASSWORD\s*(\?\?|\|\|)/);
+        expect(text.replace(either, ''), name).not.toMatch(/(LAB|DEMO)_SEED_PASSWORD\s*(\?\?|\|\|)/);
         expect(text, name).not.toMatch(/['"`][^'"`]*\.env['"`]|dotenv|readFile/);
       }
     });
@@ -89,6 +92,45 @@ describe('the Playwright specs', () => {
       expect(config).toContain("name: 'live'");
       expect(config).toContain('process.env.PLAYWRIGHT_BASE_URL ?? \'http://localhost:18100\'');
       expect(config).toContain("testIgnore: '**/live/**'");
+    });
+
+    it('has a configuration for the lab: no web server, one worker, a desktop and a mobile project, Chromium without a sandbox', () => {
+      const config = read(`${root}/playwright.live.config.ts`);
+      expect(config).toContain("testDir: './e2e/live'");
+      expect(config).toContain("process.env.BASE_URL ?? 'http://web:8080'");
+      expect(config).toContain("process.env.E2E_RESULTS_DIR ?? '/results'");
+      expect(config).toMatch(/workers: 1\b/);
+      expect(config).toContain("trace: 'retain-on-failure'");
+      expect(config).toMatch(/name: 'desktop'[\s\S]*width: 1280, height: 800/);
+      expect(config).toMatch(/name: 'mobile'[\s\S]*width: 390, height: 844[\s\S]*hasTouch: true/);
+      expect(config).toContain("'--no-sandbox'");
+      expect(config).toContain("'--disable-dev-shm-usage'");
+      expect(config).not.toContain('webServer');
+      // The mocked specs keep their own configuration, which the lab file must not have changed.
+      expect(read(`${root}/playwright.config.ts`)).not.toContain('E2E_RESULTS_DIR');
+    });
+
+    it('measures every screen at both sizes: overflow, console, pageerror, 5xx, landmark, touch targets, clipped text, images', () => {
+      const qa = read(`${live}/visual-qa.spec.ts`);
+      expect(qa).toContain('scrollWidth');
+      expect(qa).toContain('innerWidth');
+      expect(qa).toMatch(/message\.type\(\) === 'error'/);
+      expect(qa).toContain("page.on('pageerror'");
+      expect(qa).toMatch(/status >= 500/);
+      expect(qa).toContain('main, [role="main"]');
+      expect(qa).toMatch(/MIN_TARGET_PX = 24/);
+      expect(qa).toContain('clipped');
+      expect(qa).toContain('brokenImages');
+      expect(qa).toContain('${RESULTS_DIR}/screenshots/');
+      expect(qa).toMatch(/VQA viewport=/);
+      // The screens the QA walks.
+      for (const screen of ["slug: 'login'", "slug: 'panel'", "slug: 'organization-projects'", "slug: 'project'", "slug: 'case'", "slug: 'jobs'",
+        "slug: 'job-result'", "slug: 'plan-permissions'", "slug: 'team-organization'"]) {
+        expect(qa, screen).toContain(screen);
+      }
+      // A viewer is not offered a way to start a run.
+      expect(qa).toContain('Send run');
+      expect(qa).toContain('starting a run needs MEMBER');
     });
   });
 });

@@ -35,9 +35,28 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
     await expect(page.getByText('starting a run needs MEMBER')).toBeVisible();
     await expect(page.getByText(/VIEWER/).first()).toBeVisible();
-    // Whatever step is on screen, there is no enabled button that sends the run.
+    // Whatever step is on screen, there is no enabled button that sends the run (the gateway refuses it below MEMBER as well).
     await expect(page.locator('button:not([disabled])', { hasText: 'Send run' })).toHaveCount(0);
     await capture(page, testInfo, 'viewer-job-launch');
+    expect(errors).toEqual([]);
+  });
+
+  test('the list of runs of the project offers no way to start one', async ({ page }, testInfo) => {
+    const errors = watchPageErrors(page);
+    await signInByApi(page, 'viewer');
+    await page.goto(`${PROJECT_PATH}/jobs`);
+
+    await expect(page.getByRole('heading', { level: 1, name: 'Jobs' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'New run' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Start a run' })).toHaveCount(0);
+    // The case offers "Run latest" to a member of the project, a viewer included, but it only leads to the steps above, read-only. That
+    // is noted rather than failed: the entry point is the interface's, the refusal is the gateway's and the launch page's.
+    await page.goto(`${PROJECT_PATH}/cases/${CASE}`);
+    await expect(page.locator('code.case-slug')).toHaveText(CASE);
+    const entries = await page.getByRole('link', { name: 'Run latest' }).count();
+    if (entries > 0) {
+      testInfo.annotations.push({ type: 'viewer-run-entry', description: `${entries} "Run latest" link(s) are shown to a VIEWER; they lead to a read-only launch page` });
+    }
     expect(errors).toEqual([]);
   });
 

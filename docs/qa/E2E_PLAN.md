@@ -1,9 +1,12 @@
 # End-to-end plan: API smoke test of the lab demo
 
-> **Browser specs (`frontend/e2e/live/*.spec.ts`): WRITTEN, NOT EXECUTED.** They were produced where there is no browser
-> and no lab. They are checked for TypeScript errors (`src/test/e2eSpecs.test.ts`, inside `pnpm test`) and nothing else: no
-> selector has been run against a real page, and `playwright test --list` has not been run either. Expect to correct
-> selectors on their first run. See [Browser specs of the `live` project](#browser-specs-of-the-live-project-written-not-executed).
+> **Browser specs (`frontend/e2e/live/*.spec.ts`) and the `e2e` service that runs them in the lab: WRITTEN, NOT EXECUTED.**
+> They were produced where there is no browser, no Docker and no lab. They are checked for TypeScript errors
+> (`src/test/e2eSpecs.test.ts`, inside `pnpm test`), against the source of the frontend (selectors and texts were read in
+> `frontend/src`, and corrected where they did not match) and statically against `compose.lab.json`; no selector has been
+> run against a real page, `playwright test --list` has not been run, and the image `frontend/Dockerfile.e2e` has not been
+> built. Expect to correct selectors on the first run. See
+> [Browser specs of the `live` project](#browser-specs-of-the-live-project-written-not-executed).
 
 **Status: at SHA `5aebc7c8` (2026-10-13), with `DEMO_SPACE_ENABLED=false`, `tools/smoke_lab.py` gave 9/9 steps in 24.4 s
 against the lab; `plan_usage` (step 10, needs `--with-space`) was omitted and is not executed.**
@@ -141,21 +144,33 @@ done, and what was not:
 
 | Check | Result |
 | --- | --- |
-| `tsc` over `frontend/e2e/**` and `playwright.config.ts` | Done, as the test `src/test/e2eSpecs.test.ts` (TypeScript API, strict, same rules as `src`) inside `pnpm test`: no diagnostics |
-| `playwright test --list --project=live` | **Not run** (only the registered checks can be run here; `pnpm exec playwright` is not one of them) |
-| `playwright test --project=live` against the lab | **Not run** |
-| Screenshots at 1440x900 and 390x844 | **None exist**: the specs take them when they run |
+| `tsc` over `frontend/e2e/**`, `playwright.config.ts` and `playwright.live.config.ts` | Done, as the test `src/test/e2eSpecs.test.ts` (TypeScript API, strict, same rules as `src`) inside `pnpm test`: no diagnostics |
+| Selectors, texts and routes against `frontend/src` | Read by hand against the components (not rendered); the corrections are listed under "What was corrected before the first run" |
+| `compose.lab.json` (`artifacts-init`, `e2e`), `Dockerfile.e2e` against `pnpm-lock.yaml` | Static tests only (`lab/tests`, `test_container_hardening.py`): the Playwright image is `v1.62.1-jammy`, the version the lock resolves |
+| `playwright test --list` | **Not run** (only the registered checks can be run here; `pnpm exec playwright` is not one of them) |
+| `docker build` of `Dockerfile.e2e`, `up`, the run against the lab | **Not run** |
+| Screenshots (`<results>/screenshots/<desktop\|mobile>-<screen>.png`) | **None exist**: the specs take them when they run, in a volume the controller cannot open |
 
-The same test also asserts that the specs read the password only from `LAB_SEED_PASSWORD` (no literal, no fallback, no `.env`), that
-the two viewport sizes are in the capture helper, and that the `live` project exists with its default address.
+The same test also asserts that the specs read the password only from the environment (`LAB_SEED_PASSWORD`, or `DEMO_SEED_PASSWORD`
+inside the lab; no literal, no other fallback, no `.env`), that the two viewport sizes are in the capture helper, that the visual QA
+measures what it says it measures, and that the lab configuration `playwright.live.config.ts` has no web server, one worker and a
+`desktop` and a `mobile` project.
 
 ### What they cover
 
-One Playwright project, `live` (`frontend/playwright.config.ts`), `frontend/e2e/live/*.spec.ts`, against `PLAYWRIGHT_BASE_URL`
-(default `http://localhost:18100`, the lab through the SSH tunnel). The users are the synthetic ones of `docs/DEMO.md`; the
-password is the one the lab was seeded with (`DEMO_SEED_PASSWORD` there) and reaches the specs **only** through the environment
-variable `LAB_SEED_PASSWORD`. Each spec but the login ones signs in through `POST /api/v1/auth/login` and hands the session to the
-page, so the throttled login form is used once per user.
+Two ways to run the same specs (`frontend/e2e/live/*.spec.ts`), always with the synthetic users of `docs/DEMO.md`:
+
+- **Inside the lab** (the way the controller runs them): the `e2e` service of `compose.lab.json` runs `frontend/playwright.live.config.ts`
+  against `BASE_URL=http://web:8080`. Projects `desktop` (1280x800, every spec) and `mobile` (390x844, `hasTouch`, only
+  `visual-qa.spec.ts`); one worker; `trace: 'retain-on-failure'`; Chromium with `--no-sandbox --disable-dev-shm-usage`. The
+  password arrives as `DEMO_SEED_PASSWORD`. Results go to `/results` (the volume `lab-e2e`). See [Inside the lab](#inside-the-lab-the-e2e-service).
+- **From a workstation**, through the tunnel: the project `live` of `frontend/playwright.config.ts`, against `PLAYWRIGHT_BASE_URL`
+  (default `http://localhost:18100`), password in `LAB_SEED_PASSWORD`.
+
+The password is the one the lab was seeded with and reaches the specs **only** through the environment. Each spec but the login ones
+signs in through `POST /api/v1/auth/login` and hands the session to the page, so the throttled login form is used once per user; a
+`429` from the login makes the helper wait for the `Retry-After` instead of failing. Specs are independent: each signs in on its own
+and needs only the seed (the visual QA opens "a result" if the owner has a finished job, and says `SKIPPED` if not).
 
 | Spec | What it asserts |
 | --- | --- |
@@ -166,12 +181,75 @@ page, so the throttled login form is used once per user.
 | `05-viewer-read-only` | `lab-viewer`: the case list and the case say `VIEWER` and offer no `New case`, `New revision`, `Delete`; the run launch says starting a run needs MEMBER and has no enabled `Send run`; no `New study`; project settings read-only; no `New project` |
 | `06-outsider-no-access` | `lab-outsider`: Home lists only `lab-other`; `/app/lab-main` shows `Organization not available` and the project `Project not found`; every call the interface makes about `lab-main` answers 403 or 404; cases, launch and studies are as hidden |
 | `07-plan-and-consoles` | for the four users: `/app/account/usage` ("Plan & permissions") shows the plan block **or** the 503 explanation, links `Open SPACE console` / `Open SPHERE console` (`https://space.score.us.es`, `https://sphere.score.us.es`, `target=_blank`, `rel=noopener`), no meter, no monthly counter, no credits, no control that changes a price, version or contract; Home carries a plan block with the same links; the public `/pricing` page sells nothing |
+| `visual-qa` | per project (desktop and mobile): the login page; the owner walks Home, the organization `lab-main` (its projects), the project, the cases, the case `simple-seq`, the jobs, **a finished job's result**, "Plan & permissions" and the organization's members (team); `lab-viewer` walks the cases, the jobs and the launch page. On each screen: no horizontal overflow (`scrollWidth <= innerWidth`), no `console.error`, no `pageerror`, no 5xx answer, a visible `main`, on mobile no visible button/link/field under 24 px high (a link inside a line of text is exempt), no clipped text without an ellipsis, no broken image; a screenshot per screen and size. The viewer has no `New case`, no `New run`/`Start a run` and no enabled `Send run`, and the launch page says starting a run needs MEMBER |
 
 Every spec that opens a page of the application watches `pageerror` and fails on any. Screenshots (`capture` in `e2e/live/support.ts`) are taken at **1440x900** and
-**390x844** for each key screen and saved with `testInfo.outputPath` (`frontend/test-results/<spec>/<name>-desktop.png` and
-`-mobile.png`), also attached to the Playwright report.
+**390x844** for each key screen and saved with `testInfo.outputPath` (`<results>/test-output/<spec>/<name>-desktop.png` and
+`-mobile.png`), also attached to the Playwright report. The visual QA keeps its own pictures in `<results>/screenshots`.
 
-### Running them
+**What the visual QA does not count as a failure:** 4xx answers (listed as `VQA_HTTP4XX`; Chromium also logs each as a console error,
+and those log lines are set aside so the real errors stay visible); a link inside a sentence shorter than 24 px; anything that needs
+an eye (spacing, colour, hierarchy, contrast beyond what `helpers/pageChecks.ts` measures in the gallery spec). A screen that never
+leaves its skeleton or spinner within 30 s is reported (`still waiting after 30 s`).
+
+### What was corrected before the first run
+
+The specs had never run; reading them against `frontend/src` showed these, and they were changed:
+
+- `support.ts`: the password also comes from `DEMO_SEED_PASSWORD` (the lab's name for it; compose passes no other variable into the
+  service); a `429` on the login waits and retries; `signInByApi` returns the token; `RESULTS_DIR` and `API` are shared.
+- `02-navigation`: the project card and the `Cases` tab are looked up inside `#platform-main` and the `Project sections` navigation (the
+  header carries project links too, in a menu that can be closed, and `.first()` could have picked one of those).
+- `04-job-random-search`: `.first()` over `random-search` radios could pick a disabled mode (a mode that cannot run the problem is a
+  disabled radio); it now picks an enabled one. The `Settings` heading is matched exactly at level 2 (the step list has a `Settings`
+  label too). Timeout raised to 300 s.
+- `05-viewer-read-only`: new test that the jobs list has no `New run`/`Start a run` for a viewer. `Run latest` and `Run` links **are**
+  shown to a viewer (they open the launch page read-only, where `Send run` is disabled); the spec records that as an annotation instead
+  of asserting it away. The backend refuses the launch below MEMBER.
+- `07-plan-and-consoles`: `plan.or(alert)` matched more than one element in strict mode (`.first()`); and, with `DEMO_SPACE_ENABLED=false`, the
+  page is the open gate's: the plan name is empty and the features read `Enabled` or `Can’t confirm` (the pricing token of the open gate
+  carries no entitlements). The frontend has **no dedicated "local trial without remote entitlements" notice**; the spec checks the plan
+  block and the `Features` section, and annotates the empty plan name.
+- `01` (a comment only), `03` and `06`: selectors and texts match the components; nothing to change. The outsider spec relies on
+  the gateway answering 403 or 404 for a private project, which the interface shows as `Project not found` either way.
+
+### Inside the lab (the `e2e` service)
+
+Nothing is needed on a workstation or through a tunnel. Sequence with `lab_compose` (variables in `docs/DEMO.md`):
+
+1. `down` if the checkout (the SHA) changed. It keeps the volumes.
+2. `up` with `DEMO_E2E=0`: builds the images (`frontend/Dockerfile.e2e` is the Playwright image `v1.62.1-jammy` with
+   `pnpm install --frozen-lockfile` and `frontend/` copied in) and starts everything. `artifacts-init` runs and exits, `e2e` creates
+   `/results/done` and sleeps, so `--wait` returns.
+3. `seed` (`DEMO_SEED_TOOL=seed_lab.py`, `DEMO_SEED_ARGS=--verbose`, a `DEMO_SEED_PASSWORD`).
+4. `up` with `DEMO_E2E=1` and the same `DEMO_SEED_PASSWORD`: `e2e` is recreated and runs `playwright test -c playwright.live.config.ts`;
+   `--wait` returns when it finished (its health is "`/results/done` exists"). Repeating a run needs `DEMO_E2E=0` and `1` again, or a `down`.
+5. `logs e2e`.
+
+What `logs e2e` contains: the `list` reporter, then `E2E_FAILED project=… spec=… title="…" error="…"` for each failure,
+`E2E_ERROR …` for errors of the run itself, and the parseable verdict
+
+```
+E2E_SUMMARY passed=N failed=N skipped=N
+```
+
+plus, from the visual QA, one line per screen and size and one per finding:
+
+```
+VQA viewport=mobile page=jobs result=FAIL overflow_px=0 http4xx=0 problems=1
+VQA_PROBLEM viewport=mobile page=jobs "touch target under 24px: a \"Open\" 31x20"
+```
+
+`result=SKIPPED` appears for `job-result` when the owner has no finished job. With `DEMO_E2E` not `1` the log only says
+`E2E_SKIPPED reason=DEMO_E2E_is_not_1`.
+
+**What cannot be verified from here:** the screenshots, `report.json`, `visual-qa-*.json` and the traces of failures are in the volume
+`lab-e2e`, which the controller cannot open (no access to volumes, only to logs): of the visual QA only the numbers above are
+visible, never the pictures, and nothing that needs an eye. Neither has any of this been executed: the image build (the Playwright
+image tag, `npm install -g pnpm`, the user `pwuser`), the `chown` of `artifacts-init` (it needs `CAP_CHOWN` on a stale volume, see
+`docs/DEMO.md`), `up --wait` with a container that exits, Chromium inside 576 MiB with one worker, and every selector.
+
+### From a workstation
 
 ```sh
 # once, the lab up and the users seeded (docs/DEMO.md); the tunnel: ssh -L 18100:127.0.0.1:18100 <host-lab>
@@ -231,3 +309,20 @@ addresses when the build overrides `VITE_SPACE_FRONTEND_URL` / `VITE_SPHERE_URL`
     or the throttle are looked at, so it spends no login attempt.
 11. **Usage counters.** Step 10 flags any key under `/v1/users/me/usage` containing `used`, `usage`,
     `consumed`, `counter`, `remaining` or `spent`; a capability legitimately named like that would fail it.
+
+## Procedimiento en el lab
+
+Secuencia exacta con `lab_compose` (variables en `docs/DEMO.md`):
+
+1. `down` si cambia el SHA del checkout (conserva los volúmenes).
+2. `up` con `DEMO_E2E=0`: construye las imágenes y arranca todo; `artifacts-init` corre y termina, `e2e` crea `/results/done` y espera.
+3. `seed` (`DEMO_SEED_TOOL=seed_lab.py`, `DEMO_SEED_ARGS=--verbose`, con `DEMO_SEED_PASSWORD`).
+4. `up` con `DEMO_E2E=1` y el mismo `DEMO_SEED_PASSWORD`: `e2e` se recrea y ejecuta `playwright test -c playwright.live.config.ts`.
+5. `logs e2e` y buscar `E2E_SUMMARY`, `E2E_FAILED` y `VQA_PROBLEM`.
+
+### No verificable
+
+- Las capturas, `report.json`, `visual-qa-*.json` y las trazas están en el volumen `lab-e2e`, inaccesible al controlador (solo logs).
+- El build y el `up` de `e2e` y de `artifacts-init` no se han ejecutado.
+
+Estado: infraestructura validada estaticamente (lint, vitest, tests de lab); build/up de e2e y artifacts-init pendientes de ejecucion en el lab.

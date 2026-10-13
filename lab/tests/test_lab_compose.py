@@ -33,8 +33,11 @@ FORBIDDEN_SERVICE_KEYS = {
 ALLOWED_BUILD_KEYS = {"context", "dockerfile", "args", "target"}
 ALLOWED_MOUNT_KEYS = {"type", "source", "target", "tmpfs"}
 MAX_SERVICES = 15
-MAX_MIB = 4096
-TARGET_MIB = 3481  # 3.4 GiB
+MAX_MIB = 4096  # the lab ceiling; the sum includes `seed`, which only runs on demand
+EXPECTED_MIB = 4048  # 3456 before artifacts-init (16) and e2e (576); docs/DEMO.md states it
+ARTIFACT_DIR = "/var/lib/openbinding/artifacts"
+LOCK = ROOT / "frontend" / "pnpm-lock.yaml"
+DOCKERFILE_E2E = ROOT / "frontend" / "Dockerfile.e2e"
 PUBLISHED = {"target": 8080, "published": 18100, "host_ip": "127.0.0.1"}
 PORT_RANGE = range(18100, 18200)
 
@@ -236,10 +239,11 @@ def test_every_service_has_a_mem_limit(services):
         _mib(service["mem_limit"])
 
 
-def test_memory_sum_is_within_the_lab_ceiling_and_the_target(services):
+def test_memory_sum_is_within_the_lab_ceiling_and_is_the_documented_one(services):
     total = _total_mib(services)
     assert total <= MAX_MIB, total
-    assert total <= TARGET_MIB, total
+    # A change to any mem_limit must be made on purpose: here and in docs/DEMO.md.
+    assert total == EXPECTED_MIB, total
 
 
 def test_java_engines_cap_the_heap_below_the_container_limit(services):
@@ -315,9 +319,12 @@ def test_gateway_worker_and_seed_share_one_always_rebuilt_image(services):
     # image.  So only the gateway builds, and worker and seed use the image it tags.
     image = "openbinding-lab-gateway:latest"
     assert "build" in services["gateway"]
-    for name in ("gateway", "worker", "seed"):
+    for name in ("gateway", "worker", "seed", "artifacts-init"):
         assert services[name]["image"] == image, name
     assert "build" not in services["worker"] and "build" not in services["seed"]
+    # artifacts-init takes the image the gateway builds in the same `up`; it must never reach for a registry.
+    assert "build" not in services["artifacts-init"]
+    assert services["artifacts-init"]["pull_policy"] == "never"
     assert services["worker"]["depends_on"]["gateway"]["condition"] == "service_healthy"
 
 
@@ -454,12 +461,14 @@ def test_space_organization_id_is_only_in_the_seed_as_a_bare_reference(services)
     assert _env(services["seed"])["SPACE_ORGANIZATION_ID"] == "${SPACE_ORGANIZATION_ID}"
 
 
-def test_seed_password_is_a_bare_reference_only_in_the_seed_and_the_smoke_targets_web(services):
-    # tools/seed_lab.py and tools/smoke_lab.py exit with "DEMO_SEED_PASSWORD is required" without it.
+def test_seed_password_is_a_bare_reference_only_in_the_seed_and_the_e2e_and_the_smoke_targets_web(services):
+    # tools/seed_lab.py and tools/smoke_lab.py exit with "DEMO_SEED_PASSWORD is required" without it; the live specs
+    # (e2e/live/support.ts) sign the same synthetic users in with it.
     holders = [name for name, s in services.items() if "DEMO_SEED_PASSWORD" in json.dumps(s)]
-    assert holders == ["seed"]
+    assert holders == ["seed", "e2e"]
+    for name in holders:
+        assert _env(services[name])["DEMO_SEED_PASSWORD"] == "${DEMO_SEED_PASSWORD}", name
     seed = _env(services["seed"])
-    assert seed["DEMO_SEED_PASSWORD"] == "${DEMO_SEED_PASSWORD}"
     assert seed["SMOKE_BASE_URL"] == "http://web:8080"
     assert [n for n, s in services.items() if "SMOKE_BASE_URL" in _env(s)] == ["seed"]
 
@@ -549,7 +558,7 @@ def test_gateway_waits_for_what_it_uses(services):
     depends = services["gateway"]["depends_on"]
     assert {"postgres", "redis", "bim-service"} <= set(depends)
     assert {n for n in services if n.startswith("engine-")} <= set(depends)
-    assert set(services["worker"]["depends_on"]) == {"gateway", "redis", "bim-service"}
+    assert set(services["worker"]["depends_on"]) == {"artifacts-init", "gateway", "redis", "bim-service"}
     assert set(services["web"]["depends_on"]) == {"gateway"}
 
 
@@ -565,9 +574,12 @@ def test_named_volumes_back_the_stateful_services(services):
 # -- health and ordering -------------------------------------------------------------------------
 
 
+ONE_SHOT = {"seed", "artifacts-init"}  # they run to completion: no healthcheck
+
+
 def test_long_running_services_have_healthchecks(services):
     for name, service in services.items():
-        if name == "seed":
+        if name in ONE_SHOT:
             continue
         assert service.get("healthcheck", {}).get("test"), f"{name} has no healthcheck"
 
@@ -576,9 +588,82 @@ def test_depends_on_points_to_existing_services_with_healthchecks(services):
     for name, service in services.items():
         for dependency, rule in (service.get("depends_on") or {}).items():
             assert dependency in services, (name, dependency)
+            assert "profiles" not in services[dependency], (name, dependency)
+            if dependency == "artifacts-init":
+                # The one dependency that is waited for to finish rather than to be healthy.
+                assert rule == {"condition": "service_completed_successfully"}, (name, dependency)
+                assert "healthcheck" not in services[dependency], (name, dependency)
+                continue
             assert rule == {"condition": "service_healthy"}, (name, dependency)
             assert "healthcheck" in services[dependency], (name, dependency)
-            assert "profiles" not in services[dependency], (name, dependency)
+
+
+# -- artifacts-init and e2e -----------------------------------------------------------------------
+
+
+def test_artifacts_init_chowns_the_artifact_volume_before_its_users_start(services):
+    # A lab-artifacts volume created by the earlier (root) image keeps its owner, and the gateway now runs as 10001.
+    init = services["artifacts-init"]
+    assert "profiles" not in init and init["restart"] == "no" and init["mem_limit"] == "16m"
+    assert init["user"] == "0:0" and init["entrypoint"] == []
+    assert init["command"][:2] == ["sh", "-c"]
+    assert f"chown -R 10001:10001 {ARTIFACT_DIR}" in init["command"][2]
+    # Only that volume, no ports, no environment, no secret: root in the container touches nothing else.
+    assert init["volumes"] == [{"type": "volume", "source": "lab-artifacts", "target": ARTIFACT_DIR}]
+    assert not {"ports", "environment", "depends_on", "healthcheck", "network_mode"} & set(init)
+    for name in ("gateway", "worker", "seed"):
+        assert services[name]["depends_on"]["artifacts-init"] == {"condition": "service_completed_successfully"}, name
+    others = [n for n, s in services.items() if "artifacts-init" in (s.get("depends_on") or {})]
+    assert sorted(others) == ["gateway", "seed", "worker"]
+    # Without CAP_CHOWN a fresh volume (already owned by 10001 through the image directory) must still pass.
+    assert "stat -c %u" in init["command"][2]
+
+
+def test_e2e_runs_the_live_specs_unprivileged_and_stays_alive_for_up_wait(services):
+    e2e = services["e2e"]
+    assert "profiles" not in e2e and e2e["restart"] == "no" and e2e["mem_limit"] == "576m"
+    assert e2e["build"] == {"context": "frontend", "dockerfile": "Dockerfile.e2e"}
+    assert e2e["user"] not in {"0", "root"} and not str(e2e["user"]).startswith("0:")
+    assert e2e["depends_on"] == {"web": {"condition": "service_healthy"}}
+    env = _env(e2e)
+    assert env == {"BASE_URL": "http://web:8080", "DEMO_E2E": "${DEMO_E2E}", "DEMO_SEED_PASSWORD": "${DEMO_SEED_PASSWORD}"}
+    assert e2e["volumes"] == [{"type": "volume", "source": "lab-e2e", "target": "/results"}]
+    assert e2e["healthcheck"]["test"] == ["CMD-SHELL", "test -f /results/done"]
+    # The healthcheck waits for the whole run: the start period must outlast it.
+    assert int(e2e["healthcheck"]["start_period"].rstrip("s")) >= 1800
+    assert e2e["command"] == ["sh", "/app/e2e/live/run.sh"]
+    assert not e2e.get("ports")
+
+
+def test_e2e_script_runs_only_with_demo_e2e_1_and_always_leaves_done_and_sleeps():
+    script = (ROOT / "frontend" / "e2e" / "live" / "run.sh").read_text(encoding="utf-8")
+    assert 'if [ "${DEMO_E2E:-0}" = "1" ]; then' in script
+    assert "pnpm exec playwright test -c playwright.live.config.ts" in script
+    assert "E2E_SUMMARY" in (ROOT / "frontend" / "e2e" / "live" / "summary.mjs").read_text(encoding="utf-8")
+    # A stale `done` of an earlier run would make this one look finished: it goes first; the new one comes last, then sleep.
+    assert script.index('rm -f "$RESULTS/done"') < script.index("playwright test")
+    assert script.index("playwright test") < script.index('touch "$RESULTS/done"') < script.index("sleep infinity")
+    fi = script.index("\nfi\n")
+    assert script.index('touch "$RESULTS/done"') > fi, "done must be created whether or not the specs ran"
+
+
+def test_dockerfile_e2e_uses_the_playwright_image_of_the_locked_version_and_a_non_root_user():
+    lock = LOCK.read_text(encoding="utf-8")
+    locked = set(re.findall(r"^  '@playwright/test@([0-9][^']*)':", lock, re.MULTILINE))
+    assert len(locked) == 1, locked
+    (version,) = locked
+    dockerfile = DOCKERFILE_E2E.read_text(encoding="utf-8")
+    froms = re.findall(r"^FROM (\S+)", dockerfile, re.MULTILINE)
+    assert froms == [f"mcr.microsoft.com/playwright:v{version}-jammy"], froms
+    assert "pnpm install --frozen-lockfile" in dockerfile
+    for proxy in ("HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"):
+        assert f"ARG {proxy}" in dockerfile
+    users = re.findall(r"^USER (\S+)", dockerfile, re.MULTILINE)
+    assert users and users[-1] == "pwuser"
+    assert "mkdir -p /results && chown pwuser:pwuser /results" in dockerfile
+    # The context must carry the specs, the configuration and the script, and not the host's node_modules.
+    ignore = (ROOT / "frontend" / ".dockerignore").read_text(encoding="utf-8").split()
+    assert "node_modules" in ignore and "e2e" not in ignore and "playwright.live.config.ts" not in ignore
 
 
 # -- nginx ---------------------------------------------------------------------------------------

@@ -2,14 +2,15 @@ import { expect, test } from '@playwright/test';
 import { CASE, PROJECT_PATH, capture, signInByApi, watchPageErrors } from './support';
 
 // This spec starts one real job (random-search, a few iterations) as the owner of lab-main and waits for its result: the engine runs in
-// the lab's worker. The lab has no SPACE contract for its users by default (see docs/qa/E2E_PLAN.md); when the gateway cannot read the
-// plan it answers 503 `pricing_unavailable`, the run is not accepted, and this spec fails at "Send run" with that refusal on screen.
+// the lab's worker. With DEMO_SPACE_ENABLED=false (the open gate of the lab) the plan needs no contract; with SPACE enabled and no
+// contract for the users the gateway answers 503 `pricing_unavailable`, the run is not accepted, and this spec fails at "Send run"
+// with that status in its message (see docs/qa/E2E_PLAN.md). Its job is also what visual-qa.spec.ts opens as "a result".
 
 const RESULT = /Best combination found|Solution \d+ of \d+|Why no combination works/;
 
 test.describe('live · a random-search job and its result', () => {
   test('the owner launches random-search on simple-seq, follows the run and reads the result', async ({ page }, testInfo) => {
-    test.setTimeout(240_000);
+    test.setTimeout(300_000);
     const errors = watchPageErrors(page);
     await signInByApi(page, 'owner');
     await page.goto(`${PROJECT_PATH}/jobs/new?case=${CASE}`);
@@ -24,14 +25,16 @@ test.describe('live · a random-search job and its result', () => {
     const engines = page.getByRole('radiogroup', { name: 'Engine' });
     // The gateway analyses the snapshot before the modes are offered.
     await expect(engines).toBeVisible({ timeout: 60_000 });
-    const randomSearch = engines.getByRole('radio', { name: /^random-search/ }).first();
+    // The radios are named by the engine and its mode ("random-search 1.0 · mode seeded Can run this"); a mode that cannot run the
+    // problem is disabled, so the first one that can is the one to pick.
+    const randomSearch = engines.getByRole('radio', { name: /^random-search/, disabled: false }).first();
     await expect(randomSearch).toBeEnabled();
     await randomSearch.check({ force: true });
     await capture(page, testInfo, 'job-launch-2-engine');
     await page.getByRole('button', { name: 'Continue' }).click();
 
     // 3 · the settings: a handful of iterations keeps the run short.
-    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Settings', exact: true })).toBeVisible();
     const iterations = page.getByLabel('Iterations').first();
     if (await iterations.count()) await iterations.fill('50');
     await capture(page, testInfo, 'job-launch-3-settings');

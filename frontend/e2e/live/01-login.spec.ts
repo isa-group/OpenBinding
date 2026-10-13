@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { LAB_USERS, capture, labPassword, signInThroughForm, watchPageErrors, type LabRole } from './support';
 
-// Written, not executed in the environment that produced it (no browser there). Runs against the lab: see playwright.config.ts.
+// Runs against the lab: see playwright.live.config.ts (the `e2e` service) and docs/qa/E2E_PLAN.md. This is the only spec that uses the
+// login form for the four users: the others hand a session to the page (support.ts), because the gateway throttles logins per user.
 
 test.describe('live · login', () => {
   for (const role of Object.keys(LAB_USERS) as LabRole[]) {

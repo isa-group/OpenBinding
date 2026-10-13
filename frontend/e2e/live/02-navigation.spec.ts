@@ -17,15 +17,17 @@ test.describe('live · organizations and the project lab-main/bim-demo', () => {
     await main.click();
     await expect(page).toHaveURL(new RegExp(`/app/${ORG}/?$`));
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
-    const project = page.locator(`a[href="${PROJECT_PATH}"]`).first();
+    // The header carries project links too (a menu that may be closed): the card of the project is in the main area.
+    const project = page.locator('#platform-main').locator(`a[href="${PROJECT_PATH}"]`).first();
     await expect(project).toBeVisible();
     await capture(page, testInfo, 'navigation-organization');
 
     await project.click();
     await expect(page).toHaveURL(new RegExp(`${PROJECT_PATH}/?$`));
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
-    await expect(page.getByRole('navigation', { name: 'Project sections' })).toBeVisible();
-    await expect(page.locator(`a[href="${PROJECT_PATH}/cases"]`).first()).toBeVisible();
+    const sections = page.getByRole('navigation', { name: 'Project sections' });
+    await expect(sections).toBeVisible();
+    await expect(sections.locator(`a[href="${PROJECT_PATH}/cases"]`)).toBeVisible();
     await capture(page, testInfo, 'navigation-project');
     expect(errors).toEqual([]);
   });
@@ -41,7 +43,7 @@ test.describe('live · organizations and the project lab-main/bim-demo', () => {
 
     await page.goto(`${PROJECT_PATH}/cases`);
     await expect(page.getByRole('heading', { level: 1, name: 'Cases' })).toBeVisible();
-    await expect(page.locator(`a[href="${PROJECT_PATH}/cases/${CASE}"]`).first()).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Cases' }).locator(`a[href="${PROJECT_PATH}/cases/${CASE}"]`).first()).toBeVisible();
     await capture(page, testInfo, 'navigation-cases-member');
     expect(errors).toEqual([]);
   });
