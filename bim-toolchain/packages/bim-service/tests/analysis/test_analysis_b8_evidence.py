@@ -259,13 +259,15 @@ def test_an_asynchronous_exception_stops_a_thread_only_where_the_interpreter_loo
     thread.start()
     time.sleep(0.05)  # meant to wake up while the C call runs
     woke = time.perf_counter() - started
-    assert raise_in(thread, Stopped) == 1
+    delivered = raise_in(thread, Stopped)
+    # 0 = the parse had already finished when the sender ran (the thread no longer exists), 1 = delivered
+    assert delivered in (0, 1)
     thread.join(30)
     assert not thread.is_alive()
     ended = time.perf_counter() - started
     report(
         f"async exception into json.loads (parse alone {parse_alone * 1000:.0f} ms): the sender asked to wake after 50 ms "
-        f"and ran after {woke * 1000:.0f} ms; the thread ended at {ended * 1000:.0f} ms; {landed.get('json.loads')}"
+        f"and ran after {woke * 1000:.0f} ms; delivered={delivered}; the thread ended at {ended * 1000:.0f} ms; {landed.get('json.loads')}"
     )
     # While one C call holds the GIL nothing else runs, the code that would send the exception included (in the service,
     # the event loop that enforces the time budget): the sender could only run once the parse was over.
