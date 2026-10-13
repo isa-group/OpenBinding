@@ -3,6 +3,11 @@
 Nothing has been released. There is no remote repository, no tag, and the licence is undecided. This is the procedure
 for when there is.
 
+The single external step pending to publish `javiercavlop/bim-toolchain` is: (1) written confirmation of the rights
+(ownership, and the terms of OMG for the vendored BPMN XSDs) and (2) a Git credential limited to that repository. No new
+licence is created and nothing is published until then. The status of the other items is in "Estado reconciliado" of
+`EXTRACTION_LOG.md`.
+
 ## Version numbers
 
 The three distributions share one version, `MAJOR.MINOR.PATCH`, and change together. Every release changes
@@ -81,6 +86,8 @@ holds only the commits that touched the prefix, with their original messages), a
 4. **Corpus access** in CI (`vars.BIM_CORPUS_ROOT` points to a runner path; without it the golden/corpus job fails,
    unless `vars.BIM_CORPUS_OPTIONAL` is `true`, which skips it and says so in the job summary).
 5. **The `meta-router-csp` manifest and the eligibility-order question** listed in `EXTRACTION_LOG.md`. The latter is
-   measured now: 64 of 82 packages compile to another IR from their canonical ZIP (`DIGESTS.md`, "Directory, raw ZIP
-   and canonical ZIP"). Canonicalising the order is a MAJOR change (it moves `golden/bim_baseline`); until it is made
-   the host must compile always the same form of a package.
+   measured now: the raw ZIP equals the directory in 82/82 packages, and 64 of 82 compile to another IR from their
+   canonical ZIP (`DIGESTS.md`, "Directory, raw ZIP and canonical ZIP";
+   `packages/bim-core/tests/test_zip_dir_equivalence_corpus.py`). Canonicalising the order is a MAJOR change (it moves
+   `golden/bim_baseline`) and the owner's decision; it has **not** been applied (only tests were added). Until it is
+   made the host must compile always the same form of a package.

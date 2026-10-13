@@ -381,3 +381,41 @@ any `src/` directory changed (so `compilerDigest` is the one of step 4 and the d
 
 - The licence decision and holder; the remote repository; pinning actions by SHA; a first tag and release.
 - Everything listed under *Missing* of the previous steps.
+
+(Several "not verified" and "missing" items of steps 4 and 5 have been closed since; see the next section, which
+supersedes them where it says so.)
+
+## Estado reconciliado
+
+Reconciliation of the "Not verified" / "Missing" lists above with evidence already integrated in the repository. Paths
+are relative to the repository root. "Sin verificar" means that no evidence could be cited when this section was
+written; it is not a claim that the item is false. This section re-ran no check.
+
+| Item | Estado | Evidencia |
+| --- | --- | --- |
+| `bim-service` container runs as UID 10001 | Cerrado | `bim-toolchain/packages/bim-service/Dockerfile` (`groupadd`/`useradd` uid 10001, `USER 10001:10001`) |
+| `bim-service` `cpus` / `pids_limit` | Cerrado (declarado) | `compose.lab.json`, service `bim-service`: `mem_limit` 256m, `cpus` 1.5, `pids_limit` 256 |
+| Gateway runs as UID 10001; Dockerfile stages `base` / `test` / `production`; uv pinned to 0.8.22 | Cerrado | `openbinding-gateway/Dockerfile` (`FROM python:3.11-slim AS base`, `FROM base AS test`, `FROM base AS production`, `COPY --from=ghcr.io/astral-sh/uv:0.8.22`, `USER 10001:10001`) |
+| `bim-service` image has been built and run | Sin verificar | no build record found; the header of `bim-toolchain/packages/bim-service/Dockerfile` still says "NOT BUILT" |
+| Effect of `cpus` / `pids_limit` under load, container memory (cgroup) limit, OOM behaviour | Pendiente | `docs/qa/BIM_LOAD.md`, "NOT measured" |
+| Generic 500 with `correlationId`; hostile inputs answered 4xx | Sin verificar | the described behaviour is not in the files read for this section (no citation); check `bim-toolchain/packages/bim-service/tests/` before relying on it |
+| Rotation, saturation and bounded-memory tests (tokens, slots, body limit) | Cerrado (en proceso, ASGI) | `docs/qa/BIM_LOAD.md`; `bim-toolchain/packages/bim-service/tests/test_rotation_and_saturation.py` (20 tests). Memory is measured with `tracemalloc`; no real load test, no uvicorn, no cgroup |
+| Per-tenant share keyed by token identity (B5) | Cerrado | `bim-toolchain/CHANGELOG.md`, [Unreleased] / Changed, "Contract change, `bim-service`: the per-tenant concurrency share is keyed by the authenticated identity" |
+| Request body decoded and validated in the bounded worker pool (B8-1) | Cerrado | `bim-toolchain/CHANGELOG.md`, [Unreleased] / Changed |
+| Optional switch interval and memory budget (B8-2, off by default) | Cerrado | `bim-toolchain/CHANGELOG.md`, [Unreleased] / Added; `docs/SERVICE.md` "Memory budget" |
+| Process mode (B8-3) | Pendiente | `bim-toolchain/packages/bim-service/tests/analysis/test_analysis_b8_probe.py` ("Only processes (B8-3) close this"); the GIL stall in thread mode stays a strict `xfail` (`CHANGELOG.md`) |
+| RSS measurement inside the container (B8-0) | Pendiente | `docs/qa/BIM_LOAD.md` ("RSS ... was not used", "No real container memory"); `test_analysis_b8_memory.py` uses `tracemalloc` only |
+| Raw ZIP equals the directory | Cerrado, 82/82 | `bim-toolchain/packages/bim-core/tests/test_zip_dir_equivalence_corpus.py` (`test_the_raw_zip_is_the_directory`, `EXPECTED_PACKAGES = 82`) |
+| Canonical ZIP (`to_zip()`) differs from the directory | Abierto: 64 of 82 differ; MAJOR decision of the owner, **not applied** | same test file (`EXPECTED_DIVERGENT = 64`); `bim-toolchain/CHANGELOG.md` "Known issue"; `golden/bim_core/zip_equivalence.json`. The A1 work added tests only; no file of `bim_core/src` changed |
+| Publishing `javiercavlop/bim-toolchain` | Pendiente: one external step (below) | `docs/RELEASING.md` |
+| Licence | Not decided; **no new licence is created** here | `NOTICE.md`, `docs/PACKAGING.md` |
+
+The two statements of step 4 that the table supersedes: "No load or memory measurement" is now partial (rotation,
+saturation and `tracemalloc` checks exist, nothing at container level), and the per-tenant share is no longer keyed by
+`X-BIM-Tenant`.
+
+### The only external step left to publish
+
+To publish `javiercavlop/bim-toolchain` the repository needs, from outside this worktree: (1) written confirmation of
+the rights (ownership of the code and the terms of OMG for the vendored BPMN XSDs), and (2) a Git credential limited to
+that repository. Nothing else blocks it. Nothing was published, no remote was created and no licence was written.

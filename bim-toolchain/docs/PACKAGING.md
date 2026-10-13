@@ -123,4 +123,8 @@ invalidates every stored IR (`DIGESTS.md`): recompile after upgrading, and repla
 - `uv sync` / `uv run` inside the workspace were not run (the registered checks use the gateway's own uv project).
   `uv build` of each member did run with the workspace root in place and accepted it.
 - Only Python 3.11 was used here; 3.12 is covered by the CI matrix, not run.
-- The `Dockerfile` was edited to copy `NOTICE.md` and has still not been built.
+- The `Dockerfile` was edited to copy `NOTICE.md`; no record of a build was found (sin verificar). It does create and
+  use UID/GID 10001 (`USER 10001:10001`), and `compose.lab.json` limits the `bim-service` container to `cpus` 1.5 and
+  `pids_limit` 256; the effect of those limits has not been measured (`docs/qa/BIM_LOAD.md`). The gateway image
+  (`openbinding-gateway/Dockerfile`: stages `base`/`test`/`production`, uv 0.8.22, UID 10001) is outside this
+  directory. See "Estado reconciliado" in `EXTRACTION_LOG.md`.
