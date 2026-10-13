@@ -275,6 +275,37 @@ Report fields: `guards`, `arguments`, `base` (digest, metadata, CU scan), `produ
 `collisions`, `plan` (YAML facts incl. `changes`, the exact calls, UNVERIFIED notes), `steps` (request status,
 verification, ids), `outcome`.
 
+### Primera aplicación real (first real application)
+
+First remote write, private development only. No secret value appears here.
+
+- **SPHERE accepted** the private pricing `openbinding-dev` version `0.1.0` (id
+  `6acda0164b2b5b01c587c19a`, `private=true` verified, the digest of the uploaded YAML equals the re-read
+  one, `createdAt` `'2026-10-13T03:05:58Z'` with the time was accepted). Production (slug `openbinding`,
+  7 versions) is unchanged.
+- **SPACE (`https://space.score.us.es`) rejected** the same YAML with HTTP 400:
+  `{"error":"Pricing parsing error: The createdAt field must be a string in the format yyyy-mm-dd or a valid Date object"}`.
+  SPACE's native parser does not accept the quoted `YYYY-MM-DDTHH:mm:ssZ` string. This is risk D13. The format
+  was **not** changed and nothing was retried.
+- SPACE has no service (`GET /services` = `[]`), so there is no development service and no contract.
+- **Consequence for the lab.** With `SPACE_ENABLED=true` the synthetic users have no contract, and
+  `/v1/users/me`, job launches, etc. answer `503 pricing_unavailable` (intended fail-closed). The lab therefore
+  takes `DEMO_SPACE_ENABLED=false` (open development gate, no real entitlements) until SPACE accepts the pricing;
+  see `docs/DEMO.md`, "SPACE status".
+- **Re-running the same command exits 3**: the SPHERE slug already exists (collision guard). The pending SPACE
+  upload therefore cannot be done by running `remote_provision.py --apply` again.
+
+Options for the human to decide (**none executed**):
+
+1. Upload the YAML with an **unquoted** timestamp (`createdAt: 2026-10-13T03:05:58Z`). The error says "a valid
+   Date object", so a YAML timestamp may be parsed as a Date; SPACE might re-serialize it (for example with
+   milliseconds), so the round-trip must be verified.
+2. SPACE extends its parser to accept the quoted date-time string.
+
+**Pending work (not implemented):** a future option of `remote_provision.py` that reuses the private version
+already created in SPHERE (skips the SPHERE write and the collision on it) and only performs the SPACE upload
+and its verification, with the format decided above.
+
 ## seed_lab.py
 
 No import-time effects, no `--reset`, nothing deleted, no jobs/studies/solvers. Rows are found by stable keys

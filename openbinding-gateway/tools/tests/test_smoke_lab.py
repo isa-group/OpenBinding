@@ -501,6 +501,27 @@ def test_skip_leaves_out_optional_steps_and_the_space_step_needs_its_flag():
     assert report["ok"] is True
 
 
+def test_without_with_space_every_other_step_completes_and_the_usage_endpoint_is_never_called(capsys):
+    fake = FakeLab()
+    report = smoke(fake)
+    assert report["ok"] is True and report["failed"] == 0 and report["blocked"] == 0
+    assert [step["name"] for step in report["steps"]] == [name for name in ALL_STEPS if name != "plan_usage"]
+    assert report["skipped"] == ["plan_usage"]
+    assert not [request for request in fake.requests if request[1].endswith("/users/me/usage")]
+
+    fake = FakeLab()
+    code = smoke_lab.main([], {"DEMO_SEED_PASSWORD": PASSWORD}, transport=fake.transport(), sleep=lambda _: None)
+    assert code == smoke_lab.EXIT_OK
+    assert json.loads(capsys.readouterr().out)["skipped"] == ["plan_usage"]
+    assert not [request for request in fake.requests if request[1].endswith("/users/me/usage")]
+
+
+def test_with_space_the_plan_step_does_call_the_usage_endpoint():
+    fake = FakeLab()
+    smoke(fake, with_space=True)
+    assert ("GET", "/api/v1/users/me/usage") in fake.requests
+
+
 def test_skip_accepts_numbers_and_names_but_only_for_steps_six_to_nine():
     assert smoke_lab.parse_skip("6, cors,body_limit") == frozenset({6, 7, 8})
     for bad in ("1", "login", "10", "nonsense"):

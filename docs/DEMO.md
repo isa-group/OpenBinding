@@ -49,6 +49,7 @@ secrets**; use your own.
 | `DEMO_JWT_SECRET` | gateway **only** (as `GATEWAY_JWT_SECRET`) | `lab-example-jwt-signing-value` (make it long and random) |
 | `DEMO_FERNET_KEY` | gateway, worker, seed (as `FEDERATION_SECRET_KEY`, the name `core/settings.py` reads) | a Fernet key: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 | `DEMO_BIM_TOKEN` | bim-service, gateway | `lab-example-bim-token-0123456789abcdef` (one line, 32 to 127 printable ASCII characters without spaces: `bim-service` refuses to start otherwise) |
+| `DEMO_SPACE_ENABLED` | gateway, worker, seed (as `SPACE_ENABLED`) | `false` or `true`; see "SPACE status" below. `false` is the functional demo without SPACE plans; `true` needs a SPACE development service and contracts |
 | `DEMO_SPACE_PRICING_VERSION` | gateway, worker, seed (as `SPACE_PRICING_VERSION`); seed also as `SPACE_DEV_PRICING_VERSION` | `0.1.0` (must exist in SPACE/SPHERE) |
 | `DEMO_SPACE_DEFAULT_PLAN` | gateway, worker, seed (as `SPACE_DEFAULT_PLAN`) | `BASIC` (must exist in the pricing) |
 | `DEMO_SPACE_DEV_SERVICE` | gateway, worker and seed (as `SPACE_SERVICE_NAME`); seed also as `SPACE_DEV_SERVICE_NAME` | the name of a SPACE *development* service that exists in SPACE (for example `openbinding-dev`); the gateway and worker read and write contracts only on it, and `seed_lab.py --space-contracts` refuses `openbinding` (and any production name) and requires it to equal `SPACE_SERVICE_NAME` |
@@ -80,7 +81,30 @@ it. The retired
 destructive SPACE key is not used anywhere, and no `VITE_*` variable carries a
 key (the frontend is built with `VITE_API_BASE_URL=/api` only).
 
-Fixed in the file: `APP_ENV=dev`, `CAS_ENABLED=false`, `SPACE_ENABLED=true`,
+### SPACE status
+
+`DEMO_SPACE_ENABLED` is passed as `SPACE_ENABLED` to `gateway`, `worker` and
+`seed`; the file holds no literal.
+
+- `false`: functional demo **without SPACE plans**. With `APP_ENV=dev` the
+  gateway builds the stateless open gate (`space_client.build_gate`): every
+  functional capability is granted, there are no plans, no counters and no real
+  entitlements. `SPACE_URL`, `SPACE_API_KEY` and the contracts are not needed in
+  this mode (`SpacePricingGate` is the only code that requires them, and it is
+  not built). Nothing in `core/settings.py` or `build_gate` requires other
+  variables; only `APP_ENV=prod` refuses `false`, and the lab is `dev`. Run the
+  smoke without `--with-space`.
+- `true`: the gateway reads and writes contracts on the SPACE development
+  service (`DEMO_SPACE_DEV_SERVICE`), so it needs that service and a contract per
+  synthetic user. **Today this is blocked**: SPHERE accepted the private pricing
+  `openbinding-dev` 0.1.0, but SPACE rejected the same YAML with HTTP 400 ("The
+  createdAt field must be a string in the format yyyy-mm-dd or a valid Date
+  object"), so SPACE has no service and no contracts. Until that is resolved,
+  `/v1/users/me`, job launches, etc. answer `503 pricing_unavailable` (the
+  intended fail-closed behaviour). See `docs/qa/REMOTE_TOOLS.md`, "First real
+  application".
+
+Fixed in the file: `APP_ENV=dev`, `CAS_ENABLED=false`,
 `SPHERE_ENABLED=true`, `MAX_CONCURRENT_JOBS_PER_USER=3`,
 `CORS_ALLOW_ORIGINS=http://localhost:18100,http://127.0.0.1:18100`,
 `PUBLIC_BASE_URL` and `FRONTEND_URL` `http://localhost:18100`.
@@ -178,8 +202,10 @@ the lab network, where `web:8080` resolves):
 DEMO_SEED_TOOL=smoke_lab.py DEMO_SEED_ARGS='--with-space' docker compose run --rm --no-deps seed
 ```
 
-Use `DEMO_SEED_ARGS='--skip 6,7,8,9'` to leave out the optional steps and drop
-`--with-space` when the users have no SPACE contract. It reads `DEMO_SEED_PASSWORD`
+Use `DEMO_SEED_ARGS='--skip 6,7,8,9'` to leave out the optional steps. Drop
+`--with-space` when the users have no SPACE contract or `DEMO_SPACE_ENABLED=false`:
+step `plan_usage` runs only with that flag, and the other steps complete against
+the open gate. It reads `DEMO_SEED_PASSWORD`
 from the environment (the same value used to seed), takes the base URL from
 `SMOKE_BASE_URL` or `--base-url` (default `http://web:8080`), prints one JSON
 document with `{name, ok, blockedByRemote, detail}` per step, never prints

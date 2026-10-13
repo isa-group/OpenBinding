@@ -95,6 +95,13 @@ and `seed` all name the same development service (`DEMO_SPACE_DEV_SERVICE`, pass
 the seeded contracts are the ones the gateway reads and the production service `openbinding` is never
 touched; see `docs/DEMO.md`.
 
+**Current state.** SPACE rejected the development pricing (HTTP 400 on `createdAt`, see `docs/qa/REMOTE_TOOLS.md`,
+"Primera aplicación real"), so there is no SPACE service and no contract. Until that is resolved run the lab
+with `DEMO_SPACE_ENABLED=false` (open development gate, no real entitlements) and the smoke **without**
+`--with-space`: step 10 `plan_usage` runs only with that flag, and the other steps complete against the open
+gate. With `DEMO_SPACE_ENABLED=true` the steps that need a plan stay blocked by the remote (503
+`pricing_unavailable`). The open gate does not exercise SPACE plans or capabilities, so those stay unverified.
+
 The smoke is a seed tool: it runs in the `seed` service, inside the lab network, so `web` resolves.
 
 ```sh

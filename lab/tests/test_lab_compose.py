@@ -367,7 +367,16 @@ def test_private_variables_are_passed_by_reference_only(services):
             if key in PRIVATE_VARIABLES:
                 assert value == f"${{{key}}}", f"{name}:{key}"
     gateway = _env(services["gateway"])
-    assert gateway["SPACE_ENABLED"] == "true" and gateway["SPHERE_ENABLED"] == "true"
+    assert gateway["SPHERE_ENABLED"] == "true"
+
+
+def test_space_enabled_is_a_variable_in_gateway_worker_and_seed_never_a_literal(services):
+    holders = [name for name, s in services.items() if "SPACE_ENABLED" in _env(s)]
+    assert sorted(holders) == ["gateway", "seed", "worker"]
+    for name in holders:
+        assert _env(services[name])["SPACE_ENABLED"] == "${DEMO_SPACE_ENABLED}", name
+    for name in ("gateway", "worker", "seed"):
+        assert _env(services[name])["SPHERE_ENABLED"] == "true", name
 
 
 def test_demo_bim_token_is_expanded_by_the_shell_not_by_compose(services):
