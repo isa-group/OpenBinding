@@ -172,8 +172,8 @@ values, by `GET /bim/v1/capabilities` (`limits.service`; `limits.package` are th
 | `BIM_SERVICE_MAX_REGISTERED_RESOURCES` | 64 | registered resources per request |
 | `BIM_SERVICE_MAX_BINDINGS` | 1000 | bindings per `/evaluate` |
 | `BIM_SERVICE_NEIGHBORHOOD_MAX_SECONDS` | 10 | largest `seconds` of `/neighborhood` (its own budget is cooperative between evaluations) |
-| `BIM_SERVICE_SWITCH_INTERVAL` | unset (the interpreter's, 0.005) | seconds, positive. `sys.setswitchinterval` applied while the application runs (by its lifespan, not when it is created) and restored at shutdown. A shorter one (0.0001) gives the event loop the GIL more often while pool threads run CPU-bound Python, at some cost in their throughput (see "Where the work runs"). `limits.service.switchIntervalSeconds` publishes the interval in force in the process |
-| `BIM_SERVICE_MEMORY_BUDGET_BYTES` | 0 (off) | memory that the operations in flight may be estimated to need. Each operation is charged **8 times its request body** (`BODY_MEMORY_FACTOR`; measured 3.8x for a package and 7.9x for an IR of small objects, so an estimate, not a guarantee) from the moment it holds a slot until its thread ends. See "Memory budget". `limits.service.memoryBudgetBytes` publishes it (0 = off) |
+| `BIM_SERVICE_SWITCH_INTERVAL` | unset (the interpreter's, 0.005) | seconds, positive. `sys.setswitchinterval` applied while the application runs (by its lifespan, not when it is created) and restored at shutdown. A shorter one (0.0001) gives the event loop the GIL more often while pool threads run CPU-bound Python, at a cost of about 10% of the evaluator's throughput measured (see "What thread mode cannot do"). `limits.service.switchIntervalSeconds` publishes the interval in force in the process |
+| `BIM_SERVICE_MEMORY_BUDGET_BYTES` | 0 (off) | memory that the operations in flight may be estimated to need. Each operation is charged **8 times its request body** (`BODY_MEMORY_FACTOR`; measured 3.8x for a package and 7.9x for an IR of small objects with `tracemalloc`, and 7.5x per additional concurrent request in resident memory at the body limit, so an estimate, not a guarantee) from the moment it holds a slot until its thread ends. See "Memory budget". `limits.service.memoryBudgetBytes` publishes it (0 = off) |
 | `BIM_MAX_COMPRESSED_BYTES`, `BIM_MAX_EXPANDED_BYTES`, `BIM_MAX_ENTRY_BYTES`, `BIM_MAX_ENTRIES`, `BIM_MAX_COMPRESSION_RATIO`, `BIM_MAX_PATH_DEPTH` | 16 MiB, 64 MiB, 16 MiB, 256, 100, 16 | the `bim_core.Limits` applied to every package (passed to `load_package(limits=)`, never installed globally) |
 | `BIM_SERVICE_LOG_LEVEL` | `INFO` | |
 
@@ -204,11 +204,110 @@ refuses NaN and infinity, base64, multipart), the operation and the rendering of
 This **bounds** the cost; it does not remove it. `json.loads` and pydantic-core are C code that does not release the GIL
 while they run, and the compiler and the evaluator are pure Python that the interpreter switches between threads only
 every switch interval (5 ms by default). So in thread mode a large body being parsed can still stall the event loop for
-about as long as the parse takes (about 40 ms per MB, measured), and CPU-bound operations make `/healthz` slower
-(median 60-120 ms with four of them, against 0.3 ms idle, measured locally with the interpreter's interval; a few ms
-with `BIM_SERVICE_SWITCH_INTERVAL=0.0001`, at some cost in throughput that has not been established). Both are pinned as
-open defects (strict `xfail`) in `packages/bim-service/tests/analysis/test_analysis_b8_probe.py`. Only worker processes
-would remove them; that mode does not exist.
+most of the time the parse takes, and long CPU-bound operations make `/healthz` slower. The three open defects are
+pinned as strict `xfail` in `packages/bim-service/tests/analysis/test_analysis_b8_probe.py`; each was reproduced, and
+the root causes and numbers are in "What thread mode cannot do" below. Only worker processes would remove them; that mode
+does not exist (the reviewed design is at the end of that section).
+
+### What thread mode cannot do
+
+Reproduced with `packages/bim-service/tests/analysis/test_analysis_b8_evidence.py` on 2026-10-13: CPython 3.11.2, Linux
+7.0.0-30-generic, 16 CPUs, in a cgroup v2 with `memory.max` 2684354560 (2.5 GiB). The figures vary between runs; the ones
+below are those of one run of the finished suite ("last run" below; a further run agreed within the ranges given), and the
+ranges are over the runs made while writing this section. They are not the timings of a deployed service: client and service share one process and one event loop.
+
+**1. A large body stalls the event loop** (`test_the_loop_is_not_stalled_while_a_large_body_is_parsed`, xfail). A
+13.6 MiB evaluate body handled in a plain worker thread, with a 2 ms timer on the loop:
+
+| Stage | Alone | Longest loop stall |
+| --- | --- | --- |
+| `json.loads` | 350 ms | 316 ms |
+| `pydantic_core.from_json` | 404 ms | 366 ms |
+| `validate_python(EvaluateRequest)` | 142 ms | 10 ms |
+| `contains_non_finite` (pure Python) | 141 ms | 10 ms |
+| `json.dumps` (rendering) | 149 ms | 147 ms |
+| `decode_model_body` (all of the above) | 470 ms | 343 ms |
+
+(Earlier runs: `json.loads` alone 430-457 ms with a 315-324 ms stall; the other rows within 10%. Timings of the whole body
+therefore vary with the machine, the ratio does not.)
+
+Root cause: `json.loads`, `pydantic_core.from_json` and `json.dumps` are each one C call that keeps the GIL until it
+returns, so the loop gets it back only afterwards (stall ≈ 70-100% of the call). The parts that are Python (validation of
+the models, the walk that refuses NaN and infinity) are switched every interval and stall the loop for about 10 ms.
+Not fixable in thread mode within the rules of this service: the parse cannot be split without replacing `json.loads` by a
+hand-written chunked parser on the request path. That would be a second JSON parser in front of every request (a risk of
+differences in what it accepts, in the positions of the 422 diagnostics and in the depth that gives 400, which are wire
+behaviour) and slower in CPU (not measured, not tried), and it would still leave single large leaves (one base64 string,
+`base64.b64decode`) as one call. Lowering `BIM_SERVICE_MAX_BODY_BYTES` bounds the stall but is a different limit, not a fix.
+
+**2. `/healthz` under CPU-bound operations** (`test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool`, xfail:
+it runs with the interpreter's default interval). Four clients in a loop, four slots, 30 probes per round, three rounds
+per interval, medians per round:
+
+| Load | 5 ms (default) | 1 ms | 0.1 ms |
+| --- | --- | --- | --- |
+| synthetic pure Python (analysis test; earlier runs, `docs/qa/analysis/BIM_B5_B8_M4_IR.md`) | 60-118 ms | 21-34 ms | 3.6-6.4 ms |
+| real `/evaluate`, 1000 bindings of the demo IR (last run) | 34.3, 35.9, 43.9 ms | 26.7, 17.8, 18.8 ms | 9.4, 9.0, 7.7 ms |
+| the same, previous run | 26.3, 80.5, 40.1 ms | 24.3, 22.2, 31.9 ms | 6.5, 9.4, 7.0 ms |
+| real `/compile`, demo package (last run) | 2.2, 4.1, 2.1 ms | 2.2, 2.8, 2.6 ms | 2.0, 2.0, 2.5 ms |
+
+Throughput, same runs (requests per second, per round): last run, evaluate 11.4, 12.4, 11.9 at 5 ms against 10.2, 11.0, 11.6
+at 0.1 ms (median 11.9 against 11.0, 8% lower); previous run 12.5, 12.3, 12.7 against 11.1, 11.3, 10.6 (10% lower). Compile
+38.8-40.0 at 5 ms against 38.4-40.4 at 0.1 ms (no difference). Four spinning threads, 1 s per round, interleaved: median at
+0.1 ms 98.6% of the default in the last run (3 rounds; 1 ms: 105.2%), and 93.8%, 100.1%, 92.9%, 97.3% in the four runs
+before. Noisy: 0% to 7% on the synthetic load, 8-10% on the evaluator.
+
+Root cause: GIL scheduling. A pool thread running Python keeps the GIL for a whole interval, and answering a request
+takes the loop many acquisitions, so latency is several intervals per hop when four threads compete. A short operation
+(compile of a small package) does not reproduce it: its threads block or finish often. The mitigation exists and works:
+`BIM_SERVICE_SWITCH_INTERVAL` (tests that pass: `test_a_shorter_switch_interval_keeps_healthz_fast_under_the_same_cpu_load`,
+`test_healthz_stays_responsive_under_cpu_load_with_the_configured_interval`). **It stays off by default**: it costs about
+8-10% of the evaluator's throughput in the measurements above, it is process-wide state, and the symptom is a slower
+`/healthz` (tens of ms; the longest probe in the earlier measurements of the analysis document was about 1 s, against a lab
+healthcheck timeout of 3 s that it quotes and that was not re-read here), not an outage. An operator who watches `/healthz`
+latency can set 0.0001-0.001 knowing that cost. The test that keeps the xfail measures the defaults, so it stays an open
+defect.
+
+**3. A timed-out operation keeps its slot** (`test_a_timed_out_operation_gives_its_slot_back`, xfail). A running thread has
+no stop. The one lever CPython offers is `PyThreadState_SetAsyncExc` (an exception raised inside the thread), and its
+behaviour was measured: in a thread running pure Python it ended the thread 0.4-5 ms after it was sent; in a thread inside
+`json.loads` of the 12 MiB body the sender (which asked to wake up after 50 ms) only ran after 342-386 ms, when the call had
+returned, because the sender cannot run while the C call holds the GIL, and that sender would be the event loop that
+enforces the time budget. So it cannot bound work that sits in one C call, as the parse does (measured); ZIP inflation and
+`lxml` validation are C calls too, but were not tested. It is also unsafe, **by reading and not reproduced**: the exception can be delivered at any bytecode, also
+in the executor's own code after the operation returned (the future would never complete and its slot would never be
+released) or half-way through the fill of a process-wide cache of `bim_core`, which the next requests would then use.
+Giving the slot back at the timeout without stopping the thread would allow more threads than slots. So thread mode keeps
+the slot until the thread ends, as documented under Limits.
+
+**Worker processes: reviewed design (not implemented).** The bounded alternative that removes the three defects:
+
+* `BIM_SERVICE_EXECUTOR=thread|process`, default `thread` (today's behaviour, unchanged). In `process` mode the pool is
+  `BIM_SERVICE_MAX_CONCURRENCY` worker processes started with `spawn` or `forkserver` (never `fork` from a process that has an
+  event loop and threads), pre-imported, one per slot, so the slot count and the process count are the same number. The
+  wait for a slot, the tenant share, the memory budget and the answers (503 `service_busy`, 429) are the ones in force.
+* The loop reads the bytes and hands the **bytes** to the worker over a pipe; the worker decodes, validates, runs the
+  operation, renders, and sends bytes back. The event loop never holds a parsed body or a GIL-bound call: the three
+  stalls above disappear because they happen in another interpreter.
+* Timeout and client disconnect **kill** the worker (`SIGKILL`); the slot and the charge are returned at the kill, not when
+  the computation would have ended, and a new worker is started with a rate limit (a storm of timeouts must not become a
+  storm of spawns; while the worker is being replaced its slot is not available).
+* Hard limits per worker, set in the child before it reads any request: `RLIMIT_AS` (or the cgroup memory of the worker where
+  the runtime allows creating one) from the memory budget divided by the slots, `RLIMIT_CPU` above the operation timeout,
+  `RLIMIT_NOFILE`, and no network or file writes needed (the service writes nothing). A worker that is killed for exceeding
+  them answers 503 `operation_timeout` (CPU, wall clock) or 500 `internal_error` with the fixed detail (memory), never the
+  input.
+* Sizing: slots = `min(BIM_SERVICE_MAX_CONCURRENCY, floor((memory limit - resident size of the parent) / resident size of a
+  worker))`. The resident size of a worker was **not measured**; the whole service process measured 54.5 MiB idle (below), which
+  is an upper reference for a worker that imports `bim_core` only. Copy-on-write sharing from a forkserver zygote was not
+  measured either.
+* Open points that need measurement before building: spawn latency of a pre-imported worker, cost of the byte copy through the
+  pipe at 32 MiB, SIGTERM behaviour of the parent with live children, and the behaviour of the lab container's `pids_limit`.
+* Tests that would close the defects: `/healthz` p95 under N CPU-bound operations, children never above N, the child gone
+  (`os.kill(pid, 0)` raises `ProcessLookupError`) and the slot back within 1 s after a timeout or a disconnect, 50 consecutive
+  timeouts without a spawn storm, the three xfails passing unchanged. See `docs/qa/analysis/BIM_B5_B8_M4_IR.md` (3.5, 3.6).
+
+The memory table was produced by the test measurement fixture (report values printed in the 'measurements' section of the pytest session), and its figures are the RSS of a fresh Python process, not cgroup totals.
 
 ### Memory budget
 
@@ -221,6 +320,46 @@ the same 429; when something else is in flight it is refused with 429 `memory_bu
 should retry after `Retry-After`; unlike a 503 it means "this process is using its memory", not "busy". The budget does not
 count the raw bytes of requests waiting for a slot, the memory of the interpreter, or anything that is not a request;
 set it from `(memory limit - resident size at rest) / 8`, which needs to be measured in the target container.
+
+**Measured resident memory at the body limit.** `packages/bim-service/tests/analysis/test_analysis_b8_rss.py` starts a fresh
+Python process per row (`rss_support.py`), builds the application, and sends N = 1, 2 and 4 concurrent `/evaluate` requests
+of exactly `BIM_SERVICE_MAX_BODY_BYTES` (33554432 bytes holding about 588 thousand small objects) through the ASGI application, with the
+evaluator itself replaced by a stand-in (the numbers are those of reading, decoding, validating and rendering, not of the
+evaluator), and reads `/proc/self/status` of that process. Last run, 2026-10-13: process `python3`, CPython 3.11.2,
+Linux 7.0.0-30-generic, 16 CPUs (the pids of that run were 15414, 15416 and 15419). The process holds the client too, so the
+one 32 MiB request body, shared by all the requests, is in these figures.
+
+| N | `VmRSS` idle | `VmRSS` with the request | peak `VmHWM` (reset before the run) | peak above idle | after the run (gc / `malloc_trim`) | time |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 54.5 MiB | 86.5 MiB | 354.1 MiB | 299.6 MiB (9.4x body) | 90.5 / 90.5 MiB | 1.4 s |
+| 2 | 54.6 MiB | 86.6 MiB | 594.7 MiB | 540.1 MiB (8.4x per request) | 90.2 / 89.7 MiB | 2.9 s |
+| 4 | 54.6 MiB | 86.6 MiB | 1074.7 MiB | 1020.1 MiB (8.0x per request) | 93.3 / 92.8 MiB | 6.0 s |
+
+* Idle is imports plus the built application (the bare interpreter with the test harness imported was 27.1-27.2 MiB). The
+  peaks of the three earlier runs of the rows were 354.4, 594.3 and 1072.5-1074.4 MiB: reproducible to 2 MiB.
+* Each additional concurrent request added 240 MiB at the peak (594.7 - 354.1 = 240.6 MiB; (1074.7 - 594.7) / 2 = 240.0 MiB)
+  = **7.5 times the body**, which is what `BODY_MEMORY_FACTOR = 8` charges. One request alone peaked at 299.6 MiB above idle,
+  of which 32 MiB is the client's copy of the body in this process: about 268 MiB for a deployed server (by subtraction, not
+  measured separately).
+* Nothing is kept: after the requests the process is within 3-7 MiB of where it was with the request loaded, and `malloc_trim`
+  gives back little.
+* Against the 256 MiB `mem_limit` of the laboratory container (quoted from the analysis document, `compose.lab.json` was not
+  re-read here): idle 54.5 MiB plus about 268 MiB for one request at the limit is more than 256 MiB. A single request at the
+  body limit would not fit in that container, and the memory budget does not prevent it because a request larger than the whole
+  budget is admitted when nothing else is in flight. Only a lower `BIM_SERVICE_MAX_BODY_BYTES` (about `(limit - idle) / 8`, 25
+  MiB for 256 MiB) or a larger container does. This was **not run in a 256 MiB container**: it follows from the figures above.
+
+The cgroup figures are reported apart by the test because they are not the process's: the cgroup of the run has
+`memory.max` 2684354560 (2560 MiB) and held 1255 MiB (the test runner, page cache) before each row; `memory.current` sampled
+every 20 ms by the parent while the child ran reached 1514.1, 1759.7 and 2246.3 MiB for N = 1, 2 and 4 (259, 504 and 990 MiB
+above the start) and was 1259.8, 1260.7 and 1263.5 MiB at the end. `memory.peak` (2560.1 MiB) had already reached the limit
+before the test and says nothing about it. The host reported `MemAvailable` 10732.3 MiB. The test runs N = 4 only if the
+memory it can see (the smaller of `MemAvailable` and the cgroup headroom including page cache) holds `(8 x N + 2)` bodies, and
+prints what it did not run.
+
+`BIM_SERVICE_MEMORY_BUDGET_BYTES` stays **off by default**: the right value is `(limit of the target container - idle) / 8`
+and the only container measured is the one above, 2.5 GiB. `BIM_SERVICE_SWITCH_INTERVAL` stays unset for the reasons given
+under "What thread mode cannot do". `BODY_MEMORY_FACTOR` stays 8: the measured 7.5x does not justify changing it.
 
 A thread cannot be interrupted. When an operation exceeds its time budget the *response* is 503 `operation_timeout`,
 but the thread keeps its slot (and its tenant's share) until it ends, so a runaway operation cannot be used to start

@@ -19,7 +19,8 @@ DEFAULT_MAX_CONCURRENCY_PER_TENANT = 2
 
 #: Estimated peak memory of decoding and validating a request, as a multiple of its body.  Measured with
 #: ``tracemalloc`` before the change that moved decoding to the pool: 3.8x for a package, 7.9x for an IR of small
-#: objects (``docs/qa/analysis/BIM_B5_B8_M4_IR.md``).  An estimate, not a guarantee.
+#: objects (``docs/qa/analysis/BIM_B5_B8_M4_IR.md``).  An estimate, not a guarantee.  Resident memory at the body limit
+#: (``tests/analysis/test_analysis_b8_rss.py``, ``docs/SERVICE.md``): 7.5x per additional concurrent request.
 BODY_MEMORY_FACTOR = 8
 
 

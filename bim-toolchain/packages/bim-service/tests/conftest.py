@@ -16,6 +16,31 @@ from bim_service.app import create_app
 from bim_service.settings import BimServiceSettings
 
 
+#: Measurements that tests want to show: written by the ``report`` fixture, printed once at the end of the session.
+REPORT = pytest.StashKey[list[str]]()
+
+
+@pytest.fixture
+def report(request):
+    """``report(text)``: a line of measurement, printed in the "measurements" section that ends the pytest output
+    (the output of a passing test is captured, and this section is not)."""
+    lines = request.config.stash.setdefault(REPORT, [])
+    return lines.append
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_sessionfinish(session, exitstatus):
+    try:
+        return (yield)
+    finally:
+        lines = session.config.stash.get(REPORT, [])
+        reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+        if lines and reporter is not None:
+            reporter.write_sep("=", "measurements")
+            for line in lines:
+                reporter.write_line(line)
+
+
 @pytest.fixture
 def tokens_path(tmp_path: Path) -> Path:
     path = tmp_path / "bim-tokens"

@@ -180,10 +180,11 @@ def test_a_shorter_switch_interval_keeps_healthz_fast_under_the_same_cpu_load(ma
     raises=OpenDefect,
     strict=True,
     reason=(
-        "B8: the pool is made of threads, and a compile or an evaluation is pure Python that holds the GIL; with 4 "
-        "of them running the event loop gets the GIL one switch interval (5 ms) at a time, many times per request. "
-        "Measured here: /healthz median 60-94 ms, p95 about 180 ms, against 0.3 ms idle. Processes (not threads) "
-        "remove it."
+        "B8, GIL switching (reproduced, test_analysis_b8_evidence.py): with the interpreter's 5 ms switch interval "
+        "the event loop gets the GIL one interval at a time while 4 pool threads run long pure Python. Synthetic "
+        "load: /healthz median 60-118 ms; the real evaluator (1000 bindings): 26-80 ms (6-9 ms at 0.1 ms); a short "
+        "real compile does not show it (2 ms). BIM_SERVICE_SWITCH_INTERVAL fixes it but costs about 10% of the "
+        "evaluator's throughput, so it stays off by default; only processes remove it without a cost."
     ),
 )
 def test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool(make_app, monkeypatch) -> None:
@@ -265,10 +266,11 @@ def big_ir(approximate_bytes: int) -> dict:
     raises=OpenDefect,
     strict=True,
     reason=(
-        "B8: a 12 MiB body below the 32 MiB limit stalls the loop for about as long as parsing it synchronously "
-        "(measured 0.6 s for 14 MB, 1.15 s for 28 MB: about 40 ms per MB). The parse now runs in a pool thread, after "
-        "the slot, but json.loads and pydantic-core do not release the GIL, so in thread mode the loop still waits for "
-        "it. Only processes (B8-3) close this."
+        "B8, one C call (reproduced, test_analysis_b8_evidence.py): json.loads and pydantic_core.from_json hold the "
+        "GIL for the whole parse, also in a pool thread; for a 13.6 MiB body the loop stalls 316-324 ms of a 350-457 "
+        "ms parse (json.dumps of the answer: 139-147 of 149-163 ms), while validation and the finiteness walk, pure Python, "
+        "stall it 6-10 ms. No bounded thread-mode fix: only a hand-written chunked parser (a new parser on the "
+        "request path) or processes."
     ),
 )
 def test_the_loop_is_not_stalled_while_a_large_body_is_parsed(make_app, monkeypatch) -> None:
@@ -330,9 +332,10 @@ def test_no_body_is_decoded_for_a_request_that_finds_no_free_slot(make_app, monk
     raises=OpenDefect,
     strict=True,
     reason=(
-        "B8: an operation that outran its time budget answers 503 but its thread cannot be stopped, so the slot stays "
-        "taken until the CPU work ends (runtime.py, module docstring). Giving the slot back earlier would allow more "
-        "threads than slots, so thread mode keeps it on purpose; bim-core has no time budget for compile/evaluate."
+        "B8, a thread cannot be stopped (reproduced, test_analysis_b8_evidence.py): the slot stays taken until the "
+        "work ends, on purpose (more threads than slots otherwise). An asynchronous exception ends pure Python in "
+        "0.4-5 ms but cannot reach a C call (json.loads: the sender itself ran only after 342-386 ms) and may land "
+        "inside the executor or a cache of bim-core, so it is not used. Hard limits need processes."
     ),
 )
 def test_a_timed_out_operation_gives_its_slot_back(make_app, monkeypatch) -> None:
