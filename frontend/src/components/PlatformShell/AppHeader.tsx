@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import type { Organization, Project } from '../../api/platform';
 import { config } from '../../config';
 import { useAuth } from '../../contexts/auth';
+import { personInitials } from '../../utils/initials';
 import { InstitutionMark } from '../InstitutionMark';
 import { INSTITUTION_NAME, useInstitutionalBranding } from '../InstitutionMark/institution';
 import { NotificationDropdown } from '../NotificationDropdown/NotificationDropdown';
@@ -76,7 +77,7 @@ export function AppHeader({ organizations = [], projects = [], organization, pro
   };
 
   const contextLabel = organization ? [organization.name, project?.name].filter(Boolean).join(' / ') : '';
-  const initials = (user?.username ?? '').slice(0, 2).toUpperCase();
+  const initials = personInitials(user?.username);
   const items = createItems(organization, project);
   const toolsActive = section === 'tools';
 

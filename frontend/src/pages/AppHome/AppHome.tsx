@@ -23,6 +23,9 @@ import { buildForest, roleSource, type TreeNode } from '../Organization/orgModel
 import { OrgTile, RoleChip } from '../Organization/parts';
 import './AppHome.css';
 
+/** Shown instead of a blank value when no plan name is known (local demo without remote entitlements). */
+const NO_PLAN_TEXT = 'No remote plan (local demo)';
+
 interface Shortcut {
   label: string;
   to: string;
@@ -153,7 +156,7 @@ function PlanBlock() {
       )}
       {data && !data.contract_pending && (
         <>
-          <div className="home-untracked"><span>Plan</span><strong>{data.plan}</strong></div>
+          <div className="home-untracked"><span>Plan</span><strong>{data.plan || NO_PLAN_TEXT}</strong></div>
           {picks.map((pick) => {
             const row = rows.find((item) => item.id === pick.id);
             if (!row) return null;

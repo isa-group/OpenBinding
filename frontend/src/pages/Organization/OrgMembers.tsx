@@ -14,6 +14,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { problemField } from '../../api/problem';
 import { formatDate, formatDateTime } from '../../utils/format';
+import { personInitials } from '../../utils/initials';
 import { useResource } from '../../utils/useResource';
 import { ancestorsOf, atLeast, canGrantOwner, higherRole, OWNER_CHANGE_NOTE, OWNER_ROLE_NOTE, rankOf, ROLE_SUMMARY, ROLES, sponsorName } from './orgModel';
 import { classifyAuthError, generalFailure, isForbidden, marker, quotaOf, type AuthFailure } from './orgErrors';
@@ -415,7 +416,7 @@ function MembersBody({ organization }: { organization: Organization }) {
                   <tr key={row.userId} className={isRejected ? 'is-rejected' : hasChange ? 'is-staged' : undefined}>
                     <td>
                       <span className="org-person">
-                        <span className="org-avatar is-sm" aria-hidden="true">{row.name.slice(0, 2).toUpperCase()}</span>
+                        <span className="org-avatar is-sm" aria-hidden="true">{personInitials(row.name)}</span>
                         <span>
                           <strong>{row.name}{isMe && <small> (you)</small>}</strong>
                           {row.email && <small>{row.email}</small>}

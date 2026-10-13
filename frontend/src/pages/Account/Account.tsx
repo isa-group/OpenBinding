@@ -7,6 +7,7 @@ import { Chip } from '../../components/ui/Chip';
 import { INSTITUTION_NAME, useInstitutionalBranding } from '../../components/InstitutionMark/institution';
 import { useAuth } from '../../contexts/auth';
 import { formatDate } from '../../utils/format';
+import { personInitials } from '../../utils/initials';
 import { leaveTo } from '../../utils/navigation';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError } from './accountErrors';
@@ -84,7 +85,7 @@ export function Account() {
           <p className="acct-muted">How OpenBinding knows you. Role and plan are separate: the plan sets quotas, the role sets platform permissions.</p>
         </div>
         <div className="acct-card acct-profile">
-          <span className="acct-avatar" aria-hidden="true">{user.username.slice(0, 2).toUpperCase()}</span>
+          <span className="acct-avatar" aria-hidden="true">{personInitials(user.username)}</span>
           <div className="acct-profile-who">
             <strong>{user.username}</strong>
             <span>{user.email} · member since {formatDate(user.created_at) ?? '—'}</span>

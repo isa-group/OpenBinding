@@ -103,10 +103,10 @@ function UsageBody({ usage, catalog, release, token }: {
       )}
 
       <section className="usage-plan" aria-label="Your plan">
-        <span className="usage-plan-tile" aria-hidden="true">{usage.plan.charAt(0)}</span>
+        {usage.plan && <span className="usage-plan-tile" aria-hidden="true">{usage.plan.charAt(0)}</span>}
         <div className="usage-plan-body">
           <div className="usage-plan-name">
-            <strong>{usage.plan}</strong>
+            <strong>{usage.plan || 'No remote plan (local demo)'}</strong>
             {price && <Chip>{price}</Chip>}
             {institutional && <span className="acct-us-pill">{INSTITUTION_NAME}</span>}
           </div>

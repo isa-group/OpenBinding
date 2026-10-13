@@ -95,6 +95,14 @@ describe('Home', () => {
     expect(within(notices).getByText('RESEARCH')).toBeInTheDocument();
   });
 
+  it('says there is no remote plan instead of leaving the Plan value blank', async () => {
+    api.getOwnUsage.mockResolvedValue({ ...researchUsage(), plan: '' });
+    renderHome();
+
+    const plan = screen.getByRole('region', { name: 'Your plan' });
+    expect(await within(plan).findByText('No remote plan (local demo)')).toBeInTheDocument();
+  });
+
   it('marks a notification as read and asks for the unread ones again', async () => {
     renderHome();
 

@@ -338,6 +338,29 @@ the fixes has been run in the lab yet; the unit tests and the build are the only
    so `clipped content`, `clipped text without ellipsis`, `touch target under 24px`, ...). No existing criterion was relaxed. The new one
    has not run yet; a first run may report legitimate patterns, which are to be handled here with the reason, not silenced.
 
+#### Second visual review (real Chromium captures, synthetic data, `DEMO_SPACE_ENABLED=false`, no remote entitlements)
+
+Three cosmetic defects seen in the captures. The fixes are covered by vitest only; they have not been re-captured in the lab.
+
+4. **Home, `Your plan` card (desktop and phone): the `Plan` row had an empty value.** Without remote entitlements the usage view
+   carries an empty plan name, and `AppHome.tsx` printed `<strong>{data.plan}</strong>` anyway. Fix: the row stays and reads
+   `No remote plan (local demo)`. It was kept rather than hidden because the row is the only place the card says which plan applies;
+   hiding it would leave `Jobs at once` / `API keys` limits with no hint of where they come from, whereas the text states the real
+   situation without inventing a plan. Test: `AppHome.test.tsx` (empty plan).
+5. **Plan & permissions: an empty blue box next to `Published pricing 0.1.0 · A new pricing version applies when your contract is
+   renewed in SPACE`.** It is `.usage-plan-tile` in `AccountUsage.tsx`, which draws the first letter of the plan name
+   (`usage.plan.charAt(0)`); with an empty plan it was a coloured tile with no letter. Same root cause as finding 4. Fix: the tile is
+   rendered only when there is a plan name, and the name line falls back to `No remote plan (local demo)`, so no empty box remains.
+   Tests: `AccountUsage.test.tsx` (no tile without a plan; tile shows `B` for `BASIC`).
+6. **Initials: every synthetic member showed `LA`.** The `Members` table (`OrgMembers.tsx`) used `name.slice(0, 2)`, so `lab-owner`,
+   `lab-orgadmin`, `lab-member` and `lab-viewer` all gave `LA`. Fix: new `utils/initials.ts` (`personInitials`): tokens are split on
+   whitespace, `-`, `_` and `.`, an email contributes only its local part, and the result is at most two capital letters (first
+   letters of the first two tokens, or the first two letters of a single token). `lab-owner` -> `LO`, `lab-viewer` -> `LV`,
+   `Ada Lovelace` -> `AL`, `ada` -> `AD`. The same function now feeds the other user avatars that had the same `slice(0, 2)`
+   (top navigation, app header, Account page) so one person has one set of initials everywhere. Organization tiles keep
+   `initialsOf` (`orgModel.ts`), which already works by words. Tests: new `utils/initials.test.ts`. No existing test or snapshot
+   assumed the old initials, so none was changed.
+
 ### Inside the lab (the `e2e` service)
 
 Nothing is needed on a workstation or through a tunnel. Sequence with `lab_compose` (variables in `docs/DEMO.md`):

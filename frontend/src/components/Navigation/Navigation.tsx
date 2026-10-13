@@ -3,6 +3,7 @@ import { ChevronDown, Menu, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth';
 import { config } from '../../config';
+import { personInitials } from '../../utils/initials';
 import { InstitutionMark } from '../InstitutionMark';
 import { INSTITUTION_NAME, useInstitutionalBranding } from '../InstitutionMark/institution';
 import './Navigation.css';
@@ -72,7 +73,7 @@ export function Navigation() {
     void signOut();
   };
 
-  const initials = (user?.username ?? '').slice(0, 2).toUpperCase();
+  const initials = personInitials(user?.username);
 
   return (
     <header ref={header} className="site-header" onKeyDown={handleKeyDown}>

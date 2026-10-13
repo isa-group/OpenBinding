@@ -67,6 +67,23 @@ describe('Plan & permissions', () => {
     expect(screen.getByRole('link', { name: 'Plan & permissions' })).toHaveAttribute('aria-current', 'page');
   });
 
+  it('renders no empty tile when there is no plan name, and names the local demo', async () => {
+    api.getOwnUsage.mockResolvedValue({ ...basicUsage(), plan: '' });
+    renderPlan();
+
+    const section = (await screen.findByRole('region', { name: 'Your plan' }));
+    expect(await within(section).findByText('No remote plan (local demo)')).toBeInTheDocument();
+    expect(section.querySelector('.usage-plan-tile')).toBeNull();
+  });
+
+  it('shows the first letter of the plan in the tile when there is a plan', async () => {
+    renderPlan();
+
+    const section = (await screen.findByRole('region', { name: 'Your plan' }));
+    expect(await within(section).findByText('BASIC')).toBeInTheDocument();
+    expect(section.querySelector('.usage-plan-tile')).toHaveTextContent('B');
+  });
+
   it('links to the native SPACE and SPHERE consoles and manages no price, version or contract itself', async () => {
     renderPlan();
     const section = within((await screen.findByRole('heading', { name: 'Plans, prices and contracts' })).closest('section') as HTMLElement);
