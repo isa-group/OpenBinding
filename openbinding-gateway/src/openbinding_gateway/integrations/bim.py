@@ -29,6 +29,7 @@ import os
 import threading
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator, Mapping, Sequence
+from urllib.parse import urlsplit
 
 from bim_client import BimPort, BimServiceError, HttpBim, InProcessBim
 from bim_core import BimError, CompileError, ContractError, Limits
@@ -66,16 +67,37 @@ class _Holder:
 _HOLDER = _Holder()
 
 
+_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+_INSECURE_WARNED = False
+
+
+def _warn_insecure_http(url: str | None) -> None:
+    """Warn once that the token may travel over plain http to a non-loopback host (trusted network)."""
+    global _INSECURE_WARNED
+    parts = urlsplit(url or "")
+    if parts.scheme == "https" or (parts.hostname or "") in _LOOPBACK_HOSTS or _INSECURE_WARNED:
+        return
+    _INSECURE_WARNED = True
+    logger.warning(
+        "BIM_SERVICE_ALLOW_INSECURE_HTTP is on: the BIM bearer token is sent over plain http to %s; "
+        "this is only acceptable on a trusted private network (use https otherwise)",
+        parts.hostname or url,
+    )
+
+
 def build_bim(settings: Settings | None = None) -> BimPort:
     """The port that ``BIM_MODE`` asks for (not cached; ``get_bim`` caches it)."""
     settings = settings or get_settings()
     if settings.bim_mode == "http":
+        if settings.bim_service_allow_insecure_http:
+            _warn_insecure_http(settings.bim_service_url)
         # An empty variable is an unset one (compose passes ``BIM_TENANT=`` for a blank).
         return HttpBim(
             settings.bim_service_url,
             token_file=settings.bim_service_token_file or None,
             tenant=settings.bim_tenant or None,
             timeout=settings.bim_service_timeout_s,
+            allow_insecure_http=settings.bim_service_allow_insecure_http,
         )
     # The former BIM_MAX_* variables still size the packages this process accepts.
     return InProcessBim(limits=Limits.from_env(os.environ))
@@ -322,7 +344,14 @@ async def startup_check() -> dict[str, str]:
     settings = get_settings()
     expected = _local_compiler_digest()
     try:
-        reported = (await abim().capabilities())["compilerDigest"]
+        port = get_bim()
+    except ValueError as exc:
+        raise BimStartupError(
+            f"the BIM client is misconfigured: {exc}; for a trusted private network set "
+            "BIM_SERVICE_ALLOW_INSECURE_HTTP=true"
+        ) from exc
+    try:
+        reported = (await AsyncBim(port).capabilities())["compilerDigest"]
         await asyncio.to_thread(protocol_digest)
         await asyncio.to_thread(package_limits)
     except BimError as exc:

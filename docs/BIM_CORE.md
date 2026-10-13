@@ -39,6 +39,7 @@ therefore contain `bim-toolchain/packages/{bim-core,bim-client}`; the root
 | `BIM_SERVICE_TOKEN_FILE` | File holding the bearer token; the token is never an environment value |
 | `BIM_SERVICE_TIMEOUT_S` | Request timeout |
 | `BIM_TENANT` | Tenant header sent to the service |
+| `BIM_SERVICE_ALLOW_INSECURE_HTTP` | `false` by default. `true` lets the token travel over plain `http` to a non-loopback host (trusted private network only; logs a warning once). Loopback `http` is always allowed |
 
 `get_bim()` is cached and closed in the application lifespan; tests replace it
 with `bim_override`. In `http` mode startup fails if `/capabilities` cannot be

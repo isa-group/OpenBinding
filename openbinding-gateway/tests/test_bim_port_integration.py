@@ -309,6 +309,50 @@ def test_the_factory_builds_the_port_the_settings_ask_for(monkeypatch) -> None:
         port.close()
 
 
+def _http_settings(url: str, **extra) -> Settings:
+    return Settings(
+        _env_file=None, bim_mode="http", bim_service_url=url, bim_service_token_file="/tmp/bim-token", **extra
+    )
+
+
+def test_insecure_http_to_a_remote_host_needs_the_explicit_option() -> None:
+    assert Settings(_env_file=None).bim_service_allow_insecure_http is False
+    with pytest.raises(ValueError, match="plain http"):
+        bim.build_bim(_http_settings("http://bim-service:8080"))
+
+    port = bim.build_bim(_http_settings("http://bim-service:8080", bim_service_allow_insecure_http=True))
+    try:
+        assert isinstance(port, HttpBim)
+    finally:
+        port.close()
+
+
+def test_loopback_http_is_always_allowed() -> None:
+    port = bim.build_bim(_http_settings("http://127.0.0.1:8080"))
+    port.close()
+
+
+def test_the_insecure_option_warns_once_for_a_remote_host(monkeypatch, caplog) -> None:
+    monkeypatch.setattr(bim, "_INSECURE_WARNED", False)
+    settings = _http_settings("http://bim-service:8080", bim_service_allow_insecure_http=True)
+    with caplog.at_level("WARNING", logger=bim.logger.name):
+        bim.build_bim(settings).close()
+        bim.build_bim(settings).close()
+        bim.build_bim(_http_settings("http://localhost:8080", bim_service_allow_insecure_http=True)).close()
+    warnings = [r for r in caplog.records if "BIM_SERVICE_ALLOW_INSECURE_HTTP" in r.getMessage()]
+    assert len(warnings) == 1
+
+
+async def test_startup_reports_a_refused_insecure_url_readably(monkeypatch) -> None:
+    monkeypatch.setattr(bim, "get_settings", lambda: _http_settings("http://bim-service:8080"))
+    bim.set_bim(None)
+    try:
+        with pytest.raises(bim.BimStartupError, match="BIM_SERVICE_ALLOW_INSECURE_HTTP"):
+            await bim.startup_check()
+    finally:
+        bim.set_bim(None)
+
+
 async def test_a_blocking_port_does_not_stall_the_event_loop() -> None:
     loop_thread = threading.get_ident()
     calls: list[int] = []

@@ -76,6 +76,12 @@ BIM variables (`BIM_MODE=http`, `BIM_SERVICE_URL=http://bim-service:8080`,
 start command writes the file from `DEMO_BIM_TOKEN` into a tmpfs
 (`umask 077`). **Nothing in the gateway reads them yet**; a later phase will.
 
+`BIM_SERVICE_ALLOW_INSECURE_HTTP=true` is set only on `gateway`, `worker` and
+`seed`. The service is reached over plain `http` inside the lab's private Docker
+network with a synthetic token, and `bim_client` refuses a bearer token over
+plain `http` to a non-loopback host unless that is opted into explicitly. The
+gateway logs a warning at startup. Do not copy this to a real deployment.
+
 ## Running it with lab_compose
 
 1. `validate` the file. Expect no complaint; if it refuses something, the

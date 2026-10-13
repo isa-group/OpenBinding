@@ -114,6 +114,9 @@ class Settings(BaseSettings):
     #: Opaque tenant label sent as ``X-BIM-Tenant`` (logs and fair sharing of the
     #: service; it never changes a result).
     bim_tenant: Optional[str] = None
+    #: Allow the bearer token to travel over plain ``http`` to a host that is not the loopback
+    #: (``BIM_SERVICE_ALLOW_INSECURE_HTTP``). Off by default: only for a trusted private network.
+    bim_service_allow_insecure_http: bool = False
 
     # -- CORS ------------------------------------------------------------
     #: Comma-separated browser origins allowed to call the API: a closed list.

@@ -70,6 +70,7 @@ BIM_VARIABLES = {
     "BIM_SERVICE_URL": "http://bim-service:8080",
     "BIM_SERVICE_TOKEN_FILE": "/run/bim/token",
     "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
+    "BIM_SERVICE_ALLOW_INSECURE_HTTP": "true",
 }
 # Variables only the seed gets (tools/remote_probe.py exits without it).
 SEED_EXTRAS = {"SPACE_ORGANIZATION_ID"}
@@ -388,7 +389,17 @@ def test_the_bim_clients_reach_the_service_with_a_token_file_on_a_tmpfs(services
     assert services["seed"]["depends_on"]["bim-service"] == {"condition": "service_healthy"}
 
 
-# -- who holds the session-signing secret ---------------------------------------------------------
+def test_insecure_http_to_the_bim_service_is_opted_into_only_by_its_three_clients(services):
+    # The lab's private network carries a synthetic token over plain http; nothing else may opt in.
+    for name, service in services.items():
+        env = _env(service)
+        if name in BIM_CLIENTS:
+            assert env["BIM_SERVICE_ALLOW_INSECURE_HTTP"] == "true", name
+        else:
+            assert "BIM_SERVICE_ALLOW_INSECURE_HTTP" not in env, name
+
+
+# -- who holds the session-signing secret---------------------------------------------------------
 
 
 def test_only_the_gateway_holds_the_jwt_secret(services):

@@ -201,7 +201,8 @@
         "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
         "BIM_MODE": "http",
         "BIM_SERVICE_URL": "http://bim-service:8080",
-        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token"
+        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token",
+        "BIM_SERVICE_ALLOW_INSECURE_HTTP": "true"
       },
       "volumes": [
         {
@@ -267,7 +268,8 @@
         "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
         "BIM_MODE": "http",
         "BIM_SERVICE_URL": "http://bim-service:8080",
-        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token"
+        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token",
+        "BIM_SERVICE_ALLOW_INSECURE_HTTP": "true"
       },
       "volumes": [
         {
@@ -388,7 +390,8 @@
         "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
         "BIM_MODE": "http",
         "BIM_SERVICE_URL": "http://bim-service:8080",
-        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token"
+        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token",
+        "BIM_SERVICE_ALLOW_INSECURE_HTTP": "true"
       },
       "volumes": [
         {
