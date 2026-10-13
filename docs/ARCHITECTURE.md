@@ -17,7 +17,7 @@ routes/  ──►  services/  ──►  repositories/ , integrations  ──�
 | Package | Role | Evidence |
 |---|---|---|
 | `routes/` | HTTP: FastAPI routers, request parsing, authentication dependencies, translation of results and refusals to responses. `main.py` is the composition root: it includes every router (`app.include_router(...)`) and starts the lifespan, which installs the pricing gate and the job reconciler | `main.py` |
-| `services/` | Use cases that are not HTTP: `execution.py` (run a persisted job), `engines.py` (Engine selection and compatibility), `snapshots.py` (persist a compilation), `entitlements.py` (the only reader of an account's plan, see [Entitlements](#entitlements)) | `services/*.py` |
+| `services/` | Use cases that are not HTTP: `execution.py` (run a persisted job), `engines.py` (Engine selection and compatibility), `snapshots.py` (persist a compilation), `job_submission.py` (validate, reserve and persist a job, see [Job submission](#job-submission)), `entitlements.py` (the only reader of an account's plan, see [Entitlements](#entitlements)) | `services/*.py` |
 | `repositories/` | Database queries. At present only `jobs.py` (`get_owned`, `list_owned`, `find_retry_of`, `list_for_project`) | `repositories/jobs.py` |
 | Integrations | `space_client/` (the pricing gate over the SPACE client, plus a fake for tests), `sphere_client.py` (read-only pricing source), `cas.py`, `mailer.py`, `job_dispatch.py` (Dramatiq/Redis) | respective files |
 | `db/` | SQLAlchemy ORM models and session handling (`models.py`, `platform_models.py`, `artifact_models.py`, `base.py`) | `db/` |
@@ -59,7 +59,8 @@ unreadable before the run is created).
 
 **Inventory of plan reads** (`grep -n '\.caps(\|get_gate' src/`), before the
 service existed: `routes/jobs.py:107`, `routes/artifacts.py:173` and `:199`,
-`routes/v1.py:2222` and `:2543`, `routes/users.py:63`, `routes/studies.py:637`,
+`routes/v1.py:2222` and `:2543` (the second one is now in
+`services/job_submission.py`), `routes/users.py:63`, `routes/studies.py:637`,
 `collaboration.py:282`. `study_jobs.py`, `studies.py`, `analysis_jobs.py` and
 `sponsor_proposals.py` never read the gate; they reach it through
 `collaboration.enforce_sponsor_usage` and the job-creation path. Now the only
@@ -79,6 +80,43 @@ and `space_client/`); the list can only shrink
 (`test_only_the_entitlement_service_reads_plan_capabilities`,
 `test_no_new_module_reaches_for_the_gate`,
 `test_gate_lifecycle_legacy_has_no_stale_entries`).
+
+## Job submission
+
+`POST /v1/jobs` is a thin controller over `services/job_submission.py`:
+
+1. `routes/v1.py` (`create_job`, `_create_job_core`, `_read_job_request`)
+   authenticates the caller, applies the transport rules (reserved and malformed
+   `Idempotency-Key`, content type, body and package size limits, multipart,
+   JSON parsing, the field set of the job contract) and builds a
+   `JobSubmissionInput`;
+2. `JobSubmission(session, caller, commit=..., study_cell_id=...).submit(input)`
+   resolves the source (snapshot, configuration or upload), computes the
+   request fingerprint and rules out a replay, selects the Engine and mode,
+   reads the plan through `entitlement_service` and clamps the options, resolves
+   the EngineRegistration, builds the provenance, takes the account lock, checks
+   the concurrency limit and persists the snapshot and the `Job`, and returns a
+   `JobSubmissionResult` (`kind` is `created`, `replay` or `problem`, with
+   `status`, `body` and `headers`);
+3. the route dispatches a `created` job (after the commit, if it was asked to),
+   and turns the result into the response: the document for a new job, plain JSON
+   for a replay and `application/problem+json` for a problem.
+
+The service does not import `routes` or build FastAPI responses; of FastAPI it
+only uses `HTTPException`, to translate those the Engine, snapshot and
+configuration helpers raise. It holds no mutable module state. Dispatching stays in
+`routes/v1.py` on purpose: `dispatch_persisted_job` is replaced or called
+through `routes.v1` by many tests and by `study_jobs`. `pending_launches`,
+`discard_pending_launches` and `STUDY_CELL_KEY_PREFIX` live in the service and
+are re-exported by `routes/v1.py` for `study_jobs.py`. The route also hands its
+own binding of `persist_snapshot` to the service so that replacing
+`v1.persist_snapshot` keeps working (`tests/test_launch_atomicity.py`).
+
+The job routes were **not** moved to a `routes/jobs_v1.py`: `create_job` and
+`_create_job_core` are used through `routes.v1` by `study_jobs.py` and by tests,
+and the router's position in the OpenAPI path order (checked by the contract
+test) must not change. Moving the router is a follow-up that needs those callers
+changed first.
 
 ## MVC in a JSON API
 
@@ -115,8 +153,8 @@ Known exceptions to "downwards only", from reading the imports:
   `..job_dispatch`, `..sponsor_proposals`, `..telemetry` and
   `..analysis_jobs` lazily, inside functions, because those modules still live
   at the top level.
-- `services/engines.py`, `services/snapshots.py` and `services/entitlements.py`
-  import FastAPI's `HTTPException` (the last one only for its HTTP-raising
+- `services/engines.py`, `services/snapshots.py`, `services/job_submission.py`
+  and `services/entitlements.py` import FastAPI's `HTTPException` (the last one only for its HTTP-raising
   helpers, `*_or_503`, `require_*` and `enforce_*`; `caps_for` raises a plain
   domain exception), so services
   are not completely framework-free.
@@ -133,6 +171,10 @@ mechanically checkable, using `ast` so that imports inside functions count:
   (`analysis_jobs`, `artifacts`, `reports`, `study_jobs`;
   `main` is exempt as the composition root), the list may only shrink
   (`test_no_new_module_imports_routes`, `test_allowed_legacy_has_no_stale_entries`);
+- `services/job_submission.py` imports `routes` nowhere and uses `fastapi` only for
+  `HTTPException` (`test_job_submission_is_independent_of_routes_and_fastapi_responses`);
+- `routes/v1.py` is frozen at `MAX_LINES` lines, a ratchet that may only go down
+  (`test_v1_router_does_not_grow`);
 - plan capabilities are read only in `services/entitlements.py` ([Entitlements](#entitlements));
 - nothing imports a `metering` module (`test_nothing_imports_the_retired_metering_module`);
 - the detector itself recognises every import form (`test_detector_sees_every_import_form`).
@@ -169,10 +211,20 @@ import `routes`, `services`, `repositories`, `jobs` or `db`
 
 These are real and not scheduled; no dates are promised.
 
-- `routes/v1.py` is about 3,250 lines and holds job creation, snapshot
-  persistence, Engine registration and much else. Its logic should move into
-  `services/` and `repositories/`.
-- Four modules still import `routes` (`ALLOWED_LEGACY` above).
+- `routes/v1.py` is about 2,570 lines (frozen at 2,600 by
+  `test_v1_router_does_not_grow`; it was about 2,960 before job creation moved
+  to `services/job_submission.py`). What is left to extract, in this order of
+  expected size: the Engine registry (`/engines`, `/engine-registrations`:
+  verification of a registration against the deployed OpenAPI, publication
+  lifecycle, credentials, and the dialect and resource registries beside it),
+  instances and snapshots (`/instances`, `/snapshots`, validation and
+  `persist_snapshot` callers), and discovery (`/profiles`, `/dialects`,
+  `/catalog`, `/schemas`, `/examples`). The job read routes (`/jobs/{id}`,
+  neighbourhood, IR, instance, report) also remain there. Each should move into
+  `services/` and `repositories/` and lower `MAX_LINES` when it does.
+- Four modules still import `routes` (`ALLOWED_LEGACY` above). `study_jobs.py`
+  still calls `v1._create_job_core` and the pending-launch helpers through the
+  router; once it calls `JobSubmission` directly it can leave the list.
 - `repositories/` holds one module; most queries are in routes and top-level
   modules.
 - The contract lifecycle (create, novate, read the subscription, pricing token,

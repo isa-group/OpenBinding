@@ -14,6 +14,7 @@ from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job, User
 from openbinding_gateway.domain import idempotency
 from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.services import job_submission
 from openbinding_gateway.services.entitlements import entitlement_service
 from bim_core.canonical import digest
 from bim_core.package import load_package
@@ -204,7 +205,7 @@ async def test_engines_that_are_not_installed_are_refused_without_a_job(api_clie
 
 def _hide_from_first_lookups(monkeypatch, hidden):
     """Make the first `hidden` idempotency lookups miss, as if the winner had not committed yet."""
-    real = routes._find_idempotent_job
+    real = job_submission._find_idempotent_job
     seen = []
 
     async def find(session, owner_id, key):
@@ -213,7 +214,7 @@ def _hide_from_first_lookups(monkeypatch, hidden):
             return None
         return await real(session, owner_id, key)
 
-    monkeypatch.setattr(routes, "_find_idempotent_job", find)
+    monkeypatch.setattr(job_submission, "_find_idempotent_job", find)
 
 
 async def test_losing_the_job_insert_race_returns_a_replay(

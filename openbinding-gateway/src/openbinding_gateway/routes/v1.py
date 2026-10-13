@@ -33,9 +33,6 @@ from ..db.models import (
     EngineRegistrationRevision,
     EngineRevision,
     InstanceSnapshot,
-    Job,
-    JobProvenance,
-    JobState,
     ManifestPublication,
     Notification,
     RegisteredResourceRevision,
@@ -44,11 +41,9 @@ from ..db.models import (
     utcnow,
 )
 from ..job_dispatch import dispatch_persisted_job
-from ..jobs import limits as job_limits
-from ..models.problem import VALIDATION_ERROR, problem_response, split_detail
+from ..models.problem import PROBLEM_MEDIA_TYPE, VALIDATION_ERROR, problem_response, split_detail
 from ..security.apikeys import allows_engine
-from ..domain import idempotency
-from bim_core import CanonicalizationError, ContractError, PackageError
+from bim_core import ContractError, PackageError
 from bim_core.canonical import canonical_json, digest, digest_bytes
 from ..core.jsonio import strict_json_loads
 from ..integrations import bim, packages
@@ -73,23 +68,27 @@ from ..services.engines import (
     compatible_modes,
     embedded_secret_paths,
     engine_ref,
-    installed_builtin_registration,
-    is_installed_builtin_registration,
-    mode_execution_contract,
     owned_job,
     protocol_digest,
     protocol_document,
     registration_engine_reference,
-    registration_for_engine,
-    registration_reference,
     registration_summary,
     schema_diagnostics,
-    select_engine,
     validate_engine_result,
 )
 from ..services.engines import manifest as _manifest
 from ..services.engines import manifest_async
 from ..services.entitlements import EntitlementsUnavailable, entitlement_service
+from ..services.job_submission import (
+    STUDY_CELL_KEY_PREFIX,
+    JobSubmission,
+    JobSubmissionInput,
+    JobSubmissionResult,
+)
+
+# Re-exported for ``study_jobs`` and the tests that read the pending launches through this module.
+from ..services.job_submission import discard_pending_launches as discard_pending_launches
+from ..services.job_submission import pending_launches as pending_launches
 from ..services.probe import probe_ir
 from ..services.snapshots import (
     CUSTOM_RESOURCES,
@@ -99,7 +98,6 @@ from ..services.snapshots import (
     owned_snapshot,
     package_file_digests,
     persist_snapshot,
-    snapshot_ir,
 )
 
 logger = logging.getLogger(__name__)
@@ -483,20 +481,6 @@ async def _verify_registration(
         openapi_document,
         openapi_digest,
     )
-
-
-async def _resolve_execution_optimization(
-    ir: Mapping[str, Any],
-    manifest: Mapping[str, Any],
-    mode_id: str,
-    requested: Any,
-) -> dict[str, Any]:
-    """Validate and canonicalize the execution-time optimization selection (the toolchain's rules)."""
-    try:
-        resolved = await bim.abim().resolve_optimization(ir, manifest, requested, mode=mode_id)
-    except ContractError as exc:
-        raise bim.http_exception_for(exc) from exc
-    return resolved["optimization"]
 
 
 async def _read_package(request: Request) -> bytes:
@@ -2326,29 +2310,6 @@ async def get_snapshot_ir(
     return ir.document
 
 
-#: Idempotency keys the gateway writes for study cells; clients cannot claim them.
-STUDY_CELL_KEY_PREFIX = "study-cell:"
-
-_PENDING_LAUNCHES = "pending-job-launches"
-
-
-def pending_launches(session: AsyncSession) -> list[uuid.UUID]:
-    """Ids of jobs created without commit or dispatch on this session.
-
-    The owner of the transaction commits, then dispatches them; if it cannot,
-    it forgets them with ``discard_pending_launches``.
-    """
-
-    return session.info.setdefault(_PENDING_LAUNCHES, [])
-
-
-def discard_pending_launches(session: AsyncSession, only: set[uuid.UUID] | None = None) -> None:
-    """Forget every pending launch (or only these): their jobs were rolled back."""
-
-    pending = pending_launches(session)
-    pending[:] = [job_id for job_id in pending if only is not None and job_id not in only]
-
-
 @router.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
 async def create_job(
     request: Request,
@@ -2374,13 +2335,15 @@ async def _create_job_core(
     dispatch: bool = True,
     study_cell_id: uuid.UUID | None = None,
 ):
-    """Validate, reserve and persist a job; ``create_job`` is its HTTP face.
+    """Read, submit and dispatch a job; ``create_job`` is its HTTP face.
 
-    ``commit`` and ``dispatch`` say whether to commit and queue the job here.
-    Without them the job stays in the caller's transaction and its reservation
-    is recorded in ``pending_launches``. ``study_cell_id`` is written in the
-    job's own INSERT, so the cell and the job cannot be seen apart; losing the
-    race for a cell returns the job that won it.
+    The submission itself (validation, idempotency, limits, persistence) is
+    ``services.job_submission``. ``commit`` and ``dispatch`` say whether to
+    commit and queue the job here. Without them the job stays in the caller's
+    transaction and its reservation is recorded in ``pending_launches``.
+    ``study_cell_id`` is written in the job's own INSERT, so the cell and the
+    job cannot be seen apart; losing the race for a cell returns the job that
+    won it.
     """
 
     if dispatch and not commit:
@@ -2392,390 +2355,69 @@ async def _create_job_core(
             "invalid_idempotency_key",
             "Idempotency-Key must contain between 1 and 255 characters",
         )
-    body_size = 0
-    pinned: Compilation | None = None
-    configuration_version = None
-    configuration_ref = None
-    request_body: Any = {}
+    submission = await _read_job_request(request, idempotency_key)
+    if isinstance(submission, JSONResponse):
+        return submission
+    result = await JobSubmission(
+        session,
+        caller,
+        commit=commit,
+        study_cell_id=study_cell_id,
+        snapshot_persister=persist_snapshot,
+    ).submit(submission)
+    if dispatch and result.kind == "created":
+        await dispatch_persisted_job(result.body["id"], None if db_base.is_configured() else session)
+    return _job_response(result)
+
+
+async def _read_job_request(request: Request, idempotency_key: str | None) -> JobSubmissionInput | JSONResponse:
+    """The job request as the service takes it, or the problem that stops it at the transport."""
     try:
         content_type = (request.headers.get("content-type") or "").split(";", 1)[0].lower()
         if content_type.startswith("multipart/form-data"):
             body = await request.body()
-            body_size = len(body)
-            if body_size > _max_compressed() + 1024 * 1024:
+            if len(body) > _max_compressed() + 1024 * 1024:
                 return _problem(413, "payload_too_large", "multipart BIM package is too large")
             archive = _multipart_zip(body, request.headers.get("content-type", ""))
-            payload = {}
-        elif content_type in _BIM_ZIP_TYPES:
+            return JobSubmissionInput({}, len(body), idempotency_key, archive=archive)
+        if content_type in _BIM_ZIP_TYPES:
             archive = await _read_package(request)
             body_size = int(request.headers.get("content-length", "0") or 0)
-            payload: dict[str, Any] = {}
-        else:
-            body = await request.body()
-            body_size = len(body)
-            if body_size > _max_expanded():
-                return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
-            payload = strict_json_loads(body)
-            request_body = payload
-            snapshot_id = payload.get("snapshot") if isinstance(payload, dict) else None
-            if snapshot_id:
-                allowed_fields = {"snapshot", "engine", "registration", "mode", "options", "optimization", "configuration"}
-                if set(payload) - allowed_fields:
-                    return _problem(
-                        422,
-                        "invalid_request_fields",
-                        "job request contains fields outside the BIM v1 job contract",
-                    )
-                if 'configuration' in payload:
-                    if session is None or caller is None:
-                        return _problem(401, 'unauthorized', 'Selecting a library execution configuration requires an account.')
-                    if set(payload) & {'engine', 'registration', 'mode', 'options', 'optimization'}:
-                        return _problem(422, 'ambiguous_configuration', 'Select a configuration version or inline execution settings, not both.')
-                    from ..artifacts import resolve_version, reference, version_content
-                    from ..models.artifacts import ArtifactRef
-                    from pydantic import ValidationError
-                    try:
-                        selected = ArtifactRef.model_validate(payload['configuration'])
-                    except ValidationError as exc:
-                        return _problem(422, 'invalid_configuration', str(exc))
-                    configuration_artifact, configuration_version = await resolve_version(session, selected, caller)
-                    if configuration_artifact.kind != 'ExecutionConfiguration':
-                        return _problem(422, 'invalid_configuration', 'Select an ExecutionConfiguration version.')
-                    configuration_ref = reference(configuration_artifact, configuration_version)
-                    settings_document = strict_json_loads((await version_content(session, configuration_version))[0])
-                    payload = {**payload, **settings_document}
-                snapshot = await owned_snapshot(snapshot_id, caller, session)
-                if snapshot is None:
-                    return _problem(404, "not_found", "Snapshot not found")
-                archive = snapshot.source_archive
-                pinned = await snapshot_ir(snapshot, session)
-            else:
-                return _problem(
-                    422,
-                    "snapshot_or_package_required",
-                    "BIM v1 jobs accept an existing snapshot or a ZIP package upload",
-                )
-        compilation = pinned or await compile_resolved(archive, session, caller)
+            return JobSubmissionInput({}, body_size, idempotency_key, archive=archive)
+        body = await request.body()
+        if len(body) > _max_expanded():
+            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
+        payload = strict_json_loads(body)
+        snapshot_id = payload.get("snapshot") if isinstance(payload, dict) else None
+        if not snapshot_id:
+            return _problem(
+                422,
+                "snapshot_or_package_required",
+                "BIM v1 jobs accept an existing snapshot or a ZIP package upload",
+            )
+        allowed_fields = {"snapshot", "engine", "registration", "mode", "options", "optimization", "configuration"}
+        if set(payload) - allowed_fields:
+            return _problem(
+                422,
+                "invalid_request_fields",
+                "job request contains fields outside the BIM v1 job contract",
+            )
+        return JobSubmissionInput(payload, len(body), idempotency_key, snapshot_id=snapshot_id)
     except PackageError as exc:
         return _problem(422, "invalid_request", str(exc))
     except HTTPException as exc:
         return _error_from_http(exc)
-    package_hash = compilation.package_digest
-    request_fingerprint = None
-    legacy_existing = None
-    if session is not None and caller is not None:
-        try:
-            request_fingerprint = idempotency.request_fingerprint(
-                source_digest=package_hash,
-                body=request_body,
-                configuration=configuration_ref,
-            )
-        except CanonicalizationError as exc:
-            return _problem(422, "invalid_request", str(exc))
-        if idempotency_key:
-            existing = await _find_idempotent_job(session, caller.id, idempotency_key)
-            if existing is not None:
-                if idempotency.is_request_fingerprint(existing.idempotency_fingerprint):
-                    return _idempotent_outcome(existing, request_fingerprint)
-                # Written by the legacy algorithm (hashes resolved values): comparable only after resolving.
-                legacy_existing = existing
-    job_id = str(uuid.uuid4())
-    engine_selector = payload.get("engine", "random-search") if isinstance(payload, dict) else "random-search"
-    if isinstance(engine_selector, dict):
-        engine = engine_selector.get("name")
-        engine_namespace = engine_selector.get("namespace")
-        engine_version = engine_selector.get("version")
-        requested_engine_digest = engine_selector.get("digest")
-        if not all(
-            isinstance(value, str) and value
-            for value in (engine, engine_namespace, engine_version, requested_engine_digest)
-        ):
-            return _problem(
-                422,
-                "invalid_engine",
-                "engine references require namespace, name, version and digest",
-            )
-        requested_mode = payload.get("mode") if isinstance(payload, dict) else None
-    else:
-        engine = engine_selector
-        engine_namespace = engine_version = requested_engine_digest = None
-        requested_mode = payload.get("mode") if isinstance(payload, dict) else None
-    if not isinstance(engine, str) or not engine:
-        return _problem(422, "invalid_engine", "engine must be a name or immutable reference")
-    if not isinstance(engine_selector, dict) and not (MANIFEST_DIR / f"{engine}.json").is_file():
-        return _problem(
-            422,
-            "immutable_engine_required",
-            "non-built-in engines must be selected by namespace, name, version and digest",
-        )
-    engine_options = payload.get("options", {}) if isinstance(payload, dict) else {}
-    try:
-        selection = await select_engine(
-            engine,
-            requested_mode,
-            engine_options,
-            session,
-            caller=caller,
-            namespace=engine_namespace,
-            version=engine_version,
-            manifest_digest=requested_engine_digest,
-            ir=compilation.ir,
-        )
-        manifest, selected_mode, effective_options = selection.manifest, selection.mode, selection.options
-        engine_hash = digest(manifest)
-        execution_optimization = await _resolve_execution_optimization(
-            compilation.ir,
-            manifest,
-            selected_mode["id"],
-            payload.get("optimization") if isinstance(payload, dict) else None,
-        )
-    except HTTPException as exc:
-        return _error_from_http(exc)
-    immutable_engine_ref = engine_ref(manifest, engine_namespace or "bim.builtin")
-    if caller is not None and not allows_engine(caller, immutable_engine_ref):
-        return _problem(404, "not_found", "Engine revision not found")
-    settings = get_settings()
-    option_warnings: list[dict[str, Any]] = []
-    effective_timeout = settings.engine_solve_timeout_s
-    if caller is not None:
-        # A study cell launch treats this 503 as retryable (study_jobs.RETRYABLE_LAUNCH_CODES).
-        try:
-            caps = await entitlement_service.caps_for(caller.id)
-        except EntitlementsUnavailable as exc:
-            return _problem(exc.status, exc.code, str(exc))
-        if body_size and body_size > entitlement_service.payload_ceiling(
-            caps, 512 * 1024 * 1024
-        ):
-            return _problem(413, "payload_too_large", "BIM package exceeds the caller plan limit")
-        if entitlement_service.complexity_too_large(compilation.binding_space_log10, caps):
-            return _problem(
-                402,
-                "instance_complexity_too_large",
-                "instance binding space exceeds the caller plan limit",
-            )
-        clamped = entitlement_service.clamp_options(effective_options, caps)
-        effective_options = clamped.options
-        option_warnings = [warning.model_dump(mode="json") for warning in clamped.warnings]
-        effective_timeout = entitlement_service.solve_timeout(caps, settings.engine_solve_timeout_s)
-    if selection.diagnostics:
-        return _problem(
-            422,
-            "engine_mode_incompatible",
-            "selected engine mode cannot execute every construct in this BindingProblem",
-            selection.diagnostics,
-        )
-    limits = dict(selected_mode.get("limits", {}))
-    tasks = compilation.spec.get("application", {}).get("tasks", {})
-    task_count = len(tasks) if isinstance(tasks, (dict, list)) else 0
-    candidate_count = compilation.analysis["candidates"]
-    mode = selected_mode["id"]
-    mode_contract = mode_execution_contract(selected_mode)
-    requested_registration = payload.get("registration") if isinstance(payload, dict) else None
-    if requested_registration is not None and (
-        not isinstance(requested_registration, dict)
-        or set(requested_registration) != {"namespace", "name", "version", "digest"}
-        or not all(isinstance(value, str) and value for value in requested_registration.values())
-    ):
-        return _problem(
-            422,
-            "invalid_registration",
-            "registration references require exactly namespace, name, version and digest",
-        )
-    registration = await registration_for_engine(
-        requested_registration.get("namespace") if requested_registration else None,
-        requested_registration.get("name") if requested_registration else None,
-        requested_registration.get("version") if requested_registration else None,
-        requested_registration.get("digest") if requested_registration else None,
-        caller,
-        session,
-    )
-    builtin_registration = installed_builtin_registration(
-        manifest,
-        settings.engine_urls.get(engine),
-        requested_registration,
-    )
-    if registration is None and builtin_registration is not None:
-        registration = builtin_registration
-    if requested_registration is not None and registration is None:
-        return _problem(404, "not_found", "Engine registration not found or not active")
-    if registration is None:
-        return _problem(
-            422,
-            "engine_registration_required",
-            "the selected Engine revision has no installed EngineRegistration",
-        )
-    if isinstance(registration, EngineRegistrationRevision):
-        registration_ref = registration_reference(registration)
-        if (
-            registration.engine_digest != engine_hash
-            or registration_engine_reference(registration) != immutable_engine_ref
-        ):
-            return _problem(409, "engine_reference_mismatch", "registration does not pin the exact selected Engine revision")
-        endpoint = registration.endpoint
-        protocol_hash = registration.protocol_digest
-    elif isinstance(registration, dict):
-        registration_ref = registration_reference(registration)
-        if registration_engine_reference(registration) != immutable_engine_ref:
-            return _problem(409, "engine_reference_mismatch", "registration does not pin the exact selected Engine revision")
-        endpoint = registration["document"]["spec"]["endpoint"]
-        protocol_hash = registration["document"]["spec"]["protocol"]["digest"]
 
-    instance_hash = compilation.instance_digest
-    profile = compilation.spec["profile"]
-    evaluator_hash = bim.toolchain_digest()
-    dialects = compilation.spec["dialects"]
-    adapters = [item["adapter"] for item in dialects if isinstance(item, dict) and isinstance(item.get("adapter"), dict)]
-    if legacy_existing is not None:
-        legacy_fingerprint = digest({
-            "configuration": configuration_ref,
-            "requestedOptions": engine_options,
-            "packageDigest": package_hash,
-            "fileDigests": compilation.file_digests,
-            "resourceDigests": compilation.resource_digests,
-            "irDigest": compilation.ir_digest,
-            "dialects": dialects,
-            "adapters": adapters,
-            "engineDigest": engine_hash,
-            "registration": registration_ref,
-            "protocolDigest": protocol_hash,
-            "mode": mode,
-            "optimization": execution_optimization,
-            "algorithm": selected_mode.get("algorithm"),
-            "options": effective_options,
-            "limits": limits,
-        })
-        return _idempotent_outcome(legacy_existing, legacy_fingerprint)
-    provenance = {
-        "engine": immutable_engine_ref,
-        "engineDigest": engine_hash,
-        "registration": registration_ref,
-        "protocol": "bim-engine/v1",
-        "protocolDigest": protocol_hash,
-        "mode": mode,
-        "optimization": execution_optimization,
-        "algorithm": selected_mode.get("algorithm"),
-        "profile": profile,
-        "profileDigest": profile["digest"],
-        "ir": {"apiVersion": compilation.ir["apiVersion"], "kind": compilation.ir["kind"]},
-        "irDigest": compilation.ir_digest,
-        "instanceDigest": instance_hash,
-        "packageDigest": package_hash,
-        "fileDigests": compilation.file_digests,
-        "resourceDigests": compilation.resource_digests,
-        "dialects": dialects,
-        "adapters": adapters,
-        "compiler": "bim-compiler/v1",
-        "compilerDigest": evaluator_hash,
-        "evaluator": "bim-reference-evaluator/v1",
-        "evaluatorDigest": evaluator_hash,
-        "options": effective_options,
-        "limits": {**limits, "effectiveTimeoutSeconds": effective_timeout},
-        "warnings": option_warnings,
-        "terminationGuarantees": mode_contract["terminationGuarantees"],
-    }
-    provenance['requestedOptions'] = engine_options
-    if configuration_ref:
-        provenance['configuration'] = configuration_ref
-    if caller is not None:
-        if session is None:
-            return _problem(401, "unauthorized", "Submitting a job requires an account.")
-        federated = not (
-            isinstance(registration, dict) and is_installed_builtin_registration(registration)
-        )
-        # Lock the account row first: a request that waited behind the one that
-        # created this job now sees it, and two creations cannot both take the
-        # last slot.
-        await job_limits.lock_owner(session, caller.id)
-        if idempotency_key:
-            raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
-            if raced is not None:
-                return raced
-        refusal = entitlement_service.feature_refusal(caps, "federatedEngines" if federated else "solve")
-        if refusal is None:
-            refusal = await job_limits.enforce_concurrency_limit(session, caller.id)
-        if refusal is not None:
-            return _problem(
-                refusal.status,
-                refusal.code,
-                refusal.detail,
-                extra=refusal.extra or None,
-                headers=refusal.headers or None,
-            )
-        try:
-            async with session.begin_nested():
-                snapshot_db_id = await persist_snapshot(compilation, caller, session)
-        except IntegrityError:
-            raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
-            if raced is not None:
-                return raced
-            return _problem(409, "snapshot_conflict", "snapshot identity conflicted with another revision")
-        try:
-            parsed_snapshot_id = uuid.UUID(snapshot_db_id) if snapshot_db_id else None
-        except ValueError:
-            parsed_snapshot_id = None
-        db_job = Job(
-            id=uuid.UUID(job_id),
-            owner_id=caller.id,
-            engine_id=engine,
-            engine_job_id=job_id,
-            service_url=endpoint,
-            state=JobState.QUEUED,
-            original_request={
-                "bindingProblem": compilation.ir,
-                "timeout": effective_timeout,
-                "mode": mode_contract,
-                "optimization": execution_optimization,
-                "registration": registration_ref,
-            },
-            options=effective_options,
-            warnings=option_warnings,
-            instance_complexity={
-                "instanceDigest": instance_hash,
-                "resourceCount": len(compilation.file_digests),
-                "tasks": task_count,
-                "candidates": candidate_count,
-                "bindingSpace": str(compilation.binding_space_cardinality),
-            },
-            instance_snapshot_id=parsed_snapshot_id,
-            configuration_version_id=configuration_version.id if configuration_version else None,
-            provenance=provenance,
-            idempotency_key=idempotency_key,
-            idempotency_fingerprint=request_fingerprint,
-            requested_budget_s=effective_timeout,
-            study_cell_id=study_cell_id,
-        )
-        try:
-            async with session.begin_nested():
-                session.add(db_job)
-                session.add(JobProvenance(job_id=db_job.id, document=provenance, digest=digest(provenance)))
-                await session.flush()
-        except IntegrityError:
-            if study_cell_id is not None:
-                # Another launch of this cell won the unique index: that job is the cell's job.
-                winner = (
-                    await session.execute(select(Job).where(Job.study_cell_id == study_cell_id))
-                ).scalars().first()
-                if winner is not None:
-                    winning = winner.provenance or {}
-                    return {
-                        "id": str(winner.id),
-                        "status": winner.state.value,
-                        "profile": winning.get("profile", {}).get("id"),
-                        "irDigest": winning.get("irDigest"),
-                        "idempotent": True,
-                    }
-            raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
-            if raced is not None:
-                return raced
-            return _problem(409, "job_conflict", "job identity conflicted with another request")
-        if commit:
-            await session.commit()
-        else:
-            pending_launches(session).append(db_job.id)
-        if dispatch:
-            await dispatch_persisted_job(job_id, None if db_base.is_configured() else session)
-        return {"id": job_id, "status": "queued", "profile": profile["id"], "irDigest": compilation.ir_digest}
-    return _problem(401, "unauthorized", "Submitting a job requires an account.")
+
+def _job_response(result: JobSubmissionResult) -> dict[str, Any] | JSONResponse:
+    """A new job answers with its document (202 by the route); a replay or a problem is a response of its own."""
+    if result.kind == "created":
+        return result.body
+    if result.kind == "replay":
+        return JSONResponse(result.body, status_code=result.status, headers=result.headers or None)
+    return JSONResponse(
+        result.body, status_code=result.status, media_type=PROBLEM_MEDIA_TYPE, headers=result.headers or None
+    )
 
 
 @router.get("/jobs/{job_id}")
@@ -2927,36 +2569,3 @@ async def get_v1_job_report(
         "remote": result.get("provenance", {}).get("engineReported", {}),
         "provenance": provenance,
     }
-
-
-async def _find_idempotent_job(session: AsyncSession, owner_id: Any, key: str) -> Job | None:
-    return (
-        await session.execute(select(Job).where(Job.owner_id == owner_id, Job.idempotency_key == key))
-    ).scalars().first()
-
-
-def _idempotent_outcome(existing: Job, fingerprint: str) -> JSONResponse:
-    if existing.idempotency_fingerprint != fingerprint:
-        return _problem(409, "idempotency_conflict", "Idempotency-Key was already used for a different request")
-    provenance = existing.provenance or {}
-    return JSONResponse(
-        {
-            "id": str(existing.id),
-            "status": existing.state.value,
-            "profile": provenance.get("profile", {}).get("id"),
-            "irDigest": provenance.get("irDigest"),
-            "idempotent": True,
-        },
-        status_code=202,
-    )
-
-
-async def _raced_idempotent_outcome(
-    session: AsyncSession, owner_id: Any, key: str | None, fingerprint: str | None
-) -> JSONResponse | None:
-    if not key or fingerprint is None:
-        return None
-    existing = await _find_idempotent_job(session, owner_id, key)
-    if existing is None:
-        return None
-    return _idempotent_outcome(existing, fingerprint)

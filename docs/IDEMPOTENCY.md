@@ -14,6 +14,20 @@ checked and where. Distributed exactly-once execution is **not** claimed.
 | **G4** | Effects on remote Engines are at-least-once | An Engine can see the same job again after a crash or a lost lease. Mitigated, not removed: idempotency *hints* in request headers and best-effort cancellation of the remote job |
 | End to end | **Not** exactly once | See [failure modes](#failure-modes) |
 
+## Where the flow lives
+
+The submission flow is `services/job_submission.py` (`JobSubmission.submit`); the
+route (`create_job` and `_create_job_core` in `routes/v1.py`) only reads the
+request into a `JobSubmissionInput`, calls the service, dispatches a job it
+reports as `created` (after the commit, so a crash still never loses the job) and
+translates the `JobSubmissionResult` (`created`, `replay` or `problem`) into a
+response. The service does the lookup of the key, the account lock, the
+fingerprint comparison (current and legacy), the concurrency check, the
+`IntegrityError` race handling and the persistence of the snapshot and the job.
+Moving the code changed none of G1-G4 or of the wire contract; the unit tests of
+the service are `tests/test_job_submission_service.py`, and the HTTP-level ones
+are `tests/test_idempotency_jobs.py` and `tests/concurrency/test_jobs_idempotency_pg.py`.
+
 ## Scope of the key
 
 An `Idempotency-Key` (1–255 characters) is scoped to the **account**: two
@@ -47,7 +61,7 @@ example options trimmed by the caller's plan.
   waited behind the one that created the job sees it and replays. The unique
   constraint is the last line of defence: the loser of an `IntegrityError`
   re-reads the winner and replays (`_raced_idempotent_outcome` in
-  `routes/v1.py`).
+  `services/job_submission.py`).
 - A request without an `Idempotency-Key` has no replay protection: each one
   creates a job.
 - A study cell has its own unique index (`uq_jobs_study_cell_id`): a second

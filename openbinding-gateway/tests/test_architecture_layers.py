@@ -276,6 +276,102 @@ def test_gate_lifecycle_legacy_has_no_stale_entries() -> None:
     assert not stale, f"These modules no longer use get_gate; remove them from GATE_LIFECYCLE_LEGACY: {sorted(stale)}"
 
 
+#: The v1 router is being emptied into services (docs/ARCHITECTURE.md, "Known debt").  This is a ratchet: the
+#: ceiling is the size of ``routes/v1.py`` rounded up to the hundred, and it can only go down.  Lower it when an
+#: extraction brings the file under the previous hundred; never raise it.
+V1_ROUTER = SOURCE / "routes" / "v1.py"
+MAX_LINES = 2600
+RATCHET_STEP = 100
+
+
+def _v1_router_lines() -> int:
+    return len(V1_ROUTER.read_text(encoding="utf-8").splitlines())
+
+
+def test_v1_router_does_not_grow() -> None:
+    lines = _v1_router_lines()
+
+    assert lines <= MAX_LINES, (
+        f"routes/v1.py has {lines} lines (ceiling {MAX_LINES}); put the new logic in services/ "
+        "instead of raising MAX_LINES"
+    )
+
+
+def test_the_v1_ceiling_follows_the_file_down() -> None:
+    lines = _v1_router_lines()
+
+    assert lines > MAX_LINES - RATCHET_STEP, (
+        f"routes/v1.py shrank to {lines} lines: lower MAX_LINES to {-(-lines // RATCHET_STEP) * RATCHET_STEP}"
+    )
+
+
+JOB_SUBMISSION = SOURCE / "services" / "job_submission.py"
+
+
+def fastapi_imports(source: str) -> list[tuple[int, str]]:
+    """Every name the module takes from ``fastapi`` (``fastapi.responses.JSONResponse``), at any nesting level."""
+    found: list[tuple[int, str]] = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import):
+            found.extend((node.lineno, alias.name) for alias in node.names if alias.name.split(".")[0] == "fastapi")
+        elif isinstance(node, ast.ImportFrom) and not node.level and (node.module or "").split(".")[0] == "fastapi":
+            found.extend((node.lineno, f"{node.module}.{alias.name}") for alias in node.names)
+    return sorted(found)
+
+
+def module_level_mutables(source: str) -> list[int]:
+    """Lines of module-level assignments of a list, dict or set (literal, comprehension or constructor call)."""
+    constructors = {"list", "dict", "set", "defaultdict", "OrderedDict", "deque", "Counter"}
+    mutable = (ast.List, ast.Dict, ast.Set, ast.ListComp, ast.DictComp, ast.SetComp)
+    lines: list[int] = []
+    for node in ast.parse(source).body:
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)) or node.value is None:
+            continue
+        value = node.value
+        called = value.func if isinstance(value, ast.Call) else None
+        name = getattr(called, "id", None) or getattr(called, "attr", None)
+        if isinstance(value, mutable) or name in constructors:
+            lines.append(node.lineno)
+    return lines
+
+
+def test_the_fastapi_detector_sees_every_form() -> None:
+    source = "\n".join(
+        [
+            "import fastapi",
+            "from fastapi import HTTPException, status",
+            "from fastapi.responses import JSONResponse",
+            "from . import fastapi_like",
+            "def late():",
+            "    from fastapi import Request",
+        ]
+    )
+
+    assert [name for _, name in fastapi_imports(source)] == [
+        "fastapi",
+        "fastapi.HTTPException",
+        "fastapi.status",
+        "fastapi.responses.JSONResponse",
+        "fastapi.Request",
+    ]
+
+
+def test_the_mutable_global_detector_sees_literals_and_constructors() -> None:
+    source = "A = []\nB: dict = {}\nC = set()\nD = 'x'\nE = (1, 2)\nF = defaultdict(list)\ndef f():\n    local = []\n"
+
+    assert module_level_mutables(source) == [1, 2, 3, 6]
+
+
+def test_job_submission_is_independent_of_routes_and_fastapi_responses() -> None:
+    source = JOB_SUBMISSION.read_text(encoding="utf-8")
+
+    assert routes_imports(source, "openbinding_gateway.services") == []
+    assert {name for _, name in fastapi_imports(source)} <= {"fastapi.HTTPException"}, (
+        "services/job_submission.py may use fastapi only for HTTPException; return a JobSubmissionResult"
+    )
+    assert module_level_mutables(source) == [], "services/job_submission.py must not keep mutable module state"
+
+
 def _modules_importing_routes() -> set[str]:
     importing: set[str] = set()
     for path in _python_files(SOURCE):
