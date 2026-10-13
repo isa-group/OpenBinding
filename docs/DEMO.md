@@ -42,6 +42,24 @@ the steady state is 3072 MiB. `test_lab_compose.py` recomputes the sum and fails
 if this document does not state it. `mem_limit` bounds the container, not the
 page cache of the named volumes, and image builds are not limited by it.
 
+**Unprivileged containers.** The gateway image (`gateway`, `worker`, `seed`) runs as
+UID/GID 10001 with no login shell; `bim-service` already did. Root inside a rootless
+container is not root on the host, but the unprivileged user is still the practice
+that limits a compromised process. Consequences for the lab:
+
+- `/run/bim` is a tmpfs with `mode: 1023` (0o1777) in all three gateway-image services,
+  so UID 10001 can write the token file (still created with `umask 077`).
+- `lab-artifacts` is writable by 10001 because `/var/lib/openbinding/artifacts` exists in
+  the image owned by 10001 and an empty named volume inherits that owner. A
+  `lab-artifacts` volume created by an earlier image (owned by root) keeps its owner:
+  recreate it (`down -v`) or `chown 10001:10001` it once.
+- `bim-service` has `cpus: 1.5` and `pids_limit: 256` in addition to `mem_limit`.
+  These are plain Compose service attributes; `mem_limit` is unchanged, so the sum
+  above is too. If the `lab_compose` validator of the controller rejects either key,
+  remove them (the memory ceiling does not depend on them).
+- Not executed: the image build, `up` and the new ownership have not been run (no
+  Docker in the authoring environment); only the static checks cover them.
+
 Compared with `docker-compose.yml`: a single `worker` consumes both queues
 (the stack runs a second one for `analysis` with one thread); the
 `engine-multi-heuristic` example, adminer, qacobench and the dev profile are

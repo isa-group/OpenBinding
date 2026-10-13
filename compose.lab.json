@@ -144,6 +144,8 @@
         }
       ],
       "mem_limit": "256m",
+      "cpus": 1.5,
+      "pids_limit": 256,
       "healthcheck": {
         "test": [
           "CMD",
@@ -213,7 +215,10 @@
         },
         {
           "type": "tmpfs",
-          "target": "/run/bim"
+          "target": "/run/bim",
+          "tmpfs": {
+            "mode": 1023
+          }
         }
       ],
       "depends_on": {

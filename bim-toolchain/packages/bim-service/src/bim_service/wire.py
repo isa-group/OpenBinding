@@ -125,7 +125,7 @@ def decode_package_request(
     if media_type == "application/json" or media_type.endswith("+json"):
         try:
             document = json.loads(body)
-        except ValueError as exc:
+        except (ValueError, RecursionError) as exc:  # RecursionError: nesting deeper than the parser allows
             raise request_invalid("the request body is not valid JSON") from exc
         try:
             model = PackageRequest.model_validate(document)

@@ -10,7 +10,9 @@ ENV HTTP_PROXY=$HTTP_PROXY \
     https_proxy=$HTTPS_PROXY \
     no_proxy=$NO_PROXY
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+# uv is pinned to an explicit release (neither pyproject.toml nor uv.lock records a uv
+# version, so this is the reference: 0.8.22). Bump it deliberately, never use :latest.
+COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /bin/uv
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
 
@@ -50,6 +52,25 @@ RUN echo '#!/bin/sh\npytest "$@"' > /usr/local/bin/test && \
 
 COPY openbinding-gateway/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# The gateway and the worker run as an unprivileged user (fixed UID/GID 10001, no home,
+# no login shell). Code, alembic, schemas and examples stay owned by root and world-readable
+# but not writable, so the process cannot rewrite what it runs. Being root inside a
+# rootless container is not being root on the host, but a non-root user is still the
+# practice that limits what a compromised process can do.
+#
+# The artifact directory is created here, owned by 10001, so that a new named volume
+# mounted on it inherits that owner (Docker copies the ownership of the image directory
+# into an empty named volume). A volume created by an earlier root-run image keeps its
+# old owner and must be recreated or chown'ed once.
+RUN groupadd --system --gid 10001 openbinding \
+ && useradd --system --uid 10001 --gid 10001 --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin openbinding \
+ && chmod -R a+rX /app \
+ && mkdir -p /var/lib/openbinding/artifacts \
+ && chown -R 10001:10001 /var/lib/openbinding \
+ && chmod 750 /var/lib/openbinding/artifacts
+
+USER 10001:10001
 
 # Expose port
 EXPOSE 8000

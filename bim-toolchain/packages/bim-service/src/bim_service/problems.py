@@ -48,6 +48,7 @@ class ServiceProblem(Exception):
         *,
         diagnostics: list[dict[str, Any]] | None = None,
         headers: Mapping[str, str] | None = None,
+        extensions: Mapping[str, Any] | None = None,
     ) -> None:
         super().__init__(detail)
         self.status = status
@@ -55,6 +56,8 @@ class ServiceProblem(Exception):
         self.detail = detail
         self.diagnostics = diagnostics or []
         self.headers = dict(headers or {})
+        #: Extra members of the problem document (``Problem`` allows them), e.g. ``correlationId``.
+        self.extensions = dict(extensions or {})
 
 
 def title_for(code: str) -> str:
@@ -102,6 +105,7 @@ def bim_error_problem(error: BimError) -> tuple[int, dict[str, Any]]:
 
 def service_problem(problem: ServiceProblem) -> tuple[int, dict[str, Any]]:
     return problem.status, {
+        **problem.extensions,
         "type": PROBLEM_BASE + problem.code,
         "title": title_for(problem.code),
         "status": problem.status,

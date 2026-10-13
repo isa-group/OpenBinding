@@ -18,6 +18,8 @@ import logging
 import re
 import secrets
 import time
+import traceback
+from pathlib import Path
 from typing import Any, Awaitable, Callable, MutableMapping
 
 from starlette.datastructures import MutableHeaders
@@ -51,6 +53,13 @@ def route_path(scope: Scope) -> str:
     path = scope.get("path", "")
     root = scope.get("root_path", "")
     return path[len(root):] if root and path.startswith(root) else path
+
+
+def _frames(error: BaseException) -> str:
+    """``module:function:line`` of the frames of ``error``, innermost last; no source lines, no values."""
+    return " > ".join(
+        f"{Path(frame.filename).name}:{frame.name}:{frame.lineno}" for frame in traceback.extract_tb(error.__traceback__)
+    )
 
 
 class ContextMiddleware:
@@ -88,11 +97,25 @@ class ContextMiddleware:
         try:
             await self.app(scope, receive, send_with_context)
         except Exception as exc:
-            # Only the class is logged: the message of an unexpected error may quote the input.
-            logger.error("unhandled %s while serving %s %r", type(exc).__name__, scope.get("method"), route_path(scope))
+            # The log gets the class and where it was raised (function and line of each frame), never the message
+            # of the exception, which may quote the input.  The client gets the correlation id and nothing else.
+            correlation_id = trace.split("-")[1]
+            logger.error(
+                "unhandled %s while serving %s %r correlation_id=%s at %s",
+                type(exc).__name__,
+                scope.get("method"),
+                route_path(scope),
+                correlation_id,
+                _frames(exc),
+            )
             if response_started:
                 raise
-            problem = ServiceProblem(500, "internal_error", "the service failed to process the request")
+            problem = ServiceProblem(
+                500,
+                "internal_error",
+                "the service failed to process the request",
+                extensions={"correlationId": correlation_id},
+            )
             await respond(problem)(scope, receive, send_with_context)
         finally:
             logger.info(

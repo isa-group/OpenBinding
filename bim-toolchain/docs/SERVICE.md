@@ -145,7 +145,15 @@ Problems about the service rather than the input have no `errorType`:
 | 503 | `service_busy` | no slot became free within `BIM_SERVICE_ACQUIRE_TIMEOUT_MS` (`Retry-After`) |
 | 503 | `operation_timeout` | the operation exceeded `BIM_SERVICE_OPERATION_TIMEOUT_SECONDS` |
 | 503 | `not_ready` | `/readyz` before the service is ready |
-| 500 | `internal_error` | anything unexpected: the answer says nothing about the input, the log has the exception class only |
+| 500 | `internal_error` | anything unexpected: a fixed `detail`, no exception message, traceback or path, and the extension member `correlationId` (the trace id of the `traceparent` that the answer carries; a request without a valid one gets a fresh id). The log line of the same request has `correlation_id=<id>`, the exception class and the frames (file, function, line), never the exception message, which may quote the input |
+
+Input that is hostile but small is still a client error, never a 500: JSON nested deeper than the parser accepts is
+`request_invalid` (422) or `http_error` (400, from the framework's body parsing), and a corrupt or truncated ZIP is a
+`PackageError` (422). The time budget of an operation and the size of the body (below) bound the rest.
+
+`correlationId` is not declared in `contracts/openapi/bim-service.v1.json`: `Problem` allows extension members, so the
+snapshot is unchanged. Declaring the member would be a contract change to regenerate with
+`tools/dump_service_openapi.py`.
 
 ## Limits
 
