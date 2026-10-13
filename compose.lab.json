@@ -343,11 +343,11 @@
       },
       "mem_limit": "96m",
       "healthcheck": {
-        "test": ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"],
+        "test": ["CMD-SHELL", "http_proxy= HTTP_PROXY= wget -T 3 -O /dev/null http://127.0.0.1:8080/healthz || exit 1"],
         "interval": "10s",
-        "timeout": "3s",
-        "retries": 5,
-        "start_period": "5s"
+        "timeout": "5s",
+        "retries": 6,
+        "start_period": "15s"
       }
     },
     "seed": {
@@ -376,6 +376,8 @@
         "SPACE_URL": "${SPACE_URL}",
         "SPACE_API_KEY": "${SPACE_API_KEY}",
         "SPACE_ORGANIZATION_ID": "${SPACE_ORGANIZATION_ID}",
+        "DEMO_SEED_PASSWORD": "${DEMO_SEED_PASSWORD}",
+        "SMOKE_BASE_URL": "http://web:8080",
         "SPACE_PRICING_VERSION": "${DEMO_SPACE_PRICING_VERSION}",
         "SPACE_DEFAULT_PLAN": "${DEMO_SPACE_DEFAULT_PLAN}",
         "SPHERE_ENABLED": "true",

@@ -73,7 +73,7 @@ BIM_VARIABLES = {
     "BIM_SERVICE_ALLOW_INSECURE_HTTP": "true",
 }
 # Variables only the seed gets (tools/remote_probe.py exits without it).
-SEED_EXTRAS = {"SPACE_ORGANIZATION_ID"}
+SEED_EXTRAS = {"SPACE_ORGANIZATION_ID", "DEMO_SEED_PASSWORD", "SMOKE_BASE_URL"}
 
 
 @pytest.fixture(scope="module")
@@ -437,6 +437,16 @@ def test_space_organization_id_is_only_in_the_seed_as_a_bare_reference(services)
     assert _env(services["seed"])["SPACE_ORGANIZATION_ID"] == "${SPACE_ORGANIZATION_ID}"
 
 
+def test_seed_password_is_a_bare_reference_only_in_the_seed_and_the_smoke_targets_web(services):
+    # tools/seed_lab.py and tools/smoke_lab.py exit with "DEMO_SEED_PASSWORD is required" without it.
+    holders = [name for name, s in services.items() if "DEMO_SEED_PASSWORD" in json.dumps(s)]
+    assert holders == ["seed"]
+    seed = _env(services["seed"])
+    assert seed["DEMO_SEED_PASSWORD"] == "${DEMO_SEED_PASSWORD}"
+    assert seed["SMOKE_BASE_URL"] == "http://web:8080"
+    assert [n for n, s in services.items() if "SMOKE_BASE_URL" in _env(s)] == ["seed"]
+
+
 def test_worker_has_the_variables_it_needs(services):
     worker = _env(services["worker"])
     assert worker["JOB_DISPATCH_MODE"] == "dramatiq"
@@ -541,6 +551,21 @@ def test_nginx_listens_on_the_published_target_and_strips_the_api_prefix(service
     assert "gateway" in services
     health = " ".join(services["web"]["healthcheck"]["test"])
     assert f"127.0.0.1:{PUBLISHED['target']}/healthz" in health
+    check = services["web"]["healthcheck"]
+    assert check["test"][0] == "CMD-SHELL" and " -T " in health and health.endswith("|| exit 1")
+    assert int(check["start_period"].rstrip("s")) >= 15
+    assert int(check["timeout"].rstrip("s")) > 3  # longer than wget's -T 3
+    assert 1 <= int(check["retries"]) <= 10
+
+
+def test_web_image_is_stock_nginx_whose_main_conf_includes_conf_d():
+    # frontend/Dockerfile target `prod` is nginx:1.27-alpine plus the build output, with no nginx
+    # configuration of its own: the stock nginx.conf (pid /run/nginx.pid, include conf.d/*.conf,
+    # no server of its own) and busybox wget apply.  The bind mount replaces conf.d wholesale.
+    dockerfile = (ROOT / "frontend" / "Dockerfile").read_text(encoding="utf-8")
+    prod = dockerfile.split("AS prod\n", 1)[1]
+    assert dockerfile.count("FROM nginx:1.27-alpine AS prod") == 1
+    assert not re.search(r"^\s*(COPY .*/etc/nginx|ADD |RUN )", prod, re.MULTILINE)
 
 
 def test_web_runs_unprivileged_with_writable_runtime_directories(services):

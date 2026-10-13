@@ -53,8 +53,8 @@ secrets**; use your own.
 | `DEMO_SPACE_DEFAULT_PLAN` | gateway, worker, seed (as `SPACE_DEFAULT_PLAN`) | `BASIC` (must exist in the pricing) |
 | `DEMO_SEED_TOOL` | seed | `seed_lab.py`, or `smoke_lab.py` for the API smoke (a file of `openbinding-gateway/tools/`; `seed_dev.py` also exists) |
 | `DEMO_SEED_ARGS` | seed | `--verbose` for a seed, `--with-space` for the smoke (see "Seeding" and "API smoke") |
-| `DEMO_SEED_PASSWORD` | seed (`seed_lab.py`, `smoke_lab.py`) | any synthetic value of 10+ characters; the supervisor injects it, `compose.lab.json` does not list it |
-| `SMOKE_BASE_URL` | seed (`smoke_lab.py`) | optional, default `http://web:8080` |
+| `DEMO_SEED_PASSWORD` | seed (`seed_lab.py`, `smoke_lab.py`) | any synthetic value of 10+ characters; the supervisor injects it; `compose.lab.json` passes it only to `seed`, as `${DEMO_SEED_PASSWORD}` with no value and no default |
+| `SMOKE_BASE_URL` | seed (`smoke_lab.py`) | fixed in the file to `http://web:8080` on `seed` only |
 
 Private, supplied by the supervisor and only referenced as `${NAME}` (the file
 holds no value and no default): `SPACE_URL`, `SPACE_API_KEY`, `SPHERE_URL`,
@@ -233,6 +233,23 @@ Everything here is a hypothesis until it is observed.
    `Permission denied`, `setgid`/`setuid`, or `open() "/run/nginx.pid" failed`.
    `curl http://127.0.0.1:18100/healthz` on the lab host must answer `ok`, and
    `/api/health/ready` must answer through the proxy.
+
+   **Diagnosing an unhealthy `web`.** The image is `nginx:1.27-alpine` (target
+   `prod` of `frontend/Dockerfile` adds only the build output). Its stock
+   `/etc/nginx/nginx.conf` has `pid /run/nginx.pid` (a tmpfs), includes
+   `conf.d/*.conf` and defines no server of its own; `./lab/nginx` holds only
+   `default.conf` and replaces the whole `conf.d`, so the stock server on port 80
+   cannot clash. `wget` is the busybox applet. The healthcheck is
+   `http_proxy= HTTP_PROXY= wget -T 3 -O /dev/null http://127.0.0.1:8080/healthz || exit 1`
+   (15 s start period, 10 s interval, 6 retries). It has no `-q` so the reason
+   is kept in the health log, and it blanks the proxy variables because busybox
+   `wget` obeys them. To see the reason:
+   `docker inspect --format '{{json .State.Health}}' <web container>` (last
+   outputs of the probe), then `docker compose exec web wget -T 3 -O - http://127.0.0.1:8080/healthz`
+   and `docker compose exec web ps`/`logs web`. Step 1 of `smoke_lab.py`
+   (`proxy_and_spa`) requests `/healthz` on `http://web:8080` from the `seed`
+   container, which tells a broken nginx from a broken probe: if it passes, the
+   server is fine and only the probe inside `web` is at fault.
 3. **Artifacts.** `lab-artifacts` is written by `gateway`, `worker` and
    `seed`, all root in their containers; check that a job produces a
    downloadable artifact. Root needs no capability for this: the volume is
