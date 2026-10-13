@@ -27,8 +27,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from fastapi import HTTPException
 from pydantic import BaseModel
 
+from ..models.errors import api_error
 from ..space_client import PlanCaps
 
 #: The BIM v1 engine protocol has one public duration option. Keeping the
@@ -44,6 +46,9 @@ EFFORT_OPTIONS = ("iterations", "max_evaluations")
 
 #: Warning code attached when an option was brought down to the plan's ceiling.
 OPTION_CLAMPED = "OPTION_CLAMPED"
+
+#: Problem code (503) for a plan whose entitlement exceeds a technical ceiling.
+PRICING_MISCONFIGURED = "pricing_misconfigured"
 
 
 class AnalyzeWarning(BaseModel):
@@ -137,6 +142,16 @@ def plan_aware_defaults(defaults: Dict[str, Any], caps: PlanCaps) -> Dict[str, A
     return clamp_options(defaults, caps).options
 
 
+def pricing_misconfigured(message: str) -> HTTPException:
+    """The refusal for an entitlement the gateway cannot technically honour.
+
+    A real plan that grants more than a technical ceiling is a pricing
+    configuration error, not something to clip silently: the request is denied,
+    with a stable 503 problem rather than an unhandled exception.
+    """
+    return api_error(503, PRICING_MISCONFIGURED, message)
+
+
 def solve_timeout_s(caps: PlanCaps, gateway_ceiling: float) -> float:
     """How long to wait for the engine on this caller's behalf.
 
@@ -144,18 +159,25 @@ def solve_timeout_s(caps: PlanCaps, gateway_ceiling: float) -> float:
     permits. A little grace beyond the plan's budget, because the engine has to
     receive the instance, solve, and answer - and only the middle part is what
     the budget describes.
+
+    Raises the 503 ``pricing_misconfigured`` problem when the plan grants no
+    finite timeout or one above ``gateway_ceiling``.
     """
     timeout = caps.limit("maxTimeoutSeconds")
     if timeout is None or timeout > gateway_ceiling:
-        raise ValueError("SPACE entitlement exceeds the configured technical timeout")
+        raise pricing_misconfigured("SPACE entitlement exceeds the configured technical timeout")
     return timeout
 
 
 def payload_ceiling_bytes(caps: PlanCaps, gateway_ceiling: int) -> int:
-    """The largest request body this caller may send."""
+    """The largest request body this caller may send.
+
+    Raises the 503 ``pricing_misconfigured`` problem when the plan grants no
+    finite payload size or one above ``gateway_ceiling``.
+    """
     payload = caps.limit("maxPayloadBytes")
     if payload is None or payload > gateway_ceiling:
-        raise ValueError("SPACE entitlement exceeds the configured technical payload ceiling")
+        raise pricing_misconfigured("SPACE entitlement exceeds the configured technical payload ceiling")
     return int(payload)
 
 

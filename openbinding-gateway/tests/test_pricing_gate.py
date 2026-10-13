@@ -15,7 +15,7 @@ import pytest
 import yaml
 
 from _fake_space import FakePricingGate, PricingCatalog, PricingCatalogError
-from openbinding_gateway.core.settings import Settings
+from openbinding_gateway.core.settings import Settings, get_settings
 from openbinding_gateway.space_client import (
     OpenGate,
     PricingGate,
@@ -218,9 +218,15 @@ async def test_the_open_gate_grants_every_functional_capability_without_plans(us
     assert caps.plan == ""
     assert caps.allows("solve") is True
     assert caps.allows("a-feature-nobody-declared") is True
-    assert caps.limit("maxTimeoutSeconds") is None
+    assert all(caps.features.values()) and "solve" in caps.features
+    # Unbounded where the system has no technical ceiling, finite where it has one.
     assert caps.limit("apiKeys") is None
-    assert caps.http_view()["capabilities"] == {}
+    assert caps.limit("maxIterations") is None
+    assert caps.limit("maxTimeoutSeconds") == get_settings().engine_solve_timeout_s
+    assert caps.limit("maxPayloadBytes") is not None
+    view = caps.http_view()
+    assert view["plan"] == ""
+    assert set(view["capabilities"]) == set(view["limits"]) == set(caps.limits)
 
 
 async def test_the_open_gate_keeps_no_state_and_counts_nothing(user_id):

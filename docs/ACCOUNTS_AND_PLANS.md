@@ -411,9 +411,39 @@ refusal: "your plan does not include this" and "I could not find out what your
 plan includes" call for different answers. I did not trace every call site of
 `SPACE_FAIL_MODE` for this document, so the exact per-endpoint behaviour is not
 described here; entitlement lookups fail closed (`PlanCaps.allows` is `False` for
-an unknown identifier). `SPACE_ENABLED=false` installs a fake pricing gate
-(`space_client/fake.py`) so that plan entitlements are still exercised in
-development.
+an unknown identifier).
+
+### What the open gate grants (`SPACE_ENABLED=false`)
+
+`SPACE_ENABLED=false` installs the stateless `OpenGate` (`space_client/open.py`),
+for development and QacoBench only (`APP_ENV=prod` refuses to start with it). It
+has no plans, contracts or counters, and its `caps()` is a regular `PlanCaps`
+(`plan=""`, a `features` map and a `limits` map):
+
+* **Features:** every identifier is allowed (`allows()` is always `True`), and the
+  ones the gateway and interface evaluate are listed in `features`.
+* **Allowances with a technical ceiling are finite and never above it.**
+  `access.policy` fails closed when an entitlement exceeds the ceiling (below), so
+  the open gate grants the ceiling itself: `maxTimeoutSeconds` =
+  `ENGINE_SOLVE_TIMEOUT_S` and `maxPayloadBytes` = the smaller of
+  `MAX_REQUEST_BODY_BYTES` and the 512 MiB request ceiling the routes pass to the
+  policy. A time budget above the timeout is therefore clamped (with an
+  `OPTION_CLAMPED` warning), as on any plan. `concurrentJobs` reports
+  `MAX_CONCURRENT_JOBS_PER_USER`; the enforced concurrency limit is that setting,
+  independent of the plan.
+* **Allowances with no technical ceiling are unbounded** (`inf`, read as `None`
+  by `PlanCaps.limit`, the same encoding as an unlimited real plan): `maxIterations`,
+  `maxInstanceComplexityLog10` (no 402), `apiKeys`, `jobHistoryDays`, `storageBytes`,
+  `federatedEngines` and the sponsor structure (`organizations`, `members`, `projects`,
+  `privateProjects`, `collections`, `studies`).
+
+### A plan above a technical ceiling
+
+A real SPACE plan whose `maxTimeoutSeconds` or `maxPayloadBytes` is unlimited or
+above the technical ceiling is a pricing configuration error. The gateway does not
+clip it silently: `solve_timeout_s` and `payload_ceiling_bytes` deny the request
+with `503` `pricing_misconfigured` (a problem, not an unhandled 500). The fix
+belongs in the pricing, or in the technical setting if the plan is right.
 
 ## Configuration
 

@@ -8,10 +8,15 @@ is nothing to reduce and the only honest answer is no.
 
 from __future__ import annotations
 
+import asyncio
+import uuid
+
 import pytest
+from fastapi import HTTPException
 
 from openbinding_gateway.access import policy
-from openbinding_gateway.space_client import PlanCaps
+from openbinding_gateway.core.settings import get_settings
+from openbinding_gateway.space_client import OpenGate, PlanCaps
 from _pricing import caps_for, largest_plan, pricing_catalog
 
 CATALOG = pricing_catalog()
@@ -138,9 +143,16 @@ def test_the_engine_wait_uses_the_space_entitlement_when_technically_supported()
     assert policy.solve_timeout_s(LARGE, 1800.0) == LARGE.limit("maxTimeoutSeconds")
 
 
+def assert_pricing_misconfigured(error: pytest.ExceptionInfo) -> None:
+    assert error.value.status_code == 503
+    assert error.value.detail["code"] == policy.PRICING_MISCONFIGURED
+    assert "exceeds" in error.value.detail["error"]
+
+
 def test_the_engine_wait_refuses_to_silently_clip_a_space_entitlement():
-    with pytest.raises(ValueError, match="exceeds"):
+    with pytest.raises(HTTPException) as error:
         policy.solve_timeout_s(LARGE, 60.0)
+    assert_pricing_misconfigured(error)
 
 
 def test_the_payload_ceiling_is_the_space_entitlement_when_technically_supported():
@@ -148,8 +160,44 @@ def test_the_payload_ceiling_is_the_space_entitlement_when_technically_supported
     assert policy.payload_ceiling_bytes(BASE, gateway_ceiling) == int(
         BASE.limit("maxPayloadBytes") or 0
     )
-    with pytest.raises(ValueError, match="exceeds"):
+    with pytest.raises(HTTPException) as error:
         policy.payload_ceiling_bytes(LARGE, 16 * 1024 * 1024)
+    assert_pricing_misconfigured(error)
+
+
+@pytest.mark.parametrize("function, limit, ceiling", [
+    (policy.solve_timeout_s, "maxTimeoutSeconds", 1800.0),
+    (policy.payload_ceiling_bytes, "maxPayloadBytes", 512 * 1024 * 1024),
+])
+def test_an_unbounded_entitlement_fails_closed_with_a_controlled_problem(function, limit, ceiling):
+    unbounded = PlanCaps(plan="REAL", limits={limit: float("inf")})
+
+    with pytest.raises(HTTPException) as error:
+        function(unbounded, ceiling)
+    assert_pricing_misconfigured(error)
+
+
+def test_the_open_gate_never_exceeds_a_technical_ceiling():
+    settings = get_settings()
+    caps = asyncio.run(OpenGate().caps(uuid.uuid4()))
+    payload_ceiling = min(settings.max_request_body_bytes, 512 * 1024 * 1024)
+
+    assert policy.solve_timeout_s(caps, settings.engine_solve_timeout_s) == settings.engine_solve_timeout_s
+    assert policy.payload_ceiling_bytes(caps, payload_ceiling) == payload_ceiling
+    assert policy.instance_complexity_too_large(10**6, caps) is False
+
+
+def test_the_open_gate_clamps_effort_only_at_the_technical_timeout():
+    settings = get_settings()
+    caps = asyncio.run(OpenGate().caps(uuid.uuid4()))
+    beyond = int(settings.engine_solve_timeout_s * 1000) + 1
+
+    result = policy.clamp_options({"time_budget_ms": beyond, "iterations": 10**12, "max_evaluations": 10**12}, caps)
+
+    assert result.options["time_budget_ms"] == int(settings.engine_solve_timeout_s * 1000)
+    assert result.options["iterations"] == result.options["max_evaluations"] == 10**12
+    assert [w.details["option"] for w in result.warnings] == ["time_budget_ms"]
+    assert policy.plan_aware_defaults({"time_budget_ms": 1000}, caps) == {"time_budget_ms": 1000}
 
 
 def test_an_instance_within_the_plan_is_solvable():
