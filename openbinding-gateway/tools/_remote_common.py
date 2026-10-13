@@ -67,6 +67,7 @@ __all__ = [
     "mask_id",
     "normalize_digest",
     "normalize_space_services",
+    "parse_digest_spec",
     "normalize_sphere_versions",
     "parse_created_at",
     "scan_cu",
@@ -329,6 +330,23 @@ def normalize_digest(value: str | None) -> str | None:
         if text.startswith(prefix):
             text = text[len(prefix):]
     return text if re.fullmatch(r"[0-9a-f]{64}", text) else None
+
+
+DIGEST_PREFIX_MIN = 12
+
+
+def parse_digest_spec(value: str | None) -> str | None:
+    """Lower-case hex of a full digest or of a prefix of ``DIGEST_PREFIX_MIN``-64 hex characters.
+
+    Accepts ``sha256-<hex>``, ``sha256:<hex>`` or bare hex; ``None`` for anything else (too short included).
+    """
+    if not isinstance(value, str):
+        return None
+    text = value.strip().lower()
+    for prefix in ("sha256-", "sha256:"):
+        if text.startswith(prefix):
+            text = text[len(prefix):]
+    return text if re.fullmatch(rf"[0-9a-f]{{{DIGEST_PREFIX_MIN},64}}", text) else None
 
 
 _CREATED_Z = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")

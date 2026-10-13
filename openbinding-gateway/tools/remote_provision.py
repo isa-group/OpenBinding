@@ -12,6 +12,10 @@ Exit codes: 0 ok, 2 bad arguments/configuration or a guard refused, 3 developmen
 target already exists (nothing written), 4 a remote rejected or did not confirm a
 step (reported verbatim, redacted, never retried with another format), 5 tool bug.
 
+--base-digest is the full sha256 or a prefix of 12-64 hex characters (with or without "sha256-"); a prefix must
+identify exactly one listed version of the base slug. --prod-service-name or --prod-service-none (SPACE lists no
+services) is required.
+
 A base with credits/CU (class A) is always refused. A base with usage counters (class B: taskStarts,
 solverSeconds, ...) is refused with exit 2 unless --accept-usage-counters is given; the content is then kept
 as is (only version/createdAt/saasName change).
@@ -55,6 +59,7 @@ from _remote_common import (
     normalize_digest,
     normalize_space_services,
     normalize_sphere_versions,
+    parse_digest_spec,
     scan_cu,
     sha256_digest,
     shape_of,
@@ -171,11 +176,20 @@ class Guards:
 
 
 def protected_names(args: argparse.Namespace) -> set[str]:
-    return {name.casefold() for name in (args.prod_slug, args.prod_service_name, *KNOWN_PRODUCTION_NAMES)}
+    names = (args.prod_slug, args.prod_service_name, *KNOWN_PRODUCTION_NAMES)
+    return {name.casefold() for name in names if name}
+
+
+def digest_matches(full_digest: str, spec: str) -> bool:
+    """``spec`` (full digest or 12-64 hex prefix, any accepted spelling) is the start of ``full_digest``."""
+    wanted = parse_digest_spec(spec)
+    return wanted is not None and (normalize_digest(full_digest) or "").startswith(wanted)
 
 
 def static_guards(args: argparse.Namespace, guards: Guards) -> bool:
     protected = protected_names(args)
+    guards.check("prod-service-specified", bool(args.prod_service_name) != bool(args.prod_service_none),
+                 "exactly one of --prod-service-name and --prod-service-none is required")
     guards.check("dev-names-valid", bool(NAME_RE.match(args.dev_slug)) and bool(NAME_RE.match(args.dev_service_name)),
                  "dev slug/service name must match [a-z0-9][a-z0-9_-]{1,62}")
     guards.check("dev-slug-is-not-production", args.dev_slug.casefold() not in protected,
@@ -184,7 +198,8 @@ def static_guards(args: argparse.Namespace, guards: Guards) -> bool:
                  "the development service name must differ from --prod-slug, --prod-service-name and the reserved production names")
     guards.check("dev-slug-is-not-base", args.dev_slug.casefold() != args.base_pricing_slug.casefold(),
                  "the development slug must differ from the base slug")
-    guards.check("base-digest-format", normalize_digest(args.base_digest) is not None, "--base-digest must be a SHA-256 (hex)")
+    guards.check("base-digest-format", parse_digest_spec(args.base_digest) is not None,
+                 "--base-digest must be a SHA-256 (64 hex) or a prefix of 12-64 hex characters, with or without 'sha256-'")
     guards.check("base-version-format", bool(VERSION_RE.match(args.base_version)), "--base-version is not a plausible version string")
     return not guards.failed
 
@@ -223,6 +238,34 @@ async def _space_service(space: SpaceRemote, name: str, listed: dict[str, dict[s
                 if isinstance(item, dict) and isinstance(item.get("version"), str)
             ]
     return "present", match, notes
+
+
+async def _prefix_identifies_one_version(sphere: SphereRemote, versions: Sequence[dict[str, Any]], args: argparse.Namespace,
+                                         chosen_digest: str, base: dict[str, Any], detail: str) -> tuple[bool, str]:
+    """A digest prefix is accepted only if exactly one listed version of the base slug starts with it.
+
+    Every other listed version is downloaded (GET) and hashed; one that cannot be hashed makes the
+    answer unknown, which refuses.
+    """
+    starting_with: list[str] = []
+    unreadable: list[str] = []
+    for item in versions:
+        if item["version"] == args.base_version:
+            starting_with.append(item["version"])
+            continue
+        download = await sphere.download_yaml(item["yamlUrl"])
+        if download.content is None:
+            unreadable.append(item["version"])
+        elif digest_matches(sha256_digest(download.content), args.base_digest):
+            starting_with.append(item["version"])
+    base["digestPrefixVersions"] = sorted(starting_with)
+    if unreadable:
+        return False, (f"{detail}; cannot tell whether the prefix is unique: versions {sorted(unreadable)} of "
+                       f"{args.base_pricing_slug!r} could not be downloaded")
+    if len(starting_with) != 1:
+        return False, (f"{detail}; the prefix is ambiguous: versions {sorted(starting_with)} of {args.base_pricing_slug!r} "
+                       "all start with it; pass a longer prefix or the full digest")
+    return True, f"{detail}; the prefix identifies only {args.base_pricing_slug}@{args.base_version} (full digest {chosen_digest})"
 
 
 def _version_ids(versions: Sequence[dict[str, Any]]) -> list[str]:
@@ -267,6 +310,7 @@ async def run(
             "devServiceName": args.dev_service_name,
             "prodSlug": args.prod_slug,
             "prodServiceName": args.prod_service_name,
+            "prodServiceNone": bool(args.prod_service_none),
             "sphereEndpoint": args.sphere_endpoint,
             "acceptUsageCounters": bool(args.accept_usage_counters),
         },
@@ -316,13 +360,24 @@ async def run(
         prod_versions, prod_notes = _versions_of(prod_slug_result)
         guards.check("production-slug-identified", bool(prod_versions),
                      f"SPHERE slug {args.prod_slug!r} must exist with versions (found: {len(prod_versions) if prod_versions is not None else 'unknown'}) {prod_notes or ''}")
-        prod_state, prod_service, prod_service_notes = await _space_service(space, args.prod_service_name, listed)
-        guards.check("production-service-identified", prod_state == "present",
-                     f"SPACE service {args.prod_service_name!r} must exist ({prod_state}) {prod_service_notes or ''}")
-        production_before = {
-            "sphereVersions": _version_ids(prod_versions or []),
-            "spaceVersions": _version_ids(prod_service.get("versions", [])) if prod_state == "present" else None,
-        }
+        prod_state, prod_service, prod_service_notes = "absent", {}, []
+        if args.prod_service_none:
+            # Nothing to protect only if the listing was obtained (200), understood, and is empty.
+            listing_understood = listing.status == 200 and not any(note.startswith("unrecognized") for note in service_notes)
+            empty = listing_understood and not services
+            guards.check("production-service-identified", empty,
+                         "SPACE lists no services; nothing to protect" if empty
+                         else f"--prod-service-none requires an empty SPACE service listing (status {listing.status}); "
+                              f"existing services: {sorted(listed)} {service_notes or ''}")
+            production_before: dict[str, Any] = {"sphereVersions": _version_ids(prod_versions or []), "spaceServicesOtherThanDev": []}
+        else:
+            prod_state, prod_service, prod_service_notes = await _space_service(space, args.prod_service_name, listed)
+            guards.check("production-service-identified", prod_state == "present",
+                         f"SPACE service {args.prod_service_name!r} must exist ({prod_state}) {prod_service_notes or ''}")
+            production_before = {
+                "sphereVersions": _version_ids(prod_versions or []),
+                "spaceVersions": _version_ids(prod_service.get("versions", [])) if prod_state == "present" else None,
+            }
         report["production"].update(slug=args.prod_slug, service=args.prod_service_name, before=production_before)
 
         # -- re-download and verify the base ---------------------------------------------
@@ -343,8 +398,13 @@ async def run(
             digest = sha256_digest(base_content)
             base.update(digest=digest, bytes=len(base_content), meta=yaml_meta(base_content))
             base["cu"] = scan_cu(base_content)
-            guards.check("base-digest-matches", normalize_digest(digest) == normalize_digest(args.base_digest),
-                         f"downloaded digest {digest} vs --base-digest {args.base_digest}")
+            is_prefix = normalize_digest(args.base_digest) is None
+            matches = digest_matches(digest, args.base_digest)
+            detail = f"downloaded digest {digest} vs --base-digest {args.base_digest}"
+            base["digestSpecified"] = "prefix" if is_prefix else "full"
+            if matches and is_prefix:
+                matches, detail = await _prefix_identifies_one_version(sphere, base_versions or [], args, digest, base, detail)
+            guards.check("base-digest-matches", matches, detail)
             scan = base["cu"]
             guards.check("base-has-no-cu", scan["parsed"] and not scan["hasCu"],
                          f"credit/CU (class A) scan status: {scan['status']} ({scan['cuCount']} class A finding(s)"
@@ -450,7 +510,7 @@ async def run(
 
 
 async def _apply(env: RemoteEnv, args: argparse.Namespace, sphere: SphereRemote, space: SpaceRemote, built: bytes,
-                 report: dict[str, Any], outcome: Outcome, production_before: dict[str, Any], *, prod_service_name: str) -> None:
+                 report: dict[str, Any], outcome: Outcome, production_before: dict[str, Any], *, prod_service_name: str | None) -> None:
     steps: list[dict[str, Any]] = report["steps"]
     expected_digest = sha256_digest(built)
     protected = protected_names(args)
@@ -512,9 +572,13 @@ async def _apply(env: RemoteEnv, args: argparse.Namespace, sphere: SphereRemote,
 
     # Production must be exactly as before.
     prod_sphere, _ = _versions_of(await sphere.pricing_versions(args.prod_slug))
-    prod_state, prod_service, _ = await _space_service(space, prod_service_name, listed)
-    after = {"sphereVersions": _version_ids(prod_sphere or []),
-             "spaceVersions": _version_ids(prod_service.get("versions", [])) if prod_state == "present" else None}
+    if prod_service_name is None:  # SPACE had no services: production stays "still empty" apart from the development service
+        after = {"sphereVersions": _version_ids(prod_sphere or []),
+                 "spaceServicesOtherThanDev": sorted(name for name in listed if name != args.dev_service_name) if listing.ok else None}
+    else:
+        prod_state, prod_service, _ = await _space_service(space, prod_service_name, listed)
+        after = {"sphereVersions": _version_ids(prod_sphere or []),
+                 "spaceVersions": _version_ids(prod_service.get("versions", [])) if prod_state == "present" else None}
     report["production"]["after"] = after
     report["production"]["unchanged"] = after == production_before
     if after != production_before:
@@ -526,8 +590,12 @@ def build_parser() -> argparse.ArgumentParser:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--plan", action="store_true", help="Print the plan only (default).")
     mode.add_argument("--apply", action="store_true", help="Execute the plan if every guard passes.")
-    for name in ("base-pricing-slug", "base-version", "base-digest", "dev-slug", "dev-service-name", "prod-slug", "prod-service-name"):
+    for name in ("base-pricing-slug", "base-version", "base-digest", "dev-slug", "dev-service-name", "prod-slug"):
         parser.add_argument(f"--{name}", required=True)
+    prod_service = parser.add_mutually_exclusive_group(required=True)
+    prod_service.add_argument("--prod-service-name", help="Name of the production service in SPACE (must exist).")
+    prod_service.add_argument("--prod-service-none", action="store_true",
+                              help="SPACE has no services at all: the guard passes only if GET /services answers 200 with an empty list.")
     parser.add_argument("--accept-usage-counters", action="store_true",
                         help="Accept a base that declares usage counters (taskStarts, solverSeconds, ...); they are kept unchanged.")
     parser.add_argument("--sphere-endpoint", choices=("create", "version"), default="create",

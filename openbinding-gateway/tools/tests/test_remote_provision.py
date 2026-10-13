@@ -29,7 +29,7 @@ DEFAULTS = {
 
 def provision(fake: FakeRemotes, capsys, *flags: str, environ=None, **overrides: str):
     values = {**DEFAULTS, **{key.replace("_", "-"): value for key, value in overrides.items()}}
-    argv = list(flags) + [item for key, value in values.items() for item in (f"--{key}", value)]
+    argv = list(flags) + [item for key, value in values.items() if value is not None for item in (f"--{key}", value)]
     code = remote_provision.main(argv, environ=ENV if environ is None else environ, transport=fake.transport(), now=NOW)
     captured = capsys.readouterr()
     assert fake.methods() <= {"GET", "POST"}, "the tool must never delete or update anything"
@@ -207,6 +207,178 @@ def test_a_base_with_capacity_units_aborts_even_when_the_digest_matches(capsys):
     assert "base-usage-counters" not in failed_guards(report)
     assert report["base"]["cu"]["findings"][0]["name"] == "capacityUnits"
     assert report["base"]["cu"]["findings"][0]["class"] == "A"
+
+
+# -- digest prefix ------------------------------------------------------------------------------
+
+
+def hex_of(digest: str) -> str:
+    return digest.removeprefix("sha256-")
+
+
+@pytest.mark.parametrize(
+    "spec",
+    [
+        BASE_DIGEST[: len("sha256-") + 12],  # sha256- + 12 hex, what remote_probe --summary prints
+        hex_of(BASE_DIGEST)[:12],  # bare hex
+        hex_of(BASE_DIGEST)[:40].upper(),
+        BASE_DIGEST[: len("sha256-") + 63],
+        BASE_DIGEST.replace("sha256-", "sha256:")[:19],
+    ],
+)
+def test_a_digest_prefix_that_identifies_one_version_passes_and_the_full_digest_is_printed(capsys, spec):
+    code, report, _ = provision(production_world(), capsys, "--apply", base_digest=spec)
+    assert code == 0 and not failed_guards(report)
+    assert report["base"]["digest"] == BASE_DIGEST and report["base"]["digestSpecified"] == "prefix"
+    assert report["arguments"]["baseDigest"] == spec
+    assert report["base"]["digestPrefixVersions"] == ["1.0.0"]
+    detail = next(item["detail"] for item in report["guards"] if item["name"] == "base-digest-matches")
+    assert BASE_DIGEST in detail
+
+
+def test_the_full_digest_still_passes_without_downloading_the_other_versions(capsys):
+    fake = production_world()
+    code, report, _ = provision(fake, capsys)
+    assert code == 0 and report["base"]["digestSpecified"] == "full" and "digestPrefixVersions" not in report["base"]
+    downloads = [item.path for item in fake.requests if item.path.startswith("/static/")]
+    assert downloads == ["/static/pricings/openbinding/1.0.0.yml"]
+
+
+@pytest.mark.parametrize("spec", [BASE_DIGEST[: len("sha256-") + 11], hex_of(BASE_DIGEST)[:8], "sha256-", "sha256-" + "0" * 11, "xyz" * 8])
+def test_a_digest_prefix_below_12_hex_or_malformed_is_refused_before_any_call(capsys, spec):
+    fake = production_world()
+    code, report, _ = provision(fake, capsys, "--apply", base_digest=spec)
+    assert code == 2 and "base-digest-format" in failed_guards(report) and fake.requests == []
+
+
+def test_a_digest_prefix_longer_than_64_hex_is_refused(capsys):
+    fake = production_world()
+    code, report, _ = provision(fake, capsys, base_digest=hex_of(BASE_DIGEST) + "0")
+    assert code == 2 and "base-digest-format" in failed_guards(report) and fake.requests == []
+
+
+def test_a_digest_prefix_that_does_not_start_the_downloaded_digest_aborts(capsys):
+    wrong = ("1" if hex_of(BASE_DIGEST)[0] != "1" else "2") + hex_of(BASE_DIGEST)[1:12]
+    fake = production_world()
+    code, report, _ = provision(fake, capsys, "--apply", base_digest=wrong)
+    assert code == 2 and fake.posts() == [] and failed_guards(report) == {"base-digest-matches"}
+
+
+def test_an_ambiguous_digest_prefix_is_refused_with_an_explanation_but_the_full_digest_is_not(capsys):
+    fake = production_world()
+    fake.add_sphere("openbinding", "1.0.1", BASE_YAML)  # same bytes under a second version: same digest
+    spec = BASE_DIGEST[: len("sha256-") + 12]
+    code, report, _ = provision(fake, capsys, "--apply", base_digest=spec)
+    assert code == 2 and fake.posts() == [] and failed_guards(report) == {"base-digest-matches"}
+    detail = next(item["detail"] for item in report["guards"] if item["name"] == "base-digest-matches")
+    assert "ambiguous" in detail and "1.0.0" in detail and "1.0.1" in detail
+    assert report["base"]["digestPrefixVersions"] == ["1.0.0", "1.0.1"] and report["base"]["digest"] == BASE_DIGEST
+    code, report, _ = provision(fake, capsys)  # the full digest (the version is named explicitly) keeps working
+    assert code == 0 and not failed_guards(report)
+
+
+def test_a_prefix_is_refused_when_another_version_cannot_be_downloaded(capsys):
+    fake = production_world()
+    fake.yaml_url_override[("openbinding", "0.9.0")] = "/static/pricings/missing.yml"
+    code, report, _ = provision(fake, capsys, "--apply", base_digest=BASE_DIGEST[:19])
+    assert code == 2 and fake.posts() == [] and failed_guards(report) == {"base-digest-matches"}
+    detail = next(item["detail"] for item in report["guards"] if item["name"] == "base-digest-matches")
+    assert "0.9.0" in detail and "could not be downloaded" in detail
+
+
+def test_a_prefix_does_not_excuse_credits_or_counters(capsys):
+    fake, base = counters_world()
+    spec = common.sha256_digest(base)[:19]
+    code, report, _ = provision(fake, capsys, base_version="2.0.0", base_digest=spec)
+    assert code == 2 and failed_guards(report) == {"base-usage-counters"}
+    code, report, _ = provision(fake, capsys, "--accept-usage-counters", base_version="2.0.0", base_digest=spec)
+    assert code == 0 and not failed_guards(report)
+    fake = production_world()
+    bad = fake.sphere["openbinding"][0]["content"]
+    code, report, _ = provision(fake, capsys, base_version="0.9.0", base_digest=common.sha256_digest(bad)[:19])
+    assert code == 2 and "base-has-no-cu" in failed_guards(report) and "base-digest-matches" not in failed_guards(report)
+
+
+# -- --prod-service-none ---------------------------------------------------------------------------
+
+
+def empty_space_world() -> FakeRemotes:
+    """The real remote as probed: SPHERE has the production slug, SPACE has no service at all."""
+    fake = production_world()
+    fake.space.clear()
+    return fake
+
+
+def guard_detail(report, name: str) -> str:
+    return next(item["detail"] for item in report["guards"] if item["name"] == name)
+
+
+def test_prod_service_none_passes_with_an_empty_space_listing_and_apply_stays_get_and_post(capsys):
+    fake = empty_space_world()
+    code, report, captured = provision(fake, capsys, "--apply", "--prod-service-none", prod_service_name=None,
+                                       base_digest=BASE_DIGEST[:19])
+    assert code == 0, captured.out
+    assert guard_detail(report, "production-service-identified") == "SPACE lists no services; nothing to protect"
+    assert report["arguments"]["prodServiceNone"] is True and report["arguments"]["prodServiceName"] is None
+    assert [item["service"] for item in fake.uploads] == ["sphere", "space"]
+    assert report["production"]["before"]["spaceServicesOtherThanDev"] == []
+    assert report["production"]["after"]["spaceServicesOtherThanDev"] == []
+    assert report["production"]["unchanged"] is True
+    assert sorted(fake.space) == [DEV_SERVICE] and fake.methods() <= {"GET", "POST"}
+    assert [item["version"] for item in fake.sphere["openbinding"]] == ["0.9.0", "1.0.0"]
+
+
+def test_prod_service_none_plan_writes_nothing(capsys):
+    fake = empty_space_world()
+    code, report, _ = provision(fake, capsys, "--prod-service-none", prod_service_name=None)
+    assert code == 0 and report["mode"] == "plan" and fake.posts() == [] and not failed_guards(report)
+
+
+def test_prod_service_none_is_refused_when_space_lists_services(capsys):
+    fake = production_world()
+    code, report, _ = provision(fake, capsys, "--apply", "--prod-service-none", prod_service_name=None)
+    assert code == 2 and fake.posts() == [] and failed_guards(report) == {"production-service-identified"}
+    detail = guard_detail(report, "production-service-identified")
+    assert "openbinding" in detail and "nothing to protect" not in detail
+
+
+def test_prod_service_none_is_refused_when_the_listing_fails(capsys):
+    fake = empty_space_world()
+    fake.statuses[("space.test", "GET", "/api/v1/services")] = 500
+    code, report, _ = provision(fake, capsys, "--apply", "--prod-service-none", prod_service_name=None)
+    assert code == 2 and fake.posts() == []
+    assert "production-service-identified" in failed_guards(report)
+    assert "500" in guard_detail(report, "production-service-identified")
+
+
+def test_prod_service_none_is_refused_when_the_listing_is_not_understood(capsys):
+    fake = empty_space_world()
+    fake.raw_bodies[("space.test", "GET", "/api/v1/services")] = {"unexpected": "shape"}
+    code, report, _ = provision(fake, capsys, "--apply", "--prod-service-none", prod_service_name=None)
+    assert code == 2 and fake.posts() == [] and "production-service-identified" in failed_guards(report)
+
+
+def test_prod_service_none_still_protects_the_reserved_name_for_the_target(capsys):
+    fake = empty_space_world()
+    code, report, _ = provision(fake, capsys, "--apply", "--prod-service-none", prod_service_name=None, dev_service_name="openbinding")
+    assert code == 2 and "dev-service-is-not-production" in failed_guards(report) and fake.requests == []
+    code, report, _ = provision(fake, capsys, "--apply", "--prod-service-none", prod_service_name=None, dev_slug="openbinding")
+    assert code == 2 and "dev-slug-is-not-production" in failed_guards(report) and fake.requests == []
+
+
+def test_prod_service_none_excludes_prod_service_name(capsys):
+    argv = ["--prod-service-none", *[item for key, value in DEFAULTS.items() for item in (f"--{key}", value)]]
+    with pytest.raises(SystemExit) as caught:
+        remote_provision.main(argv, environ=ENV)
+    assert caught.value.code == 2
+    assert "not allowed with argument" in capsys.readouterr().err
+
+
+def test_prod_service_none_is_refused_when_the_only_service_is_the_dev_one(capsys):
+    fake = empty_space_world()
+    fake.add_space(DEV_SERVICE, ["0.1.0"])
+    code, report, _ = provision(fake, capsys, "--prod-service-none", prod_service_name=None)
+    assert code == 2 and "production-service-identified" in failed_guards(report)  # the listing is not empty
 
 
 def counters_world(*, cu: bool = False) -> tuple[FakeRemotes, bytes]:

@@ -72,7 +72,8 @@ python tools/remote_probe.py --sphere-slug some-slug --sphere-slug other-slug   
 python tools/remote_provision.py \
   --base-pricing-slug SLUG --base-version X.Y.Z --base-digest sha256-HEX \
   --dev-slug NEW-DEV-SLUG --dev-service-name NEW-DEV-SERVICE \
-  --prod-slug PROD-SLUG --prod-service-name PROD-SERVICE
+  --prod-slug PROD-SLUG --prod-service-name PROD-SERVICE   # or --prod-service-none if SPACE has no services
+# --base-digest also takes sha256- + 12..64 hex (the 12 hex of remote_probe --summary)
 
 # 3. Apply: the same command plus --apply (only after reading the plan).
 python tools/remote_provision.py --apply <same arguments>
@@ -166,7 +167,7 @@ correct for this scan.
 
 ## remote_provision.py
 
-All identifying arguments are required, in both modes. `--plan` (default) performs the same **reads** as
+All identifying arguments are required, in both modes (`--prod-service-name` or `--prod-service-none`). `--plan` (default) performs the same **reads** as
 `--apply` and prints every guard, so a plan that exits 0 is a plan whose guards passed; it writes nothing.
 
 ### Guards
@@ -176,11 +177,13 @@ All identifying arguments are required, in both modes. `--plan` (default) perfor
 | `dev-names-valid`: `[a-z0-9][a-z0-9_-]{1,62}` | uppercase, too short, spaces |
 | `dev-slug-is-not-production` / `dev-service-is-not-production`: differ from `--prod-slug`, `--prod-service-name` and the reserved name `openbinding` | dev = prod slug; dev = prod service; reserved name |
 | `dev-slug-is-not-base` | dev slug = base slug |
-| `base-digest-format`, `base-version-format` | malformed values |
+| `prod-service-specified`: exactly one of `--prod-service-name` / `--prod-service-none` | (argparse also rejects both and neither, exit 2) |
+| `base-digest-format`: 64 hex, or a prefix of 12-64 hex, with or without `sha256-` | prefix of 11 hex, non-hex, more than 64 |
+| `base-version-format` | malformed values |
 | `sphere-organization-identified`: `GET /orgs/{id}` works (name printed) and reports that id | — |
 | `space-organization-identified`: healthcheck + `GET /services` work and no service belongs to another organization | services of another organization |
-| `production-slug-identified`, `production-service-identified`: they exist remotely | missing slug / service |
-| `base-version-found` (exactly once), `base-digest-matches` (digest of the re-downloaded YAML equals `--base-digest`), `base-has-no-cu` (re-scan; fails only on **class A** or an unreadable base) | missing version, digest mismatch, CU present, unreadable base |
+| `production-slug-identified`, `production-service-identified`: they exist remotely (with `--prod-service-none`: SPACE's `GET /services` answered 200, was understood, and is empty) | missing slug / service; with `--prod-service-none`: non-empty listing, failed listing, unrecognized shape (exit 2) |
+| `base-version-found` (exactly once), `base-digest-matches` (the digest of the re-downloaded YAML equals `--base-digest`, or starts with it when a prefix is given and exactly one listed version of the base slug does), `base-has-no-cu` (re-scan; fails only on **class A** or an unreadable base) | missing version, digest mismatch, ambiguous prefix, other version not downloadable, CU present, unreadable base |
 | `base-usage-counters`: if the base has **class B** findings it needs `--accept-usage-counters` | counters without the flag (exit 2), with the flag (OK), flag with a CU base (still refused by `base-has-no-cu`) |
 | `dev-slug-state-known`, `dev-service-state-known`: absence/presence could be established | 500 answers |
 | collision: the dev slug has **any** version in SPHERE, or the dev service exists in SPACE | exit 3 with identity (`has010`, `private`, SPHERE `digest`) |
@@ -194,6 +197,38 @@ base. With the flag the guard passes, `plan.usageCounters` is `{"status": "accep
 (`"none"` for a base without counters, `"refused"` when blocked) and the development YAML keeps the base
 content: only `version`, `createdAt` and `saasName` change, **no counter is removed**. The flag never excuses
 class A. `arguments.acceptUsageCounters` echoes it.
+
+**Digest prefix (`--base-digest`).** The runners keep only ~5000 characters of output and
+`remote_probe.py --summary` prints 12 hex, so `--base-digest` also takes `sha256-` + 12 to 64 hex (or 12-64 hex
+without prefix). With a full digest nothing changes. With a prefix, `base-digest-matches` passes only if the
+full digest of the re-downloaded YAML starts with it **and** it is the only listed version of the base slug
+whose digest does: every other listed version is downloaded (GET) and hashed; two versions sharing the prefix
+are refused with an explanation (`base.digestPrefixVersions` lists them), and a version that cannot be
+downloaded makes uniqueness unknown, which also refuses. The plan always prints the full digest
+(`base.digest`, and in the guard detail); `arguments.baseDigest` records what was passed and
+`base.digestSpecified` says `full` or `prefix`.
+
+**No services in SPACE (`--prod-service-none`).** Mutually exclusive with `--prod-service-name`; one of them is
+required. `production-service-identified` passes only if `GET /services` answered 200, the shape was
+recognized and the list is empty (detail: `SPACE lists no services; nothing to protect`); otherwise it fails
+(exit 2) and lists the existing names. The reserved name `openbinding` stays protected for the development
+slug and service name. In `production`, `before`/`after` carry `spaceServicesOtherThanDev` instead of
+`spaceVersions`; `unchanged` compares "still empty" (any SPACE service other than the development one makes
+it false, exit 4). `arguments.prodServiceNone` echoes the flag.
+
+**Observed in the real remotes (probe `--summary`).** SPHERE organization `openbinding` has the pricing slug
+`openbinding` with 7 versions (`0.1.0` ... `0.1.5`; newest `0.1.5`, digest starting `7c53a5d8589b`,
+`createdAt` a date, `2026-09-23`), none with class A and all with class B. SPACE is healthy (healthcheck 200)
+but `GET /services` returns an **empty list**: no service exists in SPACE, production included. Decision
+(reversible, private development only): base `openbinding@0.1.5` with `--accept-usage-counters`; development
+slug `openbinding-dev`, SPACE service `openbinding-dev`; production SPHERE slug `openbinding`:
+
+```sh
+python tools/remote_provision.py \
+  --base-pricing-slug openbinding --base-version 0.1.5 --base-digest sha256-7c53a5d8589b \
+  --accept-usage-counters --dev-slug openbinding-dev --dev-service-name openbinding-dev \
+  --prod-slug openbinding --prod-service-none
+```
 
 ### The YAML (`build_dev_yaml`)
 

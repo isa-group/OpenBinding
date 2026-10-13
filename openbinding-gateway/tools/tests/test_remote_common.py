@@ -125,6 +125,17 @@ def test_digest_is_of_the_exact_bytes_and_normalizes():
     assert common.sha256_digest(b"abc\n") != digest
 
 
+def test_digest_spec_accepts_full_digests_and_12_to_64_hex_prefixes_only():
+    full = common.sha256_digest(b"abc")
+    hexed = full.removeprefix("sha256-")
+    assert common.parse_digest_spec(full) == hexed and common.parse_digest_spec(hexed) == hexed
+    assert common.parse_digest_spec(full[:19]) == hexed[:12] and common.parse_digest_spec(hexed[:12].upper()) == hexed[:12]
+    assert common.parse_digest_spec(full.replace("sha256-", "sha256:")[:30]) == hexed[:23]
+    for bad in (full[:18], hexed[:11], "sha256-", "", hexed + "0", "g" * 20, None):
+        assert common.parse_digest_spec(bad) is None
+    assert common.normalize_digest(full[:19]) is None  # a prefix is never a full digest
+
+
 @pytest.mark.parametrize(
     "created, quote, expected",
     [
