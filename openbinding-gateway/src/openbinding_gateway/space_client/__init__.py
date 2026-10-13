@@ -1,10 +1,10 @@
 """The pricing service, and the seam that keeps it replaceable."""
 
+import logging
 from typing import Optional
 
 from ..core.settings import Settings
 from .gate import (
-    SERVICE_NAME,
     PlanCaps,
     PricingGate,
     PricingUnavailable,
@@ -14,6 +14,8 @@ from .gate import (
 )
 from .open import OpenCaps, OpenGate
 from .space import SpacePricingGate
+
+logger = logging.getLogger(__name__)
 
 _gate: Optional[PricingGate] = None
 
@@ -27,6 +29,9 @@ def build_gate(settings: Settings) -> PricingGate:
     capability and keeps no plan or counter.
     """
     if settings.space_enabled:
+        # The effective service name only: the target of every contract read
+        # and write, and never a key.
+        logger.info("SPACE service name: %s (APP_ENV=%s)", settings.space_service_name, settings.app_env)
         return SpacePricingGate(settings)
     if settings.app_env == "prod":
         raise RuntimeError(
@@ -59,7 +64,6 @@ __all__ = [
     "PlanCaps",
     "PricingGate",
     "PricingUnavailable",
-    "SERVICE_NAME",
     "SpacePricingGate",
     "SubscriptionRejected",
     "SubscriptionSnapshot",

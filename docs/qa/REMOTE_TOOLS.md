@@ -41,7 +41,7 @@ gateway itself.
 | `SPACE_API_KEY`, `SPHERE_API_KEY` | Non-empty, printable ASCII, no spaces. Sent as `x-api-key`. **Never printed**, never in exceptions or logs. |
 | `SPACE_ORGANIZATION_ID`, `SPHERE_ORGANIZATION_ID` | Identifier characters only. Printed masked (`abcd...wxyz`). |
 | `DEMO_SEED_PASSWORD` | `seed_lab.py` only. Required, at least 10 characters, no default exists anywhere. |
-| `SPACE_DEV_SERVICE_NAME`, `SPACE_DEV_PLAN` | `seed_lab.py --space-contracts` only; both required. Optional: `SPACE_DEV_PRICING_VERSION` (default `0.1.0`), `SPACE_PROD_SERVICE_NAME` (extra protected name). |
+| `SPACE_DEV_SERVICE_NAME`, `SPACE_DEV_PLAN` | `seed_lab.py --space-contracts` only; both required, and the service name must equal `SPACE_SERVICE_NAME` (the gateway's setting, which the lab compose file feeds from the same `DEMO_SPACE_DEV_SERVICE`). Optional: `SPACE_DEV_PRICING_VERSION` (default `0.1.0`), `SPACE_PROD_SERVICE_NAME` (extra protected name). |
 
 Invalid configuration lists every problem by variable **name**, never by value.
 
@@ -81,7 +81,7 @@ python tools/remote_provision.py --apply <same arguments>
 # 4. Local demo data (database from the gateway settings: DATABASE_URL).
 DEMO_SEED_PASSWORD=... python tools/seed_lab.py
 DEMO_SEED_PASSWORD=... python tools/seed_lab.py --print-keys          # also prints the derived API keys
-DEMO_SEED_PASSWORD=... SPACE_DEV_SERVICE_NAME=... SPACE_DEV_PLAN=... python tools/seed_lab.py --space-contracts
+DEMO_SEED_PASSWORD=... SPACE_SERVICE_NAME=... SPACE_DEV_SERVICE_NAME=<same name> SPACE_DEV_PLAN=... python tools/seed_lab.py --space-contracts
 ```
 
 The base arguments come from the probe's `candidates.mostRecentWithoutCu` (`slug`, `version`, `digest`; in
@@ -295,7 +295,9 @@ and created only when missing (UUIDv5 ids by username/slug under a fixed namespa
 - Refuses `APP_ENV=prod`.
 
 `--space-contracts` (SPACE keys required): only when `SPACE_DEV_SERVICE_NAME` **and** `SPACE_DEV_PLAN` are set
-and the name guard passes (valid name; not `openbinding`; not `SPACE_PROD_SERVICE_NAME`). It first requires the
+and the name guard passes (valid name; not `openbinding`; not `SPACE_PROD_SERVICE_NAME`) and the name equals
+the gateway's `SPACE_SERVICE_NAME` (`settings.space_service_name`), so the seeded contracts are the ones the
+gateway reads; a mismatch is reported as skipped, nothing is written. It first requires the
 service to exist in SPACE, then, for each synthetic user whose email ends in `@example.org`, reads the contract
 and creates one (plan `SPACE_DEV_PLAN`, version `SPACE_DEV_PRICING_VERSION`) with the official client only when
 none exists, then reads it back. Existing contracts are never changed (a contract without the dev service is

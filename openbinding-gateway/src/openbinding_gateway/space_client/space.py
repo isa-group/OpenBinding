@@ -26,7 +26,6 @@ from typing import Any, Dict, Optional, TypeVar
 
 from ..core.settings import Settings
 from .gate import (
-    SERVICE_NAME,
     PlanCaps,
     PricingUnavailable,
     SubscriptionRejected,
@@ -41,6 +40,7 @@ class SpacePricingGate:
 
     def __init__(self, settings: Settings, client: Optional[Any] = None):
         self._settings = settings
+        self._service = settings.space_service_name
         if client is not None:
             self._client = client
         else:
@@ -108,12 +108,12 @@ class SpacePricingGate:
         contract = await self._contract(user_id)
         if contract is None:
             raise PricingUnavailable("SPACE has no contract for this account.")
-        plan = _plan_name(contract)
+        plan = _plan_name(contract, self._service)
         pricing_context = claims.get("pricingContext")
         if not isinstance(pricing_context, dict):
             raise PricingUnavailable("SPACE returned malformed pricing entitlements.")
-        raw_features = _scoped(pricing_context.get("features") or {})
-        raw_allowances = _scoped(pricing_context.get("usageLimits") or {})
+        raw_features = _scoped(pricing_context.get("features") or {}, self._service)
+        raw_allowances = _scoped(pricing_context.get("usageLimits") or {}, self._service)
         features = {
             name: value
             for name, value in raw_features.items()
@@ -167,8 +167,8 @@ class SpacePricingGate:
                     user_id=str(user_id), username=str(user_id), email=email, phone=""
                 ),
                 billing_period=BillingPeriodToCreate(auto_renew=True, renewal_days=30),
-                contracted_services={SERVICE_NAME: pricing_version},
-                subscription_plans={SERVICE_NAME: plan} if plan else {},
+                contracted_services={self._service: pricing_version},
+                subscription_plans={self._service: plan} if plan else {},
                 subscription_add_ons={},
             )),
         )
@@ -181,7 +181,7 @@ class SpacePricingGate:
         if await self._contract(user_id) is None:
             raise PricingUnavailable(
                 f"SPACE accepted no contract for this account on plan {plan!r}. The usual "
-                f"cause is that pricing version {pricing_version} of '{SERVICE_NAME}' is not "
+                f"cause is that pricing version {pricing_version} of '{self._service}' is not "
                 f"deployed in SPACE or does not declare that plan - check it in the SPACE console."
             )
 
@@ -190,7 +190,7 @@ class SpacePricingGate:
     ) -> None:
         """Move an account to another plan. SPACE calls this a novation."""
         existing = await self._contract(user_id)
-        add_ons = _service_add_ons(existing)
+        add_ons = _service_add_ons(existing, self._service)
         await self.change_subscription(user_id, plan, add_ons, pricing_version)
 
     async def subscription(self, user_id: uuid.UUID) -> SubscriptionSnapshot:
@@ -200,9 +200,9 @@ class SpacePricingGate:
         services = _attribute(existing, "contracted_services", "contractedServices") or {}
         period = _attribute(existing, "billing_period", "billingPeriod")
         return SubscriptionSnapshot(
-            plan=_plan_name(existing),
-            pricing_version=str(services.get(SERVICE_NAME) or ""),
-            add_ons=_service_add_ons(existing),
+            plan=_plan_name(existing, self._service),
+            pricing_version=str(services.get(self._service) or ""),
+            add_ons=_service_add_ons(existing, self._service),
             renews_at=_attribute(period, "end_date", "endDate"),
         )
 
@@ -222,7 +222,7 @@ class SpacePricingGate:
             if existing is None:
                 raise PricingUnavailable("SPACE has no contract for this account.")
             services = _attribute(existing, "contracted_services", "contractedServices") or {}
-            target_version = str(services.get(SERVICE_NAME) or "")
+            target_version = str(services.get(self._service) or "")
         if not target_version:
             raise PricingUnavailable(
                 "No pricing version for the novation: set SPACE_PRICING_VERSION."
@@ -231,16 +231,20 @@ class SpacePricingGate:
         updated = await self._call(
             lambda: self._client.contracts.update_contract_subscription(
                 str(user_id), Subscription(
-                contracted_services={SERVICE_NAME: target_version},
-                subscription_plans={SERVICE_NAME: plan},
-                subscription_add_ons={SERVICE_NAME: dict(add_ons)} if add_ons else {},
+                contracted_services={self._service: target_version},
+                subscription_plans={self._service: plan},
+                subscription_add_ons={self._service: dict(add_ons)} if add_ons else {},
                 )
             )
         )
         if updated is None:
             updated = await self._contract(user_id)
             services = _attribute(updated, "contracted_services", "contractedServices") or {}
-            if updated is None or _plan_name(updated) != plan or services.get(SERVICE_NAME) != target_version:
+            if (
+                updated is None
+                or _plan_name(updated, self._service) != plan
+                or services.get(self._service) != target_version
+            ):
                 raise SubscriptionRejected(
                     "SPACE did not accept the requested subscription novation: check the plan "
                     f"and add-ons against pricing version {target_version} in SPACE."
@@ -265,8 +269,8 @@ class SpacePricingGate:
         await self._call(lambda: self._client.contracts.remove_contract(str(user_id)))
 
 
-def _scoped(entries: object) -> Dict[str, Any]:
-    """Strip the ``openbinding-`` prefix SPACE puts on names it returns.
+def _scoped(entries: object, service: str) -> Dict[str, Any]:
+    """Strip the ``<service>-`` prefix SPACE puts on names it returns.
 
     Inside the pricing document and in usage-level updates these are plain
     names; feature evaluation and the pricing token qualify them by service,
@@ -275,7 +279,7 @@ def _scoped(entries: object) -> Dict[str, Any]:
     """
     if not isinstance(entries, dict):
         return {}
-    prefix = f"{SERVICE_NAME}-"
+    prefix = f"{service}-"
     scoped = {}
     for name, value in entries.items():
         if name.startswith(prefix):
@@ -295,14 +299,14 @@ def _decode_claims(token: str) -> Optional[dict]:
         return None
 
 
-def _plan_name(contract: Any) -> str:
+def _plan_name(contract: Any, service: str) -> str:
     plans = _attribute(contract, "subscription_plans", "subscriptionPlans") or {}
-    return str(plans.get(SERVICE_NAME) or "")
+    return str(plans.get(service) or "")
 
 
-def _service_add_ons(contract: Any) -> Dict[str, int]:
+def _service_add_ons(contract: Any, service: str) -> Dict[str, int]:
     values = _attribute(contract, "subscription_add_ons", "subscriptionAddOns") or {}
-    scoped = values.get(SERVICE_NAME, {}) if isinstance(values, dict) else {}
+    scoped = values.get(service, {}) if isinstance(values, dict) else {}
     if not isinstance(scoped, dict):
         return {}
     return {str(name): int(quantity) for name, quantity in scoped.items()}

@@ -90,10 +90,10 @@ Preconditions: the stack is up and healthy, and the users exist (`seed_lab.py` r
 contract on the development service (`seed_lab.py --space-contracts`, see `docs/qa/REMOTE_TOOLS.md`; the
 `seed` service gets the service, plan and version from `DEMO_SPACE_DEV_SERVICE`, `DEMO_SPACE_DEV_PLAN` and
 `DEMO_SPACE_PRICING_VERSION`). Without one the gateway answers 503 `pricing_unavailable` and the steps that
-need a plan (2, 3, 4, 5, 6, 10) are reported as blocked by the remote, not as failures. The gateway asks SPACE
-for a fixed service name that no setting changes (`SERVICE_NAME` in `space_client/gate.py`) while
-`seed_lab.py` refuses to write contracts on that production name, so contracts on a development service do not
-by themselves satisfy the gateway; see `docs/DEMO.md`.
+need a plan (2, 3, 4, 5, 6, 10) are reported as blocked by the remote, not as failures. The gateway, the worker
+and `seed` all name the same development service (`DEMO_SPACE_DEV_SERVICE`, passed as `SPACE_SERVICE_NAME`), so
+the seeded contracts are the ones the gateway reads and the production service `openbinding` is never
+touched; see `docs/DEMO.md`.
 
 The smoke is a seed tool: it runs in the `seed` service, inside the lab network, so `web` resolves.
 

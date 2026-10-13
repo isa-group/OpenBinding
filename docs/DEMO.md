@@ -51,20 +51,25 @@ secrets**; use your own.
 | `DEMO_BIM_TOKEN` | bim-service, gateway | `lab-example-bim-token-0123456789abcdef` (one line, 32 to 127 printable ASCII characters without spaces: `bim-service` refuses to start otherwise) |
 | `DEMO_SPACE_PRICING_VERSION` | gateway, worker, seed (as `SPACE_PRICING_VERSION`); seed also as `SPACE_DEV_PRICING_VERSION` | `0.1.0` (must exist in SPACE/SPHERE) |
 | `DEMO_SPACE_DEFAULT_PLAN` | gateway, worker, seed (as `SPACE_DEFAULT_PLAN`) | `BASIC` (must exist in the pricing) |
-| `DEMO_SPACE_DEV_SERVICE` | seed **only** (as `SPACE_DEV_SERVICE_NAME`) | the name of a SPACE *development* service that exists in SPACE; `seed_lab.py --space-contracts` refuses a production name and exits without it |
+| `DEMO_SPACE_DEV_SERVICE` | gateway, worker and seed (as `SPACE_SERVICE_NAME`); seed also as `SPACE_DEV_SERVICE_NAME` | the name of a SPACE *development* service that exists in SPACE (for example `openbinding-dev`); the gateway and worker read and write contracts only on it, and `seed_lab.py --space-contracts` refuses `openbinding` (and any production name) and requires it to equal `SPACE_SERVICE_NAME` |
 | `DEMO_SPACE_DEV_PLAN` | seed **only** (as `SPACE_DEV_PLAN`) | a plan of that service's pricing version, for the contracts of the synthetic users |
 | `DEMO_SEED_TOOL` | seed | `seed_lab.py`, or `smoke_lab.py` for the API smoke (a file of `openbinding-gateway/tools/`; `seed_dev.py` also exists) |
 | `DEMO_SEED_ARGS` | seed | `--verbose` for a seed, `--with-space` for the smoke (see "Seeding" and "API smoke") |
 | `DEMO_SEED_PASSWORD` | seed (`seed_lab.py`, `smoke_lab.py`) | any synthetic value of 10+ characters; the supervisor injects it; `compose.lab.json` passes it only to `seed`, as `${DEMO_SEED_PASSWORD}` with no value and no default |
 | `SMOKE_BASE_URL` | seed (`smoke_lab.py`) | fixed in the file to `http://web:8080` on `seed` only |
 
-The file writes no SPACE service or plan name: those three come from `DEMO_*`
-references. There is **no `DEMO_SPACE_SERVICE`** (nor a gateway/worker variable
-for it): `core/settings.py` has no setting that selects the SPACE service, the
-gateway asks SPACE for the fixed name `SERVICE_NAME` in `space_client/gate.py`,
-and `compose.lab.json` does not invent one. Contracts made on a development
-service therefore only help the gateway if that service is the one it asks for
-(see "API smoke", `blockedByRemote`).
+The file writes no SPACE service or plan name: those come from `DEMO_*`
+references. `DEMO_SPACE_DEV_SERVICE` is the one name of the SPACE service of the
+lab: `compose.lab.json` passes it as `SPACE_SERVICE_NAME` to the gateway and the
+worker (the setting `space_service_name` in `core/settings.py`, default
+`openbinding`, shape `[a-z0-9][a-z0-9_-]{1,62}`) and to `seed` both as
+`SPACE_SERVICE_NAME` and as `SPACE_DEV_SERVICE_NAME`. So the contracts that
+`seed_lab.py --space-contracts` creates are the ones the gateway reads, and the
+lab never touches the production service `openbinding`: the same SPACE
+organization does not isolate credentials, so the target is chosen explicitly
+per environment. The gateway logs the effective service name (never a key) when
+it starts. If the variable is unset, compose gives an empty value, which the
+gateway refuses to start with.
 
 Private, supplied by the supervisor and only referenced as `${NAME}` (the file
 holds no value and no default): `SPACE_URL`, `SPACE_API_KEY`, `SPHERE_URL`,

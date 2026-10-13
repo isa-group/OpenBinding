@@ -20,6 +20,7 @@ the environment is only a preference, not a promise that the file exists.
 from __future__ import annotations
 
 import os
+import re
 from functools import lru_cache
 from typing import List, Literal, Optional
 
@@ -54,6 +55,12 @@ MIN_JWT_SECRET_LENGTH = 32
 
 #: Default ``iss`` and ``aud`` of the gateway's session tokens.
 DEFAULT_JWT_ISSUER = "openbinding-gateway"
+
+#: The production SPACE service, and the default of ``SPACE_SERVICE_NAME``.
+DEFAULT_SPACE_SERVICE_NAME = "openbinding"
+
+#: Shape of a SPACE service name (``SPACE_SERVICE_NAME``).
+SPACE_SERVICE_NAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]{1,62}")
 
 
 class Settings(BaseSettings):
@@ -207,6 +214,12 @@ class Settings(BaseSettings):
     #: Plan a new sign-up starts on (for example ``BASIC``). Unset, the account
     #: is created without a plan and SPACE assigns the contract's plan.
     space_default_plan: Optional[str] = None
+    #: The SPACE service this gateway reads and writes contracts for
+    #: (``SPACE_SERVICE_NAME``). Production is ``openbinding``; a development
+    #: deployment names its own service (for example ``openbinding-dev``) so
+    #: it never touches production contracts. The one source of this name:
+    #: ``space_client`` takes it from here.
+    space_service_name: str = DEFAULT_SPACE_SERVICE_NAME
 
     # -- Durable jobs and artifacts -------------------------------------
     redis_url: str = "redis://redis:6379/0"
@@ -335,6 +348,16 @@ class Settings(BaseSettings):
     def bim_service_url_for_http(self) -> "Settings":
         if self.bim_mode == "http" and not self.bim_service_url:
             raise ValueError("BIM_SERVICE_URL is not set while BIM_MODE=http: name the root of the bim-service.")
+        return self
+
+    @model_validator(mode="after")
+    def valid_space_service_name(self) -> "Settings":
+        """Refuse a service name SPACE could not hold, before any call uses it."""
+        if not SPACE_SERVICE_NAME_PATTERN.fullmatch(self.space_service_name):
+            raise ValueError(
+                "SPACE_SERVICE_NAME must match [a-z0-9][a-z0-9_-]{1,62} "
+                "(lower-case letters, digits, '_' and '-')."
+            )
         return self
 
     @model_validator(mode="after")

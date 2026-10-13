@@ -21,19 +21,19 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Protocol, runtime_checkable
 
-#: The service name this pricing is registered under in SPACE. Feature
-#: identifiers are ``<service>-<feature>``, lower-cased on the service half.
-SERVICE_NAME = "openbinding"
+from ..core.settings import DEFAULT_SPACE_SERVICE_NAME
 
 
-def feature_id(feature: str) -> str:
+def feature_id(feature: str, service_name: str = DEFAULT_SPACE_SERVICE_NAME) -> str:
     """The identifier SPACE knows a feature by.
 
-    One helper, because the convention is easy to get subtly wrong and a
-    mistyped identifier fails as "feature not in your plan" rather than as an
-    error - which is exactly the kind of bug that reaches production.
+    Feature identifiers are ``<service>-<feature>``, where the service is the
+    one configured in ``Settings.space_service_name``. One helper, because the
+    convention is easy to get subtly wrong and a mistyped identifier fails as
+    "feature not in your plan" rather than as an error - which is exactly the
+    kind of bug that reaches production.
     """
-    return f"{SERVICE_NAME}-{feature}"
+    return f"{service_name}-{feature}"
 
 
 @dataclass(frozen=True)

@@ -14,7 +14,9 @@ Environment:
     DATABASE_URL         the gateway's database (read through the gateway settings).
     With --space-contracts additionally: SPACE_URL, SPACE_API_KEY, SPACE_ORGANIZATION_ID,
     SPACE_DEV_SERVICE_NAME, SPACE_DEV_PLAN (and optionally SPACE_DEV_PRICING_VERSION,
-    default 0.1.0, and SPACE_PROD_SERVICE_NAME).
+    default 0.1.0, and SPACE_PROD_SERVICE_NAME). SPACE_DEV_SERVICE_NAME must equal the
+    gateway's SPACE_SERVICE_NAME, so the seeded contracts are the ones the gateway reads;
+    ``openbinding`` is never a seeding target.
 
 Usage:
     python tools/seed_lab.py [--print-keys] [--space-contracts] [--verbose]
@@ -471,7 +473,9 @@ async def _run(args: argparse.Namespace, environ: Mapping[str, str], password: s
         if args.print_keys:
             report["apiKeys"] = {name: api_key_for(password, name)[0] for name in users}
         if args.space_contracts:
-            report["spaceContracts"] = await _space_contracts(users, environ, dev_service, dev_plan)
+            report["spaceContracts"] = await _space_contracts(
+                users, environ, dev_service, dev_plan, settings.space_service_name
+            )
     finally:
         await db_base.dispose_engine()
     secrets = [password] + ([] if args.print_keys else [api_key_for(password, name)[0] for name, *_ in SYNTHETIC_USERS])
@@ -479,12 +483,20 @@ async def _run(args: argparse.Namespace, environ: Mapping[str, str], password: s
     return 0
 
 
-async def _space_contracts(users: Mapping[str, User], environ: Mapping[str, str], service_name: str, plan: str) -> Any:
+async def _space_contracts(
+    users: Mapping[str, User], environ: Mapping[str, str], service_name: str, plan: str, gateway_service: str
+) -> Any:
+    """``gateway_service`` is ``settings.space_service_name``: the service the gateway reads contracts from."""
     if not service_name or not plan:
         return {"skipped": "SPACE_DEV_SERVICE_NAME and SPACE_DEV_PLAN must both be set"}
     reason = dev_service_guard(service_name, environ)
     if reason:
         return {"skipped": reason}
+    if service_name != gateway_service:
+        return {
+            "skipped": "SPACE_DEV_SERVICE_NAME must equal SPACE_SERVICE_NAME (the service the gateway reads), "
+            "or the seeded contracts would not be the ones the gateway uses"
+        }
     try:
         env = load_env(environ, sphere=False)
     except ConfigError as exc:

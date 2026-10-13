@@ -249,7 +249,18 @@ def test_dev_service_guard_honours_the_configured_production_name():
 
 async def test_space_contracts_option_is_skipped_unless_everything_is_defined():
     users = {}
-    assert "both be set" in (await seed_lab._space_contracts(users, ENV, "", ""))["skipped"]
-    assert "both be set" in (await seed_lab._space_contracts(users, ENV, "lab-dev-service", ""))["skipped"]
-    assert "production" in (await seed_lab._space_contracts(users, ENV, "openbinding", "BASIC"))["skipped"]
-    assert "SPACE configuration" in (await seed_lab._space_contracts(users, {}, "lab-dev-service", "BASIC"))["skipped"]
+    dev = "lab-dev-service"
+    assert "both be set" in (await seed_lab._space_contracts(users, ENV, "", "", dev))["skipped"]
+    assert "both be set" in (await seed_lab._space_contracts(users, ENV, dev, "", dev))["skipped"]
+    assert "production" in (await seed_lab._space_contracts(users, ENV, "openbinding", "BASIC", "openbinding"))["skipped"]
+    assert "SPACE configuration" in (await seed_lab._space_contracts(users, {}, dev, "BASIC", dev))["skipped"]
+
+
+async def test_space_contracts_require_the_gateway_service_to_match_the_dev_service():
+    users = {}
+    for gateway_service in ("openbinding", "other-dev-service"):
+        skipped = (await seed_lab._space_contracts(users, ENV, "lab-dev-service", "BASIC", gateway_service))["skipped"]
+        assert "must equal SPACE_SERVICE_NAME" in skipped
+    # A match passes the name checks and reaches the SPACE configuration (absent here).
+    matched = await seed_lab._space_contracts(users, {}, "lab-dev-service", "BASIC", "lab-dev-service")
+    assert "SPACE configuration" in matched["skipped"]
