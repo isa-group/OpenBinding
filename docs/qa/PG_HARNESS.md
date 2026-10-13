@@ -4,15 +4,19 @@
 and partial unique indexes, which SQLite does not exercise. Without
 `TEST_DATABASE_URL` they are skipped.
 
-**Status: executed once on a real PostgreSQL 16 on 2026-10-13, at SHA `5aebc7c8`:**
-`lab_compose` (`compose.pgtest.json`, `DEMO_PYTEST_ARGS='-rfE --tb=short tests/concurrency'`)
-gave **45 passed, 26 skipped** in 11 s. The 26 skips were the compose-shape tests, which could not
-find `compose.pgtest.json` inside the image. **That is fixed in the repository, but the fixed harness
-has not been run in the lab yet**: the numbers under [Expected results](#expected-results) are
-derived from the code and the ordinary-suite run, not observed in a container. No repeat runs, no
-timing statistics.
+**Status: executed on a real PostgreSQL 16 in the lab, at base `d823cd8d`:** `lab_compose`
+(`compose.pgtest.json`, `lab_compose up` + `seed`,
+`DEMO_PYTEST_ARGS='-rfEs --tb=short --durations=8 tests/concurrency'`) gave
+**58 passed, 0 skipped in 12 s**. Per file: `test_job_leases_pg` 9, `test_job_publication_pg` 9,
+`test_jobs_idempotency_pg` 1, `test_pg_guard` 1, `test_pg_harness` 15, `test_study_cancel_pg` 5,
+`test_study_cells_pg` 3, `test_sweep_vs_cancel_pg` 3, `test_two_sessions_smoke` 1,
+`test_watchdog` 11. No repeat runs, no timing statistics.
 
-What changed after that run:
+An earlier run (2026-10-13, SHA `5aebc7c8`) gave 45 passed, 26 skipped: the skips were the
+compose-shape tests, which could not find `compose.pgtest.json` inside the image. That was fixed
+(see below) and the 58/0 run above is the observation after the fix.
+
+What changed after the earlier run:
 
 - The compose-shape tests moved from `tests/concurrency/test_pg_harness.py` to
   `tests/test_pg_harness.py`, the ordinary gateway suite, where the checkout and the file exist.
@@ -105,6 +109,9 @@ bind-mounted here, so the options were:
    published, there is no `cap_add`, `privileged` or socket, and the only network is the private
    Compose one, where it reaches the test database. `postgres` (70:70) and `image-builder`
    (65534:65534) stay non-root, and `tests/test_pg_harness.py` pins both facts.
+
+Record: the `seed` service runs as container root (`0:0`) of a **rootless** runtime, only in this
+ephemeral harness. The pending alternative is a dedicated `test` stage in the Dockerfile.
 
 If the Dockerfile gets a `test` stage, set `target` on `image-builder`, drop the bind mount and
 the `user`, and update the tests.
@@ -240,23 +247,26 @@ audit event.
 
 ## Expected results
 
-Derived, not observed in a container. The ordinary-suite run (no `TEST_DATABASE_URL`) of
+Observed in the lab at base `d823cd8d` (PostgreSQL 16, `compose.pgtest.json`, `lab_compose up` +
+`seed`, `DEMO_PYTEST_ARGS='-rfEs --tb=short --durations=8 tests/concurrency'`):
+**58 passed, 0 skipped in 12 s** (files and counts in the Status paragraph at the top). The seed ran as
+`0:0` and read the bind without `Permission denied`.
+
+For comparison, the ordinary-suite run (no `TEST_DATABASE_URL`) of
 `tests/concurrency tests/test_pg_harness.py ../lab/tests` gave **129 passed, 31 skipped**
-(observed; the 31 are the PostgreSQL tests, skipped only for the missing `TEST_DATABASE_URL`; no
-compose-shape test is skipped; 11 of the passes are the new `test_watchdog.py`).
+(the 31 are the PostgreSQL tests, skipped only for the missing `TEST_DATABASE_URL`; no
+compose-shape test is skipped).
 
-In the lab (`DEMO_PYTEST_ARGS='-rfE --tb=short tests/concurrency'`), with a working PostgreSQL:
-
-- **58 passed, 0 skipped**: the 39 that passed in the lab run at base `762f495e` (guard tests, smoke,
-  leases 9, publication 9, idempotency 1, sweep 3), plus the 8 study tests (3 in `test_study_cells_pg.py`,
-  5 in `test_study_cancel_pg.py`; one of the 3 is new) plus the 11 of `test_watchdog.py`. The 31 skipped
-  without a database are the 31 PostgreSQL tests (smoke 1, leases 9, publication 9, idempotency 1,
-  sweep 3, study 8).
-- Exit code 0. Any `SKIPPED` in this run is a defect (use `-rsfE` to see them).
+- Exit code 0. Any `SKIPPED` in the lab run is a defect (`-rs` prints the reasons).
 - If `seed` shows `Permission denied` on `/app/tests`, the `user: "0:0"` did not take effect
   or the runtime refuses even the bind owner: report it, do not add capabilities.
 
-Not yet run: the whole sequence above in the lab, on this change.
+### Tool limitation: the 420 s limit of lab_compose
+
+The `lab_compose` operation has a **420 s limit**. A hung run exhausts it, the output is lost, and
+the `seed-run` container is left **orphaned**: no MCP tool stops it. That is why the per-test
+watchdog exists (see below). If the suite grows, split it into chunks (several `seed` runs with
+different `DEMO_PYTEST_ARGS` paths) so that each stays well under the limit.
 
 ## What it validates
 
@@ -284,8 +294,8 @@ postgres data directory started). What remains unknown:
 
 - Whether the skip reason described under Compose-shape tests is exactly what happened: it
   is derived from the code, and the run used `-rfE`, which does not print skip reasons (`-rs`).
-- Whether `user: "0:0"` reads the bind on the lab runtime (see Why the seed runs as root), and
-  the Dockerfile `test` stage that would replace it.
+- The Dockerfile `test` stage that would replace `user: "0:0"` (see Why the seed runs as root);
+  the root user did read the bind in the lab run.
 - Timing assertions (`wait_for(..., timeout=10)`, `sleep(0.2/0.5)`) on a loaded
   host: the run took 11 s on one host; no other load was measured.
 - `tmpfs` ownership for the postgres data directory on other runtimes (mitigated
