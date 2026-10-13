@@ -28,7 +28,7 @@ from . import space_client
 from .access import public_read
 from .jobs import reconciler as job_reconciler
 from .access.dependencies import session_dependency
-from .core.settings import get_settings
+from .core.settings import Settings, get_settings
 from .core.logging import configure_logging
 from .db import base as db_base
 from .db.bootstrap import (
@@ -54,6 +54,7 @@ from .routes.resolve import router as resolve_router
 from .routes.auth import router as auth_router
 from .routes.cas import identity_router, router as cas_router
 from .routes.jobs import router as jobs_router
+from .routes.library import router as library_router
 from .routes.notifications import router as notifications_router
 from .routes.organizations import invitation_router, router as organizations_router
 from .routes.pricing import public_router as pricing_router
@@ -92,25 +93,33 @@ def load_environment_file() -> None:
         logging.getLogger(__name__).warning("environment file %s is not readable; skipped", path)
 
 
-load_environment_file()
+def _configure_logging(startup_settings: Settings) -> None:
+    configure_logging(
+        level=startup_settings.log_level,
+        secrets=(
+            startup_settings.gateway_jwt_secret or "",
+            startup_settings.space_api_key or "",
+            startup_settings.sphere_api_key or "",
+            startup_settings.bootstrap_admin_password or "",
+            startup_settings.federation_secret_key or "",
+            *(startup_settings.secrets_fernet_keys or "").split(","),
+        ),
+    )
 
-_startup_settings = get_settings()
-configure_logging(
-    level=_startup_settings.log_level,
-    secrets=(
-        _startup_settings.gateway_jwt_secret or "",
-        _startup_settings.space_api_key or "",
-        _startup_settings.sphere_api_key or "",
-        _startup_settings.bootstrap_admin_password or "",
-        _startup_settings.federation_secret_key or "",
-        *(_startup_settings.secrets_fernet_keys or "").split(","),
-    ),
-)
+
+def _make_lifespan(explicit_settings: Settings | None):
+    """The lifespan of one app; without explicit settings it reads them at startup, as it always did."""
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        async with _lifespan(explicit_settings or get_settings()):
+            yield
+
+    return lifespan
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    settings = get_settings()
+async def _lifespan(settings: Settings):
     # Fails the start when the BIM service is unreachable or runs another toolchain.
     await bim_integration.startup_check()
     if settings.database_url:
@@ -173,20 +182,6 @@ TAGS_METADATA = [
     },
 ]
 
-app = FastAPI(
-    title="OpenBinding Gateway",
-    version="1.0.0",
-    summary="OpenBinding gateway for deterministic BIM v1 QoS binding.",
-    description=(
-        "OpenBinding validates modular BIM v1 Instance packages, lowers them to a "
-        "canonical BindingProblem IR, and reevaluates every returned binding."
-    ),
-    openapi_tags=TAGS_METADATA,
-    license_info={"name": "CC BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/"},
-    lifespan=lifespan,
-    root_path="/api",
-)
-
 _BIM_PATH_PREFIXES = (
     "/v1/profiles",
     "/v1/dialects",
@@ -216,7 +211,6 @@ def _problem_media_type(request: Request) -> str:
 # api_error; these handlers are the only place that decides the wire shape.
 
 
-@app.exception_handler(RequestValidationError)
 async def request_validation_error(request: Request, exc: RequestValidationError):
     diagnostics = validation_diagnostics(exc.errors())
     return problem_response(
@@ -228,7 +222,6 @@ async def request_validation_error(request: Request, exc: RequestValidationError
     )
 
 
-@app.exception_handler(BimError)
 async def bim_error(request: Request, exc: BimError):
     """What the BIM toolchain refused, from any route that did not catch it itself.
 
@@ -240,7 +233,6 @@ async def bim_error(request: Request, exc: BimError):
     return bim_integration.problem_response_for(exc, media_type=_problem_media_type(request))
 
 
-@app.exception_handler(HTTPException)
 async def http_error(request: Request, exc: HTTPException):
     if exc.status_code == 422:
         code, message, diagnostics, extra = split_detail(exc.detail, VALIDATION_ERROR)
@@ -280,32 +272,15 @@ async def http_error(request: Request, exc: HTTPException):
 
     return await http_exception_handler(request, exc)
 
-settings = get_settings()
-# Added first, so it is the innermost: a 413 still leaves through the CORS and
-# telemetry layers, and nothing inside it reads a body it has not counted.
-app.add_middleware(BodyLimitMiddleware)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
-    allow_credentials=settings.cors_credentials_allowed,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=settings.cors_expose_headers,
-)
-app.add_middleware(ErrorTelemetryMiddleware)
 
-
-@app.get("/health", tags=["Health"], operation_id="health", summary="Whether the gateway is up")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/health/live", tags=["Health"], operation_id="liveness", summary="Process liveness")
 async def liveness() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/health/ready", tags=["Health"], operation_id="readiness", summary="Required dependencies")
 async def readiness(
     session: AsyncSession = Depends(session_dependency, scope="function"),
     runtime_settings=Depends(get_settings),
@@ -331,40 +306,90 @@ async def readiness(
     return {"status": "ready", "dependencies": dependencies}
 
 
-app.include_router(v1_router)
-app.include_router(analysis_router)
-app.include_router(auth_router)
-app.include_router(cas_router)
-app.include_router(users_router)
-app.include_router(identity_router)
-app.include_router(admin_router)
-app.include_router(pricing_router)
-app.include_router(organizations_router)
-app.include_router(sponsor_organization_router)
-app.include_router(sponsor_me_router)
-app.include_router(sponsor_proposals_router)
-app.include_router(invitation_router)
-app.include_router(studies_router)
-app.include_router(public_studies_router)
-from .routes.library import router as library_router
-app.include_router(library_router)
-app.include_router(artifacts_router)
-app.include_router(resolve_router)
-app.include_router(jobs_router)
-app.include_router(notifications_router)
-app.include_router(verifier_router)
-app.include_router(generator_router)
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Build one gateway application: routers, middleware, handlers and lifespan.
+
+    Without ``settings`` the process settings (``get_settings()``) are used.  Nothing
+    here is shared between two calls: each app has its own ``state``, router list,
+    middleware stack and OpenAPI document.
+    """
+    explicit = settings
+    settings = explicit or get_settings()
+    if explicit is None:
+        _configure_logging(settings)
+
+    app = FastAPI(
+        title="OpenBinding Gateway",
+        version="1.0.0",
+        summary="OpenBinding gateway for deterministic BIM v1 QoS binding.",
+        description=(
+            "OpenBinding validates modular BIM v1 Instance packages, lowers them to a "
+            "canonical BindingProblem IR, and reevaluates every returned binding."
+        ),
+        openapi_tags=TAGS_METADATA,
+        license_info={"name": "CC BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/"},
+        lifespan=_make_lifespan(explicit),
+        root_path="/api",
+    )
+
+    # Every 422 leaves the gateway through ``problem_response`` (models/problem.py).
+    app.add_exception_handler(RequestValidationError, request_validation_error)
+    app.add_exception_handler(BimError, bim_error)
+    app.add_exception_handler(HTTPException, http_error)
+
+    # Added first, so it is the innermost: a 413 still leaves through the CORS and
+    # telemetry layers, and nothing inside it reads a body it has not counted.
+    app.add_middleware(BodyLimitMiddleware)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origin_list,
+        allow_credentials=settings.cors_credentials_allowed,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=settings.cors_expose_headers,
+    )
+    app.add_middleware(ErrorTelemetryMiddleware)
+
+    app.get("/health", tags=["Health"], operation_id="health", summary="Whether the gateway is up")(health)
+    app.get("/health/live", tags=["Health"], operation_id="liveness", summary="Process liveness")(liveness)
+    app.get(
+        "/health/ready", tags=["Health"], operation_id="readiness", summary="Required dependencies"
+    )(readiness)
+
+    app.include_router(v1_router)
+    app.include_router(analysis_router)
+    app.include_router(auth_router)
+    app.include_router(cas_router)
+    app.include_router(users_router)
+    app.include_router(identity_router)
+    app.include_router(admin_router)
+    app.include_router(pricing_router)
+    app.include_router(organizations_router)
+    app.include_router(sponsor_organization_router)
+    app.include_router(sponsor_me_router)
+    app.include_router(sponsor_proposals_router)
+    app.include_router(invitation_router)
+    app.include_router(studies_router)
+    app.include_router(public_studies_router)
+    app.include_router(library_router)
+    app.include_router(artifacts_router)
+    app.include_router(resolve_router)
+    app.include_router(jobs_router)
+    app.include_router(notifications_router)
+    app.include_router(verifier_router)
+    app.include_router(generator_router)
+
+    generated_openapi = app.openapi
+    app.openapi = lambda: openapi_with_security_contract(app, settings, generated_openapi)
+    return app
 
 
-_generated_openapi = app.openapi
-
-
-def openapi_with_security_contract() -> dict:
+def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_openapi) -> dict:
     """Add the failures implied by shared auth dependencies in one place."""
 
     if app.openapi_schema is not None:
         return app.openapi_schema
-    document = _generated_openapi()
+    document = generated_openapi()
     diagnostic_schema = {
         "type": "object",
         "description": "One thing wrong with the request, with where and (when known) how to fix it.",
@@ -1442,4 +1467,6 @@ def openapi_with_security_contract() -> dict:
     return document
 
 
-app.openapi = openapi_with_security_contract
+load_environment_file()
+settings = get_settings()
+app = create_app()
