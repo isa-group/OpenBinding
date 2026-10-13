@@ -80,6 +80,21 @@ filtered, and an exact disallowed resource answers `404` so the key does not
 learn that it exists. Registering a brand-new Engine revision requires an
 all-Engines key because its immutable digest cannot be selected in advance.
 
+**Analysis routes.** `jobs:read` reads analyses: `GET /v1/analysis/sources`,
+`GET /v1/analysis/pareto/{task_id}`, and the `POST` routes that only read stored
+evidence (`query`, `candidate`, `export`). Starting or cancelling analysis work
+creates and dispatches an `AnalysisTask`, so `POST /v1/analysis/pareto` and
+`POST /v1/analysis/pareto/{task_id}/cancel` additionally need
+`engines:execute`, the permission `POST /v1/jobs` needs. A key with only
+`jobs:read` gets `403 insufficient_api_key_permission` (`missing_permissions`
+lists `engines:execute`) and no task is created or dispatched; a key outside the
+analysed sources still gets `404` first. Sessions do not go through key
+permissions and are unchanged, and any other `/v1/analysis` route stays closed to
+a key without `jobs:read`. The generated OpenAPI document and `docs/openapi.json`
+are not changed: `x-required-api-key-permissions` of these two operations still
+lists `jobs:read`, the check on top of it is made by the route
+(`security/apikeys.py: analysis_work_permissions`).
+
 The number of active keys is the plan's `apiKeys` limit, read from the
 contract (`routes/users.py`); exceeding it is `402 quota_exceeded`. Revoked keys
 do not count. The gateway locks the account row so the count-and-create of
@@ -137,6 +152,19 @@ OWNER and, with it, outvote the real owners. This covers
 * A platform administrator who also holds ADMIN access to the organization keeps
   the ability to manage owners. A platform role alone grants no access to a
   private organization.
+
+### What a VIEWER reads of a failed job
+
+A VIEWER (and an API key that cannot write projects, in the job list and in the
+project package export) reads the job redacted: options by allow-list, the
+request reduced to the problem and the pinned choices, provenance without
+credentials. The `error` of a failed job is also replaced. The stored message is
+the text of the exception that stopped the job and can name the host or address
+of a private federated endpoint, so a redacted view shows the fixed text
+`The job failed. The details are visible to project members.` instead. If the
+result carries a category code (`errorCode` or `error_code`, a plain name such as
+`engine_error`) it is appended as `(category: engine_error)`; the free-text
+message is never shown. MEMBER and above read the message as stored, as before.
 
 ## What an administrator can do
 
@@ -461,6 +489,14 @@ clip it silently: `solve_timeout_s` and `payload_ceiling_bytes` deny the request
 with `503` `pricing_misconfigured` (a problem, not an unhandled 500). The fix
 belongs in the pricing, or in the technical setting if the plan is right.
 
+### The payload ceiling and a chunked upload
+
+`maxPayloadBytes` applies to a job submission whatever way the body arrives. A
+`.bim.zip` sent with `Transfer-Encoding: chunked` has no `Content-Length`, so the
+declared size is 0; the submission then measures the bytes actually read and
+refuses an archive above the ceiling with `413 payload_too_large`, exactly as it
+does for a declared size.
+
 ## Configuration
 
 | Variable | What it does |
@@ -478,6 +514,7 @@ belongs in the pricing, or in the technical setting if the plan is right.
 | `CORS_ALLOW_ORIGINS` | Browser origins allowed to call the API, comma separated: a **closed list**. Default: only the local development origins `http://localhost:5173`, `http://127.0.0.1:5173` (Vite) and `http://localhost:4177`, `http://127.0.0.1:4177` (Playwright). There is no wildcard default, because session tokens live in the browser's `localStorage`. With `APP_ENV=prod`, an empty list or a `*` entry makes the gateway **refuse to start** (`CORS_ALLOW_ORIGINS … APP_ENV=prod`), so a production deployment must name its frontend origin(s) exactly. A `*` outside production still works and switches credentialed requests off. |
 | `CORS_ALLOW_CREDENTIALS` | Whether credentialed cross-origin requests are allowed (default `true`; ignored when the list contains `*`). |
 | `APP_ENV` | `dev` (default), `test` or `prod`; `prod` enables the startup checks above. |
+| `BIM_SERVICE_ALLOW_INSECURE_HTTP`, `FEDERATION_REQUIRE_HTTPS` | Plain-http switches for a trusted development or lab network (the bim-service bearer token over `http`; federated engines over `http`). With `APP_ENV=prod`, `BIM_SERVICE_ALLOW_INSECURE_HTTP=true` or `FEDERATION_REQUIRE_HTTPS=false` makes the gateway **refuse to start**, like `SPACE_ENABLED=false`. `dev`, `test` and the lab are unaffected. |
 | `FRONTEND_URL` | Where the CAS callback returns the browser (`/auth/cas/callback?code=…` or `?error=…`). |
 
 Cross-origin responses expose these headers to the browser (not configurable):

@@ -72,6 +72,7 @@ from .routes.generator import router as generator_router
 from .security.apikeys import (
     ALL_PERMISSIONS,
     ENGINE_LIMITED_PERMISSIONS,
+    analysis_work_permissions,
     required_permissions,
 )
 from .security.bodylimit import BodyLimitMiddleware
@@ -1013,7 +1014,7 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             responses.setdefault(
                 "503", refusal("Account authentication is not configured on this deployment.")
             )
-            permissions = sorted(required_permissions(path, method))
+            permissions = sorted(required_permissions(path, method) | analysis_work_permissions(path, method))
             operation["x-required-api-key-permissions"] = permissions
             if public_read.eligible(method, path):
                 # Also reachable read-only, without credentials or membership,

@@ -617,6 +617,13 @@ def test_prod_stage_is_stock_nginx_and_lab_stage_bakes_in_the_lab_config():
     assert copies == ["COPY nginx.lab.conf /etc/nginx/conf.d/default.conf"]
 
 
+def test_legacy_lab_nginx_directory_is_gone_and_the_lab_image_uses_frontend_conf():
+    assert not (ROOT / "lab" / "nginx").exists()
+    dockerfile = DOCKERFILE.read_text(encoding="utf-8")
+    lab = dockerfile.split("FROM prod AS lab\n", 1)[1]
+    assert "COPY nginx.lab.conf /etc/nginx/conf.d/default.conf" in lab
+
+
 def test_nginx_lab_conf_reaches_the_build_context():
     assert NGINX_CONF.is_file()
     ignore = (ROOT / "frontend" / ".dockerignore").read_text(encoding="utf-8").splitlines()
@@ -645,6 +652,24 @@ def test_web_runs_unprivileged_with_writable_runtime_directories(services):
     for target in ("/run", "/var/cache/nginx"):
         assert tmpfs[target]["tmpfs"] == {"mode": 1023}, target
     assert int(PUBLISHED["target"]) > 1023
+
+
+def test_nginx_sets_the_client_address_instead_of_appending_to_the_one_the_client_sent():
+    # nginx is the only hop in front of the gateway, so a client-supplied X-Forwarded-For would only
+    # let it forge the address the gateway throttles logins by.
+    conf = re.sub(r"#.*", "", _nginx_conf())
+    headers = re.findall(r"proxy_set_header\s+X-Forwarded-For\s+(\S+);", conf)
+    assert len(headers) == len(re.findall(r"proxy_pass\s", conf)) == 3
+    assert set(headers) == {"$remote_addr"}
+    assert "$proxy_add_x_forwarded_for" not in conf
+
+
+def test_nginx_conf_does_not_claim_the_compose_file_drops_capabilities():
+    # The lab supervisor drops every capability; compose.lab.json has no cap_drop and says nothing of it.
+    text = " ".join(line.lstrip("# ").strip() for line in _nginx_conf().splitlines())
+    assert "every capability dropped" not in text
+    assert "supervisor drops every capability" in text
+    assert "cap_drop" not in (ROOT / "compose.lab.json").read_text(encoding="utf-8")
 
 
 def test_nginx_upstream_hosts_are_compose_services(services):

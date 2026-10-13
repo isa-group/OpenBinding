@@ -376,6 +376,29 @@ class Settings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def no_insecure_transport_in_production(self) -> "Settings":
+        """Refuse plain-http switches in production.
+
+        ``BIM_SERVICE_ALLOW_INSECURE_HTTP`` sends the bim-service bearer token in
+        clear text and ``FEDERATION_REQUIRE_HTTPS=false`` lets federated engines
+        be registered and called over http. Both are for a trusted development or
+        lab network only.
+        """
+        if self.app_env != "prod":
+            return self
+        if self.bim_service_allow_insecure_http:
+            raise ValueError(
+                "BIM_SERVICE_ALLOW_INSECURE_HTTP is true while APP_ENV=prod: production must reach "
+                "the bim-service over https. Unset it, or use APP_ENV=dev for a trusted private network."
+            )
+        if not self.federation_require_https:
+            raise ValueError(
+                "FEDERATION_REQUIRE_HTTPS is false while APP_ENV=prod: production must call federated "
+                "engines over https. Unset it, or use APP_ENV=dev for a trusted private network."
+            )
+        return self
+
     # -- Derived values --------------------------------------------------
 
     @property

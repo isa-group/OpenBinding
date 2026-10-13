@@ -482,9 +482,12 @@ class JobSubmission:
                 caps = await entitlement_service.caps_for(self.caller.id)
             except EntitlementsUnavailable as exc:
                 raise _Finished(problem(exc.status, exc.code, str(exc))) from exc
-            if request.body_size and request.body_size > entitlement_service.payload_ceiling(
-                caps, 512 * 1024 * 1024
-            ):
+            # A chunked upload has no Content-Length, so the route reports a size
+            # of 0: the bytes actually read are what the plan ceiling applies to.
+            size = request.body_size
+            if not size and request.archive is not None:
+                size = len(request.archive)
+            if size and size > entitlement_service.payload_ceiling(caps, 512 * 1024 * 1024):
                 raise _Finished(problem(413, "payload_too_large", "BIM package exceeds the caller plan limit"))
             if entitlement_service.complexity_too_large(source.compilation.binding_space_log10, caps):
                 raise _Finished(problem(

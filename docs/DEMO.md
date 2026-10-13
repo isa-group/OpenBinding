@@ -124,6 +124,16 @@ Fixed in the file: `APP_ENV=dev`, `CAS_ENABLED=false`,
 `PUBLIC_BASE_URL` and `FRONTEND_URL` `http://localhost:18100`.
 `FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`.
 
+The gateway takes the client address (login throttling) from `X-Forwarded-For`
+and trusts that header from the private ranges above. The only hop in front of
+it is the `web` nginx, which **sets** `X-Forwarded-For` to the address it sees
+(`$remote_addr`) in its three proxy blocks instead of appending to the header
+the client sent (`$proxy_add_x_forwarded_for`), so a client cannot forge its
+address. Anything that is added in front of `web` later must itself be trusted
+and must be accounted for there. `frontend/nginx.lab.conf` also no longer says
+the compose file drops capabilities: `compose.lab.json` declares no `cap_drop`;
+the lab supervisor drops every capability of its containers.
+
 BIM variables (`BIM_MODE=http`, `BIM_SERVICE_URL=http://bim-service:8080`,
 `BIM_SERVICE_TOKEN_FILE=/run/bim/token`) are defined on the gateway, and its
 start command writes the file from `DEMO_BIM_TOKEN` into a tmpfs
@@ -325,11 +335,12 @@ diagnostic guide, not a list of verified results.
    empty for uid 101 under rootless docker. **The configuration is baked into the image, not bind-mounted.** The
    `lab` stage of `frontend/Dockerfile` (`FROM prod AS lab`) copies
    `frontend/nginx.lab.conf` over `/etc/nginx/conf.d/default.conf`; `prod`,
-   which Kubernetes uses, is unchanged. An earlier version bind-mounted
-   `lab/nginx`; with rootless docker and an extracted, read-only copy of the
-   tree that directory could be empty or unreadable for uid 101, so nginx
-   started its workers with no `server` block: nothing listened on 80 or 8080
-   (`Connection refused`) and the healthcheck failed. If `web` is unhealthy
+   which Kubernetes uses, is unchanged. An earlier version bind-mounted the
+   configuration from the host; with rootless docker and an extracted,
+   read-only copy of the tree that directory could be empty or unreadable for
+   uid 101, so nginx started its workers with no `server` block: nothing
+   listened on 80 or 8080 (`Connection refused`) and the healthcheck failed.
+   If `web` is unhealthy
    with `Connection refused`, check the loaded configuration:
    `docker compose exec web nginx -T` must show `listen 8080;`, and
    `docker compose exec web ls -l /etc/nginx/conf.d` must list `default.conf`.

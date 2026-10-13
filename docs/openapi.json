@@ -14042,6 +14042,7 @@
         ],
         "x-api-key-engine-access": "exact-revision-allow-list-or-all",
         "x-required-api-key-permissions": [
+          "engines:execute",
           "jobs:read"
         ]
       }
@@ -14212,6 +14213,7 @@
         ],
         "x-api-key-engine-access": "exact-revision-allow-list-or-all",
         "x-required-api-key-permissions": [
+          "engines:execute",
           "jobs:read"
         ]
       }
