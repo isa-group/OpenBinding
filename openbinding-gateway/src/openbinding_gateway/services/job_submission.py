@@ -29,13 +29,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.jsonio import strict_json_loads
 from ..core.settings import get_settings
-from ..db.models import EngineRegistrationRevision, Job, JobProvenance, JobState, User
+from ..db.models import (
+    BindingCase,
+    BindingCaseRevision,
+    EngineRegistrationRevision,
+    Job,
+    JobProvenance,
+    JobState,
+    Project,
+    User,
+)
 from ..domain import idempotency
 from ..integrations import bim
 from ..jobs import limits as job_limits
 from ..models.artifacts import ArtifactRef
 from ..models.problem import VALIDATION_ERROR, problem_body, split_detail
 from ..security.apikeys import allows_engine
+from ..security.roles import require_work_role
 from .engines import (
     MANIFEST_DIR,
     engine_ref,
@@ -212,6 +222,23 @@ def _legacy_fingerprint(
     })
 
 
+async def _sharing_organizations(session: AsyncSession, snapshot: Any, caller: User) -> list[uuid.UUID]:
+    """The organizations whose cases share a snapshot the caller does not own; none for their own.
+
+    ``owned_snapshot`` grants access through exactly these, so the role needed to run
+    the snapshot is the role the caller holds in one of them.
+    """
+    if snapshot.owner_id == caller.id:
+        return []
+    return list((await session.scalars(
+        select(Project.organization_id)
+        .join(BindingCase, BindingCase.project_id == Project.id)
+        .join(BindingCaseRevision, BindingCaseRevision.binding_case_id == BindingCase.id)
+        .where(BindingCaseRevision.source_snapshot_id == snapshot.id)
+        .distinct()
+    )).all())
+
+
 # -- Stages' products -------------------------------------------------------
 
 
@@ -378,6 +405,8 @@ class JobSubmission:
                 snapshot = await owned_snapshot(request.snapshot_id, self.caller, self.session)
                 if snapshot is None:
                     raise _Finished(problem(404, "not_found", "Snapshot not found"))
+                # Before the IR is read, the key looked up or anything written: a VIEWER only reads.
+                await require_work_role(self.session, self.caller, await _sharing_organizations(self.session, snapshot, self.caller))
                 archive = snapshot.source_archive
                 pinned = await snapshot_ir(snapshot, self.session)
             else:

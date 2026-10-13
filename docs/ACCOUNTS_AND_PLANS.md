@@ -153,6 +153,38 @@ OWNER and, with it, outvote the real owners. This covers
   the ability to manage owners. A platform role alone grants no access to a
   private organization.
 
+### What each role may do with work
+
+VIEWER is a read role. It reads the authorized results of an organization and
+never starts, repeats, cancels or deletes work. Every action below is checked
+against the role in the organization that owns the snapshot, project or job,
+before anything is compiled, reserved or written.
+
+| Action | Route | Minimum role |
+|---|---|---|
+| Read jobs, studies, runs, cells, artifacts and results of a project | `GET` routes of `/v1/organizations/{org}/projects/{project}/…` | VIEWER (jobs redacted, see below) |
+| Launch a job on a snapshot shared with the organization | `POST /v1/jobs` with `{"snapshot": …}` | MEMBER |
+| Create a study, collection or case | `POST …/studies`, `…/collections`, `…/cases` | MEMBER |
+| Run a study, retry a cell, cancel a run | `POST …/studies/{study}/runs`, `…/cells/{cell}/retry`, `…/runs/{run}/cancel` | MEMBER |
+| Retry or cancel a job of an organization | `POST /v1/jobs/{id}/retry`, `POST /v1/jobs/{id}/cancel` | MEMBER (the job must also be the caller's) |
+| Queue or cancel an analysis (Pareto) on the jobs of an organization | `POST /v1/analysis/pareto`, `POST /v1/analysis/pareto/{task}/cancel` | MEMBER |
+| Delete a study | `DELETE …/studies/{study}` | ADMIN |
+
+A refused role is `403` with the stable code `insufficient_role` for `/v1/jobs`
+and `/v1/analysis` (and `organization_forbidden` on the project routes, as
+before). A user who has no role at all in the organization that owns a snapshot
+still gets `404 not_found`, the same as for a snapshot that does not exist.
+
+Work that belongs to no organization is personal and needs no role: a user's own
+snapshot, a `.bim.zip` upload (raw or multipart) and a job with no
+`organization_id`. A VIEWER keeps that.
+
+An API key inherits the role of its user and adds its permissions on top; neither
+widens the other. A key without `engines:execute` cannot launch, retry or cancel
+even when its user is a MEMBER (`403 insufficient_api_key_permission`), and a key
+with `engines:execute` whose user is a VIEWER cannot either (`403 insufficient_role`).
+Tests: `openbinding-gateway/tests/test_viewer_read_only.py`.
+
 ### What a VIEWER reads of a failed job
 
 A VIEWER (and an API key that cannot write projects, in the job list and in the

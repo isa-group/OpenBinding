@@ -19,6 +19,7 @@ from ..jobs import limits as job_limits
 from ..models.errors import api_error
 from ..models.platform import JobView, job_view
 from ..repositories import jobs as job_repository
+from ..security.roles import require_work_role
 from ..services.entitlements import EntitlementService, get_entitlements
 from bim_core.canonical import digest
 
@@ -43,10 +44,18 @@ async def _owned(
     user_id: uuid.UUID,
     *,
     lock: bool = False,
+    work_by: User | None = None,
 ) -> Job:
+    """The caller's job, or 404. With ``work_by`` the job is also one that user may cancel or repeat.
+
+    A job of an organization is work of that organization: a VIEWER only reads it, so
+    this answers 403 ``insufficient_role`` before anything is changed.
+    """
     job = await job_repository.get_owned(session, job_id, user_id, lock=lock)
     if job is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Job not found.")
+    if work_by is not None:
+        await require_work_role(session, work_by, [job.organization_id])
     return job
 
 
@@ -69,7 +78,7 @@ async def cancel_job(
 ) -> JobView:
     # A study's job is cancelled under the lock of its run, taken before the job's.
     await lifecycle.lock_study_run(session, job_id, user.id)
-    job = await _owned(session, job_id, user.id, lock=True)
+    job = await _owned(session, job_id, user.id, lock=True, work_by=user)
     if job.state in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}:
         raise api_error(status.HTTP_409_CONFLICT, "terminal_job", "The job is already terminal.")
     previous = job.state
@@ -90,7 +99,7 @@ async def retry_job(
     session: AsyncSession = Depends(session_dependency, scope="function"),
     plans: EntitlementService = Depends(get_entitlements),
 ) -> JobView:
-    original = await _owned(session, job_id, user.id, lock=True)
+    original = await _owned(session, job_id, user.id, lock=True, work_by=user)
     if original.state not in {JobState.FAILED, JobState.CANCELLED}:
         raise api_error(status.HTTP_409_CONFLICT, "job_not_retryable", "Only failed or cancelled jobs may be retried.")
     existing = await job_repository.find_retry_of(session, user.id, original.id)

@@ -32,6 +32,7 @@ from ..security.apikeys import (
 )
 from ..v1.archive import VERSION, build_archive, candidate_detail, compact_archive, decide, query_archive, record, row_view, safe
 from bim_core.canonical import digest
+from ..security.roles import require_work_role
 from ..services.engines import owned_job
 
 router = APIRouter(prefix="/v1/analysis", tags=["Binding analysis"])
@@ -77,6 +78,20 @@ def require_work_permission(caller, path: str) -> None:
             required_permissions=sorted(required),
             missing_permissions=missing,
         )
+
+
+async def require_sources_work_role(session, caller, sources):
+    """A VIEWER reads stored analyses but does not queue or stop work on an organization's jobs (403)."""
+    identities = []
+    for source in sources:
+        try:
+            identities.append(uuid.UUID(str(source)))
+        except ValueError:
+            continue  # not a job, so it belongs to no organization
+    organizations = (await session.execute(select(Job.organization_id).where(
+        Job.id.in_(identities), Job.owner_id == caller.id).distinct())).scalars().all()
+    for organization_id in organizations:
+        await require_work_role(session, caller, [organization_id])
 
 
 async def load_archive(query, caller, session):
@@ -343,6 +358,7 @@ async def start_pareto(payload: AnalysisQuery, caller: User = Depends(get_curren
     archive = await load_archive(payload, caller, session)
     # After the sources are checked (a key outside them still gets 404), before any task exists.
     require_work_permission(caller, "/v1/analysis/pareto")
+    await require_sources_work_role(session, caller, payload.sources)
     await compute(decide, archive, payload)
     fingerprint = task_fingerprint(archive.revision, payload)
     task = (await session.execute(select(AnalysisTask).where(AnalysisTask.owner_id == caller.id,
@@ -397,6 +413,7 @@ async def cancel_pareto(task_id: uuid.UUID, caller: User = Depends(get_current_u
                         session: AsyncSession = Depends(session_dependency, scope="function")):
     task = await owned_task(task_id, caller, session, cancelling=True)
     require_work_permission(caller, "/v1/analysis/pareto/{task_id}/cancel")
+    await require_sources_work_role(session, caller, task.request["sources"])
     await session.execute(update(AnalysisTask).where(AnalysisTask.id == task.id,
         AnalysisTask.state.in_(["queued", "running"])).values(state="cancelled", cancellation_requested=True,
             lease_token=None, lease_until=None, result=None, updated_at=utcnow()))
