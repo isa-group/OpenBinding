@@ -52,10 +52,13 @@ def test_the_document_describes_the_versioned_api() -> None:
         "/bim/v1/capabilities", "/bim/v1/profiles", "/bim/v1/dialects", "/bim/v1/schemas/{kind}", "/bim/v1/protocol",
         "/bim/v1/compile", "/bim/v1/validate", "/bim/v1/compatibility", "/bim/v1/optimization/resolve",
         "/bim/v1/evaluate", "/bim/v1/reevaluate", "/bim/v1/validate-result", "/bim/v1/neighborhood",
+        "/bim/v1/resources/validate", "/bim/v1/engines/validate", "/bim/v1/resources/xml/root",
+        "/bim/v1/resources/xml/validate-bpmn",
     }  # fmt: skip
     assert document["security"] == [{"bearerAuth": []}]
     schemas = document["components"]["schemas"]
     assert {"PackageRequest", "RegisteredResourceModel", "Problem", "CompileResponse"} <= set(schemas)
+    assert {"ResourceValidateRequest", "EngineValidateRequest", "XmlResourceRequest", "DiagnosticsResponse"} <= set(schemas)
     assert "HTTPValidationError" not in schemas
     assert set(document["paths"]["/bim/v1/compile"]["post"]["requestBody"]["content"]) == {
         "application/json", "multipart/form-data",
@@ -71,4 +74,4 @@ def test_every_operation_documents_its_problems_as_problem_json() -> None:
             for status in ("401", "422", "503"):
                 assert list(responses[status]["content"]) == ["application/problem+json"], (method, path)
     operation_ids = [operation["operationId"] for item in document["paths"].values() for operation in item.values()]
-    assert len(operation_ids) == len(set(operation_ids)) == 13
+    assert len(operation_ids) == len(set(operation_ids)) == 17

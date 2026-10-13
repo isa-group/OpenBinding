@@ -72,6 +72,27 @@ returns the decoded response; `InProcessBim` returns the same structure after th
 shared references, no NaN), so `==` between the two is meaningful, and mutating a result never touches an input or a
 later result.
 
+### Single documents: `BimResourcePort`
+
+`BimResourcePort` (also a `runtime_checkable` `Protocol`) extends the port with the checks about *one document* rather
+than a package. Both implementations have it, and `BimPort` stays what a package-centred host needs:
+
+| Method | Returns | Mirrors |
+| --- | --- | --- |
+| `validate_resource(document, api_version, kind, media_type, resource, dialects=None)` | `list[diagnostic]` (empty if valid) | `POST /resources/validate` |
+| `validate_engine(document)` | `list[diagnostic]` (empty if valid) | `POST /engines/validate` |
+| `xml_resource_root(content)` | `{namespace, localName}` | `POST /resources/xml/root` |
+| `validate_bpmn_resource(content)` | `{valid: True}` | `POST /resources/xml/validate-bpmn` |
+
+`InProcessBim` answers with `bim_core` (`resource_schema_diagnostics`, `engine_contract_diagnostics` and a one-resource
+`InstancePackage`, under the package `Limits` of the instance); `HttpBim` sends the request to the endpoint and returns
+the decoded answer (`content` as base64). Findings are returned as data; XML that is malformed, not UTF-8, uses a forbidden
+construct (DTD, entity, XInclude, `schemaLocation`), exceeds the entry limit or is not conformant BPMN is a `PackageError`
+with the same `code` and message on both sides. The inputs are checked as above (`resource` must be a string, `dialects` a
+list of objects, `content` bytes). `BimOperationUnavailable` (a `BimServiceError` with code `operation_unavailable`)
+stays exported for code written against the earlier `HttpBim`, which refused these operations while the service had no
+endpoint; nothing in the library raises it now.
+
 ### Registered resources
 
 `registered_resources` is a sequence of `{namespace, name, version, digest, mediaType, content: bytes,
@@ -147,6 +168,12 @@ They are few, and each is deliberate:
   optimization, an IR of another toolchain or with a broken schema, an unknown schema kind, inputs that are not strict
   JSON), compared as errors: class, `code`, message, `diagnostics`, `http_status`;
 * registered resources, the descriptors, `capabilities()` and the tenant.
+
+`test_document_equivalence.py` does the same for `BimResourcePort`: valid and invalid resources (every installed
+resource type, restricted Dialects, unknown or odd identities), the Engine manifests with and without findings, fifteen XML
+documents (BPMN, namespaced, malformed, not UTF-8, DTD with an external entity, internal entity, external DTD,
+XInclude, `schemaLocation`, a marker hidden after a long prefix), a small entry limit, inputs that are not strict JSON, and
+the request that `HttpBim` sends to each endpoint. The service's own tests are in `packages/bim-service/tests/test_service_documents.py`.
 
 The answers must be equal: the same IR, digests and diagnostics, and for an error the same class, `code`, message,
 `diagnostics`, `http_status` and `span`. `test_client_port.py` checks that both classes have exactly the signatures of

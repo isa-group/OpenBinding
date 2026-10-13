@@ -16,6 +16,7 @@ from bim_core import (
     CompileError,
     ContractError,
     EvaluationError,
+    InstancePackage,
     Limits,
     ProtocolError,
     analyze_neighborhood,
@@ -26,6 +27,7 @@ from bim_core import (
     dialect_descriptor,
     digest,
     digest_bytes,
+    engine_contract_diagnostics,
     evaluate,
     evaluate_many,
     load_package,
@@ -34,6 +36,7 @@ from bim_core import (
     protocol_document,
     reevaluate_result,
     resolve_optimization,
+    resource_schema_diagnostics,
     toolchain_identity,
     validate_result,
 )
@@ -68,6 +71,10 @@ from .types import (
 )
 
 SCHEMA_KINDS = {**SCHEMA_FILES, "BindingProblem": "binding-problem.schema.json"}
+
+
+def _engine_contract_invalid(message: str) -> dict[str, str]:
+    return {"code": "engine_contract_invalid", "message": message, "pointer": "/spec"}
 
 
 def _input_digest(package_digest: str, registered: Sequence[wire.Registered]) -> str:
@@ -151,7 +158,8 @@ def _static_capabilities() -> dict[str, Any]:
 
 
 class InProcessBim:
-    """BIM in this process.  ``limits`` are the package limits (default: those of ``bim_core``)."""
+    """BIM in this process.  ``limits`` are the package limits (default: those of ``bim_core``), also applied to the
+    size of a standalone XML resource."""
 
     def __init__(self, limits: Limits | None = None) -> None:
         self._limits = limits if limits is not None else default_limits()
@@ -370,3 +378,60 @@ class InProcessBim:
         return wire.output(
             analyze_neighborhood(problem, selection, task=name, limit=count, seconds=budget, execution=plan)
         )
+
+    # --- single documents (``BimResourcePort``) ------------------------------------------------
+
+    @wire.normalized
+    def validate_resource(
+        self,
+        document: Mapping[str, Any],
+        api_version: Any,
+        kind: Any,
+        media_type: Any,
+        resource: str,
+        dialects: Sequence[Mapping[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
+        body = wire.require_object(document, "document")
+        # The type is looked up by equality, as ``bim_core`` does: an identity that matches nothing is a
+        # ``schema_unavailable`` diagnostic, not a refused request.
+        identity = (
+            wire.strict_json(api_version, "apiVersion"),
+            wire.strict_json(kind, "kind"),
+            wire.strict_json(media_type, "mediaType"),
+        )
+        name = wire.required_text(resource, "resource")
+        considered = wire.optional_objects(dialects, "dialects")
+        found = resource_schema_diagnostics(body, *identity, name, considered)
+        return wire.output([item.as_dict() for item in found])
+
+    @wire.normalized
+    def validate_engine(self, document: Mapping[str, Any]) -> list[dict[str, Any]]:
+        engine = wire.require_object(document, "document")
+        # ``engine_contract_diagnostics`` raises on a ``spec`` that is not an object; that is a finding, not a failure.
+        if "spec" in engine and not isinstance(engine["spec"], Mapping):
+            return wire.output([_engine_contract_invalid("engine document 'spec' must be an object")])
+        try:
+            return wire.output(engine_contract_diagnostics(engine))
+        except (AttributeError, KeyError, TypeError):
+            return wire.output([_engine_contract_invalid("engine document does not have the shape of an engine contract")])
+
+    @wire.normalized
+    def xml_resource_root(self, content: bytes) -> dict[str, str]:
+        root = _xml_resource(content, self._limits).xml_root("resource.xml")
+        tag = root.tag
+        if isinstance(tag, str) and tag.startswith("{") and "}" in tag:
+            namespace, local_name = tag[1:].split("}", 1)
+        else:
+            namespace, local_name = "", str(tag)
+        return {"namespace": namespace, "localName": local_name}
+
+    @wire.normalized
+    def validate_bpmn_resource(self, content: bytes) -> dict[str, bool]:
+        _xml_resource(content, self._limits).xml("resource.xml")
+        return {"valid": True}
+
+
+def _xml_resource(content: bytes, limits: Limits) -> InstancePackage:
+    return InstancePackage(
+        {"instance.json": b"{}", "resource.xml": wire.binary(content, "content")}, limits=limits
+    )

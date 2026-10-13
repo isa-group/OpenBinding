@@ -63,10 +63,42 @@ queues, persistence, the artifact library, studies, reports, the resolver or the
 HTTP routes. See [ARCHITECTURE.md](ARCHITECTURE.md#the-bim--platform-boundary).
 Engine manifests are a platform catalogue.
 
-The only direct `bim_core` use left in the gateway is `integrations/bim_host.py`
-(resource-level schema and XML validation, and the Engine manifest contract). It
-is guarded by the startup `compilerDigest` comparison and by
-`tests/test_bim_boundary.py`. `schemas/bim/v1` and the Engine contract YAML stay in
+Checks about a single document (resource schema validation, secure XML parse and
+BPMN XSD validation, the Engine manifest contract) go through
+`bim_client.BimResourcePort`, an extension of `BimPort` implemented by
+`InProcessBim` (with `bim_core`) and by `HttpBim` (over the `bim-service`
+endpoints below). `integrations/bim_host.py` asks the port of the process and
+nothing else: it has no import of `bim_core`, and `dialect_type_matches` and
+`dialect_xml_type_matches` are computed there over the manifests that
+`dialects()` returned.
+
+### bim-service endpoints for single documents
+
+The BIM frontier is closed: `bim-service` publishes these operations
+(`contracts/openapi/bim-service.v1.json`), `HttpBim` implements them, and with
+`BIM_MODE=http` the gateway runs no BIM validation in its own process. Request
+bodies are JSON, errors are `application/problem+json` as elsewhere, and the
+routes need the same bearer token and obey the same body limit as the others.
+
+| Method and path | Body | Response 200 |
+| --- | --- | --- |
+| `POST /bim/v1/resources/validate` | `{document: object, apiVersion, kind, mediaType, resource: string, dialects: [manifest] \| null}` | `{diagnostics: [{code, message, resource, pointer, ...}]}` (empty when valid) |
+| `POST /bim/v1/engines/validate` | `{document: object}` | `{diagnostics: [{code, message, ...}]}` (empty when valid) |
+| `POST /bim/v1/resources/xml/root` | `{contentBase64: string}` | `{namespace: string, localName: string}`; `PackageError` problem if the XML is malformed, not UTF-8 or uses a forbidden construct |
+| `POST /bim/v1/resources/xml/validate-bpmn` | `{contentBase64: string}` | `{valid: true}`; `PackageError` problem if it does not conform to OMG BPMN 2.0.2 |
+
+The semantics and errors are those of `InProcessBim.validate_resource`,
+`validate_engine`, `xml_resource_root` and `validate_bpmn_resource`; the
+toolchain's equivalence tests compare the two implementations. The boundary test
+(`tests/test_bim_boundary.py`) allows `bim_host.py` no name beyond the error
+classes (its `EXTRA` entry is empty), and `tests/test_bim_port_host.py` asserts
+that it imports nothing from the toolchain and that, over HTTP, each operation is
+one request to its endpoint. `BimOperationUnavailable` is still exported by
+`bim_client` for compatibility, but nothing raises it. The startup
+`compilerDigest` comparison stays: the gateway keeps `bim-core` for the error
+classes and for canonical hashing.
+
+`schemas/bim/v1` and the Engine contract YAML stay in
 the repository; `tests/test_bim_schema_parity.py` asserts they are byte-equal to
 the resources shipped in `bim_core`.
 

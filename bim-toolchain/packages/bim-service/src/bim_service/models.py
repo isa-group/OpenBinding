@@ -99,6 +99,27 @@ class NeighborhoodRequest(_Closed):
     execution: JsonObject | None = None
 
 
+class ResourceValidateRequest(_Closed):
+    """One resource document against the schema of the installed Dialect that claims its type."""
+
+    document: JsonObject
+    apiVersion: JsonValue = Field(description="With `kind` and `mediaType`, the type the document claims.")
+    kind: JsonValue
+    mediaType: JsonValue
+    resource: str = Field(description="Name that the diagnostics give to the document.")
+    dialects: list[JsonObject] | None = Field(
+        default=None, description="Restricts the Dialects considered (manifests as `/dialects` returns them)."
+    )
+
+
+class EngineValidateRequest(_Closed):
+    document: JsonObject = Field(description="The Engine manifest (`kind: Engine`).")
+
+
+class XmlResourceRequest(_Closed):
+    contentBase64: str = Field(description="The exact bytes of the XML resource, base64 encoded.")
+
+
 # --- responses (documentation) ---------------------------------------------------------------------
 
 
@@ -170,6 +191,19 @@ class EvaluateResponse(BaseModel):
 class ValidateResultResponse(BaseModel):
     valid: bool
     error: dict[str, Any] | None = Field(default=None, description="`{code, message}` of the first violation.")
+
+
+class DiagnosticsResponse(BaseModel):
+    diagnostics: list[dict[str, Any]] = Field(description="Empty when the document is valid.")
+
+
+class XmlRootResponse(BaseModel):
+    namespace: str = Field(description="Empty when the root element has no namespace.")
+    localName: str
+
+
+class XmlValidResponse(BaseModel):
+    valid: Literal[True]
 
 
 class Health(BaseModel):

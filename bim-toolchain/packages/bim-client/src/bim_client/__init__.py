@@ -5,9 +5,18 @@ raise the same errors (see ``docs/CLIENT.md``).  Nothing is read from the enviro
 """
 
 from ._version import __version__
-from .errors import BimServiceError, exception_from_problem
+from .errors import BimOperationUnavailable, BimServiceError, exception_from_problem
 from .http import HttpBim
 from .inprocess import InProcessBim
-from .port import BimPort
+from .port import BimPort, BimResourcePort
 
-__all__ = ["BimPort", "BimServiceError", "HttpBim", "InProcessBim", "__version__", "exception_from_problem"]
+__all__ = [
+    "BimOperationUnavailable",
+    "BimPort",
+    "BimResourcePort",
+    "BimServiceError",
+    "HttpBim",
+    "InProcessBim",
+    "__version__",
+    "exception_from_problem",
+]

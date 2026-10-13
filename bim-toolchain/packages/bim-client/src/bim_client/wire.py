@@ -59,6 +59,18 @@ def optional_object(value: Any, name: str) -> dict[str, Any] | None:
     return None if value is None else require_object(value, name)
 
 
+def optional_objects(value: Any, name: str) -> list[dict[str, Any]] | None:
+    """``value`` as a list of JSON objects (``None`` stays ``None``), or ``request_invalid``."""
+    if value is None:
+        return None
+    if isinstance(value, (str, bytes, bytearray, Mapping)) or not isinstance(value, Sequence):
+        raise request_invalid(f"{name} must be a list of objects", f"/{name}")
+    items = strict_json(list(value), name)
+    if not all(isinstance(item, dict) for item in items):
+        raise request_invalid(f"{name} must be a list of objects", f"/{name}")
+    return items
+
+
 def ir_document(ir: Any) -> dict[str, Any]:
     """The IR document of ``ir``: a mapping, or an object with a ``document`` attribute."""
     return require_object(getattr(ir, "document", ir), "ir")
@@ -88,10 +100,20 @@ def choice(value: Any, name: str, allowed: tuple[str, ...]) -> str:
     return value
 
 
-def package_bytes(value: Any) -> bytes:
+def required_text(value: Any, name: str) -> str:
+    if not isinstance(value, str):
+        raise request_invalid(f"{name} must be a string", f"/{name}")
+    return value
+
+
+def binary(value: Any, name: str) -> bytes:
     if not isinstance(value, (bytes, bytearray, memoryview)):
-        raise request_invalid("package must be bytes", "/package")
+        raise request_invalid(f"{name} must be bytes", f"/{name}")
     return bytes(value)
+
+
+def package_bytes(value: Any) -> bytes:
+    return binary(value, "package")
 
 
 @dataclass(frozen=True)

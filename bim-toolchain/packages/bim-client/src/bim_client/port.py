@@ -133,3 +133,41 @@ class BimPort(Protocol):
     def close(self) -> None:
         """Release what the implementation holds (connections); calling it twice is fine."""
         ...
+
+
+@runtime_checkable
+class BimResourcePort(Protocol):
+    """Checks about *one document* rather than a package; an extension of :class:`BimPort`.
+
+    ``InProcessBim`` implements them with ``bim_core``; ``HttpBim`` sends them to ``POST /bim/v1/resources/validate``,
+    ``/engines/validate``, ``/resources/xml/root`` and ``/resources/xml/validate-bpmn`` of ``bim-service``.  Both
+    return the same values and raise the same errors, like the operations of :class:`BimPort`.  They are kept apart
+    from ``BimPort`` so that the base port stays what a package-centred host needs.
+    """
+
+    def validate_resource(
+        self,
+        document: Mapping[str, Any],
+        api_version: Any,
+        kind: Any,
+        media_type: Any,
+        resource: str,
+        dialects: Sequence[Mapping[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Diagnostics of ``document`` against the schema of the installed Dialect that claims its type (empty if valid).
+
+        ``dialects`` restricts the Dialects considered (manifests as ``dialects()`` returns them).
+        """
+        ...
+
+    def validate_engine(self, document: Mapping[str, Any]) -> list[dict[str, Any]]:
+        """Diagnostics of an Engine manifest against the installed Profile it declares (empty if valid)."""
+        ...
+
+    def xml_resource_root(self, content: bytes) -> dict[str, str]:
+        """``{namespace, localName}`` of the root of an XML resource, parsed securely; ``PackageError`` if refused."""
+        ...
+
+    def validate_bpmn_resource(self, content: bytes) -> dict[str, bool]:
+        """``{valid: True}`` if ``content`` conforms to OMG BPMN 2.0.2; ``PackageError`` otherwise."""
+        ...

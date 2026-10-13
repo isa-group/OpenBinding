@@ -31,6 +31,8 @@ from .models import (
     CompatibilityRequest,
     CompatibilityResponse,
     CompileResponse,
+    DiagnosticsResponse,
+    EngineValidateRequest,
     EvaluateRequest,
     EvaluateResponse,
     Health,
@@ -40,14 +42,18 @@ from .models import (
     PackageRequest,
     Problem,
     ReevaluateRequest,
+    ResourceValidateRequest,
     ValidateResponse,
     ValidateResultRequest,
     ValidateResultResponse,
+    XmlResourceRequest,
+    XmlRootResponse,
+    XmlValidResponse,
 )
 from .problems import ServiceProblem, bim_error_problem, problem_response, respond
 from .runtime import Gate
 from .settings import BimServiceSettings
-from .wire import decode_package_request, request_invalid, validation_diagnostics
+from .wire import decode_base64, decode_package_request, request_invalid, validation_diagnostics
 
 logger = logging.getLogger("bim_service")
 
@@ -225,6 +231,57 @@ def _router() -> APIRouter:
             request, operations.neighborhood, body.ir, body.binding, body.task, body.limit, body.seconds, body.execution
         )
 
+    @router.post(
+        "/resources/validate",
+        operation_id="validateResource",
+        summary="A resource document against the schema of the installed Dialect that claims its type",
+        response_model=None,
+        responses={200: {"model": DiagnosticsResponse, "description": "The findings; empty when the document is valid."}},
+    )
+    async def validate_resource(body: ResourceValidateRequest, request: Request) -> Response:
+        return await _run(
+            request,
+            operations.validate_resource,
+            body.document,
+            body.apiVersion,
+            body.kind,
+            body.mediaType,
+            body.resource,
+            body.dialects,
+        )
+
+    @router.post(
+        "/engines/validate",
+        operation_id="validateEngine",
+        summary="An Engine manifest against the installed Profile it declares",
+        response_model=None,
+        responses={200: {"model": DiagnosticsResponse, "description": "The findings; empty when the manifest is valid."}},
+    )
+    async def validate_engine(body: EngineValidateRequest, request: Request) -> Response:
+        return await _run(request, operations.validate_engine, body.document)
+
+    @router.post(
+        "/resources/xml/root",
+        operation_id="xmlResourceRoot",
+        summary="The root element of a standalone XML resource, parsed securely",
+        response_model=None,
+        responses={200: {"model": XmlRootResponse}},
+    )
+    async def xml_resource_root(body: XmlResourceRequest, request: Request) -> Response:
+        content = decode_base64(body.contentBase64, "/contentBase64")
+        return await _run(request, operations.xml_resource_root, content, _settings(request).limits)
+
+    @router.post(
+        "/resources/xml/validate-bpmn",
+        operation_id="validateBpmnResource",
+        summary="A standalone XML resource against OMG BPMN 2.0.2",
+        response_model=None,
+        responses={200: {"model": XmlValidResponse}},
+    )
+    async def validate_bpmn_resource(body: XmlResourceRequest, request: Request) -> Response:
+        content = decode_base64(body.contentBase64, "/contentBase64")
+        return await _run(request, operations.validate_bpmn_resource, content, _settings(request).limits)
+
     return router
 
 
@@ -306,7 +363,8 @@ def build_app(settings: BimServiceSettings, authenticator: Authenticator) -> Fas
         summary="Stateless HTTP API over the BIM toolchain",
         description=(
             f"`{API_VERSION}`: compile and validate BIM v1 packages, check Engine compatibility, evaluate and "
-            "re-evaluate bindings and analyse their neighbourhood. No state, no database; every answer is a pure "
+            "re-evaluate bindings and analyse their neighbourhood, and check single documents (a resource, an "
+            "Engine manifest, a standalone XML resource). No state, no database; every answer is a pure "
             "function of the request and the installed toolchain. Errors are `application/problem+json`."
         ),
         openapi_url=f"{API_PREFIX}/openapi.json",

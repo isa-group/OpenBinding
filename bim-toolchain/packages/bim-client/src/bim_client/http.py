@@ -334,3 +334,43 @@ class HttpBim:
             "execution": wire.optional_object(execution, "execution"),
         }
         return self._call("POST", "/neighborhood", body)
+
+    # --- single documents (``BimResourcePort``) ------------------------------------------------
+
+    @wire.normalized
+    def validate_resource(
+        self,
+        document: Mapping[str, Any],
+        api_version: Any,
+        kind: Any,
+        media_type: Any,
+        resource: str,
+        dialects: Sequence[Mapping[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
+        body = {
+            "document": wire.require_object(document, "document"),
+            "apiVersion": wire.strict_json(api_version, "apiVersion"),
+            "kind": wire.strict_json(kind, "kind"),
+            "mediaType": wire.strict_json(media_type, "mediaType"),
+            "resource": wire.required_text(resource, "resource"),
+            "dialects": wire.optional_objects(dialects, "dialects"),
+        }
+        return self._call("POST", "/resources/validate", body)["diagnostics"]
+
+    @wire.normalized
+    def validate_engine(self, document: Mapping[str, Any]) -> list[dict[str, Any]]:
+        return self._call("POST", "/engines/validate", {"document": wire.require_object(document, "document")})[
+            "diagnostics"
+        ]
+
+    @wire.normalized
+    def xml_resource_root(self, content: bytes) -> dict[str, str]:
+        return self._call("POST", "/resources/xml/root", self._content_body(content))
+
+    @wire.normalized
+    def validate_bpmn_resource(self, content: bytes) -> dict[str, bool]:
+        return self._call("POST", "/resources/xml/validate-bpmn", self._content_body(content))
+
+    @staticmethod
+    def _content_body(content: bytes) -> dict[str, str]:
+        return {"contentBase64": base64.b64encode(wire.binary(content, "content")).decode("ascii")}

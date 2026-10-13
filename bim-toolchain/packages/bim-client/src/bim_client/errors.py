@@ -52,6 +52,22 @@ class BimServiceError(BimError):
         return result
 
 
+class BimOperationUnavailable(BimServiceError):
+    """The implementation has no way to perform this operation (the service publishes no endpoint for it).
+
+    Nothing raises it since ``bim-service`` publishes the endpoints of ``BimResourcePort``; it stays exported for
+    code written against the earlier ``HttpBim``, and for a ``BimResourcePort`` implementation that lacks one.
+    """
+
+    def __init__(self, operation: str, missing: str) -> None:
+        super().__init__(
+            "operation_unavailable",
+            f"{operation} is not available over HTTP: bim-service has no {missing}",
+            status=501,
+        )
+        self.operation = operation
+
+
 def _diagnostic(item: Mapping[str, Any]) -> CompileDiagnostic:
     return CompileDiagnostic(
         code=str(item.get("code", "")),

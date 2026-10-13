@@ -18,6 +18,7 @@ from bim_core import (
     CompileError,
     ContractError,
     EvaluationError,
+    InstancePackage,
     Limits,
     ProtocolError,
     analyze_neighborhood,
@@ -27,6 +28,7 @@ from bim_core import (
     dialect_descriptor,
     digest,
     digest_bytes,
+    engine_contract_diagnostics,
     evaluate_many,
     load_package,
     profile_descriptor,
@@ -34,6 +36,7 @@ from bim_core import (
     protocol_document,
     reevaluate_result,
     resolve_optimization,
+    resource_schema_diagnostics,
     toolchain_identity,
     validate_result,
 )
@@ -238,6 +241,56 @@ def neighborhood(
         seconds=seconds,
         execution=dict(execution) if execution is not None else None,
     )
+
+
+# --- single documents ------------------------------------------------------------------------------
+
+
+def validate_resource(
+    document: Mapping[str, Any],
+    api_version: Any,
+    kind: Any,
+    media_type: Any,
+    resource: str,
+    dialects: Sequence[Mapping[str, Any]] | None,
+) -> dict[str, Any]:
+    found = resource_schema_diagnostics(
+        dict(document), api_version, kind, media_type, resource, None if dialects is None else list(dialects)
+    )
+    return {"diagnostics": [item.as_dict() for item in found]}
+
+
+def validate_engine(document: Mapping[str, Any]) -> dict[str, Any]:
+    # ``engine_contract_diagnostics`` raises on a ``spec`` that is not an object; that is a finding, not a failure.
+    if "spec" in document and not isinstance(document["spec"], Mapping):
+        return {"diagnostics": [_engine_contract_invalid("engine document 'spec' must be an object")]}
+    try:
+        return {"diagnostics": engine_contract_diagnostics(document)}
+    except (AttributeError, KeyError, TypeError):
+        return {"diagnostics": [_engine_contract_invalid("engine document does not have the shape of an engine contract")]}
+
+
+def _engine_contract_invalid(message: str) -> dict[str, str]:
+    return {"code": "engine_contract_invalid", "message": message, "pointer": "/spec"}
+
+
+def _xml_resource(content: bytes, limits: Limits) -> InstancePackage:
+    # The package limits bound the resource as they bound an entry of a package.
+    return InstancePackage({"instance.json": b"{}", "resource.xml": content}, limits=limits)
+
+
+def xml_resource_root(content: bytes, limits: Limits) -> dict[str, str]:
+    tag = _xml_resource(content, limits).xml_root("resource.xml").tag
+    if isinstance(tag, str) and tag.startswith("{") and "}" in tag:
+        namespace, local_name = tag[1:].split("}", 1)
+    else:
+        namespace, local_name = "", str(tag)
+    return {"namespace": namespace, "localName": local_name}
+
+
+def validate_bpmn_resource(content: bytes, limits: Limits) -> dict[str, bool]:
+    _xml_resource(content, limits).xml("resource.xml")
+    return {"valid": True}
 
 
 # --- descriptors (cheap, cached: the installed toolchain does not change while the process lives) -----

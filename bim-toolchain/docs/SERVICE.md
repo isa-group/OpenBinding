@@ -1,8 +1,9 @@
 # bim-service
 
 A stateless HTTP API over `bim-core`. It compiles and validates BIM packages, tells whether an Engine mode can run an
-IR, evaluates and re-evaluates bindings, checks the shape of an engine result and analyses the neighbourhood of a
-binding. It is `bim_core` behind HTTP and adds nothing to its semantics.
+IR, evaluates and re-evaluates bindings, checks the shape of an engine result, analyses the neighbourhood of a
+binding and checks single documents (a resource against its Dialect, an Engine manifest, a standalone XML resource).
+It is `bim_core` behind HTTP and adds nothing to its semantics.
 
 The contract is `contracts/openapi/bim-service.v1.json` (generated from the application; `tools/dump_service_openapi.py
 --check` fails when it is out of date). The version of the HTTP API is `bim-service/v1`; every route is under `/bim/v1`.
@@ -47,11 +48,17 @@ All `/bim/v1` routes need `Authorization: Bearer <token>`; `/healthz` and `/read
 | `POST /bim/v1/reevaluate` | the authoritative result for an engine's answer | `{ir, result, execution?, allowedTerminations?}` | `{termination, solutions, provenance}` |
 | `POST /bim/v1/validate-result` | is `result` shaped like a `bim-engine/v1` result? (shape only) | `{result}` | `{valid, error: {code, message} \| null}` |
 | `POST /bim/v1/neighborhood` | evaluate the one-task alternatives of a binding | `{ir, binding, task?, limit?, seconds?, execution?}` | the analysis of `bim_core.analyze_neighborhood` |
+| `POST /bim/v1/resources/validate` | a resource document against the schema of the installed Dialect that claims its type | `{document: object, apiVersion, kind, mediaType, resource: string, dialects?: [manifest] \| null}` | `{diagnostics: [{code, message, resource, pointer, ...}]}` (empty when valid) |
+| `POST /bim/v1/engines/validate` | an Engine manifest against the installed Profile it declares | `{document: object}` | `{diagnostics: [{code, message, ...}]}` (empty when valid) |
+| `POST /bim/v1/resources/xml/root` | the root element of a standalone XML resource, parsed securely | `{contentBase64: string}` | `{namespace, localName}` (`namespace` is `""` without one); 422 `package_error` if the XML is malformed, not UTF-8 or uses a forbidden construct |
+| `POST /bim/v1/resources/xml/validate-bpmn` | a standalone XML resource against OMG BPMN 2.0.2 | `{contentBase64: string}` | `{valid: true}`; 422 `package_error` if it does not conform (or is refused as above) |
 
 How each maps to `bim_core`: `compile`/`validate` → `load_package` + `compile_instance` (+ `RegisteredResource`);
 `compatibility` → `resolve_engine_mode` + `mode_compatibility`; `optimization/resolve` → `resolve_engine_mode` +
 `resolve_optimization`; `evaluate` → `evaluate_many`; `reevaluate` → `reevaluate_result`; `validate-result` →
-`validate_result`; `neighborhood` → `analyze_neighborhood`; the IR of every request goes through
+`validate_result`; `neighborhood` → `analyze_neighborhood`; `resources/validate` → `resource_schema_diagnostics`;
+`engines/validate` → `engine_contract_diagnostics`; `resources/xml/root` and `resources/xml/validate-bpmn` →
+`InstancePackage.xml_root` and `.xml` over a package of the one resource; the IR of every request goes through
 `BindingProblem.from_document` (so it must be an IR of *this* toolchain: `contract_not_installed` otherwise, see
 `DIGESTS.md`). The descriptors are `toolchain_identity`, `profile_descriptor`, `dialect_descriptor`, `protocol_digest`,
 `protocol_document` and the bundled schemas.
@@ -75,6 +82,20 @@ How each maps to `bim_core`: `compile`/`validate` → `load_package` + `compile_
   order of the catalog's keys: the IR compiled from a package can list them in another order than the IR compiled
   from the directory it was made from (`test_equivalence.py` shows that nothing else differs). Compile the package that
   you will keep.
+
+### Single documents
+
+* A finding is data: `resources/validate` and `engines/validate` answer 200 with the `diagnostics` that `bim_core`
+  returns (an identity that no installed Dialect claims is a `schema_unavailable` diagnostic, not an error). `apiVersion`,
+  `kind` and `mediaType` are any JSON value, compared by equality; `dialects`, when given, restricts the Dialects
+  considered (manifests as `GET /dialects` returns them).
+* `contentBase64` is strict base64 (no whitespace, no missing padding, no alphabet other than the standard one); anything
+  else is 422 `request_invalid` with the pointer `/contentBase64`. The XML is never resolved against the network or
+  the file system: a DTD, an entity declaration, an XInclude or a `schemaLocation` anywhere in the document is refused
+  with 422 `package_error` ("XML uses a forbidden external construct") before it is parsed.
+* The size of a request is bounded by `BIM_SERVICE_MAX_BODY_BYTES` like every body (413), and the decoded XML by
+  `BIM_MAX_ENTRY_BYTES`, as an entry of a package would be (422 `package_error`).
+* These routes run in the same worker pool as the others, so concurrency, tenant share and time budget apply.
 
 ### JSON
 
@@ -116,6 +137,7 @@ Problems about the service rather than the input have no `errorType`:
 | 404 | `not_found`, `schema_not_found` | unknown route; unknown schema kind |
 | 405 | `method_not_allowed` | wrong method (with `Allow`) |
 | 413 | `payload_too_large` | the body exceeds `BIM_SERVICE_MAX_BODY_BYTES`; the connection is closed |
+| 422 | `package_error` | (a `PackageError`, with `errorType`) `resources/xml/*`: the XML is malformed, not UTF-8, forbidden, over `BIM_MAX_ENTRY_BYTES` or not conformant BPMN |
 | 415 | `unsupported_media_type` | `/compile` and `/validate` take JSON or `multipart/form-data` |
 | 422 | `request_invalid` | the body does not match the contract (a `ContractError`; `diagnostics` hold JSON pointers and messages, never the offending values) |
 | 422 | `limit_exceeded` | more bindings, registered resources or `seconds` than the service allows |

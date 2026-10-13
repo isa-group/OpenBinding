@@ -7,7 +7,30 @@ changes anything else.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- `POST /bim/v1/engines/validate` and `InProcessBim.validate_engine` answer an engine document whose `spec` is not
+  an object with the diagnostic `{code: "engine_contract_invalid", message, pointer: "/spec"}` instead of a 500 /
+  `AttributeError` raised by `bim_core.engine_contract_diagnostics` (which is unchanged). The OpenAPI schema does not change.
+
+### Added
+
+- `bim-service`: four endpoints for single documents, additive within `bim-service/v1` (a MINOR change of the HTTP API;
+  `bim-core` is untouched): `POST /bim/v1/resources/validate`, `POST /bim/v1/engines/validate`,
+  `POST /bim/v1/resources/xml/root` and `POST /bim/v1/resources/xml/validate-bpmn`. Same bearer authentication, body
+  limit and `application/problem+json` errors as the other `POST` routes; the XML is bounded by the package entry
+  limit and refused when it declares a DTD, an entity, an XInclude or a `schemaLocation`.
+  `contracts/openapi/bim-service.v1.json` is regenerated.
+- `bim-client`: `BimResourcePort` (`validate_resource`, `validate_engine`, `xml_resource_root`, `validate_bpmn_resource`),
+  implemented by `InProcessBim` with `bim-core` and by `HttpBim` over the new endpoints. `InProcessBim` applies its
+  package `Limits` to a standalone XML resource.
+
+### Changed
+
+- `bim-client`: `HttpBim` no longer raises `BimOperationUnavailable` for those four operations; it sends them.
+  `BimOperationUnavailable` stays exported (compatibility) but nothing raises it.
+
+The version numbers are unchanged: `0.1.0` has not been released, so these additions belong to it.
 
 ## [0.1.0] - not released
 

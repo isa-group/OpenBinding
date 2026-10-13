@@ -151,6 +151,40 @@
         "title": "CompileResponse",
         "type": "object"
       },
+      "DiagnosticsResponse": {
+        "properties": {
+          "diagnostics": {
+            "description": "Empty when the document is valid.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          }
+        },
+        "required": [
+          "diagnostics"
+        ],
+        "title": "DiagnosticsResponse",
+        "type": "object"
+      },
+      "EngineValidateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "document": {
+            "additionalProperties": true,
+            "description": "The Engine manifest (`kind: Engine`).",
+            "title": "Document",
+            "type": "object"
+          }
+        },
+        "required": [
+          "document"
+        ],
+        "title": "EngineValidateRequest",
+        "type": "object"
+      },
       "EvaluateRequest": {
         "additionalProperties": false,
         "properties": {
@@ -526,6 +560,57 @@
         "title": "RegisteredResourceModel",
         "type": "object"
       },
+      "ResourceValidateRequest": {
+        "additionalProperties": false,
+        "description": "One resource document against the schema of the installed Dialect that claims its type.",
+        "properties": {
+          "apiVersion": {
+            "description": "With `kind` and `mediaType`, the type the document claims.",
+            "title": "Apiversion"
+          },
+          "dialects": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Restricts the Dialects considered (manifests as `/dialects` returns them).",
+            "title": "Dialects"
+          },
+          "document": {
+            "additionalProperties": true,
+            "title": "Document",
+            "type": "object"
+          },
+          "kind": {
+            "title": "Kind"
+          },
+          "mediaType": {
+            "title": "Mediatype"
+          },
+          "resource": {
+            "description": "Name that the diagnostics give to the document.",
+            "title": "Resource",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document",
+          "apiVersion",
+          "kind",
+          "mediaType",
+          "resource"
+        ],
+        "title": "ResourceValidateRequest",
+        "type": "object"
+      },
       "ToolchainBlock": {
         "properties": {
           "apiVersion": {
@@ -685,6 +770,54 @@
         ],
         "title": "ValidateResultResponse",
         "type": "object"
+      },
+      "XmlResourceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "contentBase64": {
+            "description": "The exact bytes of the XML resource, base64 encoded.",
+            "title": "Contentbase64",
+            "type": "string"
+          }
+        },
+        "required": [
+          "contentBase64"
+        ],
+        "title": "XmlResourceRequest",
+        "type": "object"
+      },
+      "XmlRootResponse": {
+        "properties": {
+          "localName": {
+            "title": "Localname",
+            "type": "string"
+          },
+          "namespace": {
+            "description": "Empty when the root element has no namespace.",
+            "title": "Namespace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "localName"
+        ],
+        "title": "XmlRootResponse",
+        "type": "object"
+      },
+      "XmlValidResponse": {
+        "properties": {
+          "valid": {
+            "const": true,
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid"
+        ],
+        "title": "XmlValidResponse",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -696,7 +829,7 @@
     }
   },
   "info": {
-    "description": "`bim-service/v1`: compile and validate BIM v1 packages, check Engine compatibility, evaluate and re-evaluate bindings and analyse their neighbourhood. No state, no database; every answer is a pure function of the request and the installed toolchain. Errors are `application/problem+json`.",
+    "description": "`bim-service/v1`: compile and validate BIM v1 packages, check Engine compatibility, evaluate and re-evaluate bindings and analyse their neighbourhood, and check single documents (a resource, an Engine manifest, a standalone XML resource). No state, no database; every answer is a pure function of the request and the installed toolchain. Errors are `application/problem+json`.",
     "summary": "Stateless HTTP API over the BIM toolchain",
     "title": "BIM service",
     "version": "0.1.0"
@@ -1048,6 +1181,94 @@
           }
         },
         "summary": "Installed Dialects"
+      }
+    },
+    "/bim/v1/engines/validate": {
+      "post": {
+        "operationId": "validateEngine",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngineValidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiagnosticsResponse"
+                }
+              }
+            },
+            "description": "The findings; empty when the manifest is valid."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token."
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request body exceeds the configured size."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The input is invalid; `code` and `diagnostics` say why."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unexpected failure of the service."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "All slots are busy, or the operation ran out of time."
+          }
+        },
+        "summary": "An Engine manifest against the installed Profile it declares"
       }
     },
     "/bim/v1/evaluate": {
@@ -1548,6 +1769,270 @@
           }
         },
         "summary": "Replace an engine's claims with the authoritative evaluation"
+      }
+    },
+    "/bim/v1/resources/validate": {
+      "post": {
+        "operationId": "validateResource",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceValidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiagnosticsResponse"
+                }
+              }
+            },
+            "description": "The findings; empty when the document is valid."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token."
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request body exceeds the configured size."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The input is invalid; `code` and `diagnostics` say why."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unexpected failure of the service."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "All slots are busy, or the operation ran out of time."
+          }
+        },
+        "summary": "A resource document against the schema of the installed Dialect that claims its type"
+      }
+    },
+    "/bim/v1/resources/xml/root": {
+      "post": {
+        "operationId": "xmlResourceRoot",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/XmlResourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/XmlRootResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token."
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request body exceeds the configured size."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The input is invalid; `code` and `diagnostics` say why."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unexpected failure of the service."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "All slots are busy, or the operation ran out of time."
+          }
+        },
+        "summary": "The root element of a standalone XML resource, parsed securely"
+      }
+    },
+    "/bim/v1/resources/xml/validate-bpmn": {
+      "post": {
+        "operationId": "validateBpmnResource",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/XmlResourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/XmlValidResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token."
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request body exceeds the configured size."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The input is invalid; `code` and `diagnostics` say why."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unexpected failure of the service."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "All slots are busy, or the operation ran out of time."
+          }
+        },
+        "summary": "A standalone XML resource against OMG BPMN 2.0.2"
       }
     },
     "/bim/v1/schemas/{kind}": {

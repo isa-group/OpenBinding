@@ -2,9 +2,10 @@
 
 ``integrations/bim.py`` builds the ``BimPort`` and everything else asks it. The platform may also import
 from ``bim_core`` the canonical hashing it shares with the toolchain (``bim_core.canonical``) and the error
-classes it translates; two documented helpers about a *single* document that the port has no operation for
-live in ``integrations/bim_host.py``. Nothing of the language (compiler, package loader, evaluator,
-expressions, compatibility, protocol) may be imported, and ``bim_service`` is never a dependency.
+classes it translates. ``integrations/bim_host.py`` asks the port for the checks about a *single* document and
+imports nothing from ``bim_core``: with ``BIM_MODE=http`` they run in the service. Nothing of the language
+(compiler, package loader, evaluator, expressions, compatibility, protocol) may be imported, and ``bim_service``
+is never a dependency.
 """
 
 from __future__ import annotations
@@ -27,15 +28,11 @@ ERRORS = frozenset({
 })
 
 #: What a module may import from ``bim_core`` beyond ``ERRORS`` and ``bim_core.canonical``, by file.
+#: ``bim_host`` reaches BIM only through the port (the document checks run in bim-service with ``BIM_MODE=http``),
+#: so its entry is empty: it imports nothing from ``bim_core`` beyond ``ERRORS``.
 EXTRA = {
     "integrations/bim.py": frozenset({"Limits"}),
-    "integrations/bim_host.py": frozenset({
-        "InstancePackage",
-        "dialect_type_matches",
-        "dialect_xml_type_matches",
-        "engine_contract_diagnostics",
-        "resource_schema_diagnostics",
-    }),
+    "integrations/bim_host.py": frozenset(),
 }
 
 #: The one module that knows which implementations of the port exist.
