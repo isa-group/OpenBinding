@@ -380,3 +380,8 @@ which one failed.
 9. `SpaceRemote` replaces the SDK's private `_http_client` only when a test passes a simulated transport.
 10. *Resolved:* the lab mount of `tools/` at `/app/tools` and the `lab_compose seed` invocation worked on 2026-10-13
     (`seed_lab.py`, `smoke_lab.py`). `--space-contracts` has not been run against a real SPACE.
+11. *Partly resolved:* anonymous privacy of the private development pricing `openbinding-dev@0.1.0` in SPHERE
+    (observed 2026-10-13, see [SPHERE_PRIVACY.md](SPHERE_PRIVACY.md)). Verified: not listed (`total: 0`), 404 by
+    name, 403 on the static YAML (indistinguishable from a nonexistent file). **Not verified:** the by-id route
+    `configuration-space` (no public control returned 200). The 33 class B counters it keeps are an unresolved
+    historical concession, classified in that document.
