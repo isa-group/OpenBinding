@@ -110,6 +110,24 @@ describe('the Playwright specs', () => {
       expect(read(`${root}/playwright.config.ts`)).not.toContain('E2E_RESULTS_DIR');
     });
 
+    it('renders the summary as an image after summary.mjs and before done, and never fails the run', () => {
+      const script = ts.sys.readFile(`${live}/summary-image.mjs`) ?? '';
+      expect(script).toContain("import { chromium } from '@playwright/test'");
+      expect(script).toContain("import { aggregate } from './summary.mjs'");
+      expect(script).toContain('screenshots/_summary.png');
+      expect(script).toContain('fullPage: true');
+      expect(script).toContain('width: 1200');
+      expect(script).toContain("'--no-sandbox'");
+      expect(script).toContain("'--disable-dev-shm-usage'");
+      expect(script).toContain('process.exitCode = 0');
+      expect(ts.sys.readFile(`${live}/summary.mjs`) ?? '').toContain('export function aggregate');
+      const run = ts.sys.readFile(`${live}/run.sh`) ?? '';
+      const at = (text: string) => run.indexOf(text);
+      expect(at('summary.mjs')).toBeGreaterThan(-1);
+      expect(at('summary-image.mjs')).toBeGreaterThan(at('summary.mjs'));
+      expect(at('touch "$RESULTS/done"')).toBeGreaterThan(at('summary-image.mjs'));
+    });
+
     it('measures every screen at both sizes: overflow, console, pageerror, 5xx, landmark, touch targets, clipped text, images', () => {
       const qa = read(`${live}/visual-qa.spec.ts`);
       expect(qa).toContain('scrollWidth');

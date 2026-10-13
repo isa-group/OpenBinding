@@ -398,6 +398,22 @@ VQA_PROBLEM viewport=mobile page=jobs "touch target under 24px: a \"Open\" 31x20
 `result=SKIPPED` appears for `job-result` when the owner has no finished job. With `DEMO_E2E` not `1` the log only says
 `E2E_SKIPPED reason=DEMO_E2E_is_not_1`.
 
+#### The summary image (a channel that does not depend on the log window)
+
+`logs e2e` returns a window of about 8 KB of the mixed logs, so the block of the `e2e` service (with `E2E_SUMMARY`) may fall outside it.
+The controller can, however, always see the images of the volume `lab-e2e` (`lab_screenshot` lists PNG/JPEG/WebP and returns the pixels).
+After `summary.mjs` and before creating `done`, `run.sh` runs `e2e/live/summary-image.mjs`, which reads the same `report.json`, reuses the
+aggregation of `summary.mjs` (`aggregate`) and renders with Chromium (1200 px wide, full page) `<results>/screenshots/_summary.png`:
+
+- the date (UTC) and the `E2E_SUMMARY passed=… failed=… skipped=…` line;
+- a large headline, `30 passed, 0 failed, 0 visual problems` when nothing failed (green), or the same with the real numbers (red);
+- each failed test: project, title and the error cut to 300 characters;
+- `VQA_TOTAL` and the `VQA_GROUP` lines (at most 40).
+
+To see it: `lab_screenshot` with `path` = `screenshots/_summary.png`. If the image cannot be generated (no report, no browser) the reason is
+only logged (`e2e: summary image not written: …`); the exit code is not changed and `done` is still created. The image is removed with the
+rest of `screenshots/` at the start of the next run, so an old `_summary.png` is never mistaken for the current one.
+
 **What cannot be verified from here:** the screenshots, `report.json`, `visual-qa-*.json` and the traces of failures are in the volume
 `lab-e2e`, which the controller cannot open (no access to volumes, only to logs): of the visual QA only the numbers above are
 visible, never the pictures, and nothing that needs an eye. Neither has any of this been executed: the image build (the Playwright

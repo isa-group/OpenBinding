@@ -26,6 +26,8 @@ if [ "${DEMO_E2E:-0}" = "1" ]; then
   pnpm exec playwright test -c playwright.live.config.ts
   echo "e2e: playwright exited with code $?"
   node e2e/live/summary.mjs "$RESULTS/report.json"
+  # The same outcome as an image (screenshots/_summary.png): the controller can always see images; a failure here is only logged.
+  node e2e/live/summary-image.mjs "$RESULTS/report.json" || echo "e2e: summary image failed (ignored)"
 else
   echo "E2E_SKIPPED reason=DEMO_E2E_is_not_1"
 fi

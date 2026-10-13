@@ -11,8 +11,8 @@
 // last lines of the log, so everything that explains a failure is repeated here, below the `list` reporter, in a bounded number of
 // lines (MAX_FAILURES * 2 + MAX_GROUPS + 3 + MAX_RUN_ERRORS, about 70). Every finding is counted in a group, so none is hidden.
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const file = process.argv[2];
 const ansi = /\u001b\[[0-9;]*m/g;
 const MAX_FAILURES = 10;
 const MAX_GROUPS = 40;
@@ -24,14 +24,8 @@ const DETAIL_CHARS = 1200;
 const plain = (text) => String(text ?? '').replace(ansi, '');
 const oneLine = (text) => plain(text).replace(/\s+/g, ' ').trim();
 
-let report;
-try {
-  report = JSON.parse(readFileSync(file, 'utf8'));
-} catch (error) {
-  console.log(`E2E_SUMMARY passed=0 failed=0 skipped=0 error="no readable report at ${file}: ${error.message}"`);
-  process.exit(0);
-}
-
+// Aggregates the JSON report: failed tests, the VQA findings grouped (biggest first) and the counters. summary-image.mjs reuses it.
+export function aggregate(report) {
 const failures = [];
 const problems = [];
 const visit = (suite) => {
@@ -64,20 +58,11 @@ const visit = (suite) => {
 };
 for (const suite of report.suites ?? []) visit(suite);
 
-for (const failure of failures.slice(0, MAX_FAILURES)) {
-  console.log(`E2E_FAILED project=${failure.project} spec=${failure.spec} title=${JSON.stringify(failure.title)} error=${JSON.stringify(failure.message)}`);
-  console.log(`E2E_FAILED_DETAIL project=${failure.project} title=${JSON.stringify(failure.title)} error=${JSON.stringify(failure.detail)}`);
-}
-if (failures.length > MAX_FAILURES) console.log(`E2E_FAILED_OMITTED ${failures.length - MAX_FAILURES} more failed tests, see the list above`);
-
-for (const error of (report.errors ?? []).slice(0, MAX_RUN_ERRORS)) {
-  console.log(`E2E_ERROR ${JSON.stringify(oneLine(error.message ?? error).slice(0, 300))}`);
-}
-
 // All the findings of the visual QA, together: they were printed screen by screen, far above this point. They are grouped by
 // (viewport, page, kind of problem) so that a kind with many findings cannot push another kind out of the bounded number of lines.
 const unique = [...new Set(problems.map((line) => line.trimEnd()))];
-if (unique.length) {
+let ordered = [];
+{
   const groups = new Map();
   for (const line of unique) {
     const match = line.match(/^VQA_PROBLEM viewport=(\S*) page=(\S*) (.*)$/s);
@@ -95,19 +80,48 @@ if (unique.length) {
     groups.set(key, group);
   }
   // The biggest first, so that what is left out of the bounded list is the smallest.
-  const ordered = [...groups.values()].sort((a, b) => b.count - a.count);
-  console.log('VQA_PROBLEMS_BEGIN');
-  console.log(`VQA_TOTAL problems=${unique.length} groups=${ordered.length}`);
-  for (const group of ordered.slice(0, MAX_GROUPS)) {
-    console.log(`VQA_GROUP viewport=${group.viewport} page=${group.page} kind=${JSON.stringify(group.kind)} count=${group.count} examples=${JSON.stringify(group.examples)}`);
-  }
-  if (ordered.length > MAX_GROUPS) {
-    const rest = ordered.slice(MAX_GROUPS);
-    console.log(`VQA_GROUPS_OMITTED groups=${rest.length} problems=${rest.reduce((sum, group) => sum + group.count, 0)}, see the VQA_PROBLEM lines above`);
-  }
-  console.log('VQA_PROBLEMS_END');
+  ordered = [...groups.values()].sort((a, b) => b.count - a.count);
 }
 
 const stats = report.stats ?? {};
 const passed = (stats.expected ?? 0) + (stats.flaky ?? 0);
-console.log(`E2E_SUMMARY passed=${passed} failed=${stats.unexpected ?? 0} skipped=${stats.skipped ?? 0}`);
+return { failures, ordered, problemCount: unique.length, runErrors: report.errors ?? [], passed, failed: stats.unexpected ?? 0, skipped: stats.skipped ?? 0 };
+}
+
+function main(file) {
+  let report;
+  try {
+    report = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (error) {
+    console.log(`E2E_SUMMARY passed=0 failed=0 skipped=0 error="no readable report at ${file}: ${error.message}"`);
+    return;
+  }
+  const { failures, ordered, problemCount, runErrors, passed, failed, skipped } = aggregate(report);
+
+  for (const failure of failures.slice(0, MAX_FAILURES)) {
+    console.log(`E2E_FAILED project=${failure.project} spec=${failure.spec} title=${JSON.stringify(failure.title)} error=${JSON.stringify(failure.message)}`);
+    console.log(`E2E_FAILED_DETAIL project=${failure.project} title=${JSON.stringify(failure.title)} error=${JSON.stringify(failure.detail)}`);
+  }
+  if (failures.length > MAX_FAILURES) console.log(`E2E_FAILED_OMITTED ${failures.length - MAX_FAILURES} more failed tests, see the list above`);
+
+  for (const error of runErrors.slice(0, MAX_RUN_ERRORS)) {
+    console.log(`E2E_ERROR ${JSON.stringify(oneLine(error.message ?? error).slice(0, 300))}`);
+  }
+
+  if (problemCount) {
+    console.log('VQA_PROBLEMS_BEGIN');
+    console.log(`VQA_TOTAL problems=${problemCount} groups=${ordered.length}`);
+    for (const group of ordered.slice(0, MAX_GROUPS)) {
+      console.log(`VQA_GROUP viewport=${group.viewport} page=${group.page} kind=${JSON.stringify(group.kind)} count=${group.count} examples=${JSON.stringify(group.examples)}`);
+    }
+    if (ordered.length > MAX_GROUPS) {
+      const rest = ordered.slice(MAX_GROUPS);
+      console.log(`VQA_GROUPS_OMITTED groups=${rest.length} problems=${rest.reduce((sum, group) => sum + group.count, 0)}, see the VQA_PROBLEM lines above`);
+    }
+    console.log('VQA_PROBLEMS_END');
+  }
+  console.log(`E2E_SUMMARY passed=${passed} failed=${failed} skipped=${skipped}`);
+}
+
+// Only when run as a script (`node summary.mjs <report.json>`), not when summary-image.mjs imports `aggregate`.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main(process.argv[2]);
