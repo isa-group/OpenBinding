@@ -19,8 +19,8 @@ Within `v1` changes are additive (new optional members, new routes, new error co
 * **No jobs, queue, studies, reports, engine registry or engines.** Engine manifests are *inputs* of
   `/compatibility` and `/optimization/resolve`; the service never fetches one, never calls an engine and never runs a
   solver. `/reevaluate` judges an answer that the caller already has.
-* **No authorization beyond the shared secret.** Anyone with a token can use every route. `X-BIM-Tenant` identifies
-  nobody and authorizes nothing.
+* **No authorization beyond the bearer token.** Anyone with a token can use every route. The tenant a token is bound
+  to only decides the per-tenant concurrency share; `X-BIM-Tenant` identifies nobody and authorizes nothing.
 * **No TLS.** Terminate it in front of the service (ingress, sidecar, service mesh). The bearer token is a secret on the
   wire: do not expose the service over plain HTTP outside a trusted network.
 * **No shared rate limiting.** The limits below are per process.
@@ -141,7 +141,7 @@ Problems about the service rather than the input have no `errorType`:
 | 415 | `unsupported_media_type` | `/compile` and `/validate` take JSON or `multipart/form-data` |
 | 422 | `request_invalid` | the body does not match the contract (a `ContractError`; `diagnostics` hold JSON pointers and messages, never the offending values) |
 | 422 | `limit_exceeded` | more bindings, registered resources or `seconds` than the service allows |
-| 429 | `rate_limited` | the tenant already has its share of operations in flight (`Retry-After`) |
+| 429 | `rate_limited` | the tenant bound to the caller's token already has its share of operations in flight (`Retry-After`) |
 | 503 | `service_busy` | no slot became free within `BIM_SERVICE_ACQUIRE_TIMEOUT_MS` (`Retry-After`) |
 | 503 | `operation_timeout` | the operation exceeded `BIM_SERVICE_OPERATION_TIMEOUT_SECONDS` |
 | 503 | `not_ready` | `/readyz` before the service is ready |
@@ -165,7 +165,7 @@ values, by `GET /bim/v1/capabilities` (`limits.service`; `limits.package` are th
 | `BIM_SERVICE_MAX_BODY_BYTES` | 32 MiB | largest request body. Declared `Content-Length` over it: 413 **without reading a byte**; otherwise the bytes are counted as they arrive and the request is cut off with 413 when the limit is crossed |
 | `BIM_SERVICE_MAX_CONCURRENCY` | 4 | CPU operations at once (size of the worker thread pool); compile, evaluate and the rest run in it, never in the event loop |
 | `BIM_SERVICE_ACQUIRE_TIMEOUT_MS` | 250 | how long a request waits for a slot before 503 |
-| `BIM_SERVICE_MAX_CONCURRENCY_PER_TENANT` | 2 | operations one `X-BIM-Tenant` may have in flight (0 = unlimited); more is 429 |
+| `BIM_SERVICE_MAX_CONCURRENCY_PER_TENANT` | unset (2 with two or more tenants, else none) | operations one **tenant** (the one bound to the token of the request, never the `X-BIM-Tenant` header) may have in flight; more is 429. 0 = unlimited. Unset: the limit of 2 applies only when the tokens file names **two or more tenants**; with one tenant (every caller shares a token) it would only halve the service, so none applies. Set explicitly, it applies whatever the number of tenants. `limits.service.maxConcurrentOperationsPerTenant` publishes the value in force (0 = none), not the nominal default |
 | `BIM_SERVICE_OPERATION_TIMEOUT_SECONDS` | 60 | time budget of one operation |
 | `BIM_SERVICE_RETRY_AFTER_SECONDS` | 1 | value of `Retry-After` for 429 and 503 |
 | `BIM_SERVICE_MAX_REGISTERED_RESOURCES` | 64 | registered resources per request |
@@ -178,6 +178,10 @@ The size of the body is limited by pure ASGI middleware that counts bytes, so it
 having read the body. Authentication runs before the body is read too: an unauthenticated request is refused (401)
 without looking at its body.
 
+The global ceiling (`BIM_SERVICE_MAX_CONCURRENCY` slots, `BIM_SERVICE_ACQUIRE_TIMEOUT_MS`) is independent of the
+per-tenant share: the sum of the shares may exceed the slots, and the slots are never exceeded whatever a request
+claims or however many tenants exist.
+
 A thread cannot be interrupted. When an operation exceeds its time budget the *response* is 503 `operation_timeout`,
 but the thread keeps its slot (and its tenant's share) until it ends, so a runaway operation cannot be used to start
 more work than `BIM_SERVICE_MAX_CONCURRENCY` allows. Size the budgets from the package limits: compiling a package at
@@ -187,19 +191,46 @@ limits.
 
 ## Authentication
 
-Service-to-service, one shared secret with room for a rotation.
+Service-to-service bearer tokens; each token is bound to a **tenant**, and the tenant of the token that authenticated
+a request is the identity of the caller.
 
-* `BIM_SERVICE_TOKENS_FILE` names a file with **one or two** tokens, one per line, each at least 32 printable ASCII
-  characters. Tokens are never read from the environment, never logged and never in an error message.
-* A request is accepted when its `Authorization: Bearer <token>` matches either token. Each accepted token is compared
-  with `hmac.compare_digest` over fixed-length digests, with no early exit.
+* `BIM_SERVICE_TOKENS_FILE` names a file with one token per line, each at least 32 printable ASCII characters. Tokens
+  are never read from the environment, never logged and never in an error message (an error names a line number only,
+  not even a tenant label).
+* **File format.** A line is either `<token>` or `<tenant><spaces or tabs><token>`. A line with only a token belongs to
+  the tenant `default`, so a file written for earlier versions (one or two tokens, nothing else) keeps its meaning: one
+  tenant. A tenant label matches `[A-Za-z0-9][A-Za-z0-9._:@-]{0,127}`. Blank lines are ignored; there are no comments.
+  Example (each `<...>` stands for 32+ printable ASCII characters without spaces):
+
+  ```
+  <token of the default tenant>
+  lab-gateway <first token of lab-gateway>
+  lab-gateway <second token of lab-gateway, present during its rotation>
+  batch-worker <token of batch-worker>
+  ```
+
+* **Contract change (rotation).** Up to **two tokens per tenant** are accepted (the old and the new one during that
+  tenant's rotation) with at most **64 tenants**. Earlier versions accepted two tokens in total. A token belongs to one
+  tenant only: the same token on two lines, in the same tenant or in two, is an error.
+* A request is accepted when its `Authorization: Bearer <token>` matches any token of the file, and it is attributed to
+  the tenant of that token. The presented token is compared with every stored one using `hmac.compare_digest` over
+  fixed-length digests, with no early exit, whatever the outcome.
 * **The service does not start without a valid file** (fail closed): `create_app()` raises `ServiceConfigError` for a
-  missing or unreadable file, a token shorter than 32 characters, characters other than printable ASCII, a repeated
-  token, no token or more than two. `BIM_SERVICE_ALLOW_ANONYMOUS_DEV=1` (exactly `1`) turns authentication off and logs
-  a warning, but only when **no** file is configured: a configured file that is wrong still stops the start.
-* Rotation: write `old` and `new` (in either order) to the file and restart the service; move the callers to `new`;
-  write `new` alone and restart. Callers that use `bim_client.HttpBim(token_file=...)` pick the new token up without a
-  restart. The file is read at start only.
+  missing or unreadable file, a line that is neither `<token>` nor `<tenant> <token>`, a tenant label that does not
+  match the pattern, a token shorter than 32 characters, characters other than printable ASCII, a repeated token, a
+  third token for one tenant, more than 64 tenants or no token. `BIM_SERVICE_ALLOW_ANONYMOUS_DEV=1` (exactly `1`) turns
+  authentication off (every caller is the tenant `anonymous`) and logs a warning, but only when **no** file is
+  configured: a configured file that is wrong still stops the start.
+* **Per-tenant share.** The share of concurrent operations (`BIM_SERVICE_MAX_CONCURRENCY_PER_TENANT`) is counted per
+  tenant. The two tokens of a tenant share one count; a token of tenant A never consumes the share of tenant B; a
+  request cannot choose, change, omit or spoof its tenant, because only its token decides. The share applies by default
+  only when the file names two or more tenants (see Limits), so the laboratory topology, where gateway, worker and seed
+  share **one** token (one tenant), is not throttled; give each caller its own labelled token to get fairness between
+  them.
+* Rotation (per tenant): add the new token as a second line of the same tenant (either order) and restart the service;
+  move that tenant's callers to `new`; delete the old line and restart. Callers that use
+  `bim_client.HttpBim(token_file=...)` pick the new token up without a restart (their file holds the bare token, see
+  `CLIENT.md`). The file is read at start only.
 
 The rotation, saturation and memory behaviour is exercised locally (in process, no real load) by
 `packages/bim-service/tests/test_rotation_and_saturation.py`; `docs/qa/BIM_LOAD.md` lists what is and is not measured.
@@ -208,16 +239,19 @@ The rotation, saturation and memory behaviour is exercised locally (in process, 
 
 ### Tenant and trace
 
-`X-BIM-Tenant` is an opaque identifier (`[A-Za-z0-9][A-Za-z0-9._:@-]{0,127}`; anything else is ignored). It is used for
-the log line and for the per-tenant share of in-flight operations, never for authorization and never for a result:
-the same request gives the same answer with any tenant. `traceparent` (W3C Trace Context) is propagated: a valid one
+`X-BIM-Tenant` is informative only: what the caller says it is (`[A-Za-z0-9][A-Za-z0-9._:@-]{0,127}`; anything else is
+ignored). It is **not** the key of the per-tenant share (that is the tenant bound to the token, see Authentication),
+and it is used neither for authorization nor for a result: the same request gives the same answer with any value, none
+or a malformed one, and sending, changing or omitting it neither evades nor consumes anyone's share. When it differs
+from the identity of the token it is added to the log line as `claimed_tenant`. `traceparent` (W3C Trace Context) is propagated: a valid one
 is returned unchanged on the response, a missing or invalid one is replaced by a new one, and the trace id is in the
 log line.
 
 ### Logs
 
-One line per request through the `bim_service` logger: method, path (never the query string), status, duration, tenant
-and trace id. No body, no package content, no header value other than the sanitized tenant, no token. An unexpected
+One line per request through the `bim_service` logger: method, path (never the query string), status, duration, the
+tenant of the token (`-` when unauthenticated), the sanitized `X-BIM-Tenant` as `claimed_tenant` when it differs, and
+the trace id. No body, no package content, no header value other than the sanitized claim, no token. An unexpected
 exception is logged by class name only, because its message may quote the input.
 
 ## Deployment

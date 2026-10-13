@@ -4,12 +4,14 @@ They are plain ASGI callables (not ``BaseHTTPMiddleware``) because two of them m
 read: authentication refuses a request without looking at its body, and the size limit counts the bytes as
 they arrive and answers 413 as soon as the limit is crossed.  From outermost to innermost:
 
-1. :class:`ContextMiddleware`: ``traceparent``, ``X-BIM-Tenant``, one log line per request, a 500 problem for
-   whatever escapes;
-2. :class:`AuthMiddleware`: every path except ``/healthz`` and ``/readyz`` needs a valid bearer token;
+1. :class:`ContextMiddleware`: ``traceparent``, the informative ``X-BIM-Tenant``, one log line per request, a 500
+   problem for whatever escapes;
+2. :class:`AuthMiddleware`: every path except ``/healthz`` and ``/readyz`` needs a valid bearer token; the tenant
+   bound to that token is the caller's identity (``state["tenant"]``) and the only key of the per-tenant share;
 3. :class:`BodyLimitMiddleware`: 413 before reading a body that is too large.
 
-Nothing here logs a body, a header value other than the sanitized tenant, or a token.
+``X-BIM-Tenant`` is what the caller *claims*: it is kept (sanitized and bounded) as ``state["claimed_tenant"]`` for the
+log and decides nothing.  Nothing here logs a body, a header value other than the sanitized claim, or a token.
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ from typing import Any, Awaitable, Callable, MutableMapping
 
 from starlette.datastructures import MutableHeaders
 
-from .auth import Authenticator
+from .auth import TENANT_PATTERN, Authenticator
 from .problems import ServiceProblem, problem_response, respond
 
 logger = logging.getLogger("bim_service")
@@ -38,7 +40,6 @@ ASGIApp = Callable[[Scope, Receive, Send], Awaitable[None]]
 PUBLIC_PATHS = frozenset({"/healthz", "/readyz"})
 
 _TRACEPARENT = re.compile(r"^(?!ff)[0-9a-f]{2}-(?!0{32})[0-9a-f]{32}-(?!0{16})[0-9a-f]{16}-[0-9a-f]{2}$")
-_TENANT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@-]{0,127}$")
 
 
 def header_value(scope: Scope, name: bytes) -> bytes | None:
@@ -76,9 +77,11 @@ class ContextMiddleware:
             trace = f"00-{secrets.token_hex(16)}-{secrets.token_hex(8)}-00"
         raw_tenant = header_value(scope, b"x-bim-tenant")
         tenant_text = raw_tenant.decode("latin-1") if raw_tenant else ""
-        tenant = tenant_text if _TENANT.match(tenant_text) else None
         state = scope.setdefault("state", {})
-        state["tenant"] = tenant
+        # What the caller says it is: informative only.  The identity (``state["tenant"]``) is set by AuthMiddleware
+        # from the token and is never taken from the request.
+        state["claimed_tenant"] = tenant_text if TENANT_PATTERN.fullmatch(tenant_text) else None
+        state["tenant"] = None
         state["traceparent"] = trace
 
         started = time.perf_counter()
@@ -118,13 +121,16 @@ class ContextMiddleware:
             )
             await respond(problem)(scope, receive, send_with_context)
         finally:
+            identity = state.get("tenant")
+            claimed = state.get("claimed_tenant")
             logger.info(
-                "request method=%s path=%r status=%d duration_ms=%.1f tenant=%s trace=%s",
+                "request method=%s path=%r status=%d duration_ms=%.1f tenant=%s%s trace=%s",
                 scope.get("method"),
                 route_path(scope),
                 status,
                 (time.perf_counter() - started) * 1000,
-                tenant or "-",
+                identity or "-",
+                f" claimed_tenant={claimed}" if claimed and claimed != identity else "",
                 trace.split("-")[1],
             )
 
@@ -136,7 +142,8 @@ class AuthMiddleware:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http" and route_path(scope) not in PUBLIC_PATHS:
-            if not self.authenticator.authorize(header_value(scope, b"authorization")):
+            tenant = self.authenticator.identify(header_value(scope, b"authorization"))
+            if tenant is None:
                 problem = ServiceProblem(
                     401,
                     "unauthorized",
@@ -145,6 +152,7 @@ class AuthMiddleware:
                 )
                 await respond(problem)(scope, receive, send)
                 return
+            scope.setdefault("state", {})["tenant"] = tenant
         await self.app(scope, receive, send)
 
 

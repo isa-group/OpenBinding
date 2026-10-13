@@ -361,7 +361,7 @@ def test_errors_carry_the_traceparent_too(client) -> None:
     assert client.get("/bim/v1/capabilities", headers={"Authorization": "", "traceparent": TRACE}).headers["traceparent"] == TRACE
 
 
-def test_the_tenant_is_for_logs_only_and_never_changes_a_result(client, compiled, caplog) -> None:
+def test_the_claimed_tenant_is_for_logs_only_and_never_changes_a_result(client, compiled, caplog) -> None:
     caplog.set_level(logging.INFO)
     body = {"ir": compiled["ir"], "bindings": [demo.BINDING]}
     answers = []
@@ -372,7 +372,9 @@ def test_the_tenant_is_for_logs_only_and_never_changes_a_result(client, compiled
         assert (compile_answer.status_code, evaluate_answer.status_code) == (200, 200)
         answers.append((compile_answer.json(), evaluate_answer.json()))
     assert all(answer == answers[0] for answer in answers)
-    assert "tenant=acme" in caplog.text
+    # the identity is the tenant of the token; the header is only a sanitized, bounded claim next to it
+    assert "tenant=default claimed_tenant=acme " in caplog.text
+    assert "tenant=default claimed_tenant=another-tenant " in caplog.text
     assert "bad tenant" not in caplog.text and "x" * 200 not in caplog.text
 
 

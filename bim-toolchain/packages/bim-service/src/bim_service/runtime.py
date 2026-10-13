@@ -2,7 +2,8 @@
 
 Compiling and evaluating are pure CPU work.  They run in a dedicated thread pool and the number that may
 run at once is capped: a request that finds no free slot within ``acquire_timeout_ms`` is answered 503 with
-``Retry-After``, and a tenant that already has its share in flight is answered 429.  The slot is returned
+``Retry-After``, and a tenant (the identity bound to the caller's token, see :mod:`bim_service.auth`) that already
+has its share in flight is answered 429; the global cap is independent of the per-tenant share.  The slot is returned
 when the *thread* finishes, not when the request times out: a thread cannot be interrupted, so a timed-out
 operation keeps counting against the cap until it ends.
 """
@@ -31,7 +32,7 @@ class Gate:
         return {"Retry-After": str(self._settings.retry_after_seconds)}
 
     def _take_tenant(self, tenant: str | None) -> None:
-        limit = self._settings.max_concurrency_per_tenant
+        limit = self._settings.effective_max_concurrency_per_tenant
         if tenant is None or limit == 0:
             return
         with self._lock:
@@ -46,7 +47,7 @@ class Gate:
             self._tenants[tenant] = held + 1
 
     def _release_tenant(self, tenant: str | None) -> None:
-        if tenant is None or self._settings.max_concurrency_per_tenant == 0:
+        if tenant is None or self._settings.effective_max_concurrency_per_tenant == 0:
             return
         with self._lock:
             remaining = self._tenants.get(tenant, 0) - 1

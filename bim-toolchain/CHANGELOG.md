@@ -88,6 +88,38 @@ documentation only), so `compilerDigest` and every `irDigest` are as before, and
 
 - `bim-client`: `HttpBim` no longer raises `BimOperationUnavailable` for those four operations; it sends them.
   `BimOperationUnavailable` stays exported (compatibility) but nothing raises it.
+- **Contract change, `bim-service`: the per-tenant concurrency share is keyed by the authenticated identity, not by
+  `X-BIM-Tenant`** (analysis B5). Before, the share was keyed by a header that any holder of a token chose per request,
+  so changing it took a fresh share, omitting or malforming it took none, and sending another caller's label burned that
+  caller's share. Now:
+  - A line of `BIM_SERVICE_TOKENS_FILE` is `<token>` (tenant `default`; files written for earlier versions keep their
+    meaning) or `<tenant> <token>` (a label matching `[A-Za-z0-9][A-Za-z0-9._:@-]{0,127}`, spaces or tabs). The tenant
+    bound to the token that authenticated a request is the caller's identity, and the only key of the share.
+    `bim_service.auth.Authenticator.identify()` returns that tenant (or `None`) instead of the former boolean
+    `authorize()`.
+  - **Rotation limit changed:** up to **2 tokens per tenant** (was 2 in total) and at most **64 tenants**; a token
+    cannot appear twice, in one tenant or in two. The two tokens of a tenant share one count. Invalid files (a
+    malformed line or label, a repeated token, a third token for a tenant, more than 64 tenants) stop the start with a
+    message that names a line number and never a token or a label. Comparison stays constant-time over every stored token.
+  - `X-BIM-Tenant` is accepted and ignored for the share; if it is well formed it is logged as `claimed_tenant` when it
+    differs from the identity, and the log line's `tenant=` is now the identity. Anonymous dev mode has the single
+    identity `anonymous`.
+  - The global ceiling (`BIM_SERVICE_MAX_CONCURRENCY`, `BIM_SERVICE_ACQUIRE_TIMEOUT_MS`) is unchanged and independent.
+  - `BIM_SERVICE_MAX_CONCURRENCY_PER_TENANT` is unset by default instead of 2. Unset, the limit of 2 applies only when
+    the tokens file names **two or more tenants**; with one tenant (a gateway, its worker and its seed sharing one
+    token) it would halve the whole service, so none applies. An explicit value, 0 included, is always honoured.
+    `limits.service.maxConcurrentOperationsPerTenant` in `GET /bim/v1/capabilities` now publishes the value in force
+    (0 = none). `BimServiceSettings.max_concurrency_per_tenant` is `int | None`; `app.state.settings` is the effective
+    settings (`configured_tenants`).
+  - `contracts/openapi/bim-service.v1.json` is regenerated (the descriptions of the bearer scheme and of 429 only; no
+    path, schema or status changes); the consumer fixtures were regenerated with `tools/consumer_fixtures.py` and did not
+    change (they do not record the service limits).
+  - `bim-client`: `HttpBim`'s `token_file` still holds only the token (the whole first line is the token). A first line
+    with whitespace inside, such as the service's `<tenant> <token>` form, is refused with
+    `BimServiceError("token_unavailable")` instead of being sent. `tenant=` remains an informative label.
+  - Compatibility: a one-token or two-token file and a client that sends or omits `X-BIM-Tenant` keep working; what
+    changes is that sharing is now by token. Deployments that relied on the header to separate callers must give each
+    caller its own labelled token.
 
 The version numbers are unchanged: `0.1.0` has not been released, so these additions belong to it.
 

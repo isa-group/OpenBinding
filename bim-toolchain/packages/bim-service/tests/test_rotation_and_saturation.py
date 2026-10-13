@@ -77,7 +77,7 @@ def test_swapping_the_order_in_the_file_changes_nothing(tokens_path, make_app) -
     [None, b"", b"Bearer", b"Bearer ", b"Bearer " + b" " * 40, b"Bearer \t\t", b"   ", b"Bearer  \t "],
 )
 def test_an_empty_or_blank_token_is_never_valid(header: bytes | None) -> None:
-    assert Authenticator([TOKEN_NEW, TOKEN_OLD]).authorize(header) is False
+    assert Authenticator([TOKEN_NEW, TOKEN_OLD]).identify(header) is None
 
 
 def test_a_token_with_spaces_inside_does_not_match_and_blank_headers_are_401(client) -> None:
@@ -161,12 +161,11 @@ def test_n_concurrent_requests_over_the_slots_get_503_busy_and_the_service_recov
 
 def test_slots_survive_operations_that_raise(make_app, holder) -> None:
     app = make_app(max_concurrency=1, max_concurrency_per_tenant=1, acquire_timeout_ms=100)
-    tenant = bearer(**{"X-BIM-Tenant": "acme"})
 
     async def scenario():
         async with async_client(app) as client:
-            failed = [await client.post(EVALUATE, json=body(fail=True), headers=tenant) for _ in range(4)]
-            return failed, await client.post(EVALUATE, json=body(), headers=tenant)
+            failed = [await client.post(EVALUATE, json=body(fail=True)) for _ in range(4)]
+            return failed, await client.post(EVALUATE, json=body())
 
     failed, after = run(scenario())
     assert [response.status_code for response in failed] == [500] * 4

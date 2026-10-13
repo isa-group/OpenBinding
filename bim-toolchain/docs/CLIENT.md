@@ -129,12 +129,17 @@ HttpBim(base_url, *, token=None, token_file=None, tenant=None, traceparent=None,
 ```
 
 * **Token**: `token`, or the first line of `token_file`, which is read again whenever the file changes (a rotation
-  reaches a running client). It is not in `repr` and not in any error. A token is not sent over plain `http` to a host
+  reaches a running client). The whole first line is the token: the client's file holds **only the token**, never the
+  `<tenant> <token>` form of the service's tokens file (see `SERVICE.md`). A first line with whitespace inside is
+  refused with `BimServiceError("token_unavailable")` instead of being sent. The tenant is chosen by the service from
+  the token, so a caller that must be a given tenant uses the token the service bound to it. It is not in `repr` and
+  not in any error. A token is not sent over plain `http` to a host
   that is not the loopback, unless `allow_insecure_http=True`.
 * **Timeouts** configure the `httpx.Client` that `HttpBim` creates; a `client` you pass keeps its own (and is not closed
   by `close()`). Timeouts become `BimServiceError("service_timeout")`; the service's own budget is `operation_timeout`.
-* **`tenant`** is sent as `X-BIM-Tenant`: opaque, for the service's logs and its per-tenant share of concurrency. It never
-  changes a result. **`traceparent`** is a callable returning a W3C `traceparent` (or `None`) for each request.
+* **`tenant`** is sent as `X-BIM-Tenant`: an opaque, informative label for the service's logs. It does **not** decide
+  the per-tenant share of concurrency (the service keys that by the tenant bound to the token) and never changes a
+  result. **`traceparent`** is a callable returning a W3C `traceparent` (or `None`) for each request.
 
 ## Differences between the two implementations
 

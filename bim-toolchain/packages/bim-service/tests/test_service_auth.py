@@ -1,4 +1,4 @@
-"""Authentication: two static bearer tokens from a file, constant-time comparison, fail closed."""
+"""Authentication: static bearer tokens bound to tenants, from a file, constant-time comparison, fail closed."""
 
 from __future__ import annotations
 
@@ -129,8 +129,9 @@ def test_a_directory_is_not_a_tokens_file(tmp_path) -> None:
         ("\n\n  \n", "no token"),
         (f"{TOKEN_OLD}\n{TOKEN_NEW}\n{'z' * 40}\n", "more than 2"),
         (f"{TOKEN_OLD}\n{TOKEN_OLD}\n", "repeats"),
-        ("with a space inside the token of length 40", "printable ASCII"),
+        ("with a space inside the token of length 40", "neither"),
         ("é" * 40, "printable ASCII"),
+        (f"lab {'é' * 40}\n", "printable ASCII"),
     ],
 )
 def test_a_tokens_file_that_is_not_acceptable_stops_the_start(tmp_path, content: str, message: str) -> None:
@@ -139,6 +140,70 @@ def test_a_tokens_file_that_is_not_acceptable_stops_the_start(tmp_path, content:
     with pytest.raises(ServiceConfigError, match=message) as raised:
         create_app(BimServiceSettings(tokens_file=str(path)))
     assert TOKEN_OLD not in str(raised.value) and TOKEN_NEW not in str(raised.value)
+
+
+def _many_tenants(count: int) -> str:
+    return "".join(f"tenant{index} {index:04d}" + "t" * 32 + "\n" for index in range(count))
+
+
+@pytest.mark.parametrize(
+    ("content", "message"),
+    [
+        # a token shared by two tenants is ambiguous, whichever order the lines come in
+        (f"acme {TOKEN_OLD}\nother {TOKEN_OLD}\n", "repeats a token"),
+        (f"acme {TOKEN_OLD}\n{TOKEN_OLD}\n", "repeats a token"),
+        # at most two tokens for one tenant, tagged or not, and the tag may be repeated explicitly as "default"
+        (f"acme {TOKEN_OLD}\nacme {TOKEN_NEW}\nacme {'z' * 40}\n", "more than 2 tokens"),
+        (f"default {TOKEN_OLD}\n{TOKEN_NEW}\n{'z' * 40}\n", "more than 2 tokens"),
+        # the number of tenants is bounded
+        (_many_tenants(65), "more than 64 tenants"),
+        # label and line formats
+        (f"-acme {TOKEN_OLD}\n", "tenant label"),
+        (f"ac me {TOKEN_OLD}\n", "neither"),
+        (f"{'a' * 129} {TOKEN_OLD}\n", "tenant label"),
+        (f"acme {TOKEN_OLD} extra\n", "neither"),
+        ("acme short\n", "fewer than 32"),
+        (f"acme {TOKEN_OLD}\n", "printable ASCII"),
+    ],
+)
+def test_tenant_rules_of_the_tokens_file_stop_the_start_without_printing_a_token(
+    tmp_path, content: str, message: str
+) -> None:
+    path = tmp_path / "tokens"
+    path.write_text(content, encoding="utf-8")
+    with pytest.raises(ServiceConfigError, match=message) as raised:
+        create_app(BimServiceSettings(tokens_file=str(path)))
+    text = str(raised.value)
+    assert TOKEN_OLD not in text and TOKEN_NEW not in text and "z" * 40 not in text and "t" * 32 not in text
+    assert "acme" not in text  # not even a label: a malformed line may have been a token
+
+
+def test_64_tenants_with_two_tokens_each_are_accepted(tmp_path) -> None:
+    lines = "".join(
+        f"tenant{index} {index:04d}{'a' * 32}\ntenant{index} {index:04d}{'b' * 32}\n" for index in range(64)
+    )
+    path = tmp_path / "tokens"
+    path.write_text(lines, encoding="utf-8")
+    authenticator = auth.Authenticator(auth.read_tokens(path))
+    assert (authenticator.token_count, authenticator.tenant_count) == (128, 64)
+    assert authenticator.identify(f"Bearer 0063{'b' * 32}".encode()) == "tenant63"
+
+
+def test_a_line_with_only_a_token_is_the_default_tenant_and_a_label_binds_the_token(tmp_path) -> None:
+    path = tmp_path / "tokens"
+    path.write_text(f"{TOKEN_OLD}\n\n  lab-1.a:b@c\t{TOKEN_NEW}  \r\n", encoding="utf-8")
+    assert auth.read_tokens(path) == [(auth.DEFAULT_TENANT, TOKEN_OLD), ("lab-1.a:b@c", TOKEN_NEW)]
+    authenticator = auth.Authenticator(auth.read_tokens(path))
+    assert authenticator.identify(b"Bearer " + TOKEN_OLD.encode()) == "default"
+    assert authenticator.identify(b"bearer " + TOKEN_NEW.encode()) == "lab-1.a:b@c"
+    assert authenticator.identify(b"Bearer " + TOKEN_NEW.encode() + b"x") is None
+    assert authenticator.tenant_count == 2
+
+
+def test_the_anonymous_mode_has_one_identity_for_every_caller() -> None:
+    authenticator = auth.Authenticator(anonymous=True)
+    assert authenticator.identify(None) == authenticator.identify(b"Bearer whatever") == auth.ANONYMOUS_TENANT
+    assert authenticator.tenant_count == 1
 
 
 def test_a_single_token_is_enough(tmp_path) -> None:

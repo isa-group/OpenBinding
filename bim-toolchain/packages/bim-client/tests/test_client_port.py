@@ -262,6 +262,30 @@ def test_the_token_file_is_read_again_when_it_changes(tmp_path) -> None:
     assert seen == ["Bearer first-token-" + "a" * 30, "Bearer first-token-" + "a" * 30, "Bearer rotated-token-" + "b" * 30]
 
 
+def test_a_token_file_with_a_tenant_label_is_refused_and_nothing_is_sent(tmp_path) -> None:
+    """The service's ``<tenant> <token>`` line is not a client token file: the first line is the whole token."""
+    sent: list[httpx.Request] = []
+
+    def handler(request):
+        sent.append(request)
+        return httpx.Response(200, json={})
+
+    path = tmp_path / "token"
+    secret = "labelled-token-" + "c" * 30
+    path.write_text(f"lab-gateway {secret}\n", encoding="utf-8")
+    bim = mock_bim(handler, token_file=path)
+    for _ in range(2):  # not cached: the refusal repeats until the file is fixed
+        with pytest.raises(BimServiceError) as raised:
+            bim.protocol()
+        assert raised.value.code == "token_unavailable"
+        assert secret not in str(raised.value) and "lab-gateway" not in str(raised.value)
+    assert sent == []
+    path.write_text(secret + "\n", encoding="utf-8")
+    os.utime(path, ns=(1, 3_000_000_000))
+    bim.protocol()
+    assert sent[0].headers["authorization"] == f"Bearer {secret}"
+
+
 def test_an_unreadable_token_file_is_a_service_error(tmp_path) -> None:
     bim = mock_bim(lambda request: httpx.Response(200, json={}), token_file=tmp_path / "absent")
     with pytest.raises(BimServiceError) as raised:

@@ -6,7 +6,7 @@ import asyncio
 import threading
 
 import pytest
-from service_support import BASE_URL, async_client, bearer, run
+from service_support import BASE_URL, TOKEN_ACME, TOKEN_OTHER, async_client, bearer, run
 from starlette.testclient import TestClient
 
 from bim_service import operations
@@ -200,16 +200,16 @@ def test_a_request_that_finds_a_slot_within_the_wait_is_served(make_app, monkeyp
     assert (first.status_code, second.status_code) == (200, 200)
 
 
-def test_a_tenant_over_its_share_gets_429_while_others_are_served(make_app, blocker) -> None:
-    app = make_app(max_concurrency=4, max_concurrency_per_tenant=1, acquire_timeout_ms=50)
-    acme = bearer(**{"X-BIM-Tenant": "acme"})
+def test_a_tenant_over_its_share_gets_429_while_others_are_served(make_tenant_app, blocker) -> None:
+    app = make_tenant_app(max_concurrency=4, max_concurrency_per_tenant=1, acquire_timeout_ms=50)
+    acme = bearer(TOKEN_ACME)
 
     async def scenario():
         async with async_client(app) as client:
             first = asyncio.create_task(client.post(EVALUATE, json=evaluate_body(hold=True), headers=acme))
             await blocker.wait_entered()
             limited = await client.post(EVALUATE, json=evaluate_body(), headers=acme)
-            other = await client.post(EVALUATE, json=evaluate_body(), headers=bearer(**{"X-BIM-Tenant": "other"}))
+            other = await client.post(EVALUATE, json=evaluate_body(), headers=bearer(TOKEN_OTHER))
             anonymous = await client.post(EVALUATE, json=evaluate_body())
             blocker.release.set()
             first_response = await first
@@ -222,10 +222,10 @@ def test_a_tenant_over_its_share_gets_429_while_others_are_served(make_app, bloc
     assert (other.status_code, anonymous.status_code, first.status_code, again.status_code) == (200, 200, 200, 200)
 
 
-def test_a_rejected_request_does_not_leak_a_tenant_slot(make_app, blocker) -> None:
-    app = make_app(max_concurrency=1, max_concurrency_per_tenant=1, acquire_timeout_ms=20)
-    acme = bearer(**{"X-BIM-Tenant": "acme"})
-    other = bearer(**{"X-BIM-Tenant": "other"})
+def test_a_rejected_request_does_not_leak_a_tenant_slot(make_tenant_app, blocker) -> None:
+    app = make_tenant_app(max_concurrency=1, max_concurrency_per_tenant=1, acquire_timeout_ms=20)
+    acme = bearer(TOKEN_ACME)
+    other = bearer(TOKEN_OTHER)
 
     async def scenario():
         async with async_client(app) as client:

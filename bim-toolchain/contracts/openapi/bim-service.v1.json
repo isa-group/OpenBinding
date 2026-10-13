@@ -822,7 +822,7 @@
     },
     "securitySchemes": {
       "bearerAuth": {
-        "description": "Static service-to-service token (one of the two the service accepts during a rotation).",
+        "description": "Static service-to-service token (up to two per tenant are accepted during a rotation). The tenant bound to the token is the caller's identity for the per-tenant concurrency share.",
         "scheme": "bearer",
         "type": "http"
       }
@@ -886,7 +886,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -974,7 +974,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1081,7 +1081,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1157,7 +1157,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1245,7 +1245,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1333,7 +1333,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1419,7 +1419,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1507,7 +1507,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1583,7 +1583,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1659,7 +1659,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1745,7 +1745,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1833,7 +1833,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -1921,7 +1921,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -2009,7 +2009,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -2106,7 +2106,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -2213,7 +2213,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {
@@ -2301,7 +2301,7 @@
                 }
               }
             },
-            "description": "The tenant has too many operations in flight (see `Retry-After`)."
+            "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."
           },
           "500": {
             "content": {

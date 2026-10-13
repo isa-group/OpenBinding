@@ -16,6 +16,9 @@ if str(TOOLS_DIR) not in sys.path:
 
 TOKEN_OLD = "old-" + "0123456789abcdef" * 3
 TOKEN_NEW = "new-" + "fedcba9876543210" * 3
+TOKEN_ACME = "acme-" + "1a2b3c4d5e6f7a8b" * 3
+TOKEN_ACME_NEXT = "acme2-" + "8b7a6f5e4d3c2b1a" * 3
+TOKEN_OTHER = "other-" + "0f1e2d3c4b5a6978" * 3
 BASE_URL = "http://bim.test"
 
 

@@ -61,7 +61,7 @@ _PROBLEMS: dict[int | str, dict[str, Any]] = {
     401: {"model": Problem, "description": "Missing or invalid bearer token."},
     413: {"model": Problem, "description": "The request body exceeds the configured size."},
     422: {"model": Problem, "description": "The input is invalid; `code` and `diagnostics` say why."},
-    429: {"model": Problem, "description": "The tenant has too many operations in flight (see `Retry-After`)."},
+    429: {"model": Problem, "description": "The tenant of the bearer token has too many operations in flight (see `Retry-After`)."},
     500: {"model": Problem, "description": "Unexpected failure of the service."},
     503: {"model": Problem, "description": "All slots are busy, or the operation ran out of time."},
 }
@@ -90,6 +90,7 @@ _PACKAGE_BODY: dict[str, Any] = {
 
 
 def _tenant(request: Request) -> str | None:
+    """The identity bound to the token that authenticated the request (never the ``X-BIM-Tenant`` header)."""
     return request.scope.get("state", {}).get("tenant")
 
 
@@ -323,7 +324,10 @@ def _patch_openapi(schema: dict[str, Any]) -> None:
         "bearerAuth": {
             "type": "http",
             "scheme": "bearer",
-            "description": "Static service-to-service token (one of the two the service accepts during a rotation).",
+            "description": (
+                "Static service-to-service token (up to two per tenant are accepted during a rotation). "
+                "The tenant bound to the token is the caller's identity for the per-tenant concurrency share."
+            ),
         }
     }
     schema["security"] = [{"bearerAuth": []}]
@@ -350,7 +354,12 @@ def _install_openapi(app: FastAPI) -> None:
 
 
 def build_app(settings: BimServiceSettings, authenticator: Authenticator) -> FastAPI:
-    """The application for ``settings`` and ``authenticator``; nothing is read from the environment."""
+    """The application for ``settings`` and ``authenticator``; nothing is read from the environment.
+
+    ``app.state.settings`` is the *effective* configuration: the per-tenant limit that applies depends on how many
+    tenants the authenticator knows.
+    """
+    settings = settings.for_tenants(authenticator.tenant_count)
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
@@ -418,5 +427,7 @@ def create_app(settings: BimServiceSettings | None = None, environ: Mapping[str,
     authenticator = load_authenticator(effective)
     operations.warm_up()
     app = build_app(effective, authenticator)
+    limit = app.state.settings.effective_max_concurrency_per_tenant
+    logger.info("per-tenant concurrency limit: %s", limit if limit else "not applied")
     logger.info("bim-service %s ready (bim-core %s)", __version__, operations.toolchain_block()["version"])
     return app

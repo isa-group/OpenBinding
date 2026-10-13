@@ -7,7 +7,9 @@ invalid input fails identically in both.  A response with a status >= 400 is a p
 (authentication, size, load, time, an unreachable service).
 
 The bearer token comes from ``token`` or from the first line of ``token_file`` (read again when the file
-changes, which is how a rotation reaches a running client).  It is never logged, never in ``repr`` and, unless
+changes, which is how a rotation reaches a running client).  The whole first line is the token: the file holds only
+the token, not the ``<tenant> <token>`` form of the service's tokens file (the service picks the tenant from the
+token), and a first line with whitespace inside is refused.  It is never logged, never in ``repr`` and, unless
 ``allow_insecure_http`` is set, never sent over plain ``http`` to a host that is not the loopback.
 """
 
@@ -43,7 +45,8 @@ class HttpBim:
     ``base_url`` is the service root (``https://bim.internal``).  ``timeout`` and ``connect_timeout`` (seconds)
     configure the ``httpx.Client`` created here.  ``client`` replaces that client (tests mount the service with
     ``starlette.testclient.TestClient``); it keeps its own timeouts and is not closed by :meth:`close`.  ``tenant``
-    is sent as ``X-BIM-Tenant`` (opaque, for the service's logs and fair sharing; it never changes a result) and
+    is sent as ``X-BIM-Tenant`` (an opaque label for the service's logs; it does not decide the service's per-tenant
+    share, which is keyed by the tenant bound to the token, and it never changes a result) and
     ``traceparent`` is called per request for a W3C trace context.
     """
 
@@ -114,7 +117,16 @@ class HttpBim:
                     lines = [line.strip() for line in handle.read().splitlines() if line.strip()]
                 if not lines:
                     raise ValueError("empty")
+                if any(character.isspace() for character in lines[0]):
+                    # The service's ``<tenant> <token>`` line: sending it whole would be a wrong token, and
+                    # taking half of it would guess which half.
+                    raise BimServiceError(
+                        "token_unavailable",
+                        "the first line of the token file must hold only the token (no tenant label)",
+                    )
                 self._token_value, self._token_stamp = lines[0], stamp
+        except BimServiceError:
+            raise
         except (OSError, ValueError) as exc:
             raise BimServiceError("token_unavailable", "the token file cannot be read or is empty") from exc
         return self._token_value

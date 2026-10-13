@@ -8,10 +8,13 @@ called ``bim-service``.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Mapping
 
 from bim_core import ContractError, Limits
+
+#: Per-tenant limit when none is set and the tokens file names at least two tenants.
+DEFAULT_MAX_CONCURRENCY_PER_TENANT = 2
 
 
 class ServiceConfigError(Exception):
@@ -29,7 +32,7 @@ def _positive(name: str, value: Any, *, allow_zero: bool = False) -> None:
 class BimServiceSettings:
     """Effective configuration.  ``limits`` are the ``bim_core`` package limits (``BIM_MAX_*``)."""
 
-    #: File with one or two bearer tokens (``BIM_SERVICE_TOKENS_FILE``).
+    #: File with the bearer tokens, each optionally labelled with its tenant (``BIM_SERVICE_TOKENS_FILE``).
     tokens_file: str | None = None
     #: ``BIM_SERVICE_ALLOW_ANONYMOUS_DEV=1``: serve without authentication when no tokens file is set.
     allow_anonymous_dev: bool = False
@@ -37,8 +40,12 @@ class BimServiceSettings:
     max_body_bytes: int = 32 * 1024 * 1024
     #: Operations that may run at once (also the size of the worker thread pool).
     max_concurrency: int = 4
-    #: Operations one ``X-BIM-Tenant`` may have in flight; 0 disables the per-tenant limit.
-    max_concurrency_per_tenant: int = 2
+    #: Operations one tenant (the one bound to the authenticating token) may have in flight; 0 disables the limit.
+    #: ``None`` (not set) means :data:`DEFAULT_MAX_CONCURRENCY_PER_TENANT`, applied only when the tokens file names two
+    #: or more tenants: with one tenant (all the callers share a token) it would only halve the whole service.
+    max_concurrency_per_tenant: int | None = None
+    #: Tenants the tokens file names; filled in by :meth:`for_tenants` once the file is read, never from the environment.
+    configured_tenants: int = 0
     #: How long a request waits for a free slot before answering 503.
     acquire_timeout_ms: int = 250
     #: Time budget of one operation; the response is 503 after it (the thread cannot be killed).
@@ -55,13 +62,25 @@ class BimServiceSettings:
     def __post_init__(self) -> None:
         _positive("BIM_SERVICE_MAX_BODY_BYTES", self.max_body_bytes)
         _positive("BIM_SERVICE_MAX_CONCURRENCY", self.max_concurrency)
-        _positive("BIM_SERVICE_MAX_CONCURRENCY_PER_TENANT", self.max_concurrency_per_tenant, allow_zero=True)
+        if self.max_concurrency_per_tenant is not None:
+            _positive("BIM_SERVICE_MAX_CONCURRENCY_PER_TENANT", self.max_concurrency_per_tenant, allow_zero=True)
         _positive("BIM_SERVICE_ACQUIRE_TIMEOUT_MS", self.acquire_timeout_ms, allow_zero=True)
         _positive("BIM_SERVICE_OPERATION_TIMEOUT_SECONDS", self.operation_timeout_seconds)
         _positive("BIM_SERVICE_RETRY_AFTER_SECONDS", self.retry_after_seconds)
         _positive("BIM_SERVICE_MAX_REGISTERED_RESOURCES", self.max_registered_resources)
         _positive("BIM_SERVICE_MAX_BINDINGS", self.max_bindings)
         _positive("BIM_SERVICE_NEIGHBORHOOD_MAX_SECONDS", self.neighborhood_max_seconds)
+
+    def for_tenants(self, count: int) -> BimServiceSettings:
+        """These settings once the tokens file is known to name ``count`` tenants."""
+        return replace(self, configured_tenants=count)
+
+    @property
+    def effective_max_concurrency_per_tenant(self) -> int:
+        """The per-tenant limit in force (0 = none): the explicit setting, else the default with 2+ tenants."""
+        if self.max_concurrency_per_tenant is not None:
+            return self.max_concurrency_per_tenant
+        return DEFAULT_MAX_CONCURRENCY_PER_TENANT if self.configured_tenants >= 2 else 0
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str]) -> BimServiceSettings:
@@ -113,7 +132,7 @@ class BimServiceSettings:
         return {
             "maxBodyBytes": self.max_body_bytes,
             "maxConcurrentOperations": self.max_concurrency,
-            "maxConcurrentOperationsPerTenant": self.max_concurrency_per_tenant,
+            "maxConcurrentOperationsPerTenant": self.effective_max_concurrency_per_tenant,
             "acquireTimeoutMs": self.acquire_timeout_ms,
             "operationTimeoutSeconds": self.operation_timeout_seconds,
             "retryAfterSeconds": self.retry_after_seconds,
