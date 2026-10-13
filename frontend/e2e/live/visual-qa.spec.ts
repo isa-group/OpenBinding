@@ -86,7 +86,10 @@ function smallTargets(page: Page): Promise<string[]> {
       if (inLine) continue;
       if (Math.round(box.height) < minimum) {
         const name = (control.getAttribute('aria-label') ?? control.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 30);
-        small.push(`${control.tagName.toLowerCase()} "${name}" ${Math.round(box.width)}x${Math.round(box.height)}`);
+        // The class and the parent say which element it is when the text does not (an icon button has none).
+        const own = String(control.getAttribute('class') ?? '').split(/\s+/).filter(Boolean).slice(0, 2).join('.');
+        const parent = String(control.parentElement?.getAttribute('class') ?? '').split(/\s+/).filter(Boolean)[0];
+        small.push(`${control.tagName.toLowerCase()}${own ? `.${own}` : ''} "${name}" ${Math.round(box.width)}x${Math.round(box.height)}${parent ? ` in .${parent}` : ''}`);
       }
     }
     return small;
@@ -101,11 +104,12 @@ async function inspect(page: Page, mobile: boolean): Promise<{ problems: string[
 
   const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, inner: window.innerWidth }));
   const overflowPx = width.scroll - width.inner;
-  if (overflowPx > 0) problems.push(`horizontal overflow: scrollWidth ${width.scroll} > innerWidth ${width.inner}`);
 
   if (!(await page.locator('main, [role="main"]').first().isVisible())) problems.push('no visible main landmark');
 
   const measured = await measurePage(page);
+  // Which elements stick out is what the person fixing it needs (the gallery's measurement lists the first few).
+  if (overflowPx > 0) problems.push(`horizontal overflow: scrollWidth ${width.scroll} > innerWidth ${width.inner}; outside: ${measured.offenders.slice(0, 3).join(' | ') || 'none found (inside a scroll container?)'}`);
   for (const clipped of measured.clipped) problems.push(`clipped text without ellipsis: ${clipped}`);
   for (const image of measured.brokenImages) problems.push(`broken image: ${image}`);
 

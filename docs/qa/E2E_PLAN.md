@@ -213,6 +213,37 @@ The specs had never run; reading them against `frontend/src` showed these, and t
 - `01` (a comment only), `03` and `06`: selectors and texts match the components; nothing to change. The outsider spec relies on
   the gateway answering 403 or 404 for a private project, which the interface shows as `Project not found` either way.
 
+### First real run in the lab (Chromium in the container, `DEMO_SPACE_ENABLED=false`): 26 passed, 4 failed
+
+The failures were: `04` (desktop) `page.waitForResponse: Timeout 30000ms exceeded`, and the mobile visual QA of the login page, of the
+owner's walk and of the viewer's walk (`Error: mobile login` / `mobile panel` / `mobile viewer-cases`: only the label of an
+`expect.soft` reached the summary, not the findings). Analysed by reading, without the rendered pages:
+
+- **`04`: the matcher was right, the page never sent.** `jobsApi.launch` does `POST ${apiBaseUrl}/v1/jobs` (`/api/v1/jobs`, status 202),
+  so `url().endsWith('/v1/jobs')` and the method matched. What prevents the request is `sendable` in `JobLaunch.tsx`: `Send run` is
+  disabled while any settings field is `invalid`, and `parseAmount` (`launchModel.ts`) accepts only values `> 0`. The manifest of
+  `random-search` (`schemas/bim/v1/manifests/random-search.json`) declares `seed` with `"default": 0`, a numeric option, so
+  `optionInputs` offers it with `0` and `planOptions` marks it invalid: **the launch screen cannot send random-search with the engine's own
+  defaults** (a product defect in `frontend/src`, outside this task's scope; `parseAmount` should accept `0` for the options that are not
+  budgets, or the form should not validate the default). The click on a disabled button waited 30 s and the unhandled `waitForResponse`
+  promise, started just before it, was what the report showed. The spec now (a) types `1` into any field that is marked invalid, as a
+  person has to, recording a `product-finding` annotation and an `E2E_FINDING …` log line so the defect is not silently absorbed;
+  (b) asserts that `Send run` is enabled, with the text of the review in the message; (c) starts `waitForResponse` and the click together
+  (`Promise.all`) and matches on the path of the URL. The assertions on the result (202, `optimization`, the result heading) are as they
+  were. If the next run still fails there, the message now says which of the two it is.
+- **The three visual QA failures** are failures of the programmatic checks (`VQA_PROBLEM`). Not knowing which one, **no criterion was
+  relaxed**. By reading, the ones that could be too strict are:
+  - *touch targets (24 px high, mobile):* WCAG 2.5.8 also exempts a target whose 24 px circle meets no other target (spacing) and a
+    link inside a sentence (the check does exempt the second, not the first). A 20 px icon with a larger clickable area still measures
+    its own box, which includes padding, so it is judged by the area that clicks. Kept: without the rendered page there is no evidence
+    that a finding is only a spacing case, and implementing the spacing exception blind could hide a real one. Each finding now names
+    the element's class and its parent's, so it can be judged from the log.
+  - *clipped text:* already accepts `text-overflow: ellipsis`; a clip with `overflow: hidden` and no ellipsis is a real cut.
+  - *horizontal overflow:* the page's `scrollWidth` against `innerWidth`. Strict on purpose (a wide table must sit in its own scroll
+    container). The finding now lists the elements that stick out (`measurePage().offenders`).
+  If the next run shows a finding that is a legitimate pattern, the criterion is to be changed in `visual-qa.spec.ts` with the reason
+  written beside it and here.
+
 ### Inside the lab (the `e2e` service)
 
 Nothing is needed on a workstation or through a tunnel. Sequence with `lab_compose` (variables in `docs/DEMO.md`):
@@ -226,12 +257,18 @@ Nothing is needed on a workstation or through a tunnel. Sequence with `lab_compo
    `--wait` returns when it finished (its health is "`/results/done` exists"). Repeating a run needs `DEMO_E2E=0` and `1` again, or a `down`.
 5. `logs e2e`.
 
-What `logs e2e` contains: the `list` reporter, then `E2E_FAILED project=… spec=… title="…" error="…"` for each failure,
-`E2E_ERROR …` for errors of the run itself, and the parseable verdict
+What `logs e2e` contains: the `list` reporter, then (from `e2e/live/summary.mjs`, in the last lines, which are the ones the controller
+sees; at most about 60 lines in all) `E2E_FAILED project=… spec=… title="…" error="<first line>"` and, right after it,
+`E2E_FAILED_DETAIL project=… title="…" error="<every error of the test, one line, at most 1200 characters>"` for each failure (at most 10),
+`E2E_ERROR …` for errors of the run itself, every finding of the visual QA again between `VQA_PROBLEMS_BEGIN` and `VQA_PROBLEMS_END`
+(one `VQA_PROBLEM …` per line, at most 300 characters and 35 lines), and the parseable verdict, always the last of them
 
 ```
 E2E_SUMMARY passed=N failed=N skipped=N
 ```
+
+A failed `expect.soft` of the visual QA has the label (`mobile login`) as the first line of its message and the findings in the lines
+below it; `E2E_FAILED_DETAIL` joins all of them. A spec may also print `E2E_FINDING …` for a defect of the product it worked around.
 
 plus, from the visual QA, one line per screen and size and one per finding:
 

@@ -37,6 +37,20 @@ test.describe('live · a random-search job and its result', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'Settings', exact: true })).toBeVisible();
     const iterations = page.getByLabel('Iterations').first();
     if (await iterations.count()) await iterations.fill('50');
+    // The form refuses (and disables "Send run" for) any field that does not hold a positive number, and it fills each field with the
+    // default the manifest declares. random-search declares `seed` with default 0, which the form reads as invalid ("A positive number"),
+    // so a person has to type another seed before the run can be sent. The spec does what that person does, and records the finding as an
+    // annotation and a log line instead of passing over it in silence: the screen should accept the engine's own default.
+    const refused = page.locator('.job-options input[aria-invalid="true"]');
+    for (let tries = 0; tries < 5 && (await refused.count()) > 0; tries += 1) {
+      const field = refused.first();
+      const row = await field.evaluate((input) => (input.closest('tr')?.querySelector('strong')?.textContent ?? '?').trim());
+      const finding = `the settings form marks the default of "${row}" (${await field.inputValue()}) as invalid and would keep "Send run" disabled`;
+      testInfo.annotations.push({ type: 'product-finding', description: finding });
+      console.log(`E2E_FINDING ${finding}`);
+      await field.fill('1');
+    }
+    await expect(page.locator('.job-invalid'), 'a settings field is still invalid').toHaveCount(0);
     await capture(page, testInfo, 'job-launch-3-settings');
     await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -44,9 +58,12 @@ test.describe('live · a random-search job and its result', () => {
     await expect(page.getByRole('heading', { name: 'Before you send' })).toBeVisible();
     await expect(page.getByText(/used \+ up to|study runs this month/)).toHaveCount(0);
     await capture(page, testInfo, 'job-launch-4-review');
-    const accepted = page.waitForResponse((response) => response.url().endsWith('/v1/jobs') && response.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Send run' }).click();
-    const response = await accepted;
+    const send = page.getByRole('button', { name: 'Send run' });
+    // A disabled button would make the click wait for 30 s and then look like a request that never left: say what the page shows instead.
+    await expect(send, `"Send run" is disabled; the review says: ${(await page.locator('.job-review').innerText()).replace(/\s+/g, ' ')}`).toBeEnabled();
+    // The API is under /api of the same origin (`API` in support.ts), so the path ends in /v1/jobs; a query or a prefix does not matter.
+    const isLaunch = (response: { url(): string; request(): { method(): string } }) => response.request().method() === 'POST' && new URL(response.url()).pathname.endsWith('/v1/jobs');
+    const [response] = await Promise.all([page.waitForResponse(isLaunch), send.click()]);
     expect(response.status(), `POST /v1/jobs answered ${response.status()}: ${await response.text()}`).toBe(202);
     const sent = response.request().postDataJSON() as Record<string, unknown>;
     expect(sent.optimization, 'the launch must carry the execution optimization').toMatchObject({ type: expect.stringMatching(/^(SINGLE|MULTI|MANY)$/), scalarization: expect.any(String) });

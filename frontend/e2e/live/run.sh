@@ -8,7 +8,9 @@
 # so `docker compose up --wait` neither fails on a stopped container nor returns before the run is over.
 # What is written under the results directory (a named volume the controller cannot open) is:
 #   done  report.json  screenshots/<desktop|mobile>-<page>.png  visual-qa-<desktop|mobile>.json  test-output/ (traces of failures)
-# The log is what reaches the controller: the `list` reporter, the lines `VQA ...` of the visual QA and E2E_SUMMARY below.
+# The log is what reaches the controller: the `list` reporter, the lines `VQA ...` of the visual QA and, from summary.mjs and in the last
+# lines (the only ones the controller is sure to see), E2E_FAILED / E2E_FAILED_DETAIL per failed test, every VQA_PROBLEM between
+# VQA_PROBLEMS_BEGIN and VQA_PROBLEMS_END, and E2E_SUMMARY as the last of them.
 
 RESULTS="${E2E_RESULTS_DIR:-/results}"
 cd "$(dirname "$0")/../.." || exit 1
