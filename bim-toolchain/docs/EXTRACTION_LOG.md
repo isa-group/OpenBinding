@@ -410,6 +410,30 @@ written; it is not a claim that the item is false. This section re-ran no check.
 | Publishing `javiercavlop/bim-toolchain` | Pendiente: one external step (below) | `docs/RELEASING.md` |
 | Licence | Not decided; **no new licence is created** here | `NOTICE.md`, `docs/PACKAGING.md` |
 
+Precisions to the rows above, read from the tree when this note was written (no check was run for it):
+
+- **B5** is implemented in `bim_service/auth.py` (`Authenticator.identify`): the share is keyed by the tenant bound to the
+  authenticated token; `X-BIM-Tenant` is ignored for it. With one configured tenant (the lab) no default per-tenant limit
+  applies; the global ceiling is unchanged; the limit is per process.
+- **B8**: decode, validate and render run in the bounded pool (B8-1, slot before decoding). In thread mode the GIL still
+  lets a large body or CPU-bound work slow the loop: **3 strict `xfail` remain** in
+  `packages/bim-service/tests/analysis/test_analysis_b8_probe.py` (CPU-bound operations vs `/healthz`; loop stall while a
+  large body is parsed; a timed-out operation keeps its slot until its thread ends). Process mode (B8-3) is not done.
+- **Zip/directory equivalence (M4-A1)**: tests and goldens only. The raw ZIP equals the directory for 82/82; the 64
+  canonical-ZIP divergences are strict `xfail`, pinned by `EXPECTED_DIVERGENT = 64`. The IR MAJOR decision is **pending
+  with the owner**; no `bim_core` file changed. The `bim-toolchain` CI has never been executed (its nested
+  `.github/` is not run by GitHub inside this monorepo, per `docs/qa/analysis/BIM_B5_B8_M4_IR.md`).
+- **Gateway side, outside this directory** (`docs/qa/SECURITY_REVIEW.md` has the detail): VIEWER is read-only (MEMBER or
+  more for launch, retry, cancel and pareto); stable public errors with `correlationId` (`core/public_errors.py`);
+  engine evidence kept before BIM re-evaluation (`job_engine_evidence`, `POST /v1/jobs/{id}/reevaluate`); best-effort
+  remote cancel of lost attempts (`jobs/remote_attempts.py`, `cancel_engine_attempts`), only for an Engine that declares
+  the capability. The PostgreSQL harness now builds the `test` stage and `seed` has no `user` and no bind; that run has
+  not been observed (the last observed 58 passed / 0 skipped used the old root `seed`).
+- **Guarantees not claimed**: the queue and the effects on Engines are at-least-once; there is no distributed
+  exactly-once execution ([../../docs/IDEMPOTENCY.md](../../docs/IDEMPOTENCY.md)). SPACE integration is on hold and untested.
+- The row "Generic 500 with `correlationId`" above concerns `bim-service` and stays *Sin verificar*; the gateway has its
+  own implementation (`core/public_errors.py`).
+
 The two statements of step 4 that the table supersedes: "No load or memory measurement" is now partial (rotation,
 saturation and `tracemalloc` checks exist, nothing at container level), and the per-tenant share is no longer keyed by
 `X-BIM-Tenant`.
