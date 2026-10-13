@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import uuid
 
-import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from starlette.requests import Request

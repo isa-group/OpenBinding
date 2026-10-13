@@ -23,7 +23,7 @@ OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
 BASE = "/v1/organizations/lab/projects/routing"
 
 
-async def build_world(api_client, db_session, registration, gate, monkeypatch, *, parameter_sets, seeds):
+async def build_world(api_client, db_session, registration, gate, monkeypatch, *, parameter_sets, seeds):  # noqa: F811
     """An executed two-cell study run owned by one account."""
 
     async def solve(*args, **kwargs):
@@ -127,7 +127,7 @@ async def attach(api_client, world, cell, job, headers=None):
 
 
 @pytest.fixture
-async def world(api_client, db_session, registration, gate, monkeypatch):
+async def world(api_client, db_session, registration, gate, monkeypatch):  # noqa: F811
     return await build_world(
         api_client, db_session, registration, gate, monkeypatch, parameter_sets=[{}], seeds=[1, 2]
     )
@@ -234,7 +234,7 @@ async def test_a_job_whose_package_is_unknown_is_a_case_mismatch(api_client, db_
     assert response.json()["detail"]["fields"] == ["case_revision"]
 
 
-async def test_other_peoples_jobs_are_not_found(api_client, db_session, registration, gate, world):
+async def test_other_peoples_jobs_are_not_found(api_client, db_session, registration, gate, world):  # noqa: F811
     stranger, _ = await make_account(api_client, registration, db_session, gate)
     foreign = await clone_job(db_session, world.jobs[0], owner_id=uuid.UUID(stranger["id"]))
 
@@ -262,7 +262,7 @@ async def test_unfinished_or_resultless_jobs_are_refused(api_client, db_session,
     assert response.json()["detail"]["code"] == code
 
 
-async def test_a_job_cannot_be_the_result_of_two_cells(api_client, db_session, registration, gate, monkeypatch):
+async def test_a_job_cannot_be_the_result_of_two_cells(api_client, db_session, registration, gate, monkeypatch):  # noqa: F811
     # Same case, engine and seed in both cells, so only the parameters differ.
     twin_world = await build_world(
         api_client, db_session, registration, gate, monkeypatch,
@@ -279,7 +279,7 @@ async def test_a_job_cannot_be_the_result_of_two_cells(api_client, db_session, r
     assert second.job_id == twin_world.jobs[1].id
 
 
-async def test_roles_and_credentials_decide_who_may_attach(api_client, db_session, registration, gate, world):
+async def test_roles_and_credentials_decide_who_may_attach(api_client, db_session, registration, gate, world):  # noqa: F811
     viewer, viewer_headers = await make_account(api_client, registration, db_session, gate)
     member, member_headers = await make_account(api_client, registration, db_session, gate)
     outsider, outsider_headers = await make_account(api_client, registration, db_session, gate)

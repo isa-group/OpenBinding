@@ -183,7 +183,7 @@ def first_difference(left: Any, right: Any, pointer: str = "") -> str | None:
     if isinstance(left, list):
         if len(left) != len(right):
             return f"{pointer}[length {len(left)} != {len(right)}]"
-        for index, (before, after) in enumerate(zip(left, right)):
+        for index, (before, after) in enumerate(zip(left, right, strict=False)):
             found = first_difference(before, after, f"{pointer}[{index}]")
             if found is not None:
                 return found

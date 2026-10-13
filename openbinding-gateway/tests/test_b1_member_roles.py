@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
-
 import pytest
 
 from _b1_helpers import gate, make_account, make_key, make_org, put_member, roles  # noqa: F401
@@ -12,7 +10,7 @@ REFUSED = "owner_role_requires_owner"
 
 
 @pytest.fixture
-async def team(api_client, registration, db_session, gate):
+async def team(api_client, registration, db_session, gate):  # noqa: F811 - gate is an imported fixture
     """One organization with an owner, a co-owner, an admin, a member and a viewer."""
     accounts = {}
     for name in ("owner", "coowner", "admin", "member", "viewer", "outsider", "candidate"):
@@ -154,7 +152,7 @@ async def test_platform_admin_with_admin_access_keeps_the_capability(api_client,
     assert (await roles(api_client, auth(accounts, "owner"), org))[uid(accounts, "member")] == "OWNER"
 
 
-async def test_platform_admin_without_membership_gets_no_access(api_client, team, registration, db_session, gate):
+async def test_platform_admin_without_membership_gets_no_access(api_client, team, registration, db_session, gate):  # noqa: F811 - gate is an imported fixture
     org, accounts = team
     _, stranger = await make_account(api_client, registration, db_session, gate, admin=True)
     refused = await put_member(api_client, stranger, org, uid(accounts, "member"), "OWNER")

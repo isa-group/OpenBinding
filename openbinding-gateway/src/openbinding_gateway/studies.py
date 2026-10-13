@@ -103,7 +103,6 @@ def aggregate_metrics(metrics: list[dict[str, Any]]) -> dict[str, Any]:
 async def seal_study_definition(session, project, user, name, definition, *, current=None, analysis_fixture=False):
     """Persist the sole authoritative definition in the organization library."""
     import uuid
-    from sqlalchemy import select
     from .artifacts import seal_draft, reference
     from .db.models import Artifact, ArtifactDraft, ArtifactVersion, BindingCaseRevision, ProjectArtifact
     from .models.artifacts import DraftContent

@@ -23,7 +23,6 @@ from openbinding_gateway.db.models import (
     EngineRevision,
     Project,
     RegisteredResourceRevision,
-    User,
 )
 from openbinding_gateway.db.platform_models import Report, ReportState
 from openbinding_gateway.routes import resolve as resolve_routes

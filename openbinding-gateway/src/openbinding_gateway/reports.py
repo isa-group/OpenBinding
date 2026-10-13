@@ -1,7 +1,7 @@
 """Report project contexts use the same editorial library as other resources."""
 import uuid
 from sqlalchemy import select
-from .artifacts import seal_draft, reference
+from .artifacts import seal_draft
 from .db.models import Artifact, ArtifactDraft, ProjectArtifact, Report, ReportState, StudyRun
 from .models.artifacts import DraftContent
 from .models.errors import api_error

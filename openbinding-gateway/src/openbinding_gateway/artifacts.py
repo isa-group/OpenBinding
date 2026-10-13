@@ -6,7 +6,6 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 

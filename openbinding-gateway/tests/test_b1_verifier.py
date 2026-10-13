@@ -38,7 +38,7 @@ CASE_TITLE = "Secret Case Title"
 
 
 @pytest.fixture
-async def ctx(api_client, registration, db_session, gate):
+async def ctx(api_client, registration, db_session, gate):  # noqa: F811 - gate is an imported fixture
     accounts = {}
     for name in ("owner", "admin", "member", "viewer", "outsider"):
         accounts[name] = await make_account(api_client, registration, db_session, gate)
@@ -166,7 +166,7 @@ async def test_a_hidden_digest_runs_the_same_queries_as_an_unknown_one(api_clien
     counts = []
     for target in (unknown, digest, unknown, digest):
         statements = []
-        hook = lambda *args, **kwargs: statements.append(args[2])  # noqa: E731
+        hook = lambda *args, statements=statements, **kwargs: statements.append(args[2])  # noqa: E731
         event.listen(engine, "before_cursor_execute", hook)
         try:
             await inspect(api_client, ctx, "outsider", target)

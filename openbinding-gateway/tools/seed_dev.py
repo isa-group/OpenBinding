@@ -76,7 +76,7 @@ schemas_dir = _find_schemas_dir()
 if "SCHEMAS_DIR" not in os.environ and schemas_dir.is_dir():
     os.environ["SCHEMAS_DIR"] = str(schemas_dir)
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from openbinding_gateway import space_client
@@ -105,8 +105,6 @@ from openbinding_gateway.db.platform_models import (
     OrganizationMembership,
     OrganizationRole,
     Project,
-    ProjectResource,
-    ProjectResourceRevision,
     Publication,
     Report,
     ReportState,
@@ -782,7 +780,7 @@ async def ensure_cases_and_collections(
         editions = [['simple-seq', 'parallel-mesh']]
         if 'multi-objective' in case_map:
             editions.append(['simple-seq', 'multi-objective', 'parallel-mesh'])
-        for ordinal, keys in enumerate(editions, 1):
+        for _ordinal, keys in enumerate(editions, 1):
             items = [dict(target_kind='case', target_digest=case_map[key][1].digest,
                 target_ref={'caseRevisionId': str(case_map[key][1].id)}) for key in keys]
             content_digest = digest(items)

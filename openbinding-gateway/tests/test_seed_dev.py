@@ -14,7 +14,7 @@ _tools_dir = str(Path(__file__).resolve().parents[1] / "tools")
 if _tools_dir not in sys.path:
     sys.path.insert(0, _tools_dir)
 
-from openbinding_gateway.db.models import Artifact, ArtifactVersion, ApiKey, EngineRegistrationRevision, EngineRevision, Job, JobState, User, UserRole
+from openbinding_gateway.db.models import Artifact, ArtifactVersion, ApiKey, EngineRegistrationRevision, EngineRevision, Job, User, UserRole
 from openbinding_gateway.db.platform_models import (
     Blob,
     AuditEvent,

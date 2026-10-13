@@ -12,7 +12,6 @@ from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
 import httpx
-import pytest
 import pytest_asyncio
 from sqlalchemy import select
 

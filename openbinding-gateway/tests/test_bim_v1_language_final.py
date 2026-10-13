@@ -682,7 +682,7 @@ def test_builtin_release_labels_pin_the_complete_contract_and_implementation(mon
     assert rebuilt['metadata']['version'] != original['metadata']['version']
     assert rebuilt['spec']['adapter']['version'] != original['spec']['adapter']['version']
     assert all(new['metadata']['version'] != old['metadata']['version']
-        for new, old in zip(compiler.installed_dialect_manifests(), original_dialects))
+        for new, old in zip(compiler.installed_dialect_manifests(), original_dialects, strict=False))
 
 
 def test_profile_adapter_pins_cannot_replace_or_uninstall_the_builtin_abi():

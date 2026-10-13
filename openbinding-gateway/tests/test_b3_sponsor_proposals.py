@@ -14,7 +14,6 @@ from openbinding_gateway.collaboration import sponsor_usage
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import (
     AuditEvent,
-    Notification,
     Organization,
     SponsorProposal,
     SponsorProposalStatus,

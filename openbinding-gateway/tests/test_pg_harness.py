@@ -210,14 +210,14 @@ def test_dockerfile_last_stage_is_production_and_only_test_copies_the_tests(comp
     assert [name for name, _ in stages] == ["base", "test", "production"]
     by_name = dict(stages)
     for name in ("base", "production"):
-        assert not [l for l in by_name[name] if l.startswith("COPY") and "tests/" in l], name
-    assert any(l.startswith("COPY openbinding-gateway/tests/ tests/") for l in by_name["test"])
+        assert not [line for line in by_name[name] if line.startswith("COPY") and "tests/" in line], name
+    assert any(line.startswith("COPY openbinding-gateway/tests/ tests/") for line in by_name["test"])
     production = by_name["production"]
     for keyword in ("USER ", "EXPOSE ", "ENV FORWARDED_ALLOW_IPS", "ENTRYPOINT ", "CMD "):
-        assert any(l.startswith(keyword) for l in production), keyword
+        assert any(line.startswith(keyword) for line in production), keyword
     for keyword in ("EXPOSE ", "ENTRYPOINT ", "CMD "):
-        assert not [l for l in by_name["base"] if l.startswith(keyword)], keyword
-    assert not [l for l in by_name["base"] if l.startswith("USER ")]
+        assert not [line for line in by_name["base"] if line.startswith(keyword)], keyword
+    assert not [line for line in by_name["base"] if line.startswith("USER ")]
 
 
 def test_names_match_the_lab_compose_pattern(compose):

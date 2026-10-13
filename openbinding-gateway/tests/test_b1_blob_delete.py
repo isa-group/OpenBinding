@@ -37,7 +37,7 @@ from openbinding_gateway.db.models import (
 )
 
 @pytest.fixture
-async def ctx(api_client, registration, db_session, gate):
+async def ctx(api_client, registration, db_session, gate):  # noqa: F811
     owner, headers = await make_account(api_client, registration, db_session, gate)
     organization = await make_org(api_client, headers)
     slug = organization["slug"]
@@ -265,7 +265,7 @@ async def test_an_unrelated_dependency_does_not_block(api_client, db_session, ct
     assert deleted.status_code == 204, deleted.text
 
 
-async def test_roles_and_credentials(api_client, registration, db_session, gate, ctx):
+async def test_roles_and_credentials(api_client, registration, db_session, gate, ctx):  # noqa: F811
     viewer, viewer_headers = await make_account(api_client, registration, db_session, gate)
     member, member_headers = await make_account(api_client, registration, db_session, gate)
     _, outsider_headers = await make_account(api_client, registration, db_session, gate)

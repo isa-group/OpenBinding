@@ -45,7 +45,7 @@ def workflow_as_bpmn(package: GeneratedPackage, name: str) -> GeneratedPackage:
         if "sequence" in node:
             parts = [emit(parent, child) for child in node["sequence"]]
             parts = [part for part in parts if part is not None]
-            for before, after in zip(parts, parts[1:]):
+            for before, after in zip(parts, parts[1:], strict=False):
                 flow(parent, before[1], after[0])
             return (parts[0][0], parts[-1][1]) if parts else None
         if "parallel" in node or "exclusive" in node:

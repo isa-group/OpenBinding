@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from openbinding_gateway import space_client
 from openbinding_gateway.collaboration import sponsor_usage
-from openbinding_gateway.db.models import Organization, Publication, Report, ReportState
+from openbinding_gateway.db.models import Organization
 from _pricing import fake_pricing_gate, largest_plan
 
 LARGER_PLAN = largest_plan()
@@ -322,7 +322,6 @@ async def test_sealed_reports_protect_project_and_organization_history(
         json={"slug": "nested-proj", "name": "Nested Project", "visibility": "public"},
     )
     assert proj_res.status_code == 201
-    proj_data = proj_res.json()
 
     # 4. Create case in project
     case_res = await api_client.post(
