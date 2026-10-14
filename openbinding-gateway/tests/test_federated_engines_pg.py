@@ -415,13 +415,16 @@ async def test_a_deployment_that_fails_to_verify_leaves_the_registration_pending
 async def test_a_registration_that_is_rolled_back_leaves_no_row_and_can_be_made_again(pg):
     async with pg.session() as session:
         owner = await make_user(session)
+        owner_id = owner.id
         document = registration_document(owner)
-        await register(session, owner, document)  # flushed in the transaction
+        await session.commit()  # the owner must outlive the rollback; only the registration is undone
+    async with pg.session() as session:
+        await register(session, await session.get(User, owner_id), document)  # flushed in the transaction
         await session.rollback()
     assert await registration_rows(pg) == 0
 
     async with pg.session() as session:
-        made = await register(session, await session.get(User, owner.id), document)
+        made = await register(session, await session.get(User, owner_id), document)
         await session.commit()
     assert made["active"] is False and await registration_rows(pg) == 1
 
