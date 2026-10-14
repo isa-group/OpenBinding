@@ -73,6 +73,7 @@ from ..study_jobs import (
     launch_study_cell,
     lock_run,
     metrics_from_job,
+    study_binding_space_refusal,
 )
 from ..studies import aggregate_metrics, expand_study
 from bim_core.canonical import canonical_json, digest
@@ -636,6 +637,12 @@ async def run_study(
         slug=found.slug, name=found.name, description=found.description, definition=definition_from_version(selected_version)
     ).definition
     expanded = expand_study(definition)
+    # Before the run, its cells or any job exist: a case above the limit refuses the whole run.
+    refusal = await study_binding_space_refusal(
+        session, {uuid.UUID(cell["caseRevisionId"]) for cell in expanded}, caps
+    )
+    if refusal is not None:
+        raise api_error(refusal.status, refusal.code, refusal.detail, **refusal.extra)
     await session.execute(select(Study.id).where(Study.id == found.id).with_for_update())
     number = int(await session.scalar(select(func.max(StudyRun.run_number)).where(StudyRun.study_id == found.id)) or 0) + 1
     matrix_digest = digest([cell["fingerprint"] for cell in expanded])

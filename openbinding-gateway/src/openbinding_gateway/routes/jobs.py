@@ -28,6 +28,7 @@ from ..job_dispatch import dispatch_persisted_job
 from ..jobs import clock as job_clock
 from ..jobs import evidence as job_evidence
 from ..jobs import lifecycle
+from ..domain.binding_space import BindingSpace, parse_cardinality
 from ..jobs import limits as job_limits
 from ..models.errors import (
     CONFLICT_RESPONSE,
@@ -142,6 +143,11 @@ async def retry_job(
     )
     caps = await plans.caps_or_503(user.id)
     refusal = plans.feature_refusal(caps, "federatedEngines" if federated else "solve")
+    recorded = (original.instance_complexity or {}).get("bindingSpace")
+    if refusal is None and recorded is not None:
+        # The size recorded when the original was accepted, held against today's plan. A job from
+        # before the size was recorded is not measured again: its instance cannot be read from here.
+        refusal = plans.binding_space_refusal(BindingSpace(parse_cardinality(recorded), None), caps)
     if refusal is None:
         refusal = await job_limits.enforce_concurrency_limit(session, user.id)
     if refusal is not None:

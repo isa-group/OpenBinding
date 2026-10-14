@@ -518,12 +518,11 @@ class JobSubmission:
                 size = len(request.archive)
             if size and size > entitlement_service.payload_ceiling(caps, 512 * 1024 * 1024):
                 raise _Finished(problem(413, "payload_too_large", "BIM package exceeds the caller plan limit"))
-            if entitlement_service.complexity_too_large(source.compilation.binding_space_log10, caps):
-                raise _Finished(problem(
-                    402,
-                    "instance_complexity_too_large",
-                    "instance binding space exceeds the caller plan limit",
-                ))
+            # Before the account row is locked, the snapshot stored or the job inserted: a refusal
+            # here holds no slot and leaves no row.
+            refusal = entitlement_service.binding_space_refusal(source.compilation.binding_space, caps)
+            if refusal is not None:
+                raise _Finished(problem(refusal.status, refusal.code, refusal.detail, extra=refusal.extra or None))
             clamped = entitlement_service.clamp_options(options, caps)
             options = clamped.options
             warnings = [warning.model_dump(mode="json") for warning in clamped.warnings]
@@ -705,7 +704,7 @@ class JobSubmission:
                 "resourceCount": len(compilation.file_digests),
                 "tasks": len(tasks) if isinstance(tasks, (dict, list)) else 0,
                 "candidates": compilation.analysis["candidates"],
-                "bindingSpace": str(compilation.binding_space_cardinality),
+                "bindingSpace": compilation.binding_space_text,
             },
             instance_snapshot_id=parsed_snapshot_id,
             configuration_version_id=version.id if version else None,

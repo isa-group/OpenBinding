@@ -109,7 +109,7 @@ async def test_solve_returns_429_on_concurrency_exceeded(api_client, db_session,
     assert response.status_code == 429, response.text
     body = response.json()
     assert body["title"] == "concurrency_limit_exceeded"
-    assert body["concurrency"] == {"limit": 1, "active": 1}
+    assert body["concurrency"]["limit"] == body["concurrency"]["active"] == 1
     assert response.headers.get("Retry-After") == "15"
 
 

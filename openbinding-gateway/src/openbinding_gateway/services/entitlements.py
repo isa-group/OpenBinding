@@ -29,6 +29,8 @@ from .. import space_client
 from ..access import policy
 from ..core.public_errors import PRICING_UNAVAILABLE as PRICING_UNAVAILABLE_PROBLEM
 from ..core.public_errors import log_internal_failure
+from ..core.settings import get_settings
+from ..domain import binding_space
 from ..domain import entitlements as refusals
 from ..models.errors import api_error
 from ..space_client import PlanCaps, PricingUnavailable
@@ -120,7 +122,20 @@ class EntitlementService:
 
     @staticmethod
     def complexity_too_large(log10_cardinality: Optional[float], caps: PlanCaps) -> bool:
+        """The plan-only float test (``access.policy``); the submission paths use ``binding_space_refusal``."""
         return policy.instance_complexity_too_large(log10_cardinality, caps)
+
+    @staticmethod
+    def binding_space_refusal(
+        space: binding_space.BindingSpace, caps: PlanCaps
+    ) -> Optional[refusals.Refusal]:
+        """The refusal for a binding space above the plan's limit or the deployment's safeguard, or ``None``.
+
+        Exact on the cardinality, and an unknown limit is refused, not allowed
+        (``domain.binding_space``). Decided before anything is written: a refused
+        request holds no slot and leaves no row.
+        """
+        return binding_space.check(space, caps, technical_log10=get_settings().max_binding_space_log10)
 
     async def upload_limit(self, user_id: UUID) -> int:
         """The per-request upload ceiling of ``user_id``, capped by the platform maximum (503 if unreadable)."""

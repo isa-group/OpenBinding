@@ -14,6 +14,7 @@ import pytest
 
 from _repo import REPO_ROOT
 from openbinding_gateway import space_client
+from openbinding_gateway.domain.binding_space import BindingSpace
 from openbinding_gateway.services import job_submission
 from openbinding_gateway.services.job_submission import JobSubmission, JobSubmissionInput, _Finished
 from openbinding_gateway.space_client import OpenCaps, OpenGate, PlanCaps
@@ -87,7 +88,7 @@ def caller_and_terms(monkeypatch, ceiling: int):
     caps.limits["maxPayloadBytes"] = ceiling
     monkeypatch.setattr(job_submission.entitlement_service, "caps_for", AsyncMock(return_value=caps))
     submission = JobSubmission(None, SimpleNamespace(id="caller"))
-    source = SimpleNamespace(compilation=SimpleNamespace(binding_space_log10=0.0))
+    source = SimpleNamespace(compilation=SimpleNamespace(binding_space=BindingSpace("1", 0.0)))
     engine = SimpleNamespace(options={})
     return submission, source, engine
 

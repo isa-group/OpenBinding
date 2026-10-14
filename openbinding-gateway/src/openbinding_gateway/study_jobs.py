@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Any
+from typing import Any, Iterable
 
 from bim_core import PackageError
 from fastapi import HTTPException
@@ -27,11 +27,14 @@ from .db.models import (
     User,
     utcnow,
 )
+from .domain.entitlements import Refusal
 from .jobs import lifecycle
 from .jobs.leases import aware
 from .security.roles import require_work_role
 from .services.engines import engine_mode, manifest_async
+from .services.entitlements import entitlement_service
 from .services.snapshots import persist_snapshot, snapshot_ir
+from .space_client import PlanCaps
 from .studies import aggregate_metrics
 
 
@@ -204,6 +207,39 @@ def _response_payload(response: Any) -> dict[str, Any]:
     if not isinstance(response, dict):
         raise StudyLaunchError("job_rejected", "The job pipeline returned no job identity.")
     return response
+
+
+async def study_binding_space_refusal(
+    session: AsyncSession, revision_ids: Iterable[uuid.UUID], caps: PlanCaps
+) -> Refusal | None:
+    """The first refusal among the distinct cases of a study run, decided before the run exists.
+
+    Each case is read from its stored IR (nothing is compiled or written) and held
+    against the plan's binding-space limit and the deployment's safeguard, so a run
+    whose cases are too large is refused whole instead of being accepted and then
+    failing cell by cell. A case whose snapshot cannot be read is left to the
+    launch of its cells, which reports it as it always did; launch applies the
+    same limit again to every job it creates.
+    """
+    seen: set[uuid.UUID] = set()
+    for revision_id in revision_ids:
+        if revision_id in seen:
+            continue
+        seen.add(revision_id)
+        revision = await session.get(BindingCaseRevision, revision_id)
+        if revision is None or revision.source_snapshot_id is None:
+            continue
+        source = await session.get(InstanceSnapshot, revision.source_snapshot_id)
+        if source is None:
+            continue
+        try:
+            compilation = await snapshot_ir(source, session)
+        except (HTTPException, PackageError, RuntimeError):
+            continue
+        refusal = entitlement_service.binding_space_refusal(compilation.binding_space, caps)
+        if refusal is not None:
+            return refusal
+    return None
 
 
 async def launch_study_cell(

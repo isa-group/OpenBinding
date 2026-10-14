@@ -239,7 +239,9 @@ async def test_the_concurrency_limit_is_a_retryable_429_with_its_headers(
     assert first.kind == "created"
     assert (refused.kind, refused.status) == ("problem", 429)
     assert refused.body["code"] == "concurrency_limit_exceeded"
-    assert refused.body["concurrency"] == {"limit": 1, "active": 1}
+    assert refused.body["concurrency"] == {
+        "limit_id": "concurrentJobs", "limit": 1, "used": 1, "active": 1, "unit": "job", "source": "technical",
+    }
     assert refused.headers == {"Retry-After": "15"}
     assert refused.body["code"] in study_jobs.RETRYABLE_LAUNCH_CODES
     assert await job_count(db_session) == 1

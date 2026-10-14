@@ -21,6 +21,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.jsonio import strict_json_loads
+from ..domain.binding_space import BindingSpace, decimal_digits
 from ..db.models import (
     BindingIRSnapshot,
     InstanceResource,
@@ -79,7 +80,7 @@ def ir_analysis(ir: Mapping[str, Any]) -> dict[str, Any]:
     ) if isinstance(catalogs, dict) else 0
     return {
         "bindingSpaceLog10": log10,
-        "bindingSpaceCardinality": str(cardinality),
+        "bindingSpaceCardinality": decimal_digits(cardinality),
         "bindingSpaceBreakdown": breakdown,
         "serviceTasks": len(breakdown),
         "candidates": candidates,
@@ -142,6 +143,16 @@ class Compilation:
     @property
     def binding_space_cardinality(self) -> int:
         return int(self.analysis["bindingSpaceCardinality"])
+
+    @property
+    def binding_space(self) -> BindingSpace:
+        """The estimated size of the binding space as limits read it: exact digits, no exception for odd input."""
+        return BindingSpace.from_analysis(self.analysis)
+
+    @property
+    def binding_space_text(self) -> str:
+        """``bindingSpaceCardinality`` as the decimal string it is on the wire (``"0"`` when unreadable)."""
+        return self.binding_space.cardinality or "0"
 
     @cached_property
     def instance(self) -> dict[str, Any]:

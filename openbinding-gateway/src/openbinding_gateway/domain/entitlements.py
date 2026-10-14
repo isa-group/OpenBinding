@@ -15,6 +15,9 @@ if TYPE_CHECKING:
 
 CONCURRENCY_RETRY_AFTER = "15"
 
+#: The identifier SPACE's pricing gives the plan's simultaneous-jobs limit; the technical cap reports under it.
+CONCURRENCY_LIMIT_ID = "concurrentJobs"
+
 DEFAULT_CONCURRENCY_DETAIL = "Concurrency limit exceeded."
 DEFAULT_NOT_ENTITLED_DETAIL = "The current plan does not entitle this feature."
 
@@ -43,11 +46,26 @@ def feature_refusal(
 
 
 def concurrency_refusal(limit: int, active: int) -> Refusal:
-    """The retryable 429 for an account that already has ``limit`` jobs in flight."""
+    """The retryable 429 for an account that already has ``limit`` jobs in flight.
+
+    ``concurrency`` names the limit like the 402 ``quota`` does (``limit_id``,
+    ``limit``, ``used``); ``active`` is the same count as ``used``, kept for the
+    clients that read it. A concurrency limit is a ceiling on simultaneous jobs,
+    not a balance: a slot is free again the moment a job ends.
+    """
     return Refusal(
         429,
         "concurrency_limit_exceeded",
         DEFAULT_CONCURRENCY_DETAIL,
-        extra={"concurrency": {"limit": limit, "active": active}},
+        extra={
+            "concurrency": {
+                "limit_id": CONCURRENCY_LIMIT_ID,
+                "limit": limit,
+                "used": active,
+                "active": active,
+                "unit": "job",
+                "source": "technical",
+            }
+        },
         headers={"Retry-After": CONCURRENCY_RETRY_AFTER},
     )

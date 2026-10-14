@@ -160,9 +160,16 @@ def solve_timeout_s(caps: PlanCaps, gateway_ceiling: float) -> float:
     receive the instance, solve, and answer - and only the middle part is what
     the budget describes.
 
+    This is a wall-clock budget (time the engine may take, as the gateway
+    waits for it), not CPU time: nothing in the gateway measures CPU.
+
     Raises the 503 ``pricing_misconfigured`` problem when the plan grants no
-    finite timeout or one above ``gateway_ceiling``.
+    finite timeout, declares none at all (an unknown limit is not "no
+    timeout", and ``PlanCaps.limit`` would read it as zero seconds), or grants
+    one above ``gateway_ceiling``.
     """
+    if "maxTimeoutSeconds" not in caps.limits:
+        raise pricing_misconfigured("SPACE entitlement does not declare a timeout")
     timeout = caps.limit("maxTimeoutSeconds")
     if timeout is None or timeout > gateway_ceiling:
         raise pricing_misconfigured("SPACE entitlement exceeds the configured technical timeout")

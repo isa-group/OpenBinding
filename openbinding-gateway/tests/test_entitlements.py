@@ -42,7 +42,12 @@ def test_the_concurrency_limit_is_a_retryable_429() -> None:
         429,
         "concurrency_limit_exceeded",
         "Concurrency limit exceeded.",
-        extra={"concurrency": {"limit": 8, "active": 8}},
+        extra={
+            "concurrency": {
+                "limit_id": "concurrentJobs", "limit": 8, "used": 8, "active": 8,
+                "unit": "job", "source": "technical",
+            }
+        },
         headers={"Retry-After": "15"},
     )
 
@@ -55,7 +60,8 @@ def test_the_concurrency_refusal_carries_retry_after_in_both_styles() -> None:
 
     assert error.status_code == 429
     assert error.headers == {"Retry-After": "15"}
-    assert error.detail["concurrency"] == body["concurrency"] == {"limit": 3, "active": 3}
+    assert error.detail["concurrency"] == body["concurrency"]
+    assert body["concurrency"]["limit"] == body["concurrency"]["active"] == body["concurrency"]["used"] == 3
 
 
 def test_the_launch_codes_that_mean_not_now_include_the_concurrency_refusal() -> None:

@@ -96,6 +96,13 @@ class Settings(BaseSettings):
     #: that protects the engines, independent of the plan
     #: (``MAX_CONCURRENT_JOBS_PER_USER``).
     max_concurrent_jobs_per_user: int = Field(default=8, ge=1)
+    #: Technical ceiling, in log10 units, on the binding space (the estimated number
+    #: of candidate combinations) of one job or study cell; ``None`` sets none
+    #: (``MAX_BINDING_SPACE_LOG10``). It applies on top of the plan's
+    #: ``maxInstanceComplexityLog10`` and stands in for it when the plan declares no
+    #: usable value; with neither, the instance is refused. See
+    #: ``domain/binding_space.py``.
+    max_binding_space_log10: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
     #: How long a job may wait in the queue without a worker claiming it before
     #: the reconciler fails it with ``queue_timeout``. Counts from the moment the
     #: job was queued, whatever budget it was given to run

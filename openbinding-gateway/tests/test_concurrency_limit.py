@@ -108,7 +108,11 @@ async def test_below_the_limit_nothing_is_refused_and_at_it_the_429_is(db_sessio
 
     assert isinstance(refusal, Refusal)
     assert (refusal.status, refusal.code) == (429, "concurrency_limit_exceeded")
-    assert refusal.extra == {"concurrency": {"limit": 1, "active": 1}}
+    assert refusal.extra == {
+        "concurrency": {
+            "limit_id": "concurrentJobs", "limit": 1, "used": 1, "active": 1, "unit": "job", "source": "technical",
+        }
+    }
     assert refusal.headers == {"Retry-After": "15"}
 
 
@@ -147,7 +151,10 @@ async def test_creating_a_job_at_the_limit_is_a_429_and_finishing_one_frees_the_
     assert refused.status_code == 429, refused.text
     assert refused.json()["title"] == "concurrency_limit_exceeded"
     assert refused.headers["Retry-After"] == "15"
-    assert refused.json()["concurrency"] == {"limit": 1, "active": 1}
+    # Named like a 402 quota (limit_id, limit, used) so the frontend reads it; ``active`` is kept.
+    assert refused.json()["concurrency"] == {
+        "limit_id": "concurrentJobs", "limit": 1, "used": 1, "active": 1, "unit": "job", "source": "technical",
+    }
     assert await db_session.scalar(select(func.count()).select_from(Job)) == 1
 
     job = await db_session.get(Job, uuid.UUID(first.json()["id"]))

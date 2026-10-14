@@ -148,7 +148,7 @@ def _multipart_zip(body: bytes, content_type: str) -> bytes:
 
 
 def _service_problem(exc: instances.InstanceProblem | discovery.DiscoveryProblem) -> JSONResponse:
-    return _problem(exc.status, exc.code, exc.detail)
+    return _problem(exc.status, exc.code, exc.detail, extra=getattr(exc, "extra", None) or None)
 
 
 def _error_from_http(exc: HTTPException) -> JSONResponse:

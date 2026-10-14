@@ -38,11 +38,13 @@ Persister = Callable[[Compilation, User | None, AsyncSession | None], Awaitable[
 class InstanceProblem(Exception):
     """A refusal the HTTP layer renders as ``application/problem+json``."""
 
-    def __init__(self, status: int, code: str, detail: str) -> None:
+    def __init__(self, status: int, code: str, detail: str, extra: Mapping[str, Any] | None = None) -> None:
         super().__init__(detail)
         self.status = status
         self.code = code
         self.detail = detail
+        #: Members added beside ``code`` and ``detail`` in the problem document (a refused limit's ``quota``).
+        self.extra = dict(extra) if extra else {}
 
 
 @dataclass(frozen=True)
@@ -188,12 +190,9 @@ async def validate_package(
             caps = await entitlement_service.caps_for(caller.id)
         except EntitlementsUnavailable as exc:
             raise InstanceProblem(exc.status, exc.code, str(exc)) from exc
-        if entitlement_service.complexity_too_large(compilation.binding_space_log10, caps):
-            raise InstanceProblem(
-                402,
-                "instance_complexity_too_large",
-                "instance binding space exceeds the caller plan limit",
-            )
+        refusal = entitlement_service.binding_space_refusal(compilation.binding_space, caps)
+        if refusal is not None:
+            raise InstanceProblem(refusal.status, refusal.code, refusal.detail, extra=refusal.extra)
     spec = compilation.spec
     return {
         "valid": True,
@@ -207,7 +206,7 @@ async def validate_package(
             "candidates": compilation.analysis["candidates"],
             "constraints": len(spec.get("constraints", [])),
             "placement": bool(spec.get("placement")),
-            "bindingSpace": str(compilation.binding_space_cardinality),
+            "bindingSpace": compilation.binding_space_text,
         },
         "compatibleModes": await compatible_modes(compilation.ir, caller, session),
         "diagnostics": [],
