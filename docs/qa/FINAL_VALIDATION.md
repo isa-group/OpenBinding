@@ -1,6 +1,33 @@
 # Final validation
 
-## Current record (process mode N2, SIGXCPU, recycling, corpus)
+## Status of 2026-10-14 (head `c2d46151`; the sections below are records of earlier SHAs)
+
+The human decided on 2026-10-14: normalized IR (MAJOR, version 0.2.0, no compatibility with the old order); measurable usage
+limits yes, credits and CU no; class B counters not retired for being counters (SPACE is their native source, on hold); profile
+N1 in the demo. Figures reported by the coordinator, each tied to its SHA; they were not re-run by this document.
+
+| What | Result | SHA |
+|---|---|---|
+| PostgreSQL 16 real | 70 passed, 0 skipped (67 + 3 plan-concurrency); migrations up to `b6c7d8e9f0a1` | `bef53047` (functional code before M) |
+| `bim-toolchain` core + service + client | 2153 passed, 0 failed, 22 skipped (wheels not built), 3 xfailed (B8 thread) | `bef53047` / the workers' trees |
+| Gateway `a`-`m` | 1906-1920 passed, 10 skipped | `bef53047` / the workers' trees |
+| Gateway `n`-`z` + concurrency | 875 passed, 43 skipped (PostgreSQL), 1 xfailed | `bef53047` / the workers' trees |
+| Frontend | 2467 tests (figure of worker L, output truncated); build 9.04 s | the worker's tree |
+| Smoke N1 | 9/9 in 6.0 s (a first run on `bef53047` gave 6/9, `422 contract_not_installed`) | `c2d46151` |
+| Playwright N1 | 30 passed, 0 failed, 0 skipped (a first run on `bef53047` gave 29 passed / 1 failed) | `c2d46151` |
+| `process_probe.py` N1, no timeout step | exit 0, `ok=true` ([PROCESS_PROBE.md](PROCESS_PROBE.md)) | `c2d46151` |
+
+**Superseded by this phase:** the "64 + 4 IR MAJOR xfails and the `has()` xfail are untouched" statements in the records below
+(the IR was normalized in `f98a7a1e`: 82 of 82 packages equal, the 64 + 4 `xfail` removed, `has()` fixed; see
+[IR_NORMALIZATION.md](IR_NORMALIZATION.md)), and "process mode N2 is the demo profile" (N1 is, see
+[PROCESS_DEPLOYMENT.md](PROCESS_DEPLOYMENT.md)). The parent-death case is tested with real processes (`0fc19a83`, no bug found).
+
+**Still open:** SPACE (on hold, never exercised); class B counters and `federatedEngines` not measured against a real SPACE
+(synthetic source only); rights and licences (code, schemas, OMG XSD); the limited Git credential for the private repository
+`javiercavlop/bim-toolchain`, and publication; the real timeout and replacement with one slot in the N1 container is
+**PENDING** (no evidence yet; `compose.lab-process-n1-probe.json`, task P).
+
+## Record of `ce7229b` (process mode N2, SIGXCPU, recycling, corpus; history)
 
 Cabeza validada: `ce7229b` (the base commit `ce7229b`, short SHA taken from the git status of the start of this task; this
 worker has no shell, so `git rev-parse HEAD` could not be run and the full SHA is not recorded. The working tree had only the
@@ -50,7 +77,7 @@ are 0 to 5 (index 4 is the lab test suite, there is no frontend check in this co
   (after `b2780381`; results and limits in `bim-toolchain/docs/SERVICE.md`, "When the parent dies, tested for real"): idle workers
   left 6 to 11 ms after the parent was killed, a busy CPU-bound worker died of `SIGXCPU` at its own CPU limit, and no code of the
   service was changed. That evidence belongs to that later change and is not attributed to `ce7229b` or `b2780381`.
-* Not closed (at `ce7229b`): natural SIGXCPU with equal budgets needs native multithreaded code without the GIL
+* Not closed (at `ce7229b`; the IR `xfail` items are superseded, see the status above): natural SIGXCPU with equal budgets needs native multithreaded code without the GIL
   (not built); the kernel counts CPU in whole seconds; thread mode keeps 3 strict `xfail`; the 64 + 4 IR MAJOR xfails and the `has()`
   xfail are untouched; not reached by the probe in the demo: 413 `pending_body_too_large`, 413 `memory_budget_exceeded`, a worker
   killed from outside, a client disconnect.

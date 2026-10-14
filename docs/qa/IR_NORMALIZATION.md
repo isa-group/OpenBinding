@@ -10,6 +10,15 @@ package with the members of its JSON objects shuffled compile to the same IR, by
 every binding to the same evaluation, in 82 of 82 corpus packages and in the five synthetic variants. No compatibility
 mode, no second implementation of the old order and no migration code exist: the old behaviour is preserved only as data.
 
+**Decision and integration (2026-10-14, head `c2d46151`).** The human decided: normalized IR, MAJOR, no compatibility with the
+old order, version 0.2.0. It is no longer pending. Integrated as `f98a7a1e` (K/K2/K3: 82 of 82 packages equal across directory,
+ZIP and permutations, the 64 + 4 strict `xfail` removed, `has()` on an interval fixed, cardinality above 4300 digits handled in
+blocks, `compilerDigest` `sha256-e2f269aa…` to `sha256-ccc55839…`) and `9bbc189f` (M, the cut-over of the gateway: explicit
+recompilation of snapshots, an idempotent seed, and the stable error `422 contract_not_installed`). In the demo at `c2d46151`
+the seed created the revision `simple-seq:2` and one old snapshot could not be recompiled (`invalid_instance`, reported in
+`recompileFailed`). The "Pending" items inside this document that concern regenerating the informative `toolchain` members of
+the golden are about that regeneration only, not about the decision.
+
 ## 0. The baselines, by SHA
 
 | Baseline | Where | Identity |

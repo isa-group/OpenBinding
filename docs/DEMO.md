@@ -4,18 +4,28 @@
 demo on one lab host. It is reached from a Mac through an SSH tunnel; the only
 thing published on the host is `127.0.0.1:18100`.
 
-**Current status (head `b2780381`, 2026-10-14).** The figures below are those reported by the coordinator for that head; this
-document did not re-run them. The numbers of the earlier observation at `5aebc7c8` are kept after them, tied to their SHA.
+**Current status (head `c2d46151`, 2026-10-14).** The figures below are those reported by the coordinator for that head; this
+document did not re-run them. The numbers of earlier observations (`b2780381`, `5aebc7c8`) are kept after them, tied to their SHA.
 
-- The demo runs `bim-service` in **process mode, profile N2** (`compose.lab-process-n2.json`: 2 workers, body of **2 MiB**), in the
-  real 256 MiB container, deployed and probed with `process_probe.py` (details: [qa/PROCESS_DEPLOYMENT.md](qa/PROCESS_DEPLOYMENT.md),
-  [qa/PROCESS_PROBE.md](qa/PROCESS_PROBE.md)). N2 is the profile in force **for now**; N1 against N2 is pending the human's
-  decision. `compose.lab.json` (thread mode, 16 MiB) is the rollback.
-- `smoke_lab.py` gives **9/9** steps at `b2780381` with `DEMO_SPACE_ENABLED=false`.
-- Playwright against the live lab (the `e2e` service): **30 passed, 0 failed, 0 skipped** at `b2780381`.
-  `docs/qa/E2E_PLAN.md` still has the older wording ("written, not executed"); the run supersedes it.
-- The PostgreSQL 16 concurrency harness gave **67 passed, 0 skipped** at `b2780381`; it runs separately from the lab, see
-  [PG_HARNESS.md](qa/PG_HARNESS.md).
+- The demo runs `bim-service` in **process mode, profile N1** (`compose.lab-process.json`: 1 process, body up to **6 MiB**, the
+  256 MiB container intact). This is the human's decision of 2026-10-14; N2 (`compose.lab-process-n2.json`: 2 workers, 2 MiB) is
+  an alternative and history. Deployed and probed with `process_probe.py` at `c2d46151` (details:
+  [qa/PROCESS_DEPLOYMENT.md](qa/PROCESS_DEPLOYMENT.md), [qa/PROCESS_PROBE.md](qa/PROCESS_PROBE.md)). `compose.lab.json` (thread
+  mode, 16 MiB) is the rollback.
+- Seed at `c2d46151`: idempotent; it created the revision `simple-seq:2`; one old snapshot could not be recompiled under the new
+  IR (`invalid_instance`, in `recompileFailed`). A first smoke/Playwright run in N1 on `bef53047` **failed** (smoke 6/9 with
+  `422 contract_not_installed`, Playwright 29 passed / 1 failed) because the seeded snapshots carried compiler 0.1.0 after the IR
+  cut-over; fixed by the cut-over change (`9bbc189f`) and re-verified at `c2d46151`.
+- `smoke_lab.py` gives **9/9** steps in 6.0 s at `c2d46151` with `DEMO_SPACE_ENABLED=false`.
+- Playwright against the live lab (the `e2e` service): **30 passed, 0 failed, 0 skipped** at `c2d46151` (summary
+  2026-10-14T13:41:20Z). `docs/qa/E2E_PLAN.md` still has the older wording ("written, not executed"); the run supersedes it.
+- The PostgreSQL 16 concurrency harness gave **70 passed, 0 skipped** at `bef53047` (67 plus 3 plan-concurrency tests;
+  migrations up to `b6c7d8e9f0a1`); it runs separately from the lab, see [PG_HARNESS.md](qa/PG_HARNESS.md).
+- **Pending, no evidence yet:** the real timeout and replacement with one slot in the N1 container
+  (`compose.lab-process-n1-probe.json`, task P, in progress).
+
+**Observation at `b2780381`, 2026-10-14 (history; the demo then ran N2, which is superseded as the profile in force):** smoke
+9/9, Playwright 30 passed / 0 failed / 0 skipped, PostgreSQL 67 passed / 0 skipped.
 
 **Earlier observation, 2026-10-13 at SHA `5aebc7c8` (history):**
 
@@ -93,10 +103,10 @@ that limits a compromised process. Consequences for the lab:
   `artifacts-init` does not exist, and that the image directory is owned by 10001.
 - `bim-service` has `cpus: 1.5` and `pids_limit: 256` in addition to `mem_limit`.
   These are plain Compose service attributes; `mem_limit` is unchanged, so the sum
-  above is too. The controller's validator accepted them: the deployed N2 container runs with 1.5 CPUs and
-  `pids_limit` 256 (`docs/qa/PROCESS_DEPLOYMENT.md`; 6 pids were counted in it after the probe).
+  above is too. The controller's validator accepted them: the container runs with 1.5 CPUs and
+  `pids_limit` 256 (`docs/qa/PROCESS_DEPLOYMENT.md`; 6 pids were counted in the N2 container after its probe at `ce7229b2`).
 - **`bim-service` memory (256 MiB, unchanged), thread mode of `compose.lab.json` (the rollback; the demo now runs the
-  process profile N2 described in the next item).** Its environment sets
+  process profile N1 described in the next item).** Its environment sets
   `BIM_SERVICE_MAX_BODY_BYTES=16777216` (16 MiB, not the 32 MiB default),
   `BIM_SERVICE_MAX_CONCURRENCY=2`, `BIM_SERVICE_MEMORY_BUDGET_BYTES=134217728` (128 MiB)
   and `BIM_SERVICE_MAX_PENDING_BODY_BYTES=33554432` (32 MiB). Why not 32 MiB: the measured
@@ -124,11 +134,11 @@ that limits a compromised process. Consequences for the lab:
   `compose.lab.json` only in the environment of `bim-service`, so the memory sum stays
   4032 MiB, and `compose.lab.json` is the rollback. Profiles, fit rule, activation with
   `lab_compose up file=...` and what to verify: [qa/PROCESS_DEPLOYMENT.md](qa/PROCESS_DEPLOYMENT.md).
-  **The demo currently runs `bim-service` in process mode with `compose.lab-process-n2.json`** (2 workers, body 2 MiB, so
-  `GET /bim/v1/capabilities` publishes 2 MiB, not 16 MiB), deployed and probed in the real 256 MiB container (smoke 9/9,
-  probe exit 0, `oom_kill` 0; see the deployment and probe documents). The sum of `mem_limit` is still 4032 MiB.
+  **The demo currently runs `bim-service` in process mode with `compose.lab-process.json`** (N1: 1 process, body up to 6 MiB, so
+  `GET /bim/v1/capabilities` publishes 6 MiB, not 16 MiB), deployed and probed in the real 256 MiB container at `c2d46151`
+  (smoke 9/9, probe exit 0, `oom_kill` 0; see the deployment and probe documents). The sum of `mem_limit` is still 4032 MiB.
   The 16 MiB / thread description above is `compose.lab.json`, the rollback (`lab_compose up file=compose.lab.json`).
-  `compose.lab-process.json` (N=1, 6 MiB) was not deployed.
+  `compose.lab-process-n2.json` (N=2, 2 MiB) was deployed earlier (`ce7229b2`) and is now an alternative.
 - The image build and `up` with the new ownership were first covered by static checks only (no Docker in the authoring
   environment). They have been run since by the supervisor's `lab_compose`: the stack was up for the smoke (9/9) and for
   Playwright (30/0/0) at `b2780381`. A separate check of the ownership of `lab-artifacts-2` is not recorded in this document.
@@ -451,9 +461,9 @@ not cover (browser, Playwright, the visual mobile/desktop check) and the
 assumptions of its first run are in `docs/qa/E2E_PLAN.md`.
 
 **Run of 2026-10-13, SHA `5aebc7c8` (thread mode, `DEMO_SPACE_ENABLED=false`, without
-`--with-space`): 9/9 steps passed in 24.4 s.** The later run at `b2780381` (process mode N2) also gave 9/9; its duration is
-not recorded in this document. `plan_usage` needs `--with-space`
-and was omitted on 2026-10-13 (**not executed**); whether it was run at `b2780381` is not recorded here.
+`--with-space`): 9/9 steps passed in 24.4 s.** The later run at `b2780381` (process mode N2) also gave 9/9 (duration not
+recorded in this document), and so did the run at `c2d46151` (process mode N1) in 6.0 s. `plan_usage` needs `--with-space`
+and was omitted on 2026-10-13 (**not executed**); whether it was run at `b2780381` is not recorded here. Whether it was run at `c2d46151` is not recorded here either.
 
 History: the first complete run passed 8 of 9 steps. The failing one,
 `authorization` ("viewer cannot launch"), had a wrong expectation in the smoke:

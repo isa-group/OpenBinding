@@ -6,6 +6,15 @@ frontend.
 
 ## Declaración
 
+**Estado vigente (2026-10-14, cabeza `c2d46151`).** Decisiones humanas ya resueltas, no pendientes: los límites de uso
+medibles **sí** (jobs, tareas y estudios, tiempo, concurrencia y complejidad del espacio de binding); CU y créditos **no**;
+los contadores de clase B **no se retiran por ser contadores**, y SPACE es su fuente nativa, hoy en espera (cero llamadas). Lo
+que queda abierto de verdad: SPACE nunca se ha probado, y los contadores de clase B y `federatedEngines` **no están medidos
+contra un SPACE real** (el puerto `UsageCounterSource` solo tiene una fuente sintética). Integrado: J en `e979f12b`, L en
+`e1090c22`. Las frases de este documento que dicen «decisión pendiente» o «el humano decide» (p. ej. el paso 3 del plan) son
+el estado histórico en que se escribieron: la decisión sobre clase B ya está tomada (SPACE nativo, en espera), pero cada
+contador sigue sin integrarse hasta verificar el cliente de SPACE.
+
 **CU, créditos, moneda ponderada y saldo siguen fuera.** La decisión humana de 2026-10-14 permite límites sujetos a número
 de tareas, complejidad del espacio de binding, tiempo de ejecución, número de jobs y concurrencia, y excluye unidades de
 capacidad o créditos. Nada de lo implementado reserva, cobra, descuenta, pondera ni mantiene un saldo; un rechazo no deja

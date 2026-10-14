@@ -106,7 +106,13 @@ organization's real pricing/service. If that base declares usage counters (class
 
 ## Two classes of findings: A (credits/CU) and B (usage counters)
 
-The human decision is to retire the *currency* (credits, CU, capacity) and the monthly counters from the
+**Update 2026-10-14 (supersedes the next paragraph where they differ).** The human resolved class B: the counters are **not
+retired just for being counters**. SPACE is their native source and it is on hold, so zero calls are made; the gateway's
+`UsageCounterSource` port only has a synthetic source, so they are not applied and **not measured against a real SPACE**.
+Credits and CU (class A) stay out. The 33 class B counters that the development pricing keeps are therefore no longer an
+"unresolved concession" as a policy question; whether the remote pricing is right for them remains unverified.
+
+The earlier human decision, kept as history, was to retire the *currency* (credits, CU, capacity) and the monthly counters from the
 OpenBinding system (already done in the code). For the **remote development pricing** the base is "the most
 recent remote version without CU". The scan therefore separates two classes, and every finding carries
 `"class": "A"` or `"B"`:
@@ -399,5 +405,6 @@ which one failed.
 11. *Partly resolved:* anonymous privacy of the private development pricing `openbinding-dev@0.1.0` in SPHERE
     (observed 2026-10-13, see [SPHERE_PRIVACY.md](SPHERE_PRIVACY.md)). Verified: not listed (`total: 0`), 404 by
     name, 403 on the static YAML (indistinguishable from a nonexistent file). **Not verified:** the by-id route
-    `configuration-space` (no public control returned 200). The 33 class B counters it keeps are an unresolved
-    historical concession, classified in that document.
+    `configuration-space` (no public control returned 200). The 33 class B counters it keeps were an unresolved
+    historical concession, classified in that document; since 2026-10-14 the policy is decided (not retired for being counters,
+    SPACE as native source, on hold; see the update at the top of this section), but they are not measured against a real SPACE.

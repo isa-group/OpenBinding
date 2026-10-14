@@ -6,22 +6,53 @@ container. `compose.lab.json` (thread executor) is not modified and is the rollb
 | File | Executor | Worker processes (N) | Largest body (L) | Use |
 | --- | --- | --- | --- | --- |
 | `compose.lab.json` | `thread` (default) | 2 threads | 16 MiB | current demo, **rollback** |
-| `compose.lab-process-n2.json` | `process` | 2 | 2 MiB | **recommended first** |
-| `compose.lab-process.json` | `process` | 1 | 6 MiB | second choice; the larger body |
+| `compose.lab-process-n2.json` | `process` | 2 | 2 MiB | alternative; historical profile of `ce7229b2` |
+| `compose.lab-process.json` | `process` | 1 | 6 MiB | **profile in force (N1)** |
 
-**Status: `compose.lab-process-n2.json` is deployed and verified in the real demo (see "Result of the real deployment of
-N2").** The manifests and the arithmetic below were also checked statically by `lab/tests/test_lab_process_profiles.py`.
-`compose.lab-process.json` (N=1, 6 MiB) was **not** needed and was not deployed. The sections after the result are the
-plan that was followed; the figures marked *assumption* there were replaced by the measurements in the result.
-N2 is the profile in force **for now**; the choice between N1 (one worker, 6 MiB) and N2 (two workers, 2 MiB) is **pending the
-human's decision** and is not assumed here (see [JOINT_STATUS.md](JOINT_STATUS.md)).
+**Status (2026-10-14, head `c2d46151`): the human decided on N1; `compose.lab-process.json` (1 process, body up to 6 MiB, the
+256 MiB container intact) is the profile in force in the demo.** N2 (`compose.lab-process-n2.json`) stays as an alternative and
+as history, with its measurements tied to `ce7229b2`. The manifests and the arithmetic below were also checked statically by
+`lab/tests/test_lab_process_profiles.py`. The text of the sections that recommend N2 first ("Which one first, and why") is the
+reasoning that preceded the decision and is **superseded**; it is kept for its figures.
 
-## Result of the real deployment of N2
+## Result of the real deployment of N1 (head `c2d46151`)
+
+Profile: `compose.lab-process.json` (body 6291456 B, 1 slot, budget 50331648 B, pending 12582912 B, acquire 3000 ms,
+per-tenant 0). Container unchanged: `mem_limit` 256 MiB, 1.5 CPUs, `pids_limit` 256; the sum of `mem_limit` stays 4032 MiB.
+
+* **First run on `bef53047` failed, and why.** Smoke 6/9 (`422 contract_not_installed`) and Playwright 29 passed / 1 failed.
+  The IR cut-over had left snapshots seeded with compiler 0.1.0. That was fixed by task M (`9bbc189f`: explicit recompilation
+  of snapshots and an idempotent seed) and re-verified at `c2d46151`. It is not a defect of the profile.
+* **At `c2d46151`:** the seed is idempotent (it created the revision `simple-seq:2`; one old snapshot could not be recompiled,
+  `invalid_instance`, reported in `recompileFailed`); smoke **9/9** in 6.0 s; Playwright **30 passed, 0 failed, 0 skipped**
+  (summary 2026-10-14T13:41:20Z).
+* **Probe** (`process_probe.py`, `c2d46151`, N1 figures: `--expect-max-body-bytes 6291456 --expect-concurrency 1
+  --expect-memory-budget-bytes 50331648 --expect-pending-body-bytes 12582912 --expect-acquire-timeout-ms 3000`, **without** the
+  timeout step): exit 0, `ok=true`. Steps in [PROCESS_PROBE.md](PROCESS_PROBE.md): `capabilities` 16 checks, `valid_operations`
+  84, `hostile_small` 55, `large_bodies` 13, `saturation` 9, `healthz_under_load` 116/116 in 200.
+* **Fit rule with the conservative figures** (table below): required 265918873 B of 268435456 B, headroom **2516583 B (2.4 MiB):
+  little room.**
+* **Memory** (`lab_compose metrics`, decimal MB; `c2d46151`):
+
+| Moment | Parent RSS | Worker RSS | cgroup `memory.current` / `memory.max` | `oom_kill` |
+| --- | --- | --- | --- | --- |
+| During Playwright | 59.9 MB | 54.7 MB | 92.5 MB (value as reported) | not recorded |
+| After the probe | 68.1 MB (peak 84.0) | 68.4 MB (peak 72.2) | 116899840 / 268435456 | 0 |
+
+* **PENDING, no evidence yet:** the real timeout and replacement **with one slot** has not been exercised in the N1 container.
+  Only N2 (probe at `ce7229b2`, below) and tests with real processes did it. It will be done with
+  `compose.lab-process-n1-probe.json` (task P, in progress). Until that evidence exists, nothing here claims it for N1.
+* Not reached by the N1 probe either (not claimed): 413 `pending_body_too_large`, 413 `memory_budget_exceeded`, a worker killed
+  from outside and a client disconnect in the demo.
+* **Rollback:** `lab_compose up file=compose.lab.json` (thread mode, unchanged file).
+
+## Result of the real deployment of N2 (history, `ce7229b2`)
 
 Code deployed: `ce7229b2` (with the tests and documents of that moment); the code of `bim-service` is that of `67e8e878`
 (worker fix `c67116ba`). Container: the real demo, `mem_limit` 256 MiB, 1.5 CPUs, `pids_limit` 256, unchanged; the sum of
 `mem_limit` stays 4032 MiB. Profile: `compose.lab-process-n2.json` (body 2 MiB, 2 slots, budget 16 MiB, pending 4 MiB, acquire
-2000 ms, per-tenant 0). The recommendation of this page (N2 first) was followed and met; N1 was not needed.
+2000 ms, per-tenant 0). At that time the recommendation of this page was N2 first, and N1 was not deployed; that was later
+superseded by the decision for N1 (above).
 
 * **Start.** Correct. The service validated its own fit rule: required 261724569 of 268435456 bytes, headroom 6710887 bytes,
   with the conservative figures of the probe (the same as the conservative column below). `GET /bim/v1/capabilities` published
@@ -151,9 +182,11 @@ The measured column reproduces the figure of `SERVICE.md` (253397401).
 For contrast, the settings of `compose.lab.json` (N=2, L=16 MiB, B=128 MiB, Q=32 MiB) would need 655186329 bytes in process
 mode against 268435456: they do not fit, which is why the thread laboratory is not simply switched.
 
-### Which one first, and why
+### Which one first, and why (historical, superseded by the decision for N1 of 2026-10-14)
 
-**Recommended first: `compose.lab-process-n2.json`.**
+This was the reasoning before the decision: it recommended `compose.lab-process-n2.json`. It is not the current instruction;
+the profile in force is `compose.lab-process.json` (N1). The points below remain true as trade-offs (N1 has one slot and the
+least headroom).
 
 1. Two slots: the gateway, the worker (2 threads) and the seed call concurrently, and the gateway does not retry a 503. With
    one slot, two simultaneous calls queue up to the acquire timeout; with two, they run in parallel (the lab has `cpus: 1.5`).
@@ -164,24 +197,24 @@ mode against 268435456: they do not fit, which is why the thread laboratory is n
 4. The demo case (`examples/demo/01_simple_seq`: four JSON files) is expected to be well below 2 MiB. *Assumption:* the size
    of the packages and requests that gateway and worker send was not measured here; check the seed and the smoke.
 
-Use `compose.lab-process.json` (6 MiB) if the demo must show a larger body or the real fit of N2 fails on `C`. Its price is
-one slot and 2.4 MiB of conservative headroom. If neither fits in the real container, do not enlarge anything: lower L (a
+`compose.lab-process.json` (6 MiB) was chosen to show a larger body. Its price is one slot and 2.4 MiB of conservative
+headroom, which the memory measurements of N1 above accept (cgroup 116899840 of 268435456 B after the probe). If neither fits in the real container, do not enlarge anything: lower L (a
 new manifest) or go back to thread mode.
 
 ## How to activate and how to go back
 
-Activate (the controller rebuilds and recreates what changed; only `bim-service` differs):
-
-```
-lab_compose validate file=compose.lab-process-n2.json
-lab_compose up file=compose.lab-process-n2.json
-```
-
-or, for the 6 MiB profile:
+Activate the profile in force, N1 (the controller rebuilds and recreates what changed; only `bim-service` differs):
 
 ```
 lab_compose validate file=compose.lab-process.json
 lab_compose up file=compose.lab-process.json
+```
+
+or, for the alternative 2 MiB profile (N2):
+
+```
+lab_compose validate file=compose.lab-process-n2.json
+lab_compose up file=compose.lab-process-n2.json
 ```
 
 The variables (`DEMO_*`, private ones) are the same as in `docs/DEMO.md`. Volumes are
@@ -192,6 +225,9 @@ shared: the project name is the same in all three files, so data survives the sw
 process profile to the other, `up` with the other file.
 
 ## What the real demo must verify
+
+(The checklist applies to either profile. N1 evidence is in "Result of the real deployment of N1"; its item 5, the real timeout
+with one slot, is still **pending**.)
 
 1. **Start.** `status`: `bim-service` healthy. `logs bim-service`: no `ServiceConfigError`; if the fit rule fails, the message
    lists `P`, `Q`, `N*C`, `B`, `N*(L+R)` and the margin: copy it into the report and switch profile or roll back.
@@ -247,8 +283,9 @@ process profile to the other, `up` with the other file.
 
 - `C`, the resident size of a worker when ready: 51564544 was measured on a development machine with the files cached, not in
   this container. The conservative column assumes 56623104.
-- `P`, the resident size of the parent after the workers are ready: not measured in process mode in this container. The
-  conservative column assumes 62914560 (about 60 MB were expected). The coordinator chooses the profile from the real values:
+- `P`, the resident size of the parent after the workers are ready: in process mode it was later measured (N2: 67.6 MB at
+  `ce7229b2`; N1: 59.9 MB during Playwright and 68.1 MB, peak 84.0, after the probe at `c2d46151`; the peak is above the
+  conservative `P`). The conservative column assumes 62914560 (about 60 MB were expected). The coordinator chooses the profile from the real values:
   recompute with the table above (`required = P + Q + N*C + B + N*(L+R) + 26843545`, must be at most 268435456).
 - `pids_limit` 256 with N+1 processes and their threads was not measured.
 - The size of the requests that gateway and worker really send to `bim-service` was not measured.

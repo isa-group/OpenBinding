@@ -2,20 +2,73 @@
 
 State of the work that spans OpenBinding, the remote SPACE/SPHERE services and
 the BIM extraction. "Done" means the change exists in this tree; it does not mean
-it was exercised end to end. The first section is the **current view** (2026-10-14, head `b2780381`); the table after it is the view of
-2026-10-13 at SHA `5aebc7c8`, kept as history (a few rows are marked as superseded). Every figure is tied to the SHA it was
-measured on; evidence of one SHA is not attributed to another.
+it was exercised end to end. The first section is the **current view** (2026-10-14, head `c2d46151`); after it come the view of
+`b2780381` (phase 16, 2026-10-14, earlier the same day) and the view of 2026-10-13 at SHA `5aebc7c8`, both kept as history (rows
+and notes in them that were later settled are marked as superseded). Every figure is tied to the SHA it was measured on;
+evidence of one SHA is not attributed to another.
 
-## Current view (head `b2780381`, phase 16 closed)
+## Current view (head `c2d46151`, branch `feat/openbinding-platform`, phase of 2026-10-14)
 
-Figures reported by the coordinator for the head, plus the records already in this repository for `ce7229b2`. This document did
-not re-run them.
+Figures reported by the coordinator for this phase. This document did not re-run them; the only thing run for this change is
+the registered docs check.
+
+### Human decisions of 2026-10-14 (resolved; they are no longer pending)
+
+| Decision | Resolution | Where |
+|---|---|---|
+| Normalized IR | **Yes, MAJOR, no compatibility with the old order.** `bim-core`, `bim-service` and `bim-client` go from 0.1.0 to **0.2.0** | [IR_NORMALIZATION.md](IR_NORMALIZATION.md) |
+| Measurable usage limits | **Yes**: number of jobs, tasks and studies, time, concurrency and complexity of the binding space. **Credits and CU: no** (still out) | [USAGE_LIMITS.md](USAGE_LIMITS.md), [USAGE_LIMITS_MATRIX.md](USAGE_LIMITS_MATRIX.md) |
+| Class B counters | **Not retired just for being counters.** SPACE is their native source; it is on hold, so zero calls are made and they are not applied | [USAGE_LIMITS.md](USAGE_LIMITS.md), [REMOTE_TOOLS.md](REMOTE_TOOLS.md) |
+| Profile of `bim-service` in the demo | **N1** (`compose.lab-process.json`: 1 process, body up to 6 MiB, the 256 MiB container intact). N2 stays as an alternative and as history | [PROCESS_DEPLOYMENT.md](PROCESS_DEPLOYMENT.md), [DEMO.md](../DEMO.md) |
+
+### What was integrated in this phase
+
+| Task | Commit | Content |
+|---|---|---|
+| H | `0fc19a83` | Death of the parent in process mode, tested with real processes. No bug found; no service code changed |
+| J | `e979f12b` | Measurable usage limits |
+| L | `e1090c22` | Plan concurrency, class B port (`UsageCounterSource`), frontend UX |
+| K / K2 / K3 | `f98a7a1e` | IR normalization: 82 of 82 packages equal across directory, ZIP and permutations; the 64 + 4 strict `xfail` were removed; `has()` on an interval fixed; cardinality above 4300 digits handled in blocks; `compilerDigest` `sha256-e2f269aa…` to `sha256-ccc55839…` |
+| M | `9bbc189f` | IR cut-over: explicit recompilation of snapshots and an idempotent seed; stable error `422 contract_not_installed` |
+
+### Verifications, each tied to its SHA
+
+| Item | State | Evidence (SHA) |
+|---|---|---|
+| Real PostgreSQL 16 | **70 passed, 0 skipped** (67 + 3 plan-concurrency tests); migrations up to `b6c7d8e9f0a1` | `bef53047` (functional code before M) |
+| Seed in the N1 profile | Idempotent; created the revision `simple-seq:2`; **one old snapshot could not be recompiled** (`invalid_instance`, reported in `recompileFailed`) | `c2d46151` |
+| Lab smoke `smoke_lab.py`, N1 | **9/9** in 6.0 s | `c2d46151` |
+| Playwright live specs, N1 | **30 passed, 0 failed, 0 skipped** (summary 2026-10-14T13:41:20Z) | `c2d46151` |
+| `process_probe.py` in N1 (without the timeout step) | **Exit 0, `ok=true`**: details in [PROCESS_PROBE.md](PROCESS_PROBE.md) | `c2d46151` |
+| First smoke and Playwright in N1 | **Failed** (smoke 6/9 with `422 contract_not_installed`; Playwright 29 passed, 1 failed) because the seeded snapshots carried compiler 0.1.0 after the IR cut-over; fixed by M and re-verified | `bef53047` (failure), `c2d46151` (re-verified) |
+| Suites of the workers' trees | `bim-toolchain` core + service + client: 2153 passed, 0 failed, 22 skipped (wheels not built), 3 xfailed (B8 thread). Gateway `a`-`m`: 1906-1920 passed, 10 skipped. Gateway `n`-`z` + concurrency: 875 passed, 43 skipped (PostgreSQL), 1 xfailed. Frontend: 2467 tests (the figure of worker L, output truncated); build 9.04 s | `bef53047` / the workers' trees (not one single SHA) |
+
+### Still open (honest limits)
+
+1. **SPACE**: on hold and never exercised for this work. It rejects the pricing `createdAt` with a time and has no services or
+   contracts; the lab runs with `DEMO_SPACE_ENABLED=false`. Native SPACE counters and limits are **not measured** against a real SPACE.
+2. **Class B counters and `federatedEngines`**: not measured against a real SPACE. The `UsageCounterSource` port only has a
+   synthetic source, so they are not applied.
+3. **Rights and licences** (code, schemas, OMG XSD): no licence chosen (`NOTICE.md`).
+4. **Limited Git credential** for the private repository `javiercavlop/bim-toolchain`, and **publication**: pending outside this
+   tree; nothing has been pushed or published.
+5. **Real timeout and replacement with one slot in the N1 container: PENDING, no evidence yet.** Only N2 (probe at `ce7229b2`)
+   and tests with real processes exercised it. It will be done with `compose.lab-process-n1-probe.json` (task P, in progress).
+6. One old snapshot does not recompile under the new IR (`invalid_instance`), see the seed row above.
+7. The by-eye mobile/desktop check stays manual, and the lab with SPACE enabled was not executed.
+8. In N1 the fit rule with conservative figures leaves little room: required 265918873 B of 268435456 B, headroom 2516583 B
+   (**tight**). Details in [PROCESS_DEPLOYMENT.md](PROCESS_DEPLOYMENT.md).
+
+## View of `b2780381` (phase 16, history; superseded where marked)
+
+Figures reported by the coordinator for that head, plus the records already in this repository for `ce7229b2`. They were not
+re-run by this document. N2 was the profile in force then; the current profile is N1 (see above).
 
 | Item | State | Evidence (SHA) |
 |---|---|---|
 | Worker CPU limit: a real `SIGXCPU` delivered by the kernel gives 503 `operation_timeout` | **Closed** | Bug fixed in `bim_service/_worker.py` (with a finite hard `RLIMIT_CPU` the soft limit was clamped *to* it, the kernel sent `SIGKILL` and the answer was a 500; now soft = hard - 1 s). Tested with real processes in the `bim-toolchain` suite of `ce7229b2` (functional code identical to `b2780381`, per the coordinator). See `bim-toolchain/docs/SERVICE.md` |
 | Worker recycling at the real `RETIRE_ANSWERS` = 1000 | **Closed** | Real constant, real `xml/root` answers; same suite and SHA as above |
-| Process mode, profile N2 (`compose.lab-process-n2.json`: 2 workers, body 2 MiB) in the real 256 MiB demo | **Deployed and probed** | Deployed on `ce7229b2`, probed with `process_probe.py` (exit 0, `ok=true`, `oom_kill` 0): [PROCESS_DEPLOYMENT.md](PROCESS_DEPLOYMENT.md), [PROCESS_PROBE.md](PROCESS_PROBE.md). The demo runs in process mode N2 with a body of 2 MiB (`GET /bim/v1/capabilities` publishes 2 MiB), and N2 is the profile in force **for now**. Smoke 9/9 at `b2780381` |
+| Process mode, profile N2 (`compose.lab-process-n2.json`: 2 workers, body 2 MiB) in the real 256 MiB demo | **Deployed and probed** | Deployed on `ce7229b2`, probed with `process_probe.py` (exit 0, `ok=true`, `oom_kill` 0): [PROCESS_DEPLOYMENT.md](PROCESS_DEPLOYMENT.md), [PROCESS_PROBE.md](PROCESS_PROBE.md). At `b2780381` the demo ran in process mode N2 with a body of 2 MiB. **Superseded:** the profile in force is now N1 (`compose.lab-process.json`), see the current view. Smoke 9/9 at `b2780381` |
 | Corpus skip of `bim-core/tests/test_boundary.py` | **Closed** | `BIM_REQUIRE_CORPUS=1`: `bim-toolchain` 1819 passed, 0 skipped, 73 xfailed at `ce7229b` ([FINAL_VALIDATION.md](FINAL_VALIDATION.md), [CORPUS_RUN.md](CORPUS_RUN.md)) |
 | Real PostgreSQL 16 harness | **67 passed, 0 skipped** | `b2780381` |
 | Lab smoke `smoke_lab.py` | **9/9** | `b2780381`, `DEMO_SPACE_ENABLED=false`, `plan_usage` omitted |
@@ -23,13 +76,16 @@ not re-run them.
 | Gateway and `bim-toolchain` suites | **Exit 0** | Run on `ce7229b2`, whose functional code is identical to `b2780381` (per the coordinator): gateway 1825 passed / 10 skipped / 65 xfailed and 707 passed / 40 skipped / 1 xfailed, `bim-toolchain` 1819 passed / 0 skipped / 73 xfailed, `lab/tests` 154 passed (records in [FINAL_VALIDATION.md](FINAL_VALIDATION.md)) |
 | Death of the parent in process mode (idle workers, operation in flight, clean exit) | **Tested for real** | **After `b2780381`**, in a later change that is not part of the evidence above: `bim-toolchain/packages/bim-service/tests/test_process_parent_death.py`. Idle workers left 6 to 11 ms after the parent was killed; a busy CPU-bound worker died of `SIGXCPU` at its own CPU limit (3.3 s with an operation timeout of 1 s, 6.3 s with 4 s). No code of the service was changed. Numbers and limits (not tested: a parent that is PID 1, a native call, a loaded machine): `bim-toolchain/docs/SERVICE.md` |
 
-**Pending the human's decision (listed, not assumed):**
+**Historical note, superseded (the list as it stood at `b2780381`; do not read it as current instructions).** Items 1 to 3 were
+decided by the human on 2026-10-14 and are resolved in the current view: (1) the IR MAJOR divergences were normalized (0.2.0);
+(2) class B counters are not retired for being counters, SPACE is their native source and it is on hold; (3) the profile is N1.
+Items 4 and 5 remain open and are restated in the current view ("Still open"):
 
-1. The MAJOR divergences of the IR (the strict `xfail`s for them and the `xfail` for `has()` on an interval, recorded in [FINAL_VALIDATION.md](FINAL_VALIDATION.md), are untouched).
-2. Class B of the pricing (the usage counters of the development pricing; the 33 counters it keeps are an unresolved historical concession, see [REMOTE_TOOLS.md](REMOTE_TOOLS.md) and [SPHERE_PRIVACY.md](SPHERE_PRIVACY.md)).
-3. N1 versus N2 for `bim-service` in the lab (N2 stays in force until the human decides; N1 was not deployed).
-4. SPACE (it rejects the pricing `createdAt` with a time and has no services or contracts; the lab runs with `DEMO_SPACE_ENABLED=false`).
-5. Licences, and limited Git: no licence has been chosen for the code (`NOTICE.md`), and the remote repository of `bim-toolchain` was not created (a row below). The details of the Git limitation are not recorded in this document.
+1. ~~The MAJOR divergences of the IR~~ (resolved: normalized in `f98a7a1e`).
+2. ~~Class B of the pricing~~ (resolved as a decision; the counters are still not measured against a real SPACE; see [REMOTE_TOOLS.md](REMOTE_TOOLS.md) and [SPHERE_PRIVACY.md](SPHERE_PRIVACY.md)).
+3. ~~N1 versus N2 for `bim-service` in the lab~~ (resolved: N1).
+4. SPACE (it rejects the pricing `createdAt` with a time and has no services or contracts; the lab runs with `DEMO_SPACE_ENABLED=false`). Still open.
+5. Licences, and limited Git: no licence has been chosen for the code (`NOTICE.md`), and the remote repository of `bim-toolchain` was not created (a row below). The details of the Git limitation are not recorded in this document. Still open.
 
 ## View of 2026-10-13 at SHA `5aebc7c8` (history)
 
@@ -55,7 +111,7 @@ not re-run them.
 | Removal of the superseded in-place copy | **Done** | `v1/{canonical,package,expressions,compiler,analysis}.py`, `v1/vendor/`, `packages/bim-core/`, `tests/test_bim_core_boundary.py` removed once nothing imported them. Root tools, dataset scripts and experimentation use `bim_core`; the root `.dockerignore` admits `bim-toolchain/packages/{bim-core,bim-client}` (`tests/test_docker_context.py`). `experimentation/icws/tests` (2) and `experimentation/icsoc/generator/tests` (1) fail on the data of the packages, not on imports; they are not part of any check |
 | Remote private pricing (development pricing and service, private, inside the shared organizations) | **Pending** | A shared organization does not isolate credentials; the development key is high-risk |
 | Gateway code left over from the pricing-release workflow (`routes/pricing.py`, `space_client/deployments.py`, renewal sweeps) | **Pending removal** | Reachability not traced |
-| Docker demo (lab compose) | **Done in part** (history; the demo now runs `bim-service` in process mode N2, smoke 9/9 at `b2780381`: current view) | At SHA `5aebc7c8`: `lab_compose up` leaves 11 services healthy; `seed_lab.py` is idempotent except that a toolchain change (`irDigest`) creates a new case revision (`simple-seq:2`); `smoke_lab.py` **9/9** (24.4 s) with `DEMO_SPACE_ENABLED=false`, `plan_usage` omitted. With SPACE enabled and contracts: **not executed**. See [DEMO.md](../DEMO.md) |
+| Docker demo (lab compose) | **Done in part** (history; superseded: the demo now runs `bim-service` in process mode N1, smoke 9/9 at `c2d46151`: current view) | At SHA `5aebc7c8`: `lab_compose up` leaves 11 services healthy; `seed_lab.py` is idempotent except that a toolchain change (`irDigest`) creates a new case revision (`simple-seq:2`); `smoke_lab.py` **9/9** (24.4 s) with `DEMO_SPACE_ENABLED=false`, `plan_usage` omitted. With SPACE enabled and contracts: **not executed**. See [DEMO.md](../DEMO.md) |
 | Real PostgreSQL | **Done in part** (history; 67 passed, 0 skipped at `b2780381`: current view) | PostgreSQL 16 via `lab_compose` (`compose.pgtest.json`), observed in the lab: `tests/concurrency` **58 passed, 0 skipped** in 12 s (leases, job publication, idempotency, study cancellation, sweep vs cancellation, cells, two-session smoke). The 26 compose-shape tests moved to the normal suite (`tests/test_pg_harness.py`) and are no longer skipped; the studies fixture now creates the owner's membership; each test has a 60 s watchdog. An earlier run (SHA `5aebc7c8`) gave 45 passed, 26 skipped; that gap (T1) is closed. The rest of the suite still runs on SQLite only. See [PG_HARNESS.md](PG_HARNESS.md) |
 | Hardening of `bim-core` and the gateway | **Done** (fixes) | Integer-size limit (A1), ZIP bomb (A2, also in the gateway), unsafe flags refused in prod (M2), `engines:execute` on analysis pareto/cancel (M3), `result.error` redacted for VIEWER (B1), chunked payload ceiling (B2), lab nginx `X-Forwarded-For` (B7). Details and the open findings in [SECURITY_REVIEW.md](SECURITY_REVIEW.md) |
 | Security review (bounded, Opus) | **Done**; findings **pending a human decision** | 2026-10-13. Open: M1, M4, M5 (rest), B3-B6, B8. See [SECURITY_REVIEW.md](SECURITY_REVIEW.md) |

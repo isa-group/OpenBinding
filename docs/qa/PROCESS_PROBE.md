@@ -1,16 +1,41 @@
 # Acceptance probe of `bim-service` in process mode, in the real demo
 
 `openbinding-gateway/tools/process_probe.py` checks, from inside the lab network, that `bim-service` running with
-`BIM_SERVICE_EXECUTOR=process` (profile N2 of `compose.lab-process-n2.json`: body 2 MiB, 2 slots, memory budget 16 MiB,
-pending bodies 4 MiB, acquire timeout 2000 ms; `docs/qa/PROCESS_DEPLOYMENT.md`) behaves in the container as its
-documentation says. It is a tool of the gateway image, so it runs with `lab_compose seed` and needs nothing new installed.
+`BIM_SERVICE_EXECUTOR=process` behaves in the container as its documentation says. The profile in force is **N1**
+(`compose.lab-process.json`: body 6 MiB, 1 slot, memory budget 48 MiB, pending bodies 12 MiB, acquire timeout 3000 ms); the
+defaults of the probe are still the figures of the earlier profile N2 (`compose.lab-process-n2.json`: body 2 MiB, 2 slots,
+memory budget 16 MiB, pending bodies 4 MiB, acquire timeout 2000 ms), so for N1 the expectations must be given as options
+(see "How to run it"). Profiles: `docs/qa/PROCESS_DEPLOYMENT.md`. It is a tool of the gateway image, so it runs with `lab_compose seed` and needs nothing new installed.
 
 **Status: written, tested against an in-process service, and run in the real demo (result below).** The tests
 (`openbinding-gateway/tests/test_process_probe.py`) serve a real `bim_service` application with uvicorn on a loopback
 port, once with the thread executor and a costly operation replaced by a sleep, and twice with real worker processes
 (including a run of every step plus the timeout probe with the N2 figures).
 
-## Result of the real run (N2, 256 MiB, 1.5 CPUs)
+## Result of the real run in N1 (profile in force, 256 MiB, 1.5 CPUs; code `c2d46151`)
+
+Options: `--expect-max-body-bytes 6291456 --expect-concurrency 1 --expect-memory-budget-bytes 50331648
+--expect-pending-body-bytes 12582912 --expect-acquire-timeout-ms 3000`, **without** `--timeout-probe`. **Exit code 0,
+`ok=true`.**
+
+| Step | Checks | Figures |
+| --- | --- | --- |
+| `capabilities` | 16 | profile published as expected |
+| `valid_operations` | 84 | |
+| `hostile_small` | 55 | |
+| `large_bodies` | 13 | body at the limit (6291456 B): 200 in 27.4 ms; two held bodies: 200 and 200 |
+| `saturation` | 9 | 8 clients: 5 x 503 `service_busy`, 3 x 200 |
+| `healthz_under_load` | 11 | 116 samples, 116 in 200; p50 1.6 ms, p95 1.9 ms, max 2.1 ms |
+
+The fit rule with the conservative figures (what the probe checks): required 265918873 B of 268435456 B, headroom 2516583 B
+(**little room**). Metrics after the probe (`lab_compose metrics`): parent RSS 68.1 MB (peak 84.0), worker 68.4 MB (peak 72.2),
+cgroup `memory.current` 116899840 of 268435456 B, `oom_kill` 0; see [PROCESS_DEPLOYMENT.md](PROCESS_DEPLOYMENT.md).
+
+**The `timeout_replacement` step was not run in N1: PENDING, no evidence yet.** The real timeout and replacement with one slot
+in the N1 container will be probed with `compose.lab-process-n1-probe.json` (task P, in progress). Not reached either (not
+claimed): 413 `pending_body_too_large`, 413 `memory_budget_exceeded`, a worker killed from outside, a client disconnect.
+
+## Result of the real run in N2 (history, 256 MiB, 1.5 CPUs)
 
 Probe code `ce7229b2`, manifest `compose.lab-process-n2-probe.json` (N2 with operation timeout 3 s), `--timeout-probe`.
 **Exit code 0, `ok=true`, total duration 24.3 s.**
@@ -52,7 +77,20 @@ the environment saved by the last `up`** (`docs/DEMO.md`): to change `DEMO_SEED_
 with the new values and then run `seed`. `DEMO_SEED_ARGS` is split by the shell: write the options separated by spaces,
 without quotes inside.
 
-Acceptance of the N2 profile (everything except the timeout; the figures of N2 are the defaults of the probe):
+Acceptance of the N1 profile in force (everything except the timeout; the figures of N1 are **not** the defaults, so they are
+given as options):
+
+```
+lab_compose validate file=compose.lab-process.json
+lab_compose up file=compose.lab-process.json      # with DEMO_SEED_TOOL=process_probe.py
+                                                  # DEMO_SEED_ARGS="--summary --expect-max-body-bytes 6291456 --expect-concurrency 1
+                                                  #   --expect-memory-budget-bytes 50331648 --expect-pending-body-bytes 12582912
+                                                  #   --expect-acquire-timeout-ms 3000"
+lab_compose seed
+lab_compose metrics
+```
+
+Acceptance of the alternative N2 profile (everything except the timeout; the figures of N2 are the defaults of the probe):
 
 ```
 lab_compose validate file=compose.lab-process-n2.json
@@ -61,7 +99,8 @@ lab_compose seed
 lab_compose metrics
 ```
 
-With the real timeout and replacement (the probe manifest shortens the time budget of an operation from 60 s to 3 s;
+With the real timeout and replacement for N2 (for N1 the equivalent manifest `compose.lab-process-n1-probe.json` is task P, in
+progress, and has not been run; the probe manifest shortens the time budget of an operation from 60 s to 3 s;
 everything else is N2):
 
 ```
@@ -71,7 +110,7 @@ lab_compose seed
 lab_compose metrics
 ```
 
-Go back to the demo's normal profile with `lab_compose up file=compose.lab-process-n2.json` (or `compose.lab.json` for the
+Go back to the demo's normal profile with `lab_compose up file=compose.lab-process.json` (N1; or `compose.lab.json` for the
 thread laboratory). Only `bim-service` differs between the two N2 files; the volumes and the data are shared.
 
 Options (all optional):
@@ -91,7 +130,7 @@ Options (all optional):
 | `--no-at-limit` | off | do not send a body of exactly the advertised limit |
 | `--url`, `--token-file` | `$BIM_SERVICE_URL` or `http://bim-service:8080`; `$BIM_SERVICE_TOKEN_FILE` or `/run/bim/token` | |
 
-To test another profile, give its figures (for the 6 MiB profile: `--expect-max-body-bytes 6291456 --expect-concurrency 1
+To test another profile, give its figures (for the 6 MiB profile, N1, the one in force: `--expect-max-body-bytes 6291456 --expect-concurrency 1
 --expect-memory-budget-bytes 50331648 --expect-pending-body-bytes 12582912 --expect-acquire-timeout-ms 3000`).
 
 ## What it verifies
