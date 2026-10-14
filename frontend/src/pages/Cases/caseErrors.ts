@@ -63,6 +63,8 @@ export interface Issue {
 
 const DIALECT_CODES = new Set(['profile_selection_required', 'dialect_selection_required', 'contract_not_installed', 'contract_mismatch', 'invalid_contract']);
 const MISSING_CODES = new Set(['instance_required', 'missing_dependency']);
+/** A snapshot whose stored package the installed compiler refuses: unlike a missing dialect, compiling it again can't work. */
+export const NOT_RECOMPILABLE_CODE = 'snapshot_not_recompilable';
 
 /** The messages inside a 422's diagnostics, so the person sees where the composition is wrong. */
 function diagnosticsOf(caught: unknown): string[] {
@@ -83,6 +85,14 @@ export function composeRefusal(caught: unknown): Issue {
   const failure = classifyAuthError(caught);
   const code = failure.code ?? '';
   const gateway = failure.message ? ` ${failure.message}` : '';
+  if (failure.kind === 'invalid' && code === NOT_RECOMPILABLE_CODE) {
+    return {
+      source: 'gateway',
+      title: `This snapshot can’t be run${marker(failure)}`,
+      text: 'The installed compiler no longer accepts the package this snapshot was made from, so it can’t be recompiled or run. The snapshot and the revisions that use it are kept unchanged as evidence. Correct the source and upload it again to get a snapshot that can run. Nothing was created.',
+      details: diagnosticsOf(caught),
+    };
+  }
   if (failure.kind === 'invalid' && DIALECT_CODES.has(code)) {
     return {
       source: 'gateway',

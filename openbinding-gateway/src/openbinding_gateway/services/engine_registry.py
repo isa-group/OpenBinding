@@ -626,6 +626,21 @@ async def create_engine_revision(
 # -- Registrations: create and read ---------------------------------------------------------------
 
 
+async def _registration_at(
+    session: AsyncSession, namespace: str, name: str, version: str
+) -> EngineRegistrationRevision | None:
+    """The stored registration of this identity, whatever its content."""
+    return (
+        await session.execute(
+            select(EngineRegistrationRevision).where(
+                EngineRegistrationRevision.namespace == namespace,
+                EngineRegistrationRevision.name == name,
+                EngineRegistrationRevision.version == version,
+            )
+        )
+    ).scalars().first()
+
+
 async def register_engine(
     document: Any,
     caller: User,
@@ -715,15 +730,7 @@ async def register_engine(
         raise RegistryProblem(409, "engine_digest_mismatch", "registration must pin the exact Engine revision digest")
     if session is None:
         raise RegistryProblem(503, "accounts_unavailable", "Registering an engine requires the accounts database")
-    existing = (
-        await session.execute(
-            select(EngineRegistrationRevision).where(
-                EngineRegistrationRevision.namespace == namespace,
-                EngineRegistrationRevision.name == name,
-                EngineRegistrationRevision.version == version,
-            )
-        )
-    ).scalars().first()
+    existing = await _registration_at(session, namespace, name, version)
     if existing is not None:
         if existing.manifest_digest != revision:
             raise RegistryProblem(409, "immutable_registration", "Registration revisions are immutable; use a new version")
@@ -751,6 +758,11 @@ async def register_engine(
             session.add(registration)
             await session.flush()
     except IntegrityError:
+        # A concurrent request stored the identity between the lookup and the insert. If what it stored is this
+        # same document, this request is its repetition and gets the registration; only different content conflicts.
+        existing = await _registration_at(session, namespace, name, version)
+        if existing is not None and existing.manifest_digest == revision:
+            return registration_summary(existing)
         raise RegistryProblem(409, "immutable_registration", "Registration identity already exists with different content") from None
     return registration_summary(registration)
 
@@ -992,6 +1004,12 @@ async def change_registration(
         if max_active is not None and not registration.is_active:
             # Serialise this owner's count-and-activate, as the API-key limit does.
             await session.execute(select(User.id).where(User.id == registration.owner_id).with_for_update())
+            # The row was read before the lock was got, and a request that held the lock may have activated this
+            # very registration meanwhile: that is a repeated activation, not a second place, so it is answered
+            # with the active registration instead of being counted against the limit.
+            await session.refresh(registration)
+            if registration.is_active:
+                return registration_summary(registration)
             active = int(
                 await session.scalar(
                     select(func.count()).select_from(EngineRegistrationRevision).where(

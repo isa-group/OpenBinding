@@ -56,7 +56,7 @@ unique-index waits, several connections, real foreign keys and triggers.
 
 ## The new tests
 
-### `tests/test_federated_engines_pg.py` (20 cases, 2 of them `xfail`)
+### `tests/test_federated_engines_pg.py` (20 cases)
 
 | Rule | Test |
 | --- | --- |
@@ -67,10 +67,10 @@ unique-index waits, several connections, real foreign keys and triggers.
 | Owners: no shared quota, no waiting for another owner's open transaction | `test_owners_neither_wait_for_each_other_nor_share_a_quota` |
 | Idempotency: activating what is active (sequential) | `test_activating_what_is_active_is_not_a_second_place_across_sessions` |
 | Idempotency: two concurrent replays, invariants | `test_two_concurrent_replays_of_one_activation_leave_one_active_registration` |
-| Idempotency: two concurrent replays, desired answer (`xfail`) | `test_both_callers_of_a_replayed_activation_are_answered_with_the_active_registration` |
+| Idempotency: two concurrent replays, both answered with the active registration | `test_both_callers_of_a_replayed_activation_are_answered_with_the_active_registration` |
 | Deduplication: same document twice | `test_the_same_document_registered_twice_is_one_registration` |
 | Deduplication: same document at once, blocked by the unique index | `test_two_sessions_registering_the_same_document_at_once_leave_one_registration` |
-| Deduplication: same document at once, desired answer (`xfail`) | `test_the_loser_of_a_concurrent_registration_of_the_same_document_gets_the_registration` |
+| Deduplication: same document at once, both answered with the registration | `test_the_loser_of_a_concurrent_registration_of_the_same_document_gets_the_registration` |
 | Other owner, same name and version: separate, no leak, same 404 as an absent key | `test_the_same_name_and_version_of_another_owner_is_another_registration_and_leaks_nothing` |
 | Auth: a stranger cannot activate, deactivate or request publication (3 cases) | `test_another_owner_cannot_change_my_registration_and_is_told_it_is_not_there` |
 | Roles: only an administrator reviews, and only what is pending | `test_only_an_administrator_reviews_and_only_what_is_pending` |
@@ -102,31 +102,40 @@ unique-index waits, several connections, real foreign keys and triggers.
 
 ## What to expect
 
-- Exit code 0; **0 skipped**; 34 passed and up to 2 `xfail` for the two `xfail` tests above (they report `X` if the
-  service already answers the replay, which is not a failure either: `strict=False`), i.e. 34 + 2 for the two new modules
-  on top of whatever `tests/concurrency` has at that SHA (70 passed at `bef53047`; it has grown since, so no total is
-  claimed here).
+- Exit code 0; **0 skipped**; **36 passed and 0 `xfail`** for the two new modules (20 + 16), on top of whatever
+  `tests/concurrency` has at that SHA (70 passed at `bef53047`; it has grown since, so no total is claimed here). There is
+  no `xfail` any more: an `x` or `X` in the `-rsfExX` summary would be a defect, as a failure of either of the two tests
+  described under [Findings](#findings-of-the-first-read-fixed-in-servicesengine_registrypy) would be.
 - A failure of one of the other tests is a finding about the service or about an assumption listed below, not noise:
   read the message, which names what did not happen.
 
-## Findings the `xfail` tests state (not fixed here)
+## Findings of the first read, fixed in `services/engine_registry.py`
 
-Both are in `services/engine_registry.py`, which this task does not own. They follow from reading the code and are what the
-two `xfail` tests will confirm or refute on PostgreSQL.
+Two defects were found by reading the code, and the two tests that were `xfail` stated them. Both are fixed in
+`services/engine_registry.py`; the two tests are now ordinary assertions of the answer below. **The fix has not run on
+PostgreSQL**: only the SQLite cases beside it have (`tests/test_engine_registry_service.py`).
 
-1. **Replayed activation.** `change_registration(action="activate", max_active=N)` reads the registration, then takes the
-   owner's row lock, then counts the owner's active registrations. Two concurrent requests for the *same* inactive
-   registration both pass the first read; the loser, after waiting for the lock, counts the winner's activation — which is
-   that same registration — and is told `402 quota_exceeded` for what should be an idempotent replay (it answers 402 only
-   when `limit` is 1; with more room both succeed). Suggested fix: after taking the lock, refresh the row (`session.refresh`)
-   and return the summary if it is active already.
-2. **Concurrent identical registration.** `register_engine` checks for an existing row, then inserts inside a savepoint; the
-   loser of two concurrent identical registrations hits the unique index and is answered
-   `409 immutable_registration`, although the document is identical. Suggested fix: on `IntegrityError`, read the row again
-   and return its summary when the digest matches.
+1. **Fixed in `change_registration`: replayed activation.** `change_registration(action="activate", max_active=N)` reads the
+   registration, then takes the owner's row lock, then counts the owner's active registrations. Two concurrent requests for the
+   *same* inactive registration both pass the first read; the loser used to count, after waiting for the lock, the winner's
+   activation — that same registration — and was told `402 quota_exceeded` for an idempotent replay (only when `limit` is 1).
+   Now, after taking the lock, the loser refreshes the row (`session.refresh`) and, if it is active already, answers the
+   registration summary: same answer as the winner, no second place used, nothing verified again. A different inactive
+   registration of the same owner still counts the places and still gets `402`; limits, roles and the 404 for another owner's
+   registration are unchanged.
+2. **Fixed in `register_engine`: concurrent identical registration.** `register_engine` checks for an existing row, then inserts
+   inside a savepoint; the loser of two concurrent identical registrations hits the unique index and used to be answered
+   `409 immutable_registration`, although the document is identical. Now, on `IntegrityError`, it reads the identity again and
+   answers the summary of the stored row when its digest is the one of the submitted document; it answers
+   `409 immutable_registration` only when the stored content differs (or nothing is found to compare with).
 
-The tests beside them (`..._leave_one_active_registration`, `..._leave_one_registration`) pin what must hold either way:
-exactly one row, no 500, no second place.
+SQLite cannot interleave two requests, so `tests/test_engine_registry_service.py` reproduces the two situations without
+concurrency: an activation whose row is active in the database when the lock is got (verification must not run again), a
+repeated activation that uses no second place, and a registration whose first lookup finds nothing so that its insert meets
+the stored identity (identical document: same summary; other content: `409`). The PostgreSQL tests
+`..._answered_with_the_active_registration` and `..._gets_the_registration` run the real race; the tests beside them
+(`..._leave_one_active_registration`, `..._leave_one_registration`) pin what must hold whatever the answer: exactly one row, no
+500, no second place.
 
 ## Not verified
 

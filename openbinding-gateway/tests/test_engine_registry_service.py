@@ -21,7 +21,8 @@ import httpx
 import pytest
 import pytest_asyncio
 from bim_core.canonical import digest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from sqlalchemy.orm.attributes import set_committed_value
 
 from _pricing import pricing_catalog
 
@@ -437,6 +438,64 @@ async def test_the_same_version_with_other_content_is_an_immutable_registration_
     assert await registration_count(db_session) == 1
 
 
+class _BlindFirstLookup:
+    """A session that does not see the registration the first time it is looked up by identity.
+
+    That is what a request sees when another one stores the same identity between its lookup and its insert:
+    the lookup finds nothing, the insert meets the unique index. SQLite with one connection cannot interleave two
+    requests, so the first lookup of an ``EngineRegistrationRevision`` is answered with no rows; everything else
+    goes to the real session.
+    """
+
+    class _NoRows:
+        def scalars(self):
+            return self
+
+        def first(self):
+            return None
+
+    def __init__(self, session) -> None:
+        self._session = session
+        self.hidden = 0
+
+    def __getattr__(self, name):
+        return getattr(self._session, name)
+
+    async def execute(self, statement, *args, **kwargs):
+        entities = [item.get("entity") for item in getattr(statement, "column_descriptions", [])]
+        if self.hidden == 0 and entities == [EngineRegistrationRevision]:
+            self.hidden += 1
+            return self._NoRows()
+        return await self._session.execute(statement, *args, **kwargs)
+
+
+async def test_a_registration_that_loses_the_race_to_an_identical_one_gets_that_registration(db_session, owner):
+    document = registration_document(owner)
+    first = await register(db_session, owner, document)
+    blind = _BlindFirstLookup(db_session)
+
+    second = await register(blind, owner, copy.deepcopy(document))
+
+    assert blind.hidden == 1  # the insert did run into the stored identity
+    assert second == first
+    assert await registration_count(db_session) == 1
+
+
+async def test_a_registration_that_loses_the_race_to_one_with_other_content_is_still_a_conflict(db_session, owner):
+    document = registration_document(owner)
+    await register(db_session, owner, document)
+    changed = copy.deepcopy(document)
+    changed["spec"]["endpoint"] = "https://another-solver.example"
+    blind = _BlindFirstLookup(db_session)
+
+    problem = await refused(register(blind, owner, changed))
+
+    assert blind.hidden == 1
+    assert (problem.status, problem.code) == (409, "immutable_registration")
+    assert await registration_count(db_session) == 1
+    assert (await db_session.execute(select(EngineRegistrationRevision.endpoint))).scalar_one() == "https://solver.example"
+
+
 async def test_a_registration_must_be_in_the_callers_namespace(db_session, owner, other):
     problem = await refused(register_engine(registration_document(other), owner, db_session, settings=settings_with_key(), validate=no_dns))
 
@@ -556,6 +615,54 @@ async def test_activating_a_verified_deployment_makes_it_active_and_records_the_
     # SQLite hands the timestamp back without its offset, so compare the instant and not its spelling.
     recorded = datetime.fromisoformat(row.verification_report["verifiedAt"])
     assert recorded.replace(tzinfo=None) == row.verified_at.replace(tzinfo=None)
+
+
+async def test_activating_what_is_active_again_answers_the_same_and_uses_no_second_place(db_session, owner):
+    summary = await register(db_session, owner)
+    other_one = await register(db_session, owner)
+    settings = settings_with_key()
+
+    first = await change_registration(
+        key_of(summary), owner, db_session, action="activate", settings=settings, verify=verifier(), max_active=1
+    )
+    again = await change_registration(
+        key_of(summary), owner, db_session, action="activate", settings=settings, verify=verifier(), max_active=1
+    )
+    full = await refused(
+        change_registration(
+            key_of(other_one), owner, db_session, action="activate", settings=settings, verify=verifier(), max_active=1
+        )
+    )
+
+    assert first == again == {**summary, "active": True}
+    assert (full.status, full.code) == (402, "quota_exceeded")
+    assert full.extra["quota"]["used"] == 1
+    active = (await db_session.execute(select(func.count()).select_from(EngineRegistrationRevision).where(
+        EngineRegistrationRevision.is_active.is_(True)
+    ))).scalar_one()
+    assert active == 1
+
+
+async def test_an_activation_that_finds_its_registration_active_after_the_lock_is_a_repetition(db_session, owner):
+    summary = await register(db_session, owner)
+    row = await stored(db_session, summary)
+    # Another request activated it after this one read it: the row in the database is active, what this one holds is not.
+    await db_session.execute(
+        update(EngineRegistrationRevision)
+        .where(EngineRegistrationRevision.manifest_digest == summary["digest"])
+        .values(is_active=True)
+        .execution_options(synchronize_session=False)
+    )
+    set_committed_value(row, "is_active", False)
+
+    async def unreachable(*args):
+        raise AssertionError("an activation that already happened must not verify the deployment again")
+
+    answer = await change_registration(
+        key_of(summary), owner, db_session, action="activate", settings=settings_with_key(), verify=unreachable, max_active=1
+    )
+
+    assert answer == {**summary, "active": True}
 
 
 async def test_only_the_owner_changes_a_registration_and_a_stranger_cannot_tell_it_exists(db_session, owner, other):

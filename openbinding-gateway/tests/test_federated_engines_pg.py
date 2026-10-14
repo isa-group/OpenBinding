@@ -16,9 +16,9 @@ server with row locks can keep, and one SQLite cannot even state. Here several s
 * **Rollback**: an activation or a registration that fails or is rolled back leaves no active row, no half-made
   registration and no place used.
 
-Two tests (``xfail``, not strict) state what two concurrent *replays* should answer. The service as written
-answers a 402 / 409 to the caller that loses the race even though its request is the same one (see
-docs/qa/PG_REAL_RUN.md); the tests beside them pin what must hold either way.
+Two tests state what two concurrent *replays* answer: the caller that loses the race is given the registration the
+winner made or activated, not a 402 / 409 (see docs/qa/PG_REAL_RUN.md); the tests beside them pin what must hold
+whatever the answer.
 
 Needs ``TEST_DATABASE_URL`` (the ``pg`` fixture skips without it) and nothing else: no SPACE, no network.
 """
@@ -232,11 +232,6 @@ async def test_two_concurrent_replays_of_one_activation_leave_one_active_registr
     assert await active_count(pg, owner_id) == 1
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="the caller that loses the owner-row lock counts the registration the winner just activated, "
-    "which is its own, and is told 402 for a replay (docs/qa/PG_REAL_RUN.md)",
-)
 async def test_both_callers_of_a_replayed_activation_are_answered_with_the_active_registration(pg):
     owner_id, (summary,) = await an_owner_with(pg, 1)
 
@@ -244,7 +239,9 @@ async def test_both_callers_of_a_replayed_activation_are_answered_with_the_activ
         request(pg, owner_id, summary, max_active=1), request(pg, owner_id, summary, max_active=1)
     )
 
+    only_refusals_and_summaries(outcomes)
     assert [item["active"] for item in summaries_of(outcomes)] == [True, True], outcomes
+    assert await active_count(pg, owner_id) == 1
 
 
 async def test_the_same_document_registered_twice_is_one_registration(pg):
@@ -284,11 +281,6 @@ async def test_two_sessions_registering_the_same_document_at_once_leave_one_regi
         assert second["digest"] == first["digest"]
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="the unique index is hit inside the insert and the loser is told 409 immutable_registration "
-    "although its document is identical (docs/qa/PG_REAL_RUN.md)",
-)
 async def test_the_loser_of_a_concurrent_registration_of_the_same_document_gets_the_registration(pg):
     async with pg.session() as session:
         owner = await make_user(session)
@@ -307,7 +299,9 @@ async def test_the_loser_of_a_concurrent_registration_of_the_same_document_gets_
 
     outcomes = await settle(register_once(), register_once())
 
+    only_refusals_and_summaries(outcomes)
     assert [item["digest"] for item in summaries_of(outcomes)] == [outcomes[0]["digest"]] * 2, outcomes
+    assert await registration_rows(pg) == 1
 
 
 async def test_the_same_name_and_version_of_another_owner_is_another_registration_and_leaks_nothing(pg):
