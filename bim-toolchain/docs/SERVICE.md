@@ -357,7 +357,10 @@ takes a worker before the parent), and then limits itself: `RLIMIT_AS` = its `Vm
 slack, `RLIMIT_CORE` 0 (no core file), `RLIMIT_FSIZE` 0, `RLIMIT_NOFILE` 64. The allowance is `8 x BIM_SERVICE_MAX_BODY_BYTES`
 (the estimate the memory budget charges for the largest body; it is also the largest answer a worker may send), the slack
 is `max(32 MiB, BIM_SERVICE_MAX_BODY_BYTES)`. `RLIMIT_AS` limits the *virtual* size of the address space, not resident memory.
-Before every request it sets a soft `RLIMIT_CPU` of the CPU used so far + the operation timeout + 2 s. It then sends `READY`
+Before every request it sets a soft `RLIMIT_CPU` of the CPU used so far (whole seconds, rounded up) + the operation timeout (rounded up) + 2 s;
+if the worker inherited a finite hard limit (for instance `ulimit -t` in front of the service) the soft limit is kept one second
+**below** it, because at `soft == hard` the kernel sends `SIGKILL`, which is what the OOM killer sends and would be answered as
+a 500 (before this was fixed the soft limit was clamped *to* the hard one). It then sends `READY`
 with its pid, resident and virtual size, the limits it applied and a digest of the static capabilities of its toolchain: a
 parent that sees another digest kills the child (it would answer from another toolchain).
 
@@ -367,7 +370,7 @@ parent that sees another digest kills the child (it would answer from another to
 | --- | --- | --- |
 | Answer (200) or a deterministic error (400, 413, 415, 422 including `limit_exceeded`) | kept | the same bytes thread mode gives |
 | Time budget exceeded (it starts when the request is first written to a ready worker; the start of a child is bounded apart, by 30 s) | `SIGTERM` through its pidfd, `SIGKILL` after 0.2 s, reaped | 503 `operation_timeout` |
-| The CPU limit of the request (`SIGXCPU`) | killed by the kernel, reaped | 503 `operation_timeout` |
+| The CPU limit of the request (`SIGXCPU`, delivered by the kernel) | killed by the kernel, reaped, replaced | 503 `operation_timeout`, `application/problem+json`, no `Retry-After`; its `detail` is "the operation exceeded the CPU time limit of its worker process" (the wall-clock timeout says "... its time budget of N s"); the problem has no `correlationId` member (only the generic 500 has), the id is the one of the `traceparent` response header and of the `worker_exit ... reason=cpu limit` log line |
 | Client disconnects (task cancelled, or `http.disconnect` seen by a watcher once the body is read) | stopped and reaped as above | none (logged; the access line says 499) |
 | Killed from outside (the OOM killer), `SIGSEGV`, `SIGABRT`, non-zero exit, an exception the service does not map, `MemoryError`, or a peak of virtual size within 1 MiB of its limit | reaped, replaced | 500 `internal_error` with `correlationId`, nothing else |
 | A frame that breaks the protocol, or another toolchain | killed, replaced | 500 `internal_error` (a start failure at start) |
@@ -447,8 +450,44 @@ workers; no `BIM_SERVICE_*` or token in the environment of a worker; retiring on
 missing boundary, 415, unknown members, XXE, billion laughs, a ZIP bomb, too many registered resources or bindings, and
 one request for every route) plus the 31 steps of the consumer fixtures, whose status, content type, `Retry-After` and body
 bytes are equal in thread mode and in three fresh workers (three hash seeds): no difference was found, so no
-determinism problem of `bim-core` was observed. The path of `SIGXCPU` and the retirement after 1000 answers by the real
-constant (the test lowers it) are implemented but not reached by a test of the real limits: the wall-clock budget fires first.
+determinism problem of `bim-core` was observed. The retirement at 3 answers
+(`RETIRE_ANSWERS` lowered) is still tested as such; the two paths below are tested for real (next section).
+
+**`SIGXCPU` and the recycling, tested for real** (`tests/test_process_executor.py`, sections "SIGXCPU" and "recycling after
+RETIRE_ANSWERS"; 2026-10-14, same machine as the measurements above; no mock of the kernel, of the constant or of the worker, and
+no skip: the tests run in the same check as the rest). Three consecutive runs of the selection `process or sigxcpu or cpu or
+recycl or retire` (the process tests and the analysis folder) passed: 52 passed, 1 xfailed (a thread-mode test that is not about
+this), 0 skipped, in each.
+
+* *CPU limit, delivered by the kernel.* With the same budget on both sides the wall clock of the parent always wins: a worker has
+  one thread and cannot use more CPU than wall time. So the test tells the workers, in the `CONFIG` frame (it wraps
+  `WorkerPool._config`), a budget of **0.1 s** while the parent keeps 60 s; the worker sets itself a soft `RLIMIT_CPU` of
+  `ceil(CPU used) + ceil(0.1) + 2` = **4 s** (read from `/proc/<pid>/limits` while it spins; hard unlimited) and a request that spins
+  (`spin:forever`, a test module loaded through `worker_preload`) is killed by the kernel with `SIGXCPU` when it has used **4.00 s**
+  of CPU (the `RUSAGE_CHILDREN` of the test), 3.8 s after the request was admitted. Measured: 503 `operation_timeout` as
+  `application/problem+json` with the `detail` above and the `traceparent` of the request; `/healthz` answered 200 on all 156 probes
+  during the 3.8 s and after (slowest 13 ms); the child is reaped (no `/proc` entry, no zombie, one pidfd per live child), the slot
+  reaches the free list `EMPTY` and exactly one replacement is started, which answers the next request; the memory charge, the
+  tenant share, the body bytes and the slots are 0 again; the descriptors of the parent are the same kinds in the same number
+  before and after (15); and the **other worker, busy with a request of 8 s, was not signalled and answered it** with its own pid.
+* *A finite hard limit from outside.* A launcher that runs `setrlimit(RLIMIT_CPU, (6, 6))` before the worker (what `ulimit -t 6`
+  does) gives soft **5** s and hard **6** s; the spinning request ends with `SIGXCPU` (logged `signal=SIGXCPU`, never `SIGKILL`) as
+  the same 503. Before the fix the soft limit was 6 and the answer a 500 `internal_error`.
+* *Recycling.* With `RETIRE_ANSWERS` = **1000** (asserted, not lowered) and the real operation `xml/root` (a root element
+  `r<i>` in the request, so each answer says which request it answers): 1000 answers through one worker took **0.65-0.68 s**
+  (about 0.65 ms per request through the ASGI application, the socket and the worker). The pid is the same for answers 1 to 999 and
+  the counter of the slot reads 1..999; the worker is **gone and reaped when the 1000th answer is delivered** (the answer itself
+  arrives); answer 1001 is right and comes from a new pid; `start_times` has 2 entries; the slot's counters, the memory charge and the
+  body ledger are 0, `children()` is exactly the new worker and there is one pidfd. With two slots and two concurrent clients, 2200 answers
+  in 1.5-1.6 s: the retired workers (2) gave exactly 1000 answers each, the live ones the rest (the counts add up to the 2200
+  requests), no index was answered twice or missing, 4 distinct pids served, both workers of the start were reaped, and the
+  descriptors are the same before and after (15).
+* *What this does not show.* The natural trigger of `SIGXCPU` with equal budgets (a worker that uses more CPU than wall time, which
+  needs several threads that leave the GIL, such as native code) was not built: the service's own worker does not do that, so in
+  practice `SIGXCPU` is the backstop for a parent that cannot enforce the wall clock (it died or its I/O thread is stuck; the
+  parent-died case was **not** tested) and for a hard limit set from outside. The kernel counts CPU in whole seconds, so the limit is
+  never below 3 s of CPU over the start-up, whatever the timeout (a short timeout is enforced by the wall clock of the parent, not by
+  this limit). The 503 for the CPU limit has no `correlationId` in its body, unlike the 500; that is the contract as written and was left as is.
 
 The memory table was produced by the test measurement fixture (report values printed in the 'measurements' section of the pytest session), and its figures are the RSS of a fresh Python process, not cgroup totals.
 

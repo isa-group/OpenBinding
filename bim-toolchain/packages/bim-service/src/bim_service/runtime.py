@@ -379,6 +379,10 @@ class Gate:
                 "operation_timeout",
                 f"the operation exceeded its time budget of {self._settings.operation_timeout_seconds:g} s",
             )
+        if outcome.kind == "cpu":
+            raise ServiceProblem(
+                503, "operation_timeout", "the operation exceeded the CPU time limit of its worker process"
+            )
         if outcome.kind == "busy":
             raise ServiceProblem(
                 503, "service_busy", "all operation slots are busy; retry later", headers=self._retry_headers()

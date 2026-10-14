@@ -128,7 +128,8 @@ class Answer:
 
 @dataclass
 class Outcome:
-    """How a call ended: ``answer``, ``timeout``, ``busy`` (503 ``service_busy``), ``cancelled`` or ``failed``."""
+    """How a call ended: ``answer``, ``timeout`` (the wall-clock budget), ``cpu`` (the CPU limit, ``SIGXCPU``; also 503
+    ``operation_timeout``), ``busy`` (503 ``service_busy``), ``cancelled`` or ``failed``."""
 
     kind: str
     answer: Answer | None = None
@@ -818,7 +819,7 @@ class WorkerPool:
             return Outcome("busy")
         if returncode == -signal.SIGXCPU:
             self._log_exit(pid, returncode, call, rss_ready, "cpu limit")
-            return Outcome("timeout")
+            return Outcome("cpu")
         self._log_exit(pid, returncode, call, rss_ready, reason or "")
         return Outcome("failed")
 

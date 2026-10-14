@@ -158,7 +158,9 @@ def _answer(
     used = resource.getrusage(resource.RUSAGE_SELF)
     soft = math.ceil(used.ru_utime + used.ru_stime) + math.ceil(timeout) + 2
     if cpu_hard != resource.RLIM_INFINITY:
-        soft = min(soft, cpu_hard)
+        # At soft == hard the kernel sends SIGKILL, which is indistinguishable from the OOM killer; one second below it
+        # the death is a SIGXCPU, which the parent answers as the CPU limit of the request.
+        soft = min(soft, max(cpu_hard - 1, 0))
     resource.setrlimit(resource.RLIMIT_CPU, (soft, cpu_hard))
 
     outcome, status, media, headers, payload, extra = "ok", 200, JSON_MEDIA_TYPE, {}, b"", {}

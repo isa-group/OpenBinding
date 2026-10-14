@@ -12,7 +12,10 @@ import asyncio
 import base64
 import io
 import json
+import logging
+import math
 import os
+import resource
 import signal
 import sys
 import time
@@ -20,6 +23,25 @@ import tracemalloc
 import zipfile
 
 import pytest
+from process_support import (
+    COMPILE,
+    XML_ROOT,
+    answered,
+    assert_nothing_held,
+    busy_pids,
+    children,
+    command,
+    cpu_limits,
+    fd_kinds,
+    open_pidfds,
+    post,
+    reaped,
+    slot_pids,
+    spy_on_checkin,
+    tell_workers_a_smaller_budget,
+    wait_until,
+    xml_root_request,
+)
 from service_support import async_client, bearer, run
 
 import consumer_fixtures as demo
@@ -27,7 +49,6 @@ from bim_service import _worker, workers
 from bim_service.runtime import Gate
 from bim_service.settings import BimServiceSettings, ServiceConfigError
 
-COMPILE = "/bim/v1/compile"
 EVALUATE = "/bim/v1/evaluate"
 JSON = {"Content-Type": "application/json"}
 TRACE = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
@@ -36,78 +57,6 @@ MIB = 1024 * 1024
 
 
 # --- helpers -------------------------------------------------------------------------------------------
-
-
-def command(text: str) -> dict:
-    """The body of a ``/compile`` request that ``process_standins`` reads as a command."""
-    return {"package": base64.b64encode(text.encode()).decode()}
-
-
-async def post(client, text: str, **kwargs):
-    return await client.post(COMPILE, json=command(text), **kwargs)
-
-
-async def wait_until(predicate, timeout: float = 5.0) -> None:
-    deadline = time.monotonic() + timeout
-    while not predicate():
-        if time.monotonic() > deadline:
-            raise AssertionError("condition not reached in time")
-        await asyncio.sleep(0.005)
-
-
-def children() -> list[int]:
-    """The pids of the children of this process (zombies included), from ``/proc``."""
-    me = os.getpid()
-    found = []
-    for entry in os.listdir("/proc"):
-        if not entry.isdigit():
-            continue
-        try:
-            with open(f"/proc/{entry}/stat", encoding="ascii", errors="replace") as handle:
-                fields = handle.read().rsplit(")", 1)[1].split()
-        except (OSError, IndexError):
-            continue
-        if int(fields[1]) == me:
-            found.append(int(entry))
-    return found
-
-
-def busy_pids(app) -> list[int]:
-    return [slot.pid for slot in app.state.gate.pool.slots if slot.state == workers.BUSY and slot.pid]
-
-
-def reaped(pid: int) -> bool:
-    """Whether ``waitpid`` has nothing to say about ``pid`` any more (it was reaped by its parent).
-
-    A zombie still has its ``/proc`` entry; looking there first keeps the test from reaping a child behind the pool's back.
-    """
-    if os.path.exists(f"/proc/{pid}"):
-        return False
-    try:
-        os.waitpid(pid, os.WNOHANG)
-    except ChildProcessError:
-        return True
-    return False
-
-
-def open_pidfds() -> int:
-    count = 0
-    for entry in os.listdir("/proc/self/fd"):
-        try:
-            if os.readlink(f"/proc/self/fd/{entry}") == "anon_inode:[pidfd]":
-                count += 1
-        except OSError:
-            continue
-    return count
-
-
-def assert_nothing_held(gate: Gate, slots: int) -> None:
-    assert gate._charged == 0 and gate._chargers == 0
-    assert gate._tenants == {}
-    assert gate.bodies.held == 0
-    assert all(gate._slots.acquire(blocking=False) for _ in range(slots)), "a slot leaked"
-    for _ in range(slots):
-        gate._slots.release()
 
 
 def one(app, path: str, body: bytes, content_type: str = "application/json", headers: dict | None = None):
@@ -738,6 +687,284 @@ def test_a_worker_is_replaced_after_its_thousandth_answer(process_app, monkeypat
 
     pids = run(scenario())
     assert len(set(pids[:3])) == 1 and pids[3] != pids[0] and pids[3] == pids[4]
+
+
+# --- SIGXCPU: the CPU limit of the kernel, for real -----------------------------------------------------------------
+
+#: The budget the workers are told in the first test (the parent keeps 60 s): they limit themselves to ceil(0.1) + 2 s of CPU
+#: over what they used.
+CHILD_BUDGET = 0.1
+#: The hard ``RLIMIT_CPU`` (seconds of CPU, start-up included) of the workers in the second test.
+HARD_CPU = 6
+
+
+def test_the_kernel_delivers_sigxcpu_to_a_worker_and_only_that_worker_is_replaced(process_app, monkeypatch, caplog, report) -> None:
+    """The kernel itself kills the worker when the CPU it used passes the ``RLIMIT_CPU`` it set on itself; the parent answers the
+    503 ``operation_timeout`` of ``docs/SERVICE.md`` and the other worker is left alone."""
+    caplog.set_level(logging.INFO)
+    tell_workers_a_smaller_budget(monkeypatch, CHILD_BUDGET)
+    app = process_app(
+        max_concurrency=2,
+        max_concurrency_per_tenant=2,
+        memory_budget_bytes=100_000,
+        max_pending_body_bytes=100_000,
+        operation_timeout_seconds=60,
+    )
+    gate = app.state.gate
+    pool = gate.pool
+    checkins = spy_on_checkin(pool, monkeypatch)
+    fds_before = fd_kinds()
+    started_children = len(pool.start_times)
+    cpu_before = resource.getrusage(resource.RUSAGE_CHILDREN)
+    cpu_before = cpu_before.ru_utime + cpu_before.ru_stime
+
+    async def scenario():
+        async with async_client(app) as client:
+            health: list[tuple[int, float]] = []
+            stop = asyncio.Event()
+
+            async def probe():
+                while not stop.is_set():
+                    began = time.perf_counter()
+                    response = await client.get("/healthz")
+                    health.append((response.status_code, time.perf_counter() - began))
+                    await asyncio.sleep(0.05)
+
+            prober = asyncio.create_task(probe())
+            bystander = asyncio.create_task(post(client, "sleep:8"))
+            await wait_until(lambda: len(busy_pids(app)) == 1)
+            pid_b = busy_pids(app)[0]
+            burner = asyncio.create_task(post(client, "spin:forever", headers={"traceparent": TRACE}))
+            await wait_until(lambda: len(busy_pids(app)) == 2)
+            pid_a = next(pid for pid in busy_pids(app) if pid != pid_b)
+            await wait_until(lambda: cpu_limits(pid_a)[0].isdigit())
+            limit = cpu_limits(pid_a)
+            began = time.perf_counter()
+            failed = await burner
+            elapsed = time.perf_counter() - began
+            still_busy = busy_pids(app)
+            await wait_until(lambda: reaped(pid_a), timeout=1.0)
+            follow_up = await post(client, "plain")
+            after_failure = (await client.get("/healthz")).status_code
+            survivor = await bystander
+            await wait_until(lambda: all(slot.state == workers.IDLE for slot in pool.slots), timeout=5.0)
+            stop.set()
+            await prober
+            return pid_a, pid_b, limit, failed, elapsed, still_busy, health, follow_up, after_failure, survivor
+
+    pid_a, pid_b, limit, failed, elapsed, still_busy, health, follow_up, after_failure, survivor = run(scenario())
+    cpu_used = resource.getrusage(resource.RUSAGE_CHILDREN)
+    cpu_used = cpu_used.ru_utime + cpu_used.ru_stime - cpu_before
+
+    # the documented answer: 503 operation_timeout, a problem document, the correlation id of the request
+    assert failed.status_code == 503
+    assert failed.headers["content-type"] == "application/problem+json"
+    problem = failed.json()
+    assert problem["code"] == "operation_timeout"
+    assert problem["detail"] == "the operation exceeded the CPU time limit of its worker process"
+    # the 503 problem has no `correlationId` member (only the generic 500 does); the id is in `traceparent` and in the log
+    assert failed.headers["traceparent"].split("-")[1] == CORRELATION_ID
+    assert f"correlation_id={CORRELATION_ID} reason=cpu limit" in caplog.text
+    # it was the kernel, at the limit the worker set on itself (CPU used so far + ceil(budget) + 2 s), not the parent's clock
+    soft, hard = limit
+    # a fresh worker has used less than 5 s of CPU, so the limit is between 4 and 5 + 3 s
+    assert hard == "unlimited" and 3 < int(soft) <= 5 + math.ceil(CHILD_BUDGET) + 2
+    assert "signal=SIGXCPU" in caplog.text and "reason=cpu limit" in caplog.text
+    assert "signal=SIGKILL" not in caplog.text and "signal=SIGTERM" not in caplog.text
+    assert elapsed < 30, "the budget of the parent (60 s) did not decide this"
+    assert int(soft) - 1 <= cpu_used <= int(soft) + 1, "the worker used the CPU its limit allows"
+    # the parent stayed responsive during and after
+    assert health and {status for status, _ in health} == {200} and after_failure == 200
+    assert max(seconds for _, seconds in health) < 1.0
+    # the child is gone and reaped (no zombie: its /proc entry is gone and waitpid has nothing left)
+    assert reaped(pid_a) and pid_a not in children()
+    # the other worker was not touched and answers its own request
+    assert still_busy == [pid_b]
+    assert survivor.status_code == 200 and survivor.json()["pid"] == pid_b
+    # a replacement serves the next request
+    assert follow_up.status_code == 200 and follow_up.json()["pid"] not in (pid_a, pid_b)
+    # the slot was EMPTY when it went back to the free list; exactly one child was started after the first two
+    assert [state for _, state in checkins].count(workers.EMPTY) == 1
+    assert len(pool.start_times) == started_children + 1
+    # nothing is held (slots, memory charge, tenant share, body bytes) and no descriptor or pidfd leaked
+    assert_nothing_held(gate, 2)
+    assert sorted(slot_pids(app)) == sorted(children()), "a child outside the pool (or a zombie)"
+    assert open_pidfds() == 2
+    assert fd_kinds() == fds_before
+    report(
+        f"cpu: SIGXCPU delivered by the kernel: soft RLIMIT_CPU {soft} s (hard {hard}) on a worker told a budget of "
+        f"{CHILD_BUDGET:g} s (the parent's was 60 s); the worker had used {cpu_used:.2f} s of CPU when it died, "
+        f"{elapsed:.2f} s after the request was admitted; answer 503 operation_timeout; /healthz {len(health)} probes, "
+        f"all 200, slowest {max(seconds for _, seconds in health) * 1000:.0f} ms; the other worker ({pid_b}) answered its "
+        f"request after, one replacement started, {len(fds_before)} descriptors before and after"
+    )
+
+
+def test_a_worker_with_a_hard_cpu_limit_from_outside_dies_of_sigxcpu_not_sigkill(process_app, monkeypatch, caplog) -> None:
+    """With a finite hard limit the soft one used to be clamped to it, and at ``soft == hard`` the kernel sends SIGKILL, which
+    is what the OOM killer sends: the request was a 500.  The soft limit stays one second below the hard one."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setattr(
+        workers,
+        "child_argv",
+        lambda fd: [
+            sys.executable,
+            "-s",
+            "-c",
+            f"import resource; resource.setrlimit(resource.RLIMIT_CPU, ({HARD_CPU}, {HARD_CPU})); "
+            "from bim_service._worker import main; main()",
+            str(fd),
+        ],
+    )  # what `ulimit -t` in front of the worker does
+    app = process_app(max_concurrency=1, max_concurrency_per_tenant=0, operation_timeout_seconds=60)
+    gate = app.state.gate
+    fds_before = fd_kinds()
+
+    async def scenario():
+        async with async_client(app) as client:
+            limits = (await post(client, "rlimits")).json()
+            burner = asyncio.create_task(post(client, "spin:forever", headers={"traceparent": TRACE}))
+            await wait_until(lambda: busy_pids(app))
+            pid = busy_pids(app)[0]
+            await wait_until(lambda: cpu_limits(pid)[0].isdigit())
+            seen = cpu_limits(pid)
+            began = time.perf_counter()
+            failed = await burner
+            elapsed = time.perf_counter() - began
+            await wait_until(lambda: reaped(pid), timeout=1.0)
+            return limits, pid, seen, failed, elapsed, await post(client, "plain")
+
+    limits, pid, seen, failed, elapsed, follow_up = run(scenario())
+    assert limits["cpu"] == HARD_CPU - 1 and seen == (str(HARD_CPU - 1), str(HARD_CPU))
+    assert (failed.status_code, failed.json()["code"]) == (503, "operation_timeout")
+    assert failed.headers["traceparent"].split("-")[1] == CORRELATION_ID
+    assert "signal=SIGXCPU" in caplog.text and "signal=SIGKILL" not in caplog.text
+    assert elapsed < HARD_CPU + 5
+    assert follow_up.status_code == 200 and follow_up.json()["pid"] != pid
+    assert_nothing_held(gate, 1)
+    assert fd_kinds() == fds_before
+
+
+# --- recycling after RETIRE_ANSWERS (1000), the real constant ------------------------------------------------------
+
+
+def test_a_worker_is_recycled_after_its_1000th_real_answer_and_the_1001st_is_right(process_app, report) -> None:
+    assert workers.RETIRE_ANSWERS == 1000, "the default is what is tested"
+    app = process_app(
+        max_concurrency=1,
+        max_concurrency_per_tenant=0,
+        worker_preload=(),
+        memory_budget_bytes=10_000_000,
+        max_pending_body_bytes=1_000_000,
+    )
+    gate = app.state.gate
+    pool = gate.pool
+    slot = pool.slots[0]
+    first = slot.pid
+    fds_before = fd_kinds()
+    headers = {"Content-Type": "application/json"}
+
+    async def scenario():
+        trail: list[tuple[int, int | None, int]] = []
+        async with async_client(app) as client:
+            began = time.perf_counter()
+            for index in range(1, 1001):
+                response = await client.post(XML_ROOT, content=xml_root_request(index), headers=headers)
+                assert answered(index, response), (index, response.status_code, response.text[:200])
+                trail.append((index, slot.pid, slot.answers))
+            elapsed = time.perf_counter() - began
+            old_is_gone = reaped(first)  # the 1000th answer was delivered after its worker was reaped
+            after_threshold = (slot.pid, slot.state)
+            response = await client.post(XML_ROOT, content=xml_root_request(1001), headers=headers)
+            assert answered(1001, response), (response.status_code, response.text[:200])
+            second = slot.pid
+            await wait_until(lambda: slot.state == workers.IDLE)
+            return trail, elapsed, old_is_gone, after_threshold, second
+
+    trail, elapsed, old_is_gone, after_threshold, second = run(scenario())
+    # the same worker for answers 1 to 999 (its counter says so), none of them early
+    assert all(pid == first for _, pid, _ in trail[:999]), "the worker changed before the threshold"
+    assert [answers for _, _, answers in trail[:999]] == list(range(1, 1000))
+    # at the 1000th it is retired: gone and reaped before the answer was delivered; the slot holds another child (or none yet)
+    assert old_is_gone and first not in children()
+    assert after_threshold[0] != first and after_threshold[1] in (workers.EMPTY, workers.STARTING, workers.IDLE)
+    assert second is not None and second != first
+    assert slot.answers == 1 and len(pool.start_times) == 2
+    assert_nothing_held(gate, 1)
+    assert children() == [second], "a zombie or a second child"
+    assert open_pidfds() == 1
+    assert fd_kinds() == fds_before
+    report(
+        f"recycling: 1000 real answers (xml/root) through one worker (pid {first}) in {elapsed:.2f} s "
+        f"({elapsed:.2f} ms per request); it was replaced right after the 1000th (pid {second}), the old one reaped; "
+        "the 1001st was answered correctly; slot, memory charge and body ledger back to 0; "
+        f"{len(fds_before)} descriptors before and after"
+    )
+
+
+def test_two_slots_recycle_their_workers_under_concurrency_without_losing_or_repeating_an_answer(process_app, report) -> None:
+    assert workers.RETIRE_ANSWERS == 1000
+    app = process_app(
+        max_concurrency=2,
+        max_concurrency_per_tenant=0,
+        worker_preload=(),
+        memory_budget_bytes=10_000_000,
+        max_pending_body_bytes=1_000_000,
+    )
+    gate = app.state.gate
+    pool = gate.pool
+    original = set(slot_pids(app))
+    fds_before = fd_kinds()
+    headers = {"Content-Type": "application/json"}
+    limit = 6000
+
+    async def scenario():
+        issued = 0
+        seen: dict[int, int] = {}
+        pids_seen: set[int] = set()
+
+        async def client_loop(client):
+            nonlocal issued
+            # until both workers of the start have been replaced (and at least 200 answers more have been given)
+            while not original.isdisjoint(slot_pids(app)) or issued < 2 * workers.RETIRE_ANSWERS + 200:
+                assert issued < limit, "the workers did not recycle"
+                issued += 1
+                index = issued
+                response = await client.post(XML_ROOT, content=xml_root_request(index), headers=headers)
+                assert answered(index, response), (index, response.status_code, response.text[:200])
+                seen[index] = seen.get(index, 0) + 1
+                pids_seen.update(slot_pids(app))
+
+        async with async_client(app) as client:
+            began = time.perf_counter()
+            await asyncio.gather(client_loop(client), client_loop(client))
+            elapsed = time.perf_counter() - began
+            await wait_until(lambda: all(slot.state == workers.IDLE for slot in pool.slots), timeout=5.0)
+            pids_seen.update(slot_pids(app))
+            return issued, seen, elapsed, pids_seen
+
+    issued, seen, elapsed, pids_seen = run(scenario())
+    assert sorted(seen) == list(range(1, issued + 1)) and set(seen.values()) == {1}, "an answer was lost or repeated"
+    retired = len(pool.start_times) - 2  # every start after the first two replaced a retired worker
+    assert retired >= 2
+    # every retired worker gave exactly RETIRE_ANSWERS answers; the two that are alive give the rest: nothing lost
+    assert sum(slot.answers for slot in pool.slots) + retired * workers.RETIRE_ANSWERS == issued
+    assert all(slot.answers < workers.RETIRE_ANSWERS for slot in pool.slots)
+    # both workers of the start were replaced and are gone
+    assert original.isdisjoint(slot_pids(app))
+    for pid in original:
+        assert reaped(pid), f"{pid} is not reaped"
+    assert len(pids_seen) == 2 + retired
+    assert_nothing_held(gate, 2)
+    assert sorted(children()) == sorted(slot_pids(app)), "a zombie or a child outside the pool"
+    assert open_pidfds() == 2
+    assert fd_kinds() == fds_before
+    report(
+        f"recycling: {issued} real answers (xml/root) through 2 slots with 2 concurrent clients in {elapsed:.2f} s; "
+        f"{retired} workers retired after exactly {workers.RETIRE_ANSWERS} answers each, none lost or repeated, "
+        f"{len(pids_seen)} distinct workers served; all old workers reaped; nothing held; {len(fds_before)} descriptors "
+        "before and after"
+    )
 
 
 # --- P12: the same answers, byte for byte ---------------------------------------------------------------------
