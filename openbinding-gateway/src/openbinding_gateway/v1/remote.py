@@ -40,6 +40,17 @@ class RemoteEngineError(RuntimeError):
         self.code = code
 
 
+class RemoteCancelled(RemoteEngineError):
+    """The engine reports that it stopped the job because it was asked to (``failed``, ``error`` = ``cancelled: ...``).
+
+    It is a failure like any other for a caller that did not ask for the stop; a caller that did can tell
+    the two apart and take it as the engine's confirmation.
+    """
+
+
+#: What an engine's ``error`` starts with when the job failed because a ``DELETE`` stopped it.
+ENGINE_CANCELLED_PREFIX = "cancelled:"
+
 #: Longest text of an engine's own ``error`` that is kept, even in the message.
 MAX_ENGINE_ERROR_TEXT = 1024
 
@@ -254,9 +265,10 @@ def _validate_job(payload: object, expected_id: str) -> object | None:
                 "engine polling response must satisfy EngineJob", code="engine_protocol_error"
             )
         # What the engine wrote is bounded here and only ever reaches the log.
-        raise RemoteEngineError(
-            bounded(payload["error"] or "remote engine failed", MAX_ENGINE_ERROR_TEXT), code="engine_failed"
-        )
+        text = bounded(payload["error"] or "remote engine failed", MAX_ENGINE_ERROR_TEXT)
+        if payload["error"].startswith(ENGINE_CANCELLED_PREFIX):
+            raise RemoteCancelled(text, code="engine_failed")
+        raise RemoteEngineError(text, code="engine_failed")
     if set(payload) != {"id", "status", "created_at", "result"}:
         raise RemoteEngineError("engine polling response must satisfy EngineJob", code="engine_protocol_error")
     return payload["result"]
@@ -363,6 +375,7 @@ async def solve_remote(
     job_id: str | None = None,
     attempt: int | None = None,
     on_remote_id: Callable[[str], Awaitable[None]] | None = None,
+    on_poll: Callable[[str], Awaitable[None]] | None = None,
     validate_result: ResultValidator | None = None,
 ) -> dict:
     """Submit a BindingProblem and wait for its result.
@@ -370,7 +383,11 @@ async def solve_remote(
     ``job_id`` and ``attempt`` travel as ``X-Openbinding-Job-Id`` and
     ``X-Openbinding-Attempt``. ``on_remote_id`` is awaited with the engine's own
     job id as soon as the engine has accepted the work and before the first poll,
-    so the caller can make that id durable before it waits. ``validate_result`` is
+    so the caller can make that id durable before it waits. ``on_poll`` is awaited
+    with that id after every poll that finds the job still queued or running: it
+    is how the caller looks at things that change while the engine works (it must
+    be cheap, and it decides for itself how often it does anything). Whatever it
+    raises ends the wait and propagates; it carries no network of its own. ``validate_result`` is
     awaited with the decoded answer (synchronous or from a finished job) and
     raises ``RemoteEngineError`` for one that is not a ``bim-engine/v1`` result;
     without it the answer is returned as received.
@@ -456,6 +473,8 @@ async def solve_remote(
                 await polled.aclose()
             result = _validate_job(payload, engine_job_id)
             if result is None:
+                if on_poll is not None:
+                    await on_poll(engine_job_id)
                 await asyncio.sleep(0.05)
                 continue
             await _judge(validate_result, result)

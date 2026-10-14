@@ -485,3 +485,81 @@ async def test_cancellation_swallows_every_failure_and_stays_short(monkeypatch) 
 
     monkeypatch.setattr(remote, "validate_endpoint", refused)
     assert await remote.cancel_remote(registration, "job-1", transport=httpx.MockTransport(unreachable)) is False
+
+
+def _polling_engine(final: dict | None, running_polls: int = 3):
+    """An async engine that reports ``running`` ``running_polls`` times, then ``final`` (if any), and never stops by itself."""
+    polls = 0
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal polls
+        if request.method == "POST":
+            return httpx.Response(202, json={"id": "job-1", "status": "queued"})
+        polls += 1
+        if final is not None and polls > running_polls:
+            return httpx.Response(200, json={"id": "job-1", "created_at": 1, **final})
+        return httpx.Response(200, json={"id": "job-1", "status": "running", "created_at": 1})
+
+    return handler
+
+
+@pytest.mark.asyncio
+async def test_on_poll_is_awaited_after_every_poll_that_finds_the_job_still_working(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    seen: list[str] = []
+
+    async def on_poll(engine_job_id: str) -> None:
+        seen.append(engine_job_id)
+
+    result = await remote.solve_remote(
+        remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}),
+        {},
+        {},
+        OPTIMIZATION,
+        transport=httpx.MockTransport(_polling_engine({"status": "completed", "result": _result("OPTIMAL")})),
+        on_poll=on_poll,
+    )
+
+    assert result["termination"] == "OPTIMAL"
+    assert seen == ["job-1"] * 3  # not after the poll that carried the result
+
+
+@pytest.mark.asyncio
+async def test_what_on_poll_raises_ends_the_wait(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+
+    class Stop(Exception):
+        pass
+
+    async def on_poll(_engine_job_id: str) -> None:
+        raise Stop
+
+    with pytest.raises(Stop):
+        await remote.solve_remote(
+            remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}),
+            {},
+            {},
+            OPTIMIZATION,
+            transport=httpx.MockTransport(_polling_engine(None)),
+            on_poll=on_poll,
+        )
+
+
+@pytest.mark.asyncio
+async def test_a_job_the_engine_stopped_because_it_was_asked_to_is_told_apart_from_other_failures(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    registration = remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"})
+
+    with pytest.raises(remote.RemoteCancelled) as stopped:
+        await remote.solve_remote(
+            registration, {}, {}, OPTIMIZATION,
+            transport=httpx.MockTransport(_polling_engine({"status": "failed", "error": "cancelled: stopped by DELETE"}, 1)),
+        )
+    with pytest.raises(remote.RemoteEngineError) as failed:
+        await remote.solve_remote(
+            registration, {}, {}, OPTIMIZATION,
+            transport=httpx.MockTransport(_polling_engine({"status": "failed", "error": "MiniZinc crashed"}, 1)),
+        )
+
+    assert isinstance(stopped.value, remote.RemoteEngineError) and stopped.value.code == "engine_failed"
+    assert not isinstance(failed.value, remote.RemoteCancelled) and failed.value.code == "engine_failed"

@@ -21,7 +21,9 @@ function of the rows, so it can be tested exhaustively:
   id (R1). If the running attempt has not registered an id yet the cancellation is
   deferred, with backoff, and after ``remote_cancel_defer_limit`` deferrals it is
   skipped: it is never sent blind;
-* without ``idScope: attempt`` only a terminal job allows it (R2).
+* without ``idScope: attempt`` only a terminal job allows it (R2);
+* one exception to the running attempt being untouchable: when the job's ``cancellation_requested`` is set, the
+  attempt that runs it is the one to stop (``services.execution.CancelWatch``, and the sweep retrying that claim).
 
 What ``sent`` promises is the engine's confirmation (200/204), not that a request left: a ``202`` (accepted,
 still stopping) settles as ``failed`` and is retried with backoff within the same bounded number of claims,
@@ -88,6 +90,8 @@ class JobView:
     state: JobState
     attempt: int
     attempts: tuple[AttemptView, ...]
+    #: Somebody asked for the job to stop (the flag a running job's worker watches).
+    cancellation_requested: bool = False
 
 
 @dataclass(frozen=True)
@@ -123,6 +127,13 @@ def decide(
         return Decision(Action.SKIP, "a newer attempt holds the same engine id")
     if job.state in TERMINAL_STATES:
         return Decision(Action.CANCEL, "the job is terminal")
+    if job.cancellation_requested and job.state is JobState.RUNNING and job.attempt == target.attempt:
+        # The one case in which the attempt that runs the job is stopped: the job itself is not wanted any
+        # more, whoever claims this asks on behalf of the worker that holds the lease (the worker, when it
+        # sees the flag while it waits for the engine; the sweep, to retry that same claim). No newer attempt
+        # exists (job.attempt == target.attempt) and the check above on shared ids has passed, so nothing
+        # that is still wanted can hold this id, whatever the scope of the engine's ids.
+        return Decision(Action.CANCEL, "the job was cancelled and this is the attempt that runs it")
     if not per_attempt:
         return Decision(Action.DEFER, "the engine does not scope its ids per attempt: waiting for the job to end")
     if job.state is not JobState.RUNNING:
@@ -307,7 +318,9 @@ async def claim_one(
 
 async def view(session: AsyncSession, job_id: uuid.UUID) -> JobView | None:
     """The job's state and the id of each attempt, read fresh from the rows."""
-    job = (await session.execute(select(Job.state, Job.attempt).where(Job.id == job_id))).first()
+    job = (
+        await session.execute(select(Job.state, Job.attempt, Job.cancellation_requested).where(Job.id == job_id))
+    ).first()
     if job is None:
         return None
     rows = (
@@ -321,6 +334,25 @@ async def view(session: AsyncSession, job_id: uuid.UUID) -> JobView | None:
         state=job.state,
         attempt=job.attempt,
         attempts=tuple(AttemptView(row.attempt, row.engine_job_id, row.endpoint) for row in rows),
+        cancellation_requested=bool(job.cancellation_requested),
+    )
+
+
+async def confirm_stopped(session: AsyncSession, job_id: uuid.UUID, attempt: int) -> None:
+    """Record that the engine itself reported the attempt's job stopped (the caller commits).
+
+    For a worker that read the confirmation off its own poll (``failed``, ``cancelled: ...``) instead of
+    from the answer to a ``DELETE``: nothing is left to send. A row that is already final is not touched.
+    """
+    await session.execute(
+        update(JobEngineAttempt)
+        .where(
+            JobEngineAttempt.job_id == job_id,
+            JobEngineAttempt.attempt == attempt,
+            JobEngineAttempt.cancel_state.in_((NONE, *OPEN_STATES)),
+        )
+        .values(cancel_state=SENT, next_cancel_at=None)
+        .execution_options(synchronize_session=False)
     )
 
 

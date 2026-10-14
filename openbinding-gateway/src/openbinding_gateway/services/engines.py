@@ -8,8 +8,11 @@ the contract persisted with a job.
 
 from __future__ import annotations
 
+import copy
 import json
+import logging
 import os
+import re
 import uuid
 from pathlib import Path
 from typing import Any, Mapping, NamedTuple
@@ -28,6 +31,8 @@ from ..integrations.bim_host import engine_contract_diagnostics  # noqa: F401 - 
 from ..security.apikeys import allows_engine
 from ..v1.remote import RemoteEngineError, RemoteRegistration
 from .probe import probe_ir
+
+logger = logging.getLogger(__name__)
 
 
 def schema_root() -> Path:
@@ -61,6 +66,69 @@ BUILTIN_ENGINE_MAPPINGS = {
     "openapi": "/openapi.json",
 }
 
+#: What a registration declares in ``spec.extensions.cancellation`` for an engine that stops a job on
+#: ``DELETE`` of its job resource and hands out ids per attempt (it does not deduplicate by
+#: ``X-Openbinding-Job-Id``). The gateway reads it in ``engine_registry.cancellation_capability``.
+BUILTIN_CANCELLATION_DECLARATION: dict[str, Any] = {"supported": True, "idScope": "attempt"}
+
+#: The bundled engines whose ``DELETE`` is always there, by manifest ``metadata.name`` and nothing else: a
+#: registration declares the capability only for these. ``minizinc-csp`` is asynchronous and cancels
+#: for real (``engines/minizinc-csp``, ``docs/qa/ENGINE_CANCELLATION.md``).
+#:
+#: The Java engines are NOT listed: their ``DELETE`` exists only with ``ENGINE_JOB_MODE=async`` (they answer
+#: synchronously by default), and the registration generated here cannot know in which mode a deployment
+#: runs them. The operator does, so a Java engine is added by naming it in ``ENGINE_CANCELLATION_BUILTIN``
+#: (see ``builtin_cancellation_engines``) in the same deployment that sets its ``ENGINE_JOB_MODE=async``.
+BUILTIN_CANCELLATION: dict[str, dict[str, Any]] = {"minizinc-csp": BUILTIN_CANCELLATION_DECLARATION}
+
+#: Comma-separated bundled engine names that implement cancellation in this deployment, in addition to
+#: ``BUILTIN_CANCELLATION``. Empty by default.
+BUILTIN_CANCELLATION_ENV = "ENGINE_CANCELLATION_BUILTIN"
+
+_ENGINE_NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")
+_REFUSED_CANCELLATION_NAMES: set[str] = set()
+
+#: ``DELETE`` on the job resource, as ``engines/minizinc-csp`` describes it in its own ``/openapi.json``.
+#: ``bim-engine/v1`` has no such operation, and the gateway turns the capability off unless the registration's
+#: OpenAPI describes it with a 2xx response (``cancellation_capability``).
+BUILTIN_CANCEL_OPERATION: dict[str, Any] = {
+    "summary": "Cancel an engine job (extension; idempotent).",
+    "parameters": [{"in": "path", "name": "id", "required": True, "schema": {"type": "string", "minLength": 1}}],
+    "responses": {
+        "200": {"description": "The job is over: cancelled, or it had already completed or failed."},
+        "202": {"description": "The cancellation is in progress; the solver has not been confirmed gone yet."},
+        "404": {"description": "The engine job does not exist."},
+    },
+}
+
+
+def builtin_cancellation_engines(environ: Mapping[str, str] | None = None) -> frozenset[str]:
+    """Names of the bundled engines whose registration declares cancellation: the table plus the operator's list.
+
+    ``ENGINE_CANCELLATION_BUILTIN`` is validated: a name that is not shaped like an engine name or has no
+    manifest in the catalog is refused (logged once) and not enabled, so a typo can only leave cancellation
+    off, never turn it on for something else.
+    """
+    names = set(BUILTIN_CANCELLATION)
+    configured = (os.environ if environ is None else environ).get(BUILTIN_CANCELLATION_ENV, "")
+    for raw in configured.split(","):
+        name = raw.strip()
+        if not name:
+            continue
+        if _ENGINE_NAME.fullmatch(name) and (MANIFEST_DIR / f"{name}.json").is_file():
+            names.add(name)
+        elif name not in _REFUSED_CANCELLATION_NAMES:
+            _REFUSED_CANCELLATION_NAMES.add(name)
+            logger.error("%s names %r, which is not a bundled engine; cancellation is not enabled for it", BUILTIN_CANCELLATION_ENV, name)
+    return frozenset(names)
+
+
+def builtin_cancellation(engine_name: str) -> dict[str, Any] | None:
+    """The ``extensions.cancellation`` declaration of a bundled engine, or ``None`` when it declares nothing."""
+    if engine_name not in builtin_cancellation_engines():
+        return None
+    return dict(BUILTIN_CANCELLATION.get(engine_name, BUILTIN_CANCELLATION_DECLARATION))
+
 
 def builtin_engine_registration(
     manifest: dict[str, Any],
@@ -74,9 +142,25 @@ def builtin_engine_registration(
     changing the meaning of an existing job.  The returned runtime marker is
     deliberately outside the public document: only this installer can grant
     access to trusted internal HTTP endpoints.
+
+    An engine that stops a job on ``DELETE`` (``builtin_cancellation``) also declares it:
+    ``spec.extensions.cancellation`` and the ``DELETE`` operation in the registration's OpenAPI, which the
+    gateway requires before it sends one. The rest of the bundled engines get exactly the registration they
+    always had. Turning the capability on or off changes the digest, hence the ``+builtin.<digest>`` version.
     """
 
     engine_reference = engine_ref(manifest, "bim.builtin")
+    openapi = {
+        **protocol_document(),
+        "x-bim-protocol": "bim-engine/v1",
+        "x-bim-protocol-digest": protocol_digest(),
+    }
+    cancellation = builtin_cancellation(engine_reference["name"])
+    if cancellation is not None:
+        openapi = copy.deepcopy(openapi)
+        openapi.setdefault("paths", {}).setdefault(BUILTIN_ENGINE_MAPPINGS["job"], {})["delete"] = copy.deepcopy(
+            BUILTIN_CANCEL_OPERATION
+        )
     installation = {
         "engine": engine_reference,
         "endpoint": endpoint,
@@ -87,11 +171,8 @@ def builtin_engine_registration(
         },
         "mappings": dict(BUILTIN_ENGINE_MAPPINGS),
         "auth": {"scheme": "none"},
-        "openapi": {
-            **protocol_document(),
-            "x-bim-protocol": "bim-engine/v1",
-            "x-bim-protocol-digest": protocol_digest(),
-        },
+        "openapi": openapi,
+        **({"extensions": {"cancellation": cancellation}} if cancellation is not None else {}),
     }
     installation_digest = digest(installation).removeprefix("sha256-")
     engine_version = str(engine_reference["version"]).split("+", 1)[0]
