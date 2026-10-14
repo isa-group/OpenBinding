@@ -8,9 +8,12 @@ not installed: every operation on it is refused. These tests age a snapshot the 
 compiled again and the IR of the snapshot that a sealed case revision pins is replaced in place (every id
 stays), and the seed of the lab does it idempotently without touching users, organizations, projects or cases.
 
-Synthetic data, SQLite. There is no migration in this cut-over (nothing is purged), so there is no
-PostgreSQL-only test of one to run with ``TEST_DATABASE_URL``; the sealing of the revisions is the one rule
-the PostgreSQL triggers enforce differently from SQLite, and ``recompile_stale_snapshots`` does not write them.
+Synthetic data, SQLite. There is no migration in this cut-over (nothing is purged); the sealing of the
+revisions is the one rule the PostgreSQL triggers enforce differently from SQLite, and
+``recompile_stale_snapshots`` does not write them. The removal of a duplicate copy of a package (and the
+isolation between owners and the rollback of a failed run) is repeated on a real PostgreSQL in
+``tests/test_duplicate_copy_purge_pg.py``; a snapshot whose package the compiler refuses is
+``tests/test_snapshot_invalid_instance.py``.
 """
 
 from __future__ import annotations
@@ -340,7 +343,9 @@ async def test_a_package_that_cannot_be_compiled_again_is_reported_and_left_alon
     assert not report.changed
     [(failed_id, code)] = report.failed
     assert failed_id == stale_snapshot_id and code
-    assert await snapshot_ir_problem(db_session, uuid.UUID(stale_snapshot_id)) == "contract_not_installed"
+    # The package itself is what the installed toolchain cannot read, so recompiling would not help and the
+    # launch does not say to (docs/qa/SNAPSHOT_INVALID_INSTANCE.md); the snapshot is kept.
+    assert await snapshot_ir_problem(db_session, uuid.UUID(stale_snapshot_id)) == "snapshot_not_recompilable"
     assert await count(db_session, InstanceSnapshot) == 1
 
 

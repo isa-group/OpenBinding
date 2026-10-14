@@ -45,7 +45,10 @@ There was no route that recompiled a snapshot. This change adds none (no new API
   was compiled by another bim-toolchain release than the installed one and must be recompiled ... "). The message contains
   no stored value (no id, digest or version) and no job is written. It is the code that the toolchain itself uses and that
   the frontend already maps (`caseErrors.ts`), so there is no new code and `docs/openapi.json` does not change
-  (`tools/dump_openapi.py --check` passes).
+  (`tools/dump_openapi.py --check` passes). *Amended afterwards:* when the stored package is itself what the installed
+  toolchain refuses (invalid, unreadable, or read as another package), the launch answers `422 snapshot_not_recompilable`
+  with the reason instead, since "recompile" would send the user nowhere; this adds a code that `caseErrors.ts` does not map
+  yet, and `tools/dump_openapi.py --check` was not re-run for it.
 - Any other path that hands a stored IR to the toolchain gets its `ContractError`, which the central handler
   (`main.bim_error`) answers as `422` with the toolchain's code: never a 500.
 - **Explicit recompilation.** `services.snapshots.recompile_stale_snapshots(session)`: for every snapshot that a case
@@ -56,7 +59,11 @@ There was no route that recompiled a snapshot. This change adds none (no new API
   - If a snapshot of the same owner and package already exists for the installed toolchain (a "copy": an upload, or a seed run
     after the release, made it) it holds the identity the regenerated snapshot needs. The copy is removed if no revision and no job
     points at it; otherwise the snapshot is left as it was (`snapshot_conflict`).
-  - A package that cannot be compiled again is left as it was and reported with the toolchain's error code.
+  - A package that cannot be compiled again is left as it was and reported with the toolchain's error code and its findings
+    (`RecompileReport.failures[].refusal`: code, pointers, redacted messages; `seed_lab.py` prints them as
+    `recompileFailed[].reason`). It is kept, not deleted or hidden: its launches answer `422 snapshot_not_recompilable`
+    instead of `contract_not_installed`, because recompiling cannot help it (see
+    [SNAPSHOT_INVALID_INSTANCE.md](SNAPSHOT_INVALID_INSTANCE.md), which also has the read-only `tools/diagnose_snapshots.py`).
   - A second call finds nothing to do.
 - `tools/seed_lab.py` calls it first, then does what it always did. Importing it still has no side effects.
 
@@ -90,8 +97,10 @@ whoever runs it.
 
    On a lab that holds 0.1.0 snapshots the JSON report has, in `created`, one `recompiled-case-revision:<uuid>` per revision
    whose snapshot was regenerated, `recompileFailed: []`, and the same `counts` and `ids` as before. A line on stderr
-   (`snapshot <id> could not be compiled again (<code>)`) and `recompileFailed` list what could not be: the launch of those
-   still answers the stable 422.
+   (`snapshot <id> could not be compiled again (<code>)`) and `recompileFailed` (with the compiler's findings under `reason`)
+   list what could not be: the launch of those still answers a stable 422 (`contract_not_installed`, or
+   `snapshot_not_recompilable` when the package itself is what is refused). `tools/diagnose_snapshots.py` reads why, without
+   writing ([SNAPSHOT_INVALID_INSTANCE.md](SNAPSHOT_INVALID_INSTANCE.md)).
 3. Run it again: `created: []`.
 4. `DEMO_SEED_TOOL=smoke_lab.py DEMO_SEED_ARGS='--with-space' docker compose run --rm --no-deps seed` (drop `--with-space`
    as in `DEMO.md`): `owner_job`, `idempotency` and `concurrency_limit` launch from the seeded snapshot.
@@ -126,16 +135,24 @@ descriptors and the compilation digest of a real one, as 0.1.0 would have stored
 - the seed: a lab of another toolchain is regenerated with the same ids and counts, users, keys and password hashes untouched,
   the second run changes nothing; the copy an earlier seed made is removed; a current lab is unchanged.
 
-No PostgreSQL test was added: there is no migration, and `recompile_stale_snapshots` writes only tables without the sealing
-triggers (`v1_binding_ir`, `v1_instance_snapshots`) and deletes only copies. The suites marked `TEST_DATABASE_URL`
-(`PG_HARNESS.md`) were not run here (43 skipped in the registered run).
+`recompile_stale_snapshots` writes only tables without the sealing triggers (`v1_binding_ir`, `v1_instance_snapshots`) and
+deletes only copies. At first no PostgreSQL test was added for it (there is no migration). The removal of the copy, the
+isolation between owners, the rollback and the race of two replicas now have PostgreSQL tests in
+`tests/test_duplicate_copy_purge_pg.py` ([PG_REAL_RUN.md](PG_REAL_RUN.md)); they have **not been run on a PostgreSQL**:
+the worktree that wrote them has none, so they skip there. A snapshot whose package the compiler refuses is covered by
+`tests/test_snapshot_invalid_instance.py`; the service's own contract (report, isolation, no commit) is
+`tests/test_snapshot_recompile.py`. Note for SQLite: it releases a savepoint outside `BEGIN` as a commit, so a rollback after
+`recompile_stale_snapshots` does not undo it there; the rollback is shown on PostgreSQL only.
 
 ## Not verified
 
 - The lab itself: nothing here was run against the deployed lab, so the smoke (9 steps) and the Playwright specs after the
   procedure are not measured. The cause was established from the code and the measured symptom.
-- PostgreSQL: the `DELETE` of a copy and the update of `compilation_digest` run in SQLite only. The unique key
-  `(owner_id, package_digest, compilation_digest)` is the same in both, and the order (delete, flush, update) respects it.
+- PostgreSQL: the `DELETE` of a copy and the update of `compilation_digest` ran in SQLite only in the registered runs. The unique
+  key `(owner_id, package_digest, compilation_digest)` is the same in both, and the order (delete, flush, update) respects it;
+  `tests/test_duplicate_copy_purge_pg.py` is written to confirm it on a real server and has not run yet.
+- The snapshot that failed with `invalid_instance` in the lab at `c2d46151`: its cause is unknown
+  ([SNAPSHOT_INVALID_INSTANCE.md](SNAPSHOT_INVALID_INSTANCE.md) has the tool and the decision branches).
 - A snapshot compiled with registered resources (`namespace/name/version`) is compiled again with the resources published
   now; if they are gone it is reported, not regenerated.
 - Environments other than the lab: `seed_lab.py` refuses `APP_ENV=prod` and no production installation holds 0.1.x

@@ -374,7 +374,10 @@ async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan
         space_client.set_gate(previous)
     return {
         "created": created,
-        "recompileFailed": [{"snapshotId": snapshot_id, "code": code} for snapshot_id, code in recompile.failed],
+        "recompileFailed": [
+            {"snapshotId": item.snapshot_id, "code": item.code, **({"reason": item.refusal.as_dict()} if item.refusal else {})}
+            for item in recompile.failures
+        ],
         "counts": await count_rows(session, users, organizations),
         "ids": {
             "users": {name: str(user.id) for name, user in users.items()},
@@ -493,7 +496,11 @@ async def _run(args: argparse.Namespace, environ: Mapping[str, str], password: s
         users = result.pop("users")
         report: dict[str, Any] = {"tool": "seed_lab", **result}
         for failure in result["recompileFailed"]:
-            print(f"snapshot {failure['snapshotId']} could not be compiled again ({failure['code']})", file=sys.stderr)
+            print(
+                f"snapshot {failure['snapshotId']} could not be compiled again ({failure['code']}); "
+                "tools/diagnose_snapshots.py reads why, without writing",
+                file=sys.stderr,
+            )
         if args.print_keys:
             report["apiKeys"] = {name: api_key_for(password, name)[0] for name in users}
         if args.space_contracts:

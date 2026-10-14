@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, Mapping, NamedTuple
 
-from bim_core import BimError, CompileError
+from bim_core import BimError, CompileError, PackageError
 from bim_core.canonical import digest, digest_bytes
 from fastapi import HTTPException
 from sqlalchemy import delete, select
@@ -21,7 +21,9 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.jsonio import strict_json_loads
+from ..core.logging import redact
 from ..domain.binding_space import BindingSpace, decimal_digits
+from ..models.problem import split_detail
 from ..db.models import (
     BindingIRSnapshot,
     InstanceResource,
@@ -452,6 +454,9 @@ async def snapshot_ir(snapshot: InstanceSnapshot, session: AsyncSession) -> Comp
     by the first thing done with it. What is checked here is that the IR was compiled by the installed
     toolchain, because the answer to that is a stable ``422 contract_not_installed`` that says to
     recompile (``recompile_stale_snapshots``), not whatever the operation that meets it first reports.
+    When the stored package itself is what the installed toolchain refuses, recompiling cannot help and
+    saying so would mislead: that snapshot answers ``422 snapshot_not_recompilable`` instead, with the
+    compiler's own finding (``diagnose_snapshot``). Nothing is written either way.
     """
     ir = await session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))
     if ir is None:
@@ -459,6 +464,9 @@ async def snapshot_ir(snapshot: InstanceSnapshot, session: AsyncSession) -> Comp
     if ir.document.get('apiVersion') != 'bim/v1' or ir.document.get('kind') != 'BindingProblem':
         raise HTTPException(422, detail={"code": "execution_capability_unavailable", "message": "This output has no installed execution evaluator"})
     if not bim.ir_is_installed(ir.document):
+        diagnosis = await diagnose_snapshot(session, snapshot)
+        if diagnosis.status == "not_recompilable":
+            raise HTTPException(422, detail=not_recompilable_detail(diagnosis))
         raise HTTPException(422, detail={"code": "contract_not_installed", "message": bim.STALE_IR_MESSAGE})
     return Compilation(
         archive=snapshot.source_archive,
@@ -470,20 +478,6 @@ async def snapshot_ir(snapshot: InstanceSnapshot, session: AsyncSession) -> Comp
         source_map=ir.source_map or {},
         analysis=ir_analysis(ir.document),
     )
-
-
-@dataclass(frozen=True)
-class RecompileReport:
-    """What ``recompile_stale_snapshots`` did, in ids and codes only (nothing stored is echoed)."""
-
-    #: ``(snapshot id, ids of the case revisions that pin it)``
-    recompiled: tuple[tuple[str, tuple[str, ...]], ...] = ()
-    #: ``(snapshot id, error code)``: left as they were, so a launch still answers the stable 422
-    failed: tuple[tuple[str, str], ...] = ()
-
-    @property
-    def changed(self) -> bool:
-        return bool(self.recompiled)
 
 
 class _RecompileRefused(RuntimeError):
@@ -512,6 +506,223 @@ async def _is_referenced(session: AsyncSession, snapshot_id: uuid.UUID) -> bool:
     return False
 
 
+# -- Why a snapshot cannot be compiled again ---------------------------------------------------------
+
+#: Stable code of a snapshot whose stored package the installed toolchain does not accept (or accepts as
+#: another package): compiling it again cannot work, so the snapshot is kept as evidence and cannot run.
+NOT_RECOMPILABLE = "snapshot_not_recompilable"
+NOT_RECOMPILABLE_MESSAGE = (
+    "This snapshot was compiled by another bim-toolchain release, and the installed one does not accept its "
+    "stored package, so it cannot be recompiled or run. The package and the case revisions that pin it are kept "
+    "unchanged as evidence; correct the source and upload it again to get a snapshot that can run."
+)
+#: What ``reason`` says when the toolchain accepts the package but not as the package the snapshot recorded.
+_REASON_MESSAGES = {
+    "snapshot_identity_changed": "The installed toolchain reads the stored package as a different package or Instance.",
+    "recompile_unchanged": "Compiling the stored package again does not produce an IR of the installed toolchain.",
+}
+#: Verdicts of a refused compilation that are about the package itself, as opposed to the toolchain or the
+#: database being unavailable (which says nothing about the package).
+_PACKAGE_VERDICTS = frozenset({"invalid_package", "unreadable_package", "refused"})
+_MAX_DIAGNOSTICS = 5
+_MAX_TEXT = 300
+
+
+def _clip(value: Any, limit: int = _MAX_TEXT) -> str:
+    """One line of text without credential forms, no longer than ``limit``."""
+    text = redact(" ".join(str(value).split()))
+    return text if len(text) <= limit else text[: limit - 3] + "..."
+
+
+def _clean_diagnostic(item: Any) -> dict[str, str]:
+    if hasattr(item, "as_dict"):
+        item = item.as_dict()
+    item = item if isinstance(item, Mapping) else {"message": item}
+    cleaned = {"code": _clip(item.get("code", ""), 80)}
+    for key in ("resource", "pointer", "irPath", "bpmnElement"):
+        if item.get(key):
+            cleaned[key] = _clip(item[key], 200)
+    cleaned["message"] = _clip(item.get("message", ""))
+    return cleaned
+
+
+@dataclass(frozen=True)
+class CompileRefusal:
+    """A refused compilation in stable, redacted terms: the toolchain's code, its findings and a verdict.
+
+    ``verdict`` is ``invalid_package`` (the compiler's diagnostics), ``unreadable_package`` (not a package
+    the toolchain can read), ``refused`` (another refusal of the input), ``unavailable`` (the toolchain or the
+    database could not answer: no verdict on the package) or ``error`` (unexpected; only its type is named).
+    """
+
+    verdict: str
+    code: str
+    message: str
+    diagnostics: tuple[dict[str, str], ...] = ()
+    diagnostic_count: int = 0
+
+    @property
+    def about_the_package(self) -> bool:
+        return self.verdict in _PACKAGE_VERDICTS
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "verdict": self.verdict,
+            "code": self.code,
+            "message": self.message,
+            "diagnostics": [dict(item) for item in self.diagnostics],
+            "diagnosticCount": self.diagnostic_count,
+        }
+
+
+def compile_refusal(exc: BaseException) -> CompileRefusal:
+    """The refusal ``exc`` stands for. Nothing but the toolchain's own findings is echoed."""
+    if isinstance(exc, BimError):
+        status, code, message, diagnostics, _, _ = bim.problem_for(exc)
+        if isinstance(exc, CompileError):
+            verdict = "invalid_package"
+        elif isinstance(exc, PackageError):
+            verdict = "unreadable_package"
+        else:
+            verdict = "unavailable" if status >= 500 else "refused"
+    elif isinstance(exc, HTTPException):
+        code, message, diagnostics, _ = split_detail(exc.detail, "request_invalid")
+        if exc.status_code >= 500:
+            verdict = "unavailable"
+        else:
+            verdict = "invalid_package" if code == "invalid_instance" else "refused"
+    elif isinstance(exc, SQLAlchemyError):
+        return CompileRefusal("unavailable", "database_error", "The database could not be read.")
+    else:
+        return CompileRefusal("error", type(exc).__name__, "The compilation failed unexpectedly.")
+    cleaned = tuple(_clean_diagnostic(item) for item in list(diagnostics)[:_MAX_DIAGNOSTICS])
+    return CompileRefusal(verdict, _clip(code, 80), _clip(message), cleaned, len(diagnostics))
+
+
+@dataclass(frozen=True)
+class SnapshotDiagnosis:
+    """What compiling the stored package of one snapshot with the installed toolchain says. Read only.
+
+    ``status``: ``current`` (its IR is the installed toolchain's), ``recompilable``, ``blocked`` (it would
+    compile, but a copy that a revision or a job uses holds the identity it needs: ``snapshot_conflict``),
+    ``not_recompilable`` (the package is refused or read as another one), ``undetermined`` (the toolchain
+    or the database did not answer) or ``ir_missing``.
+    """
+
+    snapshot_id: str
+    status: str
+    code: str | None = None
+    ir_installed: bool | None = None
+    compiles: bool | None = None
+    identity_matches: bool | None = None
+    refusal: CompileRefusal | None = None
+    current_package_digest: str | None = None
+    current_instance_digest: str | None = None
+    #: ``namespace/name/version`` of the registry resources the stored package pins
+    registered_resources: tuple[str, ...] = ()
+
+
+async def _twin_of(session: AsyncSession, stale: InstanceSnapshot, compilation: Compilation) -> InstanceSnapshot | None:
+    """The snapshot of the same owner and package that already has the identity ``compilation`` would give ``stale``."""
+    return await session.scalar(
+        select(InstanceSnapshot).where(
+            InstanceSnapshot.owner_id == stale.owner_id,
+            InstanceSnapshot.package_digest == stale.package_digest,
+            InstanceSnapshot.compilation_digest == compilation.compilation_digest,
+            InstanceSnapshot.id != stale.id,
+        )
+    )
+
+
+async def diagnose_snapshot(session: AsyncSession, snapshot: InstanceSnapshot) -> SnapshotDiagnosis:
+    """Compile the stored package of ``snapshot`` with the installed toolchain and say what happened.
+
+    It reads and writes nothing: no flush, no commit, and the compilation is thrown away. It is what the
+    launch of a stale snapshot consults, and what ``tools/diagnose_snapshots.py`` prints.
+    """
+    identifier = str(snapshot.id)
+    stored = await session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))
+    if stored is None:
+        return SnapshotDiagnosis(identifier, "ir_missing", "snapshot_ir_missing")
+    installed = bim.ir_is_installed(stored.document)
+    pinned = (
+        await session.execute(
+            select(InstanceResource.registered_namespace, InstanceResource.registered_name, InstanceResource.registered_version)
+            .where(InstanceResource.snapshot_id == snapshot.id, InstanceResource.registered_namespace.is_not(None))
+            .order_by(InstanceResource.registered_namespace, InstanceResource.registered_name, InstanceResource.registered_version)
+        )
+    ).all()
+    registered = tuple("/".join(str(part) for part in row) for row in pinned)
+    try:
+        owner = await session.get(User, snapshot.owner_id)
+        compilation = await compile_resolved(snapshot.source_archive, session, owner)
+    except Exception as exc:  # noqa: BLE001 - a corrupt package must be a diagnosis, never a crash of the tool
+        refusal = compile_refusal(exc)
+        status = "not_recompilable" if refusal.about_the_package else "undetermined"
+        return SnapshotDiagnosis(
+            identifier, "current" if installed else status, refusal.code if not installed else None, installed,
+            False if refusal.about_the_package else None, None, refusal, registered_resources=registered,
+        )
+    same = (compilation.package_digest, compilation.instance_digest) == (snapshot.package_digest, snapshot.instance_digest)
+    facts = dict(
+        ir_installed=installed, compiles=True, identity_matches=same,
+        current_package_digest=compilation.package_digest, current_instance_digest=compilation.instance_digest,
+        registered_resources=registered,
+    )
+    if installed:
+        return SnapshotDiagnosis(identifier, "current", **facts)
+    if not same:
+        return SnapshotDiagnosis(identifier, "not_recompilable", "snapshot_identity_changed", **facts)
+    if not bim.ir_is_installed(compilation.ir):
+        return SnapshotDiagnosis(identifier, "not_recompilable", "recompile_unchanged", **facts)
+    twin = await _twin_of(session, snapshot, compilation)
+    if twin is not None and await _is_referenced(session, twin.id):
+        return SnapshotDiagnosis(identifier, "blocked", "snapshot_conflict", **facts)
+    return SnapshotDiagnosis(identifier, "recompilable", **facts)
+
+
+def not_recompilable_detail(diagnosis: SnapshotDiagnosis) -> dict[str, Any]:
+    """The ``HTTPException`` detail of ``snapshot_not_recompilable``: a fixed message and the stable reason."""
+    reason: dict[str, Any] = {"code": diagnosis.code}
+    if diagnosis.refusal is not None:
+        reason.update(
+            message=diagnosis.refusal.message,
+            diagnostics=[dict(item) for item in diagnosis.refusal.diagnostics],
+            diagnosticCount=diagnosis.refusal.diagnostic_count,
+        )
+    elif diagnosis.code in _REASON_MESSAGES:
+        reason["message"] = _REASON_MESSAGES[diagnosis.code]
+    return {"code": NOT_RECOMPILABLE, "message": NOT_RECOMPILABLE_MESSAGE, "reason": reason}
+
+
+@dataclass(frozen=True)
+class RecompileFailure:
+    """A snapshot ``recompile_stale_snapshots`` left as it was: ``code`` says why, ``refusal`` has the compiler's words."""
+
+    snapshot_id: str
+    code: str
+    refusal: CompileRefusal | None = None
+
+
+@dataclass(frozen=True)
+class RecompileReport:
+    """What ``recompile_stale_snapshots`` did: ids, codes and the compiler's own findings, nothing else stored."""
+
+    #: ``(snapshot id, ids of the case revisions that pin it)``
+    recompiled: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    #: left as they were, so a launch still answers a stable 422 (``contract_not_installed`` or ``snapshot_not_recompilable``)
+    failures: tuple[RecompileFailure, ...] = ()
+
+    @property
+    def failed(self) -> tuple[tuple[str, str], ...]:
+        """``(snapshot id, error code)`` of every failure."""
+        return tuple((item.snapshot_id, item.code) for item in self.failures)
+
+    @property
+    def changed(self) -> bool:
+        return bool(self.recompiled)
+
+
 async def recompile_stale_snapshots(session: AsyncSession) -> RecompileReport:
     """Compile again, with the installed toolchain, the package of every snapshot a case revision pins that it did not compile.
 
@@ -527,8 +738,9 @@ async def recompile_stale_snapshots(session: AsyncSession) -> RecompileReport:
     A copy of the same package that the installed toolchain compiled for the same owner (a snapshot made
     by an upload or by an earlier seed after the release) holds the identity the regenerated snapshot needs.
     It is removed when nothing points at it; when a revision or a job does, the snapshot is left stale and
-    reported as ``snapshot_conflict``. A package that cannot be compiled again is reported and left alone.
-    Nothing is committed here. A second call finds nothing to do.
+    reported as ``snapshot_conflict``. A package that cannot be compiled again is reported, with the
+    toolchain's code and findings (``RecompileFailure.refusal``), and left alone: never deleted or hidden, its
+    launches answer ``snapshot_not_recompilable`` (``snapshot_ir``). Nothing is committed here. A second call finds nothing to do.
     """
     from ..db.models import BindingCaseRevision
 
@@ -544,7 +756,7 @@ async def recompile_stale_snapshots(session: AsyncSession) -> RecompileReport:
         )
     ).all()
     recompiled: list[tuple[str, tuple[str, ...]]] = []
-    failed: list[tuple[str, str]] = []
+    failures: list[RecompileFailure] = []
     for stale in pinned:
         stored = await session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == stale.id))
         if stored is None or bim.ir_is_installed(stored.document):
@@ -557,14 +769,7 @@ async def recompile_stale_snapshots(session: AsyncSession) -> RecompileReport:
                     raise _RecompileRefused("snapshot_identity_changed")
                 if not bim.ir_is_installed(compilation.ir):
                     raise _RecompileRefused("recompile_unchanged")
-                twin = await session.scalar(
-                    select(InstanceSnapshot).where(
-                        InstanceSnapshot.owner_id == stale.owner_id,
-                        InstanceSnapshot.package_digest == stale.package_digest,
-                        InstanceSnapshot.compilation_digest == compilation.compilation_digest,
-                        InstanceSnapshot.id != stale.id,
-                    )
-                )
+                twin = await _twin_of(session, stale, compilation)
                 if twin is not None:
                     if await _is_referenced(session, twin.id):
                         raise _RecompileRefused("snapshot_conflict")
@@ -585,11 +790,14 @@ async def recompile_stale_snapshots(session: AsyncSession) -> RecompileReport:
                         .order_by(BindingCaseRevision.created_at, BindingCaseRevision.id)
                     )
                 ).all()
+        except _RecompileRefused as exc:
+            failures.append(RecompileFailure(str(stale.id), exc.code))
+            continue
         except (HTTPException, BimError, RuntimeError, SQLAlchemyError) as exc:
-            failed.append((str(stale.id), _failure_code(exc)))
+            failures.append(RecompileFailure(str(stale.id), _failure_code(exc), compile_refusal(exc)))
             continue
         recompiled.append((str(stale.id), tuple(str(revision) for revision in revisions)))
-    return RecompileReport(tuple(recompiled), tuple(failed))
+    return RecompileReport(tuple(recompiled), tuple(failures))
 
 
 async def owned_snapshot(snapshot_id: str, caller: User | None, session: AsyncSession | None):

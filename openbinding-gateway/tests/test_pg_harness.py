@@ -274,3 +274,57 @@ def test_compose_has_no_real_secret_shapes(compose):
     text = json.dumps(compose)
     assert "BEGIN PRIVATE KEY" not in text
     assert "GATEWAY_JWT_SECRET" not in text
+
+
+# -- the PostgreSQL tests of the ordinary suite (tests/test_*_pg.py) ------------------------------------
+
+TESTS_DIR = REPO_ROOT / "openbinding-gateway" / "tests"
+PG_RUN_DOC = REPO_ROOT / "docs" / "qa" / "PG_REAL_RUN.md"
+#: The modules beside the ordinary suite that run on PostgreSQL; ``tests/concurrency`` has its own guard.
+PG_MODULES = ("test_federated_engines_pg.py", "test_duplicate_copy_purge_pg.py")
+
+
+def _read(path):
+    if not path.is_file():
+        if os.environ.get(SKIP_VARIABLE) == "1":
+            pytest.skip(f"{path.name} not found ({SKIP_VARIABLE}=1)")
+        pytest.fail(f"{path} not found; run from a checkout, or set {SKIP_VARIABLE}=1 to skip knowingly")
+    return path.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("module", PG_MODULES)
+def test_a_pg_module_skips_only_through_the_shared_fixture(module):
+    # The controller expects 0 skips without PostgreSQL missing: nothing here may skip for another reason,
+    # or conditionally on something else. The one skip is ``require_test_database_url`` (TEST_DATABASE_URL unset).
+    text = _read(TESTS_DIR / module)
+    for forbidden in ("pytest.skip(", "importorskip", "skipif", "mark.skip", "pytest.xfail("):
+        assert forbidden not in text, (module, forbidden)
+    signatures = re.findall(r"^(?:async )?def (test_\w+)\(([^)]*)\)", text, re.MULTILINE)
+    assert signatures
+    without_pg = [name for name, arguments in signatures if "pg" not in [item.strip() for item in arguments.split(",")]]
+    assert not without_pg, without_pg  # every test takes the ``pg`` fixture, which is what skips without a database
+    support = _read(TESTS_DIR / "_pg_support.py")
+    assert "require_test_database_url" in support and "pytest.skip(" not in support
+    conftest = _read(TESTS_DIR / "conftest.py")
+    assert "async def pg()" in conftest and "_pg_test_watchdog" in conftest
+
+
+def test_the_pg_run_doc_has_the_exact_command_and_lists_every_new_test():
+    doc = _read(PG_RUN_DOC)
+    match = re.search(r"DEMO_PYTEST_ARGS='([^']*)'", doc)
+    assert match, "docs/qa/PG_REAL_RUN.md must give the command as DEMO_PYTEST_ARGS='...'"
+    words = match.group(1).split()
+    paths = [word for word in words if not word.startswith("-")]
+    assert "tests/concurrency" in paths
+    for module in PG_MODULES:
+        assert f"tests/{module}" in paths, module
+    # The container has no checkout: the compose-shape tests and a bare ``tests`` would fail by design there.
+    assert "tests" not in paths and "tests/test_pg_harness.py" not in paths
+    for path in paths:
+        assert (REPO_ROOT / "openbinding-gateway" / path).exists(), path
+    assert any(word.startswith("-r") and "s" in word[2:] for word in words)  # the reason of any skip is printed
+    for module in PG_MODULES:
+        names = re.findall(r"^(?:async )?def (test_\w+)", (TESTS_DIR / module).read_text(encoding="utf-8"), re.MULTILINE)
+        assert names, module
+        missing = [name for name in names if name not in doc]
+        assert not missing, (module, missing)

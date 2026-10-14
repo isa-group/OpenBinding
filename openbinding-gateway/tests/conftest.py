@@ -158,6 +158,38 @@ async def db_session(tmp_path, monkeypatch):
 
 
 @pytest_asyncio.fixture
+async def pg():
+    """A migrated, empty PostgreSQL 16 database for the ``tests/test_*_pg.py`` modules, and sessions on it.
+
+    Unlike ``db_session`` this one never touches SQLite: without ``TEST_DATABASE_URL`` it skips, with one that
+    is not a PostgreSQL ``test*`` database it fails (see ``tests/_pg_support.py`` and docs/qa/PG_REAL_RUN.md).
+    ``db_session`` stays what it was; do not point it at that URL.
+    """
+    import _pg_support
+
+    async with _pg_support.database() as database:
+        yield database
+
+
+@pytest.fixture(autouse=True)
+def _pg_test_watchdog(request):
+    """The ``tests/test_*_pg.py`` modules get the per-test limit that ``tests/concurrency`` has.
+
+    A race test that waits for a lock that never comes would otherwise run until the harness times out and
+    loses its output (docs/qa/PG_HARNESS.md). Every other test, and the ones under ``tests/concurrency``
+    (which arm their own), are untouched.
+    """
+    path = request.node.path
+    if not path.name.endswith("_pg.py") or path.parent.name == "concurrency":
+        yield
+        return
+    from concurrency._watchdog import timeout_seconds, watchdog
+
+    with watchdog(timeout_seconds()):
+        yield
+
+
+@pytest_asyncio.fixture
 async def api_client(db_session):
     """The gateway over HTTP, wired to the throwaway database.
 
