@@ -4,8 +4,11 @@ organizations, one project with a small BIM package from ``examples/`` as a case
 
 Safe to run on an empty or an already seeded database: every row is looked up by
 a stable key (UUIDv5 ids by username/slug) and created only when missing; there is
-no ``--reset`` and nothing is deleted. It launches no jobs, no studies and no
-solvers. Importing this module has no side effects.
+no ``--reset`` and no user, organization, project, case or revision is ever deleted. It
+also compiles again, with the installed bim-toolchain, the package of every snapshot a
+case revision pins that another release compiled, and replaces the IR stored for it
+(docs/qa/IR_CUTOVER.md); every id is kept. It launches no jobs, no studies and no solvers.
+Importing this module has no side effects.
 
 Environment:
     DEMO_SEED_PASSWORD   required; password of every synthetic user (at least 10 chars).
@@ -72,6 +75,7 @@ from openbinding_gateway.db.platform_models import (
     Project,
     Visibility,
 )
+from openbinding_gateway.services.snapshots import RecompileReport, recompile_stale_snapshots
 from openbinding_gateway.space_client import OpenGate
 from openbinding_gateway.security.apikeys import ADMIN_PERMISSIONS, ALL_PERMISSIONS, hash_key
 from openbinding_gateway.security.passwords import hash_password, password_complaint, verify_password
@@ -312,6 +316,20 @@ async def ensure_case(session: AsyncSession, project: Project, user: User, examp
     return revision
 
 
+async def ensure_current_toolchain(session: AsyncSession, created: list[str]) -> RecompileReport:
+    """Make every snapshot a case revision pins one that the installed toolchain compiled.
+
+    After a release of bim-toolchain that changes the IR, the snapshots a seeded lab holds were compiled
+    by the previous one and the gateway refuses them (``422 contract_not_installed``). Their packages are
+    stored, so their IR is compiled again in place (``docs/qa/IR_CUTOVER.md``); case revisions are sealed
+    and keep their ids, as do the snapshots. On a lab that is already current this changes nothing.
+    """
+    report = await recompile_stale_snapshots(session)
+    for _, revisions in report.recompiled:
+        created.extend(f"recompiled-case-revision:{revision}" for revision in revisions)
+    return report
+
+
 async def count_rows(session: AsyncSession, users: dict[str, User], organizations: dict[str, Organization]) -> dict[str, int]:
     user_ids = [user.id for user in users.values()]
     org_ids = [organization.id for organization in organizations.values()]
@@ -344,6 +362,9 @@ async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan
         previous = None
     space_client.set_gate(OpenGate())
     try:
+        # First, so that the compilation of the case below finds the regenerated snapshot instead of
+        # making a second one of the same package that would have to be removed.
+        recompile = await ensure_current_toolchain(session, created)
         users = await ensure_users(session, password, plan, created)
         organizations = await ensure_organizations(session, users, created)
         project = await ensure_project(session, organizations, users, created)
@@ -353,6 +374,7 @@ async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan
         space_client.set_gate(previous)
     return {
         "created": created,
+        "recompileFailed": [{"snapshotId": snapshot_id, "code": code} for snapshot_id, code in recompile.failed],
         "counts": await count_rows(session, users, organizations),
         "ids": {
             "users": {name: str(user.id) for name, user in users.items()},
@@ -470,6 +492,8 @@ async def _run(args: argparse.Namespace, environ: Mapping[str, str], password: s
             result = await seed(session, password, examples_dir, plan=dev_plan or "BASIC")
         users = result.pop("users")
         report: dict[str, Any] = {"tool": "seed_lab", **result}
+        for failure in result["recompileFailed"]:
+            print(f"snapshot {failure['snapshotId']} could not be compiled again ({failure['code']})", file=sys.stderr)
         if args.print_keys:
             report["apiKeys"] = {name: api_key_for(password, name)[0] for name in users}
         if args.space_contracts:

@@ -1245,6 +1245,8 @@ async def get_v1_job_neighborhood(
             document = ir.document
     if not isinstance(document, dict) or document.get("kind") != "BindingProblem":
         return _problem(409, "analysis_unavailable", "The pinned BindingProblem is unavailable")
+    if not bim.ir_is_installed(document):
+        return _problem(422, "contract_not_installed", bim.STALE_IR_MESSAGE)
     if _ANALYSIS_SLOTS.locked():
         return _problem(429, "analysis_busy", "The analysis evaluator is busy; retry shortly")
     # Compare under the job's execution optimization, as the gateway re-evaluation did.

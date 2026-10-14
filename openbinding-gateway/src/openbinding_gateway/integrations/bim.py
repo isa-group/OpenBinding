@@ -13,6 +13,7 @@ process and ``HttpBim`` calls a ``bim-service``. ``BIM_MODE`` picks one, here an
   problem document, once, for every route.
 * ``startup_check`` refuses to start when the service is unreachable or runs another toolchain
   (a different ``compilerDigest``): an IR is only valid on the toolchain that produced it.
+* ``ir_is_installed`` says whether a stored IR was compiled by the installed toolchain.
 * ``toolchain_digest``, ``protocol_info``, ``package_limits``, ``profile_manifests``,
   ``dialect_manifests`` and ``schema_document`` are static descriptors, asked once per port and
   cached, so synchronous code can read them without a round trip per call.
@@ -321,6 +322,32 @@ def manifest_id(manifest: Mapping[str, Any]) -> str:
 def schema_document(kind: str) -> dict[str, Any]:
     """The JSON Schema of a document kind (``ContractError`` ``schema_not_found`` if unknown)."""
     return copy.deepcopy(_cached(f"schema:{kind}", lambda port: port.schema(kind)))
+
+
+#: What a caller is told about an IR that another toolchain compiled. Fixed text: it names nothing stored.
+STALE_IR_MESSAGE = (
+    "This snapshot was compiled by another bim-toolchain release than the installed one and must be "
+    "recompiled before it can be used: upload the package again or ask an operator to run the IR cut-over."
+)
+
+
+def ir_is_installed(ir: Mapping[str, Any]) -> bool:
+    """Whether the Profile and the Dialects a stored IR pins are exactly the installed ones.
+
+    ``BindingProblem.from_document`` requires the same before any operation on an IR. Both descriptors
+    carry the ``compilerDigest`` of the toolchain that built them, so an IR compiled by another release
+    fails here. A document that has no ``spec`` is not judged: the toolchain reports it as malformed.
+    """
+    spec = ir.get("spec") if isinstance(ir, Mapping) else None
+    if not isinstance(spec, Mapping):
+        return True
+    if spec.get("profile") not in [item["descriptor"] for item in _cached("profiles", lambda port: port.profiles())]:
+        return False
+    pinned = spec.get("dialects", [])
+    if not isinstance(pinned, list):
+        return True
+    available = [item["descriptor"] for item in _cached("dialects", lambda port: port.dialects())]
+    return all(item in available for item in pinned)
 
 
 # ------------------------------------------------------------------------------------- startup

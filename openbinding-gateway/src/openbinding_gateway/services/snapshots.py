@@ -13,11 +13,11 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, Mapping, NamedTuple
 
-from bim_core import CompileError
+from bim_core import BimError, CompileError
 from bim_core.canonical import digest, digest_bytes
 from fastapi import HTTPException
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.jsonio import strict_json_loads
@@ -26,6 +26,7 @@ from ..db.models import (
     BindingIRSnapshot,
     InstanceResource,
     InstanceSnapshot,
+    Job,
     RegisteredResourceRevision,
     User,
 )
@@ -446,16 +447,19 @@ async def persist_snapshot(
 async def snapshot_ir(snapshot: InstanceSnapshot, session: AsyncSession) -> Compilation:
     """A snapshot is already compiled. Never reinterpret it using current sources.
 
-    The IR comes back exactly as stored. Its integrity is not re-derived here: every operation of
-    the toolchain that receives an IR recomputes its digest and requires the Profile and Dialects it
-    pins to be installed (``ir_digest_mismatch``, ``contract_not_installed``, ...), so a stored IR that
-    was altered, or compiled by another toolchain, is refused by the first thing done with it.
+    The IR comes back exactly as stored. Its digest is not re-derived here: every operation of the
+    toolchain that receives an IR recomputes it (``ir_digest_mismatch``), so an altered IR is refused
+    by the first thing done with it. What is checked here is that the IR was compiled by the installed
+    toolchain, because the answer to that is a stable ``422 contract_not_installed`` that says to
+    recompile (``recompile_stale_snapshots``), not whatever the operation that meets it first reports.
     """
     ir = await session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))
     if ir is None:
         raise HTTPException(409, detail={"code": "snapshot_ir_missing", "message": "Snapshot IR is unavailable"})
     if ir.document.get('apiVersion') != 'bim/v1' or ir.document.get('kind') != 'BindingProblem':
         raise HTTPException(422, detail={"code": "execution_capability_unavailable", "message": "This output has no installed execution evaluator"})
+    if not bim.ir_is_installed(ir.document):
+        raise HTTPException(422, detail={"code": "contract_not_installed", "message": bim.STALE_IR_MESSAGE})
     return Compilation(
         archive=snapshot.source_archive,
         ir=ir.document,
@@ -466,6 +470,126 @@ async def snapshot_ir(snapshot: InstanceSnapshot, session: AsyncSession) -> Comp
         source_map=ir.source_map or {},
         analysis=ir_analysis(ir.document),
     )
+
+
+@dataclass(frozen=True)
+class RecompileReport:
+    """What ``recompile_stale_snapshots`` did, in ids and codes only (nothing stored is echoed)."""
+
+    #: ``(snapshot id, ids of the case revisions that pin it)``
+    recompiled: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    #: ``(snapshot id, error code)``: left as they were, so a launch still answers the stable 422
+    failed: tuple[tuple[str, str], ...] = ()
+
+    @property
+    def changed(self) -> bool:
+        return bool(self.recompiled)
+
+
+class _RecompileRefused(RuntimeError):
+    """A snapshot that cannot be recompiled in place; ``code`` says why."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+def _failure_code(exc: Exception) -> str:
+    if isinstance(exc, HTTPException) and isinstance(exc.detail, dict) and isinstance(exc.detail.get("code"), str):
+        return exc.detail["code"]
+    if isinstance(exc, SQLAlchemyError):
+        return "database_error"
+    return getattr(exc, "code", None) or type(exc).__name__
+
+
+async def _is_referenced(session: AsyncSession, snapshot_id: uuid.UUID) -> bool:
+    """Whether a case revision or a job points at the snapshot."""
+    from ..db.models import BindingCaseRevision
+
+    for column, model in ((BindingCaseRevision.source_snapshot_id, BindingCaseRevision), (Job.instance_snapshot_id, Job)):
+        if await session.scalar(select(model.id).where(column == snapshot_id).limit(1)) is not None:
+            return True
+    return False
+
+
+async def recompile_stale_snapshots(session: AsyncSession) -> RecompileReport:
+    """Compile again, with the installed toolchain, the package of every snapshot a case revision pins that it did not compile.
+
+    A snapshot keeps the package it was compiled from, so a toolchain release that changes the IR (a new
+    ``compilerDigest``) does not need the stored IR to be migrated: the package is compiled again for the
+    same owner and the *derived* data of the snapshot, its IR row and its compilation digest, is replaced.
+    Case revisions are sealed (a trigger rejects any UPDATE or DELETE), so it is the snapshot they pin that
+    is regenerated and every id stays: snapshot, revisions, cases, projects, owners and the jobs that ran on
+    it (their stored IR is history and keeps its own digest). The package, the instance index and their
+    digests are not touched, and the toolchain must agree with them: a package that compiles to other
+    ``packageDigest`` or ``instanceDigest`` is refused.
+
+    A copy of the same package that the installed toolchain compiled for the same owner (a snapshot made
+    by an upload or by an earlier seed after the release) holds the identity the regenerated snapshot needs.
+    It is removed when nothing points at it; when a revision or a job does, the snapshot is left stale and
+    reported as ``snapshot_conflict``. A package that cannot be compiled again is reported and left alone.
+    Nothing is committed here. A second call finds nothing to do.
+    """
+    from ..db.models import BindingCaseRevision
+
+    pinned = (
+        await session.scalars(
+            select(InstanceSnapshot)
+            .where(
+                InstanceSnapshot.id.in_(
+                    select(BindingCaseRevision.source_snapshot_id).where(BindingCaseRevision.source_snapshot_id.is_not(None))
+                )
+            )
+            .order_by(InstanceSnapshot.created_at, InstanceSnapshot.id)
+        )
+    ).all()
+    recompiled: list[tuple[str, tuple[str, ...]]] = []
+    failed: list[tuple[str, str]] = []
+    for stale in pinned:
+        stored = await session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == stale.id))
+        if stored is None or bim.ir_is_installed(stored.document):
+            continue
+        try:
+            async with session.begin_nested():
+                owner = await session.get(User, stale.owner_id)
+                compilation = await compile_resolved(stale.source_archive, session, owner)
+                if (compilation.package_digest, compilation.instance_digest) != (stale.package_digest, stale.instance_digest):
+                    raise _RecompileRefused("snapshot_identity_changed")
+                if not bim.ir_is_installed(compilation.ir):
+                    raise _RecompileRefused("recompile_unchanged")
+                twin = await session.scalar(
+                    select(InstanceSnapshot).where(
+                        InstanceSnapshot.owner_id == stale.owner_id,
+                        InstanceSnapshot.package_digest == stale.package_digest,
+                        InstanceSnapshot.compilation_digest == compilation.compilation_digest,
+                        InstanceSnapshot.id != stale.id,
+                    )
+                )
+                if twin is not None:
+                    if await _is_referenced(session, twin.id):
+                        raise _RecompileRefused("snapshot_conflict")
+                    # The database cascades these; SQLite without foreign keys does not.
+                    await session.execute(delete(InstanceResource).where(InstanceResource.snapshot_id == twin.id))
+                    await session.execute(delete(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == twin.id))
+                    await session.delete(twin)
+                    await session.flush()
+                stale.compilation_digest = compilation.compilation_digest
+                stored.ir_digest = compilation.ir_digest
+                stored.document = compilation.ir
+                stored.source_map = compilation.source_map
+                await session.flush()
+                revisions = (
+                    await session.scalars(
+                        select(BindingCaseRevision.id)
+                        .where(BindingCaseRevision.source_snapshot_id == stale.id)
+                        .order_by(BindingCaseRevision.created_at, BindingCaseRevision.id)
+                    )
+                ).all()
+        except (HTTPException, BimError, RuntimeError, SQLAlchemyError) as exc:
+            failed.append((str(stale.id), _failure_code(exc)))
+            continue
+        recompiled.append((str(stale.id), tuple(str(revision) for revision in revisions)))
+    return RecompileReport(tuple(recompiled), tuple(failed))
 
 
 async def owned_snapshot(snapshot_id: str, caller: User | None, session: AsyncSession | None):
