@@ -26,7 +26,7 @@ from typing import Any, Mapping
 
 from bim_core.canonical import digest
 from fastapi import HTTPException
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,12 +80,15 @@ class RegistryProblem(Exception):
         code: str,
         detail: str,
         diagnostics: list[dict[str, Any]] | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(detail)
         self.status = status
         self.code = code
         self.detail = detail
         self.diagnostics = diagnostics
+        #: Members added to the problem document beside the code (a ``quota``, for instance).
+        self.extra = extra
 
 
 @dataclass(frozen=True)
@@ -951,11 +954,17 @@ async def change_registration(
     action: str,
     settings: Settings,
     verify: RegistrationVerifier | None = None,
+    max_active: float | None = None,
 ) -> dict[str, Any]:
     """``activate``, ``deactivate``, ``request_publication`` (owner) or ``approve``, ``reject`` (administrator).
 
     Activating, requesting publication and approving verify the deployment first (``verify``, by default
     ``verify_registration`` with the process transport); a failed check leaves the registration inactive.
+
+    ``max_active`` is the plan's ``federatedEngines``: activating an inactive registration of an owner who
+    already has that many active ones is refused with 402 before anything is verified. It counts rows (the
+    registrations that exist and are active now), like the other structure limits; ``None`` sets no limit,
+    and activating a registration that is active already is not a second one.
     """
     if session is None:
         raise RegistryProblem(503, "accounts_unavailable", _ACCOUNTS_REQUIRED)
@@ -980,6 +989,31 @@ async def change_registration(
         raise RegistryProblem(404, "not_found", _NOT_FOUND)
 
     if action == "activate":
+        if max_active is not None and not registration.is_active:
+            # Serialise this owner's count-and-activate, as the API-key limit does.
+            await session.execute(select(User.id).where(User.id == registration.owner_id).with_for_update())
+            active = int(
+                await session.scalar(
+                    select(func.count()).select_from(EngineRegistrationRevision).where(
+                        EngineRegistrationRevision.owner_id == registration.owner_id,
+                        EngineRegistrationRevision.is_active.is_(True),
+                    )
+                )
+                or 0
+            )
+            if active >= max_active:
+                raise RegistryProblem(
+                    402,
+                    "quota_exceeded",
+                    f"Your plan allows {int(max_active)} active federated engine"
+                    f"{'' if int(max_active) == 1 else 's'}, and you have {active}. Deactivate one first.",
+                    extra={
+                        "quota": {
+                            "limit_id": "federatedEngines", "state": "exhausted", "unit": "engine",
+                            "source": "plan", "limit": int(max_active), "used": active,
+                        }
+                    },
+                )
         await _verify_registration_row(registration, session, settings=settings, verify=verifier)
         registration.is_active = True
     elif action == "deactivate":

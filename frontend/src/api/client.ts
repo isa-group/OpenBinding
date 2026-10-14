@@ -1,6 +1,7 @@
 import type { Neighborhood } from '../analysis/neighborhood';
 import { config } from '../config';
 import { PricingUnavailableError, QuotaError } from './auth';
+import { bindingSpaceFrom, limitNoticeFrom, type BindingSpaceReport, type LimitNotice } from './limitNotice';
 import type {
   AdminUserPage,
   AdminSubscriptionView,
@@ -424,8 +425,13 @@ export class HttpError extends Error {
   code?: string;
   problem?: unknown;
   diagnostics?: unknown[];
-  concurrency?: { limit_id: string; limit: number; used: number };
+  /** What a 429 names: the limit, how many jobs are in flight, and whose limit it is (`plan` or `technical`). */
+  concurrency?: { limit_id: string; limit: number; used: number; source?: string; unit?: string };
   retryAfter?: number;
+  /** The limit a refusal names (a 403 or 422 about a size limit carries one, with its state and source). */
+  notice?: LimitNotice;
+  /** The measured size, when the refusal is about the binding space. */
+  bindingSpace?: BindingSpaceReport;
 
   constructor(status: number, statusText: string) {
     super(`HTTP ${status}: ${statusText}`);
@@ -590,8 +596,14 @@ export class ApiClient {
       response.statusText;
 
     const rawQuota = detail?.quota ?? problemObject?.quota;
+    // Where the limit stands, and for a binding space how big it is: top level or inside `detail`, like the quota.
+    const notice = limitNoticeFrom(rawQuota);
+    const bindingSpace = bindingSpaceFrom(detail?.binding_space ?? problemObject?.binding_space);
     if (response.status === 402) {
-      return new QuotaError(code ?? 'quota_exceeded', message, quotaFromProblem(rawQuota));
+      const quotaError = new QuotaError(code ?? 'quota_exceeded', message, quotaFromProblem(rawQuota));
+      quotaError.notice = notice;
+      quotaError.bindingSpace = bindingSpace;
+      return quotaError;
     }
     if (response.status === 429) {
       const rawConcurrency = detail?.concurrency ?? problemObject?.concurrency;
@@ -604,6 +616,8 @@ export class ApiClient {
           limit_id: rawConcurrency.limit_id,
           limit: rawConcurrency.limit,
           used: typeof rawConcurrency.used === 'number' ? rawConcurrency.used : 0,
+          ...(typeof rawConcurrency.source === 'string' ? { source: rawConcurrency.source } : {}),
+          ...(typeof rawConcurrency.unit === 'string' ? { unit: rawConcurrency.unit } : {}),
         };
       }
       if (retryAfterHeader) {
@@ -618,6 +632,8 @@ export class ApiClient {
     const error = new HttpError(response.status, message);
     error.code = code;
     error.problem = problem;
+    error.notice = notice;
+    error.bindingSpace = bindingSpace;
     error.diagnostics = Array.isArray(problemObject?.diagnostics)
       ? problemObject.diagnostics
       : Array.isArray(detail?.diagnostics) ? detail.diagnostics : [];

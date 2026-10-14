@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
+import type { LimitNotice } from '../../api/limitNotice';
 import { rangeFailureOf, refusalOf } from './jobErrors';
 
 const refused = (status: number, code: string, extra: Partial<HttpError> = {}) => Object.assign(new HttpError(status, 'refused'), { code }, extra);
@@ -109,6 +110,138 @@ describe('refusals of a launch', () => {
 
   it('a request that never got an answer is not blamed on the account', () => {
     expect(refusalOf(new TypeError('Failed to fetch')).kind).toBe('unavailable');
+  });
+});
+
+const aNotice = (extra: Partial<LimitNotice>): LimitNotice => ({ limit_id: 'maxInstanceComplexityLog10', state: 'exhausted', unit: 'log10 combinations', ...extra });
+
+/** Words that would turn a measurable ceiling into money or a balance: none may reach the interface. */
+const MONEY = /credit|balance|capacity unit|\bCUs?\b|\bpay\b|\bprice\b/i;
+
+describe('refusals over a limit that is exhausted, unknown, capped by the deployment or unmeasured', () => {
+  it('403 binding_space_limit_unknown says the plan sets no size limit, never that the credential lacks a permission', () => {
+    const refusal = refusalOf(refused(403, 'binding_space_limit_unknown', {
+      notice: aNotice({ state: 'unknown', source: 'none' }),
+      // The gateway's own sentence is not repeated, whatever it says.
+      message: 'HTTP 403: The plan does not declare a limit for the size of the binding space (internal detail)',
+    } as Partial<HttpError>));
+
+    expect(refusal).toMatchObject({ kind: 'limit-unknown', status: 403, code: 'binding_space_limit_unknown', source: 'none', limitId: 'maxInstanceComplexityLog10' });
+    expect(refusal.title).toBe('Your plan doesn’t set a problem-size limit (403 · binding_space_limit_unknown)');
+    expect(refusal.text).toContain('A larger plan won’t fix it');
+    expect(refusal.text).toContain('Contact the administrator.');
+    expect(refusal.text).toContain('Nothing was started.');
+    expect(`${refusal.title} ${refusal.text}`).not.toMatch(/credential|permission|API key|internal detail/i);
+    expect(refusal.permission).toBeUndefined();
+    expect(refusal.kind).not.toBe('key');
+  });
+
+  it('403 binding_space_limit_unknown on a retry does not say the retry was refused for a key either', () => {
+    const refusal = refusalOf(refused(403, 'binding_space_limit_unknown'), 'retry');
+    expect(refusal.kind).toBe('limit-unknown');
+    expect(refusal.text).toContain('Nothing was started.');
+  });
+
+  it('422 binding_space_over_technical_limit says the deployment caps the size and a larger plan changes nothing', () => {
+    const refusal = refusalOf(refused(422, 'binding_space_over_technical_limit', {
+      notice: aNotice({ source: 'technical', limit: 6, used: 9.2 }),
+      bindingSpace: { log10: 9.2, digits: 10 },
+    }));
+
+    expect(refusal).toMatchObject({ kind: 'technical', status: 422, source: 'technical' });
+    expect(refusal.title).toBe('Over this deployment’s size limit (422 · binding_space_over_technical_limit)');
+    expect(refusal.text).toContain('up to 10⁶ combinations');
+    expect(refusal.text).toContain('whatever the plan, so a larger plan won’t change it');
+    expect(refusal.text).toContain('about 10^9.2 combinations');
+    expect(refusal.text).toContain('Reduce the candidates.');
+  });
+
+  it('422 binding_space_unmeasured is a fault of the service, not a mistake of the package', () => {
+    const refusal = refusalOf(refused(422, 'binding_space_unmeasured', { notice: aNotice({ state: 'unmeasured', source: 'plan', limit: 9 }) }));
+
+    expect(refusal.kind).toBe('unmeasured');
+    expect(refusal.title).toBe('The problem’s size couldn’t be measured (422 · binding_space_unmeasured)');
+    expect(refusal.text).toContain('fault on the service’s side, not a mistake in your package');
+    expect(refusal.text).toContain('Try again');
+    expect(refusal.kind).not.toBe('incompatible');
+  });
+
+  it('503 pricing_misconfigured is the plan’s fault and carries no details of the gateway', () => {
+    const refusal = refusalOf(refused(503, 'pricing_misconfigured', { message: 'HTTP 503: SPACE entitlement does not declare a timeout' } as Partial<HttpError>));
+
+    expect(refusal.kind).toBe('misconfigured');
+    expect(refusal.title).toBe('Your plan can’t be applied (503 · pricing_misconfigured)');
+    expect(refusal.text).toContain('Contact the administrator.');
+    expect(refusal.text).not.toMatch(/SPACE|entitlement|timeout/);
+  });
+
+  it('402 instance_complexity_too_large says how big the problem is and what the plan allows', () => {
+    const quota = { limit_id: 'maxInstanceComplexityLog10', limit: 9, used: 12.5 };
+    const refusal = refusalOf(Object.assign(new QuotaError('instance_complexity_too_large', 'too big', quota), {
+      notice: aNotice({ source: 'plan', limit: 9, used: 12.5 }),
+      bindingSpace: { log10: 12.5, digits: 13 },
+    }));
+
+    expect(refusal).toMatchObject({ kind: 'too-big', source: 'plan', limitId: 'maxInstanceComplexityLog10' });
+    expect(refusal.text).toBe('This problem has about 10^12.5 combinations; your plan allows up to 10⁹ combinations. Reduce the candidates or ask about a larger plan. Nothing was started.');
+  });
+
+  it('402 prints an exact count of combinations when the gateway sent a short one, and the digits when it sent only those', () => {
+    const exact = refusalOf(Object.assign(new QuotaError('instance_complexity_too_large', 'x', { limit_id: 'maxInstanceComplexityLog10', limit: 0.1 }), {
+      notice: aNotice({ source: 'plan', limit: 0.1, used: 0.30103 }), bindingSpace: { log10: 0.30103, digits: 1, cardinality: '2' },
+    }));
+    expect(exact.text).toContain('This problem has 2 combinations;');
+
+    const huge = refusalOf(Object.assign(new QuotaError('instance_complexity_too_large', 'x', { limit_id: 'maxInstanceComplexityLog10', limit: 100 }), {
+      bindingSpace: { digits: 4321 },
+    }));
+    expect(huge.text).toContain('a number of combinations with 4,321 digits');
+  });
+
+  it('402 without a measure still says the problem is over the plan and is not an unknown limit', () => {
+    const refusal = refusalOf(new QuotaError('instance_complexity_too_large', 'too big'));
+    expect(refusal.kind).toBe('too-big');
+    expect(refusal.text).toBe('This problem has more combinations than your plan allows. Reduce the candidates or ask about a larger plan. Nothing was started.');
+  });
+
+  it('402 usage_limit_exceeded without numbers is told as a spent allowance by the counter it names', () => {
+    const refusal = refusalOf(Object.assign(new QuotaError('usage_limit_exceeded', 'spent'), {
+      notice: { limit_id: 'taskStarts', state: 'exhausted', source: 'space', unit: 'task' },
+    }));
+    expect(refusal).toMatchObject({ kind: 'quota', limitId: 'taskStarts', source: 'space' });
+    expect(refusal.title).toBe('Out of task starts (402 · usage_limit_exceeded)');
+    expect(refusal.text).toBe('You’ve used all your task starts. Nothing was started.');
+  });
+
+  it('503 usage_limit_unknown is a wait, not an account problem', () => {
+    const refusal = refusalOf(refused(503, 'usage_limit_unknown', { retryAfter: 15, notice: { limit_id: 'taskStarts', state: 'unknown', source: 'space', unit: 'task' } }));
+    expect(refusal).toMatchObject({ kind: 'pricing', limitId: 'taskStarts' });
+    expect(refusal.title).toBe('Your usage can’t be read right now (503 · usage_limit_unknown)');
+    expect(refusal.text).toContain('Try again in a moment.');
+  });
+
+  it('429 says whose limit it is: the plan’s, or the deployment’s whatever the plan', () => {
+    const plan = refusalOf(refused(429, 'concurrency_limit_exceeded', { retryAfter: 15, concurrency: { limit_id: 'concurrentJobs', limit: 2, used: 2, source: 'plan', unit: 'job' } }));
+    expect(plan).toMatchObject({ kind: 'busy', source: 'plan' });
+    expect(plan.text).toContain('Your plan lets you run 2 jobs at once.');
+
+    const technical = refusalOf(refused(429, 'concurrency_limit_exceeded', { retryAfter: 15, concurrency: { limit_id: 'concurrentJobs', limit: 1, used: 1, source: 'technical' } }));
+    expect(technical).toMatchObject({ kind: 'busy', source: 'technical' });
+    expect(technical.text).toContain('This deployment lets one account run 1 job at once, whatever its plan.');
+  });
+
+  it('never speaks of credits, balance or capacity units, whatever the refusal', () => {
+    const all = [
+      refusalOf(refused(403, 'binding_space_limit_unknown')),
+      refusalOf(refused(422, 'binding_space_over_technical_limit', { notice: aNotice({ source: 'technical', limit: 6 }) })),
+      refusalOf(refused(422, 'binding_space_unmeasured')),
+      refusalOf(refused(503, 'pricing_misconfigured')),
+      refusalOf(refused(503, 'usage_limit_unknown')),
+      refusalOf(new QuotaError('usage_limit_exceeded', 'x', { limit_id: 'solverSeconds', limit: 60, used: 60 })),
+      refusalOf(new QuotaError('instance_complexity_too_large', 'x')),
+      refusalOf(refused(429, 'concurrency_limit_exceeded', { concurrency: { limit_id: 'concurrentJobs', limit: 1, used: 1, source: 'plan' } })),
+    ];
+    for (const refusal of all) expect(`${refusal.title} ${refusal.text}`).not.toMatch(MONEY);
   });
 });
 

@@ -32,6 +32,15 @@ def caps_for(plan: str) -> PlanCaps:
     return PlanCaps(plan=plan, features=features, limits=limits)
 
 
+def roomy_plan() -> str:
+    """The fixture plan that allows the most simultaneous jobs.
+
+    For tests about something other than concurrency that need a second job in
+    flight: the default plan allows one at a time, and its limit now applies.
+    """
+    return largest_plan("concurrentJobs")
+
+
 def largest_plan(limit_id: str = "maxPayloadBytes") -> str:
     """Pick a high-capacity fixture plan, without naming one in code.
 

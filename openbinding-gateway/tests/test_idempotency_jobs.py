@@ -7,9 +7,10 @@ import json
 import pytest
 from sqlalchemy import func, select
 
+from _pricing import roomy_plan
 from _repo import REPO_ROOT
 
-from openbinding_gateway import study_jobs
+from openbinding_gateway import space_client, study_jobs
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job, User
 from openbinding_gateway.domain import idempotency
@@ -221,6 +222,9 @@ async def test_losing_the_job_insert_race_returns_a_replay(
     api_client, db_session, account, monkeypatch
 ):
     headers, snapshot = account
+    # This test is about the INSERT race, which a second job must reach. The default plan allows one job
+    # at a time and that limit now applies (plan ``concurrentJobs``), so the account gets a roomier plan.
+    space_client.get_gate().plans[await db_session.scalar(select(User.id))] = roomy_plan()
     first = await _post(api_client, headers, _body(snapshot))
     assert first.status_code == 202, first.text
 

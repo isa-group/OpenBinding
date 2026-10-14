@@ -1,12 +1,14 @@
 """The rejections every entry point reports for a plan or a technical limit.
 
 Only two kinds live here: a plan that does not include a feature (403) and the
-technical concurrency limit (429, retryable). Complexity, payload and timeout
+simultaneous-jobs limit (429, retryable), which is the lower of the plan's
+``concurrentJobs`` and the deployment's cap. Complexity, payload and timeout
 ceilings are decided by ``access.policy``.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -45,13 +47,45 @@ def feature_refusal(
     return Refusal(403, "feature_not_entitled", default_not_entitled_detail)
 
 
-def concurrency_refusal(limit: int, active: int) -> Refusal:
+@dataclass(frozen=True)
+class ConcurrencyLimit:
+    """How many jobs one account may have in flight, and which limit set the number."""
+
+    limit: int
+    #: ``plan`` when the plan's ``concurrentJobs`` is lower than the deployment's cap; ``technical`` otherwise
+    #: (the cap holds whatever the plan says, so it is the one reached when both are equal).
+    source: str
+
+
+def concurrency_limit(caps: PlanCaps | None, technical: int) -> ConcurrencyLimit:
+    """The simultaneous-jobs limit of an account: the lower of its plan's ``concurrentJobs`` and ``technical``.
+
+    ``technical`` is ``MAX_CONCURRENT_JOBS_PER_USER`` and always applies. The
+    plan lowers it only with a usable finite value; a fraction is rounded down.
+    A plan that does not declare ``concurrentJobs``, or declares it unlimited
+    (SPACE's ``null``), or declares something that is not a non-negative number,
+    leaves the technical cap in force: an unknown limit is never read as
+    unlimited and never as slots that happen to be free. A declared ``0`` is a
+    limit of zero (nothing may run), not an unknown one.
+    """
+    if caps is not None and CONCURRENCY_LIMIT_ID in caps.limits:
+        raw = caps.limits[CONCURRENCY_LIMIT_ID]
+        try:
+            declared = math.nan if isinstance(raw, bool) else float(raw)
+        except (TypeError, ValueError, OverflowError):
+            declared = math.nan
+        if math.isfinite(declared) and declared >= 0 and math.floor(declared) < technical:
+            return ConcurrencyLimit(math.floor(declared), "plan")
+    return ConcurrencyLimit(technical, "technical")
+
+
+def concurrency_refusal(limit: int, active: int, source: str = "technical") -> Refusal:
     """The retryable 429 for an account that already has ``limit`` jobs in flight.
 
     ``concurrency`` names the limit like the 402 ``quota`` does (``limit_id``,
-    ``limit``, ``used``); ``active`` is the same count as ``used``, kept for the
-    clients that read it. A concurrency limit is a ceiling on simultaneous jobs,
-    not a balance: a slot is free again the moment a job ends.
+    ``limit``, ``used``, ``unit``, ``source``); ``active`` is the same count as
+    ``used``, kept for the clients that read it. A concurrency limit is a ceiling
+    on simultaneous jobs, not a balance: a slot is free again the moment a job ends.
     """
     return Refusal(
         429,
@@ -64,7 +98,7 @@ def concurrency_refusal(limit: int, active: int) -> Refusal:
                 "used": active,
                 "active": active,
                 "unit": "job",
-                "source": "technical",
+                "source": source,
             }
         },
         headers={"Retry-After": CONCURRENCY_RETRY_AFTER},

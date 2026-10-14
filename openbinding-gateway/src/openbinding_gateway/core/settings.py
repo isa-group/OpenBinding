@@ -103,6 +103,11 @@ class Settings(BaseSettings):
     #: usable value; with neither, the instance is refused. See
     #: ``domain/binding_space.py``.
     max_binding_space_log10: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
+    #: Technical ceiling on the cells (jobs) one study run expands to; ``None``
+    #: sets none (``MAX_CELLS_PER_STUDY_RUN``). A run over it is refused whole
+    #: with 422 ``study_run_too_large`` before anything is written. A safeguard
+    #: of the deployment, not a plan entitlement: no plan raises it.
+    max_cells_per_study_run: Optional[int] = Field(default=None, ge=1)
     #: How long a job may wait in the queue without a worker claiming it before
     #: the reconciler fails it with ``queue_timeout``. Counts from the moment the
     #: job was queued, whatever budget it was given to run
@@ -231,6 +236,15 @@ class Settings(BaseSettings):
     #: SPACE key with the MANAGEMENT scope.
     space_api_key: Optional[str] = None
     space_timeout_ms: int = 5000
+    #: What a ``null`` limit in SPACE's token means. Off (the default): ``null`` is
+    #: an authoritative "unlimited", which is how the token has been read so far.
+    #: On: ``null`` is a limit SPACE did not declare, so it is *unknown* and is
+    #: left out of the plan exactly like an absent one (the size limit then falls
+    #: back to its technical safeguard or refuses, concurrency to its technical
+    #: cap, and the numeric allowances fail closed at zero). For use if SPACE is
+    #: confirmed to send ``null`` for "not declared" (``SPACE_NULL_LIMIT_IS_UNKNOWN``).
+    #: It changes how the token is read, not the remote contract.
+    space_null_limit_is_unknown: bool = False
     #: The pricing version new contracts are pinned to, and the version the
     #: public pricing endpoints show. SPACE/SPHERE own the version lifecycle.
     space_pricing_version: Optional[str] = None

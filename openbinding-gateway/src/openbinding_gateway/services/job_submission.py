@@ -39,7 +39,7 @@ from ..db.models import (
     Project,
     User,
 )
-from ..domain import idempotency
+from ..domain import idempotency, usage_counters
 from ..integrations import bim
 from ..jobs import limits as job_limits
 from ..models.artifacts import ArtifactRef
@@ -649,6 +649,10 @@ class JobSubmission:
         federated = not (
             isinstance(registration.document, dict) and is_installed_builtin_registration(registration.document)
         )
+        # What SPACE says about the account's period counters is asked before the row is locked (the
+        # question may wait on the network) and applied only after a raced replay has been ruled out.
+        # Without an installed source nothing is asked (see ``domain.usage_counters``).
+        usage_refusal = await usage_counters.job_start_refusal(caller.id, federated=federated)
         # Lock the account row first: a request that waited behind the one that
         # created this job now sees it, and two creations cannot both take the
         # last slot.
@@ -659,7 +663,9 @@ class JobSubmission:
                 return raced
         refusal = entitlement_service.feature_refusal(terms.caps, "federatedEngines" if federated else "solve")
         if refusal is None:
-            refusal = await job_limits.enforce_concurrency_limit(session, caller.id)
+            refusal = await job_limits.enforce_concurrency_limit(session, caller.id, caps=terms.caps)
+        if refusal is None:
+            refusal = usage_refusal
         if refusal is not None:
             return problem(
                 refusal.status,

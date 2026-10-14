@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..access import public_read
 from ..access.dependencies import get_current_user, session_dependency
 from ..collaboration import enforce_sponsor_capacity, organization_by_ref, require_project
+from ..core.settings import get_settings
+from ..domain import usage_counters
 from ..db.models import (
     Artifact,
     ArtifactVersion,
@@ -637,12 +639,26 @@ async def run_study(
         slug=found.slug, name=found.name, description=found.description, definition=definition_from_version(selected_version)
     ).definition
     expanded = expand_study(definition)
-    # Before the run, its cells or any job exist: a case above the limit refuses the whole run.
+    # Before the run, its cells or any job exist: a run past the cell cap or with a case above the
+    # size limit is refused whole, and so is one whose period counter SPACE reports spent or unknown.
+    max_cells = get_settings().max_cells_per_study_run
+    if max_cells is not None and len(expanded) > max_cells:
+        raise api_error(
+            422,
+            "study_run_too_large",
+            "This deployment limits how many cells one study run may expand to; reduce the matrix.",
+            quota={
+                "limit_id": "maxCellsPerRun", "state": "exhausted", "unit": "cell",
+                "source": "technical", "limit": max_cells, "used": len(expanded),
+            },
+        )
     refusal = await study_binding_space_refusal(
         session, {uuid.UUID(cell["caseRevisionId"]) for cell in expanded}, caps
     )
+    if refusal is None:
+        refusal = await usage_counters.usage_refusal(user.id, "studyRuns")
     if refusal is not None:
-        raise api_error(refusal.status, refusal.code, refusal.detail, **refusal.extra)
+        raise api_error(refusal.status, refusal.code, refusal.detail, headers=refusal.headers or None, **refusal.extra)
     await session.execute(select(Study.id).where(Study.id == found.id).with_for_update())
     number = int(await session.scalar(select(func.max(StudyRun.run_number)).where(StudyRun.study_id == found.id)) or 0) + 1
     matrix_digest = digest([cell["fingerprint"] for cell in expanded])

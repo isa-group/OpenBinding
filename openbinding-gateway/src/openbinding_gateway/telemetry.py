@@ -23,7 +23,7 @@ from .core.settings import get_settings
 from .db import base as db_base
 from .db.models import Job, utcnow
 from .db.platform_models import ApiErrorEvent
-from .domain import binding_space
+from .domain import binding_space, usage_counters
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +75,11 @@ def sanitize_detail(data: Any, path: str = "") -> Any:
 
 def categorize_error(status_code: int, code: str) -> str:
     """Map status codes and machine error codes to business diagnostics categories."""
-    if status_code == 402 or code in ("quota_exceeded", "quota_exhausted") or code in binding_space.REFUSAL_CODES:
+    if (
+        status_code == 402
+        or code in ("quota_exceeded", "quota_exhausted", usage_counters.UNKNOWN_CODE)
+        or code in binding_space.REFUSAL_CODES
+    ):
         return "pricing_quota"
     if status_code == 429 or code in ("concurrency_limit_exceeded", "rate_limit_exceeded"):
         return "concurrency"

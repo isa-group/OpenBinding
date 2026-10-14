@@ -1,6 +1,9 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { diagnosticLines, problemField } from '../../api/problem';
+import {
+  CELLS_CODE, COMPLEXITY_CODE, USAGE_UNKNOWN_CODE, complexityText, limitProblemOf, noticeOf, slotsText, usageUnknownText,
+} from '../../utils/limitRefusals';
 import { limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import type { Refusal } from '../Jobs/jobErrors';
@@ -70,10 +73,24 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
     return { ...base, kind: 'session', title: `Your session ended${at}`, text: 'Log in again; what you chose is kept.' };
   }
 
+  const notice = noticeOf(caught);
+  const limited = limitProblemOf(caught, nothing, at);
+  if (limited) return { ...base, ...limited };
+
   if (failure.status === 402) {
-    const limitId = quota?.limit_id ?? 'studies';
+    const limitId = quota?.limit_id ?? notice?.limit_id ?? 'studies';
     const info = limitInfo(limitId);
-    const used = quota ? ` ${(quota.used ?? quota.limit).toLocaleString('en-US')} of ${quota.limit.toLocaleString('en-US')} used.` : '';
+    const limit = quota?.limit ?? notice?.limit;
+    const spentCount = quota?.used ?? notice?.used;
+    const used = limit !== undefined ? ` ${(spentCount ?? limit).toLocaleString('en-US')} of ${limit.toLocaleString('en-US')} used.` : '';
+    if (failure.code === COMPLEXITY_CODE || limitId === 'maxInstanceComplexityLog10') {
+      // A run is refused whole, before any cell exists, when one of its cases is over the plan's size limit.
+      return {
+        ...base, kind: 'too-big', limitId, source: notice?.source,
+        title: `A case is too big for your plan${at}`,
+        text: complexityText(caught, nothing),
+      };
+    }
     if (limitId === 'studies') {
       return {
         ...base, kind: 'quota', limitId,
@@ -82,19 +99,18 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
       };
     }
     return {
-      ...base, kind: 'quota', limitId,
+      ...base, kind: 'quota', limitId, source: notice?.source,
       title: `Out of ${info.short}${at}`,
-      text: `${quota ? `You’ve used ${(quota.used ?? quota.limit).toLocaleString('en-US')} of ${quota.limit.toLocaleString('en-US')} ${info.short}.` : `You’ve used all your ${info.short}.`} ${nothing}`,
+      text: `${limit !== undefined ? `You’ve used ${(spentCount ?? limit).toLocaleString('en-US')} of ${limit.toLocaleString('en-US')} ${info.short}.` : `You’ve used all your ${info.short}.`} ${nothing}`,
     };
   }
 
   if (failure.status === 429) {
     const concurrency = caught instanceof HttpError ? caught.concurrency : undefined;
-    const slots = concurrency ? `You can run ${concurrency.limit} job${concurrency.limit === 1 ? '' : 's'} at once.` : 'You have no free job slot.';
     return {
-      ...base, kind: 'busy', limitId: concurrency?.limit_id ?? 'concurrentJobs', retryAfter: failure.retryAfter ?? 15,
+      ...base, kind: 'busy', limitId: concurrency?.limit_id ?? 'concurrentJobs', source: concurrency?.source, retryAfter: failure.retryAfter ?? 15,
       title: `All your job slots are busy${at}`,
-      text: `${slots} Try again in about ${failure.retryAfter ?? 15} s. ${nothing}`,
+      text: `${slotsText(concurrency)} Try again in about ${failure.retryAfter ?? 15} s. ${nothing}`,
     };
   }
 
@@ -169,6 +185,15 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
     switch (failure.code) {
       case 'study_matrix_too_large':
         return { ...base, kind: 'too-big', title: `The matrix is too large${at}`, text: `A study may pin at most 250 cases and expand to at most 10,000 cells. Remove an engine, a setting or some seeds. ${nothing}` };
+      case CELLS_CODE: {
+        const cap = notice?.limit;
+        const cells = notice?.used;
+        return {
+          ...base, kind: 'technical', limitId: notice?.limit_id ?? 'maxCellsPerRun', source: 'technical',
+          title: `This run is over the deployment’s size limit${at}`,
+          text: `This deployment limits a study run to ${cap !== undefined ? `${cap.toLocaleString('en-US')} cells` : 'a number of cells'}${cells !== undefined ? `; this one expands to ${cells.toLocaleString('en-US')}` : ''}, whatever the plan. Remove an engine, a setting or some seeds. ${nothing}`,
+        };
+      }
       case 'empty_study_cases':
         return { ...base, kind: 'other', title: `The study needs a case${at}`, text: `Choose at least one case revision, or a sealed collection with cases in it. ${nothing}` };
       case 'foreign_case_revision':
@@ -184,6 +209,9 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
   }
 
   if (failure.status === 503) {
+    if (failure.code === USAGE_UNKNOWN_CODE) {
+      return { ...base, kind: 'pricing', limitId: notice?.limit_id, title: `Your usage can’t be read right now${at}`, text: usageUnknownText(nothing) };
+    }
     return failure.code === 'pricing_unavailable'
       ? { ...base, kind: 'pricing', title: `Limits can’t be checked right now${at}`, text: `A study needs a limit check first. Try again in a moment. ${nothing}` }
       : { ...base, kind: 'unavailable', title: `A service didn’t answer${at}`, text: `A service OpenBinding depends on isn’t answering. This says nothing about your account. ${nothing}` };

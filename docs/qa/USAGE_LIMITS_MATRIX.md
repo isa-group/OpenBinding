@@ -51,8 +51,10 @@ Lo que el cliente **no** hace, por diseño y comprobado por `tests/test_space_cl
 1. Que el token real traiga `maxInstanceComplexityLog10`, `maxTimeoutSeconds`, `maxPayloadBytes`, `concurrentJobs`… con el
    nombre y la unidad que las pruebas suponen. Las pruebas usan los nombres de la fixture sintética.
 2. Qué entrega SPACE para un límite *no declarado* en el plan (¿clave ausente? ¿`null`? ¿`0`?). El código trata la clave
-   ausente, `NaN`, negativa o no numérica como **desconocida**; `null` (→ `inf`) como **ilimitado**. Si SPACE usara `null`
-   para «no declarado» se concedería ilimitado: hay que confirmarlo antes de reactivar (ver `USAGE_LIMITS.md`).
+   ausente, `NaN`, negativa o no numérica como **desconocida**; `null` (→ `inf`) como **ilimitado** (comportamiento actual,
+   fijado en `tests/test_space_null_limits.py`). Si SPACE usara `null` para «no declarado» se concedería ilimitado: hay que
+   confirmarlo antes de reactivar (ver `USAGE_LIMITS.md`). Desde L existe `SPACE_NULL_LIMIT_IS_UNKNOWN` (apagado por
+   defecto) para leer `null` como desconocido, sin cambiar el contrato remoto.
 3. Que `usageLimits` de un contrato real incluya el efecto de los add-ons (la fake suma `usageLimitsExtensions`; el token real
    no se ha visto).
 4. Cualquier capacidad nativa de **medir uso** en SPACE (contadores, ventanas, reinicios), y cualquier mecanismo para
@@ -79,19 +81,19 @@ colaborativa, para el **patrocinador** (`sponsor`) de la organización y su sub�
 | Almacenamiento `storageBytes` | bytes almacenados | acumulado | patrocinador | plan | tope: nativa SPACE; **uso: medida local** (suma de blobs) | `services/entitlements.py:160` (`enforce_storage_quota`); `routes/artifacts.py:179` | existe | `tests/test_entitlement_service.py::test_storage_quota_counts_the_incoming_bytes_but_reports_what_is_stored` |
 | Estructura: `organizations`, `members`, `projects`, `privateProjects`, `collections`, `studies` (definiciones) | conteo | acumulado (no mensual) | patrocinador y subárbol | plan | tope: nativa SPACE; uso: medida local (filas) | `services/entitlements.py:148` (`enforce_sponsor_usage`) ← `collaboration.py:276`, `:284` | existe | `tests/test_entitlement_service.py:207-233` |
 | `apiKeys` | conteo de claves activas | acumulado | cuenta | plan | tope: nativa SPACE; uso: medida local | `routes/users.py:314` | existe | `tests/test_api_keys.py` |
-| `federatedEngines` (límite numérico de revisiones) | conteo | acumulado | cuenta | plan | nativa SPACE | **ninguno**: solo se lee la *feature* `federatedEngines` (`services/job_submission.py:660`, `routes/jobs.py:145`) | **falta** (el límite numérico no se aplica) | — |
+| `federatedEngines` (límite numérico de registros activos) | conteo de registros activos del dueño ahora (no acumula) | instantáneo | cuenta | plan | tope: nativa SPACE; uso: **medida local** (filas) | `services/engine_registry.py` `change_registration` (activar), con `routes/v1.py` `_change_registration`; la *feature* del mismo nombre sigue leyéndose en `services/job_submission.py` y `routes/jobs.py` | **existe (L)**; ausente = 0 (falla cerrado), ilimitado = sin tope. Qué cuenta SPACE exactamente: **sin verificar** | `tests/test_federated_engines_limit.py` |
 | `jobHistoryDays` | días de retención visibles | ventana móvil | cuenta | plan | nativa SPACE | `routes/users.py:452` (filtra el listado) | existe | `tests/test_usage_endpoints.py` |
 
 ### 2.2 Número de jobs, tareas y estudios
 
 | Límite | Unidad | Periodo | Alcance | Rol / plan | Fuente | Enforcement | Estado | Tests |
 |---|---|---|---|---|---|---|---|---|
-| Jobs **simultáneos** (técnico) `MAX_CONCURRENT_JOBS_PER_USER` | jobs en `queued`+`running` | instantáneo (no acumula) | cuenta | todos, independiente del plan | **local** (cuenta filas de `jobs`) | `jobs/limits.py:43` (`enforce_concurrency_limit`), `:24` (`lock_owner`, `FOR UPDATE`), `:34` (`count_in_flight`); invocado en `services/job_submission.py:662` (`POST /v1/jobs`, y cada celda de estudio), `routes/jobs.py:152` (retry) | existe | `tests/test_concurrency_limit.py`, `tests/test_usage_limits.py::test_the_concurrency_limit_frees_a_slot_...`; carrera real: `tests/concurrency/test_job_leases_pg.py` (**omitido** sin PostgreSQL) |
-| Jobs simultáneos **del plan** `concurrentJobs` | jobs | instantáneo | cuenta | plan | nativa SPACE | **ninguno**: `PlanCaps` lo trae (`open.py:76` lo rellena con el tope técnico) pero ningún código lo lee; `tests/test_concurrency_limit.py::test_the_limit_does_not_depend_on_the_plan` fija ese diseño | **falta / decisión pendiente** | — |
-| Jobs por periodo / `taskStarts`, `federatedTaskStarts` | tareas arrancadas | mensual (según la pricing de SPHERE) | cuenta | plan | nativa SPACE (contador) | **ninguno** y **no hay medida local**: el gateway no cuenta arranques por periodo ni informa a SPACE | **desconocido** (clase B, ver abajo) | — |
-| `solverSeconds` | segundos de reloj de solver | mensual | cuenta | plan | nativa SPACE (contador) | **ninguno**; lo más cercano es el tope por job (`maxTimeoutSeconds`) | **desconocido** (clase B) | — |
-| `studyRuns` | ejecuciones de estudio | mensual | cuenta | plan | nativa SPACE (contador) | **ninguno** (`routes/admin.py:574` cuenta filas `StudyRun` solo para mostrarlas) | **desconocido** (clase B) | — |
-| Estudios: tamaño de un run | celdas por run | por run | cuenta | plan (`studies`) | local | el run no limita su número de celdas; cada celda es un job y entra en la concurrencia (`study_jobs.py:421` `RETRYABLE_LAUNCH_CODES`: el resto espera) | **falta** un tope de celdas por run (no se añade: sería una cantidad comercial) | — |
+| Jobs **simultáneos** (técnico) `MAX_CONCURRENT_JOBS_PER_USER` | jobs en `queued`+`running` | instantáneo (no acumula) | cuenta | todos; ningún plan lo supera (se combina con el del plan: gana el menor) | **local** (cuenta filas de `jobs`) | `jobs/limits.py:43` (`enforce_concurrency_limit`), `:24` (`lock_owner`, `FOR UPDATE`), `:34` (`count_in_flight`); invocado en `services/job_submission.py:662` (`POST /v1/jobs`, y cada celda de estudio), `routes/jobs.py:152` (retry) | existe | `tests/test_concurrency_limit.py`, `tests/test_usage_limits.py::test_the_concurrency_limit_frees_a_slot_...`; carrera real: `tests/concurrency/test_job_leases_pg.py` (**omitido** sin PostgreSQL) |
+| Jobs simultáneos **del plan** `concurrentJobs` | jobs en `queued`+`running` | instantáneo (no acumula) | cuenta | plan | tope: nativa SPACE; medida: **local** (filas) | el mismo punto que la fila anterior: `enforce_concurrency_limit(..., caps=)` aplica `min(plan, tope técnico)` (`domain/entitlements.py` `concurrency_limit`); plan sin dato válido → solo el tope técnico | **existe (L)**; 429 con `source` `plan` o `technical`. Cómo lo declara SPACE: **sin verificar** | `tests/test_plan_concurrency.py`; carrera real: `tests/concurrency/test_plan_concurrency_pg.py` (**omitido** sin PostgreSQL) |
+| Jobs por periodo / `taskStarts`, `federatedTaskStarts` | tareas arrancadas | mensual (según la pricing de SPHERE) | cuenta | plan | nativa SPACE (contador) | **puerto de lectura** `domain/usage_counters.py`, llamado antes de crear un job (`services/job_submission.py` `_persist`, `routes/jobs.py` retry). **Sin fuente instalada no se aplica**; el gateway no cuenta ni informa a SPACE | **puerto existe (L)**, contador **desconocido** (clase B, ver abajo) | `tests/test_usage_counters.py` (fuente sintética) |
+| `solverSeconds` | segundos de reloj de solver | mensual | cuenta | plan | nativa SPACE (contador) | mismo puerto y mismos puntos; lo más cercano que sí se aplica es el tope por job (`maxTimeoutSeconds`) | **puerto existe (L)**, contador **desconocido** (clase B) | ídem |
+| `studyRuns` | ejecuciones de estudio | mensual | cuenta | plan | nativa SPACE (contador) | mismo puerto, preguntado en `routes/studies.py` `run_study` antes de crear el run; `routes/admin.py:574` cuenta filas `StudyRun` solo para mostrarlas | **puerto existe (L)**, contador **desconocido** (clase B) | ídem |
+| Estudios: tamaño de un run | celdas por run | por run | cuenta | despliegue (no plan) | local | `routes/studies.py` `run_study`, setting `MAX_CELLS_PER_STUDY_RUN` (apagado por defecto): `422 study_run_too_large` antes de crear el run. Existe además el máximo estructural `study_matrix_too_large`. Cada celda es un job y entra en la concurrencia (`study_jobs.py` `RETRYABLE_LAUNCH_CODES`: el resto espera) | **existe (L)**, apagado por defecto | `tests/test_usage_counters.py::test_a_run_past_the_cell_cap_...` |
 
 ### 2.3 Tiempo
 
@@ -219,8 +221,9 @@ Límites del enforcement actual:
 
 ## 4. Concurrencia: límite simultáneo, no saldo
 
-`concurrentJobs` / `MAX_CONCURRENT_JOBS_PER_USER` cuenta los jobs `queued`+`running` de la cuenta **ahora**
-(`jobs/limits.py:34`). Un job que termina libera su ranura sin más: no hay contador acumulado ni periodo
+El límite efectivo es el **menor** de `concurrentJobs` del plan y `MAX_CONCURRENT_JOBS_PER_USER` (`domain/entitlements.py`
+`concurrency_limit`; un plan sin valor utilizable deja solo el tope técnico, nunca «sin límite» ni «cupo libre»). Se cuentan
+los jobs `queued`+`running` de la cuenta **ahora** (`jobs/limits.py` `count_in_flight`). Un job que termina libera su ranura sin más: no hay contador acumulado ni periodo
 (`tests/test_usage_limits.py::test_the_concurrency_limit_frees_a_slot_when_a_job_ends_and_counts_nothing_cumulative`:
 tres jobs seguidos por una única ranura, con tres rechazos que no crean nada). El rechazo es `429
 concurrency_limit_exceeded` con `Retry-After: 15`, y las celdas de estudio lo tratan como reintentable
@@ -233,8 +236,9 @@ Cuerpo del `429`, ahora con el mismo vocabulario que un `402` para que el fronte
 {"concurrency": {"limit_id": "concurrentJobs", "limit": 8, "used": 8, "active": 8, "unit": "job", "source": "technical"}}
 ```
 
-(`domain/entitlements.py:48`). `active` se conserva por compatibilidad. **El límite que se aplica es el técnico**, no el del
-plan; ver la fila «Jobs simultáneos del plan» de §2.2.
+(`domain/entitlements.py` `concurrency_refusal`). `active` se conserva por compatibilidad. `source` es `plan` cuando manda el
+`concurrentJobs` del plan (estrictamente menor que el tope) y `technical` en los demás casos (también si son iguales). Un
+plan que declara `0` da `limit: 0`. Este bloque se actualizó en la tarea L; en J el límite aplicado era siempre el técnico.
 
 La exclusión de dos creaciones simultáneas depende de `FOR UPDATE` sobre la fila del usuario (`jobs/limits.py:31`). SQLite
 no tiene bloqueos de fila: **la carrera real solo se prueba con PostgreSQL** (`tests/concurrency/test_job_leases_pg.py`,
@@ -270,11 +274,14 @@ Estado heredado (`docs/qa/SPHERE_PRIVACY.md:65-90`, `docs/qa/REMOTE_TOOLS.md:102
 - **No se retiran por defecto** ni se tocan en SPHERE/SPACE (no se escribe nada).
 - **No se asimilan a CU**: son conteos y segundos de reloj sobre cosas reales, no una moneda ponderada. Si se adoptan, serán
   topes con su unidad propia.
-- **El gateway hoy no consume ninguno** excepto `concurrentJobs` como dato informativo (`open.py:76`); su límite
-  simultáneo real es el técnico. Que la pricing los declare no los hace efectivos.
+- **`concurrentJobs` se aplica desde L** como límite simultáneo del plan, combinado con el tope técnico (§4). Es un conteo de
+  filas en el momento, no un saldo.
+- **`taskStarts`, `federatedTaskStarts`, `solverSeconds` y `studyRuns` no se aplican** salvo que alguien instale una fuente
+  (`domain/usage_counters.py`, tarea L): un puerto **de solo lectura**, sin ledger. Que la pricing los declare no los hace
+  efectivos. Con fuente: agotado → `402 usage_limit_exceeded`; desconocido → `503 usage_limit_unknown` (nunca cupo).
 - Para que un contador mensual funcione hace falta **medir y acumular** eventos (arranques, segundos, runs) por cuenta y
   periodo, e informarlos a SPACE o leerlos de él. Eso es contabilidad y **no se ha implementado** ni se implementará aquí
-  sin una decisión sobre quién mide (ver `USAGE_LIMITS.md`, «Plan de integración»).
+  sin una decisión sobre quién mide (ver `USAGE_LIMITS.md`, «Plan de integración»). L solo deja dónde enchufar la lectura.
 - Lo que sí se puede hacer sin contabilidad y está hecho: topes **por job** o **instantáneos** (espacio de binding,
   timeout, iteraciones, simultaneidad).
 

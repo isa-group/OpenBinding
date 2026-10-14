@@ -564,8 +564,15 @@ export function groupErrors(rows: ErrorRow[]): ErrorGroup[] {
 
 const MEANINGS: Record<string, string> = {
   quota_exceeded: 'A limit of the plan was reached. Expected: the account frees something, or asks for a larger agreement.',
-  instance_complexity_too_large: 'The problem is bigger than the plan allows. The answer doesn’t carry the measured size.',
-  concurrency_limit_exceeded: 'Too many jobs were running at once for the plan. Clients are told to retry after 15 s.',
+  instance_complexity_too_large: 'The problem is bigger than the plan allows. The answer carries the estimated size and the plan’s limit when it could be measured.',
+  binding_space_limit_unknown: 'The plan declares no limit for the problem size, so the request was refused. A fault in the plan’s configuration, not something the user did; a larger plan doesn’t fix it.',
+  binding_space_over_technical_limit: 'The problem is bigger than this deployment accepts, whatever the plan. A larger plan doesn’t help; the user has to reduce the candidates.',
+  binding_space_unmeasured: 'The size of the problem could not be measured, so it could not be checked against the limit. Worth a look: it is a fault of the service, not of the user.',
+  pricing_misconfigured: 'A limit of the plan is missing or exceeds what the deployment can honour, so the request was refused. A fault in the plan’s configuration.',
+  study_run_too_large: 'A study run expanded to more cells than this deployment allows per run. Refused whole, before anything was created.',
+  usage_limit_exceeded: 'A period counter reported by the pricing service is spent. Nothing was started.',
+  usage_limit_unknown: 'The pricing service did not report the usage of the account, so the request was refused. Retryable; worth a look if it persists.',
+  concurrency_limit_exceeded: 'Too many jobs were running at once, under the plan’s limit or the deployment’s cap (the lower applies). Clients are told to retry after 15 s.',
   not_found: 'Something private or missing was asked for. The answer is the same either way, by design.',
   insufficient_api_key_permission: 'An API key lacked a permission the route needs.',
   unauthorized: 'A credential was missing or had expired.',

@@ -46,6 +46,7 @@ from ..v1.remote import fetch_remote_document, solve_remote, validate_endpoint
 
 from ..v1.remote import RemoteEngineError as RemoteEngineError  # re-exported for the tests
 from ..services import discovery, engine_registry, instances
+from ..services.entitlements import EntitlementsUnavailable, entitlement_service
 from ..services.engine_registry import RegistrationKey
 from ..services.engines import (
     embedded_secret_paths,
@@ -170,7 +171,7 @@ async def _read_json_body(request: Request, invalid_code: str) -> Any | JSONResp
 
 
 def _registry_problem(exc: engine_registry.RegistryProblem) -> JSONResponse:
-    return _problem(exc.status, exc.code, exc.detail, exc.diagnostics)
+    return _problem(exc.status, exc.code, exc.detail, exc.diagnostics, extra=exc.extra)
 
 
 @router.get("/profiles")
@@ -845,6 +846,13 @@ async def _change_registration(
     *,
     action: str,
 ):
+    max_active = None
+    if action == "activate":
+        # The plan's numeric ``federatedEngines``: an absent value is zero (fail closed), unlimited is ``None``.
+        try:
+            max_active = (await entitlement_service.caps_for(caller.id)).limit("federatedEngines")
+        except EntitlementsUnavailable as exc:
+            return _problem(exc.status, exc.code, str(exc))
     try:
         return await engine_registry.change_registration(
             RegistrationKey(namespace, name, version, manifest_digest),
@@ -853,6 +861,7 @@ async def _change_registration(
             action=action,
             settings=get_settings(),
             verify=_verify_registration,
+            max_active=max_active,
         )
     except engine_registry.RegistryProblem as exc:
         return _registry_problem(exc)

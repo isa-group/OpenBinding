@@ -127,9 +127,11 @@ class SpacePricingGate:
         for name, raw in raw_allowances.items():
             if isinstance(raw, (int, float)) and not isinstance(raw, bool):
                 allowances[name] = float(raw)
-            elif raw is None:
+            elif raw is None and not self._settings.space_null_limit_is_unknown:
                 # JSON has no Infinity; SPACE/Jose serialises an authoritative
-                # unlimited entitlement as null in its signed token.
+                # unlimited entitlement as null in its signed token. With
+                # SPACE_NULL_LIMIT_IS_UNKNOWN the null is left out instead: an
+                # undeclared limit, which every reader treats as unknown.
                 allowances[name] = float("inf")
         return PlanCaps(
             plan=plan,

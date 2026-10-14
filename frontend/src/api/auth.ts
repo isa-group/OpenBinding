@@ -6,6 +6,8 @@
  * not have to scroll past a login form to find it.
  */
 
+import type { BindingSpaceReport, LimitNotice } from './limitNotice';
+
 export type RoleName = 'user' | 'admin';
 export type ApiKeyPermission =
   | 'account:read'
@@ -322,6 +324,10 @@ export class QuotaError extends Error {
     unit?: string;
     renews_at?: string | null;
   };
+  /** The limit as the answer named it, including its state and source (a `quota` without a numeric `limit` is only here). */
+  notice?: LimitNotice;
+  /** The measured size, when the refusal is about the binding space. */
+  bindingSpace?: BindingSpaceReport;
 
   constructor(code: string, message: string, quota?: QuotaError['quota']) {
     super(message);

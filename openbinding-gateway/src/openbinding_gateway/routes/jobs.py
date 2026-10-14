@@ -28,6 +28,7 @@ from ..job_dispatch import dispatch_persisted_job
 from ..jobs import clock as job_clock
 from ..jobs import evidence as job_evidence
 from ..jobs import lifecycle
+from ..domain import usage_counters
 from ..domain.binding_space import BindingSpace, parse_cardinality
 from ..jobs import limits as job_limits
 from ..models.errors import (
@@ -149,7 +150,10 @@ async def retry_job(
         # before the size was recorded is not measured again: its instance cannot be read from here.
         refusal = plans.binding_space_refusal(BindingSpace(parse_cardinality(recorded), None), caps)
     if refusal is None:
-        refusal = await job_limits.enforce_concurrency_limit(session, user.id)
+        refusal = await job_limits.enforce_concurrency_limit(session, user.id, caps=caps)
+    if refusal is None:
+        # A retry is a new start (the replay of one was answered above, before any question).
+        refusal = await usage_counters.job_start_refusal(user.id, federated=federated)
     if refusal is not None:
         raise api_error(
             refusal.status,

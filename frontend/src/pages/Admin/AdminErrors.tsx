@@ -78,6 +78,7 @@ function Summary({ overview }: { overview: AdminErrorOverview }) {
             </div>
           )}
           <span className="adm-muted">402 means a quota ran out (expected); 503 means a dependency was down (worth a look).</span>
+          <span className="adm-muted">The quota category also holds limits the gateway could not state or measure — a plan with no size limit declared, a size that could not be measured, a usage counter that could not be read. Those are a configuration or service fault, not something the user did.</span>
         </div>
         <div className="adm-summary-block adm-summary-wide">
           <h3>By hour</h3>

@@ -281,6 +281,58 @@ describe('Workbench', () => {
       expect(within(index).getByRole('button', { name: /candidates\.json/ })).toHaveAttribute('aria-current', 'true');
     });
 
+    it('tells a plan that sets no size limit (403) from a credential without permission, and sends nobody to compare plans', async () => {
+      workbench.validate.mockRejectedValue(Object.assign(refusal(403, 'binding_space_limit_unknown'), {
+        notice: { limit_id: 'maxInstanceComplexityLog10', state: 'unknown', source: 'none', unit: 'log10 combinations' },
+      }));
+      await openWorkbench();
+      validate();
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('Your plan doesn’t set a problem-size limit (403 · binding_space_limit_unknown)');
+      expect(alert).toHaveTextContent('A larger plan won’t fix it');
+      expect(alert).toHaveTextContent('Contact the administrator.');
+      expect(alert).not.toHaveTextContent(/credential|permission|API key/i);
+      expect(within(alert).queryByRole('link', { name: 'Compare plans' })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Not valid/)).not.toBeInTheDocument();
+    });
+
+    it('says the deployment caps the size whatever the plan (422), and a measuring failure is not the package’s fault', async () => {
+      workbench.validate.mockRejectedValueOnce(Object.assign(refusal(422, 'binding_space_over_technical_limit'), {
+        notice: { limit_id: 'maxInstanceComplexityLog10', state: 'exhausted', source: 'technical', limit: 6, used: 9 },
+        bindingSpace: { log10: 9, digits: 10 },
+      }));
+      await openWorkbench();
+      validate();
+      const capped = await screen.findByRole('alert');
+      expect(capped).toHaveTextContent('Over this deployment’s size limit (422 · binding_space_over_technical_limit)');
+      expect(capped).toHaveTextContent('whatever the plan, so a larger plan won’t change it');
+      expect(capped).toHaveTextContent('about 10⁹ combinations');
+      expect(within(capped).queryByRole('link', { name: 'Compare plans' })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Not valid/)).not.toBeInTheDocument();
+
+      workbench.validate.mockRejectedValueOnce(Object.assign(refusal(422, 'binding_space_unmeasured'), {
+        notice: { limit_id: 'maxInstanceComplexityLog10', state: 'unmeasured', source: 'plan', limit: 9 },
+      }));
+      validate();
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('The problem’s size couldn’t be measured (422 · binding_space_unmeasured)'));
+      expect(screen.getByRole('alert')).toHaveTextContent('not a mistake in your package');
+      expect(within(screen.getByRole('alert')).getByRole('button', { name: 'Check again' })).toBeInTheDocument();
+    });
+
+    it('shows how big the package is when the 402 measured it', async () => {
+      workbench.validate.mockRejectedValue(Object.assign(
+        new QuotaError('instance_complexity_too_large', 'too complex', { limit_id: 'maxInstanceComplexityLog10', limit: 9, used: 12.5 }),
+        { notice: { limit_id: 'maxInstanceComplexityLog10', state: 'exhausted', source: 'plan', limit: 9, used: 12.5 }, bindingSpace: { log10: 12.5, digits: 13 } },
+      ));
+      await openWorkbench();
+      validate();
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('This package has about 10^12.5 combinations.');
+      expect(alert).not.toHaveTextContent('The server doesn’t report the measured size');
+    });
+
     it('says a package is larger than the plan takes in one request (413), from the gateway and before sending', async () => {
       workbench.validate.mockRejectedValue(refusal(413));
       await openWorkbench();

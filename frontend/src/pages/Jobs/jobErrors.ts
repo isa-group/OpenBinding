@@ -2,6 +2,9 @@ import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { diagnosticLines } from '../../api/problem';
 import { RANGE_CODE } from '../../utils/featureRange';
+import {
+  COMPLEXITY_CODE, USAGE_UNKNOWN_CODE, complexityText, limitProblemOf, noticeOf, slotsText, usageUnknownText,
+} from '../../utils/limitRefusals';
 import { limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 
@@ -9,7 +12,9 @@ export type JobAction = 'launch' | 'retry' | 'cancel';
 
 export type RefusalKind =
   | 'quota' | 'too-big' | 'busy' | 'plan' | 'key' | 'incompatible' | 'range' | 'not-found' | 'conflict' | 'terminal'
-  | 'pricing' | 'session' | 'too-large' | 'unavailable' | 'other';
+  | 'pricing' | 'session' | 'too-large' | 'unavailable' | 'other'
+  // A limit that isn't a plan allowance used up (see `utils/limitRefusals`): the plan doesn't say, this deployment caps it, it couldn't be measured, the plan can't be applied.
+  | 'limit-unknown' | 'technical' | 'unmeasured' | 'misconfigured';
 
 /** A diagnostic as one line: what it says and, in brackets, where in the package it points. */
 function lineOf(row: unknown): string {
@@ -52,6 +57,8 @@ export interface Refusal {
   retryAfter?: number;
   /** The limit a 402 or 429 names. */
   limitId?: string;
+  /** Whose limit it is when the answer says: `plan`, `technical` (this deployment, whatever the plan) or `none` (not declared). */
+  source?: string;
   /** The permission an API key is missing (403). */
   permission?: string;
 }
@@ -77,19 +84,26 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
     return { ...base, kind: 'session', title: `Your session ended${at}`, text: 'Log in again; your choices are kept.' };
   }
 
+  const notice = noticeOf(caught);
+  const limited = limitProblemOf(caught, nothing, at);
+  if (limited) return { ...base, ...limited };
+
   if (failure.status === 402) {
-    const complexity = failure.code === 'instance_complexity_too_large' || quota?.limit_id === 'maxInstanceComplexityLog10';
+    const limitId = quota?.limit_id ?? notice?.limit_id;
+    const complexity = failure.code === COMPLEXITY_CODE || limitId === 'maxInstanceComplexityLog10';
     if (complexity) {
       return {
-        ...base, kind: 'too-big', limitId: quota?.limit_id,
+        ...base, kind: 'too-big', limitId, source: notice?.source,
         title: `Too big for your plan${at}`,
-        text: `This problem has more combinations than your plan allows. Reduce candidates or ask about a larger plan. ${nothing}`,
+        text: complexityText(caught, nothing),
       };
     }
-    const noun = quota ? limitInfo(quota.limit_id).short : 'allowance';
-    const spent = quota ? `You’ve used ${(quota.used ?? quota.limit).toLocaleString('en-US')} of ${quota.limit.toLocaleString('en-US')} ${noun}.` : `You’ve used all your ${noun}.`;
+    const noun = limitId ? limitInfo(limitId).short : 'allowance';
+    const limit = quota?.limit ?? notice?.limit;
+    const used = quota?.used ?? notice?.used;
+    const spent = limit !== undefined ? `You’ve used ${(used ?? limit).toLocaleString('en-US')} of ${limit.toLocaleString('en-US')} ${noun}.` : `You’ve used all your ${noun}.`;
     return {
-      ...base, kind: 'quota', limitId: quota?.limit_id,
+      ...base, kind: 'quota', limitId, source: notice?.source,
       title: `${retry}Out of ${noun}${at}`,
       text: `${spent} ${nothing}`,
     };
@@ -97,11 +111,10 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
 
   if (failure.status === 429) {
     const concurrency = caught instanceof HttpError ? caught.concurrency : undefined;
-    const slots = concurrency ? `You can run ${concurrency.limit} job${concurrency.limit === 1 ? '' : 's'} at once.` : 'You have no free job slot.';
     return {
-      ...base, kind: 'busy', limitId: concurrency?.limit_id ?? 'concurrentJobs', retryAfter: failure.retryAfter ?? 15,
+      ...base, kind: 'busy', limitId: concurrency?.limit_id ?? 'concurrentJobs', source: concurrency?.source, retryAfter: failure.retryAfter ?? 15,
       title: `${retry}All your job slots are busy${at}`,
-      text: `${slots} Wait for one to finish, then send again. ${nothing}`,
+      text: `${slotsText(concurrency)} Wait for one to finish, then send again. ${nothing}`,
     };
   }
 
@@ -163,6 +176,9 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
   }
 
   if (failure.status === 503) {
+    if (failure.code === USAGE_UNKNOWN_CODE) {
+      return { ...base, kind: 'pricing', limitId: notice?.limit_id, title: `Your usage can’t be read right now${at}`, text: usageUnknownText(nothing) };
+    }
     return failure.code === 'pricing_unavailable'
       ? { ...base, kind: 'pricing', title: `Limits can’t be checked right now${at}`, text: `Runs need a limit check before starting. Try again in a moment; ${nothing.toLowerCase()}` }
       : { ...base, kind: 'unavailable', title: `A service didn’t answer${at}`, text: `A service OpenBinding depends on isn’t answering. This says nothing about your account. ${nothing}` };

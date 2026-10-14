@@ -9,11 +9,12 @@ import pytest
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from _pricing import roomy_plan
 from test_idempotency_jobs import _body, _login, _snapshot
 from test_job_dispatch import _account
 from test_study_cell_launch import BASE, _cells, _study
 
-from openbinding_gateway import study_jobs
+from openbinding_gateway import space_client, study_jobs
 from openbinding_gateway.db.models import (
     Job,
     JobState,
@@ -98,6 +99,9 @@ async def test_a_second_launch_of_the_same_cell_returns_the_first_job(
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
     user, organization, project = await _actors(db_session)
+    # About the cell's unique index, which a second launch must reach: it needs a plan that allows a
+    # second job in flight (the default one allows one and that limit now applies).
+    space_client.get_gate().plans[user.id] = roomy_plan()
     (cell,) = await _cells(db_session, run_id)
     seen = dispatched(db_session)
     payloads: list[dict] = []
@@ -136,6 +140,9 @@ async def test_a_retry_launch_after_detaching_the_old_job_creates_a_new_one(
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
     user, organization, project = await _actors(db_session)
+    # The detached first job is still in flight, so the new launch needs a plan that allows a second
+    # one (the default plan allows one and that limit now applies).
+    space_client.get_gate().plans[user.id] = roomy_plan()
     (cell,) = await _cells(db_session, run_id)
     dispatched(db_session)
 

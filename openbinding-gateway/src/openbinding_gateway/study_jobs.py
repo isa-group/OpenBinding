@@ -27,6 +27,7 @@ from .db.models import (
     User,
     utcnow,
 )
+from .domain import usage_counters
 from .domain.entitlements import Refusal
 from .jobs import lifecycle
 from .jobs.leases import aware
@@ -418,7 +419,7 @@ async def commit_launched(session: AsyncSession) -> None:
 
 
 #: Launch failures that say "not now" rather than "never": the cell stays queued.
-RETRYABLE_LAUNCH_CODES = frozenset({"concurrency_limit_exceeded", "pricing_unavailable"})
+RETRYABLE_LAUNCH_CODES = frozenset({"concurrency_limit_exceeded", "pricing_unavailable", usage_counters.UNKNOWN_CODE})
 
 
 #: Stable code of a cell left unlaunched because its run's owner lost the work role.

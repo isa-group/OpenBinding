@@ -1,10 +1,13 @@
 """The technical limit on queued plus running jobs per account.
 
-It is configuration (``MAX_CONCURRENT_JOBS_PER_USER``), independent of SPACE and
-of the plan, and it is enforced inside the transaction that creates the job: by
-``POST /v1/jobs``, by retry and by study-cell launches. That two creations in two
-transactions cannot both take the last slot needs PostgreSQL and lives in
-``tests/concurrency/test_job_leases_pg.py``.
+It is configuration (``MAX_CONCURRENT_JOBS_PER_USER``) and never depends on the
+plan to be applied, and it is enforced inside the transaction that creates the
+job: by ``POST /v1/jobs``, by retry and by study-cell launches. The plan's own
+``concurrentJobs`` lowers it (the lower wins); that is in
+``tests/test_plan_concurrency.py``. That two creations in two transactions cannot
+both take the last slot needs PostgreSQL and lives in
+``tests/concurrency/test_job_leases_pg.py`` and
+``tests/concurrency/test_plan_concurrency_pg.py``.
 """
 
 from __future__ import annotations
@@ -204,18 +207,25 @@ async def test_the_limit_is_per_account(api_client, db_session, registration, no
     assert first.status_code == other.status_code == 202
 
 
-async def test_the_limit_does_not_depend_on_the_plan(api_client, db_session, registration, no_dispatch, monkeypatch):
+async def test_a_bigger_plan_does_not_raise_the_technical_cap(
+    api_client, db_session, registration, no_dispatch, monkeypatch
+):
+    # Replaces ``test_the_limit_does_not_depend_on_the_plan``, which pinned the design where the plan's
+    # ``concurrentJobs`` was ignored. The plan now also bounds the account and the lower limit wins, but the
+    # deployment's cap still holds whatever the plan says: the largest plan (8) cannot go past a cap of 1.
     set_limit(monkeypatch, 1)
     details = registration()
     headers = await _login(api_client, details)
     user_id = await db_session.scalar(select(User.id).where(User.username == details["username"]))
-    space_client.get_gate().plans[user_id] = largest_plan()
+    space_client.get_gate().plans[user_id] = largest_plan("concurrentJobs")
     snapshot = await _snapshot(api_client, headers)
 
     await _post(api_client, headers, _body(snapshot), key="first")
     refused = await _post(api_client, headers, _body(snapshot), key="second")
 
     assert refused.status_code == 429
+    assert refused.json()["concurrency"]["limit"] == 1
+    assert refused.json()["concurrency"]["source"] == "technical"
 
 
 # -- Retry ------------------------------------------------------------------

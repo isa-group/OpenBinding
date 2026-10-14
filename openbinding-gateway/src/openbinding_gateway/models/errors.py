@@ -59,6 +59,22 @@ class QuotaBody(BaseModel):
     renews_at: Optional[str] = Field(
         default=None, description="When a renewable limit next resets."
     )
+    state: Optional[str] = Field(
+        default=None,
+        description=(
+            "Where the limit stands: `exhausted`, `unknown` (the gateway could not tell what the limit is; "
+            "`limit` is then absent) or `unmeasured` (the thing to measure could not be read). "
+            "Absent means `exhausted`."
+        ),
+    )
+    source: Optional[str] = Field(
+        default=None,
+        description=(
+            "Which limit refused: `plan` (the caller's plan), `technical` (a safeguard of this "
+            "deployment that no plan raises), `space` (a counter reported by the pricing service) "
+            "or `none` (no limit is known)."
+        ),
+    )
 
 
 class QuotaErrorBody(ErrorBody):

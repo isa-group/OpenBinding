@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from _pricing import pricing_catalog
+from _pricing import pricing_catalog, roomy_plan
 from _repo import REPO_ROOT
 
 from openbinding_gateway import space_client, study_jobs
@@ -162,6 +162,9 @@ def hide_lookups(monkeypatch, hidden: int) -> None:
 
 
 async def test_losing_the_insert_race_to_a_committed_winner_replays_it(db_session, user, snapshot_id, monkeypatch):
+    # About the INSERT race, which a second job must reach: the default plan allows one job at a time and
+    # that limit now applies (plan ``concurrentJobs``), so the account gets a roomier plan.
+    space_client.get_gate().plans[user.id] = roomy_plan()
     winner = await submit(db_session, user, request_for(snapshot_id))
 
     # Misses the pre-check and the check after the account lock; only the INSERT notices the winner.
@@ -215,6 +218,9 @@ async def test_a_request_that_waited_on_the_account_lock_gets_the_replay_not_a_4
 
 
 async def test_the_study_cell_race_returns_the_job_that_won_the_cell(db_session, user, snapshot_id):
+    # About the unique index on the cell, which a second launch must reach: it needs a plan that allows
+    # a second job in flight (the default one allows one and that limit now applies).
+    space_client.get_gate().plans[user.id] = roomy_plan()
     cell_id = uuid.uuid4()
     first = await submit(db_session, user, request_for(snapshot_id, key=None), study_cell_id=cell_id, commit=False)
     # No key to replay by: only the unique index on the cell tells the second launch it lost.

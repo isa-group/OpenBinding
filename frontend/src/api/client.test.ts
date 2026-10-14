@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiClient } from './client';
+import { QuotaError } from './auth';
+import { ApiClient, HttpError } from './client';
 import { problemField } from './problem';
 import type {
   BimResourceRef,
@@ -295,6 +296,83 @@ describe('the canonical problem document', () => {
   it('still reads the code of an older body that has only detail.code', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ detail: { code: 'last_owner', error: 'Keep one owner.' } }, 409));
     await expect(client.request('/v1/x')).rejects.toMatchObject({ status: 409, code: 'last_owner' });
+  });
+
+  describe('a refusal over a limit keeps what the gateway says about it', () => {
+    const fail = (status: number, body: unknown, headers: Record<string, string> = {}) => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(body, status, headers));
+      return client.request('/v1/jobs', { method: 'POST' }).then(() => { throw new Error('resolved'); }, (caught: unknown) => caught);
+    };
+    const quota = { limit_id: 'maxInstanceComplexityLog10', state: 'unknown', unit: 'log10 combinations', source: 'none' };
+
+    it('403 binding_space_limit_unknown: the limit has no number, and the state and source say why', async () => {
+      const caught = await fail(403, { type: 't', title: 'binding_space_limit_unknown', status: 403, code: 'binding_space_limit_unknown', detail: 'The plan does not declare a limit.', quota });
+
+      expect(caught).toBeInstanceOf(HttpError);
+      expect(caught).toMatchObject({ status: 403, code: 'binding_space_limit_unknown' });
+      expect((caught as HttpError).notice).toEqual({ limit_id: 'maxInstanceComplexityLog10', state: 'unknown', source: 'none', unit: 'log10 combinations' });
+      expect((caught as HttpError).notice).not.toHaveProperty('limit');
+    });
+
+    it('402 on a platform route: the quota and the measured size inside `detail`', async () => {
+      const caught = await fail(402, {
+        type: 't', title: 'instance_complexity_too_large', status: 402, code: 'instance_complexity_too_large',
+        detail: {
+          code: 'instance_complexity_too_large', error: 'instance binding space exceeds the caller plan limit',
+          quota: { limit_id: 'maxInstanceComplexityLog10', state: 'exhausted', unit: 'log10 combinations', source: 'plan', limit: 9, used: 12.5 },
+          binding_space: { kind: 'estimate', log10: 12.5, digits: 13, cardinality: null },
+        },
+      });
+
+      expect(caught).toBeInstanceOf(QuotaError);
+      const error = caught as QuotaError;
+      expect(error.quota).toMatchObject({ limit_id: 'maxInstanceComplexityLog10', limit: 9, used: 12.5 });
+      expect(error.notice).toEqual({ limit_id: 'maxInstanceComplexityLog10', state: 'exhausted', source: 'plan', unit: 'log10 combinations', limit: 9, used: 12.5 });
+      expect(error.bindingSpace).toEqual({ log10: 12.5, digits: 13 });
+    });
+
+    it('402 usage_limit_exceeded without numbers is still a QuotaError, with the limit only in the notice', async () => {
+      const caught = await fail(402, { type: 't', title: 'usage_limit_exceeded', status: 402, code: 'usage_limit_exceeded', detail: 'spent', quota: { limit_id: 'taskStarts', state: 'exhausted', unit: 'task', source: 'space' } });
+
+      expect(caught).toBeInstanceOf(QuotaError);
+      expect((caught as QuotaError).quota).toBeUndefined();
+      expect((caught as QuotaError).notice).toMatchObject({ limit_id: 'taskStarts', source: 'space' });
+    });
+
+    it('422 over the deployment’s cap: the quota and the size at the top of the problem', async () => {
+      const caught = await fail(422, {
+        type: 't', title: 'binding_space_over_technical_limit', status: 422, code: 'binding_space_over_technical_limit', detail: 'x',
+        quota: { limit_id: 'maxInstanceComplexityLog10', state: 'exhausted', unit: 'log10 combinations', source: 'technical', limit: 6, used: 9 },
+        binding_space: { kind: 'estimate', log10: 9, digits: 10, cardinality: '1000000000' },
+      });
+
+      expect(caught).toBeInstanceOf(HttpError);
+      expect((caught as HttpError).notice).toMatchObject({ source: 'technical', limit: 6, used: 9, state: 'exhausted' });
+      expect((caught as HttpError).bindingSpace).toEqual({ log10: 9, digits: 10, cardinality: '1000000000' });
+    });
+
+    it('429 names whose limit it is', async () => {
+      const caught = await fail(429, {
+        type: 't', title: 'concurrency_limit_exceeded', status: 429, code: 'concurrency_limit_exceeded', detail: 'Concurrency limit exceeded.',
+        concurrency: { limit_id: 'concurrentJobs', limit: 2, used: 2, active: 2, unit: 'job', source: 'plan' },
+      }, { 'Retry-After': '15' });
+
+      expect(caught).toMatchObject({ status: 429, retryAfter: 15, concurrency: { limit_id: 'concurrentJobs', limit: 2, used: 2, source: 'plan', unit: 'job' } });
+    });
+
+    it('keeps nothing that is not well formed, and reads a state it does not know as unknown rather than exhausted', async () => {
+      const odd = await fail(422, {
+        type: 't', title: 'binding_space_unmeasured', status: 422, code: 'binding_space_unmeasured', detail: 'x',
+        quota: { limit_id: 'maxInstanceComplexityLog10', state: 'something-new', source: 'elsewhere', unit: 7, limit: 'many', used: null, host: 'internal.example' },
+        binding_space: { log10: 'big', digits: null, cardinality: '1'.repeat(41), path: '/srv/secret' },
+      });
+      expect((odd as HttpError).notice).toEqual({ limit_id: 'maxInstanceComplexityLog10', state: 'unknown' });
+      expect((odd as HttpError).bindingSpace).toBeUndefined();
+
+      const garbage = await fail(403, { type: 't', title: 'x', status: 403, code: 'x', detail: 'x', quota: 'text', binding_space: [] });
+      expect((garbage as HttpError).notice).toBeUndefined();
+      expect((garbage as HttpError).bindingSpace).toBeUndefined();
+    });
   });
 
   it('keeps Retry-After on a rate-limited public read', async () => {

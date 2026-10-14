@@ -94,7 +94,9 @@ export function RefusalNotice({ refusal, action, usageTo, extra, editTo }: {
           {editTo && <Action to={editTo} variant="link" size="sm">Edit the candidate</Action>}
         </span>
       )}
-      {usageTo && (refusal.kind === 'quota' || refusal.kind === 'too-big' || refusal.kind === 'busy' || refusal.kind === 'plan') && (
+      {/* A larger plan helps with an allowance, a size limit of the plan, or a job limit of the plan - not with a limit this
+          deployment sets whatever the plan, nor with one the plan doesn't state or can't apply (`limit-unknown`, `misconfigured`). */}
+      {usageTo && (refusal.kind === 'quota' || refusal.kind === 'too-big' || (refusal.kind === 'busy' && refusal.source !== 'technical') || refusal.kind === 'plan') && (
         <span className="job-refusal-links">
           <Action to="/app/account/usage" variant="link" size="sm">See your plan</Action>
           <Action to="/pricing" variant="link" size="sm">Compare plans</Action>

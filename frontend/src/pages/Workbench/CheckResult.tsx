@@ -11,7 +11,7 @@ import { shortDigest } from '../../utils/digest';
 import { readBindingProblem } from '../Cases/bindingModel';
 import { FlowDrawing, Power } from '../Cases/parts';
 import { resourcePathForDiagnostic, type Diagnostic, type ResourceEntry } from './bimDocuments';
-import { engineRows, goalTerms, packageFileList, refusalMarker, refusalText, type Refusal } from './workbenchModel';
+import { LIMIT_KINDS, engineRows, goalTerms, packageFileList, refusalMarker, refusalText, type Refusal } from './workbenchModel';
 import type { Workbench } from './useWorkbench';
 
 type ResultView = 'analysis' | 'engines' | 'files';
@@ -101,7 +101,9 @@ function TooBig({ refusal, plan, pricingHref, onReduce }: { refusal: Refusal; pl
       </div>
       <span>
         {ceiling !== null ? <>Your {plan.name ? `${plan.name} ` : ''}plan allows up to <Power log10={ceiling} /> combinations. </> : 'Your plan limits how many combinations a problem may have. '}
-        The server doesn’t report the measured size in this answer, so we can’t show how far over it is.
+        {refusal.size
+          ? <>This package has {refusal.size}.</>
+          : 'The server doesn’t report the measured size in this answer, so we can’t show how far over it is.'}
       </span>
       <span className="wb-links">
         <button type="button" className="wb-link" onClick={onReduce}>Reduce candidates</button>
@@ -259,6 +261,18 @@ export function CheckResult({ wb, plan, pricingHref }: CheckResultProps) {
       <div className="wb-check-failed">
         {(refusal.kind === 'session' || refusal.kind === 'key') && <AuthGate refusal={refusal} />}
         {refusal.kind === 'too-big' && <TooBig refusal={refusal} plan={plan} pricingHref={pricingHref} onReduce={reduceCandidates} />}
+        {LIMIT_KINDS.includes(refusal.kind) && (
+          // No "compare plans" here: the plan doesn't state the limit, this deployment caps it whatever the plan, or the plan can't be applied.
+          <Notice
+            tone="error"
+            title={`${refusal.title ?? 'A limit refused the package'}${refusalMarker(refusal)}`}
+            action={refusal.kind === 'technical'
+              ? <Action variant="secondary" size="sm" onClick={reduceCandidates}>Reduce candidates</Action>
+              : refusal.kind === 'unmeasured' ? <Action variant="secondary" size="sm" onClick={() => void wb.validate()}>Check again</Action> : undefined}
+          >
+            {refusal.message}
+          </Notice>
+        )}
         {refusal.kind === 'too-large' && (
           <div className="wb-alert" role="alert">
             {plan.maxLabel

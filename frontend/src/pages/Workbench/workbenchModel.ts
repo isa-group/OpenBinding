@@ -1,6 +1,7 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { RANGE_CODE, RANGE_REFUSAL } from '../../utils/featureRange';
+import { limitProblemOf, sizeOf } from '../../utils/limitRefusals';
 import type { WorkspaceFiles } from '../../utils/workspaceDraft';
 import { isRecord, parseJson, type BimDocument, type CompatibleMode, type Diagnostic, type ResourceEntry } from './bimDocuments';
 
@@ -8,20 +9,30 @@ import { isRecord, parseJson, type BimDocument, type CompatibleMode, type Diagno
 
 // --- what the gateway can refuse
 
-export type RefusalKind = 'invalid' | 'too-big' | 'too-large' | 'session' | 'key' | 'unsupported' | 'busy' | 'unavailable' | 'other';
+export type RefusalKind =
+  | 'invalid' | 'too-big' | 'too-large' | 'session' | 'key' | 'unsupported' | 'busy' | 'unavailable' | 'other'
+  // A size limit that isn't "your plan's, exceeded": the plan doesn't state it, this deployment caps it, it couldn't be measured, or the plan can't be applied.
+  | 'limit-unknown' | 'technical' | 'unmeasured' | 'misconfigured';
+
+/** The refusals that are about a limit the package can't fix by being valid or by a credential: each has its own sentence in `message`. */
+export const LIMIT_KINDS: readonly RefusalKind[] = ['limit-unknown', 'technical', 'unmeasured', 'misconfigured'];
 
 export interface Refusal {
   kind: RefusalKind;
   status?: number;
   /** The machine code the gateway sent, for people who need to quote it. */
   code?: string;
-  /** The gateway's own sentence. */
+  /** The gateway's own sentence; for the limit kinds, the interface's (the gateway's is not repeated). */
   message: string;
+  /** What the limit kinds are called, without the status and code. */
+  title?: string;
   /** The problems a 422 lists, one per place in the package. */
   diagnostics: Diagnostic[];
   /** What a 402 names: the allowance and its ceiling. */
   limitId?: string;
   limit?: number;
+  /** How big the package is, in words, when the answer measured it. */
+  size?: string;
 }
 
 /** `(422)` or `(403 · api_key_boundary)`: the status and code of a refusal. */
@@ -33,7 +44,11 @@ export function refusalMarker(refusal: Pick<Refusal, 'status' | 'code'>): string
 /** Sort a failed call into the cases the workbench has words for. */
 export function refusalOf(caught: unknown): Refusal {
   if (caught instanceof QuotaError) {
-    return { kind: 'too-big', status: 402, code: caught.code, message: caught.message, diagnostics: [], limitId: caught.quota?.limit_id, limit: caught.quota?.limit };
+    const size = sizeOf(caught.bindingSpace, caught.notice) ?? undefined;
+    return {
+      kind: 'too-big', status: 402, code: caught.code, message: caught.message, diagnostics: [],
+      limitId: caught.quota?.limit_id ?? caught.notice?.limit_id, limit: caught.quota?.limit ?? caught.notice?.limit, ...(size ? { size } : {}),
+    };
   }
   if (caught instanceof HttpError) {
     const base = {
@@ -42,6 +57,12 @@ export function refusalOf(caught: unknown): Refusal {
       message: caught.message.replace(/^HTTP \d+: /, ''),
       diagnostics: (caught.diagnostics ?? []).filter(isRecord) as Diagnostic[],
     };
+    // A 403 that says the plan sets no size limit is not a key without permission, and a 422 over the deployment's cap
+    // or one that couldn't be measured is not an invalid package: each is told in its own words.
+    const limited = limitProblemOf(caught, '', '');
+    if (limited) {
+      return { ...base, kind: limited.kind, title: limited.title, message: limited.text.trim(), limitId: limited.limitId, limit: caught.notice?.limit };
+    }
     switch (caught.status) {
       case 401: return { kind: 'session', ...base };
       case 403: return { kind: 'key', ...base };
@@ -60,6 +81,10 @@ export function refusalOf(caught: unknown): Refusal {
 export function refusalText(refusal: Refusal, doing: string): string {
   const marker = refusalMarker(refusal);
   switch (refusal.kind) {
+    case 'limit-unknown':
+    case 'technical':
+    case 'unmeasured':
+    case 'misconfigured': return `${refusal.message.replace(/\.$/, '')}${marker}, so ${doing}.`;
     case 'unsupported': return `The gateway doesn’t take this kind of file${marker}. Use a .bim.zip package.`;
     case 'busy': return `Too many requests${marker}. Wait a moment and try again.`;
     case 'unavailable': return `A service OpenBinding depends on isn’t answering${marker}, so ${doing}. This says nothing about your package; try again in a moment.`;
