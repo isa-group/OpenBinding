@@ -7,12 +7,16 @@ WORKDIR /app
 # The build context is engines/, so the shared BIM v1 evaluator can be built
 # and installed before the search service that depends on it.
 COPY binding-core ./binding-core
+# The lab runs the tests as a non-root user on a copy of /app, so the sources must be world-readable.
+RUN chmod -R a+rX /app
 RUN cd /app/binding-core && mvn -B -q -DskipTests install
 
 COPY evolutionary-heuristics/pom.xml ./evolutionary-heuristics/pom.xml
 WORKDIR /app/evolutionary-heuristics
 RUN mvn -B dependency:go-offline
 COPY evolutionary-heuristics/src ./src
+# Same reason: this engine's sources arrive after the first Maven step.
+RUN chmod -R a+rX /app
 RUN mvn -B package
 
 FROM eclipse-temurin:21-jre@sha256:d7051a45dd955e4d5d1db4d3f4269fe13d1c6dff8cc6b7ef89fc8577b96c1982

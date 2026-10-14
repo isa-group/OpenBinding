@@ -181,6 +181,16 @@ def test_each_builder_holds_binding_core_and_only_its_own_engine():
     assert "temurin-21" in (ENGINES / "evolutionary-heuristics" / "Dockerfile").read_text(encoding="utf-8")
 
 
+def test_each_builder_makes_app_readable_before_the_first_maven_run():
+    """The lab copies /app as a non-root user; the build context checkout leaves the sources root-only."""
+    for module in ("random-search", "many-heuristic", "multi-heuristic", "evolutionary-heuristics"):
+        stage = _builder_stage(ENGINES / module / "Dockerfile")
+        chmod = stage.find("RUN chmod -R a+rX /app")
+        maven = stage.find("mvn")
+        assert chmod != -1, module
+        assert maven != -1 and chmod < maven, module
+
+
 def test_the_scripts_test_binding_core_and_every_engine_with_maven_inside_the_container(services):
     tested_core = []
     for name, module in MODULES.items():

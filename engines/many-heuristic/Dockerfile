@@ -16,6 +16,9 @@ COPY binding-core ./binding-core
 COPY many-heuristic/pom.xml ./many-heuristic/pom.xml
 COPY many-heuristic/src ./many-heuristic/src
 
+# The lab runs the tests as a non-root user on a copy of /app, so the sources must be world-readable.
+RUN chmod -R a+rX /app
+
 # Installs the test-jar too, which the engine's own tests depend on.
 RUN cd /app/binding-core && mvn -B -q -DskipTests \
   -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses=false \
