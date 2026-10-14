@@ -1,0 +1,30 @@
+{
+  "name": "openbinding-lab",
+  "services": {
+    "postgres": {
+      "image": "postgres:16-alpine",
+      "user": "70:70",
+      "environment": {
+        "PGDATA": "/var/lib/postgresql/data/pgdata",
+        "DEMO_PG_PASSWORD": "${DEMO_PG_PASSWORD}"
+      },
+      "command": [
+        "sh",
+        "-c",
+        "set -eu; test -n \"$$DEMO_PG_PASSWORD\"; pg_ctl -D \"$$PGDATA\" -o \"-c listen_addresses=''\" -w start >/dev/null; rc=0; printf \"ALTER ROLE openbinding PASSWORD :'pw';\\n\" | psql -U openbinding -d openbinding -v ON_ERROR_STOP=1 -q -v pw=\"$$DEMO_PG_PASSWORD\" >/dev/null || rc=$$?; pg_ctl -D \"$$PGDATA\" -m fast -w stop >/dev/null; test \"$$rc\" -eq 0; echo pg-role-password-reset-ok"
+      ],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "lab-pg-3",
+          "target": "/var/lib/postgresql/data"
+        }
+      ],
+      "restart": "no",
+      "mem_limit": "384m"
+    }
+  },
+  "volumes": {
+    "lab-pg-3": {}
+  }
+}
