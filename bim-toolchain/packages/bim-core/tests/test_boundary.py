@@ -1,7 +1,9 @@
 """The core is pure: stdlib, jsonschema, lxml, pyyaml and itself; no environment, no repository layout."""
 
 import ast
+import hashlib
 import os
+import re
 import subprocess
 import sys
 import tomllib
@@ -13,7 +15,7 @@ import pytest
 import bim_core
 from bim_core.toolchain import compiler_bundle_digest
 
-from core_support import TOOLCHAIN_ROOT, corpus_root
+from core_support import TOOLCHAIN_ROOT, corpus_root, require_corpus_path
 
 SRC = Path(bim_core.__file__).resolve().parent
 MODULES = sorted(path for path in SRC.glob("*.py"))
@@ -191,17 +193,83 @@ def test_copied_files_are_byte_identical_to_openbinding(original: str, copy: str
     assert source.read_bytes() == (TOOLCHAIN_ROOT / copy).read_bytes()
 
 
-def test_copied_schemas_and_vendor_are_byte_identical_to_openbinding() -> None:
-    schemas = corpus_root() / "schemas" / "bim" / "v1"
-    vendor = corpus_root() / "openbinding-gateway" / "src" / "openbinding_gateway" / "v1" / "vendor" / "omg" / "bpmn" / "2.0.2"
-    if not schemas.is_dir() or not vendor.is_dir():
-        pytest.skip("OpenBinding originals are not available (set BIM_CORPUS_ROOT)")
-    resources = SRC / "resources"
-    originals = sorted(schemas.glob("*.json"))
-    assert originals
-    for path in originals:
-        assert path.read_bytes() == (resources / "schemas" / "bim" / "v1" / path.name).read_bytes(), path.name
-    vendored = sorted(path for path in vendor.iterdir() if path.is_file())
-    assert vendored
-    for path in vendored:
-        assert path.read_bytes() == (resources / "vendor" / "omg" / "bpmn" / "2.0.2" / path.name).read_bytes(), path.name
+RESOURCES = SRC / "resources"
+VENDOR_BPMN = RESOURCES / "vendor" / "omg" / "bpmn" / "2.0.2"
+GATEWAY_VENDOR_BPMN = (
+    "openbinding-gateway/src/openbinding_gateway/v1/vendor/omg/bpmn/2.0.2"
+)
+BPMN_XSD_FILES = frozenset({"BPMN20.xsd", "Semantic.xsd", "BPMNDI.xsd", "DC.xsd", "DI.xsd"})
+
+
+def byte_differences(original: Path, copy: Path, pattern: str) -> list[str]:
+    """Names matching ``pattern`` that differ between two directories, or are in only one of them."""
+    names = {path.name for path in original.glob(pattern) if path.is_file()}
+    names |= {path.name for path in copy.glob(pattern) if path.is_file()}
+    return sorted(
+        name
+        for name in names
+        if not (original / name).is_file()
+        or not (copy / name).is_file()
+        or (original / name).read_bytes() != (copy / name).read_bytes()
+    )
+
+
+def readme_digests(readme: Path) -> dict[str, str]:
+    """The ``| `file` | `sha256` |`` rows of the vendored README."""
+    rows = re.findall(r"^\|\s*`([^`]+)`\s*\|\s*`([0-9a-f]{64})`\s*\|\s*$", readme.read_text(encoding="utf-8"), re.M)
+    return dict(rows)
+
+
+def digest_mismatches(directory: Path, digests: dict[str, str]) -> list[str]:
+    """Files of ``directory`` that are not listed with the same SHA-256, and listed files that are absent."""
+    present = {path.name: path for path in directory.glob("*.xsd")}
+    problems = [
+        name for name, path in sorted(present.items())
+        if hashlib.sha256(path.read_bytes()).hexdigest() != digests.get(name)
+    ]
+    problems.extend(name for name in sorted(digests) if name not in present)
+    return problems
+
+
+def test_copied_bim_schemas_are_byte_identical_to_the_originals() -> None:
+    original = require_corpus_path("schemas/bim/v1")
+    assert list(original.glob("*.json"))
+    assert byte_differences(original, RESOURCES / "schemas" / "bim" / "v1", "*.json") == []
+
+
+def test_vendored_omg_bpmn_xsd_match_the_digests_of_their_readme() -> None:
+    digests = readme_digests(VENDOR_BPMN / "README.md")
+    assert set(digests) == BPMN_XSD_FILES
+    assert {path.name for path in VENDOR_BPMN.glob("*.xsd")} == BPMN_XSD_FILES
+    assert digest_mismatches(VENDOR_BPMN, digests) == []
+
+
+def test_vendored_omg_bpmn_xsd_match_the_gateway_original_when_it_still_exists() -> None:
+    original = corpus_root() / GATEWAY_VENDOR_BPMN
+    if original.is_dir():
+        assert byte_differences(original, VENDOR_BPMN, "*.xsd") == []
+
+
+def test_the_vendor_checks_detect_a_changed_added_or_removed_file(tmp_path: Path) -> None:
+    copy = tmp_path / "copy"
+    copy.mkdir()
+    for path in VENDOR_BPMN.glob("*.xsd"):
+        (copy / path.name).write_bytes(path.read_bytes())
+    digests = readme_digests(VENDOR_BPMN / "README.md")
+    assert byte_differences(VENDOR_BPMN, copy, "*.xsd") == []
+    assert digest_mismatches(copy, digests) == []
+
+    changed = (copy / "DC.xsd").read_bytes()
+    (copy / "DC.xsd").write_bytes(changed[:-1] + bytes([changed[-1] ^ 1]))
+    assert byte_differences(VENDOR_BPMN, copy, "*.xsd") == ["DC.xsd"]
+    assert digest_mismatches(copy, digests) == ["DC.xsd"]
+
+    (copy / "DC.xsd").write_bytes(changed)
+    (copy / "Extra.xsd").write_bytes(b"<x/>")
+    assert byte_differences(VENDOR_BPMN, copy, "*.xsd") == ["Extra.xsd"]
+    assert digest_mismatches(copy, digests) == ["Extra.xsd"]
+
+    (copy / "Extra.xsd").unlink()
+    (copy / "DI.xsd").unlink()
+    assert byte_differences(VENDOR_BPMN, copy, "*.xsd") == ["DI.xsd"]
+    assert digest_mismatches(copy, digests) == ["DI.xsd"]
