@@ -428,6 +428,14 @@ resident size; client and service share one process):
   (B = 8 L, Q = 2 L) the largest body limit that fits is **2 MiB with N=2** (B 16 MiB, Q 4 MiB: 244144537 bytes required) and **6
   MiB with N=1** (B 48 MiB, Q 12 MiB: 253397401 bytes). `compose.lab.json` was not changed: another contract owns the
   laboratory configuration, and thread mode there is as documented under "Memory budget".
+* **Process mode in the real 256 MiB container (profile N2, deployed).** `compose.lab-process-n2.json` (body 2 MiB, 2 slots,
+  budget 16 MiB, pending 4 MiB, acquire 2000 ms, per-tenant 0) runs in the real demo container (256 MiB, 1.5 CPUs). The
+  service validated its own fit rule at start (required 261724569 of 268435456 bytes, headroom 6710887, with the
+  conservative figures of the probe) and `capabilities` publishes the profile. `lab_compose metrics` before the load:
+  parent (PID 1) RSS 61.6 MB, workers 54.7 and 54.1 MB, cgroup `memory.current` 127156224 of 268435456, `oom_kill` 0; after the
+  probe: parent 67.6 MB (peak 68.9), workers 53.8 and 53.5 MB (pids 45 and 47 against 10 and 11 at the start: replaced by the
+  real timeout), cgroup 133955584, `oom_kill` 0, 6 pids. The acceptance probe ran with exit 0 (`docs/qa/PROCESS_PROBE.md`).
+  The 6 MiB profile (N=1) was not needed and was not deployed.
 
 **What process mode does not do.** It does not make the service faster per request (see the single-request note above) and
 it does not make an operation cheaper in memory: each worker holds `C` at rest plus what a request needs, so N workers cost
@@ -438,7 +446,7 @@ the OOM killer is a 500 for the request it was serving. Python limits are copied
 (`sys.set_int_max_str_digits`, recursion limit); other process-wide state the parent changes later (for instance
 `bim_core.configure`) is not propagated. `limits.service.executor` is the only change to the published contract
 (`capabilities` is not typed in the OpenAPI document, which is unchanged). The behaviour of the `pids_limit` of the lab container
-with N+1 processes was not measured.
+with N+1 processes was measured only in the N2 deployment: 6 pids in the container (`lab_compose metrics`) against 256.
 
 Tests (`tests/test_process_executor.py`, with `tests/process_standins.py` loaded in the workers through the constructor-only,
 unpublished setting `worker_preload`, and `tests/fake_worker.py` for the protocol violations): children never above N with
@@ -468,11 +476,13 @@ this), 0 skipped, in each.
   `application/problem+json` with the `detail` above and the `traceparent` of the request; `/healthz` answered 200 on all 156 probes
   during the 3.8 s and after (slowest 13 ms); the child is reaped (no `/proc` entry, no zombie, one pidfd per live child), the slot
   reaches the free list `EMPTY` and exactly one replacement is started, which answers the next request; the memory charge, the
-  tenant share, the body bytes and the slots are 0 again; the descriptors of the parent are the same kinds in the same number
+  tenant share, the body bytes and the slots are 0 again (the 503 body has no `correlationId`; the `traceparent` is in the header); the descriptors of the parent are the same kinds in the same number
   before and after (15); and the **other worker, busy with a request of 8 s, was not signalled and answered it** with its own pid.
 * *A finite hard limit from outside.* A launcher that runs `setrlimit(RLIMIT_CPU, (6, 6))` before the worker (what `ulimit -t 6`
   does) gives soft **5** s and hard **6** s; the spinning request ends with `SIGXCPU` (logged `signal=SIGXCPU`, never `SIGKILL`) as
-  the same 503. Before the fix the soft limit was 6 and the answer a 500 `internal_error`.
+  the same 503. Before the fix (`_worker.py`) a worker that inherited a finite hard limit clamped its soft limit to the hard one, so
+  the kernel sent `SIGKILL` instead of `SIGXCPU` and the answer was a 500 `internal_error`; now soft = hard - 1 s, the death is by
+  `SIGXCPU` and the answer is 503 `operation_timeout` with the detail "the operation exceeded the CPU time limit of its worker process".
 * *Recycling.* With `RETIRE_ANSWERS` = **1000** (asserted, not lowered) and the real operation `xml/root` (a root element
   `r<i>` in the request, so each answer says which request it answers): 1000 answers through one worker took **0.65-0.68 s**
   (about 0.65 ms per request through the ASGI application, the socket and the worker). The pid is the same for answers 1 to 999 and
@@ -488,6 +498,9 @@ this), 0 skipped, in each.
   parent-died case was **not** tested) and for a hard limit set from outside. The kernel counts CPU in whole seconds, so the limit is
   never below 3 s of CPU over the start-up, whatever the timeout (a short timeout is enforced by the wall clock of the parent, not by
   this limit). The 503 for the CPU limit has no `correlationId` in its body, unlike the 500; that is the contract as written and was left as is.
+  Also still open: a worker killed from outside, 413 `pending_body_too_large`, 413 `memory_budget_exceeded` and a client that
+  disconnects were not reached by the probe in the N2 demo (they cannot happen there or need container access); they are covered by the
+  process tests with real processes. Thread mode keeps its 3 strict `xfail`.
 
 The memory table was produced by the test measurement fixture (report values printed in the 'measurements' section of the pytest session), and its figures are the RSS of a fresh Python process, not cgroup totals.
 

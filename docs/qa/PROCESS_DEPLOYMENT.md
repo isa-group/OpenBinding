@@ -9,9 +9,48 @@ container. `compose.lab.json` (thread executor) is not modified and is the rollb
 | `compose.lab-process-n2.json` | `process` | 2 | 2 MiB | **recommended first** |
 | `compose.lab-process.json` | `process` | 1 | 6 MiB | second choice; the larger body |
 
-**Status: static only.** The manifests and the arithmetic below were checked by `lab/tests/test_lab_process_profiles.py`
-(no Docker). Nothing was started in a 256 MiB container. The figures marked *assumption* are not measured and must be
-confirmed in the real demo (see "Assumptions to confirm").
+**Status: `compose.lab-process-n2.json` is deployed and verified in the real demo (see "Result of the real deployment of
+N2").** The manifests and the arithmetic below were also checked statically by `lab/tests/test_lab_process_profiles.py`.
+`compose.lab-process.json` (N=1, 6 MiB) was **not** needed and was not deployed. The sections after the result are the
+plan that was followed; the figures marked *assumption* there were replaced by the measurements in the result.
+
+## Result of the real deployment of N2
+
+Code deployed: `ce7229b2` (with the tests and documents of that moment); the code of `bim-service` is that of `67e8e878`
+(worker fix `c67116ba`). Container: the real demo, `mem_limit` 256 MiB, 1.5 CPUs, `pids_limit` 256, unchanged; the sum of
+`mem_limit` stays 4032 MiB. Profile: `compose.lab-process-n2.json` (body 2 MiB, 2 slots, budget 16 MiB, pending 4 MiB, acquire
+2000 ms, per-tenant 0). The recommendation of this page (N2 first) was followed and met; N1 was not needed.
+
+* **Start.** Correct. The service validated its own fit rule: required 261724569 of 268435456 bytes, headroom 6710887 bytes,
+  with the conservative figures of the probe (the same as the conservative column below). `GET /bim/v1/capabilities` published
+  the profile honestly.
+* **Smoke.** 9/9 in process mode (code `67e8e878`, seed operation of `lab_compose`).
+* **Memory** (`lab_compose metrics`):
+
+| Moment | Parent (PID 1) RSS | Workers RSS | cgroup `memory.current` / `memory.max` | `oom_kill` | pids |
+| --- | --- | --- | --- | --- | --- |
+| Before the load | 61.6 MB | 54.7 and 54.1 MB (pids 10 and 11) | 127156224 / 268435456 | 0 | not recorded |
+| After the probe | 67.6 MB (peak 68.9 MB) | 53.8 and 53.5 MB (pids 45 and 47: replaced by the real timeout) | 133955584 / 268435456 | 0 | 6 |
+
+  `lab_compose metrics` reports bytes (`rss_bytes`); "MB" above is decimal MB. The parent grew from 61.6 MB before the load
+  to 67.6 MB (67604480 B = 64.5 MiB; peak 68.9 MB) after the probe, i.e. above the conservative `P` of 62914560 B (60 MiB)
+  used by the fit rule, which was checked at start. Recomputed with P = 67604480 B the fit rule requires 266414489 B, below
+  268435456 B (headroom about 2.0 MB), so it still fits. The cgroup stayed at 133955584 of 268435456 bytes with `oom_kill` 0.
+* **Probe** (`openbinding-gateway/tools/process_probe.py`, code `ce7229b2`, profile `compose.lab-process-n2-probe.json` = N2 with
+  operation timeout 3 s): exit 0, `ok=true`, 24.3 s in total. Details in [PROCESS_PROBE.md](PROCESS_PROBE.md).
+* **Not reached in N2 by the probe** (stated as is): 413 `pending_body_too_large` and 413 `memory_budget_exceeded` (they cannot
+  happen in N2), a worker killed from outside, and a client disconnect in the demo. They are covered by tests with real
+  processes (`bim-toolchain/packages/bim-service/tests/test_process_executor.py`), not by the probe in the container.
+* **Rollback:** `lab_compose up file=compose.lab.json` (thread mode, unchanged file).
+
+### Operational incident during this work (own mistake)
+
+`lab_compose up` with an `environment` **replaces** the private environment stored from the earlier `up`; it does not merge
+it. A partial set sent with `up` lost the synthetic PostgreSQL password (`DEMO_PG_PASSWORD`) of `lab-pg-3`. It was recovered
+without data loss with the one-shot manifest `compose.lab-pgreset.json` (commit `08851b00`; `ALTER ROLE` through the local
+socket, procedure in [PG_ROLE_RESET.md](PG_ROLE_RESET.md)) and the stack was started again with the complete set of
+variables. The BIM token variable must be at least 32 characters. The other services were healthy after the restart. No value
+is recorded here, only variable names. Rule: always send the complete `environment` with `up`, or none.
 
 Both process manifests are `compose.lab.json` with a different environment for `bim-service` and nothing else: the same
 project name, volumes, passwords, users, authentication, the other ten services and the sum of `mem_limit`

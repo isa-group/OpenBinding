@@ -118,7 +118,18 @@ so I cannot state the exact split. 22 skipped: reasons not visible in the trunca
 guard in this suite fails rather than skips under `BIM_REQUIRE_CORPUS=1`, so they are not missing-corpus skips of that
 guard).
 
-## 6. State of the skip and what is needed
+## 7. Update: the skip at `test_boundary.py:198` is closed (commit `224037ba`)
+
+The skip was an **obsolete test**: the original vendor directory of the gateway (`openbinding_gateway/v1/vendor/omg/bpmn/2.0.2/`)
+no longer exists after the extraction, so the comparison could never run. The test now checks the vendored OMG BPMN 2.0.2 files
+of `bim-core` against the SHA-256 table of the vendored README (exactly 5 files), and against the original directory only if it
+exists; a negative test with `tmp_path` shows it detects a changed file. Result of `bim-core/tests` with `BIM_REQUIRE_CORPUS=1`:
+**1222 passed, 0 skipped, 69 xfailed** (64 IR MAJOR in `test_zip_dir_equivalence_corpus.py`, 4 `unordered-*`, 1 `has()` on an
+interval; untouched). The corpus root is the repository root (marker `examples/demo/01_simple_seq/instance.json` present) and no
+test skips for the corpus. Sections 3 and 6 below describe the state before this change. The head validation of the whole
+suite is in [FINAL_VALIDATION.md](FINAL_VALIDATION.md).
+
+## 6. State of the skip and what is needed (before commit `224037ba`)
 
 * The `BIM_CORPUS_ROOT` is correct and the 82-package corpus is reachable: the corpus tests ran with `BIM_REQUIRE_CORPUS=1`
   and 0 failures.

@@ -114,7 +114,11 @@ that limits a compromised process. Consequences for the lab:
   `compose.lab.json` only in the environment of `bim-service`, so the memory sum stays
   4032 MiB, and `compose.lab.json` is the rollback. Profiles, fit rule, activation with
   `lab_compose up file=...` and what to verify: [qa/PROCESS_DEPLOYMENT.md](qa/PROCESS_DEPLOYMENT.md).
-  Checked statically only (`lab/tests/test_lab_process_profiles.py`).
+  **The demo currently runs `bim-service` in process mode with `compose.lab-process-n2.json`** (2 workers, body 2 MiB, so
+  `GET /bim/v1/capabilities` publishes 2 MiB, not 16 MiB), deployed and probed in the real 256 MiB container (smoke 9/9,
+  probe exit 0, `oom_kill` 0; see the deployment and probe documents). The sum of `mem_limit` is still 4032 MiB.
+  The 16 MiB / thread description above is `compose.lab.json`, the rollback (`lab_compose up file=compose.lab.json`).
+  `compose.lab-process.json` (N=1, 6 MiB) was not deployed.
 - Not executed: the image build, `up` and the new ownership have not been run (no
   Docker in the authoring environment); only the static checks cover them.
 

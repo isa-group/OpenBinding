@@ -5,12 +5,32 @@
 pending bodies 4 MiB, acquire timeout 2000 ms; `docs/qa/PROCESS_DEPLOYMENT.md`) behaves in the container as its
 documentation says. It is a tool of the gateway image, so it runs with `lab_compose seed` and needs nothing new installed.
 
-**Status: written and tested against an in-process service, not yet run in the real demo.** The tests
+**Status: written, tested against an in-process service, and run in the real demo (result below).** The tests
 (`openbinding-gateway/tests/test_process_probe.py`) serve a real `bim_service` application with uvicorn on a loopback
 port, once with the thread executor and a costly operation replaced by a sleep, and twice with real worker processes
-(including a run of every step plus the timeout probe with the N2 figures). Nothing was measured in a 256 MiB container
-with 1.5 CPUs; the figures that depend on that are for the coordinator to read from the report and from
-`lab_compose metrics`.
+(including a run of every step plus the timeout probe with the N2 figures).
+
+## Result of the real run (N2, 256 MiB, 1.5 CPUs)
+
+Probe code `ce7229b2`, manifest `compose.lab-process-n2-probe.json` (N2 with operation timeout 3 s), `--timeout-probe`.
+**Exit code 0, `ok=true`, total duration 24.3 s.**
+
+| Step | Checks | Figures |
+| --- | --- | --- |
+| `capabilities` | 16 | profile published as expected |
+| `valid_operations` | 84 | |
+| `hostile_small` | 55 | |
+| `large_bodies` | 13 | body at the limit (2097152 B): 200 in 10.1 ms; two held bodies: 200 and 429 `memory_budget` |
+| `saturation` | 9 | 16 clients: 4 x 200, 6 x 503 `service_busy`, 6 x 429 `pending_body_bytes` |
+| `healthz_under_load` | 11 | 112 samples, 112 in 200; p50 1.6 ms, p95 25.5 ms, max 31.7 ms |
+| `timeout_replacement` | 13 | real timeout 3.012 s -> 503 `operation_timeout`; 30 `/healthz` samples all 200, max 22.2 ms; the next normal request took 1.3 ms; 5 parallel normal requests OK |
+
+The metrics sampled around the run (`oom_kill` 0, cgroup 133955584 of 268435456 bytes, workers replaced) are in
+[PROCESS_DEPLOYMENT.md](PROCESS_DEPLOYMENT.md).
+
+**Not reached in N2 (not claimed):** 413 `pending_body_too_large` and 413 `memory_budget_exceeded`, a worker killed from
+outside, and a client disconnect in the demo. They are covered by tests with real processes, not by this probe.
+The text below describes the design of the probe; where it says "not yet run" in older wording, the result above applies.
 
 What it touches: only `bim-service`, only its public routes, limits and inputs, with synthetic data. No call to the
 gateway, the database, SPACE or SPHERE; no test hook of the service; nothing is written anywhere. The bearer token is

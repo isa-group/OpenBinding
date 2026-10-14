@@ -1,5 +1,58 @@
 # Final validation
 
+## Current record (process mode N2, SIGXCPU, recycling, corpus)
+
+Cabeza validada: `ce7229b` (the base commit `ce7229b`, short SHA taken from the git status of the start of this task; this
+worker has no shell, so `git rev-parse HEAD` could not be run and the full SHA is not recorded. The working tree had only the
+documentation changes of this task, which are not code, tests or manifests).
+
+Each check was run by this task through `qa_run`, by index, once, with no retries. The registered indexes of this contract
+are 0 to 5 (index 4 is the lab test suite, there is no frontend check in this contract).
+
+| Index | What | Exit | Result | Time |
+| --- | --- | --- | --- | --- |
+| 0 | `uv sync`, ruff, OpenAPI drift | 0 | `All checks passed!`; `The OpenAPI snapshot matches the code.` | not shown |
+| 1 | gateway `tests/test_[a-m]*.py` | 0 | 1825 passed, 10 skipped, 65 xfailed, 0 failed, 10 warnings | 236.56 s |
+| 2 | gateway `tests/test_[n-z]*.py` + `tests/concurrency` | 0 | 707 passed, 40 skipped, 1 xfailed, 0 failed, 2 warnings | 105.51 s |
+| 3 | bim-toolchain (`bim-core`, `bim-service`, `bim-client`), `BIM_REQUIRE_CORPUS=1` | 0 | 1819 passed, **0 skipped**, 73 xfailed, 0 failed, 1 warning | 434.35 s |
+| 4 | `lab/tests` | 0 | 154 passed, 0 skipped, 0 failed | 0.29 s |
+| 5 | changelog, `git diff --check` | 0 | `changelog-ok` | not shown |
+
+* Skips in 1 and 2 are the same as in the earlier records below: 3 PostgreSQL row-lock, 2 slow baseline (`BIM_BASELINE_FULL=1`),
+  5 legacy generator jar not built (check 1); 40 `requires PostgreSQL: set TEST_DATABASE_URL` (check 2). Check 3 has no skip: the
+  `test_boundary.py` skip is closed (see [CORPUS_RUN.md](CORPUS_RUN.md)).
+* xfails in 3: 73 (the 69 of `bim-core` plus 4 in `bim-service`, all strict and untouched: IR MAJOR divergence, the `unordered-*`
+  cases, `has()` on an interval, and the thread-mode ones). I did not see the split in this run's output.
+* Check 2 shows 707 passed against 689 in the earlier record: the count changed since the previous SHA; I did not investigate why.
+* Measurements printed by check 3 (informational) include the real-kernel tests: SIGXCPU delivered with soft 4 s (worker died at
+  4.00 s of CPU, 3.79 s after admission; 503 `operation_timeout`; `/healthz` 156 probes all 200, slowest 13 ms; one replacement; 15
+  descriptors before and after), and the recycling: 1000 answers through one worker in 0.66 s, replaced after the 1000th; 2200 answers
+  through 2 slots in 1.56 s with 2 workers retired after exactly 1000 answers each. Fit rule for the lab thread settings: 655260057
+  bytes against 268435456, fits False; largest body that fits: 2 MiB (N=2) and 6 MiB (N=1).
+* Not run by this task and recorded by the coordinator (not verified here): `bim-core` 1222 passed / 0 skipped / 69 xfailed
+  after the corpus change; `bim-service` + `bim-client` 597 passed / 0 skipped / 4 xfailed; the demo in process mode N2
+  (fit rule validated at start, smoke 9/9, probe exit 0 with `ok=true`, `oom_kill` 0; see
+  [PROCESS_DEPLOYMENT.md](PROCESS_DEPLOYMENT.md) and [PROCESS_PROBE.md](PROCESS_PROBE.md)). The frontend, Playwright and the
+  PostgreSQL 16 harness were not re-run in this contract; their records below are of earlier SHAs.
+
+### Parent memory in the N2 demo
+
+`lab_compose metrics` reports bytes (`rss_bytes`); the figures in MB are decimal. The parent (PID 1 of `bim-service`) was
+61.6 MB before the load and 67.6 MB (67604480 B = 64.5 MiB; peak 68.9 MB) after the probe, above the conservative `P` of
+62914560 B (60 MiB) of the fit rule. With P = 67604480 B the rule requires 266414489 B against 268435456 B (headroom about
+2.0 MB): it still fits.
+
+### What is closed and what is not
+
+* Closed: the worker CPU-limit bug (SIGKILL/500 became SIGXCPU/503); SIGXCPU and the 1000-answer recycling tested with real
+  processes; the `test_boundary.py` skip; process mode N2 deployed and probed in the 256 MiB demo.
+* Not closed: the parent-died case is not tested; natural SIGXCPU with equal budgets needs native multithreaded code without the GIL
+  (not built); the kernel counts CPU in whole seconds; thread mode keeps 3 strict `xfail`; the 64 + 4 IR MAJOR xfails and the `has()`
+  xfail are untouched; not reached by the probe in the demo: 413 `pending_body_too_large`, 413 `memory_budget_exceeded`, a worker
+  killed from outside, a client disconnect.
+
+## Earlier record (d239de47)
+
 SHA: `d239de47fff91f424ea3b067638785d8716ccbe2`
 
 Every check below was run through `qa_run` on this SHA with no code changes, one
