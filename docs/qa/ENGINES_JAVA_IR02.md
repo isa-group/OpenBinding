@@ -166,16 +166,31 @@ the job thread in the 1.5 s after the cancel.
 * The harness itself: package determinism, brute-force space, a truthful result agrees, a lie (`OPTIMAL`, forged
   features and score) is lowered and replaced, `/proc` CPU readings.
 
-## 5. NOT RUN, and limits of this evidence
+## 5. Lab run (current) and what was NOT run
 
-* **`compose.lab-engines-java.json` — NO EJECUTADO.** It re-runs the JUnit suites in the engines' own builder stages (the
+**Lab run, `compose.lab-engines-java.json` at `31b7de6f` (reported by the controller, Docker real; this document did not
+re-run it).** The JUnit suites ran in the engines' own builder stages: JDK 8 (seed, builder of `random-search`) and JDK 21
+(evolutionary). `binding-core` 56 tests (25 `CanonicalEvaluatorConformanceTest` + 17 `EngineJobsTest` + 14 `EngineHttpTest`);
+`random-search` 12 (4 `V1RandomSearchTest` + 8 `RandomSearchCancelTest`); `many-heuristic` 11 (3 + 8); `multi-heuristic` 12 (3 + 9);
+`evolutionary-heuristics` 13 (5 + 8 `EvolutionaryCancelTest`). All 0 Failures, 0 Errors, 0 Skipped. Before the fix of `31b7de6f`
+the services failed with `cp: Permission denied` (mode 700 of the builder's `COPY`); `RUN chmod -R a+rX /app` was added to the
+four Dockerfiles. The Java engines are synchronous by default; remote cancellation is opt-in with `ENGINE_JOB_MODE=async`, and
+in the lab they were **not** run in async mode behind the gateway (**NO EJECUTADO** end to end).
+
+What follows is the worker-time list of limits; the first item is **superseded** by the run above.
+
+* ~~**`compose.lab-engines-java.json` — NO EJECUTADO.**~~ (Superseded: executed in the lab, see above.) At the time of
+  writing: it re-runs the JUnit suites in the engines' own builder stages (the
   JDK 8 of the production images, and JDK 21 for the evolutionary engine). The worker has no Docker; only its static
   rules ran (`lab/tests/test_lab_engines_java_profile.py`, part of the 35 above). It reuses the existing Dockerfile
   stages because adding a Dockerfile was outside the allowed files, and it needs network access to Maven Central when it runs.
-* **No run on a JDK 8 runtime.** The container's JDK is newer; the modules are compiled with `source/target 1.8` (not
-  `--release 8`), so a Java 9+ API used by mistake in the Java 8 modules would compile here and fail on the production
-  image. The new code was written against Java 8 APIs only (reviewed, not machine-checked); the compose profile would check it.
-* **The gateway does not call `DELETE`.** Only the engines were changed; `remote_attempts` is the other worker's.
+* **No run on a JDK 8 runtime in the worker.** The container's JDK is newer; the modules are compiled with `source/target 1.8`
+  (not `--release 8`), so a Java 9+ API used by mistake would compile here. The lab run above executed the tests on JDK 8
+  (builder stage), which covers the test phase; a JDK 8 *runtime* of the production image behind the gateway was not run.
+* **The gateway does not call `DELETE` for the Java engines.** (Superseded in part: since G2 the gateway sends `DELETE` for
+  running jobs of an engine whose registration declares the capability; the bundled registrations declare it only for
+  `minizinc-csp` or for names in `ENGINE_CANCELLATION_BUILTIN`. The Java engines in async mode behind the gateway are
+  **NO EJECUTADO**.)
 * **Timing-based assertions** (CPU, stop latency) are tolerant by design; on a heavily throttled host the CPU-burn
   precondition of the JUnit scenarios could still fail.
 * **`multi-heuristic` has no manifest in `schemas/bim/v1/manifests`**; its declared guarantees come from the federation

@@ -4,6 +4,19 @@ Scope: `random-search`, `many-heuristic`, `multi-heuristic` and `evolutionary-he
 share `engines/binding-core`. `minizinc-csp` has its own implementation (`docs/qa/ENGINE_CANCELLATION.md`, written
 together with its code); `bim-generator` is a command-line tool, not an engine, and is out of scope.
 
+**Current status (head `31b7de6f`, 2026-10-14; reported by the controller, not re-run here).** The JUnit suites of the four
+engines ran in Docker (`compose.lab-engines-java.json`): `binding-core` 56 tests (25 `CanonicalEvaluatorConformanceTest` + 17
+`EngineJobsTest` + 14 `EngineHttpTest`) on JDK 8 (seed, builder of `random-search`) and on JDK 21 (evolutionary);
+`random-search` 12 (4 + 8 `RandomSearchCancelTest`), `many-heuristic` 11 (3 + 8), `multi-heuristic` 12 (3 + 9),
+`evolutionary-heuristics` 13 (5 + 8 `EvolutionaryCancelTest`); all 0 Failures/Errors/Skipped. Before the fix the services failed
+with `cp: Permission denied` (mode 700 of the builder's `COPY`), corrected with `RUN chmod -R a+rX /app` in the four Dockerfiles.
+In the worker (no Docker) the same JUnit give 104 tests and the Python e2e with real `java` processes (`engines/e2e`) 35 passed.
+The engines are **synchronous by default**; remote cancellation is opt-in with `ENGINE_JOB_MODE=async`. The bundled registrations
+declare the capability only for `minizinc-csp` (`BUILTIN_CANCELLATION`) or for the names in `ENGINE_CANCELLATION_BUILTIN`. In the
+lab the Java engines were **not** run in async mode behind the gateway: **NO EJECUTADO** end to end; their cancellation is proven
+at engine level (JUnit with thread and CPU readings) and by the local Python e2e. The gateway does send `DELETE` for running jobs
+(G2) to an engine whose registration declares the capability: [ENGINE_CANCELLATION_E2E.md](ENGINE_CANCELLATION_E2E.md).
+
 Before this work these engines were **synchronous**: `POST /internal/v1/binding-problems` answered `200` with the
 result when the search ended. A synchronous POST has no job id, so there was nothing a client could cancel: closing
 the connection did not stop the search, which kept a thread and a core busy until its budget ran out.
@@ -31,7 +44,7 @@ in the `/openapi.json` that an asynchronous engine serves. A client must read th
 `DELETE`; an engine without it (every engine in synchronous mode) answers `404`/`405`. `idScope: "attempt"` means the
 id names one execution attempt, that is, one accepted POST, and not a logical job of the platform: re-submitting
 creates another attempt with another id. This is the same shape `minizinc-csp` implements (see
-`docs/qa/ENGINE_CANCELLATION.md` once that change is integrated).
+`docs/qa/ENGINE_CANCELLATION.md`).
 
 ## Configuration
 
@@ -131,8 +144,10 @@ contract: `cancelling` is shown as `running`, and `cancelled` as `failed` with a
   holds the job (the id gives no hint of which).
 * **No TLS.** As before, the engines speak plain HTTP and expect to sit on an internal network; the bearer token
   is only as private as that network.
-* **The gateway does not use `DELETE` yet.** This change gives the engines the capability and a reference
-  protocol; calling it from `remote_attempts` is the gateway's part.
+* **The gateway and the Java engines.** (Superseded in part.) This change gave the engines the capability and a reference
+  protocol. The gateway now sends `DELETE` for running jobs (G2) when the job's registration declares the capability, but the
+  bundled registrations do not declare it for these engines unless `ENGINE_CANCELLATION_BUILTIN` names them; that path was not
+  run end to end (**NO EJECUTADO**).
 
 ## Tests
 
@@ -164,9 +179,10 @@ the malformed-configuration refusals and the tenants on a real process. Its resu
 `compose.lab-engines-java.json` is a one-shot profile (`seed`, non-root, size-capped tmpfs, no published port) that
 re-runs the JUnit suites of the four engines inside the `builder` stage of each engine's own Dockerfile: the JDK 8 of
 the production images for `engines-java-random-search`, `engines-java-many-heuristic` and
-`engines-java-multi-heuristic`, and JDK 21 for `engines-java-evolutionary`. **NO EJECUTADO** by the worker (no
-Docker there); `lab/tests/test_lab_engines_java_profile.py` checks it statically. It needs network access to Maven
-Central at run time (surefire is not in the builder images). No new Dockerfile was added, so the profile reuses the
+`engines-java-multi-heuristic`, and JDK 21 for `engines-java-evolutionary`. The worker had no Docker (it was then **NO
+EJECUTADO** there; `lab/tests/test_lab_engines_java_profile.py` checks it statically); it **ran in the lab at `31b7de6f`** with
+the figures in the current status above. It needs network access to Maven Central at run time (surefire is not in the builder
+images). No new Dockerfile was added, so the profile reuses the
 existing stages; the end-to-end Python run is not in a container.
 
 To run one service with the lab tool: `lab_compose up file=compose.lab-engines-java.json profile=seed

@@ -3,9 +3,42 @@
 At `c2d46151` the lab seed reported, in `recompileFailed`, one old synthetic snapshot that
 `recompile_stale_snapshots` (`services/snapshots.py`, [IR_CUTOVER.md](IR_CUTOVER.md)) could not compile again with the
 installed `bim-toolchain` 0.2.0: code `invalid_instance` ([JOINT_STATUS.md](JOINT_STATUS.md), [DEMO.md](../DEMO.md)). The
-seed left it as it was, as designed, and printed only the code. **The reason is not known:** nobody has read the stored
-package or the compiler's findings for it. This document covers what was built so that the controller can read it, and what
-happens to the snapshot whichever way it turns out. It does not say what the cause is.
+seed left it as it was, as designed, and printed only the code.
+
+## Result of the real diagnosis (head `ea955411`, 2026-10-14)
+
+Reported by the controller; this document did not re-run it. `tools/diagnose_snapshots.py` was run in the lab, read only. **The
+cause is now known** (the sentence "the reason is not known" of the first version of this document is **superseded**).
+
+| | |
+|---|---|
+| Snapshot | `648a0d79-2fb4-4b7a-bf62-e02106ca0c53`, name `demo_01_simple_seq`, owner `lab-owner`, created 2026-10-13, 2777 B |
+| `packageDigest` | `sha256-0b4eb998...c12a4` (abbreviated as reported) |
+| Pinned by | revision 1 of the case `simple-seq` of `lab-main/bim-demo` |
+| Jobs using it | 30 |
+| Report | `compilerError` code `invalid_instance`, diagnostic `contract_not_installed` at `/spec/contracts` of `instance.json`: "An exact pinned contract is not installed" |
+
+**Cause.** The 0.1.x package pins an exact version of a contract (profile / dialect) that toolchain 0.2.0 no longer installs.
+The package is really invalid for 0.2.0. It is **not** a recompilation bug and **not** a loss of information: the package has no
+registered resources (`registeredResources` empty). Its compilation cannot be repaired in place.
+
+**What was done (the first branch of "Decision branches" below).** Nothing was deleted or rewritten. The snapshot, its package,
+its IR, revision 1 and its 30 jobs are kept as evidence. Launching it answers `422 snapshot_not_recompilable` with a `reason`;
+the API says so and the UI maps the code (`frontend/src/pages/Cases/caseErrors.ts`). Revision 2 of the case (new seed, another
+snapshot) does run.
+
+**Residual risk, not decided.** The same diagnosis listed two more stale snapshots, of other owners (`lab-member`, prefix
+`4d76d948...`; `lab-viewer`, prefix `4b8eaec4...`), with status `blocked` and code `snapshot_conflict`. Their package does compile
+with 0.2.0, but a copy of the same package, used by 4 jobs, holds the identity (owner, package, `compilation_digest`) and cannot
+be deleted. No case revision pins them. They remain stale: launching them answers the `recompile` 422 although the recompilation
+is blocked. It was **not decided** to delete anything.
+
+The sections that follow were written before the diagnosis; where they say the cause is unknown or the frontend has no entry,
+that is superseded by this section.
+
+*Original text (historical):* the reason was not known; nobody had read the stored package or the compiler's findings. The rest
+of this document covers what was built so that the controller could read it, and what happens to the snapshot whichever way it
+turns out.
 
 Nothing here deletes, hides or rewrites a snapshot, its package, its IR or the case revision that pins it. "Repaired" is never
 "deleted": a corrected package is a new snapshot and the old one stays as evidence.
@@ -72,9 +105,9 @@ migration; the cost is one compilation per launch attempt of such a snapshot, ne
 wanted later (for a listing in the UI, say) it needs a column on `v1_instance_snapshots`, a migration, and a decision on who
 writes it: out of scope here, and not needed for the behaviour above.
 
-**Frontend:** `frontend/src/pages/Cases/caseErrors.ts` maps `contract_not_installed` among the dialect codes; it has no entry
-for `snapshot_not_recompilable` yet. The API's `detail` is complete text, but how the UI renders a code it has no entry for was
-not checked. A dedicated message is a follow-up for whoever owns the frontend; this task does not touch it.
+**Frontend:** `frontend/src/pages/Cases/caseErrors.ts` maps `contract_not_installed` among the dialect codes and, now, also
+`snapshot_not_recompilable` (verified by reading the file). (The first version of this document said it had no entry yet:
+superseded.)
 
 ## Running the tool in the lab
 
@@ -96,7 +129,15 @@ The toolchain it compiles with is the one the seed container is configured for (
 `seed_lab.py` used when the snapshot failed. If it cannot answer, the report says so (`toolchain.error`, status `undetermined`)
 and no snapshot is blamed.
 
-## Decision branches (once the real report is read)
+## Decision branches
+
+**Branch chosen (real report read at `ea955411`): the first row.** `status: not_recompilable`, `registeredResources: []`, and the
+diagnostic `contract_not_installed` points into the package (`/spec/contracts` of `instance.json`): the package is really
+invalid for the installed compiler (the pinned contract version is not installed in 0.2.0). Nothing is repaired in place; the
+snapshot, package and revision stay; launching answers `snapshot_not_recompilable` with that reason; revision 2 of the case is the
+way forward. The second row (information lost on recompilation) was **discarded** by the report: no registered resources. The
+other rows did not apply to this snapshot. For the two `blocked` snapshots of other owners the last row applies ("an operator
+decides") and no decision was taken. The table is kept as it was written, as the reference for any other snapshot.
 
 | What the report shows | What it means | What to do |
 | --- | --- | --- |
@@ -127,10 +168,13 @@ is bounded and redacted; one failure does not undo another snapshot's recompilat
 
 ## Not verified
 
-- **The real snapshot.** Nothing here was run against the lab's data; the cause of its `invalid_instance` is unknown.
-- **PostgreSQL:** the tool's `SET TRANSACTION READ ONLY` and the rollback-only session ran in no test (SQLite has no such
-  statement; the tool checks the dialect). The `PG_REAL_RUN.md` tests cover the recompilation, not the tool.
+- **The real snapshot.** (Superseded: the tool was run against the lab's data at `ea955411`, see "Result of the real
+  diagnosis"; the cause is `contract_not_installed`.) The tests of this document remain synthetic.
+- **PostgreSQL:** the tool's `SET TRANSACTION READ ONLY` and the rollback-only session ran in no automated test (SQLite has no
+  such statement; the tool checks the dialect); its only PostgreSQL run is the lab diagnosis above. The `PG_REAL_RUN.md` tests
+  cover the recompilation, not the tool.
 - **HTTP toolchain mode:** the tests compile in process. With `BIM_MODE=http` the refusal comes through the service's problem
   document; `compile_refusal` handles `BimServiceError` by status, but no test uses a service.
-- **Frontend:** no message for the new code (see above).
+- **Frontend:** the code is mapped in `caseErrors.ts` (see above); the rendering of the message in the browser was not checked
+  by this document.
 - **Registered resources:** the diagnosis lists them but no test builds a package that pins one.

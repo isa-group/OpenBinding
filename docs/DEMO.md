@@ -4,8 +4,34 @@
 demo on one lab host. It is reached from a Mac through an SSH tunnel; the only
 thing published on the host is `127.0.0.1:18100`.
 
-**Current status (head `c2d46151`, 2026-10-14).** The figures below are those reported by the coordinator for that head; this
-document did not re-run them. The numbers of earlier observations (`b2780381`, `5aebc7c8`) are kept after them, tied to their SHA.
+**Current status (head `31b7de6f2002fb4b5e5f0c549a3bd4a2a2818fa2`, 2026-10-14).** Figures reported by the controller from the real
+Docker laboratory (rootless, 256 MiB for `bim-service`); this document did not re-run them. Functional commits: `80ad32d4`,
+`f5acbd70`, `ea955411`, `59ef9749`, `31b7de6f`. The observations of `c2d46151`, `b2780381` and `5aebc7c8` follow, tied to their
+SHA, as history.
+
+Demo N1 (`compose.lab-process.json`: 1 process, body 6291456 B, 256 MiB) at `31b7de6f`:
+
+| Item | State | Result |
+|---|---|---|
+| `seed_lab` | **Closed** | Idempotent |
+| `smoke_lab` | **Closed** | **9/9**: `proxy_and_spa`, `login`, `owner_job`, `idempotency`, `authorization` (24 checks), `concurrency_limit`, `cors`, `body_limit`, `login_throttle`. `plan_usage` skipped (SPACE on hold) |
+| Playwright desktop + mobile | **Closed** | **30 passed, 0 failed, 0 skipped**, 0 visual problems (`E2E_SUMMARY passed=30`); screenshots reviewed: 131 images including `screenshots/_summary.png` |
+| `process_probe.py` N1 with the five N1 `--expect` and `--timeout-probe --expect-operation-timeout 3` | **Closed** | exit 0, `ok` true, 6 steps: `capabilities` 16 checks (fit: required 265918873 of 268435456 B, headroom 2516583 B); `valid_operations` 84; `hostile_small` 55; `large_bodies` 13 (6291456 B body => 200 in 30.9 ms; two retained bodies 200 and 200); `saturation` 9 (8 clients: 3 x 200, 5 x 503 `service_busy`); `healthz_under_load` 11 (116 samples, all 200; p50 1.5 ms, p95 1.8 ms, max 2.0 ms); `timeout_replacement` 12 (503 `operation_timeout` at 3.467 s; 35 `/healthz` samples all 200, max 2.4 ms; the next normal request 1.9 ms) |
+| Real timeout and replacement with one slot in N1 | **Closed** (was PENDING in the `c2d46151` status) | the `timeout_replacement` step above |
+| Memory of `bim-service`, demo idle | **Measured** | cgroup 88-95 MiB of 256 MiB, `oom_kill` 0; parent RSS 59.7 MB (peak 59.7), child 53.9 MB (peak 56.8-57.1) |
+| Remote cancellation end to end | **Closed** | `tools/cancel_probe.py` via `lab_compose seed` with `DEMO_SEED_TOOL=cancel_probe.py`: `passed`, `ok` true, 9 checks ok, 0 findings; job `cancelled` about 1.0 s after `POST /v1/jobs/{id}/cancel` ([qa/ENGINE_CANCELLATION_E2E.md](qa/ENGINE_CANCELLATION_E2E.md)) |
+| Snapshot `invalid_instance` of the seed | **Cause found** | the 0.1.x package pins a contract version that 0.2.0 does not install (`contract_not_installed`); kept as evidence, 422 `snapshot_not_recompilable`; revision 2 of `simple-seq` runs ([qa/SNAPSHOT_INVALID_INSTANCE.md](qa/SNAPSHOT_INVALID_INSTANCE.md)) |
+| Two stale snapshots of other owners (`lab-member`, `lab-viewer`) | **Open, residual risk** | status `blocked` (`snapshot_conflict`); not decided to delete |
+| PostgreSQL 16 real | **Closed** | 113 passed, 0 skipped, 0 failed at `59ef9749` ([qa/PG_REAL_RUN.md](qa/PG_REAL_RUN.md)) |
+| Lab with SPACE enabled and real contracts | **NO EJECUTADO** | SPACE on hold, zero calls; `DEMO_SPACE_ENABLED=false` |
+| By-eye mobile/desktop check | **Manual**, not recorded as done | the automated visual QA found 0 problems |
+
+Operations: jobs queued before a deployment pin the previous version of the bundled engine registration and fail with
+`registration_changed`; drain the queue or let them finish before `up`. A first `process_probe.py` run without the N1 flags gave
+`ok` false because it expected the N2 values; that was a wrong use of the probe, not a service failure.
+
+Where the history below says "PENDING" for the N1 timeout, "one old snapshot ... `invalid_instance`" without a cause, or 70
+passed for PostgreSQL, it is **superseded** by the table above.
 
 - The demo runs `bim-service` in **process mode, profile N1** (`compose.lab-process.json`: 1 process, body up to **6 MiB**, the
   256 MiB container intact). This is the human's decision of 2026-10-14; N2 (`compose.lab-process-n2.json`: 2 workers, 2 MiB) is
@@ -21,8 +47,8 @@ document did not re-run them. The numbers of earlier observations (`b2780381`, `
   2026-10-14T13:41:20Z). `docs/qa/E2E_PLAN.md` still has the older wording ("written, not executed"); the run supersedes it.
 - The PostgreSQL 16 concurrency harness gave **70 passed, 0 skipped** at `bef53047` (67 plus 3 plan-concurrency tests;
   migrations up to `b6c7d8e9f0a1`); it runs separately from the lab, see [PG_HARNESS.md](qa/PG_HARNESS.md).
-- **Pending, no evidence yet:** the real timeout and replacement with one slot in the N1 container
-  (`compose.lab-process-n1-probe.json`, task P, in progress).
+- **Pending, no evidence yet** (at `c2d46151`; **superseded**: measured at `31b7de6f`, see the current status): the real
+  timeout and replacement with one slot in the N1 container.
 
 **Observation at `b2780381`, 2026-10-14 (history; the demo then ran N2, which is superseded as the profile in force):** smoke
 9/9, Playwright 30 passed / 0 failed / 0 skipped, PostgreSQL 67 passed / 0 skipped.
@@ -40,8 +66,8 @@ document did not re-run them. The numbers of earlier observations (`b2780381`, `
   file, the image `frontend/Dockerfile.e2e` and the sequence below had been checked statically only; they have been built and
   run since (the Playwright result above).
 
-**Still not executed**: the by-eye mobile/desktop check (it stays manual, see "Mobile and desktop check"), and the lab with
-`DEMO_SPACE_ENABLED=true` and real contracts (SPACE has no service or contracts,
+**Still not executed** (also at `31b7de6f`): the by-eye mobile/desktop check (it stays manual, see "Mobile and desktop check"),
+and the lab with `DEMO_SPACE_ENABLED=true` and real contracts (SPACE has no service or contracts,
 see "SPACE status"). The lab runs with
 `DEMO_SPACE_ENABLED=false`: an open development gate with no real entitlements.
 A static check also exists (`lab/tests/test_lab_compose.py`).
@@ -165,7 +191,7 @@ secrets**; use your own.
 | `DEMO_SPACE_DEFAULT_PLAN` | gateway, worker, seed (as `SPACE_DEFAULT_PLAN`) | `BASIC` (must exist in the pricing) |
 | `DEMO_SPACE_DEV_SERVICE` | gateway, worker and seed (as `SPACE_SERVICE_NAME`); seed also as `SPACE_DEV_SERVICE_NAME` | the name of a SPACE *development* service that exists in SPACE (for example `openbinding-dev`); the gateway and worker read and write contracts only on it, and `seed_lab.py --space-contracts` refuses `openbinding` (and any production name) and requires it to equal `SPACE_SERVICE_NAME` |
 | `DEMO_SPACE_DEV_PLAN` | seed **only** (as `SPACE_DEV_PLAN`) | a plan of that service's pricing version, for the contracts of the synthetic users |
-| `DEMO_SEED_TOOL` | seed | `seed_lab.py`, or `smoke_lab.py` for the API smoke (a file of `openbinding-gateway/tools/`; `seed_dev.py` also exists) |
+| `DEMO_SEED_TOOL` | seed | `seed_lab.py`, or `smoke_lab.py` for the API smoke (a file of `openbinding-gateway/tools/`; `seed_dev.py` also exists; `cancel_probe.py` and `diagnose_snapshots.py` were run the same way, see [qa/ENGINE_CANCELLATION_E2E.md](qa/ENGINE_CANCELLATION_E2E.md) and [qa/SNAPSHOT_INVALID_INSTANCE.md](qa/SNAPSHOT_INVALID_INSTANCE.md)) |
 | `DEMO_SEED_ARGS` | seed | `--verbose` for a seed, `--with-space` for the smoke (see "Seeding" and "API smoke") |
 | `DEMO_SEED_PASSWORD` | seed (`seed_lab.py`, `smoke_lab.py`) and e2e (the live specs sign the synthetic users in with it) | any synthetic value of 10+ characters; the supervisor injects it; `compose.lab.json` passes it only to `seed` and `e2e`, as `${DEMO_SEED_PASSWORD}` with no value and no default |
 | `DEMO_E2E` | e2e | `1` runs the live specs when the service starts; anything else (`0`, unset) only creates `/results/done` and sleeps. See "Browser specs and visual QA inside the lab" |

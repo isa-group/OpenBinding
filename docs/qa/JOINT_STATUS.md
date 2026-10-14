@@ -2,15 +2,52 @@
 
 State of the work that spans OpenBinding, the remote SPACE/SPHERE services and
 the BIM extraction. "Done" means the change exists in this tree; it does not mean
-it was exercised end to end. The first section is the **current view** (2026-10-14, head `c2d46151`); after it come the view of
-`b2780381` (phase 16, 2026-10-14, earlier the same day) and the view of 2026-10-13 at SHA `5aebc7c8`, both kept as history (rows
-and notes in them that were later settled are marked as superseded). Every figure is tied to the SHA it was measured on;
-evidence of one SHA is not attributed to another.
+it was exercised end to end. The first section is the **current view** (2026-10-14, head `31b7de6f`); after it come the view of
+`c2d46151` (earlier the same day), the view of `b2780381` (phase 16) and the view of 2026-10-13 at SHA `5aebc7c8`, all kept as
+history (rows and notes in them that were later settled are marked as superseded). Every figure is tied to the SHA it was
+measured on; evidence of one SHA is not attributed to another.
 
-## Current view (head `c2d46151`, branch `feat/openbinding-platform`, phase of 2026-10-14)
+## Current view (head `31b7de6f2002fb4b5e5f0c549a3bd4a2a2818fa2`, branch `feat/openbinding-platform`, 2026-10-14)
 
-Figures reported by the coordinator for this phase. This document did not re-run them; the only thing run for this change is
-the registered docs check.
+Figures reported by the controller from the real Docker laboratory (rootless, 256 MiB for `bim-service`). This document did not
+re-run them; the only thing run for this change is the registered docs check. Full detail and the artifact hashes:
+[FINAL_VALIDATION.md](FINAL_VALIDATION.md).
+
+Functional commits: `80ad32d4` (data B/C1/A2), `f5acbd70` (Java engines, PostgreSQL and frontend fixes), `ea955411` (licence
+per package), `59ef9749` (PostgreSQL test fix, C3, cancellation of running jobs), `31b7de6f` (permissions of the Java builder
+images).
+
+### Matrix: closed and pending
+
+| Area | State | Evidence (SHA) |
+|---|---|---|
+| PostgreSQL 16 real | **Closed**: 113 passed, 0 skipped, 0 failed in 24.31 s (20 federated engines, whose two former `xfail` now pass; 16 duplicate copy and purge; 7 `test_cancel_running_pg`; the rest `tests/concurrency`). One benign SAWarning. [PG_REAL_RUN.md](PG_REAL_RUN.md) | `59ef9749` (first run 105 passed, 1 failed, a test defect, at `ea955411`) |
+| MiniZinc real 2.6.4 | **Closed**: `engine-real-tests` 44/44, 0 skipped; `seed` 16 PASS, 1 NO EJECUTADO (process checks in `--url` mode, covered by the real tests), `engine_e2e: ok`, classified `optimal` after `bim_core.reevaluate` | `59ef9749` (43/44 at `ea955411`: a race of one test, fixed) |
+| Java engines in Docker | **Closed** as JUnit: `binding-core` 56, `random-search` 12, `many-heuristic` 11, `multi-heuristic` 12, `evolutionary-heuristics` 13; 0 Failures/Errors/Skipped on JDK 8 and JDK 21. Worker without Docker: 104 JUnit, Python e2e with real `java` 35 passed. [ENGINES_JAVA_IR02.md](ENGINES_JAVA_IR02.md) | `31b7de6f` (before: `cp: Permission denied`, fixed with `chmod -R a+rX /app`) |
+| Java engines in async mode behind the gateway | **NO EJECUTADO** end to end; cancellation proven at engine level and by local e2e. Default is synchronous; opt-in `ENGINE_JOB_MODE=async` | none |
+| Remote cancellation end to end (N1 demo) | **Closed**: `cancel_probe.py` `passed`, 9 checks ok, 0 findings; job `cancelled` about 1.0 s after `POST /v1/jobs/{id}/cancel`; `cancel_state=sent`. [ENGINE_CANCELLATION_E2E.md](ENGINE_CANCELLATION_E2E.md) | `31b7de6f` |
+| Snapshot `invalid_instance` | **Cause found**: the 0.1.x package pins an exact contract the 0.2.0 toolchain no longer installs (`contract_not_installed`). Kept as evidence, 422 `snapshot_not_recompilable`. [SNAPSHOT_INVALID_INSTANCE.md](SNAPSHOT_INVALID_INSTANCE.md) | `ea955411` |
+| 2 stale snapshots of other owners | **Open (residual risk)**: status `blocked` (`snapshot_conflict`); a copy used by 4 jobs holds their identity and cannot be deleted. Not decided to delete | `ea955411` |
+| Demo N1: seed, smoke, Playwright | **Closed**: seed idempotent; smoke 9/9 (`plan_usage` skipped, SPACE on hold); Playwright 30 passed, 0 failed, 0 skipped, 0 visual problems | `31b7de6f` |
+| Demo N1: real timeout and replacement | **Closed** (was PENDING): `process_probe.py` exit 0, `ok` true, 6 steps; 503 `operation_timeout` at 3.467 s, `/healthz` 35 samples all 200 | `31b7de6f` |
+| Memory of `bim-service` (N1, idle) | cgroup 88-95 MiB of 256 MiB, `oom_kill` 0; fit margin 2516583 B (tight) | `31b7de6f` |
+| Frontend | **Closed**: vitest 177 files, 2471 tests passed; `tsc -b`, eslint ok | tree of F1 (base `80ad32d4`) |
+| `bim-toolchain` | **Closed**: 2294 passed, 0 failed, 0 skipped, 3 xfailed; `verify_release` identical bit for bit; baseline 82 packages, 0 differences; gateway consumer 402 passed, 2 skipped | `ea955411` |
+| Licence | CC-BY-4.0 (holder `javiercavlop`, own material; OMG XSD and third parties not covered). The 5 OMG XSDs: redistribution **not demonstrated**, export blocks them by default; holder's decision pending | `ea955411` |
+| SPACE | On hold, zero calls | none |
+| Class B counters against a real SPACE | **NO EJECUTADO** | none |
+| Push, GitHub, real CI, Python 3.12, macOS of the export, `export_repo.py` on the Mac, `gh auth` of the operator | **NO EJECUTADO / pending**; nothing was pushed | none |
+| `Settings` and `REMOTE_CANCEL_*` | **Open**: `REMOTE_CANCEL_WATCH_INTERVAL_S` and `REMOTE_CANCEL_CONFIRM_TIMEOUT_S` are read in `services/execution.py`, not in `Settings` | `59ef9749` |
+
+Operational note: jobs queued before a deployment pin the previous version of the bundled registration and fail with
+`registration_changed`; drain the queue or let them finish.
+
+The earlier statements "no engine implements `DELETE`", "PostgreSQL tests not executed", "`invalid_instance` cause unknown",
+"N1 timeout PENDING" and "no licence chosen" in the views below are **superseded** by this view.
+
+## View of `c2d46151` (history, 2026-10-14; superseded where marked)
+
+Figures reported by the coordinator for this phase. This document did not re-run them.
 
 ### Human decisions of 2026-10-14 (resolved; they are no longer pending)
 
@@ -49,12 +86,14 @@ the registered docs check.
    contracts; the lab runs with `DEMO_SPACE_ENABLED=false`. Native SPACE counters and limits are **not measured** against a real SPACE.
 2. **Class B counters and `federatedEngines`**: not measured against a real SPACE. The `UsageCounterSource` port only has a
    synthetic source, so they are not applied.
-3. **Rights and licences** (code, schemas, OMG XSD): no licence chosen (`NOTICE.md`).
+3. **Rights and licences** (code, schemas, OMG XSD): no licence chosen (`NOTICE.md`). (**Superseded:** CC-BY-4.0 for the own
+   material; the OMG XSD decision stays open, see the current view.)
 4. **Limited Git credential** for the private repository `javiercavlop/bim-toolchain`, and **publication**: pending outside this
    tree; nothing has been pushed or published.
-5. **Real timeout and replacement with one slot in the N1 container: PENDING, no evidence yet.** Only N2 (probe at `ce7229b2`)
-   and tests with real processes exercised it. It will be done with `compose.lab-process-n1-probe.json` (task P, in progress).
-6. One old snapshot does not recompile under the new IR (`invalid_instance`), see the seed row above.
+5. **Real timeout and replacement with one slot in the N1 container: PENDING, no evidence yet.** (**Superseded:** measured at
+   `31b7de6f`, see the current view.) Only N2 (probe at `ce7229b2`) and tests with real processes exercised it then.
+6. One old snapshot does not recompile under the new IR (`invalid_instance`), see the seed row above. (**Superseded:** the
+   cause is known, see the current view.)
 7. The by-eye mobile/desktop check stays manual, and the lab with SPACE enabled was not executed.
 8. In N1 the fit rule with conservative figures leaves little room: required 265918873 B of 268435456 B, headroom 2516583 B
    (**tight**). Details in [PROCESS_DEPLOYMENT.md](PROCESS_DEPLOYMENT.md).

@@ -1,9 +1,19 @@
 # Remote cancellation of engine jobs (C1: `engines/minizinc-csp`)
 
-**Status.** Implemented and tested in the worker with a *fake* MiniZinc that is a real child process. The tests
-against the *real* MiniZinc are written and enabled by `MINIZINC_REAL=1`; they have **not** been executed
-(`NO EJECUTADO`): the worker container has no `minizinc`. The laboratory profile that runs them is
-`compose.lab-engines.json` (below). The Java engines are out of scope here (**pendiente C2**).
+**Current status (head `31b7de6f`, 2026-10-14; figures reported by the controller, not re-run here).** Implemented, tested in
+the worker with a *fake* MiniZinc that is a real child process, **and executed against the real MiniZinc 2.6.4** in the lab
+(`compose.lab-engines.json`) at `59ef9749`: `engine-real-tests` **44/44 passed, 0 skipped** (real `minizinc solve` to OPTIMAL by
+POST/GET; `DELETE` kills `minizinc` and its backend with no zombie and frees the CPU; group kill; SIGKILL if SIGTERM is ignored;
+a grandchild that outlives the leader; a foreign or unknown id gives the identical 404; 401 without token when tokens are set;
+idempotence). `seed` (`tools/engine_e2e.py --url http://engine:3000 --scenario all --expect optimal`): 16 PASS, 1 NO EJECUTADO
+(the CPU/group/zombie checks in `--url` mode, because the solver is in another container; the real tests above cover them),
+`engine_e2e: ok`. At `ea955411` the first attempt gave 43/44: the test "kills a grandchild that outlives the leader" was a race of
+the test (the grandchild died of SIGTERM before installing its handler); it now waits for CPU spent by the grandchild.
+The gateway side, end to end in the N1 demo, is in [ENGINE_CANCELLATION_E2E.md](ENGINE_CANCELLATION_E2E.md). The Java engines
+are in [ENGINE_CANCELLATION_JAVA.md](ENGINE_CANCELLATION_JAVA.md).
+
+*Historical status (worker time, superseded):* implemented and tested with a fake MiniZinc; the real-MiniZinc tests were
+`NO EJECUTADO` because the worker container has no `minizinc`; the Java engines were "pendiente C2".
 
 ## What was verified before building (findings of the previous attempt)
 
@@ -138,9 +148,10 @@ Executed in the worker (see `docs/qa/ENGINES_IR02.md` for the matrix):
   races) and `tools/tests/test_engine_e2e.py` (the harness against a real local engine with the fake solver).
 * `ruff check` of the three Python sources I touch.
 
-**Not executed:** everything against the real MiniZinc. What the fake cannot show: that the MiniZinc model solves the
-problem (the fake returns a canned incumbent), that `minizinc` + `fzn-gecode` really die as a group, and the
-behaviour of a real hard instance. Those are the five `MINIZINC_REAL=1` tests and `engine_e2e.py --url`.
+**Not executed in the worker (historical; superseded by the lab run in the current status):** everything against the real
+MiniZinc. What the fake cannot show: that the MiniZinc model solves the problem (the fake returns a canned incumbent), that
+`minizinc` + `fzn-gecode` really die as a group, and the behaviour of a real hard instance. Those are the `MINIZINC_REAL=1`
+tests and `engine_e2e.py --url`, which the lab ran at `59ef9749` (44/44; 16 PASS and 1 NO EJECUTADO).
 
 ## Laboratory: `compose.lab-engines.json`
 

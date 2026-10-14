@@ -1,5 +1,105 @@
 # Final validation
 
+## Current view (head `31b7de6f2002fb4b5e5f0c549a3bd4a2a2818fa2`, branch `feat/openbinding-platform`, 2026-10-14)
+
+Functional commits of this head: `80ad32d4` (data B/C1/A2), `f5acbd70` (Java engines, PostgreSQL and frontend fixes),
+`ea955411` (licence per package), `59ef9749` (PostgreSQL test fix, C3, cancellation of running jobs) and `31b7de6f`
+(permissions of the Java builder images). Everything below ran in the real Docker laboratory (rootless, 256 MiB for
+`bim-service`) under the controller; this document did not re-run it. Each figure carries the SHA it was measured on. The
+sections that follow are records of earlier SHAs and stay as history; where they say something this view settled, the
+statement is **superseded** (see the list after the tables).
+
+### Closed (measured)
+
+| What | Result | SHA |
+|---|---|---|
+| PostgreSQL 16 real (`compose.pgtest.json`), `tests/concurrency tests/test_federated_engines_pg.py tests/test_duplicate_copy_purge_pg.py` ([PG_REAL_RUN.md](PG_REAL_RUN.md)) | **113 passed, 0 skipped, 0 failed**, 24.31 s. Includes 20 `test_federated_engines_pg` (the two former `xfail` now pass), 16 `test_duplicate_copy_purge_pg`, 7 `test_cancel_running_pg`. One SAWarning, not a failure (below) | `59ef9749` |
+| Same, first run | 105 passed, 1 failed (`DetachedInstanceError`, a defect of the test, fixed; not of the service) | `ea955411` |
+| MiniZinc real 2.6.4 (`compose.lab-engines.json`), `engine-real-tests` | **44/44 passed, 0 skipped** (real `minizinc solve` to OPTIMAL by POST/GET, `DELETE` kills `minizinc` and its backend with no zombie and frees the CPU, group kill, SIGKILL if SIGTERM is ignored, grandchild that outlives the leader, foreign/unknown id gives the same 404, 401 without token, idempotence) | `59ef9749` |
+| Same, `seed` (`tools/engine_e2e.py --url http://engine:3000 --scenario all --expect optimal`) | **16 PASS, 1 NO EJECUTADO**, `engine_e2e: ok`. The one not executed: the process checks (CPU, group, zombies) in `--url` mode, because the solver is in another container (the real tests above do cover them). The result is re-evaluated with `bim_core.reevaluate` and classified `optimal` | `59ef9749` |
+| Same, first run | 43/44: the test "kills a grandchild that outlives the leader" was a race of the test (the grandchild died of SIGTERM before installing its handler); fixed by waiting for CPU spent by the grandchild; 44/44 in the lab | `ea955411` then `59ef9749` |
+| Java engines in Docker (`compose.lab-engines-java.json`) | `binding-core` 56 tests (25 `CanonicalEvaluatorConformanceTest` + 17 `EngineJobsTest` + 14 `EngineHttpTest`), 0 failures, on JDK 8 (seed, builder of `random-search`) and on JDK 21 (evolutionary); `random-search` 12 (4 + 8), `many-heuristic` 11 (3 + 8), `multi-heuristic` 12 (3 + 9), `evolutionary-heuristics` 13 (5 + 8); all 0 Failures/Errors/Skipped | `31b7de6f` |
+| Same, before the fix | the services failed with `cp: Permission denied` (mode 700 of the builder's `COPY`); fixed with `RUN chmod -R a+rX /app` in the four Dockerfiles | before `31b7de6f` |
+| Same JUnit in the worker (no Docker) and the Python e2e with real `java` processes (`engines/e2e`) | 104 JUnit tests; 35 passed ([ENGINES_JAVA_IR02.md](ENGINES_JAVA_IR02.md)) | worker tree |
+| Remote cancellation end to end in the N1 demo (`tools/cancel_probe.py` through `lab_compose seed`, `DEMO_SEED_TOOL=cancel_probe.py`) ([ENGINE_CANCELLATION_E2E.md](ENGINE_CANCELLATION_E2E.md)) | **classification `passed`, `ok` true**, 9 checks ok, 0 findings. `minizinc-csp`, `exact-weighted`, 150 tasks x 30 candidates; `POST /v1/jobs/{id}/cancel` => 200; job `cancelled` about 1.0 s later (timeline: launched 6.5 s, running 7.6, registered 8.4, cancel-requested 8.7, job-ended 9.7, settled 9.8); `job_engine_attempts` `cancel_state=sent`, `cancel_attempts=1`; the engine reads the id as cancelled; a direct `DELETE` gives 200 `cancelled` and a second one is idempotent (200 `cancelled`) | `31b7de6f` |
+| Snapshot `invalid_instance`, real diagnosis with `tools/diagnose_snapshots.py` (read only) ([SNAPSHOT_INVALID_INSTANCE.md](SNAPSHOT_INVALID_INSTANCE.md)) | Cause found: the 0.1.x package pins an exact contract (profile/dialect) that toolchain 0.2.0 no longer installs (`contract_not_installed` at `/spec/contracts` of `instance.json`). The package is really invalid for 0.2.0; it is not a recompilation bug. Kept as evidence; launching it gives 422 `snapshot_not_recompilable` | `ea955411` |
+| Demo N1 (`compose.lab-process.json`, 1 process, body 6291456, 256 MiB): `seed_lab` | idempotent | `31b7de6f` |
+| Demo N1: `smoke_lab` | **9/9** (`proxy_and_spa`, `login`, `owner_job`, `idempotency`, `authorization` 24 checks, `concurrency_limit`, `cors`, `body_limit`, `login_throttle`); `plan_usage` skipped (SPACE on hold) | `31b7de6f` |
+| Demo N1: Playwright desktop + mobile | **30 passed, 0 failed, 0 skipped**, 0 visual problems (`E2E_SUMMARY passed=30`; screenshots reviewed, 131 images including `screenshots/_summary.png`) | `31b7de6f` |
+| Demo N1: `process_probe.py` with the five N1 `--expect` and `--timeout-probe --expect-operation-timeout 3` ([PROCESS_PROBE.md](PROCESS_PROBE.md)) | **exit 0, `ok` true, 6 steps**: `capabilities` 16 checks (fit: required 265918873 of 268435456 B, headroom 2516583 B); `valid_operations` 84; `hostile_small` 55; `large_bodies` 13 (6291456 B body => 200 in 30.9 ms; two retained bodies 200 and 200); `saturation` 9 (8 clients: 3 x 200, 5 x 503 `service_busy`); `healthz_under_load` 11 (116 samples, 116 x 200; p50 1.5 ms, p95 1.8 ms, max 2.0 ms); `timeout_replacement` 12 (503 `operation_timeout` at 3.467 s; 35 `/healthz` samples all 200, max 2.4 ms; the next normal request 1.9 ms) | `31b7de6f` |
+| Memory of `bim-service` with the demo idle | cgroup 88-95 MiB of 256 MiB, `oom_kill` 0; parent RSS 59.7 MB (peak 59.7), child 53.9 MB (peak 56.8-57.1) | `31b7de6f` |
+| Frontend, full vitest (tree of F1: base `80ad32d4` + F1) | **177 test files passed (177); 2471 tests passed (2471)**; `tsc -b` and eslint ok | tree of F1 |
+| `bim-toolchain` suite (tree of `ea955411`) | **2294 passed, 0 failed, 0 skipped, 3 xfailed** | `ea955411` |
+| `verify_release` (two builds in different directories, `SOURCE_DATE_EPOCH=1767225600`) | artifacts identical bit for bit (hashes below) | `ea955411` |
+| Gateway as consumer of the toolchain | 402 passed, 2 skipped (`BIM_BASELINE_FULL`, slow; not build or corpus) | `ea955411` |
+
+Notes on the rows above:
+
+* The SAWarning in PostgreSQL: `DELETE statement on table 'v1_instance_snapshots' expected to delete 1 row(s); 0 were matched`
+  in `test_two_replicas_regenerating_the_same_snapshot`. Benign: the second replica does not find the row the first already
+  deleted. It is a warning, not a failure.
+* The first `process_probe.py` run, without the N1 flags, gave `ok` false because it expected the N2 values. That was a wrong use
+  of the probe, not a service failure; the run above has the five N1 `--expect`.
+* Before G2 the gateway did **not** propagate the cancellation of a `running` job to the solver (only after `solve_remote`
+  returned). G2 added `CancelWatch` in `services/execution.py` (it watches the `cancellation_requested` flag between polls,
+  claims the attempt, sends `DELETE`, and writes `CANCELLED` only on the engine's confirmation; with no confirmation in time the
+  job is `FAILED` `engine_timeout` and the cancellation stays pending for the reconciler) and fixed the reconciler for bundled
+  registrations. `REMOTE_CANCEL_WATCH_INTERVAL_S=1` and `REMOTE_CANCEL_CONFIRM_TIMEOUT_S=30` are read in `execution.py`, not in
+  `Settings`.
+* Operations: jobs queued before a deployment pin the previous version of the bundled registration and fail with
+  `registration_changed`; drain the queue or let them finish before rolling out.
+* The Java engines are **synchronous by default**; remote cancellation is opt-in with `ENGINE_JOB_MODE=async`, and the bundled
+  registrations declare the capability only for `minizinc-csp` (`BUILTIN_CANCELLATION`) or for the names in
+  `ENGINE_CANCELLATION_BUILTIN`. In the lab the Java engines were **not** run in async mode behind the gateway: **NO EJECUTADO**
+  end to end. Their cancellation is proven at engine level (JUnit with thread and CPU readings) and by the local Python e2e.
+
+### Release artifacts of `bim-toolchain` (`ea955411`)
+
+| File | sha256 | Bytes |
+|---|---|---|
+| `bim_core-0.2.0-py3-none-any.whl` | `80dd58ba38d71cea28ae3ba483609298882feb9c23c61a400ac05c56b44311f0` | 132869 |
+| `bim_core-0.2.0.tar.gz` | `690da1fb26e1bc3ceb5befbc5407cd7fc6c6c4d4c5ae7e726a3752756e8512c8` | 114061 |
+| `bim_service-0.2.0-py3-none-any.whl` | `45ca51bdda278090244c1ba08f9cbdd676582ab3f7cf6c5c07b39dd5f006a2e9` | 61046 |
+| `bim_service-0.2.0.tar.gz` | `e767c77f105909a24f88a745328571cbc0e0a44c395456e23cf2de71ec4177c4` | 52687 |
+| `bim_client-0.2.0-py3-none-any.whl` | `5cff0e6cbc0a134e7f726444240e1046741f411b1a0b362def669cb7065ea4c3` | 26817 |
+| `bim_client-0.2.0.tar.gz` | `725621fc7c21fdc94bc41444c2e6bc2d3242c39483c6fe0b9bb349c9fb4dba5e` | 21509 |
+
+`compilerDigest` `sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e`, equal in wheel, sdist, installation,
+service and tree. `toolchain.json` sha256 `5af837d8d7a3c9234a70bd86a127eaf0e735507f195c8b7eb7439011e2d67aa4`. Baseline: 82
+packages, 0 differences. The `toolchain` metadata of the normalized golden was regenerated (`749170b5...` to `ccc55839...`)
+with the IR, semantic digests, evaluations and `zip_equivalence` **unchanged** (comparison in
+`bim-toolchain/golden/toolchain_metadata_comparison.json`); a coherence test fails if they diverge. The Docker image of
+`bim-service` built in the lab with the per-package `LICENSE` (Dockerfile adjusted). Licence CC-BY-4.0 (holder `javiercavlop`,
+own material; the OMG XSDs and third parties are **not** covered), SPDX in `licenses.json` and `pyproject.toml`. The five OMG
+XSDs carry no copyright notice in their bytes and the permission to redistribute them is **not demonstrated**
+(`bim-toolchain/docs/OMG_XSD_RIGHTS.md`); the export leaves them blocked by default.
+
+### Open: not executed, or pending
+
+| Item | State |
+|---|---|
+| SPACE | On hold; zero calls were made |
+| Class B counters against a real SPACE | **NO EJECUTADO** |
+| Push, GitHub, real CI, Python 3.12, macOS of the export | **NO EJECUTADO** (nothing was pushed or published) |
+| Java engines in async mode behind the gateway | **NO EJECUTADO** end to end (see the notes) |
+| `export_repo.py` sequence on the Mac | **NO EJECUTADO** (steps in `bim-toolchain/docs/DELIVERY.md`) |
+| `gh auth` of the operator | Pending |
+| Holder's decision on the OMG XSDs | Pending |
+| 2 stale snapshots in `blocked` (`snapshot_conflict`) of other owners | Residual risk, documented, **not decided** whether to delete them ([SNAPSHOT_INVALID_INSTANCE.md](SNAPSHOT_INVALID_INSTANCE.md)) |
+| `Settings` does not include `REMOTE_CANCEL_*` | Open finding |
+
+### Superseded by this view
+
+* "PostgreSQL 16 real: 70 passed" (`bef53047`) is history; the current figure is 113 passed at `59ef9749` with the phase-17 and
+  cancellation modules.
+* "The real timeout and replacement with one slot in the N1 container is **PENDING**" (status of `c2d46151` below) is closed:
+  `timeout_replacement` 12 checks, 503 `operation_timeout` at 3.467 s, at `31b7de6f`.
+* "The cause of the `invalid_instance` snapshot is unknown" is closed: `contract_not_installed`, see above.
+* "No engine implements `DELETE`" (older engine documents) no longer holds: `minizinc-csp` always implements it and the Java
+  engines implement it in async mode; the gateway sends it for running jobs since G2.
+* The frontend figure "2467 tests (output truncated)" is replaced by the measured 2471 passed in 177 files.
+* "No licence chosen" is replaced by CC-BY-4.0 for the own material; the OMG XSDs remain undecided.
+
 ## Status of 2026-10-14 (head `c2d46151`; the sections below are records of earlier SHAs)
 
 The human decided on 2026-10-14: normalized IR (MAJOR, version 0.2.0, no compatibility with the old order); measurable usage

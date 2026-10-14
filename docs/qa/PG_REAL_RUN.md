@@ -3,10 +3,12 @@
 The phase-17 tests of these two areas ran on SQLite only. This document says which they are, which PostgreSQL tests
 now cover the same rules with real sessions, and the exact command the controller runs with `compose.pgtest.json`.
 
-**Status: written, not executed.** The worktree where this was written has no Docker and no PostgreSQL. There the new
-modules are collected and **skipped** (`TEST_DATABASE_URL` is unset), so nothing below has passed or failed on a real
-server yet. Expectations are in [What to expect](#what-to-expect); the assumptions the tests make about PostgreSQL are in
-[Not verified](#not-verified).
+**Status: executed on PostgreSQL 16 (head `59ef9749`, reported by the controller; this document did not re-run it).**
+`compose.pgtest.json` through `lab_compose` (`up`, `seed`) with the `DEMO_PYTEST_ARGS` below gave **113 passed, 0 skipped,
+0 failed in 24.31 s**. That count includes 20 `test_federated_engines_pg` (the two that were `xfail` now **pass**, after the fix in
+`engine_registry`), 16 `test_duplicate_copy_purge_pg`, 7 `test_cancel_running_pg`, and the rest of `tests/concurrency`. See
+[Results](#results). The text below that says "written, not executed" or "not run on PostgreSQL" is the state of the worktree
+where the tests were written and is **superseded** by the results.
 
 ## The command
 
@@ -102,18 +104,36 @@ unique-index waits, several connections, real foreign keys and triggers.
 
 ## What to expect
 
-- Exit code 0; **0 skipped**; **36 passed and 0 `xfail`** for the two new modules (20 + 16), on top of whatever
-  `tests/concurrency` has at that SHA (70 passed at `bef53047`; it has grown since, so no total is claimed here). There is
-  no `xfail` any more: an `x` or `X` in the `-rsfExX` summary would be a defect, as a failure of either of the two tests
-  described under [Findings](#findings-of-the-first-read-fixed-in-servicesengine_registrypy) would be.
+- Exit code 0; **0 skipped**; **36 passed and 0 `xfail`** for the two phase-17 modules (20 + 16), inside a total of **113
+  passed** with `tests/concurrency` (which includes the 7 `test_cancel_running_pg`). There is no `xfail`: an `x` or `X` in the
+  `-rsfExX` summary would be a defect, as a failure of either of the two tests described under
+  [Findings](#findings-of-the-first-read-fixed-in-servicesengine_registrypy) would be. (Earlier figure, history: 70 passed at
+  `bef53047` for `tests/concurrency` alone.)
 - A failure of one of the other tests is a finding about the service or about an assumption listed below, not noise:
   read the message, which names what did not happen.
+
+## Results
+
+Run in the real Docker laboratory with PostgreSQL 16 (`compose.pgtest.json`, `lab_compose` `up` and `seed`), with
+`DEMO_PYTEST_ARGS='-rsfExX --tb=short tests/concurrency tests/test_federated_engines_pg.py tests/test_duplicate_copy_purge_pg.py'`.
+
+| Run | Head | Result |
+|---|---|---|
+| First | `ea955411` | 105 passed, 1 failed. The failure was a defect of the test (`DetachedInstanceError`), not of the service; it was corrected in the test (F2) |
+| Second (current) | `59ef9749` | **113 passed, 0 skipped, 0 failed, 24.31 s** |
+
+* The 113 include 20 `test_federated_engines_pg` (the two former `xfail` now pass for real after the `engine_registry` fix),
+  16 `test_duplicate_copy_purge_pg`, 7 `test_cancel_running_pg`, and the rest of `tests/concurrency`.
+* One SAWarning, not a failure: `DELETE statement on table 'v1_instance_snapshots' expected to delete 1 row(s); 0 were matched`
+  in `test_two_replicas_regenerating_the_same_snapshot_end_in_one_consistent_snapshot`. It is benign: the second replica does not
+  find the row the first one already deleted (this is the case the "Not verified" list anticipated for the ORM delete).
 
 ## Findings of the first read, fixed in `services/engine_registry.py`
 
 Two defects were found by reading the code, and the two tests that were `xfail` stated them. Both are fixed in
-`services/engine_registry.py`; the two tests are now ordinary assertions of the answer below. **The fix has not run on
-PostgreSQL**: only the SQLite cases beside it have (`tests/test_engine_registry_service.py`).
+`services/engine_registry.py`; the two tests are now ordinary assertions of the answer below. **The fix ran on PostgreSQL at
+`59ef9749` and both tests pass** (see [Results](#results)); the SQLite cases beside it are in
+`tests/test_engine_registry_service.py`.
 
 1. **Fixed in `change_registration`: replayed activation.** `change_registration(action="activate", max_active=N)` reads the
    registration, then takes the owner's row lock, then counts the owner's active registrations. Two concurrent requests for the
@@ -139,7 +159,10 @@ the stored identity (identical document: same summary; other content: `409`). Th
 
 ## Not verified
 
-Everything on PostgreSQL. Assumptions the tests make, each to be confirmed by the first real run:
+Historical list, from before the run: the assumptions the tests make. The run at `59ef9749` passed with them, so the ones the
+tests exercise held (the lock-wait visibility, the `READ COMMITTED` count, the delete of an already deleted row with only an ORM
+warning, the reconciler cycle). Not shown by the run: the timing on a loaded host, model/migration drift, and any suite other than
+the three paths run. The list as written:
 
 - A statement blocked by another transaction's row lock or unique-index entry shows `wait_event_type = 'Lock'` in
   `pg_stat_activity`, visible to the test's role (the database user of `compose.pgtest.json` is the superuser of the
@@ -159,4 +182,5 @@ Everything on PostgreSQL. Assumptions the tests make, each to be confirmed by th
 
 The tool for the one snapshot that `recompile_stale_snapshots` could not recompile (`invalid_instance`) is separate; see
 [SNAPSHOT_INVALID_INSTANCE.md](SNAPSHOT_INVALID_INSTANCE.md). Its SQLite tests are in the registered checks; the read-only
-transaction it opens on PostgreSQL (`SET TRANSACTION READ ONLY`) is not exercised by any test here.
+transaction it opens on PostgreSQL (`SET TRANSACTION READ ONLY`) is not exercised by any test here. (The tool was run read-only
+against the lab database at `ea955411`; that run is described in that document, it is not one of the 113 tests.)

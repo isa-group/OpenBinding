@@ -8,13 +8,39 @@ by a `DELETE` in the registration's OpenAPI), and the registration of a bundled 
 engine. This change closes that gap for the engines that always implement it and adds a laboratory probe that checks the
 whole path.
 
+## Result in the real laboratory (head `31b7de6f`, N1 demo, 2026-10-14)
+
+Reported by the controller; this document did not re-run it. Probe `tools/cancel_probe.py` through `lab_compose seed` with
+`DEMO_SEED_TOOL=cancel_probe.py`, against `compose.lab-process.json` (N1):
+
+* **`classification` `passed`, `ok` true; 9 checks ok, 0 findings.**
+* Engine `minizinc-csp`, mode `exact-weighted`, long job (150 tasks x 30 candidates).
+* The cancellation was requested through the gateway API (`POST /v1/jobs/{id}/cancel` => 200); the job ended `cancelled` about
+  1.0 s later. Timeline: launched 6.5 s, running 7.6, registered 8.4, cancel-requested 8.7, job-ended 9.7, settled 9.8.
+* The `job_engine_attempts` row: `cancel_state=sent`, `cancel_attempts=1`. The engine reads that same id as cancelled. A direct
+  `DELETE` answers 200 `cancelled`, and a second `DELETE` is idempotent (200 `cancelled`).
+* **Before G2** (section "Cancelling a job that is running (G2)" below) the gateway did **not** propagate the cancellation of a
+  `running` job to the solver; it did so only after `solve_remote` returned. G2 added `CancelWatch` in `services/execution.py` and
+  fixed the reconciler for bundled registrations; this run is the acceptance of that change.
+* Not covered by this run: the Java engines in `ENGINE_JOB_MODE=async` behind the gateway (**NO EJECUTADO** end to end; their
+  cancellation is proven at engine level and by the local Python e2e), and the other tests of the "NOT executed" paragraph
+  below that are not the probe. `tests/concurrency/test_cancel_running_pg.py` (7 tests) ran on PostgreSQL 16 at `59ef9749` as part
+  of the 113 passed ([PG_REAL_RUN.md](PG_REAL_RUN.md)).
+* Open finding: `REMOTE_CANCEL_WATCH_INTERVAL_S` and `REMOTE_CANCEL_CONFIRM_TIMEOUT_S` are read in `services/execution.py`, not in
+  `Settings`.
+* Operations: jobs queued before a deployment pin the previous version of the bundled registration and fail with
+  `registration_changed`; drain the queue or let them finish (deployment note below).
+
+The sections below were written before this run. Where they say the probe or the PostgreSQL test are not executed, that is
+**superseded** by the results above.
+
 ## What the bundled registration declares now
 
 | Engine | `spec.extensions.cancellation` | `DELETE` in `spec.openapi` | Why |
 | --- | --- | --- | --- |
 | `minizinc-csp` | `{"supported": true, "idScope": "attempt"}` | yes (`/internal/v1/jobs/{id}`, 200/202/404) | asynchronous and cancels for real, always |
-| `random-search` | none | no | no `DELETE` |
-| `many-heuristic`, `evolutionary-heuristics` | none **by default** | no | the `DELETE` exists only with `ENGINE_JOB_MODE=async` (default `sync`); the registration cannot know the mode |
+| `random-search` | none | no | synchronous by default, no `DELETE`; the `DELETE` exists only with `ENGINE_JOB_MODE=async` |
+| `many-heuristic`, `multi-heuristic`, `evolutionary-heuristics` | none **by default** | no | the `DELETE` exists only with `ENGINE_JOB_MODE=async` (default `sync`); the registration cannot know the mode |
 
 Two things are needed, not one: the declaration **and** the operation in the OpenAPI. The `bim-engine/v1` protocol document
 has no `DELETE`, and `engine_registry.cancellation_capability` turns the capability off when the registration's OpenAPI
@@ -183,10 +209,10 @@ cancellation still open, finished by the sweep on the bundled registration), no 
 refused, cancel racing the result, a late result that does not reopen the job, the rule of `decide`, and the bounded,
 lease-fenced watch.
 
-**NOT executed** here: the probe against the real lab (PostgreSQL, Dramatiq worker, nginx, real MiniZinc), and
-`tests/concurrency/test_cancel_running_pg.py` (cancel vs finish with two sessions, one claim of the `DELETE` between the
-worker and the sweep) needs PostgreSQL 16 (`TEST_DATABASE_URL`): it is skipped only when that variable is unset. Those runs
-are the acceptance of this change and belong to the controller (`lab_compose`, above).
+**NOT executed in the worker (historical; both were run afterwards by the controller, see the results above):** the probe against
+the real lab (PostgreSQL, Dramatiq worker, nginx, real MiniZinc), and `tests/concurrency/test_cancel_running_pg.py` (cancel vs
+finish with two sessions, one claim of the `DELETE` between the worker and the sweep), which needs PostgreSQL 16
+(`TEST_DATABASE_URL`) and is skipped only when that variable is unset.
 
 ## Limits, and what the probe is expected to find
 

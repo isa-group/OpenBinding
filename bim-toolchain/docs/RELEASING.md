@@ -4,6 +4,35 @@ Nothing has been released. There is no remote repository and no tag. The license
 (holder: javiercavlop, titular del repositorio OpenBinding; [`LICENSING.md`](LICENSING.md)). This is the procedure for when
 there is a repository to release from; [`DELIVERY.md`](DELIVERY.md) has the exact steps to create it.
 
+## Current state (head `31b7de6f`, 2026-10-14)
+
+**Nothing has been pushed, tagged or published**, and no remote repository exists. What was measured (at `ea955411`, in the
+laboratory and the worker; this document did not re-run it): the full `bim-toolchain` suite gave 2294 passed, 0 failed, 0
+skipped, 3 xfailed; `verify_release.py` (two builds in different directories, `SOURCE_DATE_EPOCH=1767225600`) gave artifacts
+identical bit for bit, with the hashes of [`DELIVERY.md`](DELIVERY.md#4-expected-values) (`bim_core-0.2.0-py3-none-any.whl`
+`80dd58ba...b44311f0`, 132869 B, and the other five); the `compilerDigest` is
+`sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e` in wheel, sdist, installation, service and tree;
+`toolchain.json` sha256 `5af837d8d7a3c9234a70bd86a127eaf0e735507f195c8b7eb7439011e2d67aa4`; baseline of 82 packages with 0
+differences. The `toolchain` metadata of the normalized golden was regenerated (`749170b5...` to `ccc55839...`) with the IR,
+semantic digests, evaluations and `zip_equivalence` unchanged, and a coherence test fails if they diverge (step 2 below). The
+`bim-service` Docker image built in the laboratory with the per-package `LICENSE`.
+
+**Not executed:** push, GitHub, the real CI (`ci.yml` has never run anywhere), Python 3.12, macOS, the `export_repo.py` sequence
+on the Mac, and the operator's `gh auth`. The holder's decision on the OMG XSDs is pending.
+
+Steps for the Mac, in order (the exact commands, the checks of each step and the rollback are in [`DELIVERY.md`](DELIVERY.md);
+this procedure does not push anything by itself):
+
+1. In a clone of OpenBinding with `bim-toolchain/` committed, with `git config user.name` and `user.email` set, run
+   `python3 bim-toolchain/tools/export_repo.py --output "$HOME/export/bim-toolchain"` (`DELIVERY.md`, sections 0 and 1). The
+   default leaves the five OMG XSDs out.
+2. Look at the result before anything else (`DELIVERY.md`, section 2): one commit, your identity, no remote, no tag;
+   `tools/xsd_inventory.py --check`; fetch the XSDs and run `tools/verify_release.py --skip-corpus` and compare the hashes with
+   `DELIVERY.md`, section 4. Python 3.12 and macOS results are new information at this step: record them.
+3. Only after that, and only if you decide to publish: `gh auth status`, `gh repo create`, add the remote and push
+   (`DELIVERY.md`, section 3). Then pin the actions to SHAs and check the first run of `ci.yml` before tagging. If you do not
+   decide to publish, stop after step 2: nothing has left the machine.
+
 What stands between this tree and a published repository is: (1) the holder's decision on the five OMG BPMN XSDs, whose
 redistribution is **not demonstrated** ([`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md)): either the export leaves them out and the
 build fetches them with a verified download (the default), or the holder records a clearance in `licenses.json`; (2) a Git
