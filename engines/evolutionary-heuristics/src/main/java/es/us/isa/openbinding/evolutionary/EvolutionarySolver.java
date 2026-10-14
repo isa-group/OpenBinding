@@ -3,6 +3,7 @@ package es.us.isa.openbinding.evolutionary;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 import es.us.isa.openbinding.core.BindingProblem;
+import es.us.isa.openbinding.core.Cancellation;
 import es.us.isa.openbinding.core.CanonicalEvaluator;
 import es.us.isa.openbinding.core.EngineContract;
 
@@ -38,7 +39,46 @@ final class EvolutionarySolver {
     }
   }
 
+  /** A validated request, ready to search.  Building it is cheap; {@link #run()} is the search. */
+  final class Plan {
+    private final EngineContract.Request request;
+    private final String algorithm;
+    private final int populationSize;
+    private final int maxEvaluations;
+    private final int archiveSize;
+    private final long seed;
+    private final Long timeBudget;
+    private final double crossover;
+    private final double mutation;
+
+    Plan(EngineContract.Request request, String algorithm, int populationSize, int maxEvaluations,
+        int archiveSize, long seed, Long timeBudget, double crossover, double mutation) {
+      this.request = request;
+      this.algorithm = algorithm;
+      this.populationSize = populationSize;
+      this.maxEvaluations = maxEvaluations;
+      this.archiveSize = archiveSize;
+      this.seed = seed;
+      this.timeBudget = timeBudget;
+      this.crossover = crossover;
+      this.mutation = mutation;
+    }
+
+    Result run() {
+      return search(request.problem(), request.optimization(), algorithm, populationSize,
+          maxEvaluations, archiveSize, seed, timeBudget, crossover, mutation);
+    }
+  }
+
   Result evaluate(EngineContract.Request request) {
+    return plan(request).run();
+  }
+
+  /**
+   * Validates the options and the objective class of {@code request} without searching, so that the
+   * HTTP layer can refuse an unsupported request (422) before it queues a job.
+   */
+  Plan plan(EngineContract.Request request) {
     JsonObject options = request.options();
     EngineContract.validateOptions(options, "algorithm", "population_size", "max_evaluations",
         "archive_size", "seed", "time_budget_ms", "crossover_probability", "mutation_probability");
@@ -64,8 +104,8 @@ final class EvolutionarySolver {
     double crossover = probability(options, "crossover_probability", 0.9);
     double mutation = probability(options, "mutation_probability",
         1.0 / Math.max(1, request.problem().serviceTasks().size()));
-    return search(request.problem(), optimization, algorithm, populationSize, maxEvaluations, archiveSize,
-        seed, timeBudget, crossover, mutation);
+    return new Plan(request, algorithm, populationSize, maxEvaluations, archiveSize, seed, timeBudget,
+        crossover, mutation);
   }
 
   private Result search(BindingProblem problem, JsonObject optimization, String algorithm, int populationSize,
@@ -83,8 +123,10 @@ final class EvolutionarySolver {
     long evaluations = 0;
     long started = System.nanoTime();
     while (evaluations < maxEvaluations && !expired(started, timeBudgetMs, evaluations)) {
+      Cancellation.checkpoint();
       List<CanonicalEvaluator.Evaluation> scored = new ArrayList<CanonicalEvaluator.Evaluation>();
       for (Map<String, BindingProblem.Ref> chromosome : population) {
+        Cancellation.checkpoint();
         if (evaluations >= maxEvaluations || expired(started, timeBudgetMs, evaluations)) break;
         CanonicalEvaluator.Evaluation evaluation = evaluator.evaluate(chromosome, optimization);
         scored.add(evaluation);
@@ -108,6 +150,7 @@ final class EvolutionarySolver {
         next.add(new LinkedHashMap<String, BindingProblem.Ref>(scored.get(index).binding()));
       }
       while (next.size() < populationSize) {
+        Cancellation.checkpoint();
         CanonicalEvaluator.Evaluation first = tournament(scored, evaluator, random);
         CanonicalEvaluator.Evaluation second = tournament(scored, evaluator, random);
         Map<String, BindingProblem.Ref> child = new LinkedHashMap<String, BindingProblem.Ref>();

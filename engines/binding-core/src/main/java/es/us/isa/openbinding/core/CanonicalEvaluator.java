@@ -156,10 +156,12 @@ public final class CanonicalEvaluator {
     execution.addProperty("type", "SINGLE");
     execution.addProperty("scalarization", "weighted-sum");
     JsonArray weights = new JsonArray();
-    for (JsonElement item : problem.optimization().getAsJsonArray("criteria")) {
+    JsonArray criteria = problem.optimization().getAsJsonArray("criteria");
+    // bim_core's default execution splits the weight evenly across the criteria.
+    for (JsonElement item : criteria) {
       JsonObject weight = new JsonObject();
       weight.addProperty("criteria", item.getAsJsonObject().get("id").getAsString());
-      weight.addProperty("value", 1.0);
+      weight.addProperty("value", 1.0 / criteria.size());
       weights.add(weight);
     }
     execution.add("weights", weights);
@@ -167,6 +169,9 @@ public final class CanonicalEvaluator {
   }
 
   public Evaluation evaluate(Map<String, BindingProblem.Ref> decision, JsonObject execution) {
+    // Cancellation point: one per evaluation, so even a solver without its own checkpoint stops
+    // within a single evaluation of a cancel request.  No-op outside an asynchronous job.
+    Cancellation.checkpoint();
     Map<String, BindingProblem.Ref> binding = validateDecision(decision);
     Map<String, Double> metrics = evaluateMetrics(binding);
     metrics.putAll(evaluatePlacementMetrics(binding));

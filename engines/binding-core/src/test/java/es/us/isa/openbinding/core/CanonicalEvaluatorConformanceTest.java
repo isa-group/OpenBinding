@@ -10,22 +10,39 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CanonicalEvaluatorConformanceTest {
+  /**
+   * IR 0.2.0 stores only {@code criteria}/{@code penalties}; the objective type is chosen per
+   * execution in the request, and the cardinality it needs is enforced by the transport.
+   */
   @Test void canonicalObjectiveTypeEnforcesOnlyItsDeclaredCardinality() {
     JsonObject document = TestProblems.twoCandidates();
-    JsonObject optimization = document.getAsJsonObject("spec").getAsJsonObject("optimization");
-    optimization.addProperty("mode", "pareto");
-    optimization.addProperty("type", "MULTI");
-    assertThrows(IllegalArgumentException.class, () -> new BindingProblem(document));
+    JsonArray criteria = document.getAsJsonObject("spec").getAsJsonObject("optimization")
+        .getAsJsonArray("criteria");
+    assertDoesNotThrow(() -> new BindingProblem(document));
+    assertDoesNotThrow(() -> EngineContract.parse(request(document, "SINGLE", "weighted-sum")));
+    assertThrows(IllegalArgumentException.class,
+        () -> EngineContract.parse(request(document, "MULTI", "lexicographic")));
+    assertThrows(IllegalArgumentException.class,
+        () -> EngineContract.parse(request(document, "MANY", "pareto-front")));
 
-    optimization.getAsJsonArray("terms").add(optimization.getAsJsonArray("terms").get(0).deepCopy());
+    criteria.add(criterion("latency", "latency"));
     assertDoesNotThrow(() -> new BindingProblem(document));
-    optimization.addProperty("type", "MANY");
-    assertThrows(IllegalArgumentException.class, () -> new BindingProblem(document));
+    assertDoesNotThrow(() -> EngineContract.parse(request(document, "MULTI", "lexicographic")));
+    assertThrows(IllegalArgumentException.class,
+        () -> EngineContract.parse(request(document, "MANY", "pareto-front")));
 
-    optimization.getAsJsonArray("terms").add(optimization.getAsJsonArray("terms").get(0).deepCopy());
+    criteria.add(criterion("cost-again", "cost"));
     assertDoesNotThrow(() -> new BindingProblem(document));
-    optimization.addProperty("type", "MONO");
-    assertDoesNotThrow(() -> new BindingProblem(document));
+    assertDoesNotThrow(() -> EngineContract.parse(request(document, "MANY", "pareto-front")));
+    assertDoesNotThrow(() -> EngineContract.parse(request(document, "MULTI", "lexicographic")));
+
+    criteria.add(criterion("latency-again", "latency"));
+    assertThrows(IllegalArgumentException.class,
+        () -> EngineContract.parse(request(document, "MULTI", "lexicographic")));
+    assertDoesNotThrow(() -> EngineContract.parse(request(document, "MANY", "pareto-front")));
+
+    assertThrows(IllegalArgumentException.class,
+        () -> EngineContract.parse(request(document, "MONO", "weighted-sum")));
   }
 
   @Test void catalogQualifiedCandidateIdentityChangesTheObjective() {
@@ -55,8 +72,8 @@ class CanonicalEvaluatorConformanceTest {
   @Test void changingObjectiveAndHardConstraintChangesThePreferredBinding() {
     JsonObject document = TestProblems.twoCandidates();
     JsonObject optimization = document.getAsJsonObject("spec").getAsJsonObject("optimization");
-    optimization.getAsJsonArray("terms").get(0).getAsJsonObject()
-        .add("metric", ref("app", "latency"));
+    optimization.getAsJsonArray("criteria").get(0).getAsJsonObject()
+        .add("feature", ref("app", "latency"));
     BindingProblem latencyProblem = new BindingProblem(document);
     CanonicalEvaluator latency = new CanonicalEvaluator(latencyProblem);
     assertTrue(latency.comparator().compare(
@@ -278,7 +295,7 @@ class CanonicalEvaluatorConformanceTest {
   @Test void objectiveNormalizationClampsOnlyWhenExplicitlyRequested() {
     JsonObject document = TestProblems.twoCandidates();
     JsonObject term = document.getAsJsonObject("spec").getAsJsonObject("optimization")
-        .getAsJsonArray("terms").get(0).getAsJsonObject();
+        .getAsJsonArray("criteria").get(0).getAsJsonObject();
     JsonObject normalize = new JsonObject();
     normalize.addProperty("min", 0);
     normalize.addProperty("max", 5);
@@ -549,42 +566,42 @@ class CanonicalEvaluatorConformanceTest {
   @Test void weightedLexicographicParetoAndSatisfyHaveDistinctExactOrders() {
     JsonObject document = TestProblems.twoCandidates();
     JsonObject optimization = document.getAsJsonObject("spec").getAsJsonObject("optimization");
-    JsonArray terms = optimization.getAsJsonArray("terms");
-    terms.get(0).getAsJsonObject().addProperty("weight", 0.25);
-    JsonObject latency = new JsonObject();
-    latency.add("metric", ref("app", "latency"));
-    latency.addProperty("direction", "minimize");
-    latency.addProperty("weight", 0.75);
-    terms.add(latency);
+    JsonArray criteria = optimization.getAsJsonArray("criteria");
+    criteria.add(criterion("latency", "latency"));
     CanonicalEvaluator evaluator = new CanonicalEvaluator(new BindingProblem(document));
-    CanonicalEvaluator.Evaluation a = evaluator.evaluate(TestProblems.decision("catalog-a"));
-    CanonicalEvaluator.Evaluation b = evaluator.evaluate(TestProblems.decision("catalog-b"));
+
+    // weighted-sum: SINGLE objective, the weights come from the execution request
+    JsonObject weighted = execution("SINGLE", "weighted-sum", 0.25, 0.75);
+    CanonicalEvaluator.Evaluation a = evaluator.evaluate(TestProblems.decision("catalog-a"), weighted);
+    CanonicalEvaluator.Evaluation b = evaluator.evaluate(TestProblems.decision("catalog-b"), weighted);
     assertEquals(7.75, a.objectiveVector().get(0), 1e-12);
     assertEquals(3.0, b.objectiveVector().get(0), 1e-12);
+    assertEquals(7.75, a.objectives().get("score").getAsDouble(), 1e-12);
     assertTrue(evaluator.comparator().compare(b, a) < 0);
 
-    optimization.addProperty("mode", "lexicographic");
-    terms.get(0).getAsJsonObject().addProperty("weight", 1);
-    terms.get(1).getAsJsonObject().addProperty("weight", 1);
-    evaluator = new CanonicalEvaluator(new BindingProblem(document));
-    a = evaluator.evaluate(TestProblems.decision("catalog-a"));
-    b = evaluator.evaluate(TestProblems.decision("catalog-b"));
+    // lexicographic: the loss vector plus the penalty total, compared left to right
+    JsonObject lexicographic = execution("MULTI", "lexicographic");
+    a = evaluator.evaluate(TestProblems.decision("catalog-a"), lexicographic);
+    b = evaluator.evaluate(TestProblems.decision("catalog-b"), lexicographic);
     assertEquals(java.util.Arrays.asList(1.0, 10.0, 0.0), a.objectiveVector());
     assertEquals(java.util.Arrays.asList(9.0, 1.0, 0.0), b.objectiveVector());
     assertTrue(evaluator.comparator().compare(a, b) < 0);
 
-    optimization.addProperty("mode", "pareto");
-    evaluator = new CanonicalEvaluator(new BindingProblem(document));
-    a = evaluator.evaluate(TestProblems.decision("catalog-a"));
-    b = evaluator.evaluate(TestProblems.decision("catalog-b"));
+    // pareto-front: neither of the two trade-offs dominates the other
+    JsonObject pareto = execution("MULTI", "pareto-front");
+    a = evaluator.evaluate(TestProblems.decision("catalog-a"), pareto);
+    b = evaluator.evaluate(TestProblems.decision("catalog-b"), pareto);
+    assertTrue(a.objectives().get("score").isJsonArray());
     assertFalse(evaluator.dominates(a, b));
     assertFalse(evaluator.dominates(b, a));
 
-    optimization.addProperty("mode", "satisfy");
-    optimization.add("terms", new JsonArray());
+    // feasibility: no criteria at all, the score is only the penalty total
+    optimization.add("criteria", new JsonArray());
     evaluator = new CanonicalEvaluator(new BindingProblem(document));
-    assertEquals(0.0, evaluator.evaluate(TestProblems.decision("catalog-a"))
-        .objectiveVector().get(0), 1e-12);
+    CanonicalEvaluator.Evaluation satisfied = evaluator.evaluate(
+        TestProblems.decision("catalog-a"), execution("SINGLE", "feasibility"));
+    assertEquals(0.0, satisfied.objectiveVector().get(0), 1e-12);
+    assertEquals(0.0, satisfied.objectives().get("score").getAsDouble(), 1e-12);
   }
 
   @Test void hardFeasibilityAndDynamicSoftPenaltyAreEvaluatedWithoutHiddenTolerance() {
@@ -664,10 +681,24 @@ class CanonicalEvaluatorConformanceTest {
     application.add("registered", registered);
     assertThrows(IllegalArgumentException.class, () -> new BindingProblem(ambiguousResource));
 
-    JsonObject nonCanonicalWeight = document.deepCopy();
-    nonCanonicalWeight.getAsJsonObject("spec").getAsJsonObject("optimization")
-        .getAsJsonArray("terms").get(0).getAsJsonObject().addProperty("weight", 2);
-    assertThrows(IllegalArgumentException.class, () -> new BindingProblem(nonCanonicalWeight));
+    // IR 0.2.0 has no criterion weights: weights are an execution input that must sum to one,
+    // and the penalty weights stored in the IR must be normalized.
+    assertThrows(IllegalArgumentException.class, () -> EngineContract.parse(
+        TestProblems.envelope(document, "weighted-sum", "{}").replace("\"value\":1.0", "\"value\":2.0")));
+    JsonObject nonCanonicalPenalty = document.deepCopy();
+    JsonObject soft = new JsonObject();
+    soft.add("ref", ref("constraints", "preference"));
+    soft.add("when", literal(true));
+    soft.add("assert", literal(false));
+    soft.addProperty("enforcement", "soft");
+    soft.add("penalty", literal(2));
+    nonCanonicalPenalty.getAsJsonObject("spec").getAsJsonArray("constraints").add(soft);
+    JsonObject penalty = new JsonObject();
+    penalty.add("constraint", ref("constraints", "preference"));
+    penalty.addProperty("weight", 2);
+    nonCanonicalPenalty.getAsJsonObject("spec").getAsJsonObject("optimization")
+        .getAsJsonArray("penalties").add(penalty);
+    assertThrows(IllegalArgumentException.class, () -> new BindingProblem(nonCanonicalPenalty));
   }
 
   @Test void engineLongOptionsPreserveExactJsonIntegers() {
@@ -692,6 +723,34 @@ class CanonicalEvaluatorConformanceTest {
         TestProblems.envelope(TestProblems.twoCandidates(), "{}").replace("bim-engine/v1", "wrong/v1")));
   }
 
+  private static JsonObject criterion(String id, String feature) {
+    JsonObject value = new JsonObject();
+    value.addProperty("id", id);
+    value.add("feature", ref("app", feature));
+    value.addProperty("direction", "minimize");
+    return value;
+  }
+  private static String request(JsonObject problem, String type, String scalarization) {
+    return "{\"apiVersion\":\"bim/v1\",\"kind\":\"BindingProblemRequest\","
+        + "\"protocol\":\"bim-engine/v1\",\"problem\":" + problem
+        + ",\"optimization\":{\"type\":\"" + type + "\",\"scalarization\":\"" + scalarization
+        + "\",\"weights\":[]},\"options\":{}}";
+  }
+  private static JsonObject execution(String type, String scalarization, double... weights) {
+    JsonObject value = new JsonObject();
+    value.addProperty("type", type);
+    value.addProperty("scalarization", scalarization);
+    JsonArray list = new JsonArray();
+    String[] ids = {"cost", "latency"};
+    for (int index = 0; index < weights.length; index++) {
+      JsonObject item = new JsonObject();
+      item.addProperty("criteria", ids[index]);
+      item.addProperty("value", weights[index]);
+      list.add(item);
+    }
+    value.add("weights", list);
+    return value;
+  }
   private static JsonObject ref(String resource, String id) {
     JsonObject value = new JsonObject(); value.addProperty("resource", resource); value.addProperty("id", id); return value;
   }
@@ -825,11 +884,14 @@ class CanonicalEvaluatorConformanceTest {
     assertEquals(10.0, evaluation.features().get("latency"));
     assertEquals(10.0, evaluation.metrics().get("latency"));
 
+    // bim-engine/v1 BindingSolution is closed (bim_core.protocol._SOLUTION_FIELDS and the OpenAPI
+    // additionalProperties:false): "features" is the only feature map, there is no "metrics" alias.
     JsonObject solution = EngineContract.solution(evaluation);
-    assertTrue(solution.has("features"));
-    assertTrue(solution.has("metrics"));
+    assertEquals(new java.util.LinkedHashSet<String>(java.util.Arrays.asList(
+        "decision", "features", "objectives", "penalties", "violations")), solution.keySet());
+    assertFalse(solution.has("metrics"));
     assertEquals(1.0, solution.getAsJsonObject("features").get("cost").getAsDouble());
-    assertEquals(1.0, solution.getAsJsonObject("metrics").get("cost").getAsDouble());
+    assertEquals(10.0, solution.getAsJsonObject("features").get("latency").getAsDouble());
   }
 
   @Test void featurePathExpressionsInConstraintsEvaluateCorrectly() {

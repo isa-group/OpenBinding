@@ -23,18 +23,20 @@ class V1ManySearchTest {
     Controller controller = new Controller();
     JsonObject document = manyProblem();
     JsonObject response = new JsonParser().parse(controller.solvePayload(
-        TestProblems.envelope(document,
+        TestProblems.paretoRequest(document, "MANY",
             "{\"iterations\":30,\"archive_size\":10,\"seed\":9}"))).getAsJsonObject();
     assertEquals("FEASIBLE", response.get("termination").getAsString());
     assertTrue(response.getAsJsonArray("solutions").get(0).getAsJsonObject().has("decision"));
     assertThrows(IllegalArgumentException.class, () -> controller.solvePayload(
-        TestProblems.envelope(document, "{\"debug\":true}")));
+        TestProblems.paretoRequest(document, "MANY", "{\"debug\":true}")));
+    // MANY needs three criteria and the pareto-front scalarization; neither a one-criterion IR
+    // nor a SINGLE weighted-sum execution is a many-objective request.
     assertThrows(IllegalArgumentException.class, () -> controller.solvePayload(
-        TestProblems.envelope(TestProblems.twoCandidates(), "{}")));
-    JsonObject monoPareto = TestProblems.twoCandidates();
-    monoPareto.getAsJsonObject("spec").getAsJsonObject("optimization").addProperty("mode", "pareto");
+        TestProblems.paretoRequest(TestProblems.twoCandidates(), "MANY", "{}")));
     assertThrows(IllegalArgumentException.class, () -> controller.solvePayload(
-        TestProblems.envelope(monoPareto, "{}")));
+        TestProblems.envelope(document, "{}")));
+    assertThrows(IllegalArgumentException.class, () -> controller.solvePayload(
+        TestProblems.paretoRequest(document, "MULTI", "{}")));
   }
 
   @Test void paretoHeuristicNeverClaimsInfeasibility() {
@@ -44,18 +46,13 @@ class V1ManySearchTest {
             + "\"when\":{\"kind\":\"literal\",\"value\":true},"
             + "\"assert\":{\"kind\":\"literal\",\"value\":false},\"enforcement\":\"hard\"}"));
     JsonObject response = new JsonParser().parse(new Controller().solvePayload(
-        TestProblems.envelope(document, "{\"iterations\":10}"))).getAsJsonObject();
+        TestProblems.paretoRequest(document, "MANY", "{\"iterations\":10}"))).getAsJsonObject();
     assertEquals("UNKNOWN", response.get("termination").getAsString());
     assertEquals(0, response.getAsJsonArray("solutions").size());
   }
 
+  /** Three criteria over the same feature: the IR carries no objective type of its own. */
   private static JsonObject manyProblem() {
-    JsonObject document = TestProblems.twoCandidates();
-    JsonObject optimization = document.getAsJsonObject("spec").getAsJsonObject("optimization");
-    optimization.addProperty("mode", "pareto");
-    optimization.addProperty("type", "MANY");
-    optimization.getAsJsonArray("terms").add(optimization.getAsJsonArray("terms").get(0).deepCopy());
-    optimization.getAsJsonArray("terms").add(optimization.getAsJsonArray("terms").get(0).deepCopy());
-    return document;
+    return TestProblems.withCriteria(TestProblems.twoCandidates(), 3);
   }
 }

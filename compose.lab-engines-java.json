@@ -1,0 +1,129 @@
+{
+  "name": "openbinding-engines-java",
+  "services": {
+    "engines-java-random-search": {
+      "profiles": ["seed"],
+      "build": {
+        "context": "engines",
+        "dockerfile": "random-search/Dockerfile",
+        "target": "builder"
+      },
+      "user": "65534:65534",
+      "working_dir": "/tmp",
+      "command": [
+        "sh",
+        "-ec",
+        "cp -r /app /tmp/work && cd /tmp/work/binding-core && mvn -B -q -Dmaven.repo.local=/tmp/m2 -DskipTests install && cd /tmp/work/random-search && mvn -B -Dmaven.repo.local=/tmp/m2 test && echo engines-java-random-search-ok"
+      ],
+      "environment": {
+        "HOME": "/tmp",
+        "MAVEN_OPTS": "-Xmx384m"
+      },
+      "volumes": [
+        {
+          "type": "tmpfs",
+          "target": "/tmp",
+          "tmpfs": {
+            "mode": 1023,
+            "size": 268435456
+          }
+        }
+      ],
+      "restart": "no",
+      "mem_limit": "768m"
+    },
+    "engines-java-many-heuristic": {
+      "profiles": ["seed"],
+      "build": {
+        "context": "engines",
+        "dockerfile": "many-heuristic/Dockerfile",
+        "target": "builder"
+      },
+      "user": "65534:65534",
+      "working_dir": "/tmp",
+      "command": [
+        "sh",
+        "-ec",
+        "cp -r /app /tmp/work && cd /tmp/work/binding-core && mvn -B -q -Dmaven.repo.local=/tmp/m2 -DskipTests install && cd /tmp/work/many-heuristic && mvn -B -Dmaven.repo.local=/tmp/m2 test && echo engines-java-many-heuristic-ok"
+      ],
+      "environment": {
+        "HOME": "/tmp",
+        "MAVEN_OPTS": "-Xmx384m"
+      },
+      "volumes": [
+        {
+          "type": "tmpfs",
+          "target": "/tmp",
+          "tmpfs": {
+            "mode": 1023,
+            "size": 268435456
+          }
+        }
+      ],
+      "restart": "no",
+      "mem_limit": "768m"
+    },
+    "engines-java-multi-heuristic": {
+      "profiles": ["seed"],
+      "build": {
+        "context": "engines",
+        "dockerfile": "multi-heuristic/Dockerfile",
+        "target": "builder"
+      },
+      "user": "65534:65534",
+      "working_dir": "/tmp",
+      "command": [
+        "sh",
+        "-ec",
+        "cp -r /app /tmp/work && cd /tmp/work/binding-core && mvn -B -q -Dmaven.repo.local=/tmp/m2 -DskipTests install && cd /tmp/work/multi-heuristic && mvn -B -Dmaven.repo.local=/tmp/m2 test && echo engines-java-multi-heuristic-ok"
+      ],
+      "environment": {
+        "HOME": "/tmp",
+        "MAVEN_OPTS": "-Xmx384m"
+      },
+      "volumes": [
+        {
+          "type": "tmpfs",
+          "target": "/tmp",
+          "tmpfs": {
+            "mode": 1023,
+            "size": 268435456
+          }
+        }
+      ],
+      "restart": "no",
+      "mem_limit": "768m"
+    },
+    "engines-java-evolutionary": {
+      "profiles": ["seed"],
+      "build": {
+        "context": "engines",
+        "dockerfile": "evolutionary-heuristics/Dockerfile",
+        "target": "builder"
+      },
+      "user": "65534:65534",
+      "working_dir": "/tmp",
+      "command": [
+        "sh",
+        "-ec",
+        "cp -r /app /tmp/work && cd /tmp/work/binding-core && mvn -B -q -Dmaven.repo.local=/tmp/m2 -DskipTests install && cd /tmp/work/evolutionary-heuristics && mvn -B -Dmaven.repo.local=/tmp/m2 test && echo engines-java-evolutionary-ok"
+      ],
+      "environment": {
+        "HOME": "/tmp",
+        "MAVEN_OPTS": "-Xmx384m"
+      },
+      "volumes": [
+        {
+          "type": "tmpfs",
+          "target": "/tmp",
+          "tmpfs": {
+            "mode": 1023,
+            "size": 268435456
+          }
+        }
+      ],
+      "restart": "no",
+      "mem_limit": "768m"
+    }
+  }
+}

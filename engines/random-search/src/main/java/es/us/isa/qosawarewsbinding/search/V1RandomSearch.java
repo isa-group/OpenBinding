@@ -1,6 +1,7 @@
 package es.us.isa.qosawarewsbinding.search;
 
 import es.us.isa.openbinding.core.BindingProblem;
+import es.us.isa.openbinding.core.Cancellation;
 import es.us.isa.openbinding.core.CanonicalEvaluator;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
@@ -42,10 +43,11 @@ public final class V1RandomSearch {
     execution.addProperty("type", "SINGLE");
     execution.addProperty("scalarization", "weighted-sum");
     com.google.gson.JsonArray weights = new com.google.gson.JsonArray();
-    for (com.google.gson.JsonElement item : problem.optimization().getAsJsonArray("criteria")) {
+    com.google.gson.JsonArray criteria = problem.optimization().getAsJsonArray("criteria");
+    for (com.google.gson.JsonElement item : criteria) {
       JsonObject weight = new JsonObject();
       weight.addProperty("criteria", item.getAsJsonObject().get("id").getAsString());
-      weight.addProperty("value", 1.0);
+      weight.addProperty("value", 1.0 / criteria.size());
       weights.add(weight);
     }
     execution.add("weights", weights);
@@ -62,6 +64,7 @@ public final class V1RandomSearch {
     JsonArray trace = new JsonArray();
 
     for (int iteration = 0; iteration < iterations; iteration++) {
+      Cancellation.checkpoint();
       if (iteration > 0 && expired(started, timeBudgetMs)) break;
       Map<String, BindingProblem.Ref> decision = new LinkedHashMap<String, BindingProblem.Ref>();
       for (String task : problem.serviceTasks()) {

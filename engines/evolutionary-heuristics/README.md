@@ -14,3 +14,13 @@ placement selector `all`, select only `qos-binding-placement/v1` in
 chromosome. The engine never claims exactness, optimality or infeasibility.
 
 Run `mvn test` with Java 17 or newer.
+
+## Asynchronous mode (opt-in)
+
+By default the service is synchronous and listens on `PORT` (default `8080`). With
+`ENGINE_JOB_MODE=async` the same POST answers `202` with a job id, `GET
+/internal/v1/jobs/{id}` reads the job and `DELETE` cancels it; the search stops at
+its next chromosome evaluation and the job is reported `cancelled` only once the
+solver thread has returned. `ENGINE_AUTH_TOKENS=tenant=token,...` makes jobs
+private to the tenant that submitted them. See
+[`docs/qa/ENGINE_CANCELLATION_JAVA.md`](../../docs/qa/ENGINE_CANCELLATION_JAVA.md).

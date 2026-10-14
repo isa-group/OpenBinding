@@ -4,39 +4,56 @@ import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import es.us.isa.openbinding.core.EngineContract;
+import es.us.isa.openbinding.core.EngineHttp;
+import es.us.isa.openbinding.core.EngineJobs;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Executors;
 
-/** BIM Engine Protocol v1 service for evolutionary search. */
+/**
+ * BIM Engine Protocol v1 service for evolutionary search.
+ *
+ * <p>PORT (default 8080) selects the port.  The engine is synchronous unless ENGINE_JOB_MODE=async,
+ * which answers 202 with a job id and adds GET and DELETE on the jobs (see {@link EngineHttp}).</p>
+ */
 public final class Server {
   private static final int MAX_BODY_BYTES = 64 * 1024 * 1024;
   private Server() {}
 
   public static void main(String[] args) throws IOException {
-    int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
-    HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+    EngineHttp.Settings settings = EngineHttp.Settings.fromEnvironment(System.getenv());
+    HttpServer server = HttpServer.create(new InetSocketAddress(settings.port()), 0);
     server.createContext("/health", exchange -> write(exchange, 200, "{\"status\":\"ok\"}"));
-    server.createContext("/internal/v1/binding-problems", Server::solve);
+    EngineJobs jobs = EngineHttp.install(server, Server::prepare, Server::solve, settings,
+        "Evolutionary Search BIM Engine", null);
+    if (jobs != null) Runtime.getRuntime().addShutdownHook(new Thread(jobs::close));
     server.setExecutor(Executors.newCachedThreadPool());
     server.start();
   }
 
   static String solvePayload(String payload) {
+    return prepare(payload).run();
+  }
+
+  /** Validates the request and returns the search to run (see {@link EngineHttp.Engine}). */
+  static EngineJobs.Work prepare(String payload) {
     EngineContract.Request request = EngineContract.parse(payload);
-    EvolutionarySolver.Result result = new EvolutionarySolver().evaluate(request);
-    JsonObject provenance = new JsonObject();
-    provenance.addProperty("algorithm", EngineContract.stringOption(
-        request.options(), "algorithm", "elitist-genetic"));
-    provenance.addProperty("evaluations", result.evaluations);
-    provenance.addProperty("elapsed_ms", result.elapsedMs);
-    provenance.add("trace", result.trace);
-    provenance.addProperty("trace_kind", "strict-incumbent-improvements");
-    provenance.addProperty("seed", EngineContract.longOption(request.options(), "seed", 0L));
-    return EngineContract.json(EngineContract.response(
-        result.solutions.isEmpty() ? "UNKNOWN" : "FEASIBLE", result.solutions, provenance));
+    EvolutionarySolver.Plan plan = new EvolutionarySolver().plan(request);
+    return () -> {
+      EvolutionarySolver.Result result = plan.run();
+      JsonObject provenance = new JsonObject();
+      provenance.addProperty("algorithm", EngineContract.stringOption(
+          request.options(), "algorithm", "elitist-genetic"));
+      provenance.addProperty("evaluations", result.evaluations);
+      provenance.addProperty("elapsed_ms", result.elapsedMs);
+      provenance.add("trace", result.trace);
+      provenance.addProperty("trace_kind", "strict-incumbent-improvements");
+      provenance.addProperty("seed", EngineContract.longOption(request.options(), "seed", 0L));
+      return EngineContract.json(EngineContract.response(
+          result.solutions.isEmpty() ? "UNKNOWN" : "FEASIBLE", result.solutions, provenance));
+    };
   }
 
   private static void solve(HttpExchange exchange) throws IOException {
