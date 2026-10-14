@@ -108,6 +108,13 @@ that limits a compromised process. Consequences for the lab:
   `BIM_MAX_EXPANDED_BYTES`, 64 MiB by default) is not covered by the budget. The default
   `MAX_JSON_BODY_BYTES` of the gateway is also 16 MiB; the size of the requests it sends to
   `bim-service` was not checked against the new limit.
+- **`bim-service` with worker processes (alternative manifests).** `compose.lab-process-n2.json`
+  and `compose.lab-process.json` run the same service with `BIM_SERVICE_EXECUTOR=process` in the
+  same 256 MiB container (bodies of 2 MiB and 6 MiB, not 16 MiB). They differ from
+  `compose.lab.json` only in the environment of `bim-service`, so the memory sum stays
+  4032 MiB, and `compose.lab.json` is the rollback. Profiles, fit rule, activation with
+  `lab_compose up file=...` and what to verify: [qa/PROCESS_DEPLOYMENT.md](qa/PROCESS_DEPLOYMENT.md).
+  Checked statically only (`lab/tests/test_lab_process_profiles.py`).
 - Not executed: the image build, `up` and the new ownership have not been run (no
   Docker in the authoring environment); only the static checks cover them.
 
