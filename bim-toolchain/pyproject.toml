@@ -1,7 +1,7 @@
 # bim-toolchain: a uv workspace of three distributions. This file declares no project of its own
 # (nothing is built or published from the root); it only ties the members together for local development.
 #
-# License: no license has been chosen for the code. The holder's decision is pending; see NOTICE.md.
+# License: CC-BY-4.0 (SPDX), the license of OpenBinding; see NOTICE.md and licenses.json.
 
 [tool.uv.workspace]
 members = ["packages/bim-core", "packages/bim-service", "packages/bim-client"]

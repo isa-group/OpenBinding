@@ -1,0 +1,45 @@
+{
+ "after": {
+  "bytes": 222349,
+  "compilerDigest": "sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e",
+  "sha256": "6f60c4fa83576ae0b5bf2da1437fb32e348deee80b34ee410f8d19a9313c0a07"
+ },
+ "before": {
+  "bytes": 222349,
+  "compilerDigest": "sha256-749170b53356cc12a85f2a78dc5fd067477c7688db05a8aabed5d369e308b986",
+  "sha256": "9322bc09720a6954779dbcdc503f6c7b0c78aa9be630d2baa80526d13167a79d"
+ },
+ "changedMembers": {
+  "packages[*].toolchain.compilerDigest": 82,
+  "packages[*].toolchain.irDigest": 82,
+  "toolchain.compilerDigest": 1
+ },
+ "frozenNotTouched": {
+  "golden/bim_baseline/compat.json": "8f6f3ac94d1bf59235a328644965c3f9df512010469caae836f5a0aec21759a8",
+  "golden/bim_baseline/corpus.json": "0ca465a0230c96aa4e44bba54cc73dba9d0a1c98adb4325b9699d194cdd9bfec",
+  "golden/bim_baseline/negatives.json": "b7247d241d21c7086e716c4cfeea92af0785b55fba02f0b0ef1f03ed0f0e4194",
+  "golden/bim_baseline/protocol.json": "700f211018835c44352535ebfebeb3c71dbb1ad47fa4c48048623a963ca03ccc",
+  "golden/bim_baseline/vectors.json": "91d283706f6801245758e28a5968958056fe372f4e53e33ef0e48b28eecaaedb",
+  "golden/ir_previous/evidence.json": "e7fe370f5ff7d897c4217fef0b7f6d944ffc2673fe84093c483ba40a9766267d"
+ },
+ "gatewayCopies": {
+  "openbinding-gateway/tests/golden/bim_baseline/corpus.json": "6f60c4fa83576ae0b5bf2da1437fb32e348deee80b34ee410f8d19a9313c0a07"
+ },
+ "golden": "golden/bim_normalized/corpus.json",
+ "note": "Before and after of the informative toolchain members of golden/bim_normalized/corpus.json (and of the gateway's byte copies). Everything that is not a toolchain member was recomputed from the corpus with the installed toolchain and found identical to the recorded value before anything was written.",
+ "packageCount": 82,
+ "schema": "bim-toolchain/toolchain-metadata-comparison/1",
+ "tool": "tools/regen_normalized_metadata.py",
+ "unchanged": {
+  "bindingSpaces": 82,
+  "candidates": 82,
+  "changedLines": 165,
+  "changedLinesNotAboutTheToolchain": 0,
+  "evaluations": 82,
+  "everythingButToolchain": true,
+  "sectionDigests": 82,
+  "semanticDigests": 82,
+  "zipEquivalenceBytesIdentical": true,
+  "zipEquivalenceSha256": "992b09e934d47e6f0ae346428f211702763a226c836fe3ba6191758a0fbc0305"
+ }
+}

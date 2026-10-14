@@ -6,8 +6,13 @@
 # no secret: the only credential is the job-scoped GITHUB_TOKEN that GitHub provides, with the permissions below.
 #
 # SECURITY TODO: actions are pinned by major version because the commit SHAs could not be looked up (no network
-# when this file was written). Before the first real run, pin each `uses:` to the full commit SHA of the release
-# that the major version points to (keep the version in a trailing comment).
+# when this file was written). Every `uses:` carries the marker PIN-PENDING and `licenses.json` ("action_pins") lists
+# exactly which are pending; tools/test_workflows.py fails if a `uses:` is neither pinned to a 40-hex commit SHA nor
+# marked. Before the first real run, pin each `uses:` to the full commit SHA of the release that the major version
+# points to (keep the version in a trailing comment, drop the marker and the entry of the list). No SHA was invented.
+#
+# If the OMG XSD files are not in the tree (the export leaves them out until they are cleared,
+# docs/OMG_XSD_RIGHTS.md), a step after each checkout fetches them and verifies their SHA-256.
 
 name: release
 
@@ -30,9 +35,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: astral-sh/setup-uv@v5 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: "3.12"
 
@@ -53,8 +58,15 @@ jobs:
           grep -q "^## \[${version}\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no section for ${version}"; exit 1; }
 
       - run: python -m pip install ${{ env.DEPS }}
-      - name: Tests
-        run: python -m pytest -p no:cacheprovider --rootdir=. packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests -rs
+      - name: Tests (without the corpus tier; no test may be skipped)
+        shell: bash
+        run: |
+          python -m pytest -p no:cacheprovider --rootdir=. -m "not openbinding_corpus" -rs \
+            packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests | tee pytest.out
+          if grep -q "SKIPPED" pytest.out; then
+            echo "::error::a test was SKIPPED outside the corpus tier; it must run"
+            exit 1
+          fi
         env:
           PYTHONPATH: ${{ env.SRC }}
 
@@ -72,16 +84,19 @@ jobs:
           env -i .verify-venv/bin/python -I tools/smoke_installed.py packages/bim-core/tests/fixtures/example-package
 
       - name: Packaging tests (they open the built archives and the clean venv)
-        run: python -m pytest -p no:cacheprovider --rootdir=. tools -rs
+        run: python -m pytest -p no:cacheprovider --rootdir=. -m "not openbinding_corpus" tools -rs
         env:
           PYTHONPATH: ${{ env.SRC }}
+
+      - name: Verify the release (two reproducible builds, clean venv, digests, contracts)
+        run: python tools/verify_release.py --skip-corpus
 
       - name: toolchain.json of the installed wheels, and checksums
         run: |
           env -i .verify-venv/bin/python -I tools/toolchain_json.py --output dist/toolchain.json
           (cd dist && sha256sum *.whl *.tar.gz toolchain.json > SHA256SUMS && cat SHA256SUMS)
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4 # PIN-PENDING: replace by the full commit SHA
         with:
           name: release-${{ github.ref_name }}
           path: dist/
@@ -93,7 +108,7 @@ jobs:
     permissions:
       contents: write # only to create the draft release and attach the files
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4 # PIN-PENDING: replace by the full commit SHA
         with:
           name: release-${{ github.ref_name }}
           path: dist

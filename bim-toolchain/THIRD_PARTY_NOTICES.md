@@ -36,3 +36,20 @@ The complete upstream license texts remain available in the linked repositories.
 OpenBinding source and documentation retain the license declared by this repository.
 Names, logos and institutional marks are not transferred by the MIT license and
 must not be used to imply an endorsement.
+
+---
+
+## Additions of bim-toolchain
+
+Everything above is OpenBinding's file, copied unchanged and kept so that no credit
+is lost; the section below is the only text added by `bim-toolchain`. None of the
+material credited above (the Universidad de Sevilla mark, the code of the MIT
+projects) is part of this repository: only the notice is.
+
+| Material | Where | Status |
+|---|---|---|
+| OMG BPMN 2.0.2 XML Schemas (`BPMN20.xsd`, `Semantic.xsd`, `BPMNDI.xsd`, `DC.xsd`, `DI.xsd`) | `packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2/` | Not covered by the license of this repository. The terms under which OMG allows their redistribution are **not demonstrated** (`docs/OMG_XSD_RIGHTS.md`); the export leaves them out until the holder records a clearance in `licenses.json`. |
+| Python dependencies (`jsonschema`, `lxml`, `PyYAML`, `FastAPI`, `pydantic`, `uvicorn`, `httpx`) and the build backend (`hatchling`) | not in this repository | Not vendored. Installed from an index; each is under its own license, stated in the metadata of the installed distribution. |
+
+The license of the material written for this repository is CC-BY-4.0 (`LICENSE`,
+`NOTICE.md`, `docs/LICENSING.md`).

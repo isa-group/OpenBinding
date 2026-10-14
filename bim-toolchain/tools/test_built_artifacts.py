@@ -1,27 +1,26 @@
 """The built wheels and sdists (``dist/``, made by ``uv build``) contain what they must and nothing else.
 
-They open the archives; they need no network.  When ``dist/`` has not been built they skip: build first
-(``docs/PACKAGING.md``).  When ``.verify-venv`` exists (a clean venv with the wheels installed) they also run the
-smoke test with that interpreter in isolated mode, with an empty environment.
+They open the archives and the clean venv.  Nothing here skips for lack of a build: the module builds ``dist/`` on demand
+(and rebuilds it when the sources changed), creates ``.verify-venv`` from those wheels and runs the smoke test with that
+interpreter in isolated mode, with an empty environment.  A missing ``uv`` is an error (``packaging_support.require_uv``).
 """
 
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import zipfile
 from pathlib import Path
 
 import pytest
 
+import packaging_support as ps
 from bim_core.toolchain import bundle_digest, compiler_bundle_digest
 from packaging_support import (
     DIST,
     EXAMPLE_PACKAGE,
     PACKAGES,
     ROOT,
-    VERIFY_VENV,
     extract_sdist,
     files_below,
     package_dir,
@@ -37,20 +36,22 @@ from packaging_support import (
 NAMES = sorted(PACKAGES)
 CORE_SRC = package_dir("bim-core") / "src" / "bim_core"
 
-pytestmark = pytest.mark.skipif(not DIST.is_dir(), reason=f"{DIST} does not exist: run `uv build` for each package first")
+
+@pytest.fixture(scope="module", autouse=True)
+def built() -> Path:
+    """``dist/`` for the current sources, built now if it is not there or is stale."""
+    return ps.ensure_dist()
 
 
 def wheel_of(name: str) -> Path:
     path = wheel_path(name)
-    if path is None:
-        pytest.skip(f"no wheel of {name} in {DIST}")
+    assert path is not None, f"no wheel of {name} in {DIST}"
     return path
 
 
 def sdist_of(name: str) -> Path:
     path = sdist_path(name)
-    if path is None:
-        pytest.skip(f"no sdist of {name} in {DIST}")
+    assert path is not None, f"no sdist of {name} in {DIST}"
     return path
 
 
@@ -76,10 +77,25 @@ def test_wheel_metadata(name: str) -> None:
     assert {requirement_name(item) for item in requirements} == PACKAGES[name][1]
     for item in metadata.get_all("Requires-Dist", []):
         assert "@" not in item and "file:" not in item and "/" not in item, f"{item!r} is a path or URL"
-    assert metadata["License"] is None and metadata["License-Expression"] is None
     assert not any(item.startswith("License ::") for item in metadata.get_all("Classifier", []))
     assert metadata.get_all("License-File") == ["NOTICE.md"]
     assert "Private :: Do Not Upload" in metadata.get_all("Classifier", [])
+
+
+@pytest.mark.parametrize("name", NAMES)
+def test_wheel_declares_the_spdx_license_expression_of_the_holder(name: str) -> None:
+    """``License-Expression`` (PEP 639) is the one declaration; the free-text ``License`` field is not used."""
+    metadata = wheel_metadata(wheel_of(name))
+    assert metadata["License-Expression"] == "CC-BY-4.0"
+    assert metadata["License"] is None
+
+
+@pytest.mark.parametrize("name", NAMES)
+def test_sdist_declares_the_same_license(name: str, tmp_path: Path) -> None:
+    unpacked = extract_sdist(sdist_of(name), tmp_path)
+    text = (unpacked / "PKG-INFO").read_text(encoding="utf-8")
+    assert "License-Expression: CC-BY-4.0" in text and "License-File: NOTICE.md" in text
+    assert "Private :: Do Not Upload" in text
 
 
 @pytest.mark.parametrize("name", ["bim-service", "bim-client"])
@@ -152,14 +168,12 @@ def test_the_digest_of_the_unpacked_sdist_equals_the_digest_of_the_source_tree(t
 
 
 def test_the_digest_of_a_wheel_rebuilt_from_the_sdist_equals_the_digest_of_the_source_tree(tmp_path: Path) -> None:
-    uv = shutil.which("uv")
-    if uv is None:
-        pytest.skip("uv is not on PATH")
+    uv = ps.require_uv()
     unpacked = extract_sdist(sdist_of("bim-core"), tmp_path / "sdist")
     out = tmp_path / "wheel"
     result = subprocess.run(
         [uv, "build", "--wheel", "--out-dir", str(out), str(unpacked)],
-        capture_output=True, text=True, check=False, cwd=tmp_path,
+        capture_output=True, text=True, check=False, cwd=tmp_path, env=ps.build_environment(),
     )
     assert result.returncode == 0, result.stdout + result.stderr
     (rebuilt,) = out.glob("bim_core-*.whl")
@@ -167,15 +181,18 @@ def test_the_digest_of_a_wheel_rebuilt_from_the_sdist_equals_the_digest_of_the_s
         assert bundle_digest(zipfile.Path(archive, "bim_core/")) == compiler_bundle_digest()
 
 
+def test_dist_was_built_from_the_current_sources() -> None:
+    assert (DIST / ps.FINGERPRINT_FILE).read_text(encoding="utf-8").strip() == ps.source_fingerprint()
+    assert len(ps.artifacts_in(DIST)) == 2 * len(PACKAGES)
+
+
 # --- the clean virtual environment ------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
 def venv_python() -> Path:
-    python = VERIFY_VENV / "bin" / "python"
-    if not python.is_file():
-        pytest.skip(f"{VERIFY_VENV} does not exist: create the clean venv and install the wheels first")
-    return python
+    """The interpreter of ``.verify-venv`` with the wheels of ``dist/`` installed, made now if it is not there or is stale."""
+    return ps.ensure_verify_venv()
 
 
 def isolated(python: Path, *arguments: str, cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -194,6 +211,18 @@ def test_smoke_test_in_the_clean_venv_and_digest_equality(venv_python: Path, tmp
     assert (report["bimCore"], report["bimService"], report["bimClient"]) == ("0.2.0", "0.2.0", "0.2.0")
     assert report["compilerDigest"] == report["serviceCompilerDigest"] == compiler_bundle_digest()
     assert report["schemas"] == 12
+
+
+def test_the_installed_distributions_carry_the_license_metadata(venv_python: Path, tmp_path: Path) -> None:
+    code = (
+        "from importlib import metadata\n"
+        "for name in ('bim-core', 'bim-service', 'bim-client'):\n"
+        "    item = metadata.metadata(name)\n"
+        "    print(name, item['License-Expression'], item.get_all('License-File'))\n"
+    )
+    result = isolated(venv_python, "-c", code, cwd=tmp_path)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert result.stdout.splitlines() == [f"{name} CC-BY-4.0 ['NOTICE.md']" for name in ("bim-core", "bim-service", "bim-client")]
 
 
 def test_toolchain_json_of_the_clean_venv_agrees_with_the_source_tree(venv_python: Path, tmp_path: Path) -> None:

@@ -56,7 +56,8 @@ recomputation of the platform's `snapshot_problem` semantic digest), `test_setti
 ## Changed in the copied code
 
 1. **Packaging.** `pyproject.toml` (hatchling, `src` layout, Python ≥ 3.11, `jsonschema` and `lxml`), `README.md`,
-   `py.typed`, version 0.1.0. No license is declared: `NOTICE.md` says the decision is pending.
+   `py.typed`, version 0.1.0. No license was declared then: `NOTICE.md` said the decision was pending (*historical:
+   the license is CC-BY-4.0 since step 6, below*).
 2. **Resources via `importlib.resources`.** New `assets.py`. `compiler.py` no longer reads `SCHEMAS_DIR`, uses
    `Path(__file__).parents[4]` or reads the XSD next to itself; `package.py` loads the BPMN XSD from
    `bim_core/resources`, not from `openbinding_gateway.v1`.
@@ -319,6 +320,11 @@ directories; FastAPI 0.141.1, Starlette 1.3.1, pydantic 2.13.4, httpx 0.28.1):
 
 ## Packaging, clean-environment verification, CI and release (step 5)
 
+> **Historical.** This section records step 5 as it was. Superseded by "Step 6" at the end of this log: the license is now
+> CC-BY-4.0 (a `license` field exists), the packaging tests no longer skip for lack of `dist/` (they build it), the
+> `compilerDigest` of the wheels is `sha256-ccc55839…` (the figure below, `sha256-18a20c7d…`, is that of the code before the
+> normalization of the IR order), and the test counts and byte sizes below are those of that day.
+
 Until this step no wheel had been built and nothing had been installed outside the gateway environment. No file under
 any `src/` directory changed (so `compilerDigest` is the one of step 4 and the digest definition was not touched).
 
@@ -408,7 +414,7 @@ written; it is not a claim that the item is false. This section re-ran no check.
 | Raw ZIP equals the directory | Cerrado, 82/82 | `bim-toolchain/packages/bim-core/tests/test_zip_dir_equivalence_corpus.py` (`test_the_raw_zip_is_the_directory`, `EXPECTED_PACKAGES = 82`) |
 | Canonical ZIP (`to_zip()`) differs from the directory | Cerrado en 0.2.0: 82/82 equal (was 64 of 82 different); MAJOR change decided by the owner on 2026-10-14 | same test file (all 82 and the permutations are ordinary tests; the 64 are `data/zip_divergent_packages.json`, the packages whose semantic digest moved); `bim-toolchain/CHANGELOG.md` `semantic-change`; `docs/qa/IR_NORMALIZATION.md`; `golden/bim_normalized/zip_equivalence.json` |
 | Publishing `javiercavlop/bim-toolchain` | Pendiente: one external step (below) | `docs/RELEASING.md` |
-| Licence | Not decided; **no new licence is created** here | `NOTICE.md`, `docs/PACKAGING.md` |
+| Licence | *Historical (when this table was written):* not decided. **Now: CC-BY-4.0**, holder javiercavlop (titular del repositorio OpenBinding), see step 6 | `NOTICE.md`, `licenses.json`, `docs/LICENSING.md` |
 
 Precisions to the rows above, read from the tree when this note was written (no check was run for it):
 
@@ -431,7 +437,7 @@ Precisions to the rows above, read from the tree when this note was written (no 
   the capability. The PostgreSQL harness now builds the `test` stage and `seed` has no `user` and no bind; that run has
   not been observed (the last observed 58 passed / 0 skipped used the old root `seed`).
 - **Guarantees not claimed**: the queue and the effects on Engines are at-least-once; there is no distributed
-  exactly-once execution ([../../docs/IDEMPOTENCY.md](../../docs/IDEMPOTENCY.md)). SPACE integration is on hold and untested.
+  exactly-once execution (`docs/IDEMPOTENCY.md` of the OpenBinding repository). SPACE integration is on hold and untested.
 - The row "Generic 500 with `correlationId`" above concerns `bim-service` and stays *Sin verificar*; the gateway has its
   own implementation (`core/public_errors.py`).
 
@@ -441,6 +447,54 @@ saturation and `tracemalloc` checks exist, nothing at container level), and the 
 
 ### The only external step left to publish
 
-To publish `javiercavlop/bim-toolchain` the repository needs, from outside this worktree: (1) written confirmation of
-the rights (ownership of the code and the terms of OMG for the vendored BPMN XSDs), and (2) a Git credential limited to
-that repository. Nothing else blocks it. Nothing was published, no remote was created and no licence was written.
+*Historical.* When this table was written, publishing `javiercavlop/bim-toolchain` needed, from outside this worktree: (1) written
+confirmation of the rights (ownership of the code and the terms of OMG for the vendored BPMN XSDs), and (2) a Git credential
+limited to that repository. Nothing was published, no remote was created and no licence was written. Since step 6 the license is
+written and the OMG files have their own switch; what is still outside this worktree is in `docs/DELIVERY.md`.
+
+## Step 6: license, OMG XSDs, export, reproducible release check, corpus tier, goldens' metadata
+
+No file under `packages/*/src` changed: `compilerDigest` is `sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e`
+(the 0.2.0 value of `DIGESTS.md`), nothing that must not move moved (`baseline_core.py --check`: 82 packages, 0 differences).
+Details per topic are in `CHANGELOG.md` ([Unreleased]), `docs/LICENSING.md`, `docs/OMG_XSD_RIGHTS.md`, `docs/GOLDEN_METADATA.md`,
+`docs/DELIVERY.md` and `docs/PACKAGING.md`; this section is the record of what was run.
+
+### What was decided (by the owner, for this step) and how it was done
+
+- **The corpus is not copied.** The 82 packages come from datasets whose licenses could not be verified. The tests that read it carry
+  the marker `openbinding_corpus`, found by static analysis of the tests (`tools/corpus_tier.py`), and a guard test runs the rest with an
+  empty corpus and fails on a skip or a failure. `golden/synthetic/corpus.json` is a golden of this repository's own packages.
+- **SPDX in a manifest** (`licenses.json`) and in `pyproject.toml`, not in each `.py` (it would change `compilerDigest`).
+- **Action pins:** markers, a test, and the exact list; no SHA invented (no network to GitHub).
+- **Regeneration of the goldens' metadata:** a tool that verifies before it writes (`tools/regen_normalized_metadata.py`).
+
+### Findings
+
+- The five OMG XSD files contain **no** copyright or license text and no XML comment at all (read from the bytes). The controller's
+  findings name two of them; the vendored README and the previous `NOTICE.md` claimed that the notices were preserved, which is not true of
+  these bytes. State: not demonstrated; the export blocks them by default.
+- The `compilerDigest` registered in `golden/bim_normalized/corpus.json` (`sha256-749170b5…`) was not the one of the toolchain (`sha256-ccc55839…`);
+  now refreshed, 165 lines, nothing else changed.
+- Builds are reproducible: two builds in two directories gave identical bytes for all six artifacts.
+
+### Results (actual runs of the registered checks, Python 3.11.2, `uv 0.8.14`, hatchling 1.32.4)
+
+| Check | Result |
+| --- | --- |
+| 0, `regen_normalized_metadata.py --write` | ok at the first run: golden and the gateway's copy rewritten (`9322bc09…` → `6f60c4fa…`), comparison written, `golden/synthetic/corpus.json` created, table of the XSD inventory generated; `git diff --stat`: the two `corpus.json`, 330 lines each |
+| 1, `verify_release.py` | **failed at the first run** (my tool read the last line of standard output and error together and took a warning for the smoke report; fixed to read standard output alone); second run: ok, six artifacts identical in both builds (hashes in `DELIVERY.md`), `compilerDigest` equal in wheel, tree, sdist, installation and service, OpenAPI and consumer fixtures up to date, `baseline_core.py --check` 82 packages 0 differences, `toolchain.json` of the wheels equal to the tree's except the `runtime` versions (lxml 6.1.3.0 in the clean venv, 6.1.1.0 in the tree environment) |
+| 2, full pytest, no skip by build or corpus | **first run: 2277 passed, 10 failed**, 0 skipped: the fixture tree of `test_export_repo.py` had a `packages/bim-core` directory with no notice (nine tests) and one assertion assumed it ran in the source tree, not in an exported copy (that one also made the guard and the whole-tree export test fail, because they run the suite on copies). Fixed in the tests, not in the tools. **Second run: 2287 passed, 3 xfailed (strict), 0 failed, 0 skipped** (end of step 5: 1279 passed, 1 xfailed) |
+| 3, `--check` of baseline, metadata, OpenAPI, consumer fixtures, XSD inventory | ok: `BIM baseline check: 82 packages, 0 differences`; `toolchain metadata check: … 0 problems`; `bim-service.v1.json is up to date`; `xsd inventory: 0 problems; cleared=False` |
+| 4, gateway tests of the consumer side | 402 passed, 2 skipped: the two are the gateway's own tests marked slow (`BIM_BASELINE_FULL=1`), not a build or corpus skip |
+| 5, scope | ok: nothing outside `bim-toolchain/` and `openbinding-gateway/tests/golden/`, nothing in `bim_core/src` or the frozen goldens |
+
+The documents were edited after these runs (the figures above are those of the runs); the report of the task says which checks were repeated on the final state.
+
+### Not verified
+
+- GitHub: the workflows (also the exported ones), the first run of CI, the pins to SHAs; the export on macOS; `gh repo create` and the push.
+- Python 3.12; the Docker image of `bim-service`; `ruff` (not a registered check); an install without a network (the venv is installed from
+  the uv cache first and from the network if that fails; which served was not recorded).
+- The download of the XSDs from omg.org (tested with a stand-in); the terms of OMG, which nobody here has read.
+- Legal questions about CC BY 4.0 for software (recorded as a risk, not decided) and the legal name of the holder.
+- `packages/*/README.md` still say the license is undecided; they were not among the files this step could change.

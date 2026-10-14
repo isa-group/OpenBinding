@@ -1,29 +1,45 @@
 # Notice
 
-## License of the code: pending
+## License of the code: CC-BY-4.0
 
-The license of the BIM toolchain code has **not been decided**. The holder of the
-rights has yet to choose it. Until then no license is granted by this notice and
-none is declared in the package metadata; nothing in this directory should be
-read as a statement that the code is open source or proprietary.
+The BIM toolchain (`bim-core`, `bim-service`, `bim-client`) is licensed under the
+Creative Commons Attribution 4.0 International license (SPDX: `CC-BY-4.0`), the
+same license as OpenBinding, the repository this code was extracted from. The
+license text is in `LICENSE`; the license deed is
+<https://creativecommons.org/licenses/by/4.0/> and the legal code is
+<https://creativecommons.org/licenses/by/4.0/legalcode>.
 
-`LICENSE` (Creative Commons Attribution 4.0 International) and
-`THIRD_PARTY_NOTICES.md` are copied unchanged from OpenBinding, the repository
-this code was extracted from. They are kept so that no existing notice is lost;
-the CC BY 4.0 text is the license of OpenBinding's content at the time of the
-copy and is not a decision about this code's future license.
+Holder: javiercavlop (titular del repositorio OpenBinding). The legal name of the
+holder is not recorded in the repository and none has been inferred.
 
-## OMG BPMN 2.0.2 schemas
+Attribution: when you share or adapt this material, credit the holder, link the
+license and indicate whether changes were made.
 
-`packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2/` contains the
-normative XML Schemas of OMG BPMN 2.0.2 (`BPMN20.xsd`, `Semantic.xsd`,
-`BPMNDI.xsd`, `DC.xsd`, `DI.xsd`) together with the `README.md` that came with
-them. The copyright and license notices inside those files belong to the Object
-Management Group and are preserved byte for byte; do not edit or strip them.
+Scope: the license covers the material written for this repository (sources,
+tests, tools, documentation, contracts and goldens). It does **not** cover the
+OMG BPMN schemas below, the third-party dependencies, or the material credited in
+`THIRD_PARTY_NOTICES.md`. `licenses.json` records the scope and the SPDX identifier
+once per repository; `docs/LICENSING.md` explains it.
+
+A technical note, recorded as a risk and not as a change of decision: CC BY 4.0 is
+not designed for software (it says nothing about patents and does not define source
+code or distribution of binaries). The holder chose it on purpose, for consistency
+with OpenBinding; see `docs/LICENSING.md`.
+
+## OMG BPMN 2.0.2 schemas: rights not demonstrated
+
+`packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2/` contains the XML
+Schemas published by the Object Management Group for BPMN 2.0.2 (`BPMN20.xsd`,
+`Semantic.xsd`, `BPMNDI.xsd`, `DC.xsd`, `DI.xsd`) together with the `README.md` that
+came with them. They are **not** covered by the license above and they are kept
+byte for byte as downloaded. Read byte by byte, none of the five files contains a
+copyright or license notice (`docs/OMG_XSD_RIGHTS.md`), and the terms under which OMG
+allows them to be redistributed have not been demonstrated. Until the holder records
+the clearance in `licenses.json`, the export of this repository leaves them out and
+the build fetches them from the official source, verifying their SHA-256.
 
 ## Datasets
 
-No dataset is redistributed here. The baseline goldens in `golden/bim_baseline/`
-contain only digests and numeric summaries derived from evaluations. The corpus of
-BIM packages used to regenerate them stays in OpenBinding and is located through
-`BIM_CORPUS_ROOT`.
+No dataset is redistributed here. The goldens in `golden/` contain only digests and
+numeric summaries derived from evaluations. The corpus of BIM packages used to
+regenerate them stays in OpenBinding and is located through `BIM_CORPUS_ROOT`.

@@ -1,8 +1,16 @@
 # CI of the future repository (javiercavlop/bim-toolchain). It is not run yet: the remote does not exist.
 #
 # SECURITY TODO: actions are pinned by major version because the commit SHAs could not be looked up (no network
-# when this file was written). Before the first real run, pin each `uses:` to the full commit SHA of the release
-# that the major version points to (keep the version in a trailing comment) and let Dependabot update them.
+# when this file was written). Every `uses:` carries the marker PIN-PENDING, `licenses.json` ("action_pins") lists
+# exactly which actions are pending, and tools/test_workflows.py fails if a `uses:` is neither pinned to a 40-hex commit
+# SHA nor marked, or if the list and the workflows disagree. Before the first real run, pin each `uses:` to the full
+# commit SHA of the release that the major version points to (keep the version in a trailing comment, drop the marker
+# and the entry of the list) and let Dependabot update them. No SHA has been invented.
+#
+# The tests that run here leave out the tier that reads the OpenBinding corpus (`-m "not openbinding_corpus"`); the
+# golden-corpus job compares with the corpus and fails without it. If the OMG XSD files are not in the tree (the export
+# leaves them out until they are cleared, docs/OMG_XSD_RIGHTS.md), a step after each checkout fetches them from the
+# official source and verifies their SHA-256.
 #
 # No job publishes anything or reads a secret.
 
@@ -33,8 +41,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: "3.12"
       - run: python -m pip install ruff
@@ -49,8 +57,8 @@ jobs:
         python-version: ["3.11", "3.12"]
         package: [bim-core, bim-service, bim-client]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install ${{ env.DEPS }}
@@ -71,13 +79,20 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install ${{ env.DEPS }}
-      - name: Tests of bim-core, bim-service and bim-client in one session
-        run: python -m pytest -p no:cacheprovider --rootdir=. packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests -rs
+      - name: Tests of bim-core, bim-service and bim-client in one session (without the corpus tier, no test may be skipped)
+        shell: bash
+        run: |
+          python -m pytest -p no:cacheprovider --rootdir=. -m "not openbinding_corpus" -rs \
+            packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests | tee pytest.out
+          if grep -q "SKIPPED" pytest.out; then
+            echo "::error::a test was SKIPPED outside the corpus tier; it must run"
+            exit 1
+          fi
         env:
           PYTHONPATH: ${{ env.SRC }}
 
@@ -90,8 +105,8 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install ${{ env.DEPS }}
@@ -120,8 +135,8 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install ${{ env.DEPS }}
@@ -152,8 +167,8 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install ${{ env.DEPS }}
@@ -180,9 +195,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: astral-sh/setup-uv@v5 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: "3.12"
       - name: Build wheel and sdist of each package
@@ -192,27 +207,30 @@ jobs:
             (cd "packages/${package}" && uv build --out-dir ../../dist)
           done
           ls -l dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4 # PIN-PENDING: replace by the full commit SHA
         with:
           name: dist
           path: dist/
           if-no-files-found: error
-      # Tests that open the built archives (resources in the wheel and the sdist, metadata, digests).
+      # Tests that open the built archives (resources in the wheel and the sdist, metadata, digests). They build what
+      # they need themselves (a missing uv is an error, not a skip) and the guard runs the rest of the suite without a corpus.
       - run: python -m pip install ${{ env.DEPS }}
       - name: Packaging tests
-        run: python -m pytest -p no:cacheprovider --rootdir=. tools -rs
+        run: python -m pytest -p no:cacheprovider --rootdir=. -m "not openbinding_corpus" tools -rs
         env:
           PYTHONPATH: ${{ env.SRC }}
+      - name: Verify the release (two reproducible builds, clean venv, digests, contracts)
+        run: python tools/verify_release.py --skip-corpus
 
   clean-install:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4 # PIN-PENDING: replace by the full commit SHA
         with:
           name: dist
           path: dist

@@ -13,6 +13,7 @@ if str(TOOLS_DIR) not in sys.path:
 
 # The digest of the failures of a run, printed last (the pytest configuration of this package stops the search for
 # conftest files at its own directory, so the one at the root of bim-toolchain is not loaded here).
+from corpus_tier import pytest_collection_modifyitems, pytest_configure  # noqa: E402,F401
 from failure_digest import (  # noqa: E402,F401
     pytest_collectreport,
     pytest_runtest_logreport,

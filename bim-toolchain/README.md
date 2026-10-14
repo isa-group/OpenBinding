@@ -24,8 +24,10 @@ bim-toolchain/
   .gitignore                        dist/, .venv/, .verify-venv/, __pycache__
   .github/workflows/                ci.yml, release.yml (for the future repository; never run yet)
   CHANGELOG.md                      SemVer; says what changed in the digests
-  LICENSE, THIRD_PARTY_NOTICES.md   copied unchanged from OpenBinding
-  NOTICE.md                         license pending; OMG BPMN notices; no datasets
+  LICENSE                           CC BY 4.0 (OpenBinding's, unchanged)
+  THIRD_PARTY_NOTICES.md            OpenBinding's credits, unchanged, plus a section on what this repository adds
+  NOTICE.md                         the license (CC-BY-4.0), holder, attribution and scope; OMG BPMN schemas: rights not demonstrated
+  licenses.json                     the manifest: SPDX identifier, scope, OMG XSD clearance switch, pending action pins
   packages/bim-core/
     pyproject.toml, README.md, NOTICE.md (copy of the root one, shipped as license-files)
     src/bim_core/                   the package (src layout, py.typed)
@@ -42,16 +44,25 @@ bim-toolchain/
   contracts/
     openapi/bim-service.v1.json     the OpenAPI document of the service (generated)
     consumers/openbinding/*.json    the interactions OpenBinding has with BIM, with the responses it expects
-  golden/bim_baseline/              digests and numeric summaries recorded in OpenBinding
+  golden/bim_baseline/              digests and numeric summaries recorded in OpenBinding (0.1.x, frozen)
+  golden/bim_normalized/            the baseline of the normalized IR (0.2.0); only its `toolchain` members are refreshed
+  golden/synthetic/                 the golden that needs no corpus (synthetic packages and the example package)
   golden/bim_core/                  goldens that have no OpenBinding original (see docs/DIGESTS.md)
   golden/vectors_extra.json         adversarial re-evaluation / result-validation vectors
+  golden/toolchain_metadata_comparison.json   before/after of the last refresh of the `toolchain` members
   tools/baseline_core.py            recomputes the baseline with bim_core only
+  tools/regen_normalized_metadata.py  refreshes the informative `toolchain` members of the goldens (docs/GOLDEN_METADATA.md)
   tools/dump_service_openapi.py     writes / checks contracts/openapi/bim-service.v1.json
   tools/consumer_fixtures.py        the demo package and the scripts behind contracts/consumers/
   tools/toolchain_json.py           writes / checks toolchain.json (versions, digests, runtime versions)
   tools/smoke_installed.py          smoke test of installed wheels, run with python -I in a clean venv
-  tools/test_*.py, packaging_support.py   packaging tests: metadata, built wheels/sdists, toolchain.json, workflows
-  docs/                             CONTRACT.md, DIGESTS.md, SERVICE.md, CLIENT.md, PACKAGING.md, RELEASING.md, EXTRACTION_LOG.md
+  tools/verify_release.py           two reproducible builds, clean venv, smoke test, digests, contracts, one JSON summary
+  tools/export_repo.py              exports this directory as a new repository, one commit (docs/DELIVERY.md)
+  tools/xsd_inventory.py            inventory of the vendored OMG XSDs, read from their bytes; verified download
+  tools/corpus_tier.py              marks the tests that read the OpenBinding corpus (-m 'not openbinding_corpus')
+  tools/test_*.py, packaging_support.py   packaging, license, export and release tests; workflows
+  docs/                             CONTRACT.md, DIGESTS.md, SERVICE.md, CLIENT.md, PACKAGING.md, RELEASING.md, EXTRACTION_LOG.md,
+                                    LICENSING.md, OMG_XSD_RIGHTS.md, GOLDEN_METADATA.md, DELIVERY.md
 ```
 
 ## Building and installing
@@ -77,12 +88,25 @@ PYTHONPATH=packages/bim-core/src:packages/bim-service/src:packages/bim-client/sr
   python -m pytest --rootdir=. packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests tools
 ```
 
-The tests in `tools/` that open the built archives or use the clean venv skip when `dist/` or `.verify-venv` do not
-exist: build first (below).
+The tests in `tools/` that open the built archives or use the clean venv build what they need (`dist/`, `.verify-venv`,
+rebuilt when the sources change) with `uv`; a missing `uv` is an error, not a skip.
 
-The corpus of BIM packages is not part of this directory. Tests that need it look under `BIM_CORPUS_ROOT`
-(default: the directory that contains `bim-toolchain/`) and skip with a warning when it is missing. By default the
-equivalence test compares all packages with the goldens; `BIM_BASELINE_SAMPLE_ONLY=1` limits it to ten.
+The corpus of BIM packages is not part of this directory. The tests that read it are marked `openbinding_corpus`
+(found by reading the tests, `tools/corpus_tier.py`); they look under `BIM_CORPUS_ROOT` (default: the directory that
+contains `bim-toolchain/`). In OpenBinding the whole suite runs. In a repository exported from it, which has no corpus:
+
+```sh
+python -m pytest --rootdir=. -m 'not openbinding_corpus' -rs packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests tools
+```
+
+runs everything else with no skip (a guard test runs exactly that against an empty corpus and fails on a skip or a failure),
+and `golden/synthetic/corpus.json` is the golden it compares with. By default the equivalence test compares all packages
+with the goldens; `BIM_BASELINE_SAMPLE_ONLY=1` limits it to ten.
+
+`python tools/verify_release.py` builds the three distributions twice in two directories and compares their SHA-256,
+installs the wheels in a clean venv, runs the isolated smoke test, compares the `compilerDigest` of wheel, tree, sdist and
+installation, checks the OpenAPI document, the consumer fixtures, the corpus baseline (`--skip-corpus` where there is none)
+and `toolchain.json`, and prints one JSON summary.
 
 To compare or regenerate the baseline, the OpenAPI document and the consumer fixtures by hand:
 
@@ -106,8 +130,16 @@ It does not start without a valid tokens file. See [`docs/SERVICE.md`](docs/SERV
 authentication, deployment, what it does not do) and [`docs/CLIENT.md`](docs/CLIENT.md) (the port, why it is the
 boundary, how the two implementations are kept equal).
 
-## License status
+## License
 
-The license of the code has **not been decided**; nothing is declared in the package metadata. `LICENSE`
-(CC BY 4.0) and `THIRD_PARTY_NOTICES.md` are OpenBinding's, kept unchanged. The OMG BPMN 2.0.2 schemas keep their
-notices. No dataset is redistributed. See [`NOTICE.md`](NOTICE.md).
+The material written for this repository is licensed under **CC-BY-4.0** (SPDX), the license of OpenBinding; holder:
+javiercavlop (titular del repositorio OpenBinding); credit the holder, link the license and indicate changes. It is
+declared in the `license` field of each `pyproject.toml` (the wheels carry `License-Expression: CC-BY-4.0`) and in
+[`licenses.json`](licenses.json). It does **not** cover the five OMG BPMN 2.0.2 schemas under
+`bim_core/resources/vendor` (rights not demonstrated, [`docs/OMG_XSD_RIGHTS.md`](docs/OMG_XSD_RIGHTS.md): the export leaves
+them out until the holder clears them), the dependencies, or the material credited in `THIRD_PARTY_NOTICES.md`. CC BY 4.0
+is not designed for software: that risk is recorded in [`docs/LICENSING.md`](docs/LICENSING.md) and the decision of the
+holder is untouched. No dataset is redistributed. See [`NOTICE.md`](NOTICE.md).
+
+Nothing has been published: [`docs/DELIVERY.md`](docs/DELIVERY.md) has the exact steps to export this directory as its own
+repository and publish it by hand.

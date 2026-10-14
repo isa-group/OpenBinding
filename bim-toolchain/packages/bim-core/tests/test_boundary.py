@@ -153,7 +153,7 @@ def test_resources_are_package_data_reachable_through_importlib_resources() -> N
     assert not (root.joinpath("schemas", "bim", "v1", "manifests")).is_dir()
 
 
-def test_pyproject_declares_a_plain_package_without_an_invented_license() -> None:
+def test_pyproject_declares_a_plain_package_with_the_license_of_licenses_json() -> None:
     data = tomllib.loads((PACKAGE / "pyproject.toml").read_text(encoding="utf-8"))
     project = data["project"]
     assert project["name"] == "bim-core"
@@ -163,17 +163,19 @@ def test_pyproject_declares_a_plain_package_without_an_invented_license() -> Non
     assert {item.split(">")[0].split("<")[0].split("=")[0].strip() for item in project["dependencies"]} == {
         "jsonschema", "lxml", "pyyaml",
     }
-    assert "license" not in project
+    assert project["license"] == "CC-BY-4.0"
     assert project["license-files"] == ["NOTICE.md"]
     assert not any(item.startswith("License ::") for item in project.get("classifiers", []))
+    assert "Private :: Do Not Upload" in project["classifiers"]
     assert (PACKAGE / project["readme"]).is_file()
     assert (PACKAGE / "src" / "bim_core" / "py.typed").is_file()
     assert data["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == ["src/bim_core"]
 
 
-def test_notice_states_the_pending_license_and_keeps_the_copied_files() -> None:
+def test_notice_states_the_license_and_the_scope_and_keeps_the_copied_files() -> None:
     notice = (TOOLCHAIN_ROOT / "NOTICE.md").read_text(encoding="utf-8")
-    assert "pending" in notice and "BPMN 2.0.2" in notice and "No dataset is redistributed" in notice
+    assert "CC-BY-4.0" in notice and "pending" not in notice.lower()
+    assert "BPMN 2.0.2" in notice and "rights not demonstrated" in notice and "No dataset is redistributed" in notice
     assert (TOOLCHAIN_ROOT / "LICENSE").is_file()
     assert (TOOLCHAIN_ROOT / "THIRD_PARTY_NOTICES.md").is_file()
 
@@ -182,7 +184,6 @@ def test_notice_states_the_pending_license_and_keeps_the_copied_files() -> None:
     ("original", "copy"),
     [
         ("LICENSE", "LICENSE"),
-        ("THIRD_PARTY_NOTICES.md", "THIRD_PARTY_NOTICES.md"),
         ("schemas/engine-contract.openapi.yaml", "packages/bim-core/src/bim_core/resources/schemas/engine-contract.openapi.yaml"),
     ],
 )
@@ -191,6 +192,17 @@ def test_copied_files_are_byte_identical_to_openbinding(original: str, copy: str
     if not source.is_file():
         pytest.skip(f"{source} is not available (set BIM_CORPUS_ROOT)")
     assert source.read_bytes() == (TOOLCHAIN_ROOT / copy).read_bytes()
+
+
+def test_third_party_notices_are_openbindings_text_plus_the_additions_of_this_repository() -> None:
+    """The notices are OpenBinding's, unchanged, followed by one section of this repository: the original is a byte prefix."""
+    source = corpus_root() / "THIRD_PARTY_NOTICES.md"
+    if not source.is_file():
+        pytest.skip(f"{source} is not available (set BIM_CORPUS_ROOT)")
+    ours = (TOOLCHAIN_ROOT / "THIRD_PARTY_NOTICES.md").read_bytes()
+    original = source.read_bytes()
+    assert ours.startswith(original)
+    assert ours[len(original):].lstrip().startswith(b"---\n\n## Additions of bim-toolchain")
 
 
 RESOURCES = SRC / "resources"

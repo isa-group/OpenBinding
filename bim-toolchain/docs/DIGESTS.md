@@ -100,8 +100,11 @@ change. `toolchain` fields in them are informative.
 | `golden/bim_normalized/zip_equivalence.json` | the package compiled from each other form (raw ZIP, entries reversed, canonical ZIP, two shuffles of the JSON members) against the package compiled from its directory: all equal (see "Directory, raw ZIP and canonical ZIP") | the forms are compiled in the same run; the semantic digest of the directory is the one in `bim_normalized/corpus.json` |
 | `golden/ir_previous/evidence.json` | what the 0.1.x toolchain computed by identifier: the SHA-256 of the frozen `golden/bim_baseline` files, the evaluation of bindings chosen by identifier and the digest of the members of every set of the IR, for the 82 packages. It can only be created by that toolchain (`build_previous_evidence` refuses any other) | the frozen files, which come from OpenBinding |
 | `golden/vectors_extra.json` | hostile engine answers: altered objectives, bindings outside the eligible space, `UNKNOWN`/`INFEASIBLE` with a binding, NaN/Infinity (written as `{"$float": ...}`), extra keys, unhashable and mistyped values | hand-written expectations in `tests/test_vectors_extra.py` (termination, number of solutions kept, `ProtocolError` code with and without `finite=True`) |
+| `golden/synthetic/corpus.json` | the corpus document (digests, evaluations, binding space), the Engine compatibility and the directory/ZIP equivalence of the packages that live in this repository (the five variants of `tests/synthetic_packages.py` and `fixtures/example-package`), so that a repository without the OpenBinding corpus still compares something with a golden | `tests/test_synthetic_golden.py` recomputes it; `tests/test_zip_dir_equivalence.py` compares the forms of the same synthetic packages independently; see "Metadata of the goldens" |
 
-`toolchain` values stored in these files are those of the moment they were created and are never compared.
+`toolchain` values stored in `golden/bim_core`, `golden/vectors_extra.json` and `golden/ir_previous` are those of the moment
+they were created and are never compared. The ones of `golden/bim_normalized/corpus.json` (and of `golden/synthetic/corpus.json`)
+are kept up to date by a tool and a test (below).
 
 ## Directory, raw ZIP and canonical ZIP
 
@@ -125,8 +128,8 @@ package was serialized (not by the ZIP writer): `eligibility[task]` by `(catalog
 of the IR"). The provenance `spec.sourceMap` indexes `constraints` and `placement`, so it is written after sorting. An
 array that the author writes as an array keeps its order: it is data. An integral number is read as an integer
 (`canonical.integral_numbers`), because the canonical form cannot tell `6.0` from `6`. This is a change of the digest
-contract, MAJOR by the rules below; see [`docs/qa/IR_NORMALIZATION.md`](../../docs/qa/IR_NORMALIZATION.md) for the
-classification of each list and the evidence.
+contract, MAJOR by the rules below; see `docs/qa/IR_NORMALIZATION.md` of the OpenBinding repository (not part of this one)
+for the classification of each list and the evidence.
 
 **What 0.1.x did** (measured, `docs/qa/BIM_EQUIVALENCE.md`): the enumeration order of the file system and the order of
 the ZIP entries never mattered (`_read_directory` and `_validate_zip` fill a dictionary that the compiler only reads by
@@ -156,8 +159,10 @@ the baseline of 0.2.0, created once those invariants held. `negatives.json`, `ve
 - `packages/bim-core/tests/test_zip_dir_equivalence.py` (synthetic, no corpus) and `test_zip_dir_equivalence_corpus.py`
   (82 packages) run the comparison, with shuffled members, and require identical evaluations; the cases that were
   strict `xfail` (the four `unordered-*` variants and 64 corpus packages) are ordinary tests.
-- The corpus run in OpenBinding (`openbinding-gateway/tests/test_bim_zip_dir_equivalence.py`) still expects the 0.1.x
-  divergence (strict `xfail`): its owner updates it (`docs/qa/IR_NORMALIZATION.md`).
+- The corpus run in OpenBinding (`openbinding-gateway/tests/test_bim_zip_dir_equivalence.py`) expected the 0.1.x
+  divergence (strict `xfail`) when 0.2.0 was written. *Historical:* that test was updated afterwards; its header now says that
+  the gateway's golden is the normalized corpus golden of this toolchain (read when this section was revised; the test passed
+  in the run recorded in `EXTRACTION_LOG.md`, "Step 6").
 
 ## Digests that changed with the normalization of the IR (0.2.0)
 
@@ -203,11 +208,34 @@ changes again, together with the builtin Profile and Dialect versions (`1.0.0+<b
 | `qos-binding` Profile version | `1.0.0+ozo4bm7tpv3avkhc2tnzxc5u4bte6vcaso2gikkqbovpxrjwnh3q` |
 | Dialect versions | `qos-binding` `1.0.0+ia2kmdnrpp7krzp243h376bgrqgely5krdh5fj6yfycn6rvpa2qq`, `bpmn-workflow` `1.0.0+ztsmwrkedtnjiyv5ds4p7jfwspzpwakoehfeoo2kyoceacnx2wfq`, `qos-binding-placement` `1.0.0+dhobxb3sxytcjhhw5mwc72y5epkwqstwgskwm3blqjpkhsx5qiqa` |
 
-The `toolchain` fields stored in the goldens are informative and are not rewritten. Nothing that must not move
+At that step the `toolchain` fields stored in the goldens were informative and were not rewritten (they are refreshed
+now: "Metadata of the goldens" below). Nothing that must not move
 moved: the semantic digests, evaluations, diagnostics, compatibility results and protocol digest of
 `golden/bim_baseline` and of the gateway's `tests/golden/bim_baseline` still compare equal
 (`test_baseline_equivalence.py`, `test_bim_baseline.py`). `toolchain.json` is generated by
 `tools/toolchain_json.py` and not versioned, so there is no file to regenerate.
+
+## Metadata of the goldens (`toolchain` members)
+
+Every `toolchain` member of a golden is informative and `baseline_core.comparable` removes it, which let them drift:
+`golden/bim_normalized/corpus.json` registered `compilerDigest`
+`sha256-749170b53356cc12a85f2a78dc5fd067477c7688db05a8aabed5d369e308b986` while the toolchain it describes has
+`sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e` (the 0.2.0 value of the table above). Now:
+
+* `python tools/regen_normalized_metadata.py --write --compare-out golden/toolchain_metadata_comparison.json` refreshes only
+  those members, after checking that the semantic digests, section digests, evaluations, binding spaces and candidate counts
+  of the 82 packages, and `zip_equivalence.json` byte for byte, are the recorded ones. The gateway's copy
+  (`openbinding-gateway/tests/golden/bim_baseline/corpus.json`, which its tests require to be a byte copy) is written with the same
+  bytes. First refresh: SHA-256 of the golden `9322bc09720a6954779dbcdc503f6c7b0c78aa9be630d2baa80526d13167a79d` →
+  `6f60c4fa83576ae0b5bf2da1437fb32e348deee80b34ee410f8d19a9313c0a07`, same size (222 349 bytes), 165 lines changed, all of them
+  a `compilerDigest` or an `irDigest`; `zip_equivalence.json` stayed `992b09e934d47e6f0ae346428f211702763a226c836fe3ba6191758a0fbc0305`.
+* `golden/bim_baseline` and `golden/ir_previous` (0.1.x) were not touched: their SHA-256 are in the comparison and in
+  `golden/ir_previous/evidence.json`, and a test checks they still agree.
+* `packages/bim-core/tests/test_golden_toolchain_metadata.py` **fails** when the installed `compilerDigest` (or, with the corpus,
+  an `irDigest`) is not the registered one, so the next edit of `bim_core` cannot leave them behind: run the tool again. The
+  decision of what to do with a change of `compilerDigest` is unchanged: it never proves equivalence (above).
+
+Details and the table of the last refresh: [`GOLDEN_METADATA.md`](GOLDEN_METADATA.md).
 
 ## Versioning rules
 

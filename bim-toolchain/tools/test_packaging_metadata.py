@@ -41,9 +41,12 @@ def test_dependents_declare_bim_core_as_a_plain_range(name: str) -> None:
 
 
 @pytest.mark.parametrize("name", NAMES)
-def test_no_license_is_invented_and_the_notice_ships(name: str) -> None:
+def test_the_license_is_the_spdx_expression_of_licenses_json_and_the_notice_ships(name: str) -> None:
+    """``license`` is an SPDX expression (PEP 639), so there is no ``License ::`` classifier (a build backend rejects both);
+    ``license-files`` ships the notice, whose copy in every package is kept equal to the root one."""
     project = pyproject(name)["project"]
-    assert "license" not in project
+    declared = json.loads((ROOT / "licenses.json").read_text(encoding="utf-8"))["own_material"]["spdx"]
+    assert project["license"] == declared == "CC-BY-4.0"
     assert not any(item.startswith("License ::") for item in project["classifiers"])
     assert project["license-files"] == ["NOTICE.md"]
     assert (package_dir(name) / "NOTICE.md").read_bytes() == (ROOT / "NOTICE.md").read_bytes()

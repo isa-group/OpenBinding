@@ -7,6 +7,69 @@ changes anything else.
 
 ## [Unreleased]
 
+No file under `packages/*/src` changed, so `compilerDigest` is still
+`sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e`, and no semantic digest, evaluation, diagnostic,
+compatibility result or protocol digest moved (`baseline_core.py --check`: 82 packages, 0 differences). Packaging,
+licensing, goldens' metadata, export and verification only.
+
+### Added
+
+- **License: CC-BY-4.0**, the license of OpenBinding, holder javiercavlop (titular del repositorio OpenBinding; no legal name
+  is recorded and none was inferred). `license = "CC-BY-4.0"` (SPDX, PEP 639) in the three `pyproject.toml` (the wheels and
+  sdists carry `License-Expression: CC-BY-4.0`), `license-files = ["NOTICE.md"]`, `Private :: Do Not Upload` kept;
+  `NOTICE.md` (and its three copies) rewritten, `THIRD_PARTY_NOTICES.md` keeps OpenBinding's text and adds a section, new
+  `licenses.json` (the manifest: SPDX identifier once, scope, clearance switch, pending pins) and `docs/LICENSING.md`
+  (attribution, scope, and the recorded risk that CC BY 4.0 is not designed for software; the decision of the holder is
+  untouched). The SPDX identifier is deliberately not a header in every `.py`: it would change `compilerDigest`.
+- **OMG BPMN XSD inventory** (`tools/xsd_inventory.py`, `docs/OMG_XSD_RIGHTS.md`): per file, the bytes' SHA-256 and size, the
+  origin and digest the vendored README declares, and whether the bytes contain a copyright or license notice. None of the five
+  does (and none has an XML comment): the README and the previous `NOTICE.md`, which said the notices were preserved, were
+  wrong about these bytes. State: not demonstrated. `licenses.json` → `omg_bpmn_xsd.cleared` is the switch the export obeys.
+  `--fetch` downloads the five files from the official source and verifies their SHA-256 (nothing is written unless all
+  match); it was tested with a stand-in for the network.
+- **`tools/export_repo.py`**: exports the committed `bim-toolchain/` of an OpenBinding clone as a new repository (one commit by the
+  invoking identity, neutral message citing the source commit, no history, remote, tag or push). Refuses on secrets, an
+  inconsistent license inventory, files that are not the holder's own, links that leave the repository, or a failing
+  self-containment run (`-m 'not openbinding_corpus'`, no skip). The OMG XSDs are blocked by default: left out, the exported
+  workflows fetch them after each checkout. `docs/DELIVERY.md` has the steps for the Mac, the expected hashes and the rollback.
+- **`tools/verify_release.py`**: two builds in two directories with a fixed `SOURCE_DATE_EPOCH` compared by SHA-256 (identical
+  in the recorded run: `bim_core-0.2.0-py3-none-any.whl` `75b97c10…`, `bim_core-0.2.0.tar.gz` `a85896fa…`,
+  `bim_service-0.2.0-py3-none-any.whl` `f95e7923…`, `bim_service-0.2.0.tar.gz` `735639e6…`, `bim_client-0.2.0-py3-none-any.whl`
+  `7211d889…`, `bim_client-0.2.0.tar.gz` `458ab158…`; full values in `docs/DELIVERY.md`), clean venv, `python -I` smoke test,
+  `compilerDigest` of wheel/tree/sdist/installation/service, OpenAPI and consumer fixtures, corpus baseline,
+  `toolchain.json` from the installed wheels; one JSON summary, exit 1 on any failure.
+- **The corpus tier**: the tests that read the OpenBinding corpus carry the marker `openbinding_corpus`, found by reading the
+  tests (`tools/corpus_tier.py`), not by hand. `-m 'not openbinding_corpus'` runs everything else; a guard test runs exactly
+  that against an empty corpus and fails on a skip or a failure. `golden/synthetic/corpus.json` (synthetic variants and the
+  example package: digests, evaluations, Engine compatibility, directory/ZIP forms) is the golden that needs no corpus. The
+  82-package corpus is not copied (the licenses of the datasets it comes from could not be verified).
+- **`tools/regen_normalized_metadata.py`** and `docs/GOLDEN_METADATA.md`: refresh the informative `toolchain` members of
+  `golden/bim_normalized/corpus.json` and of the gateway's byte copy, after verifying that everything else is identical;
+  comparison in `golden/toolchain_metadata_comparison.json`. `test_golden_toolchain_metadata.py` fails if the installed
+  `compilerDigest` differs from the registered one.
+- Workflows: every `uses:` is marked `PIN-PENDING`; `tools/test_workflows.py` fails on one that is neither marked nor pinned to
+  a 40-hex SHA and compares the list with `licenses.json`; the jobs that run the suites leave out the corpus tier and fail on a
+  skip; a `verify_release.py --skip-corpus` step in `ci.yml` and `release.yml`.
+
+### Changed
+
+- `golden/bim_normalized/corpus.json` and `openbinding-gateway/tests/golden/bim_baseline/corpus.json` (same bytes): only
+  their `toolchain` members, `compilerDigest` `sha256-749170b5…` → `sha256-ccc55839…` (the 0.2.0 value) and the 82 `irDigest`;
+  SHA-256 `9322bc09…` → `6f60c4fa…`, 165 lines, same size. `golden/bim_baseline` and `golden/ir_previous` untouched.
+- The packaging tests no longer skip for lack of `dist/` or `.verify-venv`: they build them on demand (`uv`; a missing `uv` is
+  an error) and rebuild when the sources change.
+- `test_boundary.py`, `test_packaging_metadata.py` and `test_built_artifacts.py` assert the license (they used to assert that none
+  was declared); the byte-identity test of `THIRD_PARTY_NOTICES.md` became "OpenBinding's file is a byte prefix".
+- Three Markdown links that pointed outside the repository (to `docs/qa/…` and `docs/IDEMPOTENCY.md` of OpenBinding) are now
+  plain references.
+
+### Not done
+
+- `packages/*/README.md` (shipped as the long description of the wheels) still say the license is undecided; they were outside
+  the files this change could touch.
+- The SHAs of the actions, the first run of the workflows, the Docker image, Python 3.12, `ruff`, the export on macOS and the
+  publication: none was verified or done (`docs/PACKAGING.md`, `docs/DELIVERY.md`).
+
 ## [0.2.0] - 2026-10-14
 
 Not released: nothing has been published, tagged or pushed. The three distributions go from `0.1.0` (never
@@ -20,7 +83,7 @@ published) to `0.2.0` together.
 is no compatibility mode, no second implementation of the old order and no migration code: a stored IR of `0.1.x` is
 valid and evaluable as it is (same members, same evaluations) but is not an IR of this toolchain
 (`contract_not_installed`, as after any change of `compilerDigest`) and must be recompiled to get the new order.
-Analysis, classification and evidence: [`docs/qa/IR_NORMALIZATION.md`](../docs/qa/IR_NORMALIZATION.md).
+Analysis, classification and evidence: `docs/qa/IR_NORMALIZATION.md` of the OpenBinding repository (not part of this one).
 
 - **What changed.** `bim_core.compile_instance` lists, in one order that depends only on identifiers and not on how
   the package was serialized: `spec.eligibility[task]` by `(catalog id, candidate id)`, `spec.constraints` by `ref`,

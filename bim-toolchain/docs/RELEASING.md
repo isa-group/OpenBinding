@@ -1,12 +1,15 @@
 # Releasing
 
-Nothing has been released. There is no remote repository, no tag, and the licence is undecided. This is the procedure
-for when there is.
+Nothing has been released. There is no remote repository and no tag. The license of the material written here is CC-BY-4.0
+(holder: javiercavlop, titular del repositorio OpenBinding; [`LICENSING.md`](LICENSING.md)). This is the procedure for when
+there is a repository to release from; [`DELIVERY.md`](DELIVERY.md) has the exact steps to create it.
 
-The single external step pending to publish `javiercavlop/bim-toolchain` is: (1) written confirmation of the rights
-(ownership, and the terms of OMG for the vendored BPMN XSDs) and (2) a Git credential limited to that repository. No new
-licence is created and nothing is published until then. The status of the other items is in "Estado reconciliado" of
-`EXTRACTION_LOG.md`.
+What stands between this tree and a published repository is: (1) the holder's decision on the five OMG BPMN XSDs, whose
+redistribution is **not demonstrated** ([`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md)): either the export leaves them out and the
+build fetches them with a verified download (the default), or the holder records a clearance in `licenses.json`; (2) a Git
+credential limited to that repository, used by the person who publishes; (3) pinning the actions of the workflows to commit
+SHAs (the exact list is in `licenses.json`, `action_pins`; they are marked `PIN-PENDING` and a test fails on an unmarked
+one). The status of the other items is in "Estado reconciliado" of `EXTRACTION_LOG.md`.
 
 ## Version numbers
 
@@ -33,14 +36,20 @@ A change to `bim_core/toolchain.py` (the definition of what the digest covers) i
 1. Choose the version. Edit `version` in the three `pyproject.toml` and `__version__` in the three `_version.py`
    (a test fails if they differ). Move `[Unreleased]` in `CHANGELOG.md` to `## [X.Y.Z] - YYYY-MM-DD` and say whether
    the semantic digests, evaluations, diagnostics, OpenAPI or protocol changed.
-2. Tests of all packages and `tools/`, with the corpus when available (`BIM_CORPUS_ROOT`; set `BIM_REQUIRE_CORPUS=1`
-   so that a missing corpus fails instead of skipping), and `tools/baseline_core.py --check` (it also compares the
-   package compiled from its ZIP with the directory the goldens were generated from). A skipped corpus test is not a
-   pass: say so in the release notes. The directory/ZIP equivalence on synthetic packages never skips.
+2. Tests of all packages and `tools/`. With the corpus (`BIM_CORPUS_ROOT`; set `BIM_REQUIRE_CORPUS=1` so that a missing
+   corpus fails instead of skipping) the whole suite runs, and `tools/baseline_core.py --check` compares the package compiled
+   from its ZIP with the directory the goldens were generated from. Without the corpus, `-m 'not openbinding_corpus'` runs
+   everything else with no skip (a guard test proves it) and the golden it compares with is `golden/synthetic/corpus.json`.
+   A skipped corpus test is not a pass: say so in the release notes. If `bim_core` changed, refresh the informative
+   members of the goldens first: `python tools/regen_normalized_metadata.py --write` (`GOLDEN_METADATA.md`); a test fails
+   until you do.
 3. `python tools/dump_service_openapi.py --check` and `python tools/consumer_fixtures.py --check`. The OpenAPI
    document changes only with the API; review the diff as a contract change.
-4. Build the three wheels and sdists, install them in a clean venv, run `tools/smoke_installed.py` with `-I` and
-   compare the three `compilerDigest`s (`PACKAGING.md`). The release workflow does steps 2-4 again.
+4. `python tools/verify_release.py` (add `--skip-corpus` in a tree without the corpus): builds the three wheels and sdists
+   twice in two directories and requires the same SHA-256, installs the wheels in a clean venv, runs
+   `tools/smoke_installed.py` with `-I`, compares the `compilerDigest` of wheel, tree, sdist, installation and service
+   (`PACKAGING.md`), checks the OpenAPI document, the consumer fixtures, the corpus baseline and `toolchain.json`, and
+   prints the hashes. The release workflow does steps 2-4 again.
 5. Review `toolchain.json`: the `compilerDigest` and `protocolDigest` are the ones the notes announce, and the runtime
    versions are the intended ones.
 6. Commit, tag `vX.Y.Z` (signed if keys are available) and push the tag. The workflow checks that the tag, the
@@ -64,28 +73,32 @@ Releases are additive and nothing is published to an index, so rolling back is n
 
 ## Extracting this directory into its own repository
 
-`bim-toolchain/` is self-contained (nothing outside it is read at build or test time; the corpus is optional). To make
-the repository:
+`bim-toolchain/` is self-contained (nothing outside it is read at build or test time; the corpus is optional). The way to
+make the repository is `tools/export_repo.py`, which writes a new repository with the committed contents of
+`bim-toolchain/` at its root, **one** commit authored by whoever runs it, and no remote, tag or push
+([`DELIVERY.md`](DELIVERY.md) has the exact commands, the expected hashes and the rollback):
 
 ```sh
-git subtree split --prefix=bim-toolchain -b bim-toolchain-split   # run in the OpenBinding repository
-mkdir ../bim-toolchain && cd ../bim-toolchain && git init -b main
-git pull ../openbinding bim-toolchain-split                        # path of the OpenBinding checkout
+python3 bim-toolchain/tools/export_repo.py --output ../bim-toolchain-export     # from a clone of OpenBinding, committed
 ```
 
-Do not create the remote or push before the decisions below. Afterwards: review `git log --stat` of the split branch (it
-holds only the commits that touched the prefix, with their original messages), add the remote
-(`javiercavlop/bim-toolchain`, private), push `main`, and pin the actions to SHAs (security TODO in both workflows).
+It refuses to export (nothing is created) if it finds a secret, an inconsistent license inventory, a file that is not the
+holder's own, a link that leaves the repository, or if the exported tree does not pass `-m 'not openbinding_corpus'` from
+scratch. The history is not carried over: the earlier alternative, `git subtree split`, carries the commit messages of this
+directory and is no longer the documented way.
 
-### Decide before extracting
+Do not create the remote or push before the decisions below. Afterwards add the remote (`javiercavlop/bim-toolchain`,
+private), push `main`, and pin the actions to SHAs (`PIN-PENDING` in both workflows).
 
-1. **Licence and holder.** `NOTICE.md` says the licence is pending. Someone with the rights must choose it (and the
-   copyright holder, which may not be the same for code written inside a university project). Then: add the licence
-   text and a `license` / `license-files` entry to the three `pyproject.toml`; update `NOTICE.md` and its four copies;
-   decide whether `LICENSE` (CC BY 4.0, OpenBinding's content licence) and `THIRD_PARTY_NOTICES.md` (OpenBinding's
-   credits) stay, change or go; fix `tools/test_packaging_metadata.py` and `test_boundary.py`, which assert that no
-   licence is invented.
-2. **Whether the history may travel.** The split carries the commit messages of this directory.
+### Decide before publishing
+
+1. **The OMG XSDs.** Their redistribution is not demonstrated ([`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md)). By default the export
+   leaves the five files out and its workflows fetch them from the official source, verifying their SHA-256. To export
+   them, the holder first records the clearance in `licenses.json` (`cleared`, `cleared_by`, `cleared_on`, `evidence`).
+   The license of the code, CC-BY-4.0, and its holder are already recorded ([`LICENSING.md`](LICENSING.md)); changing the
+   license means changing `LICENSE`, the three `pyproject.toml`, `NOTICE.md` and its copies, `licenses.json` and the tests
+   that pin them.
+2. **Whether the history may travel.** The export does not carry it; the commit cites the OpenBinding commit it came from.
 3. **Private index or release assets.** Whether `Private :: Do Not Upload` stays and how OpenBinding fetches releases.
 4. **Corpus access** in CI (`vars.BIM_CORPUS_ROOT` points to a runner path; without it the golden/corpus job fails,
    unless `vars.BIM_CORPUS_OPTIONAL` is `true`, which skips it and says so in the job summary).

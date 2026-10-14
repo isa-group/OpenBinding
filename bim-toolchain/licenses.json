@@ -1,0 +1,87 @@
+{
+  "schema": "bim-toolchain/licenses/1",
+  "holder": "javiercavlop (titular del repositorio OpenBinding)",
+  "holder_note": "The legal name of the holder is not recorded in the repository. The identifier above is the one under which the OpenBinding repository is published; no name has been inferred or invented.",
+  "own_material": {
+    "spdx": "CC-BY-4.0",
+    "license_file": "LICENSE",
+    "same_license_as": "OpenBinding (the LICENSE file of that repository, Creative Commons Attribution 4.0 International)",
+    "notice_file": "NOTICE.md",
+    "covers": [
+      "packages/*/src (Python sources of bim-core, bim-service and bim-client)",
+      "packages/*/tests",
+      "packages/*/README.md",
+      "packages/bim-core/src/bim_core/resources/schemas (JSON Schemas and the engine contract, written for BIM)",
+      "tools",
+      "docs",
+      "contracts",
+      "golden (digests and numeric summaries computed by this toolchain; no dataset content)",
+      ".github"
+    ],
+    "does_not_cover": [
+      "omg_bpmn_xsd (the five OMG BPMN 2.0.2 XML Schemas)",
+      "third-party dependencies (installed from an index, never vendored)",
+      "the material credited in THIRD_PARTY_NOTICES.md"
+    ],
+    "attribution": "Credit javiercavlop (titular del repositorio OpenBinding), link the license (https://creativecommons.org/licenses/by/4.0/), and indicate if changes were made."
+  },
+  "package_metadata": {
+    "license_expression": "CC-BY-4.0",
+    "license_files": ["NOTICE.md"],
+    "classifier_kept": "Private :: Do Not Upload"
+  },
+  "spdx_policy": "The SPDX identifier is declared once per distribution in pyproject.toml (license = ...) and once here. It is deliberately not repeated in a header of every .py file: adding a comment to a module of bim_core would change compilerDigest (it covers every .py file) and the goldens that record it.",
+  "technical_note": "CC BY 4.0 is not designed for software: it says nothing about patents, does not define source code or distribution of binaries, and its authors recommend other licenses for code. The holder chose the same license as OpenBinding on purpose; the risk is recorded here and in docs/LICENSING.md and the decision of the holder is untouched.",
+  "third_party": [
+    {
+      "name": "OMG BPMN 2.0.2 XML Schemas (BPMN20.xsd, Semantic.xsd, BPMNDI.xsd, DC.xsd, DI.xsd)",
+      "paths": ["packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2"],
+      "license": "not demonstrated",
+      "redistribution": "blocked in the export until omg_bpmn_xsd.cleared is true",
+      "details": "docs/OMG_XSD_RIGHTS.md"
+    },
+    {
+      "name": "Runtime and build dependencies (jsonschema, lxml, PyYAML, FastAPI, pydantic, uvicorn, httpx, hatchling)",
+      "paths": [],
+      "license": "each under its own license, see the metadata of the installed distribution",
+      "redistribution": "not vendored: installed by pip or uv from an index"
+    },
+    {
+      "name": "Material credited in THIRD_PARTY_NOTICES.md",
+      "paths": ["THIRD_PARTY_NOTICES.md"],
+      "license": "as stated there (OpenBinding platform credits, copied unchanged)",
+      "redistribution": "the text of the notice only; none of that code or those marks is part of this repository"
+    }
+  ],
+  "omg_bpmn_xsd": {
+    "directory": "packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2",
+    "files": ["BPMN20.xsd", "BPMNDI.xsd", "DC.xsd", "DI.xsd", "Semantic.xsd"],
+    "source_base": "https://www.omg.org/spec/BPMN/20100501/",
+    "sha256": {
+      "BPMN20.xsd": "a07c159cb0594573dd7c97b1370dd116112378f377e43c89a8bf512ac5030705",
+      "BPMNDI.xsd": "f0dff1cd559d1514d8ebfc8c646f58402bcaced27ec22e2aa6456c2dcc80b038",
+      "DC.xsd": "a2f90e5ad9bb48c6915e4e034b4e27ac838264a1d4f27bfc70dbdfc69351312d",
+      "DI.xsd": "8220b179c175572df74e08a51bffabe957867962035cee7b5fee0b6acb4c4498",
+      "Semantic.xsd": "c4318842f7d2bbc262d7954c9452c501db16f0868eac0b8732ec5d7fb384d9a7"
+    },
+    "status": "not-demonstrated",
+    "cleared": false,
+    "cleared_by": null,
+    "cleared_on": null,
+    "evidence": null,
+    "cleared_format": "To release the files for export the holder sets \"cleared\" to true, \"status\" to \"cleared\" and fills \"cleared_by\" (who), \"cleared_on\" (YYYY-MM-DD) and \"evidence\" (where the written confirmation of OMG, or the terms read, can be found). Nothing else clears them: tools/export_repo.py refuses --xsd include while \"cleared\" is not true and complete.",
+    "present_in_tree": true
+  },
+  "action_pins": {
+    "state": "pending",
+    "reason": "The commit SHAs of the actions could not be looked up (no network when this was written) and none has been invented. Every `uses:` of the workflows carries the marker PIN-PENDING until it is replaced by the full 40-hex commit SHA.",
+    "marker": "PIN-PENDING",
+    "pending": [
+      {"uses": "actions/checkout@v4", "files": ["ci.yml", "release.yml"]},
+      {"uses": "actions/download-artifact@v4", "files": ["ci.yml", "release.yml"]},
+      {"uses": "actions/setup-python@v5", "files": ["ci.yml", "release.yml"]},
+      {"uses": "actions/upload-artifact@v4", "files": ["ci.yml", "release.yml"]},
+      {"uses": "astral-sh/setup-uv@v5", "files": ["ci.yml", "release.yml"]}
+    ]
+  }
+}
