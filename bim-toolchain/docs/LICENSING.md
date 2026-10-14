@@ -20,8 +20,9 @@ account name; if a legal name is required (a copyright line, a contract), the ho
 
 CC BY 4.0 asks whoever shares or adapts the material to: give credit (the holder above, the name of the work, a link to the
 license), link to the license, and indicate whether changes were made. Distributions of this toolchain carry `NOTICE.md`,
-which states the license, the holder, the link and the scope, in every wheel and sdist (`license-files`, and
-`License-Expression: CC-BY-4.0` in the metadata).
+which states the license, the holder, the link and the scope, in every wheel and sdist together with the full text
+(`LICENSE`), both declared in `license-files`, and `License-Expression: CC-BY-4.0` in the metadata. Each package directory
+keeps a byte copy of the root `LICENSE` and `NOTICE.md`, and tests fail if a copy differs.
 
 ## Scope
 
@@ -64,6 +65,5 @@ holder is untouched, and changing it later means replacing `LICENSE`, the `licen
 * The license of the dependencies a user installs.
 * Whether a legal name should appear next to the holder.
 
-The long README of each package (`packages/*/README.md`, shipped as the long description of the wheels) predates this
-license and still says that the choice was left open; it is outside the files this change could touch and has to be updated
-with the next one.
+The long README of each package (`packages/*/README.md`, shipped as the long description of the wheels) states the license,
+the holder and the scope, and `tools/test_license_metadata.py` fails if it says otherwise.

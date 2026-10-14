@@ -43,13 +43,14 @@ def test_dependents_declare_bim_core_as_a_plain_range(name: str) -> None:
 @pytest.mark.parametrize("name", NAMES)
 def test_the_license_is_the_spdx_expression_of_licenses_json_and_the_notice_ships(name: str) -> None:
     """``license`` is an SPDX expression (PEP 639), so there is no ``License ::`` classifier (a build backend rejects both);
-    ``license-files`` ships the notice, whose copy in every package is kept equal to the root one."""
+    ``license-files`` ships the license text and the notice, whose copies in every package are kept equal to the root ones."""
     project = pyproject(name)["project"]
     declared = json.loads((ROOT / "licenses.json").read_text(encoding="utf-8"))["own_material"]["spdx"]
     assert project["license"] == declared == "CC-BY-4.0"
     assert not any(item.startswith("License ::") for item in project["classifiers"])
-    assert project["license-files"] == ["NOTICE.md"]
+    assert project["license-files"] == ["LICENSE", "NOTICE.md"]
     assert (package_dir(name) / "NOTICE.md").read_bytes() == (ROOT / "NOTICE.md").read_bytes()
+    assert (package_dir(name) / "LICENSE").read_bytes() == (ROOT / "LICENSE").read_bytes()
 
 
 @pytest.mark.parametrize("name", NAMES)
@@ -73,7 +74,7 @@ def test_build_configuration(name: str) -> None:
     assert data["build-system"]["requires"] == ["hatchling>=1.27"]
     targets = data["tool"]["hatch"]["build"]["targets"]
     assert targets["wheel"]["packages"] == [f"src/{PACKAGES[name][0]}"]
-    assert set(targets["sdist"]["include"]) == {"/src", "/README.md", "/NOTICE.md", "/pyproject.toml"}
+    assert set(targets["sdist"]["include"]) == {"/src", "/README.md", "/LICENSE", "/NOTICE.md", "/pyproject.toml"}
 
 
 def test_the_workspace_ties_the_members_together() -> None:

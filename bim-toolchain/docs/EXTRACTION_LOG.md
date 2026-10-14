@@ -332,15 +332,15 @@ any `src/` directory changed (so `compilerDigest` is the one of step 4 and the d
 
 | Where | What |
 | --- | --- |
-| `packages/*/pyproject.toml` | `license-files = ["NOTICE.md"]` (no `license` field), neutral classifiers plus `Private :: Do Not Upload`, `hatchling>=1.27`, an explicit sdist (`/src`, readme, notice, pyproject), `[tool.uv.sources] … workspace = true` in the two dependents |
-| `packages/*/NOTICE.md` | byte copies of the root `NOTICE.md` (hatchling reads only below the project directory); a test keeps them equal |
+| `packages/*/pyproject.toml` | *Historical (step 5):* `license-files = ["NOTICE.md"]` (no `license` field); **now** `license = "CC-BY-4.0"` and `license-files = ["LICENSE", "NOTICE.md"]`. Neutral classifiers plus `Private :: Do Not Upload`, `hatchling>=1.27`, an explicit sdist (`/src`, readme, notice, pyproject), `[tool.uv.sources] … workspace = true` in the two dependents |
+| `packages/*/NOTICE.md` | byte copies of the root `NOTICE.md` (hatchling reads only below the project directory); a test keeps them equal (*now* `packages/*/LICENSE` too, copies of the root `LICENSE`) |
 | `packages/bim-{service,client}/src/*/py.typed` | new (only `bim_core` had one) |
 | `pyproject.toml`, `.gitignore` | uv workspace at the root (no project); `dist/`, `.venv/`, `.verify-venv/`, `__pycache__/` ignored |
 | `packages/bim-service/Dockerfile`, `.dockerignore` | the Dockerfile copies `NOTICE.md` of the two packages it installs; `.dockerignore` excludes `.github`, `dist` and the venvs. Still not built |
 | `packages/bim-core/tests/fixtures/example-package/` | the demo package as files, plus `binding.json` |
 | `tools/toolchain_json.py`, `tools/smoke_installed.py` | the release descriptor and the `python -I` smoke test |
 | `tools/test_packaging_metadata.py`, `test_built_artifacts.py`, `test_toolchain_json.py`, `test_workflows.py`, `packaging_support.py` | 62 new tests |
-| `packages/bim-core/tests/test_boundary.py` | one assertion: `license-files == ["NOTICE.md"]` instead of "no license-files"; `license` is still absent |
+| `packages/bim-core/tests/test_boundary.py` | *historical:* one assertion `license-files == ["NOTICE.md"]` instead of "no license-files", `license` absent; **now** `license == "CC-BY-4.0"` and `license-files == ["LICENSE", "NOTICE.md"]` |
 | `.github/workflows/ci.yml`, `release.yml` | lint, tests (3.11/3.12 × 3 packages), golden/corpus (warns when the corpus is absent), OpenAPI and consumer-contract checks, build, clean install + isolated smoke; the release builds, verifies, writes `toolchain.json` and `SHA256SUMS` and creates a *draft* release; no PyPI, no secrets, `contents: read` (write only in the draft job); actions by major version (security TODO) |
 | `docs/PACKAGING.md`, `docs/RELEASING.md`, `CHANGELOG.md`, `README.md` | new / updated |
 
@@ -368,7 +368,8 @@ any `src/` directory changed (so `compilerDigest` is the one of step 4 and the d
 
 ### Decisions and deviations
 
-- **`LICENSE` is not shipped in the wheels.** The task asked for `license-files` pointing at `NOTICE.md`/`LICENSE`;
+- **`LICENSE` is not shipped in the wheels** (*historical, superseded: the license was later decided as CC-BY-4.0 and
+  `LICENSE` and `NOTICE.md` are both shipped; see step 6*). The task asked for `license-files` pointing at `NOTICE.md`/`LICENSE`;
   only `NOTICE.md` is listed, because a `License-File` entry for the CC BY 4.0 text would read as the code's licence,
   which `NOTICE.md` says is undecided. `THIRD_PARTY_NOTICES.md` is OpenBinding's platform credits and is not shipped
   either. The owner decides with the licence (`RELEASING.md`).

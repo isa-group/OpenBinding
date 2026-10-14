@@ -88,16 +88,18 @@ directories with `SOURCE_DATE_EPOCH=1767225600`. They hold for this content of t
 <!-- delivery-hashes:begin -->
 
 Environment of the run that produced them: Python 3.11.2, `uv 0.8.14`, `hatchling 1.32.4` (the `Generator` of the wheels),
-`SOURCE_DATE_EPOCH=1767225600`. Both builds gave the same bytes for all six artifacts.
+`SOURCE_DATE_EPOCH=1767225600`. Both builds gave the same bytes for all six artifacts. These values replace the previous ones:
+every wheel and sdist now also carries `LICENSE` (the unchanged CC-BY-4.0 text) and a README that states the license, so all six
+files changed; `compilerDigest` did not.
 
 | Artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `bim_core-0.2.0-py3-none-any.whl` | 126405 | `75b97c104797c15cb4bf5aff43ab3a2866dddba7954dea27ae9dd2fa7da7ee6d` |
-| `bim_core-0.2.0.tar.gz` | 108102 | `a85896fafce3b3884222ca63c6a008900c01a5e2491f5093551599af8077121f` |
-| `bim_service-0.2.0-py3-none-any.whl` | 54733 | `f95e7923d1dfcc37f92df9b045152a32b3bc50e2b257c0cc72a3b81adffca50c` |
-| `bim_service-0.2.0.tar.gz` | 46896 | `735639e63702eb7086e3a1b2dca9fbea06cb5b4ebabd68d3ac08443ecb5d1a78` |
-| `bim_client-0.2.0-py3-none-any.whl` | 20507 | `7211d889550ec862ebe58af5cc859970c05d2569797a4cd6e4f1c60fa8763576` |
-| `bim_client-0.2.0.tar.gz` | 15645 | `458ab1583e85bf7680d8d2c2369a19fa25bbece66df19de40e9152ab534a7bea` |
+| `bim_core-0.2.0-py3-none-any.whl` | 132869 | `80dd58ba38d71cea28ae3ba483609298882feb9c23c61a400ac05c56b44311f0` |
+| `bim_core-0.2.0.tar.gz` | 114061 | `690da1fb26e1bc3ceb5befbc5407cd7fc6c6c4d4c5ae7e726a3752756e8512c8` |
+| `bim_service-0.2.0-py3-none-any.whl` | 61046 | `45ca51bdda278090244c1ba08f9cbdd676582ab3f7cf6c5c07b39dd5f006a2e9` |
+| `bim_service-0.2.0.tar.gz` | 52687 | `e767c77f105909a24f88a745328571cbc0e0a44c395456e23cf2de71ec4177c4` |
+| `bim_client-0.2.0-py3-none-any.whl` | 26817 | `5cff0e6cbc0a134e7f726444240e1046741f411b1a0b362def669cb7065ea4c3` |
+| `bim_client-0.2.0.tar.gz` | 21509 | `725621fc7c21fdc94bc41444c2e6bc2d3242c39483c6fe0b9bb349c9fb4dba5e` |
 
 | Value | Expected |
 | --- | --- |

@@ -27,7 +27,7 @@
   },
   "package_metadata": {
     "license_expression": "CC-BY-4.0",
-    "license_files": ["NOTICE.md"],
+    "license_files": ["LICENSE", "NOTICE.md"],
     "classifier_kept": "Private :: Do Not Upload"
   },
   "spdx_policy": "The SPDX identifier is declared once per distribution in pyproject.toml (license = ...) and once here. It is deliberately not repeated in a header of every .py file: adding a comment to a module of bim_core would change compilerDigest (it covers every .py file) and the goldens that record it.",

@@ -7,6 +7,7 @@ What it does, in this order (it stops being "ok" at the first thing that fails, 
 1. builds the wheels and sdists of the three distributions **twice**, in two different directories (a copy of the
    sources each time) with a fixed ``SOURCE_DATE_EPOCH``, and compares the SHA-256 of every artifact: a build that is
    not reproducible is a failure, reported member by member;
+   and checks that each wheel and sdist carries ``LICENSE`` and ``NOTICE.md`` equal to the ones at the root;
 2. makes a clean virtual environment, installs the wheels of the first build and runs ``python -I
    tools/smoke_installed.py`` with an empty environment (it imports ``bim_core``, ``bim_service`` and ``bim_client``);
 3. compares ``compilerDigest`` of the wheel, of the source tree, of the unpacked sdist, of the installed distribution and
@@ -198,6 +199,8 @@ def verify(arguments: argparse.Namespace, work: Path, report: Report, summary: d
     summary["artifacts"] = artifacts
     report.add("reproducible-build", reproducible, artifacts=len(artifacts), expected=expected)
     first = builds["first"]
+    license_problems = [problem for path in first.values() for problem in ps.license_problems(path)]
+    report.add("license-files", not license_problems and len(first) == expected, problems=license_problems)
     wheels = sorted(path for path in first.values() if path.suffix == ".whl")
     core_wheel, core_sdist = ps.wheel_path("bim-core", work / "first" / "dist"), ps.sdist_path("bim-core", work / "first" / "dist")
     if core_wheel is None or core_sdist is None or len(wheels) != len(ps.PACKAGES):

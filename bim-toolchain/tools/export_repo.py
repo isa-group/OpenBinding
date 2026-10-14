@@ -13,7 +13,7 @@ Before anything is written it checks the staged tree and refuses (exit 1, nothin
 
 * no configuration, credentials, logs, datasets or tooling markers of OpenBinding (``EXCLUDED``);
 * a scan for secrets (private keys, cloud and VCS tokens, credentials in URLs, assigned secrets), which never prints one;
-* the license inventory: ``licenses.json`` coherent, one SPDX identifier everywhere, the four ``NOTICE.md`` equal;
+* the license inventory: ``licenses.json`` coherent, one SPDX identifier everywhere, the four ``NOTICE.md`` and the ``LICENSE`` of each package equal to the root ones, ``license-files`` in every pyproject;
 * no file that is not the holder's own: nothing under a ``vendor`` directory except what ``licenses.json`` declares, no
   binary files;
 * no reference that leaves the repository (a Markdown link that resolves outside it);
@@ -239,6 +239,7 @@ def license_problems(stage: Path) -> list[str]:
     if (stage / "LICENSE").is_file() and not (stage / "LICENSE").read_text(encoding="utf-8").startswith("Attribution 4.0 International"):
         problems.append("LICENSE is not the text of Creative Commons Attribution 4.0 International")
     root_notice = (stage / "NOTICE.md").read_bytes() if (stage / "NOTICE.md").is_file() else None
+    root_license = (stage / "LICENSE").read_bytes() if (stage / "LICENSE").is_file() else None
     packages = sorted(path for path in (stage / "packages").glob("*") if path.is_dir())
     if not packages:
         problems.append("packages/ is missing or empty")
@@ -246,8 +247,13 @@ def license_problems(stage: Path) -> list[str]:
         notice = package / "NOTICE.md"
         if not notice.is_file() or notice.read_bytes() != root_notice:
             problems.append(f"{package.name}/NOTICE.md is missing or not a copy of NOTICE.md")
+        license_copy = package / "LICENSE"
+        if root_license is None or not license_copy.is_file() or license_copy.read_bytes() != root_license:
+            problems.append(f"{package.name}/LICENSE is missing or not a copy of LICENSE")
         pyproject = package / "pyproject.toml"
         text = pyproject.read_text(encoding="utf-8") if pyproject.is_file() else ""
+        if not re.search(r'^license-files\s*=\s*\[\s*"LICENSE"\s*,\s*"NOTICE\.md"\s*\]\s*$', text, re.MULTILINE):
+            problems.append(f'{package.name}/pyproject.toml does not declare license-files = ["LICENSE", "NOTICE.md"]')
         if not re.search(rf'^license\s*=\s*"{re.escape(SPDX)}"\s*$', text, re.MULTILINE):
             problems.append(f"{package.name}/pyproject.toml does not declare license = \"{SPDX}\"")
         if "Private :: Do Not Upload" not in text:

@@ -78,7 +78,7 @@ def test_wheel_metadata(name: str) -> None:
     for item in metadata.get_all("Requires-Dist", []):
         assert "@" not in item and "file:" not in item and "/" not in item, f"{item!r} is a path or URL"
     assert not any(item.startswith("License ::") for item in metadata.get_all("Classifier", []))
-    assert metadata.get_all("License-File") == ["NOTICE.md"]
+    assert sorted(metadata.get_all("License-File")) == ["LICENSE", "NOTICE.md"]
     assert "Private :: Do Not Upload" in metadata.get_all("Classifier", [])
 
 
@@ -94,8 +94,11 @@ def test_wheel_declares_the_spdx_license_expression_of_the_holder(name: str) -> 
 def test_sdist_declares_the_same_license(name: str, tmp_path: Path) -> None:
     unpacked = extract_sdist(sdist_of(name), tmp_path)
     text = (unpacked / "PKG-INFO").read_text(encoding="utf-8")
-    assert "License-Expression: CC-BY-4.0" in text and "License-File: NOTICE.md" in text
+    assert "License-Expression: CC-BY-4.0" in text
+    assert "License-File: LICENSE" in text and "License-File: NOTICE.md" in text
     assert "Private :: Do Not Upload" in text
+    assert (unpacked / "LICENSE").read_bytes() == (ROOT / "LICENSE").read_bytes()
+    assert (unpacked / "NOTICE.md").read_bytes() == (ROOT / "NOTICE.md").read_bytes()
 
 
 @pytest.mark.parametrize("name", ["bim-service", "bim-client"])
@@ -106,11 +109,16 @@ def test_wheel_requires_bim_core_by_range(name: str) -> None:
 
 
 @pytest.mark.parametrize("name", NAMES)
-def test_wheel_ships_the_notice_py_typed_and_no_tests(name: str) -> None:
+def test_wheel_ships_the_license_the_notice_py_typed_and_no_tests(name: str) -> None:
     names = wheel_names(wheel_of(name))
     module = PACKAGES[name][0]
     assert f"{module}/py.typed" in names
     assert any(item.endswith(".dist-info/licenses/NOTICE.md") for item in names)
+    assert any(item.endswith(".dist-info/licenses/LICENSE") for item in names)
+    with zipfile.ZipFile(wheel_of(name)) as archive:
+        for member, source in (("LICENSE", ROOT / "LICENSE"), ("NOTICE.md", ROOT / "NOTICE.md")):
+            (found,) = [item for item in archive.namelist() if item.endswith(f".dist-info/licenses/{member}")]
+            assert archive.read(found) == source.read_bytes(), f"{found} differs from the root {member}"
     assert not any("/tests/" in item or "__pycache__" in item or item.endswith(".pyc") for item in names)
     assert {item.split("/")[0] for item in names} == {module, f"{module}-0.2.0.dist-info"}
 
@@ -136,7 +144,7 @@ def test_every_python_module_of_a_service_or_client_wheel_is_in_the_source(name:
 
 
 @pytest.mark.parametrize("name", NAMES)
-def test_sdist_has_sources_notice_readme_and_pyproject_only(name: str) -> None:
+def test_sdist_has_sources_license_notice_readme_and_pyproject_only(name: str) -> None:
     names = sdist_names(sdist_of(name))
     top = f"{PACKAGES[name][0]}-0.2.0"
     members = {item.removeprefix(f"{top}/") for item in names}
@@ -144,7 +152,7 @@ def test_sdist_has_sources_notice_readme_and_pyproject_only(name: str) -> None:
     source = package_dir(name) / "src" / module
     expected = {f"src/{module}/{item}" for item in files_below(source)}
     # hatchling adds .gitignore and PKG-INFO to every sdist
-    expected |= {".gitignore", "PKG-INFO", "README.md", "NOTICE.md", "pyproject.toml"}
+    expected |= {".gitignore", "PKG-INFO", "README.md", "LICENSE", "NOTICE.md", "pyproject.toml"}
     assert members == expected
     assert all(item.startswith(f"{top}/") for item in names)
 
@@ -218,11 +226,11 @@ def test_the_installed_distributions_carry_the_license_metadata(venv_python: Pat
         "from importlib import metadata\n"
         "for name in ('bim-core', 'bim-service', 'bim-client'):\n"
         "    item = metadata.metadata(name)\n"
-        "    print(name, item['License-Expression'], item.get_all('License-File'))\n"
+        "    print(name, item['License-Expression'], sorted(item.get_all('License-File')))\n"
     )
     result = isolated(venv_python, "-c", code, cwd=tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert result.stdout.splitlines() == [f"{name} CC-BY-4.0 ['NOTICE.md']" for name in ("bim-core", "bim-service", "bim-client")]
+    assert result.stdout.splitlines() == [f"{name} CC-BY-4.0 ['LICENSE', 'NOTICE.md']" for name in ("bim-core", "bim-service", "bim-client")]
 
 
 def test_toolchain_json_of_the_clean_venv_agrees_with_the_source_tree(venv_python: Path, tmp_path: Path) -> None:

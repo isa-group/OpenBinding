@@ -37,6 +37,13 @@ jobs:
 IDENTITY = ("Export Tester", "export.tester@example.org")
 
 
+LICENSE_TEXT = "Attribution 4.0 International\n\n(text)\n"
+PACKAGE_PYPROJECT = (
+    '[project]\nname = "{name}"\nlicense = "CC-BY-4.0"\nlicense-files = ["LICENSE", "NOTICE.md"]\n'
+    'classifiers = ["Private :: Do Not Upload"]\n'
+)
+
+
 def base_licenses() -> dict:
     """``licenses.json`` of a tree that carries the files and has not cleared them, whatever this repository's state is."""
     document = json.loads((ROOT / "licenses.json").read_text(encoding="utf-8"))
@@ -59,20 +66,22 @@ def git(cwd: Path, *arguments: str) -> str:
 def mini_files() -> dict[str, bytes]:
     files = {
         "README.md": "# mini bim-toolchain\nSee [the notice](NOTICE.md) and [a package](packages/pkg-a/README.md).\n",
-        "LICENSE": "Attribution 4.0 International\n\n(text)\n",
+        "LICENSE": LICENSE_TEXT,
         "NOTICE.md": NOTICE,
         "THIRD_PARTY_NOTICES.md": "# Third-party notices\n",
         "docs/LICENSING.md": "# Licensing\n",
         "pyproject.toml": '[tool.uv.workspace]\nmembers = ["packages/pkg-a"]\n',
         "tools/helper.py": "VALUE = 1\n",
         "packages/pkg-a/NOTICE.md": NOTICE,
+        "packages/pkg-a/LICENSE": LICENSE_TEXT,
         "packages/pkg-a/README.md": "pkg a\n",
-        "packages/pkg-a/pyproject.toml": '[project]\nname = "pkg-a"\nlicense = "CC-BY-4.0"\nclassifiers = ["Private :: Do Not Upload"]\n',
+        "packages/pkg-a/pyproject.toml": PACKAGE_PYPROJECT.format(name="pkg-a"),
         "packages/pkg-a/src/pkg_a/__init__.py": "",
         # the OMG files live in packages/bim-core, which therefore is a package of the tree like pkg-a
         "packages/bim-core/NOTICE.md": NOTICE,
+        "packages/bim-core/LICENSE": LICENSE_TEXT,
         "packages/bim-core/README.md": "core\n",
-        "packages/bim-core/pyproject.toml": '[project]\nname = "bim-core"\nlicense = "CC-BY-4.0"\nclassifiers = ["Private :: Do Not Upload"]\n',
+        "packages/bim-core/pyproject.toml": PACKAGE_PYPROJECT.format(name="bim-core"),
         ".github/workflows/ci.yml": WORKFLOW,
         ".extraction-bootstrap": "marker\n",
         "licenses.json": licenses_bytes(base_licenses()),
@@ -258,13 +267,29 @@ def test_a_link_that_leaves_the_repository_stops_the_export(tmp_path: Path, caps
 def test_the_license_inventory_stops_a_notice_that_is_not_a_copy_and_a_wrong_identifier(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     clone = make_clone(tmp_path, {
         "packages/pkg-a/NOTICE.md": b"# another notice\n",
-        "packages/pkg-a/pyproject.toml": b'[project]\nname = "pkg-a"\nlicense = "MIT"\n',
+        "packages/pkg-a/pyproject.toml": b'[project]\nname = "pkg-a"\nlicense = "MIT"\nlicense-files = ["LICENSE", "NOTICE.md"]\n',
     })
     code, _, errors = export(tmp_path, clone, capsys=capsys)
     assert code == 1
     assert "pkg-a/NOTICE.md is missing or not a copy of NOTICE.md" in errors
     assert 'pkg-a/pyproject.toml does not declare license = "CC-BY-4.0"' in errors
     assert "lost the classifier Private :: Do Not Upload" in errors
+
+
+def test_the_license_inventory_stops_a_package_license_that_is_not_a_copy_and_missing_license_files(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    clone = make_clone(tmp_path, {
+        "packages/pkg-a/LICENSE": b"Attribution 4.0 International\n\n(edited)\n",
+        "packages/pkg-a/pyproject.toml": b'[project]\nname = "pkg-a"\nlicense = "CC-BY-4.0"\nlicense-files = ["NOTICE.md"]\n'
+        b'classifiers = ["Private :: Do Not Upload"]\n',
+    })
+    code, _, errors = export(tmp_path, clone, capsys=capsys)
+    assert code == 1
+    assert "pkg-a/LICENSE is missing or not a copy of LICENSE" in errors
+    assert "bim-core/LICENSE is missing" not in errors
+    assert 'pkg-a/pyproject.toml does not declare license-files = ["LICENSE", "NOTICE.md"]' in errors
+    assert "bim-core/pyproject.toml does not declare license-files" not in errors
 
 
 # --- the OMG XSD switch ----------------------------------------------------------------------------------------

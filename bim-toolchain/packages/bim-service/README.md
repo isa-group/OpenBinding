@@ -20,4 +20,9 @@ The operations run in a pool of threads by default. `BIM_SERVICE_EXECUTOR=proces
 worker processes that are killed at the time budget or when the client goes away, at a memory cost that
 [`docs/SERVICE.md`](../../docs/SERVICE.md#worker-processes-bim_service_executorprocess) measures and checks at start.
 
-License: undecided, see [`NOTICE.md`](../../NOTICE.md).
+## License
+
+**CC-BY-4.0** (Creative Commons Attribution 4.0 International), the license of OpenBinding; holder: javiercavlop
+(titular del repositorio OpenBinding). The text is the `LICENSE` file shipped in this distribution. Third-party
+dependencies and the OMG BPMN schemas of `bim-core` are not covered. See [`NOTICE.md`](NOTICE.md) (also shipped) and
+[`../../docs/LICENSING.md`](../../docs/LICENSING.md).

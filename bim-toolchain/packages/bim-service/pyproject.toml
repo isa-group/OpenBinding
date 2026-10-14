@@ -1,10 +1,10 @@
 # bim-service: stateless HTTP API (bim-service/v1) over bim-core.
 #
 # License: CC-BY-4.0 (SPDX), the license of OpenBinding; holder: javiercavlop
-# (titular del repositorio OpenBinding). `license-files` ships NOTICE.md (a byte
-# copy of the root one, kept equal by a test because hatchling cannot read files
-# outside the project directory); the license text is LICENSE at the repository
-# root. See ../../NOTICE.md and ../../licenses.json.
+# (titular del repositorio OpenBinding). `license-files` ships LICENSE (the license
+# text) and NOTICE.md, each a byte copy of the one at the repository root, kept
+# equal by tests because hatchling cannot read files outside the project
+# directory. See ../../NOTICE.md and ../../licenses.json.
 
 [project]
 name = "bim-service"
@@ -13,7 +13,7 @@ description = "Stateless HTTP API over bim-core: compile, validate, evaluate, re
 readme = "README.md"
 requires-python = ">=3.11"
 license = "CC-BY-4.0"
-license-files = ["NOTICE.md"]
+license-files = ["LICENSE", "NOTICE.md"]
 classifiers = [
     "Framework :: FastAPI",
     "Intended Audience :: Developers",
@@ -48,7 +48,7 @@ packages = ["src/bim_service"]
 
 # The tests are not shipped: they read fixtures that live at the root of the repository.
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/README.md", "/NOTICE.md", "/pyproject.toml"]
+include = ["/src", "/README.md", "/LICENSE", "/NOTICE.md", "/pyproject.toml"]
 
 # Development only (workspace at ../../pyproject.toml); not part of the built metadata.
 [tool.uv.sources]

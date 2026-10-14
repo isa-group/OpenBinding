@@ -164,7 +164,7 @@ def test_pyproject_declares_a_plain_package_with_the_license_of_licenses_json() 
         "jsonschema", "lxml", "pyyaml",
     }
     assert project["license"] == "CC-BY-4.0"
-    assert project["license-files"] == ["NOTICE.md"]
+    assert project["license-files"] == ["LICENSE", "NOTICE.md"]
     assert not any(item.startswith("License ::") for item in project.get("classifiers", []))
     assert "Private :: Do Not Upload" in project["classifiers"]
     assert (PACKAGE / project["readme"]).is_file()

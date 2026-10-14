@@ -44,8 +44,16 @@ load_package(data, limits=limits)       # or per call
 
 The public surface, errors, settings, resources and digests are described in
 [`../../docs/CONTRACT.md`](../../docs/CONTRACT.md) and
-[`../../docs/DIGESTS.md`](../../docs/DIGESTS.md). The license of the code is pending
-the holder's decision; see [`../../NOTICE.md`](../../NOTICE.md).
+[`../../docs/DIGESTS.md`](../../docs/DIGESTS.md).
+
+## License
+
+The code, schemas and documentation written for this package are licensed under **CC-BY-4.0**
+(Creative Commons Attribution 4.0 International), the license of OpenBinding; holder: javiercavlop (titular del
+repositorio OpenBinding). The text is the `LICENSE` file shipped in this distribution. The five OMG BPMN 2.0.2 XML
+Schemas under `bim_core/resources/vendor/omg/bpmn/2.0.2/` and third-party dependencies are **not** covered (rights
+not demonstrated, respectively their own licenses). See [`NOTICE.md`](NOTICE.md) (also shipped) and
+[`../../docs/LICENSING.md`](../../docs/LICENSING.md).
 
 ## Tests
 
@@ -56,5 +64,7 @@ available:
 PYTHONPATH=src python -m pytest tests
 ```
 
-Tests that need the OpenBinding corpus look for it under `BIM_CORPUS_ROOT` and skip
-with a warning when it is not there.
+Tests that read the OpenBinding corpus carry the marker `openbinding_corpus` and look for it under
+`BIM_CORPUS_ROOT`. Without a corpus, run everything else with
+`python -m pytest -m 'not openbinding_corpus' tests`; the synthetic golden (`golden/synthetic/`) stands in for it
+([`../../docs/DELIVERY.md`](../../docs/DELIVERY.md)).

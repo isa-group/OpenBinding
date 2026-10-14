@@ -29,16 +29,16 @@ bim-toolchain/
   NOTICE.md                         the license (CC-BY-4.0), holder, attribution and scope; OMG BPMN schemas: rights not demonstrated
   licenses.json                     the manifest: SPDX identifier, scope, OMG XSD clearance switch, pending action pins
   packages/bim-core/
-    pyproject.toml, README.md, NOTICE.md (copy of the root one, shipped as license-files)
+    pyproject.toml, README.md, LICENSE and NOTICE.md (copies of the root ones, shipped as license-files)
     src/bim_core/                   the package (src layout, py.typed)
       resources/                    JSON Schemas, engine contract, vendored OMG BPMN 2.0.2 XSDs
     tests/                          tests/fixtures/manifests: Engine manifests; fixtures/example-package: a small BIM package
   packages/bim-service/
-    pyproject.toml, README.md, NOTICE.md, Dockerfile
+    pyproject.toml, README.md, LICENSE, NOTICE.md, Dockerfile
     src/bim_service/                FastAPI application, middleware, limits, authentication, operations
     tests/
   packages/bim-client/
-    pyproject.toml, README.md, NOTICE.md
+    pyproject.toml, README.md, LICENSE, NOTICE.md
     src/bim_client/                 BimPort, InProcessBim, HttpBim, errors, types
     tests/                          includes the equivalence battery
   contracts/

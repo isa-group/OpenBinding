@@ -28,11 +28,11 @@ RUN groupadd --system --gid 10001 bim \
 
 WORKDIR /build
 
-# pyproject.toml names README.md as the readme and NOTICE.md as its license file, so they are copied with it;
-# nothing else of the packages is.
-COPY packages/bim-core/pyproject.toml packages/bim-core/README.md packages/bim-core/NOTICE.md packages/bim-core/
+# pyproject.toml names README.md as the readme and declares license-files = ['LICENSE', 'NOTICE.md'], so they are
+# copied with it; nothing else of the packages is.
+COPY packages/bim-core/pyproject.toml packages/bim-core/README.md packages/bim-core/LICENSE packages/bim-core/NOTICE.md packages/bim-core/
 COPY packages/bim-core/src packages/bim-core/src
-COPY packages/bim-service/pyproject.toml packages/bim-service/README.md packages/bim-service/NOTICE.md packages/bim-service/
+COPY packages/bim-service/pyproject.toml packages/bim-service/README.md packages/bim-service/LICENSE packages/bim-service/NOTICE.md packages/bim-service/
 COPY packages/bim-service/src packages/bim-service/src
 
 # The licence texts and notices travel with the code (the OMG BPMN schemas inside bim_core keep their own).

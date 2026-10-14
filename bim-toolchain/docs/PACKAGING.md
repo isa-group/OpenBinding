@@ -9,7 +9,7 @@ Three distributions, each a normal `src`-layout project built with `hatchling` (
 | `bim-service` | `bim_service` | `bim-core>=0.2,<0.3`, `fastapi>=0.110,<1.0`, `pydantic>=2.0,<3.0`, `uvicorn>=0.27,<1.0` | the modules of the service, `py.typed` |
 | `bim-client` | `bim_client` | `bim-core>=0.2,<0.3`, `httpx>=0.27,<1.0` | `BimPort`, `InProcessBim`, `HttpBim`, errors, types, `py.typed` |
 
-Every wheel and sdist also carries `NOTICE.md` (`license-files`) and the readme. Test-only extras exist
+Every wheel and sdist also carries `LICENSE` and `NOTICE.md` (`license-files`) and the readme. Test-only extras exist
 (`bim-service[test]`, `bim-client[test]`) and are not installed by default.
 
 ## Metadata decisions
@@ -17,14 +17,16 @@ Every wheel and sdist also carries `NOTICE.md` (`license-files`) and the readme.
 - **The license is an SPDX expression, `license = "CC-BY-4.0"`** (PEP 639), in each `pyproject.toml`: the wheels and
   sdists carry `License-Expression: CC-BY-4.0` and no free-text `License` field. There is no `License ::` classifier
   (an expression and a license classifier together are refused by the build backend; `hatchling>=1.27` is the first that
-  writes PEP 639 metadata). `license-files = ["NOTICE.md"]` ships the notice, which states the license, the holder, the
-  attribution and the scope and links the license text and the license deed. The full text of `LICENSE` is **not** shipped in
-  the wheels: hatchling only reads files below the project directory and a copy of `LICENSE` per package would be a new file
-  to keep equal to the root one (a test could, as it does for `NOTICE.md`; not done in this change, listed in
-  `LICENSING.md`). `THIRD_PARTY_NOTICES.md` is not shipped either. The OMG BPMN XSDs inside the wheel of `bim-core` are not
+  writes PEP 639 metadata). `license-files = ["LICENSE", "NOTICE.md"]` ships the full license text (wheels:
+  `*.dist-info/licenses/LICENSE`; sdists: `LICENSE` at the top; metadata: `License-File: LICENSE`) and the notice, which
+  states the license, the holder, the attribution and the scope. hatchling only reads files below the project directory, so
+  every package keeps a byte copy of the root `LICENSE` (the unchanged text of OpenBinding) and of `NOTICE.md`; tests fail if a
+  copy differs from the root file, and `verify_release.py` checks the built archives (`license-files`).
+  `THIRD_PARTY_NOTICES.md` is not shipped. The OMG BPMN XSDs inside the wheel of `bim-core` are not
   covered by the license: [`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md), [`LICENSING.md`](LICENSING.md).
-- **`NOTICE.md` exists four times**: at the root and in each `packages/*/` directory, because hatchling only reads
-  files below the project directory. `tools/test_packaging_metadata.py` fails if a copy differs from the root file.
+- **`NOTICE.md` and `LICENSE` exist four times each**: at the root and in each `packages/*/` directory, because hatchling
+  only reads files below the project directory. `tools/test_packaging_metadata.py` and `tools/test_license_metadata.py` fail
+  if a copy differs from the root file.
 - **Classifiers are neutral** (Python 3 / 3.11 / 3.12, OS independent, `Typing :: Typed`, FastAPI for the service) plus
   `Private :: Do Not Upload`, which makes PyPI refuse the files. Remove it only when publishing is decided.
 - **Dependencies between members are version ranges**, never paths: `bim-core>=0.2,<0.3`. A MINOR bump of `bim-core`
@@ -32,7 +34,7 @@ Every wheel and sdist also carries `NOTICE.md` (`license-files`) and the readme.
   the IR order, `CHANGELOG.md`). Before 1.0 the minor number is the one that marks a breaking change.
 - **The version is written twice** (`pyproject.toml` and `_version.py`, which becomes `__version__`) and a test fails
   if they differ, or if the three packages differ.
-- **The sdist** contains `src/`, `README.md`, `NOTICE.md`, `pyproject.toml`, `PKG-INFO` and the `.gitignore` hatchling
+- **The sdist** contains `src/`, `README.md`, `LICENSE`, `NOTICE.md`, `pyproject.toml`, `PKG-INFO` and the `.gitignore` hatchling
   adds. It does not contain the tests: they read goldens and fixtures that live at the root of the repository, so an
   sdist could not run them.
 
@@ -72,7 +74,7 @@ artifact (below); the numbered list is what each part checks.
    the gzip header). The test `test_two_builds_in_two_directories_give_the_same_bytes` does the same for one package.
 1. **Open the archives**: `tools/test_built_artifacts.py` checks, for each wheel and sdist, the name, version,
    `Requires-Python`, `Requires-Dist` (no path or URL), `License-Expression: CC-BY-4.0`, no `License ::` classifier,
-   `License-File: NOTICE.md`, `Private :: Do Not Upload`, `py.typed`, that every source file and every resource is present
+   `License-File: LICENSE` and `License-File: NOTICE.md` (both equal to the root files), `Private :: Do Not Upload`, `py.typed`, that every source file and every resource is present
    and nothing else (no tests, no bytecode), and that the sdist has the resources too. It builds `dist/` and `.verify-venv`
    itself when they are missing or the sources changed (`packaging_support.ensure_dist`, `ensure_verify_venv`: a
    fingerprint of the sources is kept next to the output); it needs `uv` and **fails**, not skips, without it.
@@ -99,7 +101,7 @@ package). A test keeps it equal to the demo.
 ### `compilerDigest` in the three forms
 
 `compiler_bundle_digest()` covers every `.py` file and everything under `resources/` of the package directory, skipping
-`__pycache__` and `*.pyc`; `py.typed`, `*.dist-info` (outside the package directory) and `NOTICE.md` are not part of it.
+`__pycache__` and `*.pyc`; `py.typed`, `*.dist-info` (outside the package directory), `LICENSE` and `NOTICE.md` are not part of it.
 
 Current result, from `tools/verify_release.py` (Python 3.11.2, hatchling 1.32.4, 0.2.0; the check is run by the tool on every
 release and the same three forms are asserted by `test_built_artifacts.py`):
@@ -134,6 +136,10 @@ this repository, and the `[tool.uv.sources] workspace = true` entries do not app
 invalidates every stored IR (`DIGESTS.md`): recompile after upgrading, and replay `contracts/consumers/openbinding/`.
 
 ## Reproducible builds
+
+The SHA-256 and sizes of the six artifacts are in the table of [`DELIVERY.md`](DELIVERY.md#4-expected-values), obtained by
+two identical builds after `LICENSE` was added to the packages (that change altered all six files; `compilerDigest` is the
+same as before).
 
 `tools/verify_release.py` builds the three packages twice, each time from a fresh copy of the sources in another directory,
 with `SOURCE_DATE_EPOCH=1767225600`, and compares the SHA-256 of the six artifacts. In the run recorded in `DELIVERY.md` they

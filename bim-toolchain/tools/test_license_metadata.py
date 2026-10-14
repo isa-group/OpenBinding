@@ -33,9 +33,10 @@ def test_licenses_json_records_the_holder_the_spdx_identifier_and_the_scope(lice
     assert any(item.startswith("omg_bpmn_xsd") for item in own["does_not_cover"])
     assert any("third-party dependencies" in item for item in own["does_not_cover"])
     assert any(item.startswith("packages/*/src") for item in own["covers"])
-    assert licenses["package_metadata"] == {
-        "license_expression": SPDX, "license_files": ["NOTICE.md"], "classifier_kept": "Private :: Do Not Upload",
-    }
+    package_metadata = licenses["package_metadata"]
+    assert package_metadata["license_expression"] == SPDX
+    assert package_metadata["classifier_kept"] == "Private :: Do Not Upload"
+    assert package_metadata["license_files"] == ["LICENSE", "NOTICE.md"]
     assert "not designed for software" in licenses["technical_note"] and "untouched" in licenses["technical_note"]
     names = [item["name"] for item in licenses["third_party"]]
     assert any("OMG BPMN" in name for name in names) and any("dependencies" in name for name in names)
@@ -55,7 +56,8 @@ def test_the_spdx_identifier_is_declared_by_the_manifest_not_by_every_module(lic
 def test_every_distribution_declares_the_license_and_keeps_the_notice_and_the_private_classifier(name: str, licenses: dict) -> None:
     project = pyproject(name)["project"]
     assert project["license"] == SPDX == licenses["own_material"]["spdx"]
-    assert project["license-files"] == ["NOTICE.md"]
+    assert project["license-files"] == ["LICENSE", "NOTICE.md"]
+    assert "/LICENSE" in pyproject(name)["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
     assert not any(item.startswith("License ::") for item in project["classifiers"])
     assert "Private :: Do Not Upload" in project["classifiers"]
     header = (package_dir(name) / "pyproject.toml").read_text(encoding="utf-8").split("[project]", 1)[0]
@@ -87,6 +89,26 @@ def test_the_license_file_is_the_text_of_cc_by_4_0() -> None:
     text = read("LICENSE")
     assert text.startswith("Attribution 4.0 International")
     assert "Creative Commons Attribution 4.0 International Public License" in text
+
+
+@pytest.mark.parametrize("name", NAMES)
+def test_every_package_carries_the_license_text_byte_for_byte(name: str) -> None:
+    """hatchling only reads files below the project directory, so each package keeps a copy of the root ``LICENSE``."""
+    copy = (package_dir(name) / "LICENSE").read_bytes()
+    assert copy == (ROOT / "LICENSE").read_bytes()
+    assert copy.startswith(b"Attribution 4.0 International")
+
+
+@pytest.mark.parametrize("name", NAMES)
+def test_the_package_readme_states_the_real_license_and_the_scope(name: str) -> None:
+    text = (package_dir(name) / "README.md").read_text(encoding="utf-8")
+    flat = re.sub(r"\s+", " ", text)
+    assert "CC-BY-4.0" in flat and "javiercavlop" in flat and "LICENSE" in flat
+    assert "NOTICE.md" in flat and "LICENSING.md" in flat
+    assert "not** covered" in flat or "not covered" in flat
+    lowered = flat.lower()
+    for phrase in ("pending", "undecided", "skip with a warning", "decision"):
+        assert phrase not in lowered, f"{name}/README.md still says {phrase!r}"
 
 
 def test_third_party_notices_keep_openbindings_text_and_add_the_scope_of_this_repository() -> None:

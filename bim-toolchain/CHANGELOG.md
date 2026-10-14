@@ -16,7 +16,7 @@ licensing, goldens' metadata, export and verification only.
 
 - **License: CC-BY-4.0**, the license of OpenBinding, holder javiercavlop (titular del repositorio OpenBinding; no legal name
   is recorded and none was inferred). `license = "CC-BY-4.0"` (SPDX, PEP 639) in the three `pyproject.toml` (the wheels and
-  sdists carry `License-Expression: CC-BY-4.0`), `license-files = ["NOTICE.md"]`, `Private :: Do Not Upload` kept;
+  sdists carry `License-Expression: CC-BY-4.0`), `license-files = ["LICENSE", "NOTICE.md"]` (each package carries a byte copy of the root `LICENSE`; the first draft listed only `NOTICE.md`), `Private :: Do Not Upload` kept;
   `NOTICE.md` (and its three copies) rewritten, `THIRD_PARTY_NOTICES.md` keeps OpenBinding's text and adds a section, new
   `licenses.json` (the manifest: SPDX identifier once, scope, clearance switch, pending pins) and `docs/LICENSING.md`
   (attribution, scope, and the recorded risk that CC BY 4.0 is not designed for software; the decision of the holder is
@@ -33,9 +33,9 @@ licensing, goldens' metadata, export and verification only.
   self-containment run (`-m 'not openbinding_corpus'`, no skip). The OMG XSDs are blocked by default: left out, the exported
   workflows fetch them after each checkout. `docs/DELIVERY.md` has the steps for the Mac, the expected hashes and the rollback.
 - **`tools/verify_release.py`**: two builds in two directories with a fixed `SOURCE_DATE_EPOCH` compared by SHA-256 (identical
-  in the recorded run: `bim_core-0.2.0-py3-none-any.whl` `75b97c10…`, `bim_core-0.2.0.tar.gz` `a85896fa…`,
-  `bim_service-0.2.0-py3-none-any.whl` `f95e7923…`, `bim_service-0.2.0.tar.gz` `735639e6…`, `bim_client-0.2.0-py3-none-any.whl`
-  `7211d889…`, `bim_client-0.2.0.tar.gz` `458ab158…`; full values in `docs/DELIVERY.md`), clean venv, `python -I` smoke test,
+  in the recorded run: `bim_core-0.2.0-py3-none-any.whl` `80dd58ba…`, `bim_core-0.2.0.tar.gz` `690da1fb…`,
+  `bim_service-0.2.0-py3-none-any.whl` `45ca51bd…`, `bim_service-0.2.0.tar.gz` `e767c77f…`, `bim_client-0.2.0-py3-none-any.whl`
+  `5cff0e6c…`, `bim_client-0.2.0.tar.gz` `725621fc…`; full values in `docs/DELIVERY.md`), clean venv, `python -I` smoke test,
   `compilerDigest` of wheel/tree/sdist/installation/service, OpenAPI and consumer fixtures, corpus baseline,
   `toolchain.json` from the installed wheels; one JSON summary, exit 1 on any failure.
 - **The corpus tier**: the tests that read the OpenBinding corpus carry the marker `openbinding_corpus`, found by reading the

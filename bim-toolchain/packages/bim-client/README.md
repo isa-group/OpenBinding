@@ -16,4 +16,11 @@ print(result["irDigest"], result["analysis"]["bindingSpaceLog10"])
 ```
 
 See [`docs/CLIENT.md`](../../docs/CLIENT.md) for the contract, the reasons for this boundary and the (few)
-differences between the two implementations. License: undecided, see [`NOTICE.md`](../../NOTICE.md).
+differences between the two implementations.
+
+## License
+
+**CC-BY-4.0** (Creative Commons Attribution 4.0 International), the license of OpenBinding; holder: javiercavlop
+(titular del repositorio OpenBinding). The text is the `LICENSE` file shipped in this distribution. Third-party
+dependencies and the OMG BPMN schemas of `bim-core` are not covered. See [`NOTICE.md`](NOTICE.md) (also shipped) and
+[`../../docs/LICENSING.md`](../../docs/LICENSING.md).

@@ -1,10 +1,10 @@
 # bim-core: the BIM v1 language implementation as a normal src-layout package.
 #
 # License: CC-BY-4.0 (SPDX), the license of OpenBinding; holder: javiercavlop
-# (titular del repositorio OpenBinding). `license-files` ships NOTICE.md (a byte
-# copy of the root one, kept equal by a test because hatchling cannot read files
-# outside the project directory); the license text is LICENSE at the repository
-# root. The OMG BPMN schemas under resources/vendor are not covered; see
+# (titular del repositorio OpenBinding). `license-files` ships LICENSE (the license
+# text) and NOTICE.md, each a byte copy of the one at the repository root, kept
+# equal by tests because hatchling cannot read files outside the project
+# directory. The OMG BPMN schemas under resources/vendor are not covered; see
 # ../../NOTICE.md and ../../licenses.json.
 
 [project]
@@ -14,7 +14,7 @@ description = "BIM v1 service-composition and binding language: package loader, 
 readme = "README.md"
 requires-python = ">=3.11"
 license = "CC-BY-4.0"
-license-files = ["NOTICE.md"]
+license-files = ["LICENSE", "NOTICE.md"]
 classifiers = [
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
@@ -43,11 +43,11 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/bim_core"]
 
-# The sdist carries the sources, the resources, the readme and the notice. The
-# tests are not shipped: they read goldens and fixtures that live at the root of
-# the repository, outside this directory.
+# The sdist carries the sources, the resources, the readme, the license and the
+# notice. The tests are not shipped: they read goldens and fixtures that live at
+# the root of the repository, outside this directory.
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/README.md", "/NOTICE.md", "/pyproject.toml"]
+include = ["/src", "/README.md", "/LICENSE", "/NOTICE.md", "/pyproject.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

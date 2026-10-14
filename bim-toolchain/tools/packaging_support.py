@@ -95,6 +95,37 @@ def sdist_names(path: Path) -> list[str]:
         return [member.name for member in archive.getmembers() if member.isfile()]
 
 
+#: Files every wheel (``*.dist-info/licenses/``) and every sdist (top directory) must carry, equal to the root ones.
+LICENSE_FILES = ("LICENSE", "NOTICE.md")
+
+
+def license_problems(path: Path, root: Path = ROOT) -> list[str]:
+    """What is wrong with the license files of a wheel or an sdist: missing, duplicated or different from ``root``'s."""
+    problems: list[str] = []
+    if path.suffix == ".whl":
+        with zipfile.ZipFile(path) as archive:
+            contents = {name: archive.read(name) for name in archive.namelist()}
+        suffix = ".dist-info/licenses/"
+    else:
+        with tarfile.open(path) as archive:
+            contents = {
+                member.name: archive.extractfile(member).read()  # type: ignore[union-attr]
+                for member in archive.getmembers()
+                if member.isfile()
+            }
+        suffix = ""
+    for name in LICENSE_FILES:
+        found = [
+            member for member in contents
+            if (member.endswith(f"{suffix}{name}") if suffix else member.count("/") == 1 and member.endswith(f"/{name}"))
+        ]
+        if len(found) != 1:
+            problems.append(f"{path.name}: {len(found)} copies of {name}, expected 1")
+        elif contents[found[0]] != (root / name).read_bytes():
+            problems.append(f"{path.name}: {found[0]} differs from the root {name}")
+    return problems
+
+
 def extract_sdist(path: Path, target: Path) -> Path:
     """Extract ``path`` below ``target`` and return the directory the sdist created."""
     with tarfile.open(path) as archive:
