@@ -1,19 +1,19 @@
 """A BIM package compiled from its directory and from its ZIP, on synthetic packages (no corpus needed).
 
-The 82-package corpus lives in OpenBinding (``openbinding-gateway/tests/test_bim_zip_dir_equivalence.py`` runs the
-same comparison there).  This module exercises the same equivalence with small packages written by
-``synthetic_packages.py``, so that the CI of this repository checks it without the corpus.  It never skips.
+The 82-package corpus is compared in ``test_zip_dir_equivalence_corpus.py``.  This module exercises the same equivalence
+with small packages written by ``synthetic_packages.py``, so that the CI of this repository checks it without the corpus.
+It never skips.
 
-For each variant the package is packed as a directory, as a raw ZIP (the bytes as written, entries in any order)
-and as the canonical ZIP of ``InstancePackage.to_zip()``, and five things are compared: (a) the semantic digest,
-(b) the canonical IR, (c) ``irDigest``, (d) ``packageDigest`` and (e) the order of the eligibility lists.
+For each variant the package is packed as a directory, as a raw ZIP (the bytes as written, entries in any order), as the
+canonical ZIP of ``InstancePackage.to_zip()`` and with the members of its JSON objects shuffled, and five things are
+compared: (a) the semantic digest, (b) the canonical IR, (c) ``irDigest``, (d) ``packageDigest`` and (e) the order of the
+eligibility lists.  All of them are equal.
 
-The finding (``docs/DIGESTS.md``, "Directory, raw ZIP and canonical ZIP"): neither the enumeration order of the file
-system nor the order of the ZIP entries matters, but the canonical form sorts the members of every JSON object and
-the compiler builds the eligibility, constraint and placement lists by iterating objects in document order.  A package
-that declares them out of alphabetical order therefore has another IR in canonical form.  Changing that is a MAJOR
-change of the digest contract (it moves the semantic digest recorded in the goldens), so the canonical-ZIP comparison
-of the unordered variants is a strict ``xfail`` carrying the cause.
+History (``docs/qa/IR_NORMALIZATION.md``): the canonical form sorts the members of every JSON object and the compiler used
+to build the eligibility, constraint and placement lists by iterating objects in document order, so a package that
+declared them out of alphabetical order had another IR in canonical form.  The compiler now lists those sets in one
+canonical order, whatever the order of the JSON members, and the four ``unordered-*`` variants, which used to be strict
+``xfail``, are ordinary tests.
 """
 
 from __future__ import annotations
@@ -24,21 +24,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from synthetic_packages import AFFECTED_SECTIONS, VARIANTS, files, write
+from synthetic_packages import VARIANTS, files, write
 
 from bim_core import canonical_json, compile_instance, digest, load_package
 
 NON_SEMANTIC = frozenset({"profile", "dialects", "instance", "sourceMap"})
 METRICS = ("semantic", "ir", "irDigest", "packageDigest", "eligibility")
-ORDERED_SECTIONS = frozenset({"spec.eligibility", "spec.constraints", "spec.placement"})
 NAMES = sorted(VARIANTS)
-UNORDERED = [name for name in NAMES if name != "ordered"]
-CAUSE = (
-    "to_zip() writes JSON with sorted object members (bim_core/package.py: _canonical_resource_bytes, to_zip) and the "
-    "compiler builds eligibility, constraints and placement by iterating objects in document order "
-    "(bim_core/compiler.py: _normalize_candidates, _constraints, _placement); a canonical order moves the golden "
-    "semantic digest (MAJOR by docs/DIGESTS.md), so it is not applied"
-)
 
 
 def raw_zip(contents: dict[str, bytes], *, reverse: bool = False) -> bytes:
@@ -67,29 +59,8 @@ def differing(left: dict[str, Any], right: dict[str, Any]) -> list[str]:
     return [metric for metric in METRICS if left[metric] != right[metric]]
 
 
-def sections_differing(left: dict[str, Any], right: dict[str, Any]) -> set[str]:
-    result = {
-        key
-        for key in set(left) | set(right)
-        if key != "spec" and canonical_json(left.get(key)) != canonical_json(right.get(key))
-    }
-    for name in set(left["spec"]) | set(right["spec"]):
-        if canonical_json(left["spec"].get(name)) != canonical_json(right["spec"].get(name)):
-            result.add(f"spec.{name}")
-    return result
-
-
-def unordered(value: Any) -> Any:
-    """``value`` with every list replaced by the sorted canonical forms of its items (order forgotten)."""
-    if isinstance(value, dict):
-        return {key: unordered(child) for key, child in value.items()}
-    if isinstance(value, list):
-        return sorted(canonical_json(unordered(child)).decode("utf-8") for child in value)
-    return value
-
-
 @pytest.fixture(scope="module")
-def built(tmp_path_factory) -> dict[str, dict[str, Any]]:
+def built(tmp_path_factory, baseline_tool) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     for name in NAMES:
         package = load_package(write(tmp_path_factory.mktemp(name), name))
@@ -97,11 +68,12 @@ def built(tmp_path_factory) -> dict[str, dict[str, Any]]:
             "package": package,
             "observed": observe(package),
             "canonical": observe(load_package(package.to_zip())),
+            "permuted": [
+                observe(load_package(raw_zip(baseline_tool.permute_members(package.files, seed))))
+                for seed in baseline_tool.PERMUTATION_SEEDS
+            ],
         }
     return result
-
-
-# --- what does not matter ---------------------------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("name", NAMES)
@@ -129,46 +101,52 @@ def test_the_package_digest_is_the_digest_of_the_canonical_form_of_every_input(b
     assert built[name]["canonical"]["packageDigest"] == built[name]["observed"]["packageDigest"]
 
 
-# --- what does ----------------------------------------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "name",
-    [
-        pytest.param(
-            name,
-            marks=pytest.mark.xfail(strict=True, raises=AssertionError, reason=CAUSE) if name != "ordered" else (),
-        )
-        for name in NAMES
-    ],
-)
+@pytest.mark.parametrize("name", NAMES)
 def test_the_canonical_zip_is_the_directory(built, name: str) -> None:
-    """(a) semantic digest, (b) IR, (c) ``irDigest``, (d) ``packageDigest`` and (e) eligibility order."""
+    """(a) semantic digest, (b) IR, (c) ``irDigest``, (d) ``packageDigest`` and (e) eligibility order.
+
+    Was a strict ``xfail`` for the four ``unordered-*`` variants."""
     assert differing(built[name]["observed"], built[name]["canonical"]) == []
 
 
-@pytest.mark.parametrize("name", UNORDERED)
-def test_what_differs_is_the_semantic_digest_the_ir_and_the_ir_digest_but_not_the_package_digest(built, name: str) -> None:
-    assert set(differing(built[name]["observed"], built[name]["canonical"])) >= {"semantic", "ir", "irDigest"}
-    assert "packageDigest" not in differing(built[name]["observed"], built[name]["canonical"])
+@pytest.mark.parametrize("name", NAMES)
+def test_shuffling_the_members_of_the_json_objects_changes_nothing(built, name: str) -> None:
+    for other in built[name]["permuted"]:
+        assert differing(built[name]["observed"], other) == []
+
+
+def test_the_order_in_which_a_package_declares_its_objects_has_no_effect_on_the_ir(built) -> None:
+    """The five variants are one problem written five ways: one IR, byte for byte."""
+    assert len({built[name]["observed"]["ir"] for name in NAMES}) == 1
+    assert len({built[name]["observed"]["irDigest"] for name in NAMES}) == 1
 
 
 @pytest.mark.parametrize("name", NAMES)
-def test_the_canonical_zip_differs_only_in_the_sections_whose_object_order_was_changed(built, name: str) -> None:
-    left, right = built[name]["observed"]["document"], built[name]["canonical"]["document"]
-    sections = sections_differing(left, right)
-    assert sections - {"spec.sourceMap"} == AFFECTED_SECTIONS[name]
-    # Same members: with the order of those lists forgotten, the canonical IR is the directory's IR.
-    for section in sections & ORDERED_SECTIONS:
-        key = section.removeprefix("spec.")
-        assert unordered(left["spec"][key]) == unordered(right["spec"][key])
+def test_the_sets_of_the_ir_are_in_the_canonical_order(built, name: str) -> None:
+    """Eligibility by (catalog id, candidate id), constraints by ref; the source map follows the constraints."""
+    document = built[name]["observed"]["document"]
+    spec = document["spec"]
+    for task, references in spec["eligibility"].items():
+        assert references == sorted(references, key=lambda ref: (ref["resource"], ref["id"])), task
+        assert len(references) == 4
+    refs = [(item["ref"]["resource"], item["ref"]["id"]) for item in spec["constraints"]]
+    assert refs == sorted(refs) and len(refs) == 3
+    for index, (resource, constraint_id) in enumerate(refs):
+        location = spec["sourceMap"][f"/spec/constraints/{index}"]
+        assert (location["resource"], location["pointer"]) == (resource, f"/spec/constraints/{constraint_id}")
+        assert spec["sourceMap"][f"/spec/constraints/{index}/assert"]["pointer"].endswith(f"{constraint_id}/assert")
 
 
-@pytest.mark.parametrize("name", ["unordered-catalogs", "unordered-candidates"])
-def test_the_canonical_eligibility_lists_are_the_sorted_ones(built, name: str) -> None:
-    before, after = built[name]["observed"]["eligibility"], built[name]["canonical"]["eligibility"]
-    assert sorted(before) == sorted(after)
-    for task, references in before.items():
-        assert references != after[task]
-        assert sorted(map(str, references)) == sorted(map(str, after[task]))
-        assert after[task] == sorted(references, key=lambda ref: (ref["resource"], ref["id"]))
+@pytest.mark.parametrize("name", NAMES)
+def test_every_binding_evaluates_identically_in_every_form(built, name: str, baseline_tool) -> None:
+    """Same bindings, same evaluation including the order and the text of the violations."""
+    reference = compile_instance(built[name]["package"])
+    forms = [compile_instance(load_package(built[name]["package"].to_zip()))] + [
+        compile_instance(load_package(raw_zip(baseline_tool.permute_members(built[name]["package"].files, seed))))
+        for seed in baseline_tool.PERMUTATION_SEEDS
+    ]
+    bindings = baseline_tool.identifier_bindings(reference.document["spec"], name)
+    assert len(bindings) == 16
+    for form in forms:
+        for binding in bindings:
+            assert baseline_tool.evaluate_binding(form, binding) == baseline_tool.evaluate_binding(reference, binding)

@@ -406,7 +406,7 @@ written; it is not a claim that the item is false. This section re-ran no check.
 | Process mode (B8-3) | Pendiente | `bim-toolchain/packages/bim-service/tests/analysis/test_analysis_b8_probe.py` ("Only processes (B8-3) close this"); the GIL stall in thread mode stays a strict `xfail` (`CHANGELOG.md`) |
 | RSS measurement inside the container (B8-0) | Pendiente | `docs/qa/BIM_LOAD.md` ("RSS ... was not used", "No real container memory"); `test_analysis_b8_memory.py` uses `tracemalloc` only |
 | Raw ZIP equals the directory | Cerrado, 82/82 | `bim-toolchain/packages/bim-core/tests/test_zip_dir_equivalence_corpus.py` (`test_the_raw_zip_is_the_directory`, `EXPECTED_PACKAGES = 82`) |
-| Canonical ZIP (`to_zip()`) differs from the directory | Abierto: 64 of 82 differ; MAJOR decision of the owner, **not applied** | same test file (`EXPECTED_DIVERGENT = 64`); `bim-toolchain/CHANGELOG.md` "Known issue"; `golden/bim_core/zip_equivalence.json`. The A1 work added tests only; no file of `bim_core/src` changed |
+| Canonical ZIP (`to_zip()`) differs from the directory | Cerrado en 0.2.0: 82/82 equal (was 64 of 82 different); MAJOR change decided by the owner on 2026-10-14 | same test file (all 82 and the permutations are ordinary tests; the 64 are `data/zip_divergent_packages.json`, the packages whose semantic digest moved); `bim-toolchain/CHANGELOG.md` `semantic-change`; `docs/qa/IR_NORMALIZATION.md`; `golden/bim_normalized/zip_equivalence.json` |
 | Publishing `javiercavlop/bim-toolchain` | Pendiente: one external step (below) | `docs/RELEASING.md` |
 | Licence | Not decided; **no new licence is created** here | `NOTICE.md`, `docs/PACKAGING.md` |
 
@@ -419,9 +419,10 @@ Precisions to the rows above, read from the tree when this note was written (no 
   lets a large body or CPU-bound work slow the loop: **3 strict `xfail` remain** in
   `packages/bim-service/tests/analysis/test_analysis_b8_probe.py` (CPU-bound operations vs `/healthz`; loop stall while a
   large body is parsed; a timed-out operation keeps its slot until its thread ends). Process mode (B8-3) is not done.
-- **Zip/directory equivalence (M4-A1)**: tests and goldens only. The raw ZIP equals the directory for 82/82; the 64
-  canonical-ZIP divergences are strict `xfail`, pinned by `EXPECTED_DIVERGENT = 64`. The IR MAJOR decision is **pending
-  with the owner**; no `bim_core` file changed. The `bim-toolchain` CI has never been executed (its nested
+- **Zip/directory equivalence (M4-A1, closed by M4-B in 0.2.0)**: the raw ZIP equals the directory for 82/82 and, since
+  the owner decided on 2026-10-14 to normalize the order of the sets of the IR (`CHANGELOG.md` `semantic-change`), so
+  does the canonical ZIP and any permutation of the JSON members; the 64 strict `xfail` are ordinary tests. The
+  `bim-toolchain` CI has never been executed (its nested
   `.github/` is not run by GitHub inside this monorepo, per `docs/qa/analysis/BIM_B5_B8_M4_IR.md`).
 - **Gateway side, outside this directory** (`docs/qa/SECURITY_REVIEW.md` has the detail): VIEWER is read-only (MEMBER or
   more for launch, retry, cancel and pareto); stable public errors with `correlationId` (`core/public_errors.py`);

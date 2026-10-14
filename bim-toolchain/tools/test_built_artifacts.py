@@ -62,8 +62,8 @@ def wheel_names(path: Path) -> list[str]:
 def test_there_is_one_wheel_and_one_sdist_per_package() -> None:
     wheels = sorted(path.name for path in DIST.glob("*.whl"))
     sdists = sorted(path.name for path in DIST.glob("*.tar.gz"))
-    assert wheels == [f"{PACKAGES[name][0]}-0.1.0-py3-none-any.whl" for name in NAMES]
-    assert sdists == [f"{PACKAGES[name][0]}-0.1.0.tar.gz" for name in NAMES]
+    assert wheels == [f"{PACKAGES[name][0]}-0.2.0-py3-none-any.whl" for name in NAMES]
+    assert sdists == [f"{PACKAGES[name][0]}-0.2.0.tar.gz" for name in NAMES]
 
 
 @pytest.mark.parametrize("name", NAMES)
@@ -86,7 +86,7 @@ def test_wheel_metadata(name: str) -> None:
 def test_wheel_requires_bim_core_by_range(name: str) -> None:
     metadata = wheel_metadata(wheel_of(name))
     (requirement,) = [item for item in metadata.get_all("Requires-Dist", []) if requirement_name(item) == "bim-core"]
-    assert requirement.replace(" ", "") in {"bim-core<0.2,>=0.1", "bim-core>=0.1,<0.2"}
+    assert requirement.replace(" ", "") in {"bim-core<0.3,>=0.2", "bim-core>=0.2,<0.3"}
 
 
 @pytest.mark.parametrize("name", NAMES)
@@ -96,7 +96,7 @@ def test_wheel_ships_the_notice_py_typed_and_no_tests(name: str) -> None:
     assert f"{module}/py.typed" in names
     assert any(item.endswith(".dist-info/licenses/NOTICE.md") for item in names)
     assert not any("/tests/" in item or "__pycache__" in item or item.endswith(".pyc") for item in names)
-    assert {item.split("/")[0] for item in names} == {module, f"{module}-0.1.0.dist-info"}
+    assert {item.split("/")[0] for item in names} == {module, f"{module}-0.2.0.dist-info"}
 
 
 def test_the_core_wheel_has_every_source_module_and_resource() -> None:
@@ -122,7 +122,7 @@ def test_every_python_module_of_a_service_or_client_wheel_is_in_the_source(name:
 @pytest.mark.parametrize("name", NAMES)
 def test_sdist_has_sources_notice_readme_and_pyproject_only(name: str) -> None:
     names = sdist_names(sdist_of(name))
-    top = f"{PACKAGES[name][0]}-0.1.0"
+    top = f"{PACKAGES[name][0]}-0.2.0"
     members = {item.removeprefix(f"{top}/") for item in names}
     module = PACKAGES[name][0]
     source = package_dir(name) / "src" / module
@@ -135,7 +135,7 @@ def test_sdist_has_sources_notice_readme_and_pyproject_only(name: str) -> None:
 
 def test_the_core_sdist_has_every_resource() -> None:
     members = set(sdist_names(sdist_of("bim-core")))
-    top = "bim_core-0.1.0/src/bim_core"
+    top = "bim_core-0.2.0/src/bim_core"
     for item in files_below(CORE_SRC / "resources"):
         assert f"{top}/resources/{item}" in members, item
     assert f"{top}/py.typed" in members
@@ -191,7 +191,7 @@ def test_smoke_test_in_the_clean_venv_and_digest_equality(venv_python: Path, tmp
     report = json.loads(result.stdout.strip().splitlines()[-1])
     assert report["ok"] is True
     assert "site-packages" in report["installedFrom"]
-    assert (report["bimCore"], report["bimService"], report["bimClient"]) == ("0.1.0", "0.1.0", "0.1.0")
+    assert (report["bimCore"], report["bimService"], report["bimClient"]) == ("0.2.0", "0.2.0", "0.2.0")
     assert report["compilerDigest"] == report["serviceCompilerDigest"] == compiler_bundle_digest()
     assert report["schemas"] == 12
 

@@ -20,6 +20,10 @@ the behaviour is. The rules are those of [`DIGESTS.md`](DIGESTS.md#versioning-ru
 | MINOR | backward-compatible additions: new public API, accepted constructs, diagnostics for what was not valid | every package that compiled still has the same semantic digest and evaluations; the OpenAPI document only gains |
 | MAJOR | anything else: a valid package changes digest or evaluation or is rejected, an incompatible change of the IR schema, the engine protocol or the HTTP API, a removed public name | goldens are regenerated only in a reviewed change that says why |
 
+Before 1.0 the minor number is the one that marks a MAJOR change: the semantic change of `0.2.0` (the order of the sets
+of the IR) was a MAJOR change by the table above, and it widened `bim-core>=0.1,<0.2` in the other two distributions.
+A MAJOR change leaves the previous golden as a frozen fixture and records the new baseline next to it (`DIGESTS.md`).
+
 A change to `bim_core/toolchain.py` (the definition of what the digest covers) is a change of toolchain: record it in
 `CHANGELOG.md` and `DIGESTS.md` with the reason and the old and new value. A MINOR bump of `bim-core` also widens
 `bim-core>=0.x,<0.y` in `bim-service` and `bim-client`.
@@ -86,8 +90,9 @@ holds only the commits that touched the prefix, with their original messages), a
 4. **Corpus access** in CI (`vars.BIM_CORPUS_ROOT` points to a runner path; without it the golden/corpus job fails,
    unless `vars.BIM_CORPUS_OPTIONAL` is `true`, which skips it and says so in the job summary).
 5. **The `meta-router-csp` manifest and the eligibility-order question** listed in `EXTRACTION_LOG.md`. The latter is
-   measured now: the raw ZIP equals the directory in 82/82 packages, and 64 of 82 compile to another IR from their
-   canonical ZIP (`DIGESTS.md`, "Directory, raw ZIP and canonical ZIP";
-   `packages/bim-core/tests/test_zip_dir_equivalence_corpus.py`). Canonicalising the order is a MAJOR change (it moves
-   `golden/bim_baseline`) and the owner's decision; it has **not** been applied (only tests were added). Until it is
-   made the host must compile always the same form of a package.
+   closed in `0.2.0`: the owner decided on 2026-10-14 to canonicalise the order (a MAJOR change, `CHANGELOG.md`
+   `semantic-change`); the directory, the raw ZIP, the canonical ZIP and any permutation of the JSON members of a package
+   compile to the same IR in 82/82 corpus packages (`DIGESTS.md`, "Directory, raw ZIP and canonical ZIP";
+   `packages/bim-core/tests/test_zip_dir_equivalence_corpus.py`), and a host no longer has to compile always the same
+   form. `golden/bim_baseline` stays as the frozen baseline of `0.1.x`; the baseline of `0.2.0` is
+   `golden/bim_normalized`.

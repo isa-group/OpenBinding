@@ -1341,12 +1341,6 @@ def test_task_features_membership_does_not_read_interval_values():
         features["cost"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=ValueError,
-    reason="expressions._path_value reads value[segment] right after the membership check, so has() still "
-    "reads the interval; fixing it needs a change in v1/expressions.py",
-)
 def test_has_on_an_interval_slot_is_true_without_reading_the_value():
     present = compile_instance(
         demo_package(5, extra={"min": 1, "max": 2}, constraint="has(tasks.t1.features.extra)")

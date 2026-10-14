@@ -2,9 +2,15 @@
 
 ``tools/baseline_core.py`` recomputes, using only ``bim_core``, the semantic digest and the canonical evaluations
 of every package of the OpenBinding corpus, the negative cases, the Engine mode compatibility of every package,
-the re-evaluation and result-validation vectors and the protocol digests; this module compares the result with
-``golden/bim_baseline/{corpus,negatives,compat,vectors,protocol}.json``.  ``toolchain`` fields (compilerDigest,
+the re-evaluation and result-validation vectors and the protocol digests.  ``toolchain`` fields (compilerDigest,
 irDigest) change with the toolchain bytes on purpose and are never compared.
+
+Two baselines are involved (``docs/qa/IR_NORMALIZATION.md``).  ``golden/bim_baseline`` is OpenBinding's, taken from the
+toolchain that listed eligible candidates, constraints and placement in document order; it is frozen.  The normalized
+toolchain lists them in one canonical order, which moves the semantic digest of 64 packages and the enumeration order
+of their evaluations, so ``corpus.json`` and ``zip_equivalence.json`` are pinned in ``golden/bim_normalized``;
+``negatives``, ``vectors``, ``compat`` and ``protocol`` did not move and are compared with the frozen baseline.  How the
+two corpora relate, package by package and by identifier, is tested in ``test_ir_previous_baseline.py``.
 
 ``compat.json`` and ``protocol.json`` of OpenBinding list the Engine ``meta-router-csp``, whose manifest is not in
 the repository (only four manifests are).  They are compared with that Engine removed, and the four-Engine
@@ -34,6 +40,7 @@ from core_support import (
 
 GOLDEN_FILES = ("corpus.json", "negatives.json", "compat.json", "vectors.json", "protocol.json")
 CORE_GOLDEN_DIR = GOLDEN_DIR.parent / "bim_core"
+NORMALIZED_DIR = GOLDEN_DIR.parent / "bim_normalized"
 SAMPLE_SIZE = 10
 SAMPLE_PER_ROOT = 4
 
@@ -51,7 +58,16 @@ def root():
 
 
 def golden(name: str) -> dict:
+    """A document of the frozen previous baseline."""
     return json.loads((GOLDEN_DIR / name).read_text(encoding="utf-8"))
+
+
+def normalized(name: str) -> dict:
+    """A document of the baseline of the normalized IR."""
+    path = NORMALIZED_DIR / name
+    if not path.is_file():
+        pytest.fail(f"{path.relative_to(NORMALIZED_DIR.parent.parent)} is missing: test_the_normalized_goldens_match writes it")
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def small_packages(corpus: dict) -> list[str]:
@@ -77,11 +93,32 @@ def test_every_golden_file_exists_and_is_in_the_canonical_byte_form(baseline_too
         assert baseline_tool.dump(json.loads(data)) == data, name
 
 
+full_corpus_only = pytest.mark.skipif(
+    os.environ.get("BIM_BASELINE_SAMPLE_ONLY") == "1",
+    reason="BIM_BASELINE_SAMPLE_ONLY=1: the full corpus comparison is skipped",
+)
+
+
+@full_corpus_only
+@pytest.mark.parametrize("name", ["corpus.json", "zip_equivalence.json"])
+def test_the_normalized_goldens_match(baseline_tool, everything, name) -> None:
+    """``golden/bim_normalized``: the baseline of the normalized IR. A missing document is created and the test fails
+    once, as for the other goldens (``check_or_create_golden``): the new file is reviewed and committed.
+
+    It runs first on purpose: the tests below read these files. They were only created after the invariants of
+    ``test_ir_previous_baseline.py`` (same members, same evaluations by identifier) held."""
+    check_or_create_golden(baseline_tool, NORMALIZED_DIR / name, everything[name])
+
+
 def test_the_goldens_are_the_ones_recorded_in_openbinding(baseline_tool, root) -> None:
+    """The gateway's ``corpus.json`` is the corpus golden of the normalized IR, copied from ``golden/bim_normalized``
+    (the gateway moved to it with ``bim-core`` 0.2.0); ``negatives.json`` and ``vectors.json`` did not move and are
+    still the frozen baseline's."""
     original = root / "openbinding-gateway" / "tests" / "golden" / "bim_baseline"
     if not original.is_dir():
         pytest.skip(f"{original} is not available")
-    for name in ("corpus.json", "negatives.json", "vectors.json"):
+    assert (original / "corpus.json").read_bytes() == (NORMALIZED_DIR / "corpus.json").read_bytes(), "corpus.json"
+    for name in ("negatives.json", "vectors.json"):
         assert (original / name).read_bytes() == (GOLDEN_DIR / name).read_bytes(), name
     # The copy in this directory still lists the Engine meta-router-csp; OpenBinding's current goldens do
     # not, and its manifest is not in the repository.  Apart from that Engine, whose entries are removed
@@ -105,17 +142,17 @@ def test_the_bim_core_goldens_equal_the_current_openbinding_ones(baseline_tool, 
 
 
 def test_the_goldens_cover_exactly_the_discovered_corpus(baseline_tool, root) -> None:
-    corpus = golden("corpus.json")
     discovered = {
         directory.relative_to(root).as_posix() for directory in baseline_tool.package_directories(root)
     }
 
-    assert set(corpus["packages"]) == discovered
-    assert corpus["packageCount"] == len(discovered) == 82
-    assert {entry["status"] for entry in corpus["packages"].values()} == {"compiled"}
-    assert (corpus["seed"], corpus["exhaustiveLimit"], corpus["sampleSize"]) == (
-        baseline_tool.SEED, baseline_tool.EXHAUSTIVE_LIMIT, baseline_tool.SAMPLE_SIZE,
-    )
+    for corpus in (golden("corpus.json"), normalized("corpus.json")):
+        assert set(corpus["packages"]) == discovered
+        assert corpus["packageCount"] == len(discovered) == 82
+        assert {entry["status"] for entry in corpus["packages"].values()} == {"compiled"}
+        assert (corpus["seed"], corpus["exhaustiveLimit"], corpus["sampleSize"]) == (
+            baseline_tool.SEED, baseline_tool.EXHAUSTIVE_LIMIT, baseline_tool.SAMPLE_SIZE,
+        )
 
 
 def test_a_package_is_analyzed_exhaustively_and_deterministically(baseline_tool, root) -> None:
@@ -148,7 +185,7 @@ def test_a_space_above_the_limit_is_sampled_with_the_fixed_seed(baseline_tool, r
 
 
 def test_sampled_packages_keep_their_semantic_digest_and_evaluations(baseline_tool, root) -> None:
-    expected = golden("corpus.json")
+    expected = normalized("corpus.json")
     paths = small_packages(expected)
     corpus = baseline_tool.build_corpus([root / path for path in paths], root)
 
@@ -177,12 +214,6 @@ def test_regenerating_the_negatives_gives_identical_bytes(baseline_tool, root) -
     )
 
 
-full_corpus_only = pytest.mark.skipif(
-    os.environ.get("BIM_BASELINE_SAMPLE_ONLY") == "1",
-    reason="BIM_BASELINE_SAMPLE_ONLY=1: the full corpus comparison is skipped",
-)
-
-
 @pytest.fixture(scope="module")
 def everything(baseline_tool, root):
     """Every document of the tool, for the whole corpus, computed once."""
@@ -195,7 +226,7 @@ def everything(baseline_tool, root):
 @full_corpus_only
 def test_the_whole_corpus_matches_the_goldens(baseline_tool, everything) -> None:
     corpus = everything["corpus.json"]
-    expected = golden("corpus.json")
+    expected = normalized("corpus.json")
 
     assert sorted(corpus["packages"]) == sorted(expected["packages"])
     assert [
@@ -257,49 +288,30 @@ def test_engine_compatibility_matches_the_goldens(everything) -> None:
 
 @full_corpus_only
 def test_nothing_differs_from_any_golden(baseline_tool, everything) -> None:
-    assert baseline_tool.mismatches(everything, GOLDEN_DIR) == []
+    assert baseline_tool.mismatches(everything) == []
 
 
 @full_corpus_only
-@pytest.mark.parametrize("name", ["compat.json", "protocol.json", "evaluator_errors.json", "zip_equivalence.json"])
+@pytest.mark.parametrize("name", ["compat.json", "protocol.json", "evaluator_errors.json"])
 def test_the_pinned_bim_core_goldens_match(baseline_tool, everything, name) -> None:
     check_or_create_golden(baseline_tool, CORE_GOLDEN_DIR / name, everything[name])
 
 
 @full_corpus_only
-def test_the_golden_by_directory_is_the_package_compiled_from_its_zip(baseline_tool, everything) -> None:
+def test_every_form_of_a_package_is_the_package_compiled_from_its_directory(baseline_tool, everything) -> None:
     """The production route: the platform stores and compiles the ZIP of the bytes it received, not the directory the
-    goldens were generated from.  For all 82 packages that ZIP gives the golden's semantic digest and the same IR."""
+    goldens were generated from.  For all 82 packages that ZIP, the same ZIP with its entries reversed, the canonical
+    ZIP and two shuffles of the members of the JSON objects give the IR and the semantic digest of the directory."""
     document = everything["zip_equivalence.json"]
-    corpus = golden("corpus.json")
+    corpus = normalized("corpus.json")
 
     assert baseline_tool.zip_equivalence_failures(document) == {}
     assert sorted(document["packages"]) == sorted(corpus["packages"]) and document["packageCount"] == 82
     for path, entry in document["packages"].items():
-        assert entry["rawZip"] == {"sameIr": True, "sameSemanticDigest": True}, path
+        for form in baseline_tool.ZIP_FORMS:
+            assert entry[form] == {"sameIr": True, "sameSemanticDigest": True}, (path, form)
         assert entry["packageDigestsEqual"], path
-
-
-@full_corpus_only
-def test_the_canonical_zip_is_the_golden_except_for_the_packages_that_declare_objects_out_of_order(
-    baseline_tool, everything
-) -> None:
-    """The canonical form (JSON members sorted) is another IR for the packages listed in ``zip_equivalence.json``;
-    for every other package it is the golden's semantic digest.  Only lists built from objects differ."""
-    document = everything["zip_equivalence.json"]
-    corpus = golden("corpus.json")
-    ordered_lists = {"spec.eligibility", "spec.constraints", "spec.placement", "spec.sourceMap"}
-
-    divergent = {path for path, entry in document["packages"].items() if not entry["canonicalZip"]["sameSemanticDigest"]}
-    assert len(divergent) == document["canonicalZipDivergent"]
-    for path, entry in document["packages"].items():
-        canonical = entry["canonicalZip"]
-        if path in divergent:
-            assert canonical["semanticDigest"] != corpus["packages"][path]["semanticDigest"], path
-            assert canonical["differingSections"] and set(canonical["differingSections"]) <= ordered_lists, path
-        else:
-            assert canonical["semanticDigest"] == corpus["packages"][path]["semanticDigest"], path
-            assert canonical["differingSections"] == [], path
+    assert len(baseline_tool.ZIP_FORMS) == 5
 
 
 @full_corpus_only
@@ -310,27 +322,27 @@ def test_the_command_line_check_finds_no_difference(baseline_tool, root, capsys)
 
 @full_corpus_only
 def test_the_command_line_writes_documents_equal_to_the_goldens(baseline_tool, root, tmp_path) -> None:
-    output = tmp_path / "bim_baseline"
+    output = tmp_path / "golden"
 
     assert baseline_tool.main(["--corpus-root", str(root), "--output", str(output), "--jobs", "2"]) == 0
 
     written = {
-        **{name: output / name for name in baseline_tool.GOLDEN_FILES},
-        **{name: tmp_path / "bim_core" / name for name in baseline_tool.CORE_GOLDEN_FILES},
-        "vectors_extra.json": tmp_path / "vectors_extra.json",
+        **{f"bim_normalized/{name}": output / "bim_normalized" / name for name in baseline_tool.NORMALIZED_FILES},
+        **{f"bim_core/{name}": output / "bim_core" / name for name in baseline_tool.CORE_GOLDEN_FILES},
+        "vectors_extra.json": output / "vectors_extra.json",
     }
     expected = {
-        **{name: GOLDEN_DIR / name for name in baseline_tool.GOLDEN_FILES},
-        **{name: CORE_GOLDEN_DIR / name for name in baseline_tool.CORE_GOLDEN_FILES},
+        **{f"bim_normalized/{name}": NORMALIZED_DIR / name for name in baseline_tool.NORMALIZED_FILES},
+        **{f"bim_core/{name}": CORE_GOLDEN_DIR / name for name in baseline_tool.CORE_GOLDEN_FILES},
         "vectors_extra.json": GOLDEN_DIR.parent / "vectors_extra.json",
     }
-    assert sorted(written) == sorted(expected) and len(written) == 8
+    assert sorted(written) == sorted(expected) and len(written) == 6
     for name, path in written.items():
         assert path.read_bytes() == baseline_tool.dump(json.loads(path.read_text(encoding="utf-8"))), name
         found = baseline_tool.comparable(json.loads(path.read_text(encoding="utf-8")))
         assert found == baseline_tool.comparable(json.loads(expected[name].read_text(encoding="utf-8"))), name
-    # The OpenBinding copies of compat.json and protocol.json are never rewritten.
-    assert not (output / "compat.json").exists() and not (output / "protocol.json").exists()
+    # The frozen previous baseline is never rewritten: nothing is written next to it.
+    assert not (output / "bim_baseline").exists()
 
 
 def test_the_command_line_refuses_to_run_without_the_corpus(baseline_tool, tmp_path, capsys) -> None:

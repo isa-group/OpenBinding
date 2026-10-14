@@ -101,6 +101,59 @@ def canonical_json(value: Any) -> bytes:
     return encode(value).encode("utf-8")
 
 
+#: The largest integer RFC 8785 (the ECMAScript number model) carries losslessly.
+_INTEROPERABLE_INTEGER = 9_007_199_254_740_991
+
+
+def integral_numbers(value: Any) -> Any:
+    """Read every integral number of parsed JSON as an integer, in place; return ``value``.
+
+    JSON has one number type and RFC 8785 writes ``6.0`` as ``6``, so a document read from the canonical form of a
+    package holds the integer ``6`` where the document as written holds the float ``6.0``.  Normalising the parsed
+    document makes both read the same: a float with an integral value (``-0.0`` included) whose magnitude is at most
+    2**53 - 1 becomes an ``int``.  Larger floats, fractions and exponent forms are left as they are.  The walk is
+    iterative, so the depth of the document is not limited by the interpreter's recursion limit.
+    """
+    if type(value) is float:
+        return int(value) if value.is_integer() and abs(value) <= _INTEROPERABLE_INTEGER else value
+    stack = [value] if isinstance(value, (dict, list)) else []
+    while stack:
+        node = stack.pop()
+        slots = node.keys() if isinstance(node, dict) else range(len(node))
+        for slot in list(slots):
+            child = node[slot]
+            if type(child) is float:
+                if child.is_integer() and abs(child) <= _INTEROPERABLE_INTEGER:
+                    node[slot] = int(child)
+            elif isinstance(child, (dict, list)):
+                stack.append(child)
+    return value
+
+
+#: 500 digits: below 640, the smallest limit ``sys.set_int_max_str_digits`` accepts, so no block can hit it.
+_DECIMAL_BLOCK_DIGITS = 500
+_DECIMAL_BLOCK = 10**_DECIMAL_BLOCK_DIGITS
+
+
+def decimal_string(value: int) -> str:
+    """``str(value)`` for any integer, whatever ``sys.get_int_max_str_digits()`` says.
+
+    CPython raises ``ValueError`` when an integer of more than 4300 digits (by default) is converted to text.  The
+    cardinality of a binding space is a product of candidate counts and can be that large, so it is converted in blocks
+    of 500 digits, none of which reaches the limit.
+    """
+    if value < 0:
+        return "-" + decimal_string(-value)
+    if value < _DECIMAL_BLOCK:
+        return str(value)
+    blocks: list[int] = []
+    while value:
+        value, block = divmod(value, _DECIMAL_BLOCK)
+        blocks.append(block)
+    head = str(blocks.pop())
+    return head + "".join(f"{block:0{_DECIMAL_BLOCK_DIGITS}d}" for block in reversed(blocks))
+
+
 def digest(value: Any) -> str:
     return "sha256-" + hashlib.sha256(canonical_json(value)).hexdigest()
 

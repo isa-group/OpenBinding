@@ -1,14 +1,20 @@
-"""M4 / IR (analysis, ``docs/qa/analysis/BIM_B5_B8_M4_IR.md``): which order changes between a directory and its canonical ZIP.
+"""M4 / IR (``docs/qa/analysis/BIM_B5_B8_M4_IR.md``, ``docs/qa/IR_NORMALIZATION.md``): a directory and its canonical ZIP.
 
-``docs/qa/BIM_EQUIVALENCE.md`` measured that 64 of the 82 packages compile to another IR from ``to_zip()`` than from the
-directory.  This module measures, on the same corpus, *what kind* of change that is, list by list, and what the
-evaluator and a seeded draw do with it.  Nothing here changes ``bim-core`` or a golden.
+``docs/qa/BIM_EQUIVALENCE.md`` measured that 64 of the 82 packages compiled to another IR from ``to_zip()`` than from the
+directory, because the compiler listed eligibility, constraints and placement in the order the JSON members were written
+and the canonical form sorts them.  This module began as the measurement of *what kind* of change that was, list by list,
+and what the evaluator and a seeded draw did with it (strict ``xfail`` for the defect).  The compiler now lists those sets
+in one canonical order, and the same corpus shows the defect closed:
+
+* the IR of the directory and of its canonical ZIP are the same document, for all 82 packages;
+* ``normalized`` below, the *reference* of the order (sort the lists derived from JSON object members by their identifier),
+  leaves the IR of every package as it is: the compiler's order is that one;
+* the same bindings evaluate to the same evaluations, order and text of the violations included (492 evaluations);
+* a seeded draw from the eligibility lists, as the engines make, picks the same binding from either form.
 
 The corpus is the repository's (``BIM_CORPUS_ROOT``, default the parent of ``bim-toolchain``).  Like the other corpus
-tests it is skipped, with a reason, when it is absent, and fails instead when ``BIM_REQUIRE_CORPUS=1``.
-
-``normalized`` below is the *reference* of the order proposed in the analysis: it sorts only the lists whose order
-comes from the order of the members of a JSON object, by the identifier they carry.  It is not part of ``bim-core``.
+tests it is skipped, with a reason, when it is absent, and fails instead when ``BIM_REQUIRE_CORPUS=1``.  The comparison
+with the previous toolchain, by identifier, is in ``packages/bim-core/tests/test_ir_previous_baseline.py``.
 """
 
 from __future__ import annotations
@@ -25,7 +31,6 @@ from service_support import TOOLS_DIR  # noqa: F401  (puts ``tools/`` on sys.pat
 import baseline_core as tool
 from bim_core import BindingProblem, compile_instance, load_package
 from bim_core.canonical import canonical_json
-from bim_core.compiler import ir_digest
 
 SEED = 20261012
 BINDINGS_PER_PACKAGE = 6
@@ -91,7 +96,7 @@ def normalized(document: dict[str, Any], *, keep_source_map: bool = False) -> di
 
 
 def sample_bindings(document: dict[str, Any]) -> list[dict[str, dict[str, str]]]:
-    """Bindings chosen from the *sorted* eligibility, so the same ones are evaluated on both sides."""
+    """Bindings chosen from the eligibility lists sorted by identifier, so the same ones are evaluated on both sides."""
     eligibility = document["spec"]["eligibility"]
     tasks = sorted(eligibility)
     ordered = {task: sorted(eligibility[task], key=key_ref) for task in tasks}
@@ -112,137 +117,45 @@ def evaluate_all(document: dict[str, Any], bindings: list[dict[str, Any]]) -> li
     return outcomes
 
 
-def without_order(evaluation: dict[str, Any]) -> dict[str, Any]:
-    out = dict(evaluation)
-    if "violations" in out:
-        out["violations"] = sorted(out["violations"], key=dumps)
-    return out
+# --- the defect, closed ----------------------------------------------------------------------------------
 
 
-def without_messages(evaluation: dict[str, Any]) -> dict[str, Any]:
-    out = dict(evaluation)
-    if "violations" in out:
-        out["violations"] = [{k: v for k, v in item.items() if k != "message"} for item in out["violations"]]
-    return out
-
-
-# --- what changes ----------------------------------------------------------------------------------------
-
-
-def test_64_of_the_82_packages_compile_to_another_ir_from_the_canonical_zip(corpus) -> None:
-    assert len(corpus) == 82
-    assert sum(record.direct_digest != record.canonical_digest for record in corpus) == 64
-
-
-def test_the_changes_are_in_three_lists_and_the_source_map_only(corpus) -> None:
-    sections: set[str] = set()
-    counts = dict.fromkeys(("eligibility", "constraints", "placement", "demands", "transitions", "network", "capacityRules"), 0)
-    for record in corpus:
-        a, b = record.direct["spec"], record.canonical["spec"]
-        sections |= {key for key in a if key != "sourceMap" and dumps(a[key]) != dumps(b.get(key))}
-        counts["eligibility"] += a["eligibility"] != b["eligibility"]
-        counts["constraints"] += a["constraints"] != b["constraints"]
-        counts["placement"] += a["placement"] != b["placement"]
-        for left, right in zip(a["placement"], b["placement"], strict=True):
-            for name in ("demands", "transitions", "network", "capacityRules"):
-                counts[name] += left.get(name) != right.get(name)
-    assert sections == {"eligibility", "constraints", "placement"}
-    assert counts == {
-        "eligibility": 46, "constraints": 59, "placement": 7, "demands": 2, "transitions": 7, "network": 0, "capacityRules": 0,
-    }
-
-
-def test_every_changed_list_holds_the_same_items_in_another_order(corpus) -> None:
-    for record in corpus:
-        a, b = record.direct["spec"], record.canonical["spec"]
-        assert {t: sorted(map(dumps, v)) for t, v in a["eligibility"].items()} == {
-            t: sorted(map(dumps, v)) for t, v in b["eligibility"].items()
-        }, record.name
-        assert sorted(map(dumps, a["constraints"])) == sorted(map(dumps, b["constraints"])), record.name
-        assert sorted(map(dumps, a["placement"])) == sorted(map(dumps, b["placement"])) or all(
-            sorted(map(dumps, left["demands"])) == sorted(map(dumps, right["demands"]))
-            and sorted(map(dumps, left["transitions"])) == sorted(map(dumps, right["transitions"]))
-            and left["network"] == right["network"]
-            for left, right in zip(a["placement"], b["placement"], strict=True)
-        ), record.name
-
-
-def test_sorting_the_object_derived_lists_gives_one_ir_for_both_forms(corpus) -> None:
-    """The proposed order makes the two forms identical (source map apart) for all 82 packages."""
-    assert [r.name for r in corpus if dumps(normalized(r.direct)) != dumps(normalized(r.canonical))] == []
-
-
-def test_the_proposed_order_would_move_the_semantic_digest_of_exactly_these_packages(corpus) -> None:
-    moved = [r.name for r in corpus if ir_digest(normalized(r.direct, keep_source_map=True)) != r.direct_digest]
-    assert len(moved) == 64
-    assert {r.name for r in corpus if r.direct_digest != r.canonical_digest} == set(moved)
-
-
-class OpenDefect(AssertionError):
-    """The one failure the ``xfail`` below accepts: any other error in a test is a broken test, not the defect."""
-
-
-@pytest.mark.xfail(
-    raises=OpenDefect,
-    strict=True,
-    reason=(
-        "M4: the members of JSON objects are sorted by the canonical form and the compiler builds eligibility, "
-        "constraints and placement by iterating them, so the directory and its canonical ZIP are two IRs for 64 of 82 "
-        "packages. Closing it moves the semantic digest of those 64: a MAJOR change (docs/DIGESTS.md)."
-    ),
-)
 def test_a_directory_and_its_canonical_zip_compile_to_the_same_ir(corpus) -> None:
-    different = [r.name for r in corpus if r.direct_digest != r.canonical_digest]
-    if different:
-        raise OpenDefect(f"{len(different)} of {len(corpus)} packages compile to another IR from their canonical ZIP")
+    """Was a strict ``xfail`` (``OpenDefect``): 64 of 82 packages compiled to another IR from their canonical ZIP."""
+    assert len(corpus) == 82
+    assert [r.name for r in corpus if r.direct_digest != r.canonical_digest] == []
+    assert [r.name for r in corpus if dumps(r.direct) != dumps(r.canonical)] == []
 
 
-# --- what the order does to results ----------------------------------------------------------------------
+def test_the_ir_of_every_package_is_in_the_reference_order(corpus) -> None:
+    """The documented order (the reference above) is the one the compiler produces: sorting changes nothing."""
+    assert [r.name for r in corpus if dumps(normalized(r.direct, keep_source_map=True)) != dumps(r.direct)] == []
+    assert [r.name for r in corpus if dumps(normalized(r.canonical, keep_source_map=True)) != dumps(r.canonical)] == []
 
 
-def test_evaluations_of_the_same_binding_differ_only_in_violation_order_and_message_text(corpus) -> None:
-    counts = dict.fromkeys(("exact", "order_only", "message_only", "order_and_message", "other"), 0)
+# --- what the order does to results ------------------------------------------------------------------------
+
+
+def test_evaluations_of_the_same_binding_are_identical_in_both_forms(corpus) -> None:
+    """492 evaluations (6 bindings of each of the 82 packages): the same values, the same violations in the same order,
+    the same text. Before the normalisation 313 were identical, 164 differed in the order of the violations, 9 in the text
+    of a message (``6.0`` against ``6``) and 6 in both."""
+    exact = 0
     for record in corpus:
         bindings = sample_bindings(record.direct)
         for left, right in zip(evaluate_all(record.direct, bindings), evaluate_all(record.canonical, bindings), strict=True):
-            if dumps(left) == dumps(right):
-                counts["exact"] += 1
-            elif dumps(without_order(left)) == dumps(without_order(right)):
-                counts["order_only"] += 1
-            elif dumps(without_messages(left)) == dumps(without_messages(right)):
-                counts["message_only"] += 1
-            elif dumps(without_messages(without_order(left))) == dumps(without_messages(without_order(right))):
-                counts["order_and_message"] += 1
-            else:
-                counts["other"] += 1
-    assert counts == {"exact": 313, "order_only": 164, "message_only": 9, "order_and_message": 6, "other": 0}, counts
+            assert dumps(left) == dumps(right), record.name
+            exact += 1
+    assert exact == 82 * BINDINGS_PER_PACKAGE == 492
 
 
-def test_sorting_the_lists_never_changes_an_evaluation_beyond_violation_order(corpus) -> None:
-    exact = order_only = 0
-    for record in corpus:
-        bindings = sample_bindings(record.direct)
-        before = evaluate_all(record.direct, bindings)
-        after = evaluate_all(normalized(record.direct, keep_source_map=True), bindings)
-        for left, right in zip(before, after, strict=True):
-            if dumps(left) == dumps(right):
-                exact += 1
-            else:
-                assert dumps(without_order(left)) == dumps(without_order(right)), record.name
-                order_only += 1
-    assert (exact, order_only) == (322, 170)
-
-
-def test_a_seeded_draw_from_the_eligibility_lists_depends_on_their_order(corpus) -> None:
-    """What a seeded engine does (``eligible.get(random.nextInt(n))``) simulated with Python's generator."""
+def test_a_seeded_draw_from_the_eligibility_lists_picks_the_same_binding_from_both_forms(corpus) -> None:
+    """What a seeded engine does (``eligible.get(random.nextInt(n))``) simulated with Python's generator. Before the
+    normalisation the draw differed for the 46 packages whose eligibility lists changed with the form."""
 
     def draw(document: dict[str, Any]) -> dict[str, tuple[str, str]]:
         rng = random.Random(SEED)
         eligibility = document["spec"]["eligibility"]
         return {task: key_ref(eligibility[task][rng.randrange(len(eligibility[task]))]) for task in sorted(eligibility)}
 
-    changed_lists = [r for r in corpus if r.direct["spec"]["eligibility"] != r.canonical["spec"]["eligibility"]]
-    other_draw = [r.name for r in changed_lists if draw(r.direct) != draw(r.canonical)]
-    same_draw_after_sorting = [r.name for r in corpus if draw(normalized(r.direct)) != draw(normalized(r.canonical))]
-    assert same_draw_after_sorting == []
-    assert (len(changed_lists), len(other_draw)) == (46, 46), other_draw
+    assert [r.name for r in corpus if draw(r.direct) != draw(r.canonical)] == []

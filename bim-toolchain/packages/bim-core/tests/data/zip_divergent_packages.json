@@ -1,5 +1,5 @@
 {
- "note": "Packages of the OpenBinding corpus whose canonical ZIP (InstancePackage.to_zip()) compiles to another IR than their directory. Cause: to_zip() sorts the members of every JSON object and the compiler builds eligibility, constraints and placement by iterating objects in document order. Gate: test_zip_dir_equivalence_corpus.py; regenerate with BIM_WRITE_DIVERGENT=1 and review (docs/qa/BIM_EQUIVALENCE.md, section A1).",
+ "note": "The 64 packages of the OpenBinding corpus whose IR changed when the compiler began to list eligibility, constraints and placement in one canonical order (docs/qa/IR_NORMALIZATION.md). Under the previous toolchain (golden/bim_baseline) their canonical ZIP (InstancePackage.to_zip()) compiled to another IR than their directory, because to_zip() sorts the members of every JSON object and the compiler listed those sets in document order; now the directory, the ZIP and every permutation compile to the same IR. The 18 others were already in canonical order and did not change. Gate: test_zip_dir_equivalence_corpus.py compares this set with the packages whose semantic digest differs from golden/bim_baseline.",
  "packages": [
   "engines/minizinc-csp/tests/fixtures/placement",
   "examples/demo/05_multi_obj",

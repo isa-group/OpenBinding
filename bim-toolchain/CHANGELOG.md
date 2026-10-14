@@ -7,6 +7,68 @@ changes anything else.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-14
+
+Not released: nothing has been published, tagged or pushed. The three distributions go from `0.1.0` (never
+published) to `0.2.0` together.
+
+### semantic-change: the sets of the IR are listed in one canonical order
+
+**Class: MAJOR** by [`docs/DIGESTS.md`](docs/DIGESTS.md#versioning-rules) and [`docs/RELEASING.md`](docs/RELEASING.md)
+("a valid package changes semantic digest or evaluation"). Before 1.0 the breaking number is the minor, so the version is
+`0.2.0` and `bim-service` and `bim-client` now require `bim-core>=0.2,<0.3`. Decision of the owner of 2026-10-14. There
+is no compatibility mode, no second implementation of the old order and no migration code: a stored IR of `0.1.x` is
+valid and evaluable as it is (same members, same evaluations) but is not an IR of this toolchain
+(`contract_not_installed`, as after any change of `compilerDigest`) and must be recompiled to get the new order.
+Analysis, classification and evidence: [`docs/qa/IR_NORMALIZATION.md`](../docs/qa/IR_NORMALIZATION.md).
+
+- **What changed.** `bim_core.compile_instance` lists, in one order that depends only on identifiers and not on how
+  the package was serialized: `spec.eligibility[task]` by `(catalog id, candidate id)`, `spec.constraints` by `ref`,
+  `spec.placement` by resource id and, inside a model, `demands` by candidate and `transitions` by `ref`;
+  `spec.sourceMap` is written after sorting, so `/spec/constraints/<i>` and `/spec/placement/<i>/...` carry the final
+  index. Arrays the author writes (`network`, `capacityRules`, `optimization.criteria` and `penalties`, the
+  workflow, `routing.entries`) keep their order, because the order is data. A parsed JSON document also reads an
+  integral number (`6.0`, `1e3`, `-0.0`) as an integer, as the canonical form writes it (`bim_core.canonical.integral_numbers`),
+  so the message of a transition violation reads `maximum 6`, not `maximum 6.0`, whatever the form of the package.
+- **Result.** A directory, the ZIP of its bytes (either order of entries), its canonical ZIP (`InstancePackage.to_zip()`)
+  and the package with the members of its JSON objects shuffled compile to the same IR, byte for byte (canonical JSON),
+  and evaluate every binding to the same evaluation, order and text of the violations included: 82 of 82 corpus
+  packages in all five forms. Before, 64 of 82 differed in the canonical ZIP.
+- **Digests that move.** `compilerDigest` `sha256-e2f269aadbb75cb8c09fb3090a4e12b6b0999a11bbbd8de7c991185dd8605b23` →
+  `sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e`; the builtin Profile `qos-binding`
+  `1.0.0+csdgtbuugavgxg3a7h3w2x6h2ixunyufqwvisq2makw6kv7dehwq` and Dialects (`qos-binding`
+  `1.0.0+jdok6lhcwa6wt5c2st5jdppigjh4gwnczpyg77inamuet7qyt7zq`, `bpmn-workflow`
+  `1.0.0+jmfo6wmfcspi3d7khvjn7sikgmcgwnvxwesfq4xlljcrwotfipya`, `qos-binding-placement`
+  `1.0.0+yizryf6yoacyp77d3dggiuzsknmlik2gkdbmyavjx3haiq2auhja`); therefore **every** `irDigest` and `compilationDigest`.
+  The **semantic digest moves for 64 of the 82 corpus packages** (`packages/bim-core/tests/data/zip_divergent_packages.json`),
+  in `eligibility`, `constraints` and `placement` only; the other 18 keep every digest, evaluation digests included.
+  `packageDigest`, `inputDigest`, `instanceDigest`, the digests of the schemas, the engine contract and the protocol do
+  not move.
+- **Evaluations.** The evaluation of a binding is the same set of values and violations as before for all 82
+  packages (checked on 1 582 bindings chosen by identifier, `golden/ir_previous/evidence.json`); the order of
+  `violations` is now the canonical one (constraints by `ref`, then placement by model, demand and transition), and
+  the exhaustive summaries of `golden/bim_baseline` are unchanged. What changes is the **enumeration order** of an
+  exhaustive evaluation (so `rollupDigest`, `bindingDigests` and `blockDigests` of 13 of the 14 exhaustive packages that
+  moved; `examples/literature/zhang` keeps every digest) and the **binding a seed picks**: engines index
+  `eligibility[task]` with their generators (`eligible.get(random.nextInt(n))`, MiniZinc by position), so the same seed
+  yields another binding, now the same one for every form of a package. The baseline's 50 sampled packages that moved
+  draw other bindings and 33 of them have another summary. No protocol field is a position: bindings, solutions,
+  violations and penalties name `{resource, id}`.
+- **Contracts and goldens.** `contracts/openapi/bim-service.v1.json`: only `info.version` (no path, schema or status
+  changes). `contracts/consumers/openbinding/*.json`: the informative `toolchain` members (`compilerDigest`, `irDigest`);
+  no expected body changed (the demo package was already in canonical order). `golden/bim_baseline` is frozen (the
+  previous toolchain's baseline, commit `b2780381`, its SHA-256 pinned in `golden/ir_previous/evidence.json`) and is the
+  fixture the normalized toolchain is compared with, by identifier; the baseline of the new toolchain is
+  `golden/bim_normalized/{corpus,zip_equivalence}.json`, created after the invariants held. `golden/bim_core/zip_equivalence.json`
+  is superseded by the latter.
+- **Tests.** The 64 strict `xfail` of `test_zip_dir_equivalence_corpus.py` and the four `unordered-*` of
+  `test_zip_dir_equivalence.py` are ordinary tests (they pass), with permutations of the JSON members and exact
+  equality of the evaluations added; the strict `xfail` of `test_analysis_ir_probe.py` is a test of the closed defect.
+- **Not covered.** The engines (`engines/**`) were not run: their seeded outputs, if a test pins them, change once.
+  The `openbinding-gateway` pins (now `bim-core>=0.2,<0.3`, `bim-client>=0.2,<0.3`), its corpus golden (a copy of
+  `golden/bim_normalized/corpus.json`) and the tests that compare with them were updated afterwards (see
+  `docs/qa/IR_NORMALIZATION.md`, "Impact outside bim-toolchain").
+
 ### Security
 
 - `bim-core`: integer results of expressions are bounded. `pow`, `mul`, `product`, `weightedSum` and
@@ -35,24 +97,21 @@ changes anything else.
 `expressions.py`, `compiler.py` and `package.py` changed); no semantic digest, evaluation, diagnostic of the
 baseline or protocol digest moved. See `docs/DIGESTS.md`.
 
-The directory/ZIP work below changes **no** digest: no file of `bim_core` was edited (tests, `tools/`, goldens, CI and
-documentation only), so `compilerDigest` and every `irDigest` are as before, and the version stays `0.1.0`.
-
-### Known issue (documented, not fixed)
-
-- `bim-core`: the IR of a package depends on the order in which it declares JSON object members, so the package compiled
-  from its **canonical ZIP** (`InstancePackage.to_zip()`, members sorted) differs from the one compiled from its
-  directory or from the ZIP of its bytes whenever the package declares eligible candidates, constraints or placement
-  demands out of alphabetical order: **64 of the 82 corpus packages** have another `irDigest` and semantic digest (18
-  are equal), in `spec.eligibility`, `spec.constraints`, `spec.placement` and `spec.sourceMap` only. `packageDigest` is
-  identical in every form. The enumeration order of the file system and of the ZIP entries plays no part. A canonical
-  order would move the semantic digest recorded in `golden/bim_baseline` for those 64 packages and the order (and, for
-  sampled evaluations, the summaries) of their evaluations: a MAJOR change by `docs/DIGESTS.md`, not made. The
-  divergence is pinned by `golden/bim_core/zip_equivalence.json` and by strict `xfail` tests that carry the cause. See
-  `docs/DIGESTS.md#directory-raw-zip-and-canonical-zip`.
+The digests of this release are those of the `semantic-change` record above: `compilerDigest`, the builtin Profile and
+Dialect versions and every `irDigest` change with the edits of `compiler.py`, `canonical.py`, `expressions.py` and
+`_version.py`, and the semantic digest of 64 corpus packages moves with the new order (`docs/DIGESTS.md`).
 
 ### Fixed
 
+- `bim-core`: `has(path)` asks for presence only. It fetched the value of the last segment right after the membership
+  check, so `has(tasks.t1.features.x)` raised `ValueError` when the slot of `x` holds an interval (which the canonical
+  evaluator refuses to read); it is now `True` without reading it (`expressions._path_exists`). The strict `xfail` that
+  pinned the defect (`test_has_on_an_interval_slot_is_true_without_reading_the_value`) is an ordinary test.
+- `bim-core`, `bim-service`, `bim-client`: `analysis.bindingSpaceCardinality` is built in blocks of 500 digits
+  (`BindingProblem.binding_space_cardinality_decimal`, `bim_core.canonical.decimal_string`). `str()` of a cardinality of
+  more than 4300 digits raised `ValueError` ("Exceeds the limit (4300 digits) for integer string conversion"); it
+  reproduced in `InProcessBim.compile` and in `/compile` and `/validate` of the service (a 500) with 15 000 service tasks
+  of two candidates, before anything reached the gateway. The value and the wire format (a decimal string) do not change.
 - `POST /bim/v1/engines/validate` and `InProcessBim.validate_engine` answer an engine document whose `spec` is not
   an object with the diagnostic `{code: "engine_contract_invalid", message, pointer: "/spec"}` instead of a 500 /
   `AttributeError` raised by `bim_core.engine_contract_diagnostics` (which is unchanged). The OpenAPI schema does not change.
@@ -66,14 +125,15 @@ documentation only), so `compilerDigest` and every `irDigest` are as before, and
   when nothing else is in flight). `limits.service` of `GET /bim/v1/capabilities` publishes `switchIntervalSeconds` and
   `memoryBudgetBytes` (additive). See `docs/SERVICE.md`, "Where the work runs" and "Memory budget".
 - Tests without the corpus: `packages/bim-core/tests/test_zip_dir_equivalence.py` (synthetic packages written by
-  `synthetic_packages.py`: directory, raw ZIP in any entry order and canonical ZIP compared on semantic digest, IR,
-  `irDigest`, `packageDigest` and eligibility order; the divergence above is a strict `xfail`) and
+  `synthetic_packages.py`: directory, raw ZIP in any entry order, canonical ZIP and shuffled JSON members compared on
+  semantic digest, IR, `irDigest`, `packageDigest` and eligibility order, and on the evaluation of every binding) and
   `test_limits_near_boundary.py` (`Limits` at their boundary for ZIP, directory and in-memory packages, with bounded
   memory and time near the limit).
-- `tools/baseline_core.py` compiles every package from its directory, from the raw ZIP of its bytes and from its
-  canonical ZIP and writes `golden/bim_core/zip_equivalence.json`; `--check` fails if the package compiled from its
-  ZIP (the production route) is not the one the goldens recorded from its directory. The golden is new; no existing
-  golden was regenerated.
+- `tools/baseline_core.py` compiles every package from its directory and from each other form (raw ZIP in either order
+  of entries, canonical ZIP, two shuffles of the JSON members) and writes `golden/bim_normalized/zip_equivalence.json`;
+  `--check` fails if any of them is not the package compiled from its directory. It also holds the harness that
+  compares a toolchain with the previous one by identifier (`identifier_bindings`, `package_evidence`,
+  `build_previous_evidence`), and `tools/failure_digest.py` repeats the failures of a pytest run at the end of its output.
 - `BIM_REQUIRE_CORPUS=1` makes the corpus tests fail instead of skip.
 - CI: the corpus job fails without a corpus unless the repository variable `BIM_CORPUS_OPTIONAL` is `true` (and then it
   says in its summary that it skipped); new jobs `equivalence` (synthetic directory/ZIP equivalence, no skips),
@@ -137,8 +197,6 @@ documentation only), so `compilerDigest` and every `irDigest` are as before, and
   - Compatibility: a one-token or two-token file and a client that sends or omits `X-BIM-Tenant` keep working; what
     changes is that sharing is now by token. Deployments that relied on the header to separate callers must give each
     caller its own labelled token.
-
-The version numbers are unchanged: `0.1.0` has not been released, so these additions belong to it.
 
 ## [0.1.0] - not released
 

@@ -115,7 +115,7 @@ def _analysis(problem: Any) -> dict[str, Any] | None:
     breakdown = problem.binding_space_breakdown
     return {
         "bindingSpaceLog10": problem.binding_space_log10,
-        "bindingSpaceCardinality": str(problem.binding_space_cardinality),
+        "bindingSpaceCardinality": problem.binding_space_cardinality_decimal,
         "bindingSpaceBreakdown": breakdown,
         "serviceTasks": len(breakdown),
         "candidates": candidate_count(problem.document["spec"]),

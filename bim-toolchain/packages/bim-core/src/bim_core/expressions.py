@@ -83,6 +83,23 @@ def _path_value(context: Mapping[str, Any], segments: list[str] | tuple[str, ...
     return value
 
 
+def _path_exists(context: Mapping[str, Any], segments: list[str] | tuple[str, ...]) -> bool:
+    """Whether ``segments`` names a member of ``context``, without reading the value of the last one.
+
+    ``has(path)`` asks for presence only.  A feature slot that holds an interval is present although the canonical
+    evaluator refuses to read it (``_TaskFeatures.__getitem__``), so the last segment is checked with ``in`` and its
+    value is never fetched.  The segments before it are read as ``_path_value`` reads them.
+    """
+    value: Any = context
+    last = len(segments) - 1
+    for position, segment in enumerate(segments):
+        if not isinstance(value, Mapping) or segment not in value:
+            return False
+        if position < last:
+            value = value[segment]
+    return True
+
+
 def _numeric(value: Any, label: str) -> float | int:
     if not isinstance(value, (int, float)) or isinstance(value, bool):
         raise ExpressionError(f"{label} must be numeric")
@@ -211,11 +228,7 @@ def _evaluate(node: dict[str, Any], context: Mapping[str, Any]) -> Any:
             argument = node.get("args", [{}])[0]
             if argument.get("kind") != "path":
                 raise ExpressionError("has requires a path")
-            try:
-                _path_value(context, argument["segments"])
-                return True
-            except ExpressionError:
-                return False
+            return _path_exists(context, argument["segments"])
         args = [_evaluate(arg, context) for arg in node.get("args", [])]
         try:
             return _evaluate_call(name, args)

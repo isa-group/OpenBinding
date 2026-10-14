@@ -1,13 +1,13 @@
 # Packaging
 
 Three distributions, each a normal `src`-layout project built with `hatchling` (`hatchling>=1.27`, needed for
-`license-files`), versioned together (`0.1.0`):
+`license-files`), versioned together (`0.2.0`):
 
 | Distribution | Import | Runtime dependencies | Contents of the wheel |
 | --- | --- | --- | --- |
 | `bim-core` | `bim_core` | `jsonschema>=4.21,<5`, `lxml>=5.2,<7`, `pyyaml>=6,<7` | the 16 modules, `py.typed`, and all of `bim_core/resources/` (12 BIM v1 JSON Schemas, `engine-contract.openapi.yaml`, the five OMG BPMN 2.0.2 XSDs and their README) |
-| `bim-service` | `bim_service` | `bim-core>=0.1,<0.2`, `fastapi>=0.110,<1.0`, `pydantic>=2.0,<3.0`, `uvicorn>=0.27,<1.0` | the modules of the service, `py.typed` |
-| `bim-client` | `bim_client` | `bim-core>=0.1,<0.2`, `httpx>=0.27,<1.0` | `BimPort`, `InProcessBim`, `HttpBim`, errors, types, `py.typed` |
+| `bim-service` | `bim_service` | `bim-core>=0.2,<0.3`, `fastapi>=0.110,<1.0`, `pydantic>=2.0,<3.0`, `uvicorn>=0.27,<1.0` | the modules of the service, `py.typed` |
+| `bim-client` | `bim_client` | `bim-core>=0.2,<0.3`, `httpx>=0.27,<1.0` | `BimPort`, `InProcessBim`, `HttpBim`, errors, types, `py.typed` |
 
 Every wheel and sdist also carries `NOTICE.md` (`license-files`) and the readme. Test-only extras exist
 (`bim-service[test]`, `bim-client[test]`) and are not installed by default.
@@ -23,8 +23,9 @@ Every wheel and sdist also carries `NOTICE.md` (`license-files`) and the readme.
   files below the project directory. `tools/test_packaging_metadata.py` fails if a copy differs from the root file.
 - **Classifiers are neutral** (Python 3 / 3.11 / 3.12, OS independent, `Typing :: Typed`, FastAPI for the service) plus
   `Private :: Do Not Upload`, which makes PyPI refuse the files. Remove it only when publishing is decided.
-- **Dependencies between members are version ranges**, never paths: `bim-core>=0.1,<0.2`. A MINOR bump of `bim-core`
-  (`0.2.0`) requires widening the range in the other two in the same change.
+- **Dependencies between members are version ranges**, never paths: `bim-core>=0.2,<0.3`. A MINOR bump of `bim-core`
+  (`0.3.0`) requires widening the range in the other two in the same change (done for `0.2.0`, the normalization of
+  the IR order, `CHANGELOG.md`). Before 1.0 the minor number is the one that marks a breaking change.
 - **The version is written twice** (`pyproject.toml` and `_version.py`, which becomes `__version__`) and a test fails
   if they differ, or if the three packages differ.
 - **The sdist** contains `src/`, `README.md`, `NOTICE.md`, `pyproject.toml`, `PKG-INFO` and the `.gitignore` hatchling
@@ -53,7 +54,7 @@ for p in bim-core bim-service bim-client; do (cd packages/$p && uv build --out-d
 ```
 
 `uv build` makes the sdist first and builds the wheel *from that sdist*, so a successful build already shows that the
-sdist is complete. Output in `dist/` (ignored by git): `bim_core-0.1.0{.tar.gz,-py3-none-any.whl}` and the same for
+sdist is complete. Output in `dist/` (ignored by git): `bim_core-0.2.0{.tar.gz,-py3-none-any.whl}` and the same for
 `bim_service` and `bim_client`.
 
 ## Verify

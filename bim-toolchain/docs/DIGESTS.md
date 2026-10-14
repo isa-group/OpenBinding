@@ -96,61 +96,93 @@ change. `toolchain` fields in them are informative.
 | --- | --- | --- |
 | `golden/bim_core/compat.json`, `golden/bim_core/protocol.json` | the two documents with the four Engines that exist (reason above) | equal to the original minus `meta-router-csp`, and to OpenBinding's current files |
 | `golden/bim_core/evaluator_errors.json` | `bim_core.evaluator.validate_binding` raises `EvaluationError` (a `ValueError`, code `binding_invalid`) where `BindingProblem.validate_binding` raises `ValueError`; the original `negatives.json` records the type name `ValueError` and stays as it is | same cases, same messages as `negatives.json`; only the type name differs |
-| `golden/bim_core/zip_equivalence.json` | the package compiled from its ZIP against the package the goldens recorded from its directory: raw ZIP (must be equal), canonical ZIP (pins the 64 packages that differ, see "Directory, raw ZIP and canonical ZIP") | the directory and the raw ZIP are compiled in the same run; the semantic digest of the directory is the one in `corpus.json` |
+| `golden/bim_normalized/corpus.json` | the baseline of the normalized IR (semantic digests, section digests, evaluations of the 82 packages); `golden/bim_baseline/corpus.json` is the frozen baseline of 0.1.x | `test_ir_previous_baseline.py`: the 18 unmoved packages have the same entry, the 64 moved ones differ in `eligibility`, `constraints` and `placement` only, and every package has the previous toolchain's members and evaluations by identifier |
+| `golden/bim_normalized/zip_equivalence.json` | the package compiled from each other form (raw ZIP, entries reversed, canonical ZIP, two shuffles of the JSON members) against the package compiled from its directory: all equal (see "Directory, raw ZIP and canonical ZIP") | the forms are compiled in the same run; the semantic digest of the directory is the one in `bim_normalized/corpus.json` |
+| `golden/ir_previous/evidence.json` | what the 0.1.x toolchain computed by identifier: the SHA-256 of the frozen `golden/bim_baseline` files, the evaluation of bindings chosen by identifier and the digest of the members of every set of the IR, for the 82 packages. It can only be created by that toolchain (`build_previous_evidence` refuses any other) | the frozen files, which come from OpenBinding |
 | `golden/vectors_extra.json` | hostile engine answers: altered objectives, bindings outside the eligible space, `UNKNOWN`/`INFEASIBLE` with a binding, NaN/Infinity (written as `{"$float": ...}`), extra keys, unhashable and mistyped values | hand-written expectations in `tests/test_vectors_extra.py` (termination, number of solutions kept, `ProtocolError` code with and without `finite=True`) |
 
 `toolchain` values stored in these files are those of the moment they were created and are never compared.
 
 ## Directory, raw ZIP and canonical ZIP
 
-A package can reach the compiler in three forms: a directory, the ZIP of the bytes as written (what the platform
-stores and compiles) and the canonical ZIP of `InstancePackage.to_zip()`, whose JSON resources are rewritten in
-RFC 8785 form (members sorted) and whose XML is normalised to LF. They are not equivalent.
+A package can reach the compiler in several forms: a directory, the ZIP of the bytes as written (what the platform
+stores and compiles) in any order of entries, the canonical ZIP of `InstancePackage.to_zip()`, whose JSON resources are
+rewritten in RFC 8785 form (members sorted) and whose XML is normalised to LF, and any rewriting of the JSON that only
+moves the members of its objects. Since 0.2.0 they are equivalent.
 
-| Form | `packageDigest` | semantic digest, IR, `irDigest`, eligibility order |
+| Form | `packageDigest` | semantic digest, IR, `irDigest`, eligibility order, evaluations |
 | --- | --- | --- |
-| directory, in any file-creation order | same | reference (what `golden/bim_baseline` records) |
-| raw ZIP, entries in any order | same | **same as the directory** for all 82 corpus packages |
-| canonical ZIP (`to_zip()`) | same | **same for 18 of 82 packages, different for 64** |
+| directory, in any file-creation order | same | reference |
+| raw ZIP, entries in any order | same | same as the directory, 82 of 82 |
+| canonical ZIP (`to_zip()`) | same | same as the directory, 82 of 82 (until 0.1.x: 18 of 82) |
+| members of the JSON objects shuffled | same | same as the directory, 82 of 82 for two seeds |
 
-**Cause** (measured, `docs/qa/BIM_EQUIVALENCE.md` in OpenBinding): the enumeration order of the file system and the
-order of the ZIP entries do not matter (`_read_directory` and `_validate_zip` fill a dictionary that the compiler only
-reads by key or in sorted order). What matters is the order of the members of a JSON object. `to_zip()` sorts them
-(`package.py` `_canonical_resource_bytes`, `to_zip`), while the compiler builds three IR lists by iterating objects in
-document order: the eligible candidates of each task (`compiler.py` `_normalize_candidates`, from the order of the
-catalogs in `instance.json` and of the candidates in each catalog), the constraints (`_constraints`, from the order of
-the constraint sets and of the constraints) and the placement demands (`_placement`, from the order of groups and
-catalogs). The provenance `spec.sourceMap` indexes those lists, so it moves with them. With the order of those lists
-forgotten, the IR of the canonical ZIP equals the IR of the directory in every package.
+**Rule.** JSON gives no meaning to the order of the members of an object, so a list that the compiler builds by
+iterating objects is a *set* and is written in one canonical order, decided at compile time and independent of how the
+package was serialized (not by the ZIP writer): `eligibility[task]` by `(catalog id, candidate id)`, `constraints` by
+`ref`, `placement` by resource id, and inside a model `demands` by candidate and `transitions` by `ref`
+(`bim-core` `compiler.py`: `_normalize_candidates`, `_constraints`, `_placement`; `docs/CONTRACT.md`, "Order of the sets
+of the IR"). The provenance `spec.sourceMap` indexes `constraints` and `placement`, so it is written after sorting. An
+array that the author writes as an array keeps its order: it is data. An integral number is read as an integer
+(`canonical.integral_numbers`), because the canonical form cannot tell `6.0` from `6`. This is a change of the digest
+contract, MAJOR by the rules below; see [`docs/qa/IR_NORMALIZATION.md`](../../docs/qa/IR_NORMALIZATION.md) for the
+classification of each list and the evidence.
 
-Consequences: `irDigest` and the semantic digest depend on the *representation* of the package, not only on its
-meaning; `compilation_digest` and `packageDigest` do not, so two compilations with the same `compilationDigest` can
-have different IRs. The evaluation of one binding does not change, but exhaustive evaluations enumerate the bindings
-in another order and sampled ones (`|S| > 2000`, seeded draws) pick other bindings, so the digests in enumeration
-order, and for 33 sampled packages the summaries of the baseline, move.
+**What 0.1.x did** (measured, `docs/qa/BIM_EQUIVALENCE.md`): the enumeration order of the file system and the order of
+the ZIP entries never mattered (`_read_directory` and `_validate_zip` fill a dictionary that the compiler only reads by
+key or in sorted order); the order of the members of a JSON object did, because `to_zip()` sorts them while the compiler
+iterated them in document order. 64 of the 82 corpus packages had another IR, `irDigest` and semantic digest from their
+canonical ZIP than from their directory, and `compilation_digest` and `packageDigest`, which do not contain the IR, could
+not tell the two apart.
 
-**Not fixed, on purpose.** Sorting the three lists (and re-indexing `sourceMap`) would make all forms equal, but it
-would move the semantic digest that `golden/bim_baseline` records for the 64 packages above and the order of their
-evaluations: a change of the digest contract, MAJOR by the rules below, and by the stop rule of that work the goldens
-are not regenerated to make a check pass. `bim-core` is unchanged, so its version (`0.1.0`, unreleased) and its
-`compilerDigest` are unchanged. The divergence is pinned instead:
+Consequences of the change: `irDigest` and the semantic digest depend on the *meaning* of the package again, and two
+compilations with the same `compilationDigest` have the same IR. The evaluation of a binding is the same (checked by
+identifier, below), but exhaustive evaluations enumerate the bindings in the canonical order and sampled ones
+(`|S| > 2000`, seeded draws) index the canonical lists, so the digests in enumeration order of the 64 packages that moved
+and, for 33 sampled ones, the summaries of the baseline, are those of `golden/bim_normalized`, not of `golden/bim_baseline`.
 
-- `golden/bim_core/zip_equivalence.json` lists, per package, the `packageDigest`, whether the raw ZIP and the canonical
-  ZIP compile to the same IR and semantic digest as the directory, the canonical ZIP's semantic digest and the sections
-  that differ. `tools/baseline_core.py --check` fails if a raw ZIP differs from its directory (the production route)
-  or if this document changes.
-- `packages/bim-core/tests/test_zip_dir_equivalence.py` runs the comparison on synthetic packages without the corpus;
-  the canonical-ZIP comparison of the unordered variants is a strict `xfail` with the cause, so the day the compiler
-  changes, the test fails and this section, the version and the goldens must be updated together.
-- The corpus run in OpenBinding (`openbinding-gateway/tests/test_bim_zip_dir_equivalence.py`) does the same for the 64
-  packages.
+**Two baselines.** `golden/bim_baseline` is the baseline of 0.1.x (OpenBinding's, commit `b2780381`): frozen, never
+written, with its SHA-256 pinned in `golden/ir_previous/evidence.json`. It is the comparison fixture of the normalized
+toolchain, which has no code for the old order. `golden/ir_previous/evidence.json` also holds what that toolchain
+computed *by identifier*: the evaluation of bindings chosen by identifier (never by position in a list) and the digest
+of the members of every set of the IR, order forgotten, for the 82 packages. `test_ir_previous_baseline.py` requires the
+current toolchain to reproduce all of it (violations compared as a set; a message with `6.0` reads `6`) and the
+exhaustive summaries of `golden/bim_baseline/corpus.json`. `golden/bim_normalized/{corpus,zip_equivalence}.json` is
+the baseline of 0.2.0, created once those invariants held. `negatives.json`, `vectors.json`, `compat.json` and
+`protocol.json` did not move and are still compared with the frozen baseline.
 
-If the decision is to canonicalise: sort `eligibility`, `constraints` and `placement` demands by a key that does not
-depend on the document (for example `(resource, id)`), re-index `sourceMap`, declare it a MAJOR change, list the 64
-packages as changed digests, regenerate `golden/bim_baseline` with `tools/baseline_core.py` in a reviewed change that
-says why, and remove the `xfail`s.
+- `golden/bim_normalized/zip_equivalence.json` lists, per package, the `packageDigest` and whether each form compiles to
+  the same IR and semantic digest as the directory. `tools/baseline_core.py --check` fails if any does not.
+- `packages/bim-core/tests/test_zip_dir_equivalence.py` (synthetic, no corpus) and `test_zip_dir_equivalence_corpus.py`
+  (82 packages) run the comparison, with shuffled members, and require identical evaluations; the cases that were
+  strict `xfail` (the four `unordered-*` variants and 64 corpus packages) are ordinary tests.
+- The corpus run in OpenBinding (`openbinding-gateway/tests/test_bim_zip_dir_equivalence.py`) still expects the 0.1.x
+  divergence (strict `xfail`): its owner updates it (`docs/qa/IR_NORMALIZATION.md`).
 
-## Digests that changed with this step
+## Digests that changed with the normalization of the IR (0.2.0)
+
+`compiler.py` (the order of the sets, integral numbers, `binding_space_cardinality_decimal`), `canonical.py`,
+`expressions.py` (`has`) and `_version.py` changed, so `compilerDigest`, the builtin Profile and Dialect versions, their
+`adapter.binaryDigest` and every `irDigest` changed. Unlike the steps below, **the semantic digest of 64 of the 82
+corpus packages moved too** (and with it the enumeration order of their exhaustive evaluations and the seeds'
+draws): this is a MAJOR change under the versioning rules, recorded as `semantic-change` in `CHANGELOG.md`.
+
+| Value | Before (0.1.x) | After (0.2.0) |
+| --- | --- | --- |
+| `compilerDigest` | `sha256-e2f269aadbb75cb8c09fb3090a4e12b6b0999a11bbbd8de7c991185dd8605b23` | `sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e` |
+| `qos-binding` Profile version | `1.0.0+ozo4bm7tpv3avkhc2tnzxc5u4bte6vcaso2gikkqbovpxrjwnh3q` | `1.0.0+csdgtbuugavgxg3a7h3w2x6h2ixunyufqwvisq2makw6kv7dehwq` |
+| Dialect `qos-binding` | `1.0.0+ia2kmdnrpp7krzp243h376bgrqgely5krdh5fj6yfycn6rvpa2qq` | `1.0.0+jdok6lhcwa6wt5c2st5jdppigjh4gwnczpyg77inamuet7qyt7zq` |
+| Dialect `bpmn-workflow` | `1.0.0+ztsmwrkedtnjiyv5ds4p7jfwspzpwakoehfeoo2kyoceacnx2wfq` | `1.0.0+jmfo6wmfcspi3d7khvjn7sikgmcgwnvxwesfq4xlljcrwotfipya` |
+| Dialect `qos-binding-placement` | `1.0.0+dhobxb3sxytcjhhw5mwc72y5epkwqstwgskwm3blqjpkhsx5qiqa` | `1.0.0+yizryf6yoacyp77d3dggiuzsknmlik2gkdbmyavjx3haiq2auhja` |
+| `irDigest` of the consumer demo package (`tools/consumer_fixtures.py`) | `sha256-35202caa0d1a5f1b4e17ea0feb1ba8c67dcfca7ff7a0ecb97644f345d041bcba` | `sha256-0dcc0b0a230d45cf768edef5f0da70f0ca366c8ab29c3e8168c3c16328c22270` |
+
+The "before" values are those of the section below (the last change of `bim_core` before this one) and of the consumer
+fixtures. What did **not** move: `packageDigest`, `inputDigest`, `instanceDigest`, the semantic digest of the 18 packages
+whose sets were already in canonical order, the digests of the schemas, the engine contract and the protocol, the
+negative cases (`negatives.json`), the re-evaluation vectors (`vectors.json`), the Engine compatibility of every package
+(`compat.json`), and the exhaustive summaries. `contracts/openapi/bim-service.v1.json` changes only in `info.version`.
+
+## Digests that changed with an earlier step
 
 Adding `evaluator.py`, `reevaluate.py`, `protocol.py`, `compat.py`, `neighborhood.py` and `conformance.py` (and
 `ContractError.http_status`) changes `compilerDigest`, which covers every `.py` file, and therefore the builtin
@@ -190,5 +222,11 @@ The package version follows SemVer. Every release changes `compilerDigest`; the 
   the IR schema or the engine protocol changes incompatibly; public names are removed or change meaning. A change
   of the `bim/v1` language itself is a new `bim/v2`.
 
+Before 1.0 the minor number marks a MAJOR change (SemVer, "major version zero"): the normalization of the IR order,
+which moved 64 semantic digests, is `0.2.0`, and `bim-service` and `bim-client` widen `bim-core>=0.1,<0.2` to
+`bim-core>=0.2,<0.3`.
+
 A change that moves a golden is a MAJOR change unless the golden was wrong, and goldens are regenerated only in a
-reviewed change that states why.
+reviewed change that states why. A golden that a MAJOR change moves is not overwritten: the previous one is kept as a
+frozen fixture (`golden/bim_baseline`, pinned by SHA-256 in `golden/ir_previous/evidence.json`), the new one goes to
+`golden/bim_normalized`, and a test compares the two by identifier before the new one is created.

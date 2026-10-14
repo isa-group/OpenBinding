@@ -16,13 +16,13 @@ NAMES = sorted(PACKAGES)
 def test_name_version_and_python_requirement(name: str) -> None:
     project = pyproject(name)["project"]
     assert project["name"] == name
-    assert project["version"] == source_version(name) == "0.1.0"
+    assert project["version"] == source_version(name) == "0.2.0"
     assert project["requires-python"] == ">=3.11"
     assert (package_dir(name) / project["readme"]).is_file()
 
 
 def test_the_three_distributions_have_one_version() -> None:
-    assert {source_version(name) for name in NAMES} == {"0.1.0"}
+    assert {source_version(name) for name in NAMES} == {"0.2.0"}
 
 
 @pytest.mark.parametrize("name", NAMES)
@@ -37,7 +37,7 @@ def test_runtime_dependencies_are_the_documented_ones_with_ranges(name: str) -> 
 @pytest.mark.parametrize("name", ["bim-service", "bim-client"])
 def test_dependents_declare_bim_core_as_a_plain_range(name: str) -> None:
     dependencies = pyproject(name)["project"]["dependencies"]
-    assert "bim-core>=0.1,<0.2" in dependencies
+    assert "bim-core>=0.2,<0.3" in dependencies
 
 
 @pytest.mark.parametrize("name", NAMES)

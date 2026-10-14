@@ -32,7 +32,7 @@ COPY openbinding-gateway/pyproject.toml .
 COPY openbinding-gateway/src/ src/
 
 # One single install command. uv 0.8.22 does not take an already installed bim-core as a
-# candidate for the gateway's bim-core>=0.1,<0.2 requirement (with --no-sources it looks
+# candidate for the gateway's bim-core>=0.2,<0.3 requirement (with --no-sources it looks
 # for it in the package registry and reports it unsatisfiable), so installing bim-core and
 # bim-client in a separate earlier step does not work. Given as direct requirements next to
 # ".[test]" the local packages satisfy that dependency by name. Their sources are copied

@@ -7,7 +7,7 @@
 
 [project]
 name = "bim-core"
-version = "0.1.0"
+version = "0.2.0"
 description = "BIM v1 service-composition and binding language: package loader, canonical JSON, expressions and Instance compiler"
 readme = "README.md"
 requires-python = ">=3.11"

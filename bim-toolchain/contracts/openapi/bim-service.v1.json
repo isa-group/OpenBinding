@@ -832,7 +832,7 @@
     "description": "`bim-service/v1`: compile and validate BIM v1 packages, check Engine compatibility, evaluate and re-evaluate bindings and analyse their neighbourhood, and check single documents (a resource, an Engine manifest, a standalone XML resource). No state, no database; every answer is a pure function of the request and the installed toolchain. Errors are `application/problem+json`.",
     "summary": "Stateless HTTP API over the BIM toolchain",
     "title": "BIM service",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "openapi": "3.1.0",
   "paths": {

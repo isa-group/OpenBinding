@@ -2,7 +2,7 @@
 #
 # bim-service image.  The build context is bim-toolchain/ (the root of the future repository):
 #
-#     docker build -f packages/bim-service/Dockerfile -t bim-service:0.1.0 .
+#     docker build -f packages/bim-service/Dockerfile -t bim-service:0.2.0 .
 #
 # Only bim-core and bim-service are installed, from the context; tests, goldens, corpus, tools and docs are neither
 # copied nor present (see .dockerignore).  The tokens are NOT part of the image: mount a file with one or two
@@ -10,7 +10,7 @@
 # Without a valid tokens file the service refuses to start.
 #
 #     docker run --rm -p 8080:8080 \
-#         -v "$PWD/tokens:/run/secrets/bim_service_tokens:ro" bim-service:0.1.0
+#         -v "$PWD/tokens:/run/secrets/bim_service_tokens:ro" bim-service:0.2.0
 #
 # NOT BUILT: this file was written without access to a Docker daemon.
 

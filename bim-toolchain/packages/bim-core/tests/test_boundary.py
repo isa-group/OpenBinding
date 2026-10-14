@@ -121,7 +121,7 @@ def test_the_import_detector_flags_platform_imports(source: str) -> None:
 
 def test_init_exposes_the_documented_public_names() -> None:
     assert "toolchain_identity" in bim_core.__all__
-    assert bim_core.__version__ == "0.1.0"
+    assert bim_core.__version__ == "0.2.0"
 
 
 def test_importing_the_core_ignores_the_environment_and_the_working_directory(tmp_path) -> None:

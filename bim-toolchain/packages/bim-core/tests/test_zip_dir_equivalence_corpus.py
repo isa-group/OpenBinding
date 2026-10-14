@@ -1,103 +1,146 @@
-"""Directory, raw ZIP and canonical ZIP of the 82 corpus packages, measured by ``bim_core`` alone.
+"""Directory, raw ZIP, canonical ZIP and permuted members of the 82 corpus packages, measured by ``bim_core`` alone.
 
-The same comparison as ``openbinding-gateway/tests/test_bim_zip_dir_equivalence.py`` (another owner; see
-``docs/qa/BIM_EQUIVALENCE.md``), kept here so the behaviour of ``bim_core`` is pinned by its own tests.  Nothing in
-``bim_core/src``, the goldens or any digest is changed by this module.
+The same comparison as ``openbinding-gateway/tests/test_bim_zip_dir_equivalence.py`` (another owner), kept here so the
+behaviour of ``bim_core`` is pinned by its own tests.
 
 * directory: ``load_package(directory)``.
-* raw ZIP: the files of the loaded package in a STORED archive sorted by path, as ``zip_directory`` of the gateway
-  builds it.  Must equal the directory in ``irDigest``, ``packageDigest``, canonical IR and list order (82/82).
-* canonical ZIP: ``InstancePackage.to_zip()`` (JSON members sorted).  The 64 packages in
-  ``data/zip_divergent_packages.json`` differ, because the compiler builds eligibility, constraints and placement
-  by iterating objects in document order: strict ``xfail``.  The other 18 must be equal.
-* gate: the set of packages that differ is exactly the one in the data file.  If the compiler changes and the
-  list changes, the test fails; it does not fix itself.  ``BIM_WRITE_DIVERGENT=1`` rewrites the file from the
-  measurement (review and commit the result).
+* raw ZIP: the files of the loaded package in a STORED archive sorted by path (as ``zip_directory`` of the gateway builds
+  it) and in reverse order.
+* canonical ZIP: ``InstancePackage.to_zip()`` (JSON members sorted).
+* permuted: the files with the members of every JSON object shuffled, for each of two seeds.
 
+All of them have the directory's ``irDigest``, ``packageDigest``, canonical IR, semantic digest and list order (82/82), and
+evaluate the same bindings to the same evaluations, including the order and the text of the violations.  Until the IR was
+normalised (``docs/qa/IR_NORMALIZATION.md``) 64 of the 82 differed from the directory in the canonical ZIP: those cases
+were strict ``xfail``.
+
+``data/zip_divergent_packages.json`` keeps the names of those 64 packages. The gate test requires the packages whose
+semantic digest is not the one ``golden/bim_baseline`` (the previous toolchain) records to be exactly that set.
+
+Each package is compiled once per form and only a small summary is kept, so the 82 IRs are never held at the same time.
 The corpus is looked up as in the other tests (``BIM_CORPUS_ROOT``): the tests skip with the reason when it is
 absent and fail with ``BIM_REQUIRE_CORPUS=1``.
 """
 
 from __future__ import annotations
 
-import io
 import json
-import os
-import zipfile
 from pathlib import Path
 from typing import Any
 
 import pytest
-from bim_core import canonical_json, compile_instance, digest, load_package
 from core_support import GOLDEN_DIR, corpus_root, require_corpus_path
 
+from bim_core import canonical_json, compile_instance, digest, digest_bytes, load_package
+
 DATA_FILE = Path(__file__).resolve().parent / "data" / "zip_divergent_packages.json"
-PATHS = sorted(json.loads((GOLDEN_DIR / "corpus.json").read_text(encoding="utf-8"))["packages"])
-DIVERGENT = frozenset(json.loads(DATA_FILE.read_text(encoding="utf-8"))["packages"])
+FROZEN = json.loads((GOLDEN_DIR / "corpus.json").read_text(encoding="utf-8"))["packages"]
+PATHS = sorted(FROZEN)
+MOVED = frozenset(json.loads(DATA_FILE.read_text(encoding="utf-8"))["packages"])
 EXPECTED_PACKAGES = 82
-EXPECTED_DIVERGENT = 64
+EXPECTED_MOVED = 64
 NON_SEMANTIC = frozenset({"profile", "dialects", "instance", "sourceMap"})
 METRICS = ("semantic", "ir", "irDigest", "packageDigest", "eligibility")
-
-CAUSE = (
-    "to_zip() writes JSON with sorted object members and the compiler builds eligibility, constraints and placement "
-    "by iterating objects in document order, so the canonical ZIP has another IR (irDigest, semantic digest); a "
-    "canonical order would move the goldens, so it is not applied (docs/qa/BIM_EQUIVALENCE.md)"
-)
+FORMS = ("raw", "reversed", "canonical", "permuted-1", "permuted-2")
 
 
-def stored_zip(files: dict[str, bytes]) -> bytes:
-    """A deterministic STORED archive, entries sorted by path (the form ``zip_directory`` of the gateway writes)."""
-    output = io.BytesIO()
-    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
-        for path in sorted(files, key=lambda value: value.encode("utf-8")):
-            info = zipfile.ZipInfo(path, date_time=(1980, 1, 1, 0, 0, 0))
-            info.compress_type = zipfile.ZIP_STORED
-            info.create_system = 3
-            info.external_attr = 0o100644 << 16
-            archive.writestr(info, files[path])
-    return output.getvalue()
-
-
-def normalized(package: Any) -> dict[str, Any]:
-    """What the toolchain says about ``package``: semantic digest, canonical IR, digests and eligibility order.
-
-    Copy of ``observe()`` in ``openbinding-gateway/tests/test_bim_zip_dir_equivalence.py`` (the gateway test has no
-    ``normalized``): the semantic digest is the digest of ``spec`` without the non-semantic sections.
-    """
+def observe(package: Any) -> tuple[dict[str, Any], Any]:
+    """What the toolchain says about ``package``, and the compiled problem."""
     problem = compile_instance(package)
     document = problem.document
     return {
         "semantic": digest({key: value for key, value in document["spec"].items() if key not in NON_SEMANTIC}),
-        "ir": canonical_json(document),
+        "ir": digest_bytes(canonical_json(document)),
         "irDigest": problem.digest,
         "packageDigest": package.package_digest,
-        "eligibility": document["spec"]["eligibility"],
-    }
+        "eligibility": digest(document["spec"]["eligibility"]),
+    }, problem
 
 
-def differing(left: dict[str, Any], right: dict[str, Any]) -> list[str]:
-    return [metric for metric in METRICS if left[metric] != right[metric]]
+def order_problems(document: dict[str, Any]) -> list[str]:
+    """Where the IR does not list a set in the canonical order, or a source map index points at another member."""
+    found: list[str] = []
+    spec = document["spec"]
+    source_map = spec["sourceMap"]
+    for task, references in spec["eligibility"].items():
+        keys = [(ref["resource"], ref["id"]) for ref in references]
+        if keys != sorted(keys):
+            found.append(f"eligibility/{task}")
+    constraints = [(item["ref"]["resource"], item["ref"]["id"]) for item in spec["constraints"]]
+    if constraints != sorted(constraints):
+        found.append("constraints")
+    for index, (resource, constraint_id) in enumerate(constraints):
+        location = source_map.get(f"/spec/constraints/{index}", {})
+        if (location.get("resource"), location.get("pointer")) != (resource, f"/spec/constraints/{constraint_id}"):
+            found.append(f"sourceMap/constraints/{index}")
+    models = spec["placement"]
+    if [model["resource"] for model in models] != sorted(model["resource"] for model in models):
+        found.append("placement")
+    for index, model in enumerate(models):
+        demands = [(item["candidate"]["resource"], item["candidate"]["id"]) for item in model["demands"]]
+        transitions = [(item["ref"]["resource"], item["ref"]["id"]) for item in model["transitions"]]
+        if demands != sorted(demands):
+            found.append(f"placement/{index}/demands")
+        if transitions != sorted(transitions):
+            found.append(f"placement/{index}/transitions")
+        for pool in model["pools"]:
+            if source_map.get(f"/spec/placement/{index}/pools/{pool}", {}).get("resource") != model["resource"]:
+                found.append(f"sourceMap/placement/{index}/pools/{pool}")
+    indexed = {int(key.split("/")[3]) for key in source_map if key.startswith("/spec/placement/")}
+    if indexed and max(indexed) >= len(models):
+        found.append("sourceMap/placement/extra")
+    return found
 
 
-_CACHE: dict[str, dict[str, list[str]]] = {}
+_CACHE: dict[str, dict[str, Any]] = {}
 
 
-def compare(relative: str) -> dict[str, list[str]]:
-    """Metrics in which the raw and the canonical ZIP of ``relative`` differ from its directory (cached)."""
+def analysis(relative: str, baseline_tool) -> dict[str, Any]:
+    """Every form of ``relative`` against its directory: metrics, evaluations and canonical order (cached, small)."""
     if relative not in _CACHE:
         package = load_package(require_corpus_path(relative))
-        reference = normalized(package)
+        stored = baseline_tool.stored_zip
+        sources = {
+            "raw": stored(package.files),
+            "reversed": stored(package.files, reverse=True),
+            "canonical": package.to_zip(),
+            **{f"permuted-{seed}": stored(baseline_tool.permute_members(package.files, seed)) for seed in baseline_tool.PERMUTATION_SEEDS},
+        }
+        reference, problem = observe(package)
+        bindings = baseline_tool.identifier_bindings(problem.document["spec"], relative)
+        expected = [baseline_tool.evaluate_binding(problem, binding) for binding in bindings]
+        metrics: dict[str, list[str]] = {}
+        evaluation: list[str] = []
+        for name, data in sources.items():
+            other, other_problem = observe(load_package(data))
+            differences = [metric for metric in METRICS if reference[metric] != other[metric]]
+            if differences:
+                metrics[name] = differences
+            if [baseline_tool.evaluate_binding(other_problem, binding) for binding in bindings] != expected:
+                evaluation.append(name)
+        entry = FROZEN[relative]
+        sections = {
+            key: baseline_tool._short(digest(value))
+            for key, value in problem.document["spec"].items()
+            if key not in NON_SEMANTIC
+        }
         _CACHE[relative] = {
-            "raw": differing(reference, normalized(load_package(stored_zip(package.files)))),
-            "canonical": differing(reference, normalized(load_package(package.to_zip()))),
+            "metrics": metrics,
+            "evaluation": evaluation,
+            "order": order_problems(problem.document),
+            "bindings": len(bindings),
+            "moved": (
+                sorted(key for key in sections if sections[key] != entry["sectionDigests"].get(key))
+                if baseline_tool.semantic_digest(problem) != entry["semanticDigest"]
+                else None
+            ),
         }
     return _CACHE[relative]
 
 
 def test_the_corpus_is_the_82_packages_of_the_baseline() -> None:
     assert len(PATHS) == EXPECTED_PACKAGES
-    assert DIVERGENT <= set(PATHS) and len(DIVERGENT) == EXPECTED_DIVERGENT
+    assert MOVED <= set(PATHS) and len(MOVED) == EXPECTED_MOVED
 
 
 def test_the_discovered_packages_are_the_keys_of_corpus_json(baseline_tool) -> None:
@@ -108,35 +151,40 @@ def test_the_discovered_packages_are_the_keys_of_corpus_json(baseline_tool) -> N
 
 
 @pytest.mark.parametrize("relative", PATHS)
-def test_the_raw_zip_is_the_directory(relative: str) -> None:
-    """irDigest, packageDigest, canonical IR, semantic digest and eligibility order are those of the directory."""
-    assert compare(relative)["raw"] == []
+def test_every_form_of_a_package_is_the_directory(baseline_tool, relative: str) -> None:
+    """irDigest, packageDigest, canonical IR, semantic digest and eligibility order are those of the directory.
+
+    The canonical ZIP of 64 packages was a strict ``xfail`` before the normalisation; permuted members are new."""
+    assert analysis(relative, baseline_tool)["metrics"] == {}
 
 
-@pytest.mark.parametrize(
-    "relative",
-    [
-        pytest.param(
-            relative,
-            id=relative,
-            marks=pytest.mark.xfail(strict=True, raises=AssertionError, reason=CAUSE) if relative in DIVERGENT else (),
-        )
-        for relative in PATHS
-    ],
-)
-def test_the_canonical_zip_is_the_directory(relative: str) -> None:
-    assert compare(relative)["canonical"] == []
+@pytest.mark.parametrize("relative", PATHS)
+def test_every_form_of_a_package_evaluates_the_same_bindings_identically(baseline_tool, relative: str) -> None:
+    """Exact equality of the evaluation of bindings chosen by identifier: values, order and text of the violations.
+
+    Includes the message of a transition violation, which printed ``6.0`` from a directory and ``6`` from the
+    canonical form before integral numbers were read as integers."""
+    found = analysis(relative, baseline_tool)
+    assert found["bindings"] > 0
+    assert found["evaluation"] == []
 
 
-def test_the_divergent_packages_are_exactly_the_recorded_ones() -> None:
-    """Gate: a change of the compiler that changes the set must be reviewed, so the data file is not self-healing."""
-    measured = sorted(relative for relative in PATHS if compare(relative)["canonical"])
-    if os.environ.get("BIM_WRITE_DIVERGENT") == "1":
-        document = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-        document["packages"] = measured
-        DATA_FILE.write_text(json.dumps(document, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
-    recorded = sorted(DIVERGENT)
-    assert measured == recorded, (
-        f"{len(measured)} divergent, {len(recorded)} recorded; "
-        f"new: {sorted(set(measured) - set(recorded))}; fixed: {sorted(set(recorded) - set(measured))}"
+@pytest.mark.parametrize("relative", PATHS)
+def test_the_ir_of_a_package_lists_its_sets_in_the_canonical_order(baseline_tool, relative: str) -> None:
+    """Eligibility by (catalog id, candidate id); constraints by ref; placement by resource id, demands by candidate and
+    transitions by ref; every ``sourceMap`` index points at the member it indexes."""
+    assert analysis(relative, baseline_tool)["order"] == []
+
+
+def test_the_packages_that_moved_are_exactly_the_recorded_ones(baseline_tool) -> None:
+    """Gate: the semantic digest of a package is the frozen baseline's unless the package is one of the 64 recorded.
+
+    ``golden/bim_baseline`` is the previous toolchain (document order). A package whose sets were already in
+    canonical order keeps every digest; the 64 others change in ``eligibility``, ``constraints`` and ``placement``
+    only. The set is not self-healing: if the compiler changes it, this test fails and the file is reviewed."""
+    moved = {relative: found["moved"] for relative in PATHS if (found := analysis(relative, baseline_tool))["moved"] is not None}
+    assert sorted(moved) == sorted(MOVED), (
+        f"{len(moved)} moved, {len(MOVED)} recorded; new: {sorted(set(moved) - MOVED)}; "
+        f"unchanged now: {sorted(MOVED - set(moved))}"
     )
+    assert {section for sections in moved.values() for section in sections} <= {"eligibility", "constraints", "placement"}

@@ -8,6 +8,12 @@ regenerated.  `toolchain` fields (compilerDigest, irDigest) change with the byte
 are never compared: only the semantic digest, the evaluations, the diagnostics, the Engine mode
 compatibility, the re-evaluation vectors and the protocol and schema digests must stay.  The
 comparison of all 82 packages is slow and runs only with `BIM_BASELINE_FULL=1`.
+
+`corpus.json` is, since `bim-core` 0.2.0 (docs/qa/IR_NORMALIZATION.md), the corpus golden of the normalized
+toolchain (`bim-toolchain/golden/bim_normalized/corpus.json`): the IR lists the sets of a package in one order
+by identifier, which moved the semantic digest of 64 packages and the enumeration order of their evaluations.
+The evaluations themselves did not move: they are compared by identifier with the frozen baseline of the
+previous toolchain (`bim-toolchain/golden/bim_baseline`, `golden/ir_previous/evidence.json`).
 """
 
 from __future__ import annotations
@@ -29,6 +35,14 @@ GOLDEN_DIR = Path(__file__).resolve().parent / "golden" / "bim_baseline"
 GOLDEN_FILES = ("corpus.json", "negatives.json", "compat.json", "vectors.json", "protocol.json")
 SAMPLE_SIZE = 10
 SAMPLE_PER_ROOT = 4
+#: Kept by the toolchain: the baseline of the previous IR (frozen), the normalized corpus golden, the evidence.
+TOOLCHAIN_GOLDEN = REPO_ROOT / "bim-toolchain" / "golden"
+FROZEN_CORPUS = TOOLCHAIN_GOLDEN / "bim_baseline" / "corpus.json"
+NORMALIZED_CORPUS = TOOLCHAIN_GOLDEN / "bim_normalized" / "corpus.json"
+PREVIOUS_EVIDENCE = TOOLCHAIN_GOLDEN / "ir_previous" / "evidence.json"
+#: Packages with a moved semantic digest recompiled and compared by identifier besides the sample.
+MOVED_SAMPLE = 6
+EXPECTED_MOVED = 64
 
 
 @pytest.fixture(scope="module")
@@ -146,6 +160,63 @@ def test_sampled_packages_keep_their_semantic_digest_and_evaluations(tool, sampl
         path
         for path in paths
         if tool.comparable(corpus["packages"][path]) != tool.comparable(expected["packages"][path])
+    ]
+    assert mismatches == []
+
+
+@pytest.fixture(scope="module")
+def previous(tool):
+    """The frozen baseline of the previous IR and the evaluations by identifier that its toolchain left."""
+    for path in (FROZEN_CORPUS, NORMALIZED_CORPUS, PREVIOUS_EVIDENCE):
+        if not path.is_file():
+            pytest.skip(f"{path.relative_to(REPO_ROOT)} is not mounted in this environment")
+    frozen = json.loads(FROZEN_CORPUS.read_text(encoding="utf-8"))["packages"]
+    evidence = json.loads(PREVIOUS_EVIDENCE.read_text(encoding="utf-8"))["packages"]
+    return frozen, evidence
+
+
+def test_the_corpus_golden_is_the_normalized_golden_of_the_toolchain(previous):
+    """The gateway's copy is `bim-toolchain/golden/bim_normalized/corpus.json`, byte for byte (the informative
+    `toolchain` members included): it was derived from it, not regenerated here, and follows it if it is."""
+    expected = json.loads(NORMALIZED_CORPUS.read_text(encoding="utf-8"))
+    found = golden("corpus.json")
+
+    assert [key for key in expected if key != "packages" and found.get(key) != expected[key]] == []
+    assert sorted(found["packages"]) == sorted(expected["packages"])
+    assert [path for path in expected["packages"] if found["packages"][path] != expected["packages"][path]] == []
+    assert (GOLDEN_DIR / "corpus.json").read_bytes() == NORMALIZED_CORPUS.read_bytes()
+
+
+def test_the_semantic_digest_moved_in_64_packages_and_in_no_other(tool, previous):
+    """Against the frozen baseline: 64 packages list a set of their IR in another order; the rest are untouched."""
+    frozen, _ = previous
+    corpus = golden("corpus.json")["packages"]
+    moved = [path for path in corpus if corpus[path]["semanticDigest"] != frozen[path]["semanticDigest"]]
+
+    assert len(moved) == EXPECTED_MOVED
+    for path in corpus:
+        if path not in moved:
+            assert tool.comparable(corpus[path]) == tool.comparable(frozen[path]), path
+
+
+def test_evaluations_by_identifier_are_those_of_the_previous_baseline(tool, sample, previous):
+    """The semantic digests moved, the evaluations did not: for the sample and for the smallest packages that
+    moved, the same bindings (chosen by identifier, never by position in a list) give the same evaluations
+    (violations as a set, messages with `6.0` read as `6`) and every set of the IR has the same members."""
+    frozen, evidence = previous
+    paths, _, _ = sample
+    corpus = golden("corpus.json")["packages"]
+    moved = sorted(
+        (path for path in corpus if corpus[path]["semanticDigest"] != frozen[path]["semanticDigest"]),
+        key=lambda path: (int(corpus[path]["bindingSpace"]["cardinality"]), path),
+    )
+    checked = sorted(set(paths) | set(moved[:MOVED_SAMPLE]))
+
+    assert len(set(checked) & set(moved)) >= MOVED_SAMPLE
+    mismatches = [
+        path
+        for path in checked
+        if tool.package_evidence(compile_instance(load_package(REPO_ROOT / path)), path) != evidence[path]
     ]
     assert mismatches == []
 

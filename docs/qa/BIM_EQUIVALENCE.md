@@ -1,5 +1,13 @@
 # BIM: directory versus ZIP equivalence
 
+> **Status 2026-10-14: normalized (`bim-core` 0.2.0).** The owner decided to change the IR order; the compiler now lists
+> the sets of the IR in one canonical order and a directory, its raw ZIP, its canonical ZIP and any permutation of its JSON
+> members compile to the same IR and evaluate every binding the same way, in **82 of 82** packages (before: 64 of 82
+> differed in the canonical ZIP). The decision, classification, evidence, versions and the impact outside `bim-toolchain`
+> are in [`IR_NORMALIZATION.md`](IR_NORMALIZATION.md). Sections 1-5 below are the **history of 0.1.x**: what was measured
+> when the divergence was open (head `cd0e05f0`/`f7f6fdb`, baseline `b2780381`) and why it was not fixed under the stop rule
+> that the owner's decision replaced. Their figures are kept as measured then; §3 is superseded.
+
 Question: is the package the goldens record (compiled from a **directory**) the package the platform runs (compiled from
 a **ZIP**)? An earlier measurement looked at 10 of the 82 packages and found that the *order* of the eligibility lists
 differs. This document gives the exact cause, the measurement on all 82, what was and was not changed, and why.
@@ -101,10 +109,14 @@ about them (2 differ: `05_multi_obj`, `05_single_obj_various`) but the sample hi
 `constraints`, `placement` and `sourceMap` and to 64 packages.
 
 Per-package detail (`packageDigest`, whether the raw and the canonical ZIP equal the directory, the semantic digest of
-the canonical ZIP, the differing sections) is pinned in `bim-toolchain/golden/bim_core/zip_equivalence.json`. `irDigest`
-values are not stored there: they move with `compilerDigest`.
+the canonical ZIP, the differing sections) was pinned in `bim-toolchain/golden/bim_core/zip_equivalence.json` (deleted
+with 0.2.0: all forms are equal now, see `golden/bim_normalized/zip_equivalence.json`). `irDigest` values are not stored
+there: they move with `compilerDigest`.
 
-## 3. Decision: not fixed (stop rule)
+## 3. Decision: not fixed (stop rule) — superseded on 2026-10-14
+
+*Historical.* The stop rule below was replaced by the owner's decision of 2026-10-14; the change it describes as MAJOR was
+made (`bim-core` 0.2.0) and `golden/bim_baseline` is kept frozen as the baseline of 0.1.x. See `IR_NORMALIZATION.md`.
 
 The proposed fix is a canonical, medium-independent order applied alike to directory and ZIP (sort `eligibility`,
 `constraints` and the placement assignments by a key such as `(resource, id)` and re-index `sourceMap`). It would make
@@ -200,8 +212,19 @@ any publication of `bim-core` requires first checking how stored IRs are re-eval
 
 ## Estado de la decisión
 
-1. El ZIP crudo del gateway (`zip_directory`) es equivalente al directorio en los 82 paquetes.
-2. El ZIP canónico `to_zip()` difiere en 64 de 82 por el orden de los miembros de los objetos JSON, no por el medio.
-3. Canonicalizar el orden de las listas del IR es un cambio MAJOR del digest semántico y **no se aplica**. Mientras
-   tanto, el host debe compilar siempre la misma forma del paquete.
-4. El test de equivalencia fija la divergencia con `xfail` estricto.
+**Normalizado (2026-10-14, `bim-core` 0.2.0).**
+
+1. El ZIP crudo del gateway (`zip_directory`) es equivalente al directorio en los 82 paquetes (ya lo era).
+2. El ZIP canónico `to_zip()` **ya es equivalente** al directorio en los 82: IR, `irDigest`, digest semántico, orden de las
+   listas y evaluación de los mismos bindings, byte a byte. Lo mismo para el ZIP crudo con las entradas invertidas y para dos
+   permutaciones de los miembros de los objetos JSON. Antes (0.1.x) diferían 64 de 82 por el orden de los miembros de los
+   objetos JSON, no por el medio.
+3. Canonicalizar el orden de las listas del IR fue un cambio MAJOR del digest semántico (64 paquetes cambian de digest
+   semántico, 18 no) y **se aplicó** por decisión del propietario: ver `IR_NORMALIZATION.md` y `bim-toolchain/CHANGELOG.md`
+   (`semantic-change`). El host ya no necesita compilar siempre la misma forma del paquete.
+4. Los `xfail` estrictos (64 de corpus, 4 sintéticos `unordered-*`) pasan a ser tests ordinarios; el `xfail` de `has()` sobre
+   un intervalo era otro defecto y se corrigió con su propia evidencia. La baseline de 0.1.x queda congelada en
+   `golden/bim_baseline` (commit `b2780381`) y los tests comparan por identificador con ella.
+5. Los tests del gateway que esperaban la divergencia o el golden antiguo (70) se actualizaron en la tarea K2 (ver
+   `IR_NORMALIZATION.md` §7): el golden del gateway es el de `golden/bim_normalized` y las evaluaciones se comparan por
+   identificador con la baseline previa. Queda un pin de `tools/bim_conciseness_benchmarks.json` (§7 de ese documento).

@@ -10,7 +10,14 @@ which :func:`comparable` removes.
 
 It adapts ``tools/bim_baseline.py`` of OpenBinding and produces the same five documents
 (``corpus``, ``negatives``, ``compat``, ``vectors``, ``protocol``) from ``bim_core`` alone.  Beyond them it
-writes three documents that have no OpenBinding original (see ``docs/DIGESTS.md``):
+writes documents that have no OpenBinding original (see ``docs/DIGESTS.md``).
+
+``golden/bim_baseline`` is OpenBinding's baseline of the toolchain that listed eligible candidates, constraints and
+placement in the order the JSON objects were written (commit ``b2780381``).  It is frozen: the tool never writes it, and
+``golden/ir_previous/evidence.json`` pins its SHA-256 and the evaluations of that toolchain by identifier
+(``docs/qa/IR_NORMALIZATION.md``).  The normalized IR lists those sets in one canonical order, so the documents that
+moved with it live in ``golden/bim_normalized`` (``corpus.json`` and ``zip_equivalence.json``); ``negatives.json`` and
+``vectors.json`` did not move and are still compared with the frozen baseline.
 
 * ``golden/bim_core/compat.json`` and ``golden/bim_core/protocol.json``: the same two documents computed
   with the four Engine manifests that exist in the repository.  The OpenBinding goldens also list
@@ -19,12 +26,11 @@ writes three documents that have no OpenBinding original (see ``docs/DIGESTS.md`
 * ``golden/bim_core/evaluator_errors.json``: the binding negatives seen through ``bim_core.evaluator``,
   which raises ``EvaluationError`` where ``BindingProblem.validate_binding`` raises ``ValueError``.
 * ``golden/vectors_extra.json``: adversarial re-evaluation and result-validation vectors.
-* ``golden/bim_core/zip_equivalence.json``: for every package, whether the package compiled from its ZIP is the
-  package the golden recorded from its directory.  Two ZIPs are compared: the raw one (the bytes as written, which
-  is what the platform stores and compiles) must give the same semantic digest and IR as the directory for every
-  package, and ``--check`` fails otherwise; the canonical one (``InstancePackage.to_zip()``, JSON with sorted
-  members) is known to differ for the packages that declare their objects out of alphabetical order, and the
-  document pins which ones, in which sections and with which semantic digest (``docs/DIGESTS.md``).
+* ``golden/bim_normalized/zip_equivalence.json``: for every package, whether the package compiled from each other
+  form has the IR and the semantic digest of the package compiled from its directory: the raw ZIP (the bytes as
+  written, which is what the platform stores and compiles) in either order of entries, the canonical ZIP
+  (``InstancePackage.to_zip()``, JSON with sorted members) and the package with the members of its JSON objects
+  shuffled.  All of them must be equal and ``--check`` fails otherwise (``docs/DIGESTS.md``).
 
 The corpus is not part of this directory.  It is looked up under ``BIM_CORPUS_ROOT`` (default: the
 directory that contains ``bim-toolchain/``).  Golden paths are relative to that root.  The Engine
@@ -34,8 +40,8 @@ Compare against the goldens::
 
     python bim-toolchain/tools/baseline_core.py --check
 
-Regenerate them (only when a change of meaning is intended and reviewed; ``compat.json`` and
-``protocol.json`` of ``golden/bim_baseline`` are never rewritten)::
+Regenerate them (only when a change of meaning is intended and reviewed; ``golden/bim_baseline`` is never
+rewritten)::
 
     python bim-toolchain/tools/baseline_core.py
 """
@@ -51,6 +57,7 @@ import json
 import math
 import os
 import random
+import re
 import sys
 import zipfile
 from concurrent.futures import ProcessPoolExecutor
@@ -70,6 +77,7 @@ from bim_core import (  # noqa: E402
     ExpressionError,
     InstancePackage,
     ProtocolError,
+    canonical_json,
     compile_instance,
     compiler_bundle_digest,
     digest,
@@ -97,12 +105,19 @@ INLINE_LIMIT = 64
 BLOCK_SIZE = 64
 DIGEST_PREFIX = 16
 
-GOLDEN_DIR = ROOT / "golden" / "bim_baseline"
-CORE_GOLDEN_DIR = ROOT / "golden" / "bim_core"
-EXTRA_VECTORS = ROOT / "golden" / "vectors_extra.json"
+GOLDEN_ROOT = ROOT / "golden"
+#: The previous baseline (OpenBinding's, IR lists in document order): frozen, a comparison fixture. Never written.
+GOLDEN_DIR = GOLDEN_ROOT / "bim_baseline"
+#: The baseline of the normalized IR (lists in canonical order): the documents that moved with it.
+NORMALIZED_DIR = GOLDEN_ROOT / "bim_normalized"
+CORE_GOLDEN_DIR = GOLDEN_ROOT / "bim_core"
+EXTRA_VECTORS = GOLDEN_ROOT / "vectors_extra.json"
 MANIFEST_DIR = ROOT / "packages" / "bim-core" / "tests" / "fixtures" / "manifests"
-GOLDEN_FILES = ("corpus.json", "negatives.json", "vectors.json")
-CORE_GOLDEN_FILES = ("compat.json", "protocol.json", "evaluator_errors.json", "zip_equivalence.json")
+#: Documents of the tool that are still compared with the frozen baseline: normalization did not move them.
+UNCHANGED_FILES = ("negatives.json", "vectors.json")
+#: Documents written to ``golden/bim_normalized``.
+NORMALIZED_FILES = ("corpus.json", "zip_equivalence.json")
+CORE_GOLDEN_FILES = ("compat.json", "protocol.json", "evaluator_errors.json")
 #: Engines whose manifest is in the OpenBinding goldens but not in the repository.
 MISSING_MANIFESTS = ("meta-router-csp",)
 DEMO_RELATIVE = Path("examples") / "demo" / "01_simple_seq"
@@ -341,6 +356,137 @@ def evaluate_package(problem: BindingProblem) -> dict[str, Any]:
     return result
 
 
+# --- the previous baseline, compared by identifier -------------------------------------------
+
+#: The baseline that ``golden/bim_baseline`` records: the IR of a package lists eligible candidates, constraints and
+#: placement in the order its JSON objects were *written*.  ``baselineCommit`` is the commit the baseline was taken
+#: at, ``headCommit`` the head the evidence below was generated at (the last one with that order).
+PREVIOUS_BASELINE = {"baselineCommit": "b2780381", "headCommit": "f7f6fdb"}
+PREVIOUS_DIR = ROOT / "golden" / "ir_previous"
+PREVIOUS_EVIDENCE = PREVIOUS_DIR / "evidence.json"
+#: ``golden/bim_baseline`` is frozen: it is the fixture the normalized toolchain is compared with.
+FROZEN_FILES = ("corpus.json", "negatives.json", "vectors.json", "compat.json", "protocol.json")
+EVIDENCE_EXHAUSTIVE = 48
+EVIDENCE_SAMPLE = 24
+_INTEGRAL_NUMBER = re.compile(r"(?<![\w.])(-?\d+)\.0(?!\d)")
+
+
+def integral_text(text: str) -> str:
+    """``6.0`` as ``6`` in a message: the IR reads an integral JSON number as an integer in every form of a package."""
+    return _INTEGRAL_NUMBER.sub(r"\1", text)
+
+
+def unordered(value: Any) -> Any:
+    """``value`` with every list replaced by the sorted canonical forms of its items (the order is forgotten)."""
+    if isinstance(value, dict):
+        return {key: unordered(child) for key, child in value.items()}
+    if isinstance(value, list):
+        return sorted(canonical_json(unordered(child)).decode("utf-8") for child in value)
+    return value
+
+
+def binding_text(binding: dict[str, dict[str, str]]) -> str:
+    """A binding as one line, by identifier: ``task=resource/id;...`` with the tasks sorted."""
+    return ";".join(f"{task}={ref['resource']}/{ref['id']}" for task, ref in sorted(binding.items()))
+
+
+def identifier_bindings(spec: dict[str, Any], key: str) -> list[dict[str, dict[str, str]]]:
+    """Bindings chosen by identifier, so that they are the same whatever the order of the eligibility lists.
+
+    The candidates of every task are sorted by ``(resource, id)`` first.  A space of at most
+    ``EVIDENCE_EXHAUSTIVE`` bindings is listed in full (the product in that order); a larger one gets
+    ``EVIDENCE_SAMPLE`` draws of ``random.Random(f"{SEED}/{key}")``, where ``key`` is the package path.
+    """
+    ordered = {
+        task: sorted((dict(ref) for ref in refs), key=lambda ref: (ref["resource"], ref["id"]))
+        for task, refs in sorted(spec["eligibility"].items())
+    }
+    tasks = list(ordered)
+    total = 1
+    for refs in ordered.values():
+        total *= len(refs)
+    if total <= EVIDENCE_EXHAUSTIVE:
+        return [dict(zip(tasks, combination, strict=True)) for combination in itertools.product(*ordered.values())]
+    rng = random.Random(f"{SEED}/{key}")
+    found: dict[str, dict[str, dict[str, str]]] = {}
+    for _ in range(EVIDENCE_SAMPLE):
+        binding = {task: dict(ordered[task][rng.randrange(len(ordered[task]))]) for task in tasks}
+        found[binding_text(binding)] = binding
+    return list(found.values())
+
+
+def evaluation_view(outcome: dict[str, Any]) -> str:
+    """What must not move when only the order of a set changes: the evaluation without the order of its violations.
+
+    The violations are compared as a set; their messages as a sorted list of texts in which ``6.0`` reads ``6``.
+    """
+    if "error" in outcome:
+        return "error: " + integral_text(outcome["error"])
+    violations = outcome.get("violations", [])
+    core = {key: value for key, value in outcome.items() if key != "violations"}
+    core["violations"] = sorted(
+        ({key: value for key, value in item.items() if key != "message"} for item in violations), key=canonical_json
+    )
+    messages = sorted(integral_text(str(item.get("message", ""))) for item in violations)
+    hard = sum(item.get("enforcement") == "hard" for item in violations)
+    return f"core={_short(digest(core))} messages={_short(digest(messages))} hard={hard} soft={len(violations) - hard}"
+
+
+def package_evidence(problem: BindingProblem, path: str) -> dict[str, Any]:
+    """The evaluation, by identifier, of a deterministic set of bindings, and the members of every set of the IR."""
+    spec = problem.document["spec"]
+    members = {key: value for key, value in spec.items() if key not in NON_SEMANTIC}
+    return {
+        "membersDigest": _short(digest(unordered(members))),
+        "bindings": [
+            f"{binding_text(binding)} => {evaluation_view(evaluate_binding(problem, binding))}"
+            for binding in identifier_bindings(spec, path)
+        ],
+    }
+
+
+def file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def build_previous_evidence(corpus_root: Path, directories: list[Path]) -> dict[str, Any]:
+    """The evidence of the toolchain that produced ``golden/bim_baseline``, to compare a later toolchain with.
+
+    It refuses to describe any other toolchain: every package must have the semantic digest the frozen
+    ``corpus.json`` records, so the evidence cannot be produced by the normalized compiler.
+    """
+    frozen = _golden(GOLDEN_DIR, "corpus.json")["packages"]
+    packages: dict[str, Any] = {}
+    moved: list[str] = []
+    for directory in directories:
+        path = directory.relative_to(corpus_root).as_posix()
+        problem = compile_instance(load_package(directory))
+        if semantic_digest(problem) != frozen[path]["semanticDigest"]:
+            moved.append(path)
+        packages[path] = package_evidence(problem, path)
+    if moved:
+        raise RuntimeError(
+            f"this toolchain is not the one golden/bim_baseline records: {len(moved)} packages have another "
+            f"semantic digest ({', '.join(moved[:3])}...); the previous evidence cannot be produced by it"
+        )
+    return {
+        "schema": "bim-core/ir-previous-evidence/1",
+        "baseline": PREVIOUS_BASELINE,
+        "note": (
+            "Evaluations of bindings chosen by identifier (identifier_bindings) with the toolchain that records "
+            "golden/bim_baseline (IR lists in document order), and the digest of the members of every set of its IR "
+            "(unordered). A normalized toolchain must reproduce every line; golden/bim_baseline itself is frozen "
+            "(frozenFiles). Violations are compared as a set and messages with 6.0 read as 6."
+        ),
+        "seed": SEED,
+        "exhaustiveUpTo": EVIDENCE_EXHAUSTIVE,
+        "sample": EVIDENCE_SAMPLE,
+        "frozenFiles": {name: file_sha256(GOLDEN_DIR / name) for name in FROZEN_FILES},
+        "packageCount": len(packages),
+        "packages": packages,
+    }
+
+
 def engine_manifests(manifest_dir: Path = MANIFEST_DIR) -> dict[str, dict[str, Any]]:
     """The Engine manifests used as inputs (fixtures), by file stem."""
     if not manifest_dir.is_dir():
@@ -404,7 +550,7 @@ def analyze_package(
     breakdown = problem.binding_space_breakdown
     entry["tasks"] = {"total": len(spec["application"]["tasks"]), "service": len(breakdown)}
     entry["bindingSpace"] = {
-        "cardinality": str(problem.binding_space_cardinality),
+        "cardinality": problem.binding_space_cardinality_decimal,
         "log10": round(problem.binding_space_log10, 9),
         "candidatesPerServiceTask": list(breakdown.values()),
     }
@@ -457,11 +603,12 @@ def build_corpus(directories: list[Path], corpus_root: Path, jobs: int = 1) -> d
 # --- directory versus ZIP ----------------------------------------------------------------------------------
 
 
-def stored_zip(files: dict[str, bytes]) -> bytes:
-    """The bytes as written in a STORED archive (entries sorted by path), as the platform stores them."""
+def stored_zip(files: dict[str, bytes], *, reverse: bool = False) -> bytes:
+    """The bytes as written in a STORED archive (entries sorted by path, descending with ``reverse``), as the platform
+    stores them."""
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
-        for path in sorted(files, key=lambda value: value.encode("utf-8")):
+        for path in sorted(files, key=lambda value: value.encode("utf-8"), reverse=reverse):
             info = zipfile.ZipInfo(path, date_time=(1980, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_STORED
             info.create_system = 3
@@ -470,49 +617,70 @@ def stored_zip(files: dict[str, bytes]) -> bytes:
     return output.getvalue()
 
 
-def differing_sections(left: dict[str, Any], right: dict[str, Any]) -> list[str]:
-    """Sections of two IR documents whose canonical form differs (``spec`` is split by member)."""
-    names: list[str] = []
-    for key in sorted(set(left) | set(right)):
-        if key == "spec":
-            names.extend(
-                f"spec.{name}"
-                for name in sorted(set(left[key]) | set(right[key]))
-                if digest(left[key].get(name)) != digest(right[key].get(name))
-            )
-        elif digest(left.get(key)) != digest(right.get(key)):
-            names.append(key)
-    return names
+PERMUTATION_SEEDS = (1, 2)
+
+
+def _shuffled(value: Any, rng: random.Random) -> Any:
+    """``value`` with the members of every JSON object in a random order; arrays keep theirs (it is data)."""
+    if isinstance(value, dict):
+        items = list(value.items())
+        rng.shuffle(items)
+        return {key: _shuffled(child, rng) for key, child in items}
+    if isinstance(value, list):
+        return [_shuffled(child, rng) for child in value]
+    return value
+
+
+def permute_members(files: dict[str, bytes], seed: int) -> dict[str, bytes]:
+    """The same package with the members of every JSON object written in another order (``random.Random(seed)``).
+
+    The meaning is the same: JSON gives no significance to the order of an object's members.  XML and any other
+    resource are kept as they are.
+    """
+    rng = random.Random(seed)
+    return {
+        path: (
+            json.dumps(_shuffled(json.loads(files[path]), rng), ensure_ascii=False).encode("utf-8")
+            if path.lower().endswith(".json")
+            else files[path]
+        )
+        for path in sorted(files)
+    }
+
+
+#: The other forms a package takes, against its directory: the bytes in a STORED ZIP in either order of entries
+#: (``rawZip``, ``reversedZip``), ``InstancePackage.to_zip()`` (``canonicalZip``) and the members of its JSON objects
+#: shuffled (``permuted<seed>``).
+ZIP_FORMS = ("rawZip", "reversedZip", "canonicalZip", *(f"permuted{seed}" for seed in PERMUTATION_SEEDS))
 
 
 def analyze_zip_equivalence(directory: Path, corpus_root: Path) -> dict[str, Any]:
-    """Compile one package from its directory, from the raw ZIP of its bytes and from its canonical ZIP."""
+    """Compile one package from its directory and from every other form; compare the IR and the semantic digest."""
     relative = directory.relative_to(corpus_root).as_posix()
     try:
         package = load_package(directory)
         from_directory = compile_instance(package)
-        raw = load_package(stored_zip(package.files))
-        from_raw = compile_instance(raw)
-        canonical = load_package(package.to_zip())
-        from_canonical = compile_instance(canonical)
+        sources = {
+            "rawZip": stored_zip(package.files),
+            "reversedZip": stored_zip(package.files, reverse=True),
+            "canonicalZip": package.to_zip(),
+            **{f"permuted{seed}": stored_zip(permute_members(package.files, seed)) for seed in PERMUTATION_SEEDS},
+        }
+        expected, expected_ir = semantic_digest(from_directory), digest(from_directory.document)
+        entry: dict[str, Any] = {"path": relative, "status": "compiled", "packageDigest": package.package_digest}
+        same_package_digest = True
+        for name, data in sources.items():
+            other = load_package(data)
+            problem = compile_instance(other)
+            entry[name] = {
+                "sameIr": digest(problem.document) == expected_ir,
+                "sameSemanticDigest": semantic_digest(problem) == expected,
+            }
+            same_package_digest = same_package_digest and other.package_digest == package.package_digest
+        entry["packageDigestsEqual"] = same_package_digest
+        return entry
     except Exception as exc:  # a package that stops compiling must show up in the baseline
         return {"path": relative, "status": "error", "error": f"{type(exc).__name__}: {exc}"}
-    expected = semantic_digest(from_directory)
-    return {
-        "path": relative,
-        "status": "compiled",
-        "packageDigest": package.package_digest,
-        "packageDigestsEqual": package.package_digest == raw.package_digest == canonical.package_digest,
-        "rawZip": {
-            "sameIr": digest(from_raw.document) == digest(from_directory.document),
-            "sameSemanticDigest": semantic_digest(from_raw) == expected,
-        },
-        "canonicalZip": {
-            "sameSemanticDigest": semantic_digest(from_canonical) == expected,
-            "semanticDigest": semantic_digest(from_canonical),
-            "differingSections": differing_sections(from_directory.document, from_canonical.document),
-        },
-    }
 
 
 def build_zip_equivalence(directories: list[Path], corpus_root: Path, jobs: int = 1) -> dict[str, Any]:
@@ -523,27 +691,29 @@ def build_zip_equivalence(directories: list[Path], corpus_root: Path, jobs: int 
         with ProcessPoolExecutor(max_workers=jobs) as executor:
             results = list(executor.map(analyze_zip_equivalence, directories, itertools.repeat(corpus_root)))
     return {
-        "schema": "bim-baseline/zip-equivalence/1",
+        "schema": "bim-baseline/zip-equivalence/2",
         "note": (
-            "rawZip: the package compiled from the ZIP of its bytes (the platform's form) against the package compiled "
-            "from its directory, which is what golden/bim_baseline records; it must be equal. canonicalZip: the same "
-            "against InstancePackage.to_zip(), whose JSON has sorted members; it differs when a package declares "
-            "eligible candidates, constraints or placement demands out of alphabetical order (docs/DIGESTS.md)."
+            "Each form of a package compiled and compared with the package compiled from its directory: the bytes in a "
+            "STORED ZIP (rawZip, the platform's form; reversedZip, entries in the opposite order), "
+            "InstancePackage.to_zip() (canonicalZip, JSON with sorted members) and the members of every JSON object "
+            "shuffled (permuted<seed>). All of them must have the same IR and semantic digest. Under the previous "
+            "toolchain (golden/bim_baseline) 64 packages differed in canonicalZip (docs/qa/IR_NORMALIZATION.md)."
         ),
         "packageCount": len(results),
-        "canonicalZipDivergent": sum(1 for item in results if not item.get("canonicalZip", {}).get("sameSemanticDigest", True)),
         "packages": {item["path"]: item for item in results},
     }
 
 
 def zip_equivalence_failures(document: dict[str, Any]) -> dict[str, str]:
-    """Packages whose golden (by directory) is not the package compiled from its ZIP, the production route."""
+    """Packages that do not compile to the IR of their directory from some other form, the production route first."""
     failures: dict[str, str] = {}
     for path, entry in document["packages"].items():
         if entry["status"] != "compiled":
             failures[path] = entry["error"]
-        elif not (entry["rawZip"]["sameIr"] and entry["rawZip"]["sameSemanticDigest"] and entry["packageDigestsEqual"]):
-            failures[path] = "the package compiled from its ZIP is not the package the golden recorded from its directory"
+            continue
+        different = [name for name in ZIP_FORMS if entry[name] != {"sameIr": True, "sameSemanticDigest": True}]
+        if different or not entry["packageDigestsEqual"]:
+            failures[path] = f"not the package compiled from its directory: {', '.join(different) or 'package digest'}"
     return failures
 
 
@@ -1120,23 +1290,28 @@ def build_all(
     }
 
 
-def mismatches(documents: dict[str, Any], golden_dir: Path) -> list[str]:
-    """What differs between ``documents`` (see :func:`build_all`) and the goldens.
+def mismatches(documents: dict[str, Any], golden_root: Path = GOLDEN_ROOT) -> list[str]:
+    """What differs between ``documents`` (see :func:`build_all`) and the goldens under ``golden_root``.
 
-    ``corpus``, ``negatives`` and ``vectors`` are compared with the OpenBinding goldens in ``golden_dir``;
-    so are ``compat`` and ``protocol`` once the Engines whose manifest is not in the repository are
-    removed from the originals; the documents that have no original are compared with their own goldens.
+    ``corpus`` and ``zip_equivalence`` are compared with ``bim_normalized``, the baseline of the normalized IR.
+    ``negatives`` and ``vectors``, which normalization did not move, are compared with the frozen previous baseline
+    ``bim_baseline`` (OpenBinding's goldens); so are ``compat`` and ``protocol`` once the Engines whose manifest is not
+    in the repository are removed from the originals.  The documents that have no original are compared with their own
+    goldens.
     """
-    core_dir = golden_dir.parent / CORE_GOLDEN_DIR.name
+    baseline_dir, normalized_dir = golden_root / GOLDEN_DIR.name, golden_root / NORMALIZED_DIR.name
+    core_dir = golden_root / CORE_GOLDEN_DIR.name
     found: list[str] = []
-    for name in GOLDEN_FILES:
-        found.extend(differences(name, documents[name], _golden(golden_dir, name)))
+    for name in NORMALIZED_FILES:
+        found.extend(differences(f"bim_normalized/{name}", documents[name], _golden(normalized_dir, name)))
+    for name in UNCHANGED_FILES:
+        found.extend(differences(name, documents[name], _golden(baseline_dir, name)))
     for name in ("compat.json", "protocol.json"):
-        found.extend(differences(f"{name} (openbinding)", documents[name], without_engines(_golden(golden_dir, name))))
+        found.extend(differences(f"{name} (openbinding)", documents[name], without_engines(_golden(baseline_dir, name))))
     for name in CORE_GOLDEN_FILES:
         found.extend(differences(f"bim_core/{name}", documents[name], _golden(core_dir, name)))
     found.extend(
-        differences("vectors_extra.json", documents["vectors_extra.json"], _golden(golden_dir.parent, EXTRA_VECTORS.name))
+        differences("vectors_extra.json", documents["vectors_extra.json"], _golden(golden_root, EXTRA_VECTORS.name))
     )
     return found
 
@@ -1144,7 +1319,12 @@ def mismatches(documents: dict[str, Any], golden_dir: Path) -> list[str]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Compute the semantic BIM baseline with bim_core only")
     parser.add_argument("--corpus-root", type=Path, default=default_corpus_root())
-    parser.add_argument("--output", type=Path, default=GOLDEN_DIR, help="directory of the OpenBinding goldens")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=GOLDEN_ROOT,
+        help="the golden/ directory the documents are written to or checked against (bim_baseline is never written)",
+    )
     parser.add_argument("--manifests", type=Path, default=MANIFEST_DIR, help="directory with the Engine manifests")
     parser.add_argument("--expected", type=int, default=82)
     parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1))
@@ -1174,14 +1354,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"BIM baseline check: {len(directories)} packages, {len(found)} differences")
         return 1 if found else 0
 
-    targets = {name: args.output / name for name in GOLDEN_FILES}
-    targets.update({name: args.output.parent / CORE_GOLDEN_DIR.name / name for name in CORE_GOLDEN_FILES})
-    targets["vectors_extra.json"] = args.output.parent / EXTRA_VECTORS.name
-    for name, path in targets.items():
+    targets = {f"{NORMALIZED_DIR.name}/{name}": (args.output / NORMALIZED_DIR.name / name, name) for name in NORMALIZED_FILES}
+    targets.update({f"{CORE_GOLDEN_DIR.name}/{name}": (args.output / CORE_GOLDEN_DIR.name / name, name) for name in CORE_GOLDEN_FILES})
+    targets[EXTRA_VECTORS.name] = (args.output / EXTRA_VECTORS.name, EXTRA_VECTORS.name)
+    for label, (path, name) in targets.items():
         path.parent.mkdir(parents=True, exist_ok=True)
         data = dump(documents[name])
         path.write_bytes(data)
-        print(f"{path.relative_to(args.output.parent)}: {len(data)} bytes sha256={hashlib.sha256(data).hexdigest()}")
+        print(f"{label}: {len(data)} bytes sha256={hashlib.sha256(data).hexdigest()}")
     print(f"BIM baseline: {len(directories)} packages")
     return 0
 

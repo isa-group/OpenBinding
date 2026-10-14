@@ -7,7 +7,7 @@
 
 [project]
 name = "bim-service"
-version = "0.1.0"
+version = "0.2.0"
 description = "Stateless HTTP API over bim-core: compile, validate, evaluate, re-evaluate and analyse BIM v1 packages"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -25,7 +25,7 @@ classifiers = [
     "Private :: Do Not Upload",
 ]
 dependencies = [
-    "bim-core>=0.1,<0.2",
+    "bim-core>=0.2,<0.3",
     "fastapi>=0.110,<1.0",
     "pydantic>=2.0,<3.0",
     "uvicorn>=0.27,<1.0",

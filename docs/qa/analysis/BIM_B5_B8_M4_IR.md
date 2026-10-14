@@ -1,5 +1,14 @@
 # Análisis B5, B8, M4 e IR (cabeza `cd0e05f0`)
 
+> **Actualización 2026-10-14 (M4/IR): normalizado.** La decisión del propietario sustituyó la propuesta de las fases A/B
+> de §4.5-4.6: el compilador ordena ya las listas-conjunto del IR con un orden canónico por identificador (`bim-core` 0.2.0,
+> sin opción `irOrder`, sin ruta `document` y sin `irOrderDigest`), y el directorio, el ZIP crudo, el ZIP canónico y las
+> permutaciones de los miembros JSON compilan al mismo IR en **82/82** (antes 64/82 distintos). El `xfail` estricto
+> `test_a_directory_and_its_canonical_zip_compile_to_the_same_ir` es un test ordinario que pasa; la clasificación por lista
+> de §4.2 se confirmó y está en `docs/qa/IR_NORMALIZATION.md`, que también recoge versión, digests, goldens (la baseline
+> previa queda congelada, commit `b2780381`) e impacto en el gateway. B5 y B8 no cambian. El resto de este documento es el
+> análisis de la cabeza `cd0e05f0`, conservado tal cual.
+
 Fecha: 2026-10-13. Análisis, sin cambios de producción: no se tocó ningún fichero de `bim-toolchain/packages/*/src`, ningún
 golden, ningún `xfail` existente. Lo único añadido son este documento y los tests de
 `bim-toolchain/packages/bim-service/tests/analysis/`. Los informes `SECURITY_REVIEW.md` y `BIM_EQUIVALENCE.md` son
@@ -347,7 +356,7 @@ evaluación del baseline tampoco, si incluyen el mensaje; no lo comprobé). Eleg
 de la forma exige una convención, y cualquiera mueve el texto de una de las dos formas: va en la fase B. No comprobé
 las 15 evaluaciones una por una, solo la primera de cada paquete.
 
-### 4.5 Decisión
+### 4.5 Decisión (propuesta de entonces; sustituida el 2026-10-14, ver la nota del principio)
 
 **(1) Arreglo compatible que iguale los IR sin tocar digests semánticos: no existe.** Las tres listas están dentro del
 digest (`compiler.py:3494-3510`); igualar directorio y ZIP exige ordenar en el directorio (mueve esos 64:
@@ -454,9 +463,11 @@ aun así los dos de latencia pueden dar un falso resultado en una máquina muy c
    capacidad si solo hay un tenant (§2.4, punto 5).
 2. B8: parcialmente atendido. Primero admisión + trabajo completo en el pool + intervalo de GIL (reversibles, sin
    subir límites); procesos solo tras medir RSS (B8-0).
-3. M4/IR: no existe arreglo compatible que iguale los IR. Fase A (clave de equivalencia aditiva) ahora; fase B MAJOR con
-   la ruta actual conservada detrás de `irOrder`, a decidir por el propietario. No se tocó ningún golden ni se
-   convirtió ningún xfail en skip.
+3. M4/IR: no existía arreglo compatible que igualase los IR. **Resuelto el 2026-10-14** con un cambio MAJOR decidido por
+   el propietario (`bim-core` 0.2.0): orden canónico de las listas-conjunto aplicado al compilar, sin fase A ni opción
+   `irOrder`; los goldens previos se conservan congelados y se generaron nuevos tras comprobar las invariantes
+   (`docs/qa/IR_NORMALIZATION.md`). (Texto original: fase A aditiva ahora; fase B MAJOR con la ruta actual conservada
+   detrás de `irOrder`, a decidir por el propietario; no se tocó ningún golden ni se convirtió ningún xfail en skip.)
 
 ## Estado de este documento
 

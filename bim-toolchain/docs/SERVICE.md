@@ -742,8 +742,8 @@ licence files under `/usr/share/doc/bim-service/`, a `HEALTHCHECK` on `/healthz`
 The tokens are mounted at `/run/secrets/bim_service_tokens` (a Docker or Kubernetes secret), not baked in.
 
 ```sh
-docker build -f packages/bim-service/Dockerfile -t bim-service:0.1.0 .
-docker run --rm -p 8080:8080 -v "$PWD/tokens:/run/secrets/bim_service_tokens:ro" bim-service:0.1.0
+docker build -f packages/bim-service/Dockerfile -t bim-service:0.2.0 .
+docker run --rm -p 8080:8080 -v "$PWD/tokens:/run/secrets/bim_service_tokens:ro" bim-service:0.2.0
 ```
 
 *The Dockerfile has not been built or run*; it was written without a Docker daemon (see `EXTRACTION_LOG.md`).

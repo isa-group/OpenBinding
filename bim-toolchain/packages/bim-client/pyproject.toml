@@ -7,7 +7,7 @@
 
 [project]
 name = "bim-client"
-version = "0.1.0"
+version = "0.2.0"
 description = "BimPort: one interface to BIM, in process (bim-core) or over HTTP (bim-service)"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -24,13 +24,13 @@ classifiers = [
     "Private :: Do Not Upload",
 ]
 dependencies = [
-    "bim-core>=0.1,<0.2",
+    "bim-core>=0.2,<0.3",
     "httpx>=0.27,<1.0",
 ]
 
 [project.optional-dependencies]
 test = [
-    "bim-service>=0.1,<0.2",
+    "bim-service>=0.2,<0.3",
     "pytest>=8.0,<9.0",
 ]
 

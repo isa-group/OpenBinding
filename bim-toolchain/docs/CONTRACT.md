@@ -1,4 +1,4 @@
-# Contract of bim-core 0.1.0
+# Contract of bim-core 0.2.0
 
 What `bim_core` offers to a host such as OpenBinding, and what it does not.
 
@@ -147,15 +147,41 @@ See [`DIGESTS.md`](DIGESTS.md). In short: `compiler_bundle_digest()` covers all 
 `BindingProblem.digest` is the `irDigest`; equivalence between toolchains is shown with the semantic digest and
 evaluations.
 
-**`packageDigest` identifies the canonical package, not the IR.** `InstancePackage.package_digest` is the digest of
-`to_zip()`, which writes every JSON resource with sorted object members, so two uploads of the same package (a
-directory, the ZIP of its bytes, `to_zip()`) have the same `packageDigest`. The compiled IR, however, lists the
-eligible candidates, the constraints and the placement demands in the order the package *declares* them, so a package
-that declares them out of alphabetical order has another IR, `irDigest` and semantic digest when it is compiled from
-its canonical ZIP than from its directory or from the ZIP of its bytes. `compilation_digest(package_digest, problem)`
-does not include the IR, so it does not tell them apart either. See
-[`DIGESTS.md`](DIGESTS.md#directory-raw-zip-and-canonical-zip); a host that stores one compilation per
-`packageDigest` must always compile the same form of the package.
+**`packageDigest` identifies the canonical package, and so does the IR.** `InstancePackage.package_digest` is the
+digest of `to_zip()`, which writes every JSON resource with sorted object members, so two uploads of the same package (a
+directory, the ZIP of its bytes, `to_zip()`, the same JSON with its members in another order) have the same
+`packageDigest`. Since 0.2.0 they also compile to the same IR, byte for byte (canonical JSON), the same `irDigest` and
+the same semantic digest: the sets the IR lists are put in one canonical order (next section) and an integral JSON number
+is read as an integer in every form. Up to 0.1.x the lists followed the order the package *declared* its objects, so 64 of
+the 82 corpus packages had another IR from their canonical ZIP than from their directory; a host that stored one
+compilation per `packageDigest` had to compile always the same form. That is no longer needed. See
+[`DIGESTS.md`](DIGESTS.md#directory-raw-zip-and-canonical-zip) and `docs/qa/IR_NORMALIZATION.md`.
+
+### Order of the sets of the IR
+
+JSON gives no meaning to the order of the members of an object, so a list the compiler builds by iterating objects is a
+set and is written in one order that does not depend on how the package was serialized (a compile-time rule, not the ZIP
+writer's):
+
+| List of `spec` | Order (Python string comparison, code point by code point) |
+| --- | --- |
+| `eligibility[task]` | `(resource, id)` of the candidate |
+| `constraints` | `(ref.resource, ref.id)` |
+| `placement` | `resource` of the model |
+| `placement[].demands` | `(candidate.resource, candidate.id)` |
+| `placement[].transitions` | `(ref.resource, ref.id)` |
+| `sourceMap` | the keys that carry a position (`/spec/constraints/<i>`, `/spec/placement/<i>/...`) are written after sorting, so `<i>` is the final index |
+
+The arrays the author writes as arrays keep their order, because the order is data: `placement[].network`,
+`placement[].capacityRules` (a rule is identified by its position, `capacityRules/<i>`), `optimization.criteria` and
+`penalties`, the workflow (`sequence`, `exclusive`, `parallel`) and `routing.entries`.
+
+Position in these lists is not part of any contract with the engines: bindings, solutions, violations and penalties
+name candidates and constraints by `{resource, id}` (`bim-engine/v1`), `reevaluate_result` and `analyze_neighborhood`
+work by identifier and sort their own output. What an engine does index is `eligibility[task]` — a seeded engine draws
+`eligible[random.nextInt(n)]` and MiniZinc indexes candidates by position — and that index space is now the same for
+every form of a package; the binding a given seed yields changes once, with this version (`docs/qa/IR_NORMALIZATION.md`).
+Number formats: a number written `6.0` is `6` in the IR, as the canonical form writes it.
 
 ## What stays in OpenBinding
 

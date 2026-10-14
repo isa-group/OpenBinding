@@ -8,6 +8,18 @@ import sys
 import pytest
 from core_support import TOOLS_DIR
 
+if str(TOOLS_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOLS_DIR))
+
+# The digest of the failures of a run, printed last (the pytest configuration of this package stops the search for
+# conftest files at its own directory, so the one at the root of bim-toolchain is not loaded here).
+from failure_digest import (  # noqa: E402,F401
+    pytest_collectreport,
+    pytest_runtest_logreport,
+    pytest_sessionfinish,
+    pytest_unconfigure,
+)
+
 
 @pytest.fixture(scope="session")
 def baseline_tool():

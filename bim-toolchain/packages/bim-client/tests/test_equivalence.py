@@ -21,7 +21,7 @@ from starlette.testclient import TestClient
 
 import consumer_fixtures as fx
 from bim_client import BimServiceError, HttpBim, InProcessBim
-from bim_core import ContractError, digest, load_package
+from bim_core import ContractError, canonical_json, digest, load_package
 from bim_core.protocol import contains_non_finite
 
 NON_SEMANTIC = fx.NON_SEMANTIC
@@ -151,8 +151,9 @@ def test_a_corpus_package_is_answered_identically_and_as_recorded(inprocess_bim,
     result = compiled[1]
     ir = result["ir"]
 
-    # What the baseline recorded in OpenBinding for this package (it compiles the directory, see the next test).
-    entry = golden("bim_baseline/corpus.json")["packages"][f"examples/demo/{name}"]
+    # What the baseline of the normalized IR (golden/bim_normalized) records for this package (it compiles the
+    # directory, see the next test).
+    entry = golden("bim_normalized/corpus.json")["packages"][f"examples/demo/{name}"]
     assert result["analysis"]["bindingSpaceCardinality"] == entry["bindingSpace"]["cardinality"]
     assert round(result["analysis"]["bindingSpaceLog10"], 9) == entry["bindingSpace"]["log10"]
     assert result["analysis"]["candidates"] == entry["candidates"]
@@ -165,31 +166,25 @@ def test_a_corpus_package_is_answered_identically_and_as_recorded(inprocess_bim,
         both(inprocess_bim, http_bim, calling("compatibility", ir, manifest(engine), mode=mode))
 
 
-def semantic_digest(spec: dict[str, Any], *, sort_eligibility: bool) -> str:
-    spec = {key: value for key, value in spec.items() if key not in NON_SEMANTIC}
-    if sort_eligibility:
-        spec["eligibility"] = {
-            task: sorted(references, key=lambda ref: (ref["resource"], ref["id"]))
-            for task, references in spec["eligibility"].items()
-        }
-    return digest(spec)
+def semantic_digest(spec: dict[str, Any]) -> str:
+    return digest({key: value for key, value in spec.items() if key not in NON_SEMANTIC})
 
 
 @pytest.mark.parametrize("name", CORPUS)
-def test_a_package_and_its_directory_differ_only_in_the_order_of_the_eligibility_lists(inprocess_bim, name: str) -> None:
-    """The ``.bim.zip`` stores JSON in canonical form (keys sorted) and the eligible candidates of a task are listed in
-    the order of the catalog's keys, so the IR of a package can list them in another order than the IR of the
-    directory it came from (which is what ``golden/bim_baseline`` records). Nothing else may differ."""
+def test_a_package_and_its_directory_are_the_same_ir(inprocess_bim, name: str) -> None:
+    """The ``.bim.zip`` stores JSON in canonical form (keys sorted) and the directory keeps the order its author wrote.
+    Until the IR was normalised (``docs/qa/IR_NORMALIZATION.md``) the eligible candidates of a task were listed in the
+    order of the catalog's keys, so ``05_multi_obj`` and ``05_single_obj_various`` had another IR from the package than
+    from the directory.  Now the sets of the IR are in one canonical order and the two are the same IR, which is the one
+    ``golden/bim_normalized`` records."""
     from bim_core import compile_instance
 
     directory = require_corpus_path(f"examples/demo/{name}")
     from_directory = compile_instance(load_package(directory)).document
     from_package = inprocess_bim.compile(load_package(directory).to_zip())["ir"]
-    entry = golden("bim_baseline/corpus.json")["packages"][f"examples/demo/{name}"]
-    assert semantic_digest(from_directory["spec"], sort_eligibility=False) == entry["semanticDigest"]
-    assert semantic_digest(from_directory["spec"], sort_eligibility=True) == semantic_digest(
-        from_package["spec"], sort_eligibility=True
-    )
+    entry = golden("bim_normalized/corpus.json")["packages"][f"examples/demo/{name}"]
+    assert semantic_digest(from_directory["spec"]) == entry["semanticDigest"]
+    assert canonical_json(from_directory) == canonical_json(from_package)
 
 
 # --- the vectors of golden/ ----------------------------------------------------------------------------------------

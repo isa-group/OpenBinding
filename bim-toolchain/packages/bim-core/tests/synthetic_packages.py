@@ -22,15 +22,6 @@ VARIANTS: dict[str, dict[str, bool]] = {
     "unordered-constraints": {"constraints": True},
 }
 
-#: The sections of the IR that a variant makes differ once the package is in canonical form.
-AFFECTED_SECTIONS: dict[str, frozenset[str]] = {
-    "ordered": frozenset(),
-    "unordered-catalogs": frozenset({"spec.eligibility"}),
-    "unordered-candidates": frozenset({"spec.eligibility"}),
-    "unordered-constraint-sets": frozenset({"spec.constraints"}),
-    "unordered-constraints": frozenset({"spec.constraints"}),
-}
-
 
 def _maybe_reversed(items: dict[str, Any], reverse: bool) -> dict[str, Any]:
     return dict(reversed(list(items.items()))) if reverse else dict(items)

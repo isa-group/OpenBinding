@@ -18,7 +18,7 @@ import jsonschema
 
 from ._version import __version__
 from .assets import BPMN_SCHEMA_ENTRY, bpmn_vendor_root, schema_root
-from .canonical import canonical_json, digest, digest_bytes
+from .canonical import canonical_json, decimal_string, digest, digest_bytes, integral_numbers
 from .errors import CompileError, ContractError
 from .expressions import INTEGER_LIMIT_CODE, Expression, ExpressionError, compile_expression
 from .package import InstancePackage, PackageError, resource_digest
@@ -1431,7 +1431,7 @@ def _resource_index(
 ]:
     diagnostics: list[CompileDiagnostic] = []
     try:
-        instance = package.json("instance.json")
+        instance = integral_numbers(package.json("instance.json"))
     except PackageError as exc:
         raise CompileError([_diag("instance", str(exc), "instance.json")]) from exc
     diagnostics.extend(_envelope(instance, "Instance", "instance.json"))
@@ -1612,7 +1612,7 @@ def _resource_index(
                     document = {"apiVersion": api_version, "kind": kind, "metadata": {"name": resource_id}, "spec": {}}
                 else:
                     xml = None
-                    document = parser_package.json(synthetic_path)
+                    document = integral_numbers(parser_package.json(synthetic_path))
                     kind = document.get("kind") if isinstance(document, dict) else None
                     api_version = document.get("apiVersion") if isinstance(document, dict) else None
                     media_type = "application/json"
@@ -2148,6 +2148,11 @@ def _normalize_candidates(
                         continue
                 eligibility[task_id].append(_ref(catalog.id, candidate_id))
         candidates[catalog.id] = {"providers": providers, "featureBindings": feature_bindings, "candidates": catalog_candidates}
+    # The eligible candidates of a task are a set.  They are collected in the order the JSON objects were written, which
+    # no two forms of one package share, so the list is put in the one canonical order: by (catalog id, candidate id).
+    # Engines index it with their seeds, so this order is part of the IR contract (docs/qa/IR_NORMALIZATION.md).
+    for eligible in eligibility.values():
+        eligible.sort(key=_ref_key)
     for task_id, eligible in eligibility.items():
         if not eligible:
             diagnostics.append(_diag("ineligible_task", f"no candidate satisfies task {task_id!r}", "Application", f"/spec/tasks/{task_id}"))
@@ -2794,7 +2799,10 @@ def _constraints(
     diagnostics: list[CompileDiagnostic],
     source_map: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    result: list[dict[str, Any]] = []
+    # Constraints are a set, collected in the order the JSON objects were written.  They end in the canonical order, by
+    # ``ref`` (constraint set id, constraint id), and the source map is written after sorting because it indexes this
+    # list (docs/qa/IR_NORMALIZATION.md).
+    gathered: list[tuple[dict[str, Any], _Resource, str, dict[str, Any]]] = []
     for resource in resources:
         source = resource.document.get("spec", {}).get("constraints", {})
         for constraint_id, value in source.items() if isinstance(source, dict) else []:
@@ -2831,16 +2839,17 @@ def _constraints(
                         )
                     )
                     continue
-            result.append(item)
-            ir_index = len(result) - 1
-            source_map[f"/spec/constraints/{ir_index}"] = {"resource": resource.id, "path": resource.path, "pointer": pointer}
-            for field in ("when", "assert", "penalty"):
-                if field in value:
-                    location: dict[str, Any] = {"resource": resource.id, "path": resource.path, "pointer": f"{pointer}/{field}"}
-                    if isinstance(value[field], str):
-                        location["span"] = {"start": 0, "end": len(value[field].strip())}
-                    source_map[f"/spec/constraints/{ir_index}/{field}"] = location
-    return result
+            gathered.append((item, resource, pointer, value))
+    gathered.sort(key=lambda entry: _ref_key(entry[0]["ref"]))
+    for ir_index, (_, resource, pointer, value) in enumerate(gathered):
+        source_map[f"/spec/constraints/{ir_index}"] = {"resource": resource.id, "path": resource.path, "pointer": pointer}
+        for field in ("when", "assert", "penalty"):
+            if field in value:
+                location: dict[str, Any] = {"resource": resource.id, "path": resource.path, "pointer": f"{pointer}/{field}"}
+                if isinstance(value[field], str):
+                    location["span"] = {"start": 0, "end": len(value[field].strip())}
+                source_map[f"/spec/constraints/{ir_index}/{field}"] = location
+    return [item for item, *_ in gathered]
 
 
 def _lookup_candidate(candidates: Mapping[str, Any], reference: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -2918,7 +2927,12 @@ def _placement(
     source_map: dict[str, Any],
 ) -> list[dict[str, Any]]:
     lowered: list[dict[str, Any]] = []
-    for resource in resources:
+    # Placement models, the demands of a model and its transitions are sets, collected in the order the JSON objects
+    # were written.  They are lowered, and listed, in the canonical order: models by resource id, demands by candidate
+    # and transitions by ``ref``.  ``len(lowered)`` below is the final index of the model in the source map
+    # (docs/qa/IR_NORMALIZATION.md).  ``network`` and ``capacityRules`` are arrays the author writes: their order is data
+    # (a capacity rule is identified by its position) and is kept.
+    for resource in sorted(resources, key=lambda item: item.id):
         spec = resource.document.get("spec", {})
         pools_source = spec.get("pools", {})
         pools: dict[str, Any] = {}
@@ -3079,6 +3093,7 @@ def _placement(
                 _finite(penalty, f"/spec/transitions/{transition_id}/penalty", diagnostics, resource.path, nonnegative=True)
                 normalized_transition["penalty"] = penalty
             transitions.append(normalized_transition)
+        transitions.sort(key=lambda item: _ref_key(item["ref"]))
         global_latency_source = spec.get("globalLatency")
         global_latency: dict[str, Any] | None = None
         if isinstance(global_latency_source, dict):
@@ -3116,7 +3131,7 @@ def _placement(
         lowered.append({
             "resource": resource.id,
             "pools": pools,
-            "demands": list(assignments.values()),
+            "demands": sorted(assignments.values(), key=lambda item: _ref_key(item["candidate"])),
             "network": network,
             "events": events,
             "transitions": transitions,
@@ -3616,6 +3631,15 @@ class BindingProblem(CompiledProblem):
         for count in breakdown.values():
             cardinality *= count
         return cardinality
+
+    @property
+    def binding_space_cardinality_decimal(self) -> str:
+        """``binding_space_cardinality`` as a decimal string, whatever ``sys.get_int_max_str_digits()`` is.
+
+        ``str()`` of an integer of more than 4300 digits (the default limit) raises ``ValueError``; the cardinality
+        is a product of candidate counts and can be that large, so the text is built in blocks.
+        """
+        return decimal_string(self.binding_space_cardinality)
 
     @property
     def binding_space_log10(self) -> float:
@@ -4809,7 +4833,7 @@ def _compile_instance_selected(
         ])
 
     try:
-        instance = package.json("instance.json")
+        instance = integral_numbers(package.json("instance.json"))
     except PackageError as exc:
         raise CompileError([_diag("instance", str(exc), "instance.json")]) from exc
     diagnostics = [

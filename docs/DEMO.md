@@ -87,7 +87,7 @@ that limits a compromised process. Consequences for the lab:
   not count an already installed `bim-core` as a candidate, so a separate earlier install
   made `".[test]"` fail with "bim-core was not found in the package registry ...
   unsatisfiable". As direct requirements in the same command, the local packages satisfy
-  the `bim-core>=0.1,<0.2` dependency by name. Keep them together
+  the `bim-core>=0.2,<0.3` dependency by name. Keep them together
   (`test_the_local_bim_packages_install_in_the_same_command_as_the_gateway`).
   `test_container_hardening.py` requires that no service runs as root, that
   `artifacts-init` does not exist, and that the image directory is owned by 10001.
