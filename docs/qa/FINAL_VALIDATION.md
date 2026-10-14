@@ -46,7 +46,11 @@ are 0 to 5 (index 4 is the lab test suite, there is no frontend check in this co
 
 * Closed: the worker CPU-limit bug (SIGKILL/500 became SIGXCPU/503); SIGXCPU and the 1000-answer recycling tested with real
   processes; the `test_boundary.py` skip; process mode N2 deployed and probed in the 256 MiB demo.
-* Not closed: the parent-died case is not tested; natural SIGXCPU with equal budgets needs native multithreaded code without the GIL
+* The parent-died case was **not tested at `ce7229b`** (the sentence of this record). It was tested afterwards, in a later change
+  (after `b2780381`; results and limits in `bim-toolchain/docs/SERVICE.md`, "When the parent dies, tested for real"): idle workers
+  left 6 to 11 ms after the parent was killed, a busy CPU-bound worker died of `SIGXCPU` at its own CPU limit, and no code of the
+  service was changed. That evidence belongs to that later change and is not attributed to `ce7229b` or `b2780381`.
+* Not closed (at `ce7229b`): natural SIGXCPU with equal budgets needs native multithreaded code without the GIL
   (not built); the kernel counts CPU in whole seconds; thread mode keeps 3 strict `xfail`; the 64 + 4 IR MAJOR xfails and the `has()`
   xfail are untouched; not reached by the probe in the demo: 413 `pending_body_too_large`, 413 `memory_budget_exceeded`, a worker
   killed from outside, a client disconnect.

@@ -13,6 +13,8 @@ container. `compose.lab.json` (thread executor) is not modified and is the rollb
 N2").** The manifests and the arithmetic below were also checked statically by `lab/tests/test_lab_process_profiles.py`.
 `compose.lab-process.json` (N=1, 6 MiB) was **not** needed and was not deployed. The sections after the result are the
 plan that was followed; the figures marked *assumption* there were replaced by the measurements in the result.
+N2 is the profile in force **for now**; the choice between N1 (one worker, 6 MiB) and N2 (two workers, 2 MiB) is **pending the
+human's decision** and is not assumed here (see [JOINT_STATUS.md](JOINT_STATUS.md)).
 
 ## Result of the real deployment of N2
 
@@ -45,12 +47,17 @@ Code deployed: `ce7229b2` (with the tests and documents of that moment); the cod
 
 ### Operational incident during this work (own mistake)
 
-`lab_compose up` with an `environment` **replaces** the private environment stored from the earlier `up`; it does not merge
-it. A partial set sent with `up` lost the synthetic PostgreSQL password (`DEMO_PG_PASSWORD`) of `lab-pg-3`. It was recovered
+**Historical incident, with a behaviour that has since been superseded.** At the time, `lab_compose up` with an `environment`
+**replaced** the private environment stored from the earlier `up`; it did not merge it. A partial set sent with `up` lost the
+synthetic PostgreSQL password (`DEMO_PG_PASSWORD`) of `lab-pg-3`. It was recovered
 without data loss with the one-shot manifest `compose.lab-pgreset.json` (commit `08851b00`; `ALTER ROLE` through the local
 socket, procedure in [PG_ROLE_RESET.md](PG_ROLE_RESET.md)) and the stack was started again with the complete set of
 variables. The BIM token variable must be at least 32 characters. The other services were healthy after the restart. No value
-is recorded here, only variable names. Rule: always send the complete `environment` with `up`, or none.
+is recorded here, only variable names. The rule written then, "always send the complete `environment` with `up`, or none", **is
+no longer needed**: the `environment` of `lab_compose` is now a PATCH (merge) over the stored variables. Omitted or `{}` keeps
+all of them, only the keys sent explicitly are replaced, and `validate` uses the same semantics. Sending the complete set is
+still valid. That the new semantics prevent a repeat of this incident is the description of the tool as given to this work; this
+document does not record a run that exercised it.
 
 Both process manifests are `compose.lab.json` with a different environment for `bim-service` and nothing else: the same
 project name, volumes, passwords, users, authentication, the other ten services and the sum of `mem_limit`

@@ -4,26 +4,35 @@
 demo on one lab host. It is reached from a Mac through an SSH tunnel; the only
 thing published on the host is `127.0.0.1:18100`.
 
-**Final status, observed on 2026-10-13 at SHA `5aebc7c8`:**
+**Current status (head `b2780381`, 2026-10-14).** The figures below are those reported by the coordinator for that head; this
+document did not re-run them. The numbers of the earlier observation at `5aebc7c8` are kept after them, tied to their SHA.
+
+- The demo runs `bim-service` in **process mode, profile N2** (`compose.lab-process-n2.json`: 2 workers, body of **2 MiB**), in the
+  real 256 MiB container, deployed and probed with `process_probe.py` (details: [qa/PROCESS_DEPLOYMENT.md](qa/PROCESS_DEPLOYMENT.md),
+  [qa/PROCESS_PROBE.md](qa/PROCESS_PROBE.md)). N2 is the profile in force **for now**; N1 against N2 is pending the human's
+  decision. `compose.lab.json` (thread mode, 16 MiB) is the rollback.
+- `smoke_lab.py` gives **9/9** steps at `b2780381` with `DEMO_SPACE_ENABLED=false`.
+- Playwright against the live lab (the `e2e` service): **30 passed, 0 failed, 0 skipped** at `b2780381`.
+  `docs/qa/E2E_PLAN.md` still has the older wording ("written, not executed"); the run supersedes it.
+- The PostgreSQL 16 concurrency harness gave **67 passed, 0 skipped** at `b2780381`; it runs separately from the lab, see
+  [PG_HARNESS.md](qa/PG_HARNESS.md).
+
+**Earlier observation, 2026-10-13 at SHA `5aebc7c8` (history):**
 
 - `lab_compose up` leaves all 11 services healthy.
 - `seed_lab.py` is idempotent, with one exception: when the BIM toolchain changes
   (its `irDigest`), the seed creates a new revision of the case (`simple-seq:2`).
-- `smoke_lab.py` gives **9/9** steps in 24.4 s with `DEMO_SPACE_ENABLED=false`.
+- `smoke_lab.py` gave **9/9** steps in 24.4 s with `DEMO_SPACE_ENABLED=false`.
   `plan_usage` is omitted (it needs SPACE, i.e. `--with-space`).
+- Since that run one service was added (`e2e`, see "What
+  runs" and "Browser specs and visual QA inside the lab") and the volumes were renamed
+  to `lab-pg-3` and `lab-artifacts-2` (see "Unprivileged containers"). At that time the new
+  file, the image `frontend/Dockerfile.e2e` and the sequence below had been checked statically only; they have been built and
+  run since (the Playwright result above).
 
-**Since that run** one service was added (`e2e`, see "What
-runs" and "Browser specs and visual QA inside the lab") and the volumes were renamed
-to `lab-pg-3` and `lab-artifacts-2` (see "Unprivileged containers"). The observations above
-are from before them; the new file, the images `frontend/Dockerfile.e2e` and the
-sequence below have been checked **statically only** (tests, `tsc`, lint), never
-built or started.
-
-**Not executed**: Playwright against the live lab (the specs and the `e2e` service
-are written, see `docs/qa/E2E_PLAN.md`), the mobile/desktop visual check, and the lab with
+**Still not executed**: the by-eye mobile/desktop check (it stays manual, see "Mobile and desktop check"), and the lab with
 `DEMO_SPACE_ENABLED=true` and real contracts (SPACE has no service or contracts,
-see "SPACE status"). The PostgreSQL concurrency harness was run separately, not
-as part of the lab: see [PG_HARNESS.md](qa/PG_HARNESS.md). The lab runs with
+see "SPACE status"). The lab runs with
 `DEMO_SPACE_ENABLED=false`: an open development gate with no real entitlements.
 A static check also exists (`lab/tests/test_lab_compose.py`).
 
@@ -84,9 +93,10 @@ that limits a compromised process. Consequences for the lab:
   `artifacts-init` does not exist, and that the image directory is owned by 10001.
 - `bim-service` has `cpus: 1.5` and `pids_limit: 256` in addition to `mem_limit`.
   These are plain Compose service attributes; `mem_limit` is unchanged, so the sum
-  above is too. If the `lab_compose` validator of the controller rejects either key,
-  remove them (the memory ceiling does not depend on them).
-- **`bim-service` memory (256 MiB, unchanged).** Its environment sets
+  above is too. The controller's validator accepted them: the deployed N2 container runs with 1.5 CPUs and
+  `pids_limit` 256 (`docs/qa/PROCESS_DEPLOYMENT.md`; 6 pids were counted in it after the probe).
+- **`bim-service` memory (256 MiB, unchanged), thread mode of `compose.lab.json` (the rollback; the demo now runs the
+  process profile N2 described in the next item).** Its environment sets
   `BIM_SERVICE_MAX_BODY_BYTES=16777216` (16 MiB, not the 32 MiB default),
   `BIM_SERVICE_MAX_CONCURRENCY=2`, `BIM_SERVICE_MEMORY_BUDGET_BYTES=134217728` (128 MiB)
   and `BIM_SERVICE_MAX_PENDING_BODY_BYTES=33554432` (32 MiB). Why not 32 MiB: the measured
@@ -119,8 +129,9 @@ that limits a compromised process. Consequences for the lab:
   probe exit 0, `oom_kill` 0; see the deployment and probe documents). The sum of `mem_limit` is still 4032 MiB.
   The 16 MiB / thread description above is `compose.lab.json`, the rollback (`lab_compose up file=compose.lab.json`).
   `compose.lab-process.json` (N=1, 6 MiB) was not deployed.
-- Not executed: the image build, `up` and the new ownership have not been run (no
-  Docker in the authoring environment); only the static checks cover them.
+- The image build and `up` with the new ownership were first covered by static checks only (no Docker in the authoring
+  environment). They have been run since by the supervisor's `lab_compose`: the stack was up for the smoke (9/9) and for
+  Playwright (30/0/0) at `b2780381`. A separate check of the ownership of `lab-artifacts-2` is not recorded in this document.
 
 Compared with `docker-compose.yml`: a single `worker` consumes both queues
 (the stack runs a second one for `analysis` with one thread); the
@@ -238,6 +249,19 @@ gateway now refuses this flag (and `FEDERATION_REQUIRE_HTTPS=false`) when
 
 ## Running it with lab_compose
 
+The controller tools that exist for the lab (named here; their arguments are those of the tool descriptions, which this
+document does not copy): `lab_compose` with `validate`, `up`, `seed`, `down`, `status`, `metrics`, `logs`, `cleanup`, `archive`
+and `result`; `lab_report`; `lab_screenshot` (lists and returns the PNG/JPEG/WebP images of the `lab-e2e` volume, for instance
+`screenshots/_summary.png`, see `docs/qa/E2E_PLAN.md`); `anonymous_http` (`GET` and `HEAD` to the official SPHERE origin, see
+`docs/qa/SPHERE_PRIVACY.md`); and `archive_worktrees`. `metrics` gives the memory figures, `oom_kill` and the number of pids
+that `docs/qa/PROCESS_DEPLOYMENT.md` quotes.
+
+**The `environment` argument of `lab_compose` is a PATCH (merge) over the stored variables.** Omitted or `{}` keeps all of them,
+only the keys sent explicitly are replaced, and `validate` uses the same semantics. (Before, an `environment` replaced the whole
+stored set and a partial one lost the other variables; that was the cause of the incident in `docs/qa/PG_ROLE_RESET.md`, and it is
+no longer the behaviour.) What `seed` does with the saved environment is described in step 3 below (that text predates this
+change and was not re-verified).
+
 1. `validate` the file. Expect no complaint; if it refuses something, the
    message is the rule to adapt `compose.lab.json` to.
 2. `up`: `docker compose up --detach --build --wait`. The first build compiles
@@ -298,7 +322,8 @@ with `frontend/playwright.live.config.ts`:
 - `/results` is the named volume `lab-e2e`: `done`, `report.json`,
   `screenshots/<desktop|mobile>-<screen>.png`, `visual-qa-*.json` and
   `test-output/` (traces of failures). **The controller cannot open volumes**, so
-  none of that is readable: only `logs e2e` is.
+  `report.json`, the traces and the other files are not readable: `logs e2e` is, and so are the images of the volume through
+  `lab_screenshot` (for instance `screenshots/_summary.png`, the summary image that `run.sh` renders; `docs/qa/E2E_PLAN.md`).
 
 Exact sequence with `lab_compose`:
 
@@ -327,11 +352,12 @@ Things to know before reading the result:
   `04` fails; with `false` (the lab's current mode) there is no plan: the plan page shows
   an empty plan name and features it "Can’t confirm" (the frontend has no dedicated
   notice for the open gate).
-- **Not verifiable from here**: the screenshots (they are in a volume the controller
-  cannot open; only the numbers in the log can be read), anything a human would
-  judge by eye (spacing, colour, taste), the run itself (it has never been executed),
-  and the Chromium flags in a real container (`--no-sandbox`, `--disable-dev-shm-usage`,
-  one worker, 576 MiB).
+- **Not verifiable from here**: anything a human would judge by eye (spacing, colour,
+  taste) in the individual screenshots (the controller can see the images of the volume
+  through `lab_screenshot`, but this document records no by-eye review of them), and the
+  Chromium flags in a real container (`--no-sandbox`, `--disable-dev-shm-usage`, one worker,
+  576 MiB) beyond the fact that the run finished. The run itself was executed at `b2780381`:
+  30 passed, 0 failed, 0 skipped.
 
 ## Reaching it from the Mac
 
@@ -424,9 +450,10 @@ already tripped for its probe user, which still counts as a pass. What it does
 not cover (browser, Playwright, the visual mobile/desktop check) and the
 assumptions of its first run are in `docs/qa/E2E_PLAN.md`.
 
-**Latest run (2026-10-13, SHA `5aebc7c8`, `DEMO_SPACE_ENABLED=false`, without
-`--with-space`): 9/9 steps passed in 24.4 s.** `plan_usage` needs `--with-space`
-and was omitted (**not executed**).
+**Run of 2026-10-13, SHA `5aebc7c8` (thread mode, `DEMO_SPACE_ENABLED=false`, without
+`--with-space`): 9/9 steps passed in 24.4 s.** The later run at `b2780381` (process mode N2) also gave 9/9; its duration is
+not recorded in this document. `plan_usage` needs `--with-space`
+and was omitted on 2026-10-13 (**not executed**); whether it was run at `b2780381` is not recorded here.
 
 History: the first complete run passed 8 of 9 steps. The failing one,
 `authorization` ("viewer cannot launch"), had a wrong expectation in the smoke:
@@ -442,9 +469,10 @@ body without `optimization` (422, fixed).
 The measurable part is automated: `e2e/live/visual-qa.spec.ts` (see above and
 `docs/qa/E2E_PLAN.md`) checks horizontal overflow, console and page errors, 5xx
 answers, the main landmark, touch targets (mobile), clipped text and broken images on
-the main screens at 1280 x 800 and 390 x 844, and takes a screenshot of each. It has
-not been run. What follows is the by-eye check that stays manual, in the browser on
-the Mac (DevTools, device toolbar):
+the main screens at 1280 x 800 and 390 x 844, and takes a screenshot of each. It is part of the live
+Playwright run (30 passed, 0 failed, 0 skipped at `b2780381`; the number of visual findings at that SHA is not restated
+here). What follows is the by-eye check that stays manual, in the browser on
+the Mac (DevTools, device toolbar), and is not recorded as done:
 
 - Mobile: 390 x 844 (iPhone 14 class). Navigate home, login, cases, a job, the
   workbench; check the navigation, tables that scroll horizontally and the
@@ -547,16 +575,16 @@ diagnostic guide, not a list of verified results.
   `postgres`, `redis` and `web`, the `tmpfs` mounts of `web` and
   `entrypoint: []` on `worker`. The `web` failure on the way was the empty
   configuration bind mount (now baked into the `lab` target).
-- Not executed: Playwright against the live lab (the `e2e` service has never been built
-  or started), the mobile/desktop visual check, the ownership of the new volumes, and SPACE
+- Not executed: the by-eye mobile/desktop check, a recorded check of the ownership of the new volumes, and SPACE
   enabled with real
   contracts (SPACE has no service or contracts and rejects the pricing
   `createdAt` format; see "SPACE status"). `DEMO_SPACE_ENABLED=false` gives no
-  real entitlements.
+  real entitlements. (Playwright against the live lab, once listed here as never built or started, was executed:
+  30 passed, 0 failed, 0 skipped at `b2780381`.)
 - The `e2e` screenshots and report stay in the volume `lab-e2e`, which the controller
-  cannot open: only `logs e2e` is readable.
+  cannot open: `logs e2e` and the images (`lab_screenshot`) are readable, `report.json` and the traces are not.
 - `lab_compose seed` ignores the environment passed to it and uses the one saved
-  by the last `up`.
+  by the last `up` (the `environment` of `up` itself is a PATCH over the stored variables, see "Running it with lab_compose").
 - The proxy-header trust list covers the three private ranges Docker allocates
   networks from, because the address of `web` is not known in advance. The
   gateway is only reachable from the compose network, so those are its only

@@ -5,11 +5,18 @@ created, and only the password of the role `openbinding` changes.
 
 ## Cause
 
-`lab_compose` stores the environment it receives with `up`. When a later `up` is given an `environment`, that
-stored set is **overwritten**, not merged. A value passed alone, or a partial set, replaces everything stored, and
-the variables left out (the `DEMO_*` secrets among them) are gone. So `environment` must carry the **complete** set
-of variables of the laboratory, or be omitted altogether. The password was lost that way, and the role keeps the
-old one in `lab-pg-3` while the manifests are now given a different `DEMO_PG_PASSWORD`.
+**Historical cause; the behaviour described in this paragraph has been superseded.** At the time, `lab_compose` stored the
+environment it received with `up`, and when a later `up` was given an `environment`, that stored set was **overwritten**, not
+merged. A value passed alone, or a partial set, replaced everything stored, and the variables left out (the `DEMO_*` secrets
+among them) were gone. So `environment` had to carry the **complete** set of variables of the laboratory, or be omitted
+altogether. The password was lost that way, and the role keeps the old one in `lab-pg-3` while the manifests are now given a
+different `DEMO_PG_PASSWORD`.
+
+**Current behaviour of the tool:** the `environment` of `lab_compose` is a PATCH (merge) over the stored variables: omitted or
+`{}` keeps all of them, only the keys sent explicitly are replaced, and `validate` uses the same semantics. A partial set no
+longer drops the other variables, so the incident above should not repeat. This reset is still the way to put a new password
+into the role. Sending the complete set, as the procedure below says, remains valid; whether the merge covers every case was
+not re-verified by this document.
 
 ## What `compose.lab-pgreset.json` does
 
@@ -33,8 +40,9 @@ apply to this recovery-only manifest.
 
 ## Procedure
 
-Have the **complete** environment at hand: every variable that `compose.lab.json` references, with the
-`DEMO_PG_PASSWORD` that must become the role's password. Use the same set in both `up` calls.
+Have the **complete** environment at hand (a precaution that is no longer required by the tool, see "Cause"): every variable
+that `compose.lab.json` references, with the `DEMO_PG_PASSWORD` that must become the role's password. Use the same set in both
+`up` calls.
 
 1. `lab_compose down` (the volumes stay).
 2. `lab_compose up file=compose.lab-pgreset.json` with the complete `environment`.

@@ -336,7 +336,8 @@ session, `close_fds`, working directory `/`, stdin/stdout/stderr on `/dev/null`)
 `MALLOC_ARENA_MAX=2` and `PYTHONHASHSEED` only if the parent has one. It has **no `BIM_SERVICE_*` variable and no token**
 (`/proc/<pid>/environ` is checked by a test); everything it needs arrives in the first frame. `PR_SET_PDEATHSIG` is not
 used: a worker that sees the socket close (the parent died, or closed it) exits at once if it is idle; a busy one exits
-when it tries to answer or at its CPU limit.
+when it tries to answer or at its CPU limit (measured, with the numbers and the limits of the claim: "When the parent dies",
+below).
 
 **The wire between them** is one `AF_UNIX` `SOCK_STREAM` socket pair per child. A frame is `struct.pack('!4sBII', b'BIMW',
 kind, header_len, body_len)` + header + body, `kind` 1 `CONFIG` (parent to child, once), 2 `REQUEST`, 3 `READY`, 4
@@ -459,7 +460,8 @@ missing boundary, 415, unknown members, XXE, billion laughs, a ZIP bomb, too man
 one request for every route) plus the 31 steps of the consumer fixtures, whose status, content type, `Retry-After` and body
 bytes are equal in thread mode and in three fresh workers (three hash seeds): no difference was found, so no
 determinism problem of `bim-core` was observed. The retirement at 3 answers
-(`RETIRE_ANSWERS` lowered) is still tested as such; the two paths below are tested for real (next section).
+(`RETIRE_ANSWERS` lowered) is still tested as such; the two paths below are tested for real (next section), and so is the death of the
+parent (`tests/test_process_parent_death.py`, the section "When the parent dies, tested for real").
 
 **`SIGXCPU` and the recycling, tested for real** (`tests/test_process_executor.py`, sections "SIGXCPU" and "recycling after
 RETIRE_ANSWERS"; 2026-10-14, same machine as the measurements above; no mock of the kernel, of the constant or of the worker, and
@@ -495,12 +497,81 @@ this), 0 skipped, in each.
 * *What this does not show.* The natural trigger of `SIGXCPU` with equal budgets (a worker that uses more CPU than wall time, which
   needs several threads that leave the GIL, such as native code) was not built: the service's own worker does not do that, so in
   practice `SIGXCPU` is the backstop for a parent that cannot enforce the wall clock (it died or its I/O thread is stuck; the
-  parent-died case was **not** tested) and for a hard limit set from outside. The kernel counts CPU in whole seconds, so the limit is
+  parent-died case is tested in the next section) and for a hard limit set from outside. The kernel counts CPU in whole seconds, so the limit is
   never below 3 s of CPU over the start-up, whatever the timeout (a short timeout is enforced by the wall clock of the parent, not by
   this limit). The 503 for the CPU limit has no `correlationId` in its body, unlike the 500; that is the contract as written and was left as is.
   Also still open: a worker killed from outside, 413 `pending_body_too_large`, 413 `memory_budget_exceeded` and a client that
   disconnects were not reached by the probe in the N2 demo (they cannot happen there or need container access); they are covered by the
   process tests with real processes. Thread mode keeps its 3 strict `xfail`.
+
+**When the parent dies, tested for real** (`tests/test_process_parent_death.py` with `tests/parent_death_processes.py`; 2026-10-14,
+same machine; the code of the service was **not** changed: the behaviour was already the documented one and no bug was found). Each
+case starts a synthetic parent of its own (the production `WorkerPool`, or the real application under `uvicorn`, with real workers
+that load the stand-ins of `process_standins`) as a child of a *reaper*, a process that makes itself a child subreaper
+(`PR_SET_CHILD_SUBREAPER`) and plays the role of `init`: it is what the orphans are reassigned to, it reaps them with `wait4` (exit
+code or signal, CPU used) and says when it has no child left. The test signals only the synthetic parent, through a pidfd it opened
+on it, and watches each worker through a pidfd opened while it was alive, so the times below are measured by the test and cannot
+refer to a recycled pid. No signal, constant or function of the service is mocked and nothing was added to the service for this.
+Every wait is bounded (12 s for an event or an exit; the cases take 1 to 10 s), and the cleanup closes the reaper's stdin, which
+makes it kill what is left. Three consecutive runs of `test_process_executor.py` + `test_process_parent_death.py` (56 tests
+each) ended with exit 0; the tail of the output shows two of them, both with 56 passed.
+
+* *What the kernel does.* The socket pair is an `AF_UNIX` `SOCK_STREAM`. When the parent dies the kernel closes all its
+  descriptors; once the data already queued has been read, `recv` on the worker's end returns 0 (end of stream), and `send` fails with
+  `EPIPE` (the interpreter ignores `SIGPIPE`, so it is a `BrokenPipeError`). No sibling holds a copy of the parent's end (the sockets
+  are not inheritable and the children are started with `close_fds`): with three workers alive at once, all three saw the end.
+* *Idle workers (a).* They are blocked in `recv`. Killed with `SIGKILL`, the 3 idle workers of each run exited **6 to 10 ms** later,
+  with exit code 0 (`_serve` returns 0 at the end of the stream); with `SIGTERM` and no handler (the default action of a Python
+  process: it ends with no clean-up at all) **9 to 11 ms**. In both cases they were reassigned to the reaper and reaped by it; the
+  `/proc` entries were gone and `waitpid` had nothing to report. A worker sitting idle does not leave on its own (checked for 0.5 s).
+* *A parent that dies while the workers start.* Killed at the first child it has, the workers were already launched; the `CONFIG` frame
+  is in the socket and is read, the worker imports and warms up, and its `READY` fails on the closed socket: exit code 70. 2
+  orphans in each run, all gone **281 to 297 ms** after the kill (a start takes about 260 ms). If the parent dies before it writes the
+  `CONFIG`, the worker sees the end of the stream first and exits with 1 (allowed by the test, not observed).
+* *An operation in flight (b).* The busy worker is inside the operation and **does not read the socket**, so the end of the stream
+  is not seen until the operation returns, and then the answer is written to a closed socket and fails (exit 70). The only things that
+  stop it earlier are the kernel and its CPU limit: the soft `RLIMIT_CPU` that the worker set on itself when the request began,
+  `ceil(CPU used so far) + ceil(operation timeout) + 2` s, counts the CPU the process uses (not wall time), and at that
+  point the kernel sends `SIGXCPU`, whose default action ends the process. The wall-clock budget of the parent cannot help: the parent is
+  dead. Measured, with the parent killed with `SIGKILL` 0.5 s after the operation began:
+
+  | Operation (stand-in) | Operation timeout | Soft `RLIMIT_CPU` | The busy worker died | How | CPU it used |
+  | --- | --- | --- | --- | --- | --- |
+  | `spin:forever` (pure Python, never returns) | 1 s | 4 s | **3.29 to 3.30 s** after the parent | `SIGXCPU` | 4.00 s |
+  | `spin:forever` | 4 s | 7 s | **6.28 to 6.30 s** after the parent | `SIGXCPU` | 7.00 s |
+  | `spin:2` (2 s of pure Python, then returns) | 4 s | 7 s | 2.00 s after the operation began (1.50 s after the parent) | exit 70: the answer could not be written | 2.27 s |
+  | `sleep:5` (5 s asleep, no CPU) | 1 s | 4 s | 5.00 to 5.01 s after the operation began (4.50 to 4.51 s after the parent) | exit 70 | 0.27 to 0.33 s |
+
+  In the first two rows the other worker of the pair (idle) left 7 to 8 ms after the parent. So the **effective deadline of a busy
+  orphan** is the earlier of: the end of its operation, and the moment its own CPU use reaches the soft limit. For code that burns
+  CPU it depends on the operation timeout the worker was told, and not on the end of the stream or on the user code yielding: with 1 s it
+  was 4 s of CPU in total (the start-up included), with 4 s it was 7 s; by the same formula a worker with the default timeout of 60 s
+  gets 62 s of CPU plus whole seconds already used at the start of the request (**not measured at 60 s**; the formula was observed at 1 s
+  and 4 s; `test_the_worker_is_a_hardened_process` asserts 62 to 92 s for a fresh worker with 60 s). Wall time is not CPU time: the worker runs at `nice 10`,
+  so on a loaded machine an orphan lives longer than its CPU budget in seconds (measured only on a machine with free CPUs, where the
+  two were within about 0.2 s). No immediate termination is claimed for a job that is running.
+* *What bounds it and what does not.* A job that uses CPU is bounded by the soft limit whatever it is doing, because the kernel
+  counts the CPU and `SIGXCPU` is not handled by the interpreter (shown with pure Python; a long native call such as `lxml` or
+  `zlib` would be killed the same way by the signal's default action, but that was **not tested**). A job that blocks **without
+  using CPU** is bounded by nothing but its own end: `sleep:5` outlived the timeout (1 s) and the soft limit (4 s). No
+  operation of the service sleeps or waits on I/O, but that was not audited in `bim-core`, and the stand-in is not a real operation.
+* *Clean ends of the parent (c).* When the parent leaves through the normal exit of the interpreter, the hook that `WorkerPool`
+  registers (`threading._register_atexit`) runs `close()` before the threads are joined: the idle worker gets the end of the stream, the busy
+  one `SIGTERM`, and both are reaped **by the parent itself**, so no orphan reached the reaper in any of these cases (one idle and
+  one busy `spin:forever` worker each time): the parent exiting by itself, parent exit 0, 0.05 to 0.06 s after the trigger; a
+  handler for `SIGTERM` that calls `sys.exit(0)`, 0.04 to 0.05 s after the signal; and the real application under `uvicorn` (its
+  lifespan closes the gate) receiving `SIGTERM`, 0.21 to 0.22 s after the signal, ending with status `-15` because `uvicorn` raises
+  the signal again with its default action once it has shut down. A `SIGTERM` with no handler is not a clean end: it is the idle
+  case above.
+* *What this does not show.* (1) The parent dying in the middle of writing a request or of reading an answer (the worker would see
+  the end of the stream inside a frame, `ProtocolViolation`, exit 70, by reading `_recv_into`; not reproduced). (2) A parent that is
+  PID 1 of a container, as in the demo: the kernel then ends every process of the PID namespace, so the workers go with it; that is
+  the behaviour of the kernel for a dying `init` and was **not** tested here (it would need a PID namespace). (3) Who reaps the
+  orphans when the parent is *not* PID 1: they are reassigned to the nearest subreaper or to `init`, and the service cannot
+  reap them (a worker that exited stays a zombie until whoever inherited it calls `wait`); here the reaper reaped them, and a
+  setup where the process that inherits them does not reap was **not** tested. (4)
+  Behaviour on a loaded machine, and the 60 s default timeout, as said above. (5) A parent killed while a replacement worker is
+  starting after a timeout, or with all N workers busy.
 
 The memory table was produced by the test measurement fixture (report values printed in the 'measurements' section of the pytest session), and its figures are the RSS of a fresh Python process, not cgroup totals.
 

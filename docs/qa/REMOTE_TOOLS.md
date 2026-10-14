@@ -1,6 +1,6 @@
 # Remote development tools (SPACE / SPHERE) and the lab seed
 
-Four tools in `openbinding-gateway/tools/`, with shared code in `_remote_common.py`:
+Three tools of `openbinding-gateway/tools/` are described in this document, with shared code in `_remote_common.py`:
 
 | Tool | Writes | What it does |
 |---|---|---|
@@ -8,10 +8,22 @@ Four tools in `openbinding-gateway/tools/`, with shared code in `_remote_common.
 | `remote_provision.py` | `--apply` only | Uploads **one private development pricing `0.1.0`** to SPHERE and SPACE, behind explicit guards. |
 | `seed_lab.py` | local database (+ SPACE contracts only with `--space-contracts`) | Idempotent synthetic demo data with the real roles. |
 
+Two more tools of the same folder run in the lab through `lab_compose seed` and are documented elsewhere: `smoke_lab.py` (API
+smoke, [DEMO.md](../DEMO.md)) and `process_probe.py` (acceptance probe of process mode, [PROCESS_PROBE.md](PROCESS_PROBE.md)).
+
 **Status: developed against `httpx.MockTransport` simulations (`tools/tests/fakes.py`), then run once against the
 real remotes on 2026-10-13.** `remote_probe.py` and `remote_provision.py --apply` ran (results under "Observed in the
 real remotes" and "Primera aplicación real"): SPHERE accepted the private development pricing, SPACE rejected it
 with HTTP 400. `seed_lab.py` ran in the lab; its `--space-contracts` option has **not** been run against a real SPACE. Section "Not verified" lists the assumptions that no real run has confirmed yet.
+
+**Controller tools that exist now.** The lab and the remotes are operated through the supervisor's tools, not through a shell:
+`lab_compose` (`validate`, `up`, `seed`, `down`, `status`, `metrics`, `logs`, `cleanup`, `archive`, `result`), `lab_report`,
+`lab_screenshot` (the images of the `lab-e2e` volume), `anonymous_http` (`GET` and `HEAD` to the official SPHERE origin, used for
+[SPHERE_PRIVACY.md](SPHERE_PRIVACY.md)) and `archive_worktrees`; the arguments are those of the tool descriptions and are not
+copied here. The `environment` of `lab_compose` is a PATCH (merge) over the stored variables: omitted or `{}` keeps all of them,
+only the keys sent explicitly are replaced, and `validate` uses the same semantics. The variables of the table under
+"Environment" are the ones the supervisor injects; with the merge, a later `up` that sends only some of them keeps the rest
+([DEMO.md](../DEMO.md), "Running it with lab_compose").
 
 ## Ground rules the tools enforce
 
@@ -58,9 +70,12 @@ configuration (JSON `{"ok": false, "error": ...}`), `5` for a bug.
 
 ## Commands in the lab
 
-The scripts run inside the gateway container with its working directory at `/app`. The Dockerfile does not copy
-`tools/`, so mount `openbinding-gateway/tools` read-only at `/app/tools` (same way `tests/` is mounted for the
-PG harness). This mount works in the lab: `seed_lab.py` and `smoke_lab.py` ran that way with `lab_compose` on 2026-10-13. The six `SPACE_*`/`SPHERE_*` variables must reach the
+The scripts run inside the gateway container with its working directory at `/app`. **Superseded:** this section used to say
+that the Dockerfile does not copy `tools/` and that `openbinding-gateway/tools` had to be mounted read-only at `/app/tools`
+(that is how `seed_lab.py` and `smoke_lab.py` ran with `lab_compose` on 2026-10-13). Now the tools travel in the gateway image
+(`COPY openbinding-gateway/tools/ tools/`, asserted by `lab/tests/test_lab_process_probe_profile.py`) and the `seed` service
+mounts no host code, because a bind-mounted `tools/` can be unreadable for uid 10001 under rootless Docker (see
+[DEMO.md](../DEMO.md), "Seeding"); a changed tool needs `up` (a rebuild) before `seed`. The six `SPACE_*`/`SPHERE_*` variables must reach the
 container; `DEMO_SEED_PASSWORD` is chosen by whoever runs the seed (any synthetic value, 10+ characters).
 
 ```sh
@@ -379,7 +394,8 @@ which one failed.
    contract and on `ContractToCreate` being accepted with the development service name and plan.
 9. `SpaceRemote` replaces the SDK's private `_http_client` only when a test passes a simulated transport.
 10. *Resolved:* the lab mount of `tools/` at `/app/tools` and the `lab_compose seed` invocation worked on 2026-10-13
-    (`seed_lab.py`, `smoke_lab.py`). `--space-contracts` has not been run against a real SPACE.
+    (`seed_lab.py`, `smoke_lab.py`); the mount was later replaced by copying `tools/` into the image (see "Commands in the
+    lab"). `--space-contracts` has not been run against a real SPACE.
 11. *Partly resolved:* anonymous privacy of the private development pricing `openbinding-dev@0.1.0` in SPHERE
     (observed 2026-10-13, see [SPHERE_PRIVACY.md](SPHERE_PRIVACY.md)). Verified: not listed (`total: 0`), 404 by
     name, 403 on the static YAML (indistinguishable from a nonexistent file). **Not verified:** the by-id route
