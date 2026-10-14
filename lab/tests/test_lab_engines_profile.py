@@ -155,6 +155,23 @@ def test_the_engine_is_built_from_the_lab_stage_of_its_own_dockerfile(services):
     assert "http://localhost:3000/health" in healthcheck and "EXPOSE 3000" in dockerfile
 
 
+def test_pid_1_of_the_real_tests_is_tini_from_the_image_so_orphans_are_reaped(services):
+    """engine-real-tests only overrides ``command``: the image ENTRYPOINT (tini) stays PID 1 over ``sh -c ... sleep``.
+
+    The grandchild test of minizinc_runner.test.ts failed in the lab because the fake grandchild was signalled before
+    it had installed its SIGTERM handler (a test race), not because of zombies; adding ``init`` here would put
+    docker-init above tini, so neither service may override the entrypoint or set ``init``.
+    """
+    for name in ("engine", "engine-real-tests"):
+        assert "entrypoint" not in services[name] and "init" not in services[name], name
+    assert services["engine-real-tests"]["command"][0] == "sh"
+    dockerfile = ENGINE_DOCKERFILE.read_text(encoding="utf-8")
+    assert dockerfile.count('ENTRYPOINT ["tini", "--"]') == 2  # lab and production
+    test = (ROOT / "engines" / "minizinc-csp" / "src" / "minizinc_runner.test.ts").read_text(encoding="utf-8")
+    ready = test.index("GRANDCHILD_READY_TICKS, 30_000")
+    assert test.index("FAKE_MINIZINC_GRANDCHILD_IGNORE_TERM === '1'") < ready < test.index("return { pid, grandchild, controller, run }")
+
+
 def test_the_user_of_the_engine_is_the_node_user_of_the_image(services):
     assert services["engine"]["user"] == services["engine-real-tests"]["user"] == "1000:1000"  # uid of `node` in node:20-slim
 

@@ -82,6 +82,9 @@ const zombieChildren = () => allProcesses().filter((p) => p.ppid === process.pid
 const liveMembers = (pgid: number) => allProcesses().filter((p) => p.pgrp === pgid && p.state !== 'Z' && p.state !== 'X');
 const ticksOf = (...pids: number[]) => pids.reduce((sum, pid) => sum + (procStat(pid)?.ticks ?? 0), 0);
 
+/** CPU time (clock ticks, 10 ms each) a fake grandchild must have used before a test relies on its SIGTERM handler. */
+const GRANDCHILD_READY_TICKS = 50;
+
 interface Hang {
   pid: number;
   grandchild: number;
@@ -100,6 +103,14 @@ async function startHang(env: Record<string, string> = {}, options: RunnerOption
   const { pid, grandchild } = JSON.parse(fs.readFileSync(pidfile, 'utf8'));
   leaked.add(pid);
   await until(() => procStat(grandchild) !== null, 5000, 'the grandchild');
+  if (env.FAKE_MINIZINC_GRANDCHILD_IGNORE_TERM === '1' && env.FAKE_MINIZINC_CPU !== '0') {
+    // The pidfile is written as soon as the grandchild is spawned, but it only ignores SIGTERM once node has started
+    // and run its script; a SIGTERM before that kills it with the default action and the run settles early (seen in a
+    // CPU-constrained container: 66 ms with a 500 ms grace). Its start-up costs a bounded amount of CPU time, whatever
+    // the load, while the busy loop that follows keeps adding ticks, so enough CPU time proves the loop is running.
+    await until(() => (procStat(grandchild)?.ticks ?? 0) >= GRANDCHILD_READY_TICKS, 30_000,
+      'the grandchild to be past its start-up and busy');
+  }
   return { pid, grandchild, controller, run };
 }
 
