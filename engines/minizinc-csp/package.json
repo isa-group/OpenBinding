@@ -8,7 +8,8 @@
     "start": "node dist/index.js",
     "build": "tsc",
     "dev": "ts-node src/index.ts",
-    "test": "tsc && node --test dist/conformance.test.js"
+    "test": "tsc && node --test --test-reporter=dot dist/conformance.test.js dist/job_manager.test.js dist/minizinc_runner.test.js dist/cancel.test.js && node -e \"console.log(process.env.MINIZINC_REAL === '1' ? 'real MiniZinc tests: ejecutados (MINIZINC_REAL=1)' : 'NO EJECUTADO (MINIZINC_REAL!=1): 5 pruebas contra MiniZinc real: minizinc_runner.test.ts x3 (version, time-limit, abort mata el grupo), cancel.test.ts x2 (solve BIM OPTIMAL, DELETE mata el grupo). Se ejecutan en el laboratorio con compose.lab-engines.json')\"",
+    "test:lab": "tsc && MINIZINC_REAL=1 node --test --test-reporter=spec dist/minizinc_runner.test.js dist/cancel.test.js"
   },
   "dependencies": {
     "fastify": "^4.26.1",

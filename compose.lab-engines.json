@@ -1,0 +1,97 @@
+{
+  "name": "openbinding-lab-engines",
+  "services": {
+    "engine": {
+      "build": {
+        "context": "engines/minizinc-csp",
+        "dockerfile": "Dockerfile",
+        "target": "lab"
+      },
+      "image": "openbinding-lab-engines-engine:latest",
+      "user": "1000:1000",
+      "environment": {
+        "NODE_OPTIONS": "--max-old-space-size=96"
+      },
+      "mem_limit": "192m",
+      "healthcheck": {
+        "test": ["CMD", "curl", "-fsS", "http://localhost:3000/health"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 10,
+        "start_period": "30s"
+      }
+    },
+    "image-builder": {
+      "build": {
+        "context": ".",
+        "dockerfile": "openbinding-gateway/Dockerfile"
+      },
+      "image": "openbinding-lab-engines-tools:latest",
+      "user": "65534:65534",
+      "entrypoint": [],
+      "command": ["sh", "-c", "sleep 3600"],
+      "mem_limit": "64m",
+      "healthcheck": {
+        "test": ["CMD-SHELL", "true"],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 3
+      }
+    },
+    "engine-real-tests": {
+      "image": "openbinding-lab-engines-engine:latest",
+      "user": "1000:1000",
+      "working_dir": "/app",
+      "command": [
+        "sh",
+        "-c",
+        "node --test --test-reporter=spec dist/minizinc_runner.test.js dist/cancel.test.js; rc=$$?; echo \"REAL_TESTS_EXIT=$$rc\"; if [ \"$$rc\" -eq 0 ]; then touch /tmp/real-tests-ok; fi; exec sleep infinity"
+      ],
+      "environment": {
+        "MINIZINC_REAL": "1",
+        "NODE_OPTIONS": "--max-old-space-size=160"
+      },
+      "mem_limit": "320m",
+      "restart": "no",
+      "depends_on": {
+        "engine": {"condition": "service_healthy"}
+      },
+      "healthcheck": {
+        "test": ["CMD-SHELL", "test -f /tmp/real-tests-ok"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 60,
+        "start_period": "600s"
+      }
+    },
+    "seed": {
+      "profiles": ["seed"],
+      "image": "openbinding-lab-engines-tools:latest",
+      "user": "10001:10001",
+      "entrypoint": [],
+      "working_dir": "/app",
+      "command": [
+        "python",
+        "tools/engine_e2e.py",
+        "--url",
+        "http://engine:3000",
+        "--scenario",
+        "all",
+        "--expect",
+        "optimal",
+        "--timeout",
+        "180"
+      ],
+      "environment": {
+        "APP_ENV": "dev",
+        "SCHEMAS_DIR": "/app/schemas",
+        "PYTHONPATH": "/app/src",
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "depends_on": {
+        "engine": {"condition": "service_healthy"}
+      },
+      "mem_limit": "256m"
+    }
+  }
+}

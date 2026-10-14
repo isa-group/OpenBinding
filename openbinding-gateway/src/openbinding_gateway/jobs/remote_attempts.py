@@ -23,6 +23,11 @@ function of the rows, so it can be tested exhaustively:
   skipped: it is never sent blind;
 * without ``idScope: attempt`` only a terminal job allows it (R2).
 
+What ``sent`` promises is the engine's confirmation (200/204), not that a request left: a ``202`` (accepted,
+still stopping) settles as ``failed`` and is retried with backoff within the same bounded number of claims,
+and 404/405/501 end as ``skipped`` without a retry. The cancellation is best effort in the end: when the
+claims run out the row stays ``failed`` and the gateway has not got the engine's confirmation.
+
 Claims are compare-and-swap UPDATEs on ``cancel_state`` and ``cancel_attempts``
 (and, on PostgreSQL, ``FOR UPDATE SKIP LOCKED``), so two replicas never send the
 same cancellation at once. A replica that dies after claiming leaves the row due

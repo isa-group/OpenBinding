@@ -379,7 +379,12 @@ async def _plan_cancellation(
 
 
 async def _send_cancellation(item: remote_attempts.ClaimedAttempt, transport: RemoteRegistration) -> str:
-    """The only place that asks an engine to stop a job. Returns the state the attempt ends in."""
+    """The only place that asks an engine to stop a job. Returns the state the attempt ends in.
+
+    ``sent`` means the engine *confirmed* the job is stopped or gone (200/204). A ``202`` only says the
+    engine accepted the request and is still stopping the job: it is not a confirmation, so it is a
+    recoverable failure that is retried with backoff, a bounded number of times, like a network error.
+    """
     statuses: list[int] = []
     try:
         acknowledged = await cancel_remote(
@@ -387,6 +392,13 @@ async def _send_cancellation(item: remote_attempts.ClaimedAttempt, transport: Re
         )
     except Exception:
         logger.warning("Could not cancel attempt %s of job %s", item.attempt, item.job_id, exc_info=True)
+        return remote_attempts.FAILED
+    if acknowledged and statuses and statuses[-1] == 202:
+        logger.info(
+            "The engine accepted the cancellation of attempt %s of job %s but has not confirmed it (202)",
+            item.attempt,
+            item.job_id,
+        )
         return remote_attempts.FAILED
     if acknowledged:
         return remote_attempts.SENT

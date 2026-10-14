@@ -793,6 +793,25 @@ async def test_an_engine_that_answers_404_or_405_is_not_asked_again(
     assert await cancel_rows(db_session, job) == {1: ("skipped", 1)}
 
 
+async def test_a_202_is_accepted_but_not_confirmed_so_it_is_retried_and_never_counted_as_sent(
+    db_session, owner, engine_http, credentials, frozen, monkeypatch
+):
+    monkeypatch.setattr(get_settings(), "remote_cancel_max_attempts", 3)
+    deployment = await a_registration(db_session, owner, cancellation=PER_ATTEMPT_CANCELLATION)
+    job = await a_job(db_session, owner, registration=deployment)
+    await claim_and_record(db_session, job, "engine-job-A")
+    await lose_and_sweep(db_session, job)
+    engine_http.status = 202
+
+    sent = 0
+    for _ in range(5):
+        sent += await cycle(db_session, frozen)
+
+    assert sent == 0
+    assert len(engine_http.requests) == 3  # bounded, like a network error
+    assert await cancel_rows(db_session, job) == {1: ("failed", 3)}
+
+
 async def test_a_batch_is_bounded(db_session, owner, engine_http, credentials, monkeypatch):
     monkeypatch.setattr(get_settings(), "remote_cancel_batch", 2)
     deployment = await a_registration(db_session, owner, cancellation=PER_ATTEMPT_CANCELLATION)
