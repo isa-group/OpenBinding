@@ -85,7 +85,13 @@ class ProcessSolver {
     private readonly model = 'model.mzn', private readonly extra: string[] = [], private readonly dzn = 'n = 1;') {}
 
   validate(): DznBuildResult {
-    return { dznContent: '', features: [], metrics: [], tasks: [], candidates: [] };
+    return {
+      dznContent: '', features: [], metrics: [], tasks: [], candidates: [],
+      encoding: {
+        productConstraints: 'log', flatProducts: 0, logSpaceMetrics: [], logSpaceAtoms: 0, realSpaceProductAtoms: 0,
+        softConstraints: 0, binPackingColumns: 0, binPackingChecks: 0, capacityChecks: 0, relaxedLiterals: 0,
+      },
+    };
   }
 
   async solve(_problem: unknown, _options: unknown, _optimization?: unknown, signal?: AbortSignal): Promise<any> {
