@@ -342,12 +342,12 @@ async def test_target_engine_rejects_unsupported_objective_and_aggregation(api_c
     assert one_objective.status_code == 422
     assert "minObjectives" in one_objective.text
 
+    # minizinc-csp 1.1.1 declares the multiplicative aggregations, so a product is no longer rejected for it.
     product = await api_client.post("/v1/generator/instances", json={
         "features": [{**FEATURES[0], "aggregation": {"selection": "product"}}],
         "target_engines": ["minizinc-csp"], "constraints": 0,
     })
-    assert product.status_code == 422
-    assert "selection.product" in product.text
+    assert product.status_code == 200, product.text
 
     unknown = await api_client.post("/v1/generator/instances", json={
         "features": [FEATURES[0]], "target_engines": ["auto"], "constraints": 0,
