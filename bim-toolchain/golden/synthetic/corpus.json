@@ -15,7 +15,7 @@
     ]
    },
    "minizinc-csp": {
-    "manifestDigest": "sha256-d17e2be6cefac0d435e30af365e0b3c8d6650433d36fad19b5e0383a6f7c799b",
+    "manifestDigest": "sha256-c8b669e994978a33c0c0ba17fb36b68fc799c1edc6280725482024dc66458e6c",
     "modes": [
      "exact-weighted"
     ]
@@ -53,12 +53,10 @@
     "minizinc-csp": {
      "exact-weighted": {
       "codes": [
-       "unsupported_capability_value:workflowNodes:repeat.expectedCount",
-       "unsupported_capability_value:constraints:soft.expression",
        "unsupported_capability_value:expressions:call.has"
       ],
       "compatible": false,
-      "digest": "sha256-268e88a8b33cd9f4039139d30fa151d77fd617ffa9e7651e82167f34ef22fbd7"
+      "digest": "sha256-e4a5501278f9ff51f3ef198609d595691eace8c3b46650ba214b9bd6b6f138a7"
      }
     },
     "random-search": {
@@ -94,11 +92,10 @@
     "minizinc-csp": {
      "exact-weighted": {
       "codes": [
-       "unsupported_capability_value:constraints:soft.expression",
        "unsupported_capability_value:expressions:call.has"
       ],
       "compatible": false,
-      "digest": "sha256-797fd7b900e65e2a4ec5b7186a49f16e09f4b4732b7ec8572bdbd5dbd1792e40"
+      "digest": "sha256-e4a5501278f9ff51f3ef198609d595691eace8c3b46650ba214b9bd6b6f138a7"
      }
     },
     "random-search": {
@@ -134,11 +131,10 @@
     "minizinc-csp": {
      "exact-weighted": {
       "codes": [
-       "unsupported_capability_value:constraints:soft.expression",
        "unsupported_capability_value:expressions:call.has"
       ],
       "compatible": false,
-      "digest": "sha256-797fd7b900e65e2a4ec5b7186a49f16e09f4b4732b7ec8572bdbd5dbd1792e40"
+      "digest": "sha256-e4a5501278f9ff51f3ef198609d595691eace8c3b46650ba214b9bd6b6f138a7"
      }
     },
     "random-search": {
@@ -174,11 +170,10 @@
     "minizinc-csp": {
      "exact-weighted": {
       "codes": [
-       "unsupported_capability_value:constraints:soft.expression",
        "unsupported_capability_value:expressions:call.has"
       ],
       "compatible": false,
-      "digest": "sha256-797fd7b900e65e2a4ec5b7186a49f16e09f4b4732b7ec8572bdbd5dbd1792e40"
+      "digest": "sha256-e4a5501278f9ff51f3ef198609d595691eace8c3b46650ba214b9bd6b6f138a7"
      }
     },
     "random-search": {
@@ -214,11 +209,10 @@
     "minizinc-csp": {
      "exact-weighted": {
       "codes": [
-       "unsupported_capability_value:constraints:soft.expression",
        "unsupported_capability_value:expressions:call.has"
       ],
       "compatible": false,
-      "digest": "sha256-797fd7b900e65e2a4ec5b7186a49f16e09f4b4732b7ec8572bdbd5dbd1792e40"
+      "digest": "sha256-e4a5501278f9ff51f3ef198609d595691eace8c3b46650ba214b9bd6b6f138a7"
      }
     },
     "random-search": {
@@ -254,11 +248,10 @@
     "minizinc-csp": {
      "exact-weighted": {
       "codes": [
-       "unsupported_capability_value:constraints:soft.expression",
        "unsupported_capability_value:expressions:call.has"
       ],
       "compatible": false,
-      "digest": "sha256-797fd7b900e65e2a4ec5b7186a49f16e09f4b4732b7ec8572bdbd5dbd1792e40"
+      "digest": "sha256-e4a5501278f9ff51f3ef198609d595691eace8c3b46650ba214b9bd6b6f138a7"
      }
     },
     "random-search": {

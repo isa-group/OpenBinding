@@ -122,6 +122,11 @@ NORMALIZED_FILES = ("corpus.json", "zip_equivalence.json")
 CORE_GOLDEN_FILES = ("compat.json", "protocol.json", "evaluator_errors.json")
 #: Engines whose manifest is in the OpenBinding goldens but not in the repository.
 MISSING_MANIFESTS = ("meta-router-csp",)
+#: Engines whose manifest changed after ``golden/bim_baseline`` was frozen, so that their mode compatibility and
+#: manifest digest moved with the manifest, not with the toolchain: ``minizinc-csp`` 1.1.1 (multiplicative
+#: aggregations, soft constraints, ``and``, ``repeat.expectedCount``, the ``product_constraints`` option).  They are
+#: left out of the comparison with the frozen baseline and pinned in ``golden/bim_core`` only.
+CHANGED_MANIFESTS = ("minizinc-csp",)
 DEMO_RELATIVE = Path("examples") / "demo" / "01_simple_seq"
 NON_SEMANTIC = frozenset({"profile", "dialects", "instance", "sourceMap"})
 SKIPPED_DIRECTORIES = {".git", ".pnpm-store", "node_modules", "target", "dist", ".venv", "__pycache__"}
@@ -1364,7 +1369,11 @@ def mismatches(documents: dict[str, Any], golden_root: Path = GOLDEN_ROOT) -> li
     for name in UNCHANGED_FILES:
         found.extend(differences(name, documents[name], _golden(baseline_dir, name)))
     for name in ("compat.json", "protocol.json"):
-        found.extend(differences(f"{name} (openbinding)", documents[name], without_engines(_golden(baseline_dir, name))))
+        found.extend(differences(
+            f"{name} (openbinding)",
+            without_engines(documents[name], CHANGED_MANIFESTS),
+            without_engines(_golden(baseline_dir, name), MISSING_MANIFESTS + CHANGED_MANIFESTS),
+        ))
     for name in CORE_GOLDEN_FILES:
         found.extend(differences(f"bim_core/{name}", documents[name], _golden(core_dir, name)))
     found.extend(

@@ -85,6 +85,14 @@ them when OpenBinding is present), while the copy here still lists five. The ori
 the comparison removes the missing Engine from them (`baseline_core.without_engines`), and the same documents with
 four Engines are pinned in `golden/bim_core/`.
 
+**Manifest change after the freeze: `minizinc-csp` 1.1.1.** The OpenBinding 1.1.1 release extended the
+`minizinc-csp` manifest (multiplicative aggregations, soft constraints, `and`, `repeat.expectedCount`, the
+`product_constraints` option). Its manifest digest and the mode compatibility of the packages that use those
+constructs therefore moved with the manifest, not with the toolchain. The fixture
+(`packages/bim-core/tests/fixtures/manifests/minizinc-csp.json`) is the 1.1.1 copy, `golden/bim_core/` and
+OpenBinding's goldens were regenerated with `tools/baseline_core.py` and `tools/bim_baseline.py`, and the Engines of
+`baseline_core.CHANGED_MANIFESTS` are left out of the comparison with the frozen baseline, which stays untouched.
+
 ## Goldens with no OpenBinding original
 
 All are written by `tools/baseline_core.py` and are regression pins of this toolchain's output. They only gain

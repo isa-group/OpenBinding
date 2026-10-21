@@ -179,8 +179,8 @@
     "path": "/bim/v1/compile"
    },
    "toolchain": {
-    "compilerDigest": "sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e",
-    "irDigest": "sha256-0dcc0b0a230d45cf768edef5f0da70f0ca366c8ab29c3e8168c3c16328c22270"
+    "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+    "irDigest": "sha256-e4d09ae27ac4d97447935698fe504c13499e8764ec490014e2f2e23570ef5d40"
    }
   },
   {
@@ -493,34 +493,7 @@
      "diagnostics": [
       {
        "allowed": [
-        "empty",
-        "exclusive.probabilistic",
-        "parallel",
-        "repeat.count",
-        "sequence",
-        "task"
-       ],
-       "category": "workflowNodes",
-       "code": "unsupported_capability_value",
-       "message": "mode does not support requested workflowNodes values",
-       "unsupported": [
-        "repeat.expectedCount"
-       ]
-      },
-      {
-       "allowed": [
-        "hard.aggregate-bound",
-        "hard.expression"
-       ],
-       "category": "constraints",
-       "code": "unsupported_capability_value",
-       "message": "mode does not support requested constraints values",
-       "unsupported": [
-        "soft.expression"
-       ]
-      },
-      {
-       "allowed": [
+        "and",
         "compare",
         "literal",
         "path.features",
@@ -544,6 +517,7 @@
       ]
      },
      "options": {
+      "product_constraints": "log",
       "solver": "gecode",
       "time_budget_ms": 30000
      }
@@ -560,10 +534,10 @@
       "apiVersion": "bim/v1",
       "kind": "Engine",
       "metadata": {
-       "description": "Exact MiniZinc solver for its explicitly declared BIM v1 subset",
+       "description": "Exact MiniZinc/Gecode solver for its explicitly declared BIM v1 subset (additive, min/max and multiplicative aggregations; the latter are lowered with a logarithmic linearisation plus exact flat products). 1.1.1: technical bounds and non-strict comparison literals are widened by the numeric slack before flattening (false optima on boundary bindings in 1.1.0), outputs fixed at flattening time are rendered through the .ozn pass",
        "name": "minizinc-csp",
        "namespace": "bim.builtin",
-       "version": "1.0.0"
+       "version": "1.1.1"
       },
       "spec": {
        "modes": [
@@ -574,17 +548,22 @@
            "selector": "only",
            "values": [
             "sequence.sum",
+            "sequence.product",
             "sequence.min",
             "sequence.max",
             "parallel.sum",
+            "parallel.product",
             "parallel.min",
             "parallel.max",
             "exclusive.weightedSum",
+            "exclusive.weightedProduct",
             "exclusive.min",
             "exclusive.max",
             "repeat.scale",
+            "repeat.power",
             "repeat.identity",
             "selection.sum",
+            "selection.product",
             "selection.min",
             "selection.max"
            ]
@@ -593,7 +572,9 @@
            "selector": "only",
            "values": [
             "hard.aggregate-bound",
-            "hard.expression"
+            "hard.expression",
+            "soft.aggregate-bound",
+            "soft.expression"
            ]
           },
           "expressions": {
@@ -602,7 +583,8 @@
             "literal",
             "path.features",
             "path.tasks",
-            "compare"
+            "compare",
+            "and"
            ]
           },
           "featureScopes": {
@@ -647,7 +629,8 @@
             "sequence",
             "parallel",
             "exclusive.probabilistic",
-            "repeat.count"
+            "repeat.count",
+            "repeat.expectedCount"
            ]
           }
          },
@@ -674,6 +657,13 @@
          "optionsSchema": {
           "additionalProperties": false,
           "properties": {
+           "product_constraints": {
+            "default": "log",
+            "enum": [
+             "log",
+             "real"
+            ]
+           },
            "solver": {
             "const": "gecode",
             "default": "gecode"

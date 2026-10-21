@@ -14,7 +14,9 @@ two corpora relate, package by package and by identifier, is tested in ``test_ir
 
 ``compat.json`` and ``protocol.json`` of OpenBinding list the Engine ``meta-router-csp``, whose manifest is not in
 the repository (only four manifests are).  They are compared with that Engine removed, and the four-Engine
-documents are pinned in ``golden/bim_core`` (see ``docs/DIGESTS.md``).
+documents are pinned in ``golden/bim_core`` (see ``docs/DIGESTS.md``).  The Engines of ``CHANGED_MANIFESTS``
+(``minizinc-csp`` 1.1.1) changed their manifest after the freeze: they are left out of every comparison with the
+frozen baseline and pinned in ``golden/bim_core`` only.
 
 The corpus is not part of this directory.  It is looked up under ``BIM_CORPUS_ROOT`` (default: the directory that
 contains ``bim-toolchain/``) and the tests that need it skip with a warning when it is absent, unless
@@ -128,7 +130,10 @@ def test_the_goldens_are_the_ones_recorded_in_openbinding(baseline_tool, root) -
         mine = json.loads((GOLDEN_DIR / name).read_text(encoding="utf-8"))
         theirs = json.loads((original / name).read_text(encoding="utf-8"))
         if mine != theirs:
-            assert baseline_tool.comparable(baseline_tool.without_engines(mine)) == baseline_tool.comparable(theirs), name
+            changed = baseline_tool.CHANGED_MANIFESTS
+            assert baseline_tool.comparable(
+                baseline_tool.without_engines(mine, baseline_tool.MISSING_MANIFESTS + changed)
+            ) == baseline_tool.comparable(baseline_tool.without_engines(theirs, changed)), name
 
 
 def test_the_bim_core_goldens_equal_the_current_openbinding_ones(baseline_tool, root) -> None:
@@ -255,7 +260,12 @@ def test_the_engine_contract_and_protocol_digest_match_the_goldens(baseline_tool
     assert found["engineContract"] == expected["engineContract"]
     assert found["schemas"] == expected["schemas"]
     assert found["vendor"] == expected["vendor"]
-    assert baseline_tool.differences("protocol", found, baseline_tool.without_engines(expected)) == []
+    changed = baseline_tool.CHANGED_MANIFESTS
+    assert baseline_tool.differences(
+        "protocol",
+        baseline_tool.without_engines(found, changed),
+        baseline_tool.without_engines(expected, baseline_tool.MISSING_MANIFESTS + changed),
+    ) == []
 
 
 def test_the_only_difference_with_the_protocol_golden_is_the_missing_engine_manifest(baseline_tool) -> None:
@@ -264,18 +274,21 @@ def test_the_only_difference_with_the_protocol_golden_is_the_missing_engine_mani
 
     assert set(expected["manifests"]) - set(found["manifests"]) == set(baseline_tool.MISSING_MANIFESTS)
     assert set(found["manifests"]) <= set(expected["manifests"])
-    assert {name: found["manifests"][name] for name in found["manifests"]} == {
-        name: expected["manifests"][name] for name in found["manifests"]
+    unchanged = [name for name in found["manifests"] if name not in baseline_tool.CHANGED_MANIFESTS]
+    assert {name: found["manifests"][name] for name in unchanged} == {
+        name: expected["manifests"][name] for name in unchanged
     }
 
 
 @full_corpus_only
-def test_engine_compatibility_matches_the_goldens(everything) -> None:
+def test_engine_compatibility_matches_the_goldens(baseline_tool, everything) -> None:
     found = everything["compat.json"]
     expected = golden("compat.json")
+    assert set(expected["engines"]) - set(found["engines"]) == {"meta-router-csp"}
+    # Engines whose manifest changed after the freeze are pinned in golden/bim_core only.
+    found = baseline_tool.without_engines(found, baseline_tool.CHANGED_MANIFESTS)
     available = set(found["engines"])
 
-    assert set(expected["engines"]) - available == {"meta-router-csp"}
     assert {name: expected["engines"][name] for name in available} == found["engines"]
     assert sorted(found["packages"]) == sorted(expected["packages"])
     assert [
