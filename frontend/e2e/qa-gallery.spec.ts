@@ -6,7 +6,8 @@ import { installMockApi } from './helpers/mockApi';
 import { measurePage, prepareCapture, waitUntilSettled, type PageMeasure } from './helpers/pageChecks';
 
 // QA gallery: one picture of the first screenful of every screen of the registry (src/routes/d1.tsx .. d8.tsx), on a desktop and on a
-// phone, saved to docs/frontend-qa/screenshots/<desktop|mobile>/<screen-id>.png for a person to review.
+// phone, saved to <QA_GALLERY_DIR>/<desktop|mobile>/<screen-id>.png for a person to review. QA_GALLERY_DIR defaults to
+// frontend/node_modules/.cache/qa-gallery/screenshots/: the pictures are review material, not part of the repository.
 //
 //   pnpm exec playwright test e2e/qa-gallery.spec.ts
 //
@@ -16,7 +17,9 @@ import { measurePage, prepareCapture, waitUntilSettled, type PageMeasure } from 
 
 const screens = readGalleryScreens();
 
-const SCREENSHOTS = fileURLToPath(new URL('../../docs/frontend-qa/screenshots/', import.meta.url));
+const SCREENSHOTS = process.env.QA_GALLERY_DIR
+  ? `${process.env.QA_GALLERY_DIR.replace(/\/+$/, '')}/`
+  : fileURLToPath(new URL('../node_modules/.cache/qa-gallery/screenshots/', import.meta.url));
 /** Measurements of every page, for the person fixing what the pictures show. Not part of the repository. */
 const MEASUREMENTS = fileURLToPath(new URL('../node_modules/.cache/qa-gallery/', import.meta.url));
 
@@ -195,7 +198,7 @@ function watchCriticalErrors(page: Page) {
 
 /**
  * The status screen shows how long each probe took, measured with the browser's own clock: it differs on every run. The picture shows
- * the same plausible figure each time instead (docs/frontend-qa/README.md says so).
+ * the same plausible figure each time instead.
  */
 async function freezeProbeTimes(page: Page) {
   await page.evaluate(() => {

@@ -3,7 +3,8 @@
 @import "@fontsource/jetbrains-mono/500.css";
 
 /*
- * Visual foundation: light theme only, taken from docs/design-handoff tokens.json.
+ * Visual foundation: light theme only, taken from the tokens.json of the design hand-off
+ * prototype (kept outside the repository; the tokens below are the authoritative copy).
  *
  * --tp-*        exact design tokens (tokens.json name without the "color-" prefix:
  *               color-tp-primary -> --tp-primary; spacing-md -> --tp-spacing-md;

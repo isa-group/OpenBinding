@@ -224,6 +224,11 @@ experimentation/icsoc/out/bim-v1/
 # branch (see experimentation/icsoc/README.md), never on development branches.
 /experimentation/icsoc/original_dataset
 
+# Frontend QA screenshots and the design hand-off prototype are review material
+# kept outside the repository (qa-gallery.spec.ts writes under node_modules/.cache).
+/docs/frontend-qa/
+/docs/design-handoff/
+
 
 # The SPACE checkout. Cloned rather than vendored: see space/README.md.
 space/space-src/
