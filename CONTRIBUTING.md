@@ -55,6 +55,10 @@ in `frontend/src/config.ts`. Every flag has an owner, a removal task and a test 
 
 ## How agents contribute
 
+Fast lane (S): bugs with a reproduction, dependency bumps, docs, and red CI steps (owner decision 2026-10-21) go on
+`fix/<id>` with a failing test or the failing CI output first and a reduced review panel. On conflicts with the owner's
+commits, the owner's commit wins.
+
 Intake → spec (OpenSpec change) → `openspec validate --strict` + EPIC → tests first → plan → build → PR → review panel →
 merge queue (factory brief §6). Each task writes `docs/agent-work/<id>/handoff.md`. CRP for: NEEDS CLARIFICATION, public
 API/schema change, constitution conflict, and everything in `INTENT.md` §8.

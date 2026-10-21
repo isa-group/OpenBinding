@@ -3,8 +3,8 @@ Status: DRAFT for owner review (2026-10-21)
 # TESTING — OpenBinding
 
 How behaviour is proven in this repository. Commands are the ones CI (`.github/workflows/ci.yml`) and the existing
-docs use; `AGENTS.md` §3 lists them per component. Counts are from `spec/baseline` (9b5be00), counted by file
-inspection, not by running the suites.
+docs use; `AGENTS.md` §3 lists them per component. Counts are from `spec/platform-baseline` (from
+`integration/platform` @ 912648c), counted by file inspection, not by running the suites.
 
 ## 1. Test pyramid per component
 
@@ -17,7 +17,8 @@ inspection, not by running the suites.
 | MiniZinc engine (`engines/minizinc-csp/`) | `node --test`: `conformance`, `job_manager`, `minizinc_runner`, `cancel` (fake MiniZinc) | `pnpm test:lab` with `MINIZINC_REAL=1` (5 tests against real MiniZinc, lab image) | gateway integration | Node test runner |
 | Frontend (`frontend/`) | Vitest + Testing Library + jsdom: 177 `*.test.ts(x)` files (models, pages, routes, hygiene, touch targets) | API client tests against recorded problem documents | Playwright: project `mocked` (Vite dev server, API answered by the spec) and project `live` (`e2e/live/*`, against the lab at `http://localhost:18100`, screenshots 1440×900 and 390×844) | Vitest 4, Playwright 1.62 |
 | Lab profiles (`lab/tests/`) | static checks of `compose.lab*.json` (memory budget, secrets, published ports) | — | `process_probe.py`, `cancel_probe.py` in the lab | pytest |
-| QACOBench (`experimentation/qacobench/`) | `test_qacobench.py` (registry/seed stability, resume key, evaluation, reconciliation) | `run.sh pilot` (2 instances × 3 engines) | full campaign (reference 1.1.1) | pytest, Docker Compose |
+| QACOBench (`experimentation/qacobench/`) | `test_qacobench.py` (registry/seed stability, resume key, rejection classification, reconciliation, recovery provenance) | `run.sh pilot` (2 instances × 3 engines); `verify_dataset_digests.py` | full campaign (reference `reference/1.1.1/`) | pytest, Docker Compose |
+| ICSOC (`experimentation/icsoc/`) | `generator/tests` (needs the dataset from the branch `data/icsoc-original-dataset`, skipped otherwise) | `tests/integration/test_icsoc_regression.py` (skipped without the dataset) | — | pytest |
 
 ## 2. `acceptance/` layout (to be created)
 
@@ -60,6 +61,9 @@ recorded in `.agentic/project.yaml`.
 
 ## 6. End-to-end
 
+The QA gallery (`frontend/e2e/qa-gallery.spec.ts`) writes screenshots to `QA_GALLERY_DIR` (default
+`frontend/node_modules/.cache/qa-gallery/screenshots/`); screenshots are never committed.
+
 - Mocked browser suite: `cd frontend && pnpm test:e2e` (CI).
 - Live suite against the lab: `PLAYWRIGHT_BASE_URL=http://localhost:18100 LAB_SEED_PASSWORD=<synthetic> pnpm exec playwright test --project=live`.
 - API smoke against the lab: `openbinding-gateway/tools/smoke_lab.py` (via the lab seed container).
@@ -74,7 +78,15 @@ recorded in `.agentic/project.yaml`.
   are excluded with `-m 'not openbinding_corpus'`.
 - Datasets from Zenodo are never required by the default suites.
 
-## 8. Rules
+## 8. Known red checks at 912648c (NOT a pass)
+
+- `python3 tools/check_bim_guard.py` (CI job `engines`): 95 errors — expects 82 packages and finds 134, places
+  `RoutingOverlay`/`Placement` in the `application` role while the installed Profile declares them in `candidateCatalog`,
+  and flags retired markers (`/api/jobs` in the frontend, `bimstar`, `project.json`).
+- `experimentation/icsoc/generator/tests/test_generator.py` (CI job `test`, when the dataset is materialized): the generator
+  writes Placement under `application`; the compiler refuses it. Also fails on 014e43a.
+
+## 9. Rules
 
 - Red before green for every fix/feature; keep the failing output.
 - No new skips or xfails; SQLite-only coverage of locking code must be declared as such.

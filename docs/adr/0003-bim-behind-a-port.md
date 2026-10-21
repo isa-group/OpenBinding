@@ -3,7 +3,7 @@ Status: DRAFT for owner review (2026-10-21)
 # ADR-0003: The platform reaches BIM only through `BimPort`
 
 - Status: Accepted
-- Date: 2026-10-21 (recorded; implemented in the platform work up to 9b5be00)
+- Date: 2026-10-21 (recorded; implemented in the platform work, integrated in 912648c)
 - Deciders: owner (approved joint plan, 2026-10-12/14)
 
 ## Context and problem

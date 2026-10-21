@@ -80,7 +80,7 @@ gates:
     - {name: pnpm-audit, cwd: frontend, argv: [pnpm, audit, --prod], todo: true}
   G10_secrets_ownership:
     - {name: gitleaks, cwd: ., argv: [gitleaks, detect, --no-banner, --redact], todo: true}
-    - {name: forbidden-paths, policy: "no new files under datasets/0*_*/, .artifacts/, experimentation/icsoc/original_dataset/, docs/frontend-qa/screenshots/, docs/design-handoff/; no .env"}
+    - {name: forbidden-paths, policy: "no new files under datasets/0*_*/, .artifacts/, experimentation/icsoc/original_dataset/, docs/frontend-qa/, docs/design-handoff/; no .env"}
     - {name: owner-only-paths, policy: "R11 paths changed only with owner approval"}
   G11_review:
     - {name: review-panel, policy: "REVIEW.md section 2 by risk level"}

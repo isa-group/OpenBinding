@@ -71,8 +71,9 @@ They live in Zenodo deposits, the `data/icsoc-original-dataset` branch, or outsi
 7.2 Tests, seeds, fixtures, the lab and demos MUST use synthetic data and synthetic accounts only; no personal data,
 no production data, no real credentials.
 7.3 Third-party data MUST keep its attribution and licence notices.
-Enforced: `.gitignore`; G10 file-ownership check. GAP: `experimentation/icsoc/original_dataset/`, `datasets/sources/**`,
-`docs/frontend-qa/screenshots/`, `docs/design-handoff/prototype/` are still tracked at `spec/baseline`.
+Enforced: `.gitignore` (ignores `experimentation/icsoc/original_dataset/`, `docs/frontend-qa/`, `docs/design-handoff/`, generated
+suites and `.artifacts/`); G10 file-ownership check. The source inputs under `datasets/sources/` stay versioned, as the
+QACOBench 1.1.1 release decided; the ICSOC dataset lives on `data/icsoc-original-dataset`.
 
 ## Article 8 — Reproducibility of experiments
 
@@ -83,8 +84,8 @@ budgets, configuration hashes, host information.
 8.3 Reference results are versioned under `experimentation/qacobench/reference/<version>/` and MUST NOT be edited by
 hand; they change only by re-running the campaign in an approved change.
 8.4 Randomised engines and generators MUST be deterministic for a given seed and inputs.
-Enforced: QACOBench `capture_run_manifest.py`, `campaign.py` digest check (on `origin/feat-isa`). GAP: the pinned
-MiniZinc bundle is not yet on `spec/baseline` (apt `minizinc`).
+Enforced: QACOBench `capture_run_manifest.py`, the `campaign.py` manifest-digest check, the pinned MiniZinc 2.8.7 bundle
+in `engines/minizinc-csp/Dockerfile`, `evaluate_results.py` acceptance.
 
 ## Article 9 — Numeric semantics of engines
 
@@ -139,6 +140,7 @@ default 8), JSON body 16 MiB, generator ≤ 100 features and ≤ 1,000,000 candi
 14.2 Agents MUST NOT push, merge, approve, tag or retarget `main`, or force-push.
 14.3 Commits follow Conventional Commits with `Change:`/`Refs:` trailers, no AI-assistance markers, no co-author trailers.
 14.4 Reports MUST state only what was executed, with the SHA; unexecuted checks are `NOT EXECUTED`.
+14.5 When local work conflicts with a commit of the owner, the owner's commit wins.
 
 ## Amendments
 

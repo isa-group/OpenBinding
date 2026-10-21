@@ -3,7 +3,7 @@ Status: DRAFT for owner review (2026-10-21)
 # INTENT — bim-toolchain
 
 Owner: Francisco Javier Cavero López (`@javiercavlop`). Owner's document; agents propose edits by PR.
-Inferred from `bim-toolchain/` at OpenBinding `spec/baseline` (9b5be00). Guesses are marked `> OPEN QUESTION:`.
+Inferred from `bim-toolchain/` at OpenBinding `spec/platform-baseline` (from `integration/platform` @ 912648c). Guesses are marked `> OPEN QUESTION:`.
 
 ## 1. Purpose
 
@@ -45,8 +45,8 @@ probabilistic QoS and runtime adaptation are outside `qos-binding/v1`.
 
 ## 6. Hard constraints
 
-- Private repository `isa-group/bim-toolchain` (planned), licence CC-BY-4.0 for own material.
-  > OPEN QUESTION: final owner of the remote (`isa-group` per the factory brief vs `javiercavlop` in `docs/RELEASING.md`).
+- Private repository `isa-group/bim-toolchain` (owner decision; to be created), licence CC-BY-4.0 for own material.
+  OpenBinding pins a release tag and both CIs run the consumer contracts.
   > OPEN QUESTION: redistribution of the five OMG BPMN 2.0.2 XSDs (`docs/OMG_XSD_RIGHTS.md`); the export excludes them by default.
 - Python ≥ 3.11; `bim_core` depends only on `jsonschema`, `lxml`, `pyyaml`.
 - OpenBinding pins a released version; consumer-contract tests run in both CIs.

@@ -2,9 +2,9 @@ Status: DRAFT for owner review (2026-10-21)
 
 # ADR-0004: OpenBinding consumes BIM as a pinned release of `isa-group/bim-toolchain`
 
-- Status: Proposed
+- Status: Accepted (owner decision 2026-10-21; implementation pending)
 - Date: 2026-10-21
-- Deciders: owner (decided in the factory brief §3; not yet implemented)
+- Deciders: owner
 
 ## Context and problem
 
@@ -26,9 +26,8 @@ explicit change.
 - The OpenBinding corpus (`examples/`) remains the source of the `openbinding_corpus` test tier; how BIM CI obtains it is open.
 - The OMG BPMN XSD redistribution question must be settled before publication.
 
-> OPEN QUESTION: the brief names `isa-group/bim-toolchain`; `bim-toolchain/README.md` and `docs/RELEASING.md` name
-> `javiercavlop/bim-toolchain`. Which owner/organisation is final?
-> OPEN QUESTION: distribution channel for the pin (Git tag + `uv` git source, private package index, or wheels attached to releases)?
+- The repository is the private `isa-group/bim-toolchain`; OpenBinding pins a release tag. `bim-toolchain/README.md` and
+  `bim-toolchain/docs/RELEASING.md`/`DELIVERY.md` still name `javiercavlop/bim-toolchain` and must be corrected.
 
 ## Evidence
 

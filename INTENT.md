@@ -4,7 +4,8 @@ Status: DRAFT for owner review (2026-10-21)
 
 Owner: Francisco Javier Cavero López (`@javiercavlop`), ISA Research Group / SCORE Lab, Universidad de Sevilla.
 This is the owner's document. Agents propose edits by PR; they never change it on their own. Everything below was
-inferred from the code and docs at `spec/baseline` (9b5be00) and the owner's QACOBench 1.1.1 release (014e43a);
+inferred from the code and docs at `spec/platform-baseline` (from `integration/platform` @ 912648c, which includes the
+owner's QACOBench 1.1.1 release 014e43a);
 lines marked `> OPEN QUESTION:` are guesses or gaps for the owner to settle.
 
 ## 1. Purpose
@@ -69,8 +70,8 @@ every engine answer, and provenance for every artifact, job, study and report.
 - Distributed exactly-once execution (`docs/IDEMPOTENCY.md` states the real guarantees).
 - Hosting datasets, raw campaign results, QA screenshots or design prototypes in Git.
 
-> OPEN QUESTION: Does the in-repo copy of the BIM language stay a non-goal after extraction (i.e. OpenBinding never
-> again edits BIM semantics directly, only bumps the pinned tag)? This draft assumes yes (ADR-0002).
+After the extraction OpenBinding never edits BIM semantics directly; it bumps the pinned tag of the private
+`isa-group/bim-toolchain` and runs the consumer contracts (owner decision, ADR-0004).
 
 ## 6. Hard constraints
 

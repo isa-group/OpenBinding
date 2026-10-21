@@ -21,13 +21,14 @@ The QACOBench corpus (15,450 BIM packages) and its 46,350 raw records are gigaby
 ## Consequences
 
 - Default test suites never require the datasets.
-- At `spec/baseline` these are still tracked and must be removed by an approved change (not by rewriting history):
-  `experimentation/icsoc/original_dataset/` (1,401 files), `datasets/sources/**` (~560 files), `docs/frontend-qa/screenshots/`, `docs/design-handoff/prototype/` (296 files together with `docs/frontend-qa`).
-  `frontend/e2e/qa-gallery.spec.ts` and `frontend/src/styles/globals.css` reference those docs paths.
+- Applied by the integration (912648c): `experimentation/icsoc/original_dataset/` (1,401 files, ~980 MiB) moved to the
+  branch `data/icsoc-original-dataset` (b5c5589; CI materializes it when published, tests skip without it);
+  `docs/frontend-qa/` and `docs/design-handoff/` removed and ignored (dea9591; the QA gallery writes to `QA_GALLERY_DIR`).
+  History was not rewritten.
+- The source inputs under `datasets/sources/` (~560 files) stay versioned, as the QACOBench 1.1.1 README states; they also
+  travel in the Zenodo software deposit.
 
-> OPEN QUESTION: are the third-party inputs under `datasets/sources/` (icws, iots, bws_scp, rprsr15, quantum, hsc) "data"
-> to remove, or small source inputs to keep (the QACOBench README says source inputs stay versioned)?
 
 ## Evidence
 
-`git show origin/feat-isa:experimentation/qacobench/README.md` ("Publication"), `git show origin/feat-isa:output/zenodo/README.md`, `.gitignore`.
+`experimentation/qacobench/README.md` ("Publication"), `output/zenodo/README.md`, `tools/package_zenodo.sh`, `experimentation/icsoc/README.md`, `.gitignore`; owner decision 2026-10-21.

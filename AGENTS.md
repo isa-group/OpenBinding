@@ -22,7 +22,7 @@ web client. QACOBench is the experiment harness built on the public API.
 |---|---|---|
 | `openbinding-gateway/` | `/v1` HTTP API, jobs, persistence (`src/openbinding_gateway/`: `routes/ → services/ → repositories/ → db/`, plus `jobs/`, `access/`, `security/`, `integrations/bim*.py`) | Python 3.11, FastAPI, SQLAlchemy async, Alembic, Dramatiq/Redis, uv |
 | `bim-toolchain/` | BIM language: `bim-core` (compiler/evaluator), `bim-service` (`/bim/v1` HTTP), `bim-client` (`BimPort`). Being extracted to `isa-group/bim-toolchain`; has its own `AGENTS.md` | Python 3.11, uv workspace |
-| `engines/minizinc-csp/` | exact engine (MiniZinc + Gecode) | Node 20, TypeScript, Fastify, pnpm |
+| `engines/minizinc-csp/` | exact engine `minizinc-csp@1.1.1` (pinned MiniZinc 2.8.7 / Gecode 6.3.0 bundle) | Node 20, TypeScript, Fastify, pnpm |
 | `engines/{binding-core,random-search,many-heuristic,multi-heuristic,evolutionary-heuristics}/` | Java engines and their shared canonical evaluator | Maven, JUnit 5; binding-core targets Java 8 bytecode, CI uses JDK 21 |
 | `engines/bim-generator/` | Java QACO instance generator used by `/v1/generator` | Maven |
 | `frontend/` | React web client (route registry in `src/routes/`, pages in `src/pages/`) | React 19, Vite, TypeScript, Vitest, Playwright, pnpm |
@@ -93,9 +93,18 @@ pnpm exec playwright install --with-deps chromium && pnpm test:e2e              
 python3 ../tools/generate_changelog.py --check                                  # from the root: changelog current
 ```
 
-**QACOBench** (owner's `origin/feat-isa`, release 1.1.1): `experimentation/qacobench/run.sh {build|pilot|generate|manifest|campaign|evaluate|figures|analyze}`;
+**QACOBench** (release 1.1.1, reference results in `experimentation/qacobench/reference/1.1.1/`):
+`experimentation/qacobench/run.sh {build|pilot|transform|generate|manifest|campaign|evaluate|figures|analyze|notebooks}`;
 unit tests `python -m pytest experimentation/qacobench/test_qacobench.py`. Campaigns are heavy: never start one without an
-approved task.
+approved task. Raw results and the BIM dataset are Zenodo deposits (`output/zenodo/`, `tools/package_zenodo.sh`).
+
+**ICSOC dataset**: not in the development branches. Materialize it when needed with
+`git fetch origin data/icsoc-original-dataset && git archive FETCH_HEAD experimentation/icsoc/original_dataset | tar -x`
+(see `experimentation/icsoc/README.md`); tests that read it skip otherwise.
+
+**Known red CI steps at 912648c** (fix as fast-lane changes, see `CONTRIBUTING.md`): `python3 tools/check_bim_guard.py`
+(95 errors: stale package count and role rules, retired markers) and the ICSOC generator validation test (Placement
+under the `application` role, refused by the installed Profile; also fails on 014e43a).
 
 On NiPoGi the host has no `uv`, `node`, `pnpm`, `mvn` or `java`: run checks through the factory gate runner
 (`qa_run`) or the lab containers, never by installing toolchains on the host.
@@ -112,6 +121,8 @@ On NiPoGi the host has no `uv`, `node`, `pnpm`, `mvn` or `java`: run checks thro
 - Layering is enforced by `openbinding-gateway/tests/test_architecture_layers.py` (ratchets: `ALLOWED_LEGACY`,
   `GATE_LIFECYCLE_LEGACY`, `MAX_LINES` of `routes/v1.py` may only shrink). Only `integrations/bim*.py` import BIM
   packages (`tests/test_bim_boundary.py`).
+- Owner's commits win: when local work conflicts with a commit of the owner, keep the owner's version and re-apply
+  the local intent on top of it.
 - Evidence honesty: a check you did not run is reported as `NOT EXECUTED`, with the SHA of what you did run
   (style of `docs/qa/JOINT_STATUS.md`).
 - Requirements: EARS + OpenFastTrace ids `req~<capability>-<slug>~<rev>`; tag code/tests with `[impl->req~x~1]` /
@@ -129,7 +140,7 @@ Do:
 Don't:
 - Push to, merge into, tag or retarget `main`; force-push anything.
 - Commit datasets, raw campaign results, QA screenshots or design prototypes (they belong to Zenodo, the
-  `data/icsoc-original-dataset` branch or outside the repo).
+  `data/icsoc-original-dataset` branch or outside the repo; `docs/frontend-qa/` and `docs/design-handoff/` are git-ignored).
 - Call or write to SPACE/SPHERE (SPACE is on hold; SPHERE is read-only), production services, Zenodo or PyPI.
 - Change BIM semantics, IR digests, goldens, the engine protocol or public schemas without a CRP.
 - Touch `INTENT.md`, `constitution.md`, `REVIEW.md`, `.github/CODEOWNERS`, `.agentic/project.yaml` without the owner.
