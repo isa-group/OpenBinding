@@ -403,9 +403,22 @@ def live_members(table: dict[int, Proc], pgrp: int) -> list[int]:
     return [pid for pid, proc in table.items() if proc.pgrp == pgrp and proc.state not in ("Z", "X")]
 
 
-def solver_leaders(table: dict[int, Proc], engine_pid: int) -> list[int]:
-    """Process groups the engine started for its solvers: its children that lead their own group."""
-    return [pid for pid, proc in table.items() if proc.ppid == engine_pid and proc.pgrp == pid and proc.state != "Z"]
+def solver_leaders(table: dict[int, Proc], engine_pid: int, *, solving_only: bool = False) -> list[int]:
+    """Process groups the engine started for its solvers: its children that lead their own group.
+
+    The engine runs MiniZinc in phases, each in its own group: a short flattening (``minizinc -c``), the search
+    (``fzn-gecode``) and, rarely, an ``.ozn`` rendering (``minizinc --ozn-file``). ``solving_only`` keeps the search.
+    """
+    leaders = [pid for pid, proc in table.items() if proc.ppid == engine_pid and proc.pgrp == pid and proc.state != "Z"]
+    return [pid for pid in leaders if _is_search_phase(pid)] if solving_only else leaders
+
+
+def _is_search_phase(pid: int) -> bool:
+    try:
+        argv = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
+    except OSError:
+        return False
+    return b"-c" not in argv and b"--ozn-file" not in argv
 
 
 def zombie_children(table: dict[int, Proc], parent: int) -> list[int]:
@@ -728,7 +741,7 @@ def scenario_cancel(
     leaders: list[int] = []
     members: list[int] = []
     if engine_pid is not None:
-        leaders = wait_until(lambda: solver_leaders(proc_table(), engine_pid), 15.0, 0.1) or []
+        leaders = wait_until(lambda: solver_leaders(proc_table(), engine_pid, solving_only=True), 15.0, 0.1) or []
         if report.check("cancel: the engine started a solver process group", bool(leaders), f"leaders={leaders}"):
             members = live_members(proc_table(), leaders[0])
             before = ticks_of(members)
