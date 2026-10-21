@@ -1,8 +1,88 @@
 import { describe, expect, it } from 'vitest';
 import { retrievePricingFromYaml } from 'pricing4ts';
-import source from '../../space/pricing/openbinding.yml?raw';
 
-describe('active iPricing drives the frontend model', () => {
+// TEST FIXTURE, NOT A REAL PRICING: a minimal synthetic document with functional limits only. The real pricings live in the SPACE and
+// SPHERE consoles; this only proves that the parser the frontend relies on follows whatever document it is given.
+const source = `syntaxVersion: '3.1'
+saasName: synthetic-test-pricing
+version: 0.1.0
+createdAt: '2026-09-01'
+currency: EUR
+billing:
+  monthly: 1
+tags: [Solving, Collaboration]
+
+features:
+  solve:
+    description: Run engines.
+    tag: Solving
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['solve'] && subscriptionContext['concurrentJobs'] < pricingContext['usageLimits']['concurrentJobs']
+  apiAccess:
+    description: Use API keys.
+    tag: Collaboration
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['apiAccess']
+
+usageLimits:
+  concurrentJobs:
+    description: Jobs running at the same time for one actor.
+    tag: Solving
+    type: NON_RENEWABLE
+    trackable: true
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: job
+    linkedFeatures: [solve]
+  apiKeys:
+    description: Active API keys owned by one actor.
+    tag: Collaboration
+    type: NON_RENEWABLE
+    trackable: true
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: key
+    linkedFeatures: [apiAccess]
+
+plans:
+  BASIC:
+    description: Free default plan.
+    price: 0.0
+    unit: user/month
+    features:
+      solve: { value: true }
+      apiAccess: { value: true }
+    usageLimits:
+      concurrentJobs: { value: 1 }
+      apiKeys: { value: 1 }
+  PRO:
+    description: Contact us / Institutional agreement.
+    price: Contact us / Institutional agreement
+    unit: user/month
+    features:
+      solve: { value: true }
+      apiAccess: { value: true }
+    usageLimits:
+      concurrentJobs: { value: 8 }
+      apiKeys: { value: 25 }
+
+addOns:
+  CONCURRENCY_PACK:
+    description: Adds one concurrent job.
+    availableFor: [PRO]
+    price: Contact us
+    unit: pack/month
+    subscriptionConstraints: { minQuantity: 1, maxQuantity: 10, quantityStep: 1 }
+    usageLimitsExtensions:
+      concurrentJobs: { value: 1 }
+`;
+
+describe('a pricing document drives the frontend model', () => {
   it('reflects plan, limit, feature and add-on changes without code changes', () => {
     const original = retrievePricingFromYaml(source);
     const planId = Object.keys(original.plans ?? {})[0];

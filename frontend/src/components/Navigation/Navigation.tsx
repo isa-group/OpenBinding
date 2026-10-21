@@ -1,197 +1,200 @@
-import { useEffect, useRef, type SyntheticEvent } from 'react';
-import { ChevronDown, ExternalLink, Menu, Moon, Sun } from 'lucide-react';
+import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
+import { ChevronDown, Menu, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { useTheme } from '../../contexts/theme';
 import { useAuth } from '../../contexts/auth';
 import { config } from '../../config';
+import { personInitials } from '../../utils/initials';
+import { InstitutionMark } from '../InstitutionMark';
+import { INSTITUTION_NAME, useInstitutionalBranding } from '../InstitutionMark/institution';
 import './Navigation.css';
 
-const navMenus = [
-  {
-    label: 'Explore',
-    links: [
-      { to: '/explore', label: 'Public projects', description: 'Cases, studies and frozen reports' },
-      { to: '/examples', label: 'Example corpus', description: 'Executable BIM packages' },
-      { to: '/engines', label: 'Engines', description: 'Capabilities and deployments' },
-    ],
-  },
-  {
-    label: 'About BIM',
-    links: [
-      { to: '/workbench', label: 'BIM Workbench', description: 'Author, validate and solve' },
-      { to: '/profiles', label: 'Profiles & dialects', description: 'Language extension points' },
-      { to: '/schemas', label: 'Specification', description: 'BIM v1 contracts and schemas' },
-    ],
-  },
-  {
-    label: 'Research',
-    links: [
-      { to: '/research', label: 'Research', description: 'Sources and reproducible evidence' },
-      { to: '/funding', label: 'Funding', description: 'Institutions and project register' },
-      { to: '/contributions', label: 'Contributions', description: 'Open research topics' },
-    ],
-  },
-] as const;
+type MenuName = 'language' | 'account' | 'mobile';
 
-const directLinks = [
-  { to: '/pricing', label: 'Pricing' },
-  { to: '/team', label: 'Team' },
-  { to: '/changelog', label: 'Changelog' },
+const underPath = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`);
+
+const languageLinks = [
+  {
+    to: '/language', label: 'Profiles & dialects', description: 'How an instance becomes a binding problem',
+    isActive: (pathname: string) => pathname === '/language',
+  },
+  {
+    to: '/language/schemas/application', label: 'Schemas', description: 'Field reference for every resource kind',
+    isActive: (pathname: string) => underPath(pathname, '/language/schemas'),
+  },
+  {
+    to: '/examples', label: 'Examples', description: 'Official BIM packages to start from',
+    isActive: (pathname: string) => underPath(pathname, '/examples'),
+  },
+  {
+    to: '/workbench', label: 'Workbench', description: 'Validate a package without an account',
+    isActive: (pathname: string) => underPath(pathname, '/workbench'),
+  },
 ] as const;
 
 export function Navigation() {
-  const { theme, toggleTheme } = useTheme();
   const { user, isAdmin, signOut } = useAuth();
+  const institutional = useInstitutionalBranding();
   const location = useLocation();
-  const navigation = useRef<HTMLElement>(null);
-  const mobileMenu = useRef<HTMLDetailsElement>(null);
-  const desktopMenus = useRef<HTMLDivElement>(null);
-  const isResearch = Boolean(user && (user.plan === 'RESEARCH' || user.institutional_branding));
-  const isActive = (path: string) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
-  const closeNavigationMenus = (except?: HTMLDetailsElement) => navigation.current?.querySelectorAll<HTMLDetailsElement>('details[open]').forEach((menu) => {
-    if (menu !== except) menu.removeAttribute('open');
-  });
-  const closeDesktopMenus = () => closeNavigationMenus();
-  const closeMobileMenu = () => mobileMenu.current?.removeAttribute('open');
+  const header = useRef<HTMLElement>(null);
+  const languageToggle = useRef<HTMLButtonElement>(null);
+  const accountToggle = useRef<HTMLButtonElement>(null);
+  const mobileToggle = useRef<HTMLButtonElement>(null);
+  // Menus belong to the location they were opened on, so navigating closes them.
+  const [opened, setOpened] = useState<{ menu: MenuName | null; at: string }>({ menu: null, at: location.key });
+  const openMenu = opened.at === location.key ? opened.menu : null;
+
+  const isCurrent = (root: string) => underPath(location.pathname, root);
+  const languageActive = languageLinks.some((link) => link.isActive(location.pathname));
+  const closeMenus = () => setOpened({ menu: null, at: location.key });
+  const toggleMenu = (menu: MenuName) => setOpened({ menu: openMenu === menu ? null : menu, at: location.key });
+  const current = (active: boolean) => (active ? 'page' : undefined);
 
   useEffect(() => {
+    if (!openMenu) return undefined;
     const handlePointerDown = (event: PointerEvent) => {
-      if (!navigation.current?.contains(event.target as Node)) closeNavigationMenus();
+      if (!header.current?.contains(event.target as Node)) setOpened({ menu: null, at: location.key });
     };
 
     document.addEventListener('pointerdown', handlePointerDown);
     return () => document.removeEventListener('pointerdown', handlePointerDown);
-  });
+  }, [openMenu, location.key]);
 
-  const handleMenuToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
-    if (event.currentTarget.open) closeNavigationMenus(event.currentTarget);
+  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== 'Escape' || !openMenu) return;
+    closeMenus();
+    const toggle = { language: languageToggle, account: accountToggle, mobile: mobileToggle }[openMenu];
+    toggle.current?.focus();
   };
-  const handleMenuClick = (event: SyntheticEvent<HTMLElement>) => {
-    const menu = event.currentTarget.parentElement;
-    if (menu instanceof HTMLDetailsElement && !menu.open) closeNavigationMenus(menu);
+  const closeWhenFocusLeaves = (event: FocusEvent<HTMLElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) closeMenus();
   };
+  const handleSignOut = () => {
+    closeMenus();
+    void signOut();
+  };
+
+  const initials = personInitials(user?.username);
 
   return (
-    <header className="site-header">
-      <nav ref={navigation} className="navigation" aria-label="Primary navigation">
-        <div className="brand-group">
-          <Link to="/" viewTransition className="brand-link" aria-label={`${config.name} home`}>
-            <span className="brand-symbol" aria-hidden="true"><i /><i /><b /></span>
-            <span className="brand-wordmark"><strong>Open</strong>Binding</span>
-            {isResearch && (
-              <span
-                className="institution-header-mark"
-                title="Institutional account · Universidad de Sevilla"
-              >
-                <img src="/brands/us-fama.png" alt="Universidad de Sevilla" />
-              </span>
-            )}
-          </Link>
-        </div>
+    <header ref={header} className="site-header" onKeyDown={handleKeyDown}>
+      <div className="public-header">
+        <Link to="/" viewTransition className="brand-link" aria-label={`${config.name} home`}>
+          <span className="brand-wordmark">OpenBinding</span>
+          <InstitutionMark variant="compact" className="brand-institution" />
+        </Link>
 
-        <div ref={desktopMenus} className="desktop-primary">
-          {navMenus.slice(0, 2).map((menu) => (
-            <details className="nav-menu" key={menu.label} onToggle={handleMenuToggle}>
-              <summary className={menu.links.some((link) => isActive(link.to)) ? 'is-active' : undefined} onClick={handleMenuClick}>
-                {menu.label}<ChevronDown aria-hidden="true" />
-              </summary>
-              <div className="nav-menu-panel">
-                {menu.links.map((link) => (
-                  <Link key={link.to} to={link.to} viewTransition onClick={closeDesktopMenus} aria-current={isActive(link.to) ? 'page' : undefined}>
+        <nav className="public-nav" aria-label="Primary navigation">
+          <Link to="/explore" viewTransition className="public-nav-link" aria-current={current(isCurrent('/explore'))}>Explore</Link>
+          <Link to="/engines" viewTransition className="public-nav-link" aria-current={current(isCurrent('/engines'))}>Engines</Link>
+          <div className="public-nav-menu" onBlur={openMenu === 'language' ? closeWhenFocusLeaves : undefined}>
+            <button
+              ref={languageToggle}
+              type="button"
+              className={`public-nav-link${languageActive ? ' is-active' : ''}`}
+              aria-expanded={openMenu === 'language'}
+              aria-controls="public-language-menu"
+              onClick={() => toggleMenu('language')}
+            >
+              Language <ChevronDown aria-hidden="true" />
+            </button>
+            {openMenu === 'language' && (
+              <div id="public-language-menu" className="public-menu-panel public-language-panel">
+                {languageLinks.map((link) => (
+                  <Link key={link.to} to={link.to} viewTransition aria-current={current(link.isActive(location.pathname))}>
                     <strong>{link.label}</strong><span>{link.description}</span>
                   </Link>
                 ))}
               </div>
-            </details>
-          ))}
+            )}
+          </div>
+          <Link to="/pricing" viewTransition className="public-nav-link" aria-current={current(isCurrent('/pricing'))}>Pricing</Link>
+          <Link to="/about" viewTransition className="public-nav-link" aria-current={current(isCurrent('/about'))}>About</Link>
+        </nav>
 
-          {directLinks.slice(0, 2).map((link) => (
-            <Link key={link.to} to={link.to} viewTransition className={`primary-link ${isActive(link.to) ? 'is-active' : ''}`} aria-current={isActive(link.to) ? 'page' : undefined}>
-              {link.label}
-            </Link>
-          ))}
-
-          <details className="nav-menu" onToggle={handleMenuToggle}>
-            <summary className={navMenus[2].links.some((link) => isActive(link.to)) ? 'is-active' : undefined} onClick={handleMenuClick}>
-              Research<ChevronDown aria-hidden="true" />
-            </summary>
-            <div className="nav-menu-panel">
-              {navMenus[2].links.map((link) => (
-                <Link key={link.to} to={link.to} viewTransition onClick={closeDesktopMenus} aria-current={isActive(link.to) ? 'page' : undefined}>
-                  <strong>{link.label}</strong><span>{link.description}</span>
-                </Link>
-              ))}
-            </div>
-          </details>
-
-          <Link to="/changelog" viewTransition className={`primary-link ${isActive('/changelog') ? 'is-active' : ''}`} aria-current={isActive('/changelog') ? 'page' : undefined}>Changelog</Link>
-        </div>
-
-        <div className="nav-utilities">
+        <div className="public-actions">
           {user ? (
             <>
-              <Link to="/app" viewTransition className="platform-link">Open platform</Link>
-              <Link to="/app/account" viewTransition className="account-link" title={`Signed in as ${user.username}`}>
-                {user.username}<span>{user.plan}</span>
-              </Link>
-              {isAdmin && <Link to="/app/admin" viewTransition className="utility-link">Admin</Link>}
-              <button type="button" className="text-action" onClick={() => void signOut()}>Sign out</button>
+              <Link to="/app" viewTransition className="public-button public-button-primary">Open workspace</Link>
+              <div className="public-nav-menu" onBlur={openMenu === 'account' ? closeWhenFocusLeaves : undefined}>
+                <button
+                  ref={accountToggle}
+                  type="button"
+                  className="public-avatar"
+                  aria-label="Account menu"
+                  aria-expanded={openMenu === 'account'}
+                  aria-controls="public-account-menu"
+                  onClick={() => toggleMenu('account')}
+                >
+                  {initials}
+                </button>
+                {openMenu === 'account' && (
+                  <div id="public-account-menu" className="public-menu-panel public-account-panel">
+                    <div className="public-account-card">
+                      <strong>{user.username}</strong>
+                      <span>{user.email}</span>
+                      {institutional && (
+                        <span className="public-institution-chip">{INSTITUTION_NAME} · Institutional account</span>
+                      )}
+                    </div>
+                    <Link to="/app" viewTransition>Workspace</Link>
+                    <Link to="/app/account" viewTransition>Account</Link>
+                    {isAdmin && <Link to="/app/admin" viewTransition>Administration</Link>}
+                    <button type="button" onClick={handleSignOut}>Log out</button>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <>
-              <Link to="/login" viewTransition className="utility-link">Sign in</Link>
-              <Link to="/register" viewTransition className="platform-link">Open platform</Link>
+              <Link to="/login" viewTransition className="public-button">Log in</Link>
+              <Link to="/register" viewTransition className="public-button public-button-primary">
+                Sign up <span className="public-button-arrow" aria-hidden="true">↗</span>
+              </Link>
             </>
           )}
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={toggleTheme}
-            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-          >
-            {theme === 'light' ? <Moon aria-hidden="true" /> : <Sun aria-hidden="true" />}
-          </button>
         </div>
 
-        <details ref={mobileMenu} className="mobile-navigation" onToggle={handleMenuToggle}>
-          <summary><Menu aria-hidden="true" /> <span>Navigate</span></summary>
-          <div className="mobile-navigation-panel">
-            <div className="mobile-primary">
-              {navMenus.map((menu) => (
-                <section key={menu.label}>
-                  <span className="micro-label">{menu.label}</span>
-                  {menu.links.map((link) => (
-                    <Link key={link.to} to={link.to} viewTransition aria-current={isActive(link.to) ? 'page' : undefined} onClick={closeMobileMenu}>{link.label}</Link>
-                  ))}
-                </section>
-              ))}
-              <section>
-                <span className="micro-label">OpenBinding</span>
-                {directLinks.map((link) => <Link key={link.to} to={link.to} viewTransition onClick={closeMobileMenu}>{link.label}</Link>)}
-              </section>
-            </div>
-            <div className="mobile-utilities">
-              <a href={`${config.apiBaseUrl}/docs`} target="_blank" rel="noreferrer">API reference <ExternalLink aria-hidden="true" /></a>
-              {user ? (
-                <>
-                  {isResearch && <a className="mobile-institution-mark" href="https://www.us.es" target="_blank" rel="noreferrer"><img src="/brands/universidad-sevilla.svg" alt="Institutional account · Universidad de Sevilla" /></a>}
-                  <Link to="/app" viewTransition onClick={closeMobileMenu}>Open platform</Link>
-                  <Link to="/app/account" viewTransition onClick={closeMobileMenu}>{user.username} · {user.plan}</Link>
-                  {isAdmin && <Link to="/app/admin" viewTransition onClick={closeMobileMenu}>Admin</Link>}
-                  <button type="button" onClick={() => { closeMobileMenu(); void signOut(); }}>Sign out</button>
-                </>
-              ) : (
-                <>
-                  <Link to="/login" viewTransition onClick={closeMobileMenu}>Sign in</Link>
-                  <Link to="/register" viewTransition onClick={closeMobileMenu}>Create account</Link>
-                </>
-              )}
-              <button type="button" onClick={toggleTheme}>Switch to {theme === 'light' ? 'dark' : 'light'} mode</button>
-            </div>
+        <button
+          ref={mobileToggle}
+          type="button"
+          className="public-mobile-toggle"
+          aria-label={openMenu === 'mobile' ? 'Close menu' : 'Open menu'}
+          aria-expanded={openMenu === 'mobile'}
+          aria-controls="public-mobile-menu"
+          onClick={() => toggleMenu('mobile')}
+        >
+          {openMenu === 'mobile' ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+        </button>
+      </div>
+
+      {openMenu === 'mobile' && (
+        <nav id="public-mobile-menu" className="public-mobile-menu" aria-label="Mobile navigation">
+          <InstitutionMark variant="wide" className="public-mobile-institution" />
+          <Link to="/explore" viewTransition aria-current={current(isCurrent('/explore'))}>Explore</Link>
+          <Link to="/engines" viewTransition aria-current={current(isCurrent('/engines'))}>Engines</Link>
+          <div className="public-mobile-group">
+            <span>Language</span>
+            {languageLinks.map((link) => (
+              <Link key={link.to} to={link.to} viewTransition aria-current={current(link.isActive(location.pathname))}>{link.label}</Link>
+            ))}
           </div>
-        </details>
-      </nav>
+          <Link to="/pricing" viewTransition aria-current={current(isCurrent('/pricing'))}>Pricing</Link>
+          <Link to="/about" viewTransition aria-current={current(isCurrent('/about'))}>About</Link>
+          {user ? (
+            <>
+              <Link to="/app" viewTransition className="public-button public-button-primary">Open workspace</Link>
+              <Link to="/app/account" viewTransition className="public-button">Account</Link>
+              {isAdmin && <Link to="/app/admin" viewTransition className="public-button">Administration</Link>}
+              <button type="button" className="public-button" onClick={handleSignOut}>Log out</button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" viewTransition className="public-button">Log in</Link>
+              <Link to="/register" viewTransition className="public-button public-button-primary">Sign up</Link>
+            </>
+          )}
+        </nav>
+      )}
     </header>
   );
 }

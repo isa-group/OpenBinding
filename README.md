@@ -13,10 +13,23 @@ The platform deliberately keeps those layers separate:
   IR before any engine sees them.
 - PostgreSQL owns users, collaboration, jobs, provenance and release metadata;
   Redis delivers durable work and one-use CAS state.
-- SPHERE owns the immutable operational Pricing2Yaml versions under
-  `OpenBinding/openbinding`; SPACE 1.5 owns contracts and usage accounting.
+- SPHERE and SPACE are **remote** services administered in their own consoles.
+  OpenBinding shows the plan, permissions and links, reads the published
+  pricing read-only and delegates sign-up and plan changes to the official
+  SPACE client (`MANAGEMENT` scope). There is no local SPACE stack and no
+  pricing editor or contract renewal of its own in OpenBinding.
+- Nothing is metered or charged: there are no credits or compute units, and the
+  only execution limit that is not a plan entitlement is a technical
+  per-account concurrency cap (`MAX_CONCURRENT_JOBS_PER_USER`, answered with
+  `429 concurrency_limit_exceeded`). The former automatic Engine selection was
+  retired and has no replacement.
 - Universidad de Sevilla CAS accounts receive the `RESEARCH` contract and a
   compact institutional mark. No identity is ever linked by email alone.
+
+For the layers of the gateway and the BIM/platform boundary, see
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); for the guarantees of job
+submission and execution, [`docs/IDEMPOTENCY.md`](docs/IDEMPOTENCY.md); for the
+current state of the work, [`docs/qa/JOINT_STATUS.md`](docs/qa/JOINT_STATUS.md).
 
 See the [interactive BIM v1 architecture map](docs/diagrams/bim-v1-architecture.html) for the package, compilation, and engine boundaries.
 
@@ -88,13 +101,32 @@ files—and are selected by generic IR feature/capability compatibility.
 ```
 
 For the complete collaborative stack, copy `.env.example`, set a signing
-secret, and start the development profile. The optional `space` profile builds
-the pinned SPACE 1.5 checkout prepared by `./space/prepare.sh`:
+secret, and start the development profile. SPACE (`https://space.score.us.es`)
+and SPHERE are remote services configured through `SPACE_URL`/`SPACE_API_KEY`
+(`MANAGEMENT` scope) and `SPHERE_*` in `.env` (`SPACE_ENABLED` and
+`SPHERE_ENABLED` are `false` in `.env.example`); no copy of them is deployed
+locally and they are administered in their native UIs:
 
 ```bash
-docker compose --profile dev up -d --build
-./up.sh --with-space
+docker compose --profile dev up -d --build     # development
+docker compose --profile prod up -d --build    # production images behind nginx
 ```
+
+`docker-compose.yml` defines the profiles `dev`, `prod`, `db-tools` (Adminer),
+`federated-example` and `benchmark`. `dev` and `prod` start PostgreSQL, Redis,
+the gateway, the analysis worker, the four bundled Engines, the frontend and
+nginx. With `APP_ENV=prod` the gateway refuses to start unless
+`CORS_ALLOW_ORIGINS` names exact origins. Whether the stack, SPACE and SPHERE
+work together end to end against the real remote services has not been
+exercised yet; see [`docs/qa/JOINT_STATUS.md`](docs/qa/JOINT_STATUS.md).
+
+**Development scope.** The development pricing and the development service
+registered in SPACE are private and distinct from the production ones, but
+they live inside the *same organizations*. A shared organization does **not**
+isolate credentials: a development `SPACE_API_KEY` or `SPHERE_API_KEY` with
+`MANAGEMENT` scope can act on whatever that organization holds, so treat it as
+a high-risk secret, keep it out of images, logs and the browser, and never reuse
+a production key for development.
 
 The web application is available at `http://localhost`; the gateway publishes
 its OpenAPI document at `http://localhost:8000/docs`. Adminer is an explicitly
@@ -113,12 +145,12 @@ database`, recreate only the local PostgreSQL volume and start the stack again:
 docker compose stop postgres
 docker compose rm -f postgres
 docker volume rm openbinding_pgdata
-./up.sh --with-space
+./up.sh
 ```
 
 The volume name follows the Compose project name; use
 `docker volume ls --format '{{.Name}}'` if `COMPOSE_PROJECT_NAME` is set. This
-procedure leaves SPACE, Redis, artifacts and other development volumes intact.
+procedure leaves Redis, artifacts and other development volumes intact.
 
 ### Seeding development data
 
@@ -158,8 +190,8 @@ The React workbench is a single transactional `InstanceWorkspace` over the
 same package and compiler contracts used by API clients. Its surrounding
 platform shell adds the organization/project context, onboarding for new
 accounts, cases, resources, collections, studies, public Explore surfaces,
-authenticated Engine management (`/app/engines`) with owner telemetry, and
-the SPHERE/SPACE pricing control room.
+authenticated Engine management (`/app/engines`) with owner telemetry. Pricing
+is managed in the remote SPHERE and SPACE UIs, not in OpenBinding.
 
 ### Scientific Provenance, Deep Inspection & Replication
 
@@ -179,16 +211,34 @@ OpenBinding guarantees strict cryptographic immutability and provenance:
 - `frontend`: the BIM Instance Workspace.
 - `deploy`: plain Kustomize manifests, network policies and backup/restore
   runbooks; no Helm dependency.
-- `space`: the exact SPACE 1.5 pin, bootstrap tooling and the reviewable first
-  OpenBinding pricing release (`0.1.0`).
+- `bim-toolchain`: self-contained directory being extracted into its own
+  private repository (`javiercavlop/bim-toolchain`; the remote has not been
+  created). See [BIM extraction status](#bim-extraction-status).
+- `space`: only the pricing fixture (`space/pricing/openbinding.yml`); SPACE
+  itself is remote.
+- `pricings`: third-party FaaS pricing documents (AWS, Azure, Google Cloud)
+  that BIM experiments analyse. They are **not** OpenBinding plans; see
+  [`pricings/README.md`](pricings/README.md).
 - `engines`: MiniZinc, random-search, many-heuristic, evolutionary modes,
   `bim-generator`, and the federated `multi-heuristic` example.
 - `examples` and `experimentation`: BIM v1 packages and reproducible generators.
 
+### BIM extraction status
+
+BIM is being extracted into `bim-toolchain/`, planned as three parts: `bim-core`
+(compilation and evaluation), `bim-service` (an HTTP API under `/bim/v1`) and
+`bim-client` (a `BimPort` with in-process and HTTP implementations). In this
+tree only `bim-toolchain/packages/bim-core` exists (see
+[`bim-toolchain/README.md`](bim-toolchain/README.md)); no `bim-service` or
+`bim-client` directory was found, so they are not described here as available.
+**Transitional state:** until the cut-over, OpenBinding still compiles and
+evaluates with its own copy under `openbinding-gateway/src/openbinding_gateway/v1`
+and does not depend on `bim-toolchain`. See [BIM core](docs/BIM_CORE.md).
+
 Start with the [progressive BIM model atlas](docs/models/README.md) for the
 metamodels and concrete instances, continue with the
 [BIM architecture](docs/BIM_V1.md), explore the
-[BIM generator and autorouter calibration](docs/BIM_GENERATOR.md), follow the
+[BIM generator](docs/BIM_GENERATOR.md), follow the
 [authoring guide](docs/AUTHORING_GUIDE.md), or read the
 [engine integration guide](docs/ENGINE_INTEGRATION.md).
 

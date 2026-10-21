@@ -4,8 +4,8 @@ from itertools import product
 
 from _repo import REPO_ROOT
 
-from openbinding_gateway.v1.compiler import compile_instance
-from openbinding_gateway.v1.package import load_package
+from bim_core.compiler import compile_instance
+from bim_core.package import load_package
 
 
 BPMN_EXAMPLE = REPO_ROOT / "examples/demo/15_bpmn_complete"

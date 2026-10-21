@@ -5,14 +5,10 @@ the translation is where the surprises were - every one of the behaviours
 asserted below was learned by watching SPACE refuse something, and
 each would fail silently rather than loudly if it regressed:
 
-* usage-level updates carry **plain** limit names inside the service key, while
-  feature evaluation wants them **qualified**. Qualify them in the wrong place
-  and the update is accepted and ignored;
-* evaluation is asked as a question, with no expected consumption, because
-  SPACE applies consumption limit-by-limit concurrently and loses all but one
-  of the updates;
 * plan ceilings come from the pricing token, because a contract records only
-  what has been consumed, never the allowance.
+  what has been consumed, never the allowance;
+* a contract the client quietly refused is read back and reported;
+* the gateway only reads and manages contracts - it consumes nothing.
 """
 
 from __future__ import annotations
@@ -23,17 +19,20 @@ import uuid
 
 import pytest
 
+from _fake_space import FakePricingGate
 from _pricing import largest_plan, pricing_catalog
 from openbinding_gateway.core.settings import Settings
-from openbinding_gateway.space_client import PricingUnavailable, SpacePricingGate
+from openbinding_gateway.space_client import (
+    OpenGate,
+    PricingGate,
+    PricingUnavailable,
+    SpacePricingGate,
+    SubscriptionRejected,
+)
 
 CATALOG = pricing_catalog()
 DEFAULT_PLAN = CATALOG.default_plan
 LARGER_PLAN = largest_plan()
-SOLVE = "solve"
-TASKS = "taskStarts"
-CONCURRENT = "concurrentJobs"
-SOLVER_TIME = "solverSeconds"
 API_KEYS = "apiKeys"
 MAX_TIMEOUT = "maxTimeoutSeconds"
 MAX_PAYLOAD = "maxPayloadBytes"
@@ -55,14 +54,13 @@ def contract_for(
     }
 
 
-def a_token(limits=None, consumed=None, features=None) -> str:
+def a_token(limits=None, features=None) -> str:
     """A pricing token shaped like the ones SPACE issues."""
     claims = {
         "pricingContext": {
             "features": {f"openbinding-{k}": v for k, v in (features or {}).items()},
             "usageLimits": {f"openbinding-{k}": v for k, v in (limits or {}).items()},
         },
-        "subscriptionContext": {f"openbinding-{k}": v for k, v in (consumed or {}).items()},
     }
     payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).decode().rstrip("=")
     return f"header.{payload}.signature"
@@ -71,9 +69,8 @@ def a_token(limits=None, consumed=None, features=None) -> str:
 class Recorder:
     """Stands in for the client, remembering how it was called."""
 
-    def __init__(self, *, evaluation=None, token=None, contract=MISSING, explode=False):
+    def __init__(self, *, token=None, contract=MISSING, explode=False):
         self.calls: list[tuple] = []
-        self._evaluation = evaluation
         self._token = token
         self._contract = contract_for() if contract is MISSING else contract
         self._explode = explode
@@ -88,14 +85,6 @@ class Recorder:
     class _Features:
         def __init__(self, outer):
             self._outer = outer
-
-        def evaluate(self, user_id, feature_id, expected_consumption=None):
-            self._outer._record("evaluate", user_id, feature_id, expected_consumption)
-            return self._outer._evaluation
-
-        def revert_evaluation(self, user_id, feature_id):
-            self._outer._record("revert", user_id, feature_id)
-            return True
 
         def generate_user_pricing_token(self, user_id):
             self._outer._record("token", user_id)
@@ -121,24 +110,6 @@ class Recorder:
             self._outer._record("novate", user_id, subscription)
             return subscription
 
-        def update_contract_usage_levels(self, user_id, service_name, increments):
-            self._outer._record("usage_levels", user_id, service_name, increments)
-            return None
-
-
-class Evaluation:
-    def __init__(self, allowed, limit=None, used=None, error=None):
-        self.eval = allowed
-        self.limit = limit or {}
-        self.used = used or {}
-        self.error = error
-
-
-class Error:
-    def __init__(self, message):
-        self.message = message
-
-
 
 @pytest.fixture(autouse=True)
 def a_pristine_environment(monkeypatch):
@@ -154,7 +125,8 @@ def a_pristine_environment(monkeypatch):
         "SPACE_ENABLED",
         "SPACE_URL",
         "SPACE_API_KEY",
-        "SPACE_FAIL_MODE",
+        "SPACE_PRICING_VERSION",
+        "SPACE_DEFAULT_PLAN",
         "SPACE_TIMEOUT_MS",
         "FEDERATION_SECRET_KEY",
         "FEDERATION_REQUIRE_HTTPS",
@@ -162,15 +134,8 @@ def a_pristine_environment(monkeypatch):
         monkeypatch.delenv(name, raising=False)
 
 
-def gate_over(recorder: Recorder) -> SpacePricingGate:
-    async def resolve(version: str):
-        if version != CATALOG.version:
-            raise AssertionError(f"unexpected catalog version {version}")
-        return CATALOG
-
-    return SpacePricingGate(
-        Settings(_env_file=None), client=recorder, catalog_resolver=resolve
-    )
+def gate_over(recorder: Recorder, **settings) -> SpacePricingGate:
+    return SpacePricingGate(Settings(_env_file=None, **settings), client=recorder)
 
 
 @pytest.fixture
@@ -184,92 +149,11 @@ def test_it_refuses_to_start_without_a_url_or_key():
         SpacePricingGate(Settings(_env_file=None, space_enabled=True))
 
 
-async def test_evaluation_names_the_feature_by_service(user_id):
-    recorder = Recorder(evaluation=Evaluation(True))
+@pytest.mark.parametrize("gate_class", [PricingGate, SpacePricingGate, FakePricingGate, OpenGate])
+def test_no_gate_offers_to_evaluate_or_consume(gate_class):
+    consuming = [name for name in dir(gate_class) if any(word in name for word in ("usage", "evaluat", "revert"))]
 
-    await gate_over(recorder).evaluate(user_id, "solve")
-
-    assert recorder.calls[-1][:3] == (
-        "evaluate",
-        str(user_id),
-        f"openbinding-{SOLVE}",
-    )
-
-
-async def test_evaluation_sends_no_expected_consumption(user_id):
-    # Sending it makes SPACE apply the increments limit-by-limit and
-    # concurrently, so all but one are lost. The gateway does its own
-    # accounting instead; see adjust_usage.
-    recorder = Recorder(evaluation=Evaluation(True))
-
-    await gate_over(recorder).evaluate(user_id, "solve", {"taskStarts": 1})
-
-    assert recorder.calls[-1][3] is None
-
-
-async def test_an_allowed_feature_is_allowed(user_id):
-    assert (await gate_over(Recorder(evaluation=Evaluation(True))).evaluate(user_id, "solve")).allowed
-
-
-async def test_a_denied_feature_is_refused_with_its_reason(user_id):
-    recorder = Recorder(evaluation=Evaluation(False, error=Error(f"{TASKS} is spent")))
-
-    verdict = await gate_over(recorder).evaluate(user_id, "solve")
-
-    assert verdict.allowed is False
-    assert "spent" in verdict.reason
-
-
-async def test_a_refusal_names_the_limit_that_ran_out(user_id):
-    # So the caller can tell somebody which quota to worry about, rather than
-    # "something in your plan said no".
-    recorder = Recorder(
-        evaluation=Evaluation(
-            False,
-            limit={f"openbinding-{TASKS}": 100, f"openbinding-{CONCURRENT}": 5},
-            used={f"openbinding-{TASKS}": 100, f"openbinding-{CONCURRENT}": 1},
-        )
-    )
-
-    verdict = await gate_over(recorder).evaluate(user_id, "solve")
-
-    assert verdict.limit.limit_id == TASKS
-    assert verdict.limit.limit == 100
-
-
-async def test_an_account_with_no_contract_is_pricing_unavailable(user_id):
-    with pytest.raises(PricingUnavailable, match="no contract"):
-        await gate_over(Recorder(evaluation=None, contract=None)).evaluate(
-            user_id, "solve"
-        )
-
-
-async def test_usage_levels_are_sent_unqualified_under_the_service(user_id):
-    # The service is already the outer key. Qualifying the inner names makes
-    # SPACE accept the request and change nothing.
-    recorder = Recorder()
-
-    await gate_over(recorder).adjust_usage(user_id, {"solverSeconds": 12.5})
-
-    name, user, service, increments = recorder.calls[-1]
-    assert (name, user, service) == ("usage_levels", str(user_id), "openbinding")
-    assert increments == {SOLVER_TIME: 12.5}
-
-
-async def test_releasing_a_slot_is_a_negative_increment(user_id):
-    recorder = Recorder()
-
-    await gate_over(recorder).adjust_usage(user_id, {"concurrentJobs": -1})
-
-    assert recorder.calls[-1][3] == {CONCURRENT: -1}
-
-
-async def test_no_request_is_made_for_an_empty_adjustment(user_id):
-    recorder = Recorder()
-
-    await gate_over(recorder).adjust_usage(user_id, {})
-
-    assert recorder.calls == []
+    assert consuming == []
 
 
 async def test_ceilings_come_from_the_pricing_token(user_id):
@@ -285,8 +169,18 @@ async def test_ceilings_come_from_the_pricing_token(user_id):
     assert caps.limit("maxPayloadBytes") == 512 * 1024 * 1024
 
 
+async def test_features_come_from_the_pricing_token(user_id):
+    recorder = Recorder(token=a_token(features={"solve": True, "studies": False}))
+
+    caps = await gate_over(recorder).caps(user_id)
+
+    assert caps.allows("solve") is True
+    assert caps.allows("studies") is False
+    assert caps.allows("federatedEngines") is False  # absent fails closed
+
+
 async def test_missing_ceilings_fail_closed(user_id):
-    recorder = Recorder(token=a_token(limits={TASKS: 100}))
+    recorder = Recorder(token=a_token(limits={API_KEYS: 100}))
 
     caps = await gate_over(recorder).caps(user_id)
 
@@ -310,49 +204,13 @@ async def test_an_account_with_no_token_is_pricing_unavailable(user_id):
         await gate_over(Recorder(token=None)).caps(user_id)
 
 
-async def test_usage_pairs_allowances_with_consumption(user_id):
-    recorder = Recorder(
-        token=a_token(limits={TASKS: 100}, consumed={TASKS: 3})
-    )
-
-    usage = await gate_over(recorder).usage(user_id)
-
-    assert usage.limits[TASKS].used == 3
-    assert usage.limits[TASKS].remaining == 97
-
-
-async def test_a_limit_never_consumed_reads_as_zero(user_id):
-    # The token omits limits with no consumption rather than reporting zero.
-    recorder = Recorder(token=a_token(limits={TASKS: 100}, consumed={}))
-
-    usage = await gate_over(recorder).usage(user_id)
-
-    assert usage.limits[TASKS].used == 0
-
-
-async def test_renewal_dates_come_from_the_contract(user_id):
-    # The token says what is allowed and what is spent, but never when the
-    # slate is wiped - which is what somebody out of quota wants to know.
-    recorder = Recorder(
-        token=a_token(limits={TASKS: 100}),
-        contract={
-            **contract_for(),
-            "usageLevels": {"openbinding": {TASKS: {"resetTimeStamp": "2026-08-29T00:00:00Z"}}}
-        },
-    )
-
-    usage = await gate_over(recorder).usage(user_id)
-
-    assert usage.limits[TASKS].renews_at == "2026-08-29T00:00:00Z"
-
-
 async def test_the_plan_comes_from_the_contract(user_id):
     recorder = Recorder(
-        token=a_token(limits={TASKS: 100}),
+        token=a_token(limits={MAX_TIMEOUT: 100}),
         contract=contract_for(LARGER_PLAN),
     )
 
-    assert (await gate_over(recorder).usage(user_id)).plan == LARGER_PLAN
+    assert (await gate_over(recorder).caps(user_id)).plan == LARGER_PLAN
 
 
 async def test_a_contract_is_created_for_the_service_and_plan(user_id):
@@ -390,11 +248,31 @@ async def test_a_contract_that_space_quietly_refused_is_an_error(user_id):
     assert "pricing version" in str(error.value)
 
 
-async def test_a_contract_requires_an_explicit_pricing_version(user_id):
-    with pytest.raises(PricingUnavailable, match="exact LIVE pricing version"):
+async def test_a_contract_requires_a_pricing_version_from_the_call_or_the_configuration(user_id):
+    with pytest.raises(PricingUnavailable, match="SPACE_PRICING_VERSION"):
         await gate_over(Recorder()).create_contract(
             user_id, DEFAULT_PLAN, "someone@example.org"
         )
+
+
+async def test_the_configured_pricing_version_is_used_when_the_call_names_none(user_id):
+    recorder = Recorder()
+
+    await gate_over(recorder, space_pricing_version=CATALOG.version).create_contract(
+        user_id, DEFAULT_PLAN, "someone@example.org"
+    )
+
+    assert recorder.calls[0][1].contracted_services == {"openbinding": CATALOG.version}
+
+
+async def test_a_contract_without_a_plan_leaves_the_plan_to_space(user_id):
+    recorder = Recorder()
+
+    await gate_over(recorder).create_contract(user_id, None, "someone@example.org", CATALOG.version)
+
+    contract = recorder.calls[0][1]
+    assert contract.subscription_plans == {}
+    assert contract.contracted_services == {"openbinding": CATALOG.version}
 
 
 async def test_a_new_contract_spells_out_an_empty_phone(user_id):
@@ -419,43 +297,45 @@ async def test_changing_plan_novates_the_subscription(user_id):
     assert subscription.subscription_plans == {"openbinding": LARGER_PLAN}
 
 
-async def test_an_expired_contract_is_novated_to_live_with_plan_and_add_ons_preserved(user_id):
+async def test_a_plan_change_keeps_the_version_the_contract_is_pinned_to(user_id):
+    recorder = Recorder(contract=contract_for(version="pinned-version"))
+
+    await gate_over(recorder).change_plan(user_id, LARGER_PLAN)
+
+    subscription = next(call[2] for call in recorder.calls if call[0] == "novate")
+    assert subscription.contracted_services == {"openbinding": "pinned-version"}
+    assert subscription.subscription_plans == {"openbinding": LARGER_PLAN}
+
+
+async def test_a_plan_change_keeps_the_add_ons_and_follows_the_configured_version(user_id):
     add_on_name, add_on = next(iter(CATALOG.add_ons.items()))
     plan = next(iter(add_on.available_for))
     selected = {add_on_name: add_on.minimum}
-    recorder = Recorder(
-        contract=contract_for(
-            plan,
-            version="previous-version",
-            add_ons=selected,
-            end_date="2020-01-01T00:00:00Z",
-        )
-    )
+    recorder = Recorder(contract=contract_for(plan, version="previous-version", add_ons=selected))
 
-    changed = await gate_over(recorder).migrate_due_contract(user_id, CATALOG.version)
+    await gate_over(recorder, space_pricing_version=CATALOG.version).change_plan(user_id, plan)
 
-    assert changed is True
     subscription = next(call[2] for call in recorder.calls if call[0] == "novate")
     assert subscription.contracted_services == {"openbinding": CATALOG.version}
-    assert subscription.subscription_plans == {"openbinding": plan}
     assert subscription.subscription_add_ons == {"openbinding": selected}
 
 
-async def test_a_contract_is_not_migrated_before_its_renewal(user_id):
-    recorder = Recorder(
-        contract=contract_for(
-            version="previous-version", end_date="2999-01-01T00:00:00Z"
-        )
-    )
+async def test_a_novation_space_quietly_refused_is_a_rejected_subscription(user_id):
+    """Like ``add_contract``, the client answers a refused novation with a quiet None."""
+    recorder = Recorder(contract=contract_for(DEFAULT_PLAN))
+    recorder.contracts.update_contract_subscription = lambda *_args: None
 
-    changed = await gate_over(recorder).migrate_due_contract(user_id, CATALOG.version)
+    with pytest.raises(SubscriptionRejected, match="did not accept"):
+        await gate_over(recorder).change_plan(user_id, LARGER_PLAN, CATALOG.version)
 
-    assert changed is False
-    assert all(call[0] != "novate" for call in recorder.calls)
+
+async def test_the_gate_has_no_renewal_or_version_migration():
+    for gate_class in (SpacePricingGate, PricingGate, OpenGate, FakePricingGate):
+        assert [name for name in dir(gate_class) if "migrate" in name or "renew" in name] == []
 
 
 async def test_a_pricing_token_is_returned(user_id):
-    token = a_token(limits={TASKS: 100})
+    token = a_token(limits={MAX_TIMEOUT: 100})
 
     assert await gate_over(Recorder(token=token)).pricing_token(user_id) == token
 
@@ -466,10 +346,10 @@ async def test_a_pricing_token_that_never_arrives_is_an_outage(user_id):
 
 
 async def test_an_unreachable_space_is_an_outage_not_a_refusal(user_id):
-    # The difference decides what SPACE_FAIL_MODE does; a refusal is never
-    # negotiable, an outage might be.
+    # Callers answer 503 pricing_unavailable (fail closed) for an outage; a
+    # refusal is a different answer and is never negotiable.
     with pytest.raises(PricingUnavailable):
-        await gate_over(Recorder(explode=True)).evaluate(user_id, "solve")
+        await gate_over(Recorder(explode=True)).caps(user_id)
 
 
 async def test_entries_belonging_to_another_service_are_ignored(user_id):
@@ -477,15 +357,14 @@ async def test_entries_belonging_to_another_service_are_ignored(user_id):
     # of them.
     claims = {
         "pricingContext": {
-            "usageLimits": {f"openbinding-{TASKS}": 100, "petclinic-maxPets": 7},
+            "usageLimits": {f"openbinding-{MAX_TIMEOUT}": 100, "petclinic-maxPets": 7},
             "features": {},
         },
-        "subscriptionContext": {},
     }
     payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).decode().rstrip("=")
     recorder = Recorder(token=f"h.{payload}.s")
 
-    usage = await gate_over(recorder).usage(user_id)
+    caps = await gate_over(recorder).caps(user_id)
 
-    assert TASKS in usage.limits
-    assert "maxPets" not in usage.limits
+    assert MAX_TIMEOUT in caps.limits
+    assert "maxPets" not in caps.limits

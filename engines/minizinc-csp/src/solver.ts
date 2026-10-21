@@ -16,7 +16,8 @@ export class Solver {
     return this.builder.build(problem, options || {}, optimization);
   }
 
-  async solve(problem: any, options: any, executionOptimization?: any): Promise<any> {
+  /** `signal` aborts the MiniZinc process group; the promise then rejects once that group is gone. */
+  async solve(problem: any, options: any, executionOptimization?: any, signal?: AbortSignal): Promise<any> {
     const normalizedOptions = options || {};
     const execution = executionOptimization;
     if (!execution) throw new Error('Execution optimization is required');
@@ -27,7 +28,7 @@ export class Solver {
       ? 30000 : Number(normalizedOptions.time_budget_ms);
     const modelPath = process.env.MINIZINC_CSP_MODEL || path.resolve(__dirname, '../model/binding_problem.mzn');
     const run = await this.runner.run(solverName, modelPath, built.dznContent,
-      this.tmpDir, ['--time-limit', String(Math.round(timeLimitMs)), '--intermediate-solutions']);
+      this.tmpDir, ['--time-limit', String(Math.round(timeLimitMs)), '--intermediate-solutions'], { signal });
 
     if (run.code !== 0 || run.stdout.includes('=====ERROR=====') || /(^|\n)Error:/.test(run.stderr)) {
       throw new Error(`MiniZinc execution failed: ${this.truncate(run.stderr || run.stdout, 800)}`);

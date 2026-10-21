@@ -79,7 +79,7 @@ async def test_case_composition_closes_exact_resources_without_copying_authority
     from openbinding_gateway.core.settings import get_settings
     from openbinding_gateway.db.models import InstanceSnapshot
     from openbinding_gateway.models.artifacts import ArtifactUse
-    from test_bim_v1_language_final import base_package
+    from test_artifacts_platform import multi_resource_package
 
     monkeypatch.setattr(get_settings(), 'artifact_root', str(tmp_path))
     user = User(username='composer', email='composer@example.org', password_hash='unused', plan_cache='RESEARCH')
@@ -89,7 +89,7 @@ async def test_case_composition_closes_exact_resources_without_copying_authority
     db_session.add(org)
     await db_session.flush()
     db_session.add(OrganizationMembership(organization_id=org.id, user_id=user.id, role=OrganizationRole.OWNER))
-    package = base_package()
+    package = multi_resource_package()
     root = package.instance()
     uses = []
     for role, resources in root['spec']['resources'].items():
@@ -129,7 +129,8 @@ async def test_case_composition_closes_exact_resources_without_copying_authority
     from sqlalchemy import select
     from openbinding_gateway.db.models import ArtifactCaseReference, BindingCase, BindingCaseRevision, Project
     from openbinding_gateway.artifacts import case_composition_digest
-    from openbinding_gateway.routes.v1 import _engine_ref, _manifest
+    from openbinding_gateway.services.engines import engine_ref as _engine_ref
+    from openbinding_gateway.services.engines import manifest as _manifest
     project = Project(organization_id=org.id, slug='experiment', name='Experiment', created_by_id=user.id)
     db_session.add(project)
     await db_session.flush()
@@ -141,7 +142,8 @@ async def test_case_composition_closes_exact_resources_without_copying_authority
     db_session.add(revision)
     await db_session.flush()
     case_ref = {'caseRevisionId': str(revision.id), 'compositionDigest': revision.digest}
-    for kind, content in [('Study', {'apiVersion': 'openbinding/study/v1', 'cases': [case_ref], 'engines': [{**_engine_ref(_manifest('random-search')), 'mode': 'seeded'}]}),
+    for kind, content in [('Study', {'apiVersion': 'openbinding/study/v1', 'cases': [case_ref], 'engines': [{**_engine_ref(_manifest('random-search')), 'mode': 'seeded',
+                                                                                                              'optimization': {'type': 'SINGLE', 'scalarization': 'weighted-sum'}}]}),
                           ('Collection', {'apiVersion': 'openbinding/collection/v1', 'members': [case_ref]})]:
         identity = Artifact(organization_id=org.id, namespace=str(org.id), name=kind.lower(),
             display_name=kind, kind=kind, created_by_id=user.id)

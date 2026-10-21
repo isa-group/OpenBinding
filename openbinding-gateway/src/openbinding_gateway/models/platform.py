@@ -10,6 +10,12 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
+from ..security.redaction import (
+    redact_options,
+    redact_original_request,
+    redact_provenance,
+    redact_result,
+)
 from .artifacts import ArtifactUse
 
 SLUG = r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
@@ -29,7 +35,45 @@ class OrganizationUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=160)
     parent_id: Optional[uuid.UUID] = None
     move_to_root: bool = False
-    billing_sponsor_user_id: Optional[uuid.UUID] = None
+    billing_sponsor_user_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description=(
+            "Propose this person as billing sponsor. Naming oneself changes the sponsor at once; "
+            "naming somebody else creates a pending proposal (202) that only that person can accept."
+        ),
+    )
+    replace_pending_proposal: bool = Field(
+        default=False,
+        description=(
+            "Replace the organization's pending sponsor proposal. Honoured only when the caller "
+            "made that proposal; otherwise a pending proposal answers 409 `sponsor_proposal_pending`."
+        ),
+    )
+
+
+SponsorProposalState = Literal["pending", "accepted", "declined", "cancelled", "expired"]
+
+
+class SponsorProposalView(BaseModel):
+    """A request that somebody become the billing sponsor of an organization."""
+
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    organization_slug: str
+    organization_name: str
+    proposed_user_id: Optional[uuid.UUID] = None
+    proposed_username: Optional[str] = None
+    proposed_by_user_id: Optional[uuid.UUID] = None
+    proposed_by_username: Optional[str] = None
+    status: SponsorProposalState
+    created_at: datetime
+    expires_at: datetime
+    decided_at: Optional[datetime] = None
+    decided_by_user_id: Optional[uuid.UUID] = None
+    decision_reason: Optional[str] = Field(
+        default=None,
+        description="Why the system closed it (`expired`, `replaced`, `sponsor_changed`, `user_deactivated`...).",
+    )
 
 
 class OrganizationView(BaseModel):
@@ -113,9 +157,23 @@ class ProjectUpdate(BaseModel):
 class ProjectView(ProjectCreate):
     id: uuid.UUID
     organization_id: uuid.UUID
-    created_by_id: uuid.UUID
+    created_by_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description="The creator. Null for read-only visitors of a public project (access `public_read`).",
+    )
     created_at: datetime
     updated_at: datetime
+    effective_role: Optional[Literal["OWNER", "ADMIN", "MEMBER", "VIEWER"]] = Field(
+        default=None,
+        description="The caller's membership role. Null when the caller is not a member (see `access`).",
+    )
+    access: Literal["member", "public_read"] = Field(
+        default="member",
+        description=(
+            "How the caller reaches the project: `member` (a membership role, see `effective_role`) "
+            "or `public_read` (a non-member reading a public project; GET only, never a role)."
+        ),
+    )
 
 
 class BindingCaseCreate(BaseModel):
@@ -439,6 +497,39 @@ class JobView(BaseModel):
     options: Optional[dict[str, Any]] = None
     original_request: Optional[dict[str, Any]] = None
     provenance: Optional[dict[str, Any]] = None
+
+
+def job_view(
+    job: Any, viewer: Any, *, include_results: bool = True, redact: bool = False
+) -> JobView:
+    """A ``JobView`` of an ORM job as ``viewer`` may see it.
+
+    Provenance is copied, never edited in place. ``redact`` is for readers who
+    may follow a project's work but not its inputs (a VIEWER): options are cut
+    to the non-sensitive allow-list, ``original_request`` to the problem
+    document and pinned choices, and the options echoed in the provenance and
+    the result likewise (``security/redaction.py``). The stored row is never
+    touched.
+    """
+    provenance = dict(job.provenance) if include_results and job.provenance is not None else None
+    result = job.result if include_results else None
+    original_request = job.original_request if include_results else None
+    options = job.options
+    if redact:
+        provenance = redact_provenance(provenance)
+        result = redact_result(result)
+        original_request = redact_original_request(original_request)
+        options = redact_options(options)
+    return JobView(
+        id=job.id, engine_id=job.engine_id, status=job.state.value,
+        cancellation_requested=job.cancellation_requested,
+        retry_of_id=job.retry_of_id, organization_id=job.organization_id,
+        project_id=job.project_id, created_at=job.created_at, finished_at=job.finished_at,
+        result=result, termination=job.termination,
+        options=options,
+        original_request=original_request,
+        provenance=provenance,
+    )
 
 
 class SnapshotView(BaseModel):

@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Workbench</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#ffffff}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-grow{from{width:8%}to{width:92%}}
+@keyframes ob-fadeup{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.ob-grow{animation:ob-grow 1.4s ease-out both}
+.ob-in{animation:ob-fadeup 300ms ease-out both}
+@media (prefers-reduced-motion: reduce){.ob-grow,.ob-in{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #ffffff; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="pub-workbench" route="/workbench" hint-size="100%,44px"></dc-import>
+<dc-import name="ShellPublicHeader" signed-in="{{who.signedIn}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" active="language" on-logout="{{logout}}" hint-size="100%,88px"></dc-import>
+<main style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 40px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<nav aria-label="Language sections" style="display: flex; flex-wrap: wrap; gap: 4px; font-size: 13px;"><a href="LangProfiles.dc.html" style="padding: 4px 10px; border-radius: 9999px; color: #4a4a4a; text-decoration: none; background: #fafafa;">Profiles &amp; dialects</a><a href="LangSchemas.dc.html" style="padding: 4px 10px; border-radius: 9999px; color: #4a4a4a; text-decoration: none; background: #fafafa;">Schemas</a><a href="LangExamples.dc.html" style="padding: 4px 10px; border-radius: 9999px; color: #4a4a4a; text-decoration: none; background: #fafafa;">Examples</a><span aria-current="page" style="padding: 4px 10px; border-radius: 9999px; background: #0077b6; color: #ffffff;">Workbench</span></nav>
+<h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-weight: 400; font-size: 40px; line-height: 1.1;">Workbench</h1>
+<p style="margin: 0; max-width: 640px; color: #4a4a4a;">Validate a BIM package without an account. You get localized diagnostics, digests and the structure of the composition. Nothing is executed.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px;"><span style="border-radius: 9999px; background: #caf0f8; padding: 2px 10px; font-size: 12px; font-weight: 500;">≤ 16 MiB compressed</span><span style="border-radius: 9999px; background: #caf0f8; padding: 2px 10px; font-size: 12px; font-weight: 500;">≤ 64 MiB expanded</span><span style="border-radius: 9999px; background: #caf0f8; padding: 2px 10px; font-size: 12px; font-weight: 500;">≤ 256 entries</span></div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<section aria-label="Package" style="flex: 1 1 320px; max-width: 400px; display: flex; flex-direction: column; gap: 12px;">
+<div style="border: 2px dashed {{dropBorder}}; border-radius: 16px; background: {{dropBg}}; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;">
+<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0077b6" stroke-width="1.4" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5"></path><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path></svg>
+<span style="font-size: 16px; font-weight: 500;">Drop a .bim.zip here</span>
+<span style="font-size: 13px; color: #6a6a6a;">or choose a file from your computer</span>
+<button type="button" onClick="{{choose}}" style="height: 36px; padding: 0 14px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;">Choose file</button>
+</div>
+<sc-if value="{{hasFile}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; align-items: center; gap: 10px; border: 1px solid #b8b8b8; border-radius: 12px; padding: 10px 12px;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a4a4a" stroke-width="1.8" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"></path><path d="M14 3v5h5"></path></svg>
+<span style="flex: 1; min-width: 0;"><span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 13px;">{{fileName}}</span><span style="display: block; font-size: 12px; color: #6a6a6a;">{{fileSize}}</span></span>
+<button type="button" aria-label="Remove file" onClick="{{clear}}" style="border: 0; background: transparent; color: #6a6a6a; cursor: pointer; font-size: 18px;">×</button>
+</div>
+<button type="button" onClick="{{validate}}" style="height: 44px; border: 0; border-radius: 12px; background: #0077b6; color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;">Validate package</button>
+</sc-if>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Try a package</span>
+<button type="button" onClick="{{loadFixture}}" style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; border: 1px solid #a9d6ea; background: #f1f8fc; border-radius: 12px; padding: 10px 12px; font-family: inherit; cursor: pointer;"><span style="font-weight: 500; color: #1f1f1f;">Flujo de checkout · revision 2</span><span style="font-size: 12px; color: #4a4a4a;">Fixture package: 5 service tasks, 1 local task</span></button>
+<a href="LangExamples.dc.html" style="font-size: 13px; font-weight: 500;">Browse official examples</a>
+</div>
+<div style="border: 1px solid #a9d6ea; background: #f1f8fc; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+<sc-if value="{{visitor}}" hint-placeholder-val="{{true}}">
+<span style="font-weight: 500;">Want to run an engine on it?</span>
+<span style="font-size: 13px; color: #4a4a4a;">Validation is free. Running engines and saving packages as cases needs an account.</span>
+<span style="display: flex; flex-wrap: wrap; gap: 8px;"><a href="AuthLogin.dc.html" style="display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Log in to run</a><a href="AuthRegister.dc.html" style="display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f; font-weight: 500; text-decoration: none;">Create account</a></span>
+</sc-if>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{false}}">
+<span style="font-weight: 500;">Signed in as {{who.name}}</span>
+<span style="font-size: 13px; color: #4a4a4a;">Save this package as a case revision in one of your projects, then run it with an exact engine.</span>
+<span style="display: flex; flex-wrap: wrap; gap: 8px;"><a href="WbWorkbench.dc.html" style="display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Save to a project</a><a href="JobLaunch.dc.html" style="display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f; font-weight: 500; text-decoration: none;">Run</a></span>
+</sc-if>
+</div>
+</section>
+
+<section aria-label="Result" aria-live="polite" aria-busy="{{isLoading}}" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+<sc-if value="{{isIdle}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; border: 1px dashed #a8a8a8; background: rgba(250,250,250,0.5); border-radius: 16px; padding: 72px 24px;">
+<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"></path></svg>
+<span style="font-size: 14px; font-weight: 500;">{{idleTitle}}</span>
+<span style="font-size: 13px; color: #6a6a6a; max-width: 420px;">{{idleHint}}</span>
+</div>
+</sc-if>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 12px;">
+<span style="font-weight: 500;">Uploading and compiling…</span>
+<div style="height: 8px; border-radius: 9999px; background: #ededed; overflow: hidden;"><div class="ob-grow" style="height: 8px; width: 60%; border-radius: 9999px; background: #0077b6;"></div></div>
+<ol style="margin: 0; padding-left: 18px; color: #4a4a4a; font-size: 13px; display: flex; flex-direction: column; gap: 4px;"><li>Unpacking entries and checking size limits</li><li>Validating resources against the Profile and dialects</li><li>Compiling the BindingProblem IR</li></ol>
+</div>
+</sc-if>
+<sc-if value="{{isErr413}}" hint-placeholder-val="{{false}}">
+<div role="alert" style="display: flex; gap: 10px; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 14px;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" aria-hidden="true" style="flex-shrink: 0;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16h.01"></path></svg>
+<div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-weight: 500;">The package is too large (413 · payload_too_large)</span><span>Public validation accepts up to 16 MiB compressed, 64 MiB expanded and 256 entries. Remove unused files, or sign in: your plan sets its own payload ceiling (BASIC 8 MiB, RESEARCH 128 MiB).</span></div>
+</div>
+</sc-if>
+<sc-if value="{{isErr429}}" hint-placeholder-val="{{false}}">
+<div role="alert" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 14px;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"></path><path d="M12 10v4M12 17h.01"></path></svg>
+<span style="flex: 1; min-width: 220px;"><span style="font-weight: 500;">Too many validations right now (429).</span> The gateway limits public validation. Wait a few seconds and try again; your file is still selected.</span>
+<button type="button" onClick="{{validate}}" style="height: 32px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;">Try again</button>
+</div>
+</sc-if>
+
+<sc-if value="{{hasVerdict}}" hint-placeholder-val="{{true}}">
+<div class="ob-in" style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; border: 1px solid {{verdict.border}}; background: {{verdict.bg}}; border-radius: 16px; padding: 18px 20px;">
+<span aria-hidden="true" style="width: 40px; height: 40px; border-radius: 9999px; background: #ffffff; border: 2px solid {{verdict.ring}}; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; color: {{verdict.ring}};">{{verdict.glyph}}</span>
+<div style="flex: 1; min-width: 220px;"><div style="font-size: 18px; font-weight: 600;">{{verdict.title}}</div><div style="color: #2c2c2c;">{{verdict.sub}}</div></div>
+</div>
+<sc-if value="{{isValid}}" hint-placeholder-val="{{true}}">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px;">
+<sc-for list="{{digests}}" as="d" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 8px; border: 1px solid #b8b8b8; border-radius: 12px; padding: 8px 10px;">
+<span style="flex: 1; min-width: 0;"><span style="display: block; font-size: 12px; color: #6a6a6a;">{{d.label}}</span><span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 12px;">{{d.short}}</span></span>
+<button type="button" onClick="{{d.copy}}" style="height: 28px; padding: 0 10px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 12px; cursor: pointer;">{{d.btn}}</button>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<div role="tablist" aria-label="Result views" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #b8b8b8;">
+<sc-for list="{{views}}" as="v" hint-placeholder-count="3">
+<button type="button" role="tab" aria-selected="{{v.selected}}" onClick="{{v.pick}}" style="{{v.style}}">{{v.label}}</button>
+</sc-for>
+</div>
+
+<sc-if value="{{showStructure}}" hint-placeholder-val="{{true}}">
+<sc-if value="{{isValid}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 16px;">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; padding: 16px; overflow-x: auto;">
+<div style="display: flex; align-items: center; gap: 4px; font-size: 12px; color: #6a6a6a; margin-bottom: 12px;"><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;">Workflow</span><span>· sequence · profile qos-binding/v1</span></div>
+<div style="display: flex; align-items: center; gap: 8px; min-width: 820px;">
+<div style="flex: 0 0 140px; border: 2px solid #0077b6; border-radius: 12px; padding: 10px; background: #ffffff;"><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;">autenticar</div><div style="font-size: 11px; color: #6a6a6a;">service · auth</div><div style="margin-top: 6px; font-size: 11px; border-radius: 4px; background: #caf0f8; padding: 1px 6px; display: inline-block;">4 candidates</div></div>
+<span aria-hidden="true" style="color: #6a6a6a;">→</span>
+<div style="flex: 0 0 170px; border: 1px solid #a9d6ea; background: #f1f8fc; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: #023e8a;">PARALLEL · AGGREGATION MAX</span>
+<div style="border: 2px solid #0077b6; border-radius: 10px; padding: 8px; background: #ffffff;"><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;">inventario</div><div style="font-size: 11px; color: #6a6a6a;">service · stock · 5 candidates</div></div>
+<div style="border: 2px solid #0077b6; border-radius: 10px; padding: 8px; background: #ffffff;"><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;">calcular-envio</div><div style="font-size: 11px; color: #6a6a6a;">service · shipping · 3 candidates</div></div></div>
+<span aria-hidden="true" style="color: #6a6a6a;">→</span>
+<div style="flex: 0 0 200px; border: 1px solid #a9d6ea; background: #f1f8fc; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: #023e8a;">EXCLUSIVE · BY PROBABILITY</span>
+<div style="border: 2px solid #0077b6; border-radius: 10px; padding: 8px; background: #ffffff;"><div style="display: flex; justify-content: space-between; gap: 6px;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;">pago-tarjeta</span><span style="font-size: 11px; font-weight: 600;">p 0.7</span></div><div style="font-size: 11px; color: #6a6a6a;">branch tarjeta · payment · 8 candidates</div></div>
+<div style="border: 2px solid #0077b6; border-radius: 10px; padding: 8px; background: #ffffff;"><div style="display: flex; justify-content: space-between; gap: 6px;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;">pago-transferencia</span><span style="font-size: 11px; font-weight: 600;">p 0.3</span></div><div style="font-size: 11px; color: #6a6a6a;">branch transferencia · payment · 4 candidates</div></div></div>
+<span aria-hidden="true" style="color: #6a6a6a;">→</span>
+<div style="flex: 0 0 120px; border: 2px dashed #a8a8a8; border-radius: 12px; padding: 10px; background: #ffffff;"><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;">notificar</div><div style="font-size: 11px; color: #6a6a6a;">local task · not bound</div></div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; font-size: 12px; color: #4a4a4a;"><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 10px; border: 2px solid #0077b6; border-radius: 3px;"></span>Service task (bound to a candidate)</span><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 10px; border: 2px dashed #a8a8a8; border-radius: 3px;"></span>Local task</span><span>Binding space ≈ 10<sup>5.1</sup> combinations</span></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; overflow: hidden;">
+<div style="padding: 12px 14px; border-bottom: 1px solid #ededed; font-weight: 500;">Candidates · pago-tarjeta <span style="font-size: 12px; color: #6a6a6a; font-weight: 400;">(2 of 8 shown)</span></div>
+<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; font-size: 13px;"><thead><tr style="background: #fafafa; text-align: left;"><th style="padding: 8px 14px; font-weight: 600; font-size: 12px; color: #6a6a6a;">Provider</th><th style="padding: 8px; font-weight: 600; font-size: 12px; color: #6a6a6a;">Latency</th><th style="padding: 8px; font-weight: 600; font-size: 12px; color: #6a6a6a;">Cost</th><th style="padding: 8px 14px; font-weight: 600; font-size: 12px; color: #6a6a6a;">Availability</th></tr></thead><tbody><tr style="border-top: 1px solid #ededed;"><td style="padding: 8px 14px; font-family: 'JetBrains Mono', monospace;">payco-eu</td><td style="padding: 8px;">180 ms</td><td style="padding: 8px;">0.021 EUR/request</td><td style="padding: 8px 14px;">99.95 %</td></tr><tr style="border-top: 1px solid #ededed;"><td style="padding: 8px 14px; font-family: 'JetBrains Mono', monospace;">fastpay</td><td style="padding: 8px;">95 ms</td><td style="padding: 8px;">0.034 EUR/request</td><td style="padding: 8px 14px;">99.9 %</td></tr></tbody></table></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px;">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+<span style="font-weight: 500;">Constraints</span>
+<div style="display: flex; gap: 8px; align-items: baseline;"><span style="border-radius: 4px; background: #1f1f1f; color: #ffffff; padding: 1px 6px; font-size: 11px; font-weight: 600;">HARD</span><span>Latencia total ≤ 600 ms <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #6a6a6a;">sla-latencia</span></span></div>
+<div style="display: flex; gap: 8px; align-items: baseline;"><span style="border-radius: 4px; border: 1px solid #1f1f1f; padding: 0 6px; font-size: 11px; font-weight: 600;">SOFT</span><span>Disponibilidad ≥ 99.9 % · penalty 5.0 <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #6a6a6a;">sla-disponibilidad</span></span></div>
+</div>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+<span style="font-weight: 500;">Objective · weighted-sum</span>
+<div style="display: flex; align-items: center; gap: 8px;"><span style="width: 72px; font-size: 13px;">cost</span><span style="flex: 1; height: 8px; border-radius: 9999px; background: #ededed;"><span style="display: block; width: 60%; height: 8px; border-radius: 9999px; background: #0077b6;"></span></span><span style="font-size: 12px; width: 120px;">0.6 · minimize</span></div>
+<div style="display: flex; align-items: center; gap: 8px;"><span style="width: 72px; font-size: 13px;">latency</span><span style="flex: 1; height: 8px; border-radius: 9999px; background: #ededed;"><span style="display: block; width: 40%; height: 8px; border-radius: 9999px; background: #0077b6;"></span></span><span style="font-size: 12px; width: 120px;">0.4 · minimize</span></div>
+</div>
+</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{isInvalid}}" hint-placeholder-val="{{false}}">
+<div style="border: 1px dashed #a8a8a8; border-radius: 16px; padding: 24px; color: #4a4a4a;">The structure is shown once the package validates. Fix the diagnostics first.</div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{showDiag}}" hint-placeholder-val="{{false}}">
+<sc-if value="{{isValid}}" hint-placeholder-val="{{false}}"><div style="border: 1px solid #86efac; background: #f0fdf4; border-radius: 12px; padding: 12px 14px;">No diagnostics. Every resource passed validation.</div></sc-if>
+<sc-if value="{{isInvalid}}" hint-placeholder-val="{{true}}">
+<ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px;">
+<sc-for list="{{diagnostics}}" as="g" hint-placeholder-count="2">
+<li style="border: 1px solid #fca5a5; border-radius: 12px; overflow: hidden;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; background: #fef2f2;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16h.01"></path></svg>
+<span style="font-size: 12px; font-weight: 600; text-transform: uppercase;">Error</span>
+<span style="display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; background: #ffffff; border: 1px solid #fca5a5; padding: 1px 10px; font-size: 12px;">{{g.fileLabel}}</span>
+<span aria-hidden="true" style="color: #6a6a6a;">›</span>
+<span style="font-size: 13px; color: #2c2c2c; overflow-wrap: anywhere;">{{g.where}}</span>
+<span style="flex: 1;"></span>
+<button type="button" onClick="{{g.copy}}" style="height: 26px; padding: 0 10px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 12px; cursor: pointer;">{{g.btn}}</button>
+</div>
+<div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 4px;"><span>{{g.message}}</span><span style="font-size: 13px; color: #4a4a4a;"><span style="font-weight: 500;">Fix:</span> {{g.fix}}</span></div>
+</li>
+</sc-for>
+</ul>
+</sc-if>
+</sc-if>
+</sc-if>
+</section>
+</div>
+</main>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":2600}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "visitor", st: "success", scenario: "valid", hasFile: true, view: "structure", copied: "" };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, name: "", email: "", initials: "" },
+      lucia: { signedIn: true, name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV" },
+      marco: { signedIn: true, name: "Marco Díaz", email: "marco@example.invalid", initials: "MD" },
+      sofia: { signedIn: true, name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR" },
+      nora: { signedIn: true, name: "Nora Campos", email: "nora@example.invalid", initials: "NC" },
+      iker: { signedIn: true, name: "Iker Mora", email: "iker@example.invalid", initials: "IM" },
+      pablo: { signedIn: true, name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI" }
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); if (this.t2) clearTimeout(this.t2); }
+  setPersona(k) { this.setState({ persona: k }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  copy(text, key) {
+    try { if (navigator.clipboard) navigator.clipboard.writeText(text); } catch (e) {}
+    this.setState({ copied: key });
+    if (this.t2) clearTimeout(this.t2);
+    this.t2 = setTimeout(() => this.setState({ copied: "" }), 2000);
+  }
+  run() {
+    this.setState({ st: "loading", hasFile: true });
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.setState({ st: this.state.scenario === "valid" ? "success" : "error", view: this.state.scenario === "422" ? "diag" : "structure" }), 1500);
+  }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const st = s.st;
+    const sc = s.scenario;
+    const isValid = st === "success";
+    const isInvalid = st === "error" && (sc === "422" || sc === "valid");
+    const hasVerdict = isValid || isInvalid;
+    const D = { a1: "sha256-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4", b2: "sha256-b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5", c3: "sha256-c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6" };
+    const digests = [["Instance digest", "a1", "sha256-a1b2…c3d4"], ["Package digest", "b2", "sha256-b2c3…d4e5"], ["IR digest", "c3", "sha256-c3d4…e5f6"]].map(([l, k, sh]) => ({ label: l, short: sh, btn: s.copied === k ? "Copied" : "Copy", copy: () => this.copy(D[k], k) }));
+    const diags = [
+      { resource: "candidates.json", fileLabel: "Candidates file", where: "Candidate 4 (slowpay) › metrics › latency", pointer: "/spec/providers/3/metrics/latency", message: "El candidato 'slowpay' no declara latency, requerido por la optimización.", fix: "Añade un valor finito con unidad ms o excluye el candidato." },
+      { resource: "workflow.bpmn", fileLabel: "Workflow diagram", where: "Parallel gateway “Gateway_2”", pointer: "bpmn:parallelGateway#Gateway_2", message: "Constructo BPMN no soportado: gateway paralelo no estructurado (no SESE).", fix: "Reestructura el flujo con split/join emparejados." }
+    ];
+    const diagnostics = diags.map((g, i) => Object.assign({}, g, { btn: s.copied === "p" + i ? "Copied" : "Copy location", copy: () => this.copy(g.resource + " " + g.pointer, "p" + i) }));
+    const tab = (on) => "padding: 10px 16px; border: 0; background: transparent; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: -1px; " + (on ? "color: #0077b6; border-bottom: 2px solid #0077b6;" : "color: #6a6a6a; border-bottom: 2px solid transparent;");
+    const views = [["structure", "Structure"], ["diag", isInvalid ? "Diagnostics (2)" : "Diagnostics (0)"]].map(([k, l]) => ({ label: l, selected: s.view === k ? "true" : "false", pick: () => this.setState({ view: k }), style: tab(s.view === k) }));
+    const verdict = isValid
+      ? { title: "Valid package", sub: "checkout-flow.bim.zip · profile qos-binding/v1 · 6 tasks", bg: "#f0fdf4", border: "#86efac", ring: "#15803d", glyph: "✓" }
+      : { title: "Not valid · 2 errors", sub: "422 invalid_request. Each diagnostic points at the resource and location to fix.", bg: "#fef2f2", border: "#fca5a5", ring: "#b91c1c", glyph: "!" };
+    return {
+      persona: s.persona, st: st, na: ["forbidden"],
+      scenarios: [{ id: "valid", label: "Valid" }, { id: "422", label: "422 diagnostics" }, { id: "413", label: "413 too large" }, { id: "429", label: "429 rate limit" }],
+      scenario: sc,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (v) => this.setState({ st: v, hasFile: v !== "empty", view: v === "error" && sc !== "413" && sc !== "429" ? "diag" : "structure" }),
+      setScenario: (v) => { this.setState({ scenario: v, hasFile: true }); },
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      hasFile: s.hasFile,
+      idleTitle: s.hasFile ? "Ready to validate" : "No package yet",
+      idleHint: s.hasFile ? "checkout-flow.bim.zip is selected. Press Validate package to get the verdict, digests and structure." : "Choose a .bim.zip or try the fixture package. The verdict, digests and structure appear here.",
+      fileName: "checkout-flow.bim.zip",
+      fileSize: "47.1 KiB (48,213 bytes) · .bim.zip",
+      dropBorder: s.hasFile ? "#a8a8a8" : "#0077b6",
+      dropBg: s.hasFile ? "#fafafa" : "#f1f8fc",
+      choose: () => this.setState({ hasFile: true, st: "empty" }),
+      loadFixture: () => this.run(),
+      clear: () => this.setState({ hasFile: false, st: "empty" }),
+      validate: () => this.run(),
+      isIdle: st === "empty",
+      isLoading: st === "loading",
+      isErr413: st === "error" && sc === "413",
+      isErr429: st === "error" && sc === "429",
+      hasVerdict: hasVerdict,
+      isValid: isValid,
+      isInvalid: isInvalid,
+      verdict: verdict,
+      digests: digests,
+      views: views,
+      showStructure: s.view === "structure",
+      showDiag: s.view === "diag",
+      diagnostics: diagnostics
+    };
+  }
+}
+</script>
+</body>
+</html>

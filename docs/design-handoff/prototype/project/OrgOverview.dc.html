@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Organization</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ob-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+.ob-grow{transform-origin:left;animation:ob-grow 600ms cubic-bezier(.4,0,.2,1) both}
+@media (prefers-reduced-motion: reduce){.ob-skel,.ob-grow{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="org-overview" route="{{route}}" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="{{org.name}}" active="" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<main style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 24px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;">
+<nav aria-label="Breadcrumb" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: #6a6a6a;"><a href="AppHome.dc.html">Home</a><sc-for list="{{crumbs}}" as="c" hint-placeholder-count="1"><span>/</span><a href="OrgOverview.dc.html" onClick="{{c.pick}}">{{c.name}}</a></sc-for><span>/</span><span style="color: #1f1f1f;">{{org.name}}</span></nav>
+<sc-if value="{{hasSwitch}}" hint-placeholder-val="{{true}}"><label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #6a6a6a;">Switch organization<select value="{{orgKey}}" onChange="{{switchOrg}}" style="height: 32px; border: 1px solid #c7c7c7; border-radius: 8px; background: #ffffff; padding: 0 8px; font-family: inherit; font-size: 13px;"><sc-for list="{{switchList}}" as="o" hint-placeholder-count="3"><option value="{{o.key}}">{{o.name}}</option></sc-for></select></label></sc-if>
+</div>
+
+<sc-if value="{{gate}}" hint-placeholder-val="{{false}}">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span style="font-size: 16px; font-weight: 500;">{{gateTitle}}</span><span style="max-width: 480px; color: #6a6a6a;">{{gateText}}</span><span style="display: flex; gap: 12px;"><a href="{{gateHref}}" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">{{gateCta}}</a><a href="PubExplore.dc.html" style="display: inline-flex; align-items: center; font-weight: 500;">Explore public projects</a></span></div>
+</sc-if>
+
+<sc-if value="{{inside}}" hint-placeholder-val="{{true}}">
+<header style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 20px;">
+<span aria-hidden="true" style="width: 56px; height: 56px; border-radius: 12px; background: {{org.tile}}; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600;">{{org.initials}}</span>
+<div style="flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 6px;">
+<h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 28px; font-weight: 400;">{{org.name}}</h1>
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: #4a4a4a;">
+<span style="font-family: 'JetBrains Mono', monospace; color: #6a6a6a;">/app/{{org.slug}}</span>
+<span title="{{role.source}}" style="{{role.style}}">{{role.label}}</span><span style="font-size: 12px; color: #6a6a6a;">{{role.source}}</span>
+</span>
+<span style="font-size: 13px; color: #4a4a4a;">Sponsored by <span style="font-weight: 500;">{{org.sponsorName}}</span> · created {{org.created}}</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-if value="{{canCreate}}" hint-placeholder-val="{{true}}"><a href="ProjCreate.dc.html" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">New project</a></sc-if>
+<a href="LibList.dc.html" style="display: inline-flex; align-items: center; height: 40px; padding: 0 14px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; color: #1f1f1f; font-weight: 500; text-decoration: none;">Library</a>
+<a href="OrgMembers.dc.html" style="display: inline-flex; align-items: center; height: 40px; padding: 0 14px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; color: #1f1f1f; font-weight: 500; text-decoration: none;">Members</a>
+<sc-if value="{{isAdminish}}" hint-placeholder-val="{{true}}"><a href="OrgAudit.dc.html" style="display: inline-flex; align-items: center; height: 40px; padding: 0 14px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; color: #1f1f1f; font-weight: 500; text-decoration: none;">Audit</a></sc-if>
+<a href="OrgSettings.dc.html" style="display: inline-flex; align-items: center; height: 40px; padding: 0 14px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; color: #1f1f1f; font-weight: 500; text-decoration: none;">Settings</a>
+</div>
+</header>
+<sc-if value="{{isNewOrg}}" hint-placeholder-val="{{false}}"><div role="status" style="border: 1px solid #86efac; background: #f0fdf4; border-radius: 12px; padding: 12px 14px;">Just created in this prototype session. Projects and members you add here aren't kept.</div></sc-if>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<section aria-labelledby="proj-title" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;"><h2 id="proj-title" style="margin: 0; font-size: 18px; font-weight: 500;">Projects <span style="font-size: 13px; color: #6a6a6a; font-weight: 400;">{{projCount}}</span></h2>
+<label style="position: relative; width: 260px; max-width: 100%;"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Find a project</span><input value="{{q}}" onChange="{{typeQ}}" placeholder="Find a project…" style="box-sizing: border-box; width: 100%; height: 36px; padding: 0 12px; border: 1px solid #c7c7c7; border-radius: 10px; font-family: inherit; font-size: 13px;"></label></div>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}"><div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;"><div class="ob-skel" style="height: 150px; border-radius: 16px; background: #ededed;"></div><div class="ob-skel" style="height: 150px; border-radius: 16px; background: #ededed;"></div></div></sc-if>
+<sc-if value="{{projErr}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px;"><span style="flex: 1; min-width: 200px;">Projects couldn't be loaded. Sub-organizations and usage are unaffected.</span><button type="button" onClick="{{retry}}" style="height: 32px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;">Retry</button></div></sc-if>
+<sc-if value="{{projEmpty}}" hint-placeholder-val="{{false}}">
+<div style="border: 1px dashed #a8a8a8; border-radius: 16px; background: #ffffff; padding: 32px 24px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+<span style="font-size: 16px; font-weight: 500;">No projects yet</span>
+<span style="max-width: 560px; color: #4a4a4a;">A project groups the cases, runs, studies and reports for one piece of work. Public projects can be found in Explore; private ones are only for members.</span>
+<sc-if value="{{canCreate}}" hint-placeholder-val="{{true}}"><a href="ProjCreate.dc.html" style="display: inline-flex; align-items: center; height: 38px; padding: 0 14px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Create the first project</a></sc-if>
+<sc-if value="{{viewerOnly}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: #6a6a6a;">You're a VIEWER here, so you can't create projects. A MEMBER or above can.</span></sc-if>
+</div>
+</sc-if>
+<sc-if value="{{noMatch}}" hint-placeholder-val="{{false}}"><span style="color: #6a6a6a;">No project matches “{{q}}”.</span></sc-if>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;">
+<sc-for list="{{projects}}" as="p" hint-placeholder-count="2">
+<a href="ProjOverview.dc.html" onClick="{{p.pick}}" style="display: flex; flex-direction: column; gap: 10px; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; text-decoration: none; color: #1f1f1f; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.04);">
+<span style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><span style="font-weight: 600;">{{p.name}}</span><span style="{{p.visStyle}}">{{p.vis}}</span></span>
+<span style="font-size: 13px; color: #4a4a4a; min-height: 40px;">{{p.desc}}</span>
+<span style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{p.stats}}" as="x" hint-placeholder-count="3"><span style="display: inline-flex; align-items: center; gap: 4px; border-radius: 9999px; background: #fafafa; border: 1px solid #ededed; padding: 1px 8px; font-size: 12px; color: #4a4a4a;"><span style="font-weight: 600; color: #1f1f1f;">{{x.n}}</span>{{x.l}}</span></sc-for></span>
+<span style="font-size: 12px; color: #6a6a6a;">{{p.last}}</span>
+</a>
+</sc-for>
+</div>
+</section>
+
+<aside style="flex: 1 1 320px; max-width: 420px; display: flex; flex-direction: column; gap: 16px;">
+<section aria-labelledby="sub-title" style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; justify-content: space-between; align-items: center;"><h2 id="sub-title" style="margin: 0; font-size: 16px; font-weight: 600;">Sub-organizations</h2><sc-if value="{{isAdminish}}" hint-placeholder-val="{{true}}"><a href="OrgCreate.dc.html" style="font-size: 13px; font-weight: 500;">+ Add</a></sc-if></div>
+<sc-if value="{{noSubs}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: #6a6a6a;">None. Sub-organizations inherit everyone's role from here.</span></sc-if>
+<sc-for list="{{subs}}" as="o" hint-placeholder-count="1">
+<a href="OrgOverview.dc.html" onClick="{{o.pick}}" style="display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; border: 1px solid #ededed; text-decoration: none; color: #1f1f1f;"><span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 8px; background: #0077b6; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600;">{{o.initials}}</span><span style="flex: 1;"><span style="display: block; font-weight: 500;">{{o.name}}</span><span style="display: block; font-size: 12px; color: #6a6a6a;">{{o.note}}</span></span><span style="{{o.roleStyle}}">{{o.role}}</span></a>
+</sc-for>
+</section>
+
+<section aria-labelledby="use-title" style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<h2 id="use-title" style="margin: 0; font-size: 16px; font-weight: 600;">Sponsor's room</h2>
+<span style="font-size: 12px; color: #6a6a6a;">{{useIntro}}</span>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}"><div class="ob-skel" style="height: 160px; border-radius: 10px; background: #ededed;"></div></sc-if>
+<sc-if value="{{noUsage}}" hint-placeholder-val="{{false}}"><div style="border: 1px dashed #a8a8a8; border-radius: 12px; padding: 12px; font-size: 13px; color: #4a4a4a;">This sponsor's structural usage isn't in the prototype data. With real data, seven bars appear here.</div></sc-if>
+<sc-if value="{{hasUsage}}" hint-placeholder-val="{{true}}">
+<sc-for list="{{usage}}" as="u" hint-placeholder-count="7">
+<div style="display: flex; flex-direction: column; gap: 3px;"><div style="display: flex; justify-content: space-between; font-size: 13px;"><span>{{u.label}}</span><span style="font-weight: 500;">{{u.text}}</span></div><div role="progressbar" aria-label="{{u.label}}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{u.pct}}" style="height: 6px; border-radius: 9999px; background: #ededed; overflow: hidden;"><div class="ob-grow" style="height: 6px; width: {{u.pct}}%; border-radius: 9999px; background: #0077b6;"></div></div></div>
+</sc-for>
+<span style="font-size: 12px; color: #6a6a6a;">Counted across every organization {{org.sponsorName}} sponsors.</span>
+</sc-if>
+</section>
+</aside>
+</div>
+</sc-if>
+</main>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1500}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "lucia", st: "success", scenario: "ok", org: "isa-demo", q: "", retried: false, newOrg: null };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, name: "", email: "", initials: "" },
+      lucia: { signedIn: true, name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV", admin: false },
+      marco: { signedIn: true, name: "Marco Díaz", email: "marco@example.invalid", initials: "MD", admin: false },
+      sofia: { signedIn: true, name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR", admin: false },
+      nora: { signedIn: true, name: "Nora Campos", email: "nora@example.invalid", initials: "NC", admin: false },
+      iker: { signedIn: true, name: "Iker Mora", email: "iker@example.invalid", initials: "IM", admin: true },
+      pablo: { signedIn: true, name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI", admin: false }
+    };
+  }
+  componentDidMount() {
+    try {
+      const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k });
+      const o = window.localStorage.getItem("ob.org"); if (o) this.setState({ org: o });
+      const n = window.localStorage.getItem("ob.newOrg"); if (n) this.setState({ newOrg: JSON.parse(n) });
+    } catch (e) {}
+  }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+  setPersona(k) { this.setState({ persona: k }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  pickOrg(k) { this.setState({ org: k, q: "" }); try { window.localStorage.setItem("ob.org", k); } catch (e) {} }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const st = s.st, sc = s.scenario;
+    const ORG = {
+      "isa-demo": { slug: "isa-demo", name: "ISA Demo Group", initials: "ID", tile: "#023e8a", parent: "", sponsor: "lucia", sponsorName: "Lucía Vega", created: "Mar 3, 2026" },
+      "qos-lab": { slug: "qos-lab", name: "QoS Lab (sub-organización)", initials: "QL", tile: "#0077b6", parent: "isa-demo", sponsor: "lucia", sponsorName: "Lucía Vega", created: "Mar 10, 2026" },
+      "consultora-demo": { slug: "consultora-demo", name: "Consultora Demo", initials: "CD", tile: "#0096c7", parent: "", sponsor: "nora", sponsorName: "Nora Campos", created: "May 1, 2026" }
+    };
+    const myOwnNew = s.newOrg && s.org === "__new";
+    if (myOwnNew) ORG["__new"] = { slug: s.newOrg.slug || "new-org", name: s.newOrg.name || "New organization", initials: (s.newOrg.name || "N").slice(0, 2).toUpperCase(), tile: "#0077b6", parent: s.newOrg.parent || "", sponsor: s.persona, sponsorName: who.name, created: "just now" };
+    const ROLE = {
+      lucia: { "isa-demo": ["OWNER", "Your own role"], "qos-lab": ["OWNER", "Inherited from ISA Demo Group"] },
+      marco: { "isa-demo": ["MEMBER", "Your own role"], "qos-lab": ["ADMIN", "Your own role (higher than MEMBER inherited from ISA Demo Group)"], "consultora-demo": ["VIEWER", "Your own role"] },
+      sofia: { "isa-demo": ["VIEWER", "Your own role"], "qos-lab": ["VIEWER", "Inherited from ISA Demo Group"] },
+      nora: { "consultora-demo": ["OWNER", "Your own role"] }, iker: {}, pablo: {}
+    }[s.persona] || {};
+    if (myOwnNew) ROLE["__new"] = ["OWNER", "You created it"];
+    const key = ORG[s.org] ? s.org : "isa-demo";
+    const org = ORG[key];
+    const r = ROLE[key];
+    const member = !!r || who.admin;
+    const rank = { VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4 };
+    const lvl = r ? rank[r[0]] : (who.admin ? 4 : 0);
+    const roleStyle = (x) => "border-radius: 9999px; padding: 1px 10px; font-size: 11px; font-weight: 600; " + ({ OWNER: "background: #023e8a; color: #ffffff;", ADMIN: "background: #0077b6; color: #ffffff;", MEMBER: "background: #caf0f8; color: #023e8a;", VIEWER: "background: #fafafa; color: #4a4a4a; border: 1px solid #b8b8b8;", "PLATFORM ADMIN": "background: #1f1f1f; color: #ffffff;" }[x] || "");
+    const roleLabel = r ? r[0] : "PLATFORM ADMIN";
+    const PROJ = {
+      "isa-demo": [
+        { slug: "qos-benchmarks", name: "QoS Benchmarks", desc: "Casos de referencia de binding con workflow y placement.", vis: "public", stats: [["1", "case"], ["3", "jobs"], ["1", "study"], ["2", "reports"]], last: "Last run Oct 8, 2026 · 1 published report" },
+        { slug: "checkout-privado", name: "Checkout (privado)", desc: "Caso interno de pagos con candidatos propietarios.", vis: "private", stats: [["3", "jobs"]], last: "Last run Oct 8, 2026" }
+      ],
+      "qos-lab": [{ slug: "placement-edge", name: "Placement en el borde", desc: "Exploración con pools y latencias.", vis: "private", stats: [], last: "No runs yet" }],
+      "consultora-demo": [], "__new": []
+    };
+    const q = s.q.trim().toLowerCase();
+    const allP = st === "empty" ? [] : (PROJ[key] || []);
+    const projects = allP.filter((p) => !q || (p.name + " " + p.slug).toLowerCase().indexOf(q) >= 0).map((p) => ({
+      name: p.name, desc: p.desc, last: p.last,
+      vis: p.vis === "public" ? "Public" : "Private",
+      visStyle: "border-radius: 9999px; padding: 1px 10px; font-size: 12px; font-weight: 500; " + (p.vis === "public" ? "background: #f0fdf4; border: 1px solid #86efac;" : "background: #fafafa; border: 1px solid #b8b8b8;"),
+      stats: p.stats.length ? p.stats.map(([n, l]) => ({ n: n, l: l })) : [{ n: "0", l: "items" }],
+      pick: () => { try { window.localStorage.setItem("ob.project", p.slug); window.localStorage.setItem("ob.org", key); } catch (e) {} }
+    }));
+    const subs = Object.keys(ORG).filter((k) => ORG[k].parent === key).map((k) => {
+      const rr = ROLE[k];
+      return { name: ORG[k].name, initials: ORG[k].initials, role: rr ? rr[0] : "—", roleStyle: roleStyle(rr ? rr[0] : ""), note: rr ? rr[1] : "Platform administrator access", pick: () => this.pickOrg(k) };
+    });
+    const crumbs = org.parent && ORG[org.parent] ? [{ name: ORG[org.parent].name, pick: () => this.pickOrg(org.parent) }] : [];
+    const switchList = Object.keys(ORG).filter((k) => ROLE[k] || who.admin).map((k) => ({ key: k, name: ORG[k].name }));
+    const U = { lucia: [["Organizations", 2, 5], ["Unique members", 3, 15], ["Projects", 3, 50], ["Private projects", 2, 30], ["Collections", 1, 50], ["Studies", 1, 25], ["Storage", 50, 5120, "MiB"]] }[org.sponsor];
+    const usage = (U || []).map(([l, u, lim, unit]) => ({ label: l, text: unit ? (u + " MiB of " + (lim / 1024) + " GiB") : (u + " of " + lim), pct: String(Math.max(2, Math.round(u / lim * 100))) }));
+    const loading = st === "loading";
+    const forced403 = st === "forbidden";
+    const gate = !who.signedIn || !member || forced403;
+    const projErr = st === "error" && !s.retried;
+    return {
+      persona: s.persona, st: st, na: [],
+      scenarios: [{ id: "ok", label: "Loads" }, { id: "projErr", label: "Projects block fails" }, { id: "403", label: "Not a member (neutral)" }],
+      scenario: sc,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState({ st: x, retried: false }),
+      setScenario: (x) => this.setState({ scenario: x, retried: false, st: x === "ok" ? "success" : (x === "403" ? "forbidden" : "error") }),
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      route: "/app/" + org.slug,
+      org: org, orgKey: key,
+      crumbs: crumbs,
+      hasSwitch: who.signedIn && switchList.length > 1,
+      switchList: switchList, switchOrg: (e) => this.pickOrg(e.target.value),
+      gate: gate, inside: !gate,
+      gateTitle: who.signedIn ? "Organization not available" : "Log in to open this organization",
+      gateText: who.signedIn ? "It doesn't exist, or you're not a member. We show the same message in both cases so organization names stay private." : "Organizations are only visible to their members.",
+      gateHref: who.signedIn ? "AppHome.dc.html" : "AuthLogin.dc.html", gateCta: who.signedIn ? "Back to Home" : "Log in",
+      role: { label: roleLabel, source: r ? r[1] : "You're not a member; platform administrators can open any organization", style: roleStyle(roleLabel) },
+      canCreate: lvl >= 2, viewerOnly: lvl === 1, isAdminish: lvl >= 3,
+      isNewOrg: key === "__new",
+      projCount: loading ? "" : String(allP.length),
+      q: s.q, typeQ: (e) => this.setState({ q: e.target.value }),
+      isLoading: loading,
+      projErr: projErr,
+      retry: () => { this.setState({ st: "loading" }); this.timer = setTimeout(() => this.setState({ st: "success", retried: true }), 900); },
+      projEmpty: !loading && !projErr && allP.length === 0,
+      noMatch: !loading && !projErr && allP.length > 0 && projects.length === 0,
+      projects: loading || projErr ? [] : projects,
+      subs: loading ? [] : subs, noSubs: !loading && subs.length === 0,
+      useIntro: "Size limits come from the sponsor's plan, not from your own.",
+      hasUsage: !loading && !!U, noUsage: !loading && !U,
+      usage: usage
+    };
+  }
+}
+</script>
+</body>
+</html>

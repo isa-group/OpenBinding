@@ -1,439 +1,272 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { ArrowRight, Check, CloudCog, Fingerprint, GitCompareArrows, Search, Server, ShieldCheck } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Monitor, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   apiClient,
-  bimResourceKey,
   HttpError,
-  type CapabilitySelector,
   type EngineCatalogEntry,
-  type EngineMode,
   type EngineRegistrationRevision,
-  type EngineRegistrationState,
 } from '../../api/client';
-import { useAuth } from '../../contexts/auth';
-import { Alert } from '../../components/ui/Alert';
-import { Badge } from '../../components/ui/Badge';
+import { platformApi, type EngineRevision } from '../../api/platform';
 import { Button } from '../../components/ui/Button';
+import { DataTable } from '../../components/ui/DataTable';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { FilterPills } from '../../components/ui/FilterPills';
+import { Notice } from '../../components/ui/Notice';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { Skeleton } from '../../components/ui/Skeleton';
+import { useAuth } from '../../contexts/auth';
+import { useResource } from '../../utils/useResource';
+import {
+  BUILTIN_NAMESPACE, engineRows, familyOptions, glyphOf, modeRows, shortDigest,
+  type EngineRow, type ModeRow,
+} from './enginesModel';
+import { MyDeployments } from './MyDeployments';
 import './Engines.css';
 
-function shortDigest(digest: string): string {
-  return digest.length > 22 ? `${digest.slice(0, 14)}…${digest.slice(-6)}` : digest;
+interface CatalogData {
+  /** Whose view this is; the last list is only kept for a failed refresh by the same account. */
+  forUser: string | null;
+  engines: EngineCatalogEntry[];
+  fellBackToPublic: boolean;
+  revisions: EngineRevision[];
+  registrations: EngineRegistrationRevision[];
 }
 
-function selectorTitle(selector: CapabilitySelector): string {
-  if (selector.selector === 'none') return 'none';
-  if (selector.selector === 'all') return 'all declared values';
-  return selector.values?.join(', ') || 'invalid empty selector';
+/** Public engines for a visitor; for a signed-in account the visible list plus what the gateway says about each revision. */
+async function loadCatalog(username: string | null): Promise<CatalogData> {
+  if (!username) return { forUser: null, engines: await apiClient.getPublicEngines(), fellBackToPublic: false, revisions: [], registrations: [] };
+  const catalog = await apiClient.getCatalogEngines();
+  if (catalog.fellBackToPublic) return { ...catalog, forUser: username, revisions: [], registrations: [] };
+  // Visibility and publication are extras: the list is useful without them.
+  const [revisions, registrations] = await Promise.all([
+    platformApi.engineRevisions().then((body) => body.revisions ?? [], () => []),
+    apiClient.listEngineRegistrations().catch(() => []),
+  ]);
+  return { ...catalog, forUser: username, revisions, registrations };
 }
 
-function modeKey(engine: EngineCatalogEntry, mode: EngineMode): string {
-  return `${bimResourceKey(engine.ref)}::${mode.id}`;
+function statusOf(error: unknown): number | null {
+  return error instanceof HttpError ? error.status : null;
 }
-
-function deploymentErrorMessage(reason: unknown): string {
-  if (reason instanceof HttpError) {
-    const diagnostic = reason.diagnostics?.find(
-      (item): item is Record<string, unknown> => typeof item === 'object' && item !== null,
-    );
-    const diagnosticMessage = diagnostic?.message;
-    if (typeof diagnosticMessage === 'string' && diagnosticMessage) {
-      return `${reason.message} ${diagnosticMessage}`;
-    }
-  }
-  return reason instanceof Error ? reason.message : 'The deployment change was refused.';
-}
-
-const deploymentStates: Record<EngineRegistrationState, {
-  label: string;
-  hint: string;
-  badge: 'default' | 'success' | 'warning' | 'error' | 'info';
-}> = {
-  private: { label: 'Private', hint: 'Visible only to your account; administrators cannot discover it.', badge: 'info' },
-  pending_review: { label: 'In review', hint: 'Visible to administrators because you requested publication.', badge: 'warning' },
-  published: { label: 'Published', hint: 'Available to every authenticated compatible account.', badge: 'success' },
-  rejected: { label: 'Rejected', hint: 'Not published; it remains private to your account.', badge: 'error' },
-};
 
 export function Engines() {
   const { user } = useAuth();
-  const [engines, setEngines] = useState<EngineCatalogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const username = user?.username ?? null;
+  const catalog = useResource(`engines:${username ?? 'visitor'}`, () => loadCatalog(username));
   const [query, setQuery] = useState('');
-  const [selectedEngineKey, setSelectedEngineKey] = useState('');
-  const [selectedModeId, setSelectedModeId] = useState('');
-  const [deployments, setDeployments] = useState<EngineRegistrationRevision[]>([]);
-  const [deploymentsLoading, setDeploymentsLoading] = useState(false);
-  const [deploymentError, setDeploymentError] = useState<string | null>(null);
-  const [deploymentNotice, setDeploymentNotice] = useState<string | null>(null);
-  const [busyDeployment, setBusyDeployment] = useState('');
-  const [credentialEditor, setCredentialEditor] = useState('');
-  const [credentialValue, setCredentialValue] = useState('');
-  const modeTabsId = useId();
-  const modeTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const username = user?.username;
+  const [family, setFamily] = useState('all');
+  const [compared, setCompared] = useState<string[]>([]);
 
-  const loadDeployments = useCallback(async () => {
-    if (!username) {
-      setDeployments([]);
-      setDeploymentsLoading(false);
-      setDeploymentError(null);
-      setDeploymentNotice(null);
-      return;
-    }
-    setDeploymentsLoading(true);
-    setDeploymentError(null);
-    try {
-      const registrations = await apiClient.listEngineRegistrations();
-      setDeployments(registrations.filter((registration) => registration.namespace === username));
-    } catch (reason: unknown) {
-      setDeploymentError(reason instanceof Error ? reason.message : 'Your deployments could not be loaded.');
-    } finally {
-      setDeploymentsLoading(false);
-    }
-  }, [username]);
+  // On a failed refresh the last list that arrived stays on screen, but never one that belonged to another account.
+  const data = catalog.data ?? (catalog.stale?.forUser === username ? catalog.stale : undefined);
+  const rows = useMemo(
+    () => (data ? engineRows(data.engines, { username, revisions: data.revisions, registrations: data.registrations }) : []),
+    [data, username],
+  );
+  const needle = query.trim().toLowerCase();
+  const visible = rows.filter((row) => {
+    const text = `${row.engine.namespace}/${row.engine.name} ${row.engine.version} ${row.engine.modes.map((mode) => mode.id).join(' ')}`.toLowerCase();
+    return (family === 'all' || row.family === family) && (!needle || text.includes(needle));
+  });
+  const modes = visible.flatMap((row) => modeRows(row.engine));
+  const comparing = compared.map((id) => modes.find((mode) => mode.id === id)).filter((mode): mode is ModeRow => Boolean(mode));
 
-  const loadEngines = () => {
-    setLoading(true);
-    setError(null);
-    void apiClient.getEngines(true)
-      .then((data) => {
-        setEngines(data);
-        const first = data[0];
-        if (first) {
-          setSelectedEngineKey((current) => data.some((engine) => bimResourceKey(engine.ref) === current) ? current : bimResourceKey(first.ref));
-          setSelectedModeId((current) => first.modes.some((mode) => mode.id === current) ? current : first.modes[0]?.id || '');
-        }
-      })
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'The Engine catalogue could not be loaded.'))
-      .finally(() => setLoading(false));
+  const toggleCompare = (id: string) => {
+    setCompared((current) => {
+      if (current.includes(id)) return current.filter((item) => item !== id);
+      return [...current, id].slice(-2);
+    });
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    void apiClient.getEngines(true)
-      .then((data) => {
-        if (cancelled) return;
-        setEngines(data);
-        const first = data[0];
-        if (first) {
-          setSelectedEngineKey(bimResourceKey(first.ref));
-          setSelectedModeId(first.modes[0]?.id || '');
-        }
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : 'The Engine catalogue could not be loaded.');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    void loadDeployments();
-  }, [loadDeployments]);
-
-  const filtered = useMemo(() => engines.filter((engine) => {
-    const text = `${engine.namespace}/${engine.name} ${engine.version} ${engine.modes.map((mode) => `${mode.id} ${mode.algorithm} ${mode.profile}`).join(' ')}`;
-    return text.toLowerCase().includes(query.trim().toLowerCase());
-  }), [engines, query]);
-  const selectedEngine = filtered.find((engine) => bimResourceKey(engine.ref) === selectedEngineKey) ?? filtered[0];
-  const selectedMode = selectedEngine?.modes.find((mode) => mode.id === selectedModeId) ?? selectedEngine?.modes[0];
-  const selectedModeIndex = selectedEngine && selectedMode
-    ? selectedEngine.modes.findIndex((mode) => mode.id === selectedMode.id)
-    : -1;
-  const capabilityEntries = selectedMode ? Object.entries(selectedMode.capabilities) as Array<[string, CapabilitySelector]> : [];
-
-  const selectEngine = (engine: EngineCatalogEntry) => {
-    setSelectedEngineKey(bimResourceKey(engine.ref));
-    setSelectedModeId(engine.modes[0]?.id || '');
-  };
-
-  const selectMode = (index: number) => {
-    const mode = selectedEngine?.modes[index];
-    if (!mode || !selectedEngine) return;
-    setSelectedEngineKey(bimResourceKey(selectedEngine.ref));
-    setSelectedModeId(mode.id);
-    modeTabRefs.current[index]?.focus();
-  };
-
-  const moveModeTab = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
-    const modes = selectedEngine?.modes || [];
-    if (!modes.length || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-    event.preventDefault();
-    const nextIndex = event.key === 'Home'
-      ? 0
-      : event.key === 'End'
-        ? modes.length - 1
-        : (index + (event.key === 'ArrowRight' ? 1 : -1) + modes.length) % modes.length;
-    selectMode(nextIndex);
-  };
-
-  const changeDeployment = async (
-    registration: EngineRegistrationRevision,
-    action: (ref: EngineRegistrationRevision) => Promise<EngineRegistrationRevision>,
-    notice: string,
-  ) => {
-    const key = bimResourceKey(registration);
-    setBusyDeployment(key);
-    setDeploymentError(null);
-    setDeploymentNotice(null);
-    try {
-      const updated = await action(registration);
-      setDeployments((current) => current.map((item) => bimResourceKey(item) === key ? updated : item));
-      setDeploymentNotice(notice);
-      return true;
-    } catch (reason: unknown) {
-      setDeploymentError(deploymentErrorMessage(reason));
-      return false;
-    } finally {
-      setBusyDeployment('');
-    }
-  };
-
-  const replaceCredential = async (registration: EngineRegistrationRevision) => {
-    if (!credentialValue) {
-      setDeploymentError('A non-empty bearer token or Basic username:password credential is required.');
-      return;
-    }
-    const changed = await changeDeployment(
-      registration,
-      (ref) => apiClient.setEngineRegistrationCredential(ref, credentialValue),
-      `${registration.name} has a new encrypted credential and is private and inactive until it is verified again.`,
-    );
-    if (changed) {
-      setCredentialEditor('');
-      setCredentialValue('');
-    }
-  };
+  const status = catalog.status;
+  const failure = status === 'error' ? statusOf(catalog.error) : null;
+  const forbidden = failure === 403;
+  const fellBack = Boolean(data?.fellBackToPublic);
+  const sessionView = Boolean(user) && !fellBack;
+  const showList = (data?.engines.length ?? 0) > 0 && !forbidden;
 
   return (
-    <div className="engines-page page-shell">
-      <header className="page-intro engines-intro">
-        <div>
-          <span className="kicker">Execution ecosystem</span>
-          <h1 className="page-title">Engines publish exactly what they can solve.</h1>
-        </div>
-        <div>
-          <p className="page-lede">
-            BIM Engine revisions are portable, immutable declarations. Each mode targets one Profile and IR,
-            selects supported feature values, sets ceilings and states guarantees independently of its algorithm name.
-          </p>
-          <div className="engine-intro-actions"><Link to="/engines/new" viewTransition>Register an Engine <ArrowRight aria-hidden="true" /></Link><Link to="/playground" viewTransition>Validate a package</Link></div>
-        </div>
-      </header>
-
-      <section className="federation-section" aria-labelledby="federation-title">
-        <header className="engine-section-header">
-          <div><span className="section-label">Multi-vendor catalogue &amp; federation</span><h2 id="federation-title">Portable capability. Private deployment. Verified result.</h2></div>
-          <p>Different publishers can contribute Engine revisions and different operators can register deployments. The gateway keeps identity, compatibility and evaluation at one trust boundary.</p>
-        </header>
-        <div className="federation-route">
-          <article>
-            <Fingerprint aria-hidden="true" />
-            <span>01 · Portable resource</span><h3>Engine</h3>
-            <p>Immutable modes, algorithms, Profile/IR support, selectors, option schema, limits and guarantees.</p>
-            <code>namespace/name@version#digest</code>
-          </article>
-          <ArrowRight aria-hidden="true" />
-          <article>
-            <CloudCog aria-hidden="true" />
-            <span>02 · Private deployment resource</span><h3>EngineRegistration</h3>
-            <p>Pins one exact Engine, HTTPS endpoint, protocol digest, paths and auth scheme. Credentials stay in the secret store.</p>
-            <code>Engine ref + bim-engine/v1</code>
-          </article>
-          <ArrowRight aria-hidden="true" />
-          <article>
-            <Server aria-hidden="true" />
-            <span>03 · Local or remote execution</span><h3>Compiled IR only</h3>
-            <p>The selected deployment receives the Profile-declared BindingProblem. It never fetches source resources or Dialect schemas.</p>
-            <code>no source package crosses</code>
-          </article>
-          <ArrowRight aria-hidden="true" />
-          <article className="federation-verify">
-            <ShieldCheck aria-hidden="true" />
-            <span>04 · Gateway authority</span><h3>Reevaluation</h3>
-            <p>Every decision is recomputed against the canonical problem before termination and provenance are exposed.</p>
-            <code>OPTIMAL · FEASIBLE · INFEASIBLE · UNKNOWN</code>
-          </article>
-        </div>
-        <p className="federation-note"><Check aria-hidden="true" /> Federation changes where a compatible mode runs. It does not weaken immutable pins, expose source packages, or make a remote engine authoritative.</p>
-      </section>
-
-      {user && <section className="deployment-section" aria-labelledby="deployment-title">
-        <header className="engine-section-header deployment-heading">
-          <div><span className="section-label">Federated execution</span><h2 id="deployment-title">My deployments</h2></div>
-          <div className="deployment-heading-copy">
-            <p>You control private activation independently from publication. A deployment reaches administrators only after you submit it for review.</p>
-            <Link to="/engines/new" viewTransition>Register deployment <ArrowRight aria-hidden="true" /></Link>
-          </div>
-        </header>
-
-        {deploymentError && <Alert type="error" title="Deployment change unavailable">{deploymentError} <button type="button" className="inline-retry" onClick={() => void loadDeployments()}>Retry</button></Alert>}
-        {deploymentNotice && <Alert type="success">{deploymentNotice}</Alert>}
-        {deploymentsLoading ? <div className="loading-state">Reading your EngineRegistration revisions…</div> : deploymentError && deployments.length === 0 ? null : deployments.length === 0 ? (
-          <div className="deployment-empty">
-            <CloudCog aria-hidden="true" />
-            <div><h3>No deployments in {username} yet.</h3><p>Register an engine endpoint to keep it private while the gateway verifies it. Production requires HTTPS.</p></div>
-            <Link to="/engines/new" viewTransition>Register deployment <ArrowRight aria-hidden="true" /></Link>
-          </div>
-        ) : <ul className="deployment-list" aria-label="My federated deployments">
-          {deployments.map((registration) => {
-            const state = deploymentStates[registration.status];
-            const busy = busyDeployment === bimResourceKey(registration);
-            return <li key={bimResourceKey(registration)} data-state={registration.status}>
-              <div className="deployment-identity">
-                <div>
-                  <Badge variant={state.badge}>{state.label}</Badge>
-                  <Badge variant={registration.active ? 'success' : 'default'}>{registration.active ? 'active for you' : 'inactive for you'}</Badge>
-                  <span>{state.hint}</span>
-                </div>
-                <h3>{registration.name}</h3>
-                <p><code>{registration.namespace}/{registration.name}</code> · <code>{registration.version}</code></p>
-              </div>
-              <code className="deployment-digest" title={registration.digest}>{shortDigest(registration.digest)}</code>
-              <div className="deployment-actions">
-                {!registration.active && <Button size="sm" disabled={busy} aria-label={`Activate ${registration.name}`} onClick={() => void changeDeployment(registration, (ref) => apiClient.activateEngineRegistration(ref), `${registration.name} is verified and active for your account.`)}>Activate</Button>}
-                {registration.active && <Button size="sm" variant="secondary" disabled={busy} aria-label={`Deactivate ${registration.name}`} onClick={() => {
-                  if (window.confirm(`Deactivate ${registration.name} for your account? Its publication state will not change.`)) {
-                    void changeDeployment(registration, (ref) => apiClient.deactivateEngineRegistration(ref), `${registration.name} is inactive for your account.`);
-                  }
-                }}>Deactivate</Button>}
-                {registration.active && (registration.status === 'private' || registration.status === 'rejected') && <Button size="sm" variant="ghost" disabled={busy} aria-label={`Request publication for ${registration.name}`} onClick={() => {
-                  if (window.confirm(`Submit ${registration.name} for publication? Administrators will then be able to discover and review this exact revision.`)) {
-                    void changeDeployment(registration, (ref) => apiClient.requestEngineRegistrationPublication(ref), `${registration.name} was submitted for publication review.`);
-                  }
-                }}>Request publication</Button>}
-                {registration.status !== 'published' && <Button size="sm" variant="ghost" disabled={busy} aria-label={`Replace credential for ${registration.name}`} onClick={() => {
-                  const key = bimResourceKey(registration);
-                  setCredentialEditor((current) => current === key ? '' : key);
-                  setCredentialValue('');
-                }}>Credential</Button>}
-              </div>
-              {credentialEditor === bimResourceKey(registration) && <form className="credential-editor" onSubmit={(event) => {
-                event.preventDefault();
-                void replaceCredential(registration);
-              }}>
-                <label htmlFor={`credential-${registration.digest}`}>
-                  <span>New deployment credential</span>
-                  <input
-                    id={`credential-${registration.digest}`}
-                    type="password"
-                    autoComplete="off"
-                    value={credentialValue}
-                    onChange={(event) => setCredentialValue(event.target.value)}
-                    placeholder="Bearer token or username:password"
-                  />
-                </label>
-                <p>Use the token alone for bearer auth or <code>username:password</code> for Basic. Replacing it makes the deployment private and inactive, so activation and publication review must be repeated.</p>
-                <div>
-                  <Button type="submit" size="sm" disabled={busy}>Store encrypted credential</Button>
-                  <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => {
-                    setCredentialEditor('');
-                    setCredentialValue('');
-                  }}>Cancel</Button>
-                </div>
-              </form>}
-            </li>;
-          })}
-        </ul>}
-      </section>}
-
-      <section className="engine-catalogue" aria-labelledby="engine-catalogue-title">
-        <header className="engine-section-header catalogue-heading">
-          <div><span className="section-label">Runtime catalogue</span><h2 id="engine-catalogue-title">Inspect compatibility mode by mode.</h2></div>
-          <label className="engine-search"><Search aria-hidden="true" /><span className="sr-only">Search engine revisions</span><input type="search" name="engine-search" autoComplete="off" spellCheck={false} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search engine, mode or algorithm…" /></label>
-        </header>
-
-        {loading ? <div className="loading-state">Reading immutable Engine revisions…</div> : error ? (
-          <Alert type="error" title="Runtime catalogue unavailable">{error} <button type="button" className="inline-retry" onClick={loadEngines}>Retry</button></Alert>
-        ) : engines.length === 0 ? (
-          <Alert type="info" title="No Engine revisions advertised">The host returned an empty <code>/v1/engines</code> catalogue.</Alert>
-        ) : (
-          <div className="engine-workbench">
-            <div className="engine-roster" aria-label="Engine revisions">
-              <div className="engine-roster-heading"><span>{filtered.length} revision{filtered.length === 1 ? '' : 's'}</span><small>Select to inspect</small></div>
-              {filtered.map((engine) => {
-                const key = bimResourceKey(engine.ref);
-                return <button key={key} type="button" className={selectedEngine?.ref && bimResourceKey(selectedEngine.ref) === key ? 'is-active' : ''} onClick={() => selectEngine(engine)}>
-                  <span>{engine.namespace}</span>
-                  <strong>{engine.name}</strong>
-                  <small>v{engine.version} · {engine.modes.length} mode{engine.modes.length === 1 ? '' : 's'}</small>
-                  <code title={engine.digest}>{shortDigest(engine.digest)}</code>
-                </button>;
-              })}
-              {filtered.length === 0 && <p className="engine-roster-empty">No revision matches “{query}”.</p>}
-            </div>
-
-            {selectedEngine && selectedMode && <div className="engine-detail">
-              <header className="engine-detail-header">
-                <div><span className="micro-label">{selectedEngine.namespace}</span><h2>{selectedEngine.name}</h2><p>Immutable revision <code>{selectedEngine.version}</code> · <code title={selectedEngine.digest}>{shortDigest(selectedEngine.digest)}</code></p></div>
-                <Link to="/playground" viewTransition>Test with a package <ArrowRight aria-hidden="true" /></Link>
-              </header>
-
-              <div className="mode-tabs" role="tablist" aria-label="Engine modes">
-                {selectedEngine.modes.map((mode, index) => <button
-                  key={modeKey(selectedEngine, mode)}
-                  ref={(node) => { modeTabRefs.current[index] = node; }}
-                  id={`${modeTabsId}-tab-${index}`}
-                  type="button"
-                  role="tab"
-                  aria-selected={selectedMode.id === mode.id}
-                  aria-controls={`${modeTabsId}-panel`}
-                  tabIndex={selectedMode.id === mode.id ? 0 : -1}
-                  className={selectedMode.id === mode.id ? 'is-active' : ''}
-                  onClick={() => selectMode(index)}
-                  onKeyDown={(event) => moveModeTab(event, index)}
-                ><span>{mode.guarantees.exact ? 'Exact' : 'Heuristic'}</span><strong>{mode.id}</strong><small>{mode.algorithm}</small></button>)}
-              </div>
-
-              <div
-                id={`${modeTabsId}-panel`}
-                className="mode-contract"
-                role="tabpanel"
-                aria-labelledby={`${modeTabsId}-tab-${selectedModeIndex}`}
-                key={selectedMode.id}
-              >
-                <div className="mode-identity">
-                  <article><span className="micro-label">Profile</span><strong>{selectedMode.profile}</strong><small>must match exactly</small></article>
-                  <article><span className="micro-label">Output IR</span><strong>{selectedMode.ir.apiVersion} · {selectedMode.ir.kind}</strong><small>must match exactly</small></article>
-                  <article><span className="micro-label">Algorithm</span><strong>{selectedMode.algorithm}</strong><small>does not imply a guarantee</small></article>
-                  <article className={selectedMode.guarantees.exact ? 'is-exact' : ''}><span className="micro-label">Truthful guarantee</span><strong>{selectedMode.guarantees.exact ? 'Exact mode' : 'Heuristic mode'}</strong><small>{selectedMode.guarantees.termination.join(' · ')}</small></article>
-                </div>
-
-                <div className="mode-detail-grid">
-                  <section className="capability-matrix">
-                    <header><GitCompareArrows aria-hidden="true" /><div><span className="micro-label">Feature selectors</span><h3>Actual IR features must fit every row</h3></div></header>
-                    <div>{capabilityEntries.map(([name, selector]) => <article key={name} className={name === 'irExtensions' ? 'is-extension' : ''}><code>{name}</code><span className={`selector selector-${selector.selector}`}>{selector.selector}</span><p title={selectorTitle(selector)}>{selectorTitle(selector)}</p></article>)}</div>
-                    <footer><strong><code>none</code></strong> rejects the dimension. <strong><code>only</code></strong> names exact values. <strong><code>all</code></strong> is valid only when the Profile closes the vocabulary.</footer>
-                  </section>
-
-                  <aside className="mode-limits">
-                    <section>
-                      <span className="micro-label">Declared ceilings</span>
-                      <h3>Limits</h3>
-                      <dl>{Object.entries(selectedMode.limits).map(([name, value]) => <div key={name}><dt><code>{name}</code></dt><dd>{value.toLocaleString()}</dd></div>)}</dl>
-                    </section>
-                    <section>
-                      <span className="micro-label">Closed caller options</span>
-                      <h3>Options</h3>
-                      {Object.keys(selectedMode.optionsSchema.properties).length ? <ul>{Object.keys(selectedMode.optionsSchema.properties).map((name) => <li key={name}><code>{name}</code>{selectedMode.optionsSchema.required?.includes(name) && <span>required</span>}</li>)}</ul> : <p>No caller options.</p>}
-                    </section>
-                  </aside>
-                </div>
-              </div>
-            </div>}
-          </div>
+    <div className="engines-page">
+      <PageHeader
+        eyebrow="Engines"
+        title="Engine catalog"
+        lede="Every engine is addressed by its exact identity: namespace, name, version and digest. Pick the revision and mode you’ll run or study."
+        actions={user && (
+          <>
+            <Link className="engines-action" to="/app/engines/registrations">My registrations</Link>
+            <Link className="engines-action is-primary" to="/app/engines/new">Register engine</Link>
+          </>
         )}
-      </section>
+      />
 
-      <section className="engine-next">
-        <span className="section-label">Compatibility in practice</span>
-        <h2>Validation compiles the package first, then returns exact Engine + Registration + mode triples.</h2>
-        <Link to="/examples" viewTransition>Choose a package to validate <ArrowRight aria-hidden="true" /></Link>
-      </section>
+      <Notice tone="info" action={!user ? <Link to="/login">Log in</Link> : undefined}>
+        {sessionView
+          ? 'Showing engines visible to your account: public revisions plus private ones you own. API keys see only the engines in their exact list.'
+          : 'Showing public engines. Log in to also see private engines you own.'}
+      </Notice>
+
+      <div className="engines-controls">
+        <label className="engines-search">
+          <span className="sr-only">Search engines</span>
+          <Search aria-hidden="true" />
+          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name or namespace…" autoComplete="off" spellCheck={false} />
+        </label>
+        <FilterPills ariaLabel="Family" options={familyOptions(rows)} value={family} onChange={setFamily} />
+      </div>
+
+      <div className="engines-results" aria-live="polite" aria-busy={status === 'loading' && !data}>
+        {status === 'loading' && !data && (
+          <>
+            <div className="engines-grid"><Skeleton /><Skeleton /><Skeleton /></div>
+            <Skeleton variant="panel" />
+          </>
+        )}
+
+        {forbidden && (
+          <Notice tone="warning" title="This API key can’t list engines (403 · insufficient_api_key_permission)">
+            Missing permission: <code>engines:read</code>. A key is always limited to what you choose when you create it; create a key that
+            includes this permission. Engines outside a key’s exact list answer 404, so they never appear.{' '}
+            <Link to="/app/account/keys">Manage API keys</Link>
+          </Notice>
+        )}
+
+        {status === 'error' && !forbidden && (
+          <Notice tone="error" action={<Button size="sm" variant="secondary" onClick={catalog.reload}>Retry</Button>}>
+            {data
+              ? `The catalog couldn’t refresh (${failure ?? 'network error'}). You’re seeing the last list loaded.`
+              : `The catalog couldn’t be loaded (${failure ? `HTTP ${failure}` : 'the gateway can’t be reached'}).`}
+          </Notice>
+        )}
+
+        {fellBack && (
+          <Notice tone="info" action={<Link to="/login">Log in</Link>}>
+            Your session expired (401), so the catalog fell back to the public view. Your private engines are hidden until you log in again.
+          </Notice>
+        )}
+
+        {status === 'ready' && data && data.engines.length === 0 && (
+          <EmptyState icon={<Monitor />} title="No engines visible to you">
+            Private engines need an account, and you only see the ones you own or that were published. You can register a federated
+            engine if your plan allows it (BASIC: 1 engine).
+          </EmptyState>
+        )}
+
+        {showList && (
+          <>
+            <section aria-label="Engines" className="engines-section">
+              <span className="engines-count">{visible.length} engine {visible.length === 1 ? 'revision' : 'revisions'}</span>
+              {visible.length === 0 ? (
+                <EmptyState icon={<Search />} title={`No revision matches “${query}”.`}>Clear the search or the family filter to see every engine.</EmptyState>
+              ) : (
+                <ul className="engines-grid">
+                  {visible.map((row) => <EngineCard key={row.key} row={row} />)}
+                </ul>
+              )}
+            </section>
+
+            {modes.length > 0 && (
+              <section aria-labelledby="cap-title" className="engines-section">
+                <div className="engines-section-heading">
+                  <h2 id="cap-title">Capabilities by mode</h2>
+                  <span>Select two modes to compare them</span>
+                </div>
+                <DataTable label="Mode capabilities" minWidth={760}>
+                  <thead>
+                    <tr>
+                      <th scope="col" className="engines-check-col"><span className="sr-only">Compare</span></th>
+                      <th scope="col">Engine · mode</th>
+                      <th scope="col">Placement</th>
+                      <th scope="col">IR extensions</th>
+                      <th scope="col">Options (unit, default)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modes.map((mode) => (
+                      <tr key={mode.id} className={compared.includes(mode.id) ? 'is-selected' : undefined}>
+                        <td><input type="checkbox" checked={compared.includes(mode.id)} onChange={() => toggleCompare(mode.id)} aria-label={`Compare ${mode.label}`} /></td>
+                        <td className="is-mono">{mode.label}</td>
+                        <td>{mode.placement}</td>
+                        <td className="is-mono">{mode.irExtensions}</td>
+                        <td>{mode.options}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </DataTable>
+                {comparing.length === 2 && (
+                  <div className="engines-compare" aria-label="Comparison">
+                    {comparing.map((mode) => (
+                      <div key={mode.id}>
+                        <strong className="is-mono">{mode.label}</strong>
+                        <span><span>Placement:</span> {mode.placement}</span>
+                        <span><span>IR extensions:</span> {mode.irExtensions}</span>
+                        <span><span>Options:</span> {mode.options}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <span className="engines-footnote">“Not declared” means the engine’s contract doesn’t list that capability; it isn’t a claim that the mode lacks it.</span>
+              </section>
+            )}
+
+            <section aria-labelledby="rev-title" className="engines-section">
+              <h2 id="rev-title">Revisions</h2>
+              <DataTable label="Engine revisions" minWidth={760}>
+                <thead>
+                  <tr>
+                    <th scope="col">Namespace</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Version</th>
+                    <th scope="col">Digest</th>
+                    <th scope="col">Visibility</th>
+                    <th scope="col">Publication</th>
+                    <th scope="col"><span className="sr-only">Open</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((row) => (
+                    <tr key={row.key}>
+                      <td className="is-mono">{row.engine.namespace}</td>
+                      <td className="is-mono">{row.engine.name}</td>
+                      <td>{row.engine.version}</td>
+                      <td className="is-mono" title={row.engine.digest}>{shortDigest(row.engine.digest)}</td>
+                      <td>{row.visibility === 'public' ? 'Public' : 'Private'}</td>
+                      <td>{row.publication.charAt(0).toUpperCase() + row.publication.slice(1)}</td>
+                      <td><Link to={row.href} aria-label={`Open ${row.engine.name} ${row.engine.version}`}>Open</Link></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </DataTable>
+            </section>
+          </>
+        )}
+      </div>
+
+      {user && <MyDeployments username={user.username} onChanged={catalog.reload} />}
     </div>
+  );
+}
+
+function EngineCard({ row }: { row: EngineRow }) {
+  const { engine } = row;
+  const builtin = engine.namespace === BUILTIN_NAMESPACE;
+  return (
+    <li>
+      <Link to={row.href} className="engines-card">
+        <span className="engines-card-meta">
+          <span className={`engines-glyph${builtin ? '' : ' is-private'}`} aria-hidden="true">{glyphOf(engine.name)}</span>
+          <span className="is-mono">{engine.namespace}</span>
+        </span>
+        <span className="engines-card-title">{engine.name} <span>{engine.version}</span></span>
+        <span className="engines-card-chips">
+          {engine.modes.length === 0 && <span className="engines-mode">no modes advertised</span>}
+          {engine.modes.map((mode) => <span key={mode.id} className="engines-mode">mode · {mode.id}</span>)}
+        </span>
+        <span className="engines-card-tags">
+          <span className="is-mono" title={engine.digest}>{shortDigest(engine.digest)}</span>
+          {row.chips.map((chip) => <span key={chip}>{chip}</span>)}
+        </span>
+      </Link>
+    </li>
   );
 }

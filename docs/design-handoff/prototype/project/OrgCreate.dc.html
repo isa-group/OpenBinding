@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · New organization</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-spin{to{transform:rotate(360deg)}}
+@keyframes ob-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes ob-fadeup{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.ob-spin{animation:ob-spin .9s linear infinite}
+.ob-grow{transform-origin:left;animation:ob-grow 600ms cubic-bezier(.4,0,.2,1) both}
+.ob-in{animation:ob-fadeup 300ms ease-out both}
+@media (prefers-reduced-motion: reduce){.ob-spin,.ob-grow,.ob-in{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="org-create" route="/app/organizations/new" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="" active="" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<main style="max-width: 1040px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<nav aria-label="Breadcrumb" style="display: flex; gap: 8px; font-size: 12px; color: #6a6a6a;"><a href="AppHome.dc.html">Home</a><span>/</span><span style="color: #1f1f1f;">New organization</span></nav>
+<div><h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">New organization</h1><p style="margin: 4px 0 0; color: #6a6a6a;">Three short steps: name it, place it, and choose who sponsors it.</p></div>
+
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><span style="font-size: 16px; font-weight: 500;">Log in to create an organization</span><a href="AuthLogin.dc.html" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Log in</a></div></sc-if>
+
+<sc-if value="{{showDone}}" hint-placeholder-val="{{false}}">
+<section class="ob-in" aria-live="polite" style="border: 1px solid #86efac; background: #f0fdf4; border-radius: 16px; padding: 24px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center;">
+<span aria-hidden="true" style="width: 56px; height: 56px; border-radius: 9999px; background: #ffffff; border: 2px solid #22c55e; display: inline-flex; align-items: center; justify-content: center;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.4"><path d="M20 6 9 17l-5-5"></path></svg></span>
+<div style="flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 20px; font-weight: 600;">{{name}} is ready</span><span>You're its <span style="font-weight: 600;">OWNER</span>. {{doneParent}} Sponsored by {{sponsorLabel}}.</span></div>
+<a href="OrgOverview.dc.html" onClick="{{openNew}}" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Open organization</a>
+</section>
+</sc-if>
+
+<sc-if value="{{showWizard}}" hint-placeholder-val="{{true}}">
+<ol aria-label="Steps" style="margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;">
+<sc-for list="{{steps}}" as="p" hint-placeholder-count="4">
+<li><button type="button" onClick="{{p.go}}" disabled="{{p.locked}}" aria-current="{{p.current}}" style="width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid {{p.border}}; border-radius: 12px; background: {{p.bg}}; font-family: inherit; text-align: left; cursor: pointer;"><span style="width: 26px; height: 26px; flex-shrink: 0; border-radius: 9999px; background: {{p.dotBg}}; color: {{p.dotFg}}; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">{{p.mark}}</span><span style="min-width: 0;"><span style="display: block; font-size: 13px; font-weight: 600; color: #1f1f1f;">{{p.label}}</span><span class="ob-hide-sm" style="display: block; font-size: 12px; color: #6a6a6a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{p.sub}}</span></span></button></li>
+</sc-for>
+</ol>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<section style="flex: 999 1 520px; min-width: 0; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+
+<sc-if value="{{s1}}" hint-placeholder-val="{{true}}">
+<h2 style="margin: 0; font-size: 18px; font-weight: 500;">Name and address</h2>
+<div style="display: flex; flex-direction: column; max-width: 460px;"><label for="oc-name" style="margin-bottom: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Name</label><input id="oc-name" value="{{name}}" onChange="{{typeName}}" maxlength="160" placeholder="e.g. Distributed Systems Lab" style="height: 44px; box-sizing: border-box; padding: 0 14px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: inherit; font-size: 14px;"><span style="margin-top: 4px; font-size: 12px; color: #6a6a6a;">Shown everywhere. You can change it later.</span></div>
+<div style="display: flex; flex-direction: column; max-width: 460px;"><label for="oc-slug" style="margin-bottom: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Address</label>
+<div style="display: flex; border: 1px solid {{slugBorder}}; border-radius: 8px; overflow: hidden;"><span style="display: inline-flex; align-items: center; padding: 0 10px; background: #fafafa; border-right: 1px solid #ededed; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #6a6a6a;">/app/</span><input id="oc-slug" value="{{slug}}" onChange="{{typeSlug}}" aria-invalid="{{slugInvalid}}" aria-describedby="oc-slug-help" spellcheck="false" style="flex: 1; min-width: 0; height: 42px; border: 0; padding: 0 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px;"></div>
+<span id="oc-slug-help" style="margin-top: 4px; font-size: 12px; color: {{slugColor}};">{{slugHelp}}</span></div>
+</sc-if>
+
+<sc-if value="{{s2}}" hint-placeholder-val="{{false}}">
+<h2 style="margin: 0; font-size: 18px; font-weight: 500;">Where it sits</h2>
+<span style="color: #4a4a4a;">Place it inside an organization you administer, or keep it top-level. Everyone with a role above it gets the same role inside it.</span>
+<div role="radiogroup" aria-label="Parent organization" style="display: flex; flex-direction: column; gap: 8px;">
+<sc-for list="{{parents}}" as="p" hint-placeholder-count="3">
+<button type="button" role="radio" aria-checked="{{p.checked}}" disabled="{{p.disabled}}" onClick="{{p.pick}}" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: {{p.border}}; border-radius: 12px; background: {{p.bg}}; font-family: inherit; text-align: left; cursor: pointer; opacity: {{p.opacity}};">
+<span aria-hidden="true" style="width: 18px; height: 18px; flex-shrink: 0; border-radius: 9999px; border: 2px solid {{p.ring}}; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 8px; height: 8px; border-radius: 9999px; background: {{p.fill}};"></span></span>
+<span style="flex: 1; min-width: 0;"><span style="display: block; font-weight: 500; color: #1f1f1f;">{{p.label}}</span><span style="display: block; font-size: 12px; color: #6a6a6a;">{{p.sub}}</span></span>
+<sc-if value="{{p.hasRole}}" hint-placeholder-val="{{false}}"><span style="{{p.roleStyle}}">{{p.role}}</span></sc-if>
+</button>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{s3}}" hint-placeholder-val="{{false}}">
+<h2 style="margin: 0; font-size: 18px; font-weight: 500;">Who sponsors it</h2>
+<span style="color: #4a4a4a;">The sponsor's plan pays for the organization's size: organizations, members, projects and storage count against their limits. Sponsoring gives no role and no access.</span>
+<div role="radiogroup" aria-label="Sponsor" style="display: flex; flex-direction: column; gap: 8px;">
+<sc-for list="{{sponsors}}" as="p" hint-placeholder-count="2">
+<button type="button" role="radio" aria-checked="{{p.checked}}" onClick="{{p.pick}}" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: {{p.border}}; border-radius: 12px; background: {{p.bg}}; font-family: inherit; text-align: left; cursor: pointer;">
+<span aria-hidden="true" style="width: 18px; height: 18px; flex-shrink: 0; border-radius: 9999px; border: 2px solid {{p.ring}}; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 8px; height: 8px; border-radius: 9999px; background: {{p.fill}};"></span></span>
+<span style="flex: 1;"><span style="display: block; font-weight: 500; color: #1f1f1f;">{{p.label}}</span><span style="display: block; font-size: 12px; color: #6a6a6a;">{{p.sub}}</span></span>
+</button>
+</sc-for>
+</div>
+<sc-if value="{{sponsorAdminNote}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #6a6a6a;">As a platform administrator you may choose any account as sponsor.</span></sc-if>
+</sc-if>
+
+<sc-if value="{{s4}}" hint-placeholder-val="{{false}}">
+<h2 style="margin: 0; font-size: 18px; font-weight: 500;">Review</h2>
+<dl style="margin: 0; display: grid; grid-template-columns: 140px 1fr; gap: 8px 12px;">
+<dt style="color: #6a6a6a;">Name</dt><dd style="margin: 0; font-weight: 500;">{{name}}</dd>
+<dt style="color: #6a6a6a;">Address</dt><dd style="margin: 0; font-family: 'JetBrains Mono', monospace;">/app/{{slug}}</dd>
+<dt style="color: #6a6a6a;">Inside</dt><dd style="margin: 0;">{{parentLabel}}</dd>
+<dt style="color: #6a6a6a;">Sponsor</dt><dd style="margin: 0;">{{sponsorLabel}}</dd>
+<dt style="color: #6a6a6a;">Your role</dt><dd style="margin: 0;"><span style="border-radius: 9999px; background: #023e8a; color: #ffffff; padding: 1px 10px; font-size: 11px; font-weight: 600;">OWNER</span></dd>
+</dl>
+<sc-if value="{{err409}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; gap: 10px; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px;"><span><span style="font-weight: 500;">That address is taken (409).</span> Another organization already uses <span style="font-family: 'JetBrains Mono', monospace;">/app/{{slug}}</span>. <button type="button" onClick="{{goStep1}}" style="border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 14px; color: #0077b6; font-weight: 500; cursor: pointer;">Change the address</button></span></div></sc-if>
+<sc-if value="{{err402}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; flex-direction: column; gap: 6px; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px;"><span><span style="font-weight: 500;">The sponsor has no organizations left (402 · sponsor quota exceeded).</span> {{sponsorLabel}} already sponsors {{orgLimitText}}.</span><span style="display: flex; flex-wrap: wrap; gap: 12px;"><a href="AcctUsage.dc.html" style="font-weight: 500;">See usage</a><button type="button" onClick="{{goStep3}}" style="border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 14px; color: #0077b6; font-weight: 500; cursor: pointer;">Choose another sponsor</button><a href="PubPricing.dc.html" style="font-weight: 500;">Compare plans</a></span></div></sc-if>
+<sc-if value="{{err503}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px;"><span style="flex: 1; min-width: 200px;">The sponsor's limits can't be checked right now (503 · pricing unavailable), so nothing was created.</span><button type="button" onClick="{{create}}" style="height: 32px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;">Try again</button></div></sc-if>
+<sc-if value="{{err403}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; gap: 10px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 12px 14px;"><span>{{forbiddenText}}</span></div></sc-if>
+</sc-if>
+
+<sc-if value="{{creating}}" hint-placeholder-val="{{false}}"><div role="status" style="display: flex; align-items: center; gap: 10px; color: #4a4a4a;"><span class="ob-spin" aria-hidden="true" style="width: 18px; height: 18px; box-sizing: border-box; border-radius: 9999px; border: 2px solid #caf0f8; border-top-color: #0077b6;"></span>Creating {{name}}…</div></sc-if>
+
+<div style="display: flex; justify-content: space-between; gap: 8px; padding-top: 8px; border-top: 1px solid #ededed;">
+<span style="display: flex; gap: 8px;"><a href="AppHome.dc.html" style="display: inline-flex; align-items: center; height: 40px; padding: 0 14px; border-radius: 8px; color: #4a4a4a; text-decoration: none; font-weight: 500;">Cancel</a><sc-if value="{{canBack}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{back}}" style="height: 40px; padding: 0 14px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;">Back</button></sc-if></span>
+<sc-if value="{{notLast}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{next}}" disabled="{{nextDisabled}}" style="height: 40px; padding: 0 18px; border: 0; border-radius: 8px; background: #0077b6; color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; opacity: {{nextOpacity}};">Continue</button></sc-if>
+<sc-if value="{{isLast}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{create}}" disabled="{{creating}}" style="height: 40px; padding: 0 18px; border: 0; border-radius: 8px; background: #0077b6; color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;">Create organization</button></sc-if>
+</div>
+</section>
+
+<aside style="flex: 1 1 280px; max-width: 380px; display: flex; flex-direction: column; gap: 16px;">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Preview</span>
+<ul aria-label="Organization tree preview" style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px;">
+<sc-for list="{{tree}}" as="t" hint-placeholder-count="3">
+<li style="padding-left: {{t.indent}}px;"><span style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; border: {{t.border}}; background: {{t.bg}};"><span aria-hidden="true" style="width: 22px; height: 22px; border-radius: 6px; background: {{t.tile}}; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600;">{{t.initials}}</span><span style="flex: 1; min-width: 0; font-size: 13px; font-weight: {{t.weight}}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{t.name}}</span><sc-if value="{{t.isNew}}" hint-placeholder-val="{{false}}"><span style="border-radius: 9999px; background: #0077b6; color: #ffffff; padding: 0 8px; font-size: 10px; font-weight: 600;">NEW</span></sc-if></span></li>
+</sc-for>
+</ul>
+<span style="font-size: 12px; color: #6a6a6a;">{{inheritNote}}</span>
+</div>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Sponsor's room after creating</span>
+<sc-for list="{{room}}" as="r" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="display: flex; justify-content: space-between; font-size: 13px;"><span>{{r.label}}</span><span style="font-weight: 500;">{{r.text}}</span></div>
+<div style="position: relative; height: 8px; border-radius: 9999px; background: #ededed; overflow: hidden;"><div class="ob-grow" style="position: absolute; left: 0; top: 0; height: 8px; width: {{r.before}}%; background: {{r.color}};"></div><div style="position: absolute; left: {{r.before}}%; top: 0; height: 8px; width: {{r.added}}%; background: repeating-linear-gradient(45deg, {{r.color}} 0 4px, #caf0f8 4px 8px);"></div></div>
+</div>
+</sc-for>
+<span style="font-size: 12px; color: #6a6a6a;">{{roomNote}}</span>
+</div>
+</aside>
+</div>
+</sc-if>
+</main>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1500}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "lucia", st: "success", scenario: "ok", step: 1, name: "Distributed Systems Lab", slug: "ds-lab", slugTouched: false, parent: "", sponsor: "self", done: false, creating: false, submitErr: "" };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, key: "visitor", user: "", name: "", email: "", initials: "", plan: "BASIC" },
+      lucia: { signedIn: true, key: "lucia", user: "lucia.vega", name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV", admin: false, plan: "RESEARCH" },
+      marco: { signedIn: true, key: "marco", user: "marco.diaz", name: "Marco Díaz", email: "marco@example.invalid", initials: "MD", admin: false, plan: "BASIC" },
+      sofia: { signedIn: true, key: "sofia", user: "sofia.rey", name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR", admin: false, plan: "BASIC" },
+      nora: { signedIn: true, key: "nora", user: "nora.campos", name: "Nora Campos", email: "nora@example.invalid", initials: "NC", admin: false, plan: "ADVANCED" },
+      iker: { signedIn: true, key: "iker", user: "iker.mora", name: "Iker Mora", email: "iker@example.invalid", initials: "IM", admin: true, plan: "PRO" },
+      pablo: { signedIn: true, key: "pablo", user: "pablo.ci", name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI", admin: false, plan: "PRO" }
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+  setPersona(k) { this.setState({ persona: k, parent: "", sponsor: "self", step: 1, done: false, submitErr: "" }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const st = s.st, sc = s.scenario;
+    const blank = st === "empty";
+    const name = blank && !s.slugTouched && s.name === "Distributed Systems Lab" ? "" : s.name;
+    const slug = blank && !s.slugTouched && s.slug === "ds-lab" ? "" : s.slug;
+    const slugOk = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(slug);
+    const taken = ["isa-demo", "qos-lab", "consultora-demo"].indexOf(slug) >= 0;
+    const ROLES = {
+      lucia: { "isa-demo": "OWNER", "qos-lab": "OWNER" },
+      marco: { "isa-demo": "MEMBER", "qos-lab": "ADMIN", "consultora-demo": "VIEWER" },
+      sofia: { "isa-demo": "VIEWER", "qos-lab": "VIEWER" },
+      nora: { "consultora-demo": "OWNER" }, iker: {}, pablo: {}
+    };
+    const ORG = { "isa-demo": { name: "ISA Demo Group", sponsor: "lucia", sponsorName: "Lucía Vega", initials: "ID", tile: "#023e8a", parent: "" }, "qos-lab": { name: "QoS Lab (sub-organización)", sponsor: "lucia", sponsorName: "Lucía Vega", initials: "QL", tile: "#0077b6", parent: "isa-demo" }, "consultora-demo": { name: "Consultora Demo", sponsor: "nora", sponsorName: "Nora Campos", initials: "CD", tile: "#0096c7", parent: "" } };
+    const myRoles = ROLES[s.persona] || {};
+    const roleStyle = (r) => "flex-shrink: 0; border-radius: 9999px; padding: 1px 10px; font-size: 11px; font-weight: 600; " + ({ OWNER: "background: #023e8a; color: #ffffff;", ADMIN: "background: #0077b6; color: #ffffff;", MEMBER: "background: #caf0f8; color: #023e8a;", VIEWER: "background: #fafafa; color: #4a4a4a; border: 1px solid #b8b8b8;" }[r] || "");
+    const radio = (on, dis) => ({ border: on ? "2px solid #0077b6" : "1px solid #b8b8b8", bg: on ? "rgba(0,119,182,0.05)" : "#ffffff", ring: on ? "#0077b6" : "#a8a8a8", fill: on ? "#0077b6" : "transparent", opacity: dis ? "0.55" : "1" });
+    const candidates = who.admin ? Object.keys(ORG) : Object.keys(myRoles);
+    const parents = [Object.assign({ key: "", label: "None · top-level organization", sub: "Its own tree. Only you start with a role.", hasRole: false, role: "", roleStyle: "", disabled: false, checked: s.parent === "" ? "true" : "false", pick: () => this.setState({ parent: "", sponsor: "self" }) }, radio(s.parent === "", false))].concat(candidates.map((k) => {
+      const r = myRoles[k] || (who.admin ? "" : "");
+      const ok = who.admin || r === "ADMIN" || r === "OWNER";
+      return Object.assign({ key: k, label: ORG[k].name, sub: ok ? (who.admin && !r ? "You're a platform administrator" : "You can add organizations here") : "Needs ADMIN here; your role is " + r, hasRole: !!r, role: r, roleStyle: roleStyle(r), disabled: !ok, checked: s.parent === k ? "true" : "false", pick: () => { if (ok) this.setState({ parent: k, sponsor: "self" }); } }, radio(s.parent === k, !ok));
+    }));
+    const par = s.parent ? ORG[s.parent] : null;
+    const SPONSORS = [{ key: "self", label: "You (" + who.user + ")", sub: "Counts against your " + who.plan + " plan" }];
+    if (par && par.sponsor !== s.persona) SPONSORS.push({ key: par.sponsor, label: par.sponsorName + " · sponsor of " + par.name, sub: "Keeps the whole tree on one sponsor" });
+    if (who.admin) { ["lucia", "nora", "pablo"].forEach((k) => { if (!SPONSORS.some((x) => x.key === k)) SPONSORS.push({ key: k, label: this.personas()[k].name + " (" + this.personas()[k].user + ")", sub: "Administrator choice · their " + this.personas()[k].plan + " plan" }); }); }
+    const sponsorKey = SPONSORS.some((x) => x.key === s.sponsor) ? s.sponsor : "self";
+    const sponsors = SPONSORS.map((x) => Object.assign({}, x, { checked: sponsorKey === x.key ? "true" : "false", pick: () => this.setState({ sponsor: x.key }) }, radio(sponsorKey === x.key, false)));
+    const spPersona = sponsorKey === "self" ? s.persona : sponsorKey;
+    const spInfo = this.personas()[spPersona] || who;
+    const sponsorLabel = sponsorKey === "self" ? "you" : spInfo.name;
+    const LIM = { BASIC: [1, 2, 3], ADVANCED: [2, 10, 25], RESEARCH: [5, 15, 50], PRO: [10, 100, 500] }[spInfo.plan];
+    const USED = { lucia: [2, 3, 3], nora: [1, 2, 0] }[spPersona] || [0, 0, 0];
+    const counted = { lucia: ["lucia", "marco", "sofia"], nora: ["nora", "marco"] }[spPersona] || [];
+    const add = [1, counted.indexOf(s.persona) >= 0 ? 0 : 1, 0];
+    const room = ["Organizations", "Unique members", "Projects"].map((l, i) => {
+      const lim = LIM[i], u = USED[i], a = add[i];
+      return { label: l, text: (u + a) + " of " + lim, before: String(Math.min(100, Math.round(u / lim * 100))), added: String(Math.max(0, Math.min(100 - Math.round(u / lim * 100), Math.round(a / lim * 100)))), color: u + a > lim ? "#ef4444" : (u + a === lim ? "#f59e0b" : "#0077b6") };
+    });
+    const orgFull = USED[0] + 1 > LIM[0];
+    const forcedErr = st === "error" ? sc : "";
+    const err = s.submitErr || (st === "error" ? (["409", "402", "503"].indexOf(sc) >= 0 ? sc : "409") : (st === "forbidden" ? "403" : ""));
+    const step = st === "error" || st === "forbidden" ? 4 : s.step;
+    const valid1 = name.trim().length > 0 && slugOk;
+    const stepDefs = [["Name", name || "Not set"], ["Place", par ? "Inside " + par.name : "Top-level"], ["Sponsor", sponsorKey === "self" ? "You" : spInfo.name], ["Review", "Confirm and create"]];
+    const steps = stepDefs.map(([l, sub], i) => {
+      const n = i + 1, cur = step === n, done = step > n;
+      return { label: l, sub: sub, mark: done ? "✓" : String(n), current: cur ? "step" : "false", locked: n > 1 && !valid1, go: () => { if (n === 1 || valid1) this.setState({ step: n, submitErr: "", st: st === "error" || st === "forbidden" ? "success" : st }); }, border: cur ? "#0077b6" : "#b8b8b8", bg: cur ? "rgba(0,119,182,0.05)" : "#ffffff", dotBg: done || cur ? "#0077b6" : "#ededed", dotFg: done || cur ? "#ffffff" : "#4a4a4a" };
+    });
+    const tree = [];
+    const pushOrg = (k, depth) => tree.push({ name: ORG[k].name, initials: ORG[k].initials, tile: ORG[k].tile, indent: String(depth * 20), border: "1px solid #ededed", bg: "#ffffff", weight: "400", isNew: false });
+    const newNode = (depth) => tree.push({ name: name || "New organization", initials: (name || "N").slice(0, 2).toUpperCase(), tile: "#0077b6", indent: String(depth * 20), border: "2px solid #0077b6", bg: "#f1f8fc", weight: "600", isNew: true });
+    if (par) { if (par.parent) { pushOrg(par.parent, 0); pushOrg(s.parent, 1); newNode(2); } else { pushOrg(s.parent, 0); newNode(1); } } else newNode(0);
+    const create = () => {
+      const e = forcedErr || (taken ? "409" : (orgFull ? "402" : ""));
+      this.setState({ creating: true, submitErr: "" });
+      if (this.timer) clearTimeout(this.timer);
+      this.timer = setTimeout(() => { if (e) this.setState({ creating: false, submitErr: e, st: "success", step: 4 }); else this.setState({ creating: false, done: true, st: "success" }); }, 1100);
+    };
+    return {
+      persona: s.persona, st: st, na: [],
+      scenarios: [{ id: "ok", label: "Creates" }, { id: "409", label: "409 address taken" }, { id: "402", label: "402 sponsor full" }, { id: "503", label: "503 pricing" }, { id: "403", label: "403 not admin of parent" }],
+      scenario: sc,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState({ st: x, done: false, creating: x === "loading", submitErr: "", step: x === "empty" ? 1 : s.step }),
+      setScenario: (x) => this.setState({ scenario: x, done: false, submitErr: "", st: x === "ok" ? "success" : (x === "403" ? "forbidden" : "error") }),
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      showDone: who.signedIn && s.done,
+      showWizard: who.signedIn && !s.done,
+      steps: steps,
+      s1: step === 1, s2: step === 2, s3: step === 3, s4: step === 4,
+      name: name, slug: slug,
+      typeName: (e) => { const v = e.target.value; const auto = v.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64); this.setState(s.slugTouched ? { name: v } : { name: v, slug: auto }); },
+      typeSlug: (e) => this.setState({ slug: e.target.value, slugTouched: true }),
+      slugInvalid: slug && !slugOk ? "true" : "false",
+      slugBorder: slug && (!slugOk || taken) ? "#ef4444" : "#c7c7c7",
+      slugColor: slug && (!slugOk || taken) ? "#b91c1c" : "#6a6a6a",
+      slugHelp: !slug ? "Lowercase letters, numbers and hyphens. Can't be changed later." : (!slugOk ? "Use lowercase letters, numbers and hyphens; start and end with a letter or number (max 64)." : (taken ? "Already used by another organization." : "Available to try · can't be changed later.")),
+      parents: parents,
+      sponsors: sponsors, sponsorAdminNote: who.admin,
+      parentLabel: par ? par.name : "Nothing (top-level)",
+      sponsorLabel: sponsorKey === "self" ? "you (" + who.user + ")" : spInfo.name,
+      doneParent: par ? "It sits inside " + par.name + ", so members there keep their roles here." : "",
+      openNew: () => { try { window.localStorage.setItem("ob.org", "__new"); window.localStorage.setItem("ob.newOrg", JSON.stringify({ name: name, slug: slug, parent: s.parent })); } catch (e) {} },
+      tree: tree,
+      inheritNote: par ? "Everyone with a role in " + par.name + " gets at least the same role in the new organization." : "A top-level organization starts with only you, as OWNER.",
+      room: room,
+      roomNote: (USED[0] || USED[1] ? "Current counts from the prototype data. " : "The prototype data shows nothing sponsored by this account yet. ") + "Striped = what this organization adds.",
+      orgLimitText: USED[0] + " of " + LIM[0] + " organizations on " + spInfo.plan,
+      err409: step === 4 && err === "409", err402: step === 4 && err === "402", err503: step === 4 && err === "503", err403: step === 4 && err === "403",
+      forbiddenText: par ? "You need ADMIN in " + par.name + " to add an organization inside it (403 · organization forbidden). Ask one of its admins, or create it top-level." : "This sponsor isn't allowed (403 · invalid sponsor). You can sponsor it yourself or use the parent's sponsor.",
+      creating: s.creating || st === "loading",
+      goStep1: () => this.setState({ step: 1, submitErr: "", st: "success" }),
+      goStep3: () => this.setState({ step: 3, submitErr: "", st: "success" }),
+      canBack: step > 1, back: () => this.setState({ step: step - 1, submitErr: "", st: "success" }),
+      notLast: step < 4, isLast: step === 4,
+      nextDisabled: step === 1 && !valid1, nextOpacity: step === 1 && !valid1 ? "0.4" : "1",
+      next: () => this.setState({ step: step + 1 }),
+      create: create
+    };
+  }
+}
+</script>
+</body>
+</html>

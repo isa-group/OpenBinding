@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Explore</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#ffffff}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ob-fadeup{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+.ob-in{animation:ob-fadeup 300ms ease-out both}
+@media (prefers-reduced-motion: reduce){.ob-skel,.ob-in{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #ffffff; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="pub-explore" route="/explore?tab={{tab}}" hint-size="100%,44px"></dc-import>
+<dc-import name="ShellPublicHeader" signed-in="{{who.signedIn}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" active="explore" on-logout="{{logout}}" hint-size="100%,88px"></dc-import>
+<main style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 48px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #0077b6;">Explore</span>
+<h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-weight: 400; font-size: 44px; line-height: 1.1; letter-spacing: -0.5px;">Public work on OpenBinding</h1>
+<p style="margin: 0; max-width: 680px; color: #4a4a4a;">Projects their owners made public, frozen report editions and the engines anyone can run. Only public content is listed; private work never appears here.</p>
+</div>
+
+<div role="tablist" aria-label="Explore sections" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #b8b8b8;">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+<button type="button" role="tab" aria-selected="{{t.selected}}" onClick="{{t.pick}}" style="{{t.style}}">{{t.label}} <span style="margin-left: 4px; border-radius: 9999px; background: #fafafa; border: 1px solid #ededed; padding: 0 8px; font-size: 12px; color: #4a4a4a;">{{t.count}}</span></button>
+</sc-for>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+<label style="position: relative; flex: 1; min-width: 240px; max-width: 480px;">
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Search this tab</span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6a6a6a" stroke-width="2" aria-hidden="true" style="position: absolute; left: 12px; top: 10px;"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+<input value="{{q}}" onChange="{{typeQ}}" placeholder="{{placeholder}}" style="box-sizing: border-box; width: 100%; height: 36px; padding: 0 12px 0 36px; border: 1px solid #c7c7c7; border-radius: 12px; background: #ffffff; font-family: inherit; font-size: 14px; color: #1f1f1f;">
+</label>
+<div role="group" aria-label="Organization filter" style="display: flex; flex-wrap: wrap; gap: 6px;">
+<sc-for list="{{orgFilters}}" as="f" hint-placeholder-count="2">
+<button type="button" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}" style="{{f.style}}">{{f.label}}</button>
+</sc-for>
+</div>
+<span style="font-size: 12px; color: #6a6a6a;">Filters apply to the loaded list · lists are cached for 60 s</span>
+</div>
+
+<div aria-live="polite" aria-busy="{{isLoading}}">
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+<div class="ob-skel" style="height: 140px; border-radius: 16px; background: #ededed;"></div>
+<div class="ob-skel" style="height: 140px; border-radius: 16px; background: #ededed;"></div>
+<div class="ob-skel" style="height: 140px; border-radius: 16px; background: #ededed;"></div>
+</div>
+</sc-if>
+<sc-if value="{{isError}}" hint-placeholder-val="{{false}}">
+<div role="alert" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16h.01"></path></svg>
+<span style="flex: 1; min-width: 220px;">{{tabLabel}} couldn't be loaded. 503 · the gateway is running without its database. Your search and filters are kept.</span>
+<button type="button" onClick="{{retry}}" style="height: 32px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;">Retry</button>
+</div>
+</sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; border: 1px solid #b8b8b8; border-radius: 16px; padding: 64px 24px;">
+<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+<span style="font-size: 14px; font-weight: 500;">{{emptyTitle}}</span>
+<span style="font-size: 13px; color: #6a6a6a; max-width: 460px;">{{emptyHint}}</span>
+<sc-if value="{{emptyAction}}" hint-placeholder-val="{{false}}"><a href="AppHome.dc.html" style="font-size: 14px; font-weight: 500;">Open your projects</a></sc-if>
+</div>
+</sc-if>
+<sc-if value="{{showList}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<span style="font-size: 12px; color: #6a6a6a;">{{resultLabel}}</span>
+<sc-if value="{{noResults}}" hint-placeholder-val="{{false}}">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; padding: 40px 24px; text-align: center; color: #6a6a6a;">No public {{tabNoun}} match “{{q}}”.</div>
+</sc-if>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;">
+<sc-for list="{{items}}" as="it" hint-placeholder-count="3">
+<button type="button" onClick="{{it.pick}}" aria-pressed="{{it.selected}}" class="ob-in" style="{{it.style}}">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: #6a6a6a;"><span style="width: 20px; height: 20px; border-radius: 6px; background: {{it.tile}}; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600;">{{it.glyph}}</span>{{it.meta}}</span>
+<span style="font-size: 15px; font-weight: 500; color: #1f1f1f;">{{it.title}}</span>
+<span style="font-size: 13px; color: #4a4a4a;">{{it.sub}}</span>
+<span style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: #6a6a6a;"><sc-for list="{{it.chips}}" as="c" hint-placeholder-count="2"><span style="border-radius: 4px; background: #fafafa; padding: 2px 6px;">{{c}}</span></sc-for></span>
+</button>
+</sc-for>
+</div>
+</div>
+<aside aria-label="Details" style="flex: 1 1 320px; max-width: 420px; position: sticky; top: 96px; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+<sc-if value="{{noSel}}" hint-placeholder-val="{{false}}">
+<span style="color: #6a6a6a;">Select an item to see its citation, digest and where to verify it.</span>
+</sc-if>
+<sc-if value="{{selPub}}" hint-placeholder-val="{{true}}">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Publication</span>
+<span style="font-family: 'PP Editorial Old', Georgia, serif; font-size: 22px; line-height: 1.2;">Comparativa de engines en checkout (sintética)</span>
+<dl style="margin: 0; display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; font-size: 13px;">
+<dt style="color: #6a6a6a;">Authors</dt><dd style="margin: 0;">Lucía Vega</dd>
+<dt style="color: #6a6a6a;">Year</dt><dd style="margin: 0;">2026</dd>
+<dt style="color: #6a6a6a;">Published</dt><dd style="margin: 0;">Sep 25, 2026</dd>
+<dt style="color: #6a6a6a;">Where</dt><dd style="margin: 0;">ISA Demo Group / QoS Benchmarks</dd>
+</dl>
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<span style="font-size: 12px; color: #6a6a6a;">Report edition digest</span>
+<div style="display: flex; border: 1px solid #c7c7c7; border-radius: 8px; overflow: hidden;">
+<code style="flex: 1; min-width: 0; padding: 8px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">sha256-e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718</code>
+<button type="button" onClick="{{copyDigest}}" style="{{copyStyle}}">{{copyLabel}}</button>
+</div>
+</div>
+<div style="border: 1px solid #a9d6ea; background: #f1f8fc; border-radius: 12px; padding: 12px; font-size: 13px;">
+<span style="display: block; font-size: 12px; color: #6a6a6a; margin-bottom: 4px;">Citation (as listed)</span>
+Vega, L. (2026). <em>Comparativa de engines en checkout (sintética)</em>. ISA Demo Group, QoS Benchmarks.
+<button type="button" onClick="{{copyCite}}" style="display: block; margin-top: 8px; border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 13px; font-weight: 500; color: #0077b6; cursor: pointer;">{{citeLabel}}</button>
+</div>
+<span style="font-size: 12px; color: #6a6a6a;">BibTeX and the Markdown badge come with the verification response.</span>
+<a href="PubResolve.dc.html" style="display: inline-flex; justify-content: center; align-items: center; height: 40px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Open verification</a>
+</sc-if>
+<sc-if value="{{selProj}}" hint-placeholder-val="{{false}}">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Public project</span>
+<span style="font-family: 'PP Editorial Old', Georgia, serif; font-size: 22px; line-height: 1.2;">QoS Benchmarks</span>
+<span style="color: #4a4a4a;">Casos de referencia de binding con workflow y placement.</span>
+<dl style="margin: 0; display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; font-size: 13px;">
+<dt style="color: #6a6a6a;">Organization</dt><dd style="margin: 0;">ISA Demo Group (isa-demo)</dd>
+<dt style="color: #6a6a6a;">Slug</dt><dd style="margin: 0; font-family: 'JetBrains Mono', monospace;">qos-benchmarks</dd>
+<dt style="color: #6a6a6a;">Publications</dt><dd style="margin: 0;">1</dd>
+</dl>
+<div style="display: flex; gap: 8px; border: 1px solid #93c5fd; background: #eff6ff; border-radius: 12px; padding: 10px 12px; font-size: 13px;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" aria-hidden="true" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>
+<span>Public projects are listed here and their publications verify by digest. Opening the project itself requires membership.</span>
+</div>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{true}}"><a href="AuthLogin.dc.html" style="display: inline-flex; justify-content: center; align-items: center; height: 40px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Log in to open as a member</a></sc-if>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{false}}"><a href="ProjOverview.dc.html" style="display: inline-flex; justify-content: center; align-items: center; height: 40px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Open project</a></sc-if>
+<button type="button" onClick="{{showPubs}}" style="height: 36px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 14px; cursor: pointer;">See its publications</button>
+</sc-if>
+<sc-if value="{{selEng}}" hint-placeholder-val="{{false}}">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Engine revision</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 16px;">{{eng.ref}}</span>
+<dl style="margin: 0; display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; font-size: 13px;">
+<dt style="color: #6a6a6a;">Modes</dt><dd style="margin: 0;">{{eng.modes}}</dd>
+<dt style="color: #6a6a6a;">Options</dt><dd style="margin: 0;">{{eng.options}}</dd>
+<dt style="color: #6a6a6a;">Digest</dt><dd style="margin: 0; font-family: 'JetBrains Mono', monospace;">{{eng.digest}}</dd>
+</dl>
+<a href="EngDetail.dc.html" style="display: inline-flex; justify-content: center; align-items: center; height: 40px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Open engine</a>
+</sc-if>
+</aside>
+</div>
+</sc-if>
+</div>
+</main>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "visitor", st: "success", tab: "publications", q: "", org: "all", sel: "pub", copied: "" };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, name: "", email: "", initials: "" },
+      lucia: { signedIn: true, name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV" },
+      marco: { signedIn: true, name: "Marco Díaz", email: "marco@example.invalid", initials: "MD" },
+      sofia: { signedIn: true, name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR" },
+      nora: { signedIn: true, name: "Nora Campos", email: "nora@example.invalid", initials: "NC" },
+      iker: { signedIn: true, name: "Iker Mora", email: "iker@example.invalid", initials: "IM" },
+      pablo: { signedIn: true, name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI" }
+    };
+  }
+  componentDidMount() {
+    try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); } catch (e) {}
+  }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+  setPersona(k) { this.setState({ persona: k }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  copy(text, key) {
+    try { if (navigator.clipboard) navigator.clipboard.writeText(text); } catch (e) {}
+    this.setState({ copied: key });
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.setState({ copied: "" }), 2000);
+  }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const data = {
+      projects: [{ id: "proj", org: "isa-demo", meta: "ISA Demo Group", glyph: "ID", tile: "#023e8a", title: "QoS Benchmarks", sub: "Casos de referencia de binding con workflow y placement.", chips: ["Public project", "1 publication"] }],
+      publications: [{ id: "pub", org: "isa-demo", meta: "ISA Demo Group / QoS Benchmarks", glyph: "ID", tile: "#023e8a", title: "Comparativa de engines en checkout (sintética)", sub: "Lucía Vega · 2026", chips: ["Report edition", "sha256-e5f6…0718", "Sep 25, 2026"] }],
+      engines: [
+        { id: "eng0", org: "builtin", meta: "bim.builtin", glyph: "RS", tile: "#0077b6", title: "random-search 1.0.0", sub: "Mode: sampling", chips: ["Public", "sha256-b2c3…d4e5"] },
+        { id: "eng1", org: "builtin", meta: "bim.builtin", glyph: "EV", tile: "#0077b6", title: "evolutionary 1.0.0", sub: "Mode: genetic", chips: ["Public", "sha256-c3d4…e5f6"] },
+        { id: "eng2", org: "builtin", meta: "bim.builtin", glyph: "MZ", tile: "#0077b6", title: "minizinc 1.0.0", sub: "Mode: cp", chips: ["Public", "sha256-d4e5…f607"] }
+      ]
+    };
+    const engDetail = {
+      eng0: { ref: "bim.builtin/random-search@1.0.0", modes: "sampling", options: "time_budget_ms (ms, default 30,000), iterations (default 100,000)", digest: "sha256-b2c3…d4e5" },
+      eng1: { ref: "bim.builtin/evolutionary@1.0.0", modes: "genetic", options: "max_evaluations (default 50,000), population (default 64)", digest: "sha256-c3d4…e5f6" },
+      eng2: { ref: "bim.builtin/minizinc@1.0.0", modes: "cp", options: "time_budget_ms (ms, default 60,000)", digest: "sha256-d4e5…f607" }
+    };
+    const labels = { projects: "Projects", publications: "Publications", engines: "Engines" };
+    const nouns = { projects: "projects", publications: "publications", engines: "engines" };
+    const tabs = ["projects", "publications", "engines"].map((k) => ({
+      label: labels[k], count: String(data[k].length), selected: s.tab === k ? "true" : "false",
+      pick: () => this.setState({ tab: k, sel: k === "engines" ? "eng0" : (k === "projects" ? "proj" : "pub"), q: "" }),
+      style: "position: relative; padding: 10px 16px; border: 0; background: transparent; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: -1px; " + (s.tab === k ? "color: #0077b6; border-bottom: 2px solid #0077b6;" : "color: #6a6a6a; border-bottom: 2px solid transparent;")
+    }));
+    const q = s.q.toLowerCase();
+    const list = data[s.tab].filter((it) => (s.org === "all" || it.org === s.org || s.tab === "engines") && (!q || (it.title + " " + it.sub + " " + it.meta).toLowerCase().indexOf(q) >= 0));
+    const items = list.map((it) => Object.assign({}, it, {
+      selected: s.sel === it.id ? "true" : "false",
+      pick: () => this.setState({ sel: it.id }),
+      style: "display: flex; flex-direction: column; gap: 8px; text-align: left; padding: 16px; border-radius: 16px; background: #ffffff; font-family: inherit; cursor: pointer; " + (s.sel === it.id ? "border: 2px solid #0077b6;" : "border: 1px solid #b8b8b8; margin: 1px;")
+    }));
+    const pill = (on) => "height: 30px; padding: 0 12px; border-radius: 12px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; " + (on ? "border: 1px solid rgba(0,119,182,0.3); background: rgba(0,119,182,0.05); color: #0077b6;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #4a4a4a;");
+    const orgFilters = [["all", "All organizations"], ["isa-demo", "ISA Demo Group"]].map(([k, l]) => ({ label: l, pressed: s.org === k ? "true" : "false", pick: () => this.setState({ org: k }), style: pill(s.org === k) }));
+    const st = s.st;
+    const showList = st === "success";
+    const selVisible = items.some((it) => it.id === s.sel);
+    const emptyTexts = {
+      projects: ["No public projects yet", "Projects appear here when an organization makes one public."],
+      publications: ["No public publications yet", "A publication appears when a project admin publishes a frozen report edition."],
+      engines: ["No public engines", "Private engines need an account and are never listed here."]
+    };
+    const copyStyle = "flex-shrink: 0; width: 72px; border: 0; font-family: inherit; font-size: 12px; font-weight: 500; color: #ffffff; cursor: pointer; background: " + (s.copied === "digest" ? "#15803d" : "#0077b6") + ";";
+    return {
+      persona: s.persona, st: st, na: ["forbidden"], scenarios: [], scenario: "",
+      setPersona: (k) => this.setPersona(k),
+      setSt: (v) => this.setState({ st: v }),
+      setScenario: () => {},
+      logout: () => this.setPersona("visitor"),
+      who: who,
+      visitor: !who.signedIn,
+      tab: s.tab,
+      tabs: tabs,
+      tabLabel: labels[s.tab],
+      tabNoun: nouns[s.tab],
+      q: s.q,
+      typeQ: (e) => this.setState({ q: e.target.value }),
+      placeholder: "Search " + nouns[s.tab] + "…",
+      orgFilters: orgFilters,
+      isLoading: st === "loading",
+      isError: st === "error",
+      isEmpty: st === "empty",
+      emptyTitle: emptyTexts[s.tab][0],
+      emptyHint: emptyTexts[s.tab][1],
+      emptyAction: st === "empty" && who.signedIn && s.tab !== "engines",
+      showList: showList,
+      items: items,
+      noResults: items.length === 0,
+      resultLabel: items.length + " public " + nouns[s.tab],
+      noSel: !selVisible,
+      selPub: selVisible && s.sel === "pub",
+      selProj: selVisible && s.sel === "proj",
+      selEng: selVisible && s.sel.indexOf("eng") === 0,
+      eng: engDetail[s.sel] || engDetail.eng0,
+      copyDigest: () => this.copy("sha256-e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718", "digest"),
+      copyLabel: s.copied === "digest" ? "Copied" : "Copy",
+      copyStyle: copyStyle,
+      copyCite: () => this.copy("Vega, L. (2026). Comparativa de engines en checkout (sintética). ISA Demo Group, QoS Benchmarks.", "cite"),
+      citeLabel: s.copied === "cite" ? "Citation copied" : "Copy citation",
+      showPubs: () => this.setState({ tab: "publications", sel: "pub" }),
+      retry: () => { this.setState({ st: "loading" }); this.timer = setTimeout(() => this.setState({ st: "success" }), 1200); }
+    };
+  }
+}
+</script>
+</body>
+</html>

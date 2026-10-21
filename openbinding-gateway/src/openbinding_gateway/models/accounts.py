@@ -54,6 +54,28 @@ class TokenPair(BaseModel):
     expires_in: int = Field(..., description="Lifetime of the access token, in seconds.")
 
 
+class PlanChange(BaseModel):
+    """A plan change the account holder did not ask for by name, and what it costs."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    from_plan: str = Field(..., alias="from", description="The plan before.")
+    to: str = Field(..., description="The plan after.")
+    extra_cost: bool = Field(
+        default=False,
+        description="Always false: the change carries no extra charge (RESEARCH is part of the institutional agreement).",
+    )
+
+
+class CasSession(TokenPair):
+    """The CAS code exchange: a session, and the plan change linking CAS caused, if any."""
+
+    plan_changed: Optional[PlanChange] = Field(
+        default=None,
+        description="Set when this sign-in raised the plan (BASIC to RESEARCH on linking CAS); null otherwise.",
+    )
+
+
 class UserProfile(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -64,11 +86,11 @@ class UserProfile(BaseModel):
     is_active: bool
     plan: str = Field(
         ...,
-        min_length=1,
         max_length=128,
         description=(
             "Plan last seen on the SPACE contract. The contract itself decides what a "
-            "request is allowed to do; this is what the interface displays."
+            "request is allowed to do; this is what the interface displays. Empty when "
+            "the account has no plan (the stateless open gate, or SPACE has not assigned one)."
         ),
     )
     created_at: datetime
@@ -231,19 +253,6 @@ class ApiKeyList(BaseModel):
     api_keys: List[ApiKeySummary]
 
 
-class LimitUsageView(BaseModel):
-    """One usage limit and what is left of it."""
-
-    limit_id: str = Field(..., description="Identifier of the limit in the pricing.")
-    limit: float = Field(..., description="What the plan allows.")
-    used: float = Field(..., description="What has been consumed so far.")
-    remaining: float = Field(..., description="What is left. Never negative.")
-    unit: Optional[str] = None
-    renews_at: Optional[str] = Field(
-        default=None, description="When a renewable limit next resets, if it renews."
-    )
-
-
 class JobSummary(BaseModel):
     """One solve this account asked for.
 
@@ -280,21 +289,19 @@ class JobHistory(BaseModel):
 
 
 class UsageView(BaseModel):
-    """What an account is on, what it has spent, and what bounds one request.
+    """What an account is on and what its plan allows.
 
-    Served so that the interface can draw quota bars without talking to the
-    pricing service itself, and so that an API client can find out the same
-    things the interface shows.
+    The plan, the features it includes and its functional limits (``null`` means
+    unlimited). It carries no consumption: nothing is counted per account.
     """
 
-    plan: str = Field(..., min_length=1, max_length=128)
+    plan: str = Field(..., max_length=128)
     contract_pending: bool = Field(
         default=False,
         description="True when the account has no contract yet because the pricing service was unreachable.",
     )
     features: dict[str, bool] = Field(default_factory=dict)
     capabilities: dict[str, Optional[float]] = Field(default_factory=dict)
-    limits: dict[str, LimitUsageView] = Field(default_factory=dict)
 
 
 class PricingTokenView(BaseModel):
@@ -342,7 +349,7 @@ class ChangePlanRequest(BaseModel):
     plan: str = Field(
         ..., min_length=1, max_length=128,
         pattern=r"^[A-Za-z][A-Za-z0-9._-]*$",
-        description="A plan identifier declared by the target pricing release.",
+        description="A plan identifier declared by the pricing version in SPACE.",
     )
 
 
@@ -373,7 +380,7 @@ class ChangeSubscriptionRequest(BaseModel):
 
 
 class ContractSubscriptionView(BaseModel):
-    plan: str = Field(..., min_length=1, max_length=128)
+    plan: str = Field(..., max_length=128)
     add_ons: dict[str, int]
     pricing_version: str
     renews_at: Optional[str] = None
@@ -383,18 +390,3 @@ class AdminSubscriptionView(BaseModel):
     user: AdminUserView
     subscription: ContractSubscriptionView
     changed: bool
-
-
-class UsageResyncResult(BaseModel):
-    """What a resync corrected.
-
-    Concurrency is counted optimistically - a check and a claim are two calls,
-    and a crash between them leaves a slot held. This is the escape hatch for
-    an account whose count has drifted, and it reports what it found rather
-    than fixing it silently.
-    """
-
-    plan: str = Field(..., min_length=1, max_length=128)
-    slots_in_flight: int = Field(..., description="Jobs actually still running for this account.")
-    slots_recorded: float = Field(..., description="What the pricing service had counted.")
-    corrected_by: float = Field(..., description="The adjustment applied. Zero means no drift.")

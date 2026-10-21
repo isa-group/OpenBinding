@@ -74,7 +74,8 @@ public final class EngineContract {
     int count = criteria.size();
     if ("MULTI".equals(type) && (count < 2 || count > 3)) throw new IllegalArgumentException("MULTI requires two or three criteria");
     if ("MANY".equals(type) && count < 3) throw new IllegalArgumentException("MANY requires at least three criteria");
-    JsonArray weights = optimization.has("weights") ? BindingProblem.requireArray(optimization, "weights", "execution optimization") : new JsonArray();
+    // bim-engine/v1 ExecutionOptimization requires "weights" (empty when the scalarization takes none).
+    JsonArray weights = BindingProblem.requireArray(optimization, "weights", "execution optimization");
     Set<String> ids = new LinkedHashSet<String>();
     for (JsonElement value : criteria) ids.add(BindingProblem.requiredString(value.getAsJsonObject(), "id", "optimization criterion"));
     Set<String> seen = new LinkedHashSet<String>();

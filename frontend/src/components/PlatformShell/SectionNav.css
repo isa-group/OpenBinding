@@ -1,0 +1,103 @@
+/* Account and organization side navigation */
+.section-nav { display: flex; flex-direction: column; gap: 2px; color: var(--tp-ink); }
+
+.section-nav-title {
+  padding: 0 var(--tp-spacing-sm) var(--tp-spacing-xs);
+  color: var(--tp-steel);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.section-nav-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0 var(--tp-spacing-sm) var(--tp-spacing-sm);
+  color: var(--tp-primary);
+  font-size: 0.8125rem;
+  text-decoration: none;
+}
+
+.section-nav-back svg { width: 0.875rem; height: 0.875rem; flex: none; }
+.section-nav-back:hover { color: var(--tp-primary-deep); }
+
+.section-nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--tp-spacing-sm);
+  padding: 0.625rem var(--tp-spacing-sm);
+  border-radius: var(--tp-radius-md);
+  color: var(--tp-steel);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.section-nav-link svg { width: 1rem; height: 1rem; flex: none; stroke-width: 1.8; }
+.section-nav-link:hover { background: var(--tp-surface); color: var(--tp-ink); text-decoration: none; }
+.section-nav-link[aria-current="page"] { background: rgb(0 119 182 / 0.1); color: var(--tp-primary); }
+.section-nav-label { flex: 1; }
+.section-nav-lock { color: var(--tp-stone); font-size: 0.6875rem; font-weight: 400; }
+
+/* Project tabs */
+.project-tabs { border-bottom: 1px solid var(--tp-hairline); background: var(--tp-canvas); }
+
+.project-tabs-inner {
+  display: flex;
+  max-width: 1280px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--tp-spacing-xs);
+  margin: 0 auto;
+  padding: 0 var(--tp-spacing-md);
+}
+
+.project-tabs-main { display: flex; min-width: 0; gap: 2px; overflow-x: auto; }
+.project-tabs-trailing { display: flex; flex: none; gap: 2px; }
+
+.project-tab {
+  display: inline-flex;
+  height: 2.75rem;
+  align-items: center;
+  margin-bottom: -1px;
+  padding: 0 0.875rem;
+  border-bottom: 2px solid transparent;
+  color: var(--tp-steel);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.project-tab:hover { color: var(--tp-ink); text-decoration: none; }
+.project-tab[aria-current="page"] { border-bottom-color: var(--tp-primary); color: var(--tp-primary); }
+.project-tab:focus-visible { outline-offset: -2px; }
+
+/* The strip under the tabs of a public project opened by someone who is not a member. */
+.project-public-banner { border-bottom: 1px solid var(--tp-severity-info-border); background: var(--tp-severity-info-bg); color: var(--tp-ink); font-size: 0.8125rem; }
+
+.project-public-banner-inner {
+  display: flex;
+  max-width: 1280px;
+  align-items: center;
+  gap: var(--tp-spacing-xs);
+  margin: 0 auto;
+  padding: 0.5rem var(--tp-spacing-md);
+}
+
+.project-public-banner svg { width: 1rem; height: 1rem; flex: none; color: var(--tp-primary); }
+
+/* On a narrow screen every tab is one row that scrolls sideways (ProjectTabs brings the current one into view). */
+@media (max-width: 760px) {
+  /* The tabs sit 1 px over the border below them; a row that scrolls clips that pixel, so it gets a pixel of its own, taken back from the margin. */
+  .project-tabs-inner { margin-bottom: -1px; padding-bottom: 1px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .project-tabs-inner::-webkit-scrollbar { display: none; }
+  .project-tabs-main { flex: none; overflow: visible; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-nav-link { transition: none; }
+}

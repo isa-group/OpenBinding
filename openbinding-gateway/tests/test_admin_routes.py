@@ -18,8 +18,6 @@ from openbinding_gateway import space_client
 from openbinding_gateway.db.models import (
     AuthIdentity,
     Notification,
-    PricingRelease,
-    PricingSphereState,
     User,
     UserRole,
 )
@@ -29,8 +27,6 @@ CATALOG = pricing_catalog()
 DEFAULT_PLAN = CATALOG.default_plan
 LARGER_PLAN = largest_plan()
 INSTITUTIONAL_PLAN = "RESEARCH"
-TASKS = "taskStarts"
-CONCURRENT = "concurrentJobs"
 
 
 @pytest_asyncio.fixture
@@ -72,7 +68,6 @@ async def account(client, registration, db_session=None, *, admin=False) -> tupl
         ("patch", "/v1/admin/users/{id}"),
         ("post", "/v1/admin/users/{id}/plan"),
         ("get", "/v1/admin/users/{id}/usage"),
-        ("post", "/v1/admin/users/{id}/usage/resync"),
         ("get", "/v1/admin/overview"),
         ("get", "/v1/admin/audit"),
         ("get", "/v1/admin/queues"),
@@ -399,43 +394,64 @@ async def test_research_requires_verified_us_cas_and_never_accepts_add_ons(
     assert accepted.json()["subscription"]["plan"] == INSTITUTIONAL_PLAN
 
 
-async def test_expired_contract_moves_to_live_before_the_next_request(
+async def test_an_expired_contract_is_left_to_space_to_renew(
     api_client, registration, gate, db_session
 ):
+    """Renewal and version migration are SPACE's own lifecycle, not a request side effect."""
     profile, headers = await account(api_client, registration)
     user_id = uuid.UUID(profile["id"])
     gate.versions[user_id] = "previous-version"
-    gate.renews_at[user_id] = datetime.now(timezone.utc) - timedelta(seconds=1)
-    db_session.add(PricingRelease(
-        version=CATALOG.version,
-        digest=CATALOG.digest,
-        sphere_organization_id="openbinding-org", sphere_state=PricingSphereState.PUBLIC_RELEASE,
-        public_url=f"https://sphere.example/static/pricings/openbinding/{CATALOG.version}.yaml",
-        is_live=True, created_by_id=user_id,
-    ))
-    await db_session.flush()
+    expired = datetime.now(timezone.utc) - timedelta(seconds=1)
+    gate.renews_at[user_id] = expired
 
     response = await api_client.get("/v1/users/me", headers=headers)
 
     assert response.status_code == 200
-    assert gate.versions[user_id] == CATALOG.version
-    assert gate.renews_at[user_id] > datetime.now(timezone.utc)
+    assert gate.versions[user_id] == "previous-version"
+    assert gate.renews_at[user_id] == expired
+
+
+async def test_an_administrator_change_pins_the_configured_pricing_version(
+    api_client, registration, gate, db_session
+):
+    profile, _ = await account(api_client, registration)
+    _, admin = await account(api_client, registration, db_session, admin=True)
+    user_id = uuid.UUID(profile["id"])
+    gate.versions[user_id] = CATALOG.version
+
+    response = await api_client.post(
+        f"/v1/admin/users/{profile['id']}/subscription",
+        headers=admin,
+        json={"plan": LARGER_PLAN, "add_ons": {}, "reason": "administrative_decision"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["subscription"]["pricing_version"] == "0.1.0"
+    assert gate.versions[user_id] == "0.1.0"
 
 
 # -- Usage ------------------------------------------------------------------
 
 
-async def test_an_administrator_sees_the_same_usage_the_holder_does(
+async def test_an_administrator_sees_the_same_plan_view_the_holder_does(
     api_client, registration, gate, db_session
 ):
     profile, theirs = await account(api_client, registration)
     _, admin = await account(api_client, registration, db_session, admin=True)
-    gate.spend(uuid.UUID(profile["id"]), "taskStarts", 5)
 
     mine = await api_client.get("/v1/users/me/usage", headers=theirs)
     seen = await api_client.get(f"/v1/admin/users/{profile['id']}/usage", headers=admin)
 
     assert mine.json() == seen.json()
+    assert set(mine.json()) == {"plan", "contract_pending", "features", "capabilities"}
+
+
+async def test_the_usage_view_carries_no_consumption(api_client, registration, gate):
+    _, theirs = await account(api_client, registration)
+
+    view = (await api_client.get("/v1/users/me/usage", headers=theirs)).json()
+
+    assert "limits" not in view and "used" not in str(view)
 
 
 async def test_a_key_can_be_taken_back(api_client, registration, gate, db_session):
@@ -463,37 +479,12 @@ async def test_a_key_can_be_taken_back(api_client, registration, gate, db_sessio
     assert still_works.status_code == 401
 
 
-async def test_resyncing_reports_no_drift_when_there_is_none(
-    api_client, registration, gate, db_session
-):
-    profile, _ = await account(api_client, registration)
-    _, admin = await account(api_client, registration, db_session, admin=True)
+def test_there_is_no_endpoint_that_corrects_a_usage_count():
+    from openbinding_gateway.main import app
 
-    response = await api_client.post(
-        f"/v1/admin/users/{profile['id']}/usage/resync", headers=admin
-    )
+    paths = app.openapi()["paths"]
 
-    assert response.json()["corrected_by"] == 0
-    assert response.json()["slots_in_flight"] == 0
-
-
-async def test_resyncing_frees_a_slot_nothing_is_holding(
-    api_client, registration, gate, db_session
-):
-    # The escape hatch for a slot the reconciler cannot see: recorded against
-    # an account that has nothing running.
-    profile, _ = await account(api_client, registration)
-    _, admin = await account(api_client, registration, db_session, admin=True)
-    gate.spend(uuid.UUID(profile["id"]), "concurrentJobs", 1)
-
-    response = await api_client.post(
-        f"/v1/admin/users/{profile['id']}/usage/resync", headers=admin
-    )
-    usage = await gate.usage(uuid.UUID(profile["id"]))
-
-    assert response.json()["slots_recorded"] == 1
-    assert response.json()["corrected_by"] == -1
-    assert usage.limits[CONCURRENT].used == 0
+    assert not [path for path in paths if path.endswith("/resync")]
 
 
 async def test_platform_operations_are_visible_without_direct_database_access(

@@ -7,7 +7,7 @@ from collections import defaultdict
 from typing import Any
 
 from .models.platform import StudyDefinition
-from .v1.canonical import digest
+from bim_core.canonical import digest
 
 
 def expand_study(definition: StudyDefinition) -> list[dict[str, Any]]:
@@ -103,12 +103,11 @@ def aggregate_metrics(metrics: list[dict[str, Any]]) -> dict[str, Any]:
 async def seal_study_definition(session, project, user, name, definition, *, current=None, analysis_fixture=False):
     """Persist the sole authoritative definition in the organization library."""
     import uuid
-    from sqlalchemy import select
     from .artifacts import seal_draft, reference
     from .db.models import Artifact, ArtifactDraft, ArtifactVersion, BindingCaseRevision, ProjectArtifact
     from .models.artifacts import DraftContent
-    from .routes.v1 import _engine_mode
-    from .v1.canonical import digest
+    from .services.engines import engine_mode
+    from bim_core.canonical import digest
 
     definition = StudyDefinition.model_validate(definition)
     dependencies = []
@@ -125,7 +124,7 @@ async def seal_study_definition(session, project, user, name, definition, *, cur
             cases.append({'caseRevisionId': str(case.id), 'compositionDigest': case.digest})
         engines = []
         for engine in definition.engines:
-            _, mode, _ = await _engine_mode(engine['name'], engine.get('mode'), definition.parameter_sets[0], session, caller=user,
+            _, mode, _ = await engine_mode(engine['name'], engine.get('mode'), definition.parameter_sets[0], session, caller=user,
                 namespace=engine['namespace'], version=engine['version'], manifest_digest=engine['digest'])
             engines.append({**engine, 'mode': mode['id']})
         content = {'apiVersion': 'openbinding/study/v1', 'cases': cases, 'engines': engines,
@@ -158,7 +157,7 @@ async def seal_study_definition(session, project, user, name, definition, *, cur
 def definition_from_version(version) -> dict:
     from .artifacts import verified_version_content
     from .models.artifacts import StudyArtifactContent
-    from .v1.package import strict_json_loads
+    from .core.jsonio import strict_json_loads
     document = strict_json_loads(verified_version_content(version, version.blob)[0])
     if document.get('apiVersion') == 'openbinding/analysis-gallery/v1':
         return document['definition']

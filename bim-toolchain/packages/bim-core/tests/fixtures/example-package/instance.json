@@ -1,0 +1,14 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {"name": "consumer-demo"},
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {"app": "application.json"},
+      "candidateCatalog": {"cat-a": "catalog-a.json", "cat-b": "catalog-b.json"},
+      "constraintSet": {"hard": "hard.json", "soft": "soft.json"},
+      "optimization": {"opt": "optimization.json"}
+    }
+  }
+}

@@ -1,0 +1,58 @@
+/* One quality of one candidate: a value, or a range with optional open ends. Stacks (min above max) so it never widens the page. */
+.fc { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 4px; }
+
+.fc-modes { display: inline-flex; border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-md); background: var(--tp-surface); overflow: hidden; }
+.fc-mode {
+  min-height: 24px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--tp-steel);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.fc-mode + .fc-mode { border-left: 1px solid var(--tp-hairline); }
+.fc-mode[aria-pressed='true'] { background: var(--tp-ink); color: var(--tp-canvas); }
+.fc-mode:disabled { cursor: not-allowed; opacity: 0.6; }
+
+.fc-range { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.fc-end { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.fc-bound { display: inline-flex; align-items: center; gap: 4px; font-size: 0.6875rem; font-weight: 600; color: var(--tp-steel); }
+.fc-bound > span { min-width: 24px; }
+
+.fc-input {
+  width: 84px;
+  min-width: 0;
+  height: 30px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid var(--tp-input-border);
+  border-radius: var(--tp-radius-md);
+  background: var(--tp-input-bg);
+  color: var(--tp-ink);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+.fc-input:disabled { background: var(--tp-surface); color: var(--tp-steel); cursor: not-allowed; }
+.fc-input[aria-invalid='true'] { border-color: var(--tp-severity-error); }
+
+.fc-open { display: inline-flex; align-items: center; gap: 4px; color: var(--tp-slate); font-size: 0.6875rem; white-space: nowrap; }
+.fc-open input { margin: 0; }
+
+.fc-error { max-width: 220px; white-space: normal; }
+
+.fc-confirm {
+  display: flex;
+  max-width: 240px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--tp-severity-warning, var(--tp-hairline));
+  border-radius: var(--tp-radius-md);
+  background: var(--tp-surface);
+  font-size: 0.75rem;
+  white-space: normal;
+}
+.fc-confirm-actions { display: flex; flex-wrap: wrap; gap: 6px; }

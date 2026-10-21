@@ -76,7 +76,7 @@ schemas_dir = _find_schemas_dir()
 if "SCHEMAS_DIR" not in os.environ and schemas_dir.is_dir():
     os.environ["SCHEMAS_DIR"] = str(schemas_dir)
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from openbinding_gateway import space_client
@@ -88,7 +88,6 @@ from openbinding_gateway.db.models import (
     EngineRevision,
     InstanceSnapshot,
     Job,
-    JobState,
     User,
     UserRole,
     utcnow,
@@ -106,8 +105,6 @@ from openbinding_gateway.db.platform_models import (
     OrganizationMembership,
     OrganizationRole,
     Project,
-    ProjectResource,
-    ProjectResourceRevision,
     Publication,
     Report,
     ReportState,
@@ -119,13 +116,16 @@ from openbinding_gateway.db.platform_models import (
     Visibility,
 )
 from openbinding_gateway.models.platform import StudyDefinition
+from openbinding_gateway.generator.package import GeneratedPackage
+from openbinding_gateway.integrations import bim, packages
 from openbinding_gateway.routes import v1 as routes_v1
 from openbinding_gateway.security.apikeys import ADMIN_PERMISSIONS, ALL_PERMISSIONS, hash_key
 from openbinding_gateway.security.passwords import hash_password
+from openbinding_gateway.services.engines import engine_ref, manifest as engine_manifest, protocol_digest
+from openbinding_gateway.services.snapshots import compile_resolved, persist_snapshot
 from openbinding_gateway.studies import expand_study
 from openbinding_gateway.study_jobs import StudyLaunchError, launch_study_cell
-from openbinding_gateway.v1.canonical import digest
-from openbinding_gateway.v1.package import InstancePackage, load_package
+from bim_core.canonical import digest
 from seed_analysis import prepare_analysis_workspace
 
 logger = logging.getLogger("seed_dev")
@@ -253,34 +253,6 @@ async def ensure_users(session: AsyncSession) -> dict[str, User]:
     return user_map
 
 
-async def resync_user_usage(session: AsyncSession, users: dict[str, User]) -> None:
-    """Reconcile in-flight job concurrency with SPACE usage counters."""
-    settings = get_settings()
-    if not settings.space_enabled:
-        return
-    gate = space_client.get_gate()
-    if not gate:
-        return
-    for username, user in users.items():
-        try:
-            in_flight = int(await session.scalar(
-                select(func.count()).select_from(Job).where(
-                    Job.owner_id == user.id,
-                    Job.metered.is_(False),
-                    Job.state.in_([JobState.QUEUED, JobState.RUNNING]),
-                )
-            ) or 0)
-            snapshot = await gate.usage(user.id)
-            limit_id = "concurrentJobs"
-            recorded = snapshot.limits[limit_id].used if limit_id in snapshot.limits else 0.0
-            drift = in_flight - recorded
-            if drift:
-                await gate.adjust_usage(user.id, {"concurrentJobs": drift})
-                logger.info("Resynced concurrentJobs for '%s': drift=%s (in_flight=%d, recorded=%s)", username, drift, in_flight, recorded)
-        except Exception as sync_err:
-            logger.debug("Could not resync usage for '%s': %s", username, sync_err)
-
-
 async def ensure_space_contracts(session: AsyncSession, users: dict[str, User]) -> None:
     """Ensure every seeded user has an active, valid contract in SPACE."""
     settings = get_settings()
@@ -288,24 +260,21 @@ async def ensure_space_contracts(session: AsyncSession, users: dict[str, User]) 
         logger.debug("SPACE is disabled in settings; skipping external contract provisioning.")
         return
 
-    from openbinding_gateway.pricing_catalog import catalog_for_version
     from openbinding_gateway.access.contracts import live_pricing_version
 
-    async def resolve_catalog(version: str):
-        async with db_base.session_factory()() as catalog_session:
-            return await catalog_for_version(catalog_session, settings, version)
-
     try:
-        gate = space_client.build_gate(settings, catalog_resolver=resolve_catalog)
+        gate = space_client.build_gate(settings)
         space_client.set_gate(gate)
     except Exception as gate_err:
         logger.warning("Could not initialize pricing gate: %s", gate_err)
         return
 
-    try:
-        pricing_ver = await live_pricing_version(session)
-    except Exception:
-        pricing_ver = "0.1.1"
+    # Contracts are created through SPACE's official client; the version is
+    # SPACE_PRICING_VERSION and SPACE validates the plan against it.
+    pricing_ver = live_pricing_version(settings)
+    if not pricing_ver:
+        logger.warning("SPACE_PRICING_VERSION is not set; skipping external contract provisioning.")
+        return
 
     for entry in SEED_USERS:
         username = entry["username"]
@@ -326,9 +295,6 @@ async def ensure_space_contracts(session: AsyncSession, users: dict[str, User]) 
             user.contract_pending = True
             await session.flush()
 
-    # Reconcile any in-flight concurrentJobs drift from previous runs
-    await resync_user_usage(session, users)
-
 
 async def ensure_engine_revisions(
     session: AsyncSession, admin_user: User
@@ -346,7 +312,7 @@ async def ensure_engine_revisions(
 
     for engine_name, default_endpoint in engine_configs:
         try:
-            m = routes_v1._manifest(engine_name)
+            m = engine_manifest(engine_name)
         except Exception:
             continue
 
@@ -424,7 +390,7 @@ async def ensure_engine_revisions(
                 engine_digest=manifest_digest,
                 document=reg_doc,
                 endpoint=default_endpoint,
-                protocol_digest=routes_v1._protocol_digest(),
+                protocol_digest=protocol_digest(),
                 openapi_document=sample_openapi,
                 openapi_digest=digest(sample_openapi),
                 mappings={"jobs": "/v1/jobs"},
@@ -668,9 +634,9 @@ async def ensure_projects(
 
 async def load_and_persist_snapshots(
     session: AsyncSession, user: User, examples_dir: Path
-) -> dict[str, tuple[InstancePackage, InstanceSnapshot]]:
+) -> dict[str, tuple[GeneratedPackage, InstanceSnapshot]]:
     """Compile BIM v1 packages from examples and persist executable InstanceSnapshots."""
-    results: dict[str, tuple[InstancePackage, InstanceSnapshot]] = {}
+    results: dict[str, tuple[GeneratedPackage, InstanceSnapshot]] = {}
 
     samples = [
         ("01_simple_seq", examples_dir / "demo" / "01_simple_seq"),
@@ -683,9 +649,9 @@ async def load_and_persist_snapshots(
             logger.warning("Example path '%s' does not exist; skipping snapshot compilation", path)
             continue
         try:
-            package = load_package(path)
-            problem = await routes_v1._compile_resolved(package, session)
-            snapshot_id_str = await routes_v1._persist_snapshot(package, problem, user, session)
+            package = GeneratedPackage(packages.directory_files(path))
+            compilation = await compile_resolved(package.to_zip(), session)
+            snapshot_id_str = await persist_snapshot(compilation, user, session)
             if not snapshot_id_str:
                 continue
             snapshot = await session.get(InstanceSnapshot, uuid.UUID(snapshot_id_str))
@@ -703,7 +669,7 @@ async def ensure_library_composition(session, project, user, package, prefix):
     from openbinding_gateway.artifacts import reference, validate_content, seal_draft, materialize_case
     from openbinding_gateway.db.models import Artifact, ArtifactDraft, ArtifactVersion, ProjectArtifact
     from openbinding_gateway.models.artifacts import DraftContent, ArtifactUse
-    from openbinding_gateway.v1.canonical import digest_bytes
+    from bim_core.canonical import digest_bytes
     organization = await session.get(Organization, project.organization_id)
     uses = []
     for role, resources in package.instance()['spec']['resources'].items():
@@ -737,7 +703,7 @@ async def ensure_cases_and_collections(
     session: AsyncSession,
     project: Project,
     user: User,
-    snapshots: dict[str, tuple[InstancePackage, InstanceSnapshot]],
+    snapshots: dict[str, tuple[GeneratedPackage, InstanceSnapshot]],
 ) -> dict[str, tuple[BindingCase, BindingCaseRevision]]:
     """Create binding cases, revisions, and benchmark collections."""
     case_map: dict[str, tuple[BindingCase, BindingCaseRevision]] = {}
@@ -814,7 +780,7 @@ async def ensure_cases_and_collections(
         editions = [['simple-seq', 'parallel-mesh']]
         if 'multi-objective' in case_map:
             editions.append(['simple-seq', 'multi-objective', 'parallel-mesh'])
-        for ordinal, keys in enumerate(editions, 1):
+        for _ordinal, keys in enumerate(editions, 1):
             items = [dict(target_kind='case', target_digest=case_map[key][1].digest,
                 target_ref={'caseRevisionId': str(case_map[key][1].id)}) for key in keys]
             content_digest = digest(items)
@@ -838,14 +804,14 @@ async def ensure_project_resources(session, project_map, users):
     from openbinding_gateway.db.models import Artifact, ArtifactVersion, ArtifactDraft, CaseArtifact, ProjectArtifact
     from openbinding_gateway.models.artifacts import DraftContent, PublishVersion
     from openbinding_gateway.routes.library import publish_version
-    from openbinding_gateway.v1.canonical import canonical_json
-    source = load_package(_find_examples_dir() / 'demo' / '01_simple_seq')
+    from bim_core.canonical import canonical_json
+    source = GeneratedPackage(packages.directory_files(_find_examples_dir() / 'demo' / '01_simple_seq'))
     root = source.instance()
     root['spec']['resources']['constraintSet'] = {'constraints': 'constraints.json'}
     constraints = dict(apiVersion='qos-binding/v1', kind='ConstraintSet', metadata={'name': 'shared-latency-bound'},
         spec={'constraints': {'latency-sla': {'assert': 'features.latency <= 1000', 'enforcement': 'hard'}}})
     files = {**source.files, 'instance.json': canonical_json(root), 'constraints.json': canonical_json(constraints)}
-    initial = InstancePackage(files)
+    initial = GeneratedPackage(files)
     first_uses = None
     for index, key in enumerate(('score-ai/qos-placement', 'score-ai/smart-orchestration')):
         project = project_map.get(key)
@@ -855,7 +821,7 @@ async def ensure_project_resources(session, project_map, users):
         if index:
             catalog = initial.json('candidates.json')
             catalog['spec']['candidates']['c1a']['features']['latency'] = 8
-            package = InstancePackage({**files, 'candidates.json': canonical_json(catalog)})
+            package = GeneratedPackage({**files, 'candidates.json': canonical_json(catalog)})
         document, snapshot_id, uses = await ensure_library_composition(session, project, users['alice'], package, '01_simple_seq')
         if first_uses is None:
             first_uses = uses
@@ -913,7 +879,7 @@ async def ensure_project_resources(session, project_map, users):
                 display_name='Shared reproducible search settings', kind='ExecutionConfiguration', created_by_id=users['alice'].id)
             session.add(config)
             await session.flush()
-        content = {'engine': routes_v1._engine_ref(routes_v1._manifest('random-search')), 'mode': 'seeded',
+        content = {'engine': engine_ref(engine_manifest('random-search')), 'mode': 'seeded',
                    'options': {'iterations': 100, 'seed': 7}}
         if await session.scalar(select(ArtifactVersion.id).where(ArtifactVersion.artifact_id == config.id, ArtifactVersion.content_digest == digest(content))) is None:
             draft = ArtifactDraft(artifact_id=config.id, payload=DraftContent(content=content).model_dump(mode='json'), created_by_id=users['alice'].id)
@@ -940,14 +906,14 @@ async def execute_real_studies(
     case_map: dict[str, tuple[BindingCase, BindingCaseRevision]],
 ) -> list[tuple[Study, StudyRun]]:
     """Dispatch bounded studies once; the production worker advances their cells."""
-    from openbinding_gateway.v1.compiler import compiler_bundle_digest
-
     engine_refs = []
-    for name in ("minizinc-csp", "random-search"):
+    # Study engines pin an exact revision plus an explicit mode and execution optimization.
+    for name, mode in (("minizinc-csp", "exact-weighted"), ("random-search", "seeded")):
         try:
-            manifest = routes_v1._manifest(name)
+            manifest = engine_manifest(name)
             engine_refs.append({**{key: manifest["metadata"][key] for key in ("namespace", "name", "version")},
-                                "digest": digest(manifest)})
+                                "digest": digest(manifest), "mode": mode,
+                                "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}})
         except Exception as exc:
             logger.warning("Live study coverage gap for %s: %s", name, exc)
     if not engine_refs:
@@ -975,7 +941,7 @@ async def execute_real_studies(
             study.definition_version = version
         await session.flush()
         expanded = expand_study(definition)
-        identity = digest({"matrix": expanded, "generator": 3, "evaluator": compiler_bundle_digest()})
+        identity = digest({"matrix": expanded, "generator": 3, "evaluator": bim.toolchain_digest()})
         runs = (await session.execute(select(StudyRun).where(StudyRun.study_id == study.id))).scalars().all()
         run = next((r for r in runs if (r.summary or {}).get("seedScenarioDigest") == identity), None)
         if run is None:
@@ -1019,15 +985,14 @@ async def ensure_standalone_jobs(
     org: Organization,
     project: Project,
     user: User,
-    snapshots: dict[str, tuple[InstancePackage, InstanceSnapshot] | InstanceSnapshot] | None = None,
+    snapshots: dict[str, tuple[GeneratedPackage, InstanceSnapshot] | InstanceSnapshot] | None = None,
     all_states: bool = False,
 ) -> list[Job]:
     """Execute bounded real jobs; unchanged scenarios reuse their persisted outcomes."""
     from openbinding_gateway.job_dispatch import _execute
     from openbinding_gateway.study_jobs import _job_request, _response_payload
-    from openbinding_gateway.v1.compiler import compiler_bundle_digest
 
-    snap = (snapshots or {}).get("01_simple_seq") or next(iter((snapshots or {}).values()), None)
+    snap =(snapshots or {}).get("01_simple_seq") or next(iter((snapshots or {}).values()), None)
     if isinstance(snap, tuple):
         snap = snap[1]
     if snap is None:
@@ -1038,23 +1003,24 @@ async def ensure_standalone_jobs(
                  ("random-search", "seeded", {"iterations": 128, "seed": 42})]
     for engine, mode, options in scenarios:
         try:
-            manifest = routes_v1._manifest(engine)
+            manifest = engine_manifest(engine)
             ref = {"namespace": manifest["metadata"]["namespace"], "name": engine,
                    "version": manifest["metadata"]["version"], "digest": digest(manifest)}
-            identity = digest({"generator": 2, "package": snap.package_digest, "evaluator": compiler_bundle_digest(),
-                               "engine": ref, "mode": mode, "options": options})
+            optimization = {"type": "SINGLE", "scalarization": "weighted-sum"}
+            identity = digest({"generator": 3, "package": snap.package_digest, "evaluator": bim.toolchain_digest(),
+                               "engine": ref, "mode": mode, "optimization": optimization, "options": options})
             key = f"development-live-{project.id}-{identity}"
             existing = (await session.execute(select(Job).where(Job.owner_id == user.id, Job.idempotency_key == key))).scalars().first()
             if existing is not None:
                 jobs.append(existing)
                 logger.info("Reused live scenario %s: %s (%s)", engine, existing.id, existing.state.value)
                 continue
-            request = _job_request({"snapshot": str(snap.id), "engine": ref, "mode": mode, "options": options})
+            request = _job_request({"snapshot": str(snap.id), "engine": ref, "mode": mode,
+                                    "optimization": optimization, "options": options})
             request.scope["headers"].append((b"idempotency-key", key.encode()))
             response = _response_payload(await routes_v1.create_job(request, caller=user, session=session))
             job = await session.get(Job, uuid.UUID(str(response["id"])))
             job.organization_id, job.project_id = org.id, project.id
-            job.billing_sponsor_user_id = org.billing_sponsor_user_id
             await session.commit()
             await _execute(str(job.id))
             await session.refresh(job)
@@ -1525,12 +1491,7 @@ async def main() -> int:
 
     db_base.init_engine(database_url)
 
-    async def resolve_catalog(version: str):
-        from openbinding_gateway.pricing_catalog import catalog_for_version
-        async with db_base.session_factory()() as catalog_session:
-            return await catalog_for_version(catalog_session, settings, version)
-
-    space_client.set_gate(space_client.build_gate(settings, catalog_resolver=resolve_catalog))
+    space_client.set_gate(space_client.build_gate(settings))
 
     try:
         async with db_base.session_factory()() as session:
@@ -1542,7 +1503,7 @@ async def main() -> int:
                     raise ValueError("Run the normal development seeder once before --analysis-only")
                 await prepare_analysis_workspace(session, org, project, user, examples_dir, manifest_path=args.analysis_manifest)
                 await session.commit()
-                logger.info("Analysis gallery ready: /app/score-ai/qos-placement/analytics (sign in as alice)")
+                logger.info("Analysis gallery ready: /app/analysis (sign in as alice)")
                 return 0
             if args.reset:
                 await clean_existing_data(session)
@@ -1588,9 +1549,6 @@ async def main() -> int:
 
             # 10. Notifications & Audit
             await ensure_notifications_and_audit(session, org_map, project_map, user_map)
-
-            # 11. Reconcile usage
-            await resync_user_usage(session, user_map)
 
             await session.commit()
 

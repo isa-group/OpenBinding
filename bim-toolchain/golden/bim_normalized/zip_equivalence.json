@@ -1,0 +1,2139 @@
+{
+ "note": "Each form of a package compiled and compared with the package compiled from its directory: the bytes in a STORED ZIP (rawZip, the platform's form; reversedZip, entries in the opposite order), InstancePackage.to_zip() (canonicalZip, JSON with sorted members) and the members of every JSON object shuffled (permuted<seed>). All of them must have the same IR and semantic digest. Under the previous toolchain (golden/bim_baseline) 64 packages differed in canonicalZip (docs/qa/IR_NORMALIZATION.md).",
+ "packageCount": 82,
+ "packages": {
+  "engines/minizinc-csp/tests/fixtures/loops": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-92a31f5a2f04ebc744011454dd1fc3606a9ac26b987ec9e0627ca392ff8898f1",
+   "packageDigestsEqual": true,
+   "path": "engines/minizinc-csp/tests/fixtures/loops",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "engines/minizinc-csp/tests/fixtures/placement": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-8545fe05565600e0c2511153f2683656b693f7f8870a15a8a601f2d65c8a61a3",
+   "packageDigestsEqual": true,
+   "path": "engines/minizinc-csp/tests/fixtures/placement",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "engines/minizinc-csp/tests/fixtures/simple-sequence": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-74c18e8876749cc7cfe4b3272fdfb06ddee7ac7bf58fe727b1d6446a93e7a093",
+   "packageDigestsEqual": true,
+   "path": "engines/minizinc-csp/tests/fixtures/simple-sequence",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "engines/minizinc-csp/tests/fixtures/xor-choice": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-caca259afcf3aae23665cf25b2c5260a79e4d042b2ced271853692313efc2354",
+   "packageDigestsEqual": true,
+   "path": "engines/minizinc-csp/tests/fixtures/xor-choice",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/01_simple_seq": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-c978c315df1f9b78aa4094724dc274601e6ad2f597f36d1d4f4bdbcd773734fd",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/01_simple_seq",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/02_parallel": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-a777a30fa8e799957aa1690b18ac90e3ab7e9fa4ffe055bab9f0365362d2fb46",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/02_parallel",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/03_xor_choice": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-cdca1debde0f59636064e787fd5a81c53becfed3fd1e522db1d00504e7ef98a7",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/03_xor_choice",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/04_conflict": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-eb6d167ce757e4447b05c5396713ca9bf7ba33562668adf85201a8dcb3232ce2",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/04_conflict",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/05_multi_obj": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-076bc86a409e915bc435a9852cb8eceebfb2ece4f3cf9da079d4a45a06d2dc48",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/05_multi_obj",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/05_single_obj_various": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-076bc86a409e915bc435a9852cb8eceebfb2ece4f3cf9da079d4a45a06d2dc48",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/05_single_obj_various",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/06_loops": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-92a31f5a2f04ebc744011454dd1fc3606a9ac26b987ec9e0627ca392ff8898f1",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/06_loops",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/07_soft_constraints": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-249e3c39d02fa61b5ac7077a57fd5866d6c93b84a2241ce6b92ae14cdb19b0ed",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/07_soft_constraints",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/08_dependencies": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-696668e0c23e7c663fa065c83b1080c6a973a4ac06ca95f684887d3acd000d2c",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/08_dependencies",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/09_mixed": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-0d6e9d4e22fb1f847d41bc64fe6d2a2f84a3efb16048fde92ac56b95f3d45726",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/09_mixed",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/10_large_scale": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-9a67e3c0f79ab8dba355b740963301675104f85883de254e381f8f9db758ef5d",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/10_large_scale",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/11_multi_obj_negative": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-322bb9c5ab363d11476c070295fb567daa18b58d6ad70f8b604faec0821b174b",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/11_multi_obj_negative",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/12_many_obj_pareto": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-05d5acdaecb29b366b4a605c315ae0e85a9ce323351cabb68e0578ee3bdba570",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/12_many_obj_pareto",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/13_fms": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-de5a5072325dc30b281304b032d610c9da4967ecaf51063c2506ea4b61cd881c",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/13_fms",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/14_shared_candidates": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-a116ee9d041ebfaec443375873897f4b4ba8bd267aec137f2b06e13b6fcedd4d",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/14_shared_candidates",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/15_bpmn_complete": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-b95dedac8ae1ffdce2512aaef508ed667acc0a51b2074e4381b5e28e06f94dbb",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/15_bpmn_complete",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/16_json_complete": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-7a385ffae9a1f5807348b85d67c35b011f1999fd5e794cca66a5f99ef12f1f3a",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/16_json_complete",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/17_analysis_tradeoffs": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-0d2750d10a915c37f38956fbbfbe7e967659f1588e49ee7078a04c3a1f20f7e8",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/17_analysis_tradeoffs",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/18_analysis_constraints": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-cb6d426c5b49b47764fcb9088112171bc593fafebeb1c60dd8791095aa7b3993",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/18_analysis_constraints",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/demo/19_analysis_journey": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-45762c8b23d063520770661da9e9da82b7704b6f375b3a627e7065946f579cc4",
+   "packageDigestsEqual": true,
+   "path": "examples/demo/19_analysis_journey",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/literature/benatallah": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-949608760455ffc40fd561d9e8b30292a963b623a3896bd56fb12d0cfc71b649",
+   "packageDigestsEqual": true,
+   "path": "examples/literature/benatallah",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/literature/bultan": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-965e315d0ef3e565ba3a0fd06555f6410598f4d19f66810f63e56d2f0902eae5",
+   "packageDigestsEqual": true,
+   "path": "examples/literature/bultan",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/literature/cremaschi": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-b89736d7fff9e5de0c2103955e465d8e52f0724cb6b73efef5f1ef5e8a525307",
+   "packageDigestsEqual": true,
+   "path": "examples/literature/cremaschi",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/literature/netedu": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-e5b09270dacef8fe6825ca19374eb122ecd62dd0ec626b1120f337f6802bfb0f",
+   "packageDigestsEqual": true,
+   "path": "examples/literature/netedu",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/literature/pautasso": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-afd9f624d1eaffbc9f6b694df361c2585697b6d6213c4bbb7e8e659dc779f865",
+   "packageDigestsEqual": true,
+   "path": "examples/literature/pautasso",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/literature/zhang": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-846c63e85d3c41218f422c2a6676bb88211cfece89c62b22d1a24740aae33805",
+   "packageDigestsEqual": true,
+   "path": "examples/literature/zhang",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/placement/01_small_placement": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-085f91986f7fbe2ee0693a15f03b36a51fe5bf717f47e51b72fe84bdda99c38a",
+   "packageDigestsEqual": true,
+   "path": "examples/placement/01_small_placement",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/placement/02_stock_market_sample": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-103aef1764129cb07950dbac85281cb7b26b316d0be82a7350f157e0e1293649",
+   "packageDigestsEqual": true,
+   "path": "examples/placement/02_stock_market_sample",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/placement/03_cloud_only": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-d1b6260f45b599ea52bb45fcc1ad919570043dd13b5a146f4224bbb1f49ea33c",
+   "packageDigestsEqual": true,
+   "path": "examples/placement/03_cloud_only",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "examples/placement/04_edge_heavy": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-385fdeacb423cbb46662566c9e67bae71f846bb29d0b5eba836c78ca118a2bc8",
+   "packageDigestsEqual": true,
+   "path": "examples/placement/04_edge_heavy",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_many_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-087967389dd96d5cf5599f3885b08a27bf06a040aca361983026b67d6f597a92",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_many_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_many_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-8829eec6579332d74e80c711a4bbf437ce2946faed3fd28268f5856509c2820f",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_many_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_one_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-f8cdfad23e64ef17cd8d6d7015aa18e495df695b923063f5c06f3d39462dc1e2",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_one_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_one_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-ec962d30ff5275cc2392f11822113d247224229430db436e0d43b6b938af7c1a",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_one_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_utility_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-4396d231afda55daa2bdcc9c2b9c2177bb45e189d824c410ca15ab38d3e965e5",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_utility_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_utility_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-1b7b33e1e3ddd83d0d10f863bf5897e0a3f9ff0956d68f79ca2210af9a2bb9b3",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_utility_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_multi_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-8d1b5dc9529e4235610d303512525fc53b056e6b0881ff19ca11c2819f3ef5d5",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_multi_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_multi_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-2963983de3bf80e6193e66d216bc3860c0e95f9fc1c088be63808c3b4b2ec037",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_multi_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_many_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-5cd6c3c5010ffc2aa676a7e998867e442c7951dc2b440f3e7d4dd720d40c690f",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/bultan2003-warehouse-example_many_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_many_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-bc8a455db8331b453ce52a3b307cda2e74f4645cc5c2022c9327ca519988cbae",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/bultan2003-warehouse-example_many_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_mono_one_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-ee532374b91c61fe7b395226830808476dbb136a2ef389bdc0b3631a34d7abff",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/bultan2003-warehouse-example_mono_one_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_mono_one_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-8251317bb609568c0daf36e4f34229c7595188344b3fecd492461f429a1a9247",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/bultan2003-warehouse-example_mono_one_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_mono_utility_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-910cce37e1d435d98d4b87ea7c16546938811d5d3e6224123332555d52b63490",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/bultan2003-warehouse-example_mono_utility_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_mono_utility_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-e99c17c23cf70163c608fc4be170a5613fed1e35a5b84642a49ea52c90dbe7d3",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/bultan2003-warehouse-example_mono_utility_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_multi_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-a7c69ac4865b7e0544faf92e801cdece27b548c19aa8dd6ea424864b35ed91f6",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/bultan2003-warehouse-example_multi_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_multi_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-5129dc7d94c3c8e4bd9919b195b6fc2f5d2a464766bf5e51e5d93131b7d1c882",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/bultan2003-warehouse-example_multi_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_many_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-5a36cb69d1a9c3d677c0bb6fdb1215101fe465eda88cd2a814de9a2610c202c6",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/cremaschi2018-textbook-access_many_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_many_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-38777925f6f6d50fda9c394eb3ef93fd37bcf2d235649e7d734b45fb3aae4e38",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/cremaschi2018-textbook-access_many_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_mono_one_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-d79b7c8a9089d30e63683ebc70a14b2df12393bd8652d953d0fc9bff53c17e34",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/cremaschi2018-textbook-access_mono_one_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_mono_one_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-81dff35941638f90b22cc4e96a5d3fc1b4b67c2975d5b5ef7476b09a10e718dc",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/cremaschi2018-textbook-access_mono_one_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_mono_utility_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-fb979e1aee0b42897298d26aadcc4e3291a40658f81ba6608d7971658012df63",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/cremaschi2018-textbook-access_mono_utility_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_mono_utility_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-aa518f9be91af90a7e5a77e1344245ec431c9ac5e5dee5e41f294893c1849f86",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/cremaschi2018-textbook-access_mono_utility_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_multi_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-fdd1125705dbb49adaf5e5823efa634e5e04fc2e51b8b6ece897185bbaf7169c",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/cremaschi2018-textbook-access_multi_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_multi_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-1d746eb649ee95f8c38afae7ad49d3ad0b2bde8a7ebd17eae844caa31c7b3e26",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/cremaschi2018-textbook-access_multi_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_many_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-3b9c40938fe7ae7df6b73554ec547ed768f51e8492415692af9fd27f68961402",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/netedu2020-transport-agency_many_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_many_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-abbce619839f0670354ac1165a3a9ed8127317c254785b84e56f3581d17ab9c4",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/netedu2020-transport-agency_many_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_mono_one_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-189025048df62bff139827968cacb059f6b077b70cec3fec85cffc96a3700a76",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/netedu2020-transport-agency_mono_one_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_mono_one_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-021da954278d281261a58bf650cb5aa39159c7e3c92928208bcd3f8114234dab",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/netedu2020-transport-agency_mono_one_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_mono_utility_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-bc311261997c55d222ae4ec17b531845f2962a1739e66828d487c41345b615b2",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/netedu2020-transport-agency_mono_utility_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_mono_utility_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-f79d49da08ce45b491275e1a04a39cb47cd14732c9f93f4135e221d39d2580b1",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/netedu2020-transport-agency_mono_utility_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_multi_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-89b6bc44a94e742a95c15a88f06084d0723b2ba33820b27ac4bf3312cb4b445c",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/netedu2020-transport-agency_multi_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_multi_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-3a8730fdba252644650e42dd141a9281edf603c84b4aa1e181b70d64618e4f09",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/netedu2020-transport-agency_multi_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_many_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-da31bd45307f2080fe998cdcc9e05a43668de634206e80a7601107745fde84fa",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/pautasso2009-restful-ecommerce_many_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_many_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-35449ec37ac07f5f866e5784abf14479977f20fac61cdd13965197910fd6e9cf",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/pautasso2009-restful-ecommerce_many_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_one_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-c81a53fafdd76093b3d2926125097e2956b3a7fb7dc8ce9777f86c0dfbded6c5",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_one_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_one_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-78fde8b3f8404461ab7193437ae8b9bb8f5e948ccd644a392d3a4fd5c7e5be71",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_one_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_utility_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-69b0adb029d7e3b18048d1104071fe2f9e75899a79c0f38c4a2426b38292de88",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_utility_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_utility_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-fea26895e35224f2b14648ca217874c43d2960549036340beaa60c74526afcbf",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_utility_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_multi_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-8e5bcced7501c9a58673acb5ef83ef1bcbda59d4a3d6aa5bc48be53188b09fe1",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/pautasso2009-restful-ecommerce_multi_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_multi_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-4690e2a7da98a167016234d4fb28dc581805dd6317ee3af69234afdb4af47076",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/pautasso2009-restful-ecommerce_multi_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_many_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-0f269dcc5c5155c08b3c42d798992e9a178c115623d4a3135123e08fea5dae9f",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_many_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_many_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-84f1fe24a6337beb53f2be6886900b3bcedac87493e73a04ae761efa7fee7870",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_many_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_one_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-90d835f83797f3b9a6e52bde0be62343b9d539a908c8bdbb9c1b777a9b6d4705",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_one_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_one_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-c3675375467b1aceb1fc1ccdd3f4b7a0d6f21aba396896ec7c9a5fca25df9514",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_one_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_utility_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-4aecfc5460f4c83ef47e2bdbcf917c18cda52c85528857889796e12c802fefb9",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_utility_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_utility_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-b9d01638ba93f4ee64cea34b1996bea2bc4586ecc18a16424181be642a16825c",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_utility_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_multi_hard": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-e9c25f47d3b22e690db88a8b0ffff372acf27a88f30cffc1f591f49ac714c98a",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_multi_hard",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_multi_soft": {
+   "canonicalZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "packageDigest": "sha256-be7cadb8d2b37f82382cafd79b4db86ab5d28d4748e15002dfe3a6bba543e9e7",
+   "packageDigestsEqual": true,
+   "path": "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_multi_soft",
+   "permuted1": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "permuted2": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "rawZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "reversedZip": {
+    "sameIr": true,
+    "sameSemanticDigest": true
+   },
+   "status": "compiled"
+  }
+ },
+ "schema": "bim-baseline/zip-equivalence/2"
+}

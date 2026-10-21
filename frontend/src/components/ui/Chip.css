@@ -1,0 +1,18 @@
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--tp-radius-full);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.ui-chip svg { flex: none; width: 0.875rem; height: 0.875rem; }
+.ui-chip.is-mono { font-family: var(--font-mono); font-weight: 400; }
+.ui-chip-plain { border-color: var(--tp-hairline-soft); background: var(--tp-surface); color: var(--tp-slate); }
+.ui-chip-accent { background: var(--tp-cream-deeper); color: var(--tp-ink); }
+.ui-chip-success { border-color: var(--tp-severity-success-border); background: var(--tp-severity-success-bg); color: var(--color-success-text); }
+.ui-chip-warning { border-color: var(--tp-severity-warning-border); background: var(--tp-severity-warning-bg); color: var(--color-warning-text); }

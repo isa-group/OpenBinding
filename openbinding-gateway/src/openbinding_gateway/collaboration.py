@@ -20,7 +20,7 @@ from .db.models import (
     User,
 )
 from .models.errors import api_error
-from .space_client import PricingUnavailable, get_gate
+from .services.entitlements import entitlement_service
 
 ROLE_STRENGTH = {
     OrganizationRole.VIEWER: 1,
@@ -78,6 +78,8 @@ async def descendant_ids(session: AsyncSession, organization_id: uuid.UUID) -> l
 async def effective_role(
     session: AsyncSession, organization_id: uuid.UUID, user: User
 ) -> OrganizationRole | None:
+    if getattr(user, "is_anonymous", False):
+        return None
     ancestors = await ancestor_ids(session, organization_id)
     if not ancestors:
         return None
@@ -99,6 +101,15 @@ async def require_role(
     minimum: OrganizationRole,
 ) -> OrganizationRole:
     role = await effective_role(session, organization.id, user)
+    if role is None and getattr(user, "is_anonymous", False):
+        # Only eligible public reads reach a handler without credentials; for
+        # everything else (a private project, a missing one) this is still a 401.
+        raise api_error(
+            status.HTTP_401_UNAUTHORIZED,
+            "unauthorized",
+            "This endpoint needs an account. Send a session token or an API key.",
+            headers={"WWW-Authenticate": 'Bearer realm="openbinding"'},
+        )
     if role is None or ROLE_STRENGTH[role] < ROLE_STRENGTH[minimum]:
         raise api_error(
             status.HTTP_403_FORBIDDEN,
@@ -148,6 +159,13 @@ async def require_project(
     user: User,
     minimum: OrganizationRole,
 ) -> Project:
+    if minimum is OrganizationRole.VIEWER:
+        # The one central place where "public_read" is granted (see access/public_read.py).
+        from .access.public_read import admit_public_project
+
+        public = await admit_public_project(session, organization, reference, user)
+        if public is not None:
+            return public
     await require_role(session, organization, user, minimum)
     project = await project_by_ref(session, organization.id, reference)
     if project is None:
@@ -260,24 +278,7 @@ async def enforce_sponsor_usage(
 ) -> None:
     """Validate a complete hypothetical sponsor total in one contract read."""
 
-    try:
-        caps = await get_gate().caps(sponsor.id)
-    except PricingUnavailable as exc:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)
-        ) from exc
-    for dimension, used in usage.items():
-        allowance = caps.limit(dimension)
-        if allowance is None:
-            continue
-        limit = int(allowance)
-        if used > limit:
-            raise api_error(
-                status.HTTP_402_PAYMENT_REQUIRED,
-                "sponsor_quota_exceeded",
-                f"The sponsor contract allows {limit} {dimension}; this operation would exceed it.",
-                quota={"limit_id": dimension, "limit": limit, "used": used},
-            )
+    await entitlement_service.enforce_sponsor_usage(sponsor.id, usage)
 
 
 async def enforce_sponsor_capacity(

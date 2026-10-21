@@ -12,10 +12,11 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import space_client
-from ..access import metering
+from ..access import public_read
 from ..access.dependencies import get_current_user, session_dependency
 from ..collaboration import enforce_sponsor_capacity, organization_by_ref, require_project
+from ..core.settings import get_settings
+from ..domain import usage_counters
 from ..db.models import (
     Artifact,
     ArtifactVersion,
@@ -24,16 +25,11 @@ from ..db.models import (
     BindingCase,
     BindingCaseRevision,
     BindingIRSnapshot,
-    Collection,
-    CollectionItem,
-    CollectionRevision,
     Job,
     JobState,
     Organization,
     OrganizationRole,
     Project,
-    ProjectResource,
-    ProjectResourceRevision,
     Publication,
     Report,
     ReportState,
@@ -45,7 +41,7 @@ from ..db.models import (
     User,
     utcnow,
 )
-from ..models.errors import api_error
+from ..models.errors import ErrorResponse, api_error
 from ..models.platform import (
     AnalyticsView,
     CollectionCreate,
@@ -66,13 +62,25 @@ from ..models.platform import (
     StudyUpdate,
     StudyView,
 )
-from ..space_client import PricingUnavailable, get_gate
+from ..services.entitlements import EntitlementService, get_entitlements
 from ..security.apikeys import allows_engine
-from ..study_jobs import StudyLaunchError, launch_study_cell, metrics_from_job
+from ..study_jobs import (
+    RETRYABLE_LAUNCH_CODES,
+    StudyLaunchError,
+    StudyRunTerminal,
+    cancel_run,
+    cell_job_mismatches,
+    commit_launched,
+    fail_cell,
+    launch_study_cell,
+    lock_run,
+    metrics_from_job,
+    study_binding_space_refusal,
+)
 from ..studies import aggregate_metrics, expand_study
-from ..v1.canonical import canonical_json, digest
+from bim_core.canonical import canonical_json, digest
 from ..artifacts import store_blob, version_content
-from ..models.artifacts import CollectionArtifactContent, ArtifactRef
+from ..models.artifacts import CollectionArtifactContent
 import json
 
 router = APIRouter(prefix="/v1/organizations/{org}/projects/{project}", tags=["Studies"])
@@ -105,6 +113,25 @@ async def _collection(session: AsyncSession, project_id: uuid.UUID, reference: s
         ProjectArtifact.project_id == project_id, Artifact.kind == "Collection",
         Artifact.id == parsed if parsed else Artifact.name == reference))).scalars().first()
     if found is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Collection not found.")
+    return found
+
+
+async def _visitor_may_see(session: AsyncSession, project: Project, artifact: Artifact) -> bool:
+    """A read-only visitor sees the project's own artifacts, and others' only while published."""
+
+    if not public_read.is_public_read(session):
+        return True
+    from ..artifacts import can_read
+
+    return artifact.organization_id == project.organization_id or await can_read(session, artifact, None)
+
+
+async def _readable_collection(
+    session: AsyncSession, project: Project, reference: str
+) -> Artifact:
+    found = await _collection(session, project.id, reference)
+    if not await _visitor_may_see(session, project, found):
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Collection not found.")
     return found
 
@@ -180,7 +207,8 @@ async def list_collections(
     rows = (await session.scalars(select(Artifact).join(ProjectArtifact)
         .where(ProjectArtifact.project_id == found_project.id, Artifact.kind == "Collection")
         .order_by(Artifact.display_name))).all()
-    return [_collection_view(row, found_project.id) for row in rows]
+    return [_collection_view(row, found_project.id) for row in rows
+            if await _visitor_may_see(session, found_project, row)]
 
 
 @router.post("/collections", response_model=CollectionView, status_code=201, operation_id="createCollection")
@@ -213,7 +241,7 @@ async def list_collection_revisions(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[CollectionRevisionView]:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    found = await _collection(session, found_project.id, collection)
+    found = await _readable_collection(session, found_project, collection)
     revisions = (await session.scalars(select(ArtifactVersion).where(
         ArtifactVersion.artifact_id == found.id).order_by(ArtifactVersion.ordinal))).all()
     result = []
@@ -245,7 +273,7 @@ async def get_collection_revision(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CollectionRevisionView:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    found = await _collection(session, found_project.id, collection)
+    found = await _readable_collection(session, found_project, collection)
 
     rev_row = None
     if revision.isdigit():
@@ -341,7 +369,7 @@ async def get_collection(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CollectionView:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    found = await _collection(session, found_project.id, collection)
+    found = await _readable_collection(session, found_project, collection)
     return _collection_view(found, found_project.id)
 
 
@@ -471,7 +499,7 @@ async def create_study(
         from ..artifacts import can_read, version_content
         from ..db.models import Artifact, ArtifactVersion
         from ..models.artifacts import CollectionArtifactContent, CaseRevisionRef
-        from ..v1.package import strict_json_loads
+        from ..core.jsonio import strict_json_loads
         version = await session.get(ArtifactVersion, payload.definition.collection_version_id)
         artifact = await session.get(Artifact, version.artifact_id) if version else None
         if artifact is None or artifact.kind != 'Collection' or not await can_read(session, artifact, user, version):
@@ -578,7 +606,16 @@ async def run_study(
     org: str, project: str, study: str, definition_version_id: uuid.UUID | None = None,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
+    plans: EntitlementService = Depends(get_entitlements),
 ) -> StudyRunView:
+    # Start a run and launch its cells one by one, each committed before it is queued.
+    #
+    # A retryable refusal (``RETRYABLE_LAUNCH_CODES``: concurrency limit,
+    # pricing unavailable) stops the loop and leaves the remaining cells queued for
+    # ``study_jobs._sync`` to launch as the earlier jobs finish. When the very
+    # first cell is refused there is no job whose end would trigger that, so the
+    # run stays queued with nothing running until the reconciler advances it.
+    # (A comment, not a docstring: a docstring would become the OpenAPI description.)
     organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
     found = await _study(session, found_project.id, study, user, check_engines=False)
     if found.archived:
@@ -594,44 +631,34 @@ async def run_study(
     await resolve_version(session, reference(selected_artifact, selected_version), user)
     if not _study_engines_allowed(user, definition_from_version(selected_version)):
         raise api_error(403, 'api_key_engine_forbidden', 'This key does not grant the Engines pinned by the selected version.')
-    try:
-        verdict = await get_gate().evaluate(user.id, "studies", {"studyRuns": 1})
-    except PricingUnavailable as exc:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
-    if not verdict.allowed:
-        if verdict.limit is not None:
-            if verdict.limit.limit_id == "concurrentJobs":
-                raise api_error(
-                    status.HTTP_429_TOO_MANY_REQUESTS,
-                    "concurrency_limit_exceeded",
-                    verdict.reason or "Concurrency limit exceeded.",
-                    headers={"Retry-After": "15"},
-                    concurrency={"limit_id": "concurrentJobs", "limit": verdict.limit.limit, "used": verdict.limit.used},
-                )
-            else:
-                raise api_error(
-                    status.HTTP_402_PAYMENT_REQUIRED,
-                    "quota_exceeded",
-                    verdict.reason or "Study-run quota exhausted.",
-                    quota={
-                        "limit_id": verdict.limit.limit_id,
-                        "limit": verdict.limit.limit,
-                        "used": verdict.limit.used,
-                        "unit": verdict.limit.unit,
-                        "renews_at": verdict.limit.renews_at,
-                    },
-                )
-        raise api_error(
-            status.HTTP_403_FORBIDDEN,
-            "feature_not_entitled",
-            verdict.reason or "The current plan does not entitle studies.",
-        )
+    caps = await plans.caps_or_503(user.id)
+    plans.require_feature(caps, "studies", detail="The current plan does not entitle studies.")
     if selected_version.manifest['kind'] != 'Study':
         raise api_error(409, 'evidence_only_study', 'This gallery contains stored evidence and is not an executable study definition.')
     definition = StudyCreate(
         slug=found.slug, name=found.name, description=found.description, definition=definition_from_version(selected_version)
     ).definition
     expanded = expand_study(definition)
+    # Before the run, its cells or any job exist: a run past the cell cap or with a case above the
+    # size limit is refused whole, and so is one whose period counter SPACE reports spent or unknown.
+    max_cells = get_settings().max_cells_per_study_run
+    if max_cells is not None and len(expanded) > max_cells:
+        raise api_error(
+            422,
+            "study_run_too_large",
+            "This deployment limits how many cells one study run may expand to; reduce the matrix.",
+            quota={
+                "limit_id": "maxCellsPerRun", "state": "exhausted", "unit": "cell",
+                "source": "technical", "limit": max_cells, "used": len(expanded),
+            },
+        )
+    refusal = await study_binding_space_refusal(
+        session, {uuid.UUID(cell["caseRevisionId"]) for cell in expanded}, caps
+    )
+    if refusal is None:
+        refusal = await usage_counters.usage_refusal(user.id, "studyRuns")
+    if refusal is not None:
+        raise api_error(refusal.status, refusal.code, refusal.detail, headers=refusal.headers or None, **refusal.extra)
     await session.execute(select(Study.id).where(Study.id == found.id).with_for_update())
     number = int(await session.scalar(select(func.max(StudyRun.run_number)).where(StudyRun.study_id == found.id)) or 0) + 1
     matrix_digest = digest([cell["fingerprint"] for cell in expanded])
@@ -652,28 +679,18 @@ async def run_study(
         session.add(value)
         cells.append(value)
     await session.flush()
-    await get_gate().adjust_usage(user.id, {"studyRuns": 1})
     _audit(session, user, "study.run.created", run, organization.id, matrixDigest=matrix_digest)
     for cell in cells:
         try:
             await launch_study_cell(session, cell, user, organization, found_project.id)
+            # The cell now points at its job; only a committed job is queued.
+            await commit_launched(session)
         except StudyLaunchError as exc:
-            if exc.code in {"quota_exhausted", "concurrency_limit_exceeded"}:
-                # Concurrency limit reached; leave remaining cells queued to be picked up by _sync.
+            if exc.code in RETRYABLE_LAUNCH_CODES:
+                # Limit reached; leave remaining cells queued to be picked up by _sync.
                 cell.state = RunState.QUEUED
                 break
-            cell.state = RunState.FAILED
-            cell.metrics = {
-                "status": "failed",
-                "feasible": False,
-                "code": exc.code,
-                "detail": exc.detail,
-                "engine": (
-                    f"{cell.engine_ref.get('namespace')}/{cell.engine_ref.get('name')}"
-                    f"@{cell.engine_ref.get('version')}"
-                ),
-                "seed": cell.seed,
-            }
+            fail_cell(cell, exc)
     terminal = {RunState.COMPLETED, RunState.FAILED, RunState.CANCELLED}
     if all(cell.state in terminal for cell in cells):
         run.state = (
@@ -798,21 +815,12 @@ async def cancel_study_run(
     found_study = await _study(session, found_project.id, study, user, check_engines=False)
     run = await _run(session, found_study.id, run_id, user)
     await _require_mutable_evidence(session, run)
-    if run.state in {RunState.COMPLETED, RunState.CANCELLED}:
-        raise api_error(status.HTTP_409_CONFLICT, "terminal_run", "The study run is already terminal.")
-    run.state = RunState.CANCELLED
-    run.finished_at = utcnow()
-    cells = (await session.execute(select(StudyCell).where(StudyCell.study_run_id == run.id))).scalars().all()
-    for cell in cells:
-        job = await session.get(Job, cell.job_id) if cell.job_id else None
-        if job is not None and job.state not in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}:
-            job.cancellation_requested = True
-            if job.state is JobState.QUEUED:
-                job.state = JobState.CANCELLED
-                job.finished_at = utcnow()
-                await metering.settle(space_client.get_gate(), session, job.id, solver_seconds=0)
-        if cell.state in {RunState.QUEUED, RunState.RUNNING}:
-            cell.state = RunState.CANCELLED
+    try:
+        run, cells = await cancel_run(session, run.id)
+    except LookupError as exc:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Study run not found.") from exc
+    except StudyRunTerminal as exc:
+        raise api_error(status.HTTP_409_CONFLICT, "terminal_run", "The study run is already terminal.") from exc
     _audit(session, user, "study.run.cancelled", run, organization.id)
     return StudyRunView(
         id=run.id, definition_version_id=run.definition_version_id, study_id=run.study_id, run_number=run.run_number, state=run.state.value,
@@ -821,7 +829,23 @@ async def cancel_study_run(
     )
 
 
-@router.post("/studies/{study}/runs/{run_id}/cells/{cell_id}/result", operation_id="attachStudyCellResult")
+@router.post(
+    "/studies/{study}/runs/{run_id}/cells/{cell_id}/result",
+    operation_id="attachStudyCellResult",
+    responses={
+        409: {
+            "model": ErrorResponse,
+            "description": (
+                "The run is evidence of a sealed report (code `sealed_evidence`); the job is not "
+                "finished (`job_not_finished`) or completed without a result (`job_result_missing`); "
+                "the job is already the result of another cell (`job_already_attached`); or the job "
+                "is not an execution of this cell (`cell_job_mismatch`): its `fields` list names "
+                "each of `case_revision`, `engine`, `mode` and `seed` that differ, and `details` "
+                "gives the `cell` and `job` values."
+            ),
+        }
+    },
+)
 async def attach_cell_result(
     org: str, project: str, study: str, run_id: uuid.UUID, cell_id: uuid.UUID,
     payload: StudyCellResult,
@@ -832,12 +856,37 @@ async def attach_cell_result(
     found_study = await _study(session, found_project.id, study, user, check_engines=False)
     run = await _run(session, found_study.id, run_id, user)
     await _require_mutable_evidence(session, run)
-    cell = (await session.execute(select(StudyCell).where(StudyCell.id == cell_id, StudyCell.study_run_id == run.id))).scalars().first()
+    # It rewrites the run's aggregate like _sync does, so it takes the same locks.
+    run = await lock_run(session, run.id) or run
+    cell = (
+        await session.execute(
+            select(StudyCell)
+            .where(StudyCell.id == cell_id, StudyCell.study_run_id == run.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalars().first()
     job = await session.get(Job, payload.job_id)
     if cell is None or job is None or job.owner_id != user.id:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Cell or job not found.")
     if job.state not in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}:
         raise api_error(status.HTTP_409_CONFLICT, "job_not_finished", "Attach a terminal job result.")
+    if job.state is JobState.COMPLETED and not isinstance(job.result, dict):
+        raise api_error(status.HTTP_409_CONFLICT, "job_result_missing", "The completed job has no result to attach.")
+    mismatches = await cell_job_mismatches(session, cell, job, user)
+    if mismatches:
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            "cell_job_mismatch",
+            "The job is not an execution of this cell: " + ", ".join(sorted(mismatches)) + " differ.",
+            fields=sorted(mismatches),
+            details=mismatches,
+        )
+    other = await session.scalar(
+        select(StudyCell.id).where(StudyCell.job_id == job.id, StudyCell.id != cell.id).limit(1)
+    )
+    if other is not None:
+        raise api_error(status.HTTP_409_CONFLICT, "job_already_attached", "The job is already the result of another cell.")
     cell.job_id = job.id
     cell.metrics = metrics_from_job(job, cell)
     cell.state = RunState.COMPLETED if job.state is JobState.COMPLETED else RunState.FAILED
@@ -861,10 +910,29 @@ async def retry_study_cell(
     found_study = await _study(session, found_project.id, study, user, check_engines=False)
     run = await _run(session, found_study.id, run_id, user)
     await _require_mutable_evidence(session, run)
-    cell = (await session.execute(select(StudyCell).where(StudyCell.id == cell_id, StudyCell.study_run_id == run.id))).scalars().first()
+    # Run first, then the cell, as cancel and _sync do. A second retry of the same
+    # cell waits here and then finds the replacement the first one launched: it is
+    # answered with that job and ``idempotent: true`` (200), not refused with a 409.
+    run = await lock_run(session, run.id)
+    cell = (
+        await session.execute(
+            select(StudyCell)
+            .where(StudyCell.id == cell_id, StudyCell.study_run_id == run.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalars().first() if run is not None else None
     if cell is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Study cell not found.")
-    current_job = await session.get(Job, cell.job_id) if cell.job_id else None
+    current_job = (
+        (
+            await session.execute(
+                select(Job).where(Job.id == cell.job_id).execution_options(populate_existing=True)
+            )
+        ).scalars().first()
+        if cell.job_id
+        else None
+    )
     if (
         current_job is not None
         and current_job.retry_of_id is not None
@@ -882,6 +950,10 @@ async def retry_study_cell(
     previous_job_id = cell.job_id
     cell.state = RunState.QUEUED
     cell.job_id = None
+    if current_job is not None:
+        # One job per cell: the superseded job gives up its claim on the cell.
+        current_job.study_cell_id = None
+        await session.flush()
     cell.metrics = {}
     run.state = RunState.QUEUED
     run.finished_at = None
@@ -893,6 +965,8 @@ async def retry_study_cell(
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, exc.code, exc.detail) from exc
     replacement.retry_of_id = previous_job_id
     _audit(session, user, "study.cell.retried", cell, organization.id)
+    # Commit the replacement with its link to the cell, and only then queue it.
+    await commit_launched(session)
     return {
         "id": str(cell.id),
         "state": cell.state.value,
@@ -1007,6 +1081,16 @@ async def get_study_analytics(
     return AnalyticsView(**metrics_data, binding_space=binding_space_info)
 
 
+def _published_report(project_id: uuid.UUID):
+    """Frozen reports with a live (not withdrawn) publication: all a non-member may read."""
+
+    return (Report.state == ReportState.FROZEN) & Report.id.in_(
+        select(Publication.report_id).where(
+            Publication.project_id == project_id, Publication.withdrawn.is_(False)
+        )
+    )
+
+
 def _report_view(value: Report) -> ReportView:
     return ReportView(
         id=value.id, project_id=value.project_id, study_run_id=value.study_run_id,
@@ -1108,9 +1192,10 @@ async def list_reports(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[ReportView]:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    rows = (await session.execute(
-        select(Report).where(Report.project_id == found_project.id).order_by(Report.created_at.desc())
-    )).scalars().all()
+    query = select(Report).where(Report.project_id == found_project.id)
+    if public_read.is_public_read(session):
+        query = query.where(_published_report(found_project.id))
+    rows = (await session.execute(query.order_by(Report.created_at.desc()))).scalars().all()
     return [_report_view(row) for row in rows]
 
 
@@ -1125,10 +1210,14 @@ async def get_report(
         parsed = uuid.UUID(report)
     except ValueError:
         parsed = None
-    value = (await session.execute(select(Report).where(
+    query = select(Report).where(
         Report.project_id == found_project.id,
         Report.id == parsed if parsed else Report.slug == report,
-    ))).scalars().first()
+    )
+    if public_read.is_public_read(session):
+        # A draft, or a frozen report nobody published, is indistinguishable from none.
+        query = query.where(_published_report(found_project.id))
+    value = (await session.execute(query)).scalars().first()
     if value is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Report not found.")
     return _report_view(value)
@@ -1317,11 +1406,10 @@ async def list_project_publications(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[PublicationView]:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    rows = (await session.execute(
-        select(Publication)
-        .where(Publication.project_id == found_project.id)
-        .order_by(Publication.published_at.desc())
-    )).scalars().all()
+    query = select(Publication).where(Publication.project_id == found_project.id)
+    if public_read.is_public_read(session):
+        query = query.where(Publication.withdrawn.is_(False))
+    rows = (await session.execute(query.order_by(Publication.published_at.desc()))).scalars().all()
     return [PublicationView.model_validate(row, from_attributes=True) for row in rows]
 
 
@@ -1392,11 +1480,11 @@ async def explore_engines(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> dict[str, Any]:
     response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
-    from .v1 import _available_engine_documents, _engine_ref
+    from ..services.engines import available_engine_documents, engine_ref
 
     engines = []
-    for document, namespace in await _available_engine_documents(session, caller=None):
-        reference = _engine_ref(document, namespace)
+    for document, namespace in await available_engine_documents(session, caller=None):
+        reference = engine_ref(document, namespace)
         engines.append(
             {
                 "id": reference["name"],

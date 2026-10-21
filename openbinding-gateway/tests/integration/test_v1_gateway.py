@@ -11,7 +11,7 @@ import uuid
 import httpx
 import pytest
 
-from openbinding_gateway.v1.canonical import digest
+from bim_core.canonical import digest
 
 
 GATEWAY_URL = "http://127.0.0.1:8000"

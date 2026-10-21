@@ -11,20 +11,20 @@ from openbinding_gateway.v1.archive import (
     build_archive, candidate_detail, decide, dominates, exact_layers, first_front, query_archive,
 )
 from openbinding_gateway.v1.archive_geometry import budget_map, preference_geometry
-from openbinding_gateway.v1.canonical import digest
-from openbinding_gateway.v1.compiler import compile_instance
-from openbinding_gateway.v1.package import load_package
+from bim_core.canonical import digest
+from bim_core.compiler import compile_instance
+from bim_core.package import load_package
 
 
 def example_archive(points=None, directions=None, constraints=None):
     points = points or [(0, 1), (.6, .6), (1, 0), (.85, .85)]
     m = len(points[0])
-    terms = [{"feature": {"resource": "app", "id": f"x{j}"}, "direction": (directions or ["minimize"] * m)[j]} for j in range(m)]
-    document = {"spec": {"optimization": {"mode": "pareto", "terms": terms}, "constraints": constraints or []}}
+    terms = [{"id": f"x{j}", "feature": {"resource": "app", "id": f"x{j}"}, "direction": (directions or ["minimize"] * m)[j]} for j in range(m)]
+    document = {"spec": {"optimization": {"criteria": terms, "penalties": []}, "constraints": constraints or []}}
     solutions = [{"decision": {"kind": "binding", "binding": {"task": {"resource": "catalog", "id": str(i)}}},
         "features": {f"x{j}": x for j, x in enumerate(point)}, "violations": [],
-        "objectives": {"mode": "pareto", "penalty": 0, "score": [*point, 0],
-            "components": [{"feature": term["feature"], "value": point[j], "loss": point[j], "weight": 1} for j, term in enumerate(terms)]}}
+        "objectives": {"type": "MULTI", "scalarization": "pareto", "penalty": 0, "score": [*point, 0],
+            "components": [{"criteria": term["id"], "feature": term["feature"], "value": point[j], "loss": point[j], "weight": 1} for j, term in enumerate(terms)]}}
         for i, point in enumerate(points)]
     result = {"solutions": solutions}
     source = AnalysisSource(id="source", engine="fixture", state="completed", createdAt="2026-01-01", irDigest=digest(document), evaluatorDigest="verified-evaluator", resultDigest=digest(result), legacy=False)
@@ -50,6 +50,57 @@ def test_balanced_unsupported_winner_dominated_runner_up_and_fixed_normalization
     response = query_archive(archive, q)
     assert response["winnerCount"] == 1 and response["nextCount"] == 1
     assert response["pareto"]["frontCount"] == 3
+    # The ordering mode comes from the stored execution objective, not the IR.
+    assert archive.mode == "pareto" and response["modelOrderingAvailable"] is False
+    with pytest.raises(ValueError, match="partial order"):
+        decide(archive, q.model_copy(update={"rule": "model"}))
+
+
+@pytest.mark.parametrize("shapes, expected", [
+    ({("MULTI", "pareto-front")}, "pareto"),
+    ({("MANY", "pareto-front")}, "pareto"),
+    ({("SINGLE", "weighted-sum")}, "weighted"),
+    ({("SINGLE", "lexicographic")}, "lexicographic"),
+    ({("SINGLE", "feasibility")}, "feasibility"),
+    ({("SINGLE", "weighted-sum"), ("MULTI", "pareto-front")}, "unknown"),
+    ({(None, None)}, "unknown"),
+    (set(), "unknown"),
+])
+def test_ordering_mode_comes_from_the_stored_execution_objective(shapes, expected):
+    from openbinding_gateway.v1.archive import TOTAL_ORDER_MODES, ordering_mode
+    mode = ordering_mode(shapes)
+    assert mode == expected
+    assert (mode in TOTAL_ORDER_MODES) == (expected in {"weighted", "lexicographic", "feasibility"})
+
+
+def pooled_weighted_archive(weights):
+    """One archive pooled from jobs of the same IR and evaluator, scored with the given component weights."""
+    terms = [{"id": f"x{j}", "feature": {"resource": "app", "id": f"x{j}"}, "direction": "minimize"} for j in range(2)]
+    document = {"spec": {"optimization": {"criteria": terms, "penalties": []}, "constraints": []}}
+    sources = []
+    for n, weight in enumerate(weights):
+        point = (n / 4, 1 - n / 4)
+        solution = {"decision": {"kind": "binding", "binding": {"task": {"resource": "catalog", "id": str(n)}}},
+            "features": {f"x{j}": x for j, x in enumerate(point)}, "violations": [],
+            "objectives": {"type": "SINGLE", "scalarization": "weighted-sum", "penalty": 0, "score": sum(point) * weight,
+                "components": [{"criteria": t["id"], "feature": t["feature"], "value": point[j], "loss": point[j], "weight": weight}
+                               for j, t in enumerate(terms)]}}
+        result = {"solutions": [solution]}
+        sources.append((AnalysisSource(id=f"job{n}", engine="fixture", state="completed", createdAt="2026-01-01",
+            irDigest=digest(document), evaluatorDigest="verified-evaluator", resultDigest=digest(result), legacy=False), document, result))
+    return build_archive(sources)
+
+
+def test_pooled_jobs_with_the_same_weights_keep_a_total_model_order():
+    archive = pooled_weighted_archive([1, 1])
+    assert len(archive.sources) == 2 and archive.mode == "weighted"
+    assert query_archive(archive, AnalysisQuery(sources=["job0", "job1"]))["modelOrderingAvailable"] is True
+
+
+def test_pooled_jobs_with_different_weights_have_no_comparable_model_order():
+    archive = pooled_weighted_archive([1, 2])
+    assert len(archive.sources) == 2 and archive.mode == "unknown"
+    assert query_archive(archive, AnalysisQuery(sources=["job0", "job1"]))["modelOrderingAvailable"] is False
 
 
 @pytest.mark.parametrize("m", [1, 2, 3])
@@ -147,7 +198,7 @@ def test_pooling_deduplicates_occurrences_but_rejects_conflicting_evaluations():
 async def test_api_canonical_sources_revision_export_and_auth(api_client, db_session, registration, monkeypatch):
     from sqlalchemy import select
     from openbinding_gateway.db.models import Job, JobState, User
-    from openbinding_gateway.v1.compiler import BindingProblem, compiler_bundle_digest
+    from bim_core.compiler import BindingProblem, compiler_bundle_digest
 
     details = registration()
     await api_client.post("/v1/auth/register", json=details)
@@ -260,8 +311,11 @@ async def test_analysis_worker_atomic_completion_failure_retry_and_cancel(db_ses
     await analysis_jobs.execute_analysis(task.id)
     failed = await analysis.get_pareto(uuid.UUID(task.id), owner, db_session)
     assert failed.state == "failed" and failed.result is None
+    assert (await db_session.get(AnalysisTask, uuid.UUID(task.id), populate_existing=True)).attempts == 1
     task = await analysis.start_pareto(query, owner, db_session)
     assert task.state == "queued"
+    # Resubmitting a failed task gives it the full allowance of claims again.
+    assert (await db_session.get(AnalysisTask, uuid.UUID(task.id), populate_existing=True)).attempts == 0
     # An expired worker lease is durably requeued before delivery, without a partial result.
     from datetime import timedelta
     from openbinding_gateway.db.models import utcnow

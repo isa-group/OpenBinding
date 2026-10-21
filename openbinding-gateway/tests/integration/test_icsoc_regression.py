@@ -12,8 +12,8 @@ import uuid
 import httpx
 import pytest
 
-from openbinding_gateway.v1.compiler import compile_instance
-from openbinding_gateway.v1.package import InstancePackage, load_package
+from bim_core.compiler import compile_instance
+from bim_core.package import InstancePackage, load_package
 
 from experimentation.icsoc.generator.config import load_config
 from experimentation.icsoc.generator.generator import generate_dataset

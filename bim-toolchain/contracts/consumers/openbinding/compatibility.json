@@ -1,0 +1,1003 @@
+{
+ "consumer": "openbinding",
+ "description": "Which Engine modes can run the demo IR, and why not.",
+ "name": "compatibility",
+ "schema": "bim-toolchain/consumer-fixture/1",
+ "steps": [
+  {
+   "description": "Compile the demo package to its IR.",
+   "expect": {
+    "body": {
+     "analysis": {
+      "bindingSpaceBreakdown": {
+       "t1": 2,
+       "t2": 2
+      },
+      "bindingSpaceCardinality": "4",
+      "bindingSpaceLog10": 0.6020599913279624,
+      "candidates": 2,
+      "serviceTasks": 2
+     },
+     "inputDigest": "sha256-bab0665c7698af16aae5261f425d8a5110b3b97496e701433249a940ec18a916",
+     "instanceDigest": "sha256-3c3f7ae7926ecd01dea6535dd8f4170dfe73d30e17565a33eed622e979d7a1bd",
+     "ir": {
+      "apiVersion": "bim/v1",
+      "kind": "BindingProblem",
+      "semanticDigest": "sha256-88faceb9ed5ccd1d0db24093dd43b4845879c221b23a6aeb2790b01b7d08a743"
+     },
+     "packageDigest": "sha256-011e8f95939fae5b45e41687dfd3ffb0eb21648f6b591f7e2c1080a097dbff74",
+     "sourceMap": {
+      "/": {
+       "path": "instance.json",
+       "pointer": "/",
+       "resource": "instance"
+      },
+      "/spec/application/features/cost": {
+       "path": "application.json",
+       "pointer": "/spec/features/cost",
+       "resource": "app"
+      },
+      "/spec/application/features/latency": {
+       "path": "application.json",
+       "pointer": "/spec/features/latency",
+       "resource": "app"
+      },
+      "/spec/application/tasks/local": {
+       "path": "application.json",
+       "pointer": "/spec/tasks/local",
+       "resource": "app"
+      },
+      "/spec/application/tasks/t1": {
+       "path": "application.json",
+       "pointer": "/spec/tasks/t1",
+       "resource": "app"
+      },
+      "/spec/application/tasks/t2": {
+       "path": "application.json",
+       "pointer": "/spec/tasks/t2",
+       "resource": "app"
+      },
+      "/spec/application/workflow": {
+       "path": "application.json",
+       "pointer": "/spec/workflow",
+       "resource": "app"
+      },
+      "/spec/application/workflow/steps/0": {
+       "path": "application.json",
+       "pointer": "/spec/workflow/sequence/0",
+       "resource": "app"
+      },
+      "/spec/application/workflow/steps/1": {
+       "path": "application.json",
+       "pointer": "/spec/workflow/sequence/1",
+       "resource": "app"
+      },
+      "/spec/application/workflow/steps/1/body": {
+       "path": "application.json",
+       "pointer": "/spec/workflow/sequence/1/repeat/body",
+       "resource": "app"
+      },
+      "/spec/application/workflow/steps/2": {
+       "path": "application.json",
+       "pointer": "/spec/workflow/sequence/2",
+       "resource": "app"
+      },
+      "/spec/candidates/cat-a/c1": {
+       "path": "catalog-a.json",
+       "pointer": "/spec/candidates/c1",
+       "resource": "cat-a"
+      },
+      "/spec/candidates/cat-b/c1": {
+       "path": "catalog-b.json",
+       "pointer": "/spec/candidates/c1",
+       "resource": "cat-b"
+      },
+      "/spec/constraints/0": {
+       "path": "hard.json",
+       "pointer": "/spec/constraints/limit",
+       "resource": "hard"
+      },
+      "/spec/constraints/0/assert": {
+       "path": "hard.json",
+       "pointer": "/spec/constraints/limit/assert",
+       "resource": "hard",
+       "span": {
+        "end": 23,
+        "start": 0
+       }
+      },
+      "/spec/constraints/1": {
+       "path": "soft.json",
+       "pointer": "/spec/constraints/limit",
+       "resource": "soft"
+      },
+      "/spec/constraints/1/assert": {
+       "path": "soft.json",
+       "pointer": "/spec/constraints/limit/assert",
+       "resource": "soft",
+       "span": {
+        "end": 22,
+        "start": 0
+       }
+      },
+      "/spec/constraints/1/penalty": {
+       "path": "soft.json",
+       "pointer": "/spec/constraints/limit/penalty",
+       "resource": "soft"
+      },
+      "/spec/instance/resources/app": {
+       "path": "instance.json",
+       "pointer": "/spec/resources/application/app",
+       "resource": "instance"
+      },
+      "/spec/instance/resources/cat-a": {
+       "path": "instance.json",
+       "pointer": "/spec/resources/candidateCatalog/cat-a",
+       "resource": "instance"
+      },
+      "/spec/instance/resources/cat-b": {
+       "path": "instance.json",
+       "pointer": "/spec/resources/candidateCatalog/cat-b",
+       "resource": "instance"
+      },
+      "/spec/instance/resources/hard": {
+       "path": "instance.json",
+       "pointer": "/spec/resources/constraintSet/hard",
+       "resource": "instance"
+      },
+      "/spec/instance/resources/opt": {
+       "path": "instance.json",
+       "pointer": "/spec/resources/optimization/opt",
+       "resource": "instance"
+      },
+      "/spec/instance/resources/soft": {
+       "path": "instance.json",
+       "pointer": "/spec/resources/constraintSet/soft",
+       "resource": "instance"
+      },
+      "/spec/optimization/criteria/0": {
+       "path": "optimization.json",
+       "pointer": "/spec/criteria/0",
+       "resource": "opt"
+      },
+      "/spec/optimization/criteria/1": {
+       "path": "optimization.json",
+       "pointer": "/spec/criteria/1",
+       "resource": "opt"
+      }
+     }
+    },
+    "status": 200
+   },
+   "id": "compile",
+   "request": {
+    "body": {
+     "package": "UEsDBBQAAAAAAAAAIQDUyqvB+AEAAPgBAAAQAAAAYXBwbGljYXRpb24uanNvbnsiYXBpVmVyc2lvbiI6InFvcy1iaW5kaW5nL3YxIiwia2luZCI6IkFwcGxpY2F0aW9uIiwibWV0YWRhdGEiOnsibmFtZSI6ImFwcCJ9LCJzcGVjIjp7ImZlYXR1cmVzIjp7ImNvc3QiOnsiYWdncmVnYXRpb24iOiJzdW0iLCJkaXJlY3Rpb24iOiJtaW5pbWl6ZSIsInNjb3BlIjoic2VsZWN0ZWRDYW5kaWRhdGUiLCJ1bml0IjoiZXVyIn0sImxhdGVuY3kiOnsiYWdncmVnYXRpb24iOiJzdW0iLCJkaXJlY3Rpb24iOiJtaW5pbWl6ZSIsInVuaXQiOiJtcyJ9fSwidGFza3MiOnsibG9jYWwiOnsia2luZCI6ImxvY2FsIn0sInQxIjoic3ZjL3YxIiwidDIiOiJzdmMvdjEifSwid29ya2Zsb3ciOnsic2VxdWVuY2UiOlt7InRhc2siOnsiaWQiOiJ0MSIsInJlc291cmNlIjoiYXBwIn19LHsicmVwZWF0Ijp7ImJvZHkiOnsidGFzayI6eyJpZCI6InQyIiwicmVzb3VyY2UiOiJhcHAifX0sImV4cGVjdGVkQ291bnQiOjJ9fSx7InRhc2siOnsiaWQiOiJsb2NhbCIsInJlc291cmNlIjoiYXBwIn19XX19fVBLAwQUAAAAAAAAACEAmEOOBGABAABgAQAADgAAAGNhdGFsb2ctYS5qc29ueyJhcGlWZXJzaW9uIjoicW9zLWJpbmRpbmcvdjEiLCJraW5kIjoiQ2FuZGlkYXRlQ2F0YWxvZyIsIm1ldGFkYXRhIjp7Im5hbWUiOiJjYXRhbG9nLWEifSwic3BlYyI6eyJjYW5kaWRhdGVzIjp7ImMxIjp7ImZlYXR1cmVzIjp7ImNvc3QiOjUsImxhdGVuY3kiOjEwfSwicHJvdmlkZXIiOnsiaWQiOiJwYSIsInJlc291cmNlIjoiY2F0LWEifSwicHJvdmlkZXMiOiJzdmMvdjEifX0sImZlYXR1cmVCaW5kaW5ncyI6eyJjb3N0Ijp7ImlkIjoiY29zdCIsInJlc291cmNlIjoiYXBwIn0sImxhdGVuY3kiOnsiaWQiOiJsYXRlbmN5IiwicmVzb3VyY2UiOiJhcHAifX0sInByb3ZpZGVycyI6eyJwYSI6eyJuYW1lIjoiUEEifX19fVBLAwQUAAAAAAAAACEAfGNaqWABAABgAQAADgAAAGNhdGFsb2ctYi5qc29ueyJhcGlWZXJzaW9uIjoicW9zLWJpbmRpbmcvdjEiLCJraW5kIjoiQ2FuZGlkYXRlQ2F0YWxvZyIsIm1ldGFkYXRhIjp7Im5hbWUiOiJjYXRhbG9nLWIifSwic3BlYyI6eyJjYW5kaWRhdGVzIjp7ImMxIjp7ImZlYXR1cmVzIjp7ImNvc3QiOjcsImxhdGVuY3kiOjIwfSwicHJvdmlkZXIiOnsiaWQiOiJwYiIsInJlc291cmNlIjoiY2F0LWIifSwicHJvdmlkZXMiOiJzdmMvdjEifX0sImZlYXR1cmVCaW5kaW5ncyI6eyJjb3N0Ijp7ImlkIjoiY29zdCIsInJlc291cmNlIjoiYXBwIn0sImxhdGVuY3kiOnsiaWQiOiJsYXRlbmN5IiwicmVzb3VyY2UiOiJhcHAifX0sInByb3ZpZGVycyI6eyJwYiI6eyJuYW1lIjoiUEIifX19fVBLAwQUAAAAAAAAACEA/L2VOqwAAACsAAAACQAAAGhhcmQuanNvbnsiYXBpVmVyc2lvbiI6InFvcy1iaW5kaW5nL3YxIiwia2luZCI6IkNvbnN0cmFpbnRTZXQiLCJtZXRhZGF0YSI6eyJuYW1lIjoiaGFyZCJ9LCJzcGVjIjp7ImNvbnN0cmFpbnRzIjp7ImxpbWl0Ijp7ImFzc2VydCI6ImZlYXR1cmVzLmxhdGVuY3kgPD0gMTAwIiwiZW5mb3JjZW1lbnQiOiJoYXJkIn19fX1QSwMEFAAAAAAAAAAhAM+o8fJSAQAAUgEAAA0AAABpbnN0YW5jZS5qc29ueyJhcGlWZXJzaW9uIjoiYmltL3YxIiwia2luZCI6Ikluc3RhbmNlIiwibWV0YWRhdGEiOnsibmFtZSI6ImNvbnN1bWVyLWRlbW8ifSwic3BlYyI6eyJwcm9maWxlIjoicW9zLWJpbmRpbmcvdjEiLCJyZXNvdXJjZXMiOnsiYXBwbGljYXRpb24iOnsiYXBwIjoiYXBwbGljYXRpb24uanNvbiJ9LCJjYW5kaWRhdGVDYXRhbG9nIjp7ImNhdC1hIjoiY2F0YWxvZy1hLmpzb24iLCJjYXQtYiI6ImNhdGFsb2ctYi5qc29uIn0sImNvbnN0cmFpbnRTZXQiOnsiaGFyZCI6ImhhcmQuanNvbiIsInNvZnQiOiJzb2Z0Lmpzb24ifSwib3B0aW1pemF0aW9uIjp7Im9wdCI6Im9wdGltaXphdGlvbi5qc29uIn19fX1QSwMEFAAAAAAAAAAhAL6LWlB9AQAAfQEAABEAAABvcHRpbWl6YXRpb24uanNvbnsiYXBpVmVyc2lvbiI6InFvcy1iaW5kaW5nL3YxIiwia2luZCI6Ik9wdGltaXphdGlvbiIsIm1ldGFkYXRhIjp7Im5hbWUiOiJvcHQifSwic3BlYyI6eyJjcml0ZXJpYSI6W3siZmVhdHVyZSI6eyJpZCI6ImxhdGVuY3kiLCJyZXNvdXJjZSI6ImFwcCJ9LCJpZCI6ImxhdGVuY3kiLCJub3JtYWxpemUiOnsiY2xhbXAiOmZhbHNlLCJtYXgiOjEwMCwibWluIjowfX0seyJmZWF0dXJlIjp7ImlkIjoiY29zdCIsInJlc291cmNlIjoiYXBwIn0sImlkIjoiY29zdCIsIm5vcm1hbGl6ZSI6eyJjbGFtcCI6ZmFsc2UsIm1heCI6MjAsIm1pbiI6MH19XSwicGVuYWx0aWVzIjpbeyJjb25zdHJhaW50Ijp7ImlkIjoibGltaXQiLCJyZXNvdXJjZSI6InNvZnQifSwid2VpZ2h0IjoxfV19fVBLAwQUAAAAAAAAACEA2C3oz7cAAAC3AAAACQAAAHNvZnQuanNvbnsiYXBpVmVyc2lvbiI6InFvcy1iaW5kaW5nL3YxIiwia2luZCI6IkNvbnN0cmFpbnRTZXQiLCJtZXRhZGF0YSI6eyJuYW1lIjoic29mdCJ9LCJzcGVjIjp7ImNvbnN0cmFpbnRzIjp7ImxpbWl0Ijp7ImFzc2VydCI6Imhhcyh0YXNrcy50MS5wcm92aWRlcikiLCJlbmZvcmNlbWVudCI6InNvZnQiLCJwZW5hbHR5IjoyfX19fVBLAQIUAxQAAAAAAAAAIQDUyqvB+AEAAPgBAAAQAAAAAAAAAAAAAACkgQAAAABhcHBsaWNhdGlvbi5qc29uUEsBAhQDFAAAAAAAAAAhAJhDjgRgAQAAYAEAAA4AAAAAAAAAAAAAAKSBJgIAAGNhdGFsb2ctYS5qc29uUEsBAhQDFAAAAAAAAAAhAHxjWqlgAQAAYAEAAA4AAAAAAAAAAAAAAKSBsgMAAGNhdGFsb2ctYi5qc29uUEsBAhQDFAAAAAAAAAAhAPy9lTqsAAAArAAAAAkAAAAAAAAAAAAAAKSBPgUAAGhhcmQuanNvblBLAQIUAxQAAAAAAAAAIQDPqPHyUgEAAFIBAAANAAAAAAAAAAAAAACkgREGAABpbnN0YW5jZS5qc29uUEsBAhQDFAAAAAAAAAAhAL6LWlB9AQAAfQEAABEAAAAAAAAAAAAAAKSBjgcAAG9wdGltaXphdGlvbi5qc29uUEsBAhQDFAAAAAAAAAAhANgt6M+3AAAAtwAAAAkAAAAAAAAAAAAAAKSBOgkAAHNvZnQuanNvblBLBQYAAAAABwAHAJ4BAAAYCgAAAAA=",
+     "registeredResources": []
+    },
+    "method": "POST",
+    "path": "/bim/v1/compile"
+   },
+   "toolchain": {
+    "compilerDigest": "sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e",
+    "irDigest": "sha256-0dcc0b0a230d45cf768edef5f0da70f0ca366c8ab29c3e8168c3c16328c22270"
+   }
+  },
+  {
+   "description": "A mode that declares every capability the IR uses.",
+   "expect": {
+    "body": {
+     "compatible": true,
+     "diagnostics": [],
+     "mode": {
+      "id": "seeded",
+      "terminationGuarantees": [
+       "FEASIBLE",
+       "UNKNOWN"
+      ]
+     },
+     "options": {
+      "iterations": 1000,
+      "seed": 0
+     }
+    },
+    "status": 200
+   },
+   "id": "random-search",
+   "request": {
+    "body": {
+     "ir": {
+      "$ref": "compile#/ir"
+     },
+     "manifest": {
+      "apiVersion": "bim/v1",
+      "kind": "Engine",
+      "metadata": {
+       "description": "Seeded random search over canonical BIM v1 binding decisions",
+       "name": "random-search",
+       "namespace": "bim.builtin",
+       "version": "1.0.0"
+      },
+      "spec": {
+       "modes": [
+        {
+         "algorithm": "seeded-random-search",
+         "capabilities": {
+          "aggregations": {
+           "selector": "all"
+          },
+          "constraints": {
+           "selector": "all"
+          },
+          "expressions": {
+           "selector": "all"
+          },
+          "featureScopes": {
+           "selector": "all"
+          },
+          "featureValues": {
+           "selector": "only",
+           "values": [
+            "scalar"
+           ]
+          },
+          "irExtensions": {
+           "selector": "only",
+           "values": [
+            "qos-binding-placement/v1"
+           ]
+          },
+          "placement": {
+           "selector": "all"
+          },
+          "scalarizations": {
+           "selector": "only",
+           "values": [
+            {
+             "id": "weighted-sum",
+             "objectiveTypes": [
+              "SINGLE"
+             ],
+             "weightPolicy": "required"
+            },
+            {
+             "id": "pareto-front",
+             "objectiveTypes": [
+              "MULTI",
+              "MANY"
+             ],
+             "weightPolicy": "forbidden"
+            },
+            {
+             "id": "feasibility",
+             "objectiveTypes": [
+              "SINGLE"
+             ],
+             "weightPolicy": "forbidden"
+            }
+           ]
+          },
+          "workflowNodes": {
+           "selector": "all"
+          }
+         },
+         "guarantees": {
+          "deterministicWithoutTimeBudget": true,
+          "exact": false,
+          "termination": [
+           "FEASIBLE",
+           "UNKNOWN"
+          ]
+         },
+         "id": "seeded",
+         "ir": {
+          "apiVersion": "bim/v1",
+          "kind": "BindingProblem"
+         },
+         "limits": {
+          "maxIterations": 1000000,
+          "maxTimeBudgetMs": 3600000
+         },
+         "optionsSchema": {
+          "additionalProperties": false,
+          "properties": {
+           "iterations": {
+            "default": 1000,
+            "maximum": 1000000,
+            "minimum": 1,
+            "type": "integer"
+           },
+           "seed": {
+            "default": 0,
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+           },
+           "time_budget_ms": {
+            "maximum": 3600000,
+            "minimum": 1,
+            "type": "integer"
+           }
+          },
+          "type": "object"
+         },
+         "profile": "qos-binding/v1"
+        }
+       ]
+      }
+     },
+     "mode": "seeded"
+    },
+    "method": "POST",
+    "path": "/bim/v1/compatibility"
+   }
+  },
+  {
+   "description": "The same with execution options.",
+   "expect": {
+    "body": {
+     "compatible": true,
+     "diagnostics": [],
+     "mode": {
+      "id": "seeded",
+      "terminationGuarantees": [
+       "FEASIBLE",
+       "UNKNOWN"
+      ]
+     },
+     "options": {
+      "iterations": 50,
+      "seed": 7
+     }
+    },
+    "status": 200
+   },
+   "id": "random-search-options",
+   "request": {
+    "body": {
+     "ir": {
+      "$ref": "compile#/ir"
+     },
+     "manifest": {
+      "apiVersion": "bim/v1",
+      "kind": "Engine",
+      "metadata": {
+       "description": "Seeded random search over canonical BIM v1 binding decisions",
+       "name": "random-search",
+       "namespace": "bim.builtin",
+       "version": "1.0.0"
+      },
+      "spec": {
+       "modes": [
+        {
+         "algorithm": "seeded-random-search",
+         "capabilities": {
+          "aggregations": {
+           "selector": "all"
+          },
+          "constraints": {
+           "selector": "all"
+          },
+          "expressions": {
+           "selector": "all"
+          },
+          "featureScopes": {
+           "selector": "all"
+          },
+          "featureValues": {
+           "selector": "only",
+           "values": [
+            "scalar"
+           ]
+          },
+          "irExtensions": {
+           "selector": "only",
+           "values": [
+            "qos-binding-placement/v1"
+           ]
+          },
+          "placement": {
+           "selector": "all"
+          },
+          "scalarizations": {
+           "selector": "only",
+           "values": [
+            {
+             "id": "weighted-sum",
+             "objectiveTypes": [
+              "SINGLE"
+             ],
+             "weightPolicy": "required"
+            },
+            {
+             "id": "pareto-front",
+             "objectiveTypes": [
+              "MULTI",
+              "MANY"
+             ],
+             "weightPolicy": "forbidden"
+            },
+            {
+             "id": "feasibility",
+             "objectiveTypes": [
+              "SINGLE"
+             ],
+             "weightPolicy": "forbidden"
+            }
+           ]
+          },
+          "workflowNodes": {
+           "selector": "all"
+          }
+         },
+         "guarantees": {
+          "deterministicWithoutTimeBudget": true,
+          "exact": false,
+          "termination": [
+           "FEASIBLE",
+           "UNKNOWN"
+          ]
+         },
+         "id": "seeded",
+         "ir": {
+          "apiVersion": "bim/v1",
+          "kind": "BindingProblem"
+         },
+         "limits": {
+          "maxIterations": 1000000,
+          "maxTimeBudgetMs": 3600000
+         },
+         "optionsSchema": {
+          "additionalProperties": false,
+          "properties": {
+           "iterations": {
+            "default": 1000,
+            "maximum": 1000000,
+            "minimum": 1,
+            "type": "integer"
+           },
+           "seed": {
+            "default": 0,
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+           },
+           "time_budget_ms": {
+            "maximum": 3600000,
+            "minimum": 1,
+            "type": "integer"
+           }
+          },
+          "type": "object"
+         },
+         "profile": "qos-binding/v1"
+        }
+       ]
+      }
+     },
+     "mode": "seeded",
+     "options": {
+      "iterations": 50,
+      "seed": 7
+     }
+    },
+    "method": "POST",
+    "path": "/bim/v1/compatibility"
+   }
+  },
+  {
+   "description": "A mode that does not support everything the IR uses.",
+   "expect": {
+    "body": {
+     "compatible": false,
+     "diagnostics": [
+      {
+       "allowed": [
+        "empty",
+        "exclusive.probabilistic",
+        "parallel",
+        "repeat.count",
+        "sequence",
+        "task"
+       ],
+       "category": "workflowNodes",
+       "code": "unsupported_capability_value",
+       "message": "mode does not support requested workflowNodes values",
+       "unsupported": [
+        "repeat.expectedCount"
+       ]
+      },
+      {
+       "allowed": [
+        "hard.aggregate-bound",
+        "hard.expression"
+       ],
+       "category": "constraints",
+       "code": "unsupported_capability_value",
+       "message": "mode does not support requested constraints values",
+       "unsupported": [
+        "soft.expression"
+       ]
+      },
+      {
+       "allowed": [
+        "compare",
+        "literal",
+        "path.features",
+        "path.tasks"
+       ],
+       "category": "expressions",
+       "code": "unsupported_capability_value",
+       "message": "mode does not support requested expressions values",
+       "unsupported": [
+        "call.has"
+       ]
+      }
+     ],
+     "mode": {
+      "id": "exact-weighted",
+      "terminationGuarantees": [
+       "OPTIMAL",
+       "FEASIBLE",
+       "INFEASIBLE",
+       "UNKNOWN"
+      ]
+     },
+     "options": {
+      "solver": "gecode",
+      "time_budget_ms": 30000
+     }
+    },
+    "status": 200
+   },
+   "id": "minizinc",
+   "request": {
+    "body": {
+     "ir": {
+      "$ref": "compile#/ir"
+     },
+     "manifest": {
+      "apiVersion": "bim/v1",
+      "kind": "Engine",
+      "metadata": {
+       "description": "Exact MiniZinc solver for its explicitly declared BIM v1 subset",
+       "name": "minizinc-csp",
+       "namespace": "bim.builtin",
+       "version": "1.0.0"
+      },
+      "spec": {
+       "modes": [
+        {
+         "algorithm": "minizinc-csp",
+         "capabilities": {
+          "aggregations": {
+           "selector": "only",
+           "values": [
+            "sequence.sum",
+            "sequence.min",
+            "sequence.max",
+            "parallel.sum",
+            "parallel.min",
+            "parallel.max",
+            "exclusive.weightedSum",
+            "exclusive.min",
+            "exclusive.max",
+            "repeat.scale",
+            "repeat.identity",
+            "selection.sum",
+            "selection.min",
+            "selection.max"
+           ]
+          },
+          "constraints": {
+           "selector": "only",
+           "values": [
+            "hard.aggregate-bound",
+            "hard.expression"
+           ]
+          },
+          "expressions": {
+           "selector": "only",
+           "values": [
+            "literal",
+            "path.features",
+            "path.tasks",
+            "compare"
+           ]
+          },
+          "featureScopes": {
+           "selector": "only",
+           "values": [
+            "invocation",
+            "selectedCandidate"
+           ]
+          },
+          "featureValues": {
+           "selector": "only",
+           "values": [
+            "scalar"
+           ]
+          },
+          "irExtensions": {
+           "selector": "only",
+           "values": [
+            "qos-binding-placement/v1"
+           ]
+          },
+          "placement": {
+           "selector": "all"
+          },
+          "scalarizations": {
+           "selector": "only",
+           "values": [
+            {
+             "id": "weighted-sum",
+             "objectiveTypes": [
+              "SINGLE"
+             ],
+             "weightPolicy": "required"
+            }
+           ]
+          },
+          "workflowNodes": {
+           "selector": "only",
+           "values": [
+            "task",
+            "empty",
+            "sequence",
+            "parallel",
+            "exclusive.probabilistic",
+            "repeat.count"
+           ]
+          }
+         },
+         "guarantees": {
+          "deterministicWithoutTimeBudget": true,
+          "exact": true,
+          "termination": [
+           "OPTIMAL",
+           "FEASIBLE",
+           "INFEASIBLE",
+           "UNKNOWN"
+          ]
+         },
+         "id": "exact-weighted",
+         "ir": {
+          "apiVersion": "bim/v1",
+          "kind": "BindingProblem"
+         },
+         "limits": {
+          "maxCandidates": 100000,
+          "maxTasks": 10000,
+          "maxTimeBudgetMs": 3600000
+         },
+         "optionsSchema": {
+          "additionalProperties": false,
+          "properties": {
+           "solver": {
+            "const": "gecode",
+            "default": "gecode"
+           },
+           "time_budget_ms": {
+            "default": 30000,
+            "maximum": 3600000,
+            "minimum": 1,
+            "type": "integer"
+           }
+          },
+          "type": "object"
+         },
+         "profile": "qos-binding/v1"
+        }
+       ]
+      }
+     },
+     "mode": "exact-weighted"
+    },
+    "method": "POST",
+    "path": "/bim/v1/compatibility"
+   }
+  },
+  {
+   "description": "A mode the manifest does not have: 422 engine_mode_incompatible.",
+   "expect": {
+    "body": {
+     "code": "engine_mode_incompatible",
+     "detail": "engine 'random-search' does not provide mode 'nope'",
+     "diagnostics": [
+      {
+       "code": "mode",
+       "message": "engine 'random-search' does not provide mode 'nope'"
+      }
+     ],
+     "errorType": "ContractError",
+     "httpStatus": 422,
+     "status": 422,
+     "title": "Engine mode incompatible",
+     "type": "urn:bim-toolchain:problem:engine_mode_incompatible"
+    },
+    "status": 422
+   },
+   "id": "unknown-mode",
+   "request": {
+    "body": {
+     "ir": {
+      "$ref": "compile#/ir"
+     },
+     "manifest": {
+      "apiVersion": "bim/v1",
+      "kind": "Engine",
+      "metadata": {
+       "description": "Seeded random search over canonical BIM v1 binding decisions",
+       "name": "random-search",
+       "namespace": "bim.builtin",
+       "version": "1.0.0"
+      },
+      "spec": {
+       "modes": [
+        {
+         "algorithm": "seeded-random-search",
+         "capabilities": {
+          "aggregations": {
+           "selector": "all"
+          },
+          "constraints": {
+           "selector": "all"
+          },
+          "expressions": {
+           "selector": "all"
+          },
+          "featureScopes": {
+           "selector": "all"
+          },
+          "featureValues": {
+           "selector": "only",
+           "values": [
+            "scalar"
+           ]
+          },
+          "irExtensions": {
+           "selector": "only",
+           "values": [
+            "qos-binding-placement/v1"
+           ]
+          },
+          "placement": {
+           "selector": "all"
+          },
+          "scalarizations": {
+           "selector": "only",
+           "values": [
+            {
+             "id": "weighted-sum",
+             "objectiveTypes": [
+              "SINGLE"
+             ],
+             "weightPolicy": "required"
+            },
+            {
+             "id": "pareto-front",
+             "objectiveTypes": [
+              "MULTI",
+              "MANY"
+             ],
+             "weightPolicy": "forbidden"
+            },
+            {
+             "id": "feasibility",
+             "objectiveTypes": [
+              "SINGLE"
+             ],
+             "weightPolicy": "forbidden"
+            }
+           ]
+          },
+          "workflowNodes": {
+           "selector": "all"
+          }
+         },
+         "guarantees": {
+          "deterministicWithoutTimeBudget": true,
+          "exact": false,
+          "termination": [
+           "FEASIBLE",
+           "UNKNOWN"
+          ]
+         },
+         "id": "seeded",
+         "ir": {
+          "apiVersion": "bim/v1",
+          "kind": "BindingProblem"
+         },
+         "limits": {
+          "maxIterations": 1000000,
+          "maxTimeBudgetMs": 3600000
+         },
+         "optionsSchema": {
+          "additionalProperties": false,
+          "properties": {
+           "iterations": {
+            "default": 1000,
+            "maximum": 1000000,
+            "minimum": 1,
+            "type": "integer"
+           },
+           "seed": {
+            "default": 0,
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+           },
+           "time_budget_ms": {
+            "maximum": 3600000,
+            "minimum": 1,
+            "type": "integer"
+           }
+          },
+          "type": "object"
+         },
+         "profile": "qos-binding/v1"
+        }
+       ]
+      }
+     },
+     "mode": "nope"
+    },
+    "method": "POST",
+    "path": "/bim/v1/compatibility"
+   }
+  },
+  {
+   "description": "An option the mode does not declare: 422 unknown_option.",
+   "expect": {
+    "body": {
+     "code": "unknown_option",
+     "detail": "unknown engine option 'bogus'",
+     "diagnostics": [
+      {
+       "code": "unknown_option",
+       "message": "unknown engine option 'bogus'"
+      }
+     ],
+     "errorType": "ContractError",
+     "httpStatus": 422,
+     "status": 422,
+     "title": "Unknown option",
+     "type": "urn:bim-toolchain:problem:unknown_option"
+    },
+    "status": 422
+   },
+   "id": "unknown-option",
+   "request": {
+    "body": {
+     "ir": {
+      "$ref": "compile#/ir"
+     },
+     "manifest": {
+      "apiVersion": "bim/v1",
+      "kind": "Engine",
+      "metadata": {
+       "description": "Seeded random search over canonical BIM v1 binding decisions",
+       "name": "random-search",
+       "namespace": "bim.builtin",
+       "version": "1.0.0"
+      },
+      "spec": {
+       "modes": [
+        {
+         "algorithm": "seeded-random-search",
+         "capabilities": {
+          "aggregations": {
+           "selector": "all"
+          },
+          "constraints": {
+           "selector": "all"
+          },
+          "expressions": {
+           "selector": "all"
+          },
+          "featureScopes": {
+           "selector": "all"
+          },
+          "featureValues": {
+           "selector": "only",
+           "values": [
+            "scalar"
+           ]
+          },
+          "irExtensions": {
+           "selector": "only",
+           "values": [
+            "qos-binding-placement/v1"
+           ]
+          },
+          "placement": {
+           "selector": "all"
+          },
+          "scalarizations": {
+           "selector": "only",
+           "values": [
+            {
+             "id": "weighted-sum",
+             "objectiveTypes": [
+              "SINGLE"
+             ],
+             "weightPolicy": "required"
+            },
+            {
+             "id": "pareto-front",
+             "objectiveTypes": [
+              "MULTI",
+              "MANY"
+             ],
+             "weightPolicy": "forbidden"
+            },
+            {
+             "id": "feasibility",
+             "objectiveTypes": [
+              "SINGLE"
+             ],
+             "weightPolicy": "forbidden"
+            }
+           ]
+          },
+          "workflowNodes": {
+           "selector": "all"
+          }
+         },
+         "guarantees": {
+          "deterministicWithoutTimeBudget": true,
+          "exact": false,
+          "termination": [
+           "FEASIBLE",
+           "UNKNOWN"
+          ]
+         },
+         "id": "seeded",
+         "ir": {
+          "apiVersion": "bim/v1",
+          "kind": "BindingProblem"
+         },
+         "limits": {
+          "maxIterations": 1000000,
+          "maxTimeBudgetMs": 3600000
+         },
+         "optionsSchema": {
+          "additionalProperties": false,
+          "properties": {
+           "iterations": {
+            "default": 1000,
+            "maximum": 1000000,
+            "minimum": 1,
+            "type": "integer"
+           },
+           "seed": {
+            "default": 0,
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+           },
+           "time_budget_ms": {
+            "maximum": 3600000,
+            "minimum": 1,
+            "type": "integer"
+           }
+          },
+          "type": "object"
+         },
+         "profile": "qos-binding/v1"
+        }
+       ]
+      }
+     },
+     "mode": "seeded",
+     "options": {
+      "bogus": 1
+     }
+    },
+    "method": "POST",
+    "path": "/bim/v1/compatibility"
+   }
+  }
+ ]
+}

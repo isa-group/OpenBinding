@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bim.dev/schema/bim/v1/engine-registration.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {"const": "bim/v1"},
+    "kind": {"const": "EngineRegistration"},
+    "metadata": {"$ref": "#/$defs/metadata"},
+    "spec": {
+      "type": "object",
+      "required": ["engine", "endpoint", "protocol", "mappings", "auth", "openapi"],
+      "properties": {
+        "engine": {"$ref": "#/$defs/registeredResource"},
+        "endpoint": {"type": "string", "format": "uri"},
+        "protocol": {
+          "type": "object", "required": ["id", "mediaType", "digest"],
+          "properties": {
+            "id": {"const": "bim-engine/v1"},
+            "mediaType": {"const": "application/json"},
+            "digest": {"type": "string", "pattern": "^sha256-[0-9a-f]{64}$"}
+          },
+          "additionalProperties": false
+        },
+        "mappings": {
+          "type": "object", "required": ["request", "health", "openapi"],
+          "properties": {
+            "request": {"type": "string", "pattern": "^/"},
+            "job": {"type": "string", "pattern": "^/"},
+            "health": {"type": "string", "pattern": "^/"},
+            "openapi": {"type": "string", "pattern": "^/"}
+          },
+          "additionalProperties": false
+        },
+        "auth": {
+          "type": "object", "required": ["scheme"],
+          "properties": {"scheme": {"enum": ["none", "bearer", "basic"]}},
+          "additionalProperties": false
+        },
+        "openapi": {
+          "type": "object",
+          "required": ["openapi", "info", "paths", "x-bim-protocol", "x-bim-protocol-digest"],
+          "properties": {
+            "openapi": {"const": "3.1.0"},
+            "info": {
+              "type": "object",
+              "required": ["title", "version"],
+              "properties": {
+                "title": {"type": "string", "minLength": 1},
+                "version": {"type": "string", "minLength": 1}
+              },
+              "additionalProperties": true
+            },
+            "paths": {"type": "object", "minProperties": 1},
+            "x-bim-protocol": {"const": "bim-engine/v1"},
+            "x-bim-protocol-digest": {"type": "string", "pattern": "^sha256-[0-9a-f]{64}$"}
+          },
+          "additionalProperties": true
+        },
+        "extensions": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "properties": {
+        "spec": {
+          "properties": {
+            "endpoint": {
+              "anyOf": [
+                {"pattern": "^https://"},
+                {"pattern": "^http://"}
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "metadata": {
+      "type": "object", "required": ["namespace", "name", "version"],
+      "properties": {
+        "namespace": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+        "version": {"$ref": "#/$defs/semver"},
+        "description": {"type": "string"},
+        "labels": {"type": "object", "additionalProperties": {"type": "string"}},
+        "annotations": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^([1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "registeredResource": {
+      "type": "object", "required": ["namespace", "name", "version", "digest"],
+      "properties": {
+        "namespace": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "version": {"$ref": "#/$defs/semver"},
+        "digest": {"type": "string", "pattern": "^sha256-[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

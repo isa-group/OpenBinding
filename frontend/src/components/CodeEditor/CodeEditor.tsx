@@ -26,8 +26,6 @@ export function CodeEditor({
   ariaLabel = 'Source editor',
   selection,
 }: CodeEditorProps) {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-
   return (
     <div className="code-editor-wrapper">
       <CodeMirror
@@ -35,7 +33,7 @@ export function CodeEditor({
         value={value}
         onChange={onChange}
         extensions={[...(language === 'json' ? [json()] : []), EditorView.lineWrapping]}
-        theme={isDark ? 'dark' : 'light'}
+        theme="light"
         readOnly={readOnly}
         placeholder={placeholder}
         aria-label={ariaLabel}

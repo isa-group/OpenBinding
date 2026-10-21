@@ -3,14 +3,15 @@ from __future__ import annotations
 
 import uuid
 import json
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import delete, select, update, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..access import public_read
 from ..access.dependencies import get_current_user, get_optional_user, session_dependency
 from ..artifacts import (artifact_boundary_allows, artifact_view, can_read, owned_artifact, reference, resolve_version,
-    seal_draft, validate_content, version_content, version_view)
+    seal_draft, version_content, version_view)
 from ..collaboration import organization_by_ref, require_role, require_project
 from ..db.models import (Artifact, ArtifactDependency, ArtifactDraft, ArtifactPublication,
     ArtifactVersion, ArtifactCaseReference, BindingCase, BindingCaseRevision, Project, Visibility, CaseArtifact, OrganizationRole, ProjectArtifact, User)
@@ -191,16 +192,16 @@ async def publish_version(artifact_id: uuid.UUID, version_id: uuid.UUID, payload
     await owned_artifact(session, artifact_id, user, OrganizationRole.ADMIN)
     artifact, version = await _version(session, artifact_id, version_id, user)
     if artifact.kind in {'Study', 'ExecutionConfiguration'}:
-        from .v1 import _manifest_async
+        from ..services.engines import manifest_async
         content = json.loads((await version_content(session, version))[0])
         for engine in content['engines'] if artifact.kind == 'Study' else [content['engine']]:
             try:
-                await _manifest_async(engine['name'], session, namespace=engine['namespace'],
+                await manifest_async(engine['name'], session, namespace=engine['namespace'],
                     version=engine['version'], manifest_digest=engine['digest'])
             except HTTPException as exc:
                 raise api_error(422, 'private_engine_dependency', 'Publish the exact Engine contract before publishing this version.') from exc
     if artifact.kind == 'Report':
-        from ..db.models import ArtifactEvidence, Job, StudyRun, Study
+        from ..db.models import ArtifactEvidence, Job, StudyRun
         for evidence in await session.scalars(select(ArtifactEvidence).where(ArtifactEvidence.version_id == version.id)):
             if evidence.study_run_id:
                 study_version = await session.scalar(select(StudyRun.definition_version_id).where(StudyRun.id == evidence.study_run_id))
@@ -278,7 +279,11 @@ async def project_artifacts(org: str, project: str, user: User = Depends(get_cur
     target = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
     rows = (await session.scalars(select(Artifact).join(ProjectArtifact)
         .where(ProjectArtifact.project_id == target.id).order_by(Artifact.display_name))).all()
-    return [artifact_view(row) for row in rows if await can_read(session, row, user)]
+    # A non-member sees only associations whose artifact is itself published,
+    # whatever other organizations the caller may belong to.
+    public_only = public_read.is_public_read(session)
+    return [artifact_view(row) for row in rows if await can_read(session, row, user)
+            and (not public_only or await can_read(session, row, None))]
 
 
 @router.delete('/organizations/{org}/projects/{project}/library/{artifact_id}', status_code=204)

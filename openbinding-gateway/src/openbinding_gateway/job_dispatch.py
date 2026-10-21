@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 from typing import Optional
 
 import dramatiq
@@ -11,13 +10,14 @@ from dramatiq.asyncio import get_event_loop_thread
 from dramatiq.brokers.redis import RedisBroker
 from dramatiq.middleware import AsyncIO, Middleware
 from dramatiq.middleware.middleware import MiddlewareError
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import space_client
 from .core.settings import get_settings
 from .db import base as db_base
-from .db.models import Job, JobState, utcnow
+from .integrations import bim
+from .jobs import publisher
 
 _configured_url: Optional[str] = None
 _runtime_started = False
@@ -33,22 +33,11 @@ async def start_worker_runtime() -> None:
     settings = get_settings()
     if not settings.database_url:
         raise RuntimeError("Dramatiq workers require DATABASE_URL; queued jobs cannot run in memory.")
+    # The worker reevaluates every answer through the BIM port: refuse to boot without a usable toolchain.
+    await bim.startup_check()
     db_base.init_engine(settings.database_url)
 
-    async def resolve_catalog(version: str):
-        if not settings.database_url:
-            raise RuntimeError("A database is required to resolve pricing metadata")
-        from .pricing_catalog import catalog_for_version
-
-        async with db_base.session_factory()() as catalog_session:
-            return await catalog_for_version(catalog_session, settings, version)
-
-    space_client.set_gate(
-        space_client.build_gate(
-            settings,
-            catalog_resolver=resolve_catalog if settings.database_url else None,
-        )
-    )
+    space_client.set_gate(space_client.build_gate(settings))
     try:
         async with db_base.session_factory()() as session:
             await session.execute(text("SELECT 1"))
@@ -74,6 +63,7 @@ async def stop_worker_runtime() -> None:
         await gate.aclose()
     space_client.set_gate(None)
     await db_base.dispose_engine()
+    bim.close_bim()
     _runtime_started = False
 
 
@@ -116,19 +106,30 @@ def configure_broker() -> RedisBroker:
 
 
 async def _execute(job_id: str, request_session: AsyncSession | None = None) -> None:
-    # Lazy import keeps the BIM router free of a module cycle.
-    from .routes.v1 import _run_persisted_job
+    from .services.execution import run_persisted_job
     from .study_jobs import sync_study_job
 
-    await _run_persisted_job(job_id, request_session)
+    await run_persisted_job(job_id, request_session)
     await sync_study_job(job_id, request_session)
 
 
+#: Dramatiq kills an actor at 10 minutes unless told otherwise, while a solve may
+#: run for ``engine_solve_timeout_s`` (30 minutes by default). The primary engine
+#: and its planned fallback can each use the whole timeout, plus five minutes for
+#: the work around them.
+_TIME_LIMIT_MS = int(2 * get_settings().engine_solve_timeout_s * 1000 + 300_000)
+
+
+# max_retries stays at 5 for failures before the job is claimed (a database or
+# broker hiccup). A retry after a claim that failed is harmless: the claim is a
+# single UPDATE ... WHERE state = 'queued', so a redelivered message finds the
+# job running or finished and returns without doing anything.
 @dramatiq.actor(
     actor_name="openbinding.run_persisted_job",
     max_retries=5,
     min_backoff=1_000,
     max_backoff=30_000,
+    time_limit=_TIME_LIMIT_MS,
 )
 async def run_persisted_job_message(job_id: str) -> None:
     if not _runtime_started or not db_base.is_configured():
@@ -160,26 +161,26 @@ async def dispatch_persisted_job(
 async def redeliver_queued_jobs(
     session: AsyncSession,
     *,
-    older_than_s: float = 30.0,
+    older_than_s: float = publisher.PUBLISH_AFTER_S,
+    limit: int = publisher.BATCH_SIZE,
 ) -> int:
     """Republish persisted work that could have missed the broker hand-off.
 
-    Delivery is intentionally at-least-once.  The database runner claims the
-    QUEUED row, so a duplicate Redis message cannot execute a terminal job.
+    The QUEUED row is the outbox (see ``jobs.publisher``): a bounded batch of due
+    rows is claimed with a backoff and committed before anything is sent, so
+    replicas never publish the same rows together and a down broker is not
+    hammered every minute. Delivery is intentionally at-least-once.  The
+    database runner claims the QUEUED row, so a duplicate Redis message cannot
+    execute a terminal job.
     """
 
     settings = get_settings()
     if settings.job_dispatch_mode != "dramatiq":
         return 0
-    cutoff = utcnow() - timedelta(seconds=max(0.0, older_than_s))
-    job_ids = (
-        await session.execute(
-            select(Job.id).where(Job.state == JobState.QUEUED, Job.created_at <= cutoff)
-        )
-    ).scalars().all()
-    delivered = 0
-    for job_id in job_ids:
-        if not await dispatch_persisted_job(str(job_id)):
-            break
-        delivered += 1
-    return delivered
+    # Looked up here, on every call, so the one dispatch path can be replaced.
+    return await publisher.publish_due(
+        session,
+        lambda job_id: dispatch_persisted_job(job_id),
+        limit=limit,
+        after_s=max(0.0, older_than_s),
+    )

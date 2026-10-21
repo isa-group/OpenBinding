@@ -1,4 +1,4 @@
-"""Tests for quota/concurrency error discrimination, telemetry recording, and admin error diagnostics."""
+"""Tests for plan-allowance/concurrency error discrimination, telemetry recording, and admin error diagnostics."""
 
 from __future__ import annotations
 
@@ -10,9 +10,11 @@ from sqlalchemy import select
 
 from _pricing import fake_pricing_gate, pricing_catalog
 from _repo import REPO_ROOT
+from test_api_keys import key_payload
 from openbinding_gateway import space_client
-from openbinding_gateway.db.models import ApiErrorEvent, User, UserRole, utcnow
-from openbinding_gateway.v1.package import load_package
+from openbinding_gateway.core.settings import get_settings
+from openbinding_gateway.db.models import ApiErrorEvent, Job, JobState, User, UserRole, utcnow
+from bim_core.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 CATALOG = pricing_catalog()
@@ -49,72 +51,66 @@ async def _register(client, details, db_session=None, *, admin=False) -> tuple[d
     return headers, user_id
 
 
-async def test_solve_returns_402_on_task_quota_exceeded(api_client, db_session, registration, gate):
-    details = registration()
-    headers, user_id = await _register(api_client, details, db_session)
-
-    # Exhaust monthly task quota
-    gate.exhaust(user_id, "taskStarts")
-
-    package = load_package(EXAMPLE)
-    response = await api_client.post(
-        "/v1/jobs",
+async def _create_snapshot(client, headers):
+    """Jobs are launched by JSON from a snapshot: ZIP uploads cannot carry `optimization`."""
+    snapshot = await client.post(
+        "/v1/instances",
         headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
+        content=load_package(EXAMPLE).to_zip(),
     )
+    assert snapshot.status_code == 201, snapshot.text
+    return snapshot.json()["id"]
+
+
+def _job_request(snapshot_id):
+    return {
+        "snapshot": snapshot_id,
+        "engine": "random-search",
+        "mode": "seeded",
+        "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
+    }
+
+
+async def _exceed_the_api_key_allowance(client, headers):
+    """A 402 ``quota_exceeded``: the plan's structural allowance of API keys is spent."""
+    first = await client.post("/v1/users/me/api-keys", headers=headers, json=key_payload("first"))
+    assert first.status_code == 201, first.text
+    return await client.post("/v1/users/me/api-keys", headers=headers, json=key_payload("second"))
+
+
+async def test_the_api_key_allowance_returns_402_quota_exceeded(api_client, db_session, registration, gate):
+    details = registration()
+    headers, _ = await _register(api_client, details, db_session)
+
+    response = await _exceed_the_api_key_allowance(api_client, headers)
 
     assert response.status_code == 402, response.text
-    body = response.json()
-    assert body["title"] == "quota_exceeded"
-    assert "quota" in body
-    assert body["quota"]["limit_id"] == "taskStarts"
-    assert body["quota"]["used"] >= body["quota"]["limit"]
+    detail = response.json()["detail"]
+    assert detail["code"] == "quota_exceeded"
+    assert detail["quota"]["limit_id"] == "apiKeys"
     assert "Retry-After" not in response.headers
 
 
-async def test_solve_returns_429_on_concurrency_exceeded(api_client, db_session, registration, gate):
+async def test_solve_returns_429_on_concurrency_exceeded(api_client, db_session, registration, gate, monkeypatch):
     details = registration()
     headers, user_id = await _register(api_client, details, db_session)
+    snapshot_id = await _create_snapshot(api_client, headers)
 
-    # Exhaust concurrent slots
-    gate.exhaust(user_id, "concurrentJobs")
+    # The account's only slot is taken by a job that is still queued.
+    monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", 1)
+    db_session.add(Job(
+        owner_id=user_id, engine_id="random-search", engine_job_id="busy",
+        service_url="http://engine", state=JobState.QUEUED,
+    ))
+    await db_session.commit()
 
-    package = load_package(EXAMPLE)
-    response = await api_client.post(
-        "/v1/jobs",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
+    response = await api_client.post("/v1/jobs", headers=headers, json=_job_request(snapshot_id))
 
     assert response.status_code == 429, response.text
     body = response.json()
     assert body["title"] == "concurrency_limit_exceeded"
-    assert "concurrency" in body
-    assert body["concurrency"]["limit_id"] == "concurrentJobs"
+    assert body["concurrency"]["limit"] == body["concurrency"]["active"] == 1
     assert response.headers.get("Retry-After") == "15"
-
-
-async def test_precedence_commercial_quota_over_concurrency(api_client, db_session, registration, gate):
-    details = registration()
-    headers, user_id = await _register(api_client, details, db_session)
-
-    # Exhaust BOTH commercial quota and concurrency slots
-    gate.exhaust(user_id, "taskStarts")
-    gate.exhaust(user_id, "concurrentJobs")
-
-    package = load_package(EXAMPLE)
-    response = await api_client.post(
-        "/v1/jobs",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
-
-    # Precedence rule: 402 must take priority so user does not wait in vain
-    assert response.status_code == 402, response.text
-    body = response.json()
-    assert body["title"] == "quota_exceeded"
-    assert body["quota"]["limit_id"] == "taskStarts"
-    assert "Retry-After" not in response.headers
 
 
 async def test_telemetry_captures_errors_and_sanitizes(api_client, db_session, registration):
@@ -154,13 +150,8 @@ async def test_admin_error_endpoints_and_overview(api_client, db_session, regist
     user_headers, user_id = await _register(api_client, user_details, db_session)
 
     # Trigger a 402 quota error for user
-    gate.exhaust(user_id, "taskStarts")
-    package = load_package(EXAMPLE)
-    await api_client.post(
-        "/v1/jobs",
-        headers={**user_headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
+    refused = await _exceed_the_api_key_allowance(api_client, user_headers)
+    assert refused.status_code == 402, refused.text
 
     # Overview endpoint
     overview_resp = await api_client.get("/v1/admin/errors/overview", headers=admin_headers)

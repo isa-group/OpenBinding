@@ -1,23 +1,17 @@
 """Talking to SPACE through its official Python client.
 
-Using ``space-python-client`` rather than SPACE's HTTP API directly, for the
-obvious reason and one less obvious one. The obvious: it is maintained by the
-people who write SPACE, so when the API moves the client moves with it, and it
-brings caching with correct invalidation and a socket subscription for pricing
-changes. The less obvious: it already knows the parts of the API that are easy
-to get wrong. ``revert`` is ``POST /features/{user}?revert=true``, not the
-per-feature path a reasonable person would guess, and finding that out by being
-refused is a poor use of anybody's afternoon.
+Using ``space-python-client`` rather than SPACE's HTTP API directly: it is
+maintained by the people who write SPACE, so when the API moves the client moves
+with it, and it brings caching with correct invalidation and a socket
+subscription for pricing changes.
 
 The integration uses the 1.x client's native asynchronous transport, typed
 errors and awaited close lifecycle; no worker-thread compatibility wrapper is
 kept.
 
-And plan *ceilings* have to be recovered from the pricing token. A contract's
-usage levels carry only what has been consumed; the allowance lives in the
-pricing, resolved against the subscribed plan. The token contains both limits
-linked to feature expressions and per-request limits, so it is the one source
-used for both enforcement and display.
+Plan *ceilings* are recovered from the pricing token: the allowance lives in the
+pricing, resolved against the subscribed plan, and the token carries both the
+feature flags and the per-request limits.
 """
 
 from __future__ import annotations
@@ -26,23 +20,17 @@ import base64
 import binascii
 import inspect
 import json
-import math
 import uuid
-from collections.abc import Awaitable, Callable
-from datetime import datetime, timezone
+from collections.abc import Callable
 from typing import Any, Dict, Optional, TypeVar
 
+from ..core.public_errors import log_internal_failure
 from ..core.settings import Settings
-from ..pricing_catalog import PricingCatalog, PricingCatalogError
 from .gate import (
-    SERVICE_NAME,
-    LimitUsage,
     PlanCaps,
     PricingUnavailable,
+    SubscriptionRejected,
     SubscriptionSnapshot,
-    UsageSnapshot,
-    Verdict,
-    feature_id,
 )
 
 T = TypeVar("T")
@@ -51,13 +39,9 @@ T = TypeVar("T")
 class SpacePricingGate:
     """A ``PricingGate`` backed by a real SPACE deployment."""
 
-    def __init__(
-        self,
-        settings: Settings,
-        client: Optional[Any] = None,
-        catalog_resolver: Callable[[str], Awaitable[PricingCatalog]] | None = None,
-    ):
-        self._catalog_resolver = catalog_resolver
+    def __init__(self, settings: Settings, client: Optional[Any] = None):
+        self._settings = settings
+        self._service = settings.space_service_name
         if client is not None:
             self._client = client
         else:
@@ -92,102 +76,10 @@ class SpacePricingGate:
             result = operation()
             return await result if inspect.isawaitable(result) else result
         except (SpaceError, OSError, RuntimeError) as error:
-            raise PricingUnavailable(f"SPACE is not reachable: {error}") from error
-
-    # -- Evaluation ------------------------------------------------------
-
-    async def evaluate(
-        self, user_id: uuid.UUID, feature: str, expected: Optional[Dict[str, float]] = None
-    ) -> Verdict:
-        """Whether a feature may be used right now.
-
-        Asked as a **question**, never as a purchase: no expected consumption is
-        sent, and nothing is written. The caller records what it spent
-        afterwards, with ``adjust_usage``.
-
-        That split is deliberate. Handing SPACE an expected consumption makes it
-        apply the increments limit by limit, concurrently, each one a
-        read-modify-write of the same contract - so with more than one limit
-        involved the updates race and only one of them survives, and which one
-        varies between calls. Accounting that sometimes forgets is worse than no
-        accounting at all, because it looks like it works.
-
-        Refusals are unaffected: the check reads the stored levels and is
-        correct. It is only the writing that is unreliable, so the gateway does
-        the writing.
-
-        ``expected`` is accepted for the protocol's sake and used only to say
-        which limits the caller cares about; it is not sent.
-        """
-        catalog = await self._catalog_for_user(user_id)
-        if feature not in catalog.feature_definitions:
-            return Verdict.no(f"Unknown feature identifier {feature!r}.")
-        result = await self._call(
-            lambda: self._client.features.evaluate(str(user_id), feature_id(feature))
-        )
-        if result is None:
-            return Verdict.no("No contract for this account.")
-
-        if getattr(result, "eval", False):
-            return Verdict.yes()
-
-        error = getattr(result, "error", None)
-        reason = getattr(error, "message", None) or "Your plan does not allow this."
-        renewal_dates: Dict[str, str] = {}
-        try:
-            contract = await self._contract(user_id)
-            if contract is not None:
-                renewal_dates = _renewal_dates(contract)
-        except Exception:
-            pass
-        return Verdict.no(
-            str(reason),
-            _refused_limit(result, renewal_dates=renewal_dates, catalog=catalog),
-        )
-
-    async def revert(self, user_id: uuid.UUID, feature: str) -> None:
-        """Give back what an evaluation took.
-
-        SPACE only allows this for a couple of minutes afterwards, which suits
-        "the engine refused the request" and not a solve that ran for twenty.
-        Anything slower is corrected through ``adjust_usage``.
-        """
-        catalog = await self._catalog_for_user(user_id)
-        if feature not in catalog.feature_definitions:
-            raise PricingUnavailable(f"Unknown feature identifier {feature!r}")
-        await self._call(
-            lambda: self._client.features.revert_evaluation(
-                str(user_id), feature_id(feature)
-            )
-        )
-
-    async def adjust_usage(self, user_id: uuid.UUID, increments: Dict[str, float]) -> None:
-        """Add to, or negatively release, usage levels once the real cost is known.
-
-        Three things about this call are easy to get wrong, and all three fail
-        quietly rather than loudly:
-
-        * these are **increments**, not new totals - SPACE adds what it is given;
-        * the limit names here are **plain**, unlike the service-qualified ones
-          feature evaluation wants, because the service is already the outer
-          key. Qualifying one again makes SPACE ignore the update;
-        * this is the only way to move a NON_RENEWABLE limit. Feature
-          evaluation reports what a concurrency slot *would* become but does
-          not persist it, so taking and releasing a slot happens here.
-        """
-        if not increments:
-            return
-        catalog = await self._catalog_for_user(user_id)
-        unknown = set(increments) - set(catalog.limit_definitions)
-        if unknown:
-            raise PricingUnavailable(
-                "Unknown usage-limit identifier(s): " + ", ".join(sorted(unknown))
-            )
-        await self._call(
-            lambda: self._client.contracts.update_contract_usage_levels(
-                str(user_id), SERVICE_NAME, increments
-            )
-        )
+            # The text of these errors names the host or address that failed. It
+            # goes to the log, masked; the exception that travels says only what kind.
+            log_internal_failure("SPACE request", error)
+            raise PricingUnavailable(f"SPACE is not reachable ({type(error).__name__})") from error
 
     # -- Reading the contract --------------------------------------------
 
@@ -207,42 +99,25 @@ class SpacePricingGate:
     async def _contract(self, user_id: uuid.UUID) -> Optional[Any]:
         return await self._call(lambda: self._client.contracts.get_contract(str(user_id)))
 
-    async def _catalog(self, version: str) -> PricingCatalog:
-        if self._catalog_resolver is None:
-            raise PricingUnavailable("No SPHERE pricing catalog resolver is configured.")
-        try:
-            return await self._catalog_resolver(version)
-        except PricingCatalogError as exc:
-            raise PricingUnavailable(str(exc)) from exc
-
-    async def _catalog_for_user(self, user_id: uuid.UUID) -> PricingCatalog:
-        contract = await self._contract(user_id)
-        if contract is None:
-            raise PricingUnavailable("SPACE has no contract for this account.")
-        services = _attribute(contract, "contracted_services", "contractedServices") or {}
-        version = services.get(SERVICE_NAME)
-        if not version:
-            raise PricingUnavailable("The SPACE contract has no OpenBinding pricing version.")
-        return await self._catalog(str(version))
+    def _target_version(self, pricing_version: Optional[str]) -> Optional[str]:
+        """The explicit version, else the configured ``SPACE_PRICING_VERSION``."""
+        return pricing_version or self._settings.space_pricing_version or None
 
     async def caps(self, user_id: uuid.UUID) -> PlanCaps:
         claims = await self._entitlements(user_id)
         if claims is None:
             raise PricingUnavailable("SPACE did not return pricing entitlements.")
 
+        # Entitlement values come only from SPACE's token.
         contract = await self._contract(user_id)
         if contract is None:
             raise PricingUnavailable("SPACE has no contract for this account.")
-        services = _attribute(contract, "contracted_services", "contractedServices") or {}
-        # Resolve the exact SPHERE document to verify the contract version and
-        # digest. Entitlement values themselves come only from SPACE's token.
-        await self._catalog(str(services.get(SERVICE_NAME) or ""))
-        plan = _plan_name(contract)
+        plan = _plan_name(contract, self._service)
         pricing_context = claims.get("pricingContext")
         if not isinstance(pricing_context, dict):
             raise PricingUnavailable("SPACE returned malformed pricing entitlements.")
-        raw_features = _scoped(pricing_context.get("features") or {})
-        raw_allowances = _scoped(pricing_context.get("usageLimits") or {})
+        raw_features = _scoped(pricing_context.get("features") or {}, self._service)
+        raw_allowances = _scoped(pricing_context.get("usageLimits") or {}, self._service)
         features = {
             name: value
             for name, value in raw_features.items()
@@ -252,9 +127,11 @@ class SpacePricingGate:
         for name, raw in raw_allowances.items():
             if isinstance(raw, (int, float)) and not isinstance(raw, bool):
                 allowances[name] = float(raw)
-            elif raw is None:
+            elif raw is None and not self._settings.space_null_limit_is_unknown:
                 # JSON has no Infinity; SPACE/Jose serialises an authoritative
-                # unlimited entitlement as null in its signed token.
+                # unlimited entitlement as null in its signed token. With
+                # SPACE_NULL_LIMIT_IS_UNKNOWN the null is left out instead: an
+                # undeclared limit, which every reader treats as unknown.
                 allowances[name] = float("inf")
         return PlanCaps(
             plan=plan,
@@ -262,47 +139,12 @@ class SpacePricingGate:
             limits=allowances,
         )
 
-    async def usage(self, user_id: uuid.UUID) -> UsageSnapshot:
-        claims = await self._entitlements(user_id)
-        contract = await self._contract(user_id)
-        if claims is None:
-            return UsageSnapshot(plan=_plan_name(contract))
-
-        services = _attribute(contract, "contracted_services", "contractedServices") or {}
-        catalog = await self._catalog(str(services.get(SERVICE_NAME) or ""))
-
-        allowances = _scoped(claims.get("pricingContext", {}).get("usageLimits") or {})
-        consumption = _scoped(claims.get("subscriptionContext") or {})
-        renewals = _renewal_dates(contract)
-
-        finite_allowances = {}
-        for name, allowance in allowances.items():
-            try:
-                if math.isfinite(float(allowance)):
-                    finite_allowances[name] = allowance
-            except (TypeError, ValueError):
-                continue
-
-        return UsageSnapshot(
-            plan=_plan_name(contract),
-            limits={
-                name: LimitUsage(
-                    limit_id=name,
-                    limit=float(allowance),
-                    used=max(0.0, float(consumption.get(name, 0) or 0)),
-                    unit=(catalog.limit_definitions.get(name) or {}).get("unit"),
-                    renews_at=renewals.get(name),
-                )
-                for name, allowance in finite_allowances.items()
-            },
-        )
-
     # -- Contract lifecycle ----------------------------------------------
 
     async def create_contract(
         self,
         user_id: uuid.UUID,
-        plan: str,
+        plan: Optional[str],
         email: str,
         pricing_version: Optional[str] = None,
     ) -> None:
@@ -312,11 +154,13 @@ class SpacePricingGate:
             UserContact,
         )
 
+        pricing_version = self._target_version(pricing_version)
         if not pricing_version:
-            raise PricingUnavailable("An exact LIVE pricing version is required.")
-        # Resolve the exact SPHERE document and verify its digest. SPACE owns
-        # plan/add-on validation; duplicating it here creates a second contract.
-        await self._catalog(pricing_version)
+            raise PricingUnavailable(
+                "No pricing version to contract: set SPACE_PRICING_VERSION."
+            )
+        # SPACE owns plan/add-on validation; duplicating it here would be a
+        # second source of truth. Without a plan, SPACE assigns the contract's.
         await self._call(
             lambda: self._client.contracts.add_contract(ContractToCreate(
                 # `phone` is spelled out, empty, on purpose. Left unset the
@@ -329,8 +173,8 @@ class SpacePricingGate:
                     user_id=str(user_id), username=str(user_id), email=email, phone=""
                 ),
                 billing_period=BillingPeriodToCreate(auto_renew=True, renewal_days=30),
-                contracted_services={SERVICE_NAME: pricing_version},
-                subscription_plans={SERVICE_NAME: plan},
+                contracted_services={self._service: pricing_version},
+                subscription_plans={self._service: plan} if plan else {},
                 subscription_add_ons={},
             )),
         )
@@ -343,9 +187,8 @@ class SpacePricingGate:
         if await self._contract(user_id) is None:
             raise PricingUnavailable(
                 f"SPACE accepted no contract for this account on plan {plan!r}. The usual "
-                f"cause is that pricing version {pricing_version} of '{SERVICE_NAME}' does "
-                f"not declare that plan - check what is registered against "
-                f"space/pricing/openbinding.yml."
+                f"cause is that pricing version {pricing_version} of '{self._service}' is not "
+                f"deployed in SPACE or does not declare that plan - check it in the SPACE console."
             )
 
     async def change_plan(
@@ -353,7 +196,7 @@ class SpacePricingGate:
     ) -> None:
         """Move an account to another plan. SPACE calls this a novation."""
         existing = await self._contract(user_id)
-        add_ons = _service_add_ons(existing)
+        add_ons = _service_add_ons(existing, self._service)
         await self.change_subscription(user_id, plan, add_ons, pricing_version)
 
     async def subscription(self, user_id: uuid.UUID) -> SubscriptionSnapshot:
@@ -363,9 +206,9 @@ class SpacePricingGate:
         services = _attribute(existing, "contracted_services", "contractedServices") or {}
         period = _attribute(existing, "billing_period", "billingPeriod")
         return SubscriptionSnapshot(
-            plan=_plan_name(existing),
-            pricing_version=str(services.get(SERVICE_NAME) or ""),
-            add_ons=_service_add_ons(existing),
+            plan=_plan_name(existing, self._service),
+            pricing_version=str(services.get(self._service) or ""),
+            add_ons=_service_add_ons(existing, self._service),
             renews_at=_attribute(period, "end_date", "endDate"),
         )
 
@@ -378,26 +221,39 @@ class SpacePricingGate:
     ) -> SubscriptionSnapshot:
         from space_client.types.models import Subscription
 
-        if not pricing_version:
-            raise PricingUnavailable("An exact pricing version is required for a novation.")
-        target_version = pricing_version
-        # Verify the version bytes, then let SPACE validate the novation.
-        await self._catalog(target_version)
+        target_version = self._target_version(pricing_version)
+        if not target_version:
+            # A plan change keeps the version the contract is already pinned to.
+            existing = await self._contract(user_id)
+            if existing is None:
+                raise PricingUnavailable("SPACE has no contract for this account.")
+            services = _attribute(existing, "contracted_services", "contractedServices") or {}
+            target_version = str(services.get(self._service) or "")
+        if not target_version:
+            raise PricingUnavailable(
+                "No pricing version for the novation: set SPACE_PRICING_VERSION."
+            )
+        # SPACE validates the novation against the version it has deployed.
         updated = await self._call(
             lambda: self._client.contracts.update_contract_subscription(
                 str(user_id), Subscription(
-                contracted_services={SERVICE_NAME: target_version},
-                subscription_plans={SERVICE_NAME: plan},
-                subscription_add_ons={SERVICE_NAME: dict(add_ons)} if add_ons else {},
+                contracted_services={self._service: target_version},
+                subscription_plans={self._service: plan},
+                subscription_add_ons={self._service: dict(add_ons)} if add_ons else {},
                 )
             )
         )
         if updated is None:
             updated = await self._contract(user_id)
             services = _attribute(updated, "contracted_services", "contractedServices") or {}
-            if updated is None or _plan_name(updated) != plan or services.get(SERVICE_NAME) != target_version:
-                raise PricingUnavailable(
-                    "SPACE did not persist the requested subscription novation."
+            if (
+                updated is None
+                or _plan_name(updated, self._service) != plan
+                or services.get(self._service) != target_version
+            ):
+                raise SubscriptionRejected(
+                    "SPACE did not accept the requested subscription novation: check the plan "
+                    f"and add-ons against pricing version {target_version} in SPACE."
                 )
         period = _attribute(updated, "billing_period", "billingPeriod")
         return SubscriptionSnapshot(
@@ -406,25 +262,6 @@ class SpacePricingGate:
             add_ons=dict(add_ons),
             renews_at=_attribute(period, "end_date", "endDate"),
         )
-
-    async def migrate_due_contract(self, user_id: uuid.UUID, pricing_version: str) -> bool:
-        existing = await self._contract(user_id)
-        if existing is None:
-            raise PricingUnavailable("SPACE has no contract for this account.")
-        services = _attribute(existing, "contracted_services", "contractedServices") or {}
-        if services.get(SERVICE_NAME) == pricing_version:
-            return False
-        period = _attribute(existing, "billing_period", "billingPeriod")
-        end_date = _attribute(period, "end_date", "endDate")
-        if not _is_due(end_date):
-            return False
-        await self.change_subscription(
-            user_id,
-            _plan_name(existing),
-            _service_add_ons(existing),
-            pricing_version,
-        )
-        return True
 
     async def pricing_token(self, user_id: uuid.UUID) -> str:
         token = await self._call(
@@ -438,8 +275,8 @@ class SpacePricingGate:
         await self._call(lambda: self._client.contracts.remove_contract(str(user_id)))
 
 
-def _scoped(entries: object) -> Dict[str, Any]:
-    """Strip the ``openbinding-`` prefix SPACE puts on names it returns.
+def _scoped(entries: object, service: str) -> Dict[str, Any]:
+    """Strip the ``<service>-`` prefix SPACE puts on names it returns.
 
     Inside the pricing document and in usage-level updates these are plain
     names; feature evaluation and the pricing token qualify them by service,
@@ -448,7 +285,7 @@ def _scoped(entries: object) -> Dict[str, Any]:
     """
     if not isinstance(entries, dict):
         return {}
-    prefix = f"{SERVICE_NAME}-"
+    prefix = f"{service}-"
     scoped = {}
     for name, value in entries.items():
         if name.startswith(prefix):
@@ -468,91 +305,17 @@ def _decode_claims(token: str) -> Optional[dict]:
         return None
 
 
-def _refused_limit(
-    result: Any,
-    renewal_dates: Dict[str, str] | None = None,
-    catalog: Optional[PricingCatalog] = None,
-) -> Optional[LimitUsage]:
-    """Which limit ran out, when the evaluation says so.
-
-    Feature evaluation reports the allowance and consumption for every limit
-    its expression reads, so a refusal can name the one that caused it rather
-    than leaving the caller to guess.
-    Precedence: commercial quotas (taskStarts, studyRuns, etc.) are checked before
-    concurrency (concurrentJobs).
-    """
-    limits = _scoped(getattr(result, "limit", None) or {})
-    used = _scoped(getattr(result, "used", None) or {})
-    exhausted: list[str] = []
-    for name, allowance in limits.items():
-        if allowance is not None and used.get(name, 0) >= allowance:
-            exhausted.append(name)
-    if not exhausted:
-        return None
-    # Sort so commercial quotas come before concurrentJobs
-    exhausted.sort(key=lambda x: (1 if x == "concurrentJobs" else 0, x))
-    chosen_name = exhausted[0]
-    allowance = limits[chosen_name]
-    renews_at = (renewal_dates or {}).get(chosen_name)
-    unit = None
-    if catalog and chosen_name in catalog.limit_definitions:
-        unit = getattr(catalog.limit_definitions[chosen_name], "unit", None)
-    return LimitUsage(
-        limit_id=chosen_name,
-        limit=float(allowance),
-        used=float(used.get(chosen_name, 0)),
-        unit=unit,
-        renews_at=renews_at,
-    )
-
-
-def _plan_name(contract: Any) -> str:
+def _plan_name(contract: Any, service: str) -> str:
     plans = _attribute(contract, "subscription_plans", "subscriptionPlans") or {}
-    return str(plans.get(SERVICE_NAME) or "")
+    return str(plans.get(service) or "")
 
 
-def _service_add_ons(contract: Any) -> Dict[str, int]:
+def _service_add_ons(contract: Any, service: str) -> Dict[str, int]:
     values = _attribute(contract, "subscription_add_ons", "subscriptionAddOns") or {}
-    scoped = values.get(SERVICE_NAME, {}) if isinstance(values, dict) else {}
+    scoped = values.get(service, {}) if isinstance(values, dict) else {}
     if not isinstance(scoped, dict):
         return {}
     return {str(name): int(quantity) for name, quantity in scoped.items()}
-
-
-def _is_due(value: Any) -> bool:
-    if not value:
-        return False
-    if isinstance(value, datetime):
-        moment = value
-    else:
-        try:
-            moment = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-        except ValueError:
-            return False
-    if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=timezone.utc)
-    return moment <= datetime.now(timezone.utc)
-
-
-def _renewal_dates(contract: Any) -> Dict[str, str]:
-    """When each renewable limit next resets.
-
-    The token says what is allowed and what is spent, but not when the slate is
-    wiped - which is the thing an account holder most wants to know once a
-    quota has run out.
-    """
-    levels = _attribute(contract, "usage_levels", "usageLevels") or {}
-    scoped = levels.get(SERVICE_NAME)
-    source = scoped if isinstance(scoped, dict) else levels
-
-    dates = {}
-    for name, level in source.items():
-        reset_at = _attribute(level, "reset_time_stamp", "resetTimeStamp")
-        if reset_at:
-            scoped = _scoped({name: None})
-            if scoped:
-                dates[next(iter(scoped))] = str(reset_at)
-    return dates
 
 
 def _attribute(source: Any, *names: str) -> Any:

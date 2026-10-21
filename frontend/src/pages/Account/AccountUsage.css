@@ -1,0 +1,95 @@
+.usage-skeleton { display: flex; flex-direction: column; gap: var(--tp-spacing-md); }
+
+.usage-plan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tp-spacing-md);
+  padding: var(--tp-spacing-lg);
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-lg);
+  background: var(--tp-canvas);
+}
+
+.usage-plan-tile {
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--tp-radius-lg);
+  background: rgb(0 119 182 / 0.1);
+  color: var(--tp-primary);
+  font-weight: 700;
+}
+
+.usage-plan-body { min-width: 220px; flex: 1; }
+.usage-plan-name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs); }
+.usage-plan-name strong { font-size: 1.125rem; font-weight: 600; }
+.usage-plan-line { color: var(--tp-steel); font-size: 0.8125rem; }
+.usage-plan-actions { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); }
+
+.usage-features-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-spacing-xs); }
+.usage-features { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--tp-spacing-xs); margin: 0; padding: 0; list-style: none; }
+
+.usage-features li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tp-spacing-xs);
+  padding: 10px var(--tp-spacing-sm);
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-lg);
+  background: var(--tp-canvas);
+  font-size: 0.8125rem;
+}
+
+.usage-state {
+  padding: 0 8px;
+  border: 1px solid var(--tp-hairline);
+  border-radius: 9999px;
+  background: var(--tp-canvas);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.usage-state.is-on { border-color: var(--tp-severity-success-border); background: var(--tp-severity-success-bg); }
+.usage-state.is-unknown { border-color: var(--tp-severity-warning-border); background: var(--tp-severity-warning-bg); }
+
+.usage-empty { margin: 0; padding: var(--tp-spacing-xl); border: 1px dashed var(--tp-hairline-strong); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); color: var(--tp-slate); }
+
+.usage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--tp-spacing-sm); }
+.usage-grid-wide { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+
+.usage-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--tp-spacing-md);
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-lg);
+  background: var(--tp-canvas);
+}
+
+.usage-card-small { padding: 14px; font-size: 0.8125rem; }
+.usage-card-name { font-weight: 500; }
+.usage-card-big { font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.usage-card-head { display: flex; justify-content: space-between; gap: var(--tp-spacing-xs); font-weight: 500; }
+.usage-card-small .usage-card-head { font-weight: 400; }
+.usage-card-small .usage-card-head span:first-child { font-weight: 500; }
+
+.usage-consoles { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs) var(--tp-spacing-md); margin: 0; font-size: 0.875rem; }
+.usage-consoles a { font-weight: 500; }
+
+.ui-table th.usage-ceiling { color: var(--tp-ink); font-size: inherit; font-weight: 400; }
+.usage-exact { color: var(--tp-steel); font-family: var(--font-mono); }
+.usage-retention { margin: 0; font-size: 0.8125rem; }
+.usage-retention a { font-weight: 500; }
+
+.usage-all { color: var(--tp-slate); font-size: 0.8125rem; }
+.usage-all summary { cursor: pointer; color: var(--tp-link); font-weight: 500; }
+.usage-all dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px var(--tp-spacing-md); margin: var(--tp-spacing-xs) 0 0; }
+.usage-all dl div { display: flex; justify-content: space-between; gap: var(--tp-spacing-xs); padding: 4px 0; border-bottom: 1px solid var(--tp-hairline-soft); }
+.usage-all dt, .usage-all dd { margin: 0; }
+.usage-all dd { font-variant-numeric: tabular-nums; }

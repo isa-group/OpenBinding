@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { formatNumber as fmt, shortId, type ArchiveResponse, type ArchiveQuery, type Point } from '../../analysis/archive';
-import { useTheme } from '../../contexts/theme';
 import { clipPolygon } from '../../analysis/constraints';
 
 const LEFT = 65, TOP = 30, WIDTH = 575, HEIGHT = 370;
@@ -8,7 +7,6 @@ const LEFT = 65, TOP = 30, WIDTH = 575, HEIGHT = 370;
 export function ArchiveChart({ data, query, select, change }: {
   data: ArchiveResponse; query: ArchiveQuery; select: (id: string) => void; change: (value: Partial<ArchiveQuery>) => void;
 }) {
-  const { theme } = useTheme();
   const canvas = useRef<HTMLCanvasElement>(null), svg = useRef<SVGSVGElement>(null);
   const hatch = useId().replaceAll(':', ''), clipId = `${hatch}-clip`;
   const [drag, setDrag] = useState<Point | null>(null);
@@ -35,18 +33,19 @@ export function ArchiveChart({ data, query, select, change }: {
     context.clearRect(0, 0, 700, 470);
     if (budgets || power) return;
     const styles = getComputedStyle(canvas.current);
-    const teal = styles.getPropertyValue('--color-dialect').trim() || '#0e7b75';
-    const red = styles.getPropertyValue('--color-error').trim() || '#b93f36';
-    const muted = styles.getPropertyValue('--color-text-tertiary').trim() || '#77827c';
+    // The colours come from the design tokens: the canvas cannot read a `var()`, so they are resolved here.
+    const feasible = styles.getPropertyValue('--color-dialect').trim();
+    const red = styles.getPropertyValue('--color-error').trim();
+    const muted = styles.getPropertyValue('--color-text-tertiary').trim();
     const resolution = data.plot.resolution ?? 64;
     for (const bin of data.plot.bins) {
       context.globalAlpha = Math.min(.85, .2 + Math.log1p(bin.count) / 10);
-      context.fillStyle = bin.infeasible > bin.feasible ? red : bin.feasible ? teal : muted;
+      context.fillStyle = bin.infeasible > bin.feasible ? red : bin.feasible ? feasible : muted;
       context.fillRect(LEFT + bin.x / resolution * WIDTH, TOP + HEIGHT - (bin.y + 1) / resolution * HEIGHT,
         WIDTH / resolution + .3, HEIGHT / resolution + .3);
     }
     context.globalAlpha = 1;
-  }, [data.plot, budgets, power, theme]);
+  }, [data.plot, budgets, power]);
   function location(event: React.PointerEvent<SVGSVGElement> | React.MouseEvent<SVGSVGElement>): Point {
     const rect = svg.current!.getBoundingClientRect();
     return [bounds[0] + ((event.clientX - rect.left) / rect.width * 700 - LEFT) / WIDTH * (bounds[2] - bounds[0]),
@@ -152,7 +151,7 @@ export function ArchiveChart({ data, query, select, change }: {
         {!interval && <text className="analysis-axis-label" transform={`translate(15 ${TOP+HEIGHT/2}) rotate(-90)`} textAnchor="middle">{power ? 'Priority: ' : ''}{data.dimensions[axes[1]]?.label ?? 'Objective'}</text>}
       </svg>
     </div>
-    <figcaption><p>{description}</p><p>{budgets ? 'Teal: achieved · hatch: unknown · red: excluded by a supported bound. Click to set budgets, or use the requirement inputs.' : power ? 'Click to set priorities, or use the priority inputs. Boundaries may have tied winners; empty cells are valid trade-offs that weighted sum never selects.' : `Teal: feasible · red: hard-infeasible · gray: unknown · orange ring: selected. ${data.plot.aggregated ? `${data.plot.count.toLocaleString()} bindings aggregated into density tiles; highlighted bindings remain individual points.` : `${data.plot.count.toLocaleString()} bindings shown.`} Drag a rectangle to inspect its exact table; zoom does not change recommendations.`}</p>
+    <figcaption><p>{description}</p><p>{budgets ? 'Blue: achieved · hatch: unknown · red: excluded by a supported bound. Click to set budgets, or use the requirement inputs.' : power ? 'Click to set priorities, or use the priority inputs. Boundaries may have tied winners; empty cells are valid trade-offs that weighted sum never selects.' : `Blue: feasible · red: hard-infeasible · gray: unknown · orange ring: selected. ${data.plot.aggregated ? `${fmt(data.plot.count)} bindings aggregated into density tiles; highlighted bindings remain individual points.` : `${fmt(data.plot.count)} bindings shown.`} Drag a rectangle to inspect its exact table; zoom does not change recommendations.`}</p>
       {power && <p>The displayed priorities share {fmt((geometry.mass ?? 1)*100)}% of total priority. Other priorities remain fixed and contribute to every score.</p>}
       {power && selectedCell?.polygon.length === 0 && <p>This binding never wins in this weighted-sum slice.</p>}
       {interval && <p>The horizontal winning intervals divide the displayed priority mass between {data.dimensions[axes[0]]?.label} and {data.dimensions[axes[1]]?.label}. Height has no meaning.</p>}

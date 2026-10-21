@@ -29,7 +29,8 @@ def a_pristine_environment(monkeypatch):
         "SPACE_ENABLED",
         "SPACE_URL",
         "SPACE_API_KEY",
-        "SPACE_FAIL_MODE",
+        "SPACE_PRICING_VERSION",
+        "SPACE_DEFAULT_PLAN",
         "SPACE_TIMEOUT_MS",
         "FEDERATION_SECRET_KEY",
         "FEDERATION_REQUIRE_HTTPS",
@@ -95,10 +96,40 @@ def test_space_is_off_until_it_is_configured():
     assert configured.space_url is None
 
 
-def test_the_default_space_failure_mode_refuses_to_solve():
-    # Unaccounted compute is the thing the pricing integration exists to
-    # prevent, so the unreachable-SPACE default is to refuse, not to allow.
-    assert settings().space_fail_mode == "closed"
+def test_anonymous_error_events_are_limited_by_default_and_not_negative():
+    assert settings().anonymous_error_events_per_minute == 30
+    assert settings(anonymous_error_events_per_minute=0).anonymous_error_events_per_minute == 0
+    with pytest.raises(ValueError):
+        settings(anonymous_error_events_per_minute=-1)
+
+
+def test_no_failure_mode_switch_remains():
+    # An unreachable SPACE always fails closed (503 pricing_unavailable): there
+    # is no fail-open switch to configure. (The retired destructive key is
+    # covered by the static guard on retired names.)
+    assert "space_fail_mode" not in Settings.model_fields
+
+
+def test_the_pricing_version_and_default_plan_are_plain_configuration():
+    configured = settings()
+    assert configured.space_pricing_version is None
+    assert configured.space_default_plan is None
+    pinned = settings(space_pricing_version="0.1.0", space_default_plan="BASIC")
+    assert (pinned.space_pricing_version, pinned.space_default_plan) == ("0.1.0", "BASIC")
+
+
+def test_production_refuses_to_start_without_space():
+    with pytest.raises(ValueError, match=r"SPACE_ENABLED is false while APP_ENV=prod"):
+        settings(app_env="prod", cors_allow_origins="https://openbinding.example.org")
+
+
+def test_production_starts_with_space_and_development_may_run_without_it():
+    prod = settings(
+        app_env="prod", space_enabled=True, cors_allow_origins="https://openbinding.example.org"
+    )
+    assert prod.space_enabled is True
+    for environment in ("dev", "test"):
+        assert settings(app_env=environment).space_enabled is False
 
 
 def test_an_unrelated_environment_variable_is_not_a_configuration_error(monkeypatch):

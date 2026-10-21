@@ -26,7 +26,8 @@ from openbinding_gateway.db.models import (
 from openbinding_gateway.main import app
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.security.secrets import generate_key
-from openbinding_gateway.v1.package import load_package
+from openbinding_gateway.services import engines
+from bim_core.package import load_package
 
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
@@ -67,9 +68,9 @@ def _registration_document(
     engine: dict[str, str],
     auth_scheme: str = "none",
 ) -> dict:
-    openapi = copy.deepcopy(routes._protocol_document())
+    openapi = copy.deepcopy(engines.protocol_document())
     openapi["x-bim-protocol"] = "bim-engine/v1"
-    openapi["x-bim-protocol-digest"] = routes._protocol_digest()
+    openapi["x-bim-protocol-digest"] = engines.protocol_digest()
     openapi["paths"]["/health"] = {
         "get": {"responses": {"200": {"description": "Healthy"}}}
     }
@@ -87,7 +88,7 @@ def _registration_document(
             "protocol": {
                 "id": "bim-engine/v1",
                 "mediaType": "application/json",
-                "digest": routes._protocol_digest(),
+                "digest": engines.protocol_digest(),
             },
             "mappings": {
                 "request": "/internal/v1/binding-problems",
@@ -451,7 +452,7 @@ async def test_registration_owner_controls_private_and_public_access(
         return (
             {
                 "protocol": "bim-engine/v1",
-                "protocolDigest": routes._protocol_digest(),
+                "protocolDigest": engines.protocol_digest(),
                 "status": "verified",
                 "checks": [],
                 "durationMs": 0.0,
@@ -525,10 +526,10 @@ async def test_registration_owner_controls_private_and_public_access(
     assert activated.status_code == 200, activated.text
     assert activated.json()["status"] == "private"
     assert activated.json()["active"] is True
-    assert await routes._registration_for_engine(
+    assert await engines.registration_for_engine(
         reference["namespace"], name, reference["version"], reference["digest"], owner, db_session
     ) is not None
-    assert await routes._registration_for_engine(
+    assert await engines.registration_for_engine(
         reference["namespace"], name, reference["version"], reference["digest"], moderator, db_session
     ) is None
 
@@ -586,7 +587,7 @@ async def test_registration_owner_controls_private_and_public_access(
         f"/v1/engine-registrations/{name}", params=reference, headers=viewer_headers
     )
     assert visible.status_code == 200, visible.text
-    assert await routes._registration_for_engine(
+    assert await engines.registration_for_engine(
         reference["namespace"], name, reference["version"], reference["digest"], viewer, db_session
     ) is not None
 
@@ -598,10 +599,10 @@ async def test_registration_owner_controls_private_and_public_access(
     assert deactivated.status_code == 200, deactivated.text
     assert deactivated.json()["status"] == "published"
     assert deactivated.json()["active"] is False
-    assert await routes._registration_for_engine(
+    assert await engines.registration_for_engine(
         reference["namespace"], name, reference["version"], reference["digest"], owner, db_session
     ) is None
-    assert await routes._registration_for_engine(
+    assert await engines.registration_for_engine(
         reference["namespace"], name, reference["version"], reference["digest"], viewer, db_session
     ) is not None
 
@@ -656,7 +657,7 @@ async def test_approvals_and_publications_do_not_cross_revision_digests(
         return (
             {
                 "protocol": "bim-engine/v1",
-                "protocolDigest": routes._protocol_digest(),
+                "protocolDigest": routes.protocol_digest(),
                 "status": "verified",
                 "checks": [],
                 "durationMs": 0.0,

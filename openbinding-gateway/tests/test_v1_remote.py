@@ -1,7 +1,11 @@
 import httpx
 import pytest
 
+from openbinding_gateway.services.engines import validate_engine_result
 from openbinding_gateway.v1 import remote
+
+
+OPTIMIZATION = {"type": "SINGLE", "scalarization": "feasibility"}
 
 
 def _result(termination: str = "FEASIBLE") -> dict:
@@ -12,7 +16,8 @@ def _result(termination: str = "FEASIBLE") -> dict:
                 "decision": {"kind": "binding", "binding": {}},
                 "features": {},
                 "objectives": {
-                    "mode": "satisfy",
+                    "type": "SINGLE",
+                    "scalarization": "feasibility",
                     "components": [],
                     "penalty": 0,
                     "score": 0,
@@ -61,11 +66,13 @@ async def test_remote_transport_sends_only_binding_problem(monkeypatch) -> None:
         remote.RemoteRegistration("https://engine.example", {}, "bearer", "secret"),
         {"apiVersion": "bim/v1", "kind": "BindingProblem"},
         {"seed": 7},
+        OPTIMIZATION,
         transport=httpx.MockTransport(handler),
     )
     assert result["termination"] == "FEASIBLE"
     assert seen["auth"] == "Bearer secret"
     assert b'"kind":"BindingProblemRequest"' in seen["body"]
+    assert b'"optimization":{"type":"SINGLE","scalarization":"feasibility"}' in seen["body"]
     assert b'"zip"' not in seen["body"]
 
 
@@ -98,6 +105,7 @@ async def test_remote_async_receipt_is_polled(monkeypatch) -> None:
         remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}),
         {},
         {},
+        OPTIMIZATION,
         transport=httpx.MockTransport(handler),
     )
     assert result["termination"] == "OPTIMAL"
@@ -116,6 +124,7 @@ async def test_remote_async_receipt_must_match_the_published_contract(monkeypatc
             remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}),
             {},
             {},
+            OPTIMIZATION,
             transport=httpx.MockTransport(handler),
         )
 
@@ -153,6 +162,7 @@ async def test_remote_transport_pins_validated_address_against_dns_rebinding(mon
         remote.RemoteRegistration("https://solver.example:8443", {}),
         {"apiVersion": "bim/v1", "kind": "BindingProblem"},
         {},
+        OPTIMIZATION,
         transport=httpx.MockTransport(handler),
     )
 
@@ -160,6 +170,63 @@ async def test_remote_transport_pins_validated_address_against_dns_rebinding(mon
     assert seen[0].url.host == "93.184.216.34"
     assert seen[0].headers["host"] == "solver.example:8443"
     assert seen[0].extensions["sni_hostname"] == "solver.example"
+
+
+@pytest.mark.asyncio
+async def test_a_slow_dns_lookup_does_not_stall_the_event_loop(monkeypatch) -> None:
+    import asyncio
+    import threading
+    import time
+
+    loop_thread = threading.get_ident()
+    lookups: list[int] = []
+
+    def slow_resolve(host: str, port: int, **kwargs):
+        lookups.append(threading.get_ident())
+        time.sleep(0.3)  # a resolver that takes its time
+        return [(2, 1, 6, "", ("93.184.216.34", port))]
+
+    monkeypatch.setattr(remote.socket, "getaddrinfo", slow_resolve)
+    ticks = 0
+
+    async def heartbeat() -> None:
+        nonlocal ticks
+        while True:
+            await asyncio.sleep(0.01)
+            ticks += 1
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=_result())
+
+    beating = asyncio.create_task(heartbeat())
+    try:
+        await remote.solve_remote(
+            remote.RemoteRegistration("https://solver.example", {}),
+            {"apiVersion": "bim/v1", "kind": "BindingProblem"},
+            {},
+            OPTIMIZATION,
+            transport=httpx.MockTransport(handler),
+        )
+    finally:
+        beating.cancel()
+
+    assert lookups and lookups[0] != loop_thread  # resolved off the loop's thread
+    assert ticks >= 10  # the loop kept running while the lookup was in flight
+
+
+@pytest.mark.asyncio
+async def test_the_private_range_rejection_survives_the_off_loop_resolution(monkeypatch) -> None:
+    monkeypatch.setattr(
+        remote.socket, "getaddrinfo", lambda *a, **k: [(2, 1, 6, "", ("10.1.2.3", 443))]
+    )
+    with pytest.raises(remote.RemoteEngineError, match="permitted network class"):
+        await remote.solve_remote(
+            remote.RemoteRegistration("https://solver.example", {}),
+            {},
+            {},
+            OPTIMIZATION,
+            transport=httpx.MockTransport(lambda request: httpx.Response(500)),
+        )
 
 
 @pytest.mark.asyncio
@@ -175,6 +242,7 @@ async def test_remote_response_size_is_bounded_even_without_content_length(monke
             remote.RemoteRegistration("https://engine.example", {}),
             {"apiVersion": "bim/v1", "kind": "BindingProblem"},
             {},
+            OPTIMIZATION,
             transport=httpx.MockTransport(handler),
         )
 
@@ -191,12 +259,307 @@ def test_basic_credentials_are_encoded_and_mtls_is_not_silently_ignored() -> Non
         remote._headers(remote.RemoteRegistration("https://engine.example", {}, "mtls", "bundle"))
 
 
-def test_remote_result_must_satisfy_the_complete_binding_result_contract() -> None:
+@pytest.mark.asyncio
+async def test_remote_result_must_satisfy_the_complete_binding_result_contract(monkeypatch) -> None:
+    # The transport only carries the answer; the shape is judged by the toolchain, through the hook.
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    registration = remote.RemoteRegistration("https://engine.example", {})
+    incomplete = {"termination": "FEASIBLE", "solutions": [{"decision": {"kind": "binding", "binding": {}}}]}
+
     with pytest.raises(remote.RemoteEngineError, match="canonical binding decision"):
-        remote._validate_result(
-            {
-                "termination": "FEASIBLE",
-                "solutions": [{"decision": {"kind": "binding", "binding": {}}}],
-            }
+        await remote.solve_remote(
+            registration, {}, {}, OPTIMIZATION,
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, json=incomplete)),
+            validate_result=validate_engine_result,
         )
-    assert remote._validate_result(_result())["termination"] == "FEASIBLE"
+    accepted = await remote.solve_remote(
+        registration, {}, {}, OPTIMIZATION,
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=_result())),
+        validate_result=validate_engine_result,
+    )
+    assert accepted["termination"] == "FEASIBLE"
+    unjudged = await remote.solve_remote(
+        registration, {}, {}, OPTIMIZATION,
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=incomplete)),
+    )
+    assert unjudged == incomplete
+
+
+@pytest.mark.asyncio
+async def test_the_result_of_a_polled_job_is_judged_too(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    incomplete = {"termination": "FEASIBLE", "solutions": [{"decision": {"kind": "binding", "binding": {}}}]}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(202, json={"id": "job-1", "status": "queued"})
+        return httpx.Response(200, json={"id": "job-1", "status": "completed", "created_at": 1, "result": incomplete})
+
+    with pytest.raises(remote.RemoteEngineError, match="canonical binding decision"):
+        await remote.solve_remote(
+            remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}), {}, {}, OPTIMIZATION,
+            transport=httpx.MockTransport(handler),
+            validate_result=validate_engine_result,
+        )
+
+
+# -- Idempotency hints, the remote id and cancellation -----------------------
+
+
+@pytest.mark.asyncio
+async def test_the_gateway_job_and_attempt_travel_as_documented_hints(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    seen: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=_result())
+
+    await remote.solve_remote(
+        remote.RemoteRegistration("https://engine.example", {}),
+        {},
+        {},
+        OPTIMIZATION,
+        transport=httpx.MockTransport(handler),
+        job_id="3f6a0c8e-0000-4000-8000-000000000001",
+        attempt=2,
+    )
+
+    assert seen[0].headers["X-Openbinding-Job-Id"] == "3f6a0c8e-0000-4000-8000-000000000001"
+    assert seen[0].headers["X-Openbinding-Attempt"] == "2"
+    assert remote.JOB_ID_HEADER == "X-Openbinding-Job-Id" and remote.ATTEMPT_HEADER == "X-Openbinding-Attempt"
+
+
+@pytest.mark.asyncio
+async def test_without_a_job_the_hints_are_not_sent(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    seen: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=_result())
+
+    await remote.solve_remote(
+        remote.RemoteRegistration("https://engine.example", {}),
+        {},
+        {},
+        OPTIMIZATION,
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert "x-openbinding-job-id" not in seen[0].headers and "x-openbinding-attempt" not in seen[0].headers
+
+
+@pytest.mark.asyncio
+async def test_the_remote_id_is_handed_over_before_the_first_poll(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    events: list[str] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            events.append("accepted")
+            return httpx.Response(202, json={"id": "job-1", "status": "queued"})
+        events.append("poll")
+        return httpx.Response(
+            200, json={"id": "job-1", "status": "completed", "created_at": 1, "result": _result("OPTIMAL")}
+        )
+
+    async def on_remote_id(engine_job_id: str) -> None:
+        events.append(f"recorded {engine_job_id}")
+
+    result = await remote.solve_remote(
+        remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}),
+        {},
+        {},
+        OPTIMIZATION,
+        transport=httpx.MockTransport(handler),
+        on_remote_id=on_remote_id,
+    )
+
+    assert result["termination"] == "OPTIMAL"
+    assert events == ["accepted", "recorded job-1", "poll"]
+
+
+@pytest.mark.asyncio
+async def test_a_synchronous_answer_has_no_remote_id_to_hand_over(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    handed: list[str] = []
+
+    async def on_remote_id(engine_job_id: str) -> None:
+        handed.append(engine_job_id)
+
+    await remote.solve_remote(
+        remote.RemoteRegistration("https://engine.example", {}),
+        {},
+        {},
+        OPTIMIZATION,
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=_result())),
+        on_remote_id=on_remote_id,
+    )
+
+    assert handed == []
+
+
+@pytest.mark.asyncio
+async def test_an_invalid_receipt_is_not_handed_over(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    handed: list[str] = []
+
+    async def on_remote_id(engine_job_id: str) -> None:
+        handed.append(engine_job_id)
+
+    with pytest.raises(remote.RemoteEngineError, match="EngineJobAccepted"):
+        await remote.solve_remote(
+            remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}),
+            {},
+            {},
+            OPTIMIZATION,
+            transport=httpx.MockTransport(lambda request: httpx.Response(202, json={"id": "job-1"})),
+            on_remote_id=on_remote_id,
+        )
+
+    assert handed == []
+
+
+@pytest.mark.asyncio
+async def test_cancelling_a_remote_job_deletes_the_engine_job_resource(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    seen: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(204)
+
+    cancelled = await remote.cancel_remote(
+        remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}, "bearer", "secret"),
+        "job/../1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert cancelled is True
+    assert seen[0].method == "DELETE"
+    assert seen[0].url.raw_path == b"/jobs/job%2F..%2F1"  # the id cannot change the path
+    assert seen[0].headers["authorization"] == "Bearer secret"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [404, 405, 500])
+async def test_an_engine_that_does_not_cancel_is_not_an_error(monkeypatch, status) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+
+    cancelled = await remote.cancel_remote(
+        remote.RemoteRegistration("https://engine.example", {}),
+        "job-1",
+        transport=httpx.MockTransport(lambda request: httpx.Response(status)),
+    )
+
+    assert cancelled is False
+
+
+@pytest.mark.asyncio
+async def test_cancellation_swallows_every_failure_and_stays_short(monkeypatch) -> None:
+    import asyncio
+    import time
+
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+
+    async def unreachable(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused", request=request)
+
+    async def stuck(request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(30)
+        return httpx.Response(204)
+
+    registration = remote.RemoteRegistration("https://engine.example", {})
+    assert await remote.cancel_remote(registration, "job-1", transport=httpx.MockTransport(unreachable)) is False
+
+    started = time.monotonic()
+    assert (
+        await remote.cancel_remote(registration, "job-1", timeout_s=0.1, transport=httpx.MockTransport(stuck))
+        is False
+    )
+    assert time.monotonic() - started < 5
+
+    def refused(endpoint, **kwargs):
+        raise remote.RemoteEngineError("engine endpoint targets an address outside its permitted network class")
+
+    monkeypatch.setattr(remote, "validate_endpoint", refused)
+    assert await remote.cancel_remote(registration, "job-1", transport=httpx.MockTransport(unreachable)) is False
+
+
+def _polling_engine(final: dict | None, running_polls: int = 3):
+    """An async engine that reports ``running`` ``running_polls`` times, then ``final`` (if any), and never stops by itself."""
+    polls = 0
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal polls
+        if request.method == "POST":
+            return httpx.Response(202, json={"id": "job-1", "status": "queued"})
+        polls += 1
+        if final is not None and polls > running_polls:
+            return httpx.Response(200, json={"id": "job-1", "created_at": 1, **final})
+        return httpx.Response(200, json={"id": "job-1", "status": "running", "created_at": 1})
+
+    return handler
+
+
+@pytest.mark.asyncio
+async def test_on_poll_is_awaited_after_every_poll_that_finds_the_job_still_working(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    seen: list[str] = []
+
+    async def on_poll(engine_job_id: str) -> None:
+        seen.append(engine_job_id)
+
+    result = await remote.solve_remote(
+        remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}),
+        {},
+        {},
+        OPTIMIZATION,
+        transport=httpx.MockTransport(_polling_engine({"status": "completed", "result": _result("OPTIMAL")})),
+        on_poll=on_poll,
+    )
+
+    assert result["termination"] == "OPTIMAL"
+    assert seen == ["job-1"] * 3  # not after the poll that carried the result
+
+
+@pytest.mark.asyncio
+async def test_what_on_poll_raises_ends_the_wait(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+
+    class Stop(Exception):
+        pass
+
+    async def on_poll(_engine_job_id: str) -> None:
+        raise Stop
+
+    with pytest.raises(Stop):
+        await remote.solve_remote(
+            remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}),
+            {},
+            {},
+            OPTIMIZATION,
+            transport=httpx.MockTransport(_polling_engine(None)),
+            on_poll=on_poll,
+        )
+
+
+@pytest.mark.asyncio
+async def test_a_job_the_engine_stopped_because_it_was_asked_to_is_told_apart_from_other_failures(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    registration = remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"})
+
+    with pytest.raises(remote.RemoteCancelled) as stopped:
+        await remote.solve_remote(
+            registration, {}, {}, OPTIMIZATION,
+            transport=httpx.MockTransport(_polling_engine({"status": "failed", "error": "cancelled: stopped by DELETE"}, 1)),
+        )
+    with pytest.raises(remote.RemoteEngineError) as failed:
+        await remote.solve_remote(
+            registration, {}, {}, OPTIMIZATION,
+            transport=httpx.MockTransport(_polling_engine({"status": "failed", "error": "MiniZinc crashed"}, 1)),
+        )
+
+    assert isinstance(stopped.value, remote.RemoteEngineError) and stopped.value.code == "engine_failed"
+    assert not isinstance(failed.value, remote.RemoteCancelled) and failed.value.code == "engine_failed"

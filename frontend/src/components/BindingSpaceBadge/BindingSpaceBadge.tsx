@@ -30,7 +30,7 @@ export const BindingSpaceBadge: React.FC<BindingSpaceBadgeProps> = ({
       <div className="binding-space-tooltip-info">
         Combinatorial search space (∏ |candidates(t)|). Order of magnitude ≈ 10<sup>{parsed.log10.toFixed(2)}</sup>.
         {breakdown && Object.keys(breakdown).length > 0 && (
-          <div style={{ marginTop: '0.35rem', paddingTop: '0.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="binding-space-tooltip-tasks">
             <strong>Tasks ({Object.keys(breakdown).length}): </strong>
             {Object.entries(breakdown)
               .slice(0, 5)

@@ -1,20 +1,26 @@
-"""Narrow server-side client for OpenBinding's single SPHERE pricing.
+"""Read-only server-side client for OpenBinding's single SPHERE pricing.
 
-SPHERE remains the owner of every Pricing2Yaml body.  The gateway only moves
-exact immutable versions under the fixed ``OpenBinding/openbinding`` identity
+SPHERE remains the owner of every Pricing2Yaml body and is administered in its
+own console. The gateway only reads exact immutable versions under the fixed
+``OpenBinding/openbinding`` identity; it uploads, deletes and creates nothing,
 and never exposes a private YAML URL to a browser.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import re
 from typing import Any
 from urllib.parse import quote, urljoin, urlsplit
 
 import httpx
 
+from .core.public_errors import log_internal_failure
 from .core.settings import Settings
+
+
+MAX_CONTENT_BYTES = 2 * 1024 * 1024
 
 
 class SphereError(RuntimeError):
@@ -31,7 +37,7 @@ class SpherePricingVersion:
 
 
 class SphereClient:
-    """Only the SPHERE calls needed by the pricing control room."""
+    """Only the SPHERE reads needed to show the published pricing."""
 
     def __init__(self, settings: Settings, transport: httpx.AsyncBaseTransport | None = None):
         if not settings.sphere_api_key:
@@ -54,7 +60,10 @@ class SphereClient:
         try:
             response = await self._client.request(method, f"{self._api}{path}", **kwargs)
         except httpx.HTTPError as exc:
-            raise SphereError(f"SPHERE is unavailable: {exc}") from exc
+            # The text of a transport error names the host that failed: log it
+            # masked, and let the exception that travels say only what kind.
+            log_internal_failure("SPHERE request", exc)
+            raise SphereError(f"SPHERE is unavailable ({type(exc).__name__})") from exc
         if response.status_code >= 400:
             message = ""
             try:
@@ -103,7 +112,7 @@ class SphereClient:
         return value.get("displayName") == "OpenBinding" or str(value.get("name", "")).casefold() == "openbinding"
 
     async def organization_id(self) -> str:
-        """Resolve or create the one root organization and pin its id."""
+        """Resolve the one root organization (read only) and pin its id."""
 
         if self._organization_id:
             return self._organization_id
@@ -124,27 +133,15 @@ class SphereClient:
         matches = [item for item in organizations if self._is_openbinding_org(item)]
         if len(matches) > 1:
             raise SphereError("More than one SPHERE organization is named OpenBinding.")
-        if matches:
-            identifier = self._org_id(matches[0])
-            if not identifier:
-                raise SphereError("SPHERE omitted the OpenBinding organization id.")
-        else:
-            created = await self._request(
-                "POST",
-                "/orgs",
-                json={
-                    "name": "openbinding",
-                    "displayName": "OpenBinding",
-                    "description": "Canonical pricing source for the OpenBinding platform.",
-                    "isPersonal": False,
-                },
+        if not matches:
+            # Organizations are created in the SPHERE console, never here.
+            raise SphereError(
+                "SPHERE has no OpenBinding organization visible to this key; "
+                "create it in the SPHERE console or set SPHERE_ORGANIZATION_ID."
             )
-            value = created.json()
-            if not isinstance(value, dict) or not self._is_openbinding_org(value):
-                raise SphereError("SPHERE created an unexpected organization.")
-            identifier = self._org_id(value)
-            if not identifier:
-                raise SphereError("SPHERE omitted the created organization id.")
+        identifier = self._org_id(matches[0])
+        if not identifier:
+            raise SphereError("SPHERE omitted the OpenBinding organization id.")
         self._organization_id = identifier
         return identifier
 
@@ -192,7 +189,7 @@ class SphereClient:
         organization_id = await self.organization_id()
         path = (
             f"/pricings/{quote(organization_id, safe='')}/"
-            f"{quote(self.settings.sphere_pricing_slug, safe='')}?includePrivate=true"
+            f"{quote(self.settings.sphere_pricing_slug, safe='')}"
         )
         try:
             response = await self._request("GET", path)
@@ -217,33 +214,10 @@ class SphereClient:
             raise SphereError(f"SPHERE has no unique openbinding version {version!r}.")
         return matches[0]
 
-    async def upload(self, yaml_body: bytes, version: str, *, private: bool) -> SpherePricingVersion:
-        organization_id = await self.organization_id()
-        existing = await self.list_versions()
-        if any(item.version == version for item in existing):
-            raise SphereError(f"SPHERE version {version!r} already exists and is immutable.")
-        files = {"yaml": (f"{version}.yaml", yaml_body, "application/yaml")}
-        data = {
-            "private": "true" if private else "false",
-            "saasName": "openbinding",
-            "name": "openbinding",
-            "version": version,
-        }
-        if existing:
-            path = (
-                f"/pricings/{quote(organization_id, safe='')}/openbinding/"
-                f"{quote(version, safe='')}"
-            )
-        else:
-            path = f"/pricings/{quote(organization_id, safe='')}"
-        response = await self._request("POST", path, data=data, files=files)
-        value = response.json()
-        if not isinstance(value, dict):
-            raise SphereError("SPHERE returned malformed upload metadata.")
-        uploaded = self._version(value, organization_id)
-        if uploaded.version != version or uploaded.private is not private:
-            raise SphereError("SPHERE did not preserve the requested version visibility.")
-        return uploaded
+    @staticmethod
+    def digest_of(content: bytes) -> str:
+        """The immutable-content fingerprint: ``sha256-<hex>`` of the exact bytes."""
+        return f"sha256-{hashlib.sha256(content).hexdigest()}"
 
     async def content(self, version: str) -> bytes:
         metadata = await self.exact_version(version)
@@ -252,17 +226,6 @@ class SphereClient:
             response.raise_for_status()
         except httpx.HTTPError as exc:
             raise SphereError(f"SPHERE could not return version {version!r}.") from exc
-        if len(response.content) > 2 * 1024 * 1024:
+        if len(response.content) > MAX_CONTENT_BYTES:
             raise SphereError("SPHERE pricing content exceeds 2 MB.")
         return response.content
-
-    async def delete_private_version(self, version: str) -> None:
-        metadata = await self.exact_version(version)
-        if not metadata.private:
-            raise SphereError("Public SPHERE releases are immutable and cannot be deleted.")
-        organization_id = await self.organization_id()
-        path = (
-            f"/pricings/{quote(organization_id, safe='')}/openbinding/"
-            f"{quote(version, safe='')}"
-        )
-        await self._request("DELETE", path)

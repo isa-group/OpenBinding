@@ -7,94 +7,89 @@ a source ZIP to an engine: engines receive only the compiled BindingProblem.
 from __future__ import annotations
 
 import asyncio
-import copy
-import json
 import logging
-import math
-import time
 import uuid
-from datetime import datetime, timezone
-from email.parser import BytesParser
-from email.policy import default as email_policy
 from typing import Any, Mapping
 
-import jsonschema
-import yaml
 from ..models.analysis import NeighborhoodResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import delete, or_, select, update
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import space_client
-from ..access import metering
 from ..access.dependencies import optional_session, require_v1_admin, solve_caller
-from ..access.policy import clamp_options, instance_complexity_too_large, payload_ceiling_bytes, solve_timeout_s
 from ..core.settings import get_settings
 from ..db import base as db_base
 from ..db.models import (
     BindingIRSnapshot,
     DialectRevision,
-    EngineCredential,
-    EngineRegistrationRevision,
-    EngineRevision,
-    InstanceResource,
     InstanceSnapshot,
-    Job,
-    JobProvenance,
-    JobState,
     ManifestPublication,
-    Notification,
     RegisteredResourceRevision,
     User,
-    UserRole,
-    utcnow,
 )
 from ..job_dispatch import dispatch_persisted_job
+from ..models.problem import PROBLEM_MEDIA_TYPE, VALIDATION_ERROR, problem_response, split_detail
 from ..security.apikeys import allows_engine
-from ..v1.canonical import canonical_json, digest, digest_bytes
-from ..v1.compiler import (
-    BindingProblem,
-    CompileError,
+from bim_core import PackageError
+from bim_core.canonical import canonical_json, digest, digest_bytes
+from ..core.jsonio import strict_json_loads
+from ..integrations import bim
+from ..integrations.bim_host import (
+    XmlResource,
+    dialect_type_matches,
+    dialect_xml_type_matches,
+    resource_schema_diagnostics,
+)
+from ..v1.remote import fetch_remote_document, solve_remote, validate_endpoint
+
+from ..v1.remote import RemoteEngineError as RemoteEngineError  # re-exported for the tests
+from ..services import discovery, engine_registry, instances
+from ..services.entitlements import EntitlementsUnavailable, entitlement_service
+from ..services.engine_registry import RegistrationKey
+from ..services.engines import (
+    embedded_secret_paths,
+    owned_job,
+    schema_diagnostics,
+)
+from ..services.engines import protocol_digest as protocol_digest  # re-exported for the tests
+from ..services.engines import manifest as _manifest
+from ..services.engines import manifest_async
+from ..services.job_submission import (
+    STUDY_CELL_KEY_PREFIX,
+    JobSubmission,
+    JobSubmissionInput,
+    JobSubmissionResult,
+)
+
+# Re-exported for ``study_jobs`` and the tests that read the pending launches through this module.
+from ..services.job_submission import discard_pending_launches as discard_pending_launches
+from ..services.job_submission import pending_launches as pending_launches
+from ..services.snapshots import (
+    CUSTOM_RESOURCES,
     RegisteredResource,
-    compile_instance,
-    compiler_bundle_digest,
-    _dialect_descriptor,
-    _profile_descriptor,
-    _dialect_type_matches,
-    _dialect_xml_type_matches,
-    _resource_schema_diagnostics,
-    _schema_root,
-    installed_dialect_manifests,
-    installed_profile,
-    installed_profile_manifests,
-    instance_digest,
-    manifest_id,
+    compile_resolved,
+    package_file_digests,
+    persist_snapshot,
 )
-from ..v1.package import (
-    MAX_COMPRESSED,
-    MAX_EXPANDED,
-    InstancePackage,
-    PackageError,
-    load_package,
-    resource_digest,
-    strict_json_loads,
-)
-from ..v1.remote import RemoteEngineError, RemoteRegistration, fetch_remote_document, solve_remote, validate_endpoint
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["BIM v1"])
 
-_SNAPSHOTS: dict[str, dict[str, Any]] = {}
-_JOBS: dict[str, dict[str, Any]] = {}
-_BUILTIN_REGISTRATIONS: dict[tuple[str, str, str, str], dict[str, Any]] = {}
-_CUSTOM_RESOURCES: dict[tuple[str, str, str, str], RegisteredResource] = {}
 _CUSTOM_RESOURCE_RECORDS: dict[tuple[str, str, str, str], dict[str, Any]] = {}
-_MANIFEST_DIR = _schema_root() / "manifests"
-_ENGINE_PROTOCOL_PATH = _schema_root().parents[1] / "engine-contract.openapi.yaml"
-_BIM_ZIP_TYPES = {"application/zip", "application/octet-stream", "application/vnd.bim+zip", "application/x-bim+zip"}
+_BIM_ZIP_TYPES = instances.BIM_ZIP_TYPES
+
+
+def _max_expanded() -> int:
+    """Largest JSON document or registered resource the gateway reads: the toolchain's expanded-package limit."""
+    return bim.package_limits()["max_expanded_bytes"]
+
+
+def _max_compressed() -> int:
+    """Largest ``.bim.zip`` upload: the toolchain's compressed-package limit."""
+    return bim.package_limits()["max_compressed_bytes"]
 
 
 def _problem(
@@ -105,412 +100,15 @@ def _problem(
     extra: dict[str, Any] | None = None,
     headers: dict[str, str] | None = None,
 ) -> JSONResponse:
-    body: dict[str, Any] = {"type": f"https://openbinding.dev/problems/{code}", "title": code, "status": status_code, "detail": detail}
-    if diagnostics:
-        body["diagnostics"] = diagnostics
-    if extra:
-        body.update(extra)
-    return JSONResponse(body, status_code=status_code, media_type="application/problem+json", headers=headers)
+    return problem_response(status_code, code, detail, diagnostics, headers=headers, extra=extra)
 
 
-def _instance_identity(package: InstancePackage) -> str:
-    """Identity of the strict root index plus every package resource."""
-    portable = load_package(package.to_zip())
-    return instance_digest(portable.instance(), portable.resource_digests)
-
-
-def _protocol_document() -> dict[str, Any]:
-    document = yaml.safe_load(_ENGINE_PROTOCOL_PATH.read_text(encoding="utf-8"))
-    if not isinstance(document, dict):
-        raise RuntimeError("BIM engine OpenAPI contract must be an object")
-    return document
-
-
-def _protocol_digest() -> str:
-    # The OpenAPI refers to the BindingProblem schema by a local relative path.
-    # Pin that external contract as part of the protocol identity so changing
-    # the IR schema cannot leave a deceptively unchanged protocol revision.
-    binding_problem_schema = _ENGINE_PROTOCOL_PATH.parent / "bim" / "v1" / "binding-problem.schema.json"
-    return digest({
-        "openapi": _protocol_document(),
-        "externalSchemas": {
-            "bim/v1/BindingProblem": digest_bytes(binding_problem_schema.read_bytes()),
-        },
-    })
-
-
-_BUILTIN_ENGINE_MAPPINGS = {
-    "request": "/internal/v1/binding-problems",
-    "job": "/internal/v1/jobs/{id}",
-    "health": "/health",
-    "openapi": "/openapi.json",
-}
-
-
-def _builtin_engine_registration(
-    manifest: dict[str, Any],
-    endpoint: str,
-) -> dict[str, Any]:
-    """Install the immutable deployment contract for one bundled Engine.
-
-    Bundled engines are deployments too.  Their registration is generated
-    from the exact Engine revision and process configuration, so an endpoint
-    or protocol change creates a new immutable reference instead of silently
-    changing the meaning of an existing job.  The returned runtime marker is
-    deliberately outside the public document: only this installer can grant
-    access to trusted internal HTTP endpoints.
-    """
-
-    engine_ref = _engine_ref(manifest, "bim.builtin")
-    installation = {
-        "engine": engine_ref,
-        "endpoint": endpoint,
-        "protocol": {
-            "id": "bim-engine/v1",
-            "mediaType": "application/json",
-            "digest": _protocol_digest(),
-        },
-        "mappings": dict(_BUILTIN_ENGINE_MAPPINGS),
-        "auth": {"scheme": "none"},
-        "openapi": {
-            **_protocol_document(),
-            "x-bim-protocol": "bim-engine/v1",
-            "x-bim-protocol-digest": _protocol_digest(),
-        },
-    }
-    installation_digest = digest(installation).removeprefix("sha256-")
-    engine_version = str(engine_ref["version"]).split("+", 1)[0]
-    document = {
-        "apiVersion": "bim/v1",
-        "kind": "EngineRegistration",
-        "metadata": {
-            "namespace": "bim.builtin",
-            "name": f"{engine_ref['name']}-deployment",
-            "version": f"{engine_version}+builtin.{installation_digest}",
-        },
-        "spec": installation,
-    }
-    registration_ref = {
-        "namespace": document["metadata"]["namespace"],
-        "name": document["metadata"]["name"],
-        "version": document["metadata"]["version"],
-        "digest": digest(document),
-    }
-    key = tuple(registration_ref[field] for field in ("namespace", "name", "version", "digest"))
-    installed = {
-        **registration_ref,
-        "document": document,
-        "publicationStatus": "published",
-        "active": True,
-        "installedBuiltin": True,
-        "allowInternalHttp": True,
-    }
-    existing = _BUILTIN_REGISTRATIONS.get(key)
-    if existing is not None:
-        if existing != installed:
-            raise RuntimeError("built-in EngineRegistration identity is immutable")
-        return existing
-    _BUILTIN_REGISTRATIONS[key] = installed
-    return installed
-
-
-def _installed_builtin_registration(
-    manifest: dict[str, Any],
-    endpoint: str | None,
-    registration_ref: Mapping[str, Any] | None = None,
-) -> dict[str, Any] | None:
-    """Resolve an exact installed bundled registration, never user input."""
-
-    if not isinstance(endpoint, str) or not endpoint:
-        return None
-    metadata = manifest.get("metadata", {})
-    name = metadata.get("name")
-    if not isinstance(name, str):
-        return None
-    path = _MANIFEST_DIR / f"{name}.json"
-    try:
-        installed_manifest = json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError):
-        return None
-    if digest(installed_manifest) != digest(manifest):
-        return None
-    installed = _builtin_engine_registration(installed_manifest, endpoint)
-    if registration_ref is not None and any(
-        registration_ref.get(field) != installed[field]
-        for field in ("namespace", "name", "version", "digest")
-    ):
-        return None
-    return installed
-
-
-_SCHEMA_ANNOTATIONS = {"title", "description", "$comment", "examples", "deprecated", "readOnly", "writeOnly"}
-_BINDING_PROBLEM_SCHEMA_REF = "./bim/v1/binding-problem.schema.json"
-
-
-def _pointer(document: dict[str, Any], reference: str) -> Any:
-    if not reference.startswith("#/"):
-        raise RemoteEngineError(f"deployment OpenAPI uses a non-local schema reference: {reference}")
-    value: Any = document
-    for raw in reference[2:].split("/"):
-        token = raw.replace("~1", "/").replace("~0", "~")
-        if not isinstance(value, dict) or token not in value:
-            raise RemoteEngineError(f"deployment OpenAPI has an unresolved schema reference: {reference}")
-        value = value[token]
-    return value
-
-
-def _schema_semantics(document: dict[str, Any], value: Any, trail: tuple[str, ...] = ()) -> Any:
-    """Dereference a bounded OpenAPI schema into a comparable closed form."""
-    if isinstance(value, list):
-        return [_schema_semantics(document, item, trail) for item in value]
-    if not isinstance(value, dict):
-        return value
-    reference = value.get("$ref")
-    if isinstance(reference, str):
-        siblings = set(value) - {"$ref"} - _SCHEMA_ANNOTATIONS
-        if siblings:
-            raise RemoteEngineError("deployment OpenAPI schema references cannot have semantic siblings")
-        if reference == _BINDING_PROBLEM_SCHEMA_REF:
-            return {"$ref": "bim-binding-problem/v1"}
-        if not reference.startswith("#/"):
-            raise RemoteEngineError(f"deployment OpenAPI uses an unapproved schema reference: {reference}")
-        if reference in trail:
-            raise RemoteEngineError(f"deployment OpenAPI contains a recursive schema reference: {reference}")
-        return _schema_semantics(document, _pointer(document, reference), (*trail, reference))
-    return {
-        key: _schema_semantics(document, child, trail)
-        for key, child in value.items()
-        if key not in _SCHEMA_ANNOTATIONS
-    }
-
-
-def _operation_schema(operation: Any, *, request: bool = False, response: str | None = None) -> dict[str, Any]:
-    try:
-        if request:
-            schema = operation["requestBody"]["content"]["application/json"]["schema"]
-        else:
-            schema = operation["responses"][response]["content"]["application/json"]["schema"]
-    except (KeyError, TypeError) as exc:
-        location = "request" if request else f"response {response}"
-        raise RemoteEngineError(f"deployment OpenAPI is missing the application/json {location} schema") from exc
-    if not isinstance(schema, dict):
-        raise RemoteEngineError("deployment OpenAPI operation schema must be an object")
-    return schema
-
-
-def _assert_operation_auth(
-    document: Mapping[str, Any],
-    operation: Mapping[str, Any],
-    expected: str,
-    label: str,
-) -> None:
-    """Ensure the submitted OpenAPI matches the registration transport auth."""
-
-    security = operation.get("security", document.get("security", []))
-    if not isinstance(security, list):
-        raise RemoteEngineError(f"deployment OpenAPI {label} security must be an array")
-    if any(not isinstance(requirement, Mapping) for requirement in security):
-        raise RemoteEngineError(
-            f"deployment OpenAPI {label} security requirements must be objects"
-        )
-    if expected == "none":
-        if security and not any(not requirement for requirement in security):
-            raise RemoteEngineError(
-                f"deployment OpenAPI {label} requires authentication but registration auth is none"
-            )
-        return
-
-    if not security or any(not requirement for requirement in security):
-        raise RemoteEngineError(
-            f"deployment OpenAPI {label} permits anonymous access but registration auth is {expected}"
-        )
-
-    schemes = document.get("components", {}).get("securitySchemes", {})
-    if not isinstance(schemes, Mapping):
-        raise RemoteEngineError("deployment OpenAPI has no securitySchemes object")
-    matching_names = {
-        name
-        for name, declaration in schemes.items()
-        if isinstance(name, str)
-        and isinstance(declaration, Mapping)
-        and declaration.get("type") == "http"
-        and str(declaration.get("scheme", "")).casefold() == expected
-    }
-    if not any(
-        isinstance(requirement, Mapping)
-        and len(requirement) == 1
-        and next(iter(requirement), None) in matching_names
-        for requirement in security
-    ):
-        raise RemoteEngineError(
-            f"deployment OpenAPI {label} does not offer the registered {expected} authentication"
-        )
-
-
-def _assert_protocol_schema(
-    label: str,
-    deployed_document: dict[str, Any],
-    deployed_schema: dict[str, Any],
-    canonical_document: dict[str, Any],
-    canonical_schema: dict[str, Any],
-) -> None:
-    deployed = _schema_semantics(deployed_document, deployed_schema)
-    canonical = _schema_semantics(canonical_document, canonical_schema)
-    if digest(deployed) != digest(canonical):
-        raise RemoteEngineError(f"deployment OpenAPI {label} schema is not equivalent to bim-engine/v1")
-
-
-def _selector_values(mode: Mapping[str, Any], dimension: str, universe: tuple[str, ...]) -> tuple[str, ...]:
-    declaration = mode.get("capabilities", {}).get(dimension, {})
-    if not isinstance(declaration, Mapping):
-        return ()
-    if declaration.get("selector") == "all":
-        return universe
-    if declaration.get("selector") == "only":
-        values = declaration.get("values", [])
-        return tuple(value for value in values if isinstance(value, str) and value in universe)
-    return ()
-
-
-def _conformance_shape(mode: Mapping[str, Any]) -> tuple[str, str, int]:
-    scalarizations = mode.get("capabilities", {}).get("scalarizations", {})
-    descriptors = scalarizations.get("values", []) if isinstance(scalarizations, Mapping) else []
-    limits = mode.get("limits", {})
-    minimum = limits.get("minObjectives", 0) if isinstance(limits, Mapping) else 0
-    maximum = limits.get("maxObjectives") if isinstance(limits, Mapping) else None
-    minimum = minimum if isinstance(minimum, int) else 0
-    maximum = maximum if isinstance(maximum, int) else None
-    for descriptor in descriptors:
-        if not isinstance(descriptor, Mapping):
-            continue
-        scalarization = descriptor.get("id")
-        for objective_type in descriptor.get("objectiveTypes", []):
-            if not isinstance(scalarization, str) or objective_type not in {"SINGLE", "MULTI", "MANY"}:
-                continue
-            if scalarization == "feasibility" and objective_type == "SINGLE" and minimum == 0:
-                return scalarization, objective_type, 0
-            objective_count = max(minimum, {"SINGLE": 1, "MULTI": 2, "MANY": 3}[objective_type])
-            if objective_type == "MULTI" and objective_count > 3:
-                continue
-            if maximum is not None and objective_count > maximum:
-                continue
-            return scalarization, objective_type, objective_count
-    raise RemoteEngineError("Engine has no mode shape suitable for a deterministic conformance probe")
-
-
-def _conformance_mode(engine: Mapping[str, Any]) -> Mapping[str, Any]:
-    modes = engine.get("spec", {}).get("modes", [])
-    for mode in modes if isinstance(modes, list) else []:
-        if not isinstance(mode, Mapping):
-            continue
-        try:
-            _conformance_shape(mode)
-            return mode
-        except RemoteEngineError:
-            continue
-    raise RemoteEngineError("Engine has no published mode suitable for a deterministic conformance probe")
-
-
-def _conformance_options(mode: Mapping[str, Any]) -> dict[str, Any]:
-    properties = mode.get("optionsSchema", {}).get("properties", {})
-    if not isinstance(properties, Mapping):
-        return {}
-    return {
-        name: copy.deepcopy(option["default"])
-        for name, option in properties.items()
-        if isinstance(name, str) and isinstance(option, Mapping) and "default" in option
-    }
-
-
-def _conformance_problem(mode: Mapping[str, Any]) -> dict[str, Any]:
-    scalarization, objective_type, objective_count = _conformance_shape(mode)
-    feature_ids = [f"probe-objective-{index + 1}" for index in range(objective_count)]
-    application = {
-        "apiVersion": "qos-binding/v1",
-        "kind": "Application",
-        "metadata": {"name": "probe-application"},
-        "spec": {
-            "tasks": {"probe-task": {"requires": "bim.conformance.probe"}},
-            "features": {
-                feature_id: {
-                    "unit": "1",
-                    "direction": "minimize",
-                    "scope": "selectedCandidate",
-                    "aggregation": "sum",
-                    "domain": {"kind": "real", "minimum": 0, "maximum": 1},
-                }
-                for feature_id in feature_ids
-            },
-            "workflow": {
-                "task": {"resource": "probe-application", "id": "probe-task"}
-            },
-        },
-    }
-    candidates = {
-        "apiVersion": "qos-binding/v1",
-        "kind": "CandidateCatalog",
-        "metadata": {"name": "probe-catalog"},
-        "spec": {
-            "featureBindings": {
-                feature_id: {"resource": "probe-application", "id": feature_id}
-                for feature_id in feature_ids
-            },
-            "candidates": {
-                "probe-candidate": {
-                    "provides": "bim.conformance.probe",
-                    "features": {feature_id: 0 for feature_id in feature_ids},
-                }
-            }
-        },
-    }
-    optimization = {
-        "apiVersion": "qos-binding/v1",
-        "kind": "Optimization",
-        "metadata": {"name": "probe-optimization"},
-        "spec": {
-            "criteria": [
-                {"id": feature_id, "feature": {"resource": "probe-application", "id": feature_id}}
-                for feature_id in feature_ids
-            ],
-        },
-    }
-    instance = {
-        "apiVersion": "bim/v1",
-        "kind": "Instance",
-        "metadata": {"name": "bim-engine-conformance-probe"},
-        "spec": {
-            "profile": "qos-binding/v1",
-            "resources": {
-                "application": {"probe-application": "application.json"},
-                "candidateCatalog": {"probe-catalog": "candidates.json"},
-                "optimization": {"probe-optimization": "optimization.json"},
-            }
-        },
-    }
-    package = load_package(
-        InstancePackage(
-            {
-                "instance.json": canonical_json(instance),
-                "application.json": canonical_json(application),
-                "candidates.json": canonical_json(candidates),
-                "optimization.json": canonical_json(optimization),
-            }
-        ).to_zip()
-    )
-    return compile_instance(package).document
-
-
-def _conformance_optimization(mode: Mapping[str, Any]) -> dict[str, Any]:
-    _, objective_type, objective_count = _conformance_shape(mode)
-    scalarization, _, _ = _conformance_shape(mode)
-    return {
-        "type": objective_type,
-        "scalarization": scalarization,
-        "weights": [
-            {"criteria": f"probe-objective-{index + 1}", "value": 1.0 / objective_count}
-            for index in range(objective_count)
-        ],
-    }
+# The conformance helpers live in ``services.engine_registry``; the tests reach them through this module.
+_assert_operation_auth = engine_registry.assert_operation_auth
+_assert_protocol_schema = engine_registry.assert_protocol_schema
+_conformance_optimization = engine_registry.conformance_optimization
+_conformance_shape = engine_registry.conformance_shape
+_operation_schema = engine_registry.operation_schema
 
 
 async def _verify_registration(
@@ -518,1770 +116,87 @@ async def _verify_registration(
     credential: str | None,
     engine: Mapping[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any] | None, str | None]:
-    """Fetch the pinned OpenAPI and execute a deterministic response probe."""
+    """``engine_registry.verify_registration`` over this module's transport and settings.
 
-    spec = document["spec"]
-    transport = RemoteRegistration(
-        endpoint=spec["endpoint"],
-        mappings=spec.get("mappings", {}),
-        auth_scheme=spec.get("auth", {}).get("scheme", "none"),
-        credential=credential,
-        allow_internal_http=not get_settings().federation_require_https,
-    )
-    expected_digest = spec["protocol"]["digest"]
-    checks: list[dict[str, Any]] = []
-    submitted_openapi = spec.get("openapi")
-    openapi_document: dict[str, Any] | None = (
-        submitted_openapi if isinstance(submitted_openapi, dict) else None
-    )
-    openapi_digest: str | None = (
-        digest(openapi_document) if openapi_document is not None else None
-    )
-    started = time.monotonic()
-    try:
-        openapi_path = spec.get("mappings", {}).get("openapi", "/openapi.json")
-        if openapi_document is None:
-            raise RemoteEngineError("registration must include the deployment OpenAPI document")
-        live_openapi = await fetch_remote_document(transport, openapi_path)
-        if digest(live_openapi) != openapi_digest:
-            raise RemoteEngineError(
-                "served OpenAPI differs from the immutable document submitted for review"
-            )
-        if openapi_document.get("openapi") != "3.1.0":
-            raise RemoteEngineError("served OpenAPI must declare version 3.1.0")
-        if openapi_document.get("x-bim-protocol") != "bim-engine/v1":
-            raise RemoteEngineError("deployment OpenAPI must declare x-bim-protocol: bim-engine/v1")
-        if openapi_document.get("x-bim-protocol-digest") != expected_digest:
-            raise RemoteEngineError("deployment OpenAPI does not pin the canonical bim-engine/v1 digest")
-
-        canonical_document = _protocol_document()
-        if expected_digest != _protocol_digest():
-            raise RemoteEngineError("registration does not pin the installed bim-engine/v1 contract")
-        request_path = spec.get("mappings", {}).get("request", "/internal/v1/binding-problems")
-        operation = openapi_document.get("paths", {}).get(request_path, {}).get("post")
-        if not isinstance(operation, dict):
-            raise RemoteEngineError("deployment OpenAPI does not describe the mapped solve operation")
-        _assert_operation_auth(
-            openapi_document,
-            operation,
-            spec.get("auth", {}).get("scheme", "none"),
-            "solve operation",
-        )
-        canonical_operation = canonical_document["paths"]["/internal/v1/binding-problems"]["post"]
-        _assert_protocol_schema(
-            "solve request",
-            openapi_document,
-            _operation_schema(operation, request=True),
-            canonical_document,
-            _operation_schema(canonical_operation, request=True),
-        )
-        responses = operation.get("responses", {})
-        if not isinstance(responses, dict) or not ({"200", "202"} & set(responses)):
-            raise RemoteEngineError("deployment OpenAPI does not describe a synchronous or asynchronous result")
-        response_modes: list[str] = []
-        if "200" in responses:
-            _assert_protocol_schema(
-                "synchronous result",
-                openapi_document,
-                _operation_schema(operation, response="200"),
-                canonical_document,
-                _operation_schema(canonical_operation, response="200"),
-            )
-            response_modes.append("synchronous")
-        if "202" in responses:
-            _assert_protocol_schema(
-                "asynchronous receipt",
-                openapi_document,
-                _operation_schema(operation, response="202"),
-                canonical_document,
-                _operation_schema(canonical_operation, response="202"),
-            )
-            job_path = spec.get("mappings", {}).get("job")
-            if not isinstance(job_path, str) or "{id}" not in job_path:
-                raise RemoteEngineError("an asynchronous deployment requires a mapped job path containing {id}")
-            job_operation = openapi_document.get("paths", {}).get(job_path, {}).get("get")
-            if not isinstance(job_operation, dict):
-                raise RemoteEngineError("deployment OpenAPI does not describe the mapped async job operation")
-            _assert_operation_auth(
-                openapi_document,
-                job_operation,
-                spec.get("auth", {}).get("scheme", "none"),
-                "asynchronous job operation",
-            )
-            canonical_job = canonical_document["paths"]["/internal/v1/jobs/{id}"]["get"]
-            _assert_protocol_schema(
-                "asynchronous job",
-                openapi_document,
-                _operation_schema(job_operation, response="200"),
-                canonical_document,
-                _operation_schema(canonical_job, response="200"),
-            )
-            response_modes.append("asynchronous")
-        checks.append(
-            {
-                "id": "openapi",
-                "status": "passed",
-                "deploymentDigest": openapi_digest,
-                "protocolDigest": expected_digest,
-                "requestPath": request_path,
-                "responseModes": response_modes,
-            }
-        )
-
-        health_path = spec.get("mappings", {}).get("health", "/health")
-        health_operation = openapi_document.get("paths", {}).get(health_path, {}).get("get")
-        if not isinstance(health_operation, dict) or "200" not in health_operation.get("responses", {}):
-            raise RemoteEngineError(
-                "deployment OpenAPI must describe the mapped GET health operation and its 200 response"
-            )
-        _assert_operation_auth(
-            openapi_document,
-            health_operation,
-            spec.get("auth", {}).get("scheme", "none"),
-            "health operation",
-        )
-        await fetch_remote_document(transport, health_path)
-        checks.append({"id": "health", "status": "passed"})
-
-        conformance_mode = _conformance_mode(engine)
-        result = await solve_remote(
-            transport,
-            _conformance_problem(conformance_mode),
-            _conformance_options(conformance_mode),
-            _conformance_optimization(conformance_mode),
-            timeout_s=10.0,
-        )
-        expected_binding = {"probe-task": {"resource": "probe-catalog", "id": "probe-candidate"}}
-        bindings = [
-            item.get("decision", {}).get("binding")
-            for item in result.get("solutions", [])
-            if isinstance(item, dict)
-        ]
-        if result.get("termination") not in {"OPTIMAL", "FEASIBLE"} or expected_binding not in bindings:
-            raise RemoteEngineError("engine did not solve the deterministic conformance problem")
-        checks.append({"id": "binding-result", "status": "passed", "termination": result["termination"]})
-    except (RemoteEngineError, KeyError, TypeError, ValueError) as exc:
-        checks.append({"id": "conformance", "status": "failed", "message": str(exc)})
-        return (
-            {
-                "protocol": "bim-engine/v1",
-                "protocolDigest": expected_digest,
-                "status": "failed",
-                "checks": checks,
-                "durationMs": round((time.monotonic() - started) * 1000, 3),
-            },
-            openapi_document,
-            openapi_digest,
-        )
-    return (
-        {
-            "protocol": "bim-engine/v1",
-            "protocolDigest": expected_digest,
-            "status": "verified",
-            "checks": checks,
-            "durationMs": round((time.monotonic() - started) * 1000, 3),
-        },
-        openapi_document,
-        openapi_digest,
-    )
-
-
-def _manifest(
-    name: str,
-    *,
-    namespace: str | None = None,
-    version: str | None = None,
-    manifest_digest: str | None = None,
-    allow_internal: bool = False,
-) -> dict[str, Any]:
-    candidates = []
-    path = _MANIFEST_DIR / f"{name}.json"
-    try:
-        builtin = json.loads(path.read_text(encoding="utf-8"))
-        if not allow_internal and builtin.get("metadata", {}).get("internal", False):
-            raise HTTPException(status_code=404, detail=f"Unknown v1 engine: {name}")
-        builtin_namespace = builtin.get("metadata", {}).get("namespace")
-        builtin_version = builtin.get("metadata", {}).get("version")
-        if (
-            (namespace is None or builtin_namespace == namespace)
-            and (version is None or builtin_version == version)
-            and (manifest_digest is None or digest(builtin) == manifest_digest)
-        ):
-            candidates.append(builtin)
-    except (FileNotFoundError, json.JSONDecodeError):
-        pass
-    if not candidates:
-        raise HTTPException(status_code=404, detail=f"Unknown v1 engine: {name}")
-    if len(candidates) > 1:
-        raise HTTPException(status_code=409, detail=f"Engine identity is ambiguous; pin namespace, version, and digest: {name}")
-    return candidates[0]
-
-
-async def _manifest_async(
-    name: str,
-    session: AsyncSession | None = None,
-    *,
-    caller: User | None = None,
-    namespace: str | None = None,
-    version: str | None = None,
-    manifest_digest: str | None = None,
-) -> dict[str, Any]:
-    """Resolve a built-in, public, or caller-owned private Engine revision."""
-    try:
-        document = _manifest(
-            name,
-            namespace=namespace,
-            version=version,
-            manifest_digest=manifest_digest,
-        )
-        document_namespace = document.get("metadata", {}).get("namespace") or "bim.builtin"
-        if namespace and document_namespace != namespace:
-            raise HTTPException(status_code=404, detail=f"Unknown Engine namespace: {namespace}")
-        if version and document.get("metadata", {}).get("version") != version:
-            raise HTTPException(status_code=404, detail=f"Unknown Engine revision: {name}@{version}")
-        if manifest_digest and digest(document) != manifest_digest:
-            raise HTTPException(status_code=404, detail=f"Unknown Engine digest: {manifest_digest}")
-        return document
-    except HTTPException:
-        if session is not None:
-            query = select(EngineRevision).where(EngineRevision.name == name)
-            if caller is None:
-                query = query.where(EngineRevision.state == "published")
-            else:
-                query = query.where(
-                    or_(
-                        EngineRevision.state == "published",
-                        EngineRevision.owner_id == caller.id,
-                    )
-                )
-            if namespace:
-                query = query.where(EngineRevision.namespace == namespace)
-            if version:
-                query = query.where(EngineRevision.version == version)
-            if manifest_digest:
-                query = query.where(EngineRevision.digest == manifest_digest)
-            revision = (await session.execute(query.order_by(EngineRevision.created_at.desc()))).scalars().first()
-            if revision is not None:
-                return revision.document
-        raise
-
-
-def _schema_diagnostics(document: dict[str, Any], kind: str) -> list[dict[str, Any]]:
-    filename = {
-        "Instance": "instance.schema.json",
-        "Profile": "profile.schema.json",
-        "Application": "application.schema.json",
-        "CandidateCatalog": "candidate-catalog.schema.json",
-        "ConstraintSet": "constraint-set.schema.json",
-        "Optimization": "optimization.schema.json",
-        "RoutingOverlay": "routing-overlay.schema.json",
-        "Placement": "placement.schema.json",
-        "Engine": "engine.schema.json",
-        "Dialect": "dialect.schema.json",
-        "EngineRegistration": "engine-registration.schema.json",
-    }.get(kind)
-    if not filename:
-        return []
-    path = _MANIFEST_DIR.parent / filename
-    try:
-        schema = json.loads(path.read_text(encoding="utf-8"))
-        validator = jsonschema.Draft202012Validator(schema)
-        return [{"code": "schema", "message": error.message, "pointer": "/" + "/".join(str(part) for part in error.path)} for error in validator.iter_errors(document)]
-    except (OSError, json.JSONDecodeError) as exc:
-        return [{"code": "schema_unavailable", "message": str(exc)}]
-
-
-def _embedded_secret_paths(value: Any, pointer: str = "") -> list[str]:
-    paths: list[str] = []
-    if isinstance(value, dict):
-        for key, child in value.items():
-            normalized = "".join(character for character in str(key).casefold() if character.isalnum())
-            child_pointer = f"{pointer}/{key}"
-            # OpenAPI documents routinely describe fields named token,
-            # password or apiKey. Those are schema names, not embedded values.
-            if child_pointer == "/spec/openapi":
-                continue
-            if any(marker in normalized for marker in ("secret", "password", "token", "credential", "apikey")):
-                paths.append(child_pointer)
-            paths.extend(_embedded_secret_paths(child, child_pointer))
-    elif isinstance(value, list):
-        for index, child in enumerate(value):
-            paths.extend(_embedded_secret_paths(child, f"{pointer}/{index}"))
-    return paths
-
-
-def _engine_contract_diagnostics(document: Mapping[str, Any]) -> list[dict[str, Any]]:
-    """Validate generic Engine declarations against their installed Profile.
-
-    JSON Schema deliberately knows no QoS capability names.  The selected
-    Profile owns that vocabulary and output type; an unavailable profile is a
-    runtime/installation error, not an invalid BIM core document shape.
+    The names are looked up here on every call, so replacing ``fetch_remote_document``, ``solve_remote`` or
+    ``get_settings`` on this module (as the tests do) keeps working.
     """
-
-    diagnostics: list[dict[str, Any]] = []
-    modes = document.get("spec", {}).get("modes", [])
-    seen_mode_ids: set[str] = set()
-    for index, mode in enumerate(modes if isinstance(modes, list) else []):
-        if not isinstance(mode, Mapping):
-            continue
-        pointer = f"/spec/modes/{index}"
-        mode_id = mode.get("id")
-        if isinstance(mode_id, str) and mode_id in seen_mode_ids:
-            diagnostics.append({
-                "code": "mode_id_duplicate",
-                "pointer": pointer + "/id",
-                "message": f"mode id {mode_id!r} is repeated",
-            })
-        elif isinstance(mode_id, str):
-            seen_mode_ids.add(mode_id)
-        profile_id = mode.get("profile")
-        profile = installed_profile(profile_id) if isinstance(profile_id, str) else None
-        if profile is None:
-            diagnostics.append({
-                "code": "profile_adapter_not_installed",
-                "pointer": pointer + "/profile",
-                "message": f"profile {profile_id!r} has no installed adapter",
-            })
-            continue
-        profile_spec = profile["spec"]
-        output = profile_spec["output"]
-        expected_ir = {"apiVersion": output["apiVersion"], "kind": output["kind"]}
-        if mode.get("ir") != expected_ir:
-            diagnostics.append({
-                "code": "profile_ir",
-                "pointer": pointer + "/ir",
-                "message": f"mode IR must equal installed profile output {expected_ir!r}",
-            })
-        dimensions = profile_spec["capabilityVocabulary"]["dimensions"]
-        capabilities = mode.get("capabilities", {})
-        if isinstance(capabilities, Mapping):
-            missing = sorted(set(dimensions) - set(capabilities))
-            unknown = sorted(set(capabilities) - set(dimensions))
-            for dimension in missing:
-                diagnostics.append({
-                    "code": "capability_dimension_missing",
-                    "pointer": pointer + "/capabilities",
-                    "message": f"mode must explicitly select capability dimension {dimension!r}",
-                })
-            for dimension in unknown:
-                diagnostics.append({
-                    "code": "capability_dimension_unknown",
-                    "pointer": pointer + f"/capabilities/{dimension}",
-                    "message": f"dimension {dimension!r} is not declared by profile {profile_id!r}",
-                })
-            for dimension, declaration in capabilities.items():
-                vocabulary = dimensions.get(dimension)
-                if not isinstance(vocabulary, Mapping) or not isinstance(declaration, Mapping):
-                    continue
-                selector = declaration.get("selector")
-                if selector == "all" and vocabulary.get("openValues", False):
-                    diagnostics.append({
-                        "code": "open_capability_requires_explicit_values",
-                        "pointer": pointer + f"/capabilities/{dimension}/selector",
-                        "message": f"open dimension {dimension!r} requires selector none or only",
-                    })
-                if selector == "only" and not vocabulary.get("openValues", False):
-                    unknown_values = sorted(
-                        set(declaration.get("values", [])) - set(vocabulary.get("values", []))
-                    )
-                    if unknown_values:
-                        diagnostics.append({
-                            "code": "capability_value_unknown",
-                            "pointer": pointer + f"/capabilities/{dimension}/values",
-                            "message": f"values are outside profile vocabulary: {', '.join(unknown_values)}",
-                        })
-        limits = mode.get("limits", {})
-        if isinstance(limits, Mapping):
-            unknown_limits = sorted(set(limits) - set(profile_spec.get("limitVocabulary", [])))
-            for limit in unknown_limits:
-                diagnostics.append({
-                    "code": "limit_unknown",
-                    "pointer": pointer + f"/limits/{limit}",
-                    "message": f"limit {limit!r} is not declared by profile {profile_id!r}",
-                })
-        options_schema = mode.get("optionsSchema", {})
-        if isinstance(options_schema, Mapping):
-            properties = options_schema.get("properties", {})
-            required = options_schema.get("required", [])
-            if isinstance(properties, Mapping) and isinstance(required, list):
-                for missing_name in sorted(set(required) - set(properties)):
-                    diagnostics.append({
-                        "code": "required_option_unknown",
-                        "pointer": pointer + "/optionsSchema/required",
-                        "message": f"required option {missing_name!r} has no property schema",
-                    })
-                for option_name, option_schema in properties.items():
-                    if not isinstance(option_schema, Mapping):
-                        continue
-                    option_pointer = pointer + f"/optionsSchema/properties/{option_name}"
-                    lower = option_schema.get("minimum", option_schema.get("exclusiveMinimum"))
-                    upper = option_schema.get("maximum", option_schema.get("exclusiveMaximum"))
-                    if isinstance(lower, (int, float)) and isinstance(upper, (int, float)) and lower > upper:
-                        diagnostics.append({
-                            "code": "option_range_empty",
-                            "pointer": option_pointer,
-                            "message": "option lower bound exceeds its upper bound",
-                        })
-                    if "default" in option_schema:
-                        executable_schema = {
-                            key: value
-                            for key, value in option_schema.items()
-                            if key not in {"default", "description"}
-                        }
-                        if not jsonschema.Draft202012Validator(executable_schema).is_valid(option_schema["default"]):
-                            diagnostics.append({
-                                "code": "option_default_invalid",
-                                "pointer": option_pointer + "/default",
-                                "message": f"default for option {option_name!r} does not satisfy its schema",
-                            })
-    return diagnostics
-
-
-async def _engine_mode(
-    name: str,
-    requested: str | None,
-    supplied: Any,
-    session: AsyncSession | None = None,
-    *,
-    caller: User | None = None,
-    namespace: str | None = None,
-    version: str | None = None,
-    manifest_digest: str | None = None,
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
-    manifest = await _manifest_async(
-        name,
-        session,
-        caller=caller,
-        namespace=namespace,
-        version=version,
-        manifest_digest=manifest_digest,
-    )
-    contract_diagnostics = _engine_contract_diagnostics(manifest)
-    if contract_diagnostics:
-        raise HTTPException(
-            status_code=422,
-            detail={"code": "engine_contract_invalid", "diagnostics": contract_diagnostics},
-        )
-    modes = manifest.get("spec", {}).get("modes", [])
-    mode = next((item for item in modes if item.get("id") == (requested or "")), None)
-    if mode is None and requested is None and len(modes) == 1:
-        mode = modes[0]
-    if mode is None:
-        raise HTTPException(status_code=422, detail={"code": "engine_mode_incompatible", "diagnostics": [{"code": "mode", "message": f"engine {name!r} does not provide mode {requested!r}"}]})
-    if not isinstance(supplied, dict):
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "invalid_option",
-                "diagnostics": [
-                    {
-                        "code": "option_type",
-                        "message": "engine options must be a JSON object",
-                        "pointer": "/options",
-                    }
-                ],
-            },
-        )
-    schema = mode.get("optionsSchema", {})
-    properties = schema.get("properties", {}) if isinstance(schema, dict) else {}
-    unknown = sorted(set(supplied) - set(properties))
-    if unknown:
-        raise HTTPException(status_code=422, detail={"code": "unknown_option", "diagnostics": [{"code": "unknown_option", "message": f"unknown engine option {key!r}"} for key in unknown]})
-    effective = {key: value.get("default") for key, value in properties.items() if isinstance(value, dict) and "default" in value}
-    effective.update(supplied)
-    if isinstance(schema, dict):
-        option_errors = list(jsonschema.Draft202012Validator(schema).iter_errors(effective))
-        if option_errors:
-            raise HTTPException(status_code=422, detail={"code": "invalid_option", "diagnostics": [{"code": "option_schema", "message": error.message, "pointer": "/options"} for error in option_errors]})
-    for key, value in effective.items():
-        definition = properties.get(key, {})
-        if definition.get("type") == "integer" and (not isinstance(value, int) or isinstance(value, bool)):
-            raise HTTPException(status_code=422, detail={"code": "invalid_option", "diagnostics": [{"code": "option_type", "message": f"option {key!r} must be an integer"}]})
-        if definition.get("type") == "number" and (not isinstance(value, (int, float)) or isinstance(value, bool)):
-            raise HTTPException(status_code=422, detail={"code": "invalid_option", "diagnostics": [{"code": "option_type", "message": f"option {key!r} must be numeric"}]})
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
-            if "minimum" in definition and value < definition["minimum"]:
-                raise HTTPException(status_code=422, detail={"code": "invalid_option", "diagnostics": [{"code": "option_minimum", "message": f"option {key!r} is below its minimum"}]})
-            if "maximum" in definition and value > definition["maximum"]:
-                raise HTTPException(status_code=422, detail={"code": "invalid_option", "diagnostics": [{"code": "option_maximum", "message": f"option {key!r} exceeds its maximum"}]})
-    for option, limit_name in (
-        ("iterations", "maxIterations"),
-        ("max_evaluations", "maxIterations"),
-        ("population_size", "maxPopulation"),
-        ("archive_size", "maxSolutions"),
-        ("time_budget_ms", "maxTimeBudgetMs"),
-    ):
-        limit = mode.get("limits", {}).get(limit_name)
-        if limit is not None and option in effective and effective[option] > limit:
-            raise HTTPException(status_code=422, detail={"code": "option_limit", "diagnostics": [{"code": "effective_limit", "message": f"option {option!r} exceeds mode limit {limit}"}]})
-    return manifest, mode, effective
-
-
-_EXPRESSION_KINDS = {"literal", "path", "not", "negate", "and", "or", "compare", "arithmetic", "call"}
-
-
-def _candidate_count(spec: Mapping[str, Any]) -> int:
-    catalogs = spec.get("candidates", {})
-    if not isinstance(catalogs, dict):
-        return 0
-    return sum(
-        len(catalog.get("candidates", {}))
-        for catalog in catalogs.values()
-        if isinstance(catalog, dict) and isinstance(catalog.get("candidates"), dict)
+    return await engine_registry.verify_registration(
+        document,
+        credential,
+        engine,
+        settings=get_settings(),
+        fetch=fetch_remote_document,
+        solve=solve_remote,
     )
 
 
-def _expression_features(value: Any) -> set[str]:
-    found: set[str] = set()
-    if isinstance(value, dict):
-        kind = value.get("kind")
-        if kind in _EXPRESSION_KINDS:
-            if kind == "path":
-                segments = value.get("segments", [])
-                root = segments[0] if isinstance(segments, list) and segments else "unknown"
-                found.add(f"path.{root}")
-            elif kind == "call" and isinstance(value.get("name"), str):
-                found.add(f"call.{value['name']}")
-            else:
-                found.add(kind)
-        for child in value.values():
-            found.update(_expression_features(child))
-    elif isinstance(value, list):
-        for child in value:
-            found.update(_expression_features(child))
-    return found
+def _package_request(request: Request) -> instances.PackageRequest:
+    """The upload as ``services.instances`` takes it.
 
-
-def _workflow_features(workflow: Any, routing: dict[str, Any]) -> set[str]:
-    if not isinstance(workflow, dict):
-        return set()
-    kind = workflow.get("kind")
-    if kind in {"task", "empty"}:
-        return {kind}
-    if kind in {"sequence", "parallel"}:
-        result = {kind}
-        children = workflow.get("steps", []) if kind == "sequence" else workflow.get("branches", [])
-        for child in children:
-            result.update(_workflow_features(child, routing))
-        return result
-    if kind == "exclusive":
-        branches = workflow.get("branches", [])
-        conditional = any(isinstance(branch, dict) and branch.get("when") is not None for branch in branches)
-        result = {"exclusive.conditional" if conditional else "exclusive.probabilistic"}
-        for branch in branches:
-            flow = branch.get("flow") if isinstance(branch, dict) and "flow" in branch else branch
-            result.update(_workflow_features(flow, routing))
-        return result
-    if kind == "repeat":
-        repeat_kind = "repeat.count" if "count" in workflow else "repeat.expectedCount"
-        return {repeat_kind} | _workflow_features(workflow.get("body"), routing)
-    return {str(kind)} if isinstance(kind, str) else set()
-
-
-def _workflow_aggregation_contexts(workflow: Any) -> set[str]:
-    """Return only aggregation slots that can execute in this workflow."""
-
-    if not isinstance(workflow, Mapping):
-        return set()
-    kind = workflow.get("kind")
-    if kind == "sequence":
-        return {"sequence"} | set().union(*(
-            _workflow_aggregation_contexts(child) for child in workflow.get("steps", [])
-        ))
-    if kind == "parallel":
-        return {"parallel"} | set().union(*(
-            _workflow_aggregation_contexts(child) for child in workflow.get("branches", [])
-        ))
-    if kind == "exclusive":
-        branches = workflow.get("branches", [])
-        own = set() if any(isinstance(branch, Mapping) and "when" in branch for branch in branches) else {"exclusive"}
-        return own | set().union(*(
-            _workflow_aggregation_contexts(branch.get("flow", {}))
-            for branch in branches if isinstance(branch, Mapping)
-        ))
-    if kind == "repeat":
-        return {"repeat"} | _workflow_aggregation_contexts(workflow.get("body", {}))
-    return set()
-
-
-def _aggregate_bound(constraint: dict[str, Any]) -> bool:
-    assertion = constraint.get("assert")
-    when = constraint.get("when")
-    if not isinstance(assertion, dict) or assertion.get("kind") != "compare":
-        return False
-    if isinstance(when, dict) and not (when.get("kind") == "literal" and when.get("value") is True):
-        return False
-    children = (assertion.get("left"), assertion.get("right"))
-    return any(
-        isinstance(child, dict)
-        and child.get("kind") == "path"
-        and child.get("segments", [None])[0] == "features"
-        for child in children
-    ) and any(isinstance(child, dict) and child.get("kind") == "literal" for child in children)
-
-
-def _ir_features(problem: BindingProblem) -> dict[str, set[str]]:
-    spec = problem.document.get("spec", {})
-    application = spec.get("application", {})
-    features_dict = application.get("features", {}) if isinstance(application, dict) else {}
-    workflow = application.get("workflow", {}) if isinstance(application, dict) else {}
-    workflow_contexts = _workflow_aggregation_contexts(workflow)
-    required_features = set(application.get("requiredFeatures", [])) if isinstance(application, dict) else set()
-    aggregations: set[str] = set()
-    feature_scopes: set[str] = set()
-    for feature_id, feature in features_dict.items() if isinstance(features_dict, dict) else []:
-        if feature_id not in required_features:
-            continue
-        aggregation = feature.get("aggregation", {}) if isinstance(feature, dict) else {}
-        if isinstance(aggregation, dict):
-            scope = feature.get("scope")
-            active_contexts = {"selection"} if scope == "selectedCandidate" else workflow_contexts
-            for context in active_contexts:
-                value = aggregation.get(context)
-                if value is None:
-                    continue
-                operator = value if isinstance(value, str) else "expression"
-                aggregations.add(f"{context}.{operator}")
-        if isinstance(feature, dict) and isinstance(feature.get("scope"), str):
-            feature_scopes.add(feature["scope"])
-    constraints = spec.get("constraints", [])
-    constraint_features: set[str] = set()
-    if isinstance(constraints, list):
-        for constraint in constraints:
-            if not isinstance(constraint, dict):
-                continue
-            enforcement = constraint.get("enforcement")
-            if isinstance(enforcement, str):
-                shape = "aggregate-bound" if _aggregate_bound(constraint) else "expression"
-                constraint_features.add(f"{enforcement}.{shape}")
-    active_aggregation_expressions: list[Any] = []
-    for feature_id, feature in features_dict.items() if isinstance(features_dict, Mapping) else ():
-        if feature_id not in required_features or not isinstance(feature, Mapping):
-            continue
-        aggregation = feature.get("aggregation", {})
-        if not isinstance(aggregation, Mapping):
-            continue
-        contexts = (
-            {"selection"}
-            if feature.get("scope") == "selectedCandidate"
-            else workflow_contexts
-        )
-        active_aggregation_expressions.extend(
-            aggregation[context] for context in contexts if context in aggregation
-        )
-    expression_features = _expression_features({
-        "workflow": workflow,
-        "constraints": constraints,
-        "aggregations": active_aggregation_expressions,
-    })
-    dialect_features: dict[str, set[str]] = {}
-    for item in spec.get("dialects", []):
-        if not isinstance(item, Mapping):
-            continue
-        for feature in item.get("irFeatures", []):
-            if isinstance(feature, Mapping) and isinstance(feature.get("dimension"), str) and isinstance(feature.get("value"), str):
-                dialect_features.setdefault(feature["dimension"], set()).add(feature["value"])
-    placement = spec.get("placement")
-    placement_features = {"placement"} if isinstance(placement, (list, dict)) and placement else set()
-    routing = spec.get("routing", {}) if isinstance(spec.get("routing"), dict) else {}
-    features = {
-        "workflowNodes": _workflow_features(workflow, routing),
-        "aggregations": aggregations,
-        "featureScopes": feature_scopes,
-        "constraints": constraint_features,
-        "expressions": expression_features,
-        "placement": placement_features,
-        "irExtensions": set(),
-    }
-    for dimension, values in dialect_features.items():
-        features.setdefault(dimension, set()).update(values)
-    return features
-
-
-def _resolve_execution_optimization(
-    problem: BindingProblem,
-    mode: Mapping[str, Any],
-    requested: Any,
-) -> dict[str, Any]:
-    """Validate and canonicalize the execution-time optimization selection."""
-    if not isinstance(requested, Mapping):
-        raise HTTPException(status_code=422, detail={
-            "code": "optimization_required",
-            "message": "job execution requires an optimization object",
-        })
-    objective_type = requested.get("type")
-    scalarization = requested.get("scalarization")
-    if objective_type not in {"SINGLE", "MULTI", "MANY"}:
-        raise HTTPException(status_code=422, detail={"code": "invalid_optimization_type", "message": "optimization.type must be SINGLE, MULTI or MANY"})
-    if not isinstance(scalarization, str) or not scalarization:
-        raise HTTPException(status_code=422, detail={"code": "scalarization_required", "message": "optimization.scalarization is required"})
-    criteria = problem.document.get("spec", {}).get("optimization", {}).get("criteria", [])
-    criteria_ids = [item.get("id") for item in criteria if isinstance(item, Mapping)]
-    if len(criteria_ids) != len(set(criteria_ids)):
-        raise HTTPException(status_code=422, detail={"code": "invalid_criteria", "message": "BindingProblem contains duplicate criterion ids"})
-    count = len(criteria_ids)
-    if objective_type == "MULTI" and not 2 <= count <= 3:
-        raise HTTPException(status_code=422, detail={"code": "objective_cardinality", "message": "MULTI requires two or three criteria"})
-    if objective_type == "MANY" and count < 3:
-        raise HTTPException(status_code=422, detail={"code": "objective_cardinality", "message": "MANY requires at least three criteria"})
-    capabilities = mode.get("capabilities", {})
-    declaration = capabilities.get("scalarizations") if isinstance(capabilities, Mapping) else None
-    descriptors = declaration.get("values", []) if isinstance(declaration, Mapping) else []
-    descriptor = next((item for item in descriptors if isinstance(item, Mapping) and item.get("id") == scalarization), None)
-    if descriptor is None:
-        raise HTTPException(status_code=422, detail={"code": "scalarization_incompatible", "message": f"engine mode does not support scalarization {scalarization!r}"})
-    if objective_type not in descriptor.get("objectiveTypes", []):
-        raise HTTPException(status_code=422, detail={"code": "optimization_type_incompatible", "message": f"scalarization {scalarization!r} does not support {objective_type}"})
-    weight_policy = descriptor.get("weightPolicy")
-    supplied = requested.get("weights")
-    if supplied is not None and not isinstance(supplied, list):
-        raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "optimization.weights must be an array"})
-    if weight_policy == "forbidden" and supplied not in (None, []):
-        raise HTTPException(status_code=422, detail={"code": "weights_forbidden", "message": f"scalarization {scalarization!r} does not accept weights"})
-    if weight_policy == "required" and supplied is None:
-        if count == 0:
-            raise HTTPException(status_code=422, detail={"code": "weights_required", "message": "a weighted scalarization requires at least one criterion"})
-        supplied = [{"criteria": criterion_id, "value": 1.0 / count} for criterion_id in criteria_ids]
-    if supplied is None:
-        supplied = []
-    weights: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for item in supplied:
-        if not isinstance(item, Mapping) or set(item) != {"criteria", "value"}:
-            raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "each weight must contain exactly criteria and value"})
-        criterion_id = item.get("criteria")
-        value = item.get("value")
-        if criterion_id not in criteria_ids or criterion_id in seen:
-            raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "weights must reference each criterion exactly once"})
-        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)) or float(value) <= 0:
-            raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "criterion weights must be positive finite numbers"})
-        seen.add(criterion_id)
-        weights.append({"criteria": criterion_id, "value": float(value)})
-    if weight_policy == "required" and set(seen) != set(criteria_ids):
-        raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "weights must cover all criteria"})
-    if weights:
-        total = sum(item["value"] for item in weights)
-        weights = [{**item, "value": item["value"] / total} for item in weights]
-    if count == 0 and scalarization != "feasibility":
-        raise HTTPException(status_code=422, detail={"code": "criteria_required", "message": "criteria are required unless using feasibility scalarization"})
-    return {"type": objective_type, "scalarization": scalarization, "weights": weights}
-
-
-def _mode_compatibility(problem: BindingProblem, mode: dict[str, Any]) -> list[dict[str, Any]]:
-    features = _ir_features(problem)
-    capabilities = mode.get("capabilities", {})
-    diagnostics: list[dict[str, Any]] = []
-    problem_profile = problem.document.get("spec", {}).get("profile", {}).get("id")
-    if mode.get("profile") != problem_profile:
-        diagnostics.append({
-            "code": "profile_incompatible",
-            "message": f"mode profile {mode.get('profile')!r} does not match problem profile {problem_profile!r}",
-        })
-    problem_ir = {
-        "apiVersion": problem.document.get("apiVersion"),
-        "kind": problem.document.get("kind"),
-    }
-    if mode.get("ir") != problem_ir:
-        diagnostics.append({
-            "code": "ir_incompatible",
-            "message": f"mode IR {mode.get('ir')!r} does not match problem IR {problem_ir!r}",
-        })
-    for category, used in features.items():
-        declaration = capabilities.get(category)
-        if declaration is None:
-            diagnostics.append({
-                "code": "missing_capability_selector",
-                "category": category,
-                "message": f"mode does not declare capability dimension {category}",
-            })
-            continue
-        if isinstance(declaration, str):
-            selector = declaration
-            allowed: set[str] = set()
-        elif isinstance(declaration, dict):
-            selector = declaration.get("selector")
-            allowed = {value for value in declaration.get("values", []) if isinstance(value, str)}
-        else:
-            selector = None
-            allowed = set()
-        if selector == "none":
-            if used:
-                diagnostics.append(
-                    {
-                        "code": "unsupported_capability",
-                        "category": category,
-                        "unsupported": sorted(used),
-                        "message": f"mode does not support {category}: {', '.join(sorted(used))}",
-                    }
-                )
-        elif selector == "only":
-            unsupported = used - allowed
-            if unsupported:
-                diagnostics.append(
-                    {
-                        "code": "unsupported_capability_value",
-                        "category": category,
-                        "unsupported": sorted(unsupported),
-                        "allowed": sorted(allowed),
-                        "message": f"mode does not support requested {category} values",
-                    }
-                )
-        elif selector != "all":
-            diagnostics.append(
-                {
-                    "code": "invalid_capability_selector",
-                    "category": category,
-                    "message": f"mode has an invalid {category} selector",
-                }
-            )
-    spec = problem.document.get("spec", {})
-    tasks = spec.get("application", {}).get("tasks", {})
-    task_count = len(tasks) if isinstance(tasks, (dict, list)) else 0
-    candidate_count = _candidate_count(spec)
-    optimization = spec.get("optimization", {})
-    criteria = optimization.get("criteria", []) if isinstance(optimization, Mapping) else []
-    objective_count = len(criteria) if isinstance(criteria, list) else 0
-    limits = mode.get("limits", {})
-    for key, actual, label in (
-        ("maxTasks", task_count, "tasks"),
-        ("maxCandidates", candidate_count, "candidates"),
-        ("maxObjectives", objective_count, "objectives"),
-    ):
-        limit = limits.get(key) if isinstance(limits, dict) else None
-        if isinstance(limit, int) and actual > limit:
-            diagnostics.append(
-                {
-                    "code": "engine_limit",
-                    "limit": key,
-                    "actual": actual,
-                    "maximum": limit,
-                    "message": f"instance has {actual} {label}; mode limit is {limit}",
-                }
-            )
-    minimum = limits.get("minObjectives") if isinstance(limits, dict) else None
-    if isinstance(minimum, int) and objective_count < minimum:
-        diagnostics.append(
-            {
-                "code": "engine_limit",
-                "limit": "minObjectives",
-                "actual": objective_count,
-                "minimum": minimum,
-                "message": f"instance has {objective_count} objectives; mode minimum is {minimum}",
-            }
-        )
-    return diagnostics
-
-
-def _engine_ref(document: dict[str, Any], namespace: str | None = None) -> dict[str, str]:
-    metadata = document.get("metadata", {})
-    resolved_namespace = namespace or metadata.get("namespace") or "bim.builtin"
-    return {
-        "namespace": resolved_namespace,
-        "name": metadata["name"],
-        "version": metadata.get("version", "1.0.0"),
-        "digest": digest(document),
-    }
-
-
-async def _available_engine_documents(
-    session: AsyncSession | None,
-    caller: User | None = None,
-) -> list[tuple[dict[str, Any], str | None]]:
-    documents: list[tuple[dict[str, Any], str | None]] = []
-    for path in sorted(_MANIFEST_DIR.glob("*.json")):
-        doc = json.loads(path.read_text(encoding="utf-8"))
-        if doc.get("metadata", {}).get("internal", False):
-            continue
-        documents.append((doc, "bim.builtin"))
-    if session is not None:
-        query = select(EngineRevision)
-        if caller is None:
-            query = query.where(EngineRevision.state == "published")
-        else:
-            query = query.where(
-                or_(
-                    EngineRevision.state == "published",
-                    EngineRevision.owner_id == caller.id,
-                )
-            )
-        revisions = (
-            await session.execute(
-                query.order_by(EngineRevision.name, EngineRevision.created_at.desc())
-            )
-        ).scalars().all()
-        documents.extend(
-            (revision.document, revision.namespace)
-            for revision in revisions
-            if not revision.document.get("metadata", {}).get("internal", False)
-        )
-    unique: dict[tuple[str, str, str, str], tuple[dict[str, Any], str | None]] = {}
-    for document, namespace in documents:
-        reference = _engine_ref(document, namespace)
-        key = (reference["namespace"], reference["name"], reference["version"], reference["digest"])
-        unique[key] = (document, namespace)
-    return list(unique.values())
-
-
-def _registration_engine_reference(
-    registration: EngineRegistrationRevision | Mapping[str, Any],
-) -> dict[str, str] | None:
-    document = (
-        registration.document
-        if isinstance(registration, EngineRegistrationRevision)
-        else registration.get("document")
-    )
-    if not isinstance(document, Mapping):
-        return None
-    engine = document.get("spec", {}).get("engine")
-    if (
-        not isinstance(engine, Mapping)
-        or set(engine) != {"namespace", "name", "version", "digest"}
-        or not all(isinstance(engine.get(field), str) and engine.get(field) for field in engine)
-    ):
-        return None
-    return {field: str(engine[field]) for field in ("namespace", "name", "version", "digest")}
-
-
-async def _visible_engine_registrations(
-    engine_reference: dict[str, str],
-    engine_document: dict[str, Any],
-    caller: User | None,
-    session: AsyncSession | None,
-) -> list[EngineRegistrationRevision | dict[str, Any]]:
-    """Return only installed deployments the caller can execute exactly.
-
-    Compatibility is an execution claim, not merely an IR feature match.  A
-    mode therefore becomes selectable only through an active registration
-    whose immutable Engine reference is byte-for-byte the analyzed revision.
-    Multiple deployments stay as separate choices instead of being collapsed
-    into an ambiguous engine/mode pair.
+    The limits are looked up in this module when the service asks for them (hence the lambdas), so replacing
+    ``_max_compressed`` here, as the tests do, takes effect.
     """
-
-    if caller is not None and not allows_engine(caller, engine_reference):
-        return []
-
-    candidates: list[EngineRegistrationRevision | dict[str, Any]] = []
-    if caller is not None:
-        installed_builtin = _installed_builtin_registration(
-            engine_document,
-            get_settings().engine_urls.get(engine_reference["name"]),
-        )
-        if installed_builtin is not None:
-            candidates.append(installed_builtin)
-
-    if session is not None:
-        if caller is not None:
-            query = select(EngineRegistrationRevision).where(
-                EngineRegistrationRevision.engine_digest == engine_reference["digest"],
-                or_(
-                    (
-                        (EngineRegistrationRevision.owner_id == caller.id)
-                        & EngineRegistrationRevision.is_active.is_(True)
-                    ),
-                    (
-                        (EngineRegistrationRevision.owner_id != caller.id)
-                        & (
-                            EngineRegistrationRevision.publication_status
-                            == "published"
-                        )
-                    ),
-                ),
-            )
-            candidates.extend((await session.execute(query)).scalars().all())
-
-    exact: dict[
-        tuple[str, str, str, str],
-        EngineRegistrationRevision | dict[str, Any],
-    ] = {}
-    for registration in candidates:
-        if _registration_engine_reference(registration) != engine_reference:
-            continue
-        reference = _registration_reference(registration)
-        key = tuple(reference[field] for field in ("namespace", "name", "version", "digest"))
-        exact[key] = registration
-    return [exact[key] for key in sorted(exact)]
+    return instances.PackageRequest(request.headers, request.body, lambda: _max_compressed(), lambda: _max_expanded())
 
 
-async def _compatible_modes(
-    problem: BindingProblem,
-    caller: User | None,
-    session: AsyncSession | None,
-) -> list[dict[str, Any]]:
-    result: list[dict[str, Any]] = []
-    for document, namespace in await _available_engine_documents(session, caller):
-        reference = _engine_ref(document, namespace)
-        registrations = await _visible_engine_registrations(
-            reference,
-            document,
-            caller,
-            session,
-        )
-        if not registrations:
-            continue
-        for mode in document.get("spec", {}).get("modes", []):
-            if not isinstance(mode, dict) or not isinstance(mode.get("id"), str):
-                continue
-            diagnostics = _mode_compatibility(problem, mode)
-            for registration in registrations:
-                result.append(
-                    {
-                        "engine": reference,
-                        "registration": _registration_reference(registration),
-                        "mode": mode["id"],
-                        "compatible": not diagnostics,
-                        "diagnostics": diagnostics,
-                    }
-                )
-    return sorted(
-        result,
-        key=lambda item: (
-            item["engine"]["namespace"],
-            item["engine"]["name"],
-            item["engine"]["version"],
-            item["mode"],
-            item["registration"]["namespace"],
-            item["registration"]["name"],
-            item["registration"]["version"],
-            item["registration"]["digest"],
-        ),
-    )
-
-
-async def _read_package(request: Request) -> InstancePackage:
-    content_type = (request.headers.get("content-type") or "").split(";", 1)[0].lower()
-    if content_type not in _BIM_ZIP_TYPES:
-        raise HTTPException(
-            status_code=415,
-            detail="BIM source uploads must use a .bim.zip media type",
-        )
-    ceiling = MAX_COMPRESSED
-    declared = request.headers.get("content-length")
-    if declared and declared.isdigit() and int(declared) > ceiling:
-        raise HTTPException(status_code=413, detail=f"request body exceeds {ceiling} bytes")
-    body = await request.body()
-    if len(body) > ceiling:
-        raise HTTPException(status_code=413, detail=f"request body exceeds {ceiling} bytes")
-    try:
-        return load_package(body)
-    except PackageError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+async def _read_package(request: Request) -> bytes:
+    return await instances.read_package(_package_request(request))
 
 
 def _multipart_zip(body: bytes, content_type: str) -> bytes:
-    """Parse one bounded MIME file part without trusting its supplied name."""
-    if "\r" in content_type or "\n" in content_type or len(content_type) > 4096:
-        raise PackageError("invalid multipart Content-Type")
-    try:
-        envelope = (
-            f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode("ascii")
-            + body
-        )
-    except UnicodeEncodeError as exc:
-        raise PackageError("multipart Content-Type must be ASCII") from exc
-    message = BytesParser(policy=email_policy).parsebytes(envelope)
-    if not message.is_multipart():
-        raise PackageError("multipart/form-data requires a valid boundary")
-    files: list[bytes] = []
-    for part in message.iter_parts():
-        if part.get_content_disposition() != "form-data" or part.get_filename() is None:
-            continue
-        transfer_encoding = (part.get("Content-Transfer-Encoding") or "binary").casefold()
-        if transfer_encoding not in {"binary", "8bit"}:
-            raise PackageError("multipart ZIP must use binary transfer encoding")
-        content = part.get_payload(decode=True)
-        if not isinstance(content, bytes) or not content:
-            raise PackageError("multipart ZIP part is empty")
-        if len(content) > MAX_COMPRESSED:
-            raise PackageError(f"compressed package exceeds {MAX_COMPRESSED} bytes")
-        files.append(content)
-    if len(files) != 1:
-        raise PackageError("multipart request must contain exactly one ZIP file part")
-    return files[0]
+    return instances.multipart_zip(body, content_type, lambda: _max_compressed())
 
 
-def _compile(
-    package: InstancePackage,
-    registered_resources: Mapping[tuple[str, str, str, str], RegisteredResource] | None = None,
-) -> BindingProblem:
-    try:
-        return compile_instance(package, registered_resources)
-    except CompileError as exc:
-        raise HTTPException(status_code=422, detail={"code": "invalid_instance", "diagnostics": [item.as_dict() for item in exc.diagnostics]}) from exc
-
-
-def _registered_keys(package: InstancePackage) -> set[tuple[str, str, str, str]]:
-    instance = package.instance()
-    resources = instance.get("spec", {}).get("resources", {})
-    if not isinstance(resources, dict):
-        return set()
-    keys: set[tuple[str, str, str, str]] = set()
-    for group in resources.values():
-        if not isinstance(group, dict):
-            continue
-        for target in group.values():
-            if isinstance(target, dict) and all(
-                isinstance(target.get(key), str)
-                for key in ("namespace", "name", "version", "digest")
-            ):
-                keys.add((target["namespace"], target["name"], target["version"], target["digest"]))
-    return keys
-
-
-async def _installed_registered_resources(
-    package: InstancePackage,
-    session: AsyncSession | None,
-    caller: User | None = None,
-) -> dict[tuple[str, str, str, str], RegisteredResource]:
-    library_resources = {}
-    if session is not None:
-        from ..artifacts import resolve_version, version_content
-        from ..models.artifacts import ArtifactRef
-        for group in package.instance().get("spec", {}).get("resources", {}).values():
-            for target in group.values() if isinstance(group, dict) else []:
-                if isinstance(target, dict) and "versionDigest" in target:
-                    _, version = await resolve_version(session, ArtifactRef.model_validate(target), caller)
-                    content, media_type = await version_content(session, version)
-                    key = tuple(target[field] for field in ("namespace", "name", "version", "versionDigest"))
-                    library_resources[key] = RegisteredResource(content, media_type, version.manifest)
-    keys = _registered_keys(package)
-    resolved = {**library_resources, **{key: value for key, value in _CUSTOM_RESOURCES.items() if key in keys}}
-    if not keys or session is None:
-        return resolved
-    digests = {key[3] for key in keys}
-    rows = (
-        await session.execute(
-            select(RegisteredResourceRevision).where(
-                RegisteredResourceRevision.state == "published",
-                RegisteredResourceRevision.digest.in_(digests),
-            )
-        )
-    ).scalars().all()
-    for row in rows:
-        key = (row.namespace, row.name, row.version, row.digest)
-        if key in keys:
-            resolved[key] = RegisteredResource(row.content, row.media_type)
-    return resolved
-
-
-async def _compile_resolved(
-    package: InstancePackage,
-    session: AsyncSession | None,
-    caller: User | None = None,
-) -> BindingProblem:
-    return _compile(package, await _installed_registered_resources(package, session, caller))
-
-
-def _snapshot_payload(package: InstancePackage, problem: BindingProblem) -> dict[str, Any]:
-    portable = load_package(package.to_zip())
-    return {
-        "package": portable,
-        "problem": problem,
-        "digest": _instance_identity(portable),
-        "packageDigest": portable.package_digest,
-        "fileDigests": portable.resource_digests,
-        "resourceDigests": _source_resource_digests(problem),
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-    }
-
-
-def _source_resource_digests(problem: BindingProblem) -> dict[str, str]:
-    resources = problem.document.get("spec", {}).get("instance", {}).get("resources", {})
-    return {
-        resource_id: descriptor["digest"]
-        for resource_id, descriptor in sorted(resources.items())
-        if isinstance(descriptor, dict) and isinstance(descriptor.get("digest"), str)
-    }
-
-
-def _snapshot_resource_contract(
-    problem: BindingProblem,
-    descriptor: Mapping[str, Any],
-    role: str,
-    media_type: str,
-) -> tuple[str, str, str]:
-    """Resolve the exact installed-and-pinned Dialect for one IR resource."""
-    api_version = descriptor.get("apiVersion")
-    kind = descriptor.get("kind")
-    if not isinstance(api_version, str) or not api_version:
-        raise RuntimeError("compiled resource is missing apiVersion")
-    if not isinstance(kind, str) or not kind:
-        raise RuntimeError("compiled resource is missing kind")
-    if descriptor.get("role") != role:
-        raise RuntimeError("compiled resource role does not match the Instance index")
-
-    pinned_dialects = {
-        item.get("id"): item
-        for item in problem.document.get("spec", {}).get("dialects", [])
-        if isinstance(item, Mapping) and isinstance(item.get("id"), str)
-    }
-    matches = [
-        manifest_id(dialect)
-        for dialect, resource_type in _dialect_type_matches(
-            installed_dialect_manifests(), api_version, kind, media_type
-        )
-        if role in resource_type.get("roles", [])
-        and pinned_dialects.get(manifest_id(dialect)) == _dialect_descriptor(dialect)
-    ]
-    if len(matches) != 1:
-        raise RuntimeError(
-            "compiled resource does not resolve to exactly one installed and pinned Dialect"
-        )
-    return api_version, kind, matches[0]
-
-
-async def _persist_snapshot(
-    package: InstancePackage,
-    problem: BindingProblem,
-    caller: User | None,
-    session: AsyncSession | None,
-) -> str | None:
-    """Persist a source snapshot and its canonical IR when accounts are enabled."""
-    if session is None:
-        return None
-    archive = package.to_zip()
-    portable = load_package(archive)
-    instance = portable.instance()
-    instance_hash = _instance_identity(package)
-    package_hash = digest_bytes(archive)
-    from ..v1.compiler import compiler_bundle_digest
-    compilation_hash = digest({"packageDigest": package_hash,
-        "profile": problem.document.get("spec", {}).get("profile"),
-        "dialects": problem.document.get("spec", {}).get("dialects", []),
-        "compilerDigest": compiler_bundle_digest()})
-    owner_id = caller.id if caller else None
-    query = select(InstanceSnapshot).where(
-        InstanceSnapshot.package_digest == package_hash,
-        InstanceSnapshot.compilation_digest == compilation_hash,
-        InstanceSnapshot.owner_id == owner_id,
-    )
-    existing = (await session.execute(query)).scalars().first()
-    if existing is not None:
-        return str(existing.id)
-
-    snapshot = InstanceSnapshot(
-        owner_id=owner_id,
-        name=instance.get("metadata", {}).get("name", "instance"),
-        instance_digest=instance_hash,
-        package_digest=package_hash,
-        root_document=portable.json("instance.json"),
-        resource_digests=_source_resource_digests(problem),
-        source_archive=archive,
-        compilation_digest=compilation_hash,
-    )
-    try:
-        async with session.begin_nested():
-            session.add(snapshot)
-            await session.flush()
-    except IntegrityError:
-        existing = await session.scalar(query)
-        if existing is not None:
-            return str(existing.id)
-        raise
-
-
-    resources = instance.get("spec", {}).get("resources", {})
-    manifest = problem.document.get("spec", {}).get("instance", {}).get("resources", {})
-    installed_registered = await _installed_registered_resources(portable, session, caller)
-    for role, group in resources.items() if isinstance(resources, dict) else []:
-        if not isinstance(group, dict):
-            continue
-        for resource_id, target in group.items():
-            path = target if isinstance(target, str) else None
-            registered = target if isinstance(target, dict) else None
-            descriptor = manifest.get(resource_id, {}) if isinstance(manifest, dict) else {}
-            if isinstance(path, str):
-                content = portable.bytes(path)
-                document = None
-                if path.lower().endswith(".json"):
-                    try:
-                        document = portable.json(path)
-                    except PackageError:
-                        document = None
-                media_type = (
-                    "application/json"
-                    if path.lower().endswith(".json")
-                    else "application/xml" if path.lower().endswith(".xml") else "application/vnd.omg.bpmn+xml"
-                )
-                resource_digest = portable.digest(path)
-            elif registered is not None:
-                key = tuple(
-                    registered.get(field, "")
-                    for field in ("namespace", "name", "version", "versionDigest" if "versionDigest" in registered else "digest")
-                )
-                resolved = installed_registered.get(key)
-                if resolved is None:
-                    raise RuntimeError("compiled registered resource is no longer published locally")
-                content = resolved.content
-                media_type = resolved.media_type
-                resource_digest = resolved.version_manifest["contentDigest"] if resolved.version_manifest else registered["digest"]
-                document = None
-                if media_type == "application/json":
-                    parsed = strict_json_loads(content)
-                    document = parsed if isinstance(parsed, dict) else None
-            else:
-                continue
-            api_version, kind, dialect_id = _snapshot_resource_contract(
-                problem, descriptor, role, media_type
-            )
-            session.add(
-                InstanceResource(
-                    snapshot_id=snapshot.id,
-                    resource_id=resource_id,
-                    role=role,
-                    api_version=api_version,
-                    kind=kind,
-                    dialect_id=dialect_id,
-                    path=path,
-                    digest=resource_digest,
-                    registered_namespace=registered.get("namespace") if registered else None,
-                    registered_name=registered.get("name") if registered else None,
-                    registered_version=registered.get("version") if registered else None,
-                    registered_digest=registered.get("versionDigest", registered.get("digest")) if registered else None,
-                    media_type=media_type,
-                    document=document,
-                    content=content,
-                )
-            )
-    session.add(
-        BindingIRSnapshot(
-            snapshot_id=snapshot.id,
-            ir_digest=problem.digest,
-            document=problem.document,
-            source_map=problem.source_map,
-            compiler_version="bim-compiler/v1",
-        )
-    )
-    await session.flush()
-    return str(snapshot.id)
-
-
-async def _snapshot_problem(snapshot: InstanceSnapshot, session: AsyncSession) -> BindingProblem:
-    """A snapshot is already compiled. Never reinterpret it using current sources."""
-    ir = await session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))
-    if ir is None:
-        raise HTTPException(409, detail={"code": "snapshot_ir_missing", "message": "Snapshot IR is unavailable"})
-    if ir.document.get('apiVersion') != 'bim/v1' or ir.document.get('kind') != 'BindingProblem':
-        raise HTTPException(422, detail={"code": "execution_capability_unavailable", "message": "This output has no installed execution evaluator"})
-    semantic = json.loads(json.dumps(ir.document))
-    semantic.pop('metadata', None)
-    for key in ('instance', 'dialects', 'sourceMap'):
-        semantic.get('spec', {}).pop(key, None)
-    if digest(semantic) != ir.ir_digest:
-        raise HTTPException(409, detail={"code": "snapshot_ir_integrity", "message": "Stored IR does not match its semantic digest"})
-    spec = ir.document.get("spec", {})
-    profile = spec.get("profile", {})
-    if profile not in [_profile_descriptor(item) for item in installed_profile_manifests()]:
-        raise HTTPException(409, detail={"code": "contract_not_installed", "message": "The exact snapshot Profile is not installed"})
-    available = [_dialect_descriptor(item) for item in installed_dialect_manifests()]
-    if any(item not in available for item in spec.get("dialects", [])):
-        raise HTTPException(409, detail={"code": "contract_not_installed", "message": "An exact snapshot Dialect is not installed"})
-    return BindingProblem(document=ir.document, digest=ir.ir_digest, source_map=ir.source_map)
-
-
-async def _owned_snapshot(snapshot_id: str, caller: User | None, session: AsyncSession | None):
-    if session is None or caller is None:
-        return None
-    try:
-        parsed = uuid.UUID(str(snapshot_id))
-    except ValueError:
-        return None
-    snapshot = await session.get(InstanceSnapshot, parsed)
-    if snapshot is None or snapshot.owner_id == caller.id:
-        return snapshot
-    # Sharing a case grants organization members access to its fixed inputs.
-    # Project visibility alone never exposes private resource dependencies.
-    from ..db.models import BindingCase, BindingCaseRevision, Project
-    from ..collaboration import effective_role
-    organizations = (await session.scalars(select(Project.organization_id).join(
-        BindingCase, BindingCase.project_id == Project.id).join(
-        BindingCaseRevision, BindingCaseRevision.binding_case_id == BindingCase.id).where(
-        BindingCaseRevision.source_snapshot_id == snapshot.id).distinct())).all()
-    for organization_id in organizations:
-        if await effective_role(session, organization_id, caller):
-            return snapshot
-    return None
-
-
-async def _owned_job(job_id: str, caller: User | None, session: AsyncSession | None):
-    if session is None:
-        return None
-    try:
-        parsed = uuid.UUID(job_id)
-    except ValueError:
-        return None
-    if caller is None:
-        return None
-    job = (
-        await session.execute(
-            select(Job).where(Job.id == parsed, Job.owner_id == caller.id)
-        )
-    ).scalars().first()
-    if job is None:
-        return None
-    provenance = job.provenance if isinstance(job.provenance, dict) else {}
-    if not allows_engine(caller, provenance.get("engine", {})):
-        return None
-    return job
-
-
-async def _registration_for_engine(
-    namespace: str | None,
-    name: str | None,
-    version: str | None,
-    manifest_digest: str | None,
-    caller: User | None,
-    session: AsyncSession | None,
-) -> EngineRegistrationRevision | dict[str, Any] | None:
-    if name is None:
-        return None
-    if not all(
-        isinstance(value, str) and value
-        for value in (namespace, name, version, manifest_digest)
-    ):
-        return None
-    if session is not None and caller is not None:
-        query = select(EngineRegistrationRevision).where(
-            EngineRegistrationRevision.namespace == namespace,
-            EngineRegistrationRevision.name == name,
-            EngineRegistrationRevision.version == version,
-            EngineRegistrationRevision.manifest_digest == manifest_digest,
-            or_(
-                (
-                    (EngineRegistrationRevision.owner_id == caller.id)
-                    & EngineRegistrationRevision.is_active.is_(True)
-                ),
-                (
-                    (EngineRegistrationRevision.owner_id != caller.id)
-                    & (
-                        EngineRegistrationRevision.publication_status == "published"
-                    )
-                ),
-            ),
-        )
-        return (await session.execute(query)).scalars().first()
-    return None
-
-
-def _registration_reference(registration: Mapping[str, Any]) -> dict[str, str]:
-    if isinstance(registration, EngineRegistrationRevision):
-        return {
-            "namespace": registration.namespace,
-            "name": registration.name,
-            "version": registration.version,
-            "digest": registration.manifest_digest,
-        }
-    document = registration.get("document", {})
-    metadata = document.get("metadata", {}) if isinstance(document, Mapping) else {}
-    return {
-        "namespace": str(registration.get("namespace", metadata.get("namespace"))),
-        "name": str(registration.get("name", metadata.get("name"))),
-        "version": str(registration.get("version", metadata.get("version"))),
-        "digest": str(registration.get("digest")),
-    }
-
-
-def _registration_summary(
-    registration: EngineRegistrationRevision | Mapping[str, Any],
-) -> dict[str, Any]:
-    reference = _registration_reference(registration)
-    if isinstance(registration, EngineRegistrationRevision):
-        publication_status = registration.publication_status
-        active = registration.is_active
-    else:
-        publication_status = str(
-            registration.get("publicationStatus", registration.get("state", "private"))
-        )
-        active = bool(registration.get("active", False))
-    return {
-        **reference,
-        "status": publication_status,
-        "active": active,
-    }
-
-
-def _is_installed_builtin_registration(registration: Mapping[str, Any]) -> bool:
-    reference = _registration_reference(registration)
-    key = tuple(reference[field] for field in ("namespace", "name", "version", "digest"))
-    installed = _BUILTIN_REGISTRATIONS.get(key)
-    return bool(
-        installed is not None
-        and installed.get("installedBuiltin") is True
-        and installed.get("document") == registration.get("document")
-    )
-
-
-def _registration_transport(
-    registration: Mapping[str, Any],
-    credential: str | None = None,
-) -> RemoteRegistration:
-    document = registration.get("document")
-    if not isinstance(document, Mapping):
-        raise RemoteEngineError("installed EngineRegistration document is missing")
-    spec = document.get("spec")
-    if not isinstance(spec, Mapping):
-        raise RemoteEngineError("installed EngineRegistration spec is missing")
-    endpoint = spec.get("endpoint")
-    if not isinstance(endpoint, str):
-        raise RemoteEngineError("installed EngineRegistration endpoint is missing")
-    return RemoteRegistration(
-        endpoint=endpoint,
-        mappings=dict(spec.get("mappings", {})),
-        auth_scheme=spec.get("auth", {}).get("scheme", "none"),
-        credential=credential,
-        allow_internal_http=(
-            _is_installed_builtin_registration(registration)
-            or not get_settings().federation_require_https
-        ),
-    )
-
-
-def _mode_execution_contract(mode: Mapping[str, Any]) -> dict[str, Any]:
-    guarantees = mode.get("guarantees", {})
-    terminations = guarantees.get("termination", []) if isinstance(guarantees, Mapping) else []
-    return {
-        "id": mode.get("id"),
-        "terminationGuarantees": list(terminations) if isinstance(terminations, list) else [],
-    }
-
-
-def _persisted_mode_contract(value: Any) -> dict[str, Any] | None:
-    if not isinstance(value, dict) or set(value) != {"id", "terminationGuarantees"}:
-        return None
-    mode_id = value.get("id")
-    terminations = value.get("terminationGuarantees")
-    if (
-        not isinstance(mode_id, str)
-        or not mode_id
-        or not isinstance(terminations, list)
-        or not terminations
-        or any(
-            item not in {"OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"}
-            for item in terminations
-        )
-        or len(set(terminations)) != len(terminations)
-    ):
-        return None
-    return {"id": mode_id, "terminationGuarantees": list(terminations)}
-
-
-async def _persisted_engine_contract(
-    engine_name: str,
-    reference: Any,
-    mode: dict[str, Any],
-    session: AsyncSession,
-    owner_id: uuid.UUID | None = None,
-) -> dict[str, Any] | None:
-    """Resolve the pinned Engine and re-authorize its stored mode guarantees."""
-
-    if (
-        not isinstance(reference, dict)
-        or set(reference) != {"namespace", "name", "version", "digest"}
-        or reference.get("name") != engine_name
-        or not all(isinstance(value, str) and value for value in reference.values())
-    ):
-        return None
-    manifest: dict[str, Any] | None
-    try:
-        manifest = _manifest(
-            engine_name,
-            namespace=reference["namespace"],
-            version=reference["version"],
-            manifest_digest=reference["digest"],
-        )
-    except HTTPException:
-        revision = (
-            await session.execute(
-                select(EngineRevision).where(
-                    EngineRevision.namespace == reference["namespace"],
-                    EngineRevision.name == reference["name"],
-                    EngineRevision.version == reference["version"],
-                    EngineRevision.digest == reference["digest"],
-                    or_(
-                        EngineRevision.state == "published",
-                        EngineRevision.owner_id == owner_id,
-                    ),
-                )
-            )
-        ).scalars().first()
-        manifest = revision.document if revision is not None else None
-    if manifest is None or digest(manifest) != reference["digest"]:
-        return None
-    selected = next(
-        (
-            item
-            for item in manifest.get("spec", {}).get("modes", [])
-            if isinstance(item, Mapping) and item.get("id") == mode["id"]
-        ),
-        None,
-    )
-    if selected is None or _mode_execution_contract(selected) != mode:
-        return None
-    return manifest
-
-
-def _candidate_ref(value: Any) -> tuple[str, str] | None:
-    if not isinstance(value, dict) or set(value) != {"resource", "id"}:
-        return None
-    if not isinstance(value.get("resource"), str) or not isinstance(value.get("id"), str):
-        return None
-    return value["resource"], value["id"]
-
-
-def _binding_violations(problem: BindingProblem, binding: dict[str, Any]) -> list[dict[str, Any]]:
-    try:
-        problem.validate_binding(binding)
-    except (KeyError, TypeError, ValueError) as exc:
-        return [{"code": "binding_invalid", "message": str(exc), "enforcement": "hard"}]
-    return []
-
-
-def _authoritative_evaluation(
-    problem: BindingProblem, binding: dict[str, Any], execution: Mapping[str, Any] | None = None
-) -> tuple[dict[str, float], dict[str, Any], list[dict[str, Any]]]:
-    """Reevaluate a returned decision against the gateway's canonical IR."""
-    violations = _binding_violations(problem, binding)
-    feature_definitions = problem.document["spec"].get("application", {}).get("features", {})
-    empty_features = (
-        {feature_id: 0.0 for feature_id in feature_definitions}
-        if isinstance(feature_definitions, dict)
-        else {}
-    )
-    if violations:
-        return empty_features, {}, violations
-    try:
-        evaluation = problem.evaluate(binding, execution)
-        features = evaluation["features"]
-        objectives = evaluation["objectives"]
-        violations.extend(evaluation["violations"])
-    except (ArithmeticError, KeyError, TypeError, ValueError) as exc:
-        features = empty_features
-        objectives = {}
-        violations.append({"code": "binding_evaluation", "message": str(exc), "enforcement": "hard"})
-    return features, objectives, violations
-
-
-def _reevaluate_result(
-    problem: BindingProblem,
-    result: dict[str, Any],
-    execution: Mapping[str, Any] | None = None,
-    allowed_terminations: list[str] | tuple[str, ...] | set[str] = ("FEASIBLE", "UNKNOWN"),
-) -> dict[str, Any]:
-    """Replace engine-reported QoS fields with authoritative gateway values."""
-    solutions: list[dict[str, Any]] = []
-    invalid = False
-    for item in result.get("solutions", []) if isinstance(result.get("solutions"), list) else []:
-        decision = item.get("decision") if isinstance(item, dict) else None
-        binding = decision.get("binding") if isinstance(decision, dict) else None
-        if (
-            not isinstance(decision, dict)
-            or decision.get("kind") != "binding"
-            or not isinstance(binding, dict)
-            or any(not isinstance(key, str) or _candidate_ref(value) is None for key, value in binding.items())
-        ):
-            invalid = True
-            continue
-        features, objectives, violations = _authoritative_evaluation(problem, binding, execution)
-        if not objectives and (problem.document["spec"]["optimization"].get("criteria") or violations):
-            invalid = True
-            continue
-        soft_by_ref = {
-            _candidate_ref(entry["constraint"]): float(entry.get("penalty", 0.0))
-            for entry in violations
-            if entry.get("enforcement") == "soft"
-            and _candidate_ref(entry.get("constraint")) is not None
-        }
-        penalties = [
-            soft_by_ref.get(_candidate_ref(item["constraint"]), 0.0) * float(item["weight"])
-            for item in problem.document["spec"]["optimization"].get("penalties", [])
-        ]
-        solutions.append({
-            "decision": {"kind": "binding", "binding": binding},
-            "features": features,
-            "objectives": objectives,
-            "penalties": penalties,
-            "violations": violations,
-        })
-        if any(entry.get("enforcement") == "hard" for entry in violations):
-            invalid = True
-    termination = result.get("termination")
-    if termination not in {"OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"} or invalid:
-        termination = "UNKNOWN"
-    declared_terminations = {
-        value
-        for value in allowed_terminations
-        if value in {"OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"}
-    }
-    if termination != "UNKNOWN" and termination not in declared_terminations:
-        termination = "UNKNOWN"
-    if not solutions and termination in {"OPTIMAL", "FEASIBLE"}:
-        termination = "UNKNOWN"
-    if termination == "INFEASIBLE" and solutions:
-        termination = "UNKNOWN"
-    return {"termination": termination, "solutions": solutions, "provenance": result.get("provenance", {})}
+def _service_problem(exc: instances.InstanceProblem | discovery.DiscoveryProblem) -> JSONResponse:
+    return _problem(exc.status, exc.code, exc.detail, extra=getattr(exc, "extra", None) or None)
 
 
 def _error_from_http(exc: HTTPException) -> JSONResponse:
-    detail = exc.detail
-    if isinstance(detail, dict):
-        diagnostics = detail.get("diagnostics")
-        code = detail.get("code", "request_invalid")
-        message = detail.get("message", code)
-    else:
-        diagnostics = None
-        code = "request_invalid"
-        message = str(detail)
-    return _problem(exc.status_code, code, message, diagnostics)
+    """The same document the central HTTPException handler would produce (main.py)."""
+    default_code = VALIDATION_ERROR if exc.status_code == 422 else "request_invalid"
+    code, message, diagnostics, extra = split_detail(exc.detail, default_code)
+    return _problem(exc.status_code, code, message, diagnostics, extra=extra, headers=exc.headers)
+
+
+async def _read_json_body(request: Request, invalid_code: str) -> Any | JSONResponse:
+    """The JSON body of a registry request, within the expanded-document limit, or the problem to answer."""
+    try:
+        body = await request.body()
+        if len(body) > _max_expanded():
+            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
+        return strict_json_loads(body)
+    except PackageError as exc:
+        return _problem(422, invalid_code, str(exc))
+
+
+def _registry_problem(exc: engine_registry.RegistryProblem) -> JSONResponse:
+    return _problem(exc.status, exc.code, exc.detail, exc.diagnostics, extra=exc.extra)
 
 
 @router.get("/profiles")
 async def list_profiles() -> dict[str, Any]:
-    return {
-        "profiles": [
-            {
-                **profile,
-                "id": manifest_id(profile),
-                "digest": digest(profile),
-                "output": profile["spec"]["output"],
-                "protocol": profile["spec"]["output"]["engineProtocol"],
-                "protocolDigest": _protocol_digest(),
-            }
-            for profile in installed_profile_manifests()
-        ]
-    }
+    return discovery.profiles_document()
 
 
 def _builtin_profiles() -> list[dict[str, Any]]:
-    return installed_profile_manifests()
+    return bim.profile_manifests()
 
 
 def _builtin_dialects() -> list[dict[str, Any]]:
-    return installed_dialect_manifests()
+    return discovery.builtin_dialects()
 
 
 def _installed_dialect_contract(document: Mapping[str, Any]) -> bool:
     """Whether a manifest exactly describes a locally installed adapter ABI."""
-
-    metadata = document.get("metadata")
-    spec = document.get("spec")
-    if not isinstance(metadata, Mapping) or not isinstance(spec, Mapping):
-        return False
-    for installed in _builtin_dialects():
-        if digest(document) == digest(installed):
-            return True
-    return False
+    return discovery.installed_dialect_contract(document, _builtin_dialects())
 
 
 @router.get("/dialects")
 async def list_dialects(session: AsyncSession | None = Depends(optional_session, scope="function")) -> dict[str, Any]:
-    # Publication records are audit state, not an installation mechanism.
-    # Expose only contracts backed by the adapter/schema registry active in
-    # this process, so the catalog can never promise a stale deployment.
+    # Publication records are audit state, not an installation mechanism: only the installed contracts are listed.
     del session
-    return {
-        "dialects": [
-            {**item, "digest": digest(item)} for item in _builtin_dialects()
-        ]
-    }
+    return discovery.dialects_document(_builtin_dialects())
 
 
 SYSTEM_NAMESPACES = frozenset({"system", "openbinding"})
@@ -2295,17 +210,17 @@ async def publish_dialect(
 ):
     try:
         body = await request.body()
-        if len(body) > MAX_EXPANDED:
-            return _problem(413, "payload_too_large", f"request body exceeds {MAX_EXPANDED} bytes")
+        if len(body) > _max_expanded():
+            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
         document = strict_json_loads(body)
     except PackageError as exc:
         return _problem(422, "invalid_dialect", str(exc))
     diagnostics = (
-        _schema_diagnostics(document, "Dialect")
+        schema_diagnostics(document, "Dialect")
         if isinstance(document, dict)
         else [{"code": "document", "message": "Dialect must be an object"}]
     )
-    secret_paths = _embedded_secret_paths(document)
+    secret_paths = embedded_secret_paths(document)
     diagnostics.extend(
         {"code": "secret_in_document", "pointer": path, "message": "secret-like field is forbidden"}
         for path in secret_paths
@@ -2450,10 +365,10 @@ async def register_bim_resource(
             return _problem(403, "forbidden", "Resource namespace must match the caller")
     content_type = (request.headers.get("content-type") or "").split(";", 1)[0].casefold()
     body = await request.body()
-    if len(body) > MAX_EXPANDED:
-        return _problem(413, "payload_too_large", f"resource exceeds {MAX_EXPANDED} bytes")
+    if len(body) > _max_expanded():
+        return _problem(413, "payload_too_large", f"resource exceeds {_max_expanded()} bytes")
     document: dict[str, Any] | None = None
-    dialects = installed_dialect_manifests()
+    dialects = bim.dialect_manifests()
     dialect_id: str
     api_version: str
     if content_type == "application/json":
@@ -2469,7 +384,7 @@ async def register_bim_resource(
         if not isinstance(api_version, str) or not isinstance(kind, str):
             return _problem(422, "invalid_resource_identity", "resource requires string apiVersion and kind")
         matches = [
-            pair for pair in _dialect_type_matches(dialects, api_version, kind, content_type)
+            pair for pair in dialect_type_matches(dialects, api_version, kind, content_type)
             if role in pair[1].get("roles", [])
         ]
         if not matches:
@@ -2481,8 +396,8 @@ async def register_bim_resource(
         if len(matches) != 1:
             return _problem(409, "ambiguous_resource_contract", "more than one installed Dialect claims this resource identity")
         dialect, resource_type = matches[0]
-        dialect_id = manifest_id(dialect)
-        diagnostics = _resource_schema_diagnostics(document, api_version, kind, content_type, "resource")
+        dialect_id = bim.manifest_id(dialect)
+        diagnostics = resource_schema_diagnostics(document, api_version, kind, content_type, "resource")
         if diagnostics:
             return _problem(422, "invalid_resource", "resource does not satisfy its installed Dialect schema", [item.as_dict() for item in diagnostics])
         metadata = document.get("metadata", {})
@@ -2494,12 +409,11 @@ async def register_bim_resource(
             )
         content = canonical_json(document)
         media_type = "application/json"
-        filename = "resource.json"
     elif content_type in {"application/vnd.omg.bpmn+xml", "application/xml", "text/xml"} or content_type.endswith("+xml"):
         content = body.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
         try:
-            source_package = InstancePackage({"instance.json": b"{}", "resource.xml": content})
-            xml_root = source_package.xml_root("resource.xml")
+            source_package = XmlResource(content)
+            xml_root = source_package.root()
         except PackageError as exc:
             return _problem(422, "invalid_resource", str(exc))
         if isinstance(xml_root.tag, str) and xml_root.tag.startswith("{") and "}" in xml_root.tag:
@@ -2507,7 +421,7 @@ async def register_bim_resource(
         else:
             xml_namespace, local_name = "", str(xml_root.tag)
         matches = [
-            pair for pair in _dialect_xml_type_matches(dialects, xml_namespace, local_name, content_type)
+            pair for pair in dialect_xml_type_matches(dialects, xml_namespace, local_name, content_type)
             if role in pair[1].get("roles", [])
         ]
         if not matches:
@@ -2521,23 +435,23 @@ async def register_bim_resource(
         dialect, resource_type = matches[0]
         if dialect.get("spec", {}).get("adapter", {}).get("id") == "bim-bpmn":
             try:
-                source_package.xml("resource.xml")
+                source_package.validate_bpmn()
             except PackageError as exc:
                 return _problem(422, "invalid_resource", str(exc))
         else:
             return _problem(409, "adapter_not_installed", "the XML Dialect has no deployed validator adapter")
-        dialect_id = manifest_id(dialect)
+        dialect_id = bim.manifest_id(dialect)
         api_version = str(resource_type["apiVersion"])
         kind = str(resource_type["kind"])
         media_type = content_type
-        filename = "resource.xml"
     else:
         return _problem(
             415,
             "unsupported_media_type",
             "BIM resources use application/json or application/vnd.omg.bpmn+xml",
         )
-    revision_digest = resource_digest(filename, content)
+    # ``content`` is already in the form the package contract digests: canonical JSON, or LF-normalised XML.
+    revision_digest = digest_bytes(content)
     key = (namespace, name, version, revision_digest)
     state = "published" if (caller is None or (caller.is_admin and namespace in SYSTEM_NAMESPACES)) else "pending_review"
     if session is not None:
@@ -2610,7 +524,7 @@ async def register_bim_resource(
         )
         if conflicting is not None:
             return _problem(409, "immutable_resource", "resource revisions are immutable; register a new version")
-        _CUSTOM_RESOURCES[key] = RegisteredResource(content, media_type)
+        CUSTOM_RESOURCES[key] = RegisteredResource(content, media_type)
         _CUSTOM_RESOURCE_RECORDS[key] = {
             "namespace": namespace,
             "name": name,
@@ -2637,37 +551,7 @@ async def register_bim_resource(
 async def list_registered_bim_resources(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ) -> dict[str, Any]:
-    resources = list(_CUSTOM_RESOURCE_RECORDS.values())
-    if session is not None:
-        rows = (
-            await session.execute(
-                select(RegisteredResourceRevision)
-                .where(RegisteredResourceRevision.state == "published")
-                .order_by(
-                    RegisteredResourceRevision.namespace,
-                    RegisteredResourceRevision.name,
-                    RegisteredResourceRevision.version,
-                )
-            )
-        ).scalars().all()
-        resources.extend({
-            "namespace": row.namespace,
-            "name": row.name,
-            "version": row.version,
-            "digest": row.digest,
-            "role": row.role,
-            "apiVersion": row.api_version,
-            "kind": row.kind,
-            "dialect": row.dialect_id,
-            "mediaType": row.media_type,
-            "status": row.state,
-        } for row in rows)
-    unique = {
-        (item["namespace"], item["name"], item["version"], item["digest"]): item
-        for item in resources
-        if item.get("status") == "published"
-    }
-    return {"resources": [unique[key] for key in sorted(unique)]}
+    return await discovery.registered_resources_document(session, _CUSTOM_RESOURCE_RECORDS)
 
 
 @router.get("/resources/{name}")
@@ -2678,33 +562,15 @@ async def get_registered_bim_resource(
     revision: str,
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    key = (namespace, name, version, revision)
-    local = _CUSTOM_RESOURCES.get(key)
-    if local is not None:
-        return Response(
-            local.content,
-            media_type=local.media_type,
-            headers={"Digest": f"sha-256={revision.removeprefix('sha256-')}"},
-        )
-    if session is not None:
-        row = (
-            await session.execute(
-                select(RegisteredResourceRevision).where(
-                    RegisteredResourceRevision.namespace == namespace,
-                    RegisteredResourceRevision.name == name,
-                    RegisteredResourceRevision.version == version,
-                    RegisteredResourceRevision.digest == revision,
-                    RegisteredResourceRevision.state == "published",
-                )
-            )
-        ).scalars().first()
-        if row is not None:
-            return Response(
-                row.content,
-                media_type=row.media_type,
-                headers={"Digest": f"sha-256={row.digest.removeprefix('sha256-')}"},
-            )
-    return _problem(404, "not_found", "Registered BIM resource not found")
+    try:
+        resource = await discovery.registered_resource(namespace, name, version, revision, session)
+    except discovery.DiscoveryProblem as exc:
+        return _service_problem(exc)
+    return Response(
+        resource.content,
+        media_type=resource.media_type,
+        headers={"Digest": f"sha-256={resource.digest.removeprefix('sha256-')}"},
+    )
 
 
 @router.post("/resources/{name}/approve")
@@ -2775,59 +641,29 @@ async def get_catalog(
 
 @router.get("/schemas/{kind}")
 async def get_v1_schema(kind: str):
-    if kind in {"engine-contract", "bim-engine-v1"}:
-        return {
-            "protocol": "bim-engine/v1",
-            "digest": _protocol_digest(),
-            "openapi": _protocol_document(),
-        }
-    filename = {"Instance": "instance.schema.json", "Profile": "profile.schema.json", "Application": "application.schema.json", "CandidateCatalog": "candidate-catalog.schema.json", "ConstraintSet": "constraint-set.schema.json", "Optimization": "optimization.schema.json", "Placement": "placement.schema.json", "RoutingOverlay": "routing-overlay.schema.json", "BindingProblem": "binding-problem.schema.json", "Engine": "engine.schema.json", "Dialect": "dialect.schema.json", "EngineRegistration": "engine-registration.schema.json"}.get(kind)
-    if not filename:
-        return _problem(404, "not_found", "Unknown v1 kind")
-    path = _MANIFEST_DIR.parent / filename
-    if not path.exists():
-        return _problem(404, "not_found", "Schema not found")
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        return await discovery.schema_document(kind)
+    except discovery.DiscoveryProblem as exc:
+        return _service_problem(exc)
 
 
 @router.get("/examples")
 async def list_examples() -> dict[str, Any]:
-    root = _MANIFEST_DIR.parents[3] / "examples"
-    paths = []
-    for path in root.rglob("instance.json"):
-        try:
-            document = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        if isinstance(document, dict) and document.get("apiVersion") == "bim/v1" and document.get("kind") == "Instance":
-            paths.append(path.parent.relative_to(root).as_posix())
-    paths.sort()
-    return {"examples": paths}
+    return {"examples": discovery.example_paths()}
 
 
 @router.get("/examples/{example_path:path}")
 async def get_example_package(example_path: str):
-    root = (_MANIFEST_DIR.parents[3] / "examples").resolve()
-    requested = (root / example_path).resolve()
     try:
-        requested.relative_to(root)
-    except ValueError:
-        return _problem(404, "not_found", "Example not found")
-    if requested.name == "instance.json":
-        requested = requested.parent
-    if not requested.is_dir() or not (requested / "instance.json").is_file():
-        return _problem(404, "not_found", "Example not found")
-    try:
-        archive = load_package(requested).to_zip()
-    except PackageError as exc:
-        return _problem(422, "invalid_example", str(exc))
-    safe_name = requested.name.replace('"', "") or "example"
+        example = await discovery.example_package(example_path)
+    except discovery.DiscoveryProblem as exc:
+        return _service_problem(exc)
     return Response(
-        archive,
+        example.archive,
         media_type="application/vnd.bim+zip",
         headers={
-            "Content-Disposition": f'attachment; filename="{safe_name}.bim.zip"',
-            "Digest": f"sha-256={digest_bytes(archive).removeprefix('sha256-')}",
+            "Content-Disposition": f'attachment; filename="{example.name}.bim.zip"',
+            "Digest": f"sha-256={digest_bytes(example.archive).removeprefix('sha256-')}",
         },
     )
 
@@ -2837,23 +673,7 @@ async def list_v1_engines(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
     caller: User = Depends(solve_caller),
 ) -> dict[str, Any]:
-    engines = []
-    for document, namespace in await _available_engine_documents(session, caller):
-        reference = _engine_ref(document, namespace)
-        if not allows_engine(caller, reference):
-            continue
-        engines.append(
-            {
-                "id": reference["name"],
-                "name": reference["name"],
-                "namespace": reference["namespace"],
-                "version": reference["version"],
-                "digest": reference["digest"],
-                "ref": reference,
-                "modes": document.get("spec", {}).get("modes", []),
-            }
-        )
-    return {"engines": engines}
+    return await discovery.engines_document(session, caller)
 
 
 @router.get("/engines/revisions")
@@ -2861,47 +681,7 @@ async def list_engine_revisions(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
     caller: User = Depends(solve_caller),
 ) -> dict[str, Any]:
-    revisions: list[dict[str, Any]] = []
-    if session is not None:
-        db_revs = (await session.execute(
-            select(EngineRevision).order_by(EngineRevision.namespace, EngineRevision.name, EngineRevision.version.desc())
-        )).scalars().all()
-        reg_rows = (await session.execute(
-            select(EngineRegistrationRevision)
-        )).scalars().all()
-        reg_by_engine_digest = {r.engine_digest: r for r in reg_rows}
-        reg_by_name = {(r.namespace, r.name, r.version): r for r in reg_rows}
-
-        for rev in db_revs:
-            reg = reg_by_engine_digest.get(rev.digest) or reg_by_name.get((rev.namespace, rev.name, rev.version))
-            revisions.append({
-                "id": str(rev.id),
-                "namespace": rev.namespace,
-                "name": rev.name,
-                "version": rev.version,
-                "digest": rev.digest,
-                "state": rev.state,
-                "createdAt": rev.created_at.isoformat() if rev.created_at else None,
-                "document": rev.document,
-                "registration": _registration_summary(reg) if reg else None,
-            })
-
-    if not revisions:
-        for doc, ns in await _available_engine_documents(session, caller):
-            ref = _engine_ref(doc, ns)
-            revisions.append({
-                "id": f"{ref['namespace']}:{ref['name']}:{ref['version']}",
-                "namespace": ref["namespace"],
-                "name": ref["name"],
-                "version": ref["version"],
-                "digest": ref["digest"],
-                "state": "published",
-                "createdAt": utcnow().isoformat(),
-                "document": doc,
-                "registration": None,
-            })
-
-    return {"revisions": revisions}
+    return await discovery.engine_revisions_document(session, caller)
 
 
 @router.get("/engines/{name}")
@@ -2924,7 +704,7 @@ async def get_v1_engine(
     ):
         return _problem(404, "not_found", "Engine revision not found")
     try:
-        return await _manifest_async(
+        return await manifest_async(
             name,
             session,
             caller=caller,
@@ -2944,63 +724,11 @@ async def get_engine_revision_detail(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
     caller: User = Depends(solve_caller),
 ) -> dict[str, Any]:
-    rev = None
-    reg = None
-    if session is not None:
-        rev = (await session.execute(
-            select(EngineRevision).where(
-                EngineRevision.namespace == namespace,
-                EngineRevision.name == name,
-                EngineRevision.version == version,
-            )
-        )).scalars().first()
-
-        reg = (await session.execute(
-            select(EngineRegistrationRevision).where(
-                EngineRegistrationRevision.namespace == namespace,
-                EngineRegistrationRevision.name == name,
-                EngineRegistrationRevision.version == version,
-            )
-        )).scalars().first()
-
-    if rev is None:
-        try:
-            doc = _manifest(name, namespace=namespace, version=version)
-            rev_digest = digest(doc)
-            return {
-                "namespace": namespace,
-                "name": name,
-                "version": version,
-                "digest": rev_digest,
-                "document": doc,
-                "state": "published",
-                "registration": None,
-            }
-        except HTTPException:
-            return _problem(404, "not_found", "Engine revision not found")
-
-    return {
-        "id": str(rev.id),
-        "namespace": rev.namespace,
-        "name": rev.name,
-        "version": rev.version,
-        "digest": rev.digest,
-        "state": rev.state,
-        "createdAt": rev.created_at.isoformat() if rev.created_at else None,
-        "document": rev.document,
-        "registration": {
-            "id": str(reg.id),
-            "manifestDigest": reg.manifest_digest,
-            "endpoint": reg.endpoint,
-            "protocolDigest": reg.protocol_digest,
-            "openapiDigest": reg.openapi_digest,
-            "openapiDocument": reg.openapi_document,
-            "verificationReport": reg.verification_report,
-            "verifiedAt": reg.verified_at.isoformat() if reg.verified_at else None,
-            "publicationStatus": reg.publication_status,
-            "isActive": reg.is_active,
-        } if reg else None,
-    }
+    try:
+        # ``_manifest`` is resolved here on every call: the tests replace it on this module.
+        return await discovery.engine_revision_document(namespace, name, version, session, manifest=_manifest)
+    except discovery.DiscoveryProblem as exc:
+        return _service_problem(exc)
 
 
 @router.get("/snapshots/{snapshot_id}")
@@ -3009,30 +737,10 @@ async def get_snapshot_detail(
     caller: User = Depends(solve_caller),
     session: AsyncSession = Depends(optional_session, scope="function"),
 ) -> dict[str, Any]:
-    if session is None:
-        return _problem(503, "database_unavailable", "Snapshots require database")
-    snapshot = await _owned_snapshot(str(snapshot_id), caller, session)
-    if snapshot is None:
-        return _problem(404, "not_found", "Snapshot not found")
-    ir = (await session.execute(
-        select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id)
-    )).scalars().first()
-    return {
-        "id": str(snapshot.id),
-        "ownerId": str(snapshot.owner_id) if snapshot.owner_id else None,
-        "instanceDigest": snapshot.instance_digest,
-        "packageDigest": snapshot.package_digest,
-        "archiveSize": len(snapshot.source_archive) if snapshot.source_archive else 0,
-        "createdAt": snapshot.created_at.isoformat() if snapshot.created_at else None,
-        "ir": {
-            "id": str(ir.id),
-            "digest": ir.ir_digest,
-            "document": ir.document,
-            "sourceMap": ir.source_map,
-            "compilerVersion": ir.compiler_version,
-            "createdAt": ir.created_at.isoformat() if ir.created_at else None,
-        } if ir else None,
-    }
+    try:
+        return await instances.snapshot_detail(str(snapshot_id), caller, session)
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
 
 
 @router.get(
@@ -3046,17 +754,16 @@ async def download_snapshot_archive(
     caller: User = Depends(solve_caller),
     session: AsyncSession = Depends(optional_session, scope="function"),
 ) -> Response:
-    if session is None:
-        return _problem(503, "database_unavailable", "Snapshots require database")
-    snapshot = await _owned_snapshot(str(snapshot_id), caller, session)
-    if snapshot is None or not snapshot.source_archive:
-        return _problem(404, "not_found", "Snapshot archive not found")
+    try:
+        archive = await instances.snapshot_archive(str(snapshot_id), caller, session)
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
     return Response(
-        content=snapshot.source_archive,
+        content=archive.content,
         media_type="application/zip",
         headers={
-            "Content-Disposition": f'attachment; filename="snapshot-{snapshot.id}.bim.zip"',
-            "ETag": f'"{snapshot.package_digest}"',
+            "Content-Disposition": f'attachment; filename="snapshot-{archive.snapshot_id}.bim.zip"',
+            "ETag": f'"{archive.package_digest}"',
             "Cache-Control": "no-store",
         },
     )
@@ -3072,67 +779,13 @@ async def create_engine(
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
+    document = await _read_json_body(request, "invalid_engine")
+    if isinstance(document, JSONResponse):
+        return document
     try:
-        body = await request.body()
-        if len(body) > MAX_EXPANDED:
-            return _problem(413, "payload_too_large", f"request body exceeds {MAX_EXPANDED} bytes")
-        document = strict_json_loads(body)
-    except PackageError as exc:
-        return _problem(422, "invalid_engine", str(exc))
-    diagnostics = _schema_diagnostics(document, "Engine") if isinstance(document, dict) else [{"code": "document", "message": "Engine must be an object"}]
-    if isinstance(document, Mapping):
-        diagnostics.extend(_engine_contract_diagnostics(document))
-    if diagnostics:
-        return _problem(422, "invalid_engine", "Engine manifest does not satisfy bim/v1", diagnostics)
-    name = document["metadata"]["name"]
-    version = document["metadata"].get("version", "1.0.0")
-    revision_digest = digest(document)
-    target_reference = {
-        "namespace": document["metadata"]["namespace"],
-        "name": name,
-        "version": version,
-        "digest": revision_digest,
-    }
-    if not allows_engine(caller, target_reference):
-        return _problem(
-            403,
-            "engine_not_granted",
-            "This API key does not grant this exact Engine revision; use an all-Engines key to create new revisions",
-        )
-    if session is not None:
-        namespace = document["metadata"]["namespace"]
-        if namespace != caller.username:
-            return _problem(403, "forbidden", "Engine namespace must match the caller")
-        existing = (
-            await session.execute(
-                select(EngineRevision).where(
-                    EngineRevision.namespace == namespace,
-                    EngineRevision.name == name,
-                    EngineRevision.version == version,
-                )
-            )
-        ).scalars().first()
-        if existing is not None:
-            if existing.digest != revision_digest:
-                return _problem(409, "immutable_engine", "Engine revisions are immutable; create a new version")
-            return {"namespace": namespace, "name": name, "version": version, "digest": existing.digest, "status": existing.state}
-        row = EngineRevision(
-                owner_id=caller.id,
-                namespace=namespace,
-                name=name,
-                version=version,
-                digest=revision_digest,
-                document=document,
-                state="private",
-            )
-        try:
-            async with session.begin_nested():
-                session.add(row)
-                await session.flush()
-        except IntegrityError:
-            return _problem(409, "immutable_engine", "Engine identity already exists with different content")
-        return {"namespace": namespace, "name": name, "version": version, "digest": revision_digest, "status": "private"}
-    return _problem(503, "accounts_unavailable", "Registering an Engine requires the accounts database")
+        return await engine_registry.create_engine_revision(document, caller, session)
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 @router.post("/engine-registrations", status_code=status.HTTP_201_CREATED)
@@ -3141,120 +794,15 @@ async def register_engine(
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
+    document = await _read_json_body(request, "invalid_registration")
+    if isinstance(document, JSONResponse):
+        return document
     try:
-        body = await request.body()
-        if len(body) > MAX_EXPANDED:
-            return _problem(413, "payload_too_large", f"request body exceeds {MAX_EXPANDED} bytes")
-        document = strict_json_loads(body)
-    except PackageError as exc:
-        return _problem(422, "invalid_registration", str(exc))
-    diagnostics = _schema_diagnostics(document, "EngineRegistration") if isinstance(document, dict) else [{"code": "document", "message": "EngineRegistration must be an object"}]
-    if diagnostics:
-        return _problem(422, "invalid_registration", "registration must satisfy bim/v1", diagnostics)
-    spec = document.get("spec", {})
-    endpoint = spec.get("endpoint")
-    if not isinstance(endpoint, str):
-        return _problem(422, "invalid_registration", "registration endpoint must be a URI")
-    allow_internal_http = not get_settings().federation_require_https
-    try:
-        validate_endpoint(endpoint, allow_internal_http=allow_internal_http)
-    except RemoteEngineError as exc:
-        return _problem(422, "invalid_registration", str(exc))
-    secret_paths = _embedded_secret_paths(document)
-    if secret_paths:
-        return _problem(
-            422,
-            "secret_in_document",
-            "credentials must be supplied through the secret store",
-            [{"code": "secret_in_document", "pointer": path, "message": "secret-like field is forbidden"} for path in secret_paths],
+        return await engine_registry.register_engine(
+            document, caller, session, settings=get_settings(), validate=validate_endpoint
         )
-    if spec.get("auth", {}).get("scheme") == "mtls":
-        return _problem(
-            422,
-            "unsupported_auth",
-            "mTLS needs a versioned certificate-bundle credential contract and is not available in BIM v1",
-        )
-    name = document.get("metadata", {}).get("name")
-    if not isinstance(name, str) or not name:
-        return _problem(422, "invalid_registration", "metadata.name is required")
-    namespace = document["metadata"]["namespace"]
-    if namespace != caller.username:
-        return _problem(403, "forbidden", "EngineRegistration namespace must match the caller")
-    version = document["metadata"]["version"]
-    revision = digest(document)
-    protocol_digest = spec.get("protocol", {}).get("digest")
-    protocol_id = spec.get("protocol", {}).get("id", "bim-engine/v1")
-    if protocol_id != "bim-engine/v1":
-        return _problem(409, "protocol_mismatch", "registration must use bim-engine/v1")
-    if protocol_digest != _protocol_digest():
-        return _problem(409, "protocol_digest_mismatch", "registration must pin the exact bim-engine/v1 OpenAPI digest")
-    submitted_openapi = spec.get("openapi")
-    if (
-        not isinstance(submitted_openapi, dict)
-        or submitted_openapi.get("x-bim-protocol-digest") != protocol_digest
-    ):
-        return _problem(
-            409,
-            "openapi_protocol_mismatch",
-            "submitted OpenAPI must pin the same bim-engine/v1 digest as the registration",
-        )
-    engine_ref = spec.get("engine", {})
-    engine_name = engine_ref.get("name") if isinstance(engine_ref, dict) else None
-    if not allows_engine(caller, engine_ref if isinstance(engine_ref, Mapping) else {}):
-        return _problem(404, "not_found", "Engine revision not found")
-    try:
-        engine_document = await _manifest_async(
-            engine_name,
-            session,
-            caller=caller,
-            namespace=engine_ref.get("namespace"),
-            version=engine_ref.get("version"),
-            manifest_digest=engine_ref.get("digest"),
-        )
-    except HTTPException:
-        return _problem(422, "unknown_engine", "registration references an unknown Engine revision")
-    if digest(engine_document) != engine_ref.get("digest"):
-        return _problem(409, "engine_digest_mismatch", "registration must pin the exact Engine revision digest")
-    if session is not None:
-        existing = (
-            await session.execute(
-                select(EngineRegistrationRevision).where(
-                    EngineRegistrationRevision.namespace == namespace,
-                    EngineRegistrationRevision.name == name,
-                    EngineRegistrationRevision.version == version,
-                )
-            )
-        ).scalars().first()
-        if existing is not None:
-            if existing.manifest_digest != revision:
-                return _problem(409, "immutable_registration", "Registration revisions are immutable; use a new version")
-            return _registration_summary(existing)
-        registration = EngineRegistrationRevision(
-            owner_id=caller.id,
-            namespace=namespace,
-            name=name,
-            version=version,
-            manifest_digest=revision,
-            engine_digest=engine_ref["digest"],
-            document=document,
-            endpoint=endpoint,
-            protocol_digest=protocol_digest,
-            openapi_document=submitted_openapi,
-            openapi_digest=digest(submitted_openapi),
-            mappings=spec.get("mappings", {}),
-            auth_scheme=spec.get("auth", {}).get("scheme", "none"),
-            verification_report={"protocol": "bim-engine/v1", "protocolDigest": protocol_digest, "status": "pending", "checks": []},
-            publication_status="private",
-            is_active=False,
-        )
-        try:
-            async with session.begin_nested():
-                session.add(registration)
-                await session.flush()
-        except IntegrityError:
-            return _problem(409, "immutable_registration", "Registration identity already exists with different content")
-        return _registration_summary(registration)
-    return _problem(503, "accounts_unavailable", "Registering an engine requires the accounts database")
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 @router.get("/engine-registrations")
@@ -3266,29 +814,10 @@ async def list_engine_registrations(
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        if review:
-            if not caller.is_admin:
-                return _problem(403, "forbidden", "Only an administrator may read publication requests")
-            query = select(EngineRegistrationRevision).where(
-                EngineRegistrationRevision.publication_status == "pending_review"
-            )
-        else:
-            query = select(EngineRegistrationRevision).where(
-                or_(
-                    EngineRegistrationRevision.owner_id == caller.id,
-                    EngineRegistrationRevision.publication_status == "published",
-                )
-            )
-        rows = (await session.execute(query.order_by(EngineRegistrationRevision.namespace, EngineRegistrationRevision.name, EngineRegistrationRevision.version))).scalars().all()
-        return {
-            "registrations": [
-                _registration_summary(row)
-                for row in rows
-                if allows_engine(caller, _registration_engine_reference(row) or {})
-            ]
-        }
-    return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
+    try:
+        return await engine_registry.list_registrations(caller, session, review=review)
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 @router.get("/engine-registrations/{name}")
@@ -3300,154 +829,11 @@ async def get_engine_registration(
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        query = select(EngineRegistrationRevision).where(
-            EngineRegistrationRevision.namespace == namespace,
-            EngineRegistrationRevision.name == name,
-            EngineRegistrationRevision.version == version,
-            EngineRegistrationRevision.manifest_digest == manifest_digest,
-        )
-        visible = [
-            EngineRegistrationRevision.owner_id == caller.id,
-            EngineRegistrationRevision.publication_status == "published",
-        ]
-        if caller.is_admin:
-            visible.append(
-                EngineRegistrationRevision.publication_status == "pending_review"
-            )
-        query = query.where(or_(*visible))
-        row = (await session.execute(query)).scalars().first()
-        if row is None or not allows_engine(
-            caller, _registration_engine_reference(row) or {}
-        ):
-            return _problem(404, "not_found", "Engine registration not found")
-        return row.document
-    return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
-
-
-async def _engine_document_for_registration(
-    registration: EngineRegistrationRevision | Mapping[str, Any],
-    session: AsyncSession | None,
-) -> dict[str, Any]:
-    document = (
-        registration.document
-        if isinstance(registration, EngineRegistrationRevision)
-        else registration.get("document", {})
-    )
-    if not isinstance(document, Mapping):
-        raise HTTPException(status_code=409, detail="EngineRegistration document is missing")
-    engine = document.get("spec", {}).get("engine", {})
-    if not isinstance(engine, Mapping):
-        raise HTTPException(status_code=409, detail="EngineRegistration has no immutable Engine reference")
+    key = RegistrationKey(namespace, name, version, manifest_digest)
     try:
-        return _manifest(
-            str(engine.get("name", "")),
-            namespace=str(engine.get("namespace", "")),
-            version=str(engine.get("version", "")),
-            manifest_digest=str(engine.get("digest", "")),
-        )
-    except HTTPException:
-        pass
-    if session is not None and isinstance(registration, EngineRegistrationRevision):
-        revision = (
-            await session.execute(
-                select(EngineRevision).where(
-                    EngineRevision.namespace == engine.get("namespace"),
-                    EngineRevision.name == engine.get("name"),
-                    EngineRevision.version == engine.get("version"),
-                    EngineRevision.digest == engine.get("digest"),
-                    or_(
-                        EngineRevision.state == "published",
-                        EngineRevision.owner_id == registration.owner_id,
-                    ),
-                )
-            )
-        ).scalars().first()
-        if revision is not None:
-            return revision.document
-    raise HTTPException(status_code=404, detail="Engine revision not found")
-
-
-async def _verify_registration_row(
-    registration: EngineRegistrationRevision,
-    session: AsyncSession,
-) -> JSONResponse | None:
-    if registration.protocol_digest != _protocol_digest():
-        return _problem(
-            409,
-            "protocol_digest_mismatch",
-            "Registration protocol is no longer the pinned bim-engine/v1 contract",
-        )
-    try:
-        engine_document = await _engine_document_for_registration(registration, session)
-    except HTTPException:
-        return _problem(409, "engine_revision_unavailable", "Registration Engine revision is unavailable")
-
-    credential_value = None
-    credential_row = (
-        await session.execute(
-            select(EngineCredential).where(
-                EngineCredential.registration_id == registration.id
-            )
-        )
-    ).scalars().first()
-    if credential_row is not None:
-        from ..security.secrets import CredentialStore, SecretsUnavailable
-
-        try:
-            credential_value = CredentialStore.from_settings(get_settings()).decrypt(
-                credential_row.credential_encrypted
-            )
-        except SecretsUnavailable as exc:
-            return _problem(503, "credential_store_unavailable", str(exc))
-
-    report, openapi_document, openapi_digest = await _verify_registration(
-        registration.document,
-        credential_value,
-        engine_document,
-    )
-    registration.verification_report = report
-    registration.openapi_document = openapi_document
-    registration.openapi_digest = openapi_digest
-    if report["status"] != "verified":
-        registration.is_active = False
-        await session.flush()
-        return _problem(
-            409,
-            "conformance_failed",
-            "Engine registration failed its OpenAPI and response-contract checks",
-            report["checks"],
-        )
-    registration.verified_at = utcnow()
-    registration.verification_report = {
-        **report,
-        "verifiedAt": registration.verified_at.isoformat(),
-    }
-    return None
-
-
-async def _notify_admins_of_engine_event(
-    session: AsyncSession,
-    kind: str,
-    subject: str,
-    body: str,
-    payload: dict[str, Any],
-) -> None:
-    admins = (
-        await session.execute(
-            select(User).where(User.role == UserRole.ADMIN, User.is_active.is_(True))
-        )
-    ).scalars().all()
-    for admin in admins:
-        session.add(
-            Notification(
-                user_id=admin.id,
-                kind=kind,
-                subject=subject,
-                body=body,
-                payload=payload,
-            )
-        )
+        return await engine_registry.read_registration(key, caller, session)
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 async def _change_registration(
@@ -3460,126 +846,25 @@ async def _change_registration(
     *,
     action: str,
 ):
-    if session is None:
-        return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
-    admin_action = action in {"approve", "reject"}
-    if admin_action and not caller.is_admin:
-        return _problem(403, "forbidden", "Only an administrator may review publication requests")
-    query = select(EngineRegistrationRevision).where(
-        EngineRegistrationRevision.namespace == namespace,
-        EngineRegistrationRevision.name == name,
-        EngineRegistrationRevision.version == version,
-        EngineRegistrationRevision.manifest_digest == manifest_digest,
-    )
-    if admin_action:
-        query = query.where(
-            EngineRegistrationRevision.publication_status == "pending_review"
-        )
-    else:
-        query = query.where(EngineRegistrationRevision.owner_id == caller.id)
-    registration = (await session.execute(query)).scalars().first()
-    if registration is None:
-        return _problem(404, "not_found", "Engine registration not found")
-    if not allows_engine(caller, _registration_engine_reference(registration) or {}):
-        return _problem(404, "not_found", "Engine registration not found")
-
+    max_active = None
     if action == "activate":
-        failure = await _verify_registration_row(registration, session)
-        if failure is not None:
-            return failure
-        registration.is_active = True
-    elif action == "deactivate":
-        was_published = registration.publication_status == "published"
-        registration.is_active = False
-        if was_published:
-            await _notify_admins_of_engine_event(
-                session,
-                kind="engine.deactivated",
-                subject=f"Published engine paused: {registration.namespace}/{registration.name}",
-                body=f"The published federated engine {registration.namespace}/{registration.name}@{registration.version} has been paused by {caller.username}.",
-                payload={
-                    "namespace": registration.namespace,
-                    "name": registration.name,
-                    "version": registration.version,
-                    "digest": registration.manifest_digest,
-                    "actor": caller.username,
-                },
-            )
-    elif action == "request_publication":
-        if registration.publication_status == "published":
-            return _registration_summary(registration)
-        if not registration.is_active:
-            return _problem(
-                409,
-                "registration_inactive",
-                "Activate and verify the private registration before requesting publication",
-            )
-        failure = await _verify_registration_row(registration, session)
-        if failure is not None:
-            return failure
-        registration.publication_status = "pending_review"
-        await _notify_admins_of_engine_event(
+        # The plan's numeric ``federatedEngines``: an absent value is zero (fail closed), unlimited is ``None``.
+        try:
+            max_active = (await entitlement_service.caps_for(caller.id)).limit("federatedEngines")
+        except EntitlementsUnavailable as exc:
+            return _problem(exc.status, exc.code, str(exc))
+    try:
+        return await engine_registry.change_registration(
+            RegistrationKey(namespace, name, version, manifest_digest),
+            caller,
             session,
-            kind="engine.publication_requested",
-            subject=f"Engine publication requested: {registration.namespace}/{registration.name}",
-            body=f"User {caller.username} has requested publication for engine registration {registration.namespace}/{registration.name}@{registration.version}.",
-            payload={
-                "namespace": registration.namespace,
-                "name": registration.name,
-                "version": registration.version,
-                "digest": registration.manifest_digest,
-                "actor": caller.username,
-            },
+            action=action,
+            settings=get_settings(),
+            verify=_verify_registration,
+            max_active=max_active,
         )
-    elif action == "reject":
-        registration.publication_status = "rejected"
-    elif action == "approve":
-        failure = await _verify_registration_row(registration, session)
-        if failure is not None:
-            return failure
-        registration.publication_status = "published"
-        registration.published_at = utcnow()
-        engine_ref = registration.document.get("spec", {}).get("engine", {})
-        engine_revision = (
-            await session.execute(
-                select(EngineRevision).where(
-                    EngineRevision.namespace == engine_ref.get("namespace"),
-                    EngineRevision.name == engine_ref.get("name"),
-                    EngineRevision.version == engine_ref.get("version"),
-                    EngineRevision.digest == engine_ref.get("digest"),
-                )
-            )
-        ).scalars().first()
-        publications = [
-            ("EngineRegistration", registration.manifest_digest),
-        ]
-        if engine_revision is not None:
-            engine_revision.state = "published"
-            publications.append(("Engine", engine_revision.digest))
-        for resource_kind, resource_digest in publications:
-            publication = (
-                await session.execute(
-                    select(ManifestPublication).where(
-                        ManifestPublication.resource_kind == resource_kind,
-                        ManifestPublication.resource_digest == resource_digest,
-                    )
-                )
-            ).scalars().first()
-            if publication is None:
-                session.add(
-                    ManifestPublication(
-                        resource_kind=resource_kind,
-                        resource_digest=resource_digest,
-                        publisher_id=caller.id,
-                        state="public",
-                    )
-                )
-            else:
-                publication.state = "public"
-    else:
-        raise AssertionError(f"unknown EngineRegistration action: {action}")
-    await session.flush()
-    return _registration_summary(registration)
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 @router.post("/engine-registrations/{name}/approve")
@@ -3652,57 +937,13 @@ async def delete_engine_registration(
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is None:
-        return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
-    query = select(EngineRegistrationRevision).where(
-        EngineRegistrationRevision.namespace == namespace,
-        EngineRegistrationRevision.name == name,
-        EngineRegistrationRevision.version == version,
-        EngineRegistrationRevision.manifest_digest == manifest_digest,
-    )
-    if not caller.is_admin:
-        query = query.where(EngineRegistrationRevision.owner_id == caller.id)
-    registration = (await session.execute(query)).scalars().first()
-    if registration is None:
-        return _problem(404, "not_found", "Engine registration not found")
-
-    was_published = registration.publication_status == "published"
-
-    publication = (
-        await session.execute(
-            select(ManifestPublication).where(
-                ManifestPublication.resource_kind == "EngineRegistration",
-                ManifestPublication.resource_digest == registration.manifest_digest,
-            )
+    try:
+        await engine_registry.delete_registration(
+            RegistrationKey(namespace, name, version, manifest_digest), caller, session
         )
-    ).scalars().first()
-    if publication is not None:
-        await session.delete(publication)
-
-    if was_published:
-        await _notify_admins_of_engine_event(
-            session,
-            kind="engine.deregistered",
-            subject=f"Published engine deregistered: {registration.namespace}/{registration.name}",
-            body=f"The published federated engine {registration.namespace}/{registration.name}@{registration.version} has been deregistered by {caller.username}.",
-            payload={
-                "namespace": registration.namespace,
-                "name": registration.name,
-                "version": registration.version,
-                "digest": registration.manifest_digest,
-                "actor": caller.username,
-            },
-        )
-
-    await session.execute(
-        delete(EngineCredential).where(
-            EngineCredential.registration_id == registration.id
-        )
-    )
-    await session.delete(registration)
-    await session.flush()
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
 
 
 @router.get("/engine-registrations/{name}/report")
@@ -3714,39 +955,11 @@ async def get_engine_registration_report(
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        query = select(EngineRegistrationRevision).where(
-            EngineRegistrationRevision.namespace == namespace,
-            EngineRegistrationRevision.name == name,
-            EngineRegistrationRevision.version == version,
-            EngineRegistrationRevision.manifest_digest == manifest_digest,
-        )
-        visible = [
-            EngineRegistrationRevision.owner_id == caller.id,
-            EngineRegistrationRevision.publication_status == "published",
-        ]
-        if caller.is_admin:
-            visible.append(
-                EngineRegistrationRevision.publication_status == "pending_review"
-            )
-        query = query.where(or_(*visible))
-        row = (await session.execute(query)).scalars().first()
-        if row is None or not allows_engine(
-            caller, _registration_engine_reference(row) or {}
-        ):
-            return _problem(404, "not_found", "Engine registration not found")
-        try:
-            engine_document = await _engine_document_for_registration(row, session)
-        except HTTPException:
-            engine_document = None
-        return {
-            **_registration_summary(row),
-            "openapiDigest": row.openapi_digest,
-            "openapi": row.openapi_document,
-            "engine": engine_document,
-            "report": row.verification_report,
-        }
-    return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
+    key = RegistrationKey(namespace, name, version, manifest_digest)
+    try:
+        return await engine_registry.registration_report(key, caller, session)
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 @router.put("/engine-registrations/{name}/credential")
@@ -3760,74 +973,22 @@ async def set_engine_registration_credential(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
     """Replace a deployment credential without ever placing it in a manifest."""
-    try:
-        body = await request.body()
-        if len(body) > MAX_EXPANDED:
-            return _problem(413, "payload_too_large", f"request body exceeds {MAX_EXPANDED} bytes")
-        payload = strict_json_loads(body)
-    except PackageError as exc:
-        return _problem(422, "invalid_credential", str(exc))
+    payload = await _read_json_body(request, "invalid_credential")
+    if isinstance(payload, JSONResponse):
+        return payload
     secret = payload.get("secret") if isinstance(payload, dict) else None
     if not isinstance(secret, str) or not secret:
         return _problem(422, "invalid_credential", "credential payload requires a non-empty secret")
-    from ..security.secrets import CredentialStore, SecretsUnavailable
-
-    if session is not None:
-        query = select(EngineRegistrationRevision).where(
-            EngineRegistrationRevision.namespace == namespace,
-            EngineRegistrationRevision.name == name,
-            EngineRegistrationRevision.version == version,
-            EngineRegistrationRevision.manifest_digest == manifest_digest,
+    try:
+        return await engine_registry.set_credential(
+            RegistrationKey(namespace, name, version, manifest_digest),
+            secret,
+            caller,
+            session,
+            settings=get_settings(),
         )
-        query = query.where(EngineRegistrationRevision.owner_id == caller.id)
-        row = (await session.execute(query)).scalars().first()
-        if row is None or not allows_engine(
-            caller, _registration_engine_reference(row) or {}
-        ):
-            return _problem(404, "not_found", "Engine registration not found")
-        if row.publication_status == "published":
-            return _problem(
-                409,
-                "immutable_published_registration",
-                "A published registration cannot change credentials; create a new revision",
-            )
-        try:
-            encrypted = CredentialStore.from_settings(get_settings()).encrypt(secret)
-        except SecretsUnavailable as exc:
-            return _problem(503, "credential_store_unavailable", str(exc))
-        credential = (
-            await session.execute(
-                select(EngineCredential).where(EngineCredential.registration_id == row.id)
-            )
-        ).scalars().first()
-        if credential is None:
-            credential = EngineCredential(
-                registration_id=row.id,
-                credential_ref=f"registration:{row.manifest_digest}",
-                credential_encrypted=encrypted,
-            )
-            session.add(credential)
-        else:
-            credential.credential_encrypted = encrypted
-            credential.updated_at = utcnow()
-        # Credentials are deployment material.  Replacing one does not mutate
-        # the immutable manifest, but any previous live conformance result is no
-        # longer evidence for the new authentication context.
-        row.is_active = False
-        row.publication_status = "private"
-        row.verified_at = None
-        row.published_at = None
-        row.verification_report = {
-            "protocol": "bim-engine/v1",
-            "protocolDigest": row.protocol_digest,
-            "status": "pending",
-            "checks": [],
-        }
-        row.openapi_document = row.document["spec"]["openapi"]
-        row.openapi_digest = digest(row.openapi_document)
-        await session.flush()
-        return _registration_summary(row)
-    return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
+    except engine_registry.RegistryProblem as exc:
+        return _registry_problem(exc)
 
 
 @router.post("/instances/validate")
@@ -3836,20 +997,9 @@ async def validate_legacy_instance(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
     try:
-        package = await _read_package(request)
-        problem = await _compile_resolved(package, session)
+        return await instances.validate_legacy(_package_request(request), session, compiler=compile_resolved)
     except HTTPException as exc:
         return _error_from_http(exc)
-    portable = load_package(package.to_zip())
-    return {
-        "valid": True,
-        "instanceDigest": _instance_identity(package),
-        "packageDigest": package.package_digest,
-        "fileDigests": portable.resource_digests,
-        "resourceDigests": _source_resource_digests(problem),
-        "irDigest": problem.digest,
-        "diagnostics": [],
-    }
 
 
 @router.post(
@@ -3863,67 +1013,11 @@ async def validate_instance(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
     try:
-        content_type = (request.headers.get("content-type") or "").split(";", 1)[0].lower()
-        if content_type in _BIM_ZIP_TYPES:
-            package = await _read_package(request)
-        else:
-            body = await request.body()
-            if len(body) > MAX_EXPANDED:
-                return _problem(413, "payload_too_large", f"request body exceeds {MAX_EXPANDED} bytes")
-            payload = strict_json_loads(body)
-            snapshot_id = payload.get("snapshot") if isinstance(payload, dict) else None
-            if not isinstance(payload, dict) or set(payload) != {"snapshot"} or not isinstance(snapshot_id, str) or not snapshot_id:
-                return _problem(
-                    422,
-                    "snapshot_or_package_required",
-                    "BIM validation accepts an exact snapshot reference or a .bim.zip upload",
-                )
-            if session is not None:
-                snapshot = await _owned_snapshot(snapshot_id, caller, session)
-                if snapshot is None:
-                    return _problem(404, "not_found", "Snapshot not found")
-                package = load_package(snapshot.source_archive)
-            else:
-                snapshot = _SNAPSHOTS.get(snapshot_id)
-                if snapshot is None:
-                    return _problem(404, "not_found", "Snapshot not found")
-                package = snapshot["package"]
-        problem = await _compile_resolved(package, session, caller)
-    except PackageError as exc:
-        return _problem(422, "invalid_request", str(exc))
+        return await instances.validate_package(_package_request(request), caller, session, compiler=compile_resolved)
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
     except HTTPException as exc:
         return _error_from_http(exc)
-    if caller is not None:
-        try:
-            caps = await space_client.get_gate().caps(caller.id)
-        except space_client.PricingUnavailable as exc:
-            return _problem(503, "pricing_unavailable", str(exc))
-        if instance_complexity_too_large(problem.binding_space_log10, caps):
-            return _problem(
-                402,
-                "instance_complexity_too_large",
-                "instance binding space exceeds the caller plan limit",
-            )
-    spec = problem.document["spec"]
-    candidate_count = _candidate_count(spec)
-    compatible_modes = await _compatible_modes(problem, caller, session)
-    return {
-        "valid": True,
-        "instanceDigest": _instance_identity(package),
-        "packageDigest": package.package_digest,
-        "fileDigests": load_package(package.to_zip()).resource_digests,
-        "resourceDigests": _source_resource_digests(problem),
-        "irDigest": problem.digest,
-        "analysis": {
-            "tasks": len(spec.get("application", {}).get("tasks", [])),
-            "candidates": candidate_count,
-            "constraints": len(spec.get("constraints", [])),
-            "placement": bool(spec.get("placement")),
-            "bindingSpace": str(problem.binding_space_cardinality),
-        },
-        "compatibleModes": compatible_modes,
-        "diagnostics": [],
-    }
 
 
 @router.post("/instances", status_code=status.HTTP_201_CREATED)
@@ -3933,24 +1027,13 @@ async def create_snapshot(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
     try:
-        package = await _read_package(request)
-        problem = await _compile_resolved(package, session, caller)
+        return await instances.create_snapshot(
+            _package_request(request), caller, session, compiler=compile_resolved, persist=persist_snapshot
+        )
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
     except HTTPException as exc:
         return _error_from_http(exc)
-    snapshot_id = await _persist_snapshot(package, problem, caller, session)
-    if snapshot_id is None:
-        snapshot_id = str(uuid.uuid4())
-        _SNAPSHOTS[snapshot_id] = _snapshot_payload(package, problem)
-    portable = load_package(package.to_zip())
-    return {
-        "id": snapshot_id,
-        "kind": "InstanceSnapshot",
-        "instanceDigest": _instance_identity(package),
-        "packageDigest": package.package_digest,
-        "irDigest": problem.digest,
-        "fileDigests": portable.resource_digests,
-        "resourceDigests": _source_resource_digests(problem),
-    }
 
 
 @router.get("/instances/{snapshot_id}")
@@ -3959,36 +1042,10 @@ async def get_snapshot(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        snapshot = await _owned_snapshot(snapshot_id, caller, session)
-        if snapshot is None:
-            return _problem(404, "not_found", "Snapshot not found")
-        ir = (await session.execute(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))).scalars().first()
-        return {
-            "id": snapshot_id,
-            "kind": "InstanceSnapshot",
-            "instanceDigest": snapshot.instance_digest,
-            "packageDigest": snapshot.package_digest,
-            "irDigest": ir.ir_digest if ir else None,
-            "fileDigests": load_package(snapshot.source_archive).resource_digests,
-            "resourceDigests": snapshot.resource_digests,
-            "instance": snapshot.root_document,
-            "createdAt": snapshot.created_at.isoformat(),
-        }
-    snapshot = _SNAPSHOTS.get(snapshot_id)
-    if not snapshot:
-        return _problem(404, "not_found", "Snapshot not found")
-    return {
-        "id": snapshot_id,
-        "kind": "InstanceSnapshot",
-        "instanceDigest": snapshot["digest"],
-        "packageDigest": snapshot["packageDigest"],
-        "irDigest": snapshot["problem"].digest,
-        "fileDigests": snapshot["fileDigests"],
-        "resourceDigests": snapshot["resourceDigests"],
-        "instance": snapshot["package"].json("instance.json"),
-        "createdAt": snapshot["createdAt"],
-    }
+    try:
+        return await instances.instance_view(snapshot_id, caller, session)
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
 
 
 @router.get("/instances/{snapshot_id}/source")
@@ -3997,16 +1054,10 @@ async def get_snapshot_source(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        snapshot = await _owned_snapshot(snapshot_id, caller, session)
-        if snapshot is None:
-            return _problem(404, "not_found", "Snapshot not found")
-        archive = snapshot.source_archive
-    else:
-        snapshot = _SNAPSHOTS.get(snapshot_id)
-        if snapshot is None:
-            return _problem(404, "not_found", "Snapshot not found")
-        archive = snapshot["package"].to_zip()
+    try:
+        archive = await instances.instance_source(snapshot_id, caller, session)
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
     return Response(
         archive,
         media_type="application/vnd.bim+zip",
@@ -4020,454 +1071,10 @@ async def get_snapshot_ir(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        snapshot = await _owned_snapshot(snapshot_id, caller, session)
-        if snapshot is None:
-            return _problem(404, "not_found", "Snapshot not found")
-        ir = (await session.execute(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))).scalars().first()
-        if ir is None:
-            return _problem(404, "not_found", "IR not found")
-        return ir.document
-    snapshot = _SNAPSHOTS.get(snapshot_id)
-    if not snapshot:
-        return _problem(404, "not_found", "Snapshot not found")
-    return snapshot["problem"].as_dict()
-
-
-async def _run_job(job_id: str) -> None:
-    job = _JOBS.get(job_id)
-    if not job:
-        return
-    job["status"] = "running"
-    await asyncio.sleep(0)
     try:
-        engine_result = await solve_remote(
-            job["transport"],
-            job["problem"].document,
-            job["options"],
-            job["optimization"],
-            timeout_s=job["timeout"],
-        )
-        result = _reevaluate_result(
-            job["problem"],
-            engine_result,
-            job["optimization"],
-            job["mode"]["terminationGuarantees"],
-        )
-        result["provenance"] = {**job["provenance"], "engineReported": engine_result.get("provenance", {})}
-        job["result"] = result
-        job["status"] = "completed"
-    except RemoteEngineError as exc:
-        job["status"] = "failed"
-        job["result"] = {"termination": "UNKNOWN", "solutions": [], "error": str(exc), "provenance": job["provenance"]}
-
-
-async def _fail_persisted_job(
-    job: Job,
-    session: AsyncSession,
-    message: str,
-    started: float,
-) -> None:
-    job.state = JobState.FAILED
-    job.result = {
-        "termination": "UNKNOWN",
-        "solutions": [],
-        "error": message,
-        "provenance": job.provenance or {},
-    }
-    job.termination = "UNKNOWN"
-    job.finished_at = utcnow()
-    try:
-        await metering.settle(
-            space_client.get_gate(),
-            session,
-            job.id,
-            solver_seconds=max(0.0, time.monotonic() - started),
-        )
-    except Exception as exc:
-        logger.warning("Settlement failed while failing job %s: %s", job.id, exc)
-    from ..telemetry import record_job_failure
-    try:
-        await record_job_failure(session, job, message)
-    except Exception:
-        pass
-
-    # Record MAPE-K failure observation if this was an auto-routed job
-    prov = job.provenance or {}
-    routing_admin = prov.get("engineRoutingAdmin")
-    if isinstance(routing_admin, dict) and "adaptationLoopId" in routing_admin:
-        try:
-            from ..engine_routing import get_adaptation_manager
-
-            adaptation_loop_id = routing_admin["adaptationLoopId"]
-            features_dict = routing_admin.get("workloadFeatures", {})
-            predicted = routing_admin.get("candidateEvaluations", [])
-            pred_for_selected = next(
-                (c.get("predicted", {}) for c in predicted if c.get("engine") == job.engine_id),
-                {},
-            )
-            actual_latency = max(0.0, time.monotonic() - started)
-            actual_credits = int(prov.get("engineRouting", {}).get("creditsCost", 1))
-
-            await get_adaptation_manager().observe_execution(
-                adaptation_loop_id=adaptation_loop_id,
-                engine=job.engine_id,
-                features_dict=features_dict,
-                predicted_metrics=pred_for_selected,
-                actual_latency=actual_latency,
-                actual_quality=0.0,
-                actual_credits=actual_credits,
-                outcome="failed",
-                candidate_evaluations=predicted,
-                engine_health_snapshot=routing_admin.get("engineHealthSnapshot"),
-                job_id=job.id,
-                session=session,
-            )
-        except Exception as obs_exc:
-            logger.warning("Failed to record adaptation observation for failed job %s: %s", job.id, obs_exc)
-
-    await session.flush()
-
-
-async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
-    """Dispatch a persisted BIM v1 job using only its stored canonical IR."""
-    try:
-        parsed = uuid.UUID(job_id)
-    except ValueError:
-        return
-    claimed = await session.execute(
-        update(Job)
-        .where(Job.id == parsed, Job.state == JobState.QUEUED)
-        .values(state=JobState.RUNNING)
-        .returning(Job.id)
-    )
-    if claimed.first() is None:
-        return
-    try:
-        await session.commit()
-    except Exception:
-        await session.flush()
-
-    job = await session.get(Job, parsed)
-    if job is None:
-        return
-    if job.cancellation_requested:
-        job.state = JobState.CANCELLED
-        job.finished_at = utcnow()
-        try:
-            await metering.settle(space_client.get_gate(), session, job.id, solver_seconds=0)
-        except Exception as exc:
-            logger.warning("Metering settlement failed for cancelled job %s: %s", job.id, exc)
-        await session.flush()
-        return
-    started = time.monotonic()
-    try:
-        request = job.original_request or {}
-        document = request.get("bindingProblem")
-        if not isinstance(document, dict):
-            await _fail_persisted_job(job, session, "persisted BindingProblem is missing", started)
-            return
-        problem = BindingProblem(
-            document=document,
-            digest=job.provenance.get("irDigest", digest(document)) if isinstance(job.provenance, dict) else digest(document),
-            source_map=document.get("spec", {}).get("sourceMap", {}) if isinstance(document.get("spec"), dict) else {},
-        )
-        mode_contract = _persisted_mode_contract(request.get("mode"))
-        if mode_contract is None:
-            await _fail_persisted_job(job, session, "Persisted Engine mode contract is invalid", started)
-            return
-        if not isinstance(job.options, dict):
-            await _fail_persisted_job(job, session, "Persisted Engine options must be an object", started)
-            return
-        provenance = job.provenance if isinstance(job.provenance, dict) else {}
-        engine_ref = provenance.get("engine")
-        manifest = await _persisted_engine_contract(
-            job.engine_id,
-            engine_ref,
-            mode_contract,
-            session,
-            job.owner_id,
-        )
-        if (
-            manifest is None
-            or provenance.get("engineDigest") != digest(manifest)
-            or provenance.get("mode") != mode_contract["id"]
-            or provenance.get("terminationGuarantees")
-            != mode_contract["terminationGuarantees"]
-        ):
-            await _fail_persisted_job(job, session, "Persisted Engine mode contract is inconsistent", started)
-            return
-        registration_ref = request.get("registration")
-        if (
-            not isinstance(registration_ref, dict)
-            or set(registration_ref) != {"namespace", "name", "version", "digest"}
-            or not all(isinstance(value, str) and value for value in registration_ref.values())
-        ):
-            await _fail_persisted_job(job, session, "Persisted EngineRegistration reference is invalid", started)
-            return
-
-        registration: EngineRegistrationRevision | dict[str, Any] | None = None
-        if registration_ref["namespace"] == "bim.builtin" and isinstance(engine_ref, dict):
-            registration = _installed_builtin_registration(
-                manifest,
-                get_settings().engine_urls.get(job.engine_id),
-                registration_ref,
-            )
-        if registration is None:
-            registration = (
-                await session.execute(
-                    select(EngineRegistrationRevision).where(
-                        EngineRegistrationRevision.namespace == registration_ref["namespace"],
-                        EngineRegistrationRevision.name == registration_ref["name"],
-                        EngineRegistrationRevision.version == registration_ref["version"],
-                        EngineRegistrationRevision.manifest_digest == registration_ref["digest"],
-                        or_(
-                            (
-                                (EngineRegistrationRevision.owner_id == job.owner_id)
-                                & EngineRegistrationRevision.is_active.is_(True)
-                            ),
-                            (
-                                (EngineRegistrationRevision.owner_id != job.owner_id)
-                                & (
-                                    EngineRegistrationRevision.publication_status
-                                    == "published"
-                                )
-                            ),
-                        ),
-                    )
-                )
-            ).scalars().first()
-        if registration is None:
-            await _fail_persisted_job(job, session, "Engine registration is no longer active", started)
-            return
-
-        registered_engine_digest = (
-            registration.engine_digest
-            if isinstance(registration, EngineRegistrationRevision)
-            else registration.get("document", {}).get("spec", {}).get("engine", {}).get("digest")
-        )
-        if registered_engine_digest != provenance.get("engineDigest"):
-            await _fail_persisted_job(job, session, "Engine registration no longer pins the persisted Engine", started)
-            return
-
-        credential_value = None
-        if isinstance(registration, EngineRegistrationRevision):
-            credential_value = None
-            credential_row = (
-                await session.execute(
-                    select(EngineCredential).where(EngineCredential.registration_id == registration.id)
-                )
-            ).scalars().first()
-            if credential_row is not None:
-                from ..security.secrets import CredentialStore, SecretsUnavailable
-
-                try:
-                    credential_value = CredentialStore.from_settings(get_settings()).decrypt(credential_row.credential_encrypted)
-                except SecretsUnavailable as exc:
-                    await _fail_persisted_job(job, session, str(exc), started)
-                    return
-            transport = RemoteRegistration(
-                endpoint=registration.endpoint,
-                mappings=registration.mappings,
-                auth_scheme=registration.auth_scheme,
-                credential=credential_value,
-                allow_internal_http=not get_settings().federation_require_https,
-            )
-            protocol_digest = registration.protocol_digest
-        else:
-            try:
-                transport = _registration_transport(registration)
-            except RemoteEngineError as exc:
-                await _fail_persisted_job(job, session, str(exc), started)
-                return
-            protocol_digest = registration["document"]["spec"]["protocol"]["digest"]
-        if job.service_url != transport.endpoint:
-            await _fail_persisted_job(job, session, "Persisted EngineRegistration endpoint changed", started)
-            return
-        if provenance.get("registration") != registration_ref or provenance.get("protocolDigest") != protocol_digest:
-            await _fail_persisted_job(job, session, "Persisted EngineRegistration provenance is inconsistent", started)
-            return
-        try:
-            remote_result = await solve_remote(
-                transport,
-                problem.document,
-                job.options,
-                request.get("optimization", provenance.get("optimization", {})),
-                timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
-            )
-        except RemoteEngineError as exc:
-            fallback_engine = provenance.get("engineRoutingAdmin", {}).get("fallbackEngine")
-            if fallback_engine and fallback_engine != job.engine_id:
-                logger.info(
-                    "Primary engine %s failed (%s); activating planned fallback to %s",
-                    job.engine_id,
-                    exc,
-                    fallback_engine,
-                )
-                try:
-                    fallback_path = _MANIFEST_DIR / f"{fallback_engine}.json"
-                    fallback_endpoint = get_settings().engine_urls.get(fallback_engine)
-                    if fallback_path.is_file() and fallback_endpoint:
-                        fallback_manifest = json.loads(fallback_path.read_text(encoding="utf-8"))
-                        fallback_reg = _builtin_engine_registration(fallback_manifest, fallback_endpoint)
-                        fallback_transport = _registration_transport(fallback_reg)
-                        remote_result = await solve_remote(
-                            fallback_transport,
-                            problem.document,
-                            job.options,
-                            request.get("optimization", provenance.get("optimization", {})),
-                            timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
-                        )
-                        job.engine_id = fallback_engine
-                        provenance["fallbackActivated"] = True
-                        provenance["fallbackEngine"] = fallback_engine
-                        if "engineRouting" in provenance and isinstance(provenance["engineRouting"], dict):
-                            provenance["engineRouting"]["selectedEngine"] = fallback_engine
-                            provenance["engineRouting"]["fallbackActivated"] = True
-                    else:
-                        await _fail_persisted_job(job, session, str(exc), started)
-                        return
-                except Exception as fb_exc:
-                    logger.warning("Fallback engine %s failed as well: %s", fallback_engine, fb_exc)
-                    await _fail_persisted_job(
-                        job,
-                        session,
-                        f"Primary engine ({exc}) and fallback ({fb_exc}) both failed",
-                        started,
-                    )
-                    return
-            else:
-                await _fail_persisted_job(job, session, str(exc), started)
-                return
-        await session.refresh(job)
-        if job.cancellation_requested:
-            job.state = JobState.CANCELLED
-            job.finished_at = utcnow()
-            try:
-                await metering.settle(
-                    space_client.get_gate(), session, job.id,
-                    solver_seconds=max(0.0, time.monotonic() - started),
-                )
-            except Exception as exc:
-                logger.warning("Metering settlement failed for cancelled job %s: %s", job.id, exc)
-            await session.flush()
-            return
-        reevaluated = _reevaluate_result(
-            problem,
-            remote_result,
-            request.get("optimization", provenance.get("optimization", {})),
-            mode_contract["terminationGuarantees"],
-        )
-        job.provenance = {
-            **provenance,
-            "registration": registration_ref,
-            "protocolDigest": protocol_digest,
-            "engineReported": remote_result.get("provenance", {}),
-        }
-        reevaluated["provenance"] = job.provenance
-        job.result = reevaluated
-        job.termination = reevaluated["termination"]
-        job.state = JobState.COMPLETED
-        job.finished_at = utcnow()
-        routing_admin = provenance.get("engineRoutingAdmin")
-        if isinstance(routing_admin, dict) and "adaptationLoopId" in routing_admin:
-            try:
-                from ..engine_routing import get_adaptation_manager
-
-                adaptation_loop_id = routing_admin["adaptationLoopId"]
-                features_dict = routing_admin.get("workloadFeatures", {})
-                predicted = routing_admin.get("candidateEvaluations", [])
-                pred_for_selected = next(
-                    (c.get("predicted", {}) for c in predicted if c.get("engine") == job.engine_id),
-                    {},
-                )
-                actual_latency = max(0.0, time.monotonic() - started)
-                solutions = reevaluated.get("solutions") or []
-                if not solutions or reevaluated.get("termination") not in ("OPTIMAL", "FEASIBLE"):
-                    actual_quality = 0.0
-                else:
-                    raw_score = solutions[0].get("objectives", {}).get("score")
-                    try:
-                        score_float = float(raw_score) if raw_score is not None else 1.0
-                        if 0.0 <= score_float <= 1.0:
-                            actual_quality = score_float
-                        else:
-                            actual_quality = 1.0 if score_float <= 0 else max(0.0, min(1.0, 1.0 / (1.0 + score_float)))
-                    except (ValueError, TypeError):
-                        actual_quality = 0.5
-                actual_credits = int(provenance.get("engineRouting", {}).get("creditsCost", 1))
-
-                await get_adaptation_manager().observe_execution(
-                    adaptation_loop_id=adaptation_loop_id,
-                    engine=job.engine_id,
-                    features_dict=features_dict,
-                    predicted_metrics=pred_for_selected,
-                    actual_latency=actual_latency,
-                    actual_quality=actual_quality,
-                    actual_credits=actual_credits,
-                    outcome=job.termination or "completed",
-                    candidate_evaluations=predicted,
-                    engine_health_snapshot=routing_admin.get("engineHealthSnapshot"),
-                    job_id=job.id,
-                    session=session,
-                )
-            except Exception as exc:
-                logger.warning("Failed to record adaptation observation for job %s: %s", job.id, exc)
-        try:
-            await metering.settle(
-                space_client.get_gate(),
-                session,
-                job.id,
-                solver_seconds=time.monotonic() - started,
-            )
-        except Exception as exc:
-            logger.warning("Metering settlement failed for completed job %s: %s", job.id, exc)
-        await session.flush()
-    except Exception as exc:
-        logger.exception("Unexpected error executing persisted job %s: %s", job_id, exc)
-        await _fail_persisted_job(job, session, f"Execution failed: {exc}", started)
-
-
-async def _run_persisted_job(job_id: str, request_session: AsyncSession | None = None) -> None:
-    if request_session is not None:
-        await _finish_persisted_job(job_id, request_session)
-        return
-    if not db_base.is_configured():
-        raise RuntimeError("A persisted job cannot run without an initialized database.")
-    async with db_base.session_factory()() as session:
-        try:
-            await _finish_persisted_job(job_id, session)
-            await session.commit()
-        except Exception as exc:
-            await session.rollback()
-            logger.exception("Job execution failed unexpectedly for %s: %s", job_id, exc)
-            async with db_base.session_factory()() as fail_session:
-                try:
-                    parsed = uuid.UUID(job_id)
-                    failed_job = await fail_session.get(Job, parsed)
-                    if failed_job is not None and failed_job.state not in (
-                        JobState.COMPLETED,
-                        JobState.FAILED,
-                        JobState.CANCELLED,
-                    ):
-                        failed_job.state = JobState.FAILED
-                        failed_job.result = {
-                            "termination": "UNKNOWN",
-                            "solutions": [],
-                            "error": f"Internal execution error: {exc}",
-                            "provenance": failed_job.provenance or {},
-                        }
-                        failed_job.termination = "UNKNOWN"
-                        failed_job.finished_at = utcnow()
-                        from ..telemetry import record_job_failure
-                        try:
-                            await record_job_failure(fail_session, failed_job, str(exc))
-                        except Exception:
-                            pass
-                        await fail_session.commit()
-                except Exception:
-                    logger.exception("Failed to record failure for job %s", job_id)
-            raise
+        return await instances.instance_ir(snapshot_id, caller, session)
+    except instances.InstanceProblem as exc:
+        return _service_problem(exc)
 
 
 @router.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
@@ -4476,6 +1083,38 @@ async def create_job(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
+    key = request.headers.get("Idempotency-Key")
+    if key is not None and key.startswith(STUDY_CELL_KEY_PREFIX):
+        return _problem(
+            422,
+            "reserved_idempotency_key",
+            f"Idempotency-Key cannot start with {STUDY_CELL_KEY_PREFIX!r}; the gateway reserves that prefix",
+        )
+    return await _create_job_core(request, caller, session)
+
+
+async def _create_job_core(
+    request: Request,
+    caller: User | None,
+    session: AsyncSession | None,
+    *,
+    commit: bool = True,
+    dispatch: bool = True,
+    study_cell_id: uuid.UUID | None = None,
+):
+    """Read, submit and dispatch a job; ``create_job`` is its HTTP face.
+
+    The submission itself (validation, idempotency, limits, persistence) is
+    ``services.job_submission``. ``commit`` and ``dispatch`` say whether to
+    commit and queue the job here. Without them the job stays in the caller's
+    transaction and its reservation is recorded in ``pending_launches``.
+    ``study_cell_id`` is written in the job's own INSERT, so the cell and the
+    job cannot be seen apart; losing the race for a cell returns the job that
+    won it.
+    """
+
+    if dispatch and not commit:
+        raise ValueError("a job cannot be dispatched before it is committed")
     idempotency_key = request.headers.get("Idempotency-Key")
     if idempotency_key is not None and not (1 <= len(idempotency_key) <= 255):
         return _problem(
@@ -4483,458 +1122,69 @@ async def create_job(
             "invalid_idempotency_key",
             "Idempotency-Key must contain between 1 and 255 characters",
         )
-    body_size = 0
-    pinned_problem = None
-    configuration_version = None
-    configuration_ref = None
+    submission = await _read_job_request(request, idempotency_key)
+    if isinstance(submission, JSONResponse):
+        return submission
+    result = await JobSubmission(
+        session,
+        caller,
+        commit=commit,
+        study_cell_id=study_cell_id,
+        snapshot_persister=persist_snapshot,
+    ).submit(submission)
+    if dispatch and result.kind == "created":
+        await dispatch_persisted_job(result.body["id"], None if db_base.is_configured() else session)
+    return _job_response(result)
+
+
+async def _read_job_request(request: Request, idempotency_key: str | None) -> JobSubmissionInput | JSONResponse:
+    """The job request as the service takes it, or the problem that stops it at the transport."""
     try:
         content_type = (request.headers.get("content-type") or "").split(";", 1)[0].lower()
         if content_type.startswith("multipart/form-data"):
             body = await request.body()
-            body_size = len(body)
-            if body_size > MAX_COMPRESSED + 1024 * 1024:
+            if len(body) > _max_compressed() + 1024 * 1024:
                 return _problem(413, "payload_too_large", "multipart BIM package is too large")
-            package = load_package(_multipart_zip(body, request.headers.get("content-type", "")))
-            payload = {}
-        elif content_type in _BIM_ZIP_TYPES:
-            package = await _read_package(request)
+            archive = _multipart_zip(body, request.headers.get("content-type", ""))
+            return JobSubmissionInput({}, len(body), idempotency_key, archive=archive)
+        if content_type in _BIM_ZIP_TYPES:
+            archive = await _read_package(request)
             body_size = int(request.headers.get("content-length", "0") or 0)
-            payload: dict[str, Any] = {}
-        else:
-            body = await request.body()
-            body_size = len(body)
-            if body_size > MAX_EXPANDED:
-                return _problem(413, "payload_too_large", f"request body exceeds {MAX_EXPANDED} bytes")
-            payload = strict_json_loads(body)
-            snapshot_id = payload.get("snapshot") if isinstance(payload, dict) else None
-            if snapshot_id:
-                allowed_fields = {"snapshot", "engine", "registration", "mode", "options", "optimization", "configuration"}
-                if set(payload) - allowed_fields:
-                    return _problem(
-                        422,
-                        "invalid_request_fields",
-                        "job request contains fields outside the BIM v1 job contract",
-                    )
-                if 'configuration' in payload:
-                    if session is None or caller is None:
-                        return _problem(401, 'unauthorized', 'Selecting a library execution configuration requires an account.')
-                    if set(payload) & {'engine', 'registration', 'mode', 'options', 'optimization'}:
-                        return _problem(422, 'ambiguous_configuration', 'Select a configuration version or inline execution settings, not both.')
-                    from ..artifacts import resolve_version, reference, version_content
-                    from ..models.artifacts import ArtifactRef
-                    from pydantic import ValidationError
-                    try:
-                        selected = ArtifactRef.model_validate(payload['configuration'])
-                    except ValidationError as exc:
-                        return _problem(422, 'invalid_configuration', str(exc))
-                    configuration_artifact, configuration_version = await resolve_version(session, selected, caller)
-                    if configuration_artifact.kind != 'ExecutionConfiguration':
-                        return _problem(422, 'invalid_configuration', 'Select an ExecutionConfiguration version.')
-                    configuration_ref = reference(configuration_artifact, configuration_version)
-                    settings_document = strict_json_loads((await version_content(session, configuration_version))[0])
-                    payload = {**payload, **settings_document}
-                if session is not None:
-                    snapshot = await _owned_snapshot(snapshot_id, caller, session)
-                    if snapshot is None:
-                        return _problem(404, "not_found", "Snapshot not found")
-                    package = load_package(snapshot.source_archive)
-                    pinned_problem = await _snapshot_problem(snapshot, session)
-                else:
-                    snapshot = _SNAPSHOTS.get(snapshot_id)
-                    if not snapshot:
-                        return _problem(404, "not_found", "Snapshot not found")
-                    package = snapshot["package"]
-            else:
-                return _problem(
-                    422,
-                    "snapshot_or_package_required",
-                    "BIM v1 jobs accept an existing snapshot or a ZIP package upload",
-                )
-        problem = pinned_problem or await _compile_resolved(package, session, caller)
+            return JobSubmissionInput({}, body_size, idempotency_key, archive=archive)
+        body = await request.body()
+        if len(body) > _max_expanded():
+            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
+        payload = strict_json_loads(body)
+        snapshot_id = payload.get("snapshot") if isinstance(payload, dict) else None
+        if not snapshot_id:
+            return _problem(
+                422,
+                "snapshot_or_package_required",
+                "BIM v1 jobs accept an existing snapshot or a ZIP package upload",
+            )
+        allowed_fields = {"snapshot", "engine", "registration", "mode", "options", "optimization", "configuration"}
+        if set(payload) - allowed_fields:
+            return _problem(
+                422,
+                "invalid_request_fields",
+                "job request contains fields outside the BIM v1 job contract",
+            )
+        return JobSubmissionInput(payload, len(body), idempotency_key, snapshot_id=snapshot_id)
     except PackageError as exc:
         return _problem(422, "invalid_request", str(exc))
     except HTTPException as exc:
         return _error_from_http(exc)
-    job_id = str(uuid.uuid4())
-    engine_selector = payload.get("engine", "random-search") if isinstance(payload, dict) else "random-search"
-    routing_plan = None
-    if engine_selector == "auto":
-        from ..engine_routing import get_adaptation_manager
 
-        meta_router_url = get_settings().engine_urls.get("meta-router-csp")
-        routing_plan = await get_adaptation_manager().plan_routing(
-            problem=problem,
-            options=payload.get("options") if isinstance(payload, dict) else {},
-            service_url=meta_router_url,
-        )
-        engine = routing_plan.selected_engine
-        engine_namespace = engine_version = requested_engine_digest = None
-        requested_mode = (
-            payload.get("mode")
-            if (isinstance(payload, dict) and payload.get("mode"))
-            else routing_plan.selected_mode
-        )
-    elif isinstance(engine_selector, dict):
-        engine = engine_selector.get("name")
-        engine_namespace = engine_selector.get("namespace")
-        engine_version = engine_selector.get("version")
-        requested_engine_digest = engine_selector.get("digest")
-        if not all(
-            isinstance(value, str) and value
-            for value in (engine, engine_namespace, engine_version, requested_engine_digest)
-        ):
-            return _problem(
-                422,
-                "invalid_engine",
-                "engine references require namespace, name, version and digest",
-            )
-        requested_mode = payload.get("mode") if isinstance(payload, dict) else None
-    else:
-        engine = engine_selector
-        engine_namespace = engine_version = requested_engine_digest = None
-        requested_mode = payload.get("mode") if isinstance(payload, dict) else None
-    if not isinstance(engine, str) or not engine:
-        return _problem(422, "invalid_engine", "engine must be a name or immutable reference")
-    if not isinstance(engine_selector, dict) and not (_MANIFEST_DIR / f"{engine}.json").is_file():
-        return _problem(
-            422,
-            "immutable_engine_required",
-            "non-built-in engines must be selected by namespace, name, version and digest",
-        )
-    raw_engine_options = payload.get("options", {}) if isinstance(payload, dict) else {}
-    filtered_engine_options = {k: v for k, v in raw_engine_options.items() if k != "routing"} if isinstance(raw_engine_options, dict) else raw_engine_options
-    try:
-        manifest, selected_mode, effective_options = await _engine_mode(
-            engine,
-            requested_mode,
-            filtered_engine_options,
-            session,
-            caller=caller,
-            namespace=engine_namespace,
-            version=engine_version,
-            manifest_digest=requested_engine_digest,
-        )
-    except HTTPException as exc:
-        return _error_from_http(exc)
-    engine_hash = digest(manifest)
-    try:
-        execution_optimization = _resolve_execution_optimization(
-            problem,
-            selected_mode,
-            payload.get("optimization") if isinstance(payload, dict) else None,
-        )
-    except HTTPException as exc:
-        return _error_from_http(exc)
-    immutable_engine_ref = _engine_ref(manifest, engine_namespace or "bim.builtin")
-    if caller is not None and not allows_engine(caller, immutable_engine_ref):
-        return _problem(404, "not_found", "Engine revision not found")
-    settings = get_settings()
-    option_warnings: list[dict[str, Any]] = []
-    effective_timeout = settings.engine_solve_timeout_s
-    if caller is not None:
-        try:
-            caps = await space_client.get_gate().caps(caller.id)
-        except space_client.PricingUnavailable as exc:
-            return _problem(503, "pricing_unavailable", str(exc))
-        if body_size and body_size > payload_ceiling_bytes(
-            caps, 512 * 1024 * 1024
-        ):
-            return _problem(413, "payload_too_large", "BIM package exceeds the caller plan limit")
-        if instance_complexity_too_large(problem.binding_space_log10, caps):
-            return _problem(
-                402,
-                "instance_complexity_too_large",
-                "instance binding space exceeds the caller plan limit",
-            )
-        clamped = clamp_options(effective_options, caps)
-        effective_options = clamped.options
-        option_warnings = [warning.model_dump(mode="json") for warning in clamped.warnings]
-        effective_timeout = solve_timeout_s(caps, settings.engine_solve_timeout_s)
-    compatibility_diagnostics = _mode_compatibility(problem, selected_mode)
-    if compatibility_diagnostics:
-        return _problem(
-            422,
-            "engine_mode_incompatible",
-            "selected engine mode cannot execute every construct in this BindingProblem",
-            compatibility_diagnostics,
-        )
-    limits = dict(selected_mode.get("limits", {}))
-    tasks = problem.document["spec"].get("application", {}).get("tasks", {})
-    task_count = len(tasks) if isinstance(tasks, (dict, list)) else 0
-    candidate_count = _candidate_count(problem.document["spec"])
-    mode = selected_mode["id"]
-    mode_contract = _mode_execution_contract(selected_mode)
-    requested_registration = payload.get("registration") if isinstance(payload, dict) else None
-    if requested_registration is not None and (
-        not isinstance(requested_registration, dict)
-        or set(requested_registration) != {"namespace", "name", "version", "digest"}
-        or not all(isinstance(value, str) and value for value in requested_registration.values())
-    ):
-        return _problem(
-            422,
-            "invalid_registration",
-            "registration references require exactly namespace, name, version and digest",
-        )
-    registration = await _registration_for_engine(
-        requested_registration.get("namespace") if requested_registration else None,
-        requested_registration.get("name") if requested_registration else None,
-        requested_registration.get("version") if requested_registration else None,
-        requested_registration.get("digest") if requested_registration else None,
-        caller,
-        session,
-    )
-    builtin_registration = _installed_builtin_registration(
-        manifest,
-        settings.engine_urls.get(engine),
-        requested_registration,
-    )
-    if registration is None and builtin_registration is not None:
-        registration = builtin_registration
-    if requested_registration is not None and registration is None:
-        return _problem(404, "not_found", "Engine registration not found or not active")
-    if registration is None:
-        return _problem(
-            422,
-            "engine_registration_required",
-            "the selected Engine revision has no installed EngineRegistration",
-        )
-    if isinstance(registration, EngineRegistrationRevision):
-        registration_ref = _registration_reference(registration)
-        if (
-            registration.engine_digest != engine_hash
-            or _registration_engine_reference(registration) != immutable_engine_ref
-        ):
-            return _problem(409, "engine_reference_mismatch", "registration does not pin the exact selected Engine revision")
-        endpoint = registration.endpoint
-        protocol_hash = registration.protocol_digest
-    elif isinstance(registration, dict):
-        registration_ref = _registration_reference(registration)
-        if _registration_engine_reference(registration) != immutable_engine_ref:
-            return _problem(409, "engine_reference_mismatch", "registration does not pin the exact selected Engine revision")
-        endpoint = registration["document"]["spec"]["endpoint"]
-        protocol_hash = registration["document"]["spec"]["protocol"]["digest"]
 
-    portable = load_package(package.to_zip())
-    instance_hash = _instance_identity(package)
-    package_hash = digest_bytes(package.to_zip())
-    profile = problem.document["spec"]["profile"]
-    evaluator_hash = compiler_bundle_digest()
-    dialects = problem.document["spec"]["dialects"]
-    adapters = [item["adapter"] for item in dialects if isinstance(item, dict) and isinstance(item.get("adapter"), dict)]
-    request_fingerprint = digest({
-        "configuration": configuration_ref,
-        "requestedOptions": raw_engine_options,
-        "packageDigest": package_hash,
-        "fileDigests": portable.resource_digests,
-        "resourceDigests": _source_resource_digests(problem),
-        "irDigest": problem.digest,
-        "dialects": dialects,
-        "adapters": adapters,
-        "engineDigest": engine_hash,
-        "registration": registration_ref,
-        "protocolDigest": protocol_hash,
-        "mode": mode,
-        "optimization": execution_optimization,
-        "algorithm": selected_mode.get("algorithm"),
-        "options": effective_options,
-        "limits": limits,
-    })
-    if session is not None and caller is not None and idempotency_key:
-        existing = (
-            await session.execute(
-                select(Job).where(Job.owner_id == caller.id, Job.idempotency_key == idempotency_key)
-            )
-        ).scalars().first()
-        if existing is not None:
-            if existing.idempotency_fingerprint != request_fingerprint:
-                return _problem(409, "idempotency_conflict", "Idempotency-Key was already used for a different request")
-            existing_provenance = existing.provenance or {}
-            existing_profile = existing_provenance.get("profile", {})
-            return JSONResponse(
-                {
-                    "id": str(existing.id),
-                    "status": existing.state.value,
-                    "profile": existing_profile.get("id"),
-                    "irDigest": existing_provenance.get("irDigest"),
-                    "idempotent": True,
-                },
-                status_code=202,
-            )
-    if idempotency_key:
-        for existing_job_id, job in _JOBS.items():
-            if job.get("idempotencyKey") == idempotency_key:
-                if job.get("idempotencyFingerprint") != request_fingerprint:
-                    return _problem(409, "idempotency_conflict", "Idempotency-Key was already used for a different request")
-                existing_profile = job["provenance"].get("profile", {})
-                return JSONResponse(
-                    {
-                        "id": existing_job_id,
-                        "status": job["status"],
-                        "profile": existing_profile.get("id"),
-                        "irDigest": job["provenance"].get("irDigest"),
-                        "idempotent": True,
-                    },
-                    status_code=202,
-                )
-    provenance = {
-        "engine": immutable_engine_ref,
-        "engineDigest": engine_hash,
-        "registration": registration_ref,
-        "protocol": "bim-engine/v1",
-        "protocolDigest": protocol_hash,
-        "mode": mode,
-        "optimization": execution_optimization,
-        "algorithm": selected_mode.get("algorithm"),
-        "profile": profile,
-        "profileDigest": profile["digest"],
-        "ir": {"apiVersion": problem.document["apiVersion"], "kind": problem.document["kind"]},
-        "irDigest": problem.digest,
-        "instanceDigest": instance_hash,
-        "packageDigest": package_hash,
-        "fileDigests": portable.resource_digests,
-        "resourceDigests": _source_resource_digests(problem),
-        "dialects": dialects,
-        "adapters": adapters,
-        "compiler": "bim-compiler/v1",
-        "compilerDigest": evaluator_hash,
-        "evaluator": "bim-reference-evaluator/v1",
-        "evaluatorDigest": evaluator_hash,
-        "options": effective_options,
-        "limits": {**limits, "effectiveTimeoutSeconds": effective_timeout},
-        "warnings": option_warnings,
-        "terminationGuarantees": mode_contract["terminationGuarantees"],
-    }
-    if routing_plan is not None:
-        provenance["engineRouting"] = routing_plan.provenance_user
-        provenance["engineRoutingAdmin"] = routing_plan.provenance_admin
-    provenance['requestedOptions'] = raw_engine_options
-    if configuration_ref:
-        provenance['configuration'] = configuration_ref
-    reservation = None
-    if caller is not None:
-        try:
-            verdict, reservation = await metering.reserve(
-                space_client.get_gate(),
-                caller.id,
-                federated=not (
-                    isinstance(registration, dict)
-                    and _is_installed_builtin_registration(registration)
-                ),
-                capacity_units=routing_plan.credits_cost if routing_plan else None,
-                engine_name=engine,
-                session=session,
-            )
-        except space_client.PricingUnavailable as exc:
-            return _problem(503, "pricing_unavailable", str(exc))
-        if not verdict.allowed:
-            if verdict.limit is not None:
-                if verdict.limit.limit_id == "concurrentJobs":
-                    return _problem(
-                        429,
-                        "concurrency_limit_exceeded",
-                        verdict.reason or "Concurrency limit exceeded.",
-                        extra={"concurrency": {"limit_id": "concurrentJobs", "limit": verdict.limit.limit, "used": verdict.limit.used}},
-                        headers={"Retry-After": "15"},
-                    )
-                else:
-                    return _problem(
-                        402,
-                        "quota_exceeded",
-                        verdict.reason or "Solve quota exhausted.",
-                        extra={
-                            "quota": {
-                                "limit_id": verdict.limit.limit_id,
-                                "limit": verdict.limit.limit,
-                                "used": verdict.limit.used,
-                                "unit": verdict.limit.unit,
-                                "renews_at": verdict.limit.renews_at,
-                            }
-                        },
-                    )
-            return _problem(
-                403,
-                "feature_not_entitled",
-                verdict.reason or "The current plan does not entitle this feature.",
-            )
-    if session is not None and caller is not None:
-        try:
-            async with session.begin_nested():
-                snapshot_db_id = await _persist_snapshot(package, problem, caller, session)
-        except IntegrityError:
-            await metering.release(space_client.get_gate(), reservation)
-            return _problem(409, "snapshot_conflict", "snapshot identity conflicted with another revision")
-        try:
-            parsed_snapshot_id = uuid.UUID(snapshot_db_id) if snapshot_db_id else None
-        except ValueError:
-            parsed_snapshot_id = None
-        db_job = Job(
-            id=uuid.UUID(job_id),
-            owner_id=caller.id,
-            engine_id=engine,
-            engine_job_id=job_id,
-            service_url=endpoint,
-            state=JobState.QUEUED,
-            original_request={
-                "bindingProblem": problem.document,
-                "timeout": effective_timeout,
-                "mode": mode_contract,
-                "optimization": execution_optimization,
-                "registration": registration_ref,
-            },
-            options=effective_options,
-            warnings=option_warnings,
-            instance_complexity={
-                "instanceDigest": instance_hash,
-                "resourceCount": len(portable.resource_digests),
-                "tasks": task_count,
-                "candidates": candidate_count,
-                "bindingSpace": str(problem.binding_space_cardinality),
-            },
-            instance_snapshot_id=parsed_snapshot_id,
-            configuration_version_id=configuration_version.id if configuration_version else None,
-            provenance=provenance,
-            idempotency_key=idempotency_key,
-            idempotency_fingerprint=request_fingerprint,
-            requested_budget_s=effective_timeout,
-        )
-        try:
-            async with session.begin_nested():
-                session.add(db_job)
-                session.add(JobProvenance(job_id=db_job.id, document=provenance, digest=digest(provenance)))
-                await session.flush()
-        except IntegrityError:
-            await metering.release(space_client.get_gate(), reservation)
-            return _problem(409, "job_conflict", "job identity conflicted with another request")
-        await session.commit()
-        await dispatch_persisted_job(job_id, None if db_base.is_configured() else session)
-        return {"id": job_id, "status": "queued", "profile": profile["id"], "irDigest": problem.digest}
-    if isinstance(registration, dict):
-        transport = _registration_transport(
-            registration,
-            credential=registration.get("credential"),
-        )
-    else:
-        transport = RemoteRegistration(
-            endpoint=registration.endpoint,
-            mappings=registration.mappings,
-            auth_scheme=registration.auth_scheme,
-            allow_internal_http=not get_settings().federation_require_https,
-        )
-    job = {
-        "status": "queued",
-        "problem": problem,
-        "transport": transport,
-        "options": effective_options,
-        "timeout": effective_timeout,
-        "mode": mode_contract,
-        "optimization": execution_optimization,
-        "idempotencyKey": idempotency_key,
-        "idempotencyFingerprint": request_fingerprint,
-        "provenance": provenance,
-    }
-    _JOBS[job_id] = job
-    asyncio.create_task(_run_job(job_id))
-    return {"id": job_id, "status": "queued", "profile": profile["id"], "irDigest": problem.digest}
+def _job_response(result: JobSubmissionResult) -> dict[str, Any] | JSONResponse:
+    """A new job answers with its document (202 by the route); a replay or a problem is a response of its own."""
+    if result.kind == "created":
+        return result.body
+    if result.kind == "replay":
+        return JSONResponse(result.body, status_code=result.status, headers=result.headers or None)
+    return JSONResponse(
+        result.body, status_code=result.status, media_type=PROBLEM_MEDIA_TYPE, headers=result.headers or None
+    )
 
 
 @router.get("/jobs/{job_id}")
@@ -4943,30 +1193,14 @@ async def get_v1_job(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        job = await _owned_job(job_id, caller, session)
-        if job is None:
-            return _problem(404, "not_found", "Job not found")
-        prov = dict(job.provenance or {})
-        if caller is None or getattr(caller, "role", None) != UserRole.ADMIN:
-            prov.pop("engineRoutingAdmin", None)
-        result = {"id": job_id, "status": job.state.value, "provenance": prov}
-        if job.result is not None:
-            result["result"] = job.result
-            if isinstance(job.result, dict) and "error" in job.result:
-                result["error"] = job.result["error"]
-        return result
-    job = _JOBS.get(job_id)
-    if not job:
+    job = await owned_job(job_id, caller, session)
+    if job is None:
         return _problem(404, "not_found", "Job not found")
-    prov = dict(job.get("provenance") or {})
-    if caller is None or getattr(caller, "role", None) != UserRole.ADMIN:
-        prov.pop("engineRoutingAdmin", None)
-    result = {"id": job_id, "status": job["status"], "provenance": prov}
-    if "result" in job:
-        result["result"] = job["result"]
-        if isinstance(job["result"], dict) and "error" in job["result"]:
-            result["error"] = job["result"]["error"]
+    result = {"id": job_id, "status": job.state.value, "provenance": dict(job.provenance or {})}
+    if job.result is not None:
+        result["result"] = job.result
+        if isinstance(job.result, dict) and "error" in job.result:
+            result["error"] = job.result["error"]
     return result
 
 
@@ -4990,10 +1224,7 @@ async def get_v1_job_neighborhood(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    from starlette.concurrency import run_in_threadpool
-    from ..v1.analysis import analyze_neighborhood
-
-    job = await _owned_job(job_id, caller, session)
+    job = await owned_job(job_id, caller, session)
     if job is None:
         return _problem(404, "not_found", "Job not found")
     solutions = (job.result or {}).get("solutions", [])
@@ -5011,15 +1242,22 @@ async def get_v1_job_neighborhood(
         if ir is not None:
             if ir_digest and ir_digest != ir.ir_digest:
                 return _problem(409, "analysis_unavailable", "Job and snapshot IR identities disagree")
-            document, ir_digest = ir.document, ir.ir_digest
+            document = ir.document
     if not isinstance(document, dict) or document.get("kind") != "BindingProblem":
         return _problem(409, "analysis_unavailable", "The pinned BindingProblem is unavailable")
+    if not bim.ir_is_installed(document):
+        return _problem(422, "contract_not_installed", bim.STALE_IR_MESSAGE)
     if _ANALYSIS_SLOTS.locked():
         return _problem(429, "analysis_busy", "The analysis evaluator is busy; retry shortly")
-    problem = BindingProblem(document=document, digest=ir_digest or digest(document), source_map={})
+    # Compare under the job's execution optimization, as the gateway re-evaluation did.
+    execution = (job.original_request or {}).get("optimization") or (job.provenance or {}).get("optimization")
+    if not isinstance(execution, dict):
+        execution = None
     async with _ANALYSIS_SLOTS:
         try:
-            result = await run_in_threadpool(analyze_neighborhood, problem, decision["binding"], task=task, limit=limit)
+            result = await bim.abim().neighborhood(
+                document, decision["binding"], task=task, limit=limit, execution=execution
+            )
         except (ValueError, ArithmeticError) as exc:
             return _problem(422, "analysis_invalid", str(exc)[:300])
     return {"jobId": job_id, "solutionIndex": solution_index, **result}
@@ -5031,24 +1269,18 @@ async def get_v1_job_ir(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        job = await _owned_job(job_id, caller, session)
-        if job is None:
-            return _problem(404, "not_found", "Job not found")
-        document = (job.original_request or {}).get("bindingProblem")
-        if not isinstance(document, dict) and job.instance_snapshot_id is not None:
-            ir = (await session.execute(select(BindingIRSnapshot).where(
-                BindingIRSnapshot.snapshot_id == job.instance_snapshot_id
-            ))).scalars().first()
-            if ir is not None:
-                if (job.provenance or {}).get("irDigest") not in (None, ir.ir_digest):
-                    return _problem(409, "analysis_unavailable", "Job and snapshot IR identities disagree")
-                document = ir.document
-    else:
-        job = _JOBS.get(job_id)
-        if job is None:
-            return _problem(404, "not_found", "Job not found")
-        document = job["problem"].document
+    job = await owned_job(job_id, caller, session)
+    if job is None:
+        return _problem(404, "not_found", "Job not found")
+    document = (job.original_request or {}).get("bindingProblem")
+    if not isinstance(document, dict) and job.instance_snapshot_id is not None:
+        ir = (await session.execute(select(BindingIRSnapshot).where(
+            BindingIRSnapshot.snapshot_id == job.instance_snapshot_id
+        ))).scalars().first()
+        if ir is not None:
+            if (job.provenance or {}).get("irDigest") not in (None, ir.ir_digest):
+                return _problem(409, "analysis_unavailable", "Job and snapshot IR identities disagree")
+            document = ir.document
     if not isinstance(document, dict):
         return _problem(404, "not_found", "BindingProblem not found")
     return document
@@ -5060,35 +1292,30 @@ async def get_v1_job_instance(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        job = await _owned_job(job_id, caller, session)
-        if job is None:
-            return _problem(404, "not_found", "Job not found")
-        if job.instance_snapshot_id is None:
-            return _problem(404, "not_found", "Instance snapshot not found")
-        snapshot = (
-            await session.execute(
-                select(InstanceSnapshot).where(
-                    InstanceSnapshot.id == job.instance_snapshot_id,
-                    InstanceSnapshot.owner_id == caller.id,
-                )
-            )
-        ).scalars().first()
-        if snapshot is None:
-            return _problem(404, "not_found", "Instance snapshot not found")
-        return {
-            "id": str(snapshot.id),
-            "instanceDigest": snapshot.instance_digest,
-            "packageDigest": snapshot.package_digest,
-            "fileDigests": load_package(snapshot.source_archive).resource_digests,
-            "resourceDigests": snapshot.resource_digests,
-            "instance": snapshot.root_document,
-        }
-    job = _JOBS.get(job_id)
+    job = await owned_job(job_id, caller, session)
     if job is None:
         return _problem(404, "not_found", "Job not found")
-    spec = job["problem"].document.get("spec", {})
-    return {"instance": spec.get("instance"), "instanceDigest": job["provenance"].get("instanceDigest")}
+    if job.instance_snapshot_id is None:
+        return _problem(404, "not_found", "Instance snapshot not found")
+    snapshot = (
+        await session.execute(
+            select(InstanceSnapshot).where(
+                InstanceSnapshot.id == job.instance_snapshot_id,
+                InstanceSnapshot.owner_id == caller.id,
+            )
+        )
+    ).scalars().first()
+    if snapshot is None:
+        return _problem(404, "not_found", "Instance snapshot not found")
+    ir = (await session.execute(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))).scalars().first()
+    return {
+        "id": str(snapshot.id),
+        "instanceDigest": snapshot.instance_digest,
+        "packageDigest": snapshot.package_digest,
+        "fileDigests": package_file_digests(snapshot.root_document, ir.document if ir else {}),
+        "resourceDigests": snapshot.resource_digests,
+        "instance": snapshot.root_document,
+    }
 
 
 @router.get("/jobs/{job_id}/report")
@@ -5097,18 +1324,11 @@ async def get_v1_job_report(
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
-    if session is not None:
-        job = await _owned_job(job_id, caller, session)
-        if job is None:
-            return _problem(404, "not_found", "Job not found")
-        result = job.result or {}
-        provenance = job.provenance or {}
-    else:
-        job = _JOBS.get(job_id)
-        if job is None:
-            return _problem(404, "not_found", "Job not found")
-        result = job.get("result", {})
-        provenance = job["provenance"]
+    job = await owned_job(job_id, caller, session)
+    if job is None:
+        return _problem(404, "not_found", "Job not found")
+    result = job.result or {}
+    provenance = job.provenance or {}
     return {
         "id": job_id,
         "gatewayEvaluation": {

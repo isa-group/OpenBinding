@@ -1,0 +1,19 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {"name": "app"},
+  "spec": {
+    "tasks": {"t1": "svc/v1", "t2": "svc/v1", "local": {"kind": "local"}},
+    "features": {
+      "latency": {"unit": "ms", "direction": "minimize", "aggregation": "sum"},
+      "cost": {"unit": "eur", "direction": "minimize", "scope": "selectedCandidate", "aggregation": "sum"}
+    },
+    "workflow": {
+      "sequence": [
+        {"task": {"resource": "app", "id": "t1"}},
+        {"repeat": {"body": {"task": {"resource": "app", "id": "t2"}}, "expectedCount": 2.0}},
+        {"task": {"resource": "app", "id": "local"}}
+      ]
+    }
+  }
+}

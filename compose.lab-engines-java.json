@@ -1,0 +1,169 @@
+{
+  "name": "openbinding-engines-java",
+  "services": {
+    "image-builder": {
+      "build": {
+        "context": "engines",
+        "dockerfile": "random-search/Dockerfile",
+        "target": "builder"
+      },
+      "image": "openbinding-engines-java-builder:latest",
+      "user": "65534:65534",
+      "entrypoint": [],
+      "command": ["sh", "-c", "sleep 3600"],
+      "mem_limit": "64m",
+      "healthcheck": {
+        "test": ["CMD-SHELL", "true"],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 3
+      }
+    },
+    "engines-java-many-heuristic": {
+      "build": {
+        "context": "engines",
+        "dockerfile": "many-heuristic/Dockerfile",
+        "target": "builder"
+      },
+      "user": "65534:65534",
+      "entrypoint": [],
+      "working_dir": "/tmp",
+      "command": [
+        "sh",
+        "-ec",
+        "cp -r /app /tmp/work; mz() { m=$$1; shift; (cd /tmp/work/$$m && mvn -B -Dmaven.repo.local=/tmp/m2 \"$$@\" > /tmp/$$m.log 2>&1) || { tail -n 60 /tmp/$$m.log; echo \"$$m: FAILED\"; exit 1; }; }; report() { echo \"== $$1\"; grep \"Tests run:\" /tmp/$$1.log; }; mz binding-core -DskipTests install; mz many-heuristic test; report many-heuristic; echo engines-java-many-heuristic-ok; touch /tmp/engines-java-ok; exec sleep infinity"
+      ],
+      "environment": {
+        "HOME": "/tmp",
+        "MAVEN_CONFIG": "/tmp/.m2",
+        "MAVEN_OPTS": "-Xmx384m"
+      },
+      "volumes": [
+        {
+          "type": "tmpfs",
+          "target": "/tmp",
+          "tmpfs": {
+            "mode": 1023,
+            "size": 268435456
+          }
+        }
+      ],
+      "restart": "no",
+      "mem_limit": "768m",
+      "healthcheck": {
+        "test": ["CMD-SHELL", "test -f /tmp/engines-java-ok"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 90,
+        "start_period": "300s"
+      }
+    },
+    "engines-java-multi-heuristic": {
+      "build": {
+        "context": "engines",
+        "dockerfile": "multi-heuristic/Dockerfile",
+        "target": "builder"
+      },
+      "user": "65534:65534",
+      "entrypoint": [],
+      "working_dir": "/tmp",
+      "command": [
+        "sh",
+        "-ec",
+        "cp -r /app /tmp/work; mz() { m=$$1; shift; (cd /tmp/work/$$m && mvn -B -Dmaven.repo.local=/tmp/m2 \"$$@\" > /tmp/$$m.log 2>&1) || { tail -n 60 /tmp/$$m.log; echo \"$$m: FAILED\"; exit 1; }; }; report() { echo \"== $$1\"; grep \"Tests run:\" /tmp/$$1.log; }; mz binding-core -DskipTests install; mz multi-heuristic test; report multi-heuristic; echo engines-java-multi-heuristic-ok; touch /tmp/engines-java-ok; exec sleep infinity"
+      ],
+      "environment": {
+        "HOME": "/tmp",
+        "MAVEN_CONFIG": "/tmp/.m2",
+        "MAVEN_OPTS": "-Xmx384m"
+      },
+      "volumes": [
+        {
+          "type": "tmpfs",
+          "target": "/tmp",
+          "tmpfs": {
+            "mode": 1023,
+            "size": 268435456
+          }
+        }
+      ],
+      "restart": "no",
+      "mem_limit": "768m",
+      "healthcheck": {
+        "test": ["CMD-SHELL", "test -f /tmp/engines-java-ok"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 90,
+        "start_period": "300s"
+      }
+    },
+    "engines-java-evolutionary": {
+      "build": {
+        "context": "engines",
+        "dockerfile": "evolutionary-heuristics/Dockerfile",
+        "target": "builder"
+      },
+      "user": "65534:65534",
+      "entrypoint": [],
+      "working_dir": "/tmp",
+      "command": [
+        "sh",
+        "-ec",
+        "cp -r /app /tmp/work; mz() { m=$$1; shift; (cd /tmp/work/$$m && mvn -B -Dmaven.repo.local=/tmp/m2 \"$$@\" > /tmp/$$m.log 2>&1) || { tail -n 60 /tmp/$$m.log; echo \"$$m: FAILED\"; exit 1; }; }; report() { echo \"== $$1\"; grep \"Tests run:\" /tmp/$$1.log; }; mz binding-core install; report binding-core; mz evolutionary-heuristics test; report evolutionary-heuristics; echo engines-java-evolutionary-ok; touch /tmp/engines-java-ok; exec sleep infinity"
+      ],
+      "environment": {
+        "HOME": "/tmp",
+        "MAVEN_CONFIG": "/tmp/.m2",
+        "MAVEN_OPTS": "-Xmx384m"
+      },
+      "volumes": [
+        {
+          "type": "tmpfs",
+          "target": "/tmp",
+          "tmpfs": {
+            "mode": 1023,
+            "size": 268435456
+          }
+        }
+      ],
+      "restart": "no",
+      "mem_limit": "768m",
+      "healthcheck": {
+        "test": ["CMD-SHELL", "test -f /tmp/engines-java-ok"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 90,
+        "start_period": "300s"
+      }
+    },
+    "seed": {
+      "profiles": ["seed"],
+      "image": "openbinding-engines-java-builder:latest",
+      "user": "65534:65534",
+      "entrypoint": [],
+      "working_dir": "/tmp",
+      "command": [
+        "sh",
+        "-ec",
+        "cp -r /app /tmp/work; mz() { m=$$1; shift; (cd /tmp/work/$$m && mvn -B -Dmaven.repo.local=/tmp/m2 \"$$@\" > /tmp/$$m.log 2>&1) || { tail -n 60 /tmp/$$m.log; echo \"$$m: FAILED\"; exit 1; }; }; report() { echo \"== $$1\"; grep \"Tests run:\" /tmp/$$1.log; }; mz binding-core install; report binding-core; mz random-search test; report random-search; echo engines-java-random-search-ok"
+      ],
+      "environment": {
+        "HOME": "/tmp",
+        "MAVEN_CONFIG": "/tmp/.m2",
+        "MAVEN_OPTS": "-Xmx384m"
+      },
+      "volumes": [
+        {
+          "type": "tmpfs",
+          "target": "/tmp",
+          "tmpfs": {
+            "mode": 1023,
+            "size": 268435456
+          }
+        }
+      ],
+      "restart": "no",
+      "mem_limit": "768m"
+    }
+  }
+}

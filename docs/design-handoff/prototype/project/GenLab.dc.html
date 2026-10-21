@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Generator lab</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ob-spin{to{transform:rotate(360deg)}}
+@keyframes ob-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes ob-growy{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes ob-fadeup{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+.ob-spin{animation:ob-spin .9s linear infinite}
+.ob-grow{transform-origin:left;animation:ob-grow 600ms cubic-bezier(.4,0,.2,1) both}
+.ob-growy{transform-origin:bottom;animation:ob-growy 600ms cubic-bezier(.4,0,.2,1) both}
+.ob-in{animation:ob-fadeup 300ms ease-out both}
+.ob-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion: reduce){.ob-skel,.ob-spin,.ob-grow,.ob-growy,.ob-in{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="gen-lab" route="{{route}}" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="{{ctx}}" active="" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<sc-if value="{{gate}}" hint-placeholder-val="{{false}}"><main style="max-width: 1152px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px;"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1" aria-hidden="true"><path d="{{gateIcon}}"></path></svg><span style="font-size: 16px; font-weight: 500;">{{gateTitle}}</span><span style="max-width: 500px; color: #6a6a6a;">{{gateText}}</span><a href="{{gateHref}}" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">{{gateCta}}</a></div></main></sc-if>
+<sc-if value="{{inside}}" hint-placeholder-val="{{true}}">
+<div style="background: #ffffff; border-bottom: 1px solid #ededed;"><div style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 20px 16px 12px;"><nav aria-label="Breadcrumb" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: #6a6a6a;"><sc-for list="{{crumbs}}" as="c" hint-placeholder-count="4"><sc-if value="{{c.link}}" hint-placeholder-val="{{true}}"><a href="{{c.href}}" title="{{c.title}}">{{c.label}}</a><span aria-hidden="true">/</span></sc-if><sc-if value="{{c.cur}}" hint-placeholder-val="{{false}}"><span aria-current="page" style="color: #1f1f1f;">{{c.label}}</span></sc-if></sc-for></nav></div></div>
+<main style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 24px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px;">
+<div><h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">Generator lab</h1><p style="margin: 4px 0 0; color: #6a6a6a; max-width: 720px;">Make synthetic problems for testing engines: one instance, a whole batch, or a conversion of an old-format instance. A research tool; results are labelled synthetic.</p></div>
+</div>
+<div role="tablist" aria-label="Tool" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #b8b8b8;"><sc-for list="{{modes}}" as="m" hint-placeholder-count="4"><button type="button" role="tab" aria-selected="{{m.sel}}" onClick="{{m.pick}}" style="{{m.style}}">{{m.label}}</button></sc-for></div>
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<div style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+<sc-if value="{{mInstance}}" hint-placeholder-val="{{true}}">
+<form onSubmit="{{generate}}" style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Service tasks<input type="number" min="1" max="50" value="{{tasks}}" onChange="{{typeTasks}}" style="height: 40px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{tasksBorder}}; border-radius: 8px; font-family: inherit; font-size: 14px; color: #1f1f1f;"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Candidates per task<input type="number" min="1" max="100" value="{{cands}}" onChange="{{typeCands}}" style="height: 40px; box-sizing: border-box; padding: 0 10px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: inherit; font-size: 14px; color: #1f1f1f;"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Random seed<input value="{{seed}}" onChange="{{typeSeed}}" style="height: 40px; box-sizing: border-box; padding: 0 10px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #1f1f1f;"></label>
+</div>
+<fieldset style="border: 1px solid #ededed; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;"><legend style="font-size: 13px; font-weight: 600; padding: 0 6px;">Latency of generated providers</legend>
+<div role="radiogroup" aria-label="Distribution" style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{spreads}}" as="d" hint-placeholder-count="3"><button type="button" role="radio" aria-checked="{{d.sel}}" onClick="{{d.pick}}" style="{{d.style}}">{{d.label}}</button></sc-for></div>
+<div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;"><label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px;">from<input value="{{latMin}}" onChange="{{typeLatMin}}" inputmode="numeric" style="width: 80px; height: 34px; box-sizing: border-box; padding: 0 8px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: inherit;">ms</label><label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px;">to<input value="{{latMax}}" onChange="{{typeLatMax}}" inputmode="numeric" style="width: 80px; height: 34px; box-sizing: border-box; padding: 0 8px; border: 1px solid {{latBorder}}; border-radius: 8px; font-family: inherit;">ms</label></div>
+<div aria-hidden="true" style="display: flex; align-items: flex-end; gap: 3px; height: 48px;"><sc-for list="{{hist}}" as="h" hint-placeholder-count="12"><span class="ob-growy" style="flex: 1; height: {{h.h}}%; background: #48cae4; border-radius: 3px 3px 0 0;"></span></sc-for></div>
+</fieldset>
+<sc-if value="{{cfgErr}}" hint-placeholder-val="{{false}}"><div role="alert" style="border: 1px solid #fca5a5; background: #fef2f2; border-radius: 10px; padding: 10px 12px; font-size: 13px;">{{cfgErr}}</div></sc-if>
+<button type="submit" style="{{btnPrimaryStart}}">Generate instance</button>
+</form>
+</sc-if>
+<sc-if value="{{mCorpus}}" hint-placeholder-val="{{false}}">
+<form onSubmit="{{generate}}" style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+<span style="color: #4a4a4a;">Same settings as a single instance, repeated with consecutive seeds.</span>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a; max-width: 200px;">How many instances<input type="number" min="1" max="500" value="{{batch}}" onChange="{{typeBatch}}" style="height: 40px; box-sizing: border-box; padding: 0 10px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: inherit; font-size: 14px; color: #1f1f1f;"></label>
+<span style="font-size: 13px;">Seeds {{seed}} to {{seedTo}}</span>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: #b45309;">Keeping a corpus needs an account; without one you only see the preview.</span></sc-if>
+<button type="submit" style="{{btnPrimaryStart}}">Generate batch</button>
+</form>
+</sc-if>
+<sc-if value="{{mConvert}}" hint-placeholder-val="{{false}}">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+<span style="color: #4a4a4a;">Turn an instance in the older research format into a BIM package you can validate and run.</span>
+<div style="border: 2px dashed #0077b6; border-radius: 14px; background: #f1f8fc; padding: 22px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px;"><span style="font-weight: 500;">Drop an old-format instance</span><button type="button" onClick="{{convert}}" style="{{btnSecondary}}">Choose file (simulated)</button></div>
+<sc-if value="{{convDone}}" hint-placeholder-val="{{false}}"><div role="status" style="border: 1px solid #86efac; background: #f0fdf4; border-radius: 10px; padding: 10px 12px; font-size: 13px;">Converted into a package (simulated). <a href="PubWorkbench.dc.html" style="font-weight: 500;">Validate it in the Workbench</a></div></sc-if>
+</div>
+</sc-if>
+<sc-if value="{{mCalib}}" hint-placeholder-val="{{false}}">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+<div role="note" style="display: flex; gap: 10px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 10px; padding: 10px 12px; font-size: 13px;"><span style="border-radius: 9999px; background: #ffffff; border: 1px solid #fcd34d; padding: 0 8px; font-size: 11px; font-weight: 600; flex-shrink: 0;">To confirm</span><span>Calibrating changes the shared model that predicts how engines behave, for everyone. The server currently accepts it without a strict check; this screen limits it to platform administrators.</span></div>
+<sc-if value="{{calibLocked}}" hint-placeholder-val="{{true}}"><span style="color: #4a4a4a;">Only platform administrators can calibrate.</span></sc-if>
+<sc-if value="{{calibOpen}}" hint-placeholder-val="{{false}}">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a; max-width: 320px;">Engine<select style="height: 40px; border: 1px solid #c7c7c7; border-radius: 8px; background: #ffffff; padding: 0 10px; font-family: inherit; font-size: 14px; color: #1f1f1f;"><option>Random Search 1.0.0</option><option>Evolutionary 1.0.0</option><option>MiniZinc 1.0.0</option></select></label>
+<div style="border: 2px dashed #a8a8a8; border-radius: 12px; padding: 16px; text-align: center; font-size: 13px;">Observed runs (file) · <button type="button" onClick="{{calibrate}}" style="border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 13px; color: #0077b6; font-weight: 500; cursor: pointer;">use the prototype's run history</button></div>
+<sc-if value="{{calibDone}}" hint-placeholder-val="{{false}}"><div role="status" style="border: 1px solid #86efac; background: #f0fdf4; border-radius: 10px; padding: 10px 12px; font-size: 13px; display: flex; flex-direction: column; gap: 6px;"><span style="font-weight: 600;">Calibration summary (simulated)</span><span>Based on 6 completed runs of Engines × semillas: run times 58–120 s. The model would be updated with these; nothing was changed in this prototype.</span></div></sc-if>
+</sc-if>
+</div>
+</sc-if>
+</div>
+<aside style="flex: 1 1 300px; max-width: 400px; display: flex; flex-direction: column; gap: 16px;" aria-live="polite">
+<section style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Preview</span>
+<sc-if value="{{generating}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px;"><span class="ob-spin" aria-hidden="true" style="width: 14px; height: 14px; box-sizing: border-box; border-radius: 9999px; border: 2px solid #caf0f8; border-top-color: #0077b6;"></span>Generating…</span></sc-if>
+<sc-if value="{{noPreview}}" hint-placeholder-val="{{true}}"><span style="font-size: 13px; color: #6a6a6a;">Default settings shown. Generate to see the structure.</span></sc-if>
+<sc-if value="{{hasPreview}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; align-items: center; gap: 4px; overflow-x: auto;"><sc-for list="{{chain}}" as="c" hint-placeholder-count="6"><span style="display: inline-flex; align-items: center; gap: 4px;"><span style="min-width: 34px; height: 30px; padding: 0 6px; border: 2px solid #0077b6; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600;">t{{c.i}}</span><sc-if value="{{c.arrow}}" hint-placeholder-val="{{true}}"><span aria-hidden="true" style="color: #a8a8a8;">→</span></sc-if></span></sc-for></div>
+<dl style="margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: 13px;"><sc-for list="{{facts}}" as="f" hint-placeholder-count="4"><dt style="color: #6a6a6a;">{{f.k}}</dt><dd style="margin: 0; font-weight: 500;">{{f.v}}</dd></sc-for></dl>
+<span style="{{synthChip}}">Synthetic · fingerprint assigned by the server</span>
+</sc-if>
+</section>
+<section style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Keep it</span>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px;">Saving to a project needs an account (401). <a href="AuthLogin.dc.html">Log in</a></span></sc-if>
+<sc-if value="{{signed}}" hint-placeholder-val="{{true}}"><label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Project<select value="{{saveTo}}" onChange="{{pickSave}}" style="height: 38px; border: 1px solid #c7c7c7; border-radius: 8px; background: #ffffff; padding: 0 10px; font-family: inherit; font-size: 14px; color: #1f1f1f;"><sc-for list="{{projOpts}}" as="o" hint-placeholder-count="2"><option value="{{o.v}}">{{o.l}}</option></sc-for></select></label><button type="button" onClick="{{save}}" disabled="{{cantSave}}" style="{{btnSave}}">Save to project</button></sc-if>
+<sc-if value="{{saved}}" hint-placeholder-val="{{false}}"><div role="status" style="border: 1px solid {{savedBorder}}; background: {{savedBg}}; border-radius: 10px; padding: 10px 12px; font-size: 13px;">{{saved}}</div></sc-if>
+</section>
+</aside>
+</div>
+</main>
+</sc-if>
+<div aria-live="polite" class="ob-sr">{{live}}</div>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":2000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ persona: "lucia", st: "success", scenario: "ok", org: "isa-demo", project: "qos-benchmarks", live: "" }, { mode: 'instance', tasks: '6', cands: '5', spread: 'uniform', latMin: '50', latMax: '300', seed: '42', batch: '20', gen: '', saveTo: 'qos-benchmarks', saved: '', calib: '', conv: '' });
+  }
+  personas() {
+    return {
+      visitor: { key: "visitor", signedIn: false, user: "", name: "", first: "", email: "", initials: "", admin: false, plan: "BASIC" },
+      lucia: { key: "lucia", signedIn: true, user: "lucia.vega", name: "Lucía Vega", first: "Lucía", email: "lucia@example.invalid", initials: "LV", admin: false, plan: "RESEARCH" },
+      marco: { key: "marco", signedIn: true, user: "marco.diaz", name: "Marco Díaz", first: "Marco", email: "marco@example.invalid", initials: "MD", admin: false, plan: "BASIC" },
+      sofia: { key: "sofia", signedIn: true, user: "sofia.rey", name: "Sofía Rey", first: "Sofía", email: "sofia@example.invalid", initials: "SR", admin: false, plan: "BASIC", pending: true },
+      nora: { key: "nora", signedIn: true, user: "nora.campos", name: "Nora Campos", first: "Nora", email: "nora@example.invalid", initials: "NC", admin: false, plan: "ADVANCED" },
+      iker: { key: "iker", signedIn: true, user: "iker.mora", name: "Iker Mora", first: "Iker", email: "iker@example.invalid", initials: "IM", admin: true, plan: "PRO" },
+      pablo: { key: "pablo", signedIn: true, user: "pablo.ci", name: "Pablo Ibáñez", first: "Pablo", email: "pablo@example.invalid", initials: "PI", admin: false, plan: "PRO" }
+    };
+  }
+  fx() {
+    const D = { a1: "sha256-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4", b2: "sha256-b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5", c3: "sha256-c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6", d4: "sha256-d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607", e5: "sha256-e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718" };
+    const short = { a1: "sha256-a1b2…c3d4", b2: "sha256-b2c3…d4e5", c3: "sha256-c3d4…e5f6", d4: "sha256-d4e5…f607", e5: "sha256-e5f6…0718" };
+    return {
+      D: D, short: short,
+      orgs: {
+        "isa-demo": { slug: "isa-demo", name: "ISA Demo Group", parent: "", sponsor: "lucia", sponsorName: "Lucía Vega" },
+        "qos-lab": { slug: "qos-lab", name: "QoS Lab (sub-organización)", parent: "isa-demo", sponsor: "lucia", sponsorName: "Lucía Vega" },
+        "consultora-demo": { slug: "consultora-demo", name: "Consultora Demo", parent: "", sponsor: "nora", sponsorName: "Nora Campos" }
+      },
+      roles: {
+        lucia: { "isa-demo": "OWNER", "qos-lab": "OWNER" },
+        marco: { "isa-demo": "MEMBER", "qos-lab": "ADMIN", "consultora-demo": "VIEWER" },
+        sofia: { "isa-demo": "VIEWER", "qos-lab": "VIEWER" },
+        nora: { "consultora-demo": "OWNER" }, iker: {}, pablo: {}, visitor: {}
+      },
+      projects: {
+        "qos-benchmarks": { org: "isa-demo", slug: "qos-benchmarks", name: "QoS Benchmarks", desc: "Casos de referencia de binding con workflow y placement.", vis: "public" },
+        "checkout-privado": { org: "isa-demo", slug: "checkout-privado", name: "Checkout (privado)", desc: "Caso interno de pagos con candidatos propietarios.", vis: "private" },
+        "placement-edge": { org: "qos-lab", slug: "placement-edge", name: "Placement en el borde", desc: "Exploración con pools y latencias.", vis: "private" }
+      },
+      cases: {
+        "qos-benchmarks": [{ slug: "checkout-flow", name: "Flujo de checkout", desc: "Pagos con autenticación, stock y envío en paralelo.", revisions: [
+          { n: 1, digest: "a1", date: "Aug 1, 2026", size: 4.2, resources: [["Application", "checkout-app", "3"], ["CandidateCatalog", "providers-eu", "2"], ["ConstraintSet", "sla-hard", "1"], ["Optimization", "weighted-cost-latency", "1"]], change: "First revision." },
+          { n: 2, digest: "b2", date: "Aug 20, 2026", size: 5.1, resources: [["Application", "checkout-app", "3"], ["CandidateCatalog", "providers-eu", "3"], ["ConstraintSet", "sla-hard", "1"], ["Optimization", "weighted-cost-latency", "1"]], change: "Catálogo ampliado de 5 a 8 candidatos para la tarea pago." }
+        ] }]
+      },
+      workflow: [
+        { kind: "task", task: "autenticar", type: "service", cap: "auth", cands: 4 },
+        { kind: "parallel", agg: "max", items: [{ task: "inventario", cap: "stock", cands: 5 }, { task: "calcular-envio", cap: "shipping", cands: 3 }] },
+        { kind: "exclusive", items: [{ task: "pago-tarjeta", branch: "tarjeta", p: 0.7, cap: "payment", cands: 8 }, { task: "pago-transferencia", branch: "transferencia", p: 0.3, cap: "payment", cands: 4 }] },
+        { kind: "task", task: "notificar", type: "local" }
+      ],
+      candidates: [{ id: "payco-eu", latency: 180, cost: 0.021, availability: 99.95 }, { id: "fastpay", latency: 95, cost: 0.034, availability: 99.9 }],
+      constraints: [{ id: "sla-latencia", enf: "hard", text: "Latencia total ≤ 600 ms" }, { id: "sla-disponibilidad", enf: "soft", penalty: 5.0, text: "Disponibilidad ≥ 99.9 %" }],
+      objective: { mode: "weighted-sum", terms: [{ metric: "cost", weight: 0.6, dir: "minimize" }, { metric: "latency", weight: 0.4, dir: "minimize" }] },
+      library: [
+        { id: "d1", org: "isa-demo", kind: "CandidateCatalog", name: "providers-eu", display: "Proveedores UE", versions: [{ ord: 2, version: "2", content: "c3", vdigest: "d4", published: false }, { ord: 3, version: "3", content: "e5", vdigest: "a1", published: true, citation: "Catálogo de proveedores UE (sintético)" }], drafts: [{ id: "d4", rev: 4, basedOn: "3" }] },
+        { id: "d5", org: "isa-demo", kind: "Study", name: "engines-vs-seeds", display: "Engines × semillas", versions: [{ ord: 1, version: "1", published: false }], drafts: [] },
+        { id: "d6", org: "isa-demo", kind: "ExecutionConfiguration", name: "rs-60s", display: "Random Search 60 s", versions: [{ ord: 1, version: "1", published: false }], drafts: [] }
+      ],
+      jobs: [
+        { id: "f1", owner: "lucia", project: "qos-benchmarks", engine: "random-search", label: "Random Search", mode: "sampling", status: "completed", term: "FEASIBLE", created: "Sep 30, 2026, 09:00", dur: "1 min 5 s", durS: 65, sols: 1, clamp: true, req: [["time_budget_ms", 600000, "ms"], ["iterations", 100000, "iterations"]], app: [["time_budget_ms", 60000, "ms"], ["iterations", 100000, "iterations"]] },
+        { id: "f2", owner: "lucia", project: "qos-benchmarks", engine: "minizinc", label: "MiniZinc", mode: "cp", status: "running", term: "", created: "Oct 8, 2026, 08:00", dur: "running", durS: 0, sols: 0, req: [["time_budget_ms", 300000, "ms"]], app: [["time_budget_ms", 300000, "ms"]] },
+        { id: "f3", owner: "marco", project: "checkout-privado", engine: "random-search", label: "Random Search", mode: "sampling", status: "queued", term: "", created: "Oct 8, 2026, 08:10", dur: "waiting", durS: 0, sols: 0, req: [], app: [] },
+        { id: "f4", owner: "marco", project: "checkout-privado", engine: "evolutionary", label: "Evolutionary", mode: "genetic", status: "failed", term: "UNKNOWN", created: "Oct 7, 2026, 15:00", dur: "20 s", durS: 20, sols: 0, error: "The deployment didn't answer within the budget (engine unreachable).", retryable: true, req: [], app: [] },
+        { id: "f5", owner: "marco", project: "checkout-privado", engine: "random-search", label: "Random Search", mode: "sampling", status: "cancelled", term: "", created: "Oct 6, 2026, 12:00", dur: "3 s", durS: 3, sols: 0, retryable: true, req: [], app: [] },
+        { id: "f6", owner: "lucia", project: "qos-benchmarks", engine: "minizinc", label: "MiniZinc", mode: "cp", status: "completed", term: "INFEASIBLE", created: "Oct 1, 2026, 09:00", dur: "40 s", durS: 40, sols: 0, infeas: true, req: [], app: [] }
+      ],
+      snapshot: { id: "e1", owner: "lucia", instance: "a1", pkg: "b2", ir: "c3", size: 48213, date: "Aug 20, 2026, 10:05" },
+      engines: [
+        { ns: "bim.builtin", name: "random-search", label: "Random Search", version: "1.0.0", digest: "b2", mode: "sampling", vis: "public" },
+        { ns: "bim.builtin", name: "evolutionary", label: "Evolutionary", version: "1.0.0", digest: "c3", mode: "genetic", vis: "public" },
+        { ns: "bim.builtin", name: "minizinc", label: "MiniZinc", version: "1.0.0", digest: "d4", mode: "cp", vis: "public" },
+        { ns: "lucia-vega", name: "edge-solver", label: "edge-solver", version: "0.3.1", digest: "e5", mode: "—", vis: "private", owner: "lucia" }
+      ]
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); const o = window.localStorage.getItem("ob.org"); if (o && o !== "__new") this.setState({ org: o }); const pj = window.localStorage.getItem("ob.project"); if (pj && pj !== "__new") this.setState({ project: pj }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); if (this.t2) clearTimeout(this.t2); }
+  setPersona(k) { this.setState(Object.assign({ persona: k }, { gen: '', saved: '', calib: '', conv: '' })); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  later(ms, fn) { if (this.timer) clearTimeout(this.timer); this.timer = setTimeout(fn, ms); }
+  copy(text, key) { try { if (navigator.clipboard) navigator.clipboard.writeText(text); } catch (e) {} this.setState({ copied: key, live: "Copied." }); if (this.t2) clearTimeout(this.t2); this.t2 = setTimeout(() => this.setState({ copied: "" }), 2000); }
+  renderVals() {
+    const s = this.state;
+    const P = this.personas();
+    const who = P[s.persona] || P.visitor;
+    const st = s.st, sc = s.scenario;
+    const F = this.fx();
+    const SCENMAP = {"ok": "success", "422": "success", "404": "success"};
+    const RESET = { gen: '', saved: '', calib: '', conv: '' };
+    const projKey = F.projects[s.project] ? s.project : "qos-benchmarks";
+    const p = F.projects[projKey];
+    const orgKey = "app" === "project" ? p.org : (F.orgs[s.org] ? s.org : "isa-demo");
+    const org = F.orgs[orgKey];
+    const myRoles = F.roles[s.persona] || {};
+    const role = myRoles[orgKey] || (who.admin ? "PLATFORM ADMIN" : "");
+    const rank = { VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4, "PLATFORM ADMIN": 4 }[role] || 0;
+    const member = rank > 0;
+    const canMember = rank >= 2, canAdmin = rank >= 3;
+    const chip = (bg, fg, bd) => "display: inline-flex; align-items: center; gap: 4px; border-radius: 9999px; padding: 1px 10px; font-size: 12px; font-weight: 500; background: " + bg + "; color: " + fg + "; border: 1px solid " + bd + ";";
+    const roleChipOf = (r) => "border-radius: 9999px; padding: 1px 10px; font-size: 11px; font-weight: 600; " + ({ OWNER: "background: #023e8a; color: #ffffff;", ADMIN: "background: #0077b6; color: #ffffff;", MEMBER: "background: #caf0f8; color: #023e8a;", VIEWER: "background: #fafafa; color: #4a4a4a; border: 1px solid #b8b8b8;", "PLATFORM ADMIN": "background: #1f1f1f; color: #ffffff;" }[r] || "");
+    const btn = (kind) => "display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; " + (kind === "primary" ? "border: 0; background: #0077b6; color: #ffffff;" : (kind === "danger" ? "border: 1px solid #fca5a5; background: #ffffff; color: #b91c1c;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f;"));
+    const pill = (on) => "height: 30px; padding: 0 12px; border-radius: 9999px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; " + (on ? "border: 1px solid #0077b6; background: #0077b6; color: #ffffff;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #4a4a4a;");
+    const tab = (on) => "padding: 10px 16px; border: 0; background: transparent; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: -1px; " + (on ? "color: #0077b6; border-bottom: 2px solid #0077b6;" : "color: #6a6a6a; border-bottom: 2px solid transparent;");
+    const radio = (on) => ({ border: on ? "2px solid #0077b6" : "1px solid #b8b8b8", bg: on ? "rgba(0,119,182,0.05)" : "#ffffff", ring: on ? "#0077b6" : "#a8a8a8", fill: on ? "#0077b6" : "transparent" });
+    const n = (x) => Number(x).toLocaleString("en-US");
+    const later = (ms, fn) => this.later(ms, fn);
+    const forbiddenGate = false;
+    const allowVisitor = true;
+    const needMember = "app" === "project" || "app" === "org";
+    const gate = (!who.signedIn && !allowVisitor) || (who.signedIn && needMember && !member) || (forbiddenGate && st === "forbidden");
+    const __b = {
+      persona: s.persona, st: st, na: [], scenarios: [{"id": "ok", "label": "Generates"}, {"id": "422", "label": "422 invalid settings"}, {"id": "404", "label": "404 project"}], scenario: sc,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState(Object.assign({ st: x }, RESET)),
+      setScenario: (x) => this.setState(Object.assign({ scenario: x, st: SCENMAP[x] || "error" }, RESET)),
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      org: org, p: p, role: role, roleChip: roleChipOf(role),
+      ctx: "app" === "project" ? org.name + " / " + p.name : ("app" === "org" ? org.name : ""),
+      gate: gate, inside: !gate,
+      gateIcon: !who.signedIn ? "M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4" : "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-3.5-3.5",
+      gateTitle: !who.signedIn ? "Log in to continue" : (forbiddenGate && st === "forbidden" && member ? "Your role doesn’t reach this (403)" : "Not found"),
+      gateText: !who.signedIn ? "This page is only for signed-in members." : (forbiddenGate && st === "forbidden" && member ? "Ask an admin of the organization for a higher role." : "It doesn't exist, or you're not a member of the organization it belongs to. We show the same message either way."),
+      gateHref: who.signedIn ? "AppHome.dc.html" : "AuthLogin.dc.html", gateCta: who.signedIn ? "Back to Home" : "Log in",
+      live: s.live
+    };
+    const crumbBase = "app" === "project" ? [["Home", "AppHome.dc.html"], [org.name, "OrgOverview.dc.html"], [p.name, "ProjOverview.dc.html"]] : ("app" === "org" ? [["Home", "AppHome.dc.html"], [org.name, "OrgOverview.dc.html"]] : [["Home", "AppHome.dc.html"]]);
+    const M = [["instance", "One instance"], ["corpus", "Batch"], ["convert", "Convert old format"], ["calib", "Calibrate engines"]];
+    const SP = [["uniform", "Even spread"], ["normal", "Bell curve"], ["skewed", "Mostly fast"]];
+    const t = Number(s.tasks), c = Number(s.cands);
+    const badCfg = sc === "422" || !(t >= 1 && t <= 50) || Number(s.latMax) <= Number(s.latMin);
+    const shape = { uniform: [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], normal: [1, 2, 4, 7, 10, 12, 12, 10, 7, 4, 2, 1], skewed: [12, 11, 9, 7, 5, 4, 3, 2, 2, 1, 1, 1] }[s.spread];
+    const mx = Math.max.apply(null, shape);
+    const myProjects = Object.keys(F.projects).filter((k) => (F.roles[s.persona] || {})[F.projects[k].org] && ["MEMBER", "ADMIN", "OWNER"].indexOf((F.roles[s.persona] || {})[F.projects[k].org]) >= 0);
+    const V = {
+      gate: false, inside: true,
+      btnPrimaryStart: btn("primary") + " align-self: flex-start;", btnSecondary: btn(),
+      modes: M.map(([k, l]) => ({ label: l, sel: s.mode === k ? "true" : "false", style: tab(s.mode === k), pick: () => this.setState({ mode: k, gen: "" }) })),
+      mInstance: s.mode === "instance", mCorpus: s.mode === "corpus", mConvert: s.mode === "convert", mCalib: s.mode === "calib",
+      tasks: s.tasks, cands: s.cands, seed: s.seed, latMin: s.latMin, latMax: s.latMax, batch: s.batch, seedTo: String(Number(s.seed) + Number(s.batch) - 1),
+      typeTasks: (e) => this.setState({ tasks: e.target.value, gen: "" }), typeCands: (e) => this.setState({ cands: e.target.value, gen: "" }), typeSeed: (e) => this.setState({ seed: e.target.value, gen: "" }),
+      typeLatMin: (e) => this.setState({ latMin: e.target.value, gen: "" }), typeLatMax: (e) => this.setState({ latMax: e.target.value, gen: "" }), typeBatch: (e) => this.setState({ batch: e.target.value }),
+      tasksBorder: t >= 1 && t <= 50 ? "#c7c7c7" : "#ef4444", latBorder: Number(s.latMax) > Number(s.latMin) ? "#c7c7c7" : "#ef4444",
+      spreads: SP.map(([k, l]) => ({ label: l, sel: s.spread === k ? "true" : "false", style: pill(s.spread === k), pick: () => this.setState({ spread: k }) })),
+      hist: shape.map((v) => ({ h: String(Math.round(v / mx * 100)) })),
+      cfgErr: s.gen === "err" ? (sc === "422" ? "These settings can't be generated (422 · invalid generation config): the server rejected the combination." : "Check the highlighted fields: 1–50 tasks and a latency range where “to” is above “from” (422).") : "",
+      generate: (e) => { if (e && e.preventDefault) e.preventDefault(); if (badCfg) { this.setState({ gen: "err" }); return; } this.setState({ gen: "busy" }); later(900, () => this.setState({ gen: "done", live: "Generated." })); },
+      generating: s.gen === "busy" || st === "loading", noPreview: s.gen !== "done" && st !== "loading", hasPreview: s.gen === "done",
+      chain: Array.from({ length: Math.min(t || 0, 12) }, (x, i) => ({ i: String(i + 1), arrow: i < Math.min(t, 12) - 1 })),
+      facts: s.mode === "corpus" ? [{ k: "Instances", v: s.batch }, { k: "Tasks each", v: s.tasks }, { k: "Candidates each", v: String(t * c) }, { k: "Combinations each", v: "≈ 10^" + (t * Math.log10(c || 1)).toFixed(1) }] : [{ k: "Tasks", v: s.tasks }, { k: "Candidates", v: String(t * c) }, { k: "Combinations", v: "≈ 10^" + (t * Math.log10(c || 1)).toFixed(1) }, { k: "Seed", v: s.seed }],
+      synthChip: chip("#caf0f8", "#023e8a", "#caf0f8"),
+      convert: () => this.setState({ conv: "done" }), convDone: s.conv === "done",
+      calibLocked: !who.admin, calibOpen: who.admin, calibrate: () => this.setState({ calib: "done" }), calibDone: s.calib === "done",
+      signed: who.signedIn, saveTo: s.saveTo, pickSave: (e) => this.setState({ saveTo: e.target.value }),
+      projOpts: myProjects.length ? myProjects.map((k) => ({ v: k, l: F.projects[k].name })) : [{ v: "", l: "No project where you can add" }],
+      cantSave: s.gen !== "done" || !myProjects.length, btnSave: btn("primary") + (s.gen === "done" && myProjects.length ? "" : " opacity: 0.45;"),
+      save: () => { if (sc === "404") { this.setState({ saved: "That project no longer exists or you lost access (404)." }); return; } this.setState({ saved: "Saved to " + (F.projects[s.saveTo] || F.projects["qos-benchmarks"]).name + " as a synthetic instance (simulated).", live: "Saved." }); },
+      saved: st === "forbidden" ? "You can generate, but you don't have permission to add to that project (403)." : s.saved, savedBorder: st === "forbidden" || /404/.test(s.saved) ? "#fca5a5" : "#86efac", savedBg: /404/.test(s.saved) ? "#fef2f2" : "#f0fdf4"
+    };
+    const __crumbs = crumbBase.concat(V.crumbList || [["Generator lab"]]);
+    __b.crumbs = __crumbs.map((c, i) => ({ label: c[0], href: c[1] || "", title: c[2] || "", link: i < __crumbs.length - 1, cur: i === __crumbs.length - 1 }));
+    __b.route = V.route || "/app/generator";
+    return Object.assign(__b, V);
+  }
+}
+</script>
+</body>
+</html>

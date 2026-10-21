@@ -16,11 +16,10 @@ FILES = (
     "experimentation/qacobench/requirements.lock",
     "experimentation/qacobench/gateway.lock",
     "experimentation/qacobench/compose.yaml",
-    "space/pricing/openbinding.yml",
     "datasets/07_qfbs/manifest.jsonl",
 )
 IMAGES = ("gateway", "runner", "minizinc", "random-search", "evolutionary-heuristics")
-SOURCE_DIRS = ("openbinding-gateway/src", "schemas", "experimentation/qacobench")
+SOURCE_DIRS = ("openbinding-gateway/src", "bim-toolchain/packages/bim-core/src", "schemas", "experimentation/qacobench")
 
 
 def sha256(path: Path) -> str:

@@ -7,7 +7,7 @@ import pytest
 import pytest_asyncio
 
 from openbinding_gateway import space_client
-from openbinding_gateway.v1.canonical import digest
+from bim_core.canonical import digest
 from _pricing import fake_pricing_gate, largest_plan
 
 LARGER_PLAN = largest_plan()

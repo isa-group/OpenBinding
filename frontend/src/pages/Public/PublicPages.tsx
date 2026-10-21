@@ -1,115 +1,372 @@
-import { useEffect, useState } from 'react';
-import {
-  ArrowRight, ArrowUpRight, BookOpen, Box, CalendarDays, CheckCircle2, CircleDot, Code2, Cpu,
-  FlaskConical, Github, GraduationCap, Landmark, Network, Orbit, Search, Users,
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { platformApi } from '../../api/platform';
-import {
-  contributionTracks, fundingEntities, relatedProjects, researchCorpus, team,
-} from '../../content/platform';
-import changelog from '../../content/changelog.generated.json';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { CircleCheck, CircleAlert, FileArchive, Upload, X } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { apiClient, HttpError, type PackageValidationOutcome } from '../../api/client';
+import { Button } from '../../components/ui/Button';
+import { Notice } from '../../components/ui/Notice';
+import { ProjectPicker } from '../../components/ui/ProjectPicker';
+import { LanguageNav } from '../../components/ui/SectionNav';
+import { TabBar, TabPanel } from '../../components/ui/TabBar';
+import { useCopy } from '../../components/ui/useCopy';
+import { useAuth } from '../../contexts/auth';
+import { BIM_PACKAGE_LIMITS, BimPackageError } from '../../utils/bimZip';
+import { formatBytes } from '../../utils/format';
+import { shortDigest } from '../../utils/digest';
+import { useResource } from '../../utils/useResource';
+import { groupDiagnostics, readDiagnostics } from '../Workbench/diagnostics';
+import { readPackageModel, type PackageModel } from '../Workbench/packageModel';
+import { DiagnosticsPanel, StructurePanel } from '../Workbench/WorkbenchResult';
 import './PublicPages.css';
 
-function PublicHeading({ eyebrow, title, lead }: { eyebrow: string; title: string; lead: string }) {
-  return <header className="public-heading"><span>{eyebrow}</span><h1>{title}</h1><p>{lead}</p></header>;
+interface Selected {
+  name: string;
+  bytes: Uint8Array;
+  /** The official example it came from, which a signed-in account can carry into a project. */
+  example: string | null;
 }
 
-const workbenchSteps = [
-  { icon: Code2, label: 'Author', title: 'Shape a binding package', description: 'Bring the instance, application, candidates and optimization resources into one inspectable case.' },
-  { icon: Network, label: 'Inspect', title: 'Move between representations', description: 'Switch between structured forms, exact JSON or YAML, and BPMN without losing the same package.' },
-  { icon: CheckCircle2, label: 'Validate', title: 'Catch issues before execution', description: 'Compile the package, check its contracts and read diagnostics before asking an engine to solve it.' },
-  { icon: Cpu, label: 'Solve', title: 'Compare compatible outcomes', description: 'Choose an engine mode, run the case and inspect the returned solution space and analysis.' },
-] as const;
+type Run =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'done'; outcome: PackageValidationOutcome; model: PackageModel | null }
+  | { status: 'failed'; kind: 'too-large' | 'rate-limit' | 'unreadable' | 'unsupported' | 'unavailable'; message: string };
+
+const MiB = 1024 * 1024;
+const LIMIT_CHIPS = [
+  `≤ ${BIM_PACKAGE_LIMITS.compressedBytes / MiB} MiB compressed`,
+  `≤ ${BIM_PACKAGE_LIMITS.expandedBytes / MiB} MiB expanded`,
+  `≤ ${BIM_PACKAGE_LIMITS.entries} entries`,
+];
+
+function fileLabel(bytes: number): string {
+  return formatBytes(bytes) ?? `${bytes} bytes`;
+}
 
 export function WorkbenchPage() {
-  return <div className="public-page workbench-page">
-    <PublicHeading eyebrow="BIM Workbench" title="From package to evidence." lead="A focused workspace for turning a binding case into an executable, inspectable result. Work through the package in one place, then take the evidence into the platform." />
+  const { user } = useAuth();
+  const [params] = useSearchParams();
+  const requestedExample = params.get('example');
+  const examples = useResource('workbench-examples', () => apiClient.getBimExamples());
+  const { copy, status: copyStatus } = useCopy();
+  const input = useRef<HTMLInputElement>(null);
+  const runId = useRef(0);
+  const [selected, setSelected] = useState<Selected | null>(null);
+  const [run, setRun] = useState<Run>(requestedExample ? { status: 'loading' } : { status: 'idle' });
+  const [dragging, setDragging] = useState(false);
+  const [tab, setTab] = useState('structure');
+  const [focusTarget, setFocusTarget] = useState<{ id: string; n: number } | null>(null);
+  const [exampleError, setExampleError] = useState<string | null>(null);
 
-    <section className="workbench-flow" aria-labelledby="workbench-flow-title">
-      <header><span className="section-label">The working loop</span><h2 id="workbench-flow-title">One package, four useful views.</h2><p>The Workbench keeps structure, source, validation and execution connected so you can change the case without losing track of what will run.</p></header>
-      <div className="workbench-steps">
-        {workbenchSteps.map(({ icon: Icon, label, title, description }, index) => <article key={label}>
-          <div className="workbench-step-top"><span>{String(index + 1).padStart(2, '0')}</span><Icon aria-hidden="true" /></div>
-          <span className="workbench-step-label">{label}</span>
-          <h3>{title}</h3>
-          <p>{description}</p>
-        </article>)}
+  const validate = async (target: Selected) => {
+    const id = ++runId.current;
+    setRun({ status: 'loading' });
+    setTab('structure');
+    const failed = (kind: Extract<Run, { status: 'failed' }>['kind'], message: string) => {
+      if (id === runId.current) setRun({ status: 'failed', kind, message });
+    };
+    if (target.bytes.byteLength > BIM_PACKAGE_LIMITS.compressedBytes) {
+      failed('too-large', `${fileLabel(target.bytes.byteLength)} is over the ${BIM_PACKAGE_LIMITS.compressedBytes / MiB} MiB limit.`);
+      return;
+    }
+    let model: PackageModel | null = null;
+    try {
+      model = await readPackageModel(target.bytes.buffer.slice(target.bytes.byteOffset, target.bytes.byteOffset + target.bytes.byteLength) as ArrayBuffer);
+    } catch (error) {
+      failed('unreadable', error instanceof BimPackageError ? error.message : 'The file could not be read as a ZIP archive.');
+      return;
+    }
+    try {
+      const outcome = await apiClient.validatePackage(target.bytes);
+      if (id !== runId.current) return;
+      setRun({ status: 'done', outcome, model });
+      if (!outcome.valid) setTab('diagnostics');
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 413) failed('too-large', 'The gateway refused the package as too large.');
+      else if (error instanceof HttpError && error.status === 429) failed('rate-limit', error.retryAfter ? `Try again in ${error.retryAfter} s.` : 'Wait a few seconds and try again.');
+      else if (error instanceof HttpError && error.status === 415) failed('unsupported', 'The gateway only reads .bim.zip packages.');
+      else failed('unavailable', error instanceof HttpError ? `HTTP ${error.status}` : 'the gateway can’t be reached');
+    }
+  };
+
+  const loadExample = async (path: string) => {
+    setExampleError(null);
+    try {
+      const buffer = await apiClient.getBimExamplePackage(path);
+      const target: Selected = { name: `${path.split('/').at(-1) ?? 'example'}.bim.zip`, bytes: new Uint8Array(buffer), example: path };
+      setSelected(target);
+      await validate(target);
+    } catch (error) {
+      setRun({ status: 'idle' });
+      setExampleError(error instanceof HttpError && error.status === 422
+        ? 'This example package is corrupt (422 · invalid_example). Other examples are unaffected.'
+        : error instanceof Error ? error.message : 'The example could not be loaded.');
+    }
+  };
+
+  useEffect(() => {
+    if (requestedExample) void loadExample(requestedExample);
+    // The address names the example once; choosing others afterwards is the person's action.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedExample]);
+
+  useEffect(() => {
+    if (!focusTarget) return;
+    const element = document.getElementById(focusTarget.id);
+    // Older engines and test environments have no scrollIntoView; focusing the target is what matters.
+    element?.scrollIntoView?.({ block: 'center' });
+    element?.focus({ preventScroll: true });
+  }, [focusTarget]);
+
+  const choose = async (file: File | undefined) => {
+    if (!file) return;
+    const target: Selected = { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()), example: null };
+    setSelected(target);
+    setRun({ status: 'idle' });
+    setExampleError(null);
+  };
+
+  const clear = () => {
+    runId.current += 1;
+    setSelected(null);
+    setRun({ status: 'idle' });
+    if (input.current) input.current.value = '';
+  };
+
+  const onDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragging(false);
+    void choose(event.dataTransfer.files[0]);
+  };
+
+  const outcome = run.status === 'done' ? run.outcome : null;
+  const model = run.status === 'done' ? run.model : null;
+  const files = model?.files ?? [];
+  const diagnostics = outcome
+    ? readDiagnostics(outcome.valid ? outcome.result.diagnostics : outcome.refusal.diagnostics, files)
+    : [];
+  const groups = groupDiagnostics(diagnostics);
+  const refusal = outcome && !outcome.valid ? outcome.refusal : null;
+  const errorCount = refusal ? Math.max(diagnostics.length, 1) : 0;
+  const suggested = (examples.data ?? []).filter((path) => path !== 'demo/05_single_obj_various').slice(0, 3);
+
+  const showFile = (path: string) => {
+    setTab('structure');
+    setFocusTarget((current) => ({ id: `wb-file-${path}`, n: (current?.n ?? 0) + 1 }));
+  };
+  const showProblems = (path: string) => {
+    setTab('diagnostics');
+    setFocusTarget((current) => ({ id: `wb-problems-${path || 'package'}`, n: (current?.n ?? 0) + 1 }));
+  };
+
+  return (
+    <div className="workbench-page">
+      <div className="workbench-head">
+        <div>
+          <LanguageNav current="workbench" />
+          <h1>Workbench</h1>
+          <p>Validate a BIM package without an account. You get localized diagnostics, digests and the structure of the composition. Nothing is executed.</p>
+        </div>
+        <div className="workbench-limits" aria-label="Package limits">
+          {LIMIT_CHIPS.map((chip) => <span key={chip}>{chip}</span>)}
+        </div>
       </div>
-    </section>
 
-    <section className="workbench-entry" aria-labelledby="workbench-entry-title">
-      <div><span className="section-label">Ready to work</span><h2 id="workbench-entry-title">Start with a package or a lesson.</h2><p>Open the editor with a starter package, or browse the example corpus first to see how different binding cases are assembled.</p></div>
-      <div className="workbench-entry-actions"><Link to="/playground" viewTransition>Open the Workbench <ArrowRight aria-hidden="true" /></Link><Link to="/examples" viewTransition>Browse examples <ArrowUpRight aria-hidden="true" /></Link></div>
-    </section>
+      <div className="workbench-layout">
+        <section aria-label="Package" className="workbench-input">
+          <div
+            className={`workbench-drop${dragging ? ' is-dragging' : ''}${selected ? ' has-file' : ''}`}
+            onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+          >
+            <Upload aria-hidden="true" />
+            <strong>Drop a .bim.zip here</strong>
+            <span>or choose a file from your computer</span>
+            <Button variant="secondary" size="sm" onClick={() => input.current?.click()}>Choose file</Button>
+            <input
+              ref={input}
+              type="file"
+              accept=".zip,.bim.zip,application/zip,application/vnd.bim+zip"
+              className="sr-only"
+              tabIndex={-1}
+              aria-label="Package file"
+              onChange={(event) => void choose(event.target.files?.[0])}
+            />
+          </div>
 
-    <nav className="workbench-related" aria-label="BIM Workbench related resources">
-      <span className="section-label">Go deeper</span>
-      <Link to="/profiles" viewTransition><strong>Profiles &amp; dialects</strong><span>Understand the language extension points</span><ArrowUpRight aria-hidden="true" /></Link>
-      <Link to="/schemas" viewTransition><strong>Specification</strong><span>Inspect the exact BIM v1 contracts</span><ArrowUpRight aria-hidden="true" /></Link>
-    </nav>
-  </div>;
+          {selected && (
+            <>
+              <div className="workbench-file">
+                <FileArchive aria-hidden="true" />
+                <span>
+                  <code>{selected.name}</code>
+                  <small>{fileLabel(selected.bytes.byteLength)} · .bim.zip</small>
+                </span>
+                <button type="button" aria-label="Remove file" onClick={clear}><X aria-hidden="true" /></button>
+              </div>
+              <Button size="lg" onClick={() => void validate(selected)} disabled={run.status === 'loading'}>
+                {run.status === 'loading' ? 'Validating…' : 'Validate package'}
+              </Button>
+            </>
+          )}
+
+          <div className="workbench-card">
+            <span className="workbench-kicker">Try a package</span>
+            {exampleError && <Notice tone="error">{exampleError}</Notice>}
+            {examples.status === 'loading' && <small>Reading the official examples…</small>}
+            {suggested.map((path) => (
+              <button key={path} type="button" className="workbench-try" onClick={() => { setRun({ status: 'loading' }); void loadExample(path); }}>
+                <strong>{path}</strong>
+                <small>Official example package</small>
+              </button>
+            ))}
+            {examples.status === 'ready' && suggested.length === 0 && <small>This deployment ships no example packages.</small>}
+            <Link to="/examples">Browse official examples</Link>
+          </div>
+
+          <div className="workbench-card is-account">
+            {user ? (
+              <>
+                <strong>Signed in as {user.username}</strong>
+                <span>Save this package as a case revision in one of your projects, then run it with an exact engine.</span>
+                <div className="workbench-account-actions">
+                  <ProjectPicker variant="primary" label="Save to a project" destination={(org, project) => `/app/${org}/${project}/workbench${selected?.example ? `?example=${encodeURIComponent(selected.example)}` : ''}`} />
+                  <ProjectPicker label="Run" destination={(org, project) => `/app/${org}/${project}/jobs/new`} />
+                </div>
+                {selected && !selected.example && <small>An uploaded file isn’t carried across: add it again in the project workbench.</small>}
+              </>
+            ) : (
+              <>
+                <strong>Want to run an engine on it?</strong>
+                <span>Validation is free. Running engines and saving packages as cases needs an account.</span>
+                <div className="workbench-account-actions">
+                  <Link className="workbench-login" to="/login">Log in to run</Link>
+                  <Link className="workbench-secondary" to="/register">Create account</Link>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+
+        <section aria-label="Result" aria-live="polite" aria-busy={run.status === 'loading'} className="workbench-result">
+          {run.status === 'idle' && (
+            <div className="workbench-idle">
+              <strong>{selected ? 'Ready to validate' : 'No package yet'}</strong>
+              <span>
+                {selected
+                  ? `${selected.name} is selected. Press Validate package to get the verdict, digests and structure.`
+                  : 'Choose a .bim.zip or try an official package. The verdict, digests and structure appear here.'}
+              </span>
+            </div>
+          )}
+
+          {run.status === 'loading' && (
+            <div className="workbench-loading">
+              <strong>Uploading and compiling…</strong>
+              <div className="workbench-progress" aria-hidden="true"><div /></div>
+              <ol>
+                <li>Unpacking entries and checking size limits</li>
+                <li>Validating resources against the Profile and dialects</li>
+                <li>Compiling the BindingProblem IR</li>
+              </ol>
+            </div>
+          )}
+
+          {run.status === 'failed' && (
+            <Notice
+              tone={run.kind === 'rate-limit' ? 'warning' : 'error'}
+              title={{
+                'too-large': 'The package is too large (413 · payload_too_large)',
+                'rate-limit': 'Too many validations right now (429).',
+                unreadable: 'This file can’t be read as a BIM package',
+                unsupported: 'The gateway can’t read this file type (415)',
+                unavailable: `Validation is unavailable right now (${run.message})`,
+              }[run.kind]}
+              action={selected && run.kind !== 'unreadable' && run.kind !== 'too-large'
+                ? <Button size="sm" variant="secondary" onClick={() => void validate(selected)}>{run.kind === 'rate-limit' ? 'Try again' : 'Retry'}</Button>
+                : undefined}
+            >
+              {run.kind === 'too-large' && `Public validation accepts up to ${BIM_PACKAGE_LIMITS.compressedBytes / MiB} MiB compressed, ${BIM_PACKAGE_LIMITS.expandedBytes / MiB} MiB expanded and ${BIM_PACKAGE_LIMITS.entries} entries. Remove unused files, or sign in: your plan sets its own payload ceiling. ${run.message}`}
+              {run.kind === 'rate-limit' && `The gateway limits public validation. ${run.message} Your file is still selected.`}
+              {run.kind === 'unreadable' && run.message}
+              {run.kind === 'unsupported' && run.message}
+              {run.kind === 'unavailable' && 'Your file is still selected; nothing was changed.'}
+            </Notice>
+          )}
+
+          {outcome && (
+            <>
+              <div className={`workbench-verdict ${outcome.valid ? 'is-valid' : 'is-invalid'}`}>
+                {outcome.valid ? <CircleCheck aria-hidden="true" /> : <CircleAlert aria-hidden="true" />}
+                <div>
+                  <strong>{outcome.valid ? 'Valid package' : `Not valid · ${errorCount} ${errorCount === 1 ? 'error' : 'errors'}`}</strong>
+                  <span>
+                    {outcome.valid
+                      ? [selected?.name, model?.profile ? `profile ${model.profile}` : null, model && model.tasks.length ? `${model.tasks.length} tasks` : null].filter(Boolean).join(' · ')
+                      : `${refusal?.status} ${refusal?.code}. ${diagnostics.length > 0 ? 'Each diagnostic points at the resource and location to fix.' : refusal?.message}`}
+                  </span>
+                </div>
+              </div>
+
+              {outcome.valid && (
+                <div className="workbench-digests">
+                  {([
+                    ['Instance digest', outcome.result.instanceDigest],
+                    ['Package digest', outcome.result.packageDigest],
+                    ['IR digest', outcome.result.irDigest],
+                  ] as const).map(([label, digest]) => (
+                    <div key={label}>
+                      <span>
+                        <small>{label}</small>
+                        <code title={digest}>{shortDigest(digest)}</code>
+                      </span>
+                      <button type="button" aria-label={`Copy ${label.toLowerCase()}`} onClick={() => void copy(digest, label)}>
+                        {copyStatus(label) === 'copied' ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <TabBar
+                prefix="workbench"
+                ariaLabel="Result views"
+                value={tab}
+                onChange={setTab}
+                items={[
+                  { id: 'structure', label: 'Structure' },
+                  { id: 'diagnostics', label: `Diagnostics (${outcome.valid ? diagnostics.length : errorCount})` },
+                ]}
+              />
+              <TabPanel prefix="workbench" active={tab}>
+                {tab === 'structure' && (
+                  model
+                    ? (
+                      <StructurePanel
+                        model={model}
+                        valid={outcome.valid}
+                        fileDigests={outcome.valid ? outcome.result.fileDigests : {}}
+                        problemsByFile={Object.fromEntries(groups.filter((group) => group.file).map((group) => [group.file, group.items.length]))}
+                        onShowProblems={showProblems}
+                      />
+                    )
+                    : <p className="workbench-muted">The structure could not be read from this package.</p>
+                )}
+                {tab === 'diagnostics' && (
+                  <DiagnosticsPanel
+                    valid={outcome.valid}
+                    groups={groups}
+                    summary={refusal && diagnostics.length === 0 ? refusal.message : null}
+                    onShowFile={showFile}
+                    copy={(value, key) => void copy(value, key)}
+                    copied={(key) => copyStatus(key) === 'copied'}
+                  />
+                )}
+              </TabPanel>
+            </>
+          )}
+        </section>
+      </div>
+    </div>
+  );
 }
-
-export function ExplorePage() {
-  const [projects, setProjects] = useState<Awaited<ReturnType<typeof platformApi.publicProjects>>>([]);
-  const [publications, setPublications] = useState<Array<Record<string, unknown>>>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  useEffect(() => { void Promise.all([platformApi.publicProjects(), platformApi.publicPublications()]).then(([nextProjects, nextPublications]) => { setProjects(nextProjects); setPublications(nextPublications); }).catch(() => setError(true)).finally(() => setLoading(false)); }, []);
-  return <div className="public-page explore-page"><PublicHeading eyebrow="Explore the observatory" title="Bindings worth reproducing." lead="Discover public projects and frozen evidence. Every published object points back to immutable BIM, engine and parameter revisions." />
-    <section className="explore-search"><Search aria-hidden="true" /><label><span>Filter public resources</span><input type="search" placeholder="Cases, engines, authors, profiles…" disabled={!projects.length} /></label><small>{projects.length} projects · {publications.length} publications</small></section>
-    {loading ? <div className="public-empty">Loading the public catalog…</div> : error ? <div className="public-empty" role="alert"><Orbit aria-hidden="true" /><h2>The catalog is temporarily unavailable</h2><p>Your public resources remain unchanged. Retry when the gateway is reachable.</p></div> : projects.length ? <div className="explore-grid">{projects.map(({ organization, project }) => <article key={`${organization.slug}/${project.slug}`}><div><span>{organization.name}</span><small>PUBLIC PROJECT</small></div><Network aria-hidden="true" /><h2>{project.name}</h2><p>{project.description || 'A public OpenBinding project.'}</p><footer><code>{organization.slug}/{project.slug}</code><ArrowUpRight aria-hidden="true" /></footer></article>)}</div> : <div className="public-empty"><Orbit aria-hidden="true" /><h2>The public catalog is ready</h2><p>Projects appear here only after their owner explicitly marks them public. Private work never leaks into Explore.</p><Link to="/register">Create the first project</Link></div>}
-    {publications.length > 0 && <section className="publications-ledger"><header><span>Frozen evidence</span><h2>Published reports</h2></header>{publications.map((publication, index) => {
-      const citation = publication.citation && typeof publication.citation === 'object' ? publication.citation as Record<string, unknown> : {};
-      const report = publication.report && typeof publication.report === 'object' ? publication.report as Record<string, unknown> : {};
-      const title = String(report.title ?? citation.title ?? publication.title ?? `Publication ${index + 1}`);
-      const abstract = String(citation.abstract ?? publication.abstract ?? 'Immutable report with pinned binding and engine provenance.');
-      return <article key={String(publication.id ?? publication.slug ?? index)}><BookOpen aria-hidden="true" /><div><span>{String(publication.organization ?? 'OpenBinding')} / {String(publication.project ?? 'public')}</span><h2>{title}</h2><p>{abstract}</p></div><ArrowUpRight aria-hidden="true" /></article>;
-    })}</section>}
-  </div>;
-}
-
-export function TeamPage() {
-  return <div className="public-page"><PublicHeading eyebrow="People" title="Built where language design meets operations." lead="The public roster is intentionally small and sourced from repository contribution plus verified research profiles." />
-    <div className="team-grid">{team.map((person) => <article key={person.name}><div className="team-avatar" aria-hidden="true">{person.initials}<i /><i /></div><span>{person.role}</span><h2>{person.name}</h2><p>{person.affiliation}</p><nav aria-label={`${person.name} profiles`}>{Object.entries(person.links).map(([name, url]) => <a key={name} href={url} target="_blank" rel="noreferrer">{name}<ArrowUpRight aria-hidden="true" /></a>)}</nav></article>)}</div>
-    <aside className="public-integrity"><Github aria-hidden="true" /><div><strong>Contribution is the source of truth.</strong><p>Team changes are reviewed in Git. We omit unverified links rather than filling a card with guesses.</p></div></aside>
-  </div>;
-}
-
-export function ResearchPage() {
-  return <div className="public-page research-page"><PublicHeading eyebrow="Research" title="Literature becomes an executable corpus." lead="OpenBinding’s ICWS corpus derives workflows from published service-composition examples. Where a paper does not provide QoS numbers, the platform labels its illustrative values explicitly." />
-    <div className="research-map"><div><span>6</span><small>source papers</small></div><i /><div><span>68+</span><small>problem variants</small></div><i /><div><span>4</span><small>engine families</small></div><i /><div><span>1</span><small>authoritative evaluator</small></div></div>
-    <section className="research-source-heading"><h2>Sources represented in the executable corpus.</h2><p>Authors retain authorship of the original work; OpenBinding records only its derived test-case provenance and labels every illustrative value.</p></section>
-    <section className="research-timeline">{researchCorpus.map((paper) => <article key={paper.doi}><time>{paper.year}</time><div><span>{paper.venue}</span><h2>{paper.title}</h2><p>{paper.authors}</p><footer><code>Corpus · {paper.corpus}</code><a href={`https://doi.org/${paper.doi}`} target="_blank" rel="noreferrer">DOI {paper.doi}<ArrowUpRight aria-hidden="true" /></a></footer></div></article>)}</section>
-  </div>;
-}
-
-export function FundingPage() {
-  return <div className="public-page"><PublicHeading eyebrow="Funding & ecosystem" title="Institutional context, with precise claims." lead="These entities are retained from the related SPHERE research ecosystem. Listing records provenance and context; it does not imply that every entity funds every OpenBinding release." />
-    {/* <aside className="funding-caveat"><strong>No OpenBinding-specific award is published</strong><p>These institutional and ecosystem links do not, by themselves, claim a specific grant. A grant will appear only with a verified reference, programme, period, role and official URL.</p></aside> */}
-    <section className="funder-grid">{fundingEntities.map((entity, index) => <a href={entity.url} target="_blank" rel="noreferrer" key={entity.name}><span>{String(index + 1).padStart(2, '0')}</span>{entity.name === 'Universidad de Sevilla' ? <img src="/brands/universidad-sevilla.svg" alt="Universidad de Sevilla" /> : <Landmark aria-hidden="true" />}<h2>{entity.name}</h2><p>{entity.scope}</p><ArrowUpRight aria-hidden="true" /></a>)}</section>
-    <section className="related-projects"><header><span>Projects and infrastructure</span><h2>What each project contributes</h2></header>{relatedProjects.map((project) => <a key={project.name} href={project.url} target="_blank" rel="noreferrer"><Box aria-hidden="true" /><strong>{project.name}<small>{project.kind}</small></strong><p>{project.role}</p><time>{project.period}</time><ArrowUpRight aria-hidden="true" /></a>)}</section>
-  </div>;
-}
-
-export function ContributionsPage() {
-  return <div className="public-page"><PublicHeading eyebrow="Open research tracks" title="Problems that deserve a careful solution." lead="Candidate thesis and research tracks extend OpenBinding’s language, engines and evidence model without introducing speculative platform dependencies." />
-    <div className="contribution-grid">{contributionTracks.map((track, index) => <article key={track.title}><header><span>{String(index + 1).padStart(2, '0')}</span><GraduationCap aria-hidden="true" /></header><small>{track.level}</small><h2>{track.title}</h2><p>{track.description}</p><footer>{track.tags.map((tag) => <code key={tag}>{tag}</code>)}</footer></article>)}</div>
-    <aside className="contribution-call"><FlaskConical aria-hidden="true" /><div><h2>Start from a reproducible question</h2><p>Proposals should identify a BIM invariant, an executable corpus and acceptance evidence before implementation begins.</p></div><a href="https://github.com/isa-group/OpenBinding/issues" target="_blank" rel="noreferrer">Discuss an idea <ArrowUpRight aria-hidden="true" /></a></aside>
-  </div>;
-}
-
-export function ChangelogPage() {
-  return <div className="public-page"><PublicHeading eyebrow="Changelog" title="Three release trains, one product history." lead="Platform behavior, language/engine contracts and documentation evolve independently, so each stream states exactly what changed." />
-    <div className="change-columns">{Object.entries(changelog).map(([stream, releases]) => <section key={stream}><header>{stream === 'platform' ? <Users /> : stream === 'bim' ? <Network /> : <BookOpen />}<span>{stream}</span></header>{releases.map((release) => <article key={release.version}><div><strong>{release.version}</strong><time><CalendarDays />{release.date}</time></div><h2>{release.title}</h2><ul>{release.changes.map((change) => <li key={change}><CircleDot />{change}</li>)}</ul></article>)}</section>)}</div>
-  </div>;
-}
-
-// Short aliases keep the public page API stable for existing imports.
-export const Explore = ExplorePage;
-export const Team = TeamPage;
-export const Research = ResearchPage;
-export const Funding = FundingPage;
-export const Contributions = ContributionsPage;
-export const Changelog = ChangelogPage;

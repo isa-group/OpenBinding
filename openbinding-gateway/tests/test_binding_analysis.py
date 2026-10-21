@@ -7,9 +7,9 @@ import pytest
 from sqlalchemy import select
 
 from openbinding_gateway.db.models import Job, JobState, User
-from openbinding_gateway.v1.analysis import analyze_neighborhood
-from openbinding_gateway.v1.compiler import BindingProblem, compile_instance
-from openbinding_gateway.v1.package import load_package
+from bim_core.neighborhood import analyze_neighborhood
+from bim_core.compiler import BindingProblem, compile_instance
+from bim_core.package import load_package
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples/demo"
 
@@ -69,10 +69,10 @@ def test_failed_evaluations_are_not_counted_as_complete(monkeypatch):
     problem, binding = problem_and_binding()
     original = BindingProblem.evaluate
 
-    def evaluate(self, candidate):
+    def evaluate(self, candidate, execution=None):
         if candidate != binding:
             raise ValueError("Undefined metric")
-        return original(self, candidate)
+        return original(self, candidate, execution)
 
     monkeypatch.setattr(BindingProblem, "evaluate", evaluate)
     result = analyze_neighborhood(problem, binding)
@@ -82,20 +82,37 @@ def test_failed_evaluations_are_not_counted_as_complete(monkeypatch):
     assert len(result["failures"]) == 10
 
 
-@pytest.mark.parametrize("mode", ["weighted", "pareto", "lexicographic", "satisfy"])
-def test_comparison_respects_canonical_mode(mode):
+@pytest.mark.parametrize("objective_type, scalarization", [
+    ("SINGLE", "weighted-sum"),
+    ("SINGLE", "lexicographic"),
+    ("SINGLE", "feasibility"),
+    ("MULTI", "pareto"),
+    ("MANY", "pareto"),
+])
+def test_comparison_respects_execution_optimization(objective_type, scalarization):
     problem, binding = problem_and_binding()
-    document = copy.deepcopy(problem.document)
-    document["spec"]["optimization"]["mode"] = mode
-    changed_problem = BindingProblem(document, problem.digest, {})
-    result = analyze_neighborhood(changed_problem, binding)
+    criteria = [item["id"] for item in problem.document["spec"]["optimization"]["criteria"]]
+    # Unequal weights: the default equal-weight evaluation would order moves differently.
+    weights = [{"criteria": criterion, "value": 2.0 ** -(index + 1)} for index, criterion in enumerate(criteria)]
+    execution = {"type": objective_type, "scalarization": scalarization, "weights": weights}
+    result = analyze_neighborhood(problem, binding, execution=execution)
+    assert result["moves"]
+    for objectives in [result["base"]["objectives"], *(move["objectives"] for move in result["moves"])]:
+        assert (objectives["type"], objectives["scalarization"]) == (objective_type, scalarization)
     for move in result["moves"]:
         a, b = move["objectives"]["score"], result["base"]["objectives"]["score"]
-        if mode == "pareto":
+        if objective_type in {"MULTI", "MANY"}:
             expected = "equal" if a == b else "better" if all(x <= y for x, y in zip(a, b, strict=True)) else "worse" if all(x >= y for x, y in zip(a, b, strict=True)) else "trade-off"
         else:
             expected = "better" if a < b else "worse" if a > b else "equal"
         assert move["comparison"] == expected
+
+
+def test_default_comparison_without_execution_is_single_equal_weight():
+    problem, binding = problem_and_binding()
+    result = analyze_neighborhood(problem, binding)
+    assert (result["base"]["objectives"]["type"], result["base"]["objectives"]["scalarization"]) == ("SINGLE", "weighted-sum")
+    assert all(isinstance(move["objectives"]["score"], float) for move in result["moves"])
 
 
 async def test_endpoint_requires_owner_and_validates_budget(api_client, db_session, registration):
@@ -107,7 +124,8 @@ async def test_endpoint_requires_owner_and_validates_budget(api_client, db_sessi
     problem, binding = problem_and_binding()
     solution = {"decision": {"kind": "binding", "binding": binding}, **problem.evaluate(binding)}
     job = Job(owner_id=owner.id, engine_id="analysis-test", engine_job_id="analysis-test", service_url="https://example.invalid", state=JobState.COMPLETED,
-              original_request={"bindingProblem": problem.document}, provenance={"irDigest": problem.digest}, result={"solutions": [solution]})
+              original_request={"bindingProblem": problem.document, "optimization": {"type": "MULTI", "scalarization": "pareto", "weights": []}},
+              provenance={"irDigest": problem.digest}, result={"solutions": [solution]})
     db_session.add(job)
     await db_session.commit()
     url = f"/v1/jobs/{job.id}/analysis/neighborhood"
@@ -116,6 +134,9 @@ async def test_endpoint_requires_owner_and_validates_budget(api_client, db_sessi
     assert response.status_code == 200, response.text
     assert response.json()["irDigest"] == problem.digest
     assert response.json()["coverage"]["total"] == 10
+    # The job's execution optimization, not an equal-weight default, drives the comparison.
+    assert response.json()["base"]["objectives"]["type"] == "MULTI"
+    assert all(m["objectives"]["scalarization"] == "pareto" for m in response.json()["moves"])
     assert (await api_client.get(url + "?limit=129", headers=headers)).status_code == 422
     assert (await api_client.get(url + "?solution_index=99", headers=headers)).status_code == 422
     assert (await api_client.get(url + "?task=unknown", headers=headers)).status_code == 422

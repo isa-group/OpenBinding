@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Public header</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: sticky; top: 0; z-index: 30; box-sizing: border-box; padding: 16px 16px 0; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; color: #1f1f1f;">
+<header style="position: relative; max-width: 1080px; margin: 0 auto; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 20px; border: 1px solid rgba(31,31,31,0.1); border-radius: 9999px; background: rgba(255,255,255,0.85); backdrop-filter: blur(24px); box-shadow: 0 12px 24px -4px rgba(0,0,0,0.08);">
+<a href="PubHome.dc.html" style="font-size: 14px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: #1f1f1f; text-decoration: none;">OpenBinding</a>
+<nav class="ob-hide-sm" aria-label="Main" style="display: flex; align-items: center; gap: 4px;">
+<a href="PubExplore.dc.html" aria-current="{{cur.explore}}" style="{{nav.explore}}">Explore</a>
+<a href="EngCatalog.dc.html" aria-current="{{cur.engines}}" style="{{nav.engines}}">Engines</a>
+<div style="position: relative;">
+<button type="button" aria-expanded="{{langOpen}}" aria-controls="ob-lang-menu" onClick="{{toggleLang}}" style="{{nav.languageBtn}}">Language <span aria-hidden="true" style="font-size: 11px;">▾</span></button>
+<sc-if value="{{langOpen}}" hint-placeholder-val="{{false}}">
+<div id="ob-lang-menu" style="position: absolute; left: 0; top: 100%; padding-top: 8px; min-width: 240px; z-index: 40;">
+<div style="border: 1px solid rgba(31,31,31,0.1); border-radius: 16px; background: #ffffff; padding: 8px; box-shadow: 0 16px 48px -8px rgba(0,0,0,0.12); display: flex; flex-direction: column; gap: 2px;">
+<a href="LangProfiles.dc.html" style="display: block; border-radius: 12px; padding: 8px 12px; text-decoration: none; color: #1f1f1f;"><span style="display: block; font-size: 13px; font-weight: 500;">Profiles &amp; dialects</span><span style="display: block; font-size: 12px; color: #6a6a6a;">How an instance becomes a binding problem</span></a>
+<a href="LangSchemas.dc.html" style="display: block; border-radius: 12px; padding: 8px 12px; text-decoration: none; color: #1f1f1f;"><span style="display: block; font-size: 13px; font-weight: 500;">Schemas</span><span style="display: block; font-size: 12px; color: #6a6a6a;">Field reference for every resource kind</span></a>
+<a href="LangExamples.dc.html" style="display: block; border-radius: 12px; padding: 8px 12px; text-decoration: none; color: #1f1f1f;"><span style="display: block; font-size: 13px; font-weight: 500;">Examples</span><span style="display: block; font-size: 12px; color: #6a6a6a;">Official BIM packages to start from</span></a>
+<a href="PubWorkbench.dc.html" style="display: block; border-radius: 12px; padding: 8px 12px; text-decoration: none; color: #1f1f1f;"><span style="display: block; font-size: 13px; font-weight: 500;">Workbench</span><span style="display: block; font-size: 12px; color: #6a6a6a;">Validate a package without an account</span></a>
+</div>
+</div>
+</sc-if>
+</div>
+<a href="PubPricing.dc.html" aria-current="{{cur.pricing}}" style="{{nav.pricing}}">Pricing</a>
+<a href="PubAbout.dc.html" aria-current="{{cur.about}}" style="{{nav.about}}">About</a>
+</nav>
+<div class="ob-hide-sm" style="display: flex; align-items: center; gap: 8px;">
+<sc-if value="{{signedOut}}" hint-placeholder-val="{{true}}">
+<a href="AuthLogin.dc.html" style="display: inline-flex; height: 40px; align-items: center; padding: 0 18px; border-radius: 9999px; border: 1px solid rgba(31,31,31,0.15); background: #ffffff; color: #4a4a4a; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; text-decoration: none;">Log in</a>
+<a href="AuthRegister.dc.html" style="display: inline-flex; height: 40px; align-items: center; gap: 8px; padding: 0 8px 0 18px; border-radius: 9999px; background: #0077b6; color: #ffffff; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; text-decoration: none;">Sign up <span aria-hidden="true" style="display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 9999px; background: rgba(255,255,255,0.15); font-size: 11px;">↗</span></a>
+</sc-if>
+<sc-if value="{{signedIn}}" hint-placeholder-val="{{false}}">
+<a href="AppHome.dc.html" style="display: inline-flex; height: 40px; align-items: center; padding: 0 18px; border-radius: 9999px; background: #0077b6; color: #ffffff; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; text-decoration: none;">Open workspace</a>
+<div style="position: relative;">
+<button type="button" aria-label="Account menu" aria-expanded="{{userOpen}}" onClick="{{toggleUser}}" style="width: 40px; height: 40px; border-radius: 9999px; border: 1px solid rgba(31,31,31,0.15); background: #caf0f8; color: #023e8a; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">{{initials}}</button>
+<sc-if value="{{userOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; right: 0; top: 100%; margin-top: 8px; width: 240px; z-index: 40; border: 1px solid rgba(31,31,31,0.1); border-radius: 16px; background: #ffffff; padding: 8px; box-shadow: 0 16px 48px -8px rgba(0,0,0,0.12);">
+<div style="margin-bottom: 8px; border: 1px solid rgba(31,31,31,0.1); border-radius: 12px; background: #fafafa; padding: 8px 12px; text-align: center;">
+<div style="font-size: 14px; font-weight: 500;">{{name}}</div>
+<div style="font-size: 12px; color: #6a6a6a;">{{email}}</div>
+</div>
+<a href="AppHome.dc.html" style="display: block; border-radius: 12px; padding: 8px 12px; font-size: 13px; color: #4a4a4a; text-decoration: none;">Workspace</a>
+<a href="AcctProfile.dc.html" style="display: block; border-radius: 12px; padding: 8px 12px; font-size: 13px; color: #4a4a4a; text-decoration: none;">Account</a>
+<button type="button" onClick="{{logout}}" style="display: block; width: 100%; text-align: left; border: 0; background: transparent; border-radius: 12px; padding: 8px 12px; font-family: inherit; font-size: 13px; color: #4a4a4a; cursor: pointer;">Log out</button>
+</div>
+</sc-if>
+</div>
+</sc-if>
+</div>
+<button type="button" class="ob-show-sm" aria-label="Open menu" aria-expanded="{{mobileOpen}}" onClick="{{toggleMobile}}" style="display: none; width: 44px; height: 44px; align-items: center; justify-content: center; border-radius: 9999px; border: 1px solid rgba(31,31,31,0.1); background: #ffffff; cursor: pointer;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 9h16M4 15h16"></path></svg>
+</button>
+</header>
+<sc-if value="{{mobileOpen}}" hint-placeholder-val="{{false}}">
+<nav aria-label="Main (mobile)" style="max-width: 448px; margin: 12px auto 0; display: flex; flex-direction: column; gap: 8px;">
+<a href="PubExplore.dc.html" style="border: 1px solid rgba(31,31,31,0.1); border-radius: 20px; background: #ffffff; padding: 12px 20px; font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; color: #1f1f1f; text-decoration: none;">Explore</a>
+<a href="EngCatalog.dc.html" style="border: 1px solid rgba(31,31,31,0.1); border-radius: 20px; background: #ffffff; padding: 12px 20px; font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; color: #1f1f1f; text-decoration: none;">Engines</a>
+<div style="border: 1px solid rgba(31,31,31,0.1); border-radius: 20px; background: #ffffff; padding: 12px 20px; display: flex; flex-direction: column; gap: 8px;">
+<span style="font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase;">Language</span>
+<a href="LangProfiles.dc.html" style="border-radius: 12px; background: #fafafa; border: 1px solid rgba(31,31,31,0.1); padding: 8px 12px; font-size: 13px; color: #1f1f1f; text-decoration: none;">Profiles &amp; dialects</a>
+<a href="LangSchemas.dc.html" style="border-radius: 12px; background: #fafafa; border: 1px solid rgba(31,31,31,0.1); padding: 8px 12px; font-size: 13px; color: #1f1f1f; text-decoration: none;">Schemas</a>
+<a href="LangExamples.dc.html" style="border-radius: 12px; background: #fafafa; border: 1px solid rgba(31,31,31,0.1); padding: 8px 12px; font-size: 13px; color: #1f1f1f; text-decoration: none;">Examples</a>
+<a href="PubWorkbench.dc.html" style="border-radius: 12px; background: #fafafa; border: 1px solid rgba(31,31,31,0.1); padding: 8px 12px; font-size: 13px; color: #1f1f1f; text-decoration: none;">Workbench</a>
+</div>
+<a href="PubPricing.dc.html" style="border: 1px solid rgba(31,31,31,0.1); border-radius: 20px; background: #ffffff; padding: 12px 20px; font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; color: #1f1f1f; text-decoration: none;">Pricing</a>
+<a href="PubAbout.dc.html" style="border: 1px solid rgba(31,31,31,0.1); border-radius: 20px; background: #ffffff; padding: 12px 20px; font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; color: #1f1f1f; text-decoration: none;">About</a>
+<sc-if value="{{signedOut}}" hint-placeholder-val="{{true}}">
+<a href="AuthLogin.dc.html" style="border: 1px solid rgba(31,31,31,0.15); border-radius: 9999px; background: #ffffff; padding: 12px 24px; font-size: 14px; font-weight: 500; color: #1f1f1f; text-align: center; text-decoration: none;">Log in</a>
+<a href="AuthRegister.dc.html" style="border-radius: 9999px; background: #0077b6; padding: 12px 24px; font-size: 14px; font-weight: 500; color: #ffffff; text-align: center; text-decoration: none;">Sign up</a>
+</sc-if>
+<sc-if value="{{signedIn}}" hint-placeholder-val="{{false}}">
+<a href="AppHome.dc.html" style="border-radius: 9999px; background: #0077b6; padding: 12px 24px; font-size: 14px; font-weight: 500; color: #ffffff; text-align: center; text-decoration: none;">Open workspace</a>
+<button type="button" onClick="{{logout}}" style="border: 1px solid rgba(31,31,31,0.15); border-radius: 9999px; background: #ffffff; padding: 12px 24px; font-family: inherit; font-size: 14px; color: #4a4a4a; cursor: pointer;">Log out</button>
+</sc-if>
+</nav>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"signedIn":{"editor":"boolean","default":false},"userName":{"editor":null,"default":"Lucía Vega"},"email":{"editor":null,"default":"lucia@example.invalid"},"initials":{"editor":null,"default":"LV"},"active":{"editor":null,"default":""},"onLogout":{"editor":null},"$preview":{"width":1280,"height":120}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { langOpen: false, userOpen: false, mobileOpen: false };
+  }
+  renderVals() {
+    const p = this.props;
+    const active = p.active || "";
+    const base = "display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 9999px; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; text-decoration: none; ";
+    const on = base + "color: #1f1f1f; background: #f1f8fc;";
+    const off = base + "color: #4a4a4a; background: transparent;";
+    const btn = (k) => (active === k ? on : off) + " border: 0; font-family: inherit; cursor: pointer;";
+    const signedIn = !!p.signedIn;
+    return {
+      nav: {
+        explore: active === "explore" ? on : off,
+        engines: active === "engines" ? on : off,
+        languageBtn: btn("language"),
+        pricing: active === "pricing" ? on : off,
+        about: active === "about" ? on : off
+      },
+      cur: {
+        explore: active === "explore" ? "page" : "false",
+        engines: active === "engines" ? "page" : "false",
+        pricing: active === "pricing" ? "page" : "false",
+        about: active === "about" ? "page" : "false"
+      },
+      langOpen: this.state.langOpen,
+      userOpen: this.state.userOpen,
+      mobileOpen: this.state.mobileOpen,
+      toggleLang: () => this.setState({ langOpen: !this.state.langOpen, userOpen: false }),
+      toggleUser: () => this.setState({ userOpen: !this.state.userOpen, langOpen: false }),
+      toggleMobile: () => this.setState({ mobileOpen: !this.state.mobileOpen }),
+      logout: () => { this.setState({ userOpen: false, mobileOpen: false }); if (p.onLogout) p.onLogout(); },
+      signedIn: signedIn,
+      signedOut: !signedIn,
+      name: p.userName || "",
+      email: p.email || "",
+      initials: p.initials || ""
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,8 +1,10 @@
-"""The pricing seam: balances, refusals, and what an outage is not.
+"""The pricing seam: entitlements, contracts, and what an outage is not.
 
-Quotas live in a SPACE instance, so most of what matters here is the shape of
-the conversation rather than the arithmetic. The fake gate keeps real balances
-precisely so that the refusal paths can be exercised without one.
+Plans live in a SPACE instance, so most of what matters here is the shape of
+the conversation. The fake gate serves the same entitlements from the synthetic
+test pricing (``fixtures/pricing_test.yml``) so that the refusal paths can be
+exercised without one; it counts no consumption. The open gate is the stateless
+stand-in for ``SPACE_ENABLED=false``.
 """
 
 from __future__ import annotations
@@ -12,21 +14,22 @@ import uuid
 import pytest
 import yaml
 
-from openbinding_gateway.pricing_catalog import PricingCatalog, PricingCatalogError
+from _fake_space import FakePricingGate, PricingCatalog, PricingCatalogError
+from openbinding_gateway.core.settings import Settings, get_settings
 from openbinding_gateway.space_client import (
-    FakePricingGate,
+    OpenGate,
     PricingGate,
     PricingUnavailable,
+    build_gate,
     feature_id,
+    get_gate,
+    set_gate,
 )
 from _pricing import PRICING_YAML, caps_for, fake_pricing_gate, largest_plan, pricing_catalog
 
 CATALOG = pricing_catalog()
 DEFAULT_PLAN = CATALOG.default_plan
 LARGER_PLAN = largest_plan()
-TASKS = "taskStarts"
-CONCURRENT = "concurrentJobs"
-SOLVER_TIME = "solverSeconds"
 
 
 @pytest.fixture
@@ -51,89 +54,29 @@ def test_feature_identifiers_carry_the_service_name():
     assert feature_id("solve") == "openbinding-solve"
 
 
-async def test_a_fresh_account_may_solve(gate, user_id):
-    verdict = await gate.evaluate(user_id, "solve", {"taskStarts": 1})
+async def test_a_fresh_account_has_the_solve_feature(gate, user_id):
+    caps = await gate.caps(user_id)
 
-    assert verdict.allowed is True
-
-
-async def test_evaluating_spends_nothing(gate, user_id):
-    # Asking whether you may is not the same as doing it. SPACE loses all but
-    # one increment when several limits are involved, so the gateway keeps the
-    # accounts itself and the fake mirrors that.
-    await gate.evaluate(user_id, "solve", {"taskStarts": 1})
-
-    usage = await gate.usage(user_id)
-
-    assert usage.limits[TASKS].used == 0
+    assert caps.allows("solve") is True
 
 
-async def test_a_spent_limit_refuses(gate, user_id):
-    gate.exhaust(user_id, "taskStarts")
+def test_the_fake_keeps_no_consumption_state(gate):
+    # Nothing is counted per account: the fake holds contracts and nothing else.
+    state = [
+        name for name in dir(gate)
+        if any(word in name for word in ("consum", "evaluat", "spend", "exhaust", "usage"))
+    ]
 
-    verdict = await gate.evaluate(user_id, "solve", {"taskStarts": 1})
-
-    assert verdict.allowed is False
-    assert verdict.limit.limit_id == TASKS
-
-
-async def test_consumption_is_recorded_by_the_caller(gate, user_id):
-    # The gateway spends explicitly once it knows what it spent.
-    await gate.adjust_usage(user_id, {"taskStarts": 1})
-
-    usage = await gate.usage(user_id)
-
-    assert usage.limits[TASKS].used == 1
-
-
-async def test_work_that_did_not_happen_is_given_back(gate, user_id):
-    # There is nothing for a revert to undo, because evaluating spent nothing.
-    # A negative adjustment is what corrects an aborted solve.
-    await gate.adjust_usage(user_id, {"taskStarts": 1})
-
-    await gate.adjust_usage(user_id, {"taskStarts": -1})
-    usage = await gate.usage(user_id)
-
-    assert usage.limits[TASKS].used == 0
-
-
-async def test_usage_can_be_adjusted_once_the_real_cost_is_known(gate, user_id):
-    # Solver time is not charged up front - nobody knows how long a solve will
-    # take until it has taken it.
-    await gate.adjust_usage(user_id, {"solverSeconds": 42.5})
-
-    usage = await gate.usage(user_id)
-
-    assert usage.limits[SOLVER_TIME].used == 42.5
-
-
-async def test_a_released_slot_goes_back(gate, user_id):
-    await gate.adjust_usage(user_id, {"concurrentJobs": 1})
-
-    await gate.adjust_usage(user_id, {"concurrentJobs": -1})
-    usage = await gate.usage(user_id)
-
-    assert usage.limits[CONCURRENT].used == 0
-
-
-async def test_usage_never_goes_negative(gate, user_id):
-    # Releasing a slot twice - a reconciler racing a late poll - must not leave
-    # the account with credit it never had.
-    await gate.adjust_usage(user_id, {"concurrentJobs": -5})
-
-    usage = await gate.usage(user_id)
-
-    assert usage.limits[CONCURRENT].used == 0
+    assert state == []
 
 
 async def test_larger_yaml_plan_raises_allowances(gate, user_id):
-    baseline = await gate.usage(user_id)
+    baseline = await gate.caps(user_id)
     await gate.change_plan(user_id, LARGER_PLAN)
-    larger = await gate.usage(user_id)
+    larger = await gate.caps(user_id)
 
-    assert TASKS in baseline.limits
-    assert TASKS not in larger.limits  # Infinity is omitted from finite balances.
-    assert larger.limits[CONCURRENT].limit > baseline.limits[CONCURRENT].limit
+    assert larger.limit("maxPayloadBytes") > baseline.limit("maxPayloadBytes")
+    assert larger.limit("apiKeys") is None  # Infinity reads as unlimited.
 
 
 async def test_renaming_a_plan_in_yaml_changes_catalog_fake_and_contract_validation():
@@ -164,7 +107,7 @@ async def test_yaml_feature_limit_and_add_on_changes_drive_space_decisions():
     catalog_before = PricingCatalog.parse(PRICING_YAML.read_bytes())
     plan = catalog_before.default_plan
     document["plans"][plan]["features"]["solve"] = {"value": False}
-    document["plans"][plan]["usageLimits"]["taskStarts"] = {"value": 1}
+    document["plans"][plan]["usageLimits"]["maxIterations"] = {"value": 1}
     document["features"]["addedAtRuntime"] = {
         "description": "Mutation-test feature",
         "type": "DOMAIN",
@@ -181,9 +124,10 @@ async def test_yaml_feature_limit_and_add_on_changes_drive_space_decisions():
     gate = FakePricingGate(catalog)
     account_id = uuid.uuid4()
 
-    assert (await gate.evaluate(account_id, "solve")).allowed is False
-    assert (await gate.evaluate(account_id, "addedAtRuntime")).allowed is True
-    assert (await gate.usage(account_id)).limits["taskStarts"].limit == 1
+    caps = await gate.caps(account_id)
+    assert caps.allows("solve") is False
+    assert caps.allows("addedAtRuntime") is True
+    assert caps.limit("maxIterations") == 1
     add_on_plan = add_on["availableFor"][0]
     await gate.create_contract(account_id, add_on_plan, "dynamic@example.org")
     changed = await gate.change_subscription(
@@ -214,8 +158,6 @@ def test_every_plan_bounds_a_single_request(plan):
 async def test_the_largest_ceiling_never_promises_more_than_the_gateway_waits():
     # Asking for a longer solve than ENGINE_SOLVE_TIMEOUT_S would be a promise
     # the gateway cannot keep: it stops waiting first.
-    from openbinding_gateway.core.settings import Settings
-
     assert caps_for(LARGER_PLAN).limit("maxTimeoutSeconds") <= Settings(
         _env_file=None
     ).engine_solve_timeout_s
@@ -228,12 +170,12 @@ async def test_an_unmodelled_feature_fails_closed(gate, user_id):
 
 
 async def test_an_outage_is_not_a_refusal(gate, user_id):
-    # "You have no quota" and "I could not find out" call for different
+    # "Your plan lacks this" and "I could not find out" call for different
     # answers; conflating them either leaks compute or refuses everyone.
     gate.unavailable = True
 
     with pytest.raises(PricingUnavailable):
-        await gate.evaluate(user_id, "solve", {"taskStarts": 1})
+        await gate.caps(user_id)
 
 
 async def test_a_contract_records_the_plan(gate, user_id):
@@ -247,3 +189,74 @@ async def test_a_pricing_token_is_issued_per_account(gate, user_id):
     other = uuid.uuid4()
 
     assert await gate.pricing_token(user_id) != await gate.pricing_token(other)
+
+
+def test_the_fixture_is_marked_as_a_test_pricing_without_consumption_or_cu():
+    document = yaml.safe_load(PRICING_YAML.read_bytes())
+    text = PRICING_YAML.read_text(encoding="utf-8")
+
+    assert text.startswith("# TEST FIXTURE, NOT A REAL PRICING.")
+    assert document["version"] == "0.1.0"
+    assert document["createdAt"] == "2026-10-12T00:00:00Z"
+    forbidden = {"capacityUnits", "taskStarts", "solverSeconds", "federatedTaskStarts"}
+    assert not forbidden & set(document["usageLimits"])
+    for plan in document["plans"].values():
+        assert not forbidden & set(plan["usageLimits"])
+    assert {"apiKeys", "concurrentJobs"} <= set(document["usageLimits"])
+
+
+# -- The open gate (SPACE_ENABLED=false) ------------------------------------------
+
+
+def test_the_open_gate_satisfies_the_protocol():
+    assert isinstance(OpenGate(), PricingGate)
+
+
+async def test_the_open_gate_grants_every_functional_capability_without_plans(user_id):
+    caps = await OpenGate().caps(user_id)
+
+    assert caps.plan == ""
+    assert caps.allows("solve") is True
+    assert caps.allows("a-feature-nobody-declared") is True
+    assert all(caps.features.values()) and "solve" in caps.features
+    # Unbounded where the system has no technical ceiling, finite where it has one.
+    assert caps.limit("apiKeys") is None
+    assert caps.limit("maxIterations") is None
+    assert caps.limit("maxTimeoutSeconds") == get_settings().engine_solve_timeout_s
+    assert caps.limit("maxPayloadBytes") is not None
+    view = caps.http_view()
+    assert view["plan"] == ""
+    assert set(view["capabilities"]) == set(view["limits"]) == set(caps.limits)
+
+
+async def test_the_open_gate_keeps_no_state_and_counts_nothing(user_id):
+    gate = OpenGate()
+    await gate.create_contract(user_id, "ANY", "someone@example.org", "0.1.0")
+    await gate.change_plan(user_id, "OTHER")
+
+    assert vars(gate) == {}
+    assert (await gate.subscription(user_id)).plan == ""
+    assert (await gate.caps(user_id)).plan == ""
+
+
+def test_space_disabled_builds_the_open_gate_outside_production():
+    for environment in ("dev", "test"):
+        built = build_gate(Settings(_env_file=None, app_env=environment, space_enabled=False))
+        assert isinstance(built, OpenGate)
+
+
+def test_production_without_space_has_no_gate_to_build():
+    settings = Settings.model_construct(app_env="prod", space_enabled=False)
+
+    with pytest.raises(RuntimeError, match="SPACE_ENABLED is false while APP_ENV=prod"):
+        build_gate(settings)
+
+
+def test_there_is_no_fallback_gate_when_none_was_installed():
+    previous = get_gate()
+    set_gate(None)
+    try:
+        with pytest.raises(RuntimeError, match="No pricing gate is installed"):
+            get_gate()
+    finally:
+        set_gate(previous)

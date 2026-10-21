@@ -1,15 +1,22 @@
 import json
 from copy import deepcopy
+from types import SimpleNamespace
 
 import pytest
 
-from openbinding_gateway.v1.compiler import (
+from _repo import REPO_ROOT
+
+from openbinding_gateway.services.engines import schema_root as platform_schema_root
+from bim_core import ContractError, resolve_optimization
+from bim_core.neighborhood import analyze_neighborhood
+from bim_core.compiler import (
     CompiledProblem,
     CompileError,
     RegisteredResource,
     ResolvedInstance,
-    _schema_root,
     _schema_validator,
+    _TaskFeatures,
+    _validate_feature_value,
     compile_instance,
     installed_dialect_manifests,
     installed_framework_diagnostics,
@@ -20,9 +27,9 @@ from openbinding_gateway.v1.compiler import (
     uninstall_profile_contract,
     manifest_reference,
 )
-from openbinding_gateway.v1.canonical import digest
-from openbinding_gateway.v1.expressions import ExpressionError, compile_expression
-from openbinding_gateway.v1.package import InstancePackage, resource_digest
+from bim_core.canonical import digest
+from bim_core.expressions import ExpressionError, compile_expression
+from bim_core.package import InstancePackage, PackageError, load_package, resource_digest
 
 
 def envelope(kind, name, spec):
@@ -112,10 +119,9 @@ def base_package(*, workflow=None, optimization=None, placement=None):
         "Optimization",
         "opt",
         {
-            "mode": "weighted",
-            "terms": [
-                {"feature": {"resource": "app", "id": "latency"}, "weight": 3, "normalize": {"min": 0, "max": 100, "clamp": False}},
-                {"feature": {"resource": "app", "id": "cost"}, "weight": 1, "normalize": {"min": 0, "max": 20, "clamp": False}},
+            "criteria": [
+                {"id": "latency", "feature": {"resource": "app", "id": "latency"}, "normalize": {"min": 0, "max": 100, "clamp": False}},
+                {"id": "cost", "feature": {"resource": "app", "id": "cost"}, "normalize": {"min": 0, "max": 20, "clamp": False}},
             ],
             "penalties": [{"constraint": {"resource": "soft", "id": "limit"}, "weight": 1}],
         },
@@ -136,73 +142,102 @@ def base_package(*, workflow=None, optimization=None, placement=None):
     }
     if placement is not None:
         documents["placement.json"] = placement
-        resources["application"]["place"] = "placement.json"
+        resources["candidateCatalog"]["place"] = "placement.json"
     return package(documents, resources)
 
 
+EXECUTION_MODE = {
+    "capabilities": {
+        "scalarizations": {
+            "selector": "only",
+            "values": [
+                {"id": "weighted-sum", "objectiveTypes": ["SINGLE"], "weightPolicy": "required"},
+                {"id": "pareto-front", "objectiveTypes": ["MULTI", "MANY"], "weightPolicy": "forbidden"},
+                {"id": "feasibility", "objectiveTypes": ["SINGLE"], "weightPolicy": "forbidden"},
+            ],
+        }
+    }
+}
+
+
+def _problem_with_criteria(count: int):
+    return SimpleNamespace(
+        document={
+            "spec": {
+                "optimization": {
+                    "criteria": [{"id": f"criterion-{index}"} for index in range(count)],
+                }
+            }
+        }
+    )
+
+
 @pytest.mark.parametrize(
-    ("objective_type", "mode", "term_count", "valid"),
+    ("objective_type", "scalarization", "criteria_count", "valid"),
     [
-        ("MONO", "satisfy", 0, True),
-        ("MONO", "weighted", 0, False),
-        ("MONO", "weighted", 1, True),
-        ("MONO", "weighted", 4, True),
-        ("MULTI", "pareto", 1, False),
-        ("MULTI", "pareto", 2, True),
-        ("MULTI", "pareto", 3, True),
-        ("MULTI", "pareto", 4, False),
-        ("MANY", "pareto", 2, False),
-        ("MANY", "pareto", 3, True),
-        ("MANY", "pareto", 4, True),
+        ("SINGLE", "feasibility", 0, True),
+        ("SINGLE", "weighted-sum", 0, False),
+        ("SINGLE", "weighted-sum", 1, True),
+        ("SINGLE", "weighted-sum", 4, True),
+        ("MULTI", "pareto-front", 1, False),
+        ("MULTI", "pareto-front", 2, True),
+        ("MULTI", "pareto-front", 3, True),
+        ("MULTI", "pareto-front", 4, False),
+        ("MANY", "pareto-front", 2, False),
+        ("MANY", "pareto-front", 3, True),
+        ("MANY", "pareto-front", 4, True),
     ],
 )
-def test_objective_type_has_the_declared_source_cardinality(
-    objective_type: str, mode: str, term_count: int, valid: bool
+def test_execution_objective_type_has_the_declared_criteria_cardinality(
+    objective_type: str, scalarization: str, criteria_count: int, valid: bool
 ) -> None:
-    document = envelope(
-        "Optimization",
-        "objective-cardinality",
-        {
-            "mode": mode,
-            "type": objective_type,
-            "terms": [
-                {"feature": {"resource": "app", "id": f"feature-{index}"}}
-                for index in range(term_count)
-            ],
-        },
-    )
-    validator = _schema_validator("Optimization")
-    assert validator is not None
-    assert (not list(validator.iter_errors(document))) is valid
+    # The objective type is chosen at execution time; the Optimization resource
+    # only declares criteria, so cardinality is checked against the compiled IR.
+    problem = _problem_with_criteria(criteria_count)
+    requested = {"type": objective_type, "scalarization": scalarization}
+    if not valid:
+        with pytest.raises(ContractError) as captured:
+            resolve_optimization(problem, EXECUTION_MODE, requested)
+        assert captured.value.http_status == 422
+        return
+    resolved = resolve_optimization(problem, EXECUTION_MODE, requested)
+    assert resolved["type"] == objective_type
+    assert resolved["scalarization"] == scalarization
+    if scalarization == "weighted-sum":
+        assert [item["value"] for item in resolved["weights"]] == [1.0 / criteria_count] * criteria_count
+    else:
+        assert resolved["weights"] == []
 
 
-def test_compiler_defaults_objective_type_and_preserves_explicit_three_term_multi() -> None:
+def test_compiled_optimization_declares_criteria_and_leaves_type_to_execution() -> None:
     value = base_package()
-    weighted = compile_instance(value)
-    assert weighted.document["spec"]["optimization"]["type"] == "MONO"
-    without_type = deepcopy(weighted.document)
-    without_type["spec"]["optimization"].pop("type")
+    compiled = compile_instance(value)
+    assert set(compiled.document["spec"]["optimization"]) == {"resource", "criteria", "penalties"}
     ir_validator = _schema_validator("BindingProblem")
     assert ir_validator is not None
-    assert list(ir_validator.iter_errors(without_type))
+    assert not list(ir_validator.iter_errors(compiled.document))
+    with_type = deepcopy(compiled.document)
+    with_type["spec"]["optimization"]["type"] = "SINGLE"
+    assert list(ir_validator.iter_errors(with_type))
 
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["mode"] = "pareto"
-    optimization["spec"]["terms"] = optimization["spec"]["terms"][:1]
-    value.files["optimization.json"] = json.dumps(optimization).encode()
-    assert compile_instance(value).document["spec"]["optimization"]["type"] == "MONO"
-
-    optimization["spec"]["terms"].append(deepcopy(optimization["spec"]["terms"][0]))
-    value.files["optimization.json"] = json.dumps(optimization).encode()
-    assert compile_instance(value).document["spec"]["optimization"]["type"] == "MULTI"
-
-    optimization["spec"]["terms"].append(deepcopy(optimization["spec"]["terms"][0]))
-    value.files["optimization.json"] = json.dumps(optimization).encode()
-    assert compile_instance(value).document["spec"]["optimization"]["type"] == "MANY"
-
-    optimization["spec"]["type"] = "MULTI"
-    value.files["optimization.json"] = json.dumps(optimization).encode()
-    assert compile_instance(value).document["spec"]["optimization"]["type"] == "MULTI"
+    template = optimization["spec"]["criteria"][0]
+    for count, objective_type in ((1, "SINGLE"), (2, "MULTI"), (3, "MANY")):
+        optimization["spec"]["criteria"] = [
+            {**deepcopy(template), "id": f"latency-{index}"} for index in range(count)
+        ]
+        value.files["optimization.json"] = json.dumps(optimization).encode()
+        problem = compile_instance(value)
+        assert [item["id"] for item in problem.document["spec"]["optimization"]["criteria"]] == [
+            f"latency-{index}" for index in range(count)
+        ]
+        scalarization = "weighted-sum" if objective_type == "SINGLE" else "pareto-front"
+        resolved = resolve_optimization(
+            problem,
+            EXECUTION_MODE,
+            {"type": objective_type, "scalarization": scalarization},
+        )
+        assert resolved["type"] == objective_type
 
 
 def test_multiple_resources_keep_local_id_identity_and_evaluate_once_selected():
@@ -214,7 +249,37 @@ def test_multiple_resources_keep_local_id_identity_and_evaluate_once_selected():
     binding = {"t1": {"resource": "cat-a", "id": "c1"}, "t2": {"resource": "cat-a", "id": "c1"}}
     assert problem.evaluate_binding(binding) == {"latency": 30.0, "cost": 5.0}
     assert problem.evaluate_constraints(binding) == []
-    assert [term["weight"] for term in spec["optimization"]["terms"]] == [0.75, 0.25]
+    assert spec["optimization"]["criteria"] == [
+        {
+            "id": "latency",
+            "feature": {"resource": "app", "id": "latency"},
+            "direction": "minimize",
+            "normalize": {"min": 0.0, "max": 100.0, "clamp": False},
+        },
+        {
+            "id": "cost",
+            "feature": {"resource": "app", "id": "cost"},
+            "direction": "minimize",
+            "normalize": {"min": 0.0, "max": 20.0, "clamp": False},
+        },
+    ]
+    assert spec["optimization"]["penalties"] == [
+        {"constraint": {"resource": "soft", "id": "limit"}, "weight": 1.0}
+    ]
+    # Weights belong to the execution selection, not to the compiled problem.
+    objectives = problem.evaluate_objectives(
+        {"latency": 30.0, "cost": 5.0},
+        [],
+        {
+            "type": "SINGLE",
+            "scalarization": "weighted-sum",
+            "weights": [
+                {"criteria": "latency", "value": 0.75},
+                {"criteria": "cost", "value": 0.25},
+            ],
+        },
+    )
+    assert objectives["score"] == pytest.approx(0.75 * 0.3 + 0.25 * 0.25)
     assert spec["profile"]["output"]["apiVersion"] == "bim/v1"
     assert spec["profile"]["output"]["kind"] == "BindingProblem"
     assert "/spec/candidates/cat-a/c1" in spec["sourceMap"]
@@ -222,7 +287,7 @@ def test_multiple_resources_keep_local_id_identity_and_evaluate_once_selected():
 
 
 def test_compile_diagnostic_serializes_an_ir_path():
-    from openbinding_gateway.v1.compiler import CompileDiagnostic
+    from bim_core.compiler import CompileDiagnostic
 
     assert CompileDiagnostic(
         code="ir",
@@ -329,7 +394,7 @@ def test_binding_problem_schema_closes_expression_workflow_and_placement_ir():
     malformed["spec"]["constraints"][0]["assert"]["undeclared"] = True
     assert list(validator.iter_errors(malformed))
 
-    from openbinding_gateway.v1.compiler import _schema_diagnostics
+    from bim_core.compiler import _schema_diagnostics
 
     diagnostic = _schema_diagnostics(malformed, "BindingProblem", "BindingProblem")[0]
     assert diagnostic.as_dict()["irPath"].startswith("/spec/constraints/0/assert")
@@ -364,7 +429,7 @@ def test_routing_weighted_product_is_geometric_and_not_a_scaled_sum():
         }
     )
     instance = json.loads(value.files["instance.json"])
-    instance["spec"]["resources"]["application"]["routes"] = "routing.json"
+    instance["spec"]["resources"]["candidateCatalog"]["routes"] = "routing.json"
     value.files["instance.json"] = json.dumps(instance).encode()
     value.files["routing.json"] = json.dumps(envelope("RoutingOverlay", "routes", {
         "entries": [
@@ -386,7 +451,9 @@ def test_routing_weighted_product_is_geometric_and_not_a_scaled_sum():
         catalog["spec"]["candidates"]["c1"]["features"]["availability"] = amount
         value.files[path] = json.dumps(catalog).encode()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["terms"] = [{"feature": {"resource": "app", "id": "availability"}, "weight": 1}]
+    optimization["spec"]["criteria"] = [
+        {"id": "availability", "feature": {"resource": "app", "id": "availability"}}
+    ]
     value.files["optimization.json"] = json.dumps(optimization).encode()
     problem = compile_instance(value)
     binding = {"t1": {"resource": "cat-a", "id": "c1"}, "t2": {"resource": "cat-b", "id": "c1"}}
@@ -403,7 +470,7 @@ def test_fractional_product_requires_a_nonnegative_metric_domain():
         }
     )
     instance = json.loads(value.files["instance.json"])
-    instance["spec"]["resources"]["application"]["routes"] = "routing.json"
+    instance["spec"]["resources"]["candidateCatalog"]["routes"] = "routing.json"
     value.files["instance.json"] = json.dumps(instance).encode()
     value.files["routing.json"] = json.dumps(envelope("RoutingOverlay", "routes", {
         "entries": [
@@ -425,7 +492,9 @@ def test_fractional_product_requires_a_nonnegative_metric_domain():
         catalog["spec"]["candidates"]["c1"]["features"]["signed"] = amount
         value.files[path] = json.dumps(catalog).encode()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["terms"] = [{"feature": {"resource": "app", "id": "signed"}}]
+    optimization["spec"]["criteria"] = [
+        {"id": "signed", "feature": {"resource": "app", "id": "signed"}}
+    ]
     value.files["optimization.json"] = json.dumps(optimization).encode()
     with pytest.raises(CompileError, match="non-negative domain"):
         compile_instance(value)
@@ -447,7 +516,9 @@ def test_metric_neutral_is_used_for_local_activities():
         catalog["spec"]["candidates"]["c1"]["features"]["quality"] = amount
         value.files[path] = json.dumps(catalog).encode()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["terms"] = [{"feature": {"resource": "app", "id": "quality"}}]
+    optimization["spec"]["criteria"] = [
+        {"id": "quality", "feature": {"resource": "app", "id": "quality"}}
+    ]
     value.files["optimization.json"] = json.dumps(optimization).encode()
     problem = compile_instance(value)
     binding = {"t1": {"resource": "cat-a", "id": "c1"}, "t2": {"resource": "cat-a", "id": "c1"}}
@@ -457,7 +528,8 @@ def test_metric_neutral_is_used_for_local_activities():
 def test_objective_normalization_clamp_and_maximize_loss_are_explicit():
     value = base_package()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["terms"] = [{
+    optimization["spec"]["criteria"] = [{
+        "id": "latency",
         "feature": {"resource": "app", "id": "latency"},
         "direction": "maximize",
         "normalize": {"min": 0, "max": 20, "clamp": True},
@@ -467,11 +539,11 @@ def test_objective_normalization_clamp_and_maximize_loss_are_explicit():
     problem = compile_instance(value)
     component = problem.evaluate_objectives({"latency": 30}, [])["components"][0]
     assert component["loss"] == 0
-    assert problem.document["spec"]["optimization"]["terms"][0]["normalize"]["clamp"] is True
+    assert problem.document["spec"]["optimization"]["criteria"][0]["normalize"]["clamp"] is True
 
     unclamped = deepcopy(value)
     document = json.loads(unclamped.files["optimization.json"])
-    document["spec"]["terms"][0]["normalize"]["clamp"] = False
+    document["spec"]["criteria"][0]["normalize"]["clamp"] = False
     unclamped.files["optimization.json"] = json.dumps(document).encode()
     component = compile_instance(unclamped).evaluate_objectives({"latency": 30}, [])["components"][0]
     assert component["loss"] == -0.5
@@ -595,7 +667,7 @@ def test_installed_profiles_and_dialects_form_a_closed_extensible_framework():
 
 
 def test_builtin_release_labels_pin_the_complete_contract_and_implementation(monkeypatch):
-    from openbinding_gateway.v1 import compiler
+    from bim_core import compiler
     original = compiler.installed_profile_manifests()[0]
     original_dialects = compiler.installed_dialect_manifests()
     assert compiler.installed_profile_manifests()[0] == original
@@ -610,7 +682,7 @@ def test_builtin_release_labels_pin_the_complete_contract_and_implementation(mon
     assert rebuilt['metadata']['version'] != original['metadata']['version']
     assert rebuilt['spec']['adapter']['version'] != original['spec']['adapter']['version']
     assert all(new['metadata']['version'] != old['metadata']['version']
-        for new, old in zip(compiler.installed_dialect_manifests(), original_dialects))
+        for new, old in zip(compiler.installed_dialect_manifests(), original_dialects, strict=False))
 
 
 def test_profile_adapter_pins_cannot_replace_or_uninstall_the_builtin_abi():
@@ -836,9 +908,11 @@ def test_profile_adapter_receives_core_resolved_input_and_must_return_pinned_out
         uninstall_profile_contract(profile)
 
 
-def test_schema_root_prefers_the_deployment_configuration(monkeypatch, tmp_path):
+def test_the_platform_catalog_root_prefers_the_deployment_configuration(monkeypatch, tmp_path):
+    # bim_core reads its schemas as package resources and never SCHEMAS_DIR; the Engine manifests of
+    # the platform catalog still live under the deployment's schemas directory.
     monkeypatch.setenv("SCHEMAS_DIR", str(tmp_path))
-    assert _schema_root() == tmp_path / "bim" / "v1"
+    assert platform_schema_root() == tmp_path / "bim" / "v1"
 
 
 def test_inline_extension_validator_is_installed_by_exact_schema_digest():
@@ -1118,17 +1192,254 @@ def test_registered_resources_are_exact_digest_pinned_and_source_free_in_ir():
         compile_instance(value)
     wrong = dict(registry)
     wrong[("research.example", "shared-optimization", "1.2.3", pinned)] = RegisteredResource(
-        content.replace(b"weighted", b"pareto"), "application/json"
+        content.replace(b'"cost"', b'"cosx"'), "application/json"
     )
     with pytest.raises(CompileError, match="not pinned"):
         compile_instance(value, wrong)
 
 
+DEMO = REPO_ROOT / "examples/demo/01_simple_seq"
+DEMO_BINDING = {
+    "t1": {"resource": "catalog", "id": "c1a"},
+    "t2": {"resource": "catalog", "id": "c2a"},
+    "t3": {"resource": "catalog", "id": "c3a"},
+}
+
+
+def demo_package(latency, *, domain=None, extra=None, constraint=None, alternative=None):
+    value = load_package(DEMO)
+    application = json.loads(value.files["application.json"])
+    catalog = json.loads(value.files["candidates.json"])
+    candidates = catalog["spec"]["candidates"]
+    candidates["c1a"]["features"]["latency"] = latency
+    if alternative is not None:
+        candidates["c1b"]["features"]["latency"] = alternative
+    if domain is not None:
+        application["spec"]["features"]["latency"]["domain"] = domain
+    if extra is not None:
+        application["spec"]["features"]["extra"] = {"unit": "ms"}
+        catalog["spec"]["featureBindings"]["extra"] = {"resource": "application", "id": "extra"}
+        candidates["c1a"]["features"]["extra"] = extra
+        candidates["c1b"]["features"]["extra"] = 3
+    value.files["application.json"] = json.dumps(application).encode()
+    value.files["candidates.json"] = json.dumps(catalog).encode()
+    if constraint is not None:
+        instance = json.loads(value.files["instance.json"])
+        instance["spec"]["resources"]["constraintSet"] = {"limits": "constraints.json"}
+        value.files["instance.json"] = json.dumps(instance).encode()
+        value.files["constraints.json"] = json.dumps(
+            envelope("ConstraintSet", "limits", {"constraints": {"limit": {"assert": constraint, "enforcement": "hard"}}})
+        ).encode()
+    return value
+
+
+def stored_latency(problem):
+    return problem.document["spec"]["candidates"]["catalog"]["candidates"]["c1a"]["features"]["latency"]
+
+
+def test_candidate_feature_accepts_a_scalar_or_a_closed_interval_and_the_ir_keeps_it_literal():
+    scalar = compile_instance(demo_package(5))
+    point = compile_instance(demo_package({"min": 5, "max": 5}))
+    interval = compile_instance(demo_package({"min": 8, "max": 12.5}))
+
+    assert stored_latency(scalar) == 5
+    assert stored_latency(point) == {"min": 5, "max": 5}
+    assert stored_latency(interval) == {"min": 8, "max": 12.5}
+    assert digest(stored_latency(point)) != digest(stored_latency(scalar))
+    validator = _schema_validator("BindingProblem")
+    assert validator is not None
+    assert not list(validator.iter_errors(interval.document))
+
+
+@pytest.mark.parametrize(
+    ("latency", "domain", "code", "pointer"),
+    [
+        ({"min": 9, "max": 3}, None, "feature_interval_order", "/features/latency"),
+        ({"min": 1}, None, None, None),
+        ({"max": 1}, None, None, None),
+        ({"min": 1, "max": 2, "mid": 1}, None, None, None),
+        ({"min": "1", "max": 2}, None, None, None),
+        ({"min": -1, "max": 5}, {"kind": "real", "minimum": 0, "maximum": 25}, "feature_value_domain", "/features/latency/min"),
+        ({"min": 1, "max": 50}, {"kind": "real", "minimum": 0, "maximum": 25}, "feature_value_domain", "/features/latency/max"),
+        ({"min": 1.5, "max": 4}, {"kind": "integer"}, "feature_value_domain", "/features/latency/min"),
+        ({"min": 1, "max": 4.5}, {"kind": "integer"}, "feature_value_domain", "/features/latency/max"),
+    ],
+)
+def test_invalid_candidate_feature_intervals_are_rejected(latency, domain, code, pointer):
+    with pytest.raises(CompileError) as captured:
+        compile_instance(demo_package(latency, domain=domain))
+
+    assert captured.value.diagnostics
+    if code is not None:
+        assert any(item.code == code and item.pointer.endswith(pointer) for item in captured.value.diagnostics)
+
+
+def test_integer_feature_accepts_an_interval_with_integral_endpoints():
+    problem = compile_instance(demo_package({"min": 1, "max": 4}, domain={"kind": "integer", "minimum": 0, "maximum": 100}))
+    assert stored_latency(problem) == {"min": 1, "max": 4}
+
+
+def test_feature_interval_validator_rejects_non_finite_and_malformed_endpoints():
+    feature = {"domain": {"kind": "real"}}
+    for value in (
+        {"min": 0, "max": float("inf")},
+        {"min": float("nan"), "max": 1},
+        {"min": True, "max": 2},
+        {"min": "inf", "max": 2},
+    ):
+        diagnostics = []
+        _validate_feature_value(value, feature, "catalog", "/spec/candidates/c1a/features/latency", diagnostics)
+        assert [item.code for item in diagnostics] == ["finite_number"]
+    # null is an open (infinite) end inside a range (B5), but never a scalar value.
+    for value in ({"min": None, "max": 2}, {"min": 1, "max": None}, {"min": None, "max": None}):
+        diagnostics = []
+        _validate_feature_value(value, feature, "catalog", "/spec/candidates/c1a/features/latency", diagnostics)
+        assert diagnostics == []
+    diagnostics = []
+    _validate_feature_value(None, feature, "catalog", "/spec/candidates/c1a/features/latency", diagnostics)
+    assert [item.code for item in diagnostics] == ["finite_number"]
+    diagnostics = []
+    _validate_feature_value({"min": 1}, feature, "catalog", "/spec/candidates/c1a/features/latency", diagnostics)
+    assert [item.code for item in diagnostics] == ["feature_interval_shape"]
+    diagnostics = []
+    _validate_feature_value({"min": 2, "max": 2}, feature, "catalog", "/spec/candidates/c1a/features/latency", diagnostics)
+    assert diagnostics == []
+
+
+def test_canonical_evaluator_rejects_an_interval_with_an_explicit_diagnostic():
+    problem = compile_instance(demo_package({"min": 8, "max": 12}))
+    with pytest.raises(ValueError) as captured:
+        problem.evaluate_binding(DEMO_BINDING)
+
+    message = str(captured.value)
+    assert "latency" in message and "catalog/c1a" in message and "interval" in message
+    assert "float" not in message and "TypeError" not in message
+
+
+def test_canonical_evaluator_still_accepts_an_interval_that_is_not_bound_to_the_selection():
+    problem = compile_instance(demo_package(5, alternative={"min": 8, "max": 12}))
+    assert problem.evaluate_binding(DEMO_BINDING) == {"latency": 25.0}
+
+
+def test_expression_reading_an_interval_compiles_and_is_rejected_by_the_evaluator():
+    problem = compile_instance(
+        demo_package(5, extra={"min": 1, "max": 2}, constraint="tasks.t1.features.extra <= 100")
+    )
+    assert problem.evaluate_binding(DEMO_BINDING) == {"latency": 25.0}
+    with pytest.raises(ValueError) as captured:
+        problem.evaluate_constraints(DEMO_BINDING)
+
+    message = str(captured.value)
+    assert "extra" in message and "catalog/c1a" in message and "interval" in message
+
+
+def test_task_features_membership_does_not_read_interval_values():
+    features = _TaskFeatures({"cost": {"min": 1.0, "max": 2.0}, "latency": 3.0}, {"resource": "catalog", "id": "c1a"})
+
+    assert "cost" in features and "latency" in features and "missing" not in features
+    with pytest.raises(ValueError, match="interval"):
+        features["cost"]
+
+
+def test_has_on_an_interval_slot_is_true_without_reading_the_value():
+    present = compile_instance(
+        demo_package(5, extra={"min": 1, "max": 2}, constraint="has(tasks.t1.features.extra)")
+    )
+    assert present.evaluate_constraints(DEMO_BINDING) == []
+
+    # `!has(...)` is violated only if has() evaluated to true for the interval slot.
+    negated = compile_instance(
+        demo_package(5, extra={"min": 1, "max": 2}, constraint="!has(tasks.t1.features.extra)")
+    )
+    violations = negated.evaluate_constraints(DEMO_BINDING)
+    assert [item["enforcement"] for item in violations] == ["hard"]
+
+
+def test_selected_candidate_scope_rejects_a_selected_interval_with_an_explicit_error():
+    def selected_scope(latency):
+        value = demo_package(latency)
+        application = json.loads(value.files["application.json"])
+        application["spec"]["features"]["latency"].update({"scope": "selectedCandidate", "aggregation": "sum"})
+        value.files["application.json"] = json.dumps(application).encode()
+        return compile_instance(value)
+
+    scalar = selected_scope(5)
+    assert scalar.document["spec"]["application"]["features"]["latency"]["scope"] == "selectedCandidate"
+    assert scalar.evaluate_binding(DEMO_BINDING) == {"latency": 25.0}
+    with pytest.raises(ValueError) as captured:
+        selected_scope({"min": 8, "max": 12}).evaluate_binding(DEMO_BINDING)
+
+    message = str(captured.value)
+    assert "latency" in message and "catalog/c1a" in message and "interval" in message
+
+
+def test_placement_execution_time_rejects_a_selected_interval_with_an_explicit_error():
+    placement = envelope(
+        "Placement",
+        "place",
+        {
+            "pools": {"edge": {"capacity": {}}},
+            "groups": {
+                f"g{index}": {
+                    "pool": {"resource": "place", "id": "edge"},
+                    "capability": f"service/t{index}",
+                    "resources": {},
+                }
+                for index in (1, 2, 3)
+            },
+            "globalLatency": {
+                "feature": {"resource": "application", "id": "latency"},
+                "includeExecution": True,
+                "exclusive": "routing",
+                "parallel": "max",
+            },
+        },
+    )
+    value = demo_package({"min": 8, "max": 12})
+    value.files["placement.json"] = json.dumps(placement).encode()
+    instance = json.loads(value.files["instance.json"])
+    instance["spec"]["resources"]["candidateCatalog"]["place"] = "placement.json"
+    value.files["instance.json"] = json.dumps(instance).encode()
+    problem = compile_instance(value)
+
+    # evaluate_binding would fail earlier in the invocation aggregation of the
+    # same required feature, so the placement derivation is called directly.
+    with pytest.raises(ValueError) as captured:
+        problem._placement_feature_overrides(DEMO_BINDING)
+
+    message = str(captured.value)
+    assert "latency" in message and "catalog/c1a" in message and "interval" in message
+
+
+@pytest.mark.parametrize("bound", ["min", "max"])
+@pytest.mark.parametrize("endpoint", [float("nan"), float("inf"), float("-inf")])
+def test_non_finite_interval_endpoint_never_reaches_the_compiler(bound, endpoint):
+    # The package layer refuses the non-finite JSON constants before the
+    # compiler could report finite_number; that code is covered by the direct
+    # validator test above.
+    with pytest.raises(PackageError, match="candidates.json"):
+        compile_instance(demo_package({"min": 1, "max": 2, bound: endpoint}))
+
+
+def test_neighborhood_analysis_reports_interval_moves_as_failures_instead_of_breaking():
+    problem = compile_instance(demo_package(5, alternative={"min": 8, "max": 12}))
+    analysis = analyze_neighborhood(problem, DEMO_BINDING)
+
+    assert analysis["moves"] == []
+    assert [item["to"] for item in analysis["failures"]] == [{"resource": "catalog", "id": "c1b"}]
+    assert "interval" in analysis["failures"][0]["message"]
+    assert analysis["coverage"]["complete"] is False
+
+    selected = compile_instance(demo_package({"min": 8, "max": 12}))
+    with pytest.raises(ValueError, match="interval"):
+        analyze_neighborhood(selected, DEMO_BINDING)
+
+
 def test_only_semantically_used_features_are_required():
     value = base_package()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["terms"] = [
-        {"feature": {"resource": "app", "id": "latency"}, "weight": 1}
+    optimization["spec"]["criteria"] = [
+        {"id": "latency", "feature": {"resource": "app", "id": "latency"}}
     ]
     value.files["optimization.json"] = json.dumps(optimization).encode()
     catalog = json.loads(value.files["catalog-b.json"])
@@ -1160,7 +1471,7 @@ def test_task_feature_requirements_are_scoped_and_dynamic_penalties_are_checked(
     soft["spec"]["constraints"] = {}
     value.files["soft.json"] = json.dumps(soft).encode()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"] = {"mode": "satisfy"}
+    optimization["spec"] = {"criteria": []}
     value.files["optimization.json"] = json.dumps(optimization).encode()
     problem = compile_instance(value)
     assert problem.document["spec"]["application"]["requiredFeatures"] == []
@@ -1286,7 +1597,7 @@ def test_placement_rejects_non_executable_workflow_expansion_limits():
         placement=placement,
     )
     instance = json.loads(variants.files["instance.json"])
-    instance["spec"]["resources"]["application"]["routes"] = "routing.json"
+    instance["spec"]["resources"]["candidateCatalog"]["routes"] = "routing.json"
     variants.files["instance.json"] = json.dumps(instance).encode()
     variants.files["routing.json"] = json.dumps(envelope("RoutingOverlay", "routes", {
         "entries": [
@@ -1327,7 +1638,7 @@ def test_placement_membership_is_fail_closed_per_model():
     for feature in ("global", "transition"):
         value = base_package()
         instance = json.loads(value.files["instance.json"])
-        instance["spec"]["resources"]["application"].update({
+        instance["spec"]["resources"]["candidateCatalog"].update({
             "place-a": "place-a.json",
             "place-b": "place-b.json",
         })
@@ -1417,7 +1728,7 @@ def bpmn_package(*, conditions=False, routing=True, loop=False, gateway="exclusi
     instance = json.loads(value.files["instance.json"])
     instance["spec"]["resources"]["application"]["flow"] = "workflow.bpmn"
     if routing:
-        instance["spec"]["resources"]["application"]["routes"] = "routing.json"
+        instance["spec"]["resources"]["candidateCatalog"]["routes"] = "routing.json"
         value.files["routing.json"] = json.dumps(envelope("RoutingOverlay", "routes", {
             "entries": [
                 {"target": {"resource": "flow", "id": "f-left"}, "probability": 0.25},
@@ -1547,27 +1858,36 @@ def test_bpmn_parallel_lowers_to_native_parallel_shape_and_executes():
     assert problem.evaluate_binding(binding)["latency"] == 30
 
 
-@pytest.mark.parametrize("mode", ["satisfy", "weighted", "lexicographic", "pareto"])
-def test_soft_penalty_affects_every_optimization_mode(mode):
+@pytest.mark.parametrize(
+    ("objective_type", "scalarization"),
+    [
+        ("SINGLE", "feasibility"),
+        ("SINGLE", "weighted-sum"),
+        ("MULTI", "lexicographic"),
+        ("MULTI", "pareto-front"),
+    ],
+)
+def test_soft_penalty_affects_every_execution_scalarization(objective_type, scalarization):
     value = base_package()
     soft = json.loads(value.files["soft.json"])
     soft["spec"]["constraints"]["limit"]["assert"] = "tasks.t1.provider.resource == 'never'"
     value.files["soft.json"] = json.dumps(soft).encode()
-    optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["mode"] = mode
-    if mode == "satisfy":
-        optimization["spec"].pop("terms")
-    value.files["optimization.json"] = json.dumps(optimization).encode()
     problem = compile_instance(value)
     binding = {"t1": {"resource": "cat-a", "id": "c1"}, "t2": {"resource": "cat-b", "id": "c1"}}
-    objectives = problem.evaluate(binding)["objectives"]
+    execution = {"type": objective_type, "scalarization": scalarization}
+    if scalarization == "weighted-sum":
+        execution["weights"] = [
+            {"criteria": "latency", "value": 0.75},
+            {"criteria": "cost", "value": 0.25},
+        ]
+    objectives = problem.evaluate(binding, execution)["objectives"]
     assert objectives["penalty"] == 2
-    if mode in {"lexicographic", "pareto"}:
-        assert objectives["score"][-1] == 2
-    elif mode == "satisfy":
+    if scalarization == "feasibility":
         assert objectives["score"] == 2
-    else:
+    elif scalarization == "weighted-sum":
         assert objectives["score"] >= 2
+    else:
+        assert objectives["score"][-1] == 2
 
 
 def test_bpmn_and_json_conditions_share_expression_ir_and_are_executable():

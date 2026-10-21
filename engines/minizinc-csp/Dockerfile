@@ -1,4 +1,4 @@
-FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
+FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS base
 
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
@@ -20,11 +20,13 @@ ARG MINIZINC_SHA256=3d2dbe6572dc11a791ee27f46aca864561d9e491225bdf1eac22762c866c
 # Enable pnpm
 ENV PNPM_HOME="/pnpm"
 ENV PATH="/opt/minizinc/bin:$PNPM_HOME:$PATH"
-# pnpm (via corepack), healthcheck tooling and the shared libraries that the bundled
-# fzn-gecode (built with Gist) links against.
+# pnpm (via corepack), healthcheck tooling, tini and the shared libraries that the
+# bundled fzn-gecode (built with Gist) links against. tini is PID 1: the solver runs in
+# its own process group, and when it is killed its orphaned members must be reaped by
+# an init, not left as zombies.
 RUN corepack enable \
 	&& apt-get update \
-	&& apt-get install -y --no-install-recommends ca-certificates curl \
+	&& apt-get install -y --no-install-recommends ca-certificates curl tini \
 		libgl1 libegl1 libfontconfig1 libfreetype6 libgmp10 libx11-6 libxcb1 libxdmcp6 \
 		libbz2-1.0 libexpat1 libuuid1 libbsd0 libmd0 libbrotli1 libgpg-error0 zlib1g \
 	&& rm -rf /var/lib/apt/lists/* \
@@ -52,6 +54,23 @@ COPY model/ model/
 # Build and run the conformance suite, including the end-to-end MiniZinc/Gecode cases.
 RUN pnpm run build && node --test dist/conformance.test.js
 
+# The solver's scratch directory (TMPDIR of every MiniZinc run) is the only place the unprivileged
+# user writes to; code and dependencies stay owned by root.
+RUN mkdir -p /app/tmp_minizinc && chown node:node /app/tmp_minizinc
+
 EXPOSE 3000
 
-CMD ["pnpm", "start"]
+# The laboratory profile (compose.lab-engines.json) builds this stage: the production image plus the
+# test fixtures, so the same image serves the engine and runs the tests against the real MiniZinc
+# (MINIZINC_REAL=1 node --test dist/minizinc_runner.test.js dist/cancel.test.js).
+FROM base AS lab
+COPY tests/ tests/
+USER node
+ENTRYPOINT ["tini", "--"]
+CMD ["node", "dist/index.js"]
+
+# The final stage is the production image: builds without a `target` (compose.lab.json) end here. Keep it last.
+FROM base AS production
+USER node
+ENTRYPOINT ["tini", "--"]
+CMD ["node", "dist/index.js"]

@@ -110,17 +110,17 @@ cardinalities are:
 | Role | Base resource type | Cardinality |
 | --- | --- | --- |
 | `application` | `qos-binding/v1` `Application` | exactly 1 |
-| `application` | `qos-binding/v1` `RoutingOverlay` | 0 or 1 |
 | `application` | BPMN 2.0.2 `BPMN` | 0 or more |
 | `candidateCatalog` | `qos-binding/v1` `CandidateCatalog` | 1 or more |
+| `candidateCatalog` | `qos-binding/v1` `RoutingOverlay` | 0 or 1 |
 | `constraintSet` | `qos-binding/v1` `ConstraintSet` | 0 or more |
 | `optimization` | `qos-binding/v1` `Optimization` | exactly 1 |
 
 These are Profile rules, not permanent BIM rules. All four roles permit
 resource types supplied by installed compatible Dialects. Placement therefore
-composes as a `qos-binding-placement/v1` `Placement` resource in the
-`application` role; it does not change `Instance` or create a second package
-shape.
+composes as a `qos-binding-placement/v1` `Placement` resource (0 or more) in the
+`candidateCatalog` role, next to the `RoutingOverlay`; it does not change
+`Instance` or create a second package shape.
 
 Together, the workflow's service tasks and the candidate catalogs define the
 discrete solution space (the **Binding Space** $S$). For each service task $t$,
@@ -262,7 +262,8 @@ The remaining source semantics described here belong specifically to
 - `Application` declares service/local tasks, capability types, metric
   definitions, and a compact native workflow or BPMN reference.
 - `CandidateCatalog` publishes typed capabilities, properties, providers, and
-  finite scalar metric values. It never lists task ids.
+  feature values, each a finite scalar or a `{min,max}` range whose ends are
+  finite numbers or `null` (an infinite end). It never lists task ids.
 - `ConstraintSet` contains safe typed CEL or JSON-AST conditions, assertions,
   and explicit hard/soft enforcement.
 - `Optimization` defines `satisfy`, weighted, lexicographic, or Pareto
@@ -282,8 +283,18 @@ BPMN 2.0.2 is preserved broadly but lowered only for the documented structured
 SESE subset. Unsupported constructs produce source-located diagnostics rather
 than silent approximation.
 
-QoS values are finite deterministic scalars. The Profile has no distributions,
-intervals, stochastic scenarios, risk measures, scheduling, telemetry,
+QoS values are deterministic. The syntax admits a range `{"min":a,"max":b}` for
+a candidate feature slot. Both keys are mandatory and each end is a finite
+number or `null`, where `null` is infinity (`min: null` is -∞, `max: null` is
++∞): `{"min":100,"max":null}` is [100, +∞), `{"min":null,"max":200}` is
+(-∞, 200] and `{"min":null,"max":null}` states no information. `min <= max` is
+checked only when both ends are finite, and `null` is not valid as a scalar
+slot value. The `BindingProblem` preserves the range literally, `null` included,
+but the Profile defines no evaluable interval semantics
+(optimistic, pessimistic, or midpoint), and no bundled Engine mode supports
+intervals yet, open or closed: each declares `featureValues` as `only`
+`scalar`, so such a job fails with `unsupported_capability_value`. The Profile has
+no distributions, stochastic scenarios, risk measures, scheduling, telemetry,
 rebinding, or runtime adaptation. Routing probabilities and `expectedCount`
 remain deterministic workflow multipliers; they are not uncertain QoS values.
 

@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 import xml.etree.ElementTree as ET
 
-from ..v1.package import InstancePackage
+from .package import GeneratedPackage
 
 NS = "http://www.omg.org/spec/BPMN/20100524/MODEL"
 ET.register_namespace("bpmn", NS)
 
 
-def workflow_as_bpmn(package: InstancePackage, name: str) -> InstancePackage:
+def workflow_as_bpmn(package: GeneratedPackage, name: str) -> GeneratedPackage:
     """Change only the workflow notation; retain the generated binding problem."""
     application = package.json("application.json")
     instance = package.json("instance.json")
@@ -45,7 +45,7 @@ def workflow_as_bpmn(package: InstancePackage, name: str) -> InstancePackage:
         if "sequence" in node:
             parts = [emit(parent, child) for child in node["sequence"]]
             parts = [part for part in parts if part is not None]
-            for before, after in zip(parts, parts[1:]):
+            for before, after in zip(parts, parts[1:], strict=False):
                 flow(parent, before[1], after[0])
             return (parts[0][0], parts[-1][1]) if parts else None
         if "parallel" in node or "exclusive" in node:
@@ -98,4 +98,4 @@ def workflow_as_bpmn(package: InstancePackage, name: str) -> InstancePackage:
     files["application.json"] = json.dumps(application, indent=2).encode()
     files["routing.json"] = json.dumps(routing, indent=2).encode()
     files["workflow.bpmn"] = ET.tostring(definitions, encoding="utf-8", xml_declaration=True)
-    return InstancePackage(files)
+    return GeneratedPackage(files)

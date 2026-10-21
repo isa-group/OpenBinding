@@ -1,6 +1,7 @@
 package es.us.isa.qosawarewsbinding.search;
 
 import es.us.isa.openbinding.core.BindingProblem;
+import es.us.isa.openbinding.core.Cancellation;
 import es.us.isa.openbinding.core.CanonicalEvaluator;
 import com.google.gson.JsonObject;
 
@@ -40,8 +41,11 @@ public final class V1MultiSearch {
     return run(problem, execution, iterations, timeBudgetMs, archiveSize, seed);
   }
 
-  public static Result run(BindingProblem problem, JsonObject optimization, int iterations, Long timeBudgetMs,
-      int archiveSize, long seed) {
+  /**
+   * What {@link #run} requires of a request, as a separate step so that the HTTP layer can refuse an
+   * unsupported execution (422) before it queues a job.
+   */
+  public static void validate(BindingProblem problem, JsonObject optimization, int iterations, int archiveSize) {
     if (iterations < 1 || archiveSize < 1) {
       throw new IllegalArgumentException("Search budgets must be positive");
     }
@@ -55,6 +59,11 @@ public final class V1MultiSearch {
     if (objectives < 2 || objectives > 3) {
       throw new IllegalArgumentException("MULTI optimization requires two or three terms");
     }
+  }
+
+  public static Result run(BindingProblem problem, JsonObject optimization, int iterations, Long timeBudgetMs,
+      int archiveSize, long seed) {
+    validate(problem, optimization, iterations, archiveSize);
 
     CanonicalEvaluator evaluator = new CanonicalEvaluator(problem);
     Random random = new Random(seed);
@@ -63,6 +72,7 @@ public final class V1MultiSearch {
     long completed = 0;
 
     for (int iteration = 0; iteration < iterations; iteration++) {
+      Cancellation.checkpoint();
       if (iteration > 0 && timeBudgetMs != null
           && (System.nanoTime() - started) / 1000000L >= timeBudgetMs.longValue()) break;
       Map<String, BindingProblem.Ref> decision = new LinkedHashMap<String, BindingProblem.Ref>();

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Notifications</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.ob-skel{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="acct-notifications" route="/app/account/notifications" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="" active="" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<main style="max-width: 1152px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px;"><div><h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">Notifications</h1><p style="margin: 4px 0 0; color: #6a6a6a;">{{subtitle}}</p></div><sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{readAll}}" disabled="{{noUnread}}" style="height: 36px; padding: 0 14px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; opacity: {{readAllOpacity}};">Mark all read</button></sc-if></div>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 40px 24px; text-align: center;"><a href="AuthLogin.dc.html" style="font-weight: 500;">Log in to see your notifications</a></div></sc-if>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start;">
+<div style="flex: 1 1 220px; max-width: 240px;"><dc-import name="ShellAccountNav" active="notifications" hint-size="240px,260px"></dc-import></div>
+<div aria-live="polite" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+<sc-for list="{{filters}}" as="f" hint-placeholder-count="4"><button type="button" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}" style="{{f.style}}">{{f.label}}</button></sc-for>
+<label style="display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; font-size: 13px;"><input type="checkbox" checked="{{unreadOnly}}" onChange="{{toggleUnread}}" style="width: 16px; height: 16px; accent-color: #0077b6;">Show unread only</label>
+</div>
+<sc-if value="{{isForbidden}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; gap: 10px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 12px 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" aria-hidden="true" style="flex-shrink: 0;"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><span>This API key lacks <code style="font-family: 'JetBrains Mono', monospace;">notifications:read</code> (403).</span></div></sc-if>
+<sc-if value="{{isError}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16h.01"></path></svg><span style="flex: 1; min-width: 220px;">Notifications couldn't be loaded.</span><button type="button" onClick="{{retry}}" style="height: 32px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;">Retry</button></div></sc-if>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}"><div class="ob-skel" style="height: 220px; border-radius: 12px; background: #ededed;"></div></sc-if>
+<sc-if value="{{showList}}" hint-placeholder-val="{{true}}">
+<sc-if value="{{isEmptyList}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 48px 24px;"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1.2" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0"></path><path d="M3 3l18 18"></path></svg><span style="font-weight: 500;">No notifications found</span><span style="font-size: 13px; color: #6a6a6a;">Contract changes and other notices will show up here.</span></div></sc-if>
+<sc-if value="{{hasItems}}" hint-placeholder-val="{{true}}">
+<div style="border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; overflow: hidden;">
+<sc-for list="{{items}}" as="n" hint-placeholder-count="2">
+<div style="border-bottom: 1px solid #ededed; background: {{n.bg}};">
+<button type="button" onClick="{{n.open}}" aria-expanded="{{n.expanded}}" style="width: 100%; display: flex; gap: 14px; align-items: flex-start; padding: 16px; border: 0; background: transparent; font-family: inherit; text-align: left; cursor: pointer; color: #1f1f1f;">
+<span aria-hidden="true" style="flex-shrink: 0; width: 40px; height: 40px; border-radius: 9999px; background: {{n.iconBg}}; color: {{n.iconColor}}; display: inline-flex; align-items: center; justify-content: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="{{n.icon}}"></path></svg></span>
+<span style="flex: 1; min-width: 0;"><span style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;"><span style="font-weight: {{n.weight}};">{{n.subject}}</span><sc-if value="{{n.unread}}" hint-placeholder-val="{{false}}"><span aria-label="Unread" style="width: 8px; height: 8px; border-radius: 9999px; background: #0077b6;"></span></sc-if><sc-if value="{{n.simulated}}" hint-placeholder-val="{{false}}"><span style="border-radius: 9999px; background: #caf0f8; padding: 0 8px; font-size: 11px; font-weight: 500;">Simulated</span></sc-if></span><span style="display: block; font-size: 13px; color: #6a6a6a;">{{n.body}}</span></span>
+<span style="font-size: 12px; color: #6a6a6a; white-space: nowrap;">{{n.when}}</span>
+</button>
+<sc-if value="{{n.isOpen}}" hint-placeholder-val="{{false}}">
+<div style="padding: 0 16px 16px 70px; display: flex; flex-direction: column; gap: 10px;">
+<sc-if value="{{n.isContract}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: stretch; max-width: 520px;"><div style="border: 1px solid #b8b8b8; border-radius: 12px; padding: 10px 12px;"><div style="font-size: 12px; color: #6a6a6a;">Before</div><div style="font-weight: 600;">BASIC</div><div style="font-size: 12px;">Add-ons: none</div></div><span aria-hidden="true" style="align-self: center;">→</span><div style="border: 1px solid #86efac; border-radius: 12px; padding: 10px 12px;"><div style="font-size: 12px; color: #6a6a6a;">After</div><div style="font-weight: 600;">RESEARCH</div><div style="font-size: 12px;">Add-ons: none</div></div></div>
+<span style="font-size: 13px; color: #4a4a4a;">Reason: institutional agreement · pricing version 0.1.0</span>
+<a href="AcctUsage.dc.html" style="font-size: 13px; font-weight: 500;">See my usage</a>
+</sc-if>
+<sc-if value="{{n.isJob}}" hint-placeholder-val="{{false}}"><a href="JobDetail.dc.html" style="font-size: 13px; font-weight: 500;">Open the job</a></sc-if>
+<sc-if value="{{n.unread}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{n.markRead}}" style="align-self: flex-start; height: 30px; padding: 0 10px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 12px; cursor: pointer;">Mark as read</button></sc-if>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</sc-if>
+
+<section style="border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; overflow: hidden;">
+<div style="padding: 14px 20px; border-bottom: 1px solid #ededed;"><div style="font-weight: 600;">Email preferences</div><div style="font-size: 13px; color: #6a6a6a;">In-app notifications are always on.</div></div>
+<div style="display: flex; align-items: center; gap: 16px; padding: 16px 20px;"><div style="flex: 1;"><div style="font-weight: 500;">Contract changes</div><div style="font-size: 13px; color: #6a6a6a;">Email me when my plan, add-ons or pricing version change.</div></div>
+<button type="button" role="switch" aria-checked="{{emailOn}}" aria-label="Email me about contract changes" onClick="{{toggleEmail}}" style="position: relative; width: 44px; height: 24px; border: 0; border-radius: 9999px; background: {{switchBg}}; cursor: pointer;"><span style="position: absolute; top: 2px; left: {{knob}}; width: 20px; height: 20px; border-radius: 9999px; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"></span></button></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 0 20px 16px;"><button type="button" onClick="{{savePrefs}}" disabled="{{prefsClean}}" style="height: 36px; padding: 0 14px; border: 0; border-radius: 8px; background: #0077b6; color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; opacity: {{saveOpacity}};">{{saveLabel}}</button><sc-if value="{{prefsDirty}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #6a6a6a;">You have unsaved changes</span></sc-if></div>
+</section>
+</div>
+</div>
+</sc-if>
+</main>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1500}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "lucia", st: "success", filter: "all", unreadOnly: false, read: [], open: "n1", email: true, savedEmail: true, saved: false };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, name: "", email: "", initials: "" },
+      lucia: { signedIn: true, name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV", admin: false },
+      marco: { signedIn: true, name: "Marco Díaz", email: "marco@example.invalid", initials: "MD", admin: false },
+      sofia: { signedIn: true, name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR", admin: false },
+      nora: { signedIn: true, name: "Nora Campos", email: "nora@example.invalid", initials: "NC", admin: false },
+      iker: { signedIn: true, name: "Iker Mora", email: "iker@example.invalid", initials: "IM", admin: true },
+      pablo: { signedIn: true, name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI", admin: false }
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+  setPersona(k) { this.setState({ persona: k, read: [] }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const st = s.st;
+    const all = s.persona === "lucia" ? [
+      { id: "n1", kind: "contract", subject: "Your OpenBinding agreement changed", body: "Plan: BASIC → RESEARCH. Reason: institutional_agreement.", when: "Sep 1, 2026", unreadInit: true, simulated: false, icon: "M4 4h12l4 4v12H4zM8 12h8M8 16h5" },
+      { id: "n2", kind: "job", subject: "Job completed", body: "El job 0000…f1 terminó con FEASIBLE.", when: "Sep 30, 2026", unreadInit: false, simulated: true, icon: "M20 6 9 17l-5-5" }
+    ] : [];
+    const isUnread = (n) => n.unreadInit && s.read.indexOf(n.id) < 0;
+    const list = all.filter((n) => (s.filter === "all" || n.kind === s.filter) && (!s.unreadOnly || isUnread(n)));
+    const items = list.map((n) => {
+      const un = isUnread(n);
+      return Object.assign({}, n, {
+        unread: un, weight: un ? "600" : "400", bg: un ? "rgba(250,250,250,0.7)" : "#ffffff",
+        iconBg: un ? "rgba(0,119,182,0.1)" : "#fafafa", iconColor: un ? "#0077b6" : "#6a6a6a",
+        isOpen: s.open === n.id, expanded: s.open === n.id ? "true" : "false",
+        isContract: n.kind === "contract", isJob: n.kind === "job",
+        open: () => this.setState({ open: s.open === n.id ? "" : n.id }),
+        markRead: () => this.setState({ read: s.read.concat([n.id]) })
+      });
+    });
+    const unreadCount = all.filter(isUnread).length;
+    const pill = (on) => "height: 32px; padding: 0 12px; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; " + (on ? "border: 0; background: #0077b6; color: #ffffff;" : "border: 1px solid #b8b8b8; background: #ffffff; color: #6a6a6a;");
+    const filters = [["all", "All"], ["contract", "Contract changes"], ["job", "Jobs"], ["invite", "Invitations"]].map(([k, l]) => ({ label: l, pressed: s.filter === k ? "true" : "false", pick: () => this.setState({ filter: k }), style: pill(s.filter === k) }));
+    const dirty = s.email !== s.savedEmail;
+    return {
+      persona: s.persona, st: st, na: [], scenarios: [], scenario: "",
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState({ st: x }),
+      setScenario: () => {},
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      subtitle: unreadCount > 0 && st === "success" ? "You have " + unreadCount + " unread notification" + (unreadCount === 1 ? "" : "s") : "All caught up!",
+      noUnread: unreadCount === 0, readAllOpacity: unreadCount === 0 ? "0.4" : "1",
+      readAll: () => this.setState({ read: all.map((n) => n.id) }),
+      filters: filters, unreadOnly: s.unreadOnly, toggleUnread: () => this.setState({ unreadOnly: !s.unreadOnly }),
+      isForbidden: st === "forbidden", isError: st === "error", isLoading: st === "loading",
+      showList: st === "success" || st === "empty",
+      isEmptyList: st === "empty" || items.length === 0, hasItems: st !== "empty" && items.length > 0,
+      items: items,
+      retry: () => { this.setState({ st: "loading" }); this.timer = setTimeout(() => this.setState({ st: "success" }), 1000); },
+      emailOn: s.email ? "true" : "false", switchBg: s.email ? "#0077b6" : "#a8a8a8", knob: s.email ? "22px" : "2px",
+      toggleEmail: () => this.setState({ email: !s.email, saved: false }),
+      prefsDirty: dirty, prefsClean: !dirty, saveOpacity: dirty ? "1" : "0.4",
+      saveLabel: s.saved && !dirty ? "Saved" : "Save preferences",
+      savePrefs: () => this.setState({ savedEmail: s.email, saved: true })
+    };
+  }
+}
+</script>
+</body>
+</html>

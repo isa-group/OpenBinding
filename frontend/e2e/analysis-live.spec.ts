@@ -58,7 +58,7 @@ test('decision, budgets, Pareto, preferences, evidence and recorded reports', as
   await liveExpect(page.getByText('Unexplored space: unknown')).toBeVisible();
   await page.screenshot({ path: '/tmp/openbinding-decision-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'dark' });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(inspector.getByText('What contributes to this choice?')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   await page.getByRole('button', { name: 'Budgets', exact: true }).focus();
@@ -121,22 +121,18 @@ test('100,000 bindings render as a counted overview and paginate the complete ar
   expect(errors).toEqual([]);
 });
 
-test('Jobs, Account, project Analytics, and Playground open the shared workspace', async ({ page }) => {
+test('a job and the job history open the shared workspace', async ({ page }) => {
   test.setTimeout(180_000);
-  await page.goto(`/app/score-ai/qos-placement/jobs/${scenarios['decision-rules'].jobIds[0]}`);
-  await liveExpect(page.getByRole('link', { name: 'Open analysis', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Open analysis', exact: true }).click();
-  await liveExpect(page.getByText('Unexplored space: unknown')).toBeVisible();
-  await page.goto('/app/account?tab=history');
-  await liveExpect(page.getByRole('button', { name: 'Solution', exact: true }).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Solution', exact: true }).first().click();
-  await liveExpect(page.getByRole('link', { name: 'Open analysis', exact: true })).toBeVisible();
-  await page.goto('/app/score-ai/qos-placement/analytics');
-  await liveExpect(page.getByRole('link', { name: 'Open analysis', exact: true })).toBeVisible();
-  await page.goto('/playground');
-  await liveExpect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
-  await page.getByRole('button', { name: 'Solve', exact: true }).click();
-  await expect(page.getByRole('link', { name: 'Open analysis', exact: true })).toBeVisible({ timeout: 90_000 });
-  await page.getByRole('link', { name: 'Open analysis', exact: true }).click();
-  await liveExpect(page.getByText('Unexplored space: unknown')).toBeVisible();
+  const jobId = scenarios['decision-rules'].jobIds[0];
+  await page.goto(`/app/score-ai/qos-placement/jobs/${jobId}`);
+  await liveExpect(page.getByRole('link', { name: 'Analyze', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Analyze', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/app/analysis/workspace\\?job=${jobId}`));
+  await liveExpect(page.getByRole('heading', { level: 1, name: 'Decision space' })).toBeVisible();
+  // The Account and the project's analytics page no longer carry a history of their own: /app/jobs is the history.
+  await page.goto('/app/jobs');
+  await liveExpect(page.getByRole('link', { name: 'Analyze', exact: true }).first()).toBeVisible();
+  await page.getByRole('link', { name: 'Analyze', exact: true }).first().click();
+  await expect(page).toHaveURL(/\/app\/analysis\/workspace\?job=/);
+  await liveExpect(page.getByRole('heading', { level: 1, name: 'Decision space' })).toBeVisible();
 });

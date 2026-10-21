@@ -1,289 +1,293 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
-import type { EngineCatalogEntry } from '../../api/client';
+import { HttpError } from '../../api/client';
+import { AuthContext } from '../../contexts/auth';
 import { Account } from './Account';
 
 const api = vi.hoisted(() => ({
   getOwnUsage: vi.fn(),
-  listApiKeys: vi.fn(),
-  listOwnJobs: vi.fn(),
-  getEngines: vi.fn(),
-  createApiKey: vi.fn(),
-  revokeApiKey: vi.fn(),
-  getJobStatus: vi.fn(),
-  listOwnIdentities: vi.fn(),
-  listNotifications: vi.fn(),
-  markAllNotificationsRead: vi.fn(),
-  getNotificationPreferences: vi.fn(),
   updateOwnProfile: vi.fn(),
+  deleteOwnAccount: vi.fn(),
+  clearTokens: vi.fn(),
 }));
+const navigation = vi.hoisted(() => ({ leaveTo: vi.fn() }));
 
-const auth = vi.hoisted(() => ({
-  user: null as UserProfile | null,
-  refresh: vi.fn(),
-}));
+vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
+vi.mock('../../utils/navigation', () => navigation);
 
-vi.mock('../../api/client', async () => ({
-  ...await vi.importActual<typeof import('../../api/client')>('../../api/client'),
-  apiClient: api,
-}));
-vi.mock('../../contexts/auth', () => ({ useAuth: () => auth }));
-
-const user: UserProfile = {
-  id: 'user-id',
-  username: 'alice',
-  email: 'alice@example.test',
-  role: 'user',
-  is_active: true,
-  plan: 'FREE',
-  created_at: '2026-01-01T00:00:00Z',
+const alice: UserProfile = {
+  id: 'user-id', username: 'alice', email: 'alice@example.test', role: 'user', is_active: true, plan: 'BASIC', created_at: '2026-03-02T00:00:00Z',
 };
 
-const engine: EngineCatalogEntry = {
-  id: 'bim.builtin/solver',
-  namespace: 'bim.builtin',
-  name: 'solver',
-  version: '1.0.0',
-  digest: `sha256-${'a'.repeat(64)}`,
-  ref: {
-    namespace: 'bim.builtin',
-    name: 'solver',
-    version: '1.0.0',
-    digest: `sha256-${'a'.repeat(64)}`,
-  },
-  modes: [],
+const refusal = (status: number, code: string) => {
+  const error = new HttpError(status, code);
+  error.code = code;
+  return error;
 };
 
-describe('granular API-key creation', () => {
+function renderAccount(user: UserProfile = alice, entry = '/app/account') {
+  const auth = { user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn().mockResolvedValue(undefined), refresh: vi.fn().mockResolvedValue(undefined), isAdmin: user.role === 'admin' };
+  render(
+    <MemoryRouter initialEntries={[entry]}>
+      <AuthContext.Provider value={auth}>
+        <Routes>
+          <Route path="/app/account" element={<Account />} />
+          <Route path="/app/account/keys" element={<h1>Keys screen</h1>} />
+          <Route path="/app/account/identities" element={<h1>Identities screen</h1>} />
+          <Route path="/app/jobs" element={<h1>Job history screen</h1>} />
+          <Route path="/login" element={<h1>Sign in screen</h1>} />
+        </Routes>
+      </AuthContext.Provider>
+    </MemoryRouter>,
+  );
+  return auth;
+}
+
+const type = (label: string | RegExp, value: string, index = 0) =>
+  fireEvent.change(screen.getAllByLabelText(label)[index], { target: { value } });
+
+describe('Profile & security', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    auth.user = user;
-    api.getOwnUsage.mockResolvedValue({
-      plan: 'FREE',
-      contract_pending: false,
-      features: { solve: true },
-      capabilities: { maxTimeoutSeconds: 300, maxPayloadBytes: 16_777_216 },
-      limits: {},
+    api.getOwnUsage.mockResolvedValue({ plan: 'BASIC', contract_pending: false, features: {}, capabilities: {} });
+    api.updateOwnProfile.mockResolvedValue(alice);
+    api.deleteOwnAccount.mockResolvedValue(undefined);
+  });
+
+  it('shows who is signed in, with the role and the plan apart, and the account navigation', async () => {
+    renderAccount();
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Account' })).toBeInTheDocument();
+    expect(screen.getByText('alice')).toBeInTheDocument();
+    expect(screen.getByText('alice@example.test · member since Mar 2, 2026')).toBeInTheDocument();
+    expect(screen.getByText('Role · user')).toBeInTheDocument();
+    expect(screen.getByText('Plan · BASIC')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Account' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Profile & security' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'API keys' })).toHaveAttribute('href', '/app/account/keys');
+    expect(screen.queryByText(/Universidad de Sevilla/)).not.toBeInTheDocument();
+  });
+
+  it('marks an institutional account by its plan, and never by its email address', async () => {
+    renderAccount({ ...alice, email: 'lucia@us.es', plan: 'RESEARCH' });
+    expect(await screen.findByText('Universidad de Sevilla · verified')).toBeInTheDocument();
+  });
+
+  it('does not take a @us.es address for an institutional account', async () => {
+    renderAccount({ ...alice, email: 'someone@us.es', plan: 'BASIC' });
+    await screen.findByRole('heading', { level: 1, name: 'Account' });
+    expect(screen.queryByText('Universidad de Sevilla · verified')).not.toBeInTheDocument();
+  });
+
+  it('says when the contract is still pending', async () => {
+    api.getOwnUsage.mockResolvedValue({ plan: 'BASIC', contract_pending: true, features: {}, capabilities: {} });
+    renderAccount();
+    expect(await screen.findByText('Contract pending')).toBeInTheDocument();
+  });
+
+  it('explains a refused read (403) without breaking the page', async () => {
+    api.getOwnUsage.mockRejectedValue(refusal(403, 'forbidden'));
+    renderAccount();
+
+    const notice = await screen.findByRole('alert');
+    expect(notice).toHaveTextContent('403');
+    expect(notice).toHaveTextContent('account:read');
+    expect(screen.getByRole('heading', { name: 'Email' })).toBeInTheDocument();
+  });
+
+  it('does not redirect an old ?tab= address: the profile is simply shown', async () => {
+    renderAccount(alice, '/app/account?tab=keys');
+    expect(await screen.findByRole('heading', { name: 'Email' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Keys screen' })).not.toBeInTheDocument();
+  });
+
+  describe('email', () => {
+    it('cannot be saved until it changes, and needs the current password', async () => {
+      renderAccount();
+      const save = await screen.findByRole('button', { name: 'Save changes' });
+      expect(save).toBeDisabled();
+
+      type('Email address', 'new@example.test');
+      expect(save).toBeEnabled();
+      expect(screen.getByText('You have unsaved changes')).toBeInTheDocument();
+
+      fireEvent.click(save);
+      expect(await screen.findByText('Enter your current password to change your email.')).toBeInTheDocument();
+      expect(api.updateOwnProfile).not.toHaveBeenCalled();
     });
-    api.listApiKeys.mockResolvedValue([]);
-    api.listOwnJobs.mockResolvedValue({ jobs: [], total: 0, retention_days: 7 });
-    api.getEngines.mockResolvedValue([engine]);
-    api.listOwnIdentities.mockResolvedValue([]);
-    api.listNotifications.mockResolvedValue([]);
-    api.getNotificationPreferences.mockResolvedValue({
-      inbox: true,
-      email_contract_changes: true,
-      email_invitations: true,
-      email_job_failures: false,
+
+    it('saves the new address with the current password and refreshes the profile', async () => {
+      const auth = renderAccount();
+      await screen.findByRole('button', { name: 'Save changes' });
+
+      type('Email address', 'new@example.test');
+      type('Current password', 'old-password-123', 0);
+      fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+      await waitFor(() => expect(api.updateOwnProfile).toHaveBeenCalledWith({ email: 'new@example.test', current_password: 'old-password-123' }));
+      expect(await screen.findByText('Email updated to new@example.test.')).toBeInTheDocument();
+      expect(auth.refresh).toHaveBeenCalled();
     });
-    api.createApiKey.mockResolvedValue({
-      id: 'key-id',
-      name: 'automation',
-      prefix: 'obk_12345678',
-      secret: 'obk_12345678_secret',
-      created_at: '2026-01-01T00:00:00Z',
-      permissions: ['engines:read'],
-      engine_access: { all: false, engines: [engine.ref] },
+
+    it('reports an address already in use (409) on the field', async () => {
+      api.updateOwnProfile.mockRejectedValue(refusal(409, 'already_registered'));
+      renderAccount();
+      await screen.findByRole('button', { name: 'Save changes' });
+
+      type('Email address', 'taken@example.test');
+      type('Current password', 'old-password-123', 0);
+      fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+      const field = await screen.findByLabelText('Email address');
+      await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
+      expect(field).toHaveAccessibleDescription('That email is already used by another account (409 · already_registered).');
+    });
+
+    it('reports a wrong current password (401) on the password field', async () => {
+      api.updateOwnProfile.mockRejectedValue(refusal(401, 'invalid_credentials'));
+      renderAccount();
+      await screen.findByRole('button', { name: 'Save changes' });
+
+      type('Email address', 'new@example.test');
+      type('Current password', 'wrong', 0);
+      fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+      await waitFor(() => expect(screen.getAllByLabelText('Current password')[0]).toHaveAttribute('aria-invalid', 'true'));
+      expect(screen.getAllByLabelText('Current password')[0]).toHaveAccessibleDescription('That isn’t your current password (401 · invalid_credentials).');
     });
   });
 
-  it('sends the selected permissions and exact Engine revisions', async () => {
-    render(<MemoryRouter><Account /></MemoryRouter>);
+  describe('password', () => {
+    it('asks for the new password twice before calling the API', async () => {
+      renderAccount();
+      await screen.findByRole('button', { name: 'Change password' });
 
-    fireEvent.change(await screen.findByLabelText('What this key is for'), {
-      target: { value: 'automation' },
-    });
-    fireEvent.click(screen.getByLabelText(/Read Engines/));
-    fireEvent.click(await screen.findByLabelText(/bim\.builtin\/solver/));
-    fireEvent.click(screen.getByRole('button', { name: 'Create key' }));
+      type('Current password', 'old-password-123', 1);
+      type('New password', 'new-secure-password');
+      type('Confirm new password', 'something-different');
+      fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
 
-    await waitFor(() => expect(api.createApiKey).toHaveBeenCalledWith({
-      name: 'automation',
-      permissions: ['engines:read'],
-      engine_access: { all: false, engines: [engine.ref] },
-    }));
-    expect(await screen.findByText('obk_12345678_secret')).toBeInTheDocument();
-    expect(screen.queryByLabelText(/Administer accounts/)).not.toBeInTheDocument();
-  }, 15000);
-
-  it('requires a permission before creating a key', async () => {
-    render(<MemoryRouter><Account /></MemoryRouter>);
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Create key' }));
-
-    expect(await screen.findByText('Choose at least one permission for this key.')).toBeInTheDocument();
-    expect(api.createApiKey).not.toHaveBeenCalled();
-  });
-
-  it('renders top-level key metrics summary bar with plan, quota, keys, and solves', async () => {
-    api.getOwnUsage.mockResolvedValue({
-      plan: 'FREE',
-      contract_pending: false,
-      features: { solve: true },
-      capabilities: { maxTimeoutSeconds: 300, maxPayloadBytes: 16_777_216 },
-      limits: {
-        solves: { limit_id: 'solves', limit: 100, used: 25, unit: 'jobs', renews_at: '2026-10-01T00:00:00Z' },
-      },
-    });
-    api.listApiKeys.mockResolvedValue([
-      {
-        id: 'key-1',
-        name: 'test-key',
-        prefix: 'obk_abc12345',
-        created_at: '2026-01-01T00:00:00Z',
-        permissions: ['engines:read'],
-        engine_access: { all: true, engines: [] },
-      },
-    ]);
-    api.listOwnJobs.mockResolvedValue({
-      jobs: [
-        {
-          id: 'job-1',
-          engine_id: 'bim.builtin/solver',
-          status: 'completed',
-          termination: 'OPTIMAL',
-          solutions: 1,
-          created_at: '2026-01-01T00:00:00Z',
-        },
-      ],
-      total: 1,
-      retention_days: 14,
+      expect(await screen.findByText('New password and confirm password do not match.')).toBeInTheDocument();
+      expect(api.updateOwnProfile).not.toHaveBeenCalled();
     });
 
-    render(<MemoryRouter><Account /></MemoryRouter>);
+    it('asks for at least ten characters, like the gateway does', async () => {
+      renderAccount();
+      await screen.findByRole('button', { name: 'Change password' });
 
-    expect(await screen.findByText('Account & Security Hub')).toBeInTheDocument();
-    expect(screen.getByText('Active Plan')).toBeInTheDocument();
-    expect(screen.getByText('Quota Consumption')).toBeInTheDocument();
-    expect(screen.getByText('Active API Keys')).toBeInTheDocument();
-    expect(screen.getByText('Recent Solves')).toBeInTheDocument();
+      type('New password', 'short');
+      expect(screen.getByText('5 more characters needed')).toBeInTheDocument();
+      type('Current password', 'old-password-123', 1);
+      type('Confirm new password', 'short');
+      fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
 
-    // Check values in metrics
-    expect(screen.getByText('25%')).toBeInTheDocument();
-    expect(screen.getByText('14d Window')).toBeInTheDocument();
-  });
-
-  it('allows navigating between category tabs', async () => {
-    render(<MemoryRouter><Account /></MemoryRouter>);
-
-    const overviewTab = await screen.findByRole('tab', { name: /Overview & Quotas/i });
-    const servicesTab = screen.getByRole('tab', { name: /Connected Services/i });
-    const keysTab = screen.getByRole('tab', { name: /API Keys/i });
-    const historyTab = screen.getByRole('tab', { name: /Execution History/i });
-
-    expect(overviewTab).toHaveAttribute('aria-selected', 'true');
-    expect(servicesTab).toHaveAttribute('aria-selected', 'false');
-
-    fireEvent.click(servicesTab);
-    expect(servicesTab).toHaveAttribute('aria-selected', 'true');
-    expect(overviewTab).toHaveAttribute('aria-selected', 'false');
-
-    fireEvent.click(keysTab);
-    expect(keysTab).toHaveAttribute('aria-selected', 'true');
-
-    fireEvent.click(historyTab);
-    expect(historyTab).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('renders institutional US branding when account has research affiliation', async () => {
-    auth.user = {
-      ...user,
-      plan: 'RESEARCH',
-      institutional_branding: true,
-    };
-
-    render(<MemoryRouter><Account /></MemoryRouter>);
-
-    expect(await screen.findByText('Campus US')).toBeInTheDocument();
-    expect(screen.getAllByText('Universidad de Sevilla').length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('supports deep linking to tabs via URL search parameters', async () => {
-    render(
-      <MemoryRouter initialEntries={['/app/account?tab=keys']}>
-        <Account />
-      </MemoryRouter>,
-    );
-
-    const keysTab = await screen.findByRole('tab', { name: /API Keys/i });
-    expect(keysTab).toHaveAttribute('aria-selected', 'true');
-    const overviewTab = screen.getByRole('tab', { name: /Overview & Quotas/i });
-    expect(overviewTab).toHaveAttribute('aria-selected', 'false');
-  });
-
-  it('switches to corresponding tabs when metric cards are clicked', async () => {
-    render(<MemoryRouter><Account /></MemoryRouter>);
-
-    expect(await screen.findByText('Account & Security Hub')).toBeInTheDocument();
-    const keysMetricCard = screen.getByRole('button', { name: /Active API Keys/i });
-    fireEvent.click(keysMetricCard);
-
-    const keysTab = screen.getByRole('tab', { name: /API Keys/i });
-    expect(keysTab).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('updates email and password with current password verification', async () => {
-    api.updateOwnProfile.mockResolvedValue({
-      ...user,
-      email: 'newalice@example.test',
-    });
-    const { container } = render(<MemoryRouter><Account /></MemoryRouter>);
-
-    expect(await screen.findByText('Security & Credentials')).toBeInTheDocument();
-
-    const currentPwdInput = container.querySelector('#sec-current-pwd')!;
-    const emailInput = container.querySelector('#sec-email')!;
-    const newPwdInput = container.querySelector('#sec-new-pwd')!;
-    const confirmPwdInput = container.querySelector('#sec-confirm-pwd')!;
-
-    fireEvent.change(currentPwdInput, {
-      target: { value: 'old-password-123' },
-    });
-    fireEvent.change(emailInput, {
-      target: { value: 'newalice@example.test' },
-    });
-    fireEvent.change(newPwdInput, {
-      target: { value: 'new-secure-password' },
-    });
-    fireEvent.change(confirmPwdInput, {
-      target: { value: 'new-secure-password' },
+      expect(await screen.findAllByText('Password must be at least 10 characters long.')).not.toHaveLength(0);
+      expect(api.updateOwnProfile).not.toHaveBeenCalled();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Update Credentials' }));
+    it('changes it and clears the form', async () => {
+      renderAccount();
+      await screen.findByRole('button', { name: 'Change password' });
 
-    await waitFor(() => {
-      expect(api.updateOwnProfile).toHaveBeenCalledWith({
-        email: 'newalice@example.test',
-        current_password: 'old-password-123',
-        new_password: 'new-secure-password',
-      });
+      type('Current password', 'old-password-123', 1);
+      type('New password', 'new-secure-password');
+      type('Confirm new password', 'new-secure-password');
+      fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
+
+      await waitFor(() => expect(api.updateOwnProfile).toHaveBeenCalledWith({ current_password: 'old-password-123', new_password: 'new-secure-password' }));
+      expect(await screen.findByText('Password changed.')).toBeInTheDocument();
+      expect(screen.getByLabelText('New password')).toHaveValue('');
+      expect(screen.getByLabelText('Confirm new password')).toHaveValue('');
+    });
+
+    it('shows a refusal of the new password (422) on that field', async () => {
+      const weak = refusal(422, 'weak_password');
+      weak.message = 'HTTP 422: That password is on the list of common passwords.';
+      api.updateOwnProfile.mockRejectedValue(weak);
+      renderAccount();
+      await screen.findByRole('button', { name: 'Change password' });
+
+      type('Current password', 'old-password-123', 1);
+      type('New password', 'password1234');
+      type('Confirm new password', 'password1234');
+      fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
+
+      await waitFor(() => expect(screen.getByLabelText('New password')).toHaveAttribute('aria-invalid', 'true'));
+      expect(screen.getByLabelText('New password')).toHaveAccessibleDescription('That password is on the list of common passwords.');
     });
   });
 
-  it('validates password mismatch before calling API', async () => {
-    const { container } = render(<MemoryRouter><Account /></MemoryRouter>);
+  it('logs out and goes to the sign-in page', async () => {
+    const auth = renderAccount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Log out' }));
 
-    expect(await screen.findByText('Security & Credentials')).toBeInTheDocument();
+    await waitFor(() => expect(auth.signOut).toHaveBeenCalled());
+    expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
+  });
 
-    const currentPwdInput = container.querySelector('#sec-current-pwd')!;
-    const newPwdInput = container.querySelector('#sec-new-pwd')!;
-    const confirmPwdInput = container.querySelector('#sec-confirm-pwd')!;
+  describe('danger zone', () => {
+    async function openDeletion() {
+      renderAccount();
+      fireEvent.click(await screen.findByRole('button', { name: 'Delete my account' }));
+      return screen.findByRole('dialog', { name: 'Confirm deletion' });
+    }
 
-    fireEvent.change(currentPwdInput, {
-      target: { value: 'old-password-123' },
+    it('asks to type the username and does not delete until it matches exactly', async () => {
+      const dialog = within(await openDeletion());
+      const submit = dialog.getByRole('button', { name: 'Delete account' });
+      expect(submit).toBeDisabled();
+
+      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), { target: { value: 'Alice' } });
+      expect(submit).toBeDisabled();
+      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), { target: { value: 'alice' } });
+      expect(submit).toBeEnabled();
+      expect(api.deleteOwnAccount).not.toHaveBeenCalled();
     });
-    fireEvent.change(newPwdInput, {
-      target: { value: 'new-password-one' },
-    });
-    fireEvent.change(confirmPwdInput, {
-      target: { value: 'different-password' },
+
+    it('deletes the account, forgets the session and leaves', async () => {
+      const dialog = within(await openDeletion());
+      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), { target: { value: 'alice' } });
+      fireEvent.change(dialog.getByLabelText('Current password (if your account has one)'), { target: { value: 'secret-password' } });
+      fireEvent.click(dialog.getByRole('button', { name: 'Delete account' }));
+
+      await waitFor(() => expect(api.deleteOwnAccount).toHaveBeenCalledWith('alice', 'secret-password'));
+      await waitFor(() => expect(navigation.leaveTo).toHaveBeenCalledWith('/'));
+      expect(api.clearTokens).toHaveBeenCalled();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Update Credentials' }));
+    it.each([
+      ['last_owner', '409 · last_owner'],
+      ['organization_owner_required', '409 · organization_owner_required'],
+      ['sponsor_transfer_required', '409 · sponsor_transfer_required'],
+      ['last_pricing_admin', '409 · last_pricing_admin'],
+    ])('explains why a %s refusal (409) stops the deletion', async (code, marker) => {
+      api.deleteOwnAccount.mockRejectedValue(refusal(409, code));
+      const dialog = within(await openDeletion());
+      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), { target: { value: 'alice' } });
+      fireEvent.click(dialog.getByRole('button', { name: 'Delete account' }));
 
-    expect(await screen.findByText('New password and confirm password do not match.')).toBeInTheDocument();
-    expect(api.updateOwnProfile).not.toHaveBeenCalled();
+      expect(await dialog.findByRole('alert')).toHaveTextContent(marker);
+      expect(navigation.leaveTo).not.toHaveBeenCalled();
+      expect(screen.getByRole('dialog', { name: 'Confirm deletion' })).toBeInTheDocument();
+    });
+
+    it('reports a wrong password (401) on the password field and keeps the dialog open', async () => {
+      api.deleteOwnAccount.mockRejectedValue(refusal(401, 'invalid_credentials'));
+      const dialog = within(await openDeletion());
+      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), { target: { value: 'alice' } });
+      fireEvent.click(dialog.getByRole('button', { name: 'Delete account' }));
+
+      await waitFor(() => expect(dialog.getByLabelText('Current password (if your account has one)')).toHaveAttribute('aria-invalid', 'true'));
+      expect(navigation.leaveTo).not.toHaveBeenCalled();
+    });
+
+    it('cancels without deleting', async () => {
+      const dialog = within(await openDeletion());
+      fireEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(api.deleteOwnAccount).not.toHaveBeenCalled();
+    });
   });
 });

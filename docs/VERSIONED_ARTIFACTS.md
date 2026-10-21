@@ -8,6 +8,8 @@ The artifact cutover is in progress. The shared library, private sealing, versio
 
 `Blob` replaces the former file-storage meaning of `Artifact`. Project file operations use `/v1/organizations/{org}/projects/{project}/blobs`. They do not create editorial identities. Deduplication of bytes does not confer access or merge artifact identities. Maintenance excludes blobs referenced by versions and retains shared files while any blob row uses them.
 
+`DELETE .../blobs/{digest}` needs ADMIN on the project and is refused with `409 blob_in_use` while the project has sealed or revisioned elements that depend on that digest: sealed library versions (also `Report` and `Collection` ones, counted apart), case revisions and their snapshots, historical collection revisions and items, project-resource revisions, and publications. The body lists only kinds and counts, `{"references": [{"type": "case_revision", "count": 2}, ...]}`, never names. The lookup runs on the indexed digest columns (`content_digest`, `digest`, `target_digest`, `package_digest`) of the project's own elements, not over the whole project. Blobs backing a library version are organization-level and cannot be deleted from a project at all.
+
 The portable resource reference is:
 
 ```json
@@ -36,6 +38,8 @@ A `BindingCase` describes the experiment. Revision creation accepts `resources`,
 `spec.contracts` selects an exact Profile and Dialects using each installed contract's `{namespace,name,version,digest}`. Multiple versions of one family may be installed. Compilation never substitutes a nearby release for an unavailable exact contract. Schema-declared `{resource,id}` references are rebound in a derived document; original bytes are preserved. Arbitrary JSON/XML string replacement is not performed.
 
 The workbench is scoped by user, project path, case and revision. Permanent case links carry the selected revision. The study builder lists every executable case revision. The default QoS forms require the matching `apiVersion`; other languages use expert editing.
+
+The pure language core that computes these digests is packaged separately; see [BIM core](BIM_CORE.md) for its boundary and why its bytes must not change outside a contract release.
 
 Built-in Profile and Dialect releases use SemVer build metadata derived from the
 complete contract: `1.0.0+<base32-sha256>`. Adapter labels also include their binary
@@ -142,6 +146,17 @@ Once a sealed report cites the run, migration `a8b9c0d1e2f3` additionally freeze
 its summary, state and completion time, and its cells' job links, state and metrics.
 Adding cells to such a run is rejected. Result attachment, cancellation and retry
 return `409 sealed_evidence`; a new execution must create another run.
+
+`POST .../runs/{run}/cells/{cell}/result` attaches an existing job to a cell. The job
+must belong to the caller (otherwise `404`), be terminal (`409 job_not_finished`), have a
+result when completed (`409 job_result_missing`), not already be the result of another cell
+(`409 job_already_attached`), and be a faithful execution of the cell: its BIM package
+must be the one pinned by the cell's case revision, its Engine namespace/name/version/digest
+and (when the cell pins one) mode must match, and its seed must equal the cell's. A seed
+absent from the job counts as a mismatch when the Engine mode accepts one. Otherwise the
+answer is `409 cell_job_mismatch`, whose `fields` names each differing identity
+(`case_revision`, `engine`, `mode`, `seed`) and whose `details` gives the `cell` and `job` values.
+The cell's `parameters` and the execution `optimization` are not compared.
 
 Project export includes both the selected and historical run definition versions.
 Import verifies each run's Cartesian matrix, cell inputs and fingerprints against

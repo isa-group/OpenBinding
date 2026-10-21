@@ -21,7 +21,7 @@ from sqlalchemy import select
 from _pricing import fake_pricing_gate, largest_plan
 from _repo import REPO_ROOT
 from openbinding_gateway import space_client
-from openbinding_gateway.v1.package import load_package
+from bim_core.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 
@@ -38,7 +38,6 @@ from openbinding_gateway.db.models import (
     AuditEvent,
     BindingCase,
     Organization,
-    PricingRelease,
     Project,
     User,
     UserRole,
@@ -384,16 +383,34 @@ async def test_admin_transfer_organization_sponsor(
     assert org_res.status_code == 201
     org_id = org_res.json()["id"]
 
-    # Admin transfers sponsorship via /v1/admin/organizations/{id}/sponsor without being member
+    # Admin proposes a sponsor via /v1/admin/organizations/{id}/sponsor without being member:
+    # nothing changes until the proposed person accepts (B3).
     transfer_res = await api_client.post(
         f"/v1/admin/organizations/{org_id}/sponsor",
         headers=admin_headers,
         json={"billing_sponsor_user_id": str(s2_id)},
     )
-    assert transfer_res.status_code == 200, transfer_res.text
-    assert transfer_res.json()["billing_sponsor_user_id"] == str(s2_id)
+    assert transfer_res.status_code == 202, transfer_res.text
+    proposal = transfer_res.json()
+    assert proposal["status"] == "pending"
+    assert proposal["proposed_user_id"] == str(s2_id)
+    org = await db_session.get(Organization, uuid.UUID(org_id))
+    assert org.billing_sponsor_user_id == s1_id
+
+    # Not even a platform administrator can accept on somebody else's behalf.
+    by_admin = await api_client.post(
+        f"/v1/sponsor-proposals/{proposal['id']}/accept", headers=admin_headers
+    )
+    assert by_admin.status_code == 403
+    assert by_admin.json()["detail"]["code"] == "sponsor_proposal_forbidden"
+
+    accepted = await api_client.post(
+        f"/v1/sponsor-proposals/{proposal['id']}/accept", headers=sponsor2_headers
+    )
+    assert accepted.status_code == 200, accepted.text
 
     # Database reflected
+    db_session.expire_all()
     org = await db_session.get(Organization, uuid.UUID(org_id))
     assert org.billing_sponsor_user_id == s2_id
 
@@ -441,16 +458,27 @@ async def test_audit_separation_between_platform_and_tenants(
     )
     await db_session.flush()
 
-    # /v1/admin/audit only shows platform-level events (organization_id is None)
+    # /v1/admin/audit shows platform events AND organization events (B2 #12): the
+    # latter carry their organization id and slug, the former carry null.
     admin_audit = await api_client.get("/v1/admin/audit", headers=admin_headers)
     assert admin_audit.status_code == 200
     events = admin_audit.json()["events"]
-    assert len(events) > 0
+    assert any(ev["action"] == "platform.maintenance.performed" and ev["organizationId"] is None for ev in events)
+    created = [ev for ev in events if ev["action"] == "organization.created"]
+    assert len(created) == 1
+    assert created[0]["organizationId"] == org_id
+    assert created[0]["organizationSlug"] == org_slug
     for ev in events:
-        assert ev["organizationId"] is None
-        assert ev["action"] != "organization.created"
+        assert (ev["organizationId"] is None) == (ev["organizationSlug"] is None)
+    # ... and the organization filter narrows it to that organization alone.
+    only_org = await api_client.get(
+        f"/v1/admin/audit?organization_id={org_id}", headers=admin_headers
+    )
+    assert only_org.status_code == 200
+    assert {ev["organizationId"] for ev in only_org.json()["events"]} == {org_id}
+    assert all(ev["action"] != "platform.maintenance.performed" for ev in only_org.json()["events"])
 
-    # /v1/admin/overview only contains platform-level events
+    # /v1/admin/overview still only contains platform-level events
     overview = await api_client.get("/v1/admin/overview", headers=admin_headers)
     assert overview.status_code == 200
     for item in overview.json()["recentAudit"]:
@@ -614,7 +642,7 @@ async def test_tenant_owner_transfers_sponsor_via_patch_while_admin_role_enforce
     admin_member, admin_member_headers = await create_account(
         api_client, registration, db_session
     )
-    sponsor2, _ = await create_account(api_client, registration, db_session)
+    sponsor2, sponsor2_headers = await create_account(api_client, registration, db_session)
 
     owner_id = uuid.UUID(owner["id"])
     sponsor2_id = uuid.UUID(sponsor2["id"])
@@ -645,14 +673,24 @@ async def test_tenant_owner_transfers_sponsor_via_patch_while_admin_role_enforce
     assert refused_transfer.status_code == 403
     assert refused_transfer.json()["detail"]["code"] == "organization_forbidden"
 
-    # Org OWNER transfers sponsorship via PATCH successfully without platform admin role
-    success_transfer = await api_client.patch(
+    # Org OWNER proposes a sponsor via PATCH without platform admin role: the sponsor
+    # is unchanged until that person accepts (B3).
+    proposed = await api_client.patch(
         f"/v1/organizations/{org_slug}",
         headers=owner_headers,
         json={"billing_sponsor_user_id": str(sponsor2_id)},
     )
-    assert success_transfer.status_code == 200
-    assert success_transfer.json()["billing_sponsor_user_id"] == str(sponsor2_id)
+    assert proposed.status_code == 202
+    assert proposed.json()["status"] == "pending"
+    still_owner = await api_client.get(f"/v1/organizations/{org_slug}", headers=owner_headers)
+    assert still_owner.json()["billing_sponsor_user_id"] == str(owner_id)
+
+    accepted = await api_client.post(
+        f"/v1/sponsor-proposals/{proposed.json()['id']}/accept", headers=sponsor2_headers
+    )
+    assert accepted.status_code == 200
+    moved = await api_client.get(f"/v1/organizations/{org_slug}", headers=owner_headers)
+    assert moved.json()["billing_sponsor_user_id"] == str(sponsor2_id)
 
 
 @pytest.mark.asyncio
@@ -663,7 +701,7 @@ async def test_admin_sponsor_transfer_endpoint_enforces_api_key_write_permission
         api_client, registration, db_session, admin=True
     )
     user, user_headers = await create_account(api_client, registration, db_session)
-    sponsor, _ = await create_account(api_client, registration, db_session)
+    sponsor, sponsor_headers = await create_account(api_client, registration, db_session)
 
     user_id = uuid.UUID(user["id"])
     sponsor_id = uuid.UUID(sponsor["id"])
@@ -722,38 +760,34 @@ async def test_admin_sponsor_transfer_endpoint_enforces_api_key_write_permission
         headers={"X-API-Key": rw_key},
         json={"billing_sponsor_user_id": str(sponsor_id)},
     )
-    assert success.status_code == 200
-    assert success.json()["billing_sponsor_user_id"] == str(sponsor_id)
+    assert success.status_code == 202, success.text
+    assert success.json()["status"] == "pending"
+    accepted = await api_client.post(
+        f"/v1/sponsor-proposals/{success.json()['id']}/accept", headers=sponsor_headers
+    )
+    assert accepted.status_code == 200, accepted.text
+    moved = await api_client.get(f"/v1/organizations/{org_res.json()['slug']}", headers=user_headers)
+    assert moved.json()["billing_sponsor_user_id"] == str(sponsor_id)
 
 
 @pytest.mark.asyncio
-async def test_cannot_delete_last_admin_who_authored_pricing_releases(
+async def test_an_administrator_is_deleted_without_any_pricing_authorship_rule(
     api_client, registration, gate, db_session
 ):
+    """Pricings are authored in SPHERE and SPACE, so deleting an account never depends on them."""
     admin, admin_headers = await create_account(
         api_client, registration, db_session, admin=True
     )
     admin_id = uuid.UUID(admin["id"])
+    assert admin_id in gate.contracts
 
-    # Create a pricing release authored by this sole admin
-    db_session.add(
-        PricingRelease(
-            version="2026.9.1-test",
-            digest="sha256-" + "b" * 64,
-            sphere_organization="OpenBinding",
-            sphere_organization_id="org_123",
-            sphere_slug="openbinding",
-            created_by_id=admin_id,
-        )
-    )
-    await db_session.flush()
-
-    # Sole admin tries to delete account
     del_res = await api_client.request(
         "DELETE",
         "/v1/users/me",
         headers=admin_headers,
         json={"confirmation": admin["username"], "current_password": "correct-horse-battery"},
     )
-    assert del_res.status_code == 409
-    assert del_res.json()["detail"]["code"] == "last_pricing_admin"
+
+    assert del_res.status_code == 204, del_res.text
+    assert await db_session.get(User, admin_id) is None
+    assert admin_id not in gate.contracts

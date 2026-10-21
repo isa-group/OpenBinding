@@ -1,0 +1,4976 @@
+{
+ "note": "NaN and Infinity are written as {\"$float\": ...}; see tools/baseline_core.py:encode_floats",
+ "problem": "examples/demo/01_simple_seq",
+ "schema": "bim-core/vectors-extra/1",
+ "vectors": [
+  {
+   "id": "objective_penalty_and_score_altered",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 5.0,
+        "scalarization": "weighted-sum",
+        "score": -1.0,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "objective_component_weight_and_loss_altered",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": -1000000000.0,
+          "value": 30.0,
+          "weight": 99.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "objective_type_altered",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "MANY"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "objective_scalarization_altered",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "pareto-front",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "features_altered",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 0.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "penalties_altered",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [
+        123.0
+       ],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "violations_hidden",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "binding_unknown_candidate",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c9z",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "binding_candidate_of_another_task",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c1a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "binding_missing_task",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "binding_extra_task",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         },
+         "t4": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "binding_empty",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {},
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "binding_value_extra_key",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "extra": "x",
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "error": "every engine solution must contain a canonical binding decision",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "every engine solution must contain a canonical binding decision",
+    "valid": false
+   }
+  },
+  {
+   "id": "binding_value_not_an_object",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": "c1a",
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "error": "every engine solution must contain a canonical binding decision",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "every engine solution must contain a canonical binding decision",
+    "valid": false
+   }
+  },
+  {
+   "id": "binding_other_resource",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "application"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "valid_and_ineligible_in_one_answer",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      },
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "duplicate_solutions",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      },
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     },
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "FEASIBLE"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "unknown_with_valid_binding",
+   "input": {
+    "allowedTerminations": null,
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "UNKNOWN"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "unknown_with_ineligible_binding",
+   "input": {
+    "allowedTerminations": null,
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "UNKNOWN"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "infeasible_with_valid_binding_declared",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "INFEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "infeasible_with_valid_binding_default",
+   "input": {
+    "allowedTerminations": null,
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "INFEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "infeasible_without_binding_default",
+   "input": {
+    "allowedTerminations": null,
+    "result": {
+     "solutions": [],
+     "termination": "INFEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "optimal_with_default_guarantees",
+   "input": {
+    "allowedTerminations": null,
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "feasible_when_only_unknown_is_declared",
+   "input": {
+    "allowedTerminations": [
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1b",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 40.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.04,
+          "value": 40.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.04,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1b",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 40.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.04,
+         "value": 40.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.04,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "termination_lowercase",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "optimal"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "error": "engine response has an invalid termination",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "engine response has an invalid termination",
+    "valid": false
+   }
+  },
+  {
+   "id": "termination_unhashable",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": [
+      "OPTIMAL"
+     ]
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "error": "engine response has an invalid termination",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "engine response has an invalid termination",
+    "valid": false
+   }
+  },
+  {
+   "id": "termination_missing",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ]
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "error": "engine response has an invalid termination",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "engine response has an invalid termination",
+    "valid": false
+   }
+  },
+  {
+   "id": "allowed_terminations_unhashable_and_unknown",
+   "input": {
+    "allowedTerminations": [
+     [
+      "FEASIBLE"
+     ],
+     "FEASIBLE",
+     "SOMETIMES"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "FEASIBLE"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "valid": true
+   }
+  },
+  {
+   "id": "nan_feature",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": {
+         "$float": "NaN"
+        }
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "error": "engine response contains a non-finite number",
+    "valid": false
+   }
+  },
+  {
+   "id": "infinite_penalty",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": {
+         "$float": "Infinity"
+        },
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "error": "engine response contains a non-finite number",
+    "valid": false
+   }
+  },
+  {
+   "id": "negative_infinite_penalty_entry",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [
+        {
+         "$float": "-Infinity"
+        }
+       ],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "error": "engine penalties must be non-negative numbers",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "engine response contains a non-finite number",
+    "valid": false
+   }
+  },
+  {
+   "id": "nan_score",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": {
+         "$float": "NaN"
+        },
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "error": "engine response contains a non-finite number",
+    "valid": false
+   }
+  },
+  {
+   "id": "nan_component_loss",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": {
+           "$float": "NaN"
+          },
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "error": "engine response contains a non-finite number",
+    "valid": false
+   }
+  },
+  {
+   "id": "nan_in_provenance",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "provenance": {
+      "elapsed": {
+       "$float": "NaN"
+      }
+     },
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {
+     "elapsed": {
+      "$float": "NaN"
+     }
+    },
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "valid": true
+   },
+   "validateFinite": {
+    "error": "engine response contains a non-finite number",
+    "valid": false
+   }
+  },
+  {
+   "id": "boolean_feature",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": true
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "error": "every engine solution must contain numeric features",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "every engine solution must contain numeric features",
+    "valid": false
+   }
+  },
+  {
+   "id": "string_feature",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": "1"
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "error": "every engine solution must contain numeric features",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "every engine solution must contain numeric features",
+    "valid": false
+   }
+  },
+  {
+   "id": "negative_penalty_entry",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [
+        -1.0
+       ],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "error": "engine penalties must be non-negative numbers",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "engine penalties must be non-negative numbers",
+    "valid": false
+   }
+  },
+  {
+   "id": "boolean_penalty_entry",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [
+        true
+       ],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "error": "engine penalties must be non-negative numbers",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "engine penalties must be non-negative numbers",
+    "valid": false
+   }
+  },
+  {
+   "id": "extra_key_in_result",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "elapsed": 1.0,
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "error": "engine response contains fields outside bim-engine/v1",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "engine response contains fields outside bim-engine/v1",
+    "valid": false
+   }
+  },
+  {
+   "id": "extra_key_in_solution",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "rank": 1,
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "error": "every engine solution must contain a canonical binding decision",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "every engine solution must contain a canonical binding decision",
+    "valid": false
+   }
+  },
+  {
+   "id": "extra_key_in_decision",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding",
+        "note": "x"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "error": "every engine solution must contain a canonical binding decision",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "every engine solution must contain a canonical binding decision",
+    "valid": false
+   }
+  },
+  {
+   "id": "extra_key_in_objectives",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "extra": 1,
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "error": "every engine solution must contain a canonical objective evaluation",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "every engine solution must contain a canonical objective evaluation",
+    "valid": false
+   }
+  },
+  {
+   "id": "extra_key_in_component",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "extra": 1,
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "error": "engine objective components must satisfy bim-engine/v1",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "engine objective components must satisfy bim-engine/v1",
+    "valid": false
+   }
+  },
+  {
+   "id": "extra_key_in_violation",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": [
+        {
+         "constraint": {
+          "id": "k",
+          "resource": "c"
+         },
+         "enforcement": "hard",
+         "extra": 1,
+         "penalty": 0
+        }
+       ]
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "error": "engine violations must satisfy bim-engine/v1",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "engine violations must satisfy bim-engine/v1",
+    "valid": false
+   }
+  },
+  {
+   "id": "provenance_not_an_object",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "provenance": "synthetic",
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    }
+   },
+   "reevaluate": {
+    "provenance": "synthetic",
+    "solutions": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ],
+    "termination": "OPTIMAL"
+   },
+   "validate": {
+    "error": "engine provenance must be an object",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "engine provenance must be an object",
+    "valid": false
+   }
+  },
+  {
+   "id": "solutions_not_an_array",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": {
+      "0": {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     },
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "error": "engine response must contain a solutions array",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "engine response must contain a solutions array",
+    "valid": false
+   }
+  },
+  {
+   "id": "solution_not_an_object",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      1
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "error": "every engine solution must contain a canonical binding decision",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "every engine solution must contain a canonical binding decision",
+    "valid": false
+   }
+  },
+  {
+   "id": "decision_kind_not_binding",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": {
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1a",
+          "resource": "catalog"
+         },
+         "t2": {
+          "id": "c2a",
+          "resource": "catalog"
+         },
+         "t3": {
+          "id": "c3a",
+          "resource": "catalog"
+         }
+        },
+        "kind": "plan"
+       },
+       "features": {
+        "latency": 30.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "application"
+          },
+          "loss": 0.03,
+          "value": 30.0,
+          "weight": 1.0
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.03,
+        "type": "SINGLE"
+       },
+       "penalties": [],
+       "violations": []
+      }
+     ],
+     "termination": "FEASIBLE"
+    }
+   },
+   "reevaluate": {
+    "provenance": {},
+    "solutions": [],
+    "termination": "UNKNOWN"
+   },
+   "validate": {
+    "error": "every engine solution must contain a canonical binding decision",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "every engine solution must contain a canonical binding decision",
+    "valid": false
+   }
+  },
+  {
+   "id": "result_is_a_list",
+   "input": {
+    "allowedTerminations": [
+     "OPTIMAL",
+     "FEASIBLE",
+     "INFEASIBLE",
+     "UNKNOWN"
+    ],
+    "result": [
+     {
+      "decision": {
+       "binding": {
+        "t1": {
+         "id": "c1a",
+         "resource": "catalog"
+        },
+        "t2": {
+         "id": "c2a",
+         "resource": "catalog"
+        },
+        "t3": {
+         "id": "c3a",
+         "resource": "catalog"
+        }
+       },
+       "kind": "binding"
+      },
+      "features": {
+       "latency": 30.0
+      },
+      "objectives": {
+       "components": [
+        {
+         "criteria": "latency",
+         "feature": {
+          "id": "latency",
+          "resource": "application"
+         },
+         "loss": 0.03,
+         "value": 30.0,
+         "weight": 1.0
+        }
+       ],
+       "penalty": 0,
+       "scalarization": "weighted-sum",
+       "score": 0.03,
+       "type": "SINGLE"
+      },
+      "penalties": [],
+      "violations": []
+     }
+    ]
+   },
+   "validate": {
+    "error": "engine response must be an object",
+    "valid": false
+   },
+   "validateFinite": {
+    "error": "engine response must be an object",
+    "valid": false
+   }
+  }
+ ]
+}

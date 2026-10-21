@@ -1,0 +1,85 @@
+# Metadata of the goldens
+
+The goldens of the normalized IR record, next to what must never move (semantic digests, section digests, evaluations,
+binding spaces), a few **informative** members under the key `toolchain`: the `compilerDigest` of the toolchain that wrote
+them and, per package, its `irDigest`. `tools/baseline_core.py` removes every `toolchain` member before comparing
+(`comparable`), because an edit of `bim_core` changes them by definition ([`DIGESTS.md`](DIGESTS.md)). The price of being
+ignored is that they drift: `golden/bim_normalized/corpus.json` still registered a `compilerDigest` older than the toolchain
+it describes, and the copies the gateway keeps with it said the same.
+
+## What is refreshed, and what is never touched
+
+| File | Treatment |
+| --- | --- |
+| `golden/bim_normalized/corpus.json` | only the `toolchain` members change (top level, and `toolchain.compilerDigest` and `toolchain.irDigest` of each package) |
+| `openbinding-gateway/tests/golden/bim_baseline/corpus.json` (and `bim_normalized/corpus.json` there, if it exists) | the gateway's tests require a **byte copy** of the file above, so they are written together with it, after checking that they were byte copies before |
+| `golden/bim_normalized/zip_equivalence.json` | recomputed and verified byte-identical; not written |
+| `golden/synthetic/corpus.json` | the golden that needs no corpus (below); created or refreshed by the same tool |
+| `golden/bim_baseline/*`, `golden/ir_previous/evidence.json` | **frozen**, the baseline of 0.1.x; never read for writing; their SHA-256 are recorded in the comparison as proof |
+| `golden/bim_core/*`, `golden/vectors_extra.json` | not part of this refresh |
+
+## The tool
+
+```sh
+PYTHONPATH=packages/bim-core/src python tools/regen_normalized_metadata.py --write --compare-out golden/toolchain_metadata_comparison.json
+PYTHONPATH=packages/bim-core/src python tools/regen_normalized_metadata.py --check
+```
+
+`--write` compiles and evaluates the 82 packages of the corpus (`BIM_CORPUS_ROOT`) with the installed toolchain and
+**refuses to write anything** unless, before and after:
+
+* the semantic digest, the section digests, the evaluations, the binding spaces and the candidate counts of every package are
+  the recorded ones (`baseline_core.differences`), and `zip_equivalence.json` is byte-identical to a fresh computation;
+* the refreshed document equals the old one once the `toolchain` members are removed, and every line that changes holds a
+  `compilerDigest` or an `irDigest`;
+* the gateway's copies were byte copies of the golden.
+
+It then writes the new bytes to all the files together, the comparison to `golden/toolchain_metadata_comparison.json` and to
+the block below, refreshes `golden/synthetic/corpus.json` (refusing if what the toolchain computes differs from the recorded
+one beyond its `toolchain` members) and the table of [`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md). If nothing changed it keeps the
+comparison of the last refresh. `--check` fails when a golden registers another `compilerDigest` or `irDigest` than the
+installed toolchain produces. The same is a test: `packages/bim-core/tests/test_golden_toolchain_metadata.py`, which fails
+as soon as `bim_core` changes without a refresh. `--synthetic-only` is for a tree without a corpus.
+
+## The golden that needs no corpus
+
+The 82-package corpus is OpenBinding's and is not copied (the licenses of the datasets it comes from could not be verified).
+A repository exported from OpenBinding therefore runs `pytest -m 'not openbinding_corpus'` ([`corpus_tier`](../tools/corpus_tier.py)),
+and the one golden it compares with is `golden/synthetic/corpus.json`: for the five synthetic variants of
+`tests/synthetic_packages.py` and `tests/fixtures/example-package`, the corpus entry (semantic and section digests,
+evaluations, binding space), the compatibility with the four Engines and the directory/ZIP equivalence in every form.
+`packages/bim-core/tests/test_synthetic_golden.py` recomputes it and compares.
+
+## The first refresh
+
+`golden/bim_normalized/corpus.json` registered `sha256-749170b53356cc12a85f2a78dc5fd067477c7688db05a8aabed5d369e308b986`,
+the `compilerDigest` of some other state of `bim_core` than the one it describes (the repository does not record which). The
+installed 0.2.0 toolchain is `sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e`, the value that
+`DIGESTS.md` and `CHANGELOG.md` give for 0.2.0, so the documents were right and the golden was behind. The refresh changed 165
+lines (one top-level `compilerDigest`, and the `compilerDigest` and `irDigest` of each of the 82 packages), none of them about
+anything else, and the gateway's copy was rewritten with the same bytes (its own test, `test_bim_baseline.py`, requires them
+to be equal). No file of `bim_core` was touched: the `compilerDigest` after is the one the sources already had.
+
+## Last refresh
+
+<!-- golden-metadata:begin -->
+
+Generated by `tools/regen_normalized_metadata.py` from `golden/toolchain_metadata_comparison.json` (82 packages).
+
+| | Before | After |
+| --- | --- | --- |
+| `compilerDigest` registered in `golden/bim_normalized/corpus.json` | `sha256-749170b53356cc12a85f2a78dc5fd067477c7688db05a8aabed5d369e308b986` | `sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e` |
+| SHA-256 of `golden/bim_normalized/corpus.json` | `9322bc09720a6954779dbcdc503f6c7b0c78aa9be630d2baa80526d13167a79d` | `6f60c4fa83576ae0b5bf2da1437fb32e348deee80b34ee410f8d19a9313c0a07` |
+| bytes of `golden/bim_normalized/corpus.json` | 222349 | 222349 |
+
+| Verified identical before writing | Packages |
+| --- | ---: |
+| semantic digest | 82 of 82 |
+| section digests | 82 of 82 |
+| evaluations (`rollupDigest`, summaries, binding digests) | 82 of 82 |
+| binding space | 82 of 82 |
+| candidate counts | 82 of 82 |
+
+`golden/bim_normalized/zip_equivalence.json` recomputed and byte-identical (SHA-256 `992b09e934d47e6f0ae346428f211702763a226c836fe3ba6191758a0fbc0305`). Everything but the `toolchain` members equal: True. Lines changed: 165, of which not about `compilerDigest`/`irDigest`: 0.
+
+<!-- golden-metadata:end -->

@@ -27,12 +27,20 @@
 .engine-report .divergence-hint {
   margin: 0 0 var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border-left: 3px solid var(--color-warning, #d98324);
+  border-left: 3px solid var(--color-warning);
   border-radius: var(--radius-sm);
   background: var(--color-bg-secondary);
   font-size: 0.875rem;
   line-height: 1.6;
 }
+
+.registration-report { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); }
+.registration-report .divergence-summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.registration-report .compared { font-size: 0.8125rem; color: var(--color-text-secondary); }
+.registration-report .divergence-note { margin: 0; color: var(--color-text-secondary); }
+.registration-report-digests { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--tp-spacing-sm); }
+.registration-report-digest { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.registration-report-digest > span { color: var(--tp-steel); font-size: 0.75rem; }
 
 .engine-report h4 {
   margin: var(--space-6) 0 var(--space-3);

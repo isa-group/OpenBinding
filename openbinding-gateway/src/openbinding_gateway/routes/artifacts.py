@@ -17,9 +17,10 @@ from typing import Literal
 import yaml
 from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..access import public_read
 from ..access.dependencies import get_current_user, session_dependency
 from ..collaboration import organization_by_ref, require_project
 from ..core.settings import Settings, get_settings
@@ -28,7 +29,7 @@ from ..db.models import (
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
-    InstanceSnapshot, BindingIRSnapshot, Artifact, ArtifactVersion, ArtifactDraft, ArtifactDependency, CaseArtifact, ProjectArtifact,
+    InstanceResource, InstanceSnapshot, BindingIRSnapshot, Artifact, ArtifactVersion, ArtifactDraft, ArtifactDependency, CaseArtifact, ProjectArtifact,
     Collection,
     CollectionItem,
     CollectionRevision,
@@ -49,10 +50,20 @@ from ..db.models import (
     User,
     Visibility,
 )
-from ..models.errors import api_error
+from ..models.errors import ErrorResponse, api_error
 from ..models.platform import BlobView
-from ..v1.canonical import CanonicalizationError, digest, digest_bytes
-from ..v1.package import PackageError, strict_json_loads
+from ..security.redaction import (
+    must_redact_jobs,
+    redact_options,
+    redact_original_request,
+    redact_provenance,
+    redact_result,
+)
+from bim_core import PackageError
+from bim_core.canonical import CanonicalizationError, digest, digest_bytes
+from ..core.jsonio import strict_json_loads
+from ..services.entitlements import entitlement_service
+from ..services.snapshots import archive_matches_digest
 
 router = APIRouter(prefix="/v1/organizations/{org}/projects/{project}", tags=["Artifacts"])
 
@@ -158,41 +169,19 @@ def _artifact_path(settings: Settings, digest_value: str) -> Path:
 async def _storage_limit(session: AsyncSession, organization: Organization, incoming: int) -> None:
     sponsor = await session.get(User, organization.billing_sponsor_user_id)
     await session.execute(select(User.id).where(User.id == sponsor.id).with_for_update())
-    from ..space_client import PricingUnavailable, get_gate
-    try:
-        caps = await get_gate().caps(sponsor.id)
-    except PricingUnavailable as exc:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
-    storage_limit = caps.limit("storageBytes")
-    if storage_limit is None:
-        return
-    used = int(await session.scalar(
-        select(func.coalesce(func.sum(Blob.size_bytes), 0))
-        .join(Organization, Organization.id == Blob.organization_id)
-        .where(Organization.billing_sponsor_user_id == sponsor.id)
-    ) or 0)
-    limit = int(storage_limit)
-    if used + incoming > limit:
-        raise api_error(
-            status.HTTP_402_PAYMENT_REQUIRED, "storage_quota_exceeded",
-            "The sponsor storage allowance would be exceeded.",
-            quota={"limit_id": "storageBytes", "limit": limit, "used": used},
-        )
+    async def stored_bytes() -> int:
+        return int(await session.scalar(
+            select(func.coalesce(func.sum(Blob.size_bytes), 0))
+            .join(Organization, Organization.id == Blob.organization_id)
+            .where(Organization.billing_sponsor_user_id == sponsor.id)
+        ) or 0)
+
+    await entitlement_service.enforce_storage_quota(sponsor.id, incoming, stored_bytes)
 
 
 async def _payload_limit(user: User) -> int:
     """Return the actor's per-request ceiling, capped by the platform maximum."""
-
-    from ..space_client import PricingUnavailable, get_gate
-
-    try:
-        caps = await get_gate().caps(user.id)
-    except PricingUnavailable as exc:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)
-        ) from exc
-    limit = caps.limit("maxPayloadBytes")
-    return 512 * 1024 * 1024 if limit is None else min(512 * 1024 * 1024, int(limit))
+    return await entitlement_service.upload_limit(user.id)
 
 
 @router.get("/blobs", response_model=list[BlobView], operation_id="listBlobs")
@@ -202,7 +191,10 @@ async def list_artifacts(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[BlobView]:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    rows = (await session.execute(select(Blob).where(Blob.project_id == found_project.id).order_by(Blob.created_at.desc()))).scalars().all()
+    query = select(Blob).where(Blob.project_id == found_project.id)
+    if public_read.is_public_read(session):
+        query = query.where(Blob.public.is_(True))
+    rows = (await session.execute(query.order_by(Blob.created_at.desc()))).scalars().all()
     return [_artifact_view(row) for row in rows]
 
 
@@ -258,6 +250,18 @@ async def upload_artifact(
         destination = _artifact_path(settings, digest_value)
         destination.parent.mkdir(parents=True, exist_ok=True)
         if destination.exists():
+            # Content-addressed: an existing file is only a duplicate if its
+            # bytes really hash to the address. Never overwrite it, never trust it.
+            stored_hasher = hashlib.sha256()
+            with destination.open("rb") as stored:
+                while block := stored.read(1024 * 1024):
+                    stored_hasher.update(block)
+            if f"sha256-{stored_hasher.hexdigest()}" != digest_value:
+                raise api_error(
+                    status.HTTP_409_CONFLICT,
+                    "content_integrity",
+                    "The stored content for this digest does not match it.",
+                )
             temporary.unlink(missing_ok=True)
         else:
             os.replace(temporary, destination)
@@ -296,9 +300,12 @@ async def download_artifact(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> Response:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    artifact = (await session.execute(select(Blob).where(
-        Blob.project_id == found_project.id, Blob.digest == digest_value
-    ))).scalars().first()
+    query = select(Blob).where(Blob.project_id == found_project.id, Blob.digest == digest_value)
+    public_only = public_read.is_public_read(session)
+    if public_only:
+        # A private file is indistinguishable from a missing one.
+        query = query.where(Blob.public.is_(True))
+    artifact = (await session.execute(query)).scalars().first()
     if artifact is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Blob not found.")
     storage_path = Path(artifact.storage_uri)
@@ -312,7 +319,106 @@ async def download_artifact(
     )
 
 
-@router.delete("/blobs/{digest_value}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteBlob")
+async def blob_references(session: AsyncSession, project_id: uuid.UUID, blob: Blob) -> dict[str, int]:
+    """Sealed or revisioned things of a project that depend on a blob's digest.
+
+    Every column consulted is indexed (digests, ``target_digest``) or reached
+    through an indexed foreign key, so this is a handful of lookups rather than
+    a walk over the project. Only kinds and counts are returned: the caller
+    learns that something depends on the file, not what it is called.
+    """
+
+    wanted = blob.digest
+    project_artifacts = select(ProjectArtifact.artifact_id).where(ProjectArtifact.project_id == project_id)
+    versions = (await session.execute(
+        select(ArtifactVersion.id, Artifact.kind)
+        .join(Artifact, Artifact.id == ArtifactVersion.artifact_id)
+        .where(or_(
+            ArtifactVersion.blob_id == blob.id,
+            and_(ArtifactVersion.content_digest == wanted, Artifact.id.in_(project_artifacts)),
+        ))
+    )).all()
+    version_ids = {version_id for version_id, _ in versions}
+    references: dict[str, int] = {
+        "library_version": len({v for v, kind in versions if kind not in {"Report", "Collection"}}),
+        "report": len({v for v, kind in versions if kind == "Report"}),
+    }
+
+    collection_revisions = {v for v, kind in versions if kind == "Collection"}
+    collection_scope = (
+        select(CollectionRevision.id)
+        .join(Collection, Collection.id == CollectionRevision.collection_id)
+        .where(Collection.project_id == project_id)
+    )
+    collection_revisions |= set(await session.scalars(
+        collection_scope.where(CollectionRevision.digest == wanted)
+    ))
+    collection_revisions |= set(await session.scalars(
+        collection_scope.join(CollectionItem, CollectionItem.collection_revision_id == CollectionRevision.id)
+        .where(CollectionItem.target_digest == wanted)
+    ))
+    references["collection_revision"] = len(collection_revisions)
+
+    project_cases = (
+        select(BindingCaseRevision.id, BindingCaseRevision.digest, BindingCaseRevision.source_snapshot_id)
+        .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
+        .where(BindingCase.project_id == project_id)
+    )
+    snapshot_ids = {
+        snapshot_id for snapshot_id in await session.scalars(
+            select(BindingCaseRevision.source_snapshot_id)
+            .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
+            .where(BindingCase.project_id == project_id, BindingCaseRevision.source_snapshot_id.is_not(None))
+        )
+    }
+    matching_snapshots: set[uuid.UUID] = set()
+    if snapshot_ids:
+        matching_snapshots = set(await session.scalars(
+            select(InstanceSnapshot.id).where(
+                InstanceSnapshot.id.in_(snapshot_ids),
+                or_(InstanceSnapshot.package_digest == wanted, InstanceSnapshot.instance_digest == wanted),
+            )
+        )) | set(await session.scalars(
+            select(InstanceResource.snapshot_id).where(
+                InstanceResource.snapshot_id.in_(snapshot_ids), InstanceResource.digest == wanted
+            )
+        ))
+    case_revisions = {
+        revision_id for revision_id, revision_digest, snapshot_id in (await session.execute(project_cases)).all()
+        if revision_digest == wanted or snapshot_id in matching_snapshots
+    }
+    references["case_revision"] = len(case_revisions)
+    references["snapshot"] = len(matching_snapshots)
+
+    references["project_resource_revision"] = int(await session.scalar(
+        select(func.count(ProjectResourceRevision.id))
+        .join(ProjectResource, ProjectResource.id == ProjectResourceRevision.project_resource_id)
+        .where(ProjectResource.project_id == project_id, ProjectResourceRevision.digest == wanted)
+    ) or 0)
+    references["publication"] = int(await session.scalar(
+        select(func.count(Publication.id)).where(
+            Publication.project_id == project_id, Publication.version_id.in_(version_ids)
+        )
+    ) or 0) if version_ids else 0
+    return {kind: count for kind, count in references.items() if count}
+
+
+@router.delete(
+    "/blobs/{digest_value}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="deleteBlob",
+    responses={
+        409: {
+            "model": ErrorResponse,
+            "description": (
+                "A sealed or revisioned element of the project depends on this file "
+                "(code `blob_in_use`). `references` lists the kinds of element and how many of each "
+                "(`library_version`, `report`, `collection_revision`, `case_revision`, `snapshot`, "
+                "`project_resource_revision`, `publication`); names are not disclosed."
+            ),
+        }
+    },
+)
 async def delete_artifact(
     org: str, project: str, digest_value: str,
     user: User = Depends(get_current_user),
@@ -324,6 +430,14 @@ async def delete_artifact(
     ))).scalars().first()
     if artifact is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Blob not found.")
+    references = await blob_references(session, found_project.id, artifact)
+    if references:
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            "blob_in_use",
+            "Sealed or revisioned elements of this project depend on the file; it cannot be deleted.",
+            references=[{"type": kind, "count": count} for kind, count in sorted(references.items())],
+        )
     storage_path = Path(artifact.storage_uri)
     session.add(AuditEvent(
         organization_id=organization.id, actor_id=user.id, action="artifact.deleted",
@@ -495,16 +609,28 @@ async def export_project_package(
         if revision.source_snapshot_id:
             snapshot = await session.get(InstanceSnapshot, revision.source_snapshot_id)
             ir = await session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))
-            if not ir or digest_bytes(snapshot.source_archive) != snapshot.package_digest:
+            try:
+                intact = bool(ir) and await archive_matches_digest(snapshot.source_archive, snapshot.package_digest)
+            except PackageError:
+                intact = False
+            if not intact:
                 raise api_error(409, 'snapshot_integrity', 'Cannot export incomplete or corrupt historical inputs.')
             snapshots[str(snapshot.id)] = dict(archive=base64.b64encode(snapshot.source_archive).decode(),
                 packageDigest=snapshot.package_digest, compilationDigest=snapshot.compilation_digest,
                 irDigest=ir.ir_digest, ir=ir.document)
+    # Below MEMBER (and for read-only API keys) a job is exported as the job
+    # list shows it: no options, no credentials, no private endpoints.
+    redact = await must_redact_jobs(session, organization.id, user)
+
     def portable_job(job):
+        request, options, result, provenance = job.original_request, job.options, job.result, job.provenance
+        if redact:
+            request, options = redact_original_request(request), redact_options(options)
+            result, provenance = redact_result(result), redact_provenance(provenance)
         return dict(id=str(job.id), engineId=job.engine_id, state=job.state.value,
             configurationRef=definition_refs.get(job.configuration_version_id),
-            request=job.original_request, options=job.options, result=job.result,
-            termination=job.termination, provenance=job.provenance,
+            request=request, options=options, result=result,
+            termination=job.termination, provenance=provenance,
             createdAt=timestamp(job.created_at), finishedAt=timestamp(job.finished_at))
 
     library = []
@@ -714,10 +840,9 @@ async def import_project_package(
         "collections": 0, "collectionRevisions": 0, "studies": 0, "studyRuns": 0,
         "studyCells": 0, "reports": 0, "publications": 0, "artifacts": 0,
     }
-    from ..artifacts import case_composition_digest, reference, resolve_version, seal_draft
+    from ..artifacts import case_composition_digest, resolve_version, seal_draft
     from ..models.artifacts import ArtifactRef, DraftContent
-    from ..routes.v1 import _compile_resolved, _persist_snapshot
-    from ..v1.package import load_package
+    from ..services.snapshots import compile_resolved, persist_snapshot
     from fastapi import HTTPException
     async def import_library_entry(entry) -> bool:
         ref = ArtifactRef.model_validate(entry.get('ref'))
@@ -793,15 +918,15 @@ async def import_project_package(
     for source_id, entry in package.get('snapshots', {}).items():
         try:
             archive_bytes = base64.b64decode(entry['archive'], validate=True)
-            source = load_package(archive_bytes)
+            matches = await archive_matches_digest(archive_bytes, entry.get('packageDigest'))
         except (KeyError, ValueError, PackageError) as exc:
             raise api_error(422, 'invalid_portable_package', 'Invalid snapshot archive.') from exc
-        if digest_bytes(archive_bytes) != entry.get('packageDigest'):
+        if not matches:
             raise api_error(422, 'checksum_mismatch', 'Snapshot archive digest mismatch.')
-        problem = await _compile_resolved(source, session, user)
-        if problem.digest != entry.get('irDigest') or problem.document != entry.get('ir'):
+        compilation = await compile_resolved(archive_bytes, session, user)
+        if compilation.ir_digest != entry.get('irDigest') or compilation.ir != entry.get('ir'):
             raise api_error(409, 'toolchain_mismatch', 'The exact original compilation is not available.')
-        restored_id = await _persist_snapshot(source, problem, user, session)
+        restored_id = await persist_snapshot(compilation, user, session)
         snapshot = await session.get(InstanceSnapshot, uuid.UUID(restored_id))
         if snapshot.compilation_digest != entry.get('compilationDigest'):
             raise api_error(409, 'toolchain_mismatch', 'The original snapshot toolchain is not installed.')
@@ -882,8 +1007,8 @@ async def import_project_package(
             resource_revision_map[str(revision_data.get("id"))] = version
             counts["resourceRevisions"] += 1
 
-    def remap_ref(reference: dict) -> dict:
-        result = dict(reference)
+    def remap_ref(source_ref: dict) -> dict:
+        result = dict(source_ref)
         for key in ("caseRevisionId", "case_revision_id", "id"):
             source_id = str(result.get(key, ""))
             if source_id in case_revision_map:
@@ -958,7 +1083,7 @@ async def import_project_package(
             actual_cells = sorted(run_data.get('cells', []), key=lambda item: item.get('ordinal', 0))
             if len(expected_cells) != len(actual_cells) or run_data.get('matrixDigest') != digest([cell['fingerprint'] for cell in expected_cells]):
                 raise api_error(422, 'study_matrix_mismatch', 'The imported matrix must match its exact study definition.')
-            for expected, actual in zip(expected_cells, actual_cells):
+            for expected, actual in zip(expected_cells, actual_cells, strict=False):
                 if any(actual.get(key) != value for key, value in expected.items()):
                     raise api_error(422, 'study_cell_mismatch', 'An imported cell differs from its sealed study definition.')
             run = (await session.execute(select(StudyRun).where(
@@ -1011,10 +1136,8 @@ async def import_project_package(
                                 service_url="package://imported", state=JobState(job_state),
                                 original_request=job_data.get("request"), options=job_data.get("options"),
                                 result=job_data.get("result"), termination=job_data.get("termination"),
-                                provenance=job_data.get("provenance"), metered=True,
-                                concurrency_released=True, organization_id=organization.id,
-                                project_id=found_project.id,
-                                billing_sponsor_user_id=organization.billing_sponsor_user_id,
+                                provenance=job_data.get("provenance"),
+                                organization_id=organization.id, project_id=found_project.id,
                             )
                             session.add(imported_job)
                             await session.flush()
@@ -1046,9 +1169,8 @@ async def import_project_package(
             configuration_version_id=configuration_version.id if configuration_version else None,
             engine_job_id='imported-' + str(identity), service_url='package://imported', state=JobState(job_data['state']),
             original_request=job_data.get('request'), options=job_data.get('options'), result=job_data.get('result'),
-            termination=job_data.get('termination'), provenance=job_data.get('provenance'), metered=True,
-            concurrency_released=True, organization_id=organization.id, project_id=found_project.id,
-            billing_sponsor_user_id=organization.billing_sponsor_user_id))
+            termination=job_data.get('termination'), provenance=job_data.get('provenance'),
+            organization_id=organization.id, project_id=found_project.id))
     await session.flush()
     await import_available_library()
     if pending_library:

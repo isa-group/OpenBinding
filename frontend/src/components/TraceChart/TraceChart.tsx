@@ -186,7 +186,7 @@ export function TraceChart({ trace, engineId }: { trace: unknown; engineId?: str
             <Line
               type="stepAfter"
               dataKey="value"
-              stroke="var(--color-accent, #7c3aed)"
+              stroke="var(--color-accent)"
               strokeWidth={2}
               dot={(props: { cx?: number; cy?: number; index?: number; payload?: { feasible?: boolean } }) => (
                 <circle
@@ -194,7 +194,7 @@ export function TraceChart({ trace, engineId }: { trace: unknown; engineId?: str
                   cx={props.cx}
                   cy={props.cy}
                   r={3}
-                  fill={props.payload?.feasible ? 'var(--color-accent, #7c3aed)' : '#e6a700'}
+                  fill={props.payload?.feasible ? 'var(--color-accent)' : 'var(--tp-severity-warning)'}
                   stroke="var(--color-surface)"
                   strokeWidth={1}
                 />

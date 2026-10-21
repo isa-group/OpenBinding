@@ -21,19 +21,16 @@ from pathlib import Path
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..access import metering
-from ..access.contracts import sweep_contract_renewals
+from ..access.contracts import live_pricing_version
 from ..access.dependencies import require_admin, session_dependency
 from ..collaboration import (
-    descendant_ids,
     effective_role,
-    enforce_sponsor_usage,
-    organization_usage,
-    sponsor_organization_ids,
 )
 from ..core.settings import Settings, get_settings
 from ..db.models import (
@@ -52,7 +49,6 @@ from ..db.models import (
     JobState,
     Organization,
     OrganizationMembership,
-    PricingRelease,
     Project,
     ProjectResource,
     ProjectResourceRevision,
@@ -64,6 +60,7 @@ from ..db.models import (
     UserRole,
     utcnow,
 )
+from ..jobs import reconciler
 from ..models.accounts import (
     AdminUserPage,
     AdminUserView,
@@ -72,7 +69,6 @@ from ..models.accounts import (
     ContractSubscriptionView,
     AdminSubscriptionView,
     UpdateUserRequest,
-    UsageResyncResult,
     UsageView,
 )
 from ..models.errors import (
@@ -80,13 +76,15 @@ from ..models.errors import (
     NOT_FOUND_RESPONSE,
     UNAUTHORIZED_RESPONSE,
     UNAVAILABLE_RESPONSE,
+    ErrorResponse,
     api_error,
 )
-from ..models.platform import OrganizationView
-from ..space_client import PricingUnavailable, get_gate
-from ..pricing_catalog import PricingCatalogError, live_catalog
+from ..models.platform import OrganizationView, SponsorProposalView
+from .. import sponsor_proposals
+from ..core.public_errors import invalid_subscription_error, pricing_unavailable_error
+from ..space_client import PricingUnavailable, SubscriptionRejected, get_gate
 from ..mailer import send_mail
-from .users import usage_view_for
+from .users import cas_verified_ids, usage_view_for
 
 router = APIRouter(
     prefix="/v1/admin",
@@ -132,11 +130,11 @@ async def _maintenance_preview(session: AsyncSession, retention_days: int) -> di
     ) or 0)
     abandoned = 0
     in_flight = (await session.execute(select(Job).where(
-        Job.metered.is_(False), Job.state.in_([JobState.QUEUED, JobState.RUNNING])
+        Job.state.in_([JobState.QUEUED, JobState.RUNNING])
     ))).scalars().all()
     for job in in_flight:
         deadline = _aware(job.created_at) + timedelta(
-            seconds=float(job.requested_budget_s or 0) + metering.SETTLEMENT_GRACE_S
+            seconds=float(job.requested_budget_s or 0) + reconciler.ABANDONED_GRACE_S
         )
         if now >= deadline:
             abandoned += 1
@@ -154,6 +152,30 @@ async def _user_or_404(session: AsyncSession, user_id: uuid.UUID) -> User:
     if user is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "No such account.")
     return user
+
+
+def _record_admin_action(
+    session: AsyncSession,
+    administrator: User,
+    action: str,
+    target_type: str,
+    target_id: uuid.UUID | None,
+    detail: dict[str, Any],
+) -> None:
+    """One platform audit event (no organization) for an administrator's action.
+
+    ``detail`` is a before/after summary and must never carry a secret: no key
+    hash, key value, token or password.
+    """
+    session.add(
+        AuditEvent(
+            actor_id=administrator.id,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            detail=detail,
+        )
+    )
 
 
 @router.get(
@@ -198,12 +220,13 @@ async def list_users(
             )
         ).all()
     )
+    verified = await cas_verified_ids(session, [u.id for u in users])
     views = []
     for user in users:
         try:
             plan = user.plan_cache if user.contract_pending else (await get_gate().subscription(user.id)).plan
         except PricingUnavailable as error:
-            raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(error)) from error
+            raise pricing_unavailable_error(error, where="admin user list") from error
         views.append(
             AdminUserView(
                 id=user.id,
@@ -215,6 +238,7 @@ async def list_users(
                 created_at=user.created_at,
                 contract_pending=user.contract_pending,
                 api_key_count=key_counts.get(user.id, 0),
+                cas_verified=user.id in verified,
             )
         )
     return AdminUserPage(
@@ -254,16 +278,32 @@ async def update_user(
             "An administrator cannot deactivate or demote their own account.",
         )
 
-    if request.is_active is not None:
-        user.is_active = request.is_active
-    if request.role is not None:
-        user.role = UserRole(request.role.value)
-
-    await session.flush()
     try:
         plan = user.plan_cache if user.contract_pending else (await get_gate().subscription(user.id)).plan
     except PricingUnavailable as error:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(error)) from error
+        raise pricing_unavailable_error(error, where="admin user update") from error
+
+    # Only a real change is recorded, as one event carrying every field that
+    # moved. A refused request never reaches this point, so it leaves nothing.
+    changes: dict[str, dict[str, Any]] = {}
+    if request.is_active is not None and request.is_active != user.is_active:
+        changes["is_active"] = {"from": user.is_active, "to": request.is_active}
+        user.is_active = request.is_active
+        if not user.is_active:
+            # Nobody who lost access can be asked to pay, or stand behind a request.
+            await sponsor_proposals.cancel_for_user(
+                session, user.id, "user_deactivated", administrator.id
+            )
+    if request.role is not None and request.role.value != user.role.value:
+        changes["role"] = {"from": user.role.value, "to": request.role.value}
+        user.role = UserRole(request.role.value)
+    if changes:
+        _record_admin_action(
+            session, administrator, "admin.user.updated", "User", user.id,
+            {"username": user.username, "changes": changes},
+        )
+
+    await session.flush()
     return AdminUserView(
         id=user.id,
         username=user.username,
@@ -274,6 +314,7 @@ async def update_user(
         created_at=user.created_at,
         contract_pending=user.contract_pending,
         api_key_count=0,
+        cas_verified=user.id in await cas_verified_ids(session, [user.id]),
     )
 
 
@@ -300,7 +341,7 @@ async def change_plan(
     try:
         current = await get_gate().subscription(user.id)
     except PricingUnavailable as error:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(error)) from error
+        raise pricing_unavailable_error(error, where="admin subscription change") from error
     result = await _apply_subscription(
         user,
         request.plan,
@@ -314,11 +355,11 @@ async def change_plan(
     return result.user
 
 
-def _admin_user_view(user: User, plan: str) -> AdminUserView:
+def _admin_user_view(user: User, plan: str, cas_verified: bool = False) -> AdminUserView:
     return AdminUserView(
         id=user.id, username=user.username, email=user.email, role=user.role.value,
         is_active=user.is_active, plan=plan, created_at=user.created_at,
-        contract_pending=user.contract_pending, api_key_count=0,
+        contract_pending=user.contract_pending, api_key_count=0, cas_verified=cas_verified,
     )
 
 
@@ -349,9 +390,10 @@ async def _apply_subscription(
     await _assert_research_identity(session, user, plan)
     gate = get_gate()
     try:
-        catalog = await live_catalog(session, settings)
         before = await gate.subscription(user.id)
-        target_version = catalog.version
+        # The version is SPACE_PRICING_VERSION when configured; otherwise the
+        # contract keeps the one it is pinned to. SPACE validates the novation.
+        target_version = live_pricing_version(settings) or before.pricing_version
         configuration_changed = before.plan != plan or before.add_ons != add_ons
         version_changed = before.pricing_version != target_version
         after = (
@@ -359,17 +401,11 @@ async def _apply_subscription(
             if configuration_changed or version_changed
             else before
         )
-    except PricingCatalogError as error:
-        raise api_error(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            "invalid_subscription",
-            str(error),
-        ) from error
+    except SubscriptionRejected as error:
+        raise invalid_subscription_error(error, where="admin novation") from error
     except PricingUnavailable as error:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "pricing_unavailable",
-            f"The subscription cannot be changed right now: {error}",
+        raise pricing_unavailable_error(
+            error, where="admin novation", prefix="The subscription cannot be changed right now: "
         ) from error
 
     user.plan_cache = plan
@@ -403,7 +439,7 @@ async def _apply_subscription(
             await send_mail(settings, user.email, subject, body)
     await session.flush()
     return AdminSubscriptionView(
-        user=_admin_user_view(user, after.plan),
+        user=_admin_user_view(user, after.plan, user.id in await cas_verified_ids(session, [user.id])),
         subscription=ContractSubscriptionView(
             plan=after.plan,
             add_ons=after.add_ons,
@@ -427,9 +463,9 @@ async def get_subscription(
     try:
         current = await get_gate().subscription(user.id)
     except PricingUnavailable as error:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(error)) from error
+        raise pricing_unavailable_error(error, where="admin subscription read") from error
     return AdminSubscriptionView(
-        user=_admin_user_view(user, current.plan),
+        user=_admin_user_view(user, current.plan, user.id in await cas_verified_ids(session, [user.id])),
         subscription=ContractSubscriptionView(
             plan=current.plan,
             add_ons=current.add_ons,
@@ -469,7 +505,7 @@ async def change_subscription(
     "/users/{user_id}/usage",
     response_model=UsageView,
     operation_id="adminGetUserUsage",
-    summary="What an account has spent",
+    summary="What an account's plan allows",
     responses={404: NOT_FOUND_RESPONSE, 503: UNAVAILABLE_RESPONSE},
 )
 async def user_usage(
@@ -491,82 +527,30 @@ async def user_usage(
 async def revoke_api_key(
     user_id: uuid.UUID,
     key_id: uuid.UUID,
+    administrator: User = Depends(require_admin),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> None:
-    """Take back a key, for when one has leaked and its owner is unreachable."""
+    """Take back a key, for when one has leaked and its owner is unreachable.
+
+    Audited as ``admin.api_key.revoked`` with the key's id, name and public
+    prefix. Neither the secret nor its hash is ever written to the event.
+    """
     api_key = await session.get(ApiKey, key_id)
     if api_key is None or api_key.user_id != user_id or not api_key.is_active:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "No such API key.")
 
     api_key.revoked_at = utcnow()
+    _record_admin_action(
+        session, administrator, "admin.api_key.revoked", "ApiKey", api_key.id,
+        {
+            "user_id": str(user_id),
+            "key": {"id": str(api_key.id), "name": api_key.name, "prefix": api_key.prefix},
+            "before": {"revoked": False},
+            "after": {"revoked": True},
+        },
+    )
     await session.flush()
     return None
-
-
-@router.post(
-    "/users/{user_id}/usage/resync",
-    response_model=UsageResyncResult,
-    operation_id="adminResyncUsage",
-    summary="Correct a drifted concurrency count",
-    responses={404: NOT_FOUND_RESPONSE, 503: UNAVAILABLE_RESPONSE},
-)
-async def resync_usage(
-    user_id: uuid.UUID,
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> UsageResyncResult:
-    """Reconcile the recorded concurrency against the jobs actually in flight.
-
-    Concurrency is counted optimistically - checking and claiming are two
-    calls - and the reconciler settles what it can see. This is the escape
-    hatch for what it cannot: a slot recorded against an account that has
-    nothing running. Counting the jobs is the authoritative answer, because
-    they are rows in this database rather than a number somebody incremented.
-    """
-    user = await _user_or_404(session, user_id)
-    gate = get_gate()
-
-    in_flight = await session.scalar(
-        select(func.count())
-        .select_from(Job)
-        .where(
-            Job.owner_id == user.id,
-            Job.metered.is_(False),
-            Job.state.in_([JobState.QUEUED, JobState.RUNNING]),
-        )
-    )
-    in_flight = int(in_flight or 0)
-
-    try:
-        snapshot = await gate.usage(user.id)
-        limit_id = "concurrentJobs"
-        recorded = snapshot.limits[limit_id].used if limit_id in snapshot.limits else 0.0
-        drift = in_flight - recorded
-        if drift:
-            await gate.adjust_usage(user.id, {"concurrentJobs": drift})
-    except PricingUnavailable as error:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "pricing_unavailable",
-            f"Usage cannot be resynchronised right now: {error}",
-        ) from error
-
-    return UsageResyncResult(
-        plan=snapshot.plan,
-        slots_in_flight=in_flight,
-        slots_recorded=recorded,
-        corrected_by=drift,
-    )
-
-
-@router.post(
-    "/maintenance/reconcile-contracts",
-    operation_id="adminReconcileContractRenewals",
-    summary="Move expired contracts to the LIVE pricing release",
-)
-async def reconcile_contracts(
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> dict[str, int]:
-    return {"migrated": await sweep_contract_renewals(session)}
 
 
 @router.get("/overview", operation_id="adminPlatformOverview")
@@ -590,7 +574,6 @@ async def platform_overview(
         "studyRuns": StudyRun,
         "artifacts": Blob,
         "apiKeys": ApiKey,
-        "pricingReleases": PricingRelease,
     }
     counts = {
         name: int(await session.scalar(select(func.count()).select_from(model)) or 0)
@@ -626,58 +609,123 @@ async def platform_overview(
     }
 
 
-@router.get("/audit", operation_id="adminListAuditEvents")
+class AdminAuditEventView(BaseModel):
+    id: str
+    organizationId: Optional[str] = Field(
+        default=None, description="Set for events recorded inside an organization; null for platform events."
+    )
+    organizationSlug: Optional[str] = Field(
+        default=None, description="Slug of that organization, when it is set."
+    )
+    actorId: Optional[str] = None
+    action: str
+    targetType: str
+    targetId: Optional[str] = None
+    detail: dict[str, Any]
+    createdAt: str
+
+
+class AdminAuditPage(BaseModel):
+    events: list[AdminAuditEventView]
+    total: int
+    offset: int
+    limit: int
+
+
+@router.get(
+    "/audit",
+    response_model=AdminAuditPage,
+    operation_id="adminListAuditEvents",
+    summary="Platform audit log, including organization events",
+)
 async def list_audit_events(
     action: str | None = None,
+    organization_id: Optional[uuid.UUID] = Query(
+        default=None,
+        description="Only the events recorded inside this organization.",
+    ),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> dict:
-    conditions = [AuditEvent.organization_id.is_(None)]
+) -> AdminAuditPage:
+    """Every audit event, newest first: platform actions and organization events.
+
+    Organization events (for example a sponsorship transfer) carry
+    ``organizationId`` and ``organizationSlug``; platform events carry null.
+    Members of an organization still read only their own organization's log
+    through ``GET /v1/organizations/{org}/audit``; that view is unchanged.
+    """
+    conditions = []
     if action:
         conditions.append(AuditEvent.action == action)
+    if organization_id is not None:
+        conditions.append(AuditEvent.organization_id == organization_id)
     total = int(await session.scalar(
         select(func.count(AuditEvent.id)).where(*conditions)
     ) or 0)
     rows = (await session.execute(
-        select(AuditEvent)
+        select(AuditEvent, Organization.slug)
+        .outerjoin(Organization, Organization.id == AuditEvent.organization_id)
         .where(*conditions)
         .order_by(AuditEvent.created_at.desc())
         .offset(offset)
         .limit(limit)
-    )).scalars().all()
-    return {
-        "events": [
-            {
-                "id": str(item.id),
-                "organizationId": None,
-                "actorId": str(item.actor_id) if item.actor_id else None,
-                "action": item.action,
-                "targetType": item.target_type,
-                "targetId": str(item.target_id) if item.target_id else None,
-                "detail": item.detail,
-                "createdAt": item.created_at.isoformat(),
-            }
-            for item in rows
+    )).all()
+    return AdminAuditPage(
+        events=[
+            AdminAuditEventView(
+                id=str(item.id),
+                organizationId=str(item.organization_id) if item.organization_id else None,
+                organizationSlug=slug,
+                actorId=str(item.actor_id) if item.actor_id else None,
+                action=item.action,
+                targetType=item.target_type,
+                targetId=str(item.target_id) if item.target_id else None,
+                detail=item.detail,
+                createdAt=item.created_at.isoformat(),
+            )
+            for item, slug in rows
         ],
-        "total": total,
-        "offset": offset,
-        "limit": limit,
-    }
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
 
 
 class AdminSponsorTransferRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     billing_sponsor_user_id: uuid.UUID
+    replace_pending_proposal: bool = Field(
+        default=False,
+        description=(
+            "Replace the organization's pending sponsor proposal. Honoured only when the caller "
+            "made that proposal; otherwise a pending proposal answers 409 `sponsor_proposal_pending`."
+        ),
+    )
 
 
 @router.post(
     "/organizations/{organization_id}/sponsor",
     response_model=OrganizationView,
     operation_id="adminTransferOrganizationSponsor",
-    summary="Transfer billing sponsorship of an organization and its subtree",
+    summary="Propose a billing sponsor for an organization and its subtree",
     responses={
+        202: {
+            "model": SponsorProposalView,
+            "description": (
+                "Somebody other than the administrator was named: the sponsor is unchanged and a "
+                "pending proposal (the body) awaits that person's acceptance."
+            ),
+        },
+        402: {"model": ErrorResponse, "description": "Naming oneself: the administrator's plan cannot take the subtree."},
         404: NOT_FOUND_RESPONSE,
+        409: {
+            "model": ErrorResponse,
+            "description": (
+                "`sponsor_proposal_pending` (a proposal is already pending; its `proposal_id` is "
+                "returned) or `already_sponsor`."
+            ),
+        },
         422: {"description": "The sponsor account is not acceptable."},
         503: UNAVAILABLE_RESPONSE,
     },
@@ -688,6 +736,7 @@ async def admin_transfer_organization_sponsor(
     administrator: User = Depends(require_admin),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> OrganizationView:
+    """Propose a sponsor; it changes only when that person accepts, unless the administrator names themselves."""
     organization = await session.get(Organization, organization_id)
     if organization is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Organization not found.")
@@ -695,20 +744,17 @@ async def admin_transfer_organization_sponsor(
     sponsor = await session.get(User, payload.billing_sponsor_user_id)
     if sponsor is None or not sponsor.is_active:
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_sponsor", "Sponsor must be active.")
+    if sponsor.id == organization.billing_sponsor_user_id:
+        raise api_error(status.HTTP_409_CONFLICT, "already_sponsor", "That user already sponsors the organization.")
+    if sponsor.id != administrator.id:
+        proposal = await sponsor_proposals.create_proposal(
+            session, organization, sponsor, administrator, replace=payload.replace_pending_proposal
+        )
+        [view] = await sponsor_proposals.views(session, [proposal])
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content=jsonable_encoder(view))
 
-    await session.execute(select(User.id).where(User.id == sponsor.id).with_for_update())
-    subtree = set(await descendant_ids(session, organization.id))
-    sponsored = set(await sponsor_organization_ids(session, sponsor.id))
-    hypothetical = await organization_usage(session, subtree | sponsored)
-    await enforce_sponsor_usage(session, sponsor, hypothetical)
-
-    previous_sponsor_id = organization.billing_sponsor_user_id
-    await session.execute(
-        update(Organization)
-        .where(Organization.id.in_(subtree))
-        .values(billing_sponsor_user_id=sponsor.id)
-    )
-    organization.billing_sponsor_user_id = sponsor.id
+    previous_sponsor_id = await sponsor_proposals.transfer_sponsorship(session, organization, sponsor)
+    await sponsor_proposals.supersede_pending(session, organization, administrator)
 
     session.add(
         AuditEvent(
@@ -795,14 +841,14 @@ async def reconcile_abandoned_jobs(
     administrator: User = Depends(require_admin),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> dict:
-    settled = await metering.sweep_abandoned(get_gate(), session)
+    failed = await reconciler.sweep_abandoned(session)
     session.add(AuditEvent(
         actor_id=administrator.id,
         action="maintenance.jobs.reconciled",
         target_type="JobQueue",
-        detail={"settled": settled},
+        detail={"failed": failed},
     ))
-    return {"settled": settled}
+    return {"failed": failed}
 
 
 @router.post("/maintenance/purge", operation_id="adminPurgeExpiredData")
@@ -1070,139 +1116,3 @@ async def list_error_events(
         "limit": limit,
         "offset": offset,
     }
-
-
-class EngineRoutingMetricsResponse(BaseModel):
-    summary: dict[str, Any]
-    engines: dict[str, Any]
-
-
-class AdaptationObservationItem(BaseModel):
-    id: str
-    jobId: Optional[str] = None
-    adaptationLoopId: str
-    engineSelected: str
-    workloadFeatures: dict[str, Any]
-    candidateEvaluations: list[dict[str, Any]]
-    predictedMetrics: dict[str, Any]
-    actualMetrics: Optional[dict[str, Any]] = None
-    residuals: Optional[dict[str, Any]] = None
-    outcome: str
-    engineHealthSnapshot: Optional[dict[str, Any]] = None
-    createdAt: Optional[str] = None
-
-
-class EngineRoutingObservationsResponse(BaseModel):
-    total: int
-    limit: int
-    offset: int
-    observations: list[AdaptationObservationItem]
-
-
-class EngineRoutingRecalibrateResponse(BaseModel):
-    status: str
-    recalibratedAt: str
-    observationsProcessed: int
-    calibratedEngines: list[str]
-
-
-@router.get(
-    "/engine-routing/metrics",
-    response_model=EngineRoutingMetricsResponse,
-    summary="Retrieve engine routing runtime health metrics",
-    description="Returns autonomic health snapshots, observed failure rates, and active concurrency across candidate engines.",
-    operation_id="admin_engine_routing_metrics",
-)
-async def get_engine_routing_metrics() -> EngineRoutingMetricsResponse:
-    from ..engine_routing import get_health_monitor
-
-    monitor = get_health_monitor()
-    snapshots = monitor.get_all_snapshots()
-    healthy_count = sum(1 for s in snapshots.values() if s.get("healthStatus") == "HEALTHY")
-    degraded_count = sum(1 for s in snapshots.values() if s.get("healthStatus") == "DEGRADED")
-    active_total = sum(s.get("activeJobs", 0) for s in snapshots.values())
-
-    return EngineRoutingMetricsResponse(
-        summary={
-            "totalEngines": len(snapshots),
-            "healthyEngines": healthy_count,
-            "degradedEngines": degraded_count,
-            "activeJobs": active_total,
-        },
-        engines=snapshots,
-    )
-
-
-@router.get(
-    "/engine-routing/observations",
-    response_model=EngineRoutingObservationsResponse,
-    summary="List historical MAPE-K adaptation observations",
-    description="Returns paginated records of instance features, candidate evaluations, predicted metrics and actual execution telemetry.",
-    operation_id="admin_engine_routing_observations",
-)
-async def list_engine_routing_observations(
-    session: AsyncSession = Depends(session_dependency),
-    limit: int = Query(default=50, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
-    engine: Optional[str] = Query(default=None),
-) -> EngineRoutingObservationsResponse:
-    from ..db.models import AdaptationObservation
-
-    query = select(AdaptationObservation)
-    count_query = select(func.count()).select_from(AdaptationObservation)
-
-    if engine:
-        query = query.where(AdaptationObservation.engine_selected == engine)
-        count_query = count_query.where(AdaptationObservation.engine_selected == engine)
-
-    total = (await session.scalar(count_query)) or 0
-    rows = await session.execute(
-        query.order_by(AdaptationObservation.created_at.desc()).offset(offset).limit(limit)
-    )
-    obs_list = rows.scalars().all()
-
-    items = [
-        AdaptationObservationItem(
-            id=str(obs.id),
-            jobId=str(obs.job_id) if obs.job_id else None,
-            adaptationLoopId=obs.adaptation_loop_id,
-            engineSelected=obs.engine_selected,
-            workloadFeatures=obs.workload_features or {},
-            candidateEvaluations=obs.candidate_evaluations or [],
-            predictedMetrics=obs.predicted_metrics or {},
-            actualMetrics=obs.actual_metrics,
-            residuals=obs.residuals,
-            outcome=obs.outcome,
-            engineHealthSnapshot=obs.engine_health_snapshot,
-            createdAt=obs.created_at.isoformat() if obs.created_at else None,
-        )
-        for obs in obs_list
-    ]
-
-    return EngineRoutingObservationsResponse(
-        total=total,
-        limit=limit,
-        offset=offset,
-        observations=items,
-    )
-
-
-@router.post(
-    "/engine-routing/recalibrate",
-    response_model=EngineRoutingRecalibrateResponse,
-    summary="Trigger model recalibration across historical observations",
-    description="Updates empirical confidence densities and predictive models using stored observations.",
-    operation_id="admin_engine_routing_recalibrate",
-)
-async def recalibrate_engine_routing(
-    session: AsyncSession = Depends(session_dependency),
-) -> EngineRoutingRecalibrateResponse:
-    from ..engine_routing import get_adaptation_manager
-
-    result = await get_adaptation_manager().recalibrate(session)
-    return EngineRoutingRecalibrateResponse(
-        status=result.get("status", "recalibrated"),
-        recalibratedAt=result.get("recalibratedAt", utcnow().isoformat()),
-        observationsProcessed=result.get("observationsProcessed", 0),
-        calibratedEngines=result.get("calibratedEngines", []),
-    )

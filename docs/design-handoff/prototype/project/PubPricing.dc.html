@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Pricing</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#ffffff}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ob-fadeup{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+.ob-in{animation:ob-fadeup 350ms ease-out both}
+@media (prefers-reduced-motion: reduce){.ob-skel,.ob-in{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #ffffff; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="pub-pricing" route="/pricing" hint-size="100%,44px"></dc-import>
+<dc-import name="ShellPublicHeader" signed-in="{{who.signedIn}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" active="pricing" on-logout="{{logout}}" hint-size="100%,88px"></dc-import>
+<main style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 48px 16px 64px; display: flex; flex-direction: column; gap: 32px;">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;">
+<h1 style="margin: 0; font-size: clamp(36px, 5vw, 48px); font-weight: 700; letter-spacing: -1px;">Plans for every kind of binding work</h1>
+<p style="margin: 0; max-width: 640px; font-size: 18px; color: #4a4a4a;">Start free. Research accounts are free with a verified Universidad de Sevilla identity. Larger capacity is arranged by institutional agreement; there's no checkout.</p>
+<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; font-size: 12px;"><span style="border-radius: 9999px; border: 1px solid #b8b8b8; padding: 2px 10px;">Pricing version <span style="font-family: 'JetBrains Mono', monospace;">0.1.0</span></span><span style="border-radius: 9999px; border: 1px solid #b8b8b8; padding: 2px 10px;">Published Sep 1, 2026</span><span style="border-radius: 9999px; border: 1px solid #b8b8b8; padding: 2px 10px;">EUR · monthly periods</span><span title="sha256-a1b2…c3d4" style="border-radius: 9999px; border: 1px solid #b8b8b8; padding: 2px 10px;">Fingerprint a1b2…c3d4</span></div>
+</div>
+<div role="note" style="display: flex; gap: 10px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 14px 18px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" aria-hidden="true" style="flex-shrink: 0;"><path d="M12 3 2 20h20L12 3z"></path><path d="M12 10v4M12 17h.01"></path></svg><span><span style="font-weight: 600;">Development pricing.</span> These figures come from the 0.1.0 development copy and aren't verified against the live pricing. If they differ, the live release applies.</span></div>
+
+<div aria-live="polite" aria-busy="{{isLoading}}" style="display: flex; flex-direction: column; gap: 32px;">
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;"><div class="ob-skel" style="height: 124px; border-radius: 12px; background: #ededed;"></div><div class="ob-skel" style="height: 124px; border-radius: 12px; background: #ededed;"></div><div class="ob-skel" style="height: 124px; border-radius: 12px; background: #ededed;"></div><div class="ob-skel" style="height: 124px; border-radius: 12px; background: #ededed;"></div></div>
+<div class="ob-skel" style="height: 360px; border-radius: 16px; background: #ededed;"></div>
+</sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; border: 1px solid #b8b8b8; border-radius: 16px; padding: 64px 24px;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg><span style="font-size: 16px; font-weight: 500;">No public pricing release is live</span><span style="max-width: 460px; color: #6a6a6a;">There's no live pricing to show right now (404). Accounts keep the plan they already have.</span></div>
+</sc-if>
+<sc-if value="{{isError}}" hint-placeholder-val="{{false}}">
+<div role="alert" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 14px 18px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16h.01"></path></svg><span style="flex: 1; min-width: 240px;">{{errorText}}</span><button type="button" onClick="{{retry}}" style="height: 32px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;">Retry</button></div>
+</sc-if>
+
+<sc-if value="{{showCatalog}}" hint-placeholder-val="{{true}}">
+<sc-if value="{{showPlans}}" hint-placeholder-val="{{true}}">
+<div role="group" aria-label="Highlight a plan" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;">
+<sc-for list="{{planPills}}" as="p" hint-placeholder-count="4"><button type="button" aria-pressed="{{p.pressed}}" onClick="{{p.pick}}" style="{{p.style}}">{{p.label}}</button></sc-for>
+</div>
+
+<div style="overflow-x: auto;">
+<div style="min-width: 760px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: grid; grid-template-columns: 240px repeat(4, minmax(0, 1fr)); gap: 8px;">
+<span></span>
+<sc-for list="{{plans}}" as="p" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<div style="height: 124px; border-radius: 12px; background: {{p.grad}}; color: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 8px; box-shadow: {{p.ring}};">
+<span style="font-size: 20px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;">{{p.name}}</span>
+<span style="font-size: 16px; font-weight: 600;">{{p.price}}</span>
+<span style="font-size: 12px; opacity: 0.9;">{{p.unit}}</span>
+</div>
+<span style="font-size: 12px; line-height: 1.4; color: #4a4a4a; text-align: center; min-height: 34px;">{{p.desc}}</span>
+<sc-if value="{{p.current}}" hint-placeholder-val="{{false}}"><span style="align-self: center; border-radius: 9999px; background: #caf0f8; padding: 1px 10px; font-size: 12px; font-weight: 600;">Your current plan</span></sc-if>
+<sc-if value="{{p.hasCta}}" hint-placeholder-val="{{true}}"><a href="{{p.href}}" onClick="{{p.click}}" style="display: inline-flex; justify-content: center; align-items: center; height: 36px; border-radius: 8px; {{p.ctaStyle}} font-size: 13px; font-weight: 500; text-decoration: none;">{{p.cta}}</a></sc-if>
+</div>
+</sc-for>
+</div>
+
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="6">
+<section style="border: 1px solid #b8b8b8; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.04);">
+<button type="button" aria-expanded="{{g.open}}" onClick="{{g.toggle}}" style="width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 20px; border: 0; background: #fafafa; font-family: inherit; font-size: 15px; font-weight: 600; color: #1f1f1f; cursor: pointer; text-align: left;"><span>{{g.title}} <span style="font-weight: 400; font-size: 13px; color: #6a6a6a;">· {{g.sub}}</span></span><span aria-hidden="true">{{g.caret}}</span></button>
+<sc-if value="{{g.isOpen}}" hint-placeholder-val="{{true}}">
+<div class="ob-in">
+<sc-for list="{{g.rows}}" as="r" hint-placeholder-count="3">
+<div style="display: grid; grid-template-columns: 240px repeat(4, minmax(0, 1fr)); gap: 8px; align-items: center; padding: 12px 20px 12px 20px; border-top: 1px solid #ededed;">
+<div><div style="font-weight: 600; color: #2c2c2c;">{{r.name}}<sc-if value="{{r.confirm}}" hint-placeholder-val="{{false}}"> <span style="border-radius: 9999px; background: #fffbeb; border: 1px solid #fcd34d; padding: 0 6px; font-size: 10px; font-weight: 500;">To confirm</span></sc-if></div><div style="font-size: 12px; color: #6a6a6a;">{{r.desc}}</div><sc-if value="{{r.hasAffects}}" hint-placeholder-val="{{false}}"><div style="margin-top: 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 11px; color: #6a6a6a;">Applies to<sc-for list="{{r.affects}}" as="a" hint-placeholder-count="1"><span style="border-radius: 9999px; border: 1px solid #a9d6ea; background: #f1f8fc; padding: 0 8px; color: #023e8a;">{{a.label}}</span></sc-for></div></sc-if></div>
+<sc-for list="{{r.cells}}" as="c" hint-placeholder-count="4">
+<div title="{{c.exact}}" style="text-align: center; padding: 6px 0; border-radius: 8px; background: {{c.bg}};">
+<sc-if value="{{c.yes}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500; color: #023e8a;"><svg width="18" height="18" viewBox="0 0 24 24" fill="#0077b6" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M7.5 12.5 10.5 15.5 16.5 9" stroke="#ffffff" stroke-width="2.2" fill="none"></path></svg>Included</span></sc-if>
+<sc-if value="{{c.no}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: #6a6a6a;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m9 9 6 6M15 9l-6 6"></path></svg>Not included</span></sc-if>
+<sc-if value="{{c.addon}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: #4a4a4a;">With add-on</span></sc-if>
+<sc-if value="{{c.val}}" hint-placeholder-val="{{true}}"><span style="display: inline-block; border-radius: 9999px; background: #0077b6; color: #ffffff; padding: 3px 12px; font-size: 13px; font-weight: 700;">{{c.text}}</span></sc-if>
+<sc-if value="{{c.hasExact}}" hint-placeholder-val="{{false}}"><span style="display: block; margin-top: 2px; font-size: 11px; color: #6a6a6a;">{{c.exact}}</span></sc-if>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</section>
+</sc-for>
+</div>
+</div>
+<span style="font-size: 12px; color: #6a6a6a;">Rounded figures show the exact value underneath. Monthly limits renew each month; capacity limits are freed when work finishes; per-request ceilings apply to each job. Sponsored limits count across every organization a sponsor backs.</span>
+
+<section aria-labelledby="gates-title" style="display: flex; flex-direction: column; gap: 12px;">
+<h2 id="gates-title" style="margin: 0; font-size: 22px; font-weight: 600;">What has to have room before you start</h2>
+<p style="margin: 0; color: #4a4a4a; max-width: 760px;">Three features also check your limits each time you start something. Everything else only needs to be included in your plan.</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px;">
+<sc-for list="{{gates}}" as="g" hint-placeholder-count="3">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600;"><span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 8px; background: #0077b6; color: #ffffff; display: inline-flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></span>Start {{g.feature}}</span>
+<span style="font-size: 12px; color: #6a6a6a;">Needs all of:</span>
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<sc-for list="{{g.needs}}" as="n" hint-placeholder-count="2"><span style="display: flex; align-items: center; gap: 8px; border-radius: 10px; background: #f1f8fc; border: 1px solid #a9d6ea; padding: 6px 10px; font-size: 13px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#023e8a" stroke-width="2.4" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>{{n.label}}</span></sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</section>
+
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{false}}">
+<section aria-labelledby="mine-title" style="border: 1px solid #a9d6ea; background: #f1f8fc; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;">
+<h2 id="mine-title" style="margin: 0; font-size: 18px; font-weight: 600;">Available to your account</h2>
+<div role="group" aria-label="Pricing token (simulation)" style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px;"><span style="font-size: 12px; color: #6a6a6a; margin-right: 4px;">Token (simulation)</span><sc-for list="{{tokenStates}}" as="t" hint-placeholder-count="4"><button type="button" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}" style="{{t.style}}">{{t.label}}</button></sc-for></div>
+</div>
+<span style="font-size: 13px; color: #4a4a4a;">{{tokenNote}}</span>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px;">
+<sc-for list="{{myFeatures}}" as="f" hint-placeholder-count="6">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 10px 12px;"><span style="font-size: 13px;">{{f.name}}</span><span style="border-radius: 9999px; padding: 1px 10px; font-size: 12px; font-weight: 500; border: 1px solid {{f.border}}; background: {{f.bg}};">{{f.state}}</span></div>
+</sc-for>
+</div>
+<span style="display: flex; flex-wrap: wrap; gap: 12px;"><a href="AcctUsage.dc.html" style="font-weight: 500;">See my usage</a><span style="font-size: 12px; color: #6a6a6a;">These states only guide the interface. The server checks every action and your real balance.</span></span>
+</section>
+</sc-if>
+
+<section aria-labelledby="addons-title" style="display: flex; flex-direction: column; gap: 16px;">
+<h2 id="addons-title" style="margin: 0; text-align: center; font-size: clamp(28px, 4vw, 40px); font-weight: 700;">Add-ons</h2>
+<p style="margin: 0; text-align: center; color: #4a4a4a;">Arranged under an agreement, in whole packs. BASIC and RESEARCH have no add-ons.</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px;">
+<sc-for list="{{addons}}" as="a" hint-placeholder-count="6">
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.04);">
+<div style="display: flex; align-items: center; gap: 10px;"><span aria-hidden="true" style="width: 36px; height: 36px; border-radius: 9999px; background: #caf0f8; color: #023e8a; display: inline-flex; align-items: center; justify-content: center; font-weight: 700;">{{a.initial}}</span><span style="flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500;">{{a.id}}</span><span style="border-radius: 9999px; background: #0077b6; color: #ffffff; padding: 2px 10px; font-size: 12px; font-weight: 700;">Contact us</span></div>
+<span style="color: #2c2c2c;">{{a.effect}}</span>
+<span style="font-size: 12px; color: #6a6a6a;">For {{a.plans}} · {{a.qty}} · per {{a.unit}}</span>
+<sc-if value="{{a.showMine}}" hint-placeholder-val="{{false}}"><span style="align-self: flex-start; border-radius: 9999px; padding: 1px 10px; font-size: 12px; font-weight: 500; border: 1px solid {{a.mineBorder}}; background: {{a.mineBg}};">{{a.mine}}</span></sc-if>
+</article>
+</sc-for>
+</div>
+</section>
+
+<section aria-labelledby="limits-title" style="display: flex; flex-direction: column; gap: 12px;">
+<h2 id="limits-title" style="margin: 0; font-size: 22px; font-weight: 600;">What happens when you reach a limit</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Reduced</span><span style="font-weight: 600;">Budgets above your ceiling are lowered</span><span style="color: #4a4a4a;">A time budget or iteration count above your plan runs at the ceiling, with an OPTION_CLAMPED note showing requested and applied values.</span></div>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Wait</span><span style="font-weight: 600;">Out of monthly quota or busy slots</span><span style="color: #4a4a4a;">A used-up monthly quota (402) renews on its date. Busy job slots (429) free up in seconds. If both happen, you see the 402.</span></div>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Rejected</span><span style="font-weight: 600;">The problem is too big for the plan</span><span style="color: #4a4a4a;">A binding space above your complexity ceiling can't run in a smaller form. Reduce candidates or tasks, or ask for an agreement.</span></div>
+</div>
+<a href="SysStates.dc.html" style="font-weight: 500;">See every state in the gallery</a>
+</section>
+
+<section style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; border: 1px solid #a9d6ea; background: #f1f8fc; border-radius: 16px; padding: 20px;">
+<span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 6px; background: #023e8a; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-weight: 600;">US</span>
+<div style="flex: 1; min-width: 260px;"><div style="font-weight: 600;">RESEARCH for Universidad de Sevilla</div><div style="color: #4a4a4a;">Free for accounts with a verified CAS identity. It's a plan, not a role: it doesn't make you an admin or change your organization roles. Unlinking the identity can move you back to BASIC.</div></div>
+<a href="{{casHref}}" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">{{casLabel}}</a>
+</section>
+</sc-if>
+</sc-if>
+</div>
+</main>
+<sc-if value="{{contactOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px;">
+<button type="button" aria-label="Close" onClick="{{closeContact}}" style="position: absolute; inset: 0; border: 0; background: rgba(31,31,31,0.3); backdrop-filter: blur(4px); cursor: pointer;"></button>
+<div role="dialog" aria-modal="true" aria-labelledby="contact-title" style="position: relative; width: 100%; max-width: 480px; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 24px; box-shadow: 0 16px 48px -8px rgba(0,0,0,0.12); display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; justify-content: space-between; gap: 12px;"><h2 id="contact-title" style="margin: 0; font-family: 'PP Editorial Old', Georgia, serif; font-weight: 400; font-size: 22px;">Ask about {{contactPlan}}</h2><button type="button" onClick="{{closeContact}}" aria-label="Close" style="border: 0; background: transparent; font-size: 20px; cursor: pointer;">×</button></div>
+<span style="color: #4a4a4a;">{{contactPlan}} is arranged as an institutional agreement. An administrator updates your contract; nothing is charged here.</span>
+<ul style="margin: 0; padding-left: 18px; color: #2c2c2c; display: flex; flex-direction: column; gap: 4px;"><li>Who it's for: your organization or group</li><li>Expected usage: solves, study runs, storage</li><li>Add-ons you'd need</li></ul>
+<div style="border: 1px dashed #a8a8a8; border-radius: 12px; padding: 10px 12px; font-size: 13px; color: #4a4a4a;">Contact address: [institutional contact], not included in the fixtures.</div>
+<button type="button" onClick="{{closeContact}}" style="height: 40px; border: 0; border-radius: 8px; background: #0077b6; color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;">Got it</button>
+</div>
+</div>
+</sc-if>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":3400}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "visitor", st: "success", scenario: "503", sel: -1, open: ["Authoring", "Solving", "Monthly"], view: "plans", token: "present", contact: "" };
+  }
+  personas() {
+    return {
+      visitor: { key: "visitor", signedIn: false, name: "", email: "", initials: "", plan: "" },
+      lucia: { key: "lucia", signedIn: true, name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV", plan: "RESEARCH" },
+      marco: { key: "marco", signedIn: true, name: "Marco Díaz", email: "marco@example.invalid", initials: "MD", plan: "BASIC" },
+      sofia: { key: "sofia", signedIn: true, name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR", plan: "BASIC", pending: true },
+      nora: { key: "nora", signedIn: true, name: "Nora Campos", email: "nora@example.invalid", initials: "NC", plan: "ADVANCED" },
+      iker: { key: "iker", signedIn: true, name: "Iker Mora", email: "iker@example.invalid", initials: "IM", plan: "PRO" },
+      pablo: { key: "pablo", signedIn: true, name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI", plan: "PRO" }
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+  setPersona(k) { this.setState({ persona: k }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const st = s.st;
+    const PL = ["BASIC", "ADVANCED", "RESEARCH", "PRO"];
+    const grads = ["linear-gradient(135deg, #0077b6, #023e8a)", "linear-gradient(135deg, #0096c7, #0077b6)", "linear-gradient(135deg, #023e8a, #1f1f1f)", "linear-gradient(135deg, #0090c8, #023e8a)"];
+    const tab = (on) => "padding: 10px 16px; border: 0; background: transparent; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: -1px; " + (on ? "color: #0077b6; border-bottom: 2px solid #0077b6;" : "color: #6a6a6a; border-bottom: 2px solid transparent;");
+    const ctaPrimary = "background: #0077b6; color: #ffffff;";
+    const ctaSecondary = "border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f;";
+    const openContact = (p) => (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ contact: p }); };
+    const noop = () => {};
+    const planMeta = {
+      BASIC: { desc: "For individual evaluation and small experiments.", price: "Free", unit: "default plan",cta: who.signedIn ? "" : "Sign up", href: "AuthRegister.dc.html", click: noop },
+      ADVANCED: { desc: "Advanced analytics and larger capacity.", price: "Contact us",unit: "institutional agreement", cta: "Contact us", href: "#", click: openContact("ADVANCED") },
+      RESEARCH: { desc: "For verified Universidad de Sevilla accounts, with institutional identity.", price: "Free",unit: "with verified CAS", cta: who.signedIn ? (who.plan === "RESEARCH" ? "" : "Link CAS identity") : "Log in with CAS", href: who.signedIn ? "AcctIdentities.dc.html" : "AuthLogin.dc.html", click: noop },
+      PRO: { desc: "High-capacity operation and federation.", price: "Contact us",unit: "institutional agreement", cta: "Contact us", href: "#", click: openContact("PRO") }
+    };
+    const plans = PL.map((p, i) => {
+      const m = planMeta[p];
+      const cta = who.plan === p ? "" : m.cta;
+      return { name: p, price: m.price, unit: m.unit, desc: m.desc, grad: grads[i], ring: s.sel === i ? "0 0 0 3px #ffffff, 0 0 0 5px #0077b6" : "none", current: who.plan === p, hasCta: !!cta, cta: cta, href: m.href, click: m.click, ctaStyle: (p === "ADVANCED" || p === "PRO") ? ctaSecondary : ctaPrimary };
+    });
+    const planPills = [{ label: "Compare all", i: -1 }].concat(PL.map((p, i) => ({ label: p, i: i }))).map((x) => ({ label: x.label, pressed: s.sel === x.i ? "true" : "false", pick: () => this.setState({ sel: x.i }), style: "height: 30px; padding: 0 12px; border-radius: 9999px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; " + (s.sel === x.i ? "border: 1px solid #0077b6; background: #0077b6; color: #ffffff;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #4a4a4a;") }));
+    const Y = { k: "yes" }, N = { k: "no" }, A = { k: "addon" };
+    const v = (text, exact) => ({ k: "val", text: text, exact: exact || text });
+    const feat = (name, desc, cells) => ({ name: name, desc: desc, cells: cells });
+    const fg = [
+      ["Authoring", "Feature", [feat("Authoring", "Author and validate BIM v1 and qos-binding/v1 packages", [Y, Y, Y, Y])]],
+      ["Solving", "Feature", [feat("Solve", "Run local and evolutionary engines", [Y, Y, Y, Y])]],
+      ["Analysis", "Features", [feat("Studies", "Reproducible comparative binding studies", [Y, Y, Y, Y]), feat("Advanced analytics", "Pareto, convergence, stability, feasibility, engine comparison", [N, Y, Y, Y])]],
+      ["Collaboration", "Features", [feat("Collaboration", "Organizations, projects, collections and reports", [Y, Y, Y, Y]), feat("API access", "API keys with permissions and boundaries", [Y, Y, Y, Y])]],
+      ["Federation", "Feature", [feat("Federated engines", "Register and run exact federated engine revisions", [Y, Y, Y, Y])]],
+      ["Reproducibility", "Features", [feat("Reproducible export", "Packages with checksums and provenance", [Y, Y, Y, Y]), feat("Publishing", "Freeze reports and publish results", [Y, Y, Y, Y]), feat("Reproducibility archive", "Extended archive and audit retention", [N, A, N, Y])]],
+      ["Institutional", "Feature", [feat("Institutional identity", "Universidad de Sevilla identity in signed-in pages", [N, N, Y, N])]],
+      ["Monthly", "Renew each month", [
+        Object.assign(feat("Capacity units", "Compute capacity across solves", [v("5,000"), v("100,000"), v("1,000,000"), v("100,000")]), { confirm: true }),
+        feat("Solves", "Local solves started", [v("10"), v("25"), v("50"), v("Unlimited")]),
+        feat("Solver time", "Wall-clock solver time", [v("15 min", "900 s"), v("5 h", "18,000 s"), v("8.3 h", "30,000 s"), v("50 h", "180,000 s")]),
+        feat("Federated solves", "Federated solves started", [v("5"), v("10"), v("100"), v("1,000")]),
+        feat("Study runs", "Comparative study executions", [v("3"), v("50"), v("100"), v("1,000")])
+      ]],
+      ["Capacity", "Freed when work ends", [
+        feat("Concurrent jobs", "Jobs running at once", [v("1"), v("2"), v("3"), v("8")]),
+        feat("Federated engines", "Engine revisions available", [v("1"), v("3"), v("5"), v("20")]),
+        feat("API keys", "Active keys", [v("1"), v("10"), v("25"), v("Unlimited")])
+      ]],
+      ["Per request", "Ceilings for each job", [
+        feat("Max time per job", "Wall-clock budget", [v("1 min", "60 s"), v("10 min", "600 s"), v("15 min", "900 s"), v("30 min", "1,800 s")]),
+        feat("Max iterations", "Iterations or evaluations", [v("10,000"), v("500,000"), v("1,000,000"), v("10,000,000")]),
+        feat("Max package size", "BIM package per request", [v("8 MiB", "8,388,608 bytes"), v("64 MiB", "67,108,864 bytes"), v("128 MiB", "134,217,728 bytes"), v("512 MiB", "536,870,912 bytes")]),
+        feat("Max problem size", "Binding space, as a power of ten", [v("10⁹"), v("10¹⁵"), v("10²⁰"), v("Unlimited")]),
+        feat("Job history", "Retention of finished jobs", [v("7 days"), v("90 days"), v("180 days"), v("365 days")])
+      ]],
+      ["Sponsored", "Counted across a sponsor's organizations", [
+        feat("Organizations", "Sponsored organizations", [v("1"), v("2"), v("5"), v("10")]),
+        feat("Members", "Unique members", [v("2"), v("10"), v("15"), v("100")]),
+        feat("Projects", "All projects", [v("3"), v("25"), v("50"), v("500")]),
+        feat("Private projects", "Private projects", [v("1"), v("15"), v("30"), v("500")]),
+        feat("Collections", "Curated collections", [v("2"), v("25"), v("50"), v("500")]),
+        feat("Studies", "Study definitions", [v("1"), v("10"), v("25"), v("250")]),
+        feat("Storage", "Artifact storage", [v("100 MiB", "104,857,600 bytes"), v("1 GiB", "1,073,741,824 bytes"), v("5 GiB", "5,368,709,120 bytes"), v("20 GiB", "21,474,836,480 bytes")])
+      ]]
+    ];
+    const SV = "Solve", FE = "Federated engines", ST = "Studies", CO = "Collaboration", RE = "Reproducible export";
+    const affectsMap = {
+      "Monthly": { "Capacity units": [SV], "Solves": [SV], "Solver time": [SV], "Federated solves": [FE], "Study runs": [ST] },
+      "Capacity": { "Concurrent jobs": [SV, FE, ST], "Federated engines": [FE], "API keys": ["API access"] },
+      "Per request": { "Max time per job": [SV, FE], "Max iterations": [SV], "Max package size": ["Authoring", SV], "Max problem size": [SV], "Job history": [RE] },
+      "Sponsored": { "Organizations": [CO], "Members": [CO], "Projects": [CO], "Private projects": [CO], "Collections": [CO], "Studies": [ST], "Storage": [RE] }
+    };
+    const groups = fg.map(([title, sub, rows]) => {
+      const isOpen = s.open.indexOf(title) >= 0;
+      const am = affectsMap[title] || {};
+      return {
+        title: title, sub: sub, isOpen: isOpen, open: isOpen ? "true" : "false", caret: isOpen ? "−" : "+",
+        toggle: () => this.setState({ open: isOpen ? s.open.filter((x) => x !== title) : s.open.concat([title]) }),
+        rows: rows.map((r) => Object.assign({ confirm: false }, r, {
+          affects: (am[r.name] || []).map((l) => ({ label: l })), hasAffects: !!am[r.name],
+          cells: r.cells.map((c, i) => ({ yes: c.k === "yes", no: c.k === "no", addon: c.k === "addon", val: c.k === "val", text: c.text || "", exact: c.exact || (c.k === "yes" ? "Included" : c.k === "no" ? "Not included" : c.k === "addon" ? "Available with an add-on" : ""), hasExact: c.k === "val" && !!c.exact && c.exact !== c.text, bg: s.sel === i ? "rgba(0,119,182,0.08)" : "transparent" }))
+        }))
+      };
+    });
+    const gates = [
+      { feature: "a solve", needs: [{ label: "Solves left this month" }, { label: "A free job slot" }] },
+      { feature: "a federated solve", needs: [{ label: "Federated solves left this month" }, { label: "A free job slot" }] },
+      { feature: "a study run", needs: [{ label: "Study runs left this month" }] }
+    ];
+    const planFeatures = {
+      BASIC: { advancedAnalytics: false, reproducibilityArchive: false, institutionalBranding: false },
+      ADVANCED: { advancedAnalytics: true, reproducibilityArchive: false, institutionalBranding: false },
+      RESEARCH: { advancedAnalytics: true, reproducibilityArchive: false, institutionalBranding: true },
+      PRO: { advancedAnalytics: true, reproducibilityArchive: true, institutionalBranding: false }
+    };
+    const fnames = [["authoring", "Authoring"], ["solve", "Solve"], ["federatedEngines", "Federated engines"], ["apiAccess", "API access"], ["collaboration", "Collaboration"], ["studies", "Studies"], ["advancedAnalytics", "Advanced analytics"], ["reproducibleExport", "Reproducible export"], ["publishing", "Publishing"], ["reproducibilityArchive", "Reproducibility archive"], ["institutionalBranding", "Institutional identity"]];
+    const tok = who.pending ? "absent" : s.token;
+    const myFeatures = fnames.map(([k, label]) => {
+      const pf = planFeatures[who.plan] || {};
+      const on = pf.hasOwnProperty(k) ? pf[k] : true;
+      let state = "Checking…", bg = "#fafafa", border = "#b8b8b8";
+      if (tok === "present") { state = on ? "Enabled" : "Not enabled"; bg = on ? "#f0fdf4" : "#ffffff"; border = on ? "#86efac" : "#b8b8b8"; }
+      else if (tok === "absent" || tok === "expired") { state = "Can't confirm"; bg = "#fffbeb"; border = "#fcd34d"; }
+      return { name: label, state: state, bg: bg, border: border };
+    });
+    const tokenDefs = [["present", "Present"], ["loading", "Loading"], ["absent", "Absent"], ["expired", "Expired"]];
+    const tokenStates = tokenDefs.map(([k, l]) => ({ label: l, pressed: tok === k ? "true" : "false", pick: () => this.setState({ token: k }), style: "height: 26px; padding: 0 8px; border-radius: 6px; font-family: inherit; font-size: 12px; cursor: pointer; " + (tok === k ? "border: 1px solid #0077b6; background: #0077b6; color: #ffffff;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #4a4a4a;") }));
+    const tokenNote = who.pending ? "Your contract is still pending, so no feature can be confirmed yet. Nothing is blocked because of that; the server decides." : (tok === "present" ? "Read from your signed pricing token for the " + who.plan + " plan." : tok === "loading" ? "Checking your plan features…" : "We can't confirm your features right now, so none is shown as enabled or disabled.");
+    const ad = [
+      ["COMPUTE_PACK", "C", "+100 solves, +2 h solver time (7,200 s) and +250 federated solves", ["ADVANCED", "PRO"], "1–10 packs", "month"],
+      ["COLLABORATION_PACK", "M", "+5 members, +10 projects and +5 private projects", ["ADVANCED", "PRO"], "1–10 packs", "month"],
+      ["STORAGE_PACK", "S", "+5 GiB of artifact storage", ["ADVANCED", "PRO"], "1–20 packs", "month"],
+      ["FEDERATION_PACK", "F", "+2 federated engines and +500 federated solves", ["PRO"], "1–10 packs", "month"],
+      ["CONCURRENCY_PACK", "J", "+1 concurrent job", ["PRO"], "1–4 packs", "month"],
+      ["REPRODUCIBILITY_ARCHIVE", "R", "Turns on the reproducibility archive and extends job history by 275 days (to 365)", ["ADVANCED"], "1 per account", "account"]
+    ];
+    const addons = ad.map(([id, initial, effect, pls, qty, unit]) => {
+      const avail = pls.indexOf(who.plan) >= 0;
+      return { id: id, initial: initial, effect: effect, plans: pls.join(", "), qty: qty, unit: unit, showMine: who.signedIn, mine: avail ? "Available under agreement" : "Not available on your plan", mineBg: avail ? "#f0fdf4" : "#fafafa", mineBorder: avail ? "#86efac" : "#b8b8b8" };
+    });
+    return {
+      persona: s.persona, st: st, na: ["forbidden"],
+      scenarios: [{ id: "503", label: "503 pricing unavailable" }, { id: "502", label: "502 digest mismatch" }],
+      scenario: s.scenario,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState({ st: x }),
+      setScenario: (x) => this.setState({ scenario: x, st: "error" }),
+      logout: () => this.setPersona("visitor"),
+      who: who,
+      isLoading: st === "loading", isEmpty: st === "empty", isError: st === "error", showCatalog: st === "success",
+      errorText: s.scenario === "502" ? "The pricing document doesn't match its recorded digest (502 · pricing_digest_mismatch), so it isn't shown. Showing unverified plans could mislead you." : "Pricing can't be loaded right now (503 · pricing_unavailable). The catalog is hidden rather than showing figures we can't verify.",
+      retry: () => { this.setState({ st: "loading" }); this.timer = setTimeout(() => this.setState({ st: "success" }), 1100); },
+      showPlans: true,
+      planPills: planPills, plans: plans, groups: groups, gates: gates,
+      tokenStates: tokenStates, tokenNote: tokenNote, myFeatures: myFeatures,
+      addons: addons,
+      casHref: who.signedIn ? "AcctIdentities.dc.html" : "AuthLogin.dc.html",
+      casLabel: who.signedIn ? "Manage identities" : "Log in with CAS",
+      contactOpen: !!s.contact, contactPlan: s.contact, closeContact: () => this.setState({ contact: "" })
+    };
+  }
+}
+</script>
+</body>
+</html>

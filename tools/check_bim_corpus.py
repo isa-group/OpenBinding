@@ -4,27 +4,29 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "openbinding-gateway" / "src"))
 DERIVED_ROOTS = {
     ROOT / "experimentation" / "icsoc" / "out" / "bim-v1",
     ROOT / "datasets",
+    # Frontend test fixtures are not part of the checked-in corpus.
+    ROOT / "frontend",
 }
 
 
-def package_directories() -> list[Path]:
+def package_directories(base: Path = ROOT, excluded: set[Path] | None = None) -> list[Path]:
     skipped = {".git", ".pnpm-store", "node_modules", "target", "dist", ".venv", "__pycache__"}
+    excluded = DERIVED_ROOTS if excluded is None else excluded
     roots: list[Path] = []
-    for directory, subdirectories, filenames in os.walk(ROOT):
+    for directory, subdirectories, filenames in os.walk(base):
         current = Path(directory)
         subdirectories[:] = [
             name
             for name in subdirectories
-            if name not in skipped and current / name not in DERIVED_ROOTS
+            # Hidden directories (the QA worktree's ``.qa-tmp-*`` TMPDIR, ``.git``...) never hold corpus packages.
+            if name not in skipped and not name.startswith(".") and current / name not in excluded
         ]
         if "instance.json" in filenames:
             roots.append(Path(directory))
@@ -33,8 +35,7 @@ def package_directories() -> list[Path]:
 
 
 def compile_one(directory: Path) -> tuple[str, str | None, str | None]:
-    from openbinding_gateway.v1.compiler import compile_instance
-    from openbinding_gateway.v1.package import load_package
+    from bim_core import compile_instance, load_package
 
     try:
         problem = compile_instance(load_package(directory))

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Examples</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#ffffff}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ob-fadeup{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+.ob-in{animation:ob-fadeup 300ms ease-out both}
+@media (prefers-reduced-motion: reduce){.ob-skel,.ob-in{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #ffffff; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="lang-examples" route="/examples" hint-size="100%,44px"></dc-import>
+<dc-import name="ShellPublicHeader" signed-in="{{who.signedIn}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" active="language" on-logout="{{logout}}" hint-size="100%,88px"></dc-import>
+<main style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 40px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<nav aria-label="Language sections" style="display: flex; flex-wrap: wrap; gap: 4px; font-size: 13px;"><a href="LangProfiles.dc.html" style="padding: 4px 10px; border-radius: 9999px; color: #4a4a4a; text-decoration: none; background: #fafafa;">Profiles &amp; dialects</a><a href="LangSchemas.dc.html" style="padding: 4px 10px; border-radius: 9999px; color: #4a4a4a; text-decoration: none; background: #fafafa;">Schemas</a><span aria-current="page" style="padding: 4px 10px; border-radius: 9999px; background: #0077b6; color: #ffffff;">Examples</span><a href="PubWorkbench.dc.html" style="padding: 4px 10px; border-radius: 9999px; color: #4a4a4a; text-decoration: none; background: #fafafa;">Workbench</a></nav>
+<h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-weight: 400; font-size: 40px; line-height: 1.1;">Example packages</h1>
+<p style="margin: 0; max-width: 720px; color: #4a4a4a;">Official BIM packages to learn from or start a case with. Download the .bim.zip or open it straight in the workbench to see its structure.</p>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+<label style="position: relative; flex: 1; min-width: 220px; max-width: 400px;"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Search examples</span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6a6a6a" stroke-width="2" aria-hidden="true" style="position: absolute; left: 12px; top: 10px;"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+<input value="{{q}}" onChange="{{typeQ}}" placeholder="Search by path…" style="box-sizing: border-box; width: 100%; height: 36px; padding: 0 12px 0 36px; border: 1px solid #c7c7c7; border-radius: 12px; font-family: inherit; font-size: 14px;"></label>
+<div role="group" aria-label="Family" style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{families}}" as="f" hint-placeholder-count="5"><button type="button" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}" style="{{f.style}}">{{f.label}}</button></sc-for></div>
+</div>
+
+<div aria-live="polite" aria-busy="{{isLoading}}">
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}"><div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;"><div class="ob-skel" style="height: 180px; border-radius: 16px; background: #ededed;"></div><div class="ob-skel" style="height: 180px; border-radius: 16px; background: #ededed;"></div><div class="ob-skel" style="height: 180px; border-radius: 16px; background: #ededed;"></div></div></sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; border: 1px solid #b8b8b8; border-radius: 16px; padding: 64px 24px;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1" aria-hidden="true"><path d="M4 7h16v13H4z"></path><path d="M8 7V4h8v3"></path></svg><span style="font-size: 14px; font-weight: 500;">No examples installed</span><span style="font-size: 13px; color: #6a6a6a; max-width: 460px;">This deployment doesn't ship example packages. You can still validate your own package in the workbench.</span><a href="PubWorkbench.dc.html" style="font-weight: 500;">Open the workbench</a></div></sc-if>
+<sc-if value="{{isError}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16h.01"></path></svg><span style="flex: 1; min-width: 220px;"><span style="font-weight: 500;">This example package is corrupt (422 · invalid_example).</span> The download stopped; other examples are unaffected.</span><button type="button" onClick="{{retry}}" style="height: 32px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;">Retry</button></div></sc-if>
+<sc-if value="{{showList}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 24px;">
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="4">
+<section style="display: flex; flex-direction: column; gap: 10px;">
+<h2 style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #8a8a8a;">{{g.label}} <span style="font-weight: 400; letter-spacing: 0; text-transform: none; color: #6a6a6a;">· {{g.count}}</span></h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px;">
+<sc-for list="{{g.items}}" as="e" hint-placeholder-count="1">
+<article class="ob-in" style="display: flex; flex-direction: column; gap: 10px; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<span aria-hidden="true" style="width: 36px; height: 36px; border-radius: 12px; background: #f1f8fc; color: #0077b6; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600;">{{g.glyph}}</span>
+<div style="flex: 1; min-width: 0;"><div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; overflow-wrap: anywhere;">{{e.path}}</div><div style="font-size: 12px; color: #6a6a6a;">{{e.note}}</div></div>
+<sc-if value="{{e.placeholder}}" hint-placeholder-val="{{false}}"><span style="border-radius: 9999px; background: #fffbeb; border: 1px solid #fcd34d; padding: 0 8px; font-size: 11px; font-weight: 500;">Placeholder</span></sc-if>
+<sc-if value="{{e.fixture}}" hint-placeholder-val="{{false}}"><span style="border-radius: 9999px; background: #caf0f8; padding: 0 8px; font-size: 11px; font-weight: 500;">Fixture</span></sc-if>
+</div>
+<sc-if value="{{e.fixture}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px;"><span style="border-radius: 4px; background: #fafafa; padding: 2px 6px;">6 tasks</span><span style="border-radius: 4px; background: #fafafa; padding: 2px 6px;">24 candidates</span><span style="border-radius: 4px; background: #fafafa; padding: 2px 6px;">qos-binding/v1</span></div>
+<div aria-label="Task structure" style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #4a4a4a;"><span style="border: 1px solid #0077b6; border-radius: 6px; padding: 1px 6px;">autenticar</span>→<span style="border: 1px solid #a9d6ea; background: #f1f8fc; border-radius: 6px; padding: 1px 6px;">AND ×2</span>→<span style="border: 1px solid #a9d6ea; background: #f1f8fc; border-radius: 6px; padding: 1px 6px;">XOR ×2</span>→<span style="border: 1px dashed #a8a8a8; border-radius: 6px; padding: 1px 6px;">notificar</span></div></sc-if>
+<sc-if value="{{e.placeholder}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #6a6a6a;">The example list returns paths only. Task counts and dialects appear after you open the package in the workbench.</span></sc-if>
+<sc-if value="{{e.downloaded}}" hint-placeholder-val="{{false}}"><div role="status" style="display: flex; align-items: center; gap: 8px; border: 1px solid #86efac; background: #f0fdf4; border-radius: 8px; padding: 6px 10px; font-size: 12px;"><span style="flex: 1; font-family: 'JetBrains Mono', monospace;">{{e.digest}}</span><button type="button" onClick="{{e.copy}}" style="border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 12px; font-weight: 500; color: #0077b6; cursor: pointer;">{{e.copyLabel}}</button></div></sc-if>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto;">
+<a href="PubWorkbench.dc.html" style="display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 8px; background: #0077b6; color: #ffffff; font-size: 13px; font-weight: 500; text-decoration: none;">Open in workbench</a>
+<button type="button" onClick="{{e.download}}" style="height: 32px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 13px; cursor: pointer;">Download .bim.zip</button>
+<a href="{{importHref}}" title="{{importTitle}}" style="display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #a8a8a8; color: #1f1f1f; font-size: 13px; text-decoration: none;">{{importLabel}}</a>
+</div>
+</article>
+</sc-for>
+</div>
+</section>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</main>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "visitor", st: "success", q: "", fam: "all", dl: [], copied: "" };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, name: "", email: "", initials: "" },
+      lucia: { signedIn: true, name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV" },
+      marco: { signedIn: true, name: "Marco Díaz", email: "marco@example.invalid", initials: "MD" },
+      sofia: { signedIn: true, name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR" },
+      nora: { signedIn: true, name: "Nora Campos", email: "nora@example.invalid", initials: "NC" },
+      iker: { signedIn: true, name: "Iker Mora", email: "iker@example.invalid", initials: "IM" },
+      pablo: { signedIn: true, name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI" }
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+  setPersona(k) { this.setState({ persona: k }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const st = s.st;
+    const raw = [
+      { id: "fx", fam: "demo", path: "checkout-flow.bim.zip", note: "Flujo de checkout · revision 2", fixture: true, placeholder: false, digest: "sha256-b2c3d4e5…b2c3d4e5" },
+      { id: "d1", fam: "demo", path: "demo/[example].bim.zip", note: "Demo family", fixture: false, placeholder: true, digest: "sha256-…" },
+      { id: "p1", fam: "placement", path: "placement/[example].bim.zip", note: "Placement family", fixture: false, placeholder: true, digest: "sha256-…" },
+      { id: "b1", fam: "bpmn", path: "bpmn/[example].bim.zip", note: "BPMN family", fixture: false, placeholder: true, digest: "sha256-…" },
+      { id: "k1", fam: "benchmark", path: "benchmark/[example].bim.zip", note: "Benchmark family", fixture: false, placeholder: true, digest: "sha256-…" }
+    ];
+    const q = s.q.toLowerCase();
+    const fams = [["demo", "Demo", "DE"], ["placement", "Placement", "PL"], ["bpmn", "BPMN", "BP"], ["benchmark", "Benchmark", "BM"]];
+    const groups = fams.filter(([k]) => s.fam === "all" || s.fam === k).map(([k, label, glyph]) => {
+      const items = raw.filter((e) => e.fam === k && (!q || (e.path + " " + e.note).toLowerCase().indexOf(q) >= 0)).map((e) => Object.assign({}, e, {
+        downloaded: s.dl.indexOf(e.id) >= 0,
+        download: () => this.setState({ dl: s.dl.concat([e.id]) }),
+        copy: () => this.setState({ copied: e.id }),
+        copyLabel: s.copied === e.id ? "Copied" : "Copy digest"
+      }));
+      return { label: label, glyph: glyph, items: items, count: items.length + (items.length === 1 ? " package" : " packages") };
+    }).filter((g) => g.items.length > 0);
+    const pill = (on) => "height: 30px; padding: 0 12px; border-radius: 12px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; " + (on ? "border: 1px solid rgba(0,119,182,0.3); background: rgba(0,119,182,0.05); color: #0077b6;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #4a4a4a;");
+    const families = [["all", "All"]].concat(fams.map((f) => [f[0], f[1]])).map(([k, l]) => ({ label: l, pressed: s.fam === k ? "true" : "false", pick: () => this.setState({ fam: k }), style: pill(s.fam === k) }));
+    return {
+      persona: s.persona, st: st, na: ["forbidden"], scenarios: [], scenario: "",
+      setPersona: (k) => this.setPersona(k),
+      setSt: (v) => this.setState({ st: v }),
+      setScenario: () => {},
+      logout: () => this.setPersona("visitor"),
+      who: who,
+      q: s.q, typeQ: (e) => this.setState({ q: e.target.value }),
+      families: families,
+      groups: groups,
+      isLoading: st === "loading", isEmpty: st === "empty", isError: st === "error",
+      showList: st === "success" || st === "error",
+      retry: () => { this.setState({ st: "loading" }); this.timer = setTimeout(() => this.setState({ st: "success" }), 1000); },
+      importHref: who.signedIn ? "CaseList.dc.html" : "AuthLogin.dc.html",
+      importTitle: who.signedIn ? "" : "Log in to import into a project",
+      importLabel: who.signedIn ? "Import as case" : "Log in to import"
+    };
+  }
+}
+</script>
+</body>
+</html>

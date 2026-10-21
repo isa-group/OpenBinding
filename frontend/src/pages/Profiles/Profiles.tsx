@@ -1,103 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Braces, Check, GitBranch, PackageCheck, Puzzle, ShieldCheck } from 'lucide-react';
-import { Liquid } from 'liquid-gooey';
+import { useState } from 'react';
+import { Archive } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { apiClient, type BimDialect, type BimProfile } from '../../api/client';
-import { Alert } from '../../components/ui/Alert';
+import { apiClient, bimResourceKey, HttpError, type BimDialect, type BimProfile, type RegisteredResource } from '../../api/client';
+import { Button } from '../../components/ui/Button';
+import { Chip } from '../../components/ui/Chip';
+import { DataTable } from '../../components/ui/DataTable';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Notice } from '../../components/ui/Notice';
+import { LanguageNav } from '../../components/ui/SectionNav';
+import { Skeleton } from '../../components/ui/Skeleton';
+import { useCopy } from '../../components/ui/useCopy';
+import { useAuth } from '../../contexts/auth';
+import { shortDigest } from '../../utils/digest';
+import { useResource } from '../../utils/useResource';
+import { schemaPath, schemaPathFor } from '../Schemas/schemaKinds';
 import './Profiles.css';
 
-interface RoleDisplay {
-  id: string;
-  resourceTypes: Array<{ apiVersion: string; kind: string; minimum: number; maximum?: number }>;
-  extensionTypes: string;
-}
-
-interface DialectDisplay {
-  id: string;
-  namespace: string;
-  compatibleProfiles: string[];
-  types: Array<{ apiVersion: string; kind: string; roles: string[]; mediaType: string }>;
-  extensionPoints: number;
-  features: Array<{ dimension: string; value: string }>;
-  adapter: string;
-  source: 'runtime' | 'bundled';
-}
-
-const FALLBACK_ROLES: RoleDisplay[] = [
-  {
-    id: 'application',
-    resourceTypes: [
-      { apiVersion: 'qos-binding/v1', kind: 'Application', minimum: 1, maximum: 1 },
-      { apiVersion: 'qos-binding/v1', kind: 'RoutingOverlay', minimum: 0, maximum: 1 },
-      { apiVersion: 'omg/bpmn/2.0.2', kind: 'BPMN', minimum: 0 },
-    ],
-    extensionTypes: 'installed',
-  },
-  { id: 'candidateCatalog', resourceTypes: [{ apiVersion: 'qos-binding/v1', kind: 'CandidateCatalog', minimum: 1 }], extensionTypes: 'installed' },
-  { id: 'constraintSet', resourceTypes: [{ apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', minimum: 0 }], extensionTypes: 'installed' },
-  { id: 'optimization', resourceTypes: [{ apiVersion: 'qos-binding/v1', kind: 'Optimization', minimum: 1, maximum: 1 }], extensionTypes: 'installed' },
-];
-
-const FALLBACK_DIALECTS: DialectDisplay[] = [
-  {
-    id: 'qos-binding/v1', namespace: 'bim.builtin', compatibleProfiles: ['qos-binding/v1'], extensionPoints: 0,
-    types: [
-      { apiVersion: 'qos-binding/v1', kind: 'Application', roles: ['application'], mediaType: 'application/json' },
-      { apiVersion: 'qos-binding/v1', kind: 'CandidateCatalog', roles: ['candidateCatalog'], mediaType: 'application/json' },
-      { apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', roles: ['constraintSet'], mediaType: 'application/json' },
-      { apiVersion: 'qos-binding/v1', kind: 'Optimization', roles: ['optimization'], mediaType: 'application/json' },
-      { apiVersion: 'qos-binding/v1', kind: 'RoutingOverlay', roles: ['application'], mediaType: 'application/json' },
-    ],
-    features: [], adapter: 'bim-core@1.0.0', source: 'bundled',
-  },
-  {
-    id: 'bpmn-workflow/v1', namespace: 'bim.builtin', compatibleProfiles: ['qos-binding/v1'], extensionPoints: 0,
-    types: [{ apiVersion: 'omg/bpmn/2.0.2', kind: 'BPMN', roles: ['application'], mediaType: 'application/vnd.omg.bpmn+xml' }],
-    features: [], adapter: 'bim-bpmn@1.0.0', source: 'bundled',
-  },
-  {
-    id: 'qos-binding-placement/v1', namespace: 'bim.builtin', compatibleProfiles: ['qos-binding/v1'], extensionPoints: 0,
-    types: [{ apiVersion: 'qos-binding-placement/v1', kind: 'Placement', roles: ['application'], mediaType: 'application/json' }],
-    features: [
-      { dimension: 'placement', value: 'placement' },
-      { dimension: 'irExtensions', value: 'qos-binding-placement/v1' },
-    ],
-    adapter: 'bim-placement@1.0.0', source: 'bundled',
-  },
-];
-
-const ROLE_COPY: Record<string, { title: string; copy: string }> = {
-  application: { title: 'Problem structure', copy: 'Tasks, metrics and a workflow expressed by an allowed source Dialect. Routing, BPMN and Placement occupy this Profile role without becoming extra core roles.' },
-  candidateCatalog: { title: 'Available choices', copy: 'One or more catalogs publish typed capabilities, providers, properties and finite scalar metric values. They do not contain task-to-candidate lists.' },
-  constraintSet: { title: 'Conditions', copy: 'Optional hard and soft assertions stay independently versioned. Soft constraints carry explicit penalties consumed by Optimization.' },
-  optimization: { title: 'Decision preference', copy: 'Exactly one resource selects satisfy, weighted, lexicographic or Pareto semantics for this Profile.' },
-};
-
-const FALLBACK_DIMENSIONS = [
-  ['workflowNodes', 'closed'], ['aggregations', 'closed'], ['metricScopes', 'closed'], ['constraints', 'closed'],
-  ['optimization', 'closed'], ['expressions', 'closed'], ['placement', 'closed'], ['irExtensions', 'open'],
-] as const;
-
+/** `bpmn-workflow` at version 1.4.0 is addressed as `bpmn-workflow/v1`, the way Profiles name the Dialects they accept. */
 function majorId(name: string, version: string): string {
   return `${name}/v${version.split('.')[0] || '1'}`;
-}
-
-function dialectDisplay(dialect: BimDialect): DialectDisplay {
-  return {
-    id: majorId(dialect.metadata.name, dialect.metadata.version),
-    namespace: dialect.metadata.namespace,
-    compatibleProfiles: dialect.spec.compatibleProfiles,
-    types: dialect.spec.resourceTypes.map((type) => ({
-      apiVersion: type.apiVersion,
-      kind: type.kind,
-      roles: type.roles,
-      mediaType: type.mediaType,
-    })),
-    extensionPoints: dialect.spec.extensionPoints.length,
-    features: dialect.spec.irFeatures,
-    adapter: `${dialect.spec.adapter.id}@${dialect.spec.adapter.version}`,
-    source: 'runtime',
-  };
 }
 
 function cardinality(minimum: number, maximum?: number): string {
@@ -108,244 +29,303 @@ function cardinality(minimum: number, maximum?: number): string {
   return maximum === undefined ? `${minimum} or more` : `${minimum}–${maximum}`;
 }
 
+/** A kind name as a chip: a link to its field reference when the reference has that kind. */
+function KindChip({ kind }: { kind: string }) {
+  const to = schemaPathFor(kind);
+  return to ? <Link className="profiles-kind" to={to}>{kind}</Link> : <span className="profiles-kind">{kind}</span>;
+}
+
+function fileExtension(mediaType: string): string {
+  if (mediaType.includes('xml')) return '.xml';
+  if (mediaType.includes('json')) return '.json';
+  return '';
+}
+
+function ChainDiagram({ profile, dialects }: { profile: string; dialects: BimDialect[] }) {
+  const extra = [...new Set(dialects.flatMap((dialect) => dialect.spec.resourceTypes.map((type) => type.kind)))]
+    .filter((kind) => kind !== 'Application' && kind !== 'CandidateCatalog' && kind !== 'ConstraintSet' && kind !== 'Optimization');
+  const steps = [
+    { kind: 'Package', title: 'Instance', note: 'Selects one Profile', to: schemaPath('Instance') },
+    { kind: 'Profile', title: profile, note: 'Roles and cardinalities', to: '/language' },
+    { kind: 'Roles', title: 'Application, catalogs…', note: 'Filled by resources', to: schemaPath('Application') },
+    { kind: 'Dialects', title: 'Resource types', note: extra.length ? extra.slice(0, 3).join(', ') : 'Installed on this host', to: schemaPath('Dialect') },
+    { kind: 'IR', title: 'BindingProblem', note: 'One problem, one digest', to: schemaPath('BindingProblem') },
+    { kind: 'Engine', title: 'Exact revision', note: 'Mode and options', to: '/engines' },
+  ];
+  return (
+    <section className="profiles-chain" aria-label="How the pieces connect">
+      <ol>
+        {steps.map((step, index) => (
+          <li key={step.kind}>
+            <Link to={step.to}>
+              <span>{step.kind}</span>
+              <strong>{step.title}</strong>
+              <small>{step.note}</small>
+            </Link>
+            {index < steps.length - 1 && <span className="profiles-arrow" aria-hidden="true">→</span>}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function ProfileContract({ profile }: { profile: BimProfile }) {
+  const roles = Object.entries(profile.spec.roles);
+  const dimensions = Object.entries(profile.spec.capabilityVocabulary.dimensions);
+  return (
+    <article className="profiles-contract" aria-label={`Contract of ${profile.id}`}>
+      <header>
+        <h3 className="is-mono">{profile.id}</h3>
+        <span>{profile.metadata.description}</span>
+      </header>
+      <div className="profiles-contract-grid">
+        <section aria-label="Roles and cardinalities">
+          <h4>Roles and cardinalities</h4>
+          <ul>
+            {roles.map(([id, role]) => (
+              <li key={id}>
+                <strong className="is-mono">{id}</strong>
+                <span className="profiles-types">
+                  {role.resourceTypes.map((type) => (
+                    <span key={`${type.apiVersion}/${type.kind}`}><KindChip kind={type.kind} /> {cardinality(type.minimum, type.maximum)}</span>
+                  ))}
+                </span>
+                {role.extensionTypes === 'installed' && <small>Installed dialects may add other resource types.</small>}
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section aria-label="Compilation output">
+          <h4>Compilation output</h4>
+          <dl>
+            <dt>IR</dt><dd className="is-mono">{profile.spec.output.apiVersion} · {profile.spec.output.kind}</dd>
+            <dt>Protocol</dt><dd className="is-mono">{profile.spec.output.engineProtocol}</dd>
+            <dt>Semantics</dt><dd>{profile.spec.deterministic === false ? 'Non-deterministic' : 'Deterministic'}</dd>
+            <dt>Adapter</dt><dd className="is-mono">{profile.spec.adapter.id}@{profile.spec.adapter.version}</dd>
+          </dl>
+        </section>
+        <section aria-label="Vocabularies">
+          <h4>Capability vocabulary</h4>
+          <span className="profiles-vocab">
+            {dimensions.map(([name, dimension]) => <Chip key={name} mono tone={dimension.openValues ? 'accent' : 'plain'}>{name} · {dimension.openValues ? 'open' : 'closed'}</Chip>)}
+          </span>
+          <h4>Limit vocabulary</h4>
+          <span className="profiles-vocab">
+            {profile.spec.limitVocabulary.map((limit) => <Chip key={limit} mono>{limit}</Chip>)}
+          </span>
+        </section>
+      </div>
+    </article>
+  );
+}
+
 export function Profiles() {
-  const [profiles, setProfiles] = useState<BimProfile[]>([]);
-  const [dialects, setDialects] = useState<BimDialect[]>([]);
-  const [selectedProfileId, setSelectedProfileId] = useState('qos-binding/v1');
-  const [selectedRole, setSelectedRole] = useState('application');
-  const [selectedDialect, setSelectedDialect] = useState('bpmn-workflow/v1');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+  const { copy, status: copyStatus } = useCopy();
+  const profiles = useResource('profiles', () => apiClient.getProfiles());
+  const dialects = useResource('dialects', () => apiClient.getDialects());
+  const resources = useResource('registered-resources', () => apiClient.getRegisteredResources());
+  const [profileChoice, setProfileChoice] = useState('all');
+  const [download, setDownload] = useState<{ key: string; error: unknown } | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    void Promise.all([apiClient.getProfiles(), apiClient.getDialects()])
-      .then(([profileData, dialectData]) => {
-        if (cancelled) return;
-        setProfiles(profileData);
-        setDialects(dialectData);
-        const initialProfile = profileData.find((item) => item.id === 'qos-binding/v1') ?? profileData[0];
-        if (initialProfile) {
-          setSelectedProfileId(initialProfile.id);
-          setSelectedRole(Object.keys(initialProfile.spec.roles)[0] ?? 'application');
-        }
-        const initialDialect = dialectData.find((item) => majorId(item.metadata.name, item.metadata.version) === 'bpmn-workflow/v1') ?? dialectData[0];
-        if (initialDialect) setSelectedDialect(majorId(initialDialect.metadata.name, initialDialect.metadata.version));
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : 'The runtime catalogue could not be loaded.');
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
+  const catalogStatus = profiles.status === 'error' || dialects.status === 'error'
+    ? 'error'
+    : profiles.status === 'loading' || dialects.status === 'loading' ? 'loading' : 'ready';
+  const catalogFailure = profiles.error ?? dialects.error;
+  const profileList = profiles.data ?? [];
+  const profileId = profileList.some((item) => item.id === profileChoice) ? profileChoice : 'all';
+  const shownProfiles = profileId === 'all' ? profileList : profileList.filter((item) => item.id === profileId);
+  const shownDialects = (dialects.data ?? []).filter((item) => profileId === 'all' || item.spec.compatibleProfiles.includes(profileId));
+  const headline = shownProfiles[0]?.id ?? profileList[0]?.id ?? 'qos-binding/v1';
 
-  const profile = profiles.find((item) => item.id === selectedProfileId);
-  const roles = useMemo<RoleDisplay[]>(() => profile
-    ? Object.entries(profile.spec.roles).map(([id, role]) => ({ id, resourceTypes: role.resourceTypes, extensionTypes: role.extensionTypes }))
-    : FALLBACK_ROLES, [profile]);
-  const activeRole = roles.find((role) => role.id === selectedRole) ?? roles[0];
-  const roleCopy = ROLE_COPY[activeRole?.id] ?? { title: activeRole?.id || 'Role', copy: 'This role is declared by the selected Profile.' };
-  const dialectViews = dialects.length ? dialects.map(dialectDisplay) : FALLBACK_DIALECTS;
-  const activeDialect = dialectViews.find((item) => item.id === selectedDialect) ?? dialectViews[0];
-  const dimensions = profile
-    ? Object.entries(profile.spec.capabilityVocabulary.dimensions).map(([name, value]) => [name, value.openValues ? 'open' : 'closed'] as const)
-    : FALLBACK_DIMENSIONS;
-  const limits = profile?.spec.limitVocabulary ?? ['maxTasks', 'maxCandidates', 'maxIterations', 'maxPopulation', 'maxSolutions', 'maxTimeBudgetMs'];
-  const selectProfile = (id: string) => {
-    setSelectedProfileId(id);
-    const nextProfile = profiles.find((item) => item.id === id);
-    if (nextProfile) setSelectedRole(Object.keys(nextProfile.spec.roles)[0] ?? 'application');
-    const compatibleDialect = dialectViews.find((item) => item.compatibleProfiles.includes(id));
-    if (compatibleDialect) setSelectedDialect(compatibleDialect.id);
+  const retryCatalog = () => {
+    profiles.reload();
+    dialects.reload();
+  };
+
+  const downloadResource = async (resource: RegisteredResource) => {
+    const key = bimResourceKey(resource);
+    setDownload(null);
+    try {
+      const bytes = await apiClient.getRegisteredResourceContent(resource);
+      const url = URL.createObjectURL(new Blob([bytes], { type: resource.mediaType }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${resource.name}-${resource.version}${fileExtension(resource.mediaType)}`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setDownload({ key, error });
+    }
   };
 
   return (
-    <div className="profiles-page page-shell">
-      <header className="page-intro profiles-intro">
-        <div>
-          <span className="kicker">02 · Explore the semantic frame</span>
-          <h1 className="page-title">Profiles define what kind of binding problem this is.</h1>
-        </div>
-        <div>
-          <p className="page-lede">
-            The BIM core stays small. A Profile declares roles, allowed typed resources, cardinalities,
-            output IR, feature vocabulary, limits and an installed adapter. Dialects decide how those roles are written.
-          </p>
-          <div className="catalog-state">
-            <span className={!loading && !error ? 'is-live' : 'is-fallback'}><i className="status-dot" /> {loading ? 'Reading runtime catalogue…' : error ? 'Showing bundled contract facts' : 'Runtime catalogue is authoritative'}</span>
-          </div>
-        </div>
-      </header>
+    <div className="profiles-page">
+      <div className="profiles-head">
+        <LanguageNav current="profiles" />
+        <h1>The BIM language</h1>
+        <p>
+          An instance selects a Profile. The Profile says which roles must be filled and how many times; installed dialects add resource
+          types and IR features. Everything compiles to one BindingProblem that engines solve.
+        </p>
+      </div>
 
-      {error && <Alert type="warning" title="Runtime catalogue unavailable">{error} The explorer keeps the bundled v1 contract visible and marks it as a fallback.</Alert>}
+      <ChainDiagram profile={headline} dialects={dialects.data ?? []} />
 
-      <section className="profile-explorer" aria-labelledby="profile-explorer-title">
-        <div className="profile-index">
-          <span className="section-label">Executable Profiles</span>
-          <h2 id="profile-explorer-title">Runtime problem contracts</h2>
-          <div className="profile-list">
-            {(profiles.length ? profiles : [{ id: 'qos-binding/v1', metadata: { description: 'Deterministic scalar-QoS service composition and binding' } }]).map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={selectedProfileId === item.id ? 'is-active' : ''}
-                aria-pressed={selectedProfileId === item.id}
-                onClick={() => selectProfile(item.id)}
-              >
-                <span>{profiles.length ? 'Executable on this host' : 'Bundled v1 contract'}</span>
-                <strong>{item.id}</strong>
-                <small>{item.metadata.description}</small>
-              </button>
-            ))}
-          </div>
-          <p className="profile-now-note">
-            {profiles.length > 1 ? <><strong>This host:</strong> {profiles.length} executable Profiles are installed. Select one to inspect its complete contract.</> : <><strong>Today:</strong> only <code>qos-binding/v1</code> is shipped as an executable Profile. The extension model is broader than its first problem family.</>}
-          </p>
-        </div>
+      <div className="profiles-controls">
+        <label>
+          Profile
+          <select value={profileId} onChange={(event) => setProfileChoice(event.target.value)}>
+            <option value="all">All profiles</option>
+            {profileList.map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}
+          </select>
+        </label>
+        {user && <Link className="profiles-submit" to="/app/language/extensions">Submit a dialect or resource</Link>}
+      </div>
 
-        <div className="profile-role-map">
-          <div className="profile-role-heading">
-            <div><span className="micro-label">Profile roles</span><h3>Choose a role to inspect its contract</h3></div>
-            <code>{selectedProfileId}</code>
-          </div>
-          <Liquid
-            className="role-liquid"
-            blur={6}
-            contrast={19}
-            fill="var(--color-bg-elevated)"
-            shadow="0 10px 24px rgba(23,33,29,.08)"
-            filterPadding={18}
-          >
-            {roles.map((role, index) => (
-              <Liquid.Item key={role.id} x={selectedRole === role.id ? 5 : 0} transition="snappy" delay={index * 18}>
-                <button
-                  type="button"
-                  className={`liquid-role-button ${selectedRole === role.id ? 'is-active' : ''}`}
-                  aria-pressed={selectedRole === role.id}
-                  onClick={() => setSelectedRole(role.id)}
-                >
-                  <span>{String(index + 1).padStart(2, '0')}</span>
-                  <strong>{role.id}</strong>
-                  <small>{role.resourceTypes.length} base type{role.resourceTypes.length === 1 ? '' : 's'} · {role.extensionTypes} extensions</small>
-                </button>
-              </Liquid.Item>
-            ))}
-          </Liquid>
-          <p className="liquid-caption"><Puzzle aria-hidden="true" /> The restrained liquid seam appears only where Profile roles and typed resources conceptually join.</p>
-        </div>
+      <div className="profiles-data" aria-live="polite" aria-busy={catalogStatus === 'loading'}>
+        {catalogStatus === 'loading' && (
+          <>
+            <Skeleton variant="panel" />
+            <Skeleton variant="panel" />
+          </>
+        )}
+        {catalogStatus === 'error' && (
+          <Notice tone="error" action={<Button size="sm" variant="secondary" onClick={retryCatalog}>Retry</Button>}>
+            The language catalog couldn’t be loaded{catalogFailure instanceof HttpError ? ` (HTTP ${catalogFailure.status})` : ''}. The diagram above still works.
+          </Notice>
+        )}
 
-        <div className="role-detail" key={activeRole?.id}>
-          <span className="micro-label">{activeRole?.id}</span>
-          <h2>{roleCopy.title}</h2>
-          <p>{roleCopy.copy}</p>
-          <div className="role-type-list">
-            {activeRole?.resourceTypes.map((type) => (
-              <article key={`${type.apiVersion}/${type.kind}`}>
-                <div><span>{type.apiVersion}</span><strong>{type.kind}</strong></div>
-                <code>{cardinality(type.minimum, type.maximum)}</code>
-              </article>
-            ))}
-          </div>
-          <footer><Check aria-hidden="true" /> Compatible installed Dialects may contribute other resource types because this role sets <code>extensionTypes: installed</code>.</footer>
-        </div>
-      </section>
+        {catalogStatus === 'ready' && (
+          <>
+            <section aria-labelledby="profiles-title" className="profiles-section">
+              <h2 id="profiles-title">Profiles</h2>
+              <DataTable label="Installed profiles" minWidth={760}>
+                <thead><tr><th scope="col">Profile</th><th scope="col">Roles</th><th scope="col">Capability vocabulary</th><th scope="col">Adapter</th></tr></thead>
+                <tbody>
+                  {shownProfiles.map((profile) => (
+                    <tr key={profile.id}>
+                      <td className="is-mono"><strong>{profile.id}</strong></td>
+                      <td>
+                        <span className="profiles-chips">
+                          {Object.entries(profile.spec.roles).map(([id, role]) => {
+                            const kind = role.resourceTypes.map((type) => schemaPathFor(type.kind) ? type.kind : null).find(Boolean);
+                            return kind ? <Link key={id} className="profiles-role" to={schemaPath(kind)}>{id}</Link> : <span key={id} className="profiles-role">{id}</span>;
+                          })}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="profiles-chips">
+                          {Object.keys(profile.spec.capabilityVocabulary.dimensions).map((name) => <Chip key={name} mono>{name}</Chip>)}
+                        </span>
+                      </td>
+                      <td className="is-mono">{profile.spec.adapter.id}@{profile.spec.adapter.version}</td>
+                    </tr>
+                  ))}
+                  {shownProfiles.length === 0 && <tr><td colSpan={4} className="profiles-none">No profile is installed on this host.</td></tr>}
+                </tbody>
+              </DataTable>
+              <div className="profiles-contracts">
+                {shownProfiles.map((profile) => <ProfileContract key={profile.id} profile={profile} />)}
+              </div>
+            </section>
 
-      <section className="profile-contract-section">
-        <header className="profiles-section-header">
-          <div><span className="section-label">One complete contract</span><h2>The Profile closes every semantic boundary.</h2></div>
-          <p>There is no ambient compatibility. Every value below is either pinned by the Profile or compared against it.</p>
-        </header>
-        <div className="profile-contract-grid">
-          <article className="contract-output">
-            <span className="micro-label">Compilation output</span>
-            <Braces aria-hidden="true" />
-            <h3>{profile?.spec.output.apiVersion ?? 'bim/v1'} · {profile?.spec.output.kind ?? 'BindingProblem'}</h3>
-            <p>Schema-pinned, closed IR sent under <code>{profile?.spec.output.engineProtocol ?? 'bim-engine/v1'}</code>.</p>
-            <dl>
-              <div><dt>Semantics</dt><dd>{profile?.spec.deterministic === false ? 'Non-deterministic' : 'Deterministic'}</dd></div>
-              <div><dt>Adapter</dt><dd><code>{profile ? `${profile.spec.adapter.id}@${profile.spec.adapter.version}` : 'qos-binding-profile@1.0.0'}</code></dd></div>
-            </dl>
-          </article>
-          <article className="contract-vocabulary">
-            <span className="micro-label">Capability vocabulary</span>
-            <h3>What modes may truthfully claim</h3>
-            <div className="dimension-list">
-              {dimensions.map(([name, openness]) => <span key={name} className={openness === 'open' ? 'is-open' : ''}><code>{name}</code><small>{openness}</small></span>)}
-            </div>
-            <p><code>irExtensions</code> is intentionally open. An Engine cannot use <code>all</code> for values that do not exist yet.</p>
-          </article>
-          <article className="contract-limits">
-            <span className="micro-label">Limit vocabulary</span>
-            <h3>Shared names, engine-specific ceilings</h3>
-            <ul>{limits.map((limit) => <li key={limit}><Check aria-hidden="true" /><code>{limit}</code></li>)}</ul>
-          </article>
-        </div>
-      </section>
+            <section aria-labelledby="dialects-title" className="profiles-section">
+              <h2 id="dialects-title">Dialects</h2>
+              <DataTable label="Installed dialects" minWidth={760}>
+                <thead>
+                  <tr><th scope="col">Dialect</th><th scope="col">Resource types</th><th scope="col">IR features</th><th scope="col">Compatible with</th></tr>
+                </thead>
+                <tbody>
+                  {shownDialects.map((dialect) => (
+                    <tr key={`${dialect.metadata.namespace}/${dialect.metadata.name}@${dialect.metadata.version}`}>
+                      <td>
+                        <strong className="is-mono">{majorId(dialect.metadata.name, dialect.metadata.version)}</strong>
+                        <small className="profiles-sub">{dialect.metadata.namespace} · adapter {dialect.spec.adapter.id}@{dialect.spec.adapter.version}</small>
+                      </td>
+                      <td>
+                        <span className="profiles-chips">
+                          {dialect.spec.resourceTypes.map((type) => <KindChip key={`${type.apiVersion}/${type.kind}`} kind={type.kind} />)}
+                        </span>
+                        <small className="profiles-sub">
+                          {dialect.spec.resourceTypes.map((type) => `${type.kind} → ${type.roles.join(', ')} (${type.mediaType})`).join(' · ')}
+                          {dialect.spec.extensionPoints.length > 0 ? ` · ${dialect.spec.extensionPoints.length} inline extension point${dialect.spec.extensionPoints.length === 1 ? '' : 's'}` : ''}
+                        </small>
+                      </td>
+                      <td className="is-mono">
+                        {dialect.spec.irFeatures.length
+                          ? dialect.spec.irFeatures.map((feature) => <span key={`${feature.dimension}/${feature.value}`} className="profiles-feature">{feature.dimension}={feature.value}</span>)
+                          : <span className="profiles-muted">None declared</span>}
+                      </td>
+                      <td className="is-mono">{dialect.spec.compatibleProfiles.join(', ')}</td>
+                    </tr>
+                  ))}
+                  {shownDialects.length === 0 && <tr><td colSpan={4} className="profiles-none">No dialect is installed for {profileId === 'all' ? 'this host' : profileId}.</td></tr>}
+                </tbody>
+              </DataTable>
+            </section>
+          </>
+        )}
 
-      <section className="profile-extension-section">
-        <header className="profiles-section-header">
-          <div><span className="section-label">Reuse, specialize, or replace</span><h2>New problem Profiles can share a nucleus without sharing every rule.</h2></div>
-          <p>A future contract chooses the smallest honest change. The UI distinguishes extension mechanisms from capabilities installed on this host.</p>
-        </header>
-        <div className="profile-evolution-map">
-          <div className="shared-nucleus">
-            <PackageCheck aria-hidden="true" />
-            <span className="micro-label">Shared BIM nucleus</span>
-            <h3>Instance envelope + resource identity + manifests + provenance</h3>
-          </div>
-          <article>
-            <span>01 · Compatible Dialect</span><h3>Same Profile, new source vocabulary</h3>
-            <p>Use an open role or declared inline extension point. Preserve the output IR and emit only declared features.</p>
-            <code>schema + adapter + lowering</code>
-          </article>
-          <article>
-            <span>02 · Specialized Profile</span><h3>Reuse typed languages, delimit the family</h3>
-            <p>Declare a new full Profile with narrower roles, cardinalities, capability values or limits. Reused Dialects must explicitly list that Profile as compatible.</p>
-            <code>no implicit extends field</code>
-          </article>
-          <article>
-            <span>03 · Independent Profile</span><h3>Change the decision contract</h3>
-            <p>Declare new roles, determinism, IR or semantics, then require Engine modes that explicitly target the new Profile and IR.</p>
-            <code>new semantic boundary</code>
-          </article>
-        </div>
-        <div className="profile-truth-note"><ShieldCheck aria-hidden="true" /><p>Profiles and Dialects become executable only through an atomic host installation. A BIM package can select installed contracts; it cannot install adapters, code or remote schemas.</p></div>
-      </section>
-
-      <section className="dialect-explorer">
-        <header className="profiles-section-header">
-          <div><span className="section-label">Vendor and standards vocabularies</span><h2>Dialects keep source ownership independent.</h2></div>
-          <p>Each Dialect pins the identities it understands, the roles it may occupy, its schemas, adapter and emitted IR features.</p>
-        </header>
-        <div className="dialect-workbench">
-          <div className="dialect-list" role="list">
-            {dialectViews.map((dialect) => (
-              <button key={dialect.id} type="button" className={activeDialect?.id === dialect.id ? 'is-active' : ''} onClick={() => setSelectedDialect(dialect.id)}>
-                <span>{dialect.source === 'runtime' ? 'Installed on this host' : 'Bundled contract'}</span>
-                <strong>{dialect.id}</strong>
-                <small>{dialect.types.length} resource type{dialect.types.length === 1 ? '' : 's'} · {dialect.extensionPoints} inline points</small>
-              </button>
-            ))}
-          </div>
-          {activeDialect && <div className="dialect-detail" key={activeDialect.id}>
-            <header><div><span className="micro-label">{activeDialect.namespace}</span><h3>{activeDialect.id}</h3></div><code>{activeDialect.adapter}</code></header>
-            <div className="dialect-compatibility"><GitBranch aria-hidden="true" /><span>Compatible with</span>{activeDialect.compatibleProfiles.map((id) => <code key={id}>{id}</code>)}</div>
-            <div className="dialect-types">
-              {activeDialect.types.map((type) => <article key={`${type.apiVersion}/${type.kind}`}><div><span>{type.apiVersion}</span><strong>{type.kind}</strong></div><small>{type.mediaType}</small><p>role: {type.roles.join(', ')}</p></article>)}
-            </div>
-            <div className="dialect-features">
-              <span className="micro-label">Emitted IR features</span>
-              {activeDialect.features.length ? activeDialect.features.map((feature) => <code key={`${feature.dimension}/${feature.value}`}>{feature.dimension}={feature.value}</code>) : <p>No additional manifest-level IR feature declarations.</p>}
-            </div>
-          </div>}
-        </div>
-      </section>
-
-      <section className="profiles-next">
-        <span className="section-label">Next · See contracts in context</span>
-        <h2>Open a progressive example, then watch analysis compute its compatible Engine modes.</h2>
-        <div><Link to="/examples" viewTransition>Choose an example <ArrowRight aria-hidden="true" /></Link><Link to="/engines" viewTransition>Inspect engine compatibility</Link></div>
-      </section>
+        <section aria-labelledby="resources-title" className="profiles-section">
+          <h2 id="resources-title">Registered resources</h2>
+          {resources.status === 'loading' && <Skeleton variant="tile" />}
+          {resources.status === 'error' && (
+            <Notice tone="error" action={<Button size="sm" variant="secondary" onClick={resources.reload}>Retry</Button>}>
+              The registered resources couldn’t be loaded{resources.error instanceof HttpError ? ` (HTTP ${resources.error.status})` : ''}.
+            </Notice>
+          )}
+          {download && (
+            <Notice tone="error" title={download.error instanceof HttpError && download.error.status === 404 ? 'Resource not found (404).' : 'The resource couldn’t be downloaded.'}>
+              {download.error instanceof HttpError && download.error.status === 404
+                ? 'A registered resource is fetched by all four fields: namespace, name, version and digest. One of them doesn’t match a published resource.'
+                : download.error instanceof Error ? download.error.message : 'Try again in a moment.'}
+            </Notice>
+          )}
+          {resources.status === 'ready' && resources.data && resources.data.length === 0 && (
+            <EmptyState
+              icon={<Archive />}
+              title="No published registered resources yet"
+              action={<Link to={schemaPath('Application')}>Read the authoring reference</Link>}
+            >
+              Registered resources are immutable, reviewed building blocks anyone can reference. Until some are published, author resources directly in your packages.
+            </EmptyState>
+          )}
+          {resources.data && resources.data.length > 0 && (
+            <DataTable label="Published resources" minWidth={820}>
+              <thead>
+                <tr><th scope="col">Reference</th><th scope="col">Kind · role</th><th scope="col">Dialect</th><th scope="col">Status</th><th scope="col">Actions</th></tr>
+              </thead>
+              <tbody>
+                {resources.data.map((resource) => {
+                  const key = bimResourceKey(resource);
+                  const reference = `${resource.namespace}/${resource.name}@${resource.version}`;
+                  return (
+                    <tr key={key}>
+                      <td>
+                        <span className="is-mono">{reference}</span>
+                        <small className="profiles-sub is-mono" title={resource.digest}>{shortDigest(resource.digest)}</small>
+                      </td>
+                      <td>{resource.kind} · {resource.role}</td>
+                      <td className="is-mono">{resource.dialect || '—'}</td>
+                      <td><Chip tone="success">Published</Chip></td>
+                      <td>
+                        <span className="profiles-actions">
+                          <button type="button" onClick={() => void copy(key, key)} aria-label={`Copy reference of ${reference}`}>
+                            {copyStatus(key) === 'copied' ? 'Copied' : 'Copy reference'}
+                          </button>
+                          <button type="button" onClick={() => void downloadResource(resource)} aria-label={`Download ${reference}`}>Download</button>
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </DataTable>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

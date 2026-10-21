@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Collections</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ob-spin{to{transform:rotate(360deg)}}
+@keyframes ob-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes ob-growy{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes ob-fadeup{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+.ob-spin{animation:ob-spin .9s linear infinite}
+.ob-grow{transform-origin:left;animation:ob-grow 600ms cubic-bezier(.4,0,.2,1) both}
+.ob-growy{transform-origin:bottom;animation:ob-growy 600ms cubic-bezier(.4,0,.2,1) both}
+.ob-in{animation:ob-fadeup 300ms ease-out both}
+.ob-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion: reduce){.ob-skel,.ob-spin,.ob-grow,.ob-growy,.ob-in{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="coll-list" route="{{route}}" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="{{ctx}}" active="" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<sc-if value="{{gate}}" hint-placeholder-val="{{false}}"><main style="max-width: 1152px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px;"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1" aria-hidden="true"><path d="{{gateIcon}}"></path></svg><span style="font-size: 16px; font-weight: 500;">{{gateTitle}}</span><span style="max-width: 500px; color: #6a6a6a;">{{gateText}}</span><a href="{{gateHref}}" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">{{gateCta}}</a></div></main></sc-if>
+<sc-if value="{{inside}}" hint-placeholder-val="{{true}}">
+<div style="background: #ffffff;"><div style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 20px 16px 12px;"><nav aria-label="Breadcrumb" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: #6a6a6a;"><sc-for list="{{crumbs}}" as="c" hint-placeholder-count="4"><sc-if value="{{c.link}}" hint-placeholder-val="{{true}}"><a href="{{c.href}}" title="{{c.title}}">{{c.label}}</a><span aria-hidden="true">/</span></sc-if><sc-if value="{{c.cur}}" hint-placeholder-val="{{false}}"><span aria-current="page" style="color: #1f1f1f;">{{c.label}}</span></sc-if></sc-for></nav></div></div>
+<dc-import name="ShellProjectTabs" active="library" hint-size="100%,45px"></dc-import>
+<main style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 24px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<nav aria-label="Library sections" style="display: flex; flex-wrap: wrap; gap: 6px;"><a href="ProjLibrary.dc.html" style="display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 9999px; border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f; font-size: 13px; text-decoration: none;">Library used here</a><a href="CollList.dc.html" style="display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 9999px; border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f; font-size: 13px; text-decoration: none;">Collections</a><a href="ProjResources.dc.html" style="display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 9999px; border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f; font-size: 13px; text-decoration: none;">Project resources (older view)</a><a href="LibList.dc.html" style="display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 9999px; border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f; font-size: 13px; text-decoration: none;">Organization library</a><a href="WbWorkbench.dc.html" style="display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 9999px; border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f; font-size: 13px; text-decoration: none;">Workbench</a></nav>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px;">
+<div><h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">Collections</h1><p style="margin: 4px 0 0; color: #6a6a6a; max-width: 720px;">Curated, ordered lists of exact references: cases, resources, results or reports. A collection never runs anything, but it can seed a study.</p></div>
+<sc-if value="{{canEdit}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{openNew}}" style="{{btnPrimary}}">New collection</button></sc-if>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; border: 1px solid #b8b8b8; border-radius: 14px; background: #ffffff; padding: 12px 16px;"><span style="font-size: 13px;">Sponsor's collections</span><span style="flex: 1; min-width: 160px; height: 8px; border-radius: 9999px; background: #ededed;"><span class="ob-grow" style="display: block; width: {{qPct}}%; height: 8px; border-radius: 9999px; background: {{qColor}};"></span></span><span style="font-size: 13px; font-weight: 500;">{{qText}}</span></div>
+<sc-if value="{{toast}}" hint-placeholder-val="{{false}}"><div role="status" style="border: 1px solid #86efac; background: #f0fdf4; border-radius: 12px; padding: 10px 14px;">{{toast}}</div></sc-if>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}"><div class="ob-skel" style="height: 140px; border-radius: 16px; background: #ededed;"></div></sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}"><div style="border: 1px dashed #a8a8a8; border-radius: 16px; background: #ffffff; padding: 28px; display: flex; flex-direction: column; gap: 6px;"><span style="font-weight: 600;">No collections</span><span style="color: #4a4a4a;">Group the cases, resources, results or reports you want to keep together, each pinned to an exact version.</span></div></sc-if>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;"><sc-for list="{{rows}}" as="c" hint-placeholder-count="1"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 8px;"><a href="CollDetail.dc.html" style="font-weight: 600; font-size: 15px;">{{c.name}}</a><span style="font-size: 13px; color: #4a4a4a;">{{c.desc}}</span><span style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{c.types}}" as="t" hint-placeholder-count="3"><span style="border-radius: 9999px; background: #fafafa; border: 1px solid #ededed; padding: 0 8px; font-size: 12px;">{{t.l}}</span></sc-for></span><span style="font-size: 12px; color: #6a6a6a;">{{c.meta}}</span><sc-if value="{{canAdmin}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{c.del}}" style="align-self: flex-start; border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 12px; color: #b91c1c; cursor: pointer;">Delete</button></sc-if></div></sc-for></div>
+<sc-if value="{{simNote}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #6a6a6a;">Simulated: the sponsor's usage counts 1 collection, but its contents aren't in the prototype data; this one is built from fixture references.</span></sc-if>
+</main>
+</sc-if>
+<sc-if value="{{dlg}}" hint-placeholder-val="{{false}}">
+<div style="position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px;">
+<button type="button" aria-label="Close" onClick="{{closeNew}}" style="position: absolute; inset: 0; border: 0; background: rgba(0,0,0,0.6); cursor: pointer;"></button>
+<div role="dialog" aria-modal="true" aria-labelledby="ncl-title" style="position: relative; width: 100%; max-width: 420px; border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff;">
+<div style="padding: 14px 20px; border-bottom: 1px solid #b8b8b8;"><h2 id="ncl-title" style="margin: 0; font-size: 16px; font-weight: 600;">New collection</h2></div>
+<form onSubmit="{{createNew}}" style="padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Name<input value="{{nn}}" onChange="{{typeNn}}" style="height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: inherit; font-size: 14px; color: #1f1f1f;"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Description<textarea value="{{nd}}" onChange="{{typeNd}}" rows="2" style="box-sizing: border-box; padding: 10px 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: inherit; font-size: 14px; color: #1f1f1f;"></textarea></label>
+<sc-if value="{{err}}" hint-placeholder-val="{{false}}"><div role="alert" style="border: 1px solid #fca5a5; background: #fef2f2; border-radius: 8px; padding: 10px 12px; font-size: 13px;">{{err}}</div></sc-if>
+<div style="display: flex; justify-content: flex-end; gap: 8px;"><button type="button" onClick="{{closeNew}}" style="{{btnSecondary}}">Cancel</button><button type="submit" style="{{btnPrimary}}">Create</button></div>
+</form>
+</div>
+</div>
+</sc-if>
+<div aria-live="polite" class="ob-sr">{{live}}</div>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1400}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ persona: "lucia", st: "success", scenario: "ok", org: "isa-demo", project: "qos-benchmarks", live: "" }, { made: [], gone: [], dlg: false, nn: '', nd: '', err: '', toast: '' });
+  }
+  personas() {
+    return {
+      visitor: { key: "visitor", signedIn: false, user: "", name: "", first: "", email: "", initials: "", admin: false, plan: "BASIC" },
+      lucia: { key: "lucia", signedIn: true, user: "lucia.vega", name: "Lucía Vega", first: "Lucía", email: "lucia@example.invalid", initials: "LV", admin: false, plan: "RESEARCH" },
+      marco: { key: "marco", signedIn: true, user: "marco.diaz", name: "Marco Díaz", first: "Marco", email: "marco@example.invalid", initials: "MD", admin: false, plan: "BASIC" },
+      sofia: { key: "sofia", signedIn: true, user: "sofia.rey", name: "Sofía Rey", first: "Sofía", email: "sofia@example.invalid", initials: "SR", admin: false, plan: "BASIC", pending: true },
+      nora: { key: "nora", signedIn: true, user: "nora.campos", name: "Nora Campos", first: "Nora", email: "nora@example.invalid", initials: "NC", admin: false, plan: "ADVANCED" },
+      iker: { key: "iker", signedIn: true, user: "iker.mora", name: "Iker Mora", first: "Iker", email: "iker@example.invalid", initials: "IM", admin: true, plan: "PRO" },
+      pablo: { key: "pablo", signedIn: true, user: "pablo.ci", name: "Pablo Ibáñez", first: "Pablo", email: "pablo@example.invalid", initials: "PI", admin: false, plan: "PRO" }
+    };
+  }
+  fx() {
+    const D = { a1: "sha256-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4", b2: "sha256-b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5", c3: "sha256-c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6", d4: "sha256-d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607", e5: "sha256-e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718" };
+    const short = { a1: "sha256-a1b2…c3d4", b2: "sha256-b2c3…d4e5", c3: "sha256-c3d4…e5f6", d4: "sha256-d4e5…f607", e5: "sha256-e5f6…0718" };
+    return {
+      D: D, short: short,
+      orgs: {
+        "isa-demo": { slug: "isa-demo", name: "ISA Demo Group", parent: "", sponsor: "lucia", sponsorName: "Lucía Vega" },
+        "qos-lab": { slug: "qos-lab", name: "QoS Lab (sub-organización)", parent: "isa-demo", sponsor: "lucia", sponsorName: "Lucía Vega" },
+        "consultora-demo": { slug: "consultora-demo", name: "Consultora Demo", parent: "", sponsor: "nora", sponsorName: "Nora Campos" }
+      },
+      roles: {
+        lucia: { "isa-demo": "OWNER", "qos-lab": "OWNER" },
+        marco: { "isa-demo": "MEMBER", "qos-lab": "ADMIN", "consultora-demo": "VIEWER" },
+        sofia: { "isa-demo": "VIEWER", "qos-lab": "VIEWER" },
+        nora: { "consultora-demo": "OWNER" }, iker: {}, pablo: {}, visitor: {}
+      },
+      projects: {
+        "qos-benchmarks": { org: "isa-demo", slug: "qos-benchmarks", name: "QoS Benchmarks", desc: "Casos de referencia de binding con workflow y placement.", vis: "public" },
+        "checkout-privado": { org: "isa-demo", slug: "checkout-privado", name: "Checkout (privado)", desc: "Caso interno de pagos con candidatos propietarios.", vis: "private" },
+        "placement-edge": { org: "qos-lab", slug: "placement-edge", name: "Placement en el borde", desc: "Exploración con pools y latencias.", vis: "private" }
+      },
+      cases: {
+        "qos-benchmarks": [{ slug: "checkout-flow", name: "Flujo de checkout", desc: "Pagos con autenticación, stock y envío en paralelo.", revisions: [
+          { n: 1, digest: "a1", date: "Aug 1, 2026", size: 4.2, resources: [["Application", "checkout-app", "3"], ["CandidateCatalog", "providers-eu", "2"], ["ConstraintSet", "sla-hard", "1"], ["Optimization", "weighted-cost-latency", "1"]], change: "First revision." },
+          { n: 2, digest: "b2", date: "Aug 20, 2026", size: 5.1, resources: [["Application", "checkout-app", "3"], ["CandidateCatalog", "providers-eu", "3"], ["ConstraintSet", "sla-hard", "1"], ["Optimization", "weighted-cost-latency", "1"]], change: "Catálogo ampliado de 5 a 8 candidatos para la tarea pago." }
+        ] }]
+      },
+      workflow: [
+        { kind: "task", task: "autenticar", type: "service", cap: "auth", cands: 4 },
+        { kind: "parallel", agg: "max", items: [{ task: "inventario", cap: "stock", cands: 5 }, { task: "calcular-envio", cap: "shipping", cands: 3 }] },
+        { kind: "exclusive", items: [{ task: "pago-tarjeta", branch: "tarjeta", p: 0.7, cap: "payment", cands: 8 }, { task: "pago-transferencia", branch: "transferencia", p: 0.3, cap: "payment", cands: 4 }] },
+        { kind: "task", task: "notificar", type: "local" }
+      ],
+      candidates: [{ id: "payco-eu", latency: 180, cost: 0.021, availability: 99.95 }, { id: "fastpay", latency: 95, cost: 0.034, availability: 99.9 }],
+      constraints: [{ id: "sla-latencia", enf: "hard", text: "Latencia total ≤ 600 ms" }, { id: "sla-disponibilidad", enf: "soft", penalty: 5.0, text: "Disponibilidad ≥ 99.9 %" }],
+      objective: { mode: "weighted-sum", terms: [{ metric: "cost", weight: 0.6, dir: "minimize" }, { metric: "latency", weight: 0.4, dir: "minimize" }] },
+      library: [
+        { id: "d1", org: "isa-demo", kind: "CandidateCatalog", name: "providers-eu", display: "Proveedores UE", versions: [{ ord: 2, version: "2", content: "c3", vdigest: "d4", published: false }, { ord: 3, version: "3", content: "e5", vdigest: "a1", published: true, citation: "Catálogo de proveedores UE (sintético)" }], drafts: [{ id: "d4", rev: 4, basedOn: "3" }] },
+        { id: "d5", org: "isa-demo", kind: "Study", name: "engines-vs-seeds", display: "Engines × semillas", versions: [{ ord: 1, version: "1", published: false }], drafts: [] },
+        { id: "d6", org: "isa-demo", kind: "ExecutionConfiguration", name: "rs-60s", display: "Random Search 60 s", versions: [{ ord: 1, version: "1", published: false }], drafts: [] }
+      ],
+      jobs: [
+        { id: "f1", owner: "lucia", project: "qos-benchmarks", engine: "random-search", label: "Random Search", mode: "sampling", status: "completed", term: "FEASIBLE", created: "Sep 30, 2026, 09:00", dur: "1 min 5 s", durS: 65, sols: 1, clamp: true, req: [["time_budget_ms", 600000, "ms"], ["iterations", 100000, "iterations"]], app: [["time_budget_ms", 60000, "ms"], ["iterations", 100000, "iterations"]] },
+        { id: "f2", owner: "lucia", project: "qos-benchmarks", engine: "minizinc", label: "MiniZinc", mode: "cp", status: "running", term: "", created: "Oct 8, 2026, 08:00", dur: "running", durS: 0, sols: 0, req: [["time_budget_ms", 300000, "ms"]], app: [["time_budget_ms", 300000, "ms"]] },
+        { id: "f3", owner: "marco", project: "checkout-privado", engine: "random-search", label: "Random Search", mode: "sampling", status: "queued", term: "", created: "Oct 8, 2026, 08:10", dur: "waiting", durS: 0, sols: 0, req: [], app: [] },
+        { id: "f4", owner: "marco", project: "checkout-privado", engine: "evolutionary", label: "Evolutionary", mode: "genetic", status: "failed", term: "UNKNOWN", created: "Oct 7, 2026, 15:00", dur: "20 s", durS: 20, sols: 0, error: "The deployment didn't answer within the budget (engine unreachable).", retryable: true, req: [], app: [] },
+        { id: "f5", owner: "marco", project: "checkout-privado", engine: "random-search", label: "Random Search", mode: "sampling", status: "cancelled", term: "", created: "Oct 6, 2026, 12:00", dur: "3 s", durS: 3, sols: 0, retryable: true, req: [], app: [] },
+        { id: "f6", owner: "lucia", project: "qos-benchmarks", engine: "minizinc", label: "MiniZinc", mode: "cp", status: "completed", term: "INFEASIBLE", created: "Oct 1, 2026, 09:00", dur: "40 s", durS: 40, sols: 0, infeas: true, req: [], app: [] }
+      ],
+      snapshot: { id: "e1", owner: "lucia", instance: "a1", pkg: "b2", ir: "c3", size: 48213, date: "Aug 20, 2026, 10:05" },
+      engines: [
+        { ns: "bim.builtin", name: "random-search", label: "Random Search", version: "1.0.0", digest: "b2", mode: "sampling", vis: "public" },
+        { ns: "bim.builtin", name: "evolutionary", label: "Evolutionary", version: "1.0.0", digest: "c3", mode: "genetic", vis: "public" },
+        { ns: "bim.builtin", name: "minizinc", label: "MiniZinc", version: "1.0.0", digest: "d4", mode: "cp", vis: "public" },
+        { ns: "lucia-vega", name: "edge-solver", label: "edge-solver", version: "0.3.1", digest: "e5", mode: "—", vis: "private", owner: "lucia" }
+      ]
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); const o = window.localStorage.getItem("ob.org"); if (o && o !== "__new") this.setState({ org: o }); const pj = window.localStorage.getItem("ob.project"); if (pj && pj !== "__new") this.setState({ project: pj }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); if (this.t2) clearTimeout(this.t2); }
+  setPersona(k) { this.setState(Object.assign({ persona: k }, { err: '', toast: '', dlg: false })); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  later(ms, fn) { if (this.timer) clearTimeout(this.timer); this.timer = setTimeout(fn, ms); }
+  copy(text, key) { try { if (navigator.clipboard) navigator.clipboard.writeText(text); } catch (e) {} this.setState({ copied: key, live: "Copied." }); if (this.t2) clearTimeout(this.t2); this.t2 = setTimeout(() => this.setState({ copied: "" }), 2000); }
+  renderVals() {
+    const s = this.state;
+    const P = this.personas();
+    const who = P[s.persona] || P.visitor;
+    const st = s.st, sc = s.scenario;
+    const F = this.fx();
+    const SCENMAP = {"ok": "success", "402": "success", "409": "success"};
+    const RESET = { err: '', toast: '', dlg: false };
+    const projKey = F.projects[s.project] ? s.project : "qos-benchmarks";
+    const p = F.projects[projKey];
+    const orgKey = "project" === "project" ? p.org : (F.orgs[s.org] ? s.org : "isa-demo");
+    const org = F.orgs[orgKey];
+    const myRoles = F.roles[s.persona] || {};
+    const role = myRoles[orgKey] || (who.admin ? "PLATFORM ADMIN" : "");
+    const rank = { VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4, "PLATFORM ADMIN": 4 }[role] || 0;
+    const member = rank > 0;
+    const canMember = rank >= 2, canAdmin = rank >= 3;
+    const chip = (bg, fg, bd) => "display: inline-flex; align-items: center; gap: 4px; border-radius: 9999px; padding: 1px 10px; font-size: 12px; font-weight: 500; background: " + bg + "; color: " + fg + "; border: 1px solid " + bd + ";";
+    const roleChipOf = (r) => "border-radius: 9999px; padding: 1px 10px; font-size: 11px; font-weight: 600; " + ({ OWNER: "background: #023e8a; color: #ffffff;", ADMIN: "background: #0077b6; color: #ffffff;", MEMBER: "background: #caf0f8; color: #023e8a;", VIEWER: "background: #fafafa; color: #4a4a4a; border: 1px solid #b8b8b8;", "PLATFORM ADMIN": "background: #1f1f1f; color: #ffffff;" }[r] || "");
+    const btn = (kind) => "display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; " + (kind === "primary" ? "border: 0; background: #0077b6; color: #ffffff;" : (kind === "danger" ? "border: 1px solid #fca5a5; background: #ffffff; color: #b91c1c;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f;"));
+    const pill = (on) => "height: 30px; padding: 0 12px; border-radius: 9999px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; " + (on ? "border: 1px solid #0077b6; background: #0077b6; color: #ffffff;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #4a4a4a;");
+    const tab = (on) => "padding: 10px 16px; border: 0; background: transparent; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: -1px; " + (on ? "color: #0077b6; border-bottom: 2px solid #0077b6;" : "color: #6a6a6a; border-bottom: 2px solid transparent;");
+    const radio = (on) => ({ border: on ? "2px solid #0077b6" : "1px solid #b8b8b8", bg: on ? "rgba(0,119,182,0.05)" : "#ffffff", ring: on ? "#0077b6" : "#a8a8a8", fill: on ? "#0077b6" : "transparent" });
+    const n = (x) => Number(x).toLocaleString("en-US");
+    const later = (ms, fn) => this.later(ms, fn);
+    const forbiddenGate = false;
+    const allowVisitor = false;
+    const needMember = "project" === "project" || "project" === "org";
+    const gate = (!who.signedIn && !allowVisitor) || (who.signedIn && needMember && !member) || (forbiddenGate && st === "forbidden");
+    const __b = {
+      persona: s.persona, st: st, na: [], scenarios: [{"id": "ok", "label": "Loads"}, {"id": "402", "label": "402 sponsor collections full"}, {"id": "409", "label": "409 address taken"}], scenario: sc,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState(Object.assign({ st: x }, RESET)),
+      setScenario: (x) => this.setState(Object.assign({ scenario: x, st: SCENMAP[x] || "error" }, RESET)),
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      org: org, p: p, role: role, roleChip: roleChipOf(role),
+      ctx: "project" === "project" ? org.name + " / " + p.name : ("project" === "org" ? org.name : ""),
+      gate: gate, inside: !gate,
+      gateIcon: !who.signedIn ? "M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4" : "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-3.5-3.5",
+      gateTitle: !who.signedIn ? "Log in to continue" : (forbiddenGate && st === "forbidden" && member ? "Your role doesn’t reach this (403)" : "Not found"),
+      gateText: !who.signedIn ? "This page is only for signed-in members." : (forbiddenGate && st === "forbidden" && member ? "Ask an admin of the organization for a higher role." : "It doesn't exist, or you're not a member of the organization it belongs to. We show the same message either way."),
+      gateHref: who.signedIn ? "AppHome.dc.html" : "AuthLogin.dc.html", gateCta: who.signedIn ? "Back to Home" : "Log in",
+      live: s.live
+    };
+    const crumbBase = "project" === "project" ? [["Home", "AppHome.dc.html"], [org.name, "OrgOverview.dc.html"], [p.name, "ProjOverview.dc.html"]] : ("project" === "org" ? [["Home", "AppHome.dc.html"], [org.name, "OrgOverview.dc.html"]] : [["Home", "AppHome.dc.html"]]);
+    const base = projKey === "qos-benchmarks" ? [{ slug: "referencias-checkout", name: "Referencias checkout", desc: "What a reviewer needs to reproduce the published comparison.", types: ["2 case revisions", "1 library version", "1 report"], meta: "4 items · revision 1" }] : [];
+    const rows = st === "empty" || st === "loading" ? [] : base.concat(s.made).filter((c) => s.gone.indexOf(c.slug) < 0);
+    const usedQ = org.sponsor === "lucia" ? 1 + s.made.length - s.gone.length : null;
+    const V = {
+      canEdit: canMember && st !== "forbidden", canAdmin: canAdmin && st !== "forbidden", btnPrimary: btn("primary"), btnSecondary: btn(),
+      qPct: sc === "402" ? "100" : (usedQ !== null ? String(Math.max(2, Math.round(usedQ / 50 * 100))) : "0"), qColor: sc === "402" ? "#ef4444" : "#0077b6",
+      qText: sc === "402" ? "50 of 50" : (usedQ !== null ? usedQ + " of 50" : "Not in the prototype data"),
+      toast: s.toast, isLoading: st === "loading", isEmpty: st !== "loading" && rows.length === 0, simNote: rows.some((c) => c.slug === "referencias-checkout"),
+      rows: rows.map((c) => ({ name: c.name, desc: c.desc, types: c.types.map((t) => ({ l: t })), meta: c.meta, del: () => this.setState({ gone: s.gone.concat([c.slug]), toast: c.name + " deleted. The things it pointed to are untouched.", live: "Deleted." }) })),
+      openNew: () => this.setState({ dlg: true, nn: "", nd: "", err: "" }), closeNew: () => this.setState({ dlg: false }), dlg: s.dlg,
+      nn: s.nn, typeNn: (e) => this.setState({ nn: e.target.value, err: "" }), nd: s.nd, typeNd: (e) => this.setState({ nd: e.target.value }), err: s.err,
+      createNew: (e) => { if (e && e.preventDefault) e.preventDefault(); if (!s.nn.trim()) { this.setState({ err: "Give it a name (422)." }); return; } if (sc === "402") { this.setState({ err: "The sponsor has no collections left (402 · sponsor quota exceeded)." }); return; } const slug = s.nn.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); if (sc === "409" || rows.some((c) => c.slug === slug)) { this.setState({ err: "That address is already used (409)." }); return; } this.setState({ dlg: false, made: s.made.concat([{ slug: slug, name: s.nn, desc: s.nd || "No description.", types: ["empty"], meta: "No revision yet" }]), toast: "Collection created. Add items to make its first revision.", live: "Created." }); }
+    };
+    const __crumbs = crumbBase.concat(V.crumbList || [["Collections"]]);
+    __b.crumbs = __crumbs.map((c, i) => ({ label: c[0], href: c[1] || "", title: c[2] || "", link: i < __crumbs.length - 1, cur: i === __crumbs.length - 1 }));
+    __b.route = V.route || "/app/" + p.org + "/" + p.slug + "/collections";
+    return Object.assign(__b, V);
+  }
+}
+</script>
+</body>
+</html>

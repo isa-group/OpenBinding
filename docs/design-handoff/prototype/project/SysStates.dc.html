@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · State gallery</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-spin{to{transform:rotate(360deg)}}
+.ob-spin{animation:ob-spin .9s linear infinite}
+@media (prefers-reduced-motion: reduce){.ob-spin{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="sys-states" route="/app/system/states" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="" active="" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<main style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">States and recoverable errors</h1>
+<p style="margin: 0; max-width: 760px; color: #4a4a4a;">Every action can fail even when the screen allowed it. These are the messages the prototype reuses, each with what happened and how to recover. Two error shapes come from the API (problem+json and detail objects); the screens show them the same way.</p>
+</div>
+<div role="group" aria-label="Filter states" style="display: flex; flex-wrap: wrap; gap: 6px;">
+<sc-for list="{{filters}}" as="f" hint-placeholder-count="6"><button type="button" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}" style="{{f.style}}">{{f.label}}</button></sc-for>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; align-items: start;">
+
+<sc-if value="{{show.session}}" hint-placeholder-val="{{true}}">
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="border-radius: 6px; background: #1f1f1f; color: #ffffff; padding: 1px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">401</span><span style="font-size: 12px; color: #6a6a6a;">unauthorized · invalid_token</span></span>
+<span style="font-size: 16px; font-weight: 600;">Your session ended</span>
+<span style="color: #4a4a4a;">We first try to renew it silently with one refresh request. If that fails, you log in again and come back to the page you were on.</span>
+<sc-if value="{{refreshed}}" hint-placeholder-val="{{false}}"><span role="status" style="border: 1px solid #86efac; background: #f0fdf4; border-radius: 8px; padding: 6px 10px; font-size: 13px;">Session renewed. You stay on this page.</span></sc-if>
+<span style="display: flex; flex-wrap: wrap; gap: 8px;"><a href="AuthLogin.dc.html" style="display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Log in again</a><button type="button" onClick="{{refresh}}" style="height: 34px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 14px; cursor: pointer;">Simulate silent renewal</button></span>
+</article>
+</sc-if>
+
+<sc-if value="{{show.permission}}" hint-placeholder-val="{{true}}">
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="border-radius: 6px; background: #1f1f1f; color: #ffffff; padding: 1px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">403</span><span style="font-size: 12px; color: #6a6a6a;">organization_forbidden</span></span>
+<span style="font-size: 16px; font-weight: 600;">This needs ADMIN in ISA Demo Group</span>
+<span style="color: #4a4a4a;">Your effective role there is MEMBER. Ask an owner or admin, such as Lucía Vega, to change your role. Your plan and your CAS identity don't change roles.</span>
+<span style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px;"><span style="border-radius: 9999px; background: #fafafa; border: 1px solid #ededed; padding: 0 8px;">Needed · ADMIN</span><span style="border-radius: 9999px; background: #fafafa; border: 1px solid #ededed; padding: 0 8px;">Yours · MEMBER (direct)</span></span>
+<a href="OrgMembers.dc.html" style="font-weight: 500;">See who manages this organization</a>
+</article>
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="border-radius: 6px; background: #1f1f1f; color: #ffffff; padding: 1px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">403</span><span style="font-size: 12px; color: #6a6a6a;">insufficient_api_key_permission</span></span>
+<span style="font-size: 16px; font-weight: 600;">This API key can't do that</span>
+<span style="color: #4a4a4a;">The request needs <code style="font-family: 'JetBrains Mono', monospace;">engines:execute</code>, which this key doesn't include. A key can never exceed its account; create a key with the permission instead.</span>
+<span style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px;"><span style="border-radius: 9999px; border: 1px solid #fca5a5; background: #fef2f2; padding: 0 8px; font-family: 'JetBrains Mono', monospace;">missing · engines:execute</span></span>
+<a href="AcctKeyNew.dc.html" style="font-weight: 500;">Create a key with this permission</a>
+</article>
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="border-radius: 6px; background: #1f1f1f; color: #ffffff; padding: 1px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">403</span><span style="font-size: 12px; color: #6a6a6a;">feature_not_entitled</span></span>
+<span style="font-size: 16px; font-weight: 600;">Your plan doesn't include this</span>
+<span style="color: #4a4a4a;">Retrying won't help. Paid plans are arranged by agreement; there's no checkout.</span>
+<span style="display: flex; flex-wrap: wrap; gap: 8px;"><a href="PubPricing.dc.html" style="display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid #a8a8a8; color: #1f1f1f; font-weight: 500; text-decoration: none;">Compare plans</a><a href="PubPricing.dc.html" style="display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid #a8a8a8; color: #1f1f1f; font-weight: 500; text-decoration: none;">Request an agreement</a></span>
+</article>
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="border-radius: 6px; background: #1f1f1f; color: #ffffff; padding: 1px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">404</span><span style="font-size: 12px; color: #6a6a6a;">not_found</span></span>
+<span style="font-size: 16px; font-weight: 600;">Job not found</span>
+<span style="color: #4a4a4a;">There's nothing here you can open. The same message appears whether it doesn't exist or isn't yours, so it never reveals that something private exists.</span>
+<a href="JobHistory.dc.html" style="font-weight: 500;">Go to my jobs</a>
+</article>
+</sc-if>
+
+<sc-if value="{{show.quota}}" hint-placeholder-val="{{true}}">
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="border-radius: 6px; background: #1f1f1f; color: #ffffff; padding: 1px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">402</span><span style="font-size: 12px; color: #6a6a6a;">quota_exceeded · taskStarts</span></span>
+<span style="font-size: 16px; font-weight: 600;">You've used all your solves for this month</span>
+<div style="display: flex; flex-direction: column; gap: 4px;"><span style="display: flex; justify-content: space-between; font-size: 13px;"><span>10 of 10 solves</span><span style="color: #6a6a6a;">solve/month</span></span><span style="height: 8px; border-radius: 9999px; background: #ededed;"><span style="display: block; width: 100%; height: 8px; border-radius: 9999px; background: #0077b6;"></span></span></div>
+<span style="color: #4a4a4a;">Renews Nov 1, 2026 (in {{daysToRenew}} days). Reducing the time budget doesn't help here: it's the number of solves that ran out.</span>
+<span style="display: flex; flex-wrap: wrap; gap: 8px;"><a href="AcctUsage.dc.html" style="display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">See my usage</a><a href="PubPricing.dc.html" style="display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid #a8a8a8; color: #1f1f1f; font-weight: 500; text-decoration: none;">Request an agreement</a></span>
+</article>
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="border-radius: 6px; background: #1f1f1f; color: #ffffff; padding: 1px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">402</span><span style="font-size: 12px; color: #6a6a6a;">sponsor_quota_exceeded · members</span></span>
+<span style="font-size: 16px; font-weight: 600;">The sponsor can't add more members</span>
+<span style="color: #4a4a4a;">Members are counted once across every organization Lucía Vega sponsors (RESEARCH: 15 unique members). The sponsor only pays for usage; it doesn't grant any authority.</span>
+<span style="display: flex; flex-wrap: wrap; gap: 8px;"><a href="OrgMembers.dc.html" style="font-weight: 500;">Free up a seat</a><a href="PubPricing.dc.html" style="font-weight: 500;">Contact about a larger agreement</a></span>
+</article>
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="border-radius: 6px; background: #1f1f1f; color: #ffffff; padding: 1px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">402</span><span style="font-size: 12px; color: #6a6a6a;">instance_complexity_too_large</span></span>
+<span style="font-size: 16px; font-weight: 600;">This problem is bigger than your plan allows</span>
+<span style="color: #4a4a4a;">Your plan accepts binding spaces up to 10<sup>9</sup> combinations (BASIC). There's no smaller version to run: reduce candidates or tasks, or ask for an agreement. The measured size is shown only when the API returns it.</span>
+<a href="CaseComposer.dc.html" style="font-weight: 500;">Edit the case</a>
+</article>
+</sc-if>
+
+<sc-if value="{{show.availability}}" hint-placeholder-val="{{true}}">
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="border-radius: 6px; background: #1f1f1f; color: #ffffff; padding: 1px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">429</span><span style="font-size: 12px; color: #6a6a6a;">concurrency_limit_exceeded · Retry-After 15</span></span>
+<span style="font-size: 16px; font-weight: 600;">All your job slots are busy</span>
+<span style="color: #4a4a4a;">You have 1 of 1 concurrent jobs running. If a monthly quota were also exhausted you'd see the 402 instead, because waiting wouldn't help.</span>
+<div aria-live="polite" style="display: flex; align-items: center; gap: 12px;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600; min-width: 48px;">{{countdown}}</span><span style="font-size: 13px; color: #4a4a4a;">{{countdownText}}</span></div>
+<span style="display: flex; flex-wrap: wrap; gap: 8px;"><button type="button" onClick="{{retry429}}" disabled="{{retryDisabled}}" style="{{retryStyle}}">Retry now</button><button type="button" onClick="{{startCountdown}}" style="height: 34px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 14px; cursor: pointer;">Simulate again</button><a href="JobDetail.dc.html" style="display: inline-flex; align-items: center; font-weight: 500;">View the running job</a></span>
+</article>
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="border-radius: 6px; background: #1f1f1f; color: #ffffff; padding: 1px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">503</span><span style="font-size: 12px; color: #6a6a6a;">pricing_unavailable</span></span>
+<span style="font-size: 16px; font-weight: 600;">We can't check your quota right now</span>
+<span style="color: #4a4a4a;">The pricing service didn't answer. This says nothing about your balance: you haven't run out. Try again in a moment; nothing retries automatically.</span>
+<sc-if value="{{checking503}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px;"><span class="ob-spin" aria-hidden="true" style="width: 14px; height: 14px; box-sizing: border-box; border-radius: 9999px; border: 2px solid #caf0f8; border-top-color: #0077b6;"></span>Checking…</span></sc-if>
+<span style="display: flex; flex-wrap: wrap; gap: 8px;"><button type="button" onClick="{{retry503}}" style="height: 34px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 14px; cursor: pointer;">Try again</button><a href="PubStatus.dc.html" style="display: inline-flex; align-items: center; font-weight: 500;">Service status</a></span>
+</article>
+</sc-if>
+
+<sc-if value="{{show.warnings}}" hint-placeholder-val="{{true}}">
+<article style="border: 1px solid #fcd34d; border-radius: 16px; background: #ffffff; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="border-radius: 6px; border: 1px solid #b45309; color: #1f1f1f; padding: 0 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">OPTION_CLAMPED</span><span style="font-size: 12px; color: #6a6a6a;">warning, not an error</span></span>
+<span style="font-size: 16px; font-weight: 600;">Your job ran with a smaller budget</span>
+<table style="width: 100%; border-collapse: collapse; font-size: 13px;"><thead><tr style="text-align: left; color: #6a6a6a; font-size: 12px;"><th style="padding: 4px 0; font-weight: 600;">Option</th><th style="padding: 4px; font-weight: 600;">Requested</th><th style="padding: 4px; font-weight: 600;">Applied</th><th style="padding: 4px 0; font-weight: 600;">Unit</th></tr></thead><tbody><tr style="border-top: 1px solid #ededed;"><td style="padding: 6px 0; font-family: 'JetBrains Mono', monospace;">iterations</td><td style="padding: 6px 4px;">100,000</td><td style="padding: 6px 4px; font-weight: 600;">10,000</td><td style="padding: 6px 0;">iteration</td></tr></tbody></table>
+<span style="color: #4a4a4a;">The plan's ceiling (BASIC, 10,000 iterations per request) applied. The job was created; its result says it used the reduced budget.</span>
+</article>
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="border-radius: 6px; background: #1f1f1f; color: #ffffff; padding: 1px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">token</span><span style="font-size: 12px; color: #6a6a6a;">plan features shown in the browser</span></span>
+<span style="font-size: 16px; font-weight: 600;">Plan features: {{tokenTitle}}</span>
+<div role="group" aria-label="Token state" style="display: flex; flex-wrap: wrap; gap: 4px;"><sc-for list="{{tokenStates}}" as="t" hint-placeholder-count="4"><button type="button" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}" style="{{t.style}}">{{t.label}}</button></sc-for></div>
+<span style="color: #4a4a4a;">{{tokenText}}</span>
+</article>
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="border-radius: 6px; background: #1f1f1f; color: #ffffff; padding: 1px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">dates</span><span style="font-size: 12px; color: #6a6a6a;">expiry and renewal</span></span>
+<span style="font-size: 16px; font-weight: 600;">Things that expire or renew</span>
+<ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; color: #2c2c2c;">
+<li><span style="font-weight: 500;">API key</span> · stops working on its expiry date. Rotate or create a new one.</li>
+<li><span style="font-weight: 500;">Invitation</span> · valid for 7 days (this one: until Oct 15, 2026).</li>
+<li><span style="font-weight: 500;">Plan contract</span> · renews Nov 1, 2026. A new pricing version applies when it renews.</li>
+<li><span style="font-weight: 500;">Contract pending</span> · if pricing was down at sign-up, your plan is settled on your next visit.</li>
+</ul>
+</article>
+</sc-if>
+</div>
+
+<section aria-labelledby="anatomy-title" style="display: flex; flex-direction: column; gap: 12px;">
+<h2 id="anatomy-title" style="margin: 0; font-size: 18px; font-weight: 500;">How an error becomes a message</h2>
+<p style="margin: 0; color: #4a4a4a; max-width: 760px;">The platform answers errors in two formats. Both are turned into the same kind of message, so people never see the raw answer. Left: what the answer carries. Right: where it shows.</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px;">
+<article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<span style="font-weight: 600;">Busy job slots (429)</span><span style="font-size: 12px; color: #6a6a6a;">Format used by most routes</span>
+<div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: grid; grid-template-columns: 150px 18px 1fr; align-items: center; gap: 8px; font-size: 13px;"><span style="border-radius: 8px; background: #fafafa; border: 1px solid #ededed; padding: 4px 8px;">Error name</span><span aria-hidden="true" style="color: #0077b6;">→</span><span style="border-radius: 8px; background: #f1f8fc; border: 1px solid #a9d6ea; padding: 4px 8px;">Headline: “All your job slots are busy”</span></div><div style="display: grid; grid-template-columns: 150px 18px 1fr; align-items: center; gap: 8px; font-size: 13px;"><span style="border-radius: 8px; background: #fafafa; border: 1px solid #ededed; padding: 4px 8px;">Status 429</span><span aria-hidden="true" style="color: #0077b6;">→</span><span style="border-radius: 8px; background: #f1f8fc; border: 1px solid #a9d6ea; padding: 4px 8px;">Code chip “429”</span></div><div style="display: grid; grid-template-columns: 150px 18px 1fr; align-items: center; gap: 8px; font-size: 13px;"><span style="border-radius: 8px; background: #fafafa; border: 1px solid #ededed; padding: 4px 8px;">Explanation</span><span aria-hidden="true" style="color: #0077b6;">→</span><span style="border-radius: 8px; background: #f1f8fc; border: 1px solid #a9d6ea; padding: 4px 8px;">Body text</span></div><div style="display: grid; grid-template-columns: 150px 18px 1fr; align-items: center; gap: 8px; font-size: 13px;"><span style="border-radius: 8px; background: #fafafa; border: 1px solid #ededed; padding: 4px 8px;">Limit 1 · used 1</span><span aria-hidden="true" style="color: #0077b6;">→</span><span style="border-radius: 8px; background: #f1f8fc; border: 1px solid #a9d6ea; padding: 4px 8px;">Gauge: 1 of 1 slots</span></div><div style="display: grid; grid-template-columns: 150px 18px 1fr; align-items: center; gap: 8px; font-size: 13px;"><span style="border-radius: 8px; background: #fafafa; border: 1px solid #ededed; padding: 4px 8px;">Retry after 15 s</span><span aria-hidden="true" style="color: #0077b6;">→</span><span style="border-radius: 8px; background: #f1f8fc; border: 1px solid #a9d6ea; padding: 4px 8px;">Countdown and Retry button</span></div></div></article><article style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<span style="font-weight: 600;">Monthly quota used up (402)</span><span style="font-size: 12px; color: #6a6a6a;">Format used by the remaining routes</span>
+<div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: grid; grid-template-columns: 150px 18px 1fr; align-items: center; gap: 8px; font-size: 13px;"><span style="border-radius: 8px; background: #fafafa; border: 1px solid #ededed; padding: 4px 8px;">Error code</span><span aria-hidden="true" style="color: #0077b6;">→</span><span style="border-radius: 8px; background: #f1f8fc; border: 1px solid #a9d6ea; padding: 4px 8px;">Headline: “You've used this month's solves”</span></div><div style="display: grid; grid-template-columns: 150px 18px 1fr; align-items: center; gap: 8px; font-size: 13px;"><span style="border-radius: 8px; background: #fafafa; border: 1px solid #ededed; padding: 4px 8px;">Message</span><span aria-hidden="true" style="color: #0077b6;">→</span><span style="border-radius: 8px; background: #f1f8fc; border: 1px solid #a9d6ea; padding: 4px 8px;">Body text</span></div><div style="display: grid; grid-template-columns: 150px 18px 1fr; align-items: center; gap: 8px; font-size: 13px;"><span style="border-radius: 8px; background: #fafafa; border: 1px solid #ededed; padding: 4px 8px;">Limit 10 · used 10</span><span aria-hidden="true" style="color: #0077b6;">→</span><span style="border-radius: 8px; background: #f1f8fc; border: 1px solid #a9d6ea; padding: 4px 8px;">Gauge: 10 of 10 solves</span></div><div style="display: grid; grid-template-columns: 150px 18px 1fr; align-items: center; gap: 8px; font-size: 13px;"><span style="border-radius: 8px; background: #fafafa; border: 1px solid #ededed; padding: 4px 8px;">Unit solve/month</span><span aria-hidden="true" style="color: #0077b6;">→</span><span style="border-radius: 8px; background: #f1f8fc; border: 1px solid #a9d6ea; padding: 4px 8px;">Gauge label</span></div><div style="display: grid; grid-template-columns: 150px 18px 1fr; align-items: center; gap: 8px; font-size: 13px;"><span style="border-radius: 8px; background: #fafafa; border: 1px solid #ededed; padding: 4px 8px;">Renews Nov 1, 2026</span><span aria-hidden="true" style="color: #0077b6;">→</span><span style="border-radius: 8px; background: #f1f8fc; border: 1px solid #a9d6ea; padding: 4px 8px;">Renewal date and calendar icon</span></div></div></article>
+</div>
+</section>
+</main>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":3200}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "marco", st: "success", fam: "all", left: 15, refreshed: false, checking503: false, token: "absent" };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, name: "", email: "", initials: "", admin: false },
+      lucia: { signedIn: true, name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV", admin: false },
+      marco: { signedIn: true, name: "Marco Díaz", email: "marco@example.invalid", initials: "MD", admin: false },
+      sofia: { signedIn: true, name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR", admin: false },
+      nora: { signedIn: true, name: "Nora Campos", email: "nora@example.invalid", initials: "NC", admin: false },
+      iker: { signedIn: true, name: "Iker Mora", email: "iker@example.invalid", initials: "IM", admin: true },
+      pablo: { signedIn: true, name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI", admin: false }
+    };
+  }
+  componentDidMount() {
+    try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); } catch (e) {}
+    this.startTick();
+  }
+  componentWillUnmount() { if (this.iv) clearInterval(this.iv); if (this.timer) clearTimeout(this.timer); }
+  startTick() {
+    if (this.iv) clearInterval(this.iv);
+    this.setState({ left: 15 });
+    this.iv = setInterval(() => { const l = this.state.left - 1; this.setState({ left: Math.max(0, l) }); if (l <= 0) clearInterval(this.iv); }, 1000);
+  }
+  setPersona(k) { this.setState({ persona: k }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const pill = (on) => "height: 30px; padding: 0 12px; border-radius: 12px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; " + (on ? "border: 1px solid rgba(0,119,182,0.3); background: rgba(0,119,182,0.05); color: #0077b6;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #4a4a4a;");
+    const fams = [["all", "All"], ["session", "Session"], ["permission", "Permission & privacy"], ["quota", "Quota"], ["availability", "Busy & unavailable"], ["warnings", "Warnings & dates"]];
+    const filters = fams.map(([k, l]) => ({ label: l, pressed: s.fam === k ? "true" : "false", pick: () => this.setState({ fam: k }), style: pill(s.fam === k) }));
+    const show = {};
+    fams.slice(1).forEach(([k]) => { show[k] = s.fam === "all" || s.fam === k; });
+    let days = 23;
+    try { days = Math.max(0, Math.ceil((Date.UTC(2026, 10, 1) - Date.now()) / 86400000)); } catch (e) {}
+    const tokenDefs = { absent: ["Absent", "can't confirm", "No pricing token yet. We don't say what your plan allows; actions stay available and the server decides."], loading: ["Loading", "checking…", "Checking your plan features. Nothing is enabled or blocked on stale data meanwhile."], present: ["Present", "confirmed", "Features shown come from a signed token. They only guide the interface; the server still checks every action and your real balance."], expired: ["Expired", "can't confirm", "The token expired. We hide the feature states until a fresh one arrives instead of trusting old data."] };
+    const tokenStates = Object.keys(tokenDefs).map((k) => ({ label: tokenDefs[k][0], pressed: s.token === k ? "true" : "false", pick: () => this.setState({ token: k }), style: "height: 28px; padding: 0 10px; border-radius: 8px; font-family: inherit; font-size: 12px; cursor: pointer; " + (s.token === k ? "border: 1px solid #0077b6; background: #0077b6; color: #ffffff;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #4a4a4a;") }));
+    const done = s.left <= 0;
+    return {
+      persona: s.persona, st: s.st, na: ["loading", "empty", "error", "forbidden"], scenarios: [], scenario: "",
+      setPersona: (k) => this.setPersona(k),
+      setSt: (v) => this.setState({ st: v }),
+      setScenario: () => {},
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      filters: filters, show: show,
+      refreshed: s.refreshed, refresh: () => this.setState({ refreshed: true }),
+      daysToRenew: String(days),
+      countdown: done ? "0s" : s.left + "s",
+      countdownText: done ? "A slot may be free now." : "Retry is available when the countdown ends.",
+      retryDisabled: !done,
+      retryStyle: "height: 34px; padding: 0 12px; border: 0; border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 500; " + (done ? "background: #0077b6; color: #ffffff; cursor: pointer;" : "background: rgba(0,119,182,0.5); color: #ffffff; cursor: not-allowed;"),
+      retry429: () => this.startTick(),
+      startCountdown: () => this.startTick(),
+      checking503: s.checking503,
+      retry503: () => { this.setState({ checking503: true }); this.timer = setTimeout(() => this.setState({ checking503: false }), 1200); },
+      tokenStates: tokenStates, tokenTitle: tokenDefs[s.token][1], tokenText: tokenDefs[s.token][2],
+    };
+  }
+}
+</script>
+</body>
+</html>

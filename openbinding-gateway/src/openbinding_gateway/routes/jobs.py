@@ -6,33 +6,61 @@ import asyncio
 import json
 import uuid
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import exists, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import space_client
-from ..access import metering
 from ..access.dependencies import get_current_user, session_dependency
+from ..core.public_errors import (
+    BIM_EVALUATION_UNAVAILABLE,
+    CANCELLATION_REQUESTED,
+    EVIDENCE_EXPIRED,
+    JOB_ALREADY_RETRIED,
+    JOB_IN_STUDY,
+    JOB_NOT_REEVALUABLE,
+    PublicProblem,
+    log_internal_failure,
+)
 from ..db import base as db_base
-from ..db.models import Job, JobProvenance, JobState, User, utcnow
+from ..db.models import AuditEvent, InstanceSnapshot, Job, JobEngineEvidence, JobProvenance, JobState, User
 from ..job_dispatch import dispatch_persisted_job
-from ..models.errors import api_error
-from ..models.platform import JobView
-from ..v1.canonical import digest
+from ..jobs import clock as job_clock
+from ..jobs import evidence as job_evidence
+from ..jobs import lifecycle
+from ..domain import usage_counters
+from ..domain.binding_space import BindingSpace, parse_cardinality
+from ..jobs import limits as job_limits
+from ..models.errors import (
+    CONFLICT_RESPONSE,
+    FORBIDDEN_RESPONSE,
+    NOT_FOUND_RESPONSE,
+    UNAVAILABLE_RESPONSE,
+    ErrorResponse,
+    api_error,
+)
+from ..models.platform import JobView, job_view
+from ..repositories import jobs as job_repository
+from ..security.roles import require_work_role
+from ..services.engines import persisted_mode_contract
+from ..services.entitlements import EntitlementService, get_entitlements
+from ..services.execution import evaluate_engine_result
+from ..services.job_submission import _sharing_organizations
+from bim_core.canonical import digest
 
 router = APIRouter(prefix="/v1/jobs", tags=["Jobs"])
 
 
-def _view(job: Job) -> JobView:
-    return JobView(
-        id=job.id, engine_id=job.engine_id, status=job.state.value,
-        cancellation_requested=job.cancellation_requested,
-        retry_of_id=job.retry_of_id, organization_id=job.organization_id,
-        project_id=job.project_id, created_at=job.created_at, finished_at=job.finished_at,
-        result=job.result, termination=job.termination, options=job.options,
-        original_request=job.original_request, provenance=job.provenance,
-    )
+def _view(job: Job, viewer: User) -> JobView:
+    return job_view(job, viewer)
+
+
+def _audit(session: AsyncSession, user: User, action: str, target: Job, **detail: str) -> None:
+    """One audit event of the job's organization (none for a job outside any), as the other routes do."""
+    session.add(AuditEvent(
+        organization_id=target.organization_id, actor_id=user.id, action=action,
+        target_type=target.__class__.__name__, target_id=target.id, detail=detail,
+    ))
 
 
 async def _owned(
@@ -41,13 +69,23 @@ async def _owned(
     user_id: uuid.UUID,
     *,
     lock: bool = False,
+    work_by: User | None = None,
 ) -> Job:
-    query = select(Job).where(Job.id == job_id, Job.owner_id == user_id)
-    if lock:
-        query = query.with_for_update()
-    job = (await session.execute(query)).scalars().first()
+    """The caller's job, or 404. With ``work_by`` the job is also one that user may cancel or repeat.
+
+    A job of an organization is work of that organization: a VIEWER only reads it, so
+    this answers 403 ``insufficient_role`` before anything is changed.
+    """
+    job = await job_repository.get_owned(session, job_id, user_id, lock=lock)
     if job is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Job not found.")
+    if work_by is not None:
+        await require_work_role(session, work_by, [job.organization_id])
+        if job.organization_id is None and job.instance_snapshot_id is not None:
+            # Same rule as the launch: a snapshot shared by organizations is run with MEMBER in one of them.
+            snapshot = await session.get(InstanceSnapshot, job.instance_snapshot_id)
+            if snapshot is not None:
+                await require_work_role(session, work_by, await _sharing_organizations(session, snapshot, work_by))
     return job
 
 
@@ -58,11 +96,8 @@ async def list_jobs(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[JobView]:
-    query = select(Job).where(Job.owner_id == user.id)
-    if state is not None:
-        query = query.where(Job.state == state)
-    rows = (await session.execute(query.order_by(Job.created_at.desc()).limit(max(1, min(limit, 500))))).scalars().all()
-    return [_view(row) for row in rows]
+    rows = await job_repository.list_owned(session, user.id, state=state, limit=limit)
+    return [_view(row, user) for row in rows]
 
 
 @router.post("/{job_id}/cancel", response_model=JobView, operation_id="cancelJob")
@@ -71,16 +106,20 @@ async def cancel_job(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> JobView:
-    job = await _owned(session, job_id, user.id, lock=True)
+    # A study's job is cancelled under the lock of its run, taken before the job's.
+    await lifecycle.lock_study_run(session, job_id, user.id)
+    job = await _owned(session, job_id, user.id, lock=True, work_by=user)
     if job.state in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}:
         raise api_error(status.HTTP_409_CONFLICT, "terminal_job", "The job is already terminal.")
-    job.cancellation_requested = True
-    if job.state is JobState.QUEUED:
-        job.state = JobState.CANCELLED
-        job.finished_at = utcnow()
-        await metering.settle(space_client.get_gate(), session, job.id, solver_seconds=0)
+    previous = job.state
+    cancelled = await lifecycle.request_cancellation(session, job)
+    _audit(
+        session, user, "job.cancelled", job,
+        jobId=str(job.id), ownerId=str(job.owner_id), previousState=previous.value,
+        result="cancelled" if cancelled else "cancellation_requested",
+    )
     await session.flush()
-    return _view(job)
+    return _view(job, user)
 
 
 @router.post("/{job_id}/retry", response_model=JobView, status_code=202, operation_id="retryJob")
@@ -88,20 +127,14 @@ async def retry_job(
     job_id: uuid.UUID,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
+    plans: EntitlementService = Depends(get_entitlements),
 ) -> JobView:
-    original = await _owned(session, job_id, user.id, lock=True)
+    original = await _owned(session, job_id, user.id, lock=True, work_by=user)
     if original.state not in {JobState.FAILED, JobState.CANCELLED}:
         raise api_error(status.HTTP_409_CONFLICT, "job_not_retryable", "Only failed or cancelled jobs may be retried.")
-    existing = (
-        await session.execute(
-            select(Job)
-            .where(Job.owner_id == user.id, Job.retry_of_id == original.id)
-            .order_by(Job.created_at.desc())
-            .limit(1)
-        )
-    ).scalars().first()
+    existing = await job_repository.find_retry_of(session, user.id, original.id)
     if existing is not None:
-        return _view(existing)
+        return _view(existing, user)
     provenance = dict(original.provenance or {})
     registration = provenance.get("registration")
     federated = (
@@ -109,39 +142,25 @@ async def retry_job(
         and bool(registration)
         and registration.get("namespace") != "bim.builtin"
     )
-    try:
-        verdict, reservation = await metering.reserve(
-            space_client.get_gate(), user.id, federated=federated, session=session
-        )
-    except space_client.PricingUnavailable as exc:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
-    if not verdict.allowed:
-        if verdict.limit is not None:
-            if verdict.limit.limit_id == "concurrentJobs":
-                raise api_error(
-                    status.HTTP_429_TOO_MANY_REQUESTS,
-                    "concurrency_limit_exceeded",
-                    verdict.reason or "Concurrency limit exceeded.",
-                    headers={"Retry-After": "15"},
-                    concurrency={"limit_id": "concurrentJobs", "limit": verdict.limit.limit, "used": verdict.limit.used},
-                )
-            else:
-                raise api_error(
-                    status.HTTP_402_PAYMENT_REQUIRED,
-                    "quota_exceeded",
-                    verdict.reason or "Solve quota exhausted.",
-                    quota={
-                        "limit_id": verdict.limit.limit_id,
-                        "limit": verdict.limit.limit,
-                        "used": verdict.limit.used,
-                        "unit": verdict.limit.unit,
-                        "renews_at": verdict.limit.renews_at,
-                    },
-                )
+    caps = await plans.caps_or_503(user.id)
+    refusal = plans.feature_refusal(caps, "federatedEngines" if federated else "solve")
+    recorded = (original.instance_complexity or {}).get("bindingSpace")
+    if refusal is None and recorded is not None:
+        # The size recorded when the original was accepted, held against today's plan. A job from
+        # before the size was recorded is not measured again: its instance cannot be read from here.
+        refusal = plans.binding_space_refusal(BindingSpace(parse_cardinality(recorded), None), caps)
+    if refusal is None:
+        refusal = await job_limits.enforce_concurrency_limit(session, user.id, caps=caps)
+    if refusal is None:
+        # A retry is a new start (the replay of one was answered above, before any question).
+        refusal = await usage_counters.job_start_refusal(user.id, federated=federated)
+    if refusal is not None:
         raise api_error(
-            status.HTTP_403_FORBIDDEN,
-            "feature_not_entitled",
-            verdict.reason or "The current plan does not entitle this feature.",
+            refusal.status,
+            refusal.code,
+            refusal.detail,
+            headers=refusal.headers or None,
+            **refusal.extra,
         )
     replacement = Job(
         owner_id=user.id, engine_id=original.engine_id, engine_job_id=str(uuid.uuid4()),
@@ -152,19 +171,142 @@ async def retry_job(
         idempotency_fingerprint=original.idempotency_fingerprint,
         requested_budget_s=original.requested_budget_s, retry_of_id=original.id,
         organization_id=original.organization_id, project_id=original.project_id,
-        billing_sponsor_user_id=original.billing_sponsor_user_id,
     )
     session.add(replacement)
     await session.flush()
     replacement.engine_job_id = str(replacement.id)
     session.add(JobProvenance(job_id=replacement.id, document=provenance, digest=digest(provenance)))
+    _audit(
+        session, user, "job.retried", replacement,
+        jobId=str(original.id), ownerId=str(original.owner_id), replacementJobId=str(replacement.id),
+        result="retried",
+    )
     await session.commit()
+    # The job exists from here on. If dispatch fails, the redelivery sweep queues it again.
+    await dispatch_persisted_job(str(replacement.id), None if db_base.is_configured() else session)
+    return _view(replacement, user)
+
+
+def _refuse(problem: PublicProblem) -> HTTPException:
+    return api_error(problem.status, problem.code, problem.detail)
+
+
+async def _reevaluable(
+    session: AsyncSession, job: Job, user: User, evidence_id: uuid.UUID | None = None
+) -> JobEngineEvidence:
+    """The kept answer to evaluate again, or the reason this job cannot be.
+
+    Every refusal is the same for the owner whatever else is true of the job, in
+    this order. ``evidence_id`` pins the row read before BIM was called: if the
+    job moved on in the meantime it is not the one this evaluation was made for.
+    """
+    if job.study_cell_id is not None:
+        raise _refuse(JOB_IN_STUDY)
+    if await job_repository.find_retry_of(session, user.id, job.id) is not None:
+        raise _refuse(JOB_ALREADY_RETRIED)
+    if job.cancellation_requested:
+        raise _refuse(CANCELLATION_REQUESTED)
+    result = job.result if isinstance(job.result, dict) else {}
+    if job.state is not JobState.FAILED or result.get("code") != "bim_evaluation_failed":
+        raise _refuse(JOB_NOT_REEVALUABLE)
+    reference = result.get("evidence")
+    row = await job_evidence.current(session, job.id, job.attempt)
+    if (
+        not isinstance(reference, dict)
+        or row is None
+        or str(row.id) != reference.get("id")
+        or (evidence_id is not None and row.id != evidence_id)
+        or not await job_evidence.is_current(session, row)
+    ):
+        raise _refuse(EVIDENCE_EXPIRED)
+    return row
+
+
+@router.post(
+    "/{job_id}/reevaluate",
+    response_model=JobView,
+    operation_id="reevaluateJob",
+    responses={
+        403: FORBIDDEN_RESPONSE,
+        404: NOT_FOUND_RESPONSE,
+        409: CONFLICT_RESPONSE,
+        410: {"model": ErrorResponse, "description": "The kept answer of the engine has expired."},
+        503: UNAVAILABLE_RESPONSE,
+    },
+)
+async def reevaluate_job(
+    job_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> JobView:
+    """Evaluate again the engine answer kept for a job that failed with ``bim_evaluation_failed``.
+
+    The engine does not run again. BIM is called with no transaction open; the
+    job then goes FAILED -> COMPLETED in one conditional UPDATE, so of two
+    simultaneous calls (or a call and a cancellation or a retry) one wins and the
+    others answer 409. If BIM fails again the job and its evidence are untouched.
+    """
+    job = await _owned(session, job_id, user.id, work_by=user)
+    row = await _reevaluable(session, job, user)
+    request = job.original_request if isinstance(job.original_request, dict) else {}
+    provenance = dict(job.provenance or {})
+    document = request.get("bindingProblem")
+    mode = persisted_mode_contract(request.get("mode"))
+    if not isinstance(document, dict) or mode is None:
+        raise _refuse(JOB_NOT_REEVALUABLE)
+    optimization = request.get("optimization", provenance.get("optimization", {}))
+    raw_result, evidence_id = row.raw_result, row.id
+    await session.commit()  # no transaction is open while BIM works
     try:
-        await dispatch_persisted_job(str(replacement.id), None if db_base.is_configured() else session)
-    except Exception:
-        await metering.release(space_client.get_gate(), reservation)
-        raise
-    return _view(replacement)
+        final_provenance, reevaluated = await evaluate_engine_result(
+            document, raw_result, optimization, mode["terminationGuarantees"], provenance
+        )
+    except Exception as exc:
+        log_internal_failure("job re-evaluation", exc, job=job_id, code=BIM_EVALUATION_UNAVAILABLE.code)
+        raise _refuse(BIM_EVALUATION_UNAVAILABLE) from None
+
+    job = await _owned(session, job_id, user.id, lock=True, work_by=user)
+    await session.refresh(job)
+    await _reevaluable(session, job, user, evidence_id)
+    won = await session.execute(
+        update(Job)
+        .where(
+            Job.id == job_id,
+            Job.state == JobState.FAILED,
+            Job.cancellation_requested.is_(False),
+            Job.study_cell_id.is_(None),
+            Job.result["code"].as_string() == "bim_evaluation_failed",
+            exists()
+            .where(
+                JobEngineEvidence.id == evidence_id,
+                JobEngineEvidence.job_id == Job.id,
+                JobEngineEvidence.attempt == Job.attempt,
+            )
+            .correlate(Job),
+        )
+        .values(
+            state=JobState.COMPLETED,
+            result=reevaluated,
+            termination=reevaluated["termination"],
+            provenance=final_provenance,
+            lease_token=None,
+            lease_until=None,
+            finished_at=job_clock.now(session),
+        )
+        .returning(Job.id)
+        .execution_options(synchronize_session=False)
+    )
+    if won.first() is None:
+        await session.rollback()
+        raise _refuse(JOB_NOT_REEVALUABLE)
+    await session.refresh(job)
+    await job_evidence.delete_for_job(session, job_id)
+    _audit(
+        session, user, "job.reevaluated", job,
+        jobId=str(job.id), ownerId=str(job.owner_id), evidenceId=str(evidence_id), result="completed",
+    )
+    await session.commit()
+    return _view(job, user)
 
 
 @router.get(

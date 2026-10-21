@@ -41,9 +41,15 @@ def discover_project_root(start: Path | None = None) -> Path:
 
 
 def install_gateway_import(root: Path) -> None:
-    source = str(root / "openbinding-gateway/src")
-    if source not in sys.path:
-        sys.path.insert(0, source)
+    """Make the gateway and the BIM language (``bim_core``) importable from a checkout.
+
+    The campaign compiles and reads packages with the library, in process (it is an offline tool);
+    ``uv run --project openbinding-gateway`` already has both installed and then this changes nothing.
+    """
+    for relative in ("openbinding-gateway/src", "bim-toolchain/packages/bim-core/src"):
+        source = str(root / relative)
+        if source not in sys.path and (root / relative).is_dir():
+            sys.path.insert(0, source)
 
 
 def stable_instance_seed(base_seed: int, suite: str, instance_id: str, engine: str) -> int:

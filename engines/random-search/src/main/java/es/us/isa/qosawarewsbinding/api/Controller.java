@@ -6,6 +6,8 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import es.us.isa.openbinding.core.CanonicalEvaluator;
 import es.us.isa.openbinding.core.EngineContract;
+import es.us.isa.openbinding.core.EngineHttp;
+import es.us.isa.openbinding.core.EngineJobs;
 import es.us.isa.qosawarewsbinding.search.V1RandomSearch;
 
 import java.io.ByteArrayOutputStream;
@@ -17,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** BIM Engine Protocol v1 HTTP adapter for seeded random search. */
-public final class Controller implements HttpHandler {
+public final class Controller implements HttpHandler, EngineHttp.Engine {
   private static final long MAX_BODY_BYTES = 64L * 1024L * 1024L;
 
   @Override public void handle(HttpExchange exchange) throws IOException {
@@ -39,25 +41,38 @@ public final class Controller implements HttpHandler {
   }
 
   public String solvePayload(String payload) {
-    EngineContract.Request request = EngineContract.parse(payload);
+    return prepare(payload).run();
+  }
+
+  /**
+   * Validates the request and returns the search to run.  The synchronous handler runs it at once;
+   * the asynchronous mode queues it, so an invalid request is refused before a job exists.
+   */
+  @Override public EngineJobs.Work prepare(String payload) {
+    final EngineContract.Request request = EngineContract.parse(payload);
     JsonObject options = request.options();
     EngineContract.validateOptions(options, "iterations", "seed", "time_budget_ms");
-    int iterations = EngineContract.integerOption(options, "iterations", 1000, 1, 1000000);
-    long seed = EngineContract.longOption(options, "seed", 0L);
-    Long budget = EngineContract.optionalPositiveLong(options, "time_budget_ms");
-    V1RandomSearch.Result result = V1RandomSearch.run(request.problem(), request.optimization(), iterations, budget, seed);
+    final int iterations = EngineContract.integerOption(options, "iterations", 1000, 1, 1000000);
+    final long seed = EngineContract.longOption(options, "seed", 0L);
+    final Long budget = EngineContract.optionalPositiveLong(options, "time_budget_ms");
+    return new EngineJobs.Work() {
+      @Override public String run() {
+        V1RandomSearch.Result result = V1RandomSearch.run(
+            request.problem(), request.optimization(), iterations, budget, seed);
 
-    List<CanonicalEvaluator.Evaluation> solutions = new ArrayList<CanonicalEvaluator.Evaluation>();
-    if (result.best() != null && result.best().feasible()) solutions.add(result.best());
-    JsonObject provenance = new JsonObject();
-    provenance.addProperty("algorithm", "seeded-random-search");
-    provenance.addProperty("evaluations", result.evaluations());
-    provenance.addProperty("elapsed_ms", result.elapsedMs());
-    provenance.addProperty("seed", seed);
-    provenance.add("trace", result.trace());
-    provenance.addProperty("trace_kind", "strict-incumbent-improvements");
-    return EngineContract.json(EngineContract.response(
-        solutions.isEmpty() ? "UNKNOWN" : "FEASIBLE", solutions, provenance));
+        List<CanonicalEvaluator.Evaluation> solutions = new ArrayList<CanonicalEvaluator.Evaluation>();
+        if (result.best() != null && result.best().feasible()) solutions.add(result.best());
+        JsonObject provenance = new JsonObject();
+        provenance.addProperty("algorithm", "seeded-random-search");
+        provenance.addProperty("evaluations", result.evaluations());
+        provenance.addProperty("elapsed_ms", result.elapsedMs());
+        provenance.addProperty("seed", seed);
+        provenance.add("trace", result.trace());
+        provenance.addProperty("trace_kind", "strict-incumbent-improvements");
+        return EngineContract.json(EngineContract.response(
+            solutions.isEmpty() ? "UNKNOWN" : "FEASIBLE", solutions, provenance));
+      }
+    };
   }
 
   private static String readBody(InputStream input) throws IOException {

@@ -6,10 +6,11 @@ import json
 import re
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Query, Response, status
 from fastapi.responses import FileResponse, JSONResponse
-from sqlalchemy import or_, select
+from sqlalchemy import false, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_optional_user, session_dependency
@@ -32,14 +33,12 @@ from ..db.models import (
     Organization,
     OrganizationMembership,
     Project,
-    ProjectResource,
-    ProjectResourceRevision,
     RegisteredResourceRevision,
     Report,
     User,
     Visibility,
 )
-from ..artifacts import can_read, version_content, reference
+from ..artifacts import can_read, version_content
 from ..models.errors import api_error
 from ..models.platform import (
     ReplicationCitation,
@@ -67,6 +66,69 @@ VALID_KINDS = {
 }
 
 DIGEST_PATTERN = re.compile(r"^sha256-[0-9a-f]{64}$")
+
+
+# -- web_url: the frontend's current screens ---------------------------------
+# Source of truth: frontend/src/routes/d1..d8.tsx. A kind without a screen
+# (dialects, registered resources) yields ``None`` rather than a broken route.
+
+def _seg(value: object) -> str:
+    return quote(str(value), safe="")
+
+
+def case_revision_url(org_slug: str, project_slug: str, case_slug: str, revision: int) -> str:
+    return f"/app/{_seg(org_slug)}/{_seg(project_slug)}/cases/{_seg(case_slug)}/revisions/{_seg(revision)}"
+
+
+def library_version_url(org_slug: str, artifact_id: object, version: str) -> str:
+    # The artifact is addressed by id: a name is only resolvable by members.
+    return f"/app/{_seg(org_slug)}/library/{_seg(artifact_id)}/versions/{_seg(version)}"
+
+
+def report_url(org_slug: str, project_slug: str, report_slug: str) -> str:
+    return f"/app/{_seg(org_slug)}/{_seg(project_slug)}/reports/{_seg(report_slug)}"
+
+
+def collection_url(org_slug: str, project_slug: str, collection_slug: str) -> str:
+    return f"/app/{_seg(org_slug)}/{_seg(project_slug)}/collections/{_seg(collection_slug)}"
+
+
+def project_files_url(org_slug: str, project_slug: str) -> str:
+    return f"/app/{_seg(org_slug)}/{_seg(project_slug)}/files"
+
+
+def engine_url(namespace: str, name: str, version: str) -> str:
+    return f"/engines/{_seg(namespace)}/{_seg(name)}/{_seg(version)}"
+
+
+def snapshot_url(org_slug: str, project_slug: str, snapshot_id: object) -> str:
+    return f"/app/{_seg(org_slug)}/{_seg(project_slug)}/snapshots/{_seg(snapshot_id)}"
+
+
+async def _snapshot_web_url(
+    session: AsyncSession, snapshot: InstanceSnapshot, user: Optional[User], accessible_orgs: set[Any]
+) -> Optional[str]:
+    """The snapshot screen lives under a project; a snapshot has none of its own.
+
+    The project is found through a case revision sealed from the snapshot, among
+    the organizations the caller belongs to. The screen only loads snapshots the
+    caller owns, so nothing else gets a link.
+    """
+    if user is None or snapshot.owner_id != user.id:
+        return None
+    row = (
+        await session.execute(
+            select(Project.slug, Organization.slug)
+            .select_from(BindingCaseRevision)
+            .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
+            .join(Project, Project.id == BindingCase.project_id)
+            .join(Organization, Organization.id == Project.organization_id)
+            .where(BindingCaseRevision.source_snapshot_id == snapshot.id, Organization.id.in_(accessible_orgs))
+            .order_by(BindingCaseRevision.created_at.desc())
+            .limit(1)
+        )
+    ).first()
+    return snapshot_url(row[1], row[0], snapshot.id) if row else None
 
 
 def _normalize_digest(raw: str) -> str:
@@ -195,7 +257,7 @@ async def resolve_element(
                 slug=case.slug,
                 version_or_revision=rev.revision,
                 created_at=rev.created_at,
-                web_url=f"/app/{org.slug}/{proj.slug}/cases/{case.slug}",
+                web_url=case_revision_url(org.slug, proj.slug, case.slug, rev.revision),
             )
             for rev, case, proj, org, _ in rows
         ]
@@ -257,7 +319,7 @@ async def resolve_element(
             organization=ResolveOrganizationRef(id=primary_org.id, slug=primary_org.slug, name=primary_org.name),
             project=ResolveProjectRef(id=proj.id, slug=proj.slug, name=proj.name, visibility=proj.visibility.value),
             element_id=str(primary_rev.id), slug=primary_res.name, version_or_revision=primary_rev.ordinal,
-            created_at=primary_rev.created_at, web_url=f"/app/{primary_org.slug}/{proj.slug}/resources/{primary_res.name}")
+            created_at=primary_rev.created_at, web_url=library_version_url(primary_org.slug, primary_res.id, primary_rev.version))
             for proj in projects]
         content, media_type = await version_content(session, primary_rev)
         doc = json.loads(content.decode()) if media_type == "application/json" else {"content": content.decode()}
@@ -308,7 +370,7 @@ async def resolve_element(
                 organization=ResolveOrganizationRef(id=organization.id, slug=organization.slug, name=organization.name),
                 project=ResolveProjectRef(id=project.id, slug=project.slug, name=project.name, visibility=project.visibility.value),
                 element_id=str(version.id), slug=artifact.name, version_or_revision=version.ordinal,
-                created_at=version.created_at, web_url=f"/app/{organization.slug}/{project.slug}/collections/{artifact.name}")
+                created_at=version.created_at, web_url=library_version_url(organization.slug, artifact.id, version.version))
                 for project in projects]
             author = await session.get(User, version.created_by_id)
             return ResolveResponse(verified=True, kind="collection-revision", digest=norm_digest,
@@ -347,7 +409,7 @@ async def resolve_element(
                 slug=col.slug,
                 version_or_revision=rev.revision,
                 created_at=rev.created_at,
-                web_url=f"/app/{org.slug}/{proj.slug}/collections/{col.slug}",
+                web_url=collection_url(org.slug, proj.slug, col.slug),
             )
             for rev, col, proj, org, _ in rows
         ]
@@ -411,7 +473,7 @@ async def resolve_element(
                 slug=rep.slug,
                 version_or_revision=version.version,
                 created_at=rep.created_at,
-                web_url=f"/app/{org.slug}/library?artifact={rep.artifact_id}&version={version.id}",
+                web_url=report_url(org.slug, proj.slug, rep.slug),
             )
             for rep, proj, org, _, version in rows
         ]
@@ -482,7 +544,7 @@ async def resolve_element(
                 slug=f"artifact-{art.digest[7:19]}",
                 version_or_revision=None,
                 created_at=art.created_at,
-                web_url=f"/app/{org.slug}/{proj.slug}/records",
+                web_url=project_files_url(org.slug, proj.slug),
             )
             for art, proj, org, _ in rows
         ]
@@ -543,7 +605,7 @@ async def resolve_element(
                 slug=f"{eng.namespace}/{eng.name}",
                 version_or_revision=eng.version,
                 created_at=eng.created_at,
-                web_url="/app/engines",
+                web_url=engine_url(eng.namespace, eng.name, eng.version),
             )
         ]
         citation = _build_citation(
@@ -593,7 +655,7 @@ async def resolve_element(
                 slug=f"{dia.namespace}/{dia.name}",
                 version_or_revision=dia.version,
                 created_at=dia.created_at,
-                web_url="/dialects",
+                web_url=None,  # no Dialect detail screen
             )
         ]
         citation = _build_citation(
@@ -641,7 +703,7 @@ async def resolve_element(
                 slug=f"{reg.namespace}/{reg.name}",
                 version_or_revision=reg.version,
                 created_at=reg.created_at,
-                web_url=f"/resources/{reg.namespace}/{reg.name}",
+                web_url=None,  # no registered-resource detail screen
             )
         ]
         citation = _build_citation(
@@ -672,11 +734,11 @@ async def resolve_element(
         query = select(InstanceSnapshot, User).outerjoin(User, User.id == InstanceSnapshot.owner_id).where(
             or_(InstanceSnapshot.instance_digest == norm_digest, InstanceSnapshot.package_digest == norm_digest)
         )
+        # A snapshot is private to its owner (and to administrators).
         if user is None:
-            # Snapshots without an owner or public
-            query = query.where(InstanceSnapshot.owner_id.is_(None))
+            query = query.where(false())
         elif not user.is_admin:
-            query = query.where(or_(InstanceSnapshot.owner_id.is_(None), InstanceSnapshot.owner_id == user.id))
+            query = query.where(InstanceSnapshot.owner_id == user.id)
 
         rows = (await session.execute(query.order_by(InstanceSnapshot.created_at.desc()))).all()
         if not rows:
@@ -693,7 +755,7 @@ async def resolve_element(
                 slug=snap.name,
                 version_or_revision=snap.package_digest[:12],
                 created_at=snap.created_at,
-                web_url=f"/app/snapshots/{snap.id}",
+                web_url=await _snapshot_web_url(session, snap, user, accessible_orgs),
             )
         ]
         citation = _build_citation(
@@ -728,9 +790,9 @@ async def resolve_element(
             .where(BindingIRSnapshot.ir_digest == norm_digest)
         )
         if user is None:
-            query = query.where(InstanceSnapshot.owner_id.is_(None))
+            query = query.where(false())
         elif not user.is_admin:
-            query = query.where(or_(InstanceSnapshot.owner_id.is_(None), InstanceSnapshot.owner_id == user.id))
+            query = query.where(InstanceSnapshot.owner_id == user.id)
 
         rows = (await session.execute(query.order_by(BindingIRSnapshot.created_at.desc()))).all()
         if not rows:
@@ -748,7 +810,7 @@ async def resolve_element(
                 slug=f"ir-{snap.name}",
                 version_or_revision=ir_snap.compiler_version,
                 created_at=ir_snap.created_at,
-                web_url=f"/app/snapshots/{snap.id}",
+                web_url=await _snapshot_web_url(session, snap, user, accessible_orgs),
             )
         ]
         citation = _build_citation(
@@ -1014,35 +1076,31 @@ async def resolve_element_content(
     if kind_slug == "instance-snapshot":
         query = select(InstanceSnapshot).where(or_(InstanceSnapshot.instance_digest == norm_digest, InstanceSnapshot.package_digest == norm_digest))
         if user is None:
-            query = query.where(InstanceSnapshot.owner_id.is_(None))
+            query = query.where(false())
         elif not user.is_admin:
-            query = query.where(or_(InstanceSnapshot.owner_id.is_(None), InstanceSnapshot.owner_id == user.id))
+            query = query.where(InstanceSnapshot.owner_id == user.id)
         snap = (await session.execute(query)).scalars().first()
         if snap is None:
             raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Element not found.")
-        is_pub = snap.owner_id is None
-        cache_hdr = "public, max-age=31536000, immutable" if is_pub else "private, no-cache"
         return JSONResponse(
             snap.root_document,
-            headers={"ETag": f'"{norm_digest}"', "Cache-Control": cache_hdr, "Content-Security-Policy": "default-src 'none'; sandbox"},
+            headers={"ETag": f'"{norm_digest}"', "Cache-Control": "private, no-cache", "Content-Security-Policy": "default-src 'none'; sandbox"},
         )
 
     # 10. binding-ir
     if kind_slug == "binding-ir":
         query = select(BindingIRSnapshot, InstanceSnapshot).join(InstanceSnapshot, InstanceSnapshot.id == BindingIRSnapshot.snapshot_id).where(BindingIRSnapshot.ir_digest == norm_digest)
         if user is None:
-            query = query.where(InstanceSnapshot.owner_id.is_(None))
+            query = query.where(false())
         elif not user.is_admin:
-            query = query.where(or_(InstanceSnapshot.owner_id.is_(None), InstanceSnapshot.owner_id == user.id))
+            query = query.where(InstanceSnapshot.owner_id == user.id)
         row = (await session.execute(query)).first()
         if row is None:
             raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Element not found.")
-        ir_snap, snap = row
-        is_pub = snap.owner_id is None
-        cache_hdr = "public, max-age=31536000, immutable" if is_pub else "private, no-cache"
+        ir_snap, _snap = row
         return JSONResponse(
             ir_snap.document,
-            headers={"ETag": f'"{norm_digest}"', "Cache-Control": cache_hdr, "Content-Security-Policy": "default-src 'none'; sandbox"},
+            headers={"ETag": f'"{norm_digest}"', "Cache-Control": "private, no-cache", "Content-Security-Policy": "default-src 'none'; sandbox"},
         )
 
     raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Element not found.")

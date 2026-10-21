@@ -52,3 +52,9 @@ COPY --from=build /app/dist /dist
 FROM nginx:1.27-alpine AS prod
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 8080
+
+# The lab demo (compose.lab.json). Its server block is baked in rather than
+# bind-mounted, which can be unreadable for uid 101 under rootless docker.
+# The COPY replaces the default.conf of the official image.
+FROM prod AS lab
+COPY nginx.lab.conf /etc/nginx/conf.d/default.conf

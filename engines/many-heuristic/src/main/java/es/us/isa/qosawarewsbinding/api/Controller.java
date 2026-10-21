@@ -4,6 +4,8 @@ import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import es.us.isa.openbinding.core.EngineContract;
+import es.us.isa.openbinding.core.EngineHttp;
+import es.us.isa.openbinding.core.EngineJobs;
 import es.us.isa.qosawarewsbinding.search.V1ManySearch;
 
 import java.io.ByteArrayOutputStream;
@@ -13,7 +15,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
 /** BIM Engine Protocol v1 HTTP adapter for the Pareto sampler. */
-public final class Controller implements HttpHandler {
+public final class Controller implements HttpHandler, EngineHttp.Engine {
   private static final long MAX_BODY_BYTES = 64L * 1024L * 1024L;
 
   @Override public void handle(HttpExchange exchange) throws IOException {
@@ -34,21 +36,35 @@ public final class Controller implements HttpHandler {
   }
 
   public String solvePayload(String payload) {
-    EngineContract.Request request = EngineContract.parse(payload);
+    return prepare(payload).run();
+  }
+
+  /**
+   * Validates the request and returns the search to run.  The synchronous handler runs it at once;
+   * the asynchronous mode queues it, so an invalid request is refused before a job exists.
+   */
+  @Override public EngineJobs.Work prepare(String payload) {
+    final EngineContract.Request request = EngineContract.parse(payload);
     JsonObject options = request.options();
     EngineContract.validateOptions(options, "iterations", "archive_size", "seed", "time_budget_ms");
-    int iterations = EngineContract.integerOption(options, "iterations", 5000, 1, 1000000);
-    int archiveSize = EngineContract.integerOption(options, "archive_size", 100, 1, 10000);
-    long seed = EngineContract.longOption(options, "seed", 0L);
-    Long budget = EngineContract.optionalPositiveLong(options, "time_budget_ms");
-    V1ManySearch.Result result = V1ManySearch.run(request.problem(), request.optimization(), iterations, budget, archiveSize, seed);
-    JsonObject provenance = new JsonObject();
-    provenance.addProperty("algorithm", "bounded-pareto-sampling");
-    provenance.addProperty("evaluations", result.evaluations());
-    provenance.addProperty("elapsed_ms", result.elapsedMs());
-    provenance.addProperty("seed", seed);
-    return EngineContract.json(EngineContract.response(
-        result.solutions().isEmpty() ? "UNKNOWN" : "FEASIBLE", result.solutions(), provenance));
+    final int iterations = EngineContract.integerOption(options, "iterations", 5000, 1, 1000000);
+    final int archiveSize = EngineContract.integerOption(options, "archive_size", 100, 1, 10000);
+    final long seed = EngineContract.longOption(options, "seed", 0L);
+    final Long budget = EngineContract.optionalPositiveLong(options, "time_budget_ms");
+    V1ManySearch.validate(request.optimization(), iterations, archiveSize);
+    return new EngineJobs.Work() {
+      @Override public String run() {
+        V1ManySearch.Result result = V1ManySearch.run(
+            request.problem(), request.optimization(), iterations, budget, archiveSize, seed);
+        JsonObject provenance = new JsonObject();
+        provenance.addProperty("algorithm", "bounded-pareto-sampling");
+        provenance.addProperty("evaluations", result.evaluations());
+        provenance.addProperty("elapsed_ms", result.elapsedMs());
+        provenance.addProperty("seed", seed);
+        return EngineContract.json(EngineContract.response(
+            result.solutions().isEmpty() ? "UNKNOWN" : "FEASIBLE", result.solutions(), provenance));
+      }
+    };
   }
 
   private static String readBody(InputStream input) throws IOException {

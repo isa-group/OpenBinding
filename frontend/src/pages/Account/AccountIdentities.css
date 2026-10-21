@@ -1,0 +1,67 @@
+.ident-card {
+  overflow: hidden;
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-lg);
+  background: var(--tp-canvas);
+}
+
+.ident-card > header { display: flex; align-items: center; gap: var(--tp-spacing-sm); padding: var(--tp-spacing-md) var(--tp-spacing-lg); border-bottom: 1px solid var(--tp-hairline-soft); }
+.ident-card h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+.ident-card header p { margin: 0; color: var(--tp-steel); font-size: 0.8125rem; }
+
+.ident-icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: rgb(0 119 182 / 0.1);
+  color: var(--tp-primary);
+}
+
+.ident-icon svg { width: 1.125rem; height: 1.125rem; }
+.ident-row { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: var(--tp-spacing-md) var(--tp-spacing-lg); }
+.ident-row + .ident-row { border-top: 1px solid var(--tp-hairline-soft); }
+
+.ident-tile {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--tp-hairline);
+  border-radius: 11px;
+  background: var(--tp-surface);
+  color: var(--tp-primary-deep);
+  font-weight: 700;
+}
+
+.ident-who { display: flex; min-width: 220px; flex: 1; flex-direction: column; }
+.ident-who strong { font-weight: 500; }
+.ident-who span { color: var(--tp-steel); font-size: 0.8125rem; overflow-wrap: anywhere; }
+
+.ident-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 var(--tp-spacing-lg) var(--tp-spacing-md);
+  padding: 10px var(--tp-spacing-sm);
+  border: 1px solid var(--tp-beige-deep);
+  border-radius: var(--tp-radius-lg);
+  background: var(--tp-surface-cream);
+  color: var(--tp-slate);
+  font-size: 0.8125rem;
+}
+
+.ident-badge .institution-mark img { height: 1.75rem; width: auto; }
+
+.ident-warn { width: 1rem; height: 1rem; vertical-align: -3px; margin-right: 6px; color: var(--color-error); }
+
+.ident-change { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--tp-spacing-xs); align-items: center; text-align: center; }
+.ident-change > div { display: flex; flex-direction: column; padding: 10px; border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-lg); }
+.ident-change > div.is-after { border-color: var(--tp-severity-error-border); }
+.ident-change span { color: var(--tp-steel); font-size: 0.75rem; }
+.ident-change strong { color: var(--tp-ink); font-weight: 600; }
+.ident-change small { font-size: 0.75rem; }
+.ident-change > svg { width: 1rem; height: 1rem; color: var(--tp-steel); }

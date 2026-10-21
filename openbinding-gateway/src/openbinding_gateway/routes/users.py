@@ -6,15 +6,15 @@ import uuid
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Request, status
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
 from ..db.models import (
     ApiKey, Blob, AuthIdentity, Artifact, ArtifactVersion, ArtifactDraft, ArtifactPublication, BindingCase, BindingCaseRevision, Collection,
     CollectionItem, CollectionRevision, Job, Organization, OrganizationMembership,
-    OrganizationRole, PricingRelease, Project, ProjectResource,
-    ProjectResourceRevision, Publication, Report, Study, StudyRun, User, UserRole, utcnow,
+    OrganizationRole, Project, ProjectResource,
+    ProjectResourceRevision, Publication, Report, Study, StudyRun, User, utcnow,
 )
 from ..models.accounts import (
     ApiKeyList,
@@ -27,7 +27,6 @@ from ..models.accounts import (
     CreatedApiKey,
     JobHistory,
     JobSummary,
-    LimitUsageView,
     PricingTokenView,
     UpdateProfileRequest,
     UsageView,
@@ -53,6 +52,8 @@ from ..security.apikeys import (
     permissions_of,
 )
 from ..security.passwords import hash_password, password_complaint, verify_password
+from ..core.public_errors import pricing_unavailable_error
+from ..services.entitlements import entitlement_service
 from ..space_client import PricingUnavailable, get_gate
 
 router = APIRouter(prefix="/v1/users", tags=["Users"])
@@ -60,20 +61,39 @@ router = APIRouter(prefix="/v1/users", tags=["Users"])
 
 async def _caps_for(user: User):
     """Read authoritative entitlements; unavailable pricing fails closed."""
-    try:
-        return await get_gate().caps(user.id)
-    except PricingUnavailable as error:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "pricing_unavailable",
-            f"Entitlements cannot be read right now: {error}",
-        ) from error
+    return await entitlement_service.caps_or_503(
+        user.id, prefix="Entitlements cannot be read right now: "
+    )
+
+
+CAS_PROVIDER = "us-cas"
+
+
+async def cas_verified_ids(session: AsyncSession, user_ids) -> set[uuid.UUID]:
+    """Which of these accounts hold a verified Universidad de Sevilla CAS identity.
+
+    One query for any number of accounts, so a page of users costs the same as
+    one user. "Verified" is the identity model's own notion: the ``us-cas``
+    identity row exists (it is only ever written after a successful CAS ticket
+    validation) and carries its ``verified_at`` stamp.
+    """
+    ids = list(user_ids)
+    if not ids:
+        return set()
+    rows = await session.scalars(
+        select(AuthIdentity.user_id)
+        .where(
+            AuthIdentity.provider == CAS_PROVIDER,
+            AuthIdentity.verified_at.is_not(None),
+            AuthIdentity.user_id.in_(ids),
+        )
+        .distinct()
+    )
+    return set(rows.all())
 
 
 async def profile_of(session: AsyncSession, user: User) -> UserProfile:
-    cas_verified = bool(await session.scalar(select(func.count(AuthIdentity.id)).where(
-        AuthIdentity.user_id == user.id, AuthIdentity.provider == "us-cas"
-    )))
+    cas_verified = user.id in await cas_verified_ids(session, [user.id])
     caps = await _caps_for(user)
     institutional_branding = cas_verified and caps.allows("institutionalBranding")
     return UserProfile(
@@ -423,7 +443,7 @@ async def list_own_jobs(
     while nothing applied it, because there was no endpoint for it to bound.
     This is that endpoint, and the cutoff is applied here rather than by
     deleting rows: a job that has aged out of somebody's history is still the
-    row the metering reconciler and any audit need.
+    row the reconciler and any audit need.
 
     Summaries only. A result can be hundreds of megabytes, and a history is for
     finding the one you want; ``GET /v1/jobs/{id}`` returns the answer itself.
@@ -502,7 +522,7 @@ def _job_summary(job: Job) -> JobSummary:
     "/me/usage",
     response_model=UsageView,
     operation_id="getOwnUsage",
-    summary="Your plan, quotas and what is left of them",
+    summary="Your plan, its features and its functional limits",
     responses={
         401: UNAUTHORIZED_RESPONSE,
         503: {**UNAVAILABLE_RESPONSE, "description": "The pricing service is not reachable."},
@@ -517,38 +537,16 @@ async def usage_view_for(user: User) -> UsageView:
     """An account's entitlements, read from the contract.
 
     The plan on the ``User`` row is a display cache; the contract in the
-    pricing service is what actually decides. This reads the contract, so what
-    a caller sees is what a solve will be judged against. Shared with the
-    administration routes, so that an administrator and an account holder are
-    never shown different numbers.
+    pricing service is what actually decides. Shared with the administration
+    routes, so that an administrator and an account holder are never shown
+    different numbers.
     """
-    gate = get_gate()
-    try:
-        snapshot = await gate.usage(user.id)
-        caps = await gate.caps(user.id)
-    except PricingUnavailable as error:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "pricing_unavailable",
-            f"Quotas cannot be read right now: {error}",
-        ) from error
-
+    caps = await _caps_for(user)
     return UsageView(
-        plan=snapshot.plan,
+        plan=caps.plan,
         contract_pending=user.contract_pending,
         features=caps.features,
         capabilities=caps.http_view()["capabilities"],
-        limits={
-            name: LimitUsageView(
-                limit_id=limit.limit_id,
-                limit=limit.limit,
-                used=limit.used,
-                remaining=limit.remaining,
-                unit=limit.unit,
-                renews_at=limit.renews_at,
-            )
-            for name, limit in snapshot.limits.items()
-        },
     )
 
 
@@ -573,10 +571,8 @@ async def read_own_pricing_token(user: User = Depends(get_current_user)) -> Pric
     try:
         token = await get_gate().pricing_token(user.id)
     except PricingUnavailable as error:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "pricing_unavailable",
-            f"A pricing token cannot be issued right now: {error}",
+        raise pricing_unavailable_error(
+            error, where="pricing token", prefix="A pricing token cannot be issued right now: "
         ) from error
 
     return PricingTokenView(pricing_token=token)
@@ -781,34 +777,13 @@ async def delete_own_account(
     for pub, org_id in publications:
         pub.published_by_id = await require_org_owner(org_id)
 
-    if user.is_admin:
-        replacement_admin = (await session.execute(
-            select(User)
-            .where(User.id != user.id, User.role == UserRole.ADMIN, User.is_active.is_(True))
-            .order_by(User.created_at)
-        )).scalars().first()
-        if replacement_admin is not None:
-            await session.execute(
-                update(PricingRelease)
-                .where(PricingRelease.created_by_id == user.id)
-                .values(created_by_id=replacement_admin.id)
-            )
-        else:
-            authored_pricing = await session.scalar(
-                select(func.count(PricingRelease.id)).where(PricingRelease.created_by_id == user.id)
-            )
-            if authored_pricing:
-                raise api_error(
-                    status.HTTP_409_CONFLICT,
-                    "last_pricing_admin",
-                    "Cannot delete the last administrator who authored pricing releases.",
-                )
-
     try:
         remove_contract = getattr(get_gate(), "remove_contract", None)
         if remove_contract is not None:
             await remove_contract(user.id)
     except PricingUnavailable as exc:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
+        raise pricing_unavailable_error(exc, where="contract removal") from exc
+    from .. import sponsor_proposals
+    await sponsor_proposals.cancel_for_user(session, user.id, "user_deleted", user.id)
     await session.delete(user)
     await session.flush()

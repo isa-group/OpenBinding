@@ -1,5 +1,6 @@
 import { apiClient } from '../api/client';
 import type { Report } from '../api/platform';
+import { formatNumber as formatEnglish } from '../utils/format';
 
 export type DecisionRule = 'balanced' | 'weighted' | 'ideal' | 'topsis' | 'chebyshev' | 'reference' | 'model';
 export type AnalysisView = 'decision' | 'budgets' | 'pareto' | 'preferences' | 'evidence';
@@ -82,14 +83,9 @@ export interface DecisionReceipt {
   kind: 'binding-decision'; version: string; revision: string; sources: ArchiveSource[];
   query: ArchiveQuery; dimensions: Dimension[]; scope: string; selected: CandidateDetail[];
 }
-const post = async <T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> => {
-  const response = await apiClient.request<T>(`/v1/analysis/${path}`, { method: 'POST', body: JSON.stringify(body), signal });
-  // The legacy compiler client returns 422 documents. Analysis endpoints must surface them as errors.
-  if (response && typeof response === 'object' && 'detail' in response) {
-    throw new Error(typeof response.detail === 'string' ? response.detail : JSON.stringify(response.detail));
-  }
-  return response;
-};
+// A 422 from an analysis endpoint throws an HttpError with the gateway's code and message.
+const post = <T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> =>
+  apiClient.request<T>(`/v1/analysis/${path}`, { method: 'POST', body: JSON.stringify(body), signal });
 export const analysisApi = {
   sources: (cursor = '', anchor = '', signal?: AbortSignal) => apiClient.request<{ items: ArchiveSource[]; nextCursor: string | null }>(
     `/v1/analysis/sources?limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}${anchor ? `&compatible_with=${encodeURIComponent(anchor)}` : ''}`, { signal }),
@@ -106,7 +102,7 @@ export const analysisApi = {
   cancelPareto: (id: string) => post<AnalysisTask>(`pareto/${encodeURIComponent(id)}/cancel`, {}),
 };
 export const shortId = (id: string) => id.replace(/^sha256[:-]/, '').slice(0, 10);
-export const formatNumber = (value: number | null | undefined) => value == null ? '—' : value.toLocaleString(undefined, { maximumFractionDigits: 5 });
+export const formatNumber = (value: number | null | undefined) => value == null ? '—' : formatEnglish(value, 5);
 
 /** Reports are editable documents; a saved snapshot is not a trusted API response. */
 export function decisionReceipt(value: unknown): DecisionReceipt | null {

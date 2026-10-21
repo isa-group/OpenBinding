@@ -1,0 +1,466 @@
+{
+  "name": "openbinding-lab",
+  "services": {
+    "postgres": {
+      "image": "postgres:16-alpine",
+      "user": "70:70",
+      "environment": {
+        "PGDATA": "/var/lib/postgresql/data/pgdata",
+        "POSTGRES_DB": "openbinding",
+        "POSTGRES_USER": "openbinding",
+        "POSTGRES_PASSWORD": "${DEMO_PG_PASSWORD}"
+      },
+      "command": [
+        "postgres",
+        "-c", "shared_buffers=64MB",
+        "-c", "max_connections=60"
+      ],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "lab-pg-3",
+          "target": "/var/lib/postgresql/data"
+        }
+      ],
+      "mem_limit": "384m",
+      "healthcheck": {
+        "test": ["CMD-SHELL", "pg_isready -U openbinding -d openbinding"],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20,
+        "start_period": "10s"
+      }
+    },
+    "redis": {
+      "image": "redis:7-alpine",
+      "user": "999:1000",
+      "command": [
+        "redis-server",
+        "--appendonly", "yes",
+        "--maxmemory", "64mb",
+        "--maxmemory-policy", "noeviction"
+      ],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "lab-redis",
+          "target": "/data"
+        }
+      ],
+      "mem_limit": "96m",
+      "healthcheck": {
+        "test": ["CMD", "redis-cli", "ping"],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 10
+      }
+    },
+    "engine-random-search": {
+      "build": {
+        "context": "engines",
+        "dockerfile": "random-search/Dockerfile"
+      },
+      "environment": {
+        "JAVA_TOOL_OPTIONS": "-Xmx192m -XX:MaxMetaspaceSize=96m"
+      },
+      "mem_limit": "320m",
+      "healthcheck": {
+        "test": ["CMD", "curl", "-fsS", "http://localhost:8080/health"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 10,
+        "start_period": "60s"
+      }
+    },
+    "engine-many-heuristic": {
+      "build": {
+        "context": "engines",
+        "dockerfile": "many-heuristic/Dockerfile"
+      },
+      "environment": {
+        "JAVA_TOOL_OPTIONS": "-Xmx192m -XX:MaxMetaspaceSize=96m"
+      },
+      "mem_limit": "320m",
+      "healthcheck": {
+        "test": ["CMD", "curl", "-fsS", "http://localhost:8080/health"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 10,
+        "start_period": "60s"
+      }
+    },
+    "engine-evolutionary-heuristics": {
+      "build": {
+        "context": "engines",
+        "dockerfile": "evolutionary-heuristics/Dockerfile"
+      },
+      "environment": {
+        "JAVA_TOOL_OPTIONS": "-Xmx192m -XX:MaxMetaspaceSize=96m"
+      },
+      "mem_limit": "320m",
+      "healthcheck": {
+        "test": ["CMD", "curl", "-fsS", "http://localhost:8080/health"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 10,
+        "start_period": "60s"
+      }
+    },
+    "engine-minizinc": {
+      "build": {
+        "context": "engines/minizinc-csp",
+        "dockerfile": "Dockerfile"
+      },
+      "environment": {
+        "NODE_OPTIONS": "--max-old-space-size=96"
+      },
+      "mem_limit": "192m",
+      "healthcheck": {
+        "test": ["CMD", "curl", "-fsS", "http://localhost:3000/health"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 10,
+        "start_period": "60s"
+      }
+    },
+    "bim-service": {
+      "build": {
+        "context": "bim-toolchain",
+        "dockerfile": "packages/bim-service/Dockerfile"
+      },
+      "command": [
+        "sh",
+        "-c",
+        "umask 077; printf '%s\\n' \"$$DEMO_BIM_TOKEN\" > /run/bim/tokens && exec uvicorn --factory bim_service.app:create_app --host 0.0.0.0 --port 8080 --no-access-log --timeout-keep-alive 5"
+      ],
+      "environment": {
+        "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
+        "BIM_SERVICE_TOKENS_FILE": "/run/bim/tokens",
+        "BIM_SERVICE_MAX_BODY_BYTES": "16777216",
+        "BIM_SERVICE_MAX_CONCURRENCY": "2",
+        "BIM_SERVICE_MEMORY_BUDGET_BYTES": "134217728",
+        "BIM_SERVICE_MAX_PENDING_BODY_BYTES": "33554432"
+      },
+      "volumes": [
+        {
+          "type": "tmpfs",
+          "target": "/run/bim"
+        }
+      ],
+      "mem_limit": "256m",
+      "cpus": 1.5,
+      "pids_limit": 256,
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "python",
+          "-c",
+          "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).status == 200 else 1)"
+        ],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 10,
+        "start_period": "20s"
+      }
+    },
+    "gateway": {
+      "build": {
+        "context": ".",
+        "dockerfile": "openbinding-gateway/Dockerfile"
+      },
+      "image": "openbinding-lab-gateway:latest",
+      "command": [
+        "sh",
+        "-c",
+        "umask 077; printf '%s\\n' \"$$DEMO_BIM_TOKEN\" > /run/bim/token && exec uvicorn openbinding_gateway.main:app --host 0.0.0.0 --port 8000 --proxy-headers"
+      ],
+      "environment": {
+        "APP_ENV": "dev",
+        "SCHEMAS_DIR": "/app/schemas",
+        "PYTHONPATH": "/app/src",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "DATABASE_URL": "postgresql+asyncpg://openbinding:${DEMO_PG_PASSWORD}@postgres:5432/openbinding",
+        "REDIS_URL": "redis://redis:6379/0",
+        "JOB_DISPATCH_MODE": "dramatiq",
+        "ARTIFACT_ROOT": "/var/lib/openbinding/artifacts",
+        "GATEWAY_JWT_SECRET": "${DEMO_JWT_SECRET}",
+        "FEDERATION_SECRET_KEY": "${DEMO_FERNET_KEY}",
+        "CORS_ALLOW_ORIGINS": "http://localhost:18100,http://127.0.0.1:18100",
+        "PUBLIC_BASE_URL": "http://localhost:18100",
+        "FRONTEND_URL": "http://localhost:18100",
+        "FORWARDED_ALLOW_IPS": "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16",
+        "CAS_ENABLED": "false",
+        "SPACE_ENABLED": "${DEMO_SPACE_ENABLED}",
+        "SPACE_URL": "${SPACE_URL}",
+        "SPACE_API_KEY": "${SPACE_API_KEY}",
+        "SPACE_SERVICE_NAME": "${DEMO_SPACE_DEV_SERVICE}",
+        "SPACE_PRICING_VERSION": "${DEMO_SPACE_PRICING_VERSION}",
+        "SPACE_DEFAULT_PLAN": "${DEMO_SPACE_DEFAULT_PLAN}",
+        "SPHERE_ENABLED": "true",
+        "SPHERE_URL": "${SPHERE_URL}",
+        "SPHERE_API_KEY": "${SPHERE_API_KEY}",
+        "SPHERE_ORGANIZATION_ID": "${SPHERE_ORGANIZATION_ID}",
+        "MAX_CONCURRENT_JOBS_PER_USER": "3",
+        "ENGINE_MINIZINC_URL": "http://engine-minizinc:3000",
+        "ENGINE_RANDOM_SEARCH_URL": "http://engine-random-search:8080",
+        "ENGINE_MANY_HEURISTIC_URL": "http://engine-many-heuristic:8080",
+        "ENGINE_EVOLUTIONARY_HEURISTICS_URL": "http://engine-evolutionary-heuristics:8080",
+        "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
+        "BIM_MODE": "http",
+        "BIM_SERVICE_URL": "http://bim-service:8080",
+        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token",
+        "BIM_SERVICE_ALLOW_INSECURE_HTTP": "true"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "lab-artifacts-2",
+          "target": "/var/lib/openbinding/artifacts"
+        },
+        {
+          "type": "tmpfs",
+          "target": "/run/bim",
+          "tmpfs": {
+            "mode": 1023
+          }
+        }
+      ],
+      "depends_on": {
+        "postgres": {"condition": "service_healthy"},
+        "redis": {"condition": "service_healthy"},
+        "bim-service": {"condition": "service_healthy"},
+        "engine-minizinc": {"condition": "service_healthy"},
+        "engine-random-search": {"condition": "service_healthy"},
+        "engine-many-heuristic": {"condition": "service_healthy"},
+        "engine-evolutionary-heuristics": {"condition": "service_healthy"}
+      },
+      "mem_limit": "640m",
+      "healthcheck": {
+        "test": ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 12,
+        "start_period": "60s"
+      }
+    },
+    "worker": {
+      "image": "openbinding-lab-gateway:latest",
+      "entrypoint": [],
+      "command": [
+        "sh",
+        "-c",
+        "umask 077; printf '%s\\n' \"$$DEMO_BIM_TOKEN\" > /run/bim/token && exec dramatiq openbinding_gateway.worker --processes 1 --threads 2 --queues default analysis"
+      ],
+      "environment": {
+        "APP_ENV": "dev",
+        "SCHEMAS_DIR": "/app/schemas",
+        "PYTHONPATH": "/app/src",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "DATABASE_URL": "postgresql+asyncpg://openbinding:${DEMO_PG_PASSWORD}@postgres:5432/openbinding",
+        "REDIS_URL": "redis://redis:6379/0",
+        "JOB_DISPATCH_MODE": "dramatiq",
+        "ARTIFACT_ROOT": "/var/lib/openbinding/artifacts",
+        "FEDERATION_SECRET_KEY": "${DEMO_FERNET_KEY}",
+        "PUBLIC_BASE_URL": "http://localhost:18100",
+        "SPACE_ENABLED": "${DEMO_SPACE_ENABLED}",
+        "SPACE_URL": "${SPACE_URL}",
+        "SPACE_API_KEY": "${SPACE_API_KEY}",
+        "SPACE_SERVICE_NAME": "${DEMO_SPACE_DEV_SERVICE}",
+        "SPACE_PRICING_VERSION": "${DEMO_SPACE_PRICING_VERSION}",
+        "SPACE_DEFAULT_PLAN": "${DEMO_SPACE_DEFAULT_PLAN}",
+        "SPHERE_ENABLED": "true",
+        "SPHERE_URL": "${SPHERE_URL}",
+        "SPHERE_API_KEY": "${SPHERE_API_KEY}",
+        "SPHERE_ORGANIZATION_ID": "${SPHERE_ORGANIZATION_ID}",
+        "ENGINE_MINIZINC_URL": "http://engine-minizinc:3000",
+        "ENGINE_RANDOM_SEARCH_URL": "http://engine-random-search:8080",
+        "ENGINE_MANY_HEURISTIC_URL": "http://engine-many-heuristic:8080",
+        "ENGINE_EVOLUTIONARY_HEURISTICS_URL": "http://engine-evolutionary-heuristics:8080",
+        "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
+        "BIM_MODE": "http",
+        "BIM_SERVICE_URL": "http://bim-service:8080",
+        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token",
+        "BIM_SERVICE_ALLOW_INSECURE_HTTP": "true"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "lab-artifacts-2",
+          "target": "/var/lib/openbinding/artifacts"
+        },
+        {
+          "type": "tmpfs",
+          "target": "/run/bim",
+          "tmpfs": {
+            "mode": 1023
+          }
+        }
+      ],
+      "depends_on": {
+        "gateway": {"condition": "service_healthy"},
+        "redis": {"condition": "service_healthy"},
+        "bim-service": {"condition": "service_healthy"}
+      },
+      "mem_limit": "448m",
+      "healthcheck": {
+        "test": ["CMD-SHELL", "kill -0 1"],
+        "interval": "30s",
+        "timeout": "3s",
+        "retries": 3,
+        "start_period": "15s"
+      }
+    },
+    "web": {
+      "build": {
+        "context": "frontend",
+        "dockerfile": "Dockerfile",
+        "target": "lab",
+        "args": {
+          "VITE_API_BASE_URL": "/api"
+        }
+      },
+      "user": "101:101",
+      "entrypoint": ["nginx", "-g", "daemon off;"],
+      "ports": [
+        {
+          "target": 8080,
+          "published": 18100,
+          "host_ip": "127.0.0.1"
+        }
+      ],
+      "volumes": [
+        {
+          "type": "tmpfs",
+          "target": "/run",
+          "tmpfs": {
+            "mode": 1023
+          }
+        },
+        {
+          "type": "tmpfs",
+          "target": "/var/cache/nginx",
+          "tmpfs": {
+            "mode": 1023
+          }
+        }
+      ],
+      "depends_on": {
+        "gateway": {"condition": "service_healthy"}
+      },
+      "mem_limit": "96m",
+      "healthcheck": {
+        "test": ["CMD-SHELL", "http_proxy= HTTP_PROXY= wget -T 3 -O /dev/null http://127.0.0.1:8080/healthz || exit 1"],
+        "interval": "10s",
+        "timeout": "5s",
+        "retries": 6,
+        "start_period": "15s"
+      }
+    },
+    "seed": {
+      "profiles": ["seed"],
+      "image": "openbinding-lab-gateway:latest",
+      "command": [
+        "sh",
+        "-c",
+        "umask 077; printf '%s\\n' \"$$DEMO_BIM_TOKEN\" > /run/bim/token && python tools/${DEMO_SEED_TOOL} ${DEMO_SEED_ARGS}"
+      ],
+      "environment": {
+        "APP_ENV": "dev",
+        "SCHEMAS_DIR": "/app/schemas",
+        "PYTHONPATH": "/app/src",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "DATABASE_URL": "postgresql+asyncpg://openbinding:${DEMO_PG_PASSWORD}@postgres:5432/openbinding",
+        "REDIS_URL": "redis://redis:6379/0",
+        "JOB_DISPATCH_MODE": "dramatiq",
+        "ARTIFACT_ROOT": "/var/lib/openbinding/artifacts",
+        "FEDERATION_SECRET_KEY": "${DEMO_FERNET_KEY}",
+        "CORS_ALLOW_ORIGINS": "http://localhost:18100,http://127.0.0.1:18100",
+        "PUBLIC_BASE_URL": "http://localhost:18100",
+        "FRONTEND_URL": "http://localhost:18100",
+        "CAS_ENABLED": "false",
+        "SPACE_ENABLED": "${DEMO_SPACE_ENABLED}",
+        "SPACE_URL": "${SPACE_URL}",
+        "SPACE_API_KEY": "${SPACE_API_KEY}",
+        "SPACE_ORGANIZATION_ID": "${SPACE_ORGANIZATION_ID}",
+        "DEMO_SEED_PASSWORD": "${DEMO_SEED_PASSWORD}",
+        "SMOKE_BASE_URL": "http://web:8080",
+        "SPACE_SERVICE_NAME": "${DEMO_SPACE_DEV_SERVICE}",
+        "SPACE_DEV_SERVICE_NAME": "${DEMO_SPACE_DEV_SERVICE}",
+        "SPACE_DEV_PLAN": "${DEMO_SPACE_DEV_PLAN}",
+        "SPACE_DEV_PRICING_VERSION": "${DEMO_SPACE_PRICING_VERSION}",
+        "SPACE_PRICING_VERSION": "${DEMO_SPACE_PRICING_VERSION}",
+        "SPACE_DEFAULT_PLAN": "${DEMO_SPACE_DEFAULT_PLAN}",
+        "SPHERE_ENABLED": "true",
+        "SPHERE_URL": "${SPHERE_URL}",
+        "SPHERE_API_KEY": "${SPHERE_API_KEY}",
+        "SPHERE_ORGANIZATION_ID": "${SPHERE_ORGANIZATION_ID}",
+        "MAX_CONCURRENT_JOBS_PER_USER": "3",
+        "ENGINE_MINIZINC_URL": "http://engine-minizinc:3000",
+        "ENGINE_RANDOM_SEARCH_URL": "http://engine-random-search:8080",
+        "ENGINE_MANY_HEURISTIC_URL": "http://engine-many-heuristic:8080",
+        "ENGINE_EVOLUTIONARY_HEURISTICS_URL": "http://engine-evolutionary-heuristics:8080",
+        "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
+        "BIM_MODE": "http",
+        "BIM_SERVICE_URL": "http://bim-service:8080",
+        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token",
+        "BIM_SERVICE_ALLOW_INSECURE_HTTP": "true"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "lab-artifacts-2",
+          "target": "/var/lib/openbinding/artifacts"
+        },
+        {
+          "type": "tmpfs",
+          "target": "/run/bim",
+          "tmpfs": {
+            "mode": 1023
+          }
+        }
+      ],
+      "depends_on": {
+        "bim-service": {"condition": "service_healthy"}
+      },
+      "mem_limit": "384m"
+    },
+    "e2e": {
+      "build": {
+        "context": "frontend",
+        "dockerfile": "Dockerfile.e2e"
+      },
+      "user": "pwuser",
+      "command": ["sh", "/app/e2e/live/run.sh"],
+      "environment": {
+        "BASE_URL": "http://web:8080",
+        "DEMO_E2E": "${DEMO_E2E}",
+        "DEMO_SEED_PASSWORD": "${DEMO_SEED_PASSWORD}"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "lab-e2e",
+          "target": "/results"
+        }
+      ],
+      "depends_on": {
+        "web": {"condition": "service_healthy"}
+      },
+      "restart": "no",
+      "mem_limit": "576m",
+      "healthcheck": {
+        "test": ["CMD-SHELL", "test -f /results/done"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 3,
+        "start_period": "3600s"
+      }
+    }
+  },
+  "volumes": {
+    "lab-pg-3": {},
+    "lab-redis": {},
+    "lab-artifacts-2": {},
+    "lab-e2e": {}
+  }
+}

@@ -1,0 +1,245 @@
+.about-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tp-spacing-xl);
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding: 40px var(--tp-spacing-md) var(--tp-spacing-section);
+}
+
+.about-panel { display: flex; flex-direction: column; gap: var(--tp-spacing-lg); padding-top: var(--tp-spacing-lg); }
+.about-panel h2, .about-panel h3 { letter-spacing: 0; }
+.about-lede { max-width: 48rem; color: var(--tp-slate); }
+.about-meta { color: var(--tp-steel); font-size: 0.75rem; }
+
+.about-pending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--tp-spacing-section) var(--tp-spacing-xl);
+  border: 1px dashed var(--tp-hairline-strong);
+  border-radius: var(--tp-radius-xl);
+  background: rgb(250 250 250 / 0.5);
+  text-align: center;
+}
+
+.about-pending > svg { width: 40px; height: 40px; color: var(--tp-muted); stroke-width: 1; }
+.about-pending strong { font-size: 0.875rem; font-weight: 500; }
+.about-pending span { color: var(--tp-steel); font-size: 0.8125rem; }
+
+/* Team */
+.about-team { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--tp-spacing-sm); padding: 0; list-style: none; }
+.about-team > li { display: flex; }
+
+.about-team article {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tp-spacing-xs);
+  padding: var(--tp-spacing-lg);
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-xl);
+  text-align: center;
+  animation: about-in 300ms ease-out both;
+}
+
+.about-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: var(--tp-radius-full);
+  background: var(--tp-cream-deeper);
+  color: var(--tp-primary-deep);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.about-team h2 { font-family: var(--font-body); font-size: 1rem; font-weight: 500; line-height: 1.3; }
+.about-role { color: var(--tp-slate); }
+.about-team nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px var(--tp-spacing-sm); margin-top: var(--tp-spacing-xxs); font-size: 0.75rem; }
+.about-team nav a, .about-funders a, .about-projects a, .about-note a, .about-timeline footer a { color: var(--tp-link); }
+.about-team nav a { display: inline-flex; align-items: center; gap: 2px; }
+.about-team nav svg, .about-timeline footer svg, .about-note a svg { width: 0.8rem; height: 0.8rem; }
+
+.about-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tp-spacing-md);
+  padding: var(--tp-spacing-lg);
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-xl);
+  background: var(--tp-surface-cream);
+}
+
+.about-note > svg { flex: none; width: 1.5rem; height: 1.5rem; color: var(--tp-primary-deep); }
+.about-note > div { flex: 1; min-width: 14rem; }
+.about-note p { margin-top: 2px; font-size: 0.8125rem; }
+.about-note > a { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; }
+
+/* Research and changelog share the timeline */
+.about-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--tp-spacing-sm); padding: 0; list-style: none; }
+.about-facts li { display: flex; flex-direction: column; padding: var(--tp-spacing-md); border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-xl); background: var(--tp-canvas); }
+.about-facts strong { font-family: var(--font-display); font-size: 2rem; font-weight: 400; line-height: 1.1; }
+.about-facts span { color: var(--tp-steel); font-size: 0.75rem; }
+
+.about-sources { display: flex; flex-direction: column; gap: 4px; margin-top: var(--tp-spacing-xs); }
+.about-sources h2 { font-family: var(--font-body); font-size: 1.125rem; font-weight: 500; line-height: 1.3; }
+.about-sources p { max-width: 42rem; font-size: 0.875rem; }
+
+.about-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tp-spacing-md);
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid var(--tp-beige-deep);
+  list-style: none;
+}
+
+.about-timeline > li { position: relative; padding-left: var(--tp-spacing-lg); }
+.about-timeline > li > i { position: absolute; top: 18px; left: -7px; width: 12px; height: 12px; border-radius: var(--tp-radius-full); background: var(--tp-primary); }
+
+.about-timeline article {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px var(--tp-spacing-md);
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-xl);
+  background: var(--tp-canvas);
+}
+
+.about-timeline h3 { font-family: var(--font-body); font-size: 1rem; font-weight: 500; line-height: 1.35; }
+.about-timeline article p { font-size: 0.8125rem; }
+.about-timeline footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-spacing-xs); margin-top: 6px; }
+.about-timeline footer a { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 0.75rem; }
+.about-timeline article ul { display: flex; flex-direction: column; gap: 4px; padding-left: var(--tp-spacing-lg); color: var(--tp-slate); font-size: 0.8125rem; }
+.about-release-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs); }
+.about-release-head code { padding: 0; border: 0; background: none; font-size: 0.9375rem; font-weight: 500; }
+
+.about-streams { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.about-streams button {
+  height: 30px;
+  padding: 0 var(--tp-spacing-sm);
+  border: 1px solid var(--tp-hairline-strong);
+  border-radius: var(--tp-radius-lg);
+  background: var(--tp-canvas);
+  color: var(--tp-slate);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.about-streams button[aria-pressed='true'] { border-color: rgb(0 119 182 / 0.3); background: rgb(0 119 182 / 0.05); color: var(--tp-primary); }
+
+/* Funding */
+.about-funders { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--tp-spacing-sm); padding: 0; list-style: none; }
+.about-funders > li { display: flex; }
+
+.about-funders a {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--tp-spacing-sm);
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-xl);
+  color: var(--tp-ink);
+  text-decoration: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.about-funders a:hover { border-color: var(--tp-stone); box-shadow: var(--tp-shadow-elevation-2); color: var(--tp-ink); }
+.about-funders strong { color: var(--tp-slate); font-size: 0.875rem; font-weight: 500; text-align: center; }
+.about-funders a > span:not(.about-logo) { color: var(--tp-steel); font-size: 0.75rem; text-align: center; }
+.about-funders a > svg { position: absolute; top: 10px; right: 10px; width: 0.9rem; height: 0.9rem; color: var(--tp-steel); }
+
+.about-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96px;
+  border: 1px dashed var(--tp-hairline-strong);
+  border-radius: var(--tp-radius-xl);
+  background: var(--tp-surface);
+  color: var(--tp-steel);
+}
+
+.about-logo img { max-width: 70%; max-height: 72px; object-fit: contain; }
+.about-logo svg { width: 2rem; height: 2rem; stroke-width: 1.2; }
+
+.about-projects { display: flex; flex-direction: column; gap: var(--tp-spacing-xs); margin-top: var(--tp-spacing-xs); }
+.about-projects header { display: flex; flex-direction: column; gap: 2px; }
+.about-projects h2 { font-family: var(--font-body); font-size: 1.125rem; font-weight: 500; line-height: 1.3; }
+.about-projects ul { overflow: hidden; padding: 0; border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-xl); list-style: none; }
+.about-projects li { border-bottom: 1px solid var(--tp-hairline-soft); }
+.about-projects li:last-child { border-bottom: 0; }
+
+.about-projects a {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.35fr) 1fr 5rem 1rem;
+  align-items: center;
+  gap: var(--tp-spacing-md);
+  padding: 14px var(--tp-spacing-md);
+  color: var(--tp-ink);
+  text-decoration: none;
+}
+
+.about-projects a:hover { background: var(--tp-surface); color: var(--tp-ink); }
+.about-projects strong { display: flex; flex-direction: column; font-weight: 500; }
+.about-projects small { color: var(--tp-steel); font-size: 0.6875rem; font-weight: 400; }
+.about-projects a > span { color: var(--tp-slate); font-size: 0.8125rem; }
+.about-projects time { color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; }
+.about-projects a > svg { width: 1rem; color: var(--tp-steel); }
+
+/* Contributions */
+.about-tracks { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--tp-spacing-sm); padding: 0; list-style: none; }
+.about-tracks > li { display: flex; }
+
+.about-tracks button {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--tp-spacing-xs);
+  padding: var(--tp-spacing-md);
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-xl);
+  background: var(--tp-canvas);
+  color: var(--tp-ink);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.about-tracks button:hover { border-color: var(--tp-stone); box-shadow: var(--tp-shadow-elevation-2); }
+.about-tracks strong { font-size: 0.9375rem; font-weight: 500; }
+.about-tracks button > span:not(.about-tags) { color: var(--tp-slate); font-size: 0.8125rem; }
+.about-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+
+/* The contribution dialog is the shared Modal; this is only its content. */
+.about-modal-body { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); }
+.about-modal-body > a { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; color: var(--tp-link); font-size: 0.875rem; font-weight: 500; }
+.about-modal-body > a svg { width: 0.8rem; height: 0.8rem; }
+.about-supervisor { font-size: 0.8125rem; }
+.about-supervisor > span { color: var(--tp-steel); }
+
+@keyframes about-in { from { opacity: 0; transform: translateY(12px); } }
+
+@media (max-width: 640px) {
+  .about-projects a { grid-template-columns: 1fr auto; row-gap: 4px; }
+  .about-projects a > span { grid-column: 1 / -1; grid-row: 2; }
+  .about-projects time { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-team article { animation: none; }
+  .about-funders a, .about-tracks button { transition: none; }
+}

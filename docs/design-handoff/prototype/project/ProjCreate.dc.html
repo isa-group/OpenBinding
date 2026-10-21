@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · New project</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-spin{to{transform:rotate(360deg)}}
+@keyframes ob-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.ob-spin{animation:ob-spin .9s linear infinite}
+.ob-grow{transform-origin:left;animation:ob-grow 600ms cubic-bezier(.4,0,.2,1) both}
+@media (prefers-reduced-motion: reduce){.ob-spin,.ob-grow{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="proj-create" route="{{route}}" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="{{org.name}}" active="" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<main style="max-width: 1040px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<nav aria-label="Breadcrumb" style="display: flex; gap: 8px; font-size: 12px; color: #6a6a6a;"><a href="AppHome.dc.html">Home</a><span>/</span><a href="OrgOverview.dc.html">{{org.name}}</a><span>/</span><span style="color: #1f1f1f;">New project</span></nav>
+<div><h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">New project in {{org.name}}</h1><p style="margin: 4px 0 0; color: #6a6a6a;">A project holds the cases, runs, studies and reports for one piece of work.</p></div>
+
+<sc-if value="{{gate}}" hint-placeholder-val="{{false}}"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><span style="font-size: 16px; font-weight: 500;">{{gateTitle}}</span><span style="max-width: 460px; color: #6a6a6a;">{{gateText}}</span><a href="{{gateHref}}" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">{{gateCta}}</a></div></sc-if>
+
+<sc-if value="{{done}}" hint-placeholder-val="{{false}}">
+<section aria-live="polite" style="border: 1px solid #86efac; background: #f0fdf4; border-radius: 16px; padding: 24px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center;">
+<span aria-hidden="true" style="width: 56px; height: 56px; border-radius: 9999px; background: #ffffff; border: 2px solid #22c55e; display: inline-flex; align-items: center; justify-content: center;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.4"><path d="M20 6 9 17l-5-5"></path></svg></span>
+<div style="flex: 1; min-width: 240px;"><div style="font-size: 20px; font-weight: 600;">{{name}} is ready</div><div>{{visDone}}</div></div>
+<a href="ProjOverview.dc.html" onClick="{{openNew}}" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Open project</a>
+</section>
+</sc-if>
+
+<sc-if value="{{form}}" hint-placeholder-val="{{true}}">
+<sc-if value="{{viewerOnly}}" hint-placeholder-val="{{false}}"><div role="note" style="display: flex; gap: 10px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 12px 14px;"><span>You're a <span style="font-weight: 600;">VIEWER</span> in {{org.name}}, so you can look at this form but not create a project (403). A MEMBER or above can; ask an admin in <a href="OrgMembers.dc.html">Members</a>.</span></div></sc-if>
+<form onSubmit="{{create}}" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<div style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 20px;">
+<section style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 24px; display: flex; flex-direction: column; gap: 14px;">
+<h2 style="margin: 0; font-size: 18px; font-weight: 500;">About the project</h2>
+<div style="display: flex; flex-direction: column;"><label for="pc-name" style="margin-bottom: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Name</label><input id="pc-name" value="{{name}}" onChange="{{typeName}}" disabled="{{viewerOnly}}" maxlength="160" style="height: 44px; box-sizing: border-box; padding: 0 14px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: inherit; font-size: 14px;"></div>
+<div style="display: flex; flex-direction: column;"><label for="pc-slug" style="margin-bottom: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Address</label><div style="display: flex; border: 1px solid {{slugBorder}}; border-radius: 8px; overflow: hidden;"><span class="ob-hide-sm" style="display: inline-flex; align-items: center; padding: 0 10px; background: #fafafa; border-right: 1px solid #ededed; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #6a6a6a; white-space: nowrap;">/app/{{org.slug}}/</span><input id="pc-slug" value="{{slug}}" onChange="{{typeSlug}}" disabled="{{viewerOnly}}" aria-describedby="pc-slug-help" spellcheck="false" style="flex: 1; min-width: 0; height: 42px; border: 0; padding: 0 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px;"></div><span id="pc-slug-help" style="margin-top: 4px; font-size: 12px; color: {{slugColor}};">{{slugHelp}}</span></div>
+<div style="display: flex; flex-direction: column;"><label for="pc-desc" style="margin-bottom: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Description <span style="font-weight: 400;">(optional)</span></label><textarea id="pc-desc" value="{{desc}}" onChange="{{typeDesc}}" disabled="{{viewerOnly}}" maxlength="2000" rows="3" style="box-sizing: border-box; padding: 10px 14px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical;"></textarea><span style="margin-top: 4px; font-size: 12px; color: #6a6a6a;">{{descCount}} / 2,000</span></div>
+</section>
+
+<section style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 24px; display: flex; flex-direction: column; gap: 14px;">
+<h2 style="margin: 0; font-size: 18px; font-weight: 500;">Who can see it</h2>
+<div role="radiogroup" aria-label="Visibility" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+<sc-for list="{{visOpts}}" as="v" hint-placeholder-count="2">
+<button type="button" role="radio" aria-checked="{{v.checked}}" onClick="{{v.pick}}" disabled="{{viewerOnly}}" style="display: flex; flex-direction: column; gap: 8px; padding: 16px; border: {{v.border}}; border-radius: 14px; background: {{v.bg}}; font-family: inherit; text-align: left; cursor: pointer;">
+<span style="display: flex; align-items: center; gap: 10px;"><span aria-hidden="true" style="width: 36px; height: 36px; border-radius: 10px; background: {{v.tile}}; display: inline-flex; align-items: center; justify-content: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{v.iconColor}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{v.icon}}"></path></svg></span><span style="font-size: 15px; font-weight: 600; color: #1f1f1f;">{{v.label}}</span></span>
+<sc-for list="{{v.points}}" as="p" hint-placeholder-count="3"><span style="display: flex; gap: 8px; font-size: 13px; color: #4a4a4a;"><span aria-hidden="true" style="color: {{p.color}};">{{p.mark}}</span>{{p.t}}</span></sc-for>
+</button>
+</sc-for>
+</div>
+</section>
+</div>
+
+<aside style="flex: 1 1 280px; max-width: 360px; display: flex; flex-direction: column; gap: 16px;">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Sponsor's room · {{org.sponsorName}}</span>
+<sc-if value="{{noRoom}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: #6a6a6a;">This sponsor's counts aren't in the prototype data.</span></sc-if>
+<sc-for list="{{room}}" as="r" hint-placeholder-count="2">
+<div style="display: flex; flex-direction: column; gap: 4px;"><div style="display: flex; justify-content: space-between; font-size: 13px;"><span>{{r.label}}</span><span style="font-weight: 500;">{{r.text}}</span></div><div style="position: relative; height: 8px; border-radius: 9999px; background: #ededed; overflow: hidden;"><div class="ob-grow" style="position: absolute; left: 0; top: 0; height: 8px; width: {{r.before}}%; background: #0077b6;"></div><div style="position: absolute; left: {{r.before}}%; top: 0; height: 8px; width: {{r.added}}%; background: repeating-linear-gradient(45deg, #0077b6 0 4px, #caf0f8 4px 8px);"></div></div></div>
+</sc-for>
+<span style="font-size: 12px; color: #6a6a6a;">Striped = this project. Private projects count twice: once as a project, once as private.</span>
+</div>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Summary</span>
+<span style="font-weight: 600;">{{nameOrPlaceholder}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6a6a6a; overflow-wrap: anywhere;">/app/{{org.slug}}/{{slug}}</span>
+<span style="{{visChip}}">{{visLabel}}</span>
+<sc-if value="{{errMsg}}" hint-placeholder-val="{{false}}"><div role="alert" style="border: 1px solid #fca5a5; background: #fef2f2; border-radius: 10px; padding: 10px 12px; font-size: 13px; display: flex; flex-direction: column; gap: 6px;"><span>{{errMsg}}</span><sc-if value="{{err402}}" hint-placeholder-val="{{false}}"><span style="display: flex; gap: 10px;"><button type="button" onClick="{{makePublic}}" style="border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 13px; color: #0077b6; font-weight: 500; cursor: pointer;">Make it public instead</button><a href="AcctUsage.dc.html" style="font-weight: 500;">Usage</a></span></sc-if></div></sc-if>
+<sc-if value="{{creating}}" hint-placeholder-val="{{false}}"><span role="status" style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #4a4a4a;"><span class="ob-spin" aria-hidden="true" style="width: 14px; height: 14px; box-sizing: border-box; border-radius: 9999px; border: 2px solid #caf0f8; border-top-color: #0077b6;"></span>Creating…</span></sc-if>
+<button type="submit" disabled="{{cantCreate}}" style="height: 40px; border: 0; border-radius: 8px; background: #0077b6; color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; opacity: {{createOpacity}};">Create project</button>
+<a href="OrgOverview.dc.html" style="text-align: center; font-size: 13px; font-weight: 500;">Cancel</a>
+</div>
+</aside>
+</form>
+</sc-if>
+</main>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1400}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "lucia", st: "success", scenario: "ok", org: "isa-demo", name: "Placement multi-región", slug: "placement-multiregion", slugTouched: false, desc: "", vis: "private", creating: false, done: false, err: "" };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, name: "", email: "", initials: "" },
+      lucia: { signedIn: true, name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV", admin: false },
+      marco: { signedIn: true, name: "Marco Díaz", email: "marco@example.invalid", initials: "MD", admin: false },
+      sofia: { signedIn: true, name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR", admin: false },
+      nora: { signedIn: true, name: "Nora Campos", email: "nora@example.invalid", initials: "NC", admin: false },
+      iker: { signedIn: true, name: "Iker Mora", email: "iker@example.invalid", initials: "IM", admin: true },
+      pablo: { signedIn: true, name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI", admin: false }
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); const o = window.localStorage.getItem("ob.org"); if (o && o !== "__new") this.setState({ org: o }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+  setPersona(k) { this.setState({ persona: k, done: false, err: "" }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const st = s.st, sc = s.scenario;
+    const ORG = {
+      "isa-demo": { slug: "isa-demo", name: "ISA Demo Group", sponsorName: "Lucía Vega", room: [[3, 50], [2, 30]], slugs: ["qos-benchmarks", "checkout-privado"] },
+      "qos-lab": { slug: "qos-lab", name: "QoS Lab (sub-organización)", sponsorName: "Lucía Vega", room: [[3, 50], [2, 30]], slugs: ["placement-edge"] },
+      "consultora-demo": { slug: "consultora-demo", name: "Consultora Demo", sponsorName: "Nora Campos", room: [[0, 25], [0, 15]], slugs: [] }
+    };
+    const ROLE = { lucia: { "isa-demo": "OWNER", "qos-lab": "OWNER" }, marco: { "isa-demo": "MEMBER", "qos-lab": "ADMIN", "consultora-demo": "VIEWER" }, sofia: { "isa-demo": "VIEWER", "qos-lab": "VIEWER" }, nora: { "consultora-demo": "OWNER" }, iker: {}, pablo: {} }[s.persona] || {};
+    const key = ORG[s.org] ? s.org : "isa-demo";
+    const org = ORG[key];
+    const role = ROLE[key] || (who.admin ? "ADMIN" : "");
+    const viewerOnly = role === "VIEWER" || st === "forbidden";
+    const blank = st === "empty";
+    const name = blank && !s.slugTouched && s.name === "Placement multi-región" ? "" : s.name;
+    const slug = blank && !s.slugTouched && s.slug === "placement-multiregion" ? "" : s.slug;
+    const slugOk = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(slug);
+    const taken = org.slugs.indexOf(slug) >= 0;
+    const priv = s.vis === "private";
+    const room = [["Projects", org.room[0], 1], ["Private projects", org.room[1], priv ? 1 : 0]].map(([l, r, a]) => ({ label: l, text: (r[0] + a) + " of " + r[1], before: String(Math.round(r[0] / r[1] * 100)), added: String(Math.max(1, Math.round(a / r[1] * 100)) * (a ? 1 : 0)) }));
+    const card = (k, label, icon, points) => { const on = s.vis === k; return { label: label, icon: icon, points: points.map(([m, t]) => ({ mark: m, t: t, color: m === "✓" ? "#15803d" : "#6a6a6a" })), checked: on ? "true" : "false", pick: () => this.setState({ vis: k, err: "" }), border: on ? "2px solid #0077b6" : "1px solid #b8b8b8", bg: on ? "rgba(0,119,182,0.05)" : "#ffffff", tile: on ? "#0077b6" : "#f1f8fc", iconColor: on ? "#ffffff" : "#023e8a" }; };
+    const visOpts = [
+      card("private", "Private", "M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4", [["✓", "Only members of " + org.name + " see it"], ["✓", "Counts as a private project for the sponsor"], ["–", "Not listed in Explore"]]),
+      card("public", "Public", "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18", [["✓", "Its card appears in Explore"], ["✓", "Published results can be verified by anyone"], ["–", "Drafts and cases still need membership to open"]])
+    ];
+    const ERR = { "409": "That address is already used in " + org.name + " (409).", "402": "The sponsor has no " + (priv ? "private projects" : "projects") + " left (402 · sponsor quota exceeded).", "503": "Limits can't be checked right now (503 · pricing unavailable). Nothing was created." };
+    const valid = name.trim() && slugOk && !viewerOnly;
+    const create = (e) => {
+      if (e && e.preventDefault) e.preventDefault();
+      if (!valid) return;
+      const forced = st === "error" ? (ERR[sc] ? sc : "409") : "";
+      const kind = forced || (taken ? "409" : "");
+      this.setState({ creating: true, err: "" });
+      if (this.timer) clearTimeout(this.timer);
+      this.timer = setTimeout(() => kind ? this.setState({ creating: false, err: kind, st: "success" }) : this.setState({ creating: false, done: true }), 1000);
+    };
+    const member = !!ROLE[key] || who.admin;
+    const gate = !who.signedIn || !member;
+    return {
+      persona: s.persona, st: st, na: [],
+      scenarios: [{ id: "ok", label: "Creates" }, { id: "409", label: "409 address taken" }, { id: "402", label: "402 sponsor full" }, { id: "503", label: "503 pricing" }],
+      scenario: sc,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState({ st: x, done: false, err: "", creating: x === "loading" }),
+      setScenario: (x) => this.setState({ scenario: x, done: false, err: "", st: x === "ok" ? "success" : "error" }),
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      route: "/app/" + org.slug + "/new-project",
+      org: org,
+      gate: gate,
+      gateTitle: who.signedIn ? "Organization not available" : "Log in to create a project",
+      gateText: who.signedIn ? "It doesn't exist, or you're not a member." : "Projects belong to organizations you're a member of.",
+      gateHref: who.signedIn ? "AppHome.dc.html" : "AuthLogin.dc.html", gateCta: who.signedIn ? "Back to Home" : "Log in",
+      done: !gate && s.done, form: !gate && !s.done,
+      viewerOnly: viewerOnly,
+      name: name, slug: slug, desc: s.desc, descCount: String(s.desc.length),
+      nameOrPlaceholder: name || "Untitled project",
+      typeName: (e) => { const v = e.target.value; const auto = v.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64); this.setState(s.slugTouched ? { name: v, err: "" } : { name: v, slug: auto, err: "" }); },
+      typeSlug: (e) => this.setState({ slug: e.target.value, slugTouched: true, err: "" }),
+      typeDesc: (e) => this.setState({ desc: e.target.value }),
+      slugBorder: slug && (!slugOk || taken) ? "#ef4444" : "#c7c7c7",
+      slugColor: slug && (!slugOk || taken) ? "#b91c1c" : "#6a6a6a",
+      slugHelp: !slug ? "Lowercase letters, numbers and hyphens." : (!slugOk ? "Use lowercase letters, numbers and hyphens; start and end with a letter or number." : (taken ? "Already used in this organization." : "Looks good · can't be changed later.")),
+      visOpts: visOpts,
+      visLabel: priv ? "Private" : "Public",
+      visChip: "align-self: flex-start; border-radius: 9999px; padding: 1px 10px; font-size: 12px; font-weight: 500; " + (priv ? "background: #fafafa; border: 1px solid #b8b8b8;" : "background: #f0fdf4; border: 1px solid #86efac;"),
+      room: room, noRoom: false,
+      errMsg: s.err ? ERR[s.err] : "", err402: s.err === "402",
+      makePublic: () => this.setState({ vis: "public", err: "" }),
+      creating: s.creating || st === "loading",
+      cantCreate: !valid, createOpacity: valid ? "1" : "0.4",
+      create: create,
+      visDone: priv ? "Private: only members of " + org.name + " can see it." : "Public: its card now appears in Explore.",
+      openNew: () => { try { window.localStorage.setItem("ob.project", "__new"); window.localStorage.setItem("ob.newProject", JSON.stringify({ name: name, slug: slug, desc: s.desc, vis: s.vis, org: key })); } catch (e) {} }
+    };
+  }
+}
+</script>
+</body>
+</html>

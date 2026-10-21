@@ -24,7 +24,8 @@ def test_v1_migration_creates_resources_and_preserves_account_tables(tmp_path: P
     assert completed.returncode == 0, completed.stdout + completed.stderr
     with sqlite3.connect(database) as connection:
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-        assert {"users", "api_keys", "v1_instance_snapshots", "v1_instance_resources", "v1_binding_ir", "v1_engine_revisions", "v1_engine_registration_revisions", "v1_engine_profile_surrogates"} <= tables
+        assert {"users", "api_keys", "v1_instance_snapshots", "v1_instance_resources", "v1_binding_ir", "v1_engine_revisions", "v1_engine_registration_revisions"} <= tables
+        assert "v1_engine_profile_surrogates" not in tables
         columns = {row[1] for row in connection.execute("PRAGMA table_info(jobs)")}
         assert {
             "instance_complexity",

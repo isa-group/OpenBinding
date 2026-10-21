@@ -1,0 +1,461 @@
+{
+ "cases": {
+  "binding_candidate_not_eligible": {
+   "kind": "binding",
+   "message": "candidate {'resource': 'catalog', 'id': 'c2a'} is not eligible for task 't1'",
+   "outcome": "ValueError",
+   "source": "constructed"
+  },
+  "binding_candidate_unknown": {
+   "kind": "binding",
+   "message": "candidate {'resource': 'catalog', 'id': 'c9z'} is not eligible for task 't1'",
+   "outcome": "ValueError",
+   "source": "constructed"
+  },
+  "binding_extra_task": {
+   "kind": "binding",
+   "message": "binding must contain exactly service tasks; missing=[], extra=['t4']",
+   "outcome": "ValueError",
+   "source": "constructed"
+  },
+  "binding_missing_task": {
+   "kind": "binding",
+   "message": "binding must contain exactly service tasks; missing=['t3'], extra=[]",
+   "outcome": "ValueError",
+   "source": "constructed"
+  },
+  "binding_not_an_object": {
+   "kind": "binding",
+   "message": "binding must be an object",
+   "outcome": "ValueError",
+   "source": "constructed"
+  },
+  "binding_other_resource": {
+   "kind": "binding",
+   "message": "candidate {'resource': 'application', 'id': 'c1a'} is not eligible for task 't1'",
+   "outcome": "ValueError",
+   "source": "constructed"
+  },
+  "binding_valid_control": {
+   "kind": "binding",
+   "outcome": "ok",
+   "source": "constructed"
+  },
+  "binding_value_extra_key": {
+   "kind": "binding",
+   "message": "binding value for 't1' must be {resource,id}",
+   "outcome": "ValueError",
+   "source": "constructed"
+  },
+  "binding_value_id_not_string": {
+   "kind": "binding",
+   "message": "binding value for 't1' must be {resource,id}",
+   "outcome": "ValueError",
+   "source": "constructed"
+  },
+  "binding_value_missing_id": {
+   "kind": "binding",
+   "message": "binding value for 't1' must be {resource,id}",
+   "outcome": "ValueError",
+   "source": "constructed"
+  },
+  "catalog_resource_missing": {
+   "diagnostics": [
+    {
+     "code": "resource_missing",
+     "pointer": "/",
+     "resource": "candidates.json"
+    },
+    {
+     "code": "cardinality",
+     "pointer": "/spec/resources/candidateCatalog",
+     "resource": "instance.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "constructed"
+  },
+  "constant_infinity_max": {
+   "kind": "compile",
+   "message": "resource is not valid UTF-8 JSON: candidates.json",
+   "outcome": "PackageError",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "constant_nan_min": {
+   "kind": "compile",
+   "message": "resource is not valid UTF-8 JSON: candidates.json",
+   "outcome": "PackageError",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "constant_negative_infinity_min": {
+   "kind": "compile",
+   "message": "resource is not valid UTF-8 JSON: candidates.json",
+   "outcome": "PackageError",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "criterion_unknown_feature": {
+   "diagnostics": [
+    {
+     "code": "optimization_feature",
+     "pointer": "/spec/criteria/0/feature",
+     "resource": "optimization.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "constructed"
+  },
+  "expression_call_injection": {
+   "kind": "expression",
+   "message": "CEL expression contains an unsupported construct",
+   "outcome": "ExpressionError",
+   "source": "tests/test_v1_language.py",
+   "span": {
+    "end": 29,
+    "start": 0
+   }
+  },
+  "expression_comprehension": {
+   "kind": "expression",
+   "message": "CEL expression contains an unsupported construct",
+   "outcome": "ExpressionError",
+   "source": "tests/test_v1_language.py",
+   "span": {
+    "end": 19,
+    "start": 0
+   }
+  },
+  "expression_root_not_allowed": {
+   "kind": "expression",
+   "message": "expression root is not allowed: secrets",
+   "outcome": "ExpressionError",
+   "source": "tests/test_v1_language.py",
+   "span": {
+    "end": 32,
+    "start": 19
+   }
+  },
+  "expression_syntax_error": {
+   "kind": "expression",
+   "message": "invalid CEL expression at 10: invalid syntax",
+   "outcome": "ExpressionError",
+   "source": "tests/test_v1_language.py",
+   "span": {
+    "end": 12,
+    "start": 10
+   }
+  },
+  "expression_too_deep": {
+   "kind": "expression",
+   "message": "expression exceeds the maximum nesting depth",
+   "outcome": "ExpressionError",
+   "source": "tests/test_v1_language.py",
+   "span": null
+  },
+  "expression_too_long": {
+   "kind": "expression",
+   "message": "expression exceeds the maximum length",
+   "outcome": "ExpressionError",
+   "source": "tests/test_v1_language.py",
+   "span": {
+    "end": 9012,
+    "start": 0
+   }
+  },
+  "expression_type_mismatch": {
+   "kind": "expression",
+   "message": "add right operand must be number, got string",
+   "outcome": "ExpressionError",
+   "source": "tests/test_v1_language.py",
+   "span": {
+    "end": 26,
+    "start": 20
+   }
+  },
+  "expression_undeclared_path": {
+   "kind": "expression",
+   "message": "expression path is not declared: ['metrics', '__class__']",
+   "outcome": "ExpressionError",
+   "source": "tests/test_v1_language.py",
+   "span": {
+    "end": 17,
+    "start": 0
+   }
+  },
+  "expression_unterminated_string": {
+   "kind": "expression",
+   "message": "invalid CEL expression: unterminated string",
+   "outcome": "ExpressionError",
+   "source": "tests/test_v1_language.py",
+   "span": {
+    "end": 24,
+    "start": 19
+   }
+  },
+  "expression_valid_control": {
+   "kind": "expression",
+   "outcome": "ok",
+   "source": "tests/test_v1_language.py"
+  },
+  "instance_missing": {
+   "kind": "compile",
+   "message": "package must contain instance.json",
+   "outcome": "PackageError",
+   "source": "constructed"
+  },
+  "instance_unknown_property": {
+   "diagnostics": [
+    {
+     "code": "schema",
+     "pointer": "/spec",
+     "resource": "instance.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "constructed"
+  },
+  "package_zip_absolute_path": {
+   "kind": "package",
+   "message": "unsafe package path: '/instance.json'",
+   "outcome": "PackageError",
+   "source": "tests/test_v1_language.py"
+  },
+  "package_zip_not_an_archive": {
+   "kind": "package",
+   "message": "invalid ZIP archive",
+   "outcome": "PackageError",
+   "source": "tests/test_v1_language.py"
+  },
+  "package_zip_path_traversal": {
+   "kind": "package",
+   "message": "traversal or empty component in package path: '../instance.json'",
+   "outcome": "PackageError",
+   "source": "tests/test_v1_language.py"
+  },
+  "profile_unsupported": {
+   "diagnostics": [
+    {
+     "code": "unsupported_profile",
+     "pointer": "/spec/profile",
+     "resource": "instance.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "constructed"
+  },
+  "range_bool_end": {
+   "diagnostics": [
+    {
+     "code": "schema",
+     "pointer": "/spec/candidates/c1a/features/latency",
+     "resource": "candidates.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "range_both_open_control": {
+   "kind": "compile",
+   "outcome": "ok",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "range_min_above_max": {
+   "diagnostics": [
+    {
+     "code": "feature_interval_order",
+     "pointer": "/spec/candidates/c1a/features/latency",
+     "resource": "candidates.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "range_missing_key": {
+   "diagnostics": [
+    {
+     "code": "schema",
+     "pointer": "/spec/candidates/c1a/features/latency",
+     "resource": "candidates.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "range_negative_min_above_max": {
+   "diagnostics": [
+    {
+     "code": "feature_interval_order",
+     "pointer": "/spec/candidates/c1a/features/latency",
+     "resource": "candidates.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "range_numeric_string": {
+   "diagnostics": [
+    {
+     "code": "schema",
+     "pointer": "/spec/candidates/c1a/features/latency",
+     "resource": "candidates.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "range_open_control": {
+   "kind": "compile",
+   "outcome": "ok",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "scalar_bool": {
+   "diagnostics": [
+    {
+     "code": "schema",
+     "pointer": "/spec/candidates/c1a/features/latency",
+     "resource": "candidates.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "scalar_list": {
+   "diagnostics": [
+    {
+     "code": "schema",
+     "pointer": "/spec/candidates/c1a/features/latency",
+     "resource": "candidates.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "scalar_null": {
+   "diagnostics": [
+    {
+     "code": "schema",
+     "pointer": "/spec/candidates/c1a/features/latency",
+     "resource": "candidates.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "scalar_string": {
+   "diagnostics": [
+    {
+     "code": "schema",
+     "pointer": "/spec/candidates/c1a/features/latency",
+     "resource": "candidates.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_b5_open_ranges.py"
+  },
+  "task_without_provider": {
+   "diagnostics": [
+    {
+     "code": "ineligible_task",
+     "pointer": "/spec/tasks/t1",
+     "resource": "Application"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "constructed"
+  },
+  "workflow_unknown_property": {
+   "diagnostics": [
+    {
+     "code": "schema",
+     "pointer": "/spec/workflow",
+     "resource": "application.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_v1_language.py"
+  },
+  "xor_routing_absent": {
+   "diagnostics": [
+    {
+     "code": "routing_missing",
+     "pointer": "/spec/workflow",
+     "resource": "application"
+    },
+    {
+     "code": "routing_required",
+     "pointer": "/spec/workflow",
+     "resource": "application"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_v1_language.py"
+  },
+  "xor_routing_empty_entries": {
+   "diagnostics": [
+    {
+     "code": "schema",
+     "pointer": "/spec/entries",
+     "resource": "routing.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_v1_language.py"
+  },
+  "xor_routing_partial": {
+   "diagnostics": [
+    {
+     "code": "routing_partial",
+     "pointer": "/spec/entries",
+     "resource": "routing.json"
+    },
+    {
+     "code": "routing_missing",
+     "pointer": "/spec/entries",
+     "resource": "routing.json"
+    },
+    {
+     "code": "routing_required",
+     "pointer": "/spec/workflow",
+     "resource": "application"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_v1_language.py"
+  },
+  "xor_routing_sum_not_one": {
+   "diagnostics": [
+    {
+     "code": "routing_sum",
+     "pointer": "/spec/entries",
+     "resource": "routing.json"
+    }
+   ],
+   "kind": "compile",
+   "outcome": "CompileError",
+   "source": "tests/test_v1_language.py"
+  },
+  "xor_routing_uniform_control": {
+   "kind": "compile",
+   "outcome": "ok",
+   "source": "tests/test_v1_language.py"
+  }
+ },
+ "schema": "bim-baseline/negatives/1"
+}

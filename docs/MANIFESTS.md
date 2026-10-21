@@ -55,8 +55,9 @@ schema before it is admitted as canonical IR.
 
 The only executable Profile in v1 is `qos-binding/v1`. It declares four roles,
 outputs `bim/v1` `BindingProblem`, uses `bim-engine/v1`, and defines capability
-dimensions for workflow nodes, aggregations, metric scopes, constraints,
-optimization, expressions, placement, and open `irExtensions`.
+dimensions for workflow nodes, aggregations, feature scopes, feature values
+(`scalar`, `interval`), constraints, scalarizations, expressions, placement,
+and open `irExtensions`.
 
 ## Dialect
 
@@ -164,6 +165,16 @@ let future Profiles define their own feature vocabularies without revising the
 Engine schema. The gateway compares a lowered problem's actual IR features
 with these selectors. It does not equate a source Dialect name with execution
 support.
+
+`featureValues` is a closed dimension with values `scalar` and `interval`. The
+gateway computes it from the IR: `interval` is present if any bound slot of any
+candidate is an interval (a range with a `null` end is an interval too), and
+`scalar` for scalars. `all` is legal, `none`
+accepts no feature values, and `only` accepts just the named kinds. Every
+bundled mode declares `{"selector":"only","values":["scalar"]}`, so a job with
+intervals fails with `unsupported_capability_value`. The dimension is
+mandatory: a manifest omitting it is rejected with
+`capability_dimension_missing` and must be updated and registered again.
 
 `irExtensions` is therefore critical: a mode with `none` cannot receive any
 extension namespace, while `only` accepts only the named IR extensions. The

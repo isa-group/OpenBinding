@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Project workbench</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ob-spin{to{transform:rotate(360deg)}}
+@keyframes ob-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes ob-growy{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes ob-fadeup{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+.ob-spin{animation:ob-spin .9s linear infinite}
+.ob-grow{transform-origin:left;animation:ob-grow 600ms cubic-bezier(.4,0,.2,1) both}
+.ob-growy{transform-origin:bottom;animation:ob-growy 600ms cubic-bezier(.4,0,.2,1) both}
+.ob-in{animation:ob-fadeup 300ms ease-out both}
+.ob-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion: reduce){.ob-skel,.ob-spin,.ob-grow,.ob-growy,.ob-in{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="wb-workbench" route="{{route}}" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="{{ctx}}" active="" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<sc-if value="{{gate}}" hint-placeholder-val="{{false}}"><main style="max-width: 1152px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px;"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1" aria-hidden="true"><path d="{{gateIcon}}"></path></svg><span style="font-size: 16px; font-weight: 500;">{{gateTitle}}</span><span style="max-width: 500px; color: #6a6a6a;">{{gateText}}</span><a href="{{gateHref}}" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">{{gateCta}}</a></div></main></sc-if>
+<sc-if value="{{inside}}" hint-placeholder-val="{{true}}">
+<div style="background: #ffffff;"><div style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 20px 16px 12px;"><nav aria-label="Breadcrumb" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: #6a6a6a;"><sc-for list="{{crumbs}}" as="c" hint-placeholder-count="4"><sc-if value="{{c.link}}" hint-placeholder-val="{{true}}"><a href="{{c.href}}" title="{{c.title}}">{{c.label}}</a><span aria-hidden="true">/</span></sc-if><sc-if value="{{c.cur}}" hint-placeholder-val="{{false}}"><span aria-current="page" style="color: #1f1f1f;">{{c.label}}</span></sc-if></sc-for></nav></div></div>
+<dc-import name="ShellProjectTabs" active="cases" hint-size="100%,45px"></dc-import>
+<main style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 24px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px;">
+<div><h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">Workbench</h1><p style="margin: 4px 0 0; color: #6a6a6a; max-width: 720px;">Check a package, see which engines can run it, then snapshot, run or save it as a case revision.</p></div>
+<a href="GenLab.dc.html" style="{{btnSecondary}}">Generate a synthetic instance</a>
+</div>
+<section aria-labelledby="src-title" style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<h2 id="src-title" style="margin: 0; font-size: 16px; font-weight: 600;">Package</h2>
+<div role="tablist" aria-label="Where the package comes from" style="display: flex; gap: 4px; border-bottom: 1px solid #b8b8b8;"><sc-for list="{{srcTabs}}" as="t" hint-placeholder-count="3"><button type="button" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}" style="{{t.style}}">{{t.label}}</button></sc-for></div>
+<sc-if value="{{srcCase}}" hint-placeholder-val="{{true}}"><label style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px;">Case revision<select value="{{rev}}" onChange="{{pickRev}}" style="height: 36px; border: 1px solid #c7c7c7; border-radius: 8px; background: #ffffff; padding: 0 10px; font-family: inherit; font-size: 14px;"><option value="2">Flujo de checkout · revision 2</option><option value="1">Flujo de checkout · revision 1</option></select><button type="button" onClick="{{validate}}" style="{{btnPrimary}}">Validate</button></label></sc-if>
+<sc-if value="{{srcUpload}}" hint-placeholder-val="{{false}}"><div style="border: 2px dashed #0077b6; border-radius: 14px; background: #f1f8fc; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;"><span style="font-weight: 500;">Drop a .bim.zip here</span><span style="font-size: 12px; color: #6a6a6a;">Up to {{maxPkg}} on your plan</span><button type="button" onClick="{{validate}}" style="{{btnSecondary}}">Choose file (uses checkout-flow.bim.zip)</button></div></sc-if>
+<sc-if value="{{srcExample}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: #4a4a4a;">Pick a ready example in <a href="LangExamples.dc.html">Examples</a> and choose “Open in workbench”.</span></sc-if>
+</section>
+
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}"><div role="status" style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 20px; display: flex; flex-direction: column; gap: 10px;"><span style="display: inline-flex; align-items: center; gap: 10px;"><span class="ob-spin" aria-hidden="true" style="width: 18px; height: 18px; box-sizing: border-box; border-radius: 9999px; border: 2px solid #caf0f8; border-top-color: #0077b6;"></span>Compiling the package…</span><div style="height: 8px; border-radius: 9999px; background: #ededed; overflow: hidden;"><div class="ob-grow" style="height: 8px; width: 70%; background: #0077b6;"></div></div><span style="font-size: 12px; color: #6a6a6a;">Reading files → checking each resource → measuring the problem.</span></div></sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}"><div style="border: 1px dashed #a8a8a8; border-radius: 16px; background: #ffffff; padding: 32px; text-align: center; color: #4a4a4a;">No package yet. Pick a case revision, drop a file, or start from an example.</div></sc-if>
+<sc-if value="{{gateAuth}}" hint-placeholder-val="{{false}}"><div role="alert" style="border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 12px 14px;">{{gateAuthText}}</div></sc-if>
+<sc-if value="{{err422}}" hint-placeholder-val="{{false}}">
+<section style="display: flex; flex-direction: column; gap: 10px;"><div role="alert" style="border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px; font-weight: 500;">Not valid · 2 problems (422)</div>
+<sc-for list="{{diags}}" as="g" hint-placeholder-count="2"><div style="border: 1px solid #fca5a5; border-radius: 12px; background: #ffffff; overflow: hidden;"><div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; background: #fef2f2;"><span style="border-radius: 9999px; background: #ffffff; border: 1px solid #fca5a5; padding: 1px 10px; font-size: 12px;">{{g.file}}</span><span aria-hidden="true">›</span><span style="font-size: 13px;">{{g.where}}</span></div><div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 4px;"><span>{{g.msg}}</span><span style="font-size: 13px; color: #4a4a4a;"><span style="font-weight: 500;">Fix:</span> {{g.fix}}</span><a href="{{g.href}}" style="font-size: 13px; font-weight: 500;">{{g.go}}</a></div></div></sc-for>
+</section>
+</sc-if>
+<sc-if value="{{err402}}" hint-placeholder-val="{{false}}"><div role="alert" style="border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;"><span style="font-weight: 500;">Too big for your plan (402 · instance complexity)</span><div style="position: relative; height: 12px; border-radius: 9999px; background: #ededed;"><div style="height: 12px; width: 100%; border-radius: 9999px; background: repeating-linear-gradient(45deg, #ef4444 0 6px, #fca5a5 6px 12px);"></div><span aria-hidden="true" style="position: absolute; top: -4px; left: {{limitPct}}%; width: 2px; height: 20px; background: #1f1f1f;"></span></div><span style="font-size: 13px;">Your {{plan}} plan allows up to 10<sup>{{limit}}</sup> combinations. The server doesn't report the measured size in this answer, so we can't show how far over it is.</span><span style="display: flex; gap: 12px; font-size: 13px;"><a href="CaseComposer.dc.html" style="font-weight: 500;">Reduce candidates</a><a href="PubPricing.dc.html" style="font-weight: 500;">Compare plans</a></span></div></sc-if>
+<sc-if value="{{err413}}" hint-placeholder-val="{{false}}"><div role="alert" style="border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px;">The file is larger than your plan allows per request ({{maxPkg}}) · 413.</div></sc-if>
+
+<sc-if value="{{valid}}" hint-placeholder-val="{{true}}">
+<section class="ob-in" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; border: 1px solid #86efac; background: #f0fdf4; border-radius: 16px; padding: 16px 20px;">
+<span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 9999px; background: #ffffff; border: 2px solid #22c55e; display: inline-flex; align-items: center; justify-content: center; color: #15803d; font-size: 20px; font-weight: 700;">✓</span>
+<div style="flex: 1; min-width: 220px;"><div style="font-size: 18px; font-weight: 600;">Valid package</div><div style="font-size: 13px; color: #2c2c2c;">Flujo de checkout · revision {{rev}} · qos-binding/v1</div></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{digests}}" as="d" hint-placeholder-count="3"><button type="button" onClick="{{d.copy}}" title="Copy" style="border-radius: 9999px; border: 1px solid #86efac; background: #ffffff; padding: 2px 10px; font-family: inherit; font-size: 12px; cursor: pointer;">{{d.l}} · <span style="font-family: 'JetBrains Mono', monospace;">{{d.v}}</span></button></sc-for></div>
+</section>
+<div role="tablist" aria-label="Result view" style="display: flex; gap: 4px; border-bottom: 1px solid #b8b8b8;"><sc-for list="{{views}}" as="t" hint-placeholder-count="3"><button type="button" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}" style="{{t.style}}">{{t.label}}</button></sc-for></div>
+<sc-if value="{{vAnalysis}}" hint-placeholder-val="{{true}}">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;"><sc-for list="{{counts}}" as="c" hint-placeholder-count="5"><div style="border: 1px solid #b8b8b8; border-radius: 14px; background: #ffffff; padding: 14px;"><div style="font-size: 22px; font-weight: 600;">{{c.v}}</div><div style="font-size: 12px; color: #6a6a6a;">{{c.l}}</div></div></sc-for></div>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; overflow-x: auto;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: #6a6a6a; margin-bottom: 12px;"><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;">Workflow</span><span>· sequence · profile qos-binding/v1</span></div>
+<div role="img" aria-label="Workflow: autenticar, then inventario and calcular-envio in parallel, then pago-tarjeta (70%) or pago-transferencia (30%), then notificar" style="display: flex; align-items: center; gap: 8px; min-width: 820px;">
+<div style="flex: 0 0 140px; border: 2px solid #0077b6; border-radius: 12px; padding: 10px; background: #ffffff;"><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;">autenticar</div><div style="font-size: 11px; color: #6a6a6a;">service · auth</div><div style="margin-top: 6px; font-size: 11px; border-radius: 4px; background: #caf0f8; padding: 1px 6px; display: inline-block;">4 candidates</div></div>
+<span aria-hidden="true" style="color: #6a6a6a;">→</span>
+<div style="flex: 0 0 170px; border: 1px solid #a9d6ea; background: #f1f8fc; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: #023e8a;">PARALLEL · SLOWEST BRANCH COUNTS</span>
+<div style="border: 2px solid #0077b6; border-radius: 10px; padding: 8px; background: #ffffff;"><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;">inventario</div><div style="font-size: 11px; color: #6a6a6a;">service · stock · 5 candidates</div></div>
+<div style="border: 2px solid #0077b6; border-radius: 10px; padding: 8px; background: #ffffff;"><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;">calcular-envio</div><div style="font-size: 11px; color: #6a6a6a;">service · shipping · 3 candidates</div></div></div>
+<span aria-hidden="true" style="color: #6a6a6a;">→</span>
+<div style="flex: 0 0 210px; border: 1px solid #a9d6ea; background: #f1f8fc; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: #023e8a;">ONE OF · BY PROBABILITY</span>
+<div style="border: 2px solid #0077b6; border-radius: 10px; padding: 8px; background: #ffffff;"><div style="display: flex; justify-content: space-between; gap: 6px;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;">pago-tarjeta</span><span style="font-size: 11px; font-weight: 600;">70%</span></div><div style="height: 4px; border-radius: 9999px; background: #ededed; margin: 4px 0;"><div style="width: 70%; height: 4px; border-radius: 9999px; background: #0077b6;"></div></div><div style="font-size: 11px; color: #6a6a6a;">payment · {{wfPayCands}} candidates</div></div>
+<div style="border: 2px solid #0077b6; border-radius: 10px; padding: 8px; background: #ffffff;"><div style="display: flex; justify-content: space-between; gap: 6px;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;">pago-transferencia</span><span style="font-size: 11px; font-weight: 600;">30%</span></div><div style="height: 4px; border-radius: 9999px; background: #ededed; margin: 4px 0;"><div style="width: 30%; height: 4px; border-radius: 9999px; background: #0077b6;"></div></div><div style="font-size: 11px; color: #6a6a6a;">payment · 4 candidates</div></div></div>
+<span aria-hidden="true" style="color: #6a6a6a;">→</span>
+<div style="flex: 0 0 120px; border: 2px dashed #a8a8a8; border-radius: 12px; padding: 10px; background: #ffffff;"><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;">notificar</div><div style="font-size: 11px; color: #6a6a6a;">local task · not bound</div></div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; font-size: 12px; color: #4a4a4a;"><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 10px; border: 2px solid #0077b6; border-radius: 3px;"></span>Service task (gets a provider)</span><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 10px; border: 2px dashed #a8a8a8; border-radius: 3px;"></span>Local task</span><span>Possible combinations ≈ 10<sup>{{wfSize}}</sup></span></div>
+</div>
+</sc-if>
+<sc-if value="{{vEngines}}" hint-placeholder-val="{{false}}">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; overflow-x: auto;"><table style="width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px;"><thead><tr style="background: #fafafa; text-align: left;"><th scope="col" style="padding: 10px 16px; font-size: 12px; color: #6a6a6a;">Engine</th><th scope="col" style="padding: 10px; font-size: 12px; color: #6a6a6a;">Mode</th><th scope="col" style="padding: 10px; font-size: 12px; color: #6a6a6a;">Can run this?</th><th scope="col" style="padding: 10px 16px; font-size: 12px; color: #6a6a6a;">Why</th></tr></thead><tbody><sc-for list="{{compat}}" as="e" hint-placeholder-count="4"><tr style="border-top: 1px solid #ededed;"><td style="padding: 10px 16px; font-weight: 500;">{{e.name}}</td><td style="padding: 10px; font-family: 'JetBrains Mono', monospace;">{{e.mode}}</td><td style="padding: 10px;"><span style="{{e.chip}}">{{e.state}}</span></td><td style="padding: 10px 16px; color: #4a4a4a;">{{e.why}}</td></tr></sc-for></tbody></table></div>
+</sc-if>
+<sc-if value="{{vFiles}}" hint-placeholder-val="{{false}}">
+<ul style="margin: 0; padding: 0; list-style: none; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; overflow: hidden;"><sc-for list="{{files}}" as="f" hint-placeholder-count="3"><li style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid #ededed;"><span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 8px; background: #f1f8fc; border: 1px solid #a9d6ea; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #023e8a;">{{f.icon}}</span><span style="flex: 1; min-width: 180px;"><span style="display: block; font-weight: 500;">{{f.name}}</span><span style="display: block; font-size: 12px; color: #6a6a6a;">{{f.what}}</span></span><a href="{{f.href}}" style="font-size: 13px; font-weight: 500;">{{f.go}}</a></li></sc-for></ul>
+<span style="font-size: 12px; color: #6a6a6a;">To change a part, edit its library draft and seal a new version; packages themselves aren't edited here.</span>
+</sc-if>
+<section style="position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border: 1px solid #b8b8b8; border-radius: 14px; background: rgba(255,255,255,0.95); padding: 12px 16px; box-shadow: 0 -4px 16px -8px rgba(0,0,0,0.12);">
+<span style="flex: 1; min-width: 200px; font-size: 13px; color: #4a4a4a;">{{barNote}}</span>
+<button type="button" onClick="{{snapshot}}" style="{{btnSecondary}}">{{snapLabel}}</button>
+<a href="JobLaunch.dc.html" style="{{btnSecondary}}">Run…</a>
+<button type="button" onClick="{{save}}" disabled="{{cantSave}}" style="{{btnSave}}">{{saveLabel}}</button>
+</section>
+<sc-if value="{{snapDone}}" hint-placeholder-val="{{false}}"><div role="status" style="border: 1px solid #86efac; background: #f0fdf4; border-radius: 12px; padding: 10px 14px;">Snapshot created (simulated: it matches the existing snapshot of revision 2). <a href="SnapDetail.dc.html" style="font-weight: 500;">Open snapshot</a></div></sc-if>
+<sc-if value="{{savedDone}}" hint-placeholder-val="{{false}}"><div role="status" style="border: 1px solid #86efac; background: #f0fdf4; border-radius: 12px; padding: 10px 14px;">Same content as revision {{rev}}, so no new revision was needed. <a href="CaseDetail.dc.html" style="font-weight: 500;">See revisions</a></div></sc-if>
+</sc-if>
+</main>
+</sc-if>
+<div aria-live="polite" class="ob-sr">{{live}}</div>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":2200}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ persona: "lucia", st: "success", scenario: "ok", org: "isa-demo", project: "qos-benchmarks", live: "" }, { src: 'case', rev: '2', snap: false, saved: false, view: 'analysis' });
+  }
+  personas() {
+    return {
+      visitor: { key: "visitor", signedIn: false, user: "", name: "", first: "", email: "", initials: "", admin: false, plan: "BASIC" },
+      lucia: { key: "lucia", signedIn: true, user: "lucia.vega", name: "Lucía Vega", first: "Lucía", email: "lucia@example.invalid", initials: "LV", admin: false, plan: "RESEARCH" },
+      marco: { key: "marco", signedIn: true, user: "marco.diaz", name: "Marco Díaz", first: "Marco", email: "marco@example.invalid", initials: "MD", admin: false, plan: "BASIC" },
+      sofia: { key: "sofia", signedIn: true, user: "sofia.rey", name: "Sofía Rey", first: "Sofía", email: "sofia@example.invalid", initials: "SR", admin: false, plan: "BASIC", pending: true },
+      nora: { key: "nora", signedIn: true, user: "nora.campos", name: "Nora Campos", first: "Nora", email: "nora@example.invalid", initials: "NC", admin: false, plan: "ADVANCED" },
+      iker: { key: "iker", signedIn: true, user: "iker.mora", name: "Iker Mora", first: "Iker", email: "iker@example.invalid", initials: "IM", admin: true, plan: "PRO" },
+      pablo: { key: "pablo", signedIn: true, user: "pablo.ci", name: "Pablo Ibáñez", first: "Pablo", email: "pablo@example.invalid", initials: "PI", admin: false, plan: "PRO" }
+    };
+  }
+  fx() {
+    const D = { a1: "sha256-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4", b2: "sha256-b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5", c3: "sha256-c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6", d4: "sha256-d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607", e5: "sha256-e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718" };
+    const short = { a1: "sha256-a1b2…c3d4", b2: "sha256-b2c3…d4e5", c3: "sha256-c3d4…e5f6", d4: "sha256-d4e5…f607", e5: "sha256-e5f6…0718" };
+    return {
+      D: D, short: short,
+      orgs: {
+        "isa-demo": { slug: "isa-demo", name: "ISA Demo Group", parent: "", sponsor: "lucia", sponsorName: "Lucía Vega" },
+        "qos-lab": { slug: "qos-lab", name: "QoS Lab (sub-organización)", parent: "isa-demo", sponsor: "lucia", sponsorName: "Lucía Vega" },
+        "consultora-demo": { slug: "consultora-demo", name: "Consultora Demo", parent: "", sponsor: "nora", sponsorName: "Nora Campos" }
+      },
+      roles: {
+        lucia: { "isa-demo": "OWNER", "qos-lab": "OWNER" },
+        marco: { "isa-demo": "MEMBER", "qos-lab": "ADMIN", "consultora-demo": "VIEWER" },
+        sofia: { "isa-demo": "VIEWER", "qos-lab": "VIEWER" },
+        nora: { "consultora-demo": "OWNER" }, iker: {}, pablo: {}, visitor: {}
+      },
+      projects: {
+        "qos-benchmarks": { org: "isa-demo", slug: "qos-benchmarks", name: "QoS Benchmarks", desc: "Casos de referencia de binding con workflow y placement.", vis: "public" },
+        "checkout-privado": { org: "isa-demo", slug: "checkout-privado", name: "Checkout (privado)", desc: "Caso interno de pagos con candidatos propietarios.", vis: "private" },
+        "placement-edge": { org: "qos-lab", slug: "placement-edge", name: "Placement en el borde", desc: "Exploración con pools y latencias.", vis: "private" }
+      },
+      cases: {
+        "qos-benchmarks": [{ slug: "checkout-flow", name: "Flujo de checkout", desc: "Pagos con autenticación, stock y envío en paralelo.", revisions: [
+          { n: 1, digest: "a1", date: "Aug 1, 2026", size: 4.2, resources: [["Application", "checkout-app", "3"], ["CandidateCatalog", "providers-eu", "2"], ["ConstraintSet", "sla-hard", "1"], ["Optimization", "weighted-cost-latency", "1"]], change: "First revision." },
+          { n: 2, digest: "b2", date: "Aug 20, 2026", size: 5.1, resources: [["Application", "checkout-app", "3"], ["CandidateCatalog", "providers-eu", "3"], ["ConstraintSet", "sla-hard", "1"], ["Optimization", "weighted-cost-latency", "1"]], change: "Catálogo ampliado de 5 a 8 candidatos para la tarea pago." }
+        ] }]
+      },
+      workflow: [
+        { kind: "task", task: "autenticar", type: "service", cap: "auth", cands: 4 },
+        { kind: "parallel", agg: "max", items: [{ task: "inventario", cap: "stock", cands: 5 }, { task: "calcular-envio", cap: "shipping", cands: 3 }] },
+        { kind: "exclusive", items: [{ task: "pago-tarjeta", branch: "tarjeta", p: 0.7, cap: "payment", cands: 8 }, { task: "pago-transferencia", branch: "transferencia", p: 0.3, cap: "payment", cands: 4 }] },
+        { kind: "task", task: "notificar", type: "local" }
+      ],
+      candidates: [{ id: "payco-eu", latency: 180, cost: 0.021, availability: 99.95 }, { id: "fastpay", latency: 95, cost: 0.034, availability: 99.9 }],
+      constraints: [{ id: "sla-latencia", enf: "hard", text: "Latencia total ≤ 600 ms" }, { id: "sla-disponibilidad", enf: "soft", penalty: 5.0, text: "Disponibilidad ≥ 99.9 %" }],
+      objective: { mode: "weighted-sum", terms: [{ metric: "cost", weight: 0.6, dir: "minimize" }, { metric: "latency", weight: 0.4, dir: "minimize" }] },
+      library: [
+        { id: "d1", org: "isa-demo", kind: "CandidateCatalog", name: "providers-eu", display: "Proveedores UE", versions: [{ ord: 2, version: "2", content: "c3", vdigest: "d4", published: false }, { ord: 3, version: "3", content: "e5", vdigest: "a1", published: true, citation: "Catálogo de proveedores UE (sintético)" }], drafts: [{ id: "d4", rev: 4, basedOn: "3" }] },
+        { id: "d5", org: "isa-demo", kind: "Study", name: "engines-vs-seeds", display: "Engines × semillas", versions: [{ ord: 1, version: "1", published: false }], drafts: [] },
+        { id: "d6", org: "isa-demo", kind: "ExecutionConfiguration", name: "rs-60s", display: "Random Search 60 s", versions: [{ ord: 1, version: "1", published: false }], drafts: [] }
+      ],
+      jobs: [
+        { id: "f1", owner: "lucia", project: "qos-benchmarks", engine: "random-search", label: "Random Search", mode: "sampling", status: "completed", term: "FEASIBLE", created: "Sep 30, 2026, 09:00", dur: "1 min 5 s", durS: 65, sols: 1, clamp: true, req: [["time_budget_ms", 600000, "ms"], ["iterations", 100000, "iterations"]], app: [["time_budget_ms", 60000, "ms"], ["iterations", 100000, "iterations"]] },
+        { id: "f2", owner: "lucia", project: "qos-benchmarks", engine: "minizinc", label: "MiniZinc", mode: "cp", status: "running", term: "", created: "Oct 8, 2026, 08:00", dur: "running", durS: 0, sols: 0, req: [["time_budget_ms", 300000, "ms"]], app: [["time_budget_ms", 300000, "ms"]] },
+        { id: "f3", owner: "marco", project: "checkout-privado", engine: "random-search", label: "Random Search", mode: "sampling", status: "queued", term: "", created: "Oct 8, 2026, 08:10", dur: "waiting", durS: 0, sols: 0, req: [], app: [] },
+        { id: "f4", owner: "marco", project: "checkout-privado", engine: "evolutionary", label: "Evolutionary", mode: "genetic", status: "failed", term: "UNKNOWN", created: "Oct 7, 2026, 15:00", dur: "20 s", durS: 20, sols: 0, error: "The deployment didn't answer within the budget (engine unreachable).", retryable: true, req: [], app: [] },
+        { id: "f5", owner: "marco", project: "checkout-privado", engine: "random-search", label: "Random Search", mode: "sampling", status: "cancelled", term: "", created: "Oct 6, 2026, 12:00", dur: "3 s", durS: 3, sols: 0, retryable: true, req: [], app: [] },
+        { id: "f6", owner: "lucia", project: "qos-benchmarks", engine: "minizinc", label: "MiniZinc", mode: "cp", status: "completed", term: "INFEASIBLE", created: "Oct 1, 2026, 09:00", dur: "40 s", durS: 40, sols: 0, infeas: true, req: [], app: [] }
+      ],
+      snapshot: { id: "e1", owner: "lucia", instance: "a1", pkg: "b2", ir: "c3", size: 48213, date: "Aug 20, 2026, 10:05" },
+      engines: [
+        { ns: "bim.builtin", name: "random-search", label: "Random Search", version: "1.0.0", digest: "b2", mode: "sampling", vis: "public" },
+        { ns: "bim.builtin", name: "evolutionary", label: "Evolutionary", version: "1.0.0", digest: "c3", mode: "genetic", vis: "public" },
+        { ns: "bim.builtin", name: "minizinc", label: "MiniZinc", version: "1.0.0", digest: "d4", mode: "cp", vis: "public" },
+        { ns: "lucia-vega", name: "edge-solver", label: "edge-solver", version: "0.3.1", digest: "e5", mode: "—", vis: "private", owner: "lucia" }
+      ]
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); const o = window.localStorage.getItem("ob.org"); if (o && o !== "__new") this.setState({ org: o }); const pj = window.localStorage.getItem("ob.project"); if (pj && pj !== "__new") this.setState({ project: pj }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); if (this.t2) clearTimeout(this.t2); }
+  setPersona(k) { this.setState(Object.assign({ persona: k }, { snap: false, saved: false })); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  later(ms, fn) { if (this.timer) clearTimeout(this.timer); this.timer = setTimeout(fn, ms); }
+  copy(text, key) { try { if (navigator.clipboard) navigator.clipboard.writeText(text); } catch (e) {} this.setState({ copied: key, live: "Copied." }); if (this.t2) clearTimeout(this.t2); this.t2 = setTimeout(() => this.setState({ copied: "" }), 2000); }
+  renderVals() {
+    const s = this.state;
+    const P = this.personas();
+    const who = P[s.persona] || P.visitor;
+    const st = s.st, sc = s.scenario;
+    const F = this.fx();
+    const SCENMAP = {"ok": "success", "422": "error", "402": "error", "413": "error", "401": "forbidden", "key": "forbidden"};
+    const RESET = { snap: false, saved: false };
+    const projKey = F.projects[s.project] ? s.project : "qos-benchmarks";
+    const p = F.projects[projKey];
+    const orgKey = "project" === "project" ? p.org : (F.orgs[s.org] ? s.org : "isa-demo");
+    const org = F.orgs[orgKey];
+    const myRoles = F.roles[s.persona] || {};
+    const role = myRoles[orgKey] || (who.admin ? "PLATFORM ADMIN" : "");
+    const rank = { VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4, "PLATFORM ADMIN": 4 }[role] || 0;
+    const member = rank > 0;
+    const canMember = rank >= 2, canAdmin = rank >= 3;
+    const chip = (bg, fg, bd) => "display: inline-flex; align-items: center; gap: 4px; border-radius: 9999px; padding: 1px 10px; font-size: 12px; font-weight: 500; background: " + bg + "; color: " + fg + "; border: 1px solid " + bd + ";";
+    const roleChipOf = (r) => "border-radius: 9999px; padding: 1px 10px; font-size: 11px; font-weight: 600; " + ({ OWNER: "background: #023e8a; color: #ffffff;", ADMIN: "background: #0077b6; color: #ffffff;", MEMBER: "background: #caf0f8; color: #023e8a;", VIEWER: "background: #fafafa; color: #4a4a4a; border: 1px solid #b8b8b8;", "PLATFORM ADMIN": "background: #1f1f1f; color: #ffffff;" }[r] || "");
+    const btn = (kind) => "display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; " + (kind === "primary" ? "border: 0; background: #0077b6; color: #ffffff;" : (kind === "danger" ? "border: 1px solid #fca5a5; background: #ffffff; color: #b91c1c;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f;"));
+    const pill = (on) => "height: 30px; padding: 0 12px; border-radius: 9999px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; " + (on ? "border: 1px solid #0077b6; background: #0077b6; color: #ffffff;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #4a4a4a;");
+    const tab = (on) => "padding: 10px 16px; border: 0; background: transparent; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: -1px; " + (on ? "color: #0077b6; border-bottom: 2px solid #0077b6;" : "color: #6a6a6a; border-bottom: 2px solid transparent;");
+    const radio = (on) => ({ border: on ? "2px solid #0077b6" : "1px solid #b8b8b8", bg: on ? "rgba(0,119,182,0.05)" : "#ffffff", ring: on ? "#0077b6" : "#a8a8a8", fill: on ? "#0077b6" : "transparent" });
+    const n = (x) => Number(x).toLocaleString("en-US");
+    const later = (ms, fn) => this.later(ms, fn);
+    const forbiddenGate = false;
+    const allowVisitor = false;
+    const needMember = "project" === "project" || "project" === "org";
+    const gate = (!who.signedIn && !allowVisitor) || (who.signedIn && needMember && !member) || (forbiddenGate && st === "forbidden");
+    const __b = {
+      persona: s.persona, st: st, na: [], scenarios: [{"id": "ok", "label": "Valid"}, {"id": "422", "label": "422 diagnostics"}, {"id": "402", "label": "402 too big for plan"}, {"id": "413", "label": "413 too large"}, {"id": "401", "label": "401 no session"}, {"id": "key", "label": "403 key permission"}], scenario: sc,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState(Object.assign({ st: x }, RESET)),
+      setScenario: (x) => this.setState(Object.assign({ scenario: x, st: SCENMAP[x] || "error" }, RESET)),
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      org: org, p: p, role: role, roleChip: roleChipOf(role),
+      ctx: "project" === "project" ? org.name + " / " + p.name : ("project" === "org" ? org.name : ""),
+      gate: gate, inside: !gate,
+      gateIcon: !who.signedIn ? "M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4" : "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-3.5-3.5",
+      gateTitle: !who.signedIn ? "Log in to continue" : (forbiddenGate && st === "forbidden" && member ? "Your role doesn’t reach this (403)" : "Not found"),
+      gateText: !who.signedIn ? "This page is only for signed-in members." : (forbiddenGate && st === "forbidden" && member ? "Ask an admin of the organization for a higher role." : "It doesn't exist, or you're not a member of the organization it belongs to. We show the same message either way."),
+      gateHref: who.signedIn ? "AppHome.dc.html" : "AuthLogin.dc.html", gateCta: who.signedIn ? "Back to Home" : "Log in",
+      live: s.live
+    };
+    const crumbBase = "project" === "project" ? [["Home", "AppHome.dc.html"], [org.name, "OrgOverview.dc.html"], [p.name, "ProjOverview.dc.html"]] : ("project" === "org" ? [["Home", "AppHome.dc.html"], [org.name, "OrgOverview.dc.html"]] : [["Home", "AppHome.dc.html"]]);
+    const LIM = { BASIC: 9, ADVANCED: 15, RESEARCH: 20, PRO: 30 }, PKG = { BASIC: "8 MiB", ADVANCED: "64 MiB", RESEARCH: "128 MiB", PRO: "512 MiB" };
+    const isErr = st === "error";
+    const srcT = [["case", "Case revision"], ["upload", "Upload file"], ["example", "Example"]];
+    const vT = [["analysis", "What's inside"], ["engines", "Engines that can run it"], ["files", "Files"]];
+    const valid = st === "success";
+    const r1 = s.rev === "1";
+    const V = {
+      btnPrimary: btn("primary"), btnSecondary: btn(), btnSave: btn("primary") + (canMember ? "" : " opacity: 0.45;"),
+      srcTabs: srcT.map(([k, l]) => ({ label: l, sel: s.src === k ? "true" : "false", style: tab(s.src === k), pick: () => this.setState({ src: k }) })),
+      srcCase: s.src === "case", srcUpload: s.src === "upload", srcExample: s.src === "example",
+      rev: s.rev, pickRev: (e) => this.setState({ rev: e.target.value, snap: false, saved: false }),
+      validate: () => { this.setState({ st: "loading" }); later(1300, () => this.setState({ st: "success" })); },
+      maxPkg: PKG[who.plan] || "8 MiB", plan: who.plan, limit: String(LIM[who.plan] || 9), limitPct: String(Math.round((LIM[who.plan] || 9) / 30 * 100)),
+      isLoading: st === "loading", isEmpty: st === "empty",
+      gateAuth: st === "forbidden", gateAuthText: sc === "key" ? "This API key doesn't include “validate instances” (403), so the package can't be checked with it." : "Checking a package needs a session (401). Log in again; your selection is kept.",
+      err422: isErr && sc === "422", err402: isErr && sc === "402", err413: isErr && sc === "413",
+      diags: [{ file: "Candidates file", where: "Candidate 4 (slowpay) › metrics › latency", msg: "El candidato 'slowpay' no declara latency, requerido por la optimización.", fix: "Añade un valor finito con unidad ms o excluye el candidato.", href: "LibDraft.dc.html", go: "Edit the catalog draft" }, { file: "Workflow diagram", where: "Parallel gateway “Gateway_2”", msg: "Constructo BPMN no soportado: gateway paralelo no estructurado (no SESE).", fix: "Reestructura el flujo con split/join emparejados.", href: "LibList.dc.html", go: "Find the application in the library" }],
+      valid: valid,
+      digests: [["Instance", "a1"], ["Package", "b2"], ["Compiled", "c3"]].map(([l, k]) => ({ l: l, v: s.copied === k ? "copied" : F.short[k], copy: () => this.copy(F.D[k], k) })),
+      views: vT.map(([k, l]) => ({ label: l, sel: s.view === k ? "true" : "false", style: tab(s.view === k), pick: () => this.setState({ view: k }) })),
+      vAnalysis: s.view === "analysis", vEngines: s.view === "engines", vFiles: s.view === "files",
+      counts: [{ v: "6", l: "tasks" }, { v: r1 ? "21" : "24", l: "candidates" }, { v: "2", l: "rules" }, { v: "2", l: "goal terms" }, { v: "None", l: "placement" }],
+      wfPayCands: r1 ? "5" : "8", wfSize: r1 ? "4.2" : "5.1",
+      compat: [
+        { name: "Random Search 1.0.0", mode: "sampling", state: "Yes", chip: chip("#f0fdf4", "#15803d", "#86efac"), why: "Supports every placement kind and this profile's extension." },
+        { name: "Evolutionary 1.0.0", mode: "genetic", state: "Checked at launch", chip: chip("#fafafa", "#4a4a4a", "#b8b8b8"), why: "Its capabilities aren't declared in the prototype data." },
+        { name: "MiniZinc 1.0.0", mode: "cp", state: "Checked at launch", chip: chip("#fafafa", "#4a4a4a", "#b8b8b8"), why: "Its capabilities aren't declared in the prototype data." }
+      ].concat(s.persona === "lucia" ? [{ name: "edge-solver 0.3.1 (yours, private)", mode: "—", state: "Checked at launch", chip: chip("#fafafa", "#4a4a4a", "#b8b8b8"), why: "Registered by you; modes not in the prototype data." }] : []),
+      files: [
+        { icon: "WF", name: "workflow.bpmn", what: "Application · 6 tasks in sequence, parallel and one-of steps", href: "CaseRevision.dc.html", go: "See it drawn" },
+        { icon: "CA", name: "candidates.json", what: "Candidate catalog · " + (r1 ? "21" : "24") + " providers with latency, cost and availability", href: "LibArtifact.dc.html", go: "Open in library" },
+        { icon: "+2", name: "2 more files", what: "Rules and goal · file names aren't in the prototype data", href: "CaseRevision.dc.html", go: "See rules and goal" }
+      ],
+      barNote: canMember ? "Valid packages can be snapshotted, run or saved as a revision of this case." : "You can snapshot and run with your own account; saving into this project needs MEMBER.",
+      snapshot: () => this.setState({ snap: true, live: "Snapshot created." }), snapLabel: s.snap ? "Snapshot created" : "Create snapshot", snapDone: s.snap,
+      save: () => { if (canMember) this.setState({ saved: true, live: "Checked against existing revisions." }); }, cantSave: !canMember, saveLabel: "Save as case revision", savedDone: s.saved
+    };
+    const __crumbs = crumbBase.concat(V.crumbList || [["Workbench"]]);
+    __b.crumbs = __crumbs.map((c, i) => ({ label: c[0], href: c[1] || "", title: c[2] || "", link: i < __crumbs.length - 1, cur: i === __crumbs.length - 1 }));
+    __b.route = V.route || "/app/" + p.org + "/" + p.slug + "/workbench";
+    return Object.assign(__b, V);
+  }
+}
+</script>
+</body>
+</html>

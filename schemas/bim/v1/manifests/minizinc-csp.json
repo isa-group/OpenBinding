@@ -33,6 +33,7 @@
             "selector": "only",
             "values": ["invocation", "selectedCandidate"]
           },
+          "featureValues": {"selector": "only", "values": ["scalar"]},
           "constraints": {"selector": "only", "values": ["hard.aggregate-bound", "hard.expression", "soft.aggregate-bound", "soft.expression"]},
           "scalarizations": {"selector": "only", "values": [{"id": "weighted-sum", "objectiveTypes": ["SINGLE"], "weightPolicy": "required"}]},
           "expressions": {"selector": "only", "values": ["literal", "path.features", "path.tasks", "compare", "and"]},

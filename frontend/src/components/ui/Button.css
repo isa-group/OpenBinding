@@ -50,7 +50,7 @@
 /* Variants */
 .btn-primary {
   background-color: var(--color-accent);
-  color: #fffaf6;
+  color: var(--tp-on-primary);
   border-color: var(--color-accent);
 }
 
@@ -89,7 +89,7 @@
 }
 
 .btn-danger:hover:not(:disabled) {
-  background-color: #dc2626;
+  background-color: var(--color-error-text);
 }
 
 /* Full Width */

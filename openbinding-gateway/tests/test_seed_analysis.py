@@ -6,17 +6,34 @@ import pytest
 from sqlalchemy import select
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
-from seed_analysis import GALLERY, ensure_analysis_gallery, enumerate_gallery, gallery_package
+from seed_analysis import (
+    GALLERY,
+    compile_gallery,
+    ensure_analysis_gallery,
+    enumerate_gallery,
+    gallery_execution,
+    gallery_package,
+)
 from seed_dev import ensure_users, ensure_organizations, ensure_projects
-from openbinding_gateway.db.models import Job
+from openbinding_gateway.db.models import Job, JobState
 from openbinding_gateway.db.platform_models import StudyCell, StudyRun
-from openbinding_gateway.v1.compiler import compile_instance
+from openbinding_gateway.integrations import bim
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
 
+
+def evaluations(problem, bindings, execution):
+    """The toolchain's evaluation of each binding, in batches."""
+    port = bim.get_bim()
+    found = []
+    for start in range(0, len(bindings), 500):
+        found.extend(item["evaluation"] for item in port.evaluate_many(problem.ir, bindings[start:start + 500], execution))
+    return found
+
+
 @pytest.mark.parametrize("scenario,example,description", GALLERY)
 def test_gallery_is_deterministic_and_canonically_evaluated(scenario, example, description):
-    problem = compile_instance(gallery_package(EXAMPLES, scenario, example))
+    problem = compile_gallery(gallery_package(EXAMPLES, scenario, example))
     result = enumerate_gallery(problem, scenario, description)
     assert result == enumerate_gallery(problem, scenario, description)
     assert result["termination"] == "UNKNOWN"
@@ -24,8 +41,9 @@ def test_gallery_is_deterministic_and_canonically_evaluated(scenario, example, d
     expected = {"tradeoffs": 36, "constraints": 36, "journey": 36, "collinear": 4, "singleton": 1, "empty": 0, "large": 1296,
                 "pooled-overlap": 18, "decision-rules": 6, "power-slice": 36, "geometry-limit": 350, "background": 3000}
     assert len(result["solutions"]) == expected[scenario]
-    for solution in result["solutions"]:
-        evaluated = problem.evaluate(solution["decision"]["binding"])
+    execution = gallery_execution(problem, scenario)
+    bindings = [solution["decision"]["binding"] for solution in result["solutions"]]
+    for solution, evaluated in zip(result["solutions"], evaluations(problem, bindings, execution), strict=True):
         assert solution["features"] == evaluated["features"]
         assert solution["objectives"] == evaluated["objectives"]
         assert solution["violations"] == evaluated["violations"]
@@ -61,7 +79,7 @@ async def test_gallery_persistence_is_additive_and_idempotent(db_session, monkey
     cells = (await db_session.execute(select(StudyCell).where(StudyCell.study_run_id == run.id))).scalars().all()
     from openbinding_gateway.models.platform import StudyDefinition
     from openbinding_gateway.studies import expand_study
-    from openbinding_gateway.v1.canonical import digest
+    from bim_core.canonical import digest
     expanded = expand_study(StudyDefinition.model_validate(study.definition))
     assert run.matrix_digest == digest([item["fingerprint"] for item in expanded])
     assert sorted(c.fingerprint for c in cells) == sorted(item["fingerprint"] for item in expanded)
@@ -70,7 +88,7 @@ async def test_gallery_persistence_is_additive_and_idempotent(db_session, monkey
     for cell in cells:
         job = await db_session.get(Job, cell.job_id)
         assert job.owner_id == users["alice"].id
-        assert job.metered and job.concurrency_released
+        assert job.state is JobState.COMPLETED and job.finished_at is not None
         assert job.instance_snapshot_id is not None
         assert job.result["provenance"]["analysisFixture"]["scenario"] == cell.metrics["analysisScenario"]
 
@@ -93,15 +111,16 @@ async def test_gallery_persistence_is_additive_and_idempotent(db_session, monkey
 
 
 def test_scale_batches_are_unique_explicit_canonical_assignments():
-    problem = compile_instance(gallery_package(EXAMPLES, "scale", "17_analysis_tradeoffs"))
+    problem = compile_gallery(gallery_package(EXAMPLES, "scale", "17_analysis_tradeoffs"))
     first = enumerate_gallery(problem, "scale", "scale test", limit=500)
     second = enumerate_gallery(problem, "scale", "scale test", limit=500, offset=500)
-    from openbinding_gateway.v1.canonical import digest
+    from bim_core.canonical import digest
     rows = first["solutions"] + second["solutions"]
     assert len({digest(row["decision"]["binding"]) for row in rows}) == 1000
     assert len({row["features"]["cost"] for row in rows}) == 1000
     assert second["provenance"]["analysisFixture"]["evaluatedBindings"] == 500
+    execution = gallery_execution(problem, "scale")
     for row in (rows[0], rows[-1]):
-        assert row["objectives"] == problem.evaluate(row["decision"]["binding"])["objectives"]
+        assert row["objectives"] == evaluations(problem, [row["decision"]["binding"]], execution)[0]["objectives"]
     with pytest.raises(ValueError, match="fit the model"):
         enumerate_gallery(problem, "scale", "invalid range", offset=99_999, limit=2)

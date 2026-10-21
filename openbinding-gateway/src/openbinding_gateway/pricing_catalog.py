@@ -1,109 +1,50 @@
-"""The immutable Pricing2Yaml release behind contract decisions.
+"""The published OpenBinding pricing, read from SPHERE and never stored here.
 
-SPHERE owns the bytes and SPACE owns contracts. The gateway parses an exact
-release only to validate administrative choices. OpenBinding operations use
-the canonical feature and limit identifiers declared by that release directly;
-renaming one is therefore an intentional API/contract change. Parsed objects
-are cached by verified digest; YAML is never persisted here.
+SPHERE owns the immutable Pricing2Yaml versions and SPACE owns plans, add-ons
+and contracts; both are administered in their native consoles. The gateway
+only shows the pricing page and the renderer one exact published version, the
+one named by ``SPACE_PRICING_VERSION``. Nothing is read from disk and nothing
+is written to the database.
+
+Integrity: a released version is immutable, so the digest of its bytes is
+pinned the first time it is read in this process and every later read has to
+match it. SPHERE changing a published version is reported as an error instead
+of being served.
 """
 
 from __future__ import annotations
 
-import hashlib
 import math
-import re
+import time
 from dataclasses import dataclass
 from typing import Any
 
 import yaml
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .core.settings import Settings
-from .db.models import PricingRelease
 from .sphere_client import SphereClient, SphereError
 
-IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9._-]{0,127}$")
+#: How long a verified read is reused; the same as the public ``Cache-Control``.
+CACHE_TTL_S = 300.0
 
 
 class PricingCatalogError(ValueError):
-    """The selected release or subscription configuration is invalid."""
+    """The published pricing cannot be read or no longer matches its pinned digest."""
 
 
-def _mapping(value: object, path: str) -> dict[str, Any]:
-    if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
-        raise PricingCatalogError(f"{path} must be an object with string keys")
-    return value
+@dataclass(frozen=True)
+class PublishedPricing:
+    """One exact, digest-verified public SPHERE version."""
 
+    version: str
+    digest: str
+    url: str
+    content: bytes
+    document: dict[str, Any]
 
-def _identifier(value: object, path: str) -> str:
-    if not isinstance(value, str) or not IDENTIFIER.fullmatch(value):
-        raise PricingCatalogError(f"{path} is not a valid identifier")
-    return value
-
-
-def _number(value: object, path: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise PricingCatalogError(f"{path} must be numeric")
-    result = float(value)
-    if result < 0 or math.isnan(result):
-        raise PricingCatalogError(f"{path} must be non-negative")
-    return result
-
-
-def _configured_values(
-    declarations: dict[str, Any], overrides: object, path: str
-) -> dict[str, Any]:
-    result = {
-        name: _mapping(declaration, f"{path}.{name}").get("defaultValue")
-        for name, declaration in declarations.items()
-    }
-    for name, raw in _mapping(overrides or {}, path).items():
-        if name not in declarations:
-            raise PricingCatalogError(f"{path}.{name} is not declared")
-        item = _mapping(raw, f"{path}.{name}")
-        if "value" not in item:
-            raise PricingCatalogError(f"{path}.{name}.value is required")
-        result[name] = item["value"]
-    return result
-
-
-def _override_values(
-    declarations: dict[str, Any], overrides: object, path: str
-) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for name, raw in _mapping(overrides or {}, path).items():
-        if name not in declarations:
-            raise PricingCatalogError(f"{path}.{name} is not declared")
-        item = _mapping(raw, f"{path}.{name}")
-        if "value" not in item:
-            raise PricingCatalogError(f"{path}.{name}.value is required")
-        result[name] = item["value"]
-    return result
-
-
-def _relations(raw: object, path: str) -> dict[str, int]:
-    if raw is None:
-        return {}
-    if isinstance(raw, list):
-        if any(not isinstance(item, str) for item in raw):
-            raise PricingCatalogError(f"{path} must contain add-on identifiers")
-        return {item: 1 for item in raw}
-    if isinstance(raw, dict):
-        result: dict[str, int] = {}
-        for name, quantity in raw.items():
-            if (
-                not isinstance(name, str)
-                or isinstance(quantity, bool)
-                or not isinstance(quantity, int)
-                or quantity < 1
-            ):
-                raise PricingCatalogError(
-                    f"{path} must map add-on identifiers to positive integer quantities"
-                )
-            result[name] = quantity
-        return result
-    raise PricingCatalogError(f"{path} must be an array or object")
+    def public_view(self) -> dict[str, Any]:
+        """The Pricing2Yaml document as JSON, without a parallel projection."""
+        return _json_value(self.document)
 
 
 def _json_value(value: Any) -> Any:
@@ -117,429 +58,57 @@ def _json_value(value: Any) -> Any:
     return value
 
 
-@dataclass(frozen=True)
-class PlanDefinition:
-    name: str
-    description: str
-    price: Any
-    unit: str | None
-    features: dict[str, bool]
-    limits: dict[str, float]
+_PINNED_DIGESTS: dict[str, str] = {}
+_CACHE: dict[str, tuple[float, PublishedPricing]] = {}
 
 
-@dataclass(frozen=True)
-class AddOnDefinition:
-    name: str
-    description: str
-    price: Any
-    unit: str | None
-    available_for: frozenset[str]
-    minimum: int
-    maximum: int
-    step: int
-    depends_on: dict[str, int]
-    excludes: frozenset[str]
-    features: dict[str, bool]
-    limit_overrides: dict[str, float]
-    limit_extensions: dict[str, float]
+def clear_cache() -> None:
+    """Forget pinned digests and cached reads (tests, and a process-wide reset)."""
+    _PINNED_DIGESTS.clear()
+    _CACHE.clear()
 
 
-@dataclass(frozen=True)
-class PricingCatalog:
-    version: str
-    digest: str
-    plans: dict[str, PlanDefinition]
-    add_ons: dict[str, AddOnDefinition]
-    feature_definitions: dict[str, dict[str, Any]]
-    limit_definitions: dict[str, dict[str, Any]]
-    linked_limits: dict[str, frozenset[str]]
-    document: dict[str, Any]
+async def published_pricing(settings: Settings, *, transport=None) -> PublishedPricing:
+    """Read the configured version from SPHERE (read only) and verify its digest."""
+    version = settings.space_pricing_version
+    if not version:
+        raise PricingCatalogError("SPACE_PRICING_VERSION is not configured.")
+    if not settings.sphere_enabled:
+        raise PricingCatalogError("SPHERE is not enabled.")
 
-    @classmethod
-    def parse(cls, content: bytes, *, expected_digest: str | None = None) -> "PricingCatalog":
-        digest_value = f"sha256-{hashlib.sha256(content).hexdigest()}"
-        if expected_digest is not None and digest_value != expected_digest:
-            raise PricingCatalogError("The SPHERE content does not match its immutable digest")
-        try:
-            document = yaml.safe_load(content)
-        except yaml.YAMLError as exc:
-            raise PricingCatalogError(f"Invalid Pricing2Yaml: {exc}") from exc
-        root = _mapping(document, "pricing")
-        version = root.get("version")
-        if not isinstance(version, str) or not version:
-            raise PricingCatalogError("pricing.version is required")
+    cached = _CACHE.get(version)
+    if cached is not None and time.monotonic() - cached[0] < CACHE_TTL_S:
+        return cached[1]
 
-        feature_declarations = _mapping(root.get("features"), "features")
-        limit_declarations = _mapping(root.get("usageLimits"), "usageLimits")
-        if not feature_declarations or not limit_declarations:
-            raise PricingCatalogError("features and usageLimits must not be empty")
-        for name, raw in feature_declarations.items():
-            _identifier(name, f"features.{name}")
-            default = _mapping(raw, f"features.{name}").get("defaultValue", False)
-            if not isinstance(default, bool):
-                raise PricingCatalogError(f"features.{name}.defaultValue must be boolean")
-        linked: dict[str, set[str]] = {}
-        for name, raw in limit_declarations.items():
-            _identifier(name, f"usageLimits.{name}")
-            declaration = _mapping(raw, f"usageLimits.{name}")
-            _number(declaration.get("defaultValue"), f"usageLimits.{name}.defaultValue")
-            linked_features = declaration.get("linkedFeatures", [])
-            if not isinstance(linked_features, list):
-                raise PricingCatalogError(f"usageLimits.{name}.linkedFeatures must be an array")
-            for feature in linked_features:
-                if not isinstance(feature, str) or feature not in feature_declarations:
-                    raise PricingCatalogError(f"usageLimits.{name}.linkedFeatures is invalid")
-                linked.setdefault(feature, set()).add(name)
-
-        plans: dict[str, PlanDefinition] = {}
-        for name, raw in _mapping(root.get("plans"), "plans").items():
-            _identifier(name, f"plans.{name}")
-            declaration = _mapping(raw, f"plans.{name}")
-            features = _configured_values(
-                feature_declarations, declaration.get("features"), f"plans.{name}.features"
-            )
-            if any(not isinstance(value, bool) for value in features.values()):
-                raise PricingCatalogError(f"plans.{name}.features values must be boolean")
-            limits = _configured_values(
-                limit_declarations, declaration.get("usageLimits"), f"plans.{name}.usageLimits"
-            )
-            plans[name] = PlanDefinition(
-                name=name,
-                description=str(declaration.get("description", "")),
-                price=declaration.get("price"),
-                unit=str(declaration["unit"]) if declaration.get("unit") is not None else None,
-                features={key: bool(value) for key, value in features.items()},
-                limits={
-                    key: _number(value, f"plans.{name}.usageLimits.{key}.value")
-                    for key, value in limits.items()
-                },
-            )
-        if not plans:
-            raise PricingCatalogError("pricing.plans must not be empty")
-
-        add_ons: dict[str, AddOnDefinition] = {}
-        for name, raw in _mapping(root.get("addOns") or {}, "addOns").items():
-            _identifier(name, f"addOns.{name}")
-            declaration = _mapping(raw, f"addOns.{name}")
-            available = declaration.get("availableFor", [])
-            if not isinstance(available, list) or any(
-                not isinstance(plan, str) or plan not in plans for plan in available
-            ):
-                raise PricingCatalogError(f"addOns.{name}.availableFor is invalid")
-            constraints = _mapping(
-                declaration.get("subscriptionConstraints") or {},
-                f"addOns.{name}.subscriptionConstraints",
-            )
-            minimum = constraints.get("minQuantity", 1)
-            maximum = constraints.get("maxQuantity", minimum)
-            step = constraints.get("quantityStep", 1)
-            if any(
-                isinstance(value, bool) or not isinstance(value, int)
-                for value in (minimum, maximum, step)
-            ):
-                raise PricingCatalogError(f"addOns.{name} quantity constraints must be integers")
-            if minimum < 0 or maximum < minimum or step < 1:
-                raise PricingCatalogError(f"addOns.{name} quantity constraints are inconsistent")
-            features = (
-                _override_values(
-                    feature_declarations, declaration.get("features"), f"addOns.{name}.features"
-                )
-                if declaration.get("features")
-                else {}
-            )
-            if any(not isinstance(value, bool) for value in features.values()):
-                raise PricingCatalogError(f"addOns.{name}.features values must be boolean")
-            overrides = (
-                _override_values(
-                    limit_declarations,
-                    declaration.get("usageLimits"),
-                    f"addOns.{name}.usageLimits",
-                )
-                if declaration.get("usageLimits")
-                else {}
-            )
-            extensions = _mapping(
-                declaration.get("usageLimitsExtensions") or {},
-                f"addOns.{name}.usageLimitsExtensions",
-            )
-            limit_extensions: dict[str, float] = {}
-            for limit_name, extension in extensions.items():
-                if limit_name not in limit_declarations:
-                    raise PricingCatalogError(f"addOns.{name} extends unknown limit {limit_name!r}")
-                limit_extensions[limit_name] = _number(
-                    _mapping(
-                        extension, f"addOns.{name}.usageLimitsExtensions.{limit_name}"
-                    ).get("value"),
-                    f"addOns.{name}.usageLimitsExtensions.{limit_name}.value",
-                )
-            add_ons[name] = AddOnDefinition(
-                name=name,
-                description=str(declaration.get("description", "")),
-                price=declaration.get("price"),
-                unit=str(declaration["unit"]) if declaration.get("unit") is not None else None,
-                available_for=frozenset(available),
-                minimum=minimum,
-                maximum=maximum,
-                step=step,
-                depends_on=_relations(
-                    declaration.get("dependsOn", constraints.get("dependsOn")),
-                    f"addOns.{name}.dependsOn",
-                ),
-                excludes=frozenset(
-                    _relations(
-                        declaration.get("excludes", constraints.get("excludes")),
-                        f"addOns.{name}.excludes",
-                    )
-                ),
-                features={key: bool(value) for key, value in features.items()},
-                limit_overrides={
-                    key: _number(value, f"addOns.{name}.usageLimits.{key}.value")
-                    for key, value in overrides.items()
-                },
-                limit_extensions=limit_extensions,
-            )
-        for add_on in add_ons.values():
-            unknown = (set(add_on.depends_on) | set(add_on.excludes)) - set(add_ons)
-            if unknown:
-                raise PricingCatalogError(
-                    f"addOns.{add_on.name} references unknown add-ons: "
-                    + ", ".join(sorted(unknown))
-                )
-
-        return cls(
-            version=version,
-            digest=digest_value,
-            plans=plans,
-            add_ons=add_ons,
-            feature_definitions={
-                name: dict(_mapping(value, f"features.{name}"))
-                for name, value in feature_declarations.items()
-            },
-            limit_definitions={
-                name: dict(_mapping(value, f"usageLimits.{name}"))
-                for name, value in limit_declarations.items()
-            },
-            linked_limits={key: frozenset(value) for key, value in linked.items()},
-            document=dict(root),
-        )
-
-    @property
-    def default_plan(self) -> str:
-        """Return the one non-institutional free plan declared by iPricing."""
-        free = [
-            name
-            for name, plan in self.plans.items()
-            if name != "RESEARCH"
-            and isinstance(plan.price, (int, float))
-            and not isinstance(plan.price, bool)
-            and float(plan.price) == 0
-        ]
-        if len(free) != 1:
-            raise PricingCatalogError(
-                "The active iPricing must declare exactly one non-RESEARCH zero-price default plan"
-            )
-        return free[0]
-
-    def normalize_selection(self, add_ons: dict[str, int]) -> dict[str, int]:
-        normalized: dict[str, int] = {}
-        for name, quantity in add_ons.items():
-            if not isinstance(name, str) or not IDENTIFIER.fullmatch(name):
-                raise PricingCatalogError(f"Invalid add-on identifier {name!r}")
-            if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 0:
-                raise PricingCatalogError(f"{name} quantity must be a non-negative integer")
-            if quantity:
-                normalized[name] = quantity
-        return normalized
-
-    def validate_selection(self, plan: str, add_ons: dict[str, int]) -> dict[str, int]:
-        if plan not in self.plans:
-            raise PricingCatalogError(f"Unknown plan {plan!r} in pricing {self.version}")
-        selected = self.normalize_selection(add_ons)
-        for name, quantity in selected.items():
-            add_on = self.add_ons.get(name)
-            if add_on is None:
-                raise PricingCatalogError(f"Unknown add-on {name!r} in pricing {self.version}")
-            if plan not in add_on.available_for:
-                raise PricingCatalogError(f"{name} is not available for {plan}")
-            if (
-                quantity < add_on.minimum
-                or quantity > add_on.maximum
-                or (quantity - add_on.minimum) % add_on.step
-            ):
-                raise PricingCatalogError(
-                    f"{name} quantity must be {add_on.minimum}..{add_on.maximum} "
-                    f"in steps of {add_on.step}"
-                )
-        for name in selected:
-            add_on = self.add_ons[name]
-            for dependency, minimum in add_on.depends_on.items():
-                if selected.get(dependency, 0) < minimum:
-                    raise PricingCatalogError(f"{name} depends on {dependency} quantity {minimum}")
-            conflicts = add_on.excludes & set(selected)
-            if conflicts:
-                raise PricingCatalogError(f"{name} excludes {', '.join(sorted(conflicts))}")
-        return selected
-
-    def entitlements(
-        self, plan: str, add_ons: dict[str, int] | None = None
-    ) -> tuple[dict[str, bool], dict[str, float]]:
-        selected = self.validate_selection(plan, dict(add_ons or {}))
-        definition = self.plans[plan]
-        features = dict(definition.features)
-        limits = dict(definition.limits)
-        for name, quantity in selected.items():
-            add_on = self.add_ons[name]
-            features.update(add_on.features)
-            limits.update(add_on.limit_overrides)
-            for limit_name, increment in add_on.limit_extensions.items():
-                limits[limit_name] = limits.get(limit_name, 0) + increment * quantity
-        return features, limits
-
-    def public_view(self) -> dict[str, Any]:
-        """Return the active Pricing2Yaml document, without a parallel projection."""
-        return _json_value(self.document)
-
-    def technical_errors(self, settings: Settings) -> list[str]:
-        """Reject commercial promises the configured process cannot honour."""
-        errors: list[str] = []
-        ceilings = {
-            "maxPayloadBytes": (settings.technical_max_payload_bytes, "bytes"),
-            "maxTimeoutSeconds": (settings.engine_solve_timeout_s, "seconds"),
-        }
-        for plan_id, plan in self.plans.items():
-            for identifier, (ceiling, unit) in ceilings.items():
-                value = plan.limits.get(identifier)
-                if value is not None and value > ceiling:
-                    errors.append(
-                        f"plans.{plan_id}.usageLimits.{identifier} exceeds the configured "
-                        f"technical ceiling of {ceiling} {unit}."
-                    )
-        return errors
-
-
-_REMOTE_CACHE: dict[str, PricingCatalog] = {}
-
-
-async def catalog_for_version(
-    session: AsyncSession,
-    settings: Settings,
-    version: str,
-    *,
-    injected: PricingCatalog | None = None,
-) -> PricingCatalog:
-    """Load an exact release from local disk or SPHERE, caching only by verified digest."""
-    if injected is not None and injected.version == version:
-        return injected
-    release = await session.scalar(
-        select(PricingRelease).where(PricingRelease.version == version).limit(1)
-    )
-    if release is None:
-        raise PricingCatalogError(f"Pricing release {version!r} is not registered")
-    cached = _REMOTE_CACHE.get(release.digest)
-    if cached is not None:
-        if errors := cached.technical_errors(settings):
-            raise PricingCatalogError(" ".join(errors))
-        return cached
-
-    # Check local candidate pricing files before hitting SPHERE (e.g. offline/dev or worker container)
-    from pathlib import Path
-
-    candidates: list[Path] = []
-    root = getattr(settings, "openbinding_repo_root", None)
-    if root:
-        candidates.append(Path(root) / "space" / "pricing" / "openbinding.yml")
-    candidates.extend([
-        Path("/app/space/pricing/openbinding.yml"),
-        Path("/space/pricing/openbinding.yml"),
-        Path(__file__).resolve().parents[3] / "space" / "pricing" / "openbinding.yml",
-        Path(__file__).resolve().parents[2] / "space" / "pricing" / "openbinding.yml",
-    ])
-    for candidate in candidates:
-        if candidate.is_file():
-            try:
-                local_content = candidate.read_bytes()
-                if f"sha256-{hashlib.sha256(local_content).hexdigest()}" == release.digest:
-                    catalog = PricingCatalog.parse(local_content, expected_digest=release.digest)
-                    if catalog.version == version:
-                        if errors := catalog.technical_errors(settings):
-                            raise PricingCatalogError(" ".join(errors))
-                        _REMOTE_CACHE[release.digest] = catalog
-                        return catalog
-            except Exception:
-                pass
-
-    if not (settings.sphere_enabled and settings.sphere_api_key):
-        raise PricingCatalogError(
-            f"SPHERE is not configured and no local pricing file matched release {version!r} (digest: {release.digest})"
-        )
-
-    client = SphereClient(settings)
     try:
+        client = SphereClient(settings, transport=transport)
+    except SphereError as exc:
+        raise PricingCatalogError(str(exc)) from exc
+    try:
+        metadata = await client.exact_version(version)
+        if metadata.private:
+            raise PricingCatalogError(f"Pricing version {version!r} is not a public SPHERE release.")
         content = await client.content(version)
     except SphereError as exc:
         raise PricingCatalogError(str(exc)) from exc
     finally:
         await client.aclose()
-    catalog = PricingCatalog.parse(content, expected_digest=release.digest)
-    if catalog.version != version:
-        raise PricingCatalogError("SPHERE returned a different pricing version")
-    if errors := catalog.technical_errors(settings):
-        raise PricingCatalogError(" ".join(errors))
-    _REMOTE_CACHE[release.digest] = catalog
-    return catalog
 
+    digest = SphereClient.digest_of(content)
+    pinned = _PINNED_DIGESTS.setdefault(version, digest)
+    if pinned != digest:
+        raise PricingCatalogError(
+            f"SPHERE content for pricing {version!r} no longer matches its immutable digest."
+        )
+    try:
+        document = yaml.safe_load(content)
+    except yaml.YAMLError as exc:
+        raise PricingCatalogError(f"Invalid Pricing2Yaml: {exc}") from exc
+    if not isinstance(document, dict) or str(document.get("version")) != version:
+        raise PricingCatalogError("SPHERE returned a different pricing version.")
 
-async def live_catalog(session: AsyncSession, settings: Settings) -> PricingCatalog:
-    """Resolve the LIVE release, with an explicitly injected fake for tests/dev."""
-    from .space_client import get_gate
-
-    injected = getattr(get_gate(), "catalog", None)
-    version = await session.scalar(
-        select(PricingRelease.version).where(PricingRelease.is_live.is_(True)).limit(1)
+    value = PublishedPricing(
+        version=version, digest=digest, url=metadata.yaml_url, content=content, document=document
     )
-    if version is None and isinstance(injected, PricingCatalog):
-        return injected
-    if version is None:
-        bootstrap_version = settings.space_pricing_version
-        if settings.sphere_enabled and not bootstrap_version:
-            client = SphereClient(settings)
-            try:
-                stable_versions = [
-                    item
-                    for item in await client.list_versions()
-                    if not item.private
-                    and re.fullmatch(
-                        r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)",
-                        item.version,
-                    )
-                ]
-                if stable_versions:
-                    bootstrap_version = max(
-                        stable_versions,
-                        key=lambda item: tuple(int(part) for part in item.version.split(".")),
-                    ).version
-            except SphereError as exc:
-                raise PricingCatalogError(str(exc)) from exc
-            finally:
-                await client.aclose()
-        if settings.sphere_enabled and bootstrap_version:
-            client = SphereClient(settings)
-            try:
-                metadata = await client.exact_version(bootstrap_version)
-                if metadata.private:
-                    raise PricingCatalogError(
-                        "The bootstrap pricing must be a public SPHERE release"
-                    )
-                catalog = PricingCatalog.parse(await client.content(bootstrap_version))
-            except SphereError as exc:
-                raise PricingCatalogError(str(exc)) from exc
-            finally:
-                await client.aclose()
-            if catalog.version != bootstrap_version:
-                raise PricingCatalogError("SPHERE returned a different bootstrap pricing version")
-            if errors := catalog.technical_errors(settings):
-                raise PricingCatalogError(" ".join(errors))
-            _REMOTE_CACHE[catalog.digest] = catalog
-            return catalog
-        raise PricingCatalogError("No LIVE pricing release is registered")
-    return await catalog_for_version(session, settings, str(version), injected=injected)
+    _CACHE[version] = (time.monotonic(), value)
+    return value

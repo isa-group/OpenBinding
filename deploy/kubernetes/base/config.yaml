@@ -17,6 +17,7 @@ data:
   SPHERE_ENABLED: "false"
   SPHERE_URL: https://sphere.score.us.es
   SPACE_ENABLED: "false"
+  SPACE_URL: https://space.score.us.es
   SPACE_FAIL_MODE: closed
   FEDERATION_REQUIRE_HTTPS: "true"
   ENGINE_MINIZINC_URL: http://engine-minizinc:3000

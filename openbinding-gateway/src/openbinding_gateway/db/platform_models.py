@@ -10,7 +10,7 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (
     JSON,
@@ -19,15 +19,20 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
+
+if TYPE_CHECKING:
+    from .artifact_models import ArtifactDraft, ArtifactVersion
 
 
 def utcnow() -> datetime:
@@ -76,18 +81,6 @@ class RunState(str, enum.Enum):
 class ReportState(str, enum.Enum):
     DRAFT = "draft"
     FROZEN = "frozen"
-
-
-class PricingSphereState(str, enum.Enum):
-    PRIVATE_DRAFT = "PRIVATE_DRAFT"
-    PUBLIC_RELEASE = "PUBLIC_RELEASE"
-
-
-class PricingSpaceState(str, enum.Enum):
-    NOT_DEPLOYED = "NOT_DEPLOYED"
-    ACTIVE = "ACTIVE"
-    DRAINING = "DRAINING"
-    ARCHIVED = "ARCHIVED"
 
 
 class AuthIdentity(Base):
@@ -194,6 +187,61 @@ class OrganizationInvitation(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
     )
+
+
+class SponsorProposalStatus(str, enum.Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
+class SponsorProposal(Base):
+    """A request that somebody else become the billing sponsor of an organization.
+
+    Nothing changes until the proposed person accepts: only then does the
+    consumption of the organization and its subtree move to their quota.  Every
+    state other than ``pending`` is terminal, and at most one proposal per
+    organization may be pending (a partial unique index, so the invariant holds
+    under concurrent proposals and not only in application code).
+    """
+
+    __tablename__ = "sponsor_proposals"
+    __table_args__ = (
+        Index(
+            "uq_sponsor_proposal_pending",
+            "organization_id",
+            unique=True,
+            sqlite_where=text("status = 'pending'"),
+            postgresql_where=text("status = 'pending'"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Users are nullable so that deleting an account keeps the (terminal) history.
+    proposed_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    proposed_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    status: Mapped[SponsorProposalStatus] = enum_column(
+        SponsorProposalStatus, SponsorProposalStatus.PENDING
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    decided_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    #: Why a system transition happened (``expired``, ``replaced``, ``user_deactivated``...).
+    decision_reason: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
 
 class Project(Base):
@@ -491,12 +539,12 @@ class Report(Base):
         if self.draft is not None and self.draft.sealed_version_id is None:
             return self.draft.payload['content']
         from ..artifacts import verified_version_content
-        from ..v1.package import strict_json_loads
+        from ..core.jsonio import strict_json_loads
         return strict_json_loads(verified_version_content(self.version, self.version.blob)[0])
 
     @property
     def digest(self) -> str:
-        from ..v1.canonical import digest
+        from bim_core.canonical import digest
         return digest(self.document)
 
     state: Mapped[ReportState] = enum_column(ReportState, ReportState.DRAFT)
@@ -593,45 +641,6 @@ class AuditEvent(Base):
     detail: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now(), index=True
-    )
-
-
-class PricingRelease(Base):
-    """Only remote metadata: the Pricing2Yaml body always remains in SPHERE."""
-
-    __tablename__ = "pricing_releases"
-    __table_args__ = (
-        UniqueConstraint("version", name="uq_pricing_release_version"),
-        CheckConstraint("sphere_organization = 'OpenBinding'", name="pricing_fixed_organization"),
-        CheckConstraint("sphere_slug = 'openbinding'", name="pricing_fixed_slug"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    version: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    sphere_organization: Mapped[str] = mapped_column(String(64), nullable=False, default="OpenBinding")
-    sphere_organization_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    sphere_slug: Mapped[str] = mapped_column(String(64), nullable=False, default="openbinding")
-    sphere_state: Mapped[PricingSphereState] = enum_column(
-        PricingSphereState, PricingSphereState.PRIVATE_DRAFT
-    )
-    # Private URLs are deliberately never persisted. A preview is fetched by
-    # exact remote identifiers through the authenticated server-side client.
-    public_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
-    space_state: Mapped[PricingSpaceState] = enum_column(
-        PricingSpaceState, PricingSpaceState.NOT_DEPLOYED
-    )
-    is_live: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
-    changelog: Mapped[str] = mapped_column(String(4000), nullable=False, default="")
-    migration_manifest: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    created_by_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now()
     )
 
 

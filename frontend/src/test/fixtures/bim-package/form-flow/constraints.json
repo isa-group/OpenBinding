@@ -1,0 +1,30 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "hello-constraints"
+  },
+  "spec": {
+    "constraints": {
+      "constraint1": {
+        "assert": "features.latency >= 0",
+        "enforcement": "hard"
+      },
+      "constraint2": {
+        "assert": {
+          "op": "gte",
+          "left": {
+            "path": "features.latency"
+          },
+          "right": {
+            "literal": 0
+          }
+        },
+        "enforcement": "soft",
+        "penalty": {
+          "literal": 1
+        }
+      }
+    }
+  }
+}

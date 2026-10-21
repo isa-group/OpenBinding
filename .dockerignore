@@ -1,6 +1,17 @@
 *
 !openbinding-gateway/
 !openbinding-gateway/**
+# The gateway image installs bim-core and bim-client (metadata and sources) and nothing else of
+# the toolchain: not bim-service, not the tests, not the corpus. openbinding-gateway/Dockerfile
+# COPYs exactly these paths; tests/test_docker_context.py keeps both in step.
+!bim-toolchain/packages/bim-core/pyproject.toml
+!bim-toolchain/packages/bim-core/README.md
+!bim-toolchain/packages/bim-core/NOTICE.md
+!bim-toolchain/packages/bim-core/src
+!bim-toolchain/packages/bim-client/pyproject.toml
+!bim-toolchain/packages/bim-client/README.md
+!bim-toolchain/packages/bim-client/NOTICE.md
+!bim-toolchain/packages/bim-client/src
 !schemas/
 !schemas/**
 !examples/
@@ -8,9 +19,6 @@
 !experimentation/
 !experimentation/qacobench/
 !experimentation/qacobench/**
-!space/
-!space/pricing/
-!space/pricing/openbinding.yml
 !datasets/
 !datasets/scripts/
 !datasets/scripts/transform_*.py

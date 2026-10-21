@@ -8,20 +8,59 @@ be configured?" short of grepping, and a user module adding a database URL, a
 signing secret and a SPACE endpoint is exactly the point where that stops being
 tenable.
 
-The values keep their historical names and defaults, so an existing deployment
-needs no changes. Two rules that used to live at their call sites now live here,
-where they can be stated once: the wildcard-versus-credentials rule for CORS,
-and the fact that a schema path from the environment is only a preference, not a
-promise that the file exists.
+The values keep their historical names. The one default that changed is CORS,
+which is now a closed list of local development origins instead of ``*``; a
+production deployment (``APP_ENV=prod``) must name its origins, and an empty or
+wildcard list stops the process at startup. Two rules that used to live at their
+call sites now live here, where they can be stated once: the
+wildcard-versus-credentials rule for CORS, and the fact that a schema path from
+the environment is only a preference, not a promise that the file exists.
 """
 
 from __future__ import annotations
 
 import os
+import re
 from functools import lru_cache
 from typing import List, Literal, Optional
 
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+#: The only origins allowed by default: the frontend's Vite dev server (5173)
+#: and the Playwright test server (4177), by name and by loopback address.
+DEV_CORS_ORIGINS = (
+    "http://localhost:5173,http://127.0.0.1:5173,"
+    "http://localhost:4177,http://127.0.0.1:4177"
+)
+
+#: Response headers a browser may read from a cross-origin response. Without
+#: this list only the CORS-safelisted ones are visible, and the client's 429
+#: countdown (``Retry-After``) never appears. Only headers the API really sets
+#: or uses are listed: ``Retry-After`` (429/503), ``ETag`` (content-addressed
+#: downloads), ``Location`` (redirects), ``Content-Disposition`` and ``Digest``
+#: (archive downloads) and ``Idempotency-Key`` (job submission).
+CORS_EXPOSED_HEADERS = (
+    "Retry-After",
+    "ETag",
+    "Location",
+    "Content-Disposition",
+    "Digest",
+    "Idempotency-Key",
+)
+
+
+#: Shortest accepted ``GATEWAY_JWT_SECRET`` outside ``APP_ENV=test``.
+MIN_JWT_SECRET_LENGTH = 32
+
+#: Default ``iss`` and ``aud`` of the gateway's session tokens.
+DEFAULT_JWT_ISSUER = "openbinding-gateway"
+
+#: The production SPACE service, and the default of ``SPACE_SERVICE_NAME``.
+DEFAULT_SPACE_SERVICE_NAME = "openbinding"
+
+#: Shape of a SPACE service name (``SPACE_SERVICE_NAME``).
+SPACE_SERVICE_NAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]{1,62}")
 
 
 class Settings(BaseSettings):
@@ -52,18 +91,76 @@ class Settings(BaseSettings):
     #: nginx has its own read timeout in front of this one; the two are meant
     #: to be kept in step, with nginx's the larger of the two.
     engine_solve_timeout_s: float = 1800.0
-    #: Absolute infrastructure guardrails, independent of any plan. Pricing
-    #: publication is rejected when it promises more than these values.
-    technical_max_payload_bytes: int = 512 * 1024 * 1024
-    pricing_document_max_bytes: int = 2 * 1024 * 1024
+    #: Queued plus running jobs one account may have at once; a creation past it
+    #: is refused with 429 ``concurrency_limit_exceeded``. A technical limit
+    #: that protects the engines, independent of the plan
+    #: (``MAX_CONCURRENT_JOBS_PER_USER``).
+    max_concurrent_jobs_per_user: int = Field(default=8, ge=1)
+    #: Technical ceiling, in log10 units, on the binding space (the estimated number
+    #: of candidate combinations) of one job or study cell; ``None`` sets none
+    #: (``MAX_BINDING_SPACE_LOG10``). It applies on top of the plan's
+    #: ``maxInstanceComplexityLog10`` and stands in for it when the plan declares no
+    #: usable value; with neither, the instance is refused. See
+    #: ``domain/binding_space.py``.
+    max_binding_space_log10: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
+    #: Technical ceiling on the cells (jobs) one study run expands to; ``None``
+    #: sets none (``MAX_CELLS_PER_STUDY_RUN``). A run over it is refused whole
+    #: with 422 ``study_run_too_large`` before anything is written. A safeguard
+    #: of the deployment, not a plan entitlement: no plan raises it.
+    max_cells_per_study_run: Optional[int] = Field(default=None, ge=1)
+    #: How long a job may wait in the queue without a worker claiming it before
+    #: the reconciler fails it with ``queue_timeout``. Counts from the moment the
+    #: job was queued, whatever budget it was given to run
+    #: (``QUEUE_TIMEOUT_S``).
+    queue_timeout_s: float = Field(default=1800.0, ge=60.0)
+    #: Days the raw answer of an engine is kept when BIM could not evaluate it,
+    #: so the evaluation can be retried without solving again; the reconciler
+    #: deletes it after that (``EVIDENCE_RETENTION_DAYS``). At most 90.
+    evidence_retention_days: int = Field(default=14, ge=1, le=90)
+    #: Best-effort cancellation of the remote job of an attempt that lost its
+    #: lease. A cancellation that must wait (the newer attempt has not yet
+    #: registered an id, so cancelling could hit the running one) is deferred at
+    #: most this many times and then skipped (``REMOTE_CANCEL_DEFER_LIMIT``).
+    remote_cancel_defer_limit: int = Field(default=5, ge=1, le=100)
+    #: Claims of one cancellation in all, deferrals included; past it a
+    #: cancellation that keeps failing is given up (``REMOTE_CANCEL_MAX_ATTEMPTS``).
+    remote_cancel_max_attempts: int = Field(default=8, ge=1, le=100)
+    #: Cancellations one reconciler cycle sends at most, and how many at once
+    #: (``REMOTE_CANCEL_BATCH``, ``REMOTE_CANCEL_CONCURRENCY``).
+    remote_cancel_batch: int = Field(default=20, ge=1, le=500)
+    remote_cancel_concurrency: int = Field(default=4, ge=1, le=32)
 
     # -- v1 schemas ------------------------------------------------------
     #: Directory holding the BIM v1 schemas and manifests.
     schemas_dir: str = "/app/schemas"
 
+    # -- BIM toolchain ---------------------------------------------------
+    #: Where the BIM language runs: ``inproc`` calls the installed ``bim-core``
+    #: in this process (development, tests, workers that carry it); ``http``
+    #: calls a ``bim-service`` (``BIM_SERVICE_URL``). Everything else in the
+    #: gateway talks to ``integrations.bim.get_bim()`` and does not care.
+    bim_mode: Literal["inproc", "http"] = "inproc"
+    #: Root of the service (``https://bim.internal``); required when ``BIM_MODE=http``.
+    bim_service_url: Optional[str] = None
+    #: File whose first line is the bearer token of the service. Never the token itself.
+    bim_service_token_file: Optional[str] = None
+    #: Seconds the gateway waits for one answer of the service.
+    bim_service_timeout_s: float = Field(default=30.0, gt=0)
+    #: Opaque tenant label sent as ``X-BIM-Tenant`` (logs and fair sharing of the
+    #: service; it never changes a result).
+    bim_tenant: Optional[str] = None
+    #: Allow the bearer token to travel over plain ``http`` to a host that is not the loopback
+    #: (``BIM_SERVICE_ALLOW_INSECURE_HTTP``). Off by default: only for a trusted private network.
+    bim_service_allow_insecure_http: bool = False
+
     # -- CORS ------------------------------------------------------------
-    #: Comma-separated browser origins allowed to call the API.
-    cors_allow_origins: str = "*"
+    #: Comma-separated browser origins allowed to call the API: a closed list.
+    #: The default is only the local development origins of the frontend (Vite
+    #: dev server and the Playwright server), because the sessions' tokens live
+    #: in the browser's ``localStorage`` and a wildcard would let any site read
+    #: the API as the signed-in user. In ``APP_ENV=prod`` an empty list or a
+    #: ``*`` entry is refused at startup (see ``closed_cors_in_production``).
+    cors_allow_origins: str = DEV_CORS_ORIGINS
     cors_allow_credentials: bool = True
 
     # -- Database --------------------------------------------------------
@@ -74,10 +171,43 @@ class Settings(BaseSettings):
     # -- Authentication --------------------------------------------------
     #: Signing key for the gateway's own session tokens. Must be set before
     #: authentication is switched on; there is deliberately no default, so a
-    #: deployment cannot accidentally ship a well-known secret.
+    #: deployment cannot accidentally ship a well-known secret. Outside
+    #: ``APP_ENV=test`` a value shorter than ``MIN_JWT_SECRET_LENGTH`` is refused
+    #: at startup, and ``APP_ENV=prod`` refuses to start without one.
     gateway_jwt_secret: Optional[str] = None
     access_token_ttl_s: int = 15 * 60
     refresh_token_ttl_s: int = 30 * 24 * 60 * 60
+    #: ``iss`` and ``aud`` of the session tokens (``GATEWAY_JWT_ISSUER`` /
+    #: ``GATEWAY_JWT_AUDIENCE``). Both are written when a token is issued and
+    #: verified when it is read.
+    gateway_jwt_issuer: str = Field(default=DEFAULT_JWT_ISSUER, min_length=1)
+    gateway_jwt_audience: str = Field(default=DEFAULT_JWT_ISSUER, min_length=1)
+
+    # -- Request bodies --------------------------------------------------
+    #: Hard ceiling for any request body, checked by the ASGI body-limit
+    #: middleware before the body is buffered (``Content-Length``) and while it
+    #: streams (chunked bodies). It is the ceiling of the artifact and package
+    #: upload routes, which keep their own, tighter, per-plan checks behind it;
+    #: it equals nginx's ``client_max_body_size``.
+    max_request_body_bytes: int = Field(default=512 * 1024 * 1024, ge=1)
+    #: Ceiling for every other route (JSON documents, registrations, options).
+    #: Never above ``max_request_body_bytes``.
+    max_json_body_bytes: int = Field(default=16 * 1024 * 1024, ge=1)
+
+    # -- Throttling of authentication ------------------------------------
+    #: Fixed-window limits for login, registration and refresh
+    #: (``core/ratelimit.py``). ``0`` switches a limit off. A key is the client
+    #: address plus the identifier being attacked; the address alone has a
+    #: ``AUTH_RATE_LIMIT_IP_MULTIPLIER`` times larger budget so that one source
+    #: cannot spray many identifiers.
+    auth_rate_limit_window_s: int = Field(default=300, ge=1)
+    auth_rate_limit_login_attempts: int = Field(default=10, ge=0)
+    auth_rate_limit_register_attempts: int = Field(default=5, ge=0)
+    auth_rate_limit_refresh_attempts: int = Field(default=30, ge=0)
+    auth_rate_limit_ip_multiplier: int = Field(default=10, ge=1)
+    #: Seconds the Redis backend is left alone after it failed, so that an
+    #: outage costs one timeout per period rather than one per login.
+    auth_rate_limit_redis_retry_s: float = Field(default=15.0, gt=0)
 
     # -- The first administrator -----------------------------------------
     #: Registration is open and produces ordinary users, so a fresh deployment
@@ -87,20 +217,46 @@ class Settings(BaseSettings):
     bootstrap_admin_username: Optional[str] = None
     bootstrap_admin_email: Optional[str] = None
     bootstrap_admin_password: Optional[str] = None
+    #: Plan the bootstrap administrator is contracted on. The backend names no
+    #: commercial plan: unset, the administrator is created without one and SPACE
+    #: assigns it (``SPACE_DEFAULT_PLAN`` applies to ordinary sign-ups only).
+    bootstrap_admin_plan: Optional[str] = None
 
     # -- SPACE (pricing-driven access control) ---------------------------
+    #: SPACE and SPHERE own pricings, versions, plans and contracts and are
+    #: administered in their own consoles. The gateway only creates the user's
+    #: contract, changes its plan and reads what it allows, through SPACE's
+    #: official client.
+    #: ``SPACE_ENABLED=false`` builds a stateless open gate (every functional
+    #: capability granted, no plans, no counters). It exists for development and
+    #: QacoBench only: ``APP_ENV=prod`` refuses to start with it.
     space_enabled: bool = False
+    #: Origin of SPACE (``https://space.score.us.es``); the client adds ``/api/v1``.
     space_url: Optional[str] = None
+    #: SPACE key with the MANAGEMENT scope.
     space_api_key: Optional[str] = None
     space_timeout_ms: int = 5000
-    # Only a compatibility override for tooling. Runtime contracts always use
-    # the explicit LIVE release recorded in PostgreSQL.
+    #: What a ``null`` limit in SPACE's token means. Off (the default): ``null`` is
+    #: an authoritative "unlimited", which is how the token has been read so far.
+    #: On: ``null`` is a limit SPACE did not declare, so it is *unknown* and is
+    #: left out of the plan exactly like an absent one (the size limit then falls
+    #: back to its technical safeguard or refuses, concurrency to its technical
+    #: cap, and the numeric allowances fail closed at zero). For use if SPACE is
+    #: confirmed to send ``null`` for "not declared" (``SPACE_NULL_LIMIT_IS_UNKNOWN``).
+    #: It changes how the token is read, not the remote contract.
+    space_null_limit_is_unknown: bool = False
+    #: The pricing version new contracts are pinned to, and the version the
+    #: public pricing endpoints show. SPACE/SPHERE own the version lifecycle.
     space_pricing_version: Optional[str] = None
-    #: What to do when SPACE cannot be reached. ``closed`` refuses to solve
-    #: rather than hand out unaccounted compute; ``open`` lets the request
-    #: through, which is what local development wants.
-    space_fail_mode: Literal["open", "closed"] = "closed"
-    space_destructive_api_key: Optional[str] = None
+    #: Plan a new sign-up starts on (for example ``BASIC``). Unset, the account
+    #: is created without a plan and SPACE assigns the contract's plan.
+    space_default_plan: Optional[str] = None
+    #: The SPACE service this gateway reads and writes contracts for
+    #: (``SPACE_SERVICE_NAME``). Production is ``openbinding``; a development
+    #: deployment names its own service (for example ``openbinding-dev``) so
+    #: it never touches production contracts. The one source of this name:
+    #: ``space_client`` takes it from here.
+    space_service_name: str = DEFAULT_SPACE_SERVICE_NAME
 
     # -- Durable jobs and artifacts -------------------------------------
     redis_url: str = "redis://redis:6379/0"
@@ -118,7 +274,7 @@ class Settings(BaseSettings):
     cas_store_backend: Literal["memory", "redis"] = "redis"
     expose_recovery_tokens: bool = False
 
-    # -- SPHERE pricing source ------------------------------------------
+    # -- SPHERE pricing source (read only) ------------------------------
     sphere_enabled: bool = False
     sphere_url: str = "https://sphere.score.us.es"
     sphere_api_key: Optional[str] = None
@@ -126,6 +282,22 @@ class Settings(BaseSettings):
     sphere_organization_id: Optional[str] = None
     sphere_pricing_slug: Literal["openbinding"] = "openbinding"
     sphere_timeout_s: float = 10.0
+
+    # -- Collaboration ----------------------------------------------------
+    #: Days a billing-sponsor proposal waits for the proposed person's answer
+    #: before it expires (``SPONSOR_PROPOSAL_TTL_DAYS``).
+    sponsor_proposal_ttl_days: int = Field(default=14, ge=1, le=365)
+    #: Reads of public projects by people who are not members are limited per
+    #: caller (the account, or the client address when anonymous) and per
+    #: minute; they are never charged to the project's sponsor
+    #: (``PUBLIC_READ_RATE_PER_MINUTE``; 0 switches the limit off).
+    public_read_rate_per_minute: int = Field(default=240, ge=0)
+
+    # -- Diagnostics ------------------------------------------------------
+    #: Anonymous 401/404 responses persisted as error events per client
+    #: address and minute; the rest are served but not stored
+    #: (``ANONYMOUS_ERROR_EVENTS_PER_MINUTE``; 0 switches the limit off).
+    anonymous_error_events_per_minute: int = Field(default=30, ge=0)
 
     # -- Optional account notifications --------------------------------
     smtp_url: Optional[str] = None
@@ -135,9 +307,14 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # -- Federated engines -----------------------------------------------
-    #: Fernet key protecting the credentials users register alongside their
-    #: own solvers. Without it, federated engines that need authentication
-    #: cannot be stored at all.
+    #: Comma-separated Fernet keys protecting the credentials users register
+    #: alongside their own solvers (``SECRETS_FERNET_KEYS``). The first key
+    #: encrypts; every key decrypts, which is how a key is rotated: put the new
+    #: one first, keep the old one until nothing is encrypted with it.
+    secrets_fernet_keys: Optional[str] = None
+    #: The single key of earlier deployments. Still read, after the keys above
+    #: (it encrypts only when ``SECRETS_FERNET_KEYS`` is unset). Without either,
+    #: federated engines that need authentication cannot be stored at all.
     federation_secret_key: Optional[str] = None
     #: Whether a federated engine must be reached over TLS. The instance and
     #: the credential both travel to it, so a deployment serving real users
@@ -145,12 +322,131 @@ class Settings(BaseSettings):
     #: rather than running a certificate authority to do it.
     federation_require_https: bool = True
 
+    # -- Startup checks --------------------------------------------------
+
+    @model_validator(mode="after")
+    def closed_cors_in_production(self) -> "Settings":
+        """Refuse to start a production gateway with an open or empty CORS list.
+
+        Wildcards in development are tolerated (credentials are then switched
+        off, see ``cors_credentials_allowed``); in production they are a
+        misconfiguration, so the process fails with a message that names the
+        variable instead of silently serving every origin.
+        """
+        if self.app_env != "prod":
+            return self
+        origins = self.cors_origin_list
+        if not origins:
+            raise ValueError(
+                "CORS_ALLOW_ORIGINS is empty while APP_ENV=prod: list the exact "
+                "frontend origins, comma separated (for example https://openbinding.example.org)."
+            )
+        if "*" in origins:
+            raise ValueError(
+                "CORS_ALLOW_ORIGINS contains '*' while APP_ENV=prod: a wildcard is not "
+                "allowed in production; list the exact frontend origins instead."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def strong_signing_secret(self) -> "Settings":
+        """Refuse a weak or missing signing secret outside the test suite.
+
+        HS256 is only as strong as its key. The suite (``APP_ENV=test``) signs
+        with a throwaway; anywhere else a short value is a startup error, and
+        production additionally refuses to start with no secret at all. In
+        development an unset secret still means "authentication unavailable"
+        (503), as it always did.
+        """
+        if self.app_env == "test":
+            return self
+        secret = self.gateway_jwt_secret
+        if not secret:
+            if self.app_env == "prod":
+                raise ValueError(
+                    "GATEWAY_JWT_SECRET is not set while APP_ENV=prod: set a random secret of at "
+                    f"least {MIN_JWT_SECRET_LENGTH} characters (for example `openssl rand -hex 32`)."
+                )
+            return self
+        if len(secret) < MIN_JWT_SECRET_LENGTH:
+            raise ValueError(
+                f"GATEWAY_JWT_SECRET is shorter than {MIN_JWT_SECRET_LENGTH} characters: use a random "
+                "secret (for example `openssl rand -hex 32`)."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def json_limit_within_request_limit(self) -> "Settings":
+        if self.max_json_body_bytes > self.max_request_body_bytes:
+            raise ValueError("MAX_JSON_BODY_BYTES cannot exceed MAX_REQUEST_BODY_BYTES.")
+        return self
+
+    @model_validator(mode="after")
+    def bim_service_url_for_http(self) -> "Settings":
+        if self.bim_mode == "http" and not self.bim_service_url:
+            raise ValueError("BIM_SERVICE_URL is not set while BIM_MODE=http: name the root of the bim-service.")
+        return self
+
+    @model_validator(mode="after")
+    def valid_space_service_name(self) -> "Settings":
+        """Refuse a service name SPACE could not hold, before any call uses it."""
+        if not SPACE_SERVICE_NAME_PATTERN.fullmatch(self.space_service_name):
+            raise ValueError(
+                "SPACE_SERVICE_NAME must match [a-z0-9][a-z0-9_-]{1,62} "
+                "(lower-case letters, digits, '_' and '-')."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def space_required_in_production(self) -> "Settings":
+        """Refuse to start a production gateway without SPACE.
+
+        With ``SPACE_ENABLED=false`` the gateway grants every functional
+        capability and meters nothing, which is only acceptable for local
+        development and QacoBench.
+        """
+        if self.app_env == "prod" and not self.space_enabled:
+            raise ValueError(
+                "SPACE_ENABLED is false while APP_ENV=prod: production needs SPACE for plans "
+                "and contracts. Set SPACE_ENABLED=true with SPACE_URL and SPACE_API_KEY; the "
+                "stateless open gate is for development and QacoBench only."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def no_insecure_transport_in_production(self) -> "Settings":
+        """Refuse plain-http switches in production.
+
+        ``BIM_SERVICE_ALLOW_INSECURE_HTTP`` sends the bim-service bearer token in
+        clear text and ``FEDERATION_REQUIRE_HTTPS=false`` lets federated engines
+        be registered and called over http. Both are for a trusted development or
+        lab network only.
+        """
+        if self.app_env != "prod":
+            return self
+        if self.bim_service_allow_insecure_http:
+            raise ValueError(
+                "BIM_SERVICE_ALLOW_INSECURE_HTTP is true while APP_ENV=prod: production must reach "
+                "the bim-service over https. Unset it, or use APP_ENV=dev for a trusted private network."
+            )
+        if not self.federation_require_https:
+            raise ValueError(
+                "FEDERATION_REQUIRE_HTTPS is false while APP_ENV=prod: production must call federated "
+                "engines over https. Unset it, or use APP_ENV=dev for a trusted private network."
+            )
+        return self
+
     # -- Derived values --------------------------------------------------
 
     @property
     def cors_origin_list(self) -> List[str]:
         """The configured origins, as a list."""
         return [item.strip() for item in self.cors_allow_origins.split(",") if item.strip()]
+
+    @property
+    def cors_expose_headers(self) -> List[str]:
+        """The response headers browsers may read cross-origin."""
+        return list(CORS_EXPOSED_HEADERS)
 
     @property
     def cors_credentials_allowed(self) -> bool:

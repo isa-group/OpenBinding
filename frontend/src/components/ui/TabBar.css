@@ -1,0 +1,40 @@
+.ui-tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tp-spacing-xxs);
+  border-bottom: 1px solid var(--tp-hairline);
+}
+
+.ui-tabbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tp-spacing-xxs);
+  margin-bottom: -1px;
+  padding: 10px var(--tp-spacing-md);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--tp-steel);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.ui-tabbar button:hover { color: var(--tp-ink); }
+.ui-tabbar button[aria-selected='true'] { border-bottom-color: var(--tp-primary); color: var(--tp-primary); }
+.ui-tabbar button:focus-visible { outline-offset: -2px; border-radius: var(--tp-radius-sm); }
+
+.ui-tabbar-count {
+  min-width: 1.6rem;
+  margin-left: var(--tp-spacing-xxs);
+  padding: 0 var(--tp-spacing-xs);
+  border: 1px solid var(--tp-hairline-soft);
+  border-radius: var(--tp-radius-full);
+  background: var(--tp-surface);
+  color: var(--tp-slate);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.ui-tabpanel:focus { outline: none; }

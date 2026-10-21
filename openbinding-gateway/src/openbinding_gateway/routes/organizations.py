@@ -9,8 +9,9 @@ import uuid
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from sqlalchemy import delete, func, select, update
-from sqlalchemy.orm import defer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..collaboration import (
@@ -19,7 +20,6 @@ from ..collaboration import (
     effective_role,
     enforce_sponsor_capacity,
     enforce_sponsor_usage,
-    organization_usage,
     organization_by_ref,
     project_by_ref,
     require_project,
@@ -36,7 +36,6 @@ from ..db.models import (
     BindingCase,
     BindingCaseRevision,
     Collection,
-    CollectionItem,
     CollectionRevision,
     InstanceSnapshot,
     Job,
@@ -56,7 +55,8 @@ from ..db.models import (
     Visibility,
     utcnow,
 )
-from ..models.errors import api_error
+from ..models.errors import ErrorResponse, api_error
+from ..security.redaction import must_redact_jobs
 from ..models.platform import (
     BindingCaseCreate,
     BindingCaseUpdate,
@@ -67,6 +67,7 @@ from ..models.platform import (
     InvitationCreate,
     InvitationCreated,
     JobView,
+    job_view,
     MemberBatchUpdate,
     MemberUpsert,
     MemberView,
@@ -81,11 +82,16 @@ from ..models.platform import (
     ProjectResourceRevisionCreate,
     ProjectResourceRevisionView,
     ProjectResourceView,
+    SponsorProposalView,
 )
+from .. import sponsor_proposals
+from ..access import public_read
+from ..repositories import jobs as job_repository
+from ..repositories import organizations as organization_repository
 from ..access.dependencies import get_current_user, session_dependency
-from ..v1.canonical import digest
+from bim_core.canonical import digest
 from ..artifacts import store_blob, version_content
-from ..v1.canonical import canonical_json, digest_bytes
+from bim_core.canonical import canonical_json
 import json
 
 router = APIRouter(prefix="/v1/organizations", tags=["Organizations"])
@@ -102,6 +108,41 @@ def _audit(session: AsyncSession, user: User, action: str, target, organization_
             target_id=getattr(target, "id", None),
             detail=detail,
         )
+    )
+
+
+OWNER_ROLE_RESPONSES = {
+    403: {
+        "model": ErrorResponse,
+        "description": (
+            "The caller lacks ADMIN access to the organization (code `organization_forbidden`), "
+            "or the change grants OWNER or alters or removes an existing owner and the caller "
+            "is not an organization owner (code `owner_role_requires_owner`)."
+        ),
+    }
+}
+
+
+def _touches_owner(current: OrganizationMembership | None, new_role: str | None) -> bool:
+    """Whether a membership change grants OWNER or alters an existing owner."""
+
+    return new_role == OrganizationRole.OWNER.value or (
+        current is not None and current.role is OrganizationRole.OWNER
+    )
+
+
+def _may_manage_owners(actor_role: OrganizationRole, actor: User) -> bool:
+    """Owners, and platform administrators who already hold ADMIN access."""
+
+    return actor_role is OrganizationRole.OWNER or actor.is_admin
+
+
+def _owner_role_refusal(**detail):
+    return api_error(
+        status.HTTP_403_FORBIDDEN,
+        "owner_role_requires_owner",
+        "Only an organization owner may grant the OWNER role or change or remove an owner.",
+        **detail,
     )
 
 
@@ -130,7 +171,7 @@ async def list_organizations(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[OrganizationView]:
-    organizations = (await session.execute(select(Organization).order_by(Organization.name))).scalars().all()
+    organizations = await organization_repository.list_all(session)
     views = [await _org_view(session, organization, user) for organization in organizations]
     return [view for view in views if view.effective_role is not None]
 
@@ -193,7 +234,29 @@ async def get_organization(
     return await _org_view(session, organization, user)
 
 
-@router.patch("/{org}", response_model=OrganizationView, operation_id="updateOrganization")
+@router.patch(
+    "/{org}",
+    response_model=OrganizationView,
+    operation_id="updateOrganization",
+    responses={
+        202: {
+            "model": SponsorProposalView,
+            "description": (
+                "`billing_sponsor_user_id` named somebody other than the caller: the sponsor is "
+                "unchanged and a pending proposal (the body) awaits that person's acceptance. "
+                "The other fields of the request were applied."
+            ),
+        },
+        402: {"model": ErrorResponse, "description": "Naming oneself: the caller's plan cannot take the subtree (`sponsor_quota_exceeded`)."},
+        409: {
+            "model": ErrorResponse,
+            "description": (
+                "A sponsorship proposal is already pending (`sponsor_proposal_pending`, with its "
+                "`proposal_id`); cancel it, or, if you made it, send `replace_pending_proposal: true`."
+            ),
+        },
+    },
+)
 async def update_organization(
     org: str,
     payload: OrganizationUpdate,
@@ -215,24 +278,32 @@ async def update_organization(
                 raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "New parent not found.")
             await require_role(session, new_parent, user, OrganizationRole.ADMIN)
         organization.parent_id = new_parent_id
+    sponsor_change: dict[str, str] = {}
+    proposal = None
     if payload.billing_sponsor_user_id is not None and payload.billing_sponsor_user_id != organization.billing_sponsor_user_id:
         await require_role(session, organization, user, OrganizationRole.OWNER)
         sponsor = await session.get(User, payload.billing_sponsor_user_id)
         if sponsor is None or not sponsor.is_active:
             raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_sponsor", "Sponsor must be active.")
-        await session.execute(select(User.id).where(User.id == sponsor.id).with_for_update())
-        subtree = set(await descendant_ids(session, organization.id))
-        sponsored = set(await sponsor_organization_ids(session, sponsor.id))
-        hypothetical = await organization_usage(session, subtree | sponsored)
-        await enforce_sponsor_usage(session, sponsor, hypothetical)
-        await session.execute(
-            update(Organization)
-            .where(Organization.id.in_(subtree))
-            .values(billing_sponsor_user_id=sponsor.id)
-        )
-        organization.billing_sponsor_user_id = sponsor.id
-    _audit(session, user, "organization.updated", organization, organization.id)
+        if sponsor.id == user.id:
+            # Taking the sponsorship yourself needs nobody's consent but your own
+            # contract's limits.  A pending proposal for somebody else is moot.
+            previous = await sponsor_proposals.transfer_sponsorship(session, organization, sponsor)
+            sponsor_change = {
+                "previous_sponsor_user_id": str(previous),
+                "new_sponsor_user_id": str(sponsor.id),
+            }
+            await sponsor_proposals.supersede_pending(session, organization, user)
+        else:
+            proposal = await sponsor_proposals.create_proposal(
+                session, organization, sponsor, user, replace=payload.replace_pending_proposal
+            )
+    _audit(session, user, "organization.updated", organization, organization.id, **sponsor_change)
     await session.flush()
+    if proposal is not None:
+        # The sponsor is unchanged: the answer is the pending proposal.
+        [view] = await sponsor_proposals.views(session, [proposal])
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content=jsonable_encoder(view))
     return await _org_view(session, organization, user)
 
 
@@ -329,9 +400,7 @@ async def delete_organization(
                             .where(Artifact.organization_id.in_(unique_descendants)).limit(1)):
         raise api_error(409, 'historical_references', 'Organizations with sealed library history cannot be deleted.')
     for oid in unique_descendants:
-        projects = (
-            await session.execute(select(Project).where(Project.organization_id == oid))
-        ).scalars().all()
+        projects = await organization_repository.list_projects(session, oid, ordered=False)
         for p in projects:
             await _cascade_delete_project(session, p)
         await session.execute(
@@ -373,21 +442,10 @@ async def list_organization_audit_events(
 ) -> dict:
     organization = await _required_org(session, org)
     await require_role(session, organization, user, OrganizationRole.ADMIN)
-    conditions = [AuditEvent.organization_id == organization.id]
-    if action:
-        conditions.append(AuditEvent.action == action)
-    total = int(
-        await session.scalar(select(func.count(AuditEvent.id)).where(*conditions)) or 0
+    total = await organization_repository.count_audit_events(session, organization.id, action=action)
+    rows = await organization_repository.list_audit_events(
+        session, organization.id, action=action, offset=offset, limit=limit
     )
-    rows = (
-        await session.execute(
-            select(AuditEvent)
-            .where(*conditions)
-            .order_by(AuditEvent.created_at.desc())
-            .offset(offset)
-            .limit(limit)
-        )
-    ).scalars().all()
     return {
         "events": [
             {
@@ -412,13 +470,7 @@ async def list_organization_audit_events(
 async def _member_views(
     session: AsyncSession, organization: Organization
 ) -> list[MemberView]:
-    rows = (
-        await session.execute(
-            select(OrganizationMembership)
-            .where(OrganizationMembership.organization_id == organization.id)
-            .order_by(OrganizationMembership.created_at)
-        )
-    ).scalars().all()
+    rows = await organization_repository.list_members(session, organization.id)
     members = []
     for row in rows:
         member = await session.get(User, row.user_id)
@@ -446,6 +498,7 @@ async def list_members(
     "/{org}/members/batch",
     response_model=list[MemberView],
     operation_id="updateOrganizationMembersBatch",
+    responses=OWNER_ROLE_RESPONSES,
 )
 async def update_members_batch(
     org: str,
@@ -456,7 +509,7 @@ async def update_members_batch(
     """Apply a staged set of direct-member changes in one transaction."""
 
     organization = await _required_org(session, org)
-    await require_role(session, organization, user, OrganizationRole.ADMIN)
+    actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
     sponsor = await session.get(User, organization.billing_sponsor_user_id)
     if sponsor is None or not sponsor.is_active:
         raise api_error(
@@ -468,15 +521,16 @@ async def update_members_batch(
     # Serialize all structural mutations for this sponsor and lock the direct
     # membership rows that this batch will replace.
     await session.execute(select(User.id).where(User.id == sponsor.id).with_for_update())
-    existing_rows = (
-        await session.execute(
-            select(OrganizationMembership)
-            .where(OrganizationMembership.organization_id == organization.id)
-            .with_for_update()
-        )
-    ).scalars().all()
+    existing_rows = await organization_repository.lock_members(session, organization.id)
     existing = {row.user_id: row for row in existing_rows}
     final_roles = {member_id: row.role for member_id, row in existing.items()}
+
+    # The batch is all-or-nothing: nothing is written until every change has
+    # passed, so one change touching an owner refuses the whole batch.
+    for index, change in enumerate(payload.changes):
+        current = existing.get(change.user_id)
+        if _touches_owner(current, change.role) and not _may_manage_owners(actor_role, user):
+            raise _owner_role_refusal(index=index, user_id=str(change.user_id))
 
     upsert_ids = {change.user_id for change in payload.changes if change.role is not None}
     users = {
@@ -558,7 +612,12 @@ async def update_members_batch(
     return await _member_views(session, organization)
 
 
-@router.put("/{org}/members/{member_id}", response_model=MemberView, operation_id="upsertOrganizationMember")
+@router.put(
+    "/{org}/members/{member_id}",
+    response_model=MemberView,
+    operation_id="upsertOrganizationMember",
+    responses=OWNER_ROLE_RESPONSES,
+)
 async def upsert_member(
     org: str,
     member_id: uuid.UUID,
@@ -567,20 +626,15 @@ async def upsert_member(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> MemberView:
     organization = await _required_org(session, org)
-    await require_role(session, organization, user, OrganizationRole.ADMIN)
+    actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
     if payload.user_id != member_id:
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "member_mismatch", "Path and payload user differ.")
     member_user = await session.get(User, member_id)
     if member_user is None or not member_user.is_active:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "User not found.")
-    existing = (
-        await session.execute(
-            select(OrganizationMembership).where(
-                OrganizationMembership.organization_id == organization.id,
-                OrganizationMembership.user_id == member_id,
-            )
-        )
-    ).scalars().first()
+    existing = await organization_repository.get_membership(session, organization.id, member_id)
+    if _touches_owner(existing, payload.role) and not _may_manage_owners(actor_role, user):
+        raise _owner_role_refusal(user_id=str(member_id))
     if existing is None:
         sponsor = await session.get(User, organization.billing_sponsor_user_id)
         if not await sponsor_has_member(session, sponsor.id, member_id):
@@ -602,17 +656,16 @@ async def upsert_member(
 async def _protect_last_owner(session: AsyncSession, membership: OrganizationMembership) -> None:
     if membership.role is not OrganizationRole.OWNER:
         return
-    owners = await session.scalar(
-        select(func.count(OrganizationMembership.id)).where(
-            OrganizationMembership.organization_id == membership.organization_id,
-            OrganizationMembership.role == OrganizationRole.OWNER,
-        )
-    )
-    if int(owners or 0) <= 1:
+    if await organization_repository.count_owners(session, membership.organization_id) <= 1:
         raise api_error(status.HTTP_409_CONFLICT, "last_owner", "The last owner cannot be removed.")
 
 
-@router.delete("/{org}/members/{member_id}", status_code=204, operation_id="removeOrganizationMember")
+@router.delete(
+    "/{org}/members/{member_id}",
+    status_code=204,
+    operation_id="removeOrganizationMember",
+    responses=OWNER_ROLE_RESPONSES,
+)
 async def remove_member(
     org: str,
     member_id: uuid.UUID,
@@ -620,17 +673,12 @@ async def remove_member(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> None:
     organization = await _required_org(session, org)
-    await require_role(session, organization, user, OrganizationRole.ADMIN)
-    membership = (
-        await session.execute(
-            select(OrganizationMembership).where(
-                OrganizationMembership.organization_id == organization.id,
-                OrganizationMembership.user_id == member_id,
-            )
-        )
-    ).scalars().first()
+    actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
+    membership = await organization_repository.get_membership(session, organization.id, member_id)
     if membership is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Member not found.")
+    if _touches_owner(membership, None) and not _may_manage_owners(actor_role, user):
+        raise _owner_role_refusal(user_id=str(member_id))
     await _protect_last_owner(session, membership)
     await session.delete(membership)
     _audit(session, user, "organization.member.removed", membership, organization.id)
@@ -638,7 +686,8 @@ async def remove_member(
 
 @router.post(
     "/{org}/invitations", response_model=InvitationCreated,
-    status_code=201, operation_id="inviteOrganizationMember"
+    status_code=201, operation_id="inviteOrganizationMember",
+    responses=OWNER_ROLE_RESPONSES,
 )
 async def invite_member(
     org: str,
@@ -647,7 +696,9 @@ async def invite_member(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> InvitationCreated:
     organization = await _required_org(session, org)
-    await require_role(session, organization, user, OrganizationRole.ADMIN)
+    actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
+    if _touches_owner(None, payload.role) and not _may_manage_owners(actor_role, user):
+        raise _owner_role_refusal()
     secret = secrets.token_urlsafe(32)
     prefix = secrets.token_hex(6)
     token = f"obi_{prefix}_{secret}"
@@ -679,9 +730,7 @@ async def accept_invitation(
     if len(parts) != 3 or parts[0] != "obi":
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Invitation is invalid.")
     prefix = f"obi_{parts[1]}"
-    invitation = (
-        await session.execute(select(OrganizationInvitation).where(OrganizationInvitation.token_prefix == prefix))
-    ).scalars().first()
+    invitation = await organization_repository.find_invitation_by_prefix(session, prefix)
     actual = hashlib.sha256(payload.token.encode()).hexdigest()
     if (
         invitation is None
@@ -692,14 +741,7 @@ async def accept_invitation(
     ):
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Invitation is invalid or expired.")
     organization = await session.get(Organization, invitation.organization_id)
-    membership = (
-        await session.execute(
-            select(OrganizationMembership).where(
-                OrganizationMembership.organization_id == organization.id,
-                OrganizationMembership.user_id == user.id,
-            )
-        )
-    ).scalars().first()
+    membership = await organization_repository.get_membership(session, organization.id, user.id)
     if membership is None:
         sponsor = await session.get(User, organization.billing_sponsor_user_id)
         if not await sponsor_has_member(session, sponsor.id, user.id):
@@ -719,11 +761,16 @@ async def accept_invitation(
     )
 
 
-def _project_view(project: Project) -> ProjectView:
+def _project_view(
+    project: Project, role: OrganizationRole | None = None, access: str = "member"
+) -> ProjectView:
+    public = access == public_read.PUBLIC_READ
     return ProjectView(
         id=project.id, organization_id=project.organization_id, slug=project.slug,
         name=project.name, description=project.description, visibility=project.visibility.value,
-        created_by_id=project.created_by_id, created_at=project.created_at, updated_at=project.updated_at
+        created_by_id=None if public else project.created_by_id,
+        created_at=project.created_at, updated_at=project.updated_at,
+        effective_role=role.value if role else None, access=access,
     )
 
 
@@ -734,9 +781,9 @@ async def list_projects(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[ProjectView]:
     organization = await _required_org(session, org)
-    await require_role(session, organization, user, OrganizationRole.VIEWER)
-    rows = (await session.execute(select(Project).where(Project.organization_id == organization.id).order_by(Project.name))).scalars().all()
-    return [_project_view(row) for row in rows]
+    role = await require_role(session, organization, user, OrganizationRole.VIEWER)
+    rows = await organization_repository.list_projects(session, organization.id)
+    return [_project_view(row, role) for row in rows]
 
 
 @router.post("/{org}/projects", response_model=ProjectView, status_code=201, operation_id="createProject")
@@ -747,15 +794,12 @@ async def create_project(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> ProjectView:
     organization = await _required_org(session, org)
-    await require_role(session, organization, user, OrganizationRole.MEMBER)
+    role = await require_role(session, organization, user, OrganizationRole.MEMBER)
     sponsor = await session.get(User, organization.billing_sponsor_user_id)
     await enforce_sponsor_capacity(session, sponsor, "projects")
     if payload.visibility == "private":
         await enforce_sponsor_capacity(session, sponsor, "privateProjects")
-    duplicate = await session.scalar(
-        select(func.count(Project.id)).where(Project.organization_id == organization.id, Project.slug == payload.slug)
-    )
-    if duplicate:
+    if await organization_repository.project_slug_in_use(session, organization.id, payload.slug):
         raise api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That project slug is in use.")
     project = Project(
         organization_id=organization.id, slug=payload.slug, name=payload.name,
@@ -764,18 +808,26 @@ async def create_project(
     session.add(project)
     await session.flush()
     _audit(session, user, "project.created", project, organization.id)
-    return _project_view(project)
+    return _project_view(project, role)
 
 
-@router.get("/{org}/projects/{project}", response_model=ProjectView, operation_id="getProject")
+@router.get(
+    "/{org}/projects/{project}",
+    response_model=ProjectView,
+    operation_id="getProject",
+    summary="Read a project (members, or anyone for a public project)",
+)
 async def get_project(
     org: str, project: str,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> ProjectView:
+    """A member sees their role; a non-member, even anonymous, reads a public project read-only (access public_read)."""
     organization = await _required_org(session, org)
     found = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
-    return _project_view(found)
+    if public_read.is_public_read(session):
+        return _project_view(found, None, public_read.PUBLIC_READ)
+    return _project_view(found, await effective_role(session, organization.id, user))
 
 
 @router.patch("/{org}/projects/{project}", response_model=ProjectView, operation_id="updateProject")
@@ -797,7 +849,7 @@ async def update_project(
         found.visibility = Visibility(payload.visibility)
     _audit(session, user, "project.updated", found, organization.id)
     await session.flush()
-    return _project_view(found)
+    return _project_view(found, await effective_role(session, organization.id, user))
 
 
 @router.delete("/{org}/projects/{project}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteProject")
@@ -1063,7 +1115,24 @@ async def list_project_resources(
     return [_legacy_resource_view(row, found_project.id) for row in rows
             if row.kind not in {"Application", "CandidateCatalog", "ConstraintSet",
                                 "ExecutionConfiguration", "AnalysisConfiguration",
-                                "Collection", "Study", "Report", "BindingDecision"}]
+                                "Collection", "Study", "Report", "BindingDecision"}
+            and await _visible_resource(session, found_project, row)]
+
+
+async def _visible_resource(session: AsyncSession, project: Project, artifact: Artifact) -> bool:
+    """What a read-only visitor may see of a project's resources.
+
+    The project's own resources are its contents; an artifact of another
+    organization that the project merely associates is shown only while it is
+    itself published (a withdrawn one must not stay reachable through here).
+    Members are not filtered.
+    """
+
+    if not public_read.is_public_read(session):
+        return True
+    from ..artifacts import can_read
+
+    return artifact.organization_id == project.organization_id or await can_read(session, artifact, None)
 
 
 def _legacy_resource_view(artifact: Artifact, project_id: uuid.UUID) -> dict:
@@ -1129,8 +1198,16 @@ async def create_project_resource(
     return _legacy_resource_view(resource, found_project.id)
 
 
-async def _project_resource(session: AsyncSession, project_id: uuid.UUID, reference: str) -> Artifact:
-    return await _legacy_artifact(session, project_id, reference)
+async def _project_resource(
+    session: AsyncSession, project_id: uuid.UUID | Project, reference: str
+) -> Artifact:
+    """A project's resource by reference; a visitor never gets one they may not see."""
+
+    project = project_id if isinstance(project_id, Project) else None
+    found = await _legacy_artifact(session, project.id if project else project_id, reference)
+    if project is not None and not await _visible_resource(session, project, found):
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project resource not found.")
+    return found
 
 
 @router.get(
@@ -1149,7 +1226,7 @@ async def list_project_resource_revisions(
     found_project = await require_project(
         session, organization, project, user, OrganizationRole.VIEWER
     )
-    found_resource = await _project_resource(session, found_project.id, resource)
+    found_resource = await _project_resource(session, found_project, resource)
     rows = (await session.scalars(select(ArtifactVersion)
         .where(ArtifactVersion.artifact_id == found_resource.id)
         .order_by(ArtifactVersion.ordinal))).all()
@@ -1173,7 +1250,7 @@ async def get_project_resource_revision(
     found_project = await require_project(
         session, organization, project, user, OrganizationRole.VIEWER
     )
-    found_resource = await _project_resource(session, found_project.id, resource)
+    found_resource = await _project_resource(session, found_project, resource)
 
     rev_row = None
     if revision.isdigit():
@@ -1267,7 +1344,7 @@ async def get_project_resource(
     found_project = await require_project(
         session, organization, project, user, OrganizationRole.VIEWER
     )
-    found_resource = await _project_resource(session, found_project.id, resource)
+    found_resource = await _project_resource(session, found_project, resource)
     return _legacy_resource_view(found_resource, found_project.id)
 
 
@@ -1329,21 +1406,12 @@ async def list_project_jobs(
 ) -> list[JobView]:
     organization = await _required_org(session, org)
     found_project = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
-    query = select(Job).where(Job.project_id == found_project.id).order_by(Job.created_at.desc())
-    if job_id is not None:
-        query = query.where(Job.id == job_id)
-    if not include_results:
-        query = query.options(defer(Job.result), defer(Job.original_request), defer(Job.provenance))
-    rows = (await session.execute(query)).scalars().all()
-    return [
-        JobView(
-            id=job.id, engine_id=job.engine_id, status=job.state.value,
-            cancellation_requested=job.cancellation_requested,
-            retry_of_id=job.retry_of_id, organization_id=job.organization_id,
-            project_id=job.project_id, created_at=job.created_at, finished_at=job.finished_at,
-            result=job.result if include_results else None, termination=job.termination, options=job.options,
-            original_request=job.original_request if include_results else None,
-            provenance=job.provenance if include_results else None,
-        )
-        for job in rows
-    ]
+    # A VIEWER follows the project's work (state, engine, times, result,
+    # digests) but not its inputs: options and the request are redacted for
+    # anyone below MEMBER and for API keys that cannot write projects.
+    # (Non-members never get here: /jobs is not public_read.)
+    redact = await must_redact_jobs(session, organization.id, user)
+    rows = await job_repository.list_for_project(
+        session, found_project.id, job_id=job_id, include_results=include_results
+    )
+    return [job_view(job, user, include_results=include_results, redact=redact) for job in rows]

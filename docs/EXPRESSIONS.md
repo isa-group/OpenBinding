@@ -112,8 +112,15 @@ CEL source to 4,096 characters, the canonical tree to 256 nodes and depth 32,
 and a call to 16 arguments. Division by zero, overflow, a non-finite result,
 or an invalid fractional power is an evaluation error.
 
-QoS values remain finite deterministic scalars. Metric distributions,
-intervals, scenarios, risk measures, telemetry, and runtime rebinding are
+A candidate feature slot may hold a `{min,max}` interval (an end may be `null`,
+meaning infinity), and
+`features.x` paths remain typed as `number`, so constraints and objectives that
+reference such a feature compile. The canonical evaluator defines no interval
+semantics (optimistic, pessimistic, or midpoint): reading a feature whose value
+for the selected candidate is an interval, including through
+`tasks.<t>.features.<f>`, raises an explicit evaluation error. An interval
+candidate that is not bound by the selection evaluates normally. Metric
+distributions, scenarios, risk measures, telemetry, and runtime rebinding are
 outside `qos-binding/v1`. A future Profile may compose independently versioned
 expression and uncertainty Dialects while retaining the generic BIM
 `Instance`; it must define an appropriate output IR, capability vocabulary,

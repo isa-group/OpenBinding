@@ -26,10 +26,14 @@ from ..models.analysis import (
     AnalysisSource, AnalysisSources, AnalysisTaskView,
 )
 from ..models.platform import ReportCreate, ReportView
-from ..security.apikeys import allows_engine, allows_request, authenticated_api_key
+from ..models.errors import api_error
+from ..security.apikeys import (
+    allows_engine, allows_request, analysis_work_permissions, authenticated_api_key, permissions_of,
+)
 from ..v1.archive import VERSION, build_archive, candidate_detail, compact_archive, decide, query_archive, record, row_view, safe
-from ..v1.canonical import digest
-from .v1 import _owned_job
+from bim_core.canonical import digest
+from ..security.roles import require_work_role
+from ..services.engines import owned_job
 
 router = APIRouter(prefix="/v1/analysis", tags=["Binding analysis"])
 _SLOTS = asyncio.Semaphore(2)
@@ -57,6 +61,37 @@ def enforce_boundary(caller, job, *, project=None, organization=None, path="/v1/
             parameters["org"] = str(organization)
         if not allows_request(api_key, method=method, path_params=parameters, path=path):
             raise HTTPException(403, "The API key boundary excludes this resource")
+
+
+def require_work_permission(caller, path: str) -> None:
+    """Refuse an API key that may read analyses but not start or cancel work (``POST`` ``path``)."""
+    api_key = authenticated_api_key(caller)
+    if api_key is None:
+        return
+    required = analysis_work_permissions(path, "POST")
+    missing = sorted(required - permissions_of(api_key))
+    if missing:
+        raise api_error(
+            403,
+            "insufficient_api_key_permission",
+            "This API key does not grant every permission required by the endpoint.",
+            required_permissions=sorted(required),
+            missing_permissions=missing,
+        )
+
+
+async def require_sources_work_role(session, caller, sources):
+    """A VIEWER reads stored analyses but does not queue or stop work on an organization's jobs (403)."""
+    identities = []
+    for source in sources:
+        try:
+            identities.append(uuid.UUID(str(source)))
+        except ValueError:
+            continue  # not a job, so it belongs to no organization
+    organizations = (await session.execute(select(Job.organization_id).where(
+        Job.id.in_(identities), Job.owner_id == caller.id).distinct())).scalars().all()
+    for organization_id in organizations:
+        await require_work_role(session, caller, [organization_id])
 
 
 async def load_archive(query, caller, session):
@@ -105,7 +140,7 @@ async def load_archive(query, caller, session):
         loaded_jobs = {str(job.id): job for job, _ in loaded}
     records, snapshots = [], {}
     for job_id in ids:
-        job = loaded_jobs.get(job_id) if loaded_jobs else await _owned_job(job_id, caller, session)
+        job = loaded_jobs.get(job_id) if loaded_jobs else await owned_job(job_id, caller, session)
         if job is None:
             raise HTTPException(404, "One or more analysis sources are unavailable")
         enforce_boundary(caller, job, project=job.project_id, organization=job.organization_id)
@@ -195,7 +230,7 @@ async def sources(
 ):
     anchor = None
     if compatible_with:
-        anchor_job = await _owned_job(compatible_with, caller, session)
+        anchor_job = await owned_job(compatible_with, caller, session)
         if anchor_job is None:
             raise HTTPException(404, "Analysis source unavailable")
         enforce_boundary(caller, anchor_job, project=anchor_job.project_id, organization=anchor_job.organization_id)
@@ -321,6 +356,9 @@ async def start_pareto(payload: AnalysisQuery, caller: User = Depends(get_curren
                        session: AsyncSession = Depends(session_dependency, scope="function")):
     from ..analysis_jobs import dispatch_analysis
     archive = await load_archive(payload, caller, session)
+    # After the sources are checked (a key outside them still gets 404), before any task exists.
+    require_work_permission(caller, "/v1/analysis/pareto")
+    await require_sources_work_role(session, caller, payload.sources)
     await compute(decide, archive, payload)
     fingerprint = task_fingerprint(archive.revision, payload)
     task = (await session.execute(select(AnalysisTask).where(AnalysisTask.owner_id == caller.id,
@@ -337,6 +375,7 @@ async def start_pareto(payload: AnalysisQuery, caller: User = Depends(get_curren
                 AnalysisTask.fingerprint == fingerprint))).scalars().one()
     elif task.state in ("failed", "cancelled"):
         task.state, task.progress, task.result, task.error = "queued", 0, None, None
+        task.attempts = 0  # a resubmission gets the full allowance of claims again
         task.cancellation_requested, task.lease_token, task.lease_until = False, None, None
         task.updated_at = utcnow()
     await session.commit()
@@ -352,7 +391,7 @@ async def owned_task(task_id, caller, session, *, cancelling=False):
         raise HTTPException(404, "Analysis task unavailable")
     if cancelling and task.state in ("queued", "running"):
         for source_id in task.request["sources"]:
-            job = await _owned_job(source_id, caller, session)
+            job = await owned_job(source_id, caller, session)
             if job is None:
                 if authenticated_api_key(caller) is not None:
                     raise HTTPException(404, "Analysis source unavailable")
@@ -373,6 +412,8 @@ async def get_pareto(task_id: uuid.UUID, caller: User = Depends(get_current_user
 async def cancel_pareto(task_id: uuid.UUID, caller: User = Depends(get_current_user),
                         session: AsyncSession = Depends(session_dependency, scope="function")):
     task = await owned_task(task_id, caller, session, cancelling=True)
+    require_work_permission(caller, "/v1/analysis/pareto/{task_id}/cancel")
+    await require_sources_work_role(session, caller, task.request["sources"])
     await session.execute(update(AnalysisTask).where(AnalysisTask.id == task.id,
         AnalysisTask.state.in_(["queued", "running"])).values(state="cancelled", cancellation_requested=True,
             lease_token=None, lease_until=None, result=None, updated_at=utcnow()))

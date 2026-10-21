@@ -1,0 +1,19 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {"name": "catalog-a"},
+  "spec": {
+    "providers": {"pa": {"name": "PA"}},
+    "featureBindings": {
+      "latency": {"resource": "app", "id": "latency"},
+      "cost": {"resource": "app", "id": "cost"}
+    },
+    "candidates": {
+      "c1": {
+        "provider": {"resource": "cat-a", "id": "pa"},
+        "provides": "svc/v1",
+        "features": {"latency": 10, "cost": 5}
+      }
+    }
+  }
+}

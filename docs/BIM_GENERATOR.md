@@ -35,7 +35,7 @@ Ejemplo mínimo:
 
 Si se declara `constraint_optimality_percent`, cada umbral se calcula como `mínimo_aggregate + porcentaje/100 × (máximo_aggregate − mínimo_aggregate)`. Los extremos se obtienen evaluando las selecciones extremas con el compilador BIM, por lo que respetan `scope`, workflow, agregaciones y probabilidades. Requiere `guarantee_feasibility: false`; ese valor permite una instancia insatisfacible, pero no la fuerza. Sin la distribución, el porcentaje usado con garantía desactivada es 50. Con garantía activa, `tension` en `[0,1]` determina límites que admiten una misma selección testigo para todas las restricciones. Enviar `tension` expresamente cuando la garantía está desactivada da 422.
 
-`target_engines` y `optimization_mode` son pistas opcionales de compatibilidad para validar capacidades antes de generar. El motor efectivo, sus opciones y cualquier peso se proporcionan al crear el job, no al generar la instancia.
+`target_engines` y `optimization_mode` son pistas opcionales de compatibilidad para validar capacidades antes de generar. El motor efectivo, sus opciones y cualquier peso se proporcionan al crear el job, no al generar la instancia; la plataforma no elige motor por el usuario.
 
 ## Salida JSON o BPMN y exportación
 
@@ -54,6 +54,14 @@ Para guardar los bytes exactos recibidos por HTTP, envíe
 serializarlos de nuevo no es una forma fiable de reconstruir los bytes del
 paquete. El script de QFBS en `experimentation/qacobench/generate_qfbs.py`
 registra la configuración, semilla y digests devueltos por HTTP para repetir la generación.
+
+## Permisos
+
+| Endpoint | Quién puede llamarlo |
+| --- | --- |
+| `POST /v1/generator/instances`, `/corpus`, `/convert-legacy` | Cualquiera, incluso sin cuenta: son funciones puras de la petición y no tocan estado compartido. Con `persist: true` hace falta cuenta (401), y adjuntar el resultado a un proyecto (`project_id`) exige rol MEMBER o superior en él. |
+
+Los tres endpoints son funciones puras de la petición (salvo `persist: true`). La calibración de un modelo compartido y el enrutado automático de motores se retiraron: ya no existe `calibrate-engine` en `routes/generator.py` (solo `/instances`, `/corpus` y `/convert-legacy`) y no hay sustituto.
 
 ## Límites y errores
 

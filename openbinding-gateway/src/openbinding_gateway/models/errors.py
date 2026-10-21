@@ -20,7 +20,22 @@ class ErrorBody(BaseModel):
     error: str = Field(..., description="Human-readable explanation.")
 
 
-class ErrorResponse(BaseModel):
+class ProblemKeys(BaseModel):
+    """The RFC 9457 keys added beside ``detail`` on every coded platform failure.
+
+    ``detail`` itself stays the ``{code, error, ...}`` object clients already
+    read; these repeat its code in the shape the 422 responses use (see
+    ``models/problem.py``), so one client branch can read ``code`` and ``status``
+    from any failure.
+    """
+
+    type: Optional[str] = Field(default=None, description="URI reference identifying the problem type.")
+    title: Optional[str] = Field(default=None, description="Same value as `code`.")
+    status: Optional[int] = Field(default=None, description="The HTTP status code.")
+    code: Optional[str] = Field(default=None, description="Same value as `detail.code`.")
+
+
+class ErrorResponse(ProblemKeys):
     """A failure, as it appears on the wire."""
 
     detail: ErrorBody
@@ -44,13 +59,29 @@ class QuotaBody(BaseModel):
     renews_at: Optional[str] = Field(
         default=None, description="When a renewable limit next resets."
     )
+    state: Optional[str] = Field(
+        default=None,
+        description=(
+            "Where the limit stands: `exhausted`, `unknown` (the gateway could not tell what the limit is; "
+            "`limit` is then absent) or `unmeasured` (the thing to measure could not be read). "
+            "Absent means `exhausted`."
+        ),
+    )
+    source: Optional[str] = Field(
+        default=None,
+        description=(
+            "Which limit refused: `plan` (the caller's plan), `technical` (a safeguard of this "
+            "deployment that no plan raises), `space` (a counter reported by the pricing service) "
+            "or `none` (no limit is known)."
+        ),
+    )
 
 
 class QuotaErrorBody(ErrorBody):
     quota: Optional[QuotaBody] = None
 
 
-class QuotaErrorResponse(BaseModel):
+class QuotaErrorResponse(ProblemKeys):
     """An allowance spent, or an instance beyond what the plan solves."""
 
     detail: QuotaErrorBody

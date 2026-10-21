@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from ..v1.package import InstancePackage
+from .package import GeneratedPackage
 from .compatibility import IncompatibleTargetEnginesError, TargetCapabilities, _load_engine_manifest, resolve_engine_capabilities
 from .legacy_parser import (
     CandidateService,
@@ -390,8 +390,8 @@ def generate_instance_package(
     seed: int | None = None,
     use_legacy_engine: bool = False,
     validate_compile: bool = True,
-) -> InstancePackage:
-    """Unified generator entrypoint producing a valid BIM v1 InstancePackage."""
+) -> GeneratedPackage:
+    """Unified generator entrypoint producing a valid BIM v1 package."""
     caps = resolve_engine_capabilities(target_engines)
     distributions = distributions or {}
     if features is not None:

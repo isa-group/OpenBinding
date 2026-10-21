@@ -3,6 +3,8 @@ package es.us.isa.qosawarewsbinding.api;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import es.us.isa.openbinding.core.EngineHttp;
+import es.us.isa.openbinding.core.EngineJobs;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -10,17 +12,34 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 
-/** Standalone HTTP deployment used by the federation example. */
+/**
+ * Standalone HTTP deployment used by the federation example.
+ *
+ * <p>PORT (default 8080) selects the port.  By default the engine is synchronous and serves the
+ * pinned {@code openapi.json} byte for byte.  With ENGINE_JOB_MODE=async it answers 202 with a job
+ * id, serves GET and DELETE on the jobs, and its {@code /openapi.json} is that same document plus
+ * the job endpoints and the {@code extensions.cancellation} capability.</p>
+ */
 public final class Server {
   private Server() {}
 
   public static void main(String[] args) throws IOException {
-    HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+    EngineHttp.Settings settings = EngineHttp.Settings.fromEnvironment(System.getenv());
+    HttpServer server = HttpServer.create(new InetSocketAddress(settings.port()), 0);
     server.createContext("/health", new StaticHandler(
         "application/json", "{\"status\":\"ok\"}".getBytes("UTF-8")));
-    server.createContext("/openapi.json", new StaticHandler(
-        "application/json", resource("/openapi.json")));
-    server.createContext("/internal/v1/binding-problems", new Controller());
+    byte[] openApi = resource("/openapi.json");
+    if (!settings.async()) {
+      server.createContext("/openapi.json", new StaticHandler("application/json", openApi));
+    }
+    Controller controller = new Controller();
+    final EngineJobs jobs = EngineHttp.install(server, controller, controller, settings,
+        "Federated Multi-Heuristic BIM Engine", openApi);
+    if (jobs != null) {
+      Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+        @Override public void run() { jobs.close(); }
+      }));
+    }
     server.setExecutor(Executors.newCachedThreadPool());
     server.start();
   }

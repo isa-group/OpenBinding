@@ -1,14 +1,21 @@
 import type { Neighborhood } from '../analysis/neighborhood';
 import { config } from '../config';
 import { PricingUnavailableError, QuotaError } from './auth';
+import { bindingSpaceFrom, limitNoticeFrom, type BindingSpaceReport, type LimitNotice } from './limitNotice';
 import type {
   AdminUserPage,
   AdminSubscriptionView,
   AdminUserView,
   ApiKeySummary,
   AdminAuditPage,
+  AdminModerationOverview,
   AdminOverview,
   AdminQueueStatus,
+  AdminSponsorTransferResult,
+  CasSession,
+  PlanChange,
+  SponsorProposal,
+  SponsorProposalStatus,
   CreateApiKeyRequest,
   CreatedApiKey,
   ContractChangeReason,
@@ -16,13 +23,16 @@ import type {
   MaintenancePreview,
   Notification,
   NotificationPreferences,
+  PricingCatalog,
+  PricingCurrentView,
   RoleName,
   TokenPair,
-  UsageResyncResult,
   UsageView,
   UserProfile,
 } from './auth';
 import type { AdminErrorOverview, AdminErrorListResponse } from '../pages/Admin/types';
+import { rememberCasFlow } from '../utils/authFlow';
+import { randomUUID } from '../utils/uuid';
 
 /** One solve in an account's history. */
 export type Termination = 'OPTIMAL' | 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN';
@@ -152,6 +162,16 @@ export interface CapabilitySelector {
   values?: string[];
 }
 
+/**
+ * One objective scalarization an engine mode offers (`capabilities.scalarizations.values`). That dimension is the one
+ * whose values are objects rather than names, so it is read from the document, not through `EngineCapabilities`.
+ */
+export interface ScalarizationDeclaration {
+  id: string;
+  objectiveTypes: Array<'SINGLE' | 'MULTI' | 'MANY'>;
+  weightPolicy: 'required' | 'optional' | 'forbidden';
+}
+
 export interface EngineCapabilities {
   workflowNodes: CapabilitySelector;
   metricScopes: CapabilitySelector;
@@ -162,6 +182,9 @@ export interface EngineCapabilities {
   expressions: CapabilitySelector;
   placement: CapabilitySelector;
   irExtensions: CapabilitySelector;
+  /** `scalar`, `interval` (a range). The gateway makes this dimension mandatory for the qos-binding profile. */
+  featureValues?: CapabilitySelector;
+  featureScopes?: CapabilitySelector;
 }
 
 export interface EngineMode {
@@ -243,6 +266,45 @@ export interface EngineRegistrationReport extends EngineRegistrationRevision {
   engine: EngineManifest | null;
   report: Record<string, unknown> | null;
 }
+
+/** One published, immutable resource listed by GET /v1/resources. */
+export interface RegisteredResource extends BimResourceRef {
+  role: string;
+  apiVersion: string;
+  kind: string;
+  dialect: string;
+  mediaType: string;
+  status: 'published';
+}
+
+/** The engine list, and whether it is the public one because the session could not be used (401). */
+export interface EngineCatalogResult {
+  engines: EngineCatalogEntry[];
+  fellBackToPublic: boolean;
+}
+
+/** 200 from POST /v1/instances/validate: the package compiled and is pinned by these digests. */
+export interface PackageValidation {
+  valid: true;
+  instanceDigest: string;
+  packageDigest: string;
+  fileDigests: Record<string, string>;
+  resourceDigests: Record<string, string>;
+  irDigest: string;
+  diagnostics: Array<Record<string, unknown>>;
+}
+
+/** 422 from the same endpoint: the package was read and found invalid; each diagnostic says where. */
+export interface PackageRefusal {
+  status: number;
+  code: string;
+  message: string;
+  diagnostics: Array<Record<string, unknown>>;
+}
+
+export type PackageValidationOutcome =
+  | { valid: true; result: PackageValidation }
+  | { valid: false; refusal: PackageRefusal };
 
 export const BIM_SCHEMA_KINDS = [
   'Instance',
@@ -363,8 +425,13 @@ export class HttpError extends Error {
   code?: string;
   problem?: unknown;
   diagnostics?: unknown[];
-  concurrency?: { limit_id: string; limit: number; used: number };
+  /** What a 429 names: the limit, how many jobs are in flight, and whose limit it is (`plan` or `technical`). */
+  concurrency?: { limit_id: string; limit: number; used: number; source?: string; unit?: string };
   retryAfter?: number;
+  /** The limit a refusal names (a 403 or 422 about a size limit carries one, with its state and source). */
+  notice?: LimitNotice;
+  /** The measured size, when the refusal is about the binding space. */
+  bindingSpace?: BindingSpaceReport;
 
   constructor(status: number, statusText: string) {
     super(`HTTP ${status}: ${statusText}`);
@@ -373,7 +440,7 @@ export class HttpError extends Error {
 }
 
 /** Where the session lives. Header-based rather than cookies: see AuthContext. */
-const ACCESS_TOKEN_KEY = 'openbinding-access-token';
+export const ACCESS_TOKEN_KEY = 'openbinding-access-token';
 const REFRESH_TOKEN_KEY = 'openbinding-refresh-token';
 const PRICING_TOKEN_KEY = 'pricingToken';
 
@@ -397,8 +464,9 @@ export function getStoredPricingToken(): string | null {
 
 /**
  * Fired when a session ends without the user asking - a refresh token that was
- * spent, revoked or expired. AuthContext listens and clears the user, so that
- * every tab notices rather than only the one that made the request.
+ * spent, revoked or expired. AuthContext listens and clears the user. The event is local
+ * to the tab that made the request; the other tabs learn of it from the `storage` event
+ * that clearing the tokens raises (see AuthContext).
  */
 export const SESSION_ENDED_EVENT = 'openbinding:session-ended';
 
@@ -450,6 +518,8 @@ export class ApiClient {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(PRICING_TOKEN_KEY);
+    // Whoever shows the state of the pricing token (the usage screen) learns that there is none.
+    window.dispatchEvent(new CustomEvent(PRICING_TOKEN_UPDATED_EVENT));
   }
 
   private authHeaders(): Record<string, string> {
@@ -513,7 +583,10 @@ export class ApiClient {
     const problemObject = isRecord(problem) ? problem : undefined;
     const rawDetail = problemObject?.detail;
     const detail = isRecord(rawDetail) ? rawDetail : undefined;
+    // The canonical `code` sits at the top of every coded failure (and a 422 has nothing else); the old
+    // `detail.code` and the BIM routes' `title` (always equal to `code`) are what older bodies carry.
     const code =
+      (typeof problemObject?.code === 'string' ? problemObject.code : undefined) ??
       (typeof detail?.code === 'string' ? detail.code : undefined) ??
       (typeof problemObject?.title === 'string' ? problemObject.title : undefined);
     const message =
@@ -523,8 +596,14 @@ export class ApiClient {
       response.statusText;
 
     const rawQuota = detail?.quota ?? problemObject?.quota;
+    // Where the limit stands, and for a binding space how big it is: top level or inside `detail`, like the quota.
+    const notice = limitNoticeFrom(rawQuota);
+    const bindingSpace = bindingSpaceFrom(detail?.binding_space ?? problemObject?.binding_space);
     if (response.status === 402) {
-      return new QuotaError(code ?? 'quota_exceeded', message, quotaFromProblem(rawQuota));
+      const quotaError = new QuotaError(code ?? 'quota_exceeded', message, quotaFromProblem(rawQuota));
+      quotaError.notice = notice;
+      quotaError.bindingSpace = bindingSpace;
+      return quotaError;
     }
     if (response.status === 429) {
       const rawConcurrency = detail?.concurrency ?? problemObject?.concurrency;
@@ -537,6 +616,8 @@ export class ApiClient {
           limit_id: rawConcurrency.limit_id,
           limit: rawConcurrency.limit,
           used: typeof rawConcurrency.used === 'number' ? rawConcurrency.used : 0,
+          ...(typeof rawConcurrency.source === 'string' ? { source: rawConcurrency.source } : {}),
+          ...(typeof rawConcurrency.unit === 'string' ? { unit: rawConcurrency.unit } : {}),
         };
       }
       if (retryAfterHeader) {
@@ -549,19 +630,27 @@ export class ApiClient {
       return new PricingUnavailableError(message);
     }
     const error = new HttpError(response.status, message);
-    error.code = typeof problemObject?.title === 'string' ? problemObject.title : code;
+    error.code = code;
     error.problem = problem;
+    error.notice = notice;
+    error.bindingSpace = bindingSpace;
     error.diagnostics = Array.isArray(problemObject?.diagnostics)
       ? problemObject.diagnostics
       : Array.isArray(detail?.diagnostics) ? detail.diagnostics : [];
     return error;
   }
 
+  /**
+   * `retryOnUnauthorized` turns off the silent refresh (a login form has no session to renew);
+   * `throwOnValidation` (on unless a caller turns it off) makes a 422 an HttpError with the gateway's code and diagnostics;
+   * pass `false` only where a 422 is a result the caller reads from the body (a package found invalid, a pricing document refused).
+   */
   async request<T>(
     endpoint: string,
     options: RequestInit = {},
     timeoutMs?: number,
-    retryOnUnauthorized = true
+    retryOnUnauthorized = true,
+    throwOnValidation = true,
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
@@ -585,16 +674,17 @@ export class ApiClient {
       // once and try again. A second 401 means the session is genuinely over.
       if (response.status === 401 && retryOnUnauthorized && this.getAccessToken()) {
         if (await this.refreshSession()) {
-          return this.request<T>(endpoint, options, timeoutMs, false);
+          return this.request<T>(endpoint, options, timeoutMs, false, throwOnValidation);
         }
         this.endSession();
       }
 
-      // Handle validation errors (422) specially
+      // A 422 is an error unless the caller asked for its body as a result.
+      if (response.status === 422 && throwOnValidation) {
+        throw await this.errorFor(response);
+      }
       if (response.status === 422) {
-        const errorData = await response.json();
-        // Return the error data as-is so the caller can handle violations
-        return errorData as T;
+        return await response.json() as T;
       }
 
       if (!response.ok) {
@@ -707,6 +797,34 @@ export class ApiClient {
     }
   }
 
+  /**
+   * The engines this caller may see. A rejected session (401) falls back to the public list, as `getEngines` does,
+   * but says so: the catalog screen tells the reader that their private engines are hidden.
+   */
+  async getCatalogEngines(): Promise<EngineCatalogResult> {
+    try {
+      const body = await this.request<{ engines: EngineCatalogEntry[] }>('/v1/engines');
+      return { engines: body.engines || [], fellBackToPublic: false };
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 401) {
+        return { engines: await this.getPublicEngines(), fellBackToPublic: true };
+      }
+      throw error;
+    }
+  }
+
+  /** Published registered resources (GET /v1/resources); public. */
+  async getRegisteredResources(): Promise<RegisteredResource[]> {
+    const body = await this.request<{ resources: RegisteredResource[] }>('/v1/resources');
+    return body.resources || [];
+  }
+
+  /** The exact published bytes of one registered resource, fetched by all four pins. */
+  async getRegisteredResourceContent(ref: BimResourceRef): Promise<ArrayBuffer> {
+    const query = new URLSearchParams({ namespace: ref.namespace, version: ref.version, revision: ref.digest });
+    return this.requestBinary(`/v1/resources/${encodeURIComponent(ref.name)}?${query}`);
+  }
+
   async getProfiles(): Promise<BimProfile[]> {
     const body = await this.request<{ profiles: BimProfile[] }>('/v1/profiles');
     return body.profiles || [];
@@ -721,24 +839,52 @@ export class ApiClient {
     return this.request<Record<string, unknown>>(`/v1/schemas/${encodeURIComponent(kind)}`);
   }
 
-  async validateBimPackage(archive: Uint8Array): Promise<BimAnalysisResponse> {
-    return this.request<BimAnalysisResponse>('/v1/validate', {
+  /**
+   * Validate a package without an account and without running an engine (POST /v1/instances/validate).
+   *
+   * A package the gateway reads and rejects answers 422 with diagnostics; that is a result, not a failure, so it
+   * comes back as `{ valid: false }`. Too large (413), wrong media type (415) and rate limits (429) throw HttpError.
+   */
+  async validatePackage(archive: Uint8Array, signal?: AbortSignal): Promise<PackageValidationOutcome> {
+    const body = await this.request<Record<string, unknown>>('/v1/instances/validate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/vnd.bim+zip' },
       body: archive as unknown as BodyInit,
-    });
-  }
-
-  async analyzeBimPackage(archive: Uint8Array): Promise<BimAnalysisResponse> {
-    return this.validateBimPackage(archive);
-  }
-
-  async createBimSnapshot(archive: Uint8Array): Promise<{ id: string; irDigest: string }> {
-    return this.request<{ id: string; irDigest: string }>('/v1/instances', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/vnd.bim+zip' },
-      body: archive as unknown as BodyInit,
-    });
+      signal,
+    }, undefined, true, false);
+    if (isRecord(body) && body.valid === true) {
+      return {
+        valid: true,
+        result: {
+          valid: true,
+          instanceDigest: String(body.instanceDigest ?? ''),
+          packageDigest: String(body.packageDigest ?? ''),
+          fileDigests: isRecord(body.fileDigests) ? body.fileDigests as Record<string, string> : {},
+          resourceDigests: isRecord(body.resourceDigests) ? body.resourceDigests as Record<string, string> : {},
+          irDigest: String(body.irDigest ?? ''),
+          diagnostics: Array.isArray(body.diagnostics) ? body.diagnostics.filter(isRecord) : [],
+        },
+      };
+    }
+    const detail = isRecord(body) ? body.detail : undefined;
+    const detailRecord = isRecord(detail) ? detail : undefined;
+    const diagnostics = isRecord(body) && Array.isArray(body.diagnostics)
+      ? body.diagnostics
+      : Array.isArray(detailRecord?.diagnostics) ? detailRecord.diagnostics : [];
+    return {
+      valid: false,
+      refusal: {
+        status: typeof body?.status === 'number' ? body.status : 422,
+        code: (typeof body?.code === 'string' ? body.code : undefined)
+          ?? (typeof body?.title === 'string' ? body.title : undefined)
+          ?? (typeof detailRecord?.code === 'string' ? detailRecord.code : undefined) ?? 'invalid_request',
+        message: (typeof detail === 'string' ? detail : undefined)
+          ?? (typeof detailRecord?.message === 'string' ? detailRecord.message : undefined)
+          ?? (typeof detailRecord?.error === 'string' ? detailRecord.error : undefined)
+          ?? 'The package could not be validated.',
+        diagnostics: diagnostics.filter(isRecord),
+      },
+    };
   }
 
   async getBimSnapshotIr(snapshot: string): Promise<Record<string, unknown>> {
@@ -751,7 +897,7 @@ export class ApiClient {
     registration: BimResourceRef,
     mode?: string,
     options: Record<string, unknown> = {},
-    idempotencyKey: string = crypto.randomUUID(),
+    idempotencyKey: string = randomUUID(),
   ): Promise<{ id: string; status: string; irDigest: string }> {
     return this.request<{ id: string; status: string; irDigest: string }>('/v1/jobs', {
       method: 'POST',
@@ -760,13 +906,13 @@ export class ApiClient {
     });
   }
 
-  async getV1Job(jobId: string): Promise<V1JobStatus> {
-    return this.request<V1JobStatus>(`/v1/jobs/${jobId}`);
+  async getV1Job(jobId: string, signal?: AbortSignal): Promise<V1JobStatus> {
+    return this.request<V1JobStatus>(`/v1/jobs/${encodeURIComponent(jobId)}`, signal ? { signal } : {});
   }
 
   async createConfiguredBimJob(snapshot: string, configuration: import('./library').ArtifactRef): Promise<{ id: string; status: string; irDigest: string }> {
     return this.request('/v1/jobs', {
-      method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() },
+      method: 'POST', headers: { 'Idempotency-Key': randomUUID() },
       body: JSON.stringify({ snapshot, configuration }),
     });
   }
@@ -784,7 +930,7 @@ export class ApiClient {
     const query = new URLSearchParams({ solution_index: String(solutionIndex), limit: String(limit) });
     if (task) query.set('task', task);
     const result = await this.request<Neighborhood & { detail?: string; title?: string }>(`/v1/jobs/${encodeURIComponent(jobId)}/analysis/neighborhood?${query}`, { signal });
-    // The generic client preserves validation bodies for form consumers; this endpoint needs a real result.
+    // A 422 throws; this guards a 200 whose body is not an evaluation.
     if (!result.coverage || !Array.isArray(result.moves)) throw new Error(typeof result.detail === 'string' ? result.detail : result.title || 'Neighborhood evaluation could not be completed');
     return result;
   }
@@ -867,14 +1013,14 @@ export class ApiClient {
     return this.request<UserProfile>('/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify(details),
-    });
+    }, undefined, false, true);
   }
 
   async login(usernameOrEmail: string, password: string): Promise<TokenPair> {
     const tokens = await this.request<TokenPair>('/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username_or_email: usernameOrEmail, password }),
-    });
+    }, undefined, false, true);
     this.setTokens(tokens);
     return tokens;
   }
@@ -898,6 +1044,7 @@ export class ApiClient {
     return this.request<UserProfile>('/v1/users/me');
   }
 
+  /** A refused submission (422 weak password) throws instead of being read as the new profile. */
   async updateOwnProfile(changes: {
     email?: string;
     current_password?: string;
@@ -906,19 +1053,19 @@ export class ApiClient {
     return this.request<UserProfile>('/v1/users/me', {
       method: 'PATCH',
       body: JSON.stringify(changes),
-    });
+    }, undefined, true, true);
   }
 
   async requestPasswordReset(email: string): Promise<{ accepted: boolean; delivery: string; token?: string }> {
     return this.request('/v1/auth/password-reset/request', {
       method: 'POST', body: JSON.stringify({ email }),
-    });
+    }, undefined, false, true);
   }
 
   async completePasswordReset(token: string, newPassword: string): Promise<void> {
     await this.request('/v1/auth/password-reset/complete', {
       method: 'POST', body: JSON.stringify({ token, new_password: newPassword }),
-    });
+    }, undefined, false, true);
   }
 
   casStartUrl(mode: 'login' | 'link' = 'login'): string {
@@ -927,14 +1074,22 @@ export class ApiClient {
 
   async createCasLinkIntent(): Promise<string> {
     const response = await this.request<{ url: string }>('/v1/auth/cas/link-intent', { method: 'POST' });
+    // The caller navigates to this URL next; the callback page needs to know it is a link, not a login.
+    rememberCasFlow('link');
     return response.url;
   }
 
-  async exchangeCasCode(code: string): Promise<void> {
-    const tokens = await this.request<TokenPair>('/v1/auth/cas/exchange', {
+  /**
+   * Trade the one-time code of the CAS redirect for a session. Answers the plan change that signing in caused (linking CAS raises
+   * BASIC to RESEARCH, at no extra cost), or `null` when the plan did not change.
+   */
+  async exchangeCasCode(code: string): Promise<PlanChange | null> {
+    const session = await this.request<CasSession>('/v1/auth/cas/exchange', {
       method: 'POST', body: JSON.stringify({ code }),
-    });
-    this.setTokens(tokens);
+    }, undefined, false, true);
+    this.setTokens(session);
+    const change = session.plan_changed;
+    return change && typeof change.to === 'string' ? change : null;
   }
 
   async listOwnIdentities(): Promise<ExternalIdentity[]> {
@@ -949,7 +1104,7 @@ export class ApiClient {
   async deleteOwnAccount(confirmation: string, currentPassword?: string): Promise<void> {
     await this.request('/v1/users/me', {
       method: 'DELETE', body: JSON.stringify({ confirmation, current_password: currentPassword || null }),
-    });
+    }, undefined, true, true);
   }
 
   async listNotifications(unreadOnly = false): Promise<Notification[]> {
@@ -971,7 +1126,7 @@ export class ApiClient {
   }
 
   async updateNotificationPreferences(value: NotificationPreferences): Promise<NotificationPreferences> {
-    return this.request('/v1/notifications/preferences', { method: 'PUT', body: JSON.stringify(value) });
+    return this.request('/v1/notifications/preferences', { method: 'PUT', body: JSON.stringify(value) }, undefined, true, true);
   }
 
   async listApiKeys(): Promise<ApiKeySummary[]> {
@@ -981,10 +1136,11 @@ export class ApiClient {
 
   /** The response carries the secret. It is the only one that ever will. */
   async createApiKey(payload: CreateApiKeyRequest): Promise<CreatedApiKey> {
+    // A 422 (engines missing for the chosen permissions, past expiry) throws: its body is not a key.
     return this.request<CreatedApiKey>('/v1/users/me/api-keys', {
       method: 'POST',
       body: JSON.stringify(payload),
-    });
+    }, undefined, true, true);
   }
 
   async revokeApiKey(keyId: string): Promise<void> {
@@ -1014,14 +1170,19 @@ export class ApiClient {
   }
 
   /**
-   * The Pricing2Yaml document this gateway is sold under.
+   * The active Pricing2Yaml document, digest-verified by the gateway and served as JSON.
    *
    * Fetched rather than bundled, so the plans page cannot drift from the
    * document SPACE was actually given. Public: a pricing nobody can read
    * before signing up is not much of a pricing.
    */
-  async getPricingDocument(): Promise<string> {
-    return this.requestText('/v1/pricing');
+  async getPricingCatalog(): Promise<PricingCatalog> {
+    return this.request<PricingCatalog>('/v1/pricing/catalog');
+  }
+
+  /** The live public release: version, content digest and where SPHERE publishes it. 404 when none is live. */
+  async getCurrentPricing(): Promise<PricingCurrentView> {
+    return this.request<PricingCurrentView>('/v1/pricing/current');
   }
 
   /** What the interface gates features with; the browser never sees SPACE. */
@@ -1056,15 +1217,18 @@ export class ApiClient {
     return this.request<AdminUserView>(`/v1/admin/users/${userId}`, {
       method: 'PATCH',
       body: JSON.stringify(changes),
-    });
+    }, undefined, true, true);
   }
 
-  /** Apply an administrator-authorized SPACE contract novation. */
+  /**
+   * Apply an administrator-authorized SPACE contract novation, keeping the add-ons the account already has.
+   * A 422 (`invalid_subscription`) throws instead of coming back as if it were the answer.
+   */
   async adminChangePlan(userId: string, plan: string): Promise<AdminUserView> {
     return this.request<AdminUserView>(`/v1/admin/users/${userId}/plan`, {
       method: 'POST',
       body: JSON.stringify({ plan }),
-    });
+    }, undefined, true, true);
   }
 
   async adminGetSubscription(userId: string): Promise<AdminSubscriptionView> {
@@ -1083,7 +1247,7 @@ export class ApiClient {
     return this.request<AdminSubscriptionView>(`/v1/admin/users/${userId}/subscription`, {
       method: 'POST',
       body: JSON.stringify(value),
-    });
+    }, undefined, true, true);
   }
 
   async adminGetUserUsage(userId: string): Promise<UsageView> {
@@ -1096,23 +1260,87 @@ export class ApiClient {
     });
   }
 
-  async adminResyncUsage(userId: string): Promise<UsageResyncResult> {
-    return this.request<UsageResyncResult>(`/v1/admin/users/${userId}/usage/resync`, {
-      method: 'POST',
-    });
-  }
-
   async adminOverview(): Promise<AdminOverview> {
     return this.request('/v1/admin/overview');
   }
 
-  async adminAudit(action?: string): Promise<AdminAuditPage> {
-    const query = action ? `?action=${encodeURIComponent(action)}` : '';
-    return this.request(`/v1/admin/audit${query}`);
+  /**
+   * The platform audit log, newest first: platform events and the events recorded inside an organization (`organizationId`,
+   * `organizationSlug`). `action` is an exact action name and `organizationId` keeps one organization's events;
+   * the gateway's page is 100 events unless `limit` (at most 500) says otherwise.
+   */
+  async adminAudit(filter?: string | { action?: string; organizationId?: string; offset?: number; limit?: number }): Promise<AdminAuditPage> {
+    const { action, organizationId, offset, limit } = typeof filter === 'string'
+      ? { action: filter, organizationId: undefined, offset: undefined, limit: undefined }
+      : filter ?? {};
+    const query = new URLSearchParams();
+    if (action) query.set('action', action);
+    if (organizationId) query.set('organization_id', organizationId);
+    if (offset) query.set('offset', String(offset));
+    if (limit) query.set('limit', String(limit));
+    const suffix = query.toString() ? `?${query}` : '';
+    return this.request(`/v1/admin/audit${suffix}`);
   }
 
   async adminQueues(): Promise<AdminQueueStatus> {
     return this.request('/v1/admin/queues');
+  }
+
+  /** How many engines, dialects and engine registrations sit in each publication state. */
+  async adminModeration(): Promise<AdminModerationOverview> {
+    return this.request('/v1/admin/moderation');
+  }
+
+  /**
+   * Name the billing sponsor of an organization and its whole subtree. Nobody can make another person pay: naming somebody else
+   * answers 202 with a pending {@link SponsorProposal} and the sponsor does not change until that person accepts; naming the
+   * administrator themselves changes it at once (200, the organization).
+   * 404 unknown organization, 422 `invalid_sponsor` (not active), 409 `sponsor_proposal_pending` (with `proposal_id`; the
+   * proposer may send `replacePending`) or `already_sponsor`, 402 `sponsor_quota_exceeded` (naming oneself: a {@link QuotaError}
+   * naming the first dimension), 503 when limits can't be read.
+   */
+  async adminTransferSponsor(organizationId: string, sponsorUserId: string, replacePending = false): Promise<AdminSponsorTransferResult | SponsorProposal> {
+    return this.request<AdminSponsorTransferResult | SponsorProposal>(`/v1/admin/organizations/${encodeURIComponent(organizationId)}/sponsor`, {
+      method: 'POST',
+      body: JSON.stringify({ billing_sponsor_user_id: sponsorUserId, ...(replacePending ? { replace_pending_proposal: true } : {}) }),
+    }, undefined, true, true);
+  }
+
+  // -- Sponsor requests ------------------------------------------------
+
+  /** The requests addressed to me (`GET /v1/users/me/sponsor-proposals`), newest first as the gateway sends them. */
+  async listMySponsorProposals(status?: SponsorProposalStatus): Promise<SponsorProposal[]> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    return this.request<SponsorProposal[]>(`/v1/users/me/sponsor-proposals${query}`);
+  }
+
+  /** The requests made for one organization. OWNER or ADMIN of it (and platform administrators); 404 for a non-member, 403 below ADMIN. */
+  async listOrganizationSponsorProposals(organization: string, status?: SponsorProposalStatus): Promise<SponsorProposal[]> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    return this.request<SponsorProposal[]>(`/v1/organizations/${encodeURIComponent(organization)}/sponsor-proposals${query}`);
+  }
+
+  private async answerSponsorProposal(id: string, answer: 'accept' | 'decline' | 'cancel'): Promise<SponsorProposal> {
+    return this.request<SponsorProposal>(`/v1/sponsor-proposals/${encodeURIComponent(id)}/${answer}`, { method: 'POST' }, undefined, true, true);
+  }
+
+  /**
+   * Accept being the sponsor (only the person it names). The consumption of the organization and its subtree moves to their plan.
+   * 402 `sponsor_quota_exceeded` and 503 `pricing_unavailable` leave the request pending, so it can be tried again.
+   * 409 `sponsor_proposal_expired` or `sponsor_proposal_not_pending`.
+   */
+  async acceptSponsorProposal(id: string): Promise<SponsorProposal> {
+    return this.answerSponsorProposal(id, 'accept');
+  }
+
+  /** Decline being the sponsor (only the person it names). */
+  async declineSponsorProposal(id: string): Promise<SponsorProposal> {
+    return this.answerSponsorProposal(id, 'decline');
+  }
+
+  /** Withdraw a request: its proposer, an OWNER of the organization or a platform administrator. An ADMIN of the organization gets 403. */
+  async cancelSponsorProposal(id: string): Promise<SponsorProposal> {
+    return this.answerSponsorProposal(id, 'cancel');
   }
 
   async adminMaintenancePreview(retentionDays = 365): Promise<MaintenancePreview> {
@@ -1123,35 +1351,25 @@ export class ApiClient {
     return this.request('/v1/admin/maintenance/reconcile-jobs', { method: 'POST' });
   }
 
-  async adminPurgeExpired(confirmation: string, retentionDays = 365): Promise<Record<string, number>> {
+  /** `errorRetentionDays` is how long error events are kept (1–3650, the gateway defaults to 90); it isn't part of the preview. */
+  async adminPurgeExpired(confirmation: string, retentionDays = 365, errorRetentionDays?: number): Promise<Record<string, number>> {
     return this.request('/v1/admin/maintenance/purge', {
       method: 'POST',
-      body: JSON.stringify({ confirmation, terminal_job_retention_days: retentionDays }),
+      body: JSON.stringify({
+        confirmation,
+        terminal_job_retention_days: retentionDays,
+        ...(errorRetentionDays === undefined ? {} : { error_retention_days: errorRetentionDays }),
+      }),
     });
   }
 
   /**
-   * A 422 body, turned into something a caller can throw.
-   *
-   * `request()` returns validation errors instead of throwing, because a v1
-   * instance diagnosis is a normal result worth rendering. For the engine
-   * endpoints it is not: a registration either happened or it did not,
-   * and a caller that cannot tell the two apart shows an empty success page.
-  */
-  private orThrow<T extends object>(body: T): T {
-    const detail = (body as { detail?: unknown }).detail;
-    if (detail && typeof detail === 'object') {
-      const problem = detail as Record<string, unknown>;
-      if (!problem.code && !problem.error) return body;
-      const error = new Error(
-        typeof problem.error === 'string' ? problem.error : 'The request was refused.',
-      ) as Error & { code?: unknown; violations?: unknown; detail?: unknown };
-      error.code = problem.code;
-      error.violations = problem.violations;
-      error.detail = detail;
-      throw error;
-    }
-    return body;
+   * Publish a Dialect or registered resource revision that waits for review (`extensions:moderate`). The gateway lists no pending
+   * dialects or resources, so the exact revision is named by the caller; there is no reject for them.
+   */
+  async adminApproveExtension(kind: 'dialect' | 'resource', ref: { namespace: string; name: string; version: string; revision: string }): Promise<{ namespace: string; name: string; version: string; digest: string; status: string }> {
+    const query = new URLSearchParams({ namespace: ref.namespace, version: ref.version, revision: ref.revision });
+    return this.request(`/v1/${kind === 'dialect' ? 'dialects' : 'resources'}/${encodeURIComponent(ref.name)}/approve?${query.toString()}`, { method: 'POST' }, undefined, true, true);
   }
 
   private requireExactResourceRef<T extends object>(body: T): T & BimResourceRef {
@@ -1165,14 +1383,17 @@ export class ApiClient {
 
   // -- Immutable Engine and EngineRegistration resources ---------------
 
-  /** Publish a portable bim/v1 Engine document without inventing UI-only fields. */
+  /**
+   * Publish a portable bim/v1 Engine document without inventing UI-only fields.
+   * A refused document (422 `invalid_engine`) throws an HttpError whose `diagnostics` say where.
+   */
   async createEngine(manifest: EngineManifest): Promise<EngineRevision> {
-    return this.requireExactResourceRef(this.orThrow(
+    return this.requireExactResourceRef(
       await this.request<EngineRevision>('/v1/engines', {
         method: 'POST',
         body: JSON.stringify(manifest),
       })
-    ));
+    );
   }
 
   /** Read the pinned BIM engine protocol digest advertised by the gateway. */
@@ -1206,12 +1427,12 @@ export class ApiClient {
   async createEngineRegistration(
     manifest: EngineRegistrationManifest,
   ): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(this.orThrow(
+    return this.requireExactResourceRef(
       await this.request<EngineRegistrationRevision>('/v1/engine-registrations', {
         method: 'POST',
         body: JSON.stringify(manifest),
       })
-    ));
+    );
   }
 
   async listEngineRegistrations(): Promise<EngineRegistrationRevision[]> {
@@ -1270,7 +1491,7 @@ export class ApiClient {
     return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'credential'), {
       method: 'PUT',
       body: JSON.stringify({ secret }),
-    }));
+    }, undefined, true, true));
   }
 
   async adminListEngineRegistrations(): Promise<EngineRegistrationRevision[]> {
@@ -1315,90 +1536,6 @@ export class ApiClient {
     if (params?.offset !== undefined) query.set('offset', String(params.offset));
     const qs = query.toString();
     return this.request<AdminErrorListResponse>(`/v1/admin/errors${qs ? `?${qs}` : ''}`);
-  }
-
-  // ==========================================
-  // QACO Generator & Legacy Conversion
-  // ==========================================
-
-  async generateBimInstance(params: GenerateInstanceParams): Promise<InstanceGeneratedResponse> {
-    return this.request<InstanceGeneratedResponse>('/v1/generator/instances', {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  }
-
-  async generateBimCorpus(params: GenerateCorpusParams): Promise<CorpusGeneratedResponse> {
-    return this.request<CorpusGeneratedResponse>('/v1/generator/corpus', {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  }
-
-  async convertLegacyBimProblem(params: ConvertLegacyParams): Promise<InstanceGeneratedResponse> {
-    return this.request<InstanceGeneratedResponse>('/v1/generator/convert-legacy', {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  }
-
-  async calibrateEngineSurrogate(params: CalibrateEngineParams): Promise<EngineCalibratedResponse> {
-    return this.request<EngineCalibratedResponse>('/v1/generator/calibrate-engine', {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  }
-
-  // ==========================================
-  // Admin AutoRouter & MAPE-K Monitoring
-  // ==========================================
-
-  async adminGetEngineRoutingMetrics(): Promise<EngineRoutingMetricsResponse> {
-    return this.request<EngineRoutingMetricsResponse>('/v1/admin/engine-routing/metrics');
-  }
-
-  async adminListEngineRoutingObservations(params?: {
-    engine?: string;
-    limit?: number;
-    offset?: number;
-  }): Promise<EngineRoutingObservationsResponse> {
-    const query = new URLSearchParams();
-    if (params?.engine) query.set('engine', params.engine);
-    if (params?.limit !== undefined) query.set('limit', String(params.limit));
-    if (params?.offset !== undefined) query.set('offset', String(params.offset));
-    const qs = query.toString();
-    return this.request<EngineRoutingObservationsResponse>(`/v1/admin/engine-routing/observations${qs ? `?${qs}` : ''}`);
-  }
-
-  async adminRecalibrateEngineRouting(): Promise<EngineRoutingRecalibrateResponse> {
-    return this.request<EngineRoutingRecalibrateResponse>('/v1/admin/engine-routing/recalibrate', {
-      method: 'POST',
-    });
-  }
-
-  // ==========================================
-  // AutoRouter Job Submission
-  // ==========================================
-
-  async createAutoRouterBimJob(
-    snapshot: string,
-    routingOptions?: AutoRoutingOptions,
-    options: Record<string, unknown> = {},
-    idempotencyKey: string = crypto.randomUUID(),
-  ): Promise<{ id: string; status: string; irDigest: string }> {
-    const mergedOptions = {
-      ...options,
-      routing: routingOptions ?? { strategy: 'auto', profile: 'balanced' },
-    };
-    return this.request<{ id: string; status: string; irDigest: string }>('/v1/jobs', {
-      method: 'POST',
-      headers: { 'Idempotency-Key': idempotencyKey },
-      body: JSON.stringify({
-        snapshot,
-        engine: 'auto',
-        options: mergedOptions,
-      }),
-    });
   }
 }
 
@@ -1517,175 +1654,6 @@ export interface ConvertLegacyParams {
   persist?: boolean;
   project_id?: string | null;
   case_name?: string | null;
-}
-
-export interface CalibrateEngineParams {
-  engine: string;
-  mode?: string;
-  observations?: Array<{
-    workload_features: Record<string, unknown>;
-    latency: number;
-    quality: number;
-    success: boolean;
-  }>;
-}
-
-export interface EngineCalibratedResponse {
-  engine: string;
-  mode: string;
-  sample_count: number;
-  latency_coefficients: Record<string, number>;
-  quality_coefficients: Record<string, number>;
-  failure_risk_coefficients: Record<string, number>;
-  r2_score: number;
-  status: string;
-}
-
-// ==========================================
-// Auto-Router & MAPE-K Types
-// ==========================================
-
-export interface AutoRoutingHardConstraints {
-  maxCredits?: number;
-  maxTimeBudgetMs?: number;
-  minQuality?: number;
-  requireExact?: boolean;
-  minConfidence?: number;
-  maxFailureRisk?: number;
-}
-
-export interface AutoRoutingSoftPreferences {
-  weights?: {
-    quality?: number;
-    latency?: number;
-    costCredits?: number;
-    reliability?: number;
-    confidence?: number;
-  };
-}
-
-export interface AutoRoutingOptions {
-  strategy?: 'auto' | string;
-  profile?: 'balanced' | 'quality_first' | 'latency_first' | 'cost_first';
-  hardConstraints?: AutoRoutingHardConstraints;
-  softPreferences?: AutoRoutingSoftPreferences;
-  adaptation?: {
-    allowFallback?: boolean;
-    fallbackTimeoutMs?: number;
-  };
-}
-
-export interface EngineRoutingUserProvenance {
-  selectedEngine: string;
-  selectedMode: string;
-  adaptationReason: string;
-  utilityScore?: number;
-  creditsCost?: number;
-  fallbackActivated?: boolean;
-}
-
-export interface EngineRoutingAdminProvenance {
-  adaptationLoopId?: string;
-  workloadFeatures?: {
-    S?: number;
-    D_constr?: number;
-    N_tasks?: number;
-    N_cap?: number;
-    OptMode?: string;
-    D_obj?: number;
-    T_budget?: number;
-    [key: string]: unknown;
-  };
-  engineHealthSnapshot?: Record<string, {
-    available?: boolean;
-    activeJobs?: number;
-    healthStatus?: 'HEALTHY' | 'DEGRADED' | string;
-    confidence?: number;
-    errorRate?: number;
-    avgLatency?: number;
-    [key: string]: unknown;
-  }>;
-  candidateEvaluations?: Array<{
-    engine: string;
-    predicted?: {
-      latency?: number;
-      quality?: number;
-      failureRisk?: number;
-      credits?: number;
-    };
-    admissible: boolean;
-    utility?: number;
-    rejectionReason?: string;
-  }>;
-  actualExecution?: {
-    actualLatency?: number;
-    actualQuality?: number;
-    actualCredits?: number;
-    residualLatency?: number;
-    residualQuality?: number;
-    residualCredits?: number;
-    [key: string]: unknown;
-  };
-  fallbackEngine?: string;
-}
-
-export interface EngineRoutingMetricSnapshot {
-  available: boolean;
-  activeJobs: number;
-  healthStatus: 'HEALTHY' | 'DEGRADED';
-  confidence: number;
-  consecutiveFailures?: number;
-  oneHourFailureRate?: number;
-  avgLatency?: number;
-  cusumSPlus?: number;
-  cusumSMinus?: number;
-  driftAlarm?: boolean;
-  [key: string]: unknown;
-}
-
-export interface EngineRoutingMetricsResponse {
-  summary: {
-    totalEngines: number;
-    healthyEngines: number;
-    degradedEngines: number;
-    activeJobs: number;
-  };
-  engines: Record<string, EngineRoutingMetricSnapshot>;
-}
-
-export interface AdaptationObservationItem {
-  id: string;
-  jobId: string | null;
-  adaptationLoopId: string;
-  engineSelected: string;
-  workloadFeatures: Record<string, unknown>;
-  candidateEvaluations: Array<{
-    engine: string;
-    predicted?: Record<string, unknown>;
-    admissible: boolean;
-    utility?: number;
-    rejectionReason?: string;
-  }>;
-  predictedMetrics: Record<string, unknown>;
-  actualMetrics?: Record<string, unknown> | null;
-  residuals?: Record<string, unknown> | null;
-  outcome: string;
-  engineHealthSnapshot?: Record<string, unknown> | null;
-  createdAt: string | null;
-}
-
-export interface EngineRoutingObservationsResponse {
-  total: number;
-  limit: number;
-  offset: number;
-  observations: AdaptationObservationItem[];
-}
-
-export interface EngineRoutingRecalibrateResponse {
-  status: string;
-  recalibratedAt: string;
-  observationsProcessed: number;
-  calibratedEngines: string[];
 }
 
 export const apiClient = new ApiClient();

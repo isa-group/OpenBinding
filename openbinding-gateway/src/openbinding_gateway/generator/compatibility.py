@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..v1.compiler import _schema_root
+from ..services.engines import schema_root
 
 
 class IncompatibleTargetEnginesError(ValueError):
@@ -39,7 +39,7 @@ class TargetCapabilities:
 
 
 def _load_engine_manifest(name: str) -> dict[str, Any] | None:
-    manifest_dir = _schema_root() / "manifests"
+    manifest_dir = schema_root() / "manifests"
     path = manifest_dir / f"{name}.json"
     if path.is_file():
         try:

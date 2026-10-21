@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Account</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ob-spin{to{transform:rotate(360deg)}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+.ob-spin{animation:ob-spin .9s linear infinite}
+@media (prefers-reduced-motion: reduce){.ob-skel,.ob-spin{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="acct-profile" route="/app/account" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="" active="" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<main style="max-width: 1152px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div><h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">Account</h1><p style="margin: 4px 0 0; color: #6a6a6a;">Your profile, sign-in details and account security.</p></div>
+
+<sc-if value="{{loggedOut}}" hint-placeholder-val="{{false}}">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><span style="font-size: 16px; font-weight: 500;">{{gateTitle}}</span><span style="max-width: 460px; color: #6a6a6a;">{{gateText}}</span><a href="AuthLogin.dc.html" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Log in</a></div>
+</sc-if>
+
+<sc-if value="{{inside}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start;">
+<div style="flex: 1 1 220px; max-width: 240px;"><dc-import name="ShellAccountNav" active="profile" hint-size="240px,260px"></dc-import></div>
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<sc-if value="{{isKey403}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; gap: 10px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 12px 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" aria-hidden="true" style="flex-shrink: 0;"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><span>This request used an API key without <code style="font-family: 'JetBrains Mono', monospace;">account:read</code> and <code style="font-family: 'JetBrains Mono', monospace;">account:write</code> (403). Account settings need those permissions, or a browser session.</span></div></sc-if>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}"><div class="ob-skel" style="height: 120px; border-radius: 12px; background: #ededed;"></div><div class="ob-skel" style="height: 240px; border-radius: 12px; background: #ededed;"></div></sc-if>
+<sc-if value="{{showContent}}" hint-placeholder-val="{{true}}">
+<sc-if value="{{toast}}" hint-placeholder-val="{{false}}"><div role="status" style="display: flex; align-items: center; gap: 10px; border: 1px solid #86efac; background: #f0fdf4; border-radius: 12px; padding: 10px 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.2" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg><span>{{toast}}</span></div></sc-if>
+
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<div><h2 style="margin: 0; font-size: 18px; font-weight: 500;">Profile</h2><p style="margin: 2px 0 0; font-size: 14px; color: #6a6a6a;">How OpenBinding knows you. Role and plan are separate: the plan sets quotas, the role sets platform permissions.</p></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 20px;">
+<span aria-hidden="true" style="width: 64px; height: 64px; border-radius: 9999px; background: #caf0f8; color: #023e8a; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 600;">{{who.initials}}</span>
+<div style="flex: 1; min-width: 200px;"><div style="font-size: 18px; font-weight: 500;">{{who.name}}</div><div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #6a6a6a;">@{{who.user}} · member since {{who.since}}</div></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px;">
+<span style="border-radius: 9999px; border: 1px solid #b8b8b8; padding: 1px 10px; font-size: 12px; font-weight: 500;">Role · {{who.role}}</span>
+<span style="border-radius: 9999px; background: #caf0f8; padding: 1px 10px; font-size: 12px; font-weight: 500;">Plan · {{who.plan}}</span>
+<sc-if value="{{who.badge}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; background: #023e8a; color: #ffffff; padding: 1px 10px; font-size: 12px; font-weight: 500;">Universidad de Sevilla · verified</span></sc-if>
+<sc-if value="{{who.pending}}" hint-placeholder-val="{{false}}"><span style="border-radius: 9999px; background: #fffbeb; border: 1px solid #fcd34d; padding: 1px 10px; font-size: 12px; font-weight: 500;">Contract pending</span></sc-if>
+</div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<div><h2 style="margin: 0; font-size: 18px; font-weight: 500;">Email</h2><p style="margin: 2px 0 0; font-size: 14px; color: #6a6a6a;">Used to log in and for contract notices.</p></div>
+<form onSubmit="{{saveEmail}}" style="border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-direction: column; max-width: 420px;"><label for="pf-mail" style="margin-bottom: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Email address</label><input id="pf-mail" type="email" value="{{mail}}" onChange="{{typeMail}}" aria-invalid="{{mailInvalid}}" aria-describedby="pf-mail-err" style="height: 44px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{mailBorder}}; border-radius: 8px; font-family: inherit; font-size: 14px;"><span id="pf-mail-err" style="margin-top: 4px; font-size: 12px; color: #b91c1c;">{{mailErr}}</span></div>
+<div style="display: flex; align-items: center; gap: 12px;"><button type="submit" disabled="{{mailUnchanged}}" style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: #0077b6; color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; opacity: {{mailOpacity}};">Save changes</button><sc-if value="{{mailDirty}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #6a6a6a;">You have unsaved changes</span></sc-if></div>
+</form>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<div><h2 style="margin: 0; font-size: 18px; font-weight: 500;">Password</h2><p style="margin: 2px 0 0; font-size: 14px; color: #6a6a6a;">Changing it needs your current password.</p></div>
+<form onSubmit="{{savePass}}" style="border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: start;">
+<div style="display: flex; flex-direction: column;"><label for="pf-cur" style="margin-bottom: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Current password</label><input id="pf-cur" type="password" value="{{cur}}" onChange="{{typeCur}}" autocomplete="current-password" aria-invalid="{{curInvalid}}" aria-describedby="pf-cur-err" style="height: 44px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{curBorder}}; border-radius: 8px; font-family: inherit; font-size: 14px;"><span id="pf-cur-err" style="margin-top: 4px; font-size: 12px; color: #b91c1c;">{{curErr}}</span></div>
+<div style="display: flex; flex-direction: column;"><label for="pf-new" style="margin-bottom: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">New password</label><input id="pf-new" type="password" value="{{np}}" onChange="{{typeNp}}" autocomplete="new-password" aria-describedby="pf-new-help" style="height: 44px; box-sizing: border-box; padding: 0 14px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: inherit; font-size: 14px;"><span id="pf-new-help" style="margin-top: 4px; font-size: 12px; color: {{npColor}};">{{npHelp}}</span></div>
+<div style="grid-column: 1 / -1;"><button type="submit" style="height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: #0077b6; color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;">Change password</button></div>
+</form>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<div><h2 style="margin: 0; font-size: 18px; font-weight: 500;">Sessions</h2><p style="margin: 2px 0 0; font-size: 14px; color: #6a6a6a;">Logging out revokes this browser's refresh token.</p></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 16px 20px;"><span>This browser</span><button type="button" onClick="{{logoutNow}}" style="height: 36px; padding: 0 14px; border: 1px solid #a8a8a8; border-radius: 8px; background: #fafafa; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;">Log out</button></div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<div><h2 style="margin: 0; font-size: 18px; font-weight: 500;">Danger zone</h2></div>
+<div style="border: 1px solid #fca5a5; border-radius: 12px; background: #ffffff; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; gap: 12px; align-items: flex-start;"><span aria-hidden="true" style="width: 40px; height: 40px; border-radius: 8px; background: #fef2f2; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2"><path d="M12 3 2 20h20L12 3z"></path><path d="M12 10v4M12 17h.01"></path></svg></span><div><div style="font-weight: 600;">Delete account</div><div style="color: #4a4a4a;">Permanently deletes your account, its API keys and its jobs. Organizations where you're the last owner must be handed over first.</div></div></div>
+<button type="button" onClick="{{openDelete}}" style="align-self: flex-start; height: 40px; padding: 0 16px; border: 1px solid #fca5a5; border-radius: 8px; background: #ffffff; color: #b91c1c; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;">Delete my account</button>
+</div>
+</section>
+</sc-if>
+</div>
+</div>
+</sc-if>
+</main>
+<sc-if value="{{deleteOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px;">
+<button type="button" aria-label="Cancel" onClick="{{closeDelete}}" style="position: absolute; inset: 0; border: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); cursor: pointer;"></button>
+<div role="dialog" aria-modal="true" aria-labelledby="del-title" style="position: relative; width: 100%; max-width: 400px; border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; box-shadow: 0 16px 48px -8px rgba(0,0,0,0.12); overflow: hidden;">
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid #b8b8b8;"><h2 id="del-title" style="margin: 0; font-size: 16px; font-weight: 600;">Confirm deletion</h2><button type="button" aria-label="Close" onClick="{{closeDelete}}" style="border: 0; background: transparent; font-size: 20px; cursor: pointer;">×</button></div>
+<form onSubmit="{{confirmDelete}}" style="padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+<span style="color: #4a4a4a;">This can't be undone.</span>
+<label for="del-input" style="font-size: 14px;">Type <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">{{who.user}}</span> to confirm</label>
+<input id="del-input" value="{{typed}}" onChange="{{typeTyped}}" autocomplete="off" aria-describedby="del-err" style="height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 14px;">
+<div id="del-err" aria-live="assertive"><sc-if value="{{deleteErr}}" hint-placeholder-val="{{false}}"><div role="alert" style="border: 1px solid #fca5a5; background: #fef2f2; border-radius: 8px; padding: 10px 12px; font-size: 13px;">{{deleteErr}}</div></sc-if></div>
+<div style="display: flex; justify-content: flex-end; gap: 8px;"><button type="button" onClick="{{closeDelete}}" style="height: 38px; padding: 0 14px; border: 1px solid #a8a8a8; border-radius: 8px; background: #fafafa; font-family: inherit; font-size: 14px; cursor: pointer;">Cancel</button><button type="submit" disabled="{{cantDelete}}" style="height: 38px; padding: 0 14px; border: 0; border-radius: 8px; background: #ef4444; color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; opacity: {{deleteOpacity}};">Delete account</button></div>
+</form>
+</div>
+</div>
+</sc-if>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1600}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "lucia", st: "success", scenario: "ok", mail: null, cur: "", np: "", touchedPass: false, toast: "", del: false, typed: "", delErr: "", mailErr: "", curErr: "", out: false };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, name: "", email: "", initials: "", pending: false, badge: false },
+      lucia: { signedIn: true, name: "Lucía Vega", user: "lucia.vega", email: "lucia@example.invalid", initials: "LV", role: "user", plan: "RESEARCH", since: "Mar 2, 2026", badge: true, admin: false, pending: false },
+      marco: { signedIn: true, name: "Marco Díaz", user: "marco.diaz", email: "marco@example.invalid", initials: "MD", role: "user", plan: "BASIC", since: "Jun 15, 2026", admin: false, pending: false, badge: false },
+      sofia: { signedIn: true, name: "Sofía Rey", user: "sofia.rey", email: "sofia@example.invalid", initials: "SR", role: "user", plan: "BASIC", since: "Jul 1, 2026", pending: true, admin: false, badge: false },
+      nora: { signedIn: true, name: "Nora Campos", user: "nora.campos", email: "nora@example.invalid", initials: "NC", role: "user", plan: "ADVANCED", since: "Apr 20, 2026", admin: false, pending: false, badge: false },
+      iker: { signedIn: true, name: "Iker Mora", user: "iker.mora", email: "iker@example.invalid", initials: "IM", role: "admin", plan: "PRO", since: "Jan 10, 2026", admin: true, pending: false, badge: false },
+      pablo: { signedIn: true, name: "Pablo Ibáñez", user: "pablo.ci", email: "pablo@example.invalid", initials: "PI", role: "user", plan: "PRO", since: "May 5, 2026", admin: false, pending: false, badge: false }
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+  setPersona(k) { this.setState({ persona: k, mail: null, out: false, toast: "" }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  flash(t) { this.setState({ toast: t }); if (this.timer) clearTimeout(this.timer); this.timer = setTimeout(() => this.setState({ toast: "" }), 3000); }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const st = s.st;
+    const sc = s.scenario;
+    const mail = s.mail === null ? (who.email || "") : s.mail;
+    const dirty = mail !== who.email;
+    const npOk = s.np.length >= 10;
+    const signedIn = who.signedIn && !s.out;
+    const typedOk = s.typed === who.user;
+    return {
+      persona: s.persona, st: st, na: ["empty"],
+      scenarios: [{ id: "ok", label: "Saves succeed" }, { id: "401", label: "401 wrong password" }, { id: "409mail", label: "409 email taken" }, { id: "409owner", label: "409 last owner" }, { id: "409admin", label: "409 last pricing admin" }],
+      scenario: sc,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState({ st: x }),
+      setScenario: (x) => this.setState({ scenario: x, st: "success", mailErr: "", curErr: "", delErr: "" }),
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      loggedOut: !signedIn,
+      gateTitle: s.out ? "You're logged out" : "Log in to see your account",
+      gateText: s.out ? "This browser's session was revoked. Log in again to change your account." : "Account settings need a session (401 without one).",
+      inside: signedIn,
+      isKey403: st === "forbidden",
+      isLoading: st === "loading",
+      showContent: st === "success" || st === "error",
+      toast: s.toast,
+      mail: mail, typeMail: (e) => this.setState({ mail: e.target.value, mailErr: "" }),
+      mailDirty: dirty, mailUnchanged: !dirty, mailOpacity: dirty ? "1" : "0.4",
+      mailErr: s.mailErr, mailInvalid: s.mailErr ? "true" : "false", mailBorder: s.mailErr ? "#ef4444" : "#c7c7c7",
+      saveEmail: (e) => { if (e && e.preventDefault) e.preventDefault(); if (sc === "409mail") { this.setState({ mailErr: "That email is already used by another account (409 · already_registered)." }); return; } this.flash("Email updated to " + mail + "."); },
+      cur: s.cur, np: s.np,
+      typeCur: (e) => this.setState({ cur: e.target.value, curErr: "" }),
+      typeNp: (e) => this.setState({ np: e.target.value }),
+      npHelp: s.np ? (npOk ? "✓ At least 10 characters" : (10 - s.np.length) + " more characters needed") : "At least 10 characters",
+      npColor: s.np && npOk ? "#15803d" : (s.touchedPass && !npOk ? "#b91c1c" : "#6a6a6a"),
+      curErr: s.curErr, curInvalid: s.curErr ? "true" : "false", curBorder: s.curErr ? "#ef4444" : "#c7c7c7",
+      savePass: (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        if (!s.cur) { this.setState({ curErr: "Enter your current password.", touchedPass: true }); return; }
+        if (!npOk) { this.setState({ touchedPass: true }); return; }
+        if (sc === "401") { this.setState({ curErr: "That isn't your current password (401 · invalid_credentials)." }); return; }
+        this.setState({ cur: "", np: "", touchedPass: false }); this.flash("Password changed.");
+      },
+      logoutNow: () => this.setState({ out: true }),
+      openDelete: () => this.setState({ del: true, typed: "", delErr: "" }),
+      closeDelete: () => this.setState({ del: false }),
+      deleteOpen: s.del,
+      typed: s.typed, typeTyped: (e) => this.setState({ typed: e.target.value, delErr: "" }),
+      cantDelete: !typedOk, deleteOpacity: typedOk ? "1" : "0.4",
+      deleteErr: s.delErr,
+      confirmDelete: (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        if (!typedOk) { this.setState({ delErr: "The text doesn't match your username (422 · confirmation_mismatch)." }); return; }
+        if (sc === "409owner") { this.setState({ delErr: "You're the last owner of ISA Demo Group (409 · organization_owner_required). Make someone else an owner first." }); return; }
+        if (sc === "409admin" || who.admin) { this.setState({ delErr: "You're the last pricing administrator (409 · last_pricing_admin). Another admin must exist before this account can go." }); return; }
+        this.setState({ del: false, out: true });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

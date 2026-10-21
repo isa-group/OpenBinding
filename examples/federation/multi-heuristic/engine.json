@@ -17,10 +17,10 @@
         "capabilities": {
           "workflowNodes": {"selector": "all"},
           "featureScopes": {"selector": "all"},
+          "featureValues": {"selector": "only", "values": ["scalar"]},
           "aggregations": {"selector": "all"},
           "constraints": {"selector": "all"},
-          "optimization": {"selector": "only", "values": ["pareto"]},
-          "objectiveTypes": {"selector": "only", "values": ["MULTI"]},
+          "scalarizations": {"selector": "only", "values": [{"id": "pareto-front", "objectiveTypes": ["MULTI"], "weightPolicy": "forbidden"}]},
           "expressions": {"selector": "all"},
           "placement": {"selector": "all"},
           "irExtensions": {"selector": "only", "values": ["qos-binding-placement/v1"]}

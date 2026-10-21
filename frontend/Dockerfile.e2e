@@ -1,0 +1,36 @@
+# The live end-to-end specs (e2e/live) and their visual QA, run inside the lab (compose.lab.json, service `e2e`).
+# The base image must carry exactly the Playwright release that pnpm-lock.yaml resolves for @playwright/test:
+# the browsers of the image are the ones that release launches (lab/tests/test_lab_compose.py compares the two).
+FROM mcr.microsoft.com/playwright:v1.62.1-jammy
+
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+
+ENV HTTP_PROXY=$HTTP_PROXY \
+	HTTPS_PROXY=$HTTPS_PROXY \
+	NO_PROXY=$NO_PROXY \
+	http_proxy=$HTTP_PROXY \
+	https_proxy=$HTTPS_PROXY \
+	no_proxy=$NO_PROXY
+
+# pnpm at the version package.json pins; installed with npm so it does not depend on corepack being in the base image.
+RUN npm install -g pnpm@9.15.9
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml* ./
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+
+# Not root: the unprivileged user of the Playwright image. /results is where a named volume mounts; because the directory
+# exists here owned by that user, an empty volume inherits the owner and the run can write its screenshots and report.
+RUN id pwuser >/dev/null 2>&1 || useradd --create-home --shell /usr/sbin/nologin pwuser; \
+	mkdir -p /results && chown pwuser:pwuser /results && chmod -R a+rX /app
+USER pwuser
+
+ENV BASE_URL=http://web:8080 \
+	E2E_RESULTS_DIR=/results
+
+CMD ["sh", "/app/e2e/live/run.sh"]

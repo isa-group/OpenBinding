@@ -34,10 +34,40 @@ os.environ.setdefault("GATEWAY_JWT_SECRET", "test-secret-not-used-anywhere-real"
 os.environ.setdefault("JOB_DISPATCH_MODE", "inline")
 os.environ["SPHERE_ENABLED"] = "false"
 os.environ.pop("SPHERE_ORGANIZATION_ID", None)
-os.environ.pop("SPACE_DESTRUCTIVE_API_KEY", None)
+# The fake gate installed below is built from tests/fixtures/pricing_test.yml
+# (version 0.1.0, default plan BASIC); the gateway names that version and plan
+# when it creates contracts.
+os.environ["SPACE_PRICING_VERSION"] = "0.1.0"
+os.environ["SPACE_DEFAULT_PLAN"] = "BASIC"
 os.environ.pop("BOOTSTRAP_ADMIN_USERNAME", None)
 os.environ.pop("BOOTSTRAP_ADMIN_PASSWORD", None)
 os.environ.pop("BOOTSTRAP_ADMIN_EMAIL", None)
+
+
+# The suite always uses the toolchain installed beside the gateway: a ``BIM_MODE=http`` left in the environment
+# would point every test at a service that is not there.
+os.environ["BIM_MODE"] = "inproc"
+for _name in ("BIM_SERVICE_URL", "BIM_SERVICE_TOKEN_FILE", "BIM_TENANT"):
+    os.environ.pop(_name, None)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cheap_password_hashing():
+    """Argon2 at its cheapest cost.
+
+    Registering and signing in an account hashes and verifies a password twice, and the API tests do it for every
+    account of every test (about 100 ms with the production parameters), which was most of the time of the
+    suite. The hash format carries its parameters, so a hash made here still verifies anywhere and a hash made
+    with the production parameters still verifies here; only the cost of making one changes.
+    """
+    from argon2 import PasswordHasher
+
+    from openbinding_gateway.security import passwords
+
+    production = passwords._hasher
+    passwords._hasher = PasswordHasher(time_cost=1, memory_cost=8, parallelism=1)
+    yield
+    passwords._hasher = production
 
 
 @pytest.fixture
@@ -52,40 +82,39 @@ def micro_placement_instance():
 def clean_mock_env(monkeypatch):
     monkeypatch.setenv("SPHERE_ENABLED", "false")
     monkeypatch.delenv("SPHERE_ORGANIZATION_ID", raising=False)
-    monkeypatch.delenv("SPACE_DESTRUCTIVE_API_KEY", raising=False)
     monkeypatch.delenv("BOOTSTRAP_ADMIN_USERNAME", raising=False)
     monkeypatch.delenv("BOOTSTRAP_ADMIN_PASSWORD", raising=False)
     monkeypatch.delenv("BOOTSTRAP_ADMIN_EMAIL", raising=False)
 
 
 @pytest.fixture(autouse=True)
-def reset_routing_state():
-    try:
-        from openbinding_gateway.engine_routing import (
-            get_discrepancy_analyzer,
-            get_health_monitor,
-        )
+def isolated_auth_rate_limiter():
+    """Authentication throttling counted in this test's own memory.
 
-        get_health_monitor().reset()
-        get_discrepancy_analyzer().reset()
-    except ImportError:
-        pass
+    The default limiter talks to Redis, which the unit suite never has, and a
+    counter shared between tests would make a test depend on how many logins
+    ran before it. ``tests/test_security_hardening.py`` installs its own.
+    """
+    from openbinding_gateway.core.ratelimit import AuthRateLimiter, set_auth_limiter
+
+    set_auth_limiter(AuthRateLimiter(primary=None))
     yield
-    try:
-        from openbinding_gateway.engine_routing import (
-            get_discrepancy_analyzer,
-            get_health_monitor,
-        )
+    set_auth_limiter(None)
 
-        get_health_monitor().reset()
-        get_discrepancy_analyzer().reset()
-    except ImportError:
-        pass
+
+@pytest.fixture(autouse=True)
+def fresh_bim_port():
+    """Each test builds the BIM port its settings ask for (in process by default) and leaves none behind."""
+    from openbinding_gateway.integrations import bim
+
+    bim.set_bim(None)
+    yield
+    bim.set_bim(None)
 
 
 @pytest.fixture(autouse=True)
 def pricing_catalog_gate():
-    """Every test gets an explicit catalog-backed SPACE substitute."""
+    """Every test gets a SPACE substitute built from the synthetic pricing fixture."""
     from _pricing import fake_pricing_gate
     from openbinding_gateway import space_client
 
@@ -126,6 +155,38 @@ async def db_session(tmp_path, monkeypatch):
         yield session
 
     await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def pg():
+    """A migrated, empty PostgreSQL 16 database for the ``tests/test_*_pg.py`` modules, and sessions on it.
+
+    Unlike ``db_session`` this one never touches SQLite: without ``TEST_DATABASE_URL`` it skips, with one that
+    is not a PostgreSQL ``test*`` database it fails (see ``tests/_pg_support.py`` and docs/qa/PG_REAL_RUN.md).
+    ``db_session`` stays what it was; do not point it at that URL.
+    """
+    import _pg_support
+
+    async with _pg_support.database() as database:
+        yield database
+
+
+@pytest.fixture(autouse=True)
+def _pg_test_watchdog(request):
+    """The ``tests/test_*_pg.py`` modules get the per-test limit that ``tests/concurrency`` has.
+
+    A race test that waits for a lock that never comes would otherwise run until the harness times out and
+    loses its output (docs/qa/PG_HARNESS.md). Every other test, and the ones under ``tests/concurrency``
+    (which arm their own), are untouched.
+    """
+    path = request.node.path
+    if not path.name.endswith("_pg.py") or path.parent.name == "concurrency":
+        yield
+        return
+    from concurrency._watchdog import timeout_seconds, watchdog
+
+    with watchdog(timeout_seconds()):
+        yield
 
 
 @pytest_asyncio.fixture

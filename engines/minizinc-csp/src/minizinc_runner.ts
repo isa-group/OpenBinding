@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { AbortedError, NotTerminatedError, envInteger } from './job_manager';
 import { FLOAT_DOMAIN_SLACK, slackOf } from './numeric';
 
 export { FLOAT_DOMAIN_SLACK };
@@ -162,21 +163,177 @@ function formatFloat(value: number): string {
   return /[.eE]/.test(text) ? text : `${text}.0`;
 }
 
+export interface RunnerOptions {
+  /** MiniZinc executable (flattening and `.ozn` rendering); `minizinc` by default. */
+  command?: string;
+  /** Arguments placed before the MiniZinc ones (e.g. a script when `command` is `node`). */
+  commandArgs?: string[];
+  /** FlatZinc solver executable; `fzn-gecode` by default. */
+  gecodeCommand?: string;
+  /** Arguments placed before the fzn-gecode ones. */
+  gecodeCommandArgs?: string[];
+  /** Extra environment for the solver process (on top of the engine's own). */
+  env?: Record<string, string>;
+  /** After SIGTERM the process group gets this long before SIGKILL. */
+  killGraceMs?: number;
+  /** After the grace, how long to wait for the process to be reaped before giving up. */
+  reapWaitMs?: number;
+  /** Test hook: how a signal reaches the process group. */
+  signalGroup?: (pgid: number, signal: NodeJS.Signals) => void;
+}
+
+export interface RunControl {
+  /** Aborting it terminates the whole process group and settles the run only once it is gone. */
+  signal?: AbortSignal;
+}
+
+/** A program path or a JSON array `["program","arg",...]` read from `variable`. */
+function parseCommand(raw: string | undefined, variable: string, fallback: string): { command: string; commandArgs: string[] } {
+  if (raw === undefined || raw.trim() === '') return { command: fallback, commandArgs: [] };
+  if (raw.trim().startsWith('[')) {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0
+        || parsed.some((item) => typeof item !== 'string' || item.length === 0)) {
+      throw new Error(`${variable} must be a program path or a JSON array of non-empty strings`);
+    }
+    return { command: parsed[0], commandArgs: parsed.slice(1) };
+  }
+  return { command: raw.trim(), commandArgs: [] };
+}
+
+/**
+ * `MINIZINC_COMMAND` (or the older `MINIZINC`) is a program path or a JSON array `["program","arg",...]`.
+ */
+export function commandFromEnv(env: NodeJS.ProcessEnv): { command: string; commandArgs: string[] } {
+  if (env.MINIZINC_COMMAND !== undefined && env.MINIZINC_COMMAND.trim() !== '') {
+    return parseCommand(env.MINIZINC_COMMAND, 'MINIZINC_COMMAND', 'minizinc');
+  }
+  return parseCommand(env.MINIZINC, 'MINIZINC', 'minizinc');
+}
+
+/** `FZN_GECODE` is the FlatZinc solver: a program path or a JSON array `["program","arg",...]`. */
+export function gecodeCommandFromEnv(env: NodeJS.ProcessEnv): { gecodeCommand: string; gecodeCommandArgs: string[] } {
+  const { command, commandArgs } = parseCommand(env.FZN_GECODE, 'FZN_GECODE', 'fzn-gecode');
+  return { gecodeCommand: command, gecodeCommandArgs: commandArgs };
+}
+
+export function runnerOptionsFromEnv(env: NodeJS.ProcessEnv = process.env): RunnerOptions {
+  return {
+    ...commandFromEnv(env),
+    ...gecodeCommandFromEnv(env),
+    killGraceMs: envInteger(env, 'ENGINE_KILL_GRACE_MS', 2000, 0, 60_000),
+    reapWaitMs: envInteger(env, 'ENGINE_REAP_WAIT_MS', 3000, 0, 60_000),
+  };
+}
+
+/** Sends a signal to a whole process group. A group that is already gone is not an error. */
+export function signalProcessGroup(pgid: number, signal: NodeJS.Signals): void {
+  try {
+    process.kill(-pgid, signal);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
+  }
+}
+
+/**
+ * Whether any live process belongs to the group. Zombies do not count: they use no CPU and only
+ * wait for their parent (or init) to reap them. Reads /proc where it exists.
+ */
+export function groupAlive(pgid: number): boolean {
+  let names: string[];
+  try {
+    names = fs.readdirSync('/proc');
+  } catch {
+    try {
+      process.kill(-pgid, 0);
+      return true;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === 'EPERM';
+    }
+  }
+  for (const name of names) {
+    if (!/^\d+$/.test(name)) continue;
+    let stat: string;
+    try {
+      stat = fs.readFileSync(`/proc/${name}/stat`, 'utf8');
+    } catch {
+      continue;
+    }
+    const end = stat.lastIndexOf(')');
+    if (end < 0) continue;
+    const fields = stat.slice(end + 2).split(' ');
+    // fields: state, ppid, pgrp, ...
+    if (Number(fields[2]) === pgid && fields[0] !== 'Z' && fields[0] !== 'X') return true;
+  }
+  return false;
+}
+
+// Solver groups are detached from the engine's own, so they would outlive it if it exited. They are
+// killed when the engine exits normally; if the engine itself is killed (SIGKILL, OOM) nothing can run,
+// which is a documented failure mode (the container runtime ends the whole cgroup).
+const liveGroups = new Set<number>();
+let exitHookInstalled = false;
+
+function installExitHook(): void {
+  if (exitHookInstalled) return;
+  exitHookInstalled = true;
+  process.on('exit', () => {
+    for (const pgid of liveGroups) {
+      try { process.kill(-pgid, 'SIGKILL'); } catch { /* already gone */ }
+    }
+  });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function reasonOf(signal?: AbortSignal): string {
+  const reason: unknown = signal?.reason;
+  return reason instanceof Error ? reason.message : 'aborted';
+}
+
 export class MiniZincRunner {
+  private readonly command: string;
+  private readonly commandArgs: string[];
+  private readonly gecodeCommand: string;
+  private readonly gecodeCommandArgs: string[];
+  private readonly extraEnv: Record<string, string>;
+  private readonly killGraceMs: number;
+  private readonly reapWaitMs: number;
+  private readonly signalGroup: (pgid: number, signal: NodeJS.Signals) => void;
+
+  constructor(options: RunnerOptions = {}) {
+    const merged = { ...runnerOptionsFromEnv(), ...options };
+    this.command = merged.command ?? 'minizinc';
+    this.commandArgs = merged.commandArgs ?? [];
+    this.gecodeCommand = merged.gecodeCommand ?? 'fzn-gecode';
+    this.gecodeCommandArgs = merged.gecodeCommandArgs ?? [];
+    this.extraEnv = merged.env ?? {};
+    this.killGraceMs = merged.killGraceMs ?? 2000;
+    this.reapWaitMs = merged.reapWaitMs ?? 3000;
+    this.signalGroup = merged.signalGroup ?? signalProcessGroup;
+  }
+
   /**
    * Flatten the model, widen the FlatZinc float domains, solve with fzn-gecode
    * and format the incumbents with the model's output item (solns2out).
    *
    * `extraArgs` keeps the historical shape `['--time-limit', ms, ...]`; the
-   * time budget covers flattening and solving together.
+   * time budget covers flattening and solving together. Every phase runs in its
+   * own process group; aborting `control.signal` terminates the group of the
+   * phase that is running and the run rejects only once that group is gone.
    */
   async run(
     solverName: string,
     modelPath: string,
     dznContent: string,
     tmpDir: string,
-    extraArgs: string[] = []
+    extraArgs: string[] = [],
+    control: RunControl = {},
   ): Promise<MiniZincRunResult> {
+    const signal = control.signal;
+    if (signal?.aborted) throw new AbortedError(reasonOf(signal));
     if (solverName !== 'gecode') throw new Error(`Unsupported solver '${solverName}'`);
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
     const timeLimitMs = this.timeLimit(extraArgs);
@@ -185,13 +342,13 @@ export class MiniZincRunner {
     const fznPath = `${stem}.fzn`;
     const oznPath = `${stem}.ozn`;
     const widenedPath = `${stem}.widened.fzn`;
-    const env = { ...process.env, TMPDIR: tmpDir };
+    const env = { ...process.env, ...this.extraEnv, TMPDIR: tmpDir };
     const startTime = Date.now();
     try {
       fs.writeFileSync(dznPath, dznContent);
-      const flatten = await this.spawn(this.executable('MINIZINC', 'minizinc'),
+      const flatten = await this.spawn(this.command, this.commandArgs,
         ['--solver', 'gecode', '-c', modelPath, dznPath, '--fzn', fznPath, '--ozn', oznPath],
-        env, timeLimitMs, startTime);
+        env, timeLimitMs, startTime, signal);
       const flattenMs = Date.now() - startTime;
       if (flatten.timedOut) {
         return { code: 0, stdout: '', stderr: flatten.stderr, durationMs: Date.now() - startTime, stdoutEvents: [], flattenMs };
@@ -208,8 +365,8 @@ export class MiniZincRunner {
       const widened = widenFloatDomains(fs.readFileSync(fznPath, 'utf8'));
       fs.writeFileSync(widenedPath, widened.text);
       const remainingMs = Math.max(1, timeLimitMs - flattenMs);
-      const solve = await this.spawn(this.executable('FZN_GECODE', 'fzn-gecode'),
-        ['-a', '-time', String(Math.round(remainingMs)), widenedPath], env, remainingMs + 2000, startTime);
+      const solve = await this.spawn(this.gecodeCommand, this.gecodeCommandArgs,
+        ['-a', '-time', String(Math.round(remainingMs)), widenedPath], env, remainingMs + 2000, startTime, signal);
       if (solve.code !== 0 && !solve.timedOut) {
         return { code: solve.code, stdout: solve.stdout, stderr: solve.stderr, durationMs: Date.now() - startTime,
           stdoutEvents: solve.events, flattenMs, widenedDomains: widened.count, suppressedFloatBranchers: widened.suppressed };
@@ -223,8 +380,8 @@ export class MiniZincRunner {
       let stdout = rendered.text;
       let oznRendered = false;
       if (rendered.incomplete > 0) {
-        const output = await this.spawn(this.executable('MINIZINC', 'minizinc'), ['--ozn-file', oznPath], env,
-          OZN_RENDER_TIMEOUT_MS, startTime, solve.stdout);
+        const output = await this.spawn(this.command, this.commandArgs, ['--ozn-file', oznPath], env,
+          OZN_RENDER_TIMEOUT_MS, startTime, signal, solve.stdout);
         if (output.code !== 0 || output.timedOut) {
           return { code: output.code === 0 ? 1 : output.code, stdout: solve.stdout,
             stderr: output.stderr || 'MiniZinc could not render the solver output with the .ozn specification',
@@ -244,36 +401,116 @@ export class MiniZincRunner {
     }
   }
 
-  private executable(variable: string, fallback: string): string {
-    const value = process.env[variable];
-    return value && value.trim() ? value.trim() : fallback;
-  }
-
   private timeLimit(extraArgs: string[]): number {
     const index = extraArgs.indexOf('--time-limit');
     const value = index >= 0 ? Number(extraArgs[index + 1]) : NaN;
     return Number.isFinite(value) && value > 0 ? value : 30000;
   }
 
-  private spawn(command: string, args: string[], env: NodeJS.ProcessEnv, timeoutMs: number,
-      startTime: number, stdin?: string): Promise<ProcessResult> {
-    return new Promise((resolve, reject) => {
-      const child = spawn(command, args, { env });
+  /**
+   * One phase of a run (flatten, solve or render). The process is the leader of
+   * its own group (pid === pgid), so MiniZinc, fzn-gecode and whatever they start
+   * are signalled together: on the phase timeout the group is killed, and on an
+   * abort it is terminated (SIGTERM, then SIGKILL) and the promise rejects with
+   * `AbortedError` once nothing of it is alive, or `NotTerminatedError` otherwise.
+   */
+  private spawn(command: string, commandArgs: string[], args: string[], env: NodeJS.ProcessEnv,
+      timeoutMs: number, startTime: number, signal?: AbortSignal, stdin?: string): Promise<ProcessResult> {
+    if (signal?.aborted) return Promise.reject(new AbortedError(reasonOf(signal)));
+    return new Promise<ProcessResult>((resolve, reject) => {
+      const child = spawn(command, [...commandArgs, ...args], { env, detached: true, stdio: ['pipe', 'pipe', 'pipe'] });
+      const pgid = child.pid;
+      if (pgid !== undefined) {
+        installExitHook();
+        liveGroups.add(pgid);
+      }
+
       let stdout = '';
       let stderr = '';
       let timedOut = false;
       const events: MiniZincStdoutEvent[] = [];
-      const timer = setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, timeoutMs);
-      child.stdout.on('data', (data) => {
+      let done = false;
+      let aborting = false;
+      let markClosed!: () => void;
+      const closed = new Promise<void>((resolveClosed) => { markClosed = resolveClosed; });
+
+      const timer = setTimeout(() => {
+        if (done || aborting || pgid === undefined) return;
+        timedOut = true;
+        try { this.signalGroup(pgid, 'SIGKILL'); } catch { /* 'close' reports the outcome */ }
+      }, timeoutMs);
+
+      const settle = (action: () => void, forget = true): void => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', onAbort);
+        if (forget && pgid !== undefined) liveGroups.delete(pgid);
+        action();
+      };
+
+      const onAbort = (): void => {
+        if (done || aborting) return;
+        aborting = true;
+        void this.terminate(pgid, closed).then((dead) => {
+          if (dead) settle(() => reject(new AbortedError(reasonOf(signal))));
+          else {
+            settle(() => reject(new NotTerminatedError(
+              `solver process group ${pgid} is still alive ${this.killGraceMs + this.reapWaitMs} ms after SIGTERM/SIGKILL`)), false);
+          }
+        });
+      };
+
+      child.stdout!.on('data', (data) => {
         const text = data.toString();
         stdout += text;
         events.push({ atMs: Date.now() - startTime, text });
       });
-      child.stderr.on('data', (data) => { stderr += data.toString(); });
-      child.on('error', (error) => { clearTimeout(timer); reject(error); });
-      child.on('close', (code) => { clearTimeout(timer); resolve({ code, stdout, stderr, events, timedOut }); });
-      if (stdin !== undefined) child.stdin.write(stdin);
-      child.stdin.end();
+      child.stderr!.on('data', (data) => { stderr += data.toString(); });
+      // A process that dies before reading its input closes the pipe: 'close' reports the outcome.
+      child.stdin!.on('error', () => undefined);
+      child.on('error', (error) => {
+        markClosed();
+        settle(() => reject(error));
+      });
+      child.on('close', (code) => {
+        markClosed();
+        if (aborting) return; // the termination routine decides the outcome
+        settle(() => resolve({ code, stdout, stderr, events, timedOut }));
+      });
+
+      signal?.addEventListener('abort', onAbort, { once: true });
+      if (signal?.aborted) onAbort();
+
+      if (stdin !== undefined) child.stdin!.write(stdin);
+      child.stdin!.end();
     });
+  }
+
+  /**
+   * SIGTERM to the group, SIGKILL after the grace, then wait for the leader to be reaped (the 'close'
+   * event) and for every other member of the group to be gone. `true` only when nothing of the group
+   * is alive any more.
+   */
+  private async terminate(pgid: number | undefined, closed: Promise<void>): Promise<boolean> {
+    if (pgid === undefined) return true;
+    const deadline = Date.now() + this.killGraceMs + this.reapWaitMs;
+    const send = (signal: NodeJS.Signals): void => {
+      try { this.signalGroup(pgid, signal); } catch { /* the liveness check below tells the truth */ }
+    };
+    send('SIGTERM');
+    const killer = setTimeout(() => send('SIGKILL'), this.killGraceMs);
+    try {
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, Math.max(0, deadline - Date.now()));
+        void closed.then(() => { clearTimeout(timer); resolve(); });
+      });
+      while (groupAlive(pgid) && Date.now() < deadline) await sleep(20);
+    } finally {
+      clearTimeout(killer);
+    }
+    if (!groupAlive(pgid)) return true;
+    send('SIGKILL');
+    return false;
   }
 }

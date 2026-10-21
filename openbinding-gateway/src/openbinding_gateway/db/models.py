@@ -31,12 +31,14 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     String,
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -172,10 +174,6 @@ class Job(Base):
     started. Giving them a row fixes both, and adds the thing the accounts
     module actually needs: an owner, so that a job identifier stops being a
     bearer token for whatever it names.
-
-    ``metered`` and ``concurrency_released`` are written with a compare-and-set,
-    because a client polling twice at once must not be able to bill the same
-    solve twice or release the same slot twice.
     """
 
     __tablename__ = "jobs"
@@ -184,6 +182,14 @@ class Job(Base):
         CheckConstraint(
             "termination IS NULL OR termination IN ('OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'UNKNOWN')",
             name="ck_jobs_termination",
+        ),
+        Index("ix_jobs_state_lease_until", "state", "lease_until"),
+        Index(
+            "uq_jobs_study_cell_id",
+            "study_cell_id",
+            unique=True,
+            sqlite_where=text("study_cell_id IS NOT NULL"),
+            postgresql_where=text("study_cell_id IS NOT NULL"),
         ),
     )
 
@@ -223,12 +229,24 @@ class Job(Base):
     idempotency_key: Mapped[Optional[str]] = mapped_column(String(256), nullable=True, index=True)
     idempotency_fingerprint: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
 
-    #: What the caller was allowed to spend, so an abandoned job can be
-    #: reconciled against something rather than guessed at.
+    #: The wall-clock budget the job was given, so a job nobody ever claimed or
+    #: that outlived its lease can be judged abandoned against something.
     requested_budget_s: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    metered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    concurrency_released: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     cancellation_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: Who is running this job, and until when. A worker claims a queued job by
+    #: writing a fresh token and keeps ``lease_until`` ahead of the clock while
+    #: it works; a running job whose lease lapsed has lost its worker.
+    lease_token: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    lease_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: When the current attempt started; an abandoned job without a lease is
+    #: judged from here.
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    #: The QUEUED row is the outbox: how many times the publisher has handed this
+    #: job to the broker from the sweep, and when it may do so again (backoff).
+    #: ``next_publish_at`` is NULL until the first sweep republication.
+    publish_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    next_publish_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     retry_of_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -238,8 +256,12 @@ class Job(Base):
     project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    billing_sponsor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    #: The study cell this job was launched for. The partial unique index below
+    #: is what keeps two racing launches from both creating a job for one cell.
+    #: ``use_alter`` because study_cells.job_id points back at jobs.
+    study_cell_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("study_cells.id", ondelete="SET NULL", name="fk_jobs_study_cell_id", use_alter=True),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -249,7 +271,7 @@ class Job(Base):
 
 
 class AnalysisTask(Base):
-    """Durable archive computation, independent of solve jobs and metering."""
+    """Durable archive computation, independent of solve jobs."""
 
     __tablename__ = "analysis_tasks"
     __table_args__ = (UniqueConstraint("owner_id", "fingerprint", name="uq_analysis_tasks_owner_fingerprint"),)
@@ -264,6 +286,9 @@ class AnalysisTask(Base):
     cancellation_requested: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     lease_token: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     lease_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: How many times a worker claimed the task; a lost worker gets it put back
+    #: until ``analysis_jobs.MAX_ATTEMPTS`` claims, then it is failed.
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now(), nullable=False)
@@ -309,7 +334,7 @@ class InstanceSnapshot(Base):
     __table_args__ = (UniqueConstraint("owner_id", "package_digest", "compilation_digest", name="uq_v1_snapshot_owner_package"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     instance_digest: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
     package_digest: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
@@ -487,54 +512,69 @@ class JobProvenance(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
 
 
-class AdaptationObservation(Base):
-    """Knowledge base record for the MAPE-K autonomic loop.
+class JobEngineEvidence(Base):
+    """The raw answer of an engine, kept until BIM has evaluated it (or the retention ends).
 
-    Stores problem instance features, candidate evaluations, predicted metrics,
-    actual execution telemetry, residuals, and outcome.
+    Written and committed before BIM is called, so that a BIM that is down or
+    slow does not cost the solve. A successful evaluation deletes every row of
+    the job; a failed one leaves the row that ``jobs.result.evidence`` refers to.
+    The body can carry text written by the engine's publisher, so no route
+    returns it: it is only read to evaluate it again.
     """
 
-    __tablename__ = "v1_adaptation_observations"
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    job_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True
-    )
-    adaptation_loop_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    engine_selected: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    workload_features: Mapped[dict] = mapped_column(JSON, nullable=False)
-    candidate_evaluations: Mapped[list] = mapped_column(JSON, nullable=False)
-    predicted_metrics: Mapped[dict] = mapped_column(JSON, nullable=False)
-    actual_metrics: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    residuals: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    outcome: Mapped[str] = mapped_column(String(32), nullable=False, default="completed")
-    engine_health_snapshot: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-
-
-class EngineProfileSurrogate(Base):
-    """Calibrated surrogate regression coefficients for federated / black-box engines."""
-
-    __tablename__ = "v1_engine_profile_surrogates"
+    __tablename__ = "job_engine_evidence"
     __table_args__ = (
-        UniqueConstraint("engine", "mode", name="uq_v1_engine_surrogate_engine_mode"),
+        Index("uq_job_engine_evidence_job_attempt", "job_id", "attempt", unique=True),
+        Index("ix_job_engine_evidence_expires_at", "expires_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    engine: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    mode: Mapped[str] = mapped_column(String(64), nullable=False, default="default")
-    latency_coefficients: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    quality_coefficients: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    failure_risk_coefficients: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    sample_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    r2_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    last_calibrated_at: Mapped[datetime] = mapped_column(
+    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    #: ``jobs.attempt`` of the claim that received the answer; only the row of the current attempt is used.
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False)
+    raw_result: Mapped[dict] = mapped_column(JSON, nullable=False)
+    digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class JobEngineAttempt(Base):
+    """The engine's own id for one attempt of a job, and the state of its best-effort cancellation.
+
+    ``jobs.engine_job_id`` holds one id, which the next attempt overwrites; this
+    table keeps the id (and the endpoint it was obtained from) of every attempt,
+    so that the remote job of an attempt that lost its lease can still be asked
+    to stop. ``cancel_state`` is ``none`` until the attempt is lost, ``pending``
+    from then on, and ends ``sent``, ``skipped`` (never sent, on purpose) or
+    ``failed`` (sent and not acknowledged, retried with ``next_cancel_at`` until
+    ``cancel_attempts`` runs out). ``cancel_attempts`` counts every claim of the
+    row for cancellation, deferrals included. Nothing here is returned by a route.
+    """
+
+    __tablename__ = "job_engine_attempts"
+    __table_args__ = (
+        Index("uq_job_engine_attempts_job_attempt", "job_id", "attempt", unique=True),
+        Index("ix_job_engine_attempts_cancel_due", "cancel_state", "next_cancel_at"),
+        CheckConstraint(
+            "cancel_state IN ('none', 'pending', 'sent', 'skipped', 'failed')",
+            name="ck_job_engine_attempts_cancel_state",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    #: ``jobs.attempt`` of the claim that received the id.
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False)
+    engine_job_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    #: The endpoint of the registration used by this attempt; a cancellation (which carries the
+    #: credential) is only sent to the same endpoint.
+    endpoint: Mapped[str] = mapped_column(String(512), nullable=False)
+    registered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
     )
-    metadata_info: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-
+    cancel_state: Mapped[str] = mapped_column(String(16), nullable=False, default="none", server_default="none")
+    cancel_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    next_cancel_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 # Re-exporting these keeps one stable import location for persistence models,
@@ -557,13 +597,12 @@ from .platform_models import (  # noqa: E402,F401
     Project,
     ProjectResource,
     ProjectResourceRevision,
-    PricingRelease,
-    PricingSphereState,
-    PricingSpaceState,
     Publication,
     Report,
     ReportState,
     RunState,
+    SponsorProposal,
+    SponsorProposalStatus,
     Study,
     StudyCell,
     StudyRun,

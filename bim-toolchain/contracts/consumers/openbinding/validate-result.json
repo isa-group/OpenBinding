@@ -1,0 +1,344 @@
+{
+ "consumer": "openbinding",
+ "description": "Shape validation of bim-engine/v1 results (not a check that the numbers are right).",
+ "name": "validate-result",
+ "schema": "bim-toolchain/consumer-fixture/1",
+ "steps": [
+  {
+   "description": "A well-formed answer.",
+   "expect": {
+    "body": {
+     "error": null,
+     "valid": true
+    },
+    "status": 200
+   },
+   "id": "valid",
+   "request": {
+    "body": {
+     "result": {
+      "provenance": {
+       "engine": "consumer-fixture"
+      },
+      "solutions": [
+       {
+        "decision": {
+         "binding": {
+          "t1": {
+           "id": "c1",
+           "resource": "cat-a"
+          },
+          "t2": {
+           "id": "c1",
+           "resource": "cat-b"
+          }
+         },
+         "kind": "binding"
+        },
+        "features": {
+         "cost": 12.0,
+         "latency": 50.0
+        },
+        "objectives": {
+         "components": [
+          {
+           "criteria": "latency",
+           "feature": {
+            "id": "latency",
+            "resource": "app"
+           },
+           "loss": 0.5,
+           "value": 50.0,
+           "weight": 0.5
+          },
+          {
+           "criteria": "cost",
+           "feature": {
+            "id": "cost",
+            "resource": "app"
+           },
+           "loss": 0.6,
+           "value": 12.0,
+           "weight": 0.5
+          }
+         ],
+         "penalty": 0,
+         "scalarization": "weighted-sum",
+         "score": 0.55,
+         "type": "SINGLE"
+        },
+        "penalties": [
+         0.0
+        ],
+        "violations": []
+       }
+      ],
+      "termination": "FEASIBLE"
+     }
+    },
+    "method": "POST",
+    "path": "/bim/v1/validate-result"
+   }
+  },
+  {
+   "description": "A solution without `penalties`.",
+   "expect": {
+    "body": {
+     "error": {
+      "code": "solution_decision_invalid",
+      "message": "every engine solution must contain a canonical binding decision"
+     },
+     "valid": false
+    },
+    "status": 200
+   },
+   "id": "missing-field",
+   "request": {
+    "body": {
+     "result": {
+      "provenance": {
+       "engine": "consumer-fixture"
+      },
+      "solutions": [
+       {
+        "decision": {
+         "binding": {
+          "t1": {
+           "id": "c1",
+           "resource": "cat-a"
+          },
+          "t2": {
+           "id": "c1",
+           "resource": "cat-b"
+          }
+         },
+         "kind": "binding"
+        },
+        "features": {
+         "cost": 12.0,
+         "latency": 50.0
+        },
+        "objectives": {
+         "components": [
+          {
+           "criteria": "latency",
+           "feature": {
+            "id": "latency",
+            "resource": "app"
+           },
+           "loss": 0.5,
+           "value": 50.0,
+           "weight": 0.5
+          },
+          {
+           "criteria": "cost",
+           "feature": {
+            "id": "cost",
+            "resource": "app"
+           },
+           "loss": 0.6,
+           "value": 12.0,
+           "weight": 0.5
+          }
+         ],
+         "penalty": 0,
+         "scalarization": "weighted-sum",
+         "score": 0.55,
+         "type": "SINGLE"
+        },
+        "violations": []
+       }
+      ],
+      "termination": "FEASIBLE"
+     }
+    },
+    "method": "POST",
+    "path": "/bim/v1/validate-result"
+   }
+  },
+  {
+   "description": "A field that bim-engine/v1 does not define.",
+   "expect": {
+    "body": {
+     "error": {
+      "code": "unknown_fields",
+      "message": "engine response contains fields outside bim-engine/v1"
+     },
+     "valid": false
+    },
+    "status": 200
+   },
+   "id": "extra-field",
+   "request": {
+    "body": {
+     "result": {
+      "elapsed": 1.0,
+      "provenance": {
+       "engine": "consumer-fixture"
+      },
+      "solutions": [
+       {
+        "decision": {
+         "binding": {
+          "t1": {
+           "id": "c1",
+           "resource": "cat-a"
+          },
+          "t2": {
+           "id": "c1",
+           "resource": "cat-b"
+          }
+         },
+         "kind": "binding"
+        },
+        "features": {
+         "cost": 12.0,
+         "latency": 50.0
+        },
+        "objectives": {
+         "components": [
+          {
+           "criteria": "latency",
+           "feature": {
+            "id": "latency",
+            "resource": "app"
+           },
+           "loss": 0.5,
+           "value": 50.0,
+           "weight": 0.5
+          },
+          {
+           "criteria": "cost",
+           "feature": {
+            "id": "cost",
+            "resource": "app"
+           },
+           "loss": 0.6,
+           "value": 12.0,
+           "weight": 0.5
+          }
+         ],
+         "penalty": 0,
+         "scalarization": "weighted-sum",
+         "score": 0.55,
+         "type": "SINGLE"
+        },
+        "penalties": [
+         0.0
+        ],
+        "violations": []
+       }
+      ],
+      "termination": "FEASIBLE"
+     }
+    },
+    "method": "POST",
+    "path": "/bim/v1/validate-result"
+   }
+  },
+  {
+   "description": "A termination that does not exist.",
+   "expect": {
+    "body": {
+     "error": {
+      "code": "invalid_termination",
+      "message": "engine response has an invalid termination"
+     },
+     "valid": false
+    },
+    "status": 200
+   },
+   "id": "bad-termination",
+   "request": {
+    "body": {
+     "result": {
+      "provenance": {
+       "engine": "consumer-fixture"
+      },
+      "solutions": [
+       {
+        "decision": {
+         "binding": {
+          "t1": {
+           "id": "c1",
+           "resource": "cat-a"
+          },
+          "t2": {
+           "id": "c1",
+           "resource": "cat-b"
+          }
+         },
+         "kind": "binding"
+        },
+        "features": {
+         "cost": 12.0,
+         "latency": 50.0
+        },
+        "objectives": {
+         "components": [
+          {
+           "criteria": "latency",
+           "feature": {
+            "id": "latency",
+            "resource": "app"
+           },
+           "loss": 0.5,
+           "value": 50.0,
+           "weight": 0.5
+          },
+          {
+           "criteria": "cost",
+           "feature": {
+            "id": "cost",
+            "resource": "app"
+           },
+           "loss": 0.6,
+           "value": 12.0,
+           "weight": 0.5
+          }
+         ],
+         "penalty": 0,
+         "scalarization": "weighted-sum",
+         "score": 0.55,
+         "type": "SINGLE"
+        },
+        "penalties": [
+         0.0
+        ],
+        "violations": []
+       }
+      ],
+      "termination": "optimal"
+     }
+    },
+    "method": "POST",
+    "path": "/bim/v1/validate-result"
+   }
+  },
+  {
+   "description": "A JSON array.",
+   "expect": {
+    "body": {
+     "error": {
+      "code": "result_not_object",
+      "message": "engine response must be an object"
+     },
+     "valid": false
+    },
+    "status": 200
+   },
+   "id": "not-an-object",
+   "request": {
+    "body": {
+     "result": [
+      1,
+      2,
+      3
+     ]
+    },
+    "method": "POST",
+    "path": "/bim/v1/validate-result"
+   }
+  }
+ ]
+}

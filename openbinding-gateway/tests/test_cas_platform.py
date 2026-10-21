@@ -182,5 +182,9 @@ async def test_cas_never_auto_links_an_existing_email(
         params={"state": _state(started.headers["location"]), "ticket": "ST-2"},
         follow_redirects=False,
     )
-    assert collision.status_code == 409
-    assert collision.json()["detail"]["code"] == "account_collision"
+    # The callback is a browser navigation: the failure goes back to the
+    # frontend as a stable code instead of a JSON body on the gateway's host.
+    assert collision.status_code == 303
+    location = urlparse(collision.headers["location"])
+    assert f"{location.scheme}://{location.netloc}{location.path}" == "https://app.openbinding.example/auth/cas/callback"
+    assert parse_qs(location.query) == {"error": ["account_collision"]}

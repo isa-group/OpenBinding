@@ -1,0 +1,24 @@
+# bim-toolchain: a uv workspace of three distributions. This file declares no project of its own
+# (nothing is built or published from the root); it only ties the members together for local development.
+#
+# License: CC-BY-4.0 (SPDX), the license of OpenBinding; see NOTICE.md and licenses.json.
+
+[tool.uv.workspace]
+members = ["packages/bim-core", "packages/bim-service", "packages/bim-client"]
+
+# In the workspace the dependencies between members resolve to the members themselves. This is development
+# metadata only: the built wheels and sdists carry plain version ranges (bim-core>=0.2,<0.3), never a path.
+[tool.uv.sources]
+bim-core = { workspace = true }
+bim-service = { workspace = true }
+
+# `tools/` and the conftest at the root belong to no package, so they have no [tool.ruff] table of their own. They get
+# the one every package has (errors, unused names, bug patterns); without it ruff applies the defaults of its own
+# version, which change from one release to the next.
+[tool.ruff]
+line-length = 110
+src = ["tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "B"]
+ignore = ["E501"]

@@ -14,12 +14,16 @@ from _repo import REPO_ROOT
 from openbinding_gateway import space_client
 from openbinding_gateway.db.base import Base
 from openbinding_gateway.db.models import EngineRegistrationRevision, User, UserRole
+from openbinding_gateway.integrations import bim, packages
 from openbinding_gateway.main import app
 from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.services import engines as engine_service
 from openbinding_gateway.space_client import PlanCaps
-from openbinding_gateway.v1.canonical import digest
-from openbinding_gateway.v1.compiler import compile_instance
-from openbinding_gateway.v1.package import load_package
+import bim_core
+from bim_core import ir_features, mode_compatibility
+from bim_core.canonical import digest
+from bim_core.compiler import compile_instance
+from bim_core.package import load_package
 
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
@@ -40,7 +44,7 @@ async def _account_headers(client, details: dict[str, str]) -> dict[str, str]:
 def _deployment_openapi(contract: dict) -> dict:
     deployment = copy.deepcopy(contract)
     deployment["x-bim-protocol"] = "bim-engine/v1"
-    deployment["x-bim-protocol-digest"] = routes._protocol_digest()
+    deployment["x-bim-protocol-digest"] = engine_service.protocol_digest()
     solve = deployment["paths"].pop("/internal/v1/binding-problems")
     job = deployment["paths"].pop("/internal/v1/jobs/{id}")
     deployment["paths"]["/deployment/solve"] = solve
@@ -51,11 +55,11 @@ def _deployment_openapi(contract: dict) -> dict:
     return deployment
 
 
-def test_protocol_digest_pins_the_external_binding_problem_schema(monkeypatch) -> None:
-    installed = routes._protocol_digest()
-    monkeypatch.setattr(routes, "digest_bytes", lambda value: "sha256-" + "f" * 64)
-
-    assert routes._protocol_digest() != installed
+def test_the_protocol_digest_is_the_one_the_toolchain_pins() -> None:
+    # The digest covers the OpenAPI contract and the external BindingProblem schema it points at; that is
+    # computed by the toolchain (its own tests change the schema bytes), and the platform only relays it.
+    assert engine_service.protocol_digest() == bim_core.protocol_digest()
+    assert engine_service.protocol_document() == bim_core.protocol_document()
 
 
 def _problem(*, placement: bool = False):
@@ -90,7 +94,7 @@ def _problem(*, placement: bool = False):
                     }
                 },
                 "constraints": [{"enforcement": "soft", "assert": {"kind": "compare"}, "penalty": {"kind": "literal"}}],
-                "optimization": {"mode": "weighted", "type": "MONO", "terms": []},
+                "optimization": {"criteria": [{"id": "latency"}], "penalties": []},
                 "placement": [{"kind": "pool"}] if placement else [],
                 "dialects": [{"id": "qos-binding/v1"}],
             }
@@ -106,18 +110,19 @@ def test_mode_compatibility_checks_construct_values_and_limits() -> None:
             "workflowNodes": {"selector": "only", "values": ["task"]},
             "aggregations": {"selector": "all"},
             "featureScopes": {"selector": "only", "values": ["invocation"]},
+            "featureValues": {"selector": "only", "values": ["scalar"]},
             "constraints": {"selector": "none"},
-            "optimization": {"selector": "only", "values": ["satisfy"]},
-            "objectiveTypes": {"selector": "only", "values": ["MONO"]},
             "expressions": {"selector": "all"},
             "placement": {"selector": "none"},
             "irExtensions": {"selector": "none"},
         },
         "limits": {"maxTasks": 10, "maxCandidates": 1},
     }
-    diagnostics = routes._mode_compatibility(_problem(placement=True), mode)
+    diagnostics = mode_compatibility(_problem(placement=True), mode)
     by_category = {item.get("category") for item in diagnostics}
-    assert {"workflowNodes", "featureScopes", "constraints", "optimization", "placement"} <= by_category
+    assert {"workflowNodes", "featureScopes", "constraints", "placement"} <= by_category
+    # Optimization is selected at execution time, so it is no longer an IR capability category.
+    assert not {"optimization", "objectiveTypes"} & set(ir_features(_problem()))
     assert any(item.get("limit") == "maxCandidates" for item in diagnostics)
 
 
@@ -131,16 +136,15 @@ def test_mode_compatibility_accepts_all_only_for_closed_dimensions() -> None:
                 "workflowNodes",
                 "aggregations",
                 "featureScopes",
+                "featureValues",
                 "constraints",
-                "optimization",
-                "objectiveTypes",
                 "expressions",
                 "placement",
             )
         } | {"irExtensions": {"selector": "none"}},
         "limits": {"maxTasks": 10, "maxCandidates": 10},
     }
-    assert routes._mode_compatibility(_problem(placement=True), mode) == []
+    assert mode_compatibility(_problem(placement=True), mode) == []
 
 
 def test_none_selector_accepts_an_unused_feature_category() -> None:
@@ -153,9 +157,8 @@ def test_none_selector_accepts_an_unused_feature_category() -> None:
                 "workflowNodes",
                 "aggregations",
                 "featureScopes",
+                "featureValues",
                 "constraints",
-                "optimization",
-                "objectiveTypes",
                 "expressions",
             )
         }
@@ -165,38 +168,35 @@ def test_none_selector_accepts_an_unused_feature_category() -> None:
         },
         "limits": {"maxTasks": 10, "maxCandidates": 10},
     }
-    assert routes._mode_compatibility(_problem(), mode) == []
+    assert mode_compatibility(_problem(), mode) == []
 
 
 @pytest.mark.parametrize(
-    ("objective_type", "objective_count", "many_compatible", "multi_compatible"),
+    ("objective_count", "many_compatible", "multi_compatible"),
     [
-        ("MANY", 2, False, False),
-        ("MANY", 3, True, False),
-        ("MANY", 4, True, False),
-        ("MULTI", 1, False, False),
-        ("MULTI", 2, False, True),
-        ("MULTI", 3, False, True),
-        ("MULTI", 4, False, False),
+        (1, False, False),
+        (2, False, True),
+        (3, True, True),
+        (4, True, False),
     ],
 )
 def test_many_and_multi_modes_are_eligible_only_for_their_declared_objective_class(
-    objective_type: str,
     objective_count: int,
     many_compatible: bool,
     multi_compatible: bool,
 ) -> None:
+    # The objective class is chosen at execution time; the IR only carries the
+    # criteria, so eligibility follows the mode's min/maxObjectives limits.
     problem = _problem()
     problem.document["spec"]["optimization"] = {
-        "mode": "pareto",
-        "type": objective_type,
-        "terms": [{} for _ in range(objective_count)],
+        "criteria": [{"id": f"c{index}"} for index in range(objective_count)],
+        "penalties": [],
     }
     many = copy.deepcopy(routes._manifest("many-heuristic")["spec"]["modes"][0])
     multi = json.loads(MULTI_ENGINE.read_text(encoding="utf-8"))["spec"]["modes"][0]
 
-    assert (routes._mode_compatibility(problem, many) == []) is many_compatible
-    assert (routes._mode_compatibility(problem, multi) == []) is multi_compatible
+    assert (mode_compatibility(problem, many) == []) is many_compatible
+    assert (mode_compatibility(problem, multi) == []) is multi_compatible
 
 
 def test_feature_extraction_ignores_unreachable_aggregation_expressions() -> None:
@@ -210,12 +210,12 @@ def test_feature_extraction_ignores_unreachable_aggregation_expressions() -> Non
     }
     # selectedCandidate metrics execute only the selection slot, so a source
     # override in an unreachable workflow slot is not an Engine requirement.
-    assert "arithmetic" not in routes._ir_features(problem)["expressions"]
+    assert "arithmetic" not in ir_features(problem)["expressions"]
 
 
 @pytest.mark.asyncio
 async def test_registration_conformance_pins_openapi_and_probes_result(monkeypatch) -> None:
-    contract = routes._protocol_document()
+    contract = engine_service.protocol_document()
     deployment = _deployment_openapi(contract)
     fetched_paths = []
 
@@ -243,7 +243,7 @@ async def test_registration_conformance_pins_openapi_and_probes_result(monkeypat
     registration = {
         "spec": {
             "endpoint": "https://solver.example",
-            "protocol": {"id": "bim-engine/v1", "digest": routes._protocol_digest()},
+            "protocol": {"id": "bim-engine/v1", "digest": engine_service.protocol_digest()},
             "mappings": {
                 "request": "/deployment/solve",
                 "job": "/deployment/jobs/{id}",
@@ -278,7 +278,7 @@ async def test_registration_conformance_rejects_unpinned_openapi(monkeypatch) ->
     registration = {
         "spec": {
             "endpoint": "https://solver.example",
-            "protocol": {"id": "bim-engine/v1", "digest": routes._protocol_digest()},
+            "protocol": {"id": "bim-engine/v1", "digest": engine_service.protocol_digest()},
             "mappings": {"request": "/internal/v1/binding-problems", "openapi": "/openapi.json"},
             "auth": {"scheme": "none"},
         }
@@ -307,7 +307,7 @@ def test_registration_openapi_cannot_call_optional_auth_required() -> None:
 
 @pytest.mark.asyncio
 async def test_registration_conformance_checks_async_job_auth(monkeypatch) -> None:
-    deployment = _deployment_openapi(routes._protocol_document())
+    deployment = _deployment_openapi(engine_service.protocol_document())
     deployment.setdefault("components", {})["securitySchemes"] = {
         "Bearer": {"type": "http", "scheme": "bearer"},
     }
@@ -325,7 +325,7 @@ async def test_registration_conformance_checks_async_job_auth(monkeypatch) -> No
     registration = {
         "spec": {
             "endpoint": "https://solver.example",
-            "protocol": {"id": "bim-engine/v1", "digest": routes._protocol_digest()},
+            "protocol": {"id": "bim-engine/v1", "digest": engine_service.protocol_digest()},
             "mappings": {
                 "request": "/deployment/solve",
                 "job": "/deployment/jobs/{id}",
@@ -348,7 +348,7 @@ async def test_registration_conformance_checks_async_job_auth(monkeypatch) -> No
 @pytest.mark.asyncio
 @pytest.mark.parametrize("failure", ["protocol", "digest", "request-schema", "result-schema"])
 async def test_registration_conformance_rejects_false_protocol_or_schema(monkeypatch, failure: str) -> None:
-    contract = routes._protocol_document()
+    contract = engine_service.protocol_document()
     deployment = _deployment_openapi(contract)
     if failure == "protocol":
         deployment["x-bim-protocol"] = "not-bim/v1"
@@ -370,7 +370,7 @@ async def test_registration_conformance_rejects_false_protocol_or_schema(monkeyp
     registration = {
         "spec": {
             "endpoint": "https://solver.example",
-            "protocol": {"id": "bim-engine/v1", "digest": routes._protocol_digest()},
+            "protocol": {"id": "bim-engine/v1", "digest": engine_service.protocol_digest()},
             "mappings": {
                 "request": "/deployment/solve",
                 "job": "/deployment/jobs/{id}",
@@ -395,7 +395,7 @@ def test_retired_federated_engine_model_is_absent() -> None:
 
 
 def test_secret_detection_is_recursive() -> None:
-    assert routes._embedded_secret_paths({"spec": {"extensions": {"nested": [{"apiToken": "x"}]}}}) == [
+    assert engine_service.embedded_secret_paths({"spec": {"extensions": {"nested": [{"apiToken": "x"}]}}}) == [
         "/spec/extensions/nested/0/apiToken"
     ]
 
@@ -406,7 +406,7 @@ def test_repeated_engine_aliases_are_removed_and_protocol_stays_public() -> None
     assert "/v1/catalog/engines/{name}" not in app.openapi()["paths"]
     protocol = client.get("/v1/schemas/engine-contract").json()
     assert protocol["protocol"] == "bim-engine/v1"
-    assert protocol["digest"] == routes._protocol_digest()
+    assert protocol["digest"] == engine_service.protocol_digest()
 
 
 def test_structured_http_errors_preserve_their_problem_code() -> None:
@@ -426,13 +426,8 @@ def test_structured_http_errors_preserve_their_problem_code() -> None:
 
 def test_pricing_contract_is_public_and_separate_from_bim_schemas() -> None:
     client = TestClient(app)
-    from openbinding_gateway.routes.pricing import validate_pricing
-
-    pricing = (REPO_ROOT / "space/pricing/openbinding.yml").read_bytes()
-    _, validation = validate_pricing(pricing, "0.1.0")
     operation = app.openapi()["paths"]["/v1/pricing"]["get"]
 
-    assert validation.valid
     assert operation["deprecated"] is True
     assert not operation.get("security")
     assert set(operation["responses"]["200"]["content"]) == {"application/yaml"}
@@ -497,7 +492,7 @@ async def test_validate_enumerates_exact_visible_active_registrations_without_am
     engine_ref = {field: engine[field] for field in ("namespace", "name", "version", "digest")}
 
     async def create_deployment(name: str) -> dict:
-        deployment_openapi = _deployment_openapi(routes._protocol_document())
+        deployment_openapi = _deployment_openapi(engine_service.protocol_document())
         response = await api_client.post(
             "/v1/engine-registrations",
             headers=headers,
@@ -515,7 +510,7 @@ async def test_validate_enumerates_exact_visible_active_registrations_without_am
                     "protocol": {
                         "id": "bim-engine/v1",
                         "mediaType": "application/json",
-                        "digest": routes._protocol_digest(),
+                        "digest": engine_service.protocol_digest(),
                     },
                     "mappings": {
                         "request": "/deployment/solve",
@@ -585,20 +580,20 @@ async def test_validate_enumerates_exact_visible_active_registrations_without_am
     assert tuple(public[field] for field in ("namespace", "name", "version", "digest")) in viewer_refs
     assert tuple(private_a[field] for field in ("namespace", "name", "version", "digest")) not in viewer_refs
 
-    public_job_registration = await routes._registration_for_engine(
+    public_job_registration = await engine_service.registration_for_engine(
         *(public[field] for field in ("namespace", "name", "version", "digest")),
         viewer,
         db_session,
     )
-    private_job_registration = await routes._registration_for_engine(
+    private_job_registration = await engine_service.registration_for_engine(
         *(private_a[field] for field in ("namespace", "name", "version", "digest")),
         viewer,
         db_session,
     )
-    assert routes._registration_reference(public_job_registration) == {
+    assert engine_service.registration_reference(public_job_registration) == {
         field: public[field] for field in ("namespace", "name", "version", "digest")
     }
-    assert routes._registration_engine_reference(public_job_registration) == engine_ref
+    assert engine_service.registration_engine_reference(public_job_registration) == engine_ref
     assert private_job_registration is None
 
 
@@ -679,7 +674,7 @@ async def test_registration_lifecycle_targets_one_exact_immutable_revision(
         return (
             {
                 "protocol": "bim-engine/v1",
-                "protocolDigest": routes._protocol_digest(),
+                "protocolDigest": engine_service.protocol_digest(),
                 "status": "verified",
                 "checks": [],
                 "durationMs": 0.0,
@@ -694,7 +689,7 @@ async def test_registration_lifecycle_targets_one_exact_immutable_revision(
     engine = next(item for item in engines if item["name"] == "random-search")
 
     async def create_revision(version: str):
-        deployment_openapi = _deployment_openapi(routes._protocol_document())
+        deployment_openapi = _deployment_openapi(engine_service.protocol_document())
         document = {
             "apiVersion": "bim/v1",
             "kind": "EngineRegistration",
@@ -712,7 +707,7 @@ async def test_registration_lifecycle_targets_one_exact_immutable_revision(
                 "protocol": {
                     "id": "bim-engine/v1",
                     "mediaType": "application/json",
-                    "digest": routes._protocol_digest(),
+                    "digest": engine_service.protocol_digest(),
                 },
                 "mappings": {
                     "request": "/deployment/solve",
@@ -779,13 +774,13 @@ async def test_registration_lifecycle_targets_one_exact_immutable_revision(
 
 def test_builtin_dialects_satisfy_the_public_schema() -> None:
     for dialect in routes._builtin_dialects():
-        assert routes._schema_diagnostics(dialect, "Dialect") == []
+        assert engine_service.schema_diagnostics(dialect, "Dialect") == []
 
 
 def test_open_capability_dimensions_never_accept_an_unbounded_all_claim() -> None:
     engine = copy.deepcopy(routes._manifest("random-search"))
     engine["spec"]["modes"][0]["capabilities"]["irExtensions"] = {"selector": "all"}
-    diagnostics = routes._engine_contract_diagnostics(engine)
+    diagnostics = engine_service.engine_contract_diagnostics(engine)
     assert any(
         item["code"] == "open_capability_requires_explicit_values"
         and item["pointer"].endswith("/irExtensions/selector")
@@ -793,8 +788,108 @@ def test_open_capability_dimensions_never_accept_an_unbounded_all_claim() -> Non
     )
 
 
+def _engine_modes() -> list[tuple[str, dict]]:
+    manifests = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(engine_service.MANIFEST_DIR.glob("*.json"))]
+    manifests.append(json.loads(MULTI_ENGINE.read_text(encoding="utf-8")))
+    return [
+        (f"{manifest['metadata']['name']}/{mode['id']}", mode)
+        for manifest in manifests
+        for mode in manifest["spec"]["modes"]
+    ]
+
+
+def _example_with_latency(value, *, extra: dict | None = None):
+    package = load_package(EXAMPLE)
+    catalog = json.loads(package.files["candidates.json"])
+    catalog["spec"]["candidates"]["c1a"]["features"]["latency"] = value
+    if extra is not None:
+        application = json.loads(package.files["application.json"])
+        application["spec"]["features"]["extra"] = {"unit": "ms"}
+        package.files["application.json"] = json.dumps(application).encode()
+        catalog["spec"]["featureBindings"]["extra"] = {"resource": "application", "id": "extra"}
+        catalog["spec"]["candidates"]["c1a"]["features"]["extra"] = extra
+    package.files["candidates.json"] = json.dumps(catalog).encode()
+    return compile_instance(package)
+
+
+def test_profile_vocabulary_declares_scalar_and_interval_feature_values() -> None:
+    profile = next(item for item in bim.profile_manifests() if item["metadata"]["name"] == "qos-binding")
+    dimensions = profile["spec"]["capabilityVocabulary"]["dimensions"]
+    assert dimensions["featureValues"] == {"values": ["scalar", "interval"], "openValues": False}
+
+
+def test_every_engine_mode_declares_only_scalar_feature_values() -> None:
+    modes = _engine_modes()
+    assert len(modes) == 6
+    for name, mode in modes:
+        assert mode["capabilities"]["featureValues"] == {"selector": "only", "values": ["scalar"]}, name
+
+
+def test_ir_features_report_scalar_and_interval_feature_values() -> None:
+    assert ir_features(_example_with_latency(10))["featureValues"] == {"scalar"}
+    assert ir_features(_example_with_latency({"min": 8, "max": 12}))["featureValues"] == {"scalar", "interval"}
+    only_in_unused_slot = _example_with_latency(10, extra={"min": 1, "max": 2})
+    assert "extra" not in only_in_unused_slot.document["spec"]["application"]["requiredFeatures"]
+    assert ir_features(only_in_unused_slot)["featureValues"] == {"scalar", "interval"}
+
+
+def test_interval_feature_values_fail_closed_against_every_engine_mode() -> None:
+    problem = _example_with_latency({"min": 8, "max": 12})
+    for name, mode in _engine_modes():
+        diagnostics = [
+            item for item in mode_compatibility(problem, mode) if item.get("category") == "featureValues"
+        ]
+        assert [item["code"] for item in diagnostics] == ["unsupported_capability_value"], name
+        assert diagnostics[0]["unsupported"] == ["interval"], name
+        assert diagnostics[0]["allowed"] == ["scalar"], name
+
+
+def test_scalar_feature_values_remain_compatible_with_every_engine_mode() -> None:
+    problem = _example_with_latency(10)
+    for name, mode in _engine_modes():
+        diagnostics = mode_compatibility(problem, mode)
+        assert not [item for item in diagnostics if item.get("category") == "featureValues"], name
+
+
+def _feature_values_diagnostics(problem, mode) -> list[dict]:
+    return [item for item in mode_compatibility(problem, mode) if item.get("category") == "featureValues"]
+
+
+def test_manifest_without_feature_values_is_rejected_and_never_matches_a_problem() -> None:
+    engine = copy.deepcopy(routes._manifest("random-search"))
+    del engine["spec"]["modes"][0]["capabilities"]["featureValues"]
+
+    missing = [item for item in engine_service.engine_contract_diagnostics(engine) if item["code"] == "capability_dimension_missing"]
+    assert len(missing) == 1
+    assert missing[0]["pointer"] == "/spec/modes/0/capabilities"
+    assert "featureValues" in missing[0]["message"]
+
+    # A manifest stored before the dimension existed still fails closed at match time.
+    diagnostics = _feature_values_diagnostics(_example_with_latency(10), engine["spec"]["modes"][0])
+    assert [item["code"] for item in diagnostics] == ["missing_capability_selector"]
+
+
+def test_feature_values_all_accepts_intervals_and_none_rejects_every_value() -> None:
+    engine = copy.deepcopy(routes._manifest("random-search"))
+    mode = engine["spec"]["modes"][0]
+    problem = _example_with_latency({"min": 8, "max": 12})
+
+    mode["capabilities"]["featureValues"] = {"selector": "all"}
+    assert not [
+        item for item in engine_service.engine_contract_diagnostics(engine)
+        if "featureValues" in item["pointer"] or "featureValues" in item["message"]
+    ]
+    assert _feature_values_diagnostics(problem, mode) == []
+
+    # `none` is not the `only` branch: it reports unsupported_capability, not unsupported_capability_value.
+    mode["capabilities"]["featureValues"] = {"selector": "none"}
+    diagnostics = _feature_values_diagnostics(problem, mode)
+    assert [item["code"] for item in diagnostics] == ["unsupported_capability"]
+    assert diagnostics[0]["unsupported"] == ["interval", "scalar"]
+
+
 def test_compiled_ir_pins_complete_dialect_and_adapter_revisions() -> None:
-    problem = routes.compile_instance(load_package(EXAMPLE))
+    problem = compile_instance(load_package(EXAMPLE))
     installed = routes._builtin_dialects()[0]
     descriptor = problem.document["spec"]["dialects"][0]
     assert descriptor["id"] == "qos-binding/v1"
@@ -813,52 +908,32 @@ def test_dialect_publication_cannot_relabel_an_installed_binary_contract() -> No
 
 
 def test_gateway_rejects_incomplete_decisions_and_replaces_engine_evaluation() -> None:
-    class FakeProblem:
-        document = {
-            "spec": {
-                "application": {"features": {"latency": {}}},
-                "optimization": {"penalties": []},
-            }
-        }
+    port = bim.get_bim()
+    ir = port.compile(packages.zip_directory(EXAMPLE))["ir"]
+    binding = {
+        "t1": {"resource": "catalog", "id": "c1a"},
+        "t2": {"resource": "catalog", "id": "c2a"},
+        "t3": {"resource": "catalog", "id": "c3a"},
+    }
 
-        def validate_binding(self, binding):
-            if binding != {"task": {"resource": "catalog", "id": "candidate"}}:
-                raise ValueError("binding must contain exactly service tasks")
-            return binding
-
-        def evaluate(self, binding):
-            self.validate_binding(binding)
-            return {
-                "features": {"latency": 7.0},
-                "objectives": {"mode": "weighted", "score": 7.0},
-                "violations": [],
-            }
-
-    incomplete = routes._reevaluate_result(
-        FakeProblem(),
-        {"termination": "FEASIBLE", "solutions": [{"decision": {"kind": "binding", "binding": {}}}]},
+    incomplete = port.reevaluate(
+        ir, {"termination": "FEASIBLE", "solutions": [{"decision": {"kind": "binding", "binding": {}}}]}
     )
     assert incomplete["termination"] == "UNKNOWN"
     assert incomplete["solutions"] == []
 
-    valid = routes._reevaluate_result(
-        FakeProblem(),
+    valid = port.reevaluate(
+        ir,
         {
             "termination": "FEASIBLE",
-            "solutions": [
-                {
-                    "decision": {
-                        "kind": "binding",
-                        "binding": {"task": {"resource": "catalog", "id": "candidate"}},
-                    },
-                    "features": {"latency": -999},
-                }
-            ],
+            "solutions": [{"decision": {"kind": "binding", "binding": binding}, "features": {"latency": -999}}],
         },
     )
+    expected = port.evaluate(ir, binding)
     assert valid["termination"] == "FEASIBLE"
-    assert valid["solutions"][0]["features"] == {"latency": 7.0}
-    assert valid["solutions"][0]["objectives"]["score"] == 7.0
+    assert valid["solutions"][0]["features"] == expected["features"]
+    assert valid["solutions"][0]["features"]["latency"] != -999
+    assert valid["solutions"][0]["objectives"] == expected["objectives"]
 
 
 def test_binding_space_properties_on_binding_problem() -> None:
@@ -888,10 +963,21 @@ async def test_validate_and_solve_refuse_instance_exceeding_plan_complexity(
     assert validate_resp.status_code == 402, validate_resp.text
     assert validate_resp.json()["title"] == "instance_complexity_too_large"
 
+    # Jobs run from a snapshot: multipart/ZIP uploads cannot carry the execution `optimization`.
+    snapshot = await api_client.post(
+        "/v1/instances",
+        content=package.to_zip(),
+        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
+    )
+    assert snapshot.status_code == 201, snapshot.text
     job_resp = await api_client.post(
         "/v1/jobs",
-        files={"package": ("package.zip", package.to_zip(), "application/zip")},
-        data={"engine": "bim.builtin/minizinc-csp", "mode": "exact-weighted"},
+        json={
+            "snapshot": snapshot.json()["id"],
+            "engine": "random-search",
+            "mode": "seeded",
+            "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
+        },
         headers=headers,
     )
     assert job_resp.status_code == 402, job_resp.text

@@ -1,0 +1,23 @@
+/* Positioned so that visually hidden text inside a cell (an "Actions" header) stays inside the scroller instead of widening the page.
+   The shadows at the sides are the hint that there is more to scroll to: they follow the scroll (`local`) and disappear once the edge is reached. */
+.ui-table-wrap {
+  position: relative;
+  overflow-x: auto;
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-xl);
+  background:
+    linear-gradient(to right, var(--tp-canvas) 30%, transparent) left center / 24px 100% no-repeat local,
+    linear-gradient(to left, var(--tp-canvas) 30%, transparent) right center / 24px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 0.18), transparent) left center / 10px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 0.18), transparent) right center / 10px 100% no-repeat scroll,
+    var(--tp-canvas);
+}
+
+.ui-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+.ui-table thead tr { background: var(--tp-surface); text-align: left; }
+.ui-table th { padding: 10px; color: var(--tp-steel); font-size: 0.75rem; font-weight: 600; text-align: left; }
+.ui-table td { padding: 10px; vertical-align: top; }.ui-table th:first-child, .ui-table td:first-child { padding-left: var(--tp-spacing-md); }
+.ui-table th:last-child, .ui-table td:last-child { padding-right: var(--tp-spacing-md); }
+.ui-table tbody tr { border-top: 1px solid var(--tp-hairline-soft); }
+.ui-table .is-mono, .ui-table code { font-family: var(--font-mono); }
+.ui-table a { font-weight: 500; }

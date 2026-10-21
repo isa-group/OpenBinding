@@ -14,7 +14,7 @@ _tools_dir = str(Path(__file__).resolve().parents[1] / "tools")
 if _tools_dir not in sys.path:
     sys.path.insert(0, _tools_dir)
 
-from openbinding_gateway.db.models import Artifact, ArtifactVersion, ApiKey, EngineRegistrationRevision, EngineRevision, Job, JobState, User, UserRole
+from openbinding_gateway.db.models import Artifact, ArtifactVersion, ApiKey, EngineRegistrationRevision, EngineRevision, Job, User, UserRole
 from openbinding_gateway.db.platform_models import (
     Blob,
     AuditEvent,
@@ -58,9 +58,10 @@ async def test_live_report_seed_upgrades_drafts_and_preserves_two_editions(
     from _pricing import fake_pricing_gate, largest_plan
     from openbinding_gateway import space_client
     from openbinding_gateway.core.settings import get_settings
-    from openbinding_gateway.routes import v1 as routes
+    from openbinding_gateway.services import execution
+    from openbinding_gateway.services.engines import engine_ref, manifest as engine_manifest
     from openbinding_gateway.db.models import Project, InstanceSnapshot, Study, StudyRun
-    from openbinding_gateway.v1.package import load_package
+    from bim_core.package import load_package
     import uuid
 
     async def solve(*args, **kwargs):
@@ -73,7 +74,7 @@ async def test_live_report_seed_upgrades_drafts_and_preserves_two_editions(
     space_client.set_gate(gate)
     try:
         monkeypatch.setattr(get_settings(), 'job_dispatch_mode', 'inline')
-        monkeypatch.setattr(routes, 'solve_remote', solve)
+        monkeypatch.setattr(execution, 'solve_remote', solve)
         headers = await _headers(api_client, registration)
         profile = (await api_client.get('/v1/users/me', headers=headers)).json()
         user = await db_session.get(User, uuid.UUID(profile['id']))
@@ -91,7 +92,8 @@ async def test_live_report_seed_upgrades_drafts_and_preserves_two_editions(
         response = await api_client.post(base + '/studies', headers=headers, json={
             'slug': 'benchmark', 'name': 'Benchmark', 'definition': {
                 'case_revision_ids': [str(cases['simple-seq'][1].id)],
-                'engines': [{**routes._engine_ref(routes._manifest('random-search')), 'mode': 'seeded'}],
+                'engines': [{**engine_ref(engine_manifest('random-search')), 'mode': 'seeded',
+                             'optimization': {'type': 'SINGLE', 'scalarization': 'weighted-sum'}}],
                 'parameter_sets': [{'iterations': 1}], 'seeds': [1]}})
         assert response.status_code == 201, response.text
         study = await db_session.get(Study, uuid.UUID(response.json()['id']))

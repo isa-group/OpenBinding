@@ -1,0 +1,1017 @@
+{
+ "compat": {
+  "engines": {
+   "evolutionary-heuristics": {
+    "manifestDigest": "sha256-049546e1a5a680457bd3591da15498174c328c466203ba78ef8d891ab6196530",
+    "modes": [
+     "elitist-genetic",
+     "pareto-genetic"
+    ]
+   },
+   "many-heuristic": {
+    "manifestDigest": "sha256-2e31adb73e054c7b210086b8bdbb6ec566efa146fecd8d2df67992f6dd69b75e",
+    "modes": [
+     "pareto-sampling"
+    ]
+   },
+   "minizinc-csp": {
+    "manifestDigest": "sha256-d17e2be6cefac0d435e30af365e0b3c8d6650433d36fad19b5e0383a6f7c799b",
+    "modes": [
+     "exact-weighted"
+    ]
+   },
+   "random-search": {
+    "manifestDigest": "sha256-c7c395fecbab64c75391eb1c38a2074c9cd669c0192ac472965772e30ef70409",
+    "modes": [
+     "seeded"
+    ]
+   }
+  },
+  "packages": {
+   "example-package": {
+    "evolutionary-heuristics": {
+     "elitist-genetic": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     },
+     "pareto-genetic": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     }
+    },
+    "many-heuristic": {
+     "pareto-sampling": {
+      "codes": [
+       "engine_limit:minObjectives"
+      ],
+      "compatible": false,
+      "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
+     }
+    },
+    "minizinc-csp": {
+     "exact-weighted": {
+      "codes": [
+       "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+       "unsupported_capability_value:constraints:soft.expression",
+       "unsupported_capability_value:expressions:call.has"
+      ],
+      "compatible": false,
+      "digest": "sha256-268e88a8b33cd9f4039139d30fa151d77fd617ffa9e7651e82167f34ef22fbd7"
+     }
+    },
+    "random-search": {
+     "seeded": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     }
+    }
+   },
+   "synthetic/ordered": {
+    "evolutionary-heuristics": {
+     "elitist-genetic": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     },
+     "pareto-genetic": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     }
+    },
+    "many-heuristic": {
+     "pareto-sampling": {
+      "codes": [
+       "engine_limit:minObjectives"
+      ],
+      "compatible": false,
+      "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
+     }
+    },
+    "minizinc-csp": {
+     "exact-weighted": {
+      "codes": [
+       "unsupported_capability_value:constraints:soft.expression",
+       "unsupported_capability_value:expressions:call.has"
+      ],
+      "compatible": false,
+      "digest": "sha256-797fd7b900e65e2a4ec5b7186a49f16e09f4b4732b7ec8572bdbd5dbd1792e40"
+     }
+    },
+    "random-search": {
+     "seeded": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     }
+    }
+   },
+   "synthetic/unordered-candidates": {
+    "evolutionary-heuristics": {
+     "elitist-genetic": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     },
+     "pareto-genetic": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     }
+    },
+    "many-heuristic": {
+     "pareto-sampling": {
+      "codes": [
+       "engine_limit:minObjectives"
+      ],
+      "compatible": false,
+      "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
+     }
+    },
+    "minizinc-csp": {
+     "exact-weighted": {
+      "codes": [
+       "unsupported_capability_value:constraints:soft.expression",
+       "unsupported_capability_value:expressions:call.has"
+      ],
+      "compatible": false,
+      "digest": "sha256-797fd7b900e65e2a4ec5b7186a49f16e09f4b4732b7ec8572bdbd5dbd1792e40"
+     }
+    },
+    "random-search": {
+     "seeded": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     }
+    }
+   },
+   "synthetic/unordered-catalogs": {
+    "evolutionary-heuristics": {
+     "elitist-genetic": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     },
+     "pareto-genetic": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     }
+    },
+    "many-heuristic": {
+     "pareto-sampling": {
+      "codes": [
+       "engine_limit:minObjectives"
+      ],
+      "compatible": false,
+      "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
+     }
+    },
+    "minizinc-csp": {
+     "exact-weighted": {
+      "codes": [
+       "unsupported_capability_value:constraints:soft.expression",
+       "unsupported_capability_value:expressions:call.has"
+      ],
+      "compatible": false,
+      "digest": "sha256-797fd7b900e65e2a4ec5b7186a49f16e09f4b4732b7ec8572bdbd5dbd1792e40"
+     }
+    },
+    "random-search": {
+     "seeded": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     }
+    }
+   },
+   "synthetic/unordered-constraint-sets": {
+    "evolutionary-heuristics": {
+     "elitist-genetic": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     },
+     "pareto-genetic": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     }
+    },
+    "many-heuristic": {
+     "pareto-sampling": {
+      "codes": [
+       "engine_limit:minObjectives"
+      ],
+      "compatible": false,
+      "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
+     }
+    },
+    "minizinc-csp": {
+     "exact-weighted": {
+      "codes": [
+       "unsupported_capability_value:constraints:soft.expression",
+       "unsupported_capability_value:expressions:call.has"
+      ],
+      "compatible": false,
+      "digest": "sha256-797fd7b900e65e2a4ec5b7186a49f16e09f4b4732b7ec8572bdbd5dbd1792e40"
+     }
+    },
+    "random-search": {
+     "seeded": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     }
+    }
+   },
+   "synthetic/unordered-constraints": {
+    "evolutionary-heuristics": {
+     "elitist-genetic": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     },
+     "pareto-genetic": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     }
+    },
+    "many-heuristic": {
+     "pareto-sampling": {
+      "codes": [
+       "engine_limit:minObjectives"
+      ],
+      "compatible": false,
+      "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
+     }
+    },
+    "minizinc-csp": {
+     "exact-weighted": {
+      "codes": [
+       "unsupported_capability_value:constraints:soft.expression",
+       "unsupported_capability_value:expressions:call.has"
+      ],
+      "compatible": false,
+      "digest": "sha256-797fd7b900e65e2a4ec5b7186a49f16e09f4b4732b7ec8572bdbd5dbd1792e40"
+     }
+    },
+    "random-search": {
+     "seeded": {
+      "codes": [],
+      "compatible": true,
+      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     }
+    }
+   }
+  },
+  "schema": "bim-baseline/compat/1"
+ },
+ "corpus": {
+  "blockSize": 64,
+  "digestPrefix": 16,
+  "exhaustiveLimit": 2000,
+  "inlineLimit": 64,
+  "packageCount": 6,
+  "packages": {
+   "example-package": {
+    "bindingSpace": {
+     "candidatesPerServiceTask": [
+      2,
+      2
+     ],
+     "cardinality": "4",
+     "log10": 0.602059991
+    },
+    "candidates": 2,
+    "evaluation": {
+     "bindingDigests": [
+      "9e805534d9d49f9f",
+      "e59bf27de0e10243",
+      "5b883ac04ee17d70",
+      "e51a064e8f4aed69"
+     ],
+     "count": 4,
+     "mode": "exhaustive",
+     "rollupDigest": "sha256-601190cbc12194bcde2bf4e6bd1e93036a3908ccb4f3baa013288fcba3e1aea0",
+     "summary": {
+      "bindingsWithHardViolation": 0,
+      "bindingsWithSoftViolation": 0,
+      "criteriaLoss": {
+       "cost": {
+        "max": 0.6,
+        "min": 0.25
+       },
+       "latency": {
+        "max": 0.6,
+        "min": 0.3
+       }
+      },
+      "errors": {},
+      "evaluated": 4,
+      "feasible": 4,
+      "features": {
+       "cost": {
+        "max": 12.0,
+        "min": 5.0
+       },
+       "latency": {
+        "max": 60.0,
+        "min": 30.0
+       }
+      },
+      "objectives": [
+       "SINGLE/weighted-sum"
+      ],
+      "penalty": {
+       "max": 0,
+       "min": 0
+      },
+      "score": {
+       "max": 0.55,
+       "min": 0.275
+      },
+      "scoreVectors": 0,
+      "violationsByConstraint": {}
+     }
+    },
+    "path": "example-package",
+    "sectionDigests": {
+     "application": "255769345eab6862",
+     "candidates": "5d98c114d9e2f1ef",
+     "constraints": "51affb9fe6c0a4ef",
+     "eligibility": "454fc2d3db1e2931",
+     "extensions": "44136fa355b3678a",
+     "optimization": "385606730b0a5dc0",
+     "placement": "4f53cda18c2baa0c",
+     "routing": "4f53cda18c2baa0c"
+    },
+    "semanticDigest": "sha256-88faceb9ed5ccd1d0db24093dd43b4845879c221b23a6aeb2790b01b7d08a743",
+    "status": "compiled",
+    "tasks": {
+     "service": 2,
+     "total": 3
+    },
+    "toolchain": {
+     "compilerDigest": "sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e",
+     "irDigest": "sha256-0dcc0b0a230d45cf768edef5f0da70f0ca366c8ab29c3e8168c3c16328c22270"
+    }
+   },
+   "synthetic/ordered": {
+    "bindingSpace": {
+     "candidatesPerServiceTask": [
+      4,
+      4
+     ],
+     "cardinality": "16",
+     "log10": 1.204119983
+    },
+    "candidates": 4,
+    "evaluation": {
+     "bindingDigests": [
+      "ee1c853c57af7758",
+      "37f8c5fc26c77b90",
+      "78e73227b67f913d",
+      "1161a54dd12397b1",
+      "f9fdfd1200c43a9a",
+      "f5374063e96abe13",
+      "95447088416a582e",
+      "2b20f22d392322a3",
+      "cb4f38d82be19cd8",
+      "4572dfa6c03b3f78",
+      "e8ba78fb4802712f",
+      "98b300d50e794fc4",
+      "3003d9cbaa500971",
+      "8818eb4c1c725d1d",
+      "26f12c49e5abe651",
+      "44398e014359c675"
+     ],
+     "count": 16,
+     "mode": "exhaustive",
+     "rollupDigest": "sha256-61ed0b0678abb05a65ba899ef2974f9b17e6a8957f44129bef856b38ccce2dca",
+     "summary": {
+      "bindingsWithHardViolation": 0,
+      "bindingsWithSoftViolation": 0,
+      "criteriaLoss": {
+       "cost": {
+        "max": 0.75,
+        "min": 0.25
+       },
+       "latency": {
+        "max": 0.42,
+        "min": 0.2
+       }
+      },
+      "errors": {},
+      "evaluated": 16,
+      "feasible": 16,
+      "features": {
+       "cost": {
+        "max": 15.0,
+        "min": 5.0
+       },
+       "latency": {
+        "max": 42.0,
+        "min": 20.0
+       }
+      },
+      "objectives": [
+       "SINGLE/weighted-sum"
+      ],
+      "penalty": {
+       "max": 0,
+       "min": 0
+      },
+      "score": {
+       "max": 0.58,
+       "min": 0.225
+      },
+      "scoreVectors": 0,
+      "violationsByConstraint": {}
+     }
+    },
+    "path": "synthetic/ordered",
+    "sectionDigests": {
+     "application": "ce53f51545d89f38",
+     "candidates": "aaf0294765def9cf",
+     "constraints": "3e007c72e959e620",
+     "eligibility": "733ba5c5c1a8b165",
+     "extensions": "44136fa355b3678a",
+     "optimization": "385606730b0a5dc0",
+     "placement": "4f53cda18c2baa0c",
+     "routing": "4f53cda18c2baa0c"
+    },
+    "semanticDigest": "sha256-fdc0810ef77975fc6b4cb4297d1bedc7962754b367ba4607620b788aa31a453b",
+    "status": "compiled",
+    "tasks": {
+     "service": 2,
+     "total": 2
+    },
+    "toolchain": {
+     "compilerDigest": "sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e",
+     "irDigest": "sha256-bc6f0bf61750b820428564ce54aa91b3446c18bae71d5bd15a9198a4f02b70a0"
+    }
+   },
+   "synthetic/unordered-candidates": {
+    "bindingSpace": {
+     "candidatesPerServiceTask": [
+      4,
+      4
+     ],
+     "cardinality": "16",
+     "log10": 1.204119983
+    },
+    "candidates": 4,
+    "evaluation": {
+     "bindingDigests": [
+      "ee1c853c57af7758",
+      "37f8c5fc26c77b90",
+      "78e73227b67f913d",
+      "1161a54dd12397b1",
+      "f9fdfd1200c43a9a",
+      "f5374063e96abe13",
+      "95447088416a582e",
+      "2b20f22d392322a3",
+      "cb4f38d82be19cd8",
+      "4572dfa6c03b3f78",
+      "e8ba78fb4802712f",
+      "98b300d50e794fc4",
+      "3003d9cbaa500971",
+      "8818eb4c1c725d1d",
+      "26f12c49e5abe651",
+      "44398e014359c675"
+     ],
+     "count": 16,
+     "mode": "exhaustive",
+     "rollupDigest": "sha256-61ed0b0678abb05a65ba899ef2974f9b17e6a8957f44129bef856b38ccce2dca",
+     "summary": {
+      "bindingsWithHardViolation": 0,
+      "bindingsWithSoftViolation": 0,
+      "criteriaLoss": {
+       "cost": {
+        "max": 0.75,
+        "min": 0.25
+       },
+       "latency": {
+        "max": 0.42,
+        "min": 0.2
+       }
+      },
+      "errors": {},
+      "evaluated": 16,
+      "feasible": 16,
+      "features": {
+       "cost": {
+        "max": 15.0,
+        "min": 5.0
+       },
+       "latency": {
+        "max": 42.0,
+        "min": 20.0
+       }
+      },
+      "objectives": [
+       "SINGLE/weighted-sum"
+      ],
+      "penalty": {
+       "max": 0,
+       "min": 0
+      },
+      "score": {
+       "max": 0.58,
+       "min": 0.225
+      },
+      "scoreVectors": 0,
+      "violationsByConstraint": {}
+     }
+    },
+    "path": "synthetic/unordered-candidates",
+    "sectionDigests": {
+     "application": "ce53f51545d89f38",
+     "candidates": "aaf0294765def9cf",
+     "constraints": "3e007c72e959e620",
+     "eligibility": "733ba5c5c1a8b165",
+     "extensions": "44136fa355b3678a",
+     "optimization": "385606730b0a5dc0",
+     "placement": "4f53cda18c2baa0c",
+     "routing": "4f53cda18c2baa0c"
+    },
+    "semanticDigest": "sha256-fdc0810ef77975fc6b4cb4297d1bedc7962754b367ba4607620b788aa31a453b",
+    "status": "compiled",
+    "tasks": {
+     "service": 2,
+     "total": 2
+    },
+    "toolchain": {
+     "compilerDigest": "sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e",
+     "irDigest": "sha256-bc6f0bf61750b820428564ce54aa91b3446c18bae71d5bd15a9198a4f02b70a0"
+    }
+   },
+   "synthetic/unordered-catalogs": {
+    "bindingSpace": {
+     "candidatesPerServiceTask": [
+      4,
+      4
+     ],
+     "cardinality": "16",
+     "log10": 1.204119983
+    },
+    "candidates": 4,
+    "evaluation": {
+     "bindingDigests": [
+      "ee1c853c57af7758",
+      "37f8c5fc26c77b90",
+      "78e73227b67f913d",
+      "1161a54dd12397b1",
+      "f9fdfd1200c43a9a",
+      "f5374063e96abe13",
+      "95447088416a582e",
+      "2b20f22d392322a3",
+      "cb4f38d82be19cd8",
+      "4572dfa6c03b3f78",
+      "e8ba78fb4802712f",
+      "98b300d50e794fc4",
+      "3003d9cbaa500971",
+      "8818eb4c1c725d1d",
+      "26f12c49e5abe651",
+      "44398e014359c675"
+     ],
+     "count": 16,
+     "mode": "exhaustive",
+     "rollupDigest": "sha256-61ed0b0678abb05a65ba899ef2974f9b17e6a8957f44129bef856b38ccce2dca",
+     "summary": {
+      "bindingsWithHardViolation": 0,
+      "bindingsWithSoftViolation": 0,
+      "criteriaLoss": {
+       "cost": {
+        "max": 0.75,
+        "min": 0.25
+       },
+       "latency": {
+        "max": 0.42,
+        "min": 0.2
+       }
+      },
+      "errors": {},
+      "evaluated": 16,
+      "feasible": 16,
+      "features": {
+       "cost": {
+        "max": 15.0,
+        "min": 5.0
+       },
+       "latency": {
+        "max": 42.0,
+        "min": 20.0
+       }
+      },
+      "objectives": [
+       "SINGLE/weighted-sum"
+      ],
+      "penalty": {
+       "max": 0,
+       "min": 0
+      },
+      "score": {
+       "max": 0.58,
+       "min": 0.225
+      },
+      "scoreVectors": 0,
+      "violationsByConstraint": {}
+     }
+    },
+    "path": "synthetic/unordered-catalogs",
+    "sectionDigests": {
+     "application": "ce53f51545d89f38",
+     "candidates": "aaf0294765def9cf",
+     "constraints": "3e007c72e959e620",
+     "eligibility": "733ba5c5c1a8b165",
+     "extensions": "44136fa355b3678a",
+     "optimization": "385606730b0a5dc0",
+     "placement": "4f53cda18c2baa0c",
+     "routing": "4f53cda18c2baa0c"
+    },
+    "semanticDigest": "sha256-fdc0810ef77975fc6b4cb4297d1bedc7962754b367ba4607620b788aa31a453b",
+    "status": "compiled",
+    "tasks": {
+     "service": 2,
+     "total": 2
+    },
+    "toolchain": {
+     "compilerDigest": "sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e",
+     "irDigest": "sha256-bc6f0bf61750b820428564ce54aa91b3446c18bae71d5bd15a9198a4f02b70a0"
+    }
+   },
+   "synthetic/unordered-constraint-sets": {
+    "bindingSpace": {
+     "candidatesPerServiceTask": [
+      4,
+      4
+     ],
+     "cardinality": "16",
+     "log10": 1.204119983
+    },
+    "candidates": 4,
+    "evaluation": {
+     "bindingDigests": [
+      "ee1c853c57af7758",
+      "37f8c5fc26c77b90",
+      "78e73227b67f913d",
+      "1161a54dd12397b1",
+      "f9fdfd1200c43a9a",
+      "f5374063e96abe13",
+      "95447088416a582e",
+      "2b20f22d392322a3",
+      "cb4f38d82be19cd8",
+      "4572dfa6c03b3f78",
+      "e8ba78fb4802712f",
+      "98b300d50e794fc4",
+      "3003d9cbaa500971",
+      "8818eb4c1c725d1d",
+      "26f12c49e5abe651",
+      "44398e014359c675"
+     ],
+     "count": 16,
+     "mode": "exhaustive",
+     "rollupDigest": "sha256-61ed0b0678abb05a65ba899ef2974f9b17e6a8957f44129bef856b38ccce2dca",
+     "summary": {
+      "bindingsWithHardViolation": 0,
+      "bindingsWithSoftViolation": 0,
+      "criteriaLoss": {
+       "cost": {
+        "max": 0.75,
+        "min": 0.25
+       },
+       "latency": {
+        "max": 0.42,
+        "min": 0.2
+       }
+      },
+      "errors": {},
+      "evaluated": 16,
+      "feasible": 16,
+      "features": {
+       "cost": {
+        "max": 15.0,
+        "min": 5.0
+       },
+       "latency": {
+        "max": 42.0,
+        "min": 20.0
+       }
+      },
+      "objectives": [
+       "SINGLE/weighted-sum"
+      ],
+      "penalty": {
+       "max": 0,
+       "min": 0
+      },
+      "score": {
+       "max": 0.58,
+       "min": 0.225
+      },
+      "scoreVectors": 0,
+      "violationsByConstraint": {}
+     }
+    },
+    "path": "synthetic/unordered-constraint-sets",
+    "sectionDigests": {
+     "application": "ce53f51545d89f38",
+     "candidates": "aaf0294765def9cf",
+     "constraints": "3e007c72e959e620",
+     "eligibility": "733ba5c5c1a8b165",
+     "extensions": "44136fa355b3678a",
+     "optimization": "385606730b0a5dc0",
+     "placement": "4f53cda18c2baa0c",
+     "routing": "4f53cda18c2baa0c"
+    },
+    "semanticDigest": "sha256-fdc0810ef77975fc6b4cb4297d1bedc7962754b367ba4607620b788aa31a453b",
+    "status": "compiled",
+    "tasks": {
+     "service": 2,
+     "total": 2
+    },
+    "toolchain": {
+     "compilerDigest": "sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e",
+     "irDigest": "sha256-bc6f0bf61750b820428564ce54aa91b3446c18bae71d5bd15a9198a4f02b70a0"
+    }
+   },
+   "synthetic/unordered-constraints": {
+    "bindingSpace": {
+     "candidatesPerServiceTask": [
+      4,
+      4
+     ],
+     "cardinality": "16",
+     "log10": 1.204119983
+    },
+    "candidates": 4,
+    "evaluation": {
+     "bindingDigests": [
+      "ee1c853c57af7758",
+      "37f8c5fc26c77b90",
+      "78e73227b67f913d",
+      "1161a54dd12397b1",
+      "f9fdfd1200c43a9a",
+      "f5374063e96abe13",
+      "95447088416a582e",
+      "2b20f22d392322a3",
+      "cb4f38d82be19cd8",
+      "4572dfa6c03b3f78",
+      "e8ba78fb4802712f",
+      "98b300d50e794fc4",
+      "3003d9cbaa500971",
+      "8818eb4c1c725d1d",
+      "26f12c49e5abe651",
+      "44398e014359c675"
+     ],
+     "count": 16,
+     "mode": "exhaustive",
+     "rollupDigest": "sha256-61ed0b0678abb05a65ba899ef2974f9b17e6a8957f44129bef856b38ccce2dca",
+     "summary": {
+      "bindingsWithHardViolation": 0,
+      "bindingsWithSoftViolation": 0,
+      "criteriaLoss": {
+       "cost": {
+        "max": 0.75,
+        "min": 0.25
+       },
+       "latency": {
+        "max": 0.42,
+        "min": 0.2
+       }
+      },
+      "errors": {},
+      "evaluated": 16,
+      "feasible": 16,
+      "features": {
+       "cost": {
+        "max": 15.0,
+        "min": 5.0
+       },
+       "latency": {
+        "max": 42.0,
+        "min": 20.0
+       }
+      },
+      "objectives": [
+       "SINGLE/weighted-sum"
+      ],
+      "penalty": {
+       "max": 0,
+       "min": 0
+      },
+      "score": {
+       "max": 0.58,
+       "min": 0.225
+      },
+      "scoreVectors": 0,
+      "violationsByConstraint": {}
+     }
+    },
+    "path": "synthetic/unordered-constraints",
+    "sectionDigests": {
+     "application": "ce53f51545d89f38",
+     "candidates": "aaf0294765def9cf",
+     "constraints": "3e007c72e959e620",
+     "eligibility": "733ba5c5c1a8b165",
+     "extensions": "44136fa355b3678a",
+     "optimization": "385606730b0a5dc0",
+     "placement": "4f53cda18c2baa0c",
+     "routing": "4f53cda18c2baa0c"
+    },
+    "semanticDigest": "sha256-fdc0810ef77975fc6b4cb4297d1bedc7962754b367ba4607620b788aa31a453b",
+    "status": "compiled",
+    "tasks": {
+     "service": 2,
+     "total": 2
+    },
+    "toolchain": {
+     "compilerDigest": "sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e",
+     "irDigest": "sha256-bc6f0bf61750b820428564ce54aa91b3446c18bae71d5bd15a9198a4f02b70a0"
+    }
+   }
+  },
+  "sampleSize": 16,
+  "schema": "bim-baseline/corpus/1",
+  "seed": 20261012,
+  "toolchain": {
+   "compilerDigest": "sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e"
+  }
+ },
+ "note": "The corpus, compatibility and directory/ZIP documents of the packages that are in this repository: the synthetic variants of tests/synthetic_packages.py and tests/fixtures/example-package. Independent of the OpenBinding corpus; generated by tools/regen_normalized_metadata.py. `toolchain` members are informative.",
+ "packageCount": 6,
+ "schema": "bim-baseline/synthetic/1",
+ "toolchain": {
+  "compilerDigest": "sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e"
+ },
+ "zipEquivalence": {
+  "note": "Each form of a package compiled and compared with the package compiled from its directory: the bytes in a STORED ZIP (rawZip, the platform's form; reversedZip, entries in the opposite order), InstancePackage.to_zip() (canonicalZip, JSON with sorted members) and the members of every JSON object shuffled (permuted<seed>). All of them must have the same IR and semantic digest. Under the previous toolchain (golden/bim_baseline) 64 packages differed in canonicalZip (docs/qa/IR_NORMALIZATION.md).",
+  "packageCount": 6,
+  "packages": {
+   "example-package": {
+    "canonicalZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "packageDigest": "sha256-011e8f95939fae5b45e41687dfd3ffb0eb21648f6b591f7e2c1080a097dbff74",
+    "packageDigestsEqual": true,
+    "path": "example-package",
+    "permuted1": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "permuted2": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "rawZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "reversedZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "status": "compiled"
+   },
+   "synthetic/ordered": {
+    "canonicalZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "packageDigest": "sha256-305399f3386dddf600fb53656b48791abc7d2e863557840b66f5b470380be4ed",
+    "packageDigestsEqual": true,
+    "path": "synthetic/ordered",
+    "permuted1": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "permuted2": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "rawZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "reversedZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "status": "compiled"
+   },
+   "synthetic/unordered-candidates": {
+    "canonicalZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "packageDigest": "sha256-305399f3386dddf600fb53656b48791abc7d2e863557840b66f5b470380be4ed",
+    "packageDigestsEqual": true,
+    "path": "synthetic/unordered-candidates",
+    "permuted1": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "permuted2": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "rawZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "reversedZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "status": "compiled"
+   },
+   "synthetic/unordered-catalogs": {
+    "canonicalZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "packageDigest": "sha256-305399f3386dddf600fb53656b48791abc7d2e863557840b66f5b470380be4ed",
+    "packageDigestsEqual": true,
+    "path": "synthetic/unordered-catalogs",
+    "permuted1": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "permuted2": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "rawZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "reversedZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "status": "compiled"
+   },
+   "synthetic/unordered-constraint-sets": {
+    "canonicalZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "packageDigest": "sha256-305399f3386dddf600fb53656b48791abc7d2e863557840b66f5b470380be4ed",
+    "packageDigestsEqual": true,
+    "path": "synthetic/unordered-constraint-sets",
+    "permuted1": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "permuted2": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "rawZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "reversedZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "status": "compiled"
+   },
+   "synthetic/unordered-constraints": {
+    "canonicalZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "packageDigest": "sha256-305399f3386dddf600fb53656b48791abc7d2e863557840b66f5b470380be4ed",
+    "packageDigestsEqual": true,
+    "path": "synthetic/unordered-constraints",
+    "permuted1": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "permuted2": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "rawZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "reversedZip": {
+     "sameIr": true,
+     "sameSemanticDigest": true
+    },
+    "status": "compiled"
+   }
+  },
+  "schema": "bim-baseline/zip-equivalence/2"
+ }
+}

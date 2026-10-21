@@ -9,9 +9,10 @@ from sqlalchemy import func, select
 
 from openbinding_gateway import space_client
 from openbinding_gateway import job_dispatch
+from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db import base as db_base
 from openbinding_gateway.db.models import Job, JobState, User
-from openbinding_gateway.routes import v1
+from openbinding_gateway.services import execution
 from _pricing import fake_pricing_gate, pricing_catalog
 
 
@@ -45,6 +46,10 @@ def test_redis_actor_is_bound_to_the_configured_broker_and_async_runtime():
     assert any(isinstance(middleware, AsyncIO) for middleware in broker.middleware)
     assert any(isinstance(middleware, job_dispatch.WorkerRuntime) for middleware in broker.middleware)
     assert job_dispatch.run_persisted_job_message.options["max_retries"] == 5
+    # Longer than the engine call and its fallback together; Dramatiq's default of
+    # ten minutes would kill a solve the engine was still allowed to run.
+    solve_timeout_ms = get_settings().engine_solve_timeout_s * 1000
+    assert job_dispatch.run_persisted_job_message.options["time_limit"] == 2 * solve_timeout_ms + 300_000
 
 
 @pytest.mark.asyncio
@@ -70,7 +75,7 @@ async def test_persisted_runner_never_silently_ignores_a_missing_database(monkey
     monkeypatch.setattr(db_base, "is_configured", lambda: False)
 
     with pytest.raises(RuntimeError, match="initialized database"):
-        await v1._run_persisted_job("00000000-0000-0000-0000-000000000000")
+        await execution.run_persisted_job("00000000-0000-0000-0000-000000000000")
 
 
 @pytest.mark.asyncio
@@ -134,7 +139,7 @@ async def test_reconciler_redelivers_only_persisted_queued_jobs(db_session, monk
 
 
 @pytest.mark.asyncio
-async def test_job_retry_is_idempotent_and_reserves_only_once(
+async def test_job_retry_is_idempotent_and_creates_only_one_replacement(
     api_client, db_session, registration, durable_gate
 ):
     user_id, headers = await _account(api_client, registration)
@@ -147,8 +152,6 @@ async def test_job_retry_is_idempotent_and_reserves_only_once(
         original_request={},
         options={},
         provenance={},
-        metered=True,
-        concurrency_released=True,
     )
     db_session.add(original)
     await db_session.flush()
@@ -165,7 +168,6 @@ async def test_job_retry_is_idempotent_and_reserves_only_once(
     assert first.status_code == second.status_code == 202
     assert first.json()["id"] == second.json()["id"]
     assert retries == 1
-    assert [entry[:2] for entry in durable_gate.evaluations].count((user_id, "solve")) == 1
 
 
 @pytest.mark.asyncio

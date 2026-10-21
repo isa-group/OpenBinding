@@ -10,9 +10,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
+from bim_core import BimError
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -23,9 +25,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import space_client
-from .access import metering
+from .access import public_read
+from .jobs import reconciler as job_reconciler
 from .access.dependencies import session_dependency
-from .core.settings import get_settings
+from .core.settings import Settings, get_settings
 from .core.logging import configure_logging
 from .db import base as db_base
 from .db.bootstrap import (
@@ -33,8 +36,20 @@ from .db.bootstrap import (
     ensure_administrator,
     seed_default_administrator,
 )
-from .pricing_catalog import PricingCatalogError
-from .pricing_bootstrap import reconcile_pricing
+from .integrations import bim as bim_integration
+from .core.public_errors import CorrelationIdMiddleware, internal_error_response
+from .models.problem import (
+    CORRELATION_ID_KEY,
+    CORRELATION_ID_SCHEMA,
+    JSON_MEDIA_TYPE,
+    PROBLEM_MEDIA_TYPE,
+    PROBLEM_TYPE_BASE,
+    VALIDATION_ERROR,
+    problem_response,
+    split_detail,
+    summarize,
+    validation_diagnostics,
+)
 from .routes.admin import router as admin_router
 from .routes.analysis import router as analysis_router
 from .routes.artifacts import router as artifacts_router
@@ -42,107 +57,98 @@ from .routes.resolve import router as resolve_router
 from .routes.auth import router as auth_router
 from .routes.cas import identity_router, router as cas_router
 from .routes.jobs import router as jobs_router
+from .routes.library import router as library_router
 from .routes.notifications import router as notifications_router
 from .routes.organizations import invitation_router, router as organizations_router
-from .routes.pricing import admin_router as pricing_admin_router
 from .routes.pricing import public_router as pricing_router
 from .routes.studies import public_router as public_studies_router
 from .routes.studies import router as studies_router
 from .routes.users import router as users_router
+from .routes.sponsor_proposals import (
+    me_router as sponsor_me_router,
+    organization_router as sponsor_organization_router,
+    router as sponsor_proposals_router,
+)
 from .routes.v1 import router as v1_router
 from .routes.verifier import router as verifier_router
 from .routes.generator import router as generator_router
 from .security.apikeys import (
     ALL_PERMISSIONS,
     ENGINE_LIMITED_PERMISSIONS,
+    analysis_work_permissions,
     required_permissions,
 )
+from .security.bodylimit import BodyLimitMiddleware
 from .telemetry import ErrorTelemetryMiddleware
 
-load_dotenv()
 
-_startup_settings = get_settings()
-configure_logging(
-    level=_startup_settings.log_level,
-    secrets=(
-        _startup_settings.gateway_jwt_secret or "",
-        _startup_settings.space_api_key or "",
-        _startup_settings.space_destructive_api_key or "",
-        _startup_settings.sphere_api_key or "",
-        _startup_settings.bootstrap_admin_password or "",
-        _startup_settings.federation_secret_key or "",
-    ),
-)
+
+def load_environment_file() -> None:
+    """Load ``OPENBINDING_ENV_FILE`` or ``./.env`` without searching parent directories.
+
+    An unreadable file is skipped: the process environment stays authoritative.
+    """
+    explicit = os.environ.get("OPENBINDING_ENV_FILE")
+    path = Path(explicit) if explicit else Path.cwd() / ".env"
+    try:
+        if path.is_file():
+            load_dotenv(path)
+    except OSError:
+        logging.getLogger(__name__).warning("environment file %s is not readable; skipped", path)
+
+
+def _configure_logging(startup_settings: Settings) -> None:
+    configure_logging(
+        level=startup_settings.log_level,
+        secrets=(
+            startup_settings.gateway_jwt_secret or "",
+            startup_settings.space_api_key or "",
+            startup_settings.sphere_api_key or "",
+            startup_settings.bootstrap_admin_password or "",
+            startup_settings.federation_secret_key or "",
+            *(startup_settings.secrets_fernet_keys or "").split(","),
+        ),
+    )
+
+
+def _make_lifespan(explicit_settings: Settings | None):
+    """The lifespan of one app; without explicit settings it reads them at startup, as it always did."""
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        async with _lifespan(explicit_settings or get_settings()):
+            yield
+
+    return lifespan
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    settings = get_settings()
+async def _lifespan(settings: Settings):
+    # Fails the start when the BIM service is unreachable or runs another toolchain.
+    await bim_integration.startup_check()
     if settings.database_url:
         db_base.init_engine(settings.database_url)
 
-    async def resolve_catalog(version: str):
-        if not settings.database_url:
-            raise PricingCatalogError("A database is required to resolve pricing metadata")
-        from .pricing_catalog import catalog_for_version
-
-        async with db_base.session_factory()() as catalog_session:
-            return await catalog_for_version(catalog_session, settings, version)
-
-    space_client.set_gate(
-        space_client.build_gate(
-            settings,
-            catalog_resolver=resolve_catalog if settings.database_url else None,
-        )
-    )
+    space_client.set_gate(space_client.build_gate(settings))
 
     if settings.database_url:
         async with db_base.session_factory()() as session:
-            try:
-                configured = await ensure_administrator(session, settings)
-                if (
-                    not configured
-                    and settings.app_env != "prod"
-                    and await seed_default_administrator(session)
-                ):
-                    logging.getLogger(__name__).warning(
-                        "No administrator existed, so bootstrap account '%s' was created. "
-                        "Sign in, create a real administrator, and delete the bootstrap account.",
-                        DEFAULT_ADMIN_USERNAME,
-                    )
-            except PricingCatalogError as error:
+            configured = await ensure_administrator(session, settings)
+            if (
+                not configured
+                and settings.app_env != "prod"
+                and await seed_default_administrator(session, settings)
+            ):
                 logging.getLogger(__name__).warning(
-                    "Account bootstrap is waiting for an active SPHERE pricing: %s",
-                    error,
+                    "No administrator existed, so bootstrap account '%s' was created. "
+                    "Sign in, create a real administrator, and delete the bootstrap account.",
+                    DEFAULT_ADMIN_USERNAME,
                 )
             await session.commit()
 
-        if settings.sphere_enabled:
-            async with db_base.session_factory()() as session:
-                from sqlalchemy import select
-
-                from .db.models import User, UserRole
-
-                administrator = await session.scalar(
-                    select(User).where(User.role == UserRole.ADMIN).limit(1)
-                )
-                if administrator is None:
-                    raise RuntimeError(
-                        "Pricing startup reconciliation requires an administrator account."
-                    )
-                try:
-                    await reconcile_pricing(session, settings, administrator)
-                except Exception as error:
-                    raise RuntimeError(
-                        f"Pricing startup reconciliation failed: {error}"
-                    ) from error
-                await session.commit()
-
     reconciler = None
     if settings.database_url:
-        reconciler = asyncio.create_task(
-            metering.run_reconciler(space_client.get_gate(), settings=settings)
-        )
+        reconciler = asyncio.create_task(job_reconciler.run_reconciler())
     try:
         yield
     finally:
@@ -155,6 +161,7 @@ async def lifespan(app: FastAPI):
             await gate.aclose()
         space_client.set_gate(None)
         await db_base.dispose_engine()
+        bim_integration.close_bim()
 
 
 TAGS_METADATA = [
@@ -170,23 +177,14 @@ TAGS_METADATA = [
     {"name": "Jobs", "description": "Durable job lifecycle, retries and events."},
     {"name": "Notifications", "description": "Account inbox and preferences."},
     {"name": "Explore", "description": "Public projects, publications and immutable resources."},
-    {"name": "Pricing", "description": "The public LIVE pricing metadata and compatibility proxy."},
-    {"name": "Pricing Administration", "description": "SPHERE and SPACE pricing lifecycle control room."},
+    {
+        "name": "Pricing",
+        "description": (
+            "The published pricing, read only from SPHERE. Pricings, versions, plans and "
+            "contracts are administered in the SPHERE and SPACE consoles."
+        ),
+    },
 ]
-
-app = FastAPI(
-    title="OpenBinding Gateway",
-    version="1.0.0",
-    summary="OpenBinding gateway for deterministic BIM v1 QoS binding.",
-    description=(
-        "OpenBinding validates modular BIM v1 Instance packages, lowers them to a "
-        "canonical BindingProblem IR, and reevaluates every returned binding."
-    ),
-    openapi_tags=TAGS_METADATA,
-    license_info={"name": "CC BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/"},
-    lifespan=lifespan,
-    root_path="/api",
-)
 
 _BIM_PATH_PREFIXES = (
     "/v1/profiles",
@@ -207,99 +205,91 @@ def _is_bim_request(request: Request) -> bool:
     return any(request.url.path.startswith(prefix) for prefix in _BIM_PATH_PREFIXES)
 
 
-def _problem_response(
-    status_code: int,
-    code: str,
-    detail: str,
-    diagnostics: list[dict] | None = None,
-    headers: dict[str, str] | None = None,
-    extra: dict | None = None,
-) -> JSONResponse:
-    body: dict = {
-        "type": f"https://openbinding.dev/problems/{code}",
-        "title": code,
-        "status": status_code,
-        "detail": detail,
-    }
-    if diagnostics:
-        body["diagnostics"] = diagnostics
-    if extra:
-        body.update(extra)
-    return JSONResponse(
-        body,
-        status_code=status_code,
-        media_type="application/problem+json",
-        headers=headers,
-    )
+def _problem_media_type(request: Request) -> str:
+    """BIM routes answer ``application/problem+json``; the platform routes keep ``application/json``."""
+    return PROBLEM_MEDIA_TYPE if _is_bim_request(request) else JSON_MEDIA_TYPE
 
 
-@app.exception_handler(RequestValidationError)
-async def bim_request_validation_error(request: Request, exc: RequestValidationError):
-    if not _is_bim_request(request):
-        from fastapi.exception_handlers import request_validation_exception_handler
-
-        return await request_validation_exception_handler(request, exc)
-    diagnostics = [
-        {
-            "code": error.get("type", "request_validation"),
-            "message": error.get("msg", "request validation failed"),
-            "pointer": "/" + "/".join(str(part) for part in error.get("loc", ())),
-        }
-        for error in exc.errors()
-    ]
-    return _problem_response(422, "request_validation", "Request validation failed", diagnostics)
+# Every 422 leaves the gateway through ``problem_response`` (models/problem.py),
+# whichever route or layer produced it.  Routes keep raising HTTPException /
+# api_error; these handlers are the only place that decides the wire shape.
 
 
-@app.exception_handler(HTTPException)
-async def bim_http_error(request: Request, exc: HTTPException):
-    if not _is_bim_request(request):
-        from fastapi.exception_handlers import http_exception_handler
-
-        return await http_exception_handler(request, exc)
-    detail = exc.detail
-    extra = {}
-    if isinstance(detail, dict):
-        code = str(detail.get("code", "request_error"))
-        message = str(detail.get("message") or detail.get("error") or code)
-        diagnostics = detail.get("diagnostics")
-        for k, v in detail.items():
-            if k not in ("code", "message", "error", "diagnostics"):
-                extra[k] = v
-    else:
-        code = "request_error"
-        message = str(detail)
-        diagnostics = None
-    return _problem_response(
-        exc.status_code,
-        code,
-        message,
+async def request_validation_error(request: Request, exc: RequestValidationError):
+    diagnostics = validation_diagnostics(exc.errors())
+    return problem_response(
+        422,
+        VALIDATION_ERROR,
+        summarize(diagnostics),
         diagnostics,
-        headers=exc.headers,
-        extra=extra,
+        media_type=_problem_media_type(request),
     )
 
-settings = get_settings()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
-    allow_credentials=settings.cors_credentials_allowed,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-app.add_middleware(ErrorTelemetryMiddleware)
+
+async def bim_error(request: Request, exc: BimError):
+    """What the BIM toolchain refused, from any route that did not catch it itself.
+
+    A source the compiler refused is 422 ``invalid_instance``; any other error about the input
+    carries the toolchain's own status (422 unless it says otherwise), code and diagnostics; a
+    toolchain that cannot be reached or is overloaded is 503 (``Retry-After`` when it says how
+    long) and one that answers badly is 502.
+    """
+    return bim_integration.problem_response_for(exc, media_type=_problem_media_type(request))
 
 
-@app.get("/health", tags=["Health"], operation_id="health", summary="Whether the gateway is up")
+async def http_error(request: Request, exc: HTTPException):
+    if exc.status_code == 422:
+        code, message, diagnostics, extra = split_detail(exc.detail, VALIDATION_ERROR)
+        return problem_response(
+            422,
+            code,
+            message,
+            diagnostics,
+            headers=exc.headers,
+            extra=extra,
+            media_type=_problem_media_type(request),
+        )
+    if _is_bim_request(request):
+        code, message, diagnostics, extra = split_detail(exc.detail, "request_error")
+        return problem_response(
+            exc.status_code,
+            code,
+            message,
+            diagnostics,
+            headers=exc.headers,
+            extra=extra,
+        )
+    detail = exc.detail
+    if isinstance(detail, dict) and isinstance(detail.get("code"), str):
+        # The platform's long-standing ``{"detail": {"code", "error", ...}}``
+        # stays exactly as it was; the canonical keys are added beside it.
+        code = detail["code"]
+        body = {
+            "type": f"{PROBLEM_TYPE_BASE}{code}",
+            "title": code,
+            "status": exc.status_code,
+            "code": code,
+            "detail": detail,
+        }
+        return JSONResponse(body, status_code=exc.status_code, headers=exc.headers)
+    from fastapi.exception_handlers import http_exception_handler
+
+    return await http_exception_handler(request, exc)
+
+
+async def unhandled_error(request: Request, exc: Exception):
+    """An exception nobody handled: a fixed 500 with the correlation id; the cause goes to the log only."""
+    return internal_error_response(request.scope, exc)
+
+
 async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/health/live", tags=["Health"], operation_id="liveness", summary="Process liveness")
 async def liveness() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/health/ready", tags=["Health"], operation_id="readiness", summary="Required dependencies")
 async def readiness(
     session: AsyncSession = Depends(session_dependency, scope="function"),
     runtime_settings=Depends(get_settings),
@@ -325,52 +315,163 @@ async def readiness(
     return {"status": "ready", "dependencies": dependencies}
 
 
-app.include_router(v1_router)
-app.include_router(analysis_router)
-app.include_router(auth_router)
-app.include_router(cas_router)
-app.include_router(users_router)
-app.include_router(identity_router)
-app.include_router(admin_router)
-app.include_router(pricing_router)
-app.include_router(pricing_admin_router)
-app.include_router(organizations_router)
-app.include_router(invitation_router)
-app.include_router(studies_router)
-app.include_router(public_studies_router)
-from .routes.library import router as library_router
-app.include_router(library_router)
-app.include_router(artifacts_router)
-app.include_router(resolve_router)
-app.include_router(jobs_router)
-app.include_router(notifications_router)
-app.include_router(verifier_router)
-app.include_router(generator_router)
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Build one gateway application: routers, middleware, handlers and lifespan.
+
+    Without ``settings`` the process settings (``get_settings()``) are used.  Nothing
+    here is shared between two calls: each app has its own ``state``, router list,
+    middleware stack and OpenAPI document.
+    """
+    explicit = settings
+    settings = explicit or get_settings()
+    if explicit is None:
+        _configure_logging(settings)
+
+    app = FastAPI(
+        title="OpenBinding Gateway",
+        version="1.0.0",
+        summary="OpenBinding gateway for deterministic BIM v1 QoS binding.",
+        description=(
+            "OpenBinding validates modular BIM v1 Instance packages, lowers them to a "
+            "canonical BindingProblem IR, and reevaluates every returned binding."
+        ),
+        openapi_tags=TAGS_METADATA,
+        license_info={"name": "CC BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/"},
+        lifespan=_make_lifespan(explicit),
+        root_path="/api",
+    )
+
+    # Every 422 leaves the gateway through ``problem_response`` (models/problem.py).
+    app.add_exception_handler(RequestValidationError, request_validation_error)
+    app.add_exception_handler(BimError, bim_error)
+    app.add_exception_handler(HTTPException, http_error)
+    app.add_exception_handler(Exception, unhandled_error)
+
+    # Added first, so it is the innermost: a 413 still leaves through the CORS and
+    # telemetry layers, and nothing inside it reads a body it has not counted.
+    app.add_middleware(BodyLimitMiddleware)
+    # Next, so telemetry and CORS see the 5xx documents with their correlationId.
+    app.add_middleware(CorrelationIdMiddleware)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origin_list,
+        allow_credentials=settings.cors_credentials_allowed,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=settings.cors_expose_headers,
+    )
+    app.add_middleware(ErrorTelemetryMiddleware)
+
+    app.get("/health", tags=["Health"], operation_id="health", summary="Whether the gateway is up")(health)
+    app.get("/health/live", tags=["Health"], operation_id="liveness", summary="Process liveness")(liveness)
+    app.get(
+        "/health/ready", tags=["Health"], operation_id="readiness", summary="Required dependencies"
+    )(readiness)
+
+    app.include_router(v1_router)
+    app.include_router(analysis_router)
+    app.include_router(auth_router)
+    app.include_router(cas_router)
+    app.include_router(users_router)
+    app.include_router(identity_router)
+    app.include_router(admin_router)
+    app.include_router(pricing_router)
+    app.include_router(organizations_router)
+    app.include_router(sponsor_organization_router)
+    app.include_router(sponsor_me_router)
+    app.include_router(sponsor_proposals_router)
+    app.include_router(invitation_router)
+    app.include_router(studies_router)
+    app.include_router(public_studies_router)
+    app.include_router(library_router)
+    app.include_router(artifacts_router)
+    app.include_router(resolve_router)
+    app.include_router(jobs_router)
+    app.include_router(notifications_router)
+    app.include_router(verifier_router)
+    app.include_router(generator_router)
+
+    generated_openapi = app.openapi
+    app.openapi = lambda: openapi_with_security_contract(app, settings, generated_openapi)
+    return app
 
 
-_generated_openapi = app.openapi
-
-
-def openapi_with_security_contract() -> dict:
+def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_openapi) -> dict:
     """Add the failures implied by shared auth dependencies in one place."""
 
     if app.openapi_schema is not None:
         return app.openapi_schema
-    document = _generated_openapi()
+    document = generated_openapi()
+    diagnostic_schema = {
+        "type": "object",
+        "description": "One thing wrong with the request, with where and (when known) how to fix it.",
+        "required": ["code", "message"],
+        "properties": {
+            "code": {"type": "string", "description": "Stable identifier of this particular finding."},
+            "message": {"type": "string"},
+            "pointer": {
+                "type": "string",
+                "description": "RFC 6901 JSON Pointer to the offending field (inside the request body, or the document named by `resource`).",
+            },
+            "in": {
+                "type": "string",
+                "enum": ["body", "query", "path", "header", "cookie"],
+                "description": "Where a request-validation finding was read from.",
+            },
+            "parameter": {"type": "string", "description": "The query, path, header or cookie parameter at fault."},
+            "resource": {"type": "string", "description": "The package file or resource the finding is about."},
+            "span": {
+                "type": "object",
+                "description": "Position in the source text (`offset` for malformed JSON; line/column for documents).",
+                "additionalProperties": {"type": "integer"},
+            },
+            "hint": {"type": "string", "description": "What to do about it."},
+            "fix": {"type": "string", "description": "A concrete replacement, when one is known."},
+            "loc": {
+                "type": "array",
+                "description": "The raw request-validation location (`body`, field names, array indexes).",
+                "items": {"oneOf": [{"type": "string"}, {"type": "integer"}]},
+            },
+            "context": {"type": "object", "description": "Limits that were exceeded (`gt`, `max_length`, ...)."},
+            "related": {"type": "array", "items": {"type": "object"}},
+            "bpmnElement": {"type": "string", "description": "The BPMN element the finding is about, when `resource` is a BPMN file."},
+            "irPath": {"type": "string", "description": "RFC 6901 JSON Pointer to the same value in the compiled BindingProblem."},
+            "category": {"type": "string", "description": "Capability dimension of an engine-mode incompatibility (`featureValues`, ...)."},
+            "unsupported": {
+                "type": "array",
+                "description": "The values of `category` the problem uses and the engine mode does not support.",
+                "items": {"type": "string"},
+            },
+            "allowed": {
+                "type": "array",
+                "description": "The values of `category` the engine mode does support.",
+                "items": {"type": "string"},
+            },
+        },
+        "additionalProperties": True,
+    }
     problem_schema = {
         "type": "object",
-        "required": ["type", "title", "status", "detail"],
+        "description": (
+            "The error document (RFC 9457 problem details). Every 422 has exactly this shape, and its "
+            "`diagnostics` is always present and never empty; the other refusals add their own fields beside it "
+            "and may omit `diagnostics`."
+        ),
+        "required": ["type", "title", "status", "code", "detail"],
         "properties": {
             "type": {"type": "string", "format": "uri-reference"},
-            "title": {"type": "string"},
+            "title": {"type": "string", "description": "Same value as `code`."},
             "status": {"type": "integer"},
-            "detail": {"type": "string"},
-            "diagnostics": {"type": "array", "items": {"type": "object"}},
+            "code": {"type": "string", "description": "Stable, machine-readable (`validation_error` by default)."},
+            "detail": {"type": "string", "description": "Human-readable summary."},
+            "diagnostics": {"type": "array", "items": {"$ref": "#/components/schemas/Diagnostic"}},
+            CORRELATION_ID_KEY: CORRELATION_ID_SCHEMA,
         },
+        "additionalProperties": True,
     }
-    document.setdefault("components", {}).setdefault("schemas", {}).setdefault(
-        "ProblemDetails", problem_schema
-    )
+    component_schemas = document.setdefault("components", {}).setdefault("schemas", {})
+    component_schemas.setdefault("Diagnostic", diagnostic_schema)
+    component_schemas.setdefault("Problem", problem_schema)
     document["x-api-key-permissions"] = list(ALL_PERMISSIONS)
     schemas = document["components"]["schemas"]
     from .models.artifacts import StudyArtifactContent, CollectionArtifactContent
@@ -410,6 +511,13 @@ def openapi_with_security_contract() -> dict:
     schemas["InstanceManifest"] = embedded_schema("instance.schema.json", "InstanceManifest")
     schemas["BindingProblem"] = embedded_schema(
         "binding-problem.schema.json", "BindingProblem"
+    )
+    # Documented here, not in the schema file: the schema's bytes are pinned by the protocol and profile digests.
+    schemas["BindingProblem"]["$defs"]["featureValue"]["description"] = (
+        "A candidate feature value: a finite number, or a range {min, max}. Both ends are mandatory and each is a "
+        "finite number or null; null means infinity at that end (min: null is -inf, max: null is +inf), so "
+        "{min: null, max: null} carries no information. min <= max is only required when both ends are finite. "
+        "A bare null is not a valid value."
     )
     schemas["ProfileManifest"] = embedded_schema("profile.schema.json", "ProfileManifest")
     schemas["DialectManifest"] = embedded_schema("dialect.schema.json", "DialectManifest")
@@ -903,7 +1011,7 @@ def openapi_with_security_contract() -> dict:
             "description": description,
             "content": {
                 "application/problem+json": {
-                    "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+                    "schema": {"$ref": "#/components/schemas/Problem"}
                 }
             },
         }
@@ -918,8 +1026,12 @@ def openapi_with_security_contract() -> dict:
             responses.setdefault(
                 "503", refusal("Account authentication is not configured on this deployment.")
             )
-            permissions = sorted(required_permissions(path, method))
+            permissions = sorted(required_permissions(path, method) | analysis_work_permissions(path, method))
             operation["x-required-api-key-permissions"] = permissions
+            if public_read.eligible(method, path):
+                # Also reachable read-only, without credentials or membership,
+                # when the project is public (docs/ACCESS_POLICY.md).
+                operation["x-public-read"] = True
             if set(permissions) & ENGINE_LIMITED_PERMISSIONS:
                 operation["x-api-key-engine-access"] = "exact-revision-allow-list-or-all"
             if path == "/v1/engine-registrations" and method == "get":
@@ -1292,7 +1404,6 @@ def openapi_with_security_contract() -> dict:
     add_problem(resource, 404, "The exact published resource does not exist.")
     add_problem(resource_approval, 404, "The exact resource revision does not exist.")
     add_problem(paths["/v1/schemas/{kind}"]["get"], 404, "The requested BIM schema does not exist.")
-    add_problem(paths["/v1/pricing"]["get"], 404, "This deployment has no pricing document.")
     add_problem(paths["/v1/examples/{example_path}"]["get"], 404, "The example package does not exist.")
     add_problem(paths["/v1/examples/{example_path}"]["get"], 422, "The installed example package is invalid.")
     add_problem(engines["post"], 403, "The manifest namespace does not belong to the caller.")
@@ -1329,11 +1440,46 @@ def openapi_with_security_contract() -> dict:
     add_problem(jobs["post"], 413, "The request exceeds the caller or transport size limit.")
     add_problem(jobs["post"], 415, "The request media type is not supported.")
     add_problem(jobs["post"], 422, "The package, selection, mode or options are invalid.")
-    add_problem(jobs["post"], 402, "The caller's periodic or volume solve quota is exhausted.")
-    add_problem(jobs["post"], 429, "The caller's concurrency slots are exhausted.")
+    add_problem(jobs["post"], 402, "The instance exceeds the complexity ceiling of the caller's plan.")
+    add_problem(jobs["post"], 429, "The caller already has the maximum number of queued and running jobs.")
     add_problem(jobs["post"], 403, "The requested feature or engine is not entitled in the caller's plan.")
+
+    # One 422 for the whole API: FastAPI's default `HTTPValidationError` is
+    # replaced by `Problem`, which is what the handlers in this module answer
+    # with (see models/problem.py).  Routes that declared their own 422 keep
+    # their description and gain the body.
+    def uses_default_validation_error(response: dict) -> bool:
+        return any(
+            representation.get("schema", {}).get("$ref", "").endswith("/HTTPValidationError")
+            for representation in response.get("content", {}).values()
+        )
+
+    for path, path_item in paths.items():
+        media_type = (
+            PROBLEM_MEDIA_TYPE
+            if any(path.startswith(prefix) for prefix in _BIM_PATH_PREFIXES)
+            else JSON_MEDIA_TYPE
+        )
+        for method, operation in path_item.items():
+            response = operation.get("responses", {}).get("422") if method in methods else None
+            if response is None:
+                continue
+            if uses_default_validation_error(response):
+                response["content"] = {}
+                if response.get("description") in (None, "", "Validation Error"):
+                    response["description"] = (
+                        "The request does not satisfy the contract; `diagnostics` says where."
+                    )
+            if not response.get("content"):
+                response["content"] = {
+                    media_type: {"schema": {"$ref": "#/components/schemas/Problem"}}
+                }
+    schemas.pop("HTTPValidationError", None)
+    schemas.pop("ValidationError", None)
     app.openapi_schema = document
     return document
 
 
-app.openapi = openapi_with_security_contract
+load_environment_file()
+settings = get_settings()
+app = create_app()

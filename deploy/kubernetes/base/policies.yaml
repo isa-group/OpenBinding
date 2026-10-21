@@ -76,12 +76,6 @@ spec:
         - {protocol: TCP, port: 3000}
         - {protocol: TCP, port: 8080}
     - to:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: space-api
-      ports:
-        - {protocol: TCP, port: 3000}
-    - to:
         - ipBlock:
             cidr: 0.0.0.0/0
       ports:

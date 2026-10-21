@@ -1,24 +1,25 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { configure, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { UserProfile } from '../../api/auth';
-import type { EngineRegistrationRevision } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
-import { Admin } from './Admin';
-import pricingYaml from '../../../../space/pricing/openbinding.yml?raw';
+import { AdminOverview as Admin } from './AdminOverview';
+import { MARIA, queuesAt } from '../../test/fixtures/admin';
+import { renderAdmin } from './adminTestUtils';
+import { config } from '../../config';
+
+// The old administration console reviewed engine publications and maintained the platform. Those live on their own
+// screens now (AdminModeration, AdminMaintenance); what the console name still leads to is the overview, which
+// keeps a block that counts what waits and the way to each of them. The overview’s own blocks are tested in AdminOverview.test.tsx.
 
 const api = vi.hoisted(() => ({
-  adminListUsers: vi.fn(),
+  adminOverview: vi.fn(),
+  adminQueues: vi.fn(),
+  adminModeration: vi.fn(),
+  adminErrorOverview: vi.fn(),
+  getCurrentPricing: vi.fn(),
   adminListEngineRegistrations: vi.fn(),
-  adminGetUserUsage: vi.fn(),
   getEngineRegistrationReport: vi.fn(),
   adminApproveEngineRegistration: vi.fn(),
   adminRejectEngineRegistration: vi.fn(),
-  adminOverview: vi.fn(),
-  adminQueues: vi.fn(),
-  adminAudit: vi.fn(),
   adminMaintenancePreview: vi.fn(),
-  getPricingDocument: vi.fn(),
 }));
 
 vi.mock('../../api/client', async () => ({
@@ -26,140 +27,46 @@ vi.mock('../../api/client', async () => ({
   apiClient: api,
 }));
 
-const self: UserProfile = {
-  id: 'admin-id',
-  username: 'admin',
-  email: 'admin@example.test',
-  role: 'admin',
-  is_active: true,
-  plan: 'PRO',
-  created_at: '2026-01-01T00:00:00Z',
-};
+configure({ asyncUtilTimeout: 5000 });
 
-function registration(namespace: string, name: string, status: EngineRegistrationRevision['status']): EngineRegistrationRevision {
-  return { namespace, name, version: '1.0.0', digest: `sha256-${name.padEnd(64, 'a').slice(0, 64)}`, status, active: true };
-}
-
-function row(name: string): HTMLElement {
-  return screen.getByText(name).closest('tr')!;
-}
-
-describe('EngineRegistration administration', () => {
+describe('the administration console, now the overview', { timeout: 30000 }, () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    api.adminListUsers.mockResolvedValue({ users: [], total: 0, offset: 0, limit: 25 });
-    api.adminListEngineRegistrations.mockResolvedValue([
-      registration('alice', 'pending-foreign', 'pending_review'),
-    ]);
-    api.getEngineRegistrationReport.mockResolvedValue({
-      ...registration('alice', 'pending-foreign', 'pending_review'),
-      openapiDigest: `sha256-${'b'.repeat(64)}`,
-      openapi: { openapi: '3.1.0' },
-      engine: { apiVersion: 'bim/v1', kind: 'Engine', metadata: { namespace: 'alice', name: 'solver', version: '1.0.0' }, spec: { modes: [] } },
-      report: { status: 'verified' },
-    });
-    api.adminApproveEngineRegistration.mockResolvedValue(registration('alice', 'pending-foreign', 'published'));
-    api.adminRejectEngineRegistration.mockResolvedValue(registration('alice', 'pending-foreign', 'rejected'));
     api.adminOverview.mockResolvedValue({ counts: {}, jobs: {}, contracts: {}, recentAudit: [] });
-    api.adminQueues.mockResolvedValue({ counts: {}, oldestInFlight: [] });
-    api.adminAudit.mockResolvedValue({ events: [], total: 0, offset: 0, limit: 50 });
-    api.adminMaintenancePreview.mockResolvedValue({
-      expiredArtifacts: 0,
-      expiredApiKeys: 0,
-      terminalJobs: 0,
-      abandonedJobs: 0,
-      terminalJobCutoff: '2026-01-01T00:00:00Z',
-    });
-    api.getPricingDocument.mockResolvedValue(pricingYaml);
+    api.adminQueues.mockImplementation(async () => queuesAt(Date.now()));
+    api.adminModeration.mockResolvedValue({ engines: {}, dialects: {}, registrations: { pending_review: 1 } });
+    api.adminErrorOverview.mockResolvedValue({ total_errors_24h: 0, by_category_24h: {}, by_status_code_24h: {}, top_users_quota: [], top_solvers_failed: [], timeline: [] });
+    api.getCurrentPricing.mockResolvedValue({ version: '0.1.0', digest: 'sha256-x', url: 'https://sphere.example.test/0.1.0' });
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('shows only explicit publication requests and moderation actions', async () => {
-    render(
-      <MemoryRouter>
-        <AuthContext.Provider value={{
-          user: self,
-          loading: false,
-          signIn: vi.fn(),
-          register: vi.fn(),
-          signOut: vi.fn(),
-          refresh: vi.fn(),
-          isAdmin: true,
-        }}>
-          <Admin />
-        </AuthContext.Provider>
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => expect(api.adminListEngineRegistrations).toHaveBeenCalled());
-    expect(api.adminListEngineRegistrations).toHaveBeenCalledWith();
-    expect(screen.queryByText('Show every registration')).not.toBeInTheDocument();
-    expect(within(row('alice/pending-foreign')).getByRole('button', { name: 'Review contract' })).toBeInTheDocument();
-    expect(within(row('alice/pending-foreign')).getByRole('button', { name: 'Approve publication' })).toBeInTheDocument();
-    expect(within(row('alice/pending-foreign')).getByRole('button', { name: 'Reject' })).toBeInTheDocument();
-    fireEvent.click(within(row('alice/pending-foreign')).getByRole('button', { name: 'Review contract' }));
-    expect(await screen.findByText('Verification report')).toBeInTheDocument();
-    expect(api.getEngineRegistrationReport).toHaveBeenCalledOnce();
-
-    fireEvent.click(within(row('alice/pending-foreign')).getByRole('button', { name: 'Approve publication' }));
-    await waitFor(() => expect(api.adminApproveEngineRegistration).toHaveBeenCalledWith(
-      expect.objectContaining({ namespace: 'alice', name: 'pending-foreign', status: 'pending_review' }),
-    ));
-  }, 30000);
-
-  it('requires confirmation before rejecting a publication request', async () => {
-    render(
-      <MemoryRouter>
-        <AuthContext.Provider value={{
-          user: self,
-          loading: false,
-          signIn: vi.fn(),
-          register: vi.fn(),
-          signOut: vi.fn(),
-          refresh: vi.fn(),
-          isAdmin: true,
-        }}>
-          <Admin />
-        </AuthContext.Provider>
-      </MemoryRouter>,
-    );
-    await waitFor(() => expect(api.adminListEngineRegistrations).toHaveBeenCalled());
-
-    vi.mocked(window.confirm).mockReturnValueOnce(false);
-    fireEvent.click(within(row('alice/pending-foreign')).getByRole('button', { name: 'Reject' }));
+  it('counts the publication requests that wait and leads to the screen that reviews them', async () => {
+    renderAdmin(<Admin />);
+    const moderation = await screen.findByRole('region', { name: 'Moderation' });
+    const lines = await within(moderation).findByRole('list', { name: 'Waiting for review' });
+    expect(within(within(lines).getByText('Engine publication requests').closest('li')!).getByText('1')).toBeInTheDocument();
+    expect(within(moderation).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/admin/moderation');
+    expect(screen.queryByRole('row', { name: /pending/ })).not.toBeInTheDocument();
+    expect(api.adminListEngineRegistrations).not.toHaveBeenCalled();
+    expect(api.getEngineRegistrationReport).not.toHaveBeenCalled();
+    expect(api.adminApproveEngineRegistration).not.toHaveBeenCalled();
     expect(api.adminRejectEngineRegistration).not.toHaveBeenCalled();
+  });
 
-    fireEvent.click(within(row('alice/pending-foreign')).getByRole('button', { name: 'Reject' }));
-    await waitFor(() => expect(api.adminRejectEngineRegistration).toHaveBeenCalledOnce());
-    expect(window.confirm).toHaveBeenCalledWith('Reject publication of alice/pending-foreign? The registration will become private to its owner again.');
-  }, 30000);
+  it('keeps the way to the native pricing consoles', async () => {
+    renderAdmin(<Admin />);
+    const pricing = await screen.findByRole('region', { name: 'Pricing' });
+    expect(await within(pricing).findByText('0.1.0')).toBeInTheDocument();
+    expect(within(pricing).getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute('href', config.spaceFrontendUrl);
+    expect(within(pricing).getByRole('link', { name: 'Open SPHERE console' })).toHaveAttribute('href', config.sphereUrl);
+  });
 
-  it('renders SPACE Pricing & Contract Administration banner with correct link', async () => {
-    render(
-      <MemoryRouter>
-        <AuthContext.Provider value={{
-          user: self,
-          loading: false,
-          signIn: vi.fn(),
-          register: vi.fn(),
-          signOut: vi.fn(),
-          refresh: vi.fn(),
-          isAdmin: true,
-        }}>
-          <Admin />
-        </AuthContext.Provider>
-      </MemoryRouter>,
-    );
-
-    expect(await screen.findByText('SPACE Pricing & Contract Administration')).toBeInTheDocument();
-    expect(screen.getByText('LIVE CONTRACTS ACTIVE')).toBeInTheDocument();
-
-    const spaceLink = screen.getByRole('link', { name: /Open SPACE Control Room/i });
-    expect(spaceLink).toBeInTheDocument();
-    expect(spaceLink).toHaveAttribute('href', '/app/admin/pricing');
-  }, 30000);
+  it('shows a person who is not an administrator nothing', async () => {
+    renderAdmin(<Admin />, { user: MARIA });
+    expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
+    expect(api.adminListEngineRegistrations).not.toHaveBeenCalled();
+  });
 });

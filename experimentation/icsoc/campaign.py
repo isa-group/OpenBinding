@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from openbinding_gateway.v1.package import InstancePackage, load_package
+from bim_core import InstancePackage, load_package
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CORPUS = REPO_ROOT / "experimentation/icsoc/out/bim-v1/instances"

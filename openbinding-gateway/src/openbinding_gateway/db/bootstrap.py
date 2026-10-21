@@ -16,6 +16,11 @@ If that account already exists it is promoted rather than recreated, so an
 administrator who registered normally can be granted the role by restarting
 with their username set. And nothing happens at all once any administrator
 exists, so leaving the variables in place is harmless.
+
+The bootstrap writes accounts only. It reads no pricing and chooses no plan
+from one: the administrator's plan is ``BOOTSTRAP_ADMIN_PLAN`` when configured;
+otherwise the account is created without a plan and SPACE assigns the
+contract's.
 """
 
 from __future__ import annotations
@@ -40,7 +45,11 @@ DEFAULT_ADMIN_PASSWORD = "4dm1n"
 #: and a domain without a dot is rejected - which turned the whole user
 #: listing into a 500 the first time this account appeared in it.
 DEFAULT_ADMIN_EMAIL = "admin@example.org"
-DEFAULT_ADMIN_PLAN = "PRO"
+
+
+def operational_plan(settings: Settings | None = None) -> str:
+    """The plan of the bootstrap administrator: ``BOOTSTRAP_ADMIN_PLAN``, else none (``""``)."""
+    return ((settings or get_settings()).bootstrap_admin_plan or "").strip()
 
 
 async def ensure_administrator(session: AsyncSession, settings: Settings) -> bool:
@@ -48,19 +57,23 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
     username = (settings.bootstrap_admin_username or "").strip()
     if not username:
         return False
+    plan = operational_plan(settings)
 
     result = await session.execute(select(User).where(User.username == username))
     account = result.scalars().first()
 
-    # Keep the configured bootstrap administrator on the operational plan
-    # required by the deployment, even when the account predates SPACE.
+    # Keep the configured bootstrap administrator on the plan required by the
+    # deployment, even when the account predates SPACE. Without a configured
+    # plan the account's current one is left alone.
     if account is not None and account.role is UserRole.ADMIN:
-        changed = account.plan_cache != DEFAULT_ADMIN_PLAN
-        account.plan_cache = DEFAULT_ADMIN_PLAN
+        if not plan:
+            return False
+        changed = account.plan_cache != plan
+        account.plan_cache = plan
         if changed:
             account.contract_pending = True
             await session.flush()
-            logger.info("Kept '%s' on the %s plan", username, DEFAULT_ADMIN_PLAN)
+            logger.info("Kept '%s' on the %s plan", username, plan)
         return changed
 
     existing_admins = await session.scalar(
@@ -71,7 +84,8 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
 
     if account is not None:
         account.role = UserRole.ADMIN
-        account.plan_cache = DEFAULT_ADMIN_PLAN
+        if plan:
+            account.plan_cache = plan
         account.contract_pending = True
         await session.flush()
         logger.info("Promoted '%s' to administrator", username)
@@ -94,14 +108,14 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
     # Same reason as DEFAULT_ADMIN_EMAIL: a domain with no dot fails the
     # email validation every response model applies.
     email = (settings.bootstrap_admin_email or f"{username}@example.org").lower()
-    session.add(_administrator(username, email, password, DEFAULT_ADMIN_PLAN))
+    session.add(_administrator(username, email, password, plan))
     await session.flush()
     logger.info("Created the first administrator, '%s'", username)
     return True
 
 
 def _administrator(username: str, email: str, password: str, plan: str) -> User:
-    """The configured administrator on the deployment's operational plan."""
+    """The configured administrator, on ``plan`` (empty: SPACE assigns it)."""
     return User(
         username=username,
         email=email,
@@ -109,7 +123,7 @@ def _administrator(username: str, email: str, password: str, plan: str) -> User:
         role=UserRole.ADMIN,
         plan_cache=plan,
         # No contract yet; the same reconciliation an ordinary registration
-        # relies on will settle it, on this plan.
+        # relies on will settle it.
         contract_pending=True,
     )
 
@@ -135,7 +149,7 @@ async def seed_default_administrator(
         return False
 
     session.add(_administrator(
-        DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_PLAN
+        DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, operational_plan(settings)
     ))
     await session.flush()
     return True

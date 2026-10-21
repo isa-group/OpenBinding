@@ -1,0 +1,352 @@
+import type { UsageView } from '../../api/auth';
+import type { BimResourceRef, EngineCatalogEntry, EngineMode } from '../../api/client';
+import type { ExecutionOptimization, LaunchRequest } from '../../api/jobs';
+import type { ArtifactRef } from '../../api/library';
+import type { CaseRevision } from '../../api/platform';
+import type { CaseContent } from '../Project/projectModel';
+import { planLimit } from '../Project/projectModel';
+import { RANGE_CODE, RANGE_REFUSAL } from '../../utils/featureRange';
+import { formatDate } from '../../utils/format';
+import { shortDigest } from '../../utils/digest';
+import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
+import { optionFacts } from '../Engines/enginesModel';
+import type { ForecastBar } from './jobsModel';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+const BUILTIN = 'bim.builtin';
+
+// --- what to solve
+
+export interface SourceChoice {
+  id: string;
+  kind: 'revision' | 'snapshot';
+  label: string;
+  detail: string;
+  /** The snapshot the run starts from; `null` for a revision that has none yet (one is made when the person continues). */
+  snapshotId: string | null;
+  revision: CaseRevision | null;
+  caseSlug: string | null;
+  latest: boolean;
+}
+
+interface SourceInput {
+  cases: readonly CaseContent[];
+  caseSlug: string | null;
+  revision: string | null;
+  snapshot: string | null;
+}
+
+const newest = (revisions: readonly CaseRevision[]): CaseRevision[] => [...revisions].sort((a, b) => b.revision - a.revision);
+
+/** The things a run can start from: the snapshot or revision the person came from first, then the project's latest revisions. */
+export function sourceChoices({ cases, caseSlug, revision, snapshot }: SourceInput): SourceChoice[] {
+  const choices: SourceChoice[] = [];
+  if (snapshot) {
+    choices.push({
+      id: `snapshot:${snapshot}`, kind: 'snapshot', label: `Snapshot ${snapshot.slice(0, 8)}…`,
+      detail: 'A compiled snapshot · it never changes', snapshotId: snapshot, revision: null, caseSlug: null, latest: false,
+    });
+  }
+  const scope = caseSlug ? cases.filter((entry) => entry.item.slug === caseSlug) : cases.slice(0, 12);
+  for (const entry of scope) {
+    const revisions = newest(entry.revisions);
+    const wanted = revision ? revisions.filter((candidate) => String(candidate.revision) === revision || candidate.id === revision) : [];
+    const shown = caseSlug ? revisions.slice(0, 10) : [...wanted, ...revisions.slice(0, 1).filter((candidate) => !wanted.includes(candidate))];
+    for (const candidate of shown) {
+      const latest = candidate === revisions[0];
+      choices.push({
+        id: `revision:${candidate.id}`, kind: 'revision', label: `${entry.item.name} · revision ${candidate.revision}`,
+        detail: `${latest ? 'Latest · ' : ''}Sealed ${formatDate(candidate.created_at) ?? 'on an unknown date'} · ${shortDigest(candidate.digest)}`,
+        snapshotId: candidate.source_snapshot_id, revision: candidate, caseSlug: entry.item.slug, latest,
+      });
+    }
+  }
+  return choices;
+}
+
+/** The choice the address asks for: its revision, else its snapshot, else the first one offered. */
+export function initialChoice(choices: readonly SourceChoice[], revision: string | null, snapshot: string | null): string {
+  const byRevision = revision ? choices.find((choice) => choice.revision && (String(choice.revision.revision) === revision || choice.revision.id === revision)) : undefined;
+  const bySnapshot = snapshot ? choices.find((choice) => choice.id === `snapshot:${snapshot}`) : undefined;
+  return (byRevision ?? bySnapshot ?? choices[0])?.id ?? '';
+}
+
+// --- engines and modes
+
+export interface ModeChoice {
+  key: string;
+  engine: BimResourceRef;
+  /** The deployment that serves the mode; `null` when the catalog did not name one (the gateway picks the installed built-in). */
+  registration: BimResourceRef | null;
+  mode: string;
+  compat: 'yes' | 'no' | 'unknown';
+  reason: string | null;
+  /** A deployment of the account's own. */
+  federated: boolean;
+  /** The package has ranges and this mode takes single values only (or the gateway refused it for that). */
+  rangeRefusal?: boolean;
+}
+
+const isRef = (value: unknown): value is BimResourceRef => isRecord(value)
+  && typeof value.namespace === 'string' && typeof value.name === 'string' && typeof value.version === 'string' && typeof value.digest === 'string';
+
+export const modeKey = (engine: BimResourceRef, mode: string, registration: BimResourceRef | null): string => (
+  [engine.namespace, engine.name, engine.version, engine.digest, registration?.name ?? '', registration?.digest ?? '', mode].join('|')
+);
+
+/**
+ * The engine modes the gateway says can (or cannot) run a snapshot. Without that reading (`compatible` is `null`) the catalog's own modes are
+ * offered as unchecked: the gateway decides when the run is sent.
+ */
+export function modeChoices(compatible: unknown[] | null, catalog: readonly EngineCatalogEntry[], ranges = false): ModeChoice[] {
+  const catalogMode = (engine: BimResourceRef, mode: string): EngineMode | undefined => (
+    catalog.find((entry) => entry.namespace === engine.namespace && entry.name === engine.name && entry.version === engine.version)?.modes.find((item) => item.id === mode)
+  );
+  /** A package with ranges can only go to a mode that declares interval values; the gateway refuses it otherwise (`unsupported_capability_value`). */
+  const refusesRanges = (engine: BimResourceRef, mode: string) => ranges && acceptsIntervals(catalogMode(engine, mode)) === false;
+  if (compatible) {
+    const rows: ModeChoice[] = [];
+    for (const item of compatible) {
+      if (!isRecord(item) || !isRef(item.engine) || !isRef(item.registration) || typeof item.mode !== 'string') continue;
+      const first = Array.isArray(item.diagnostics) ? item.diagnostics.find(isRecord) : undefined;
+      const said = first ? (typeof first.message === 'string' ? first.message : typeof first.code === 'string' ? first.code : null) : null;
+      // The gateway's own verdict decides. When it turned a mode down for ranges (its code), or gave no reason and the mode's manifest
+      // takes single values only, the reason says so; any other reason of the gateway is kept as it sent it.
+      const rangeRefusal = item.compatible !== true && (first?.code === RANGE_CODE || (said === null && refusesRanges(item.engine, item.mode)));
+      rows.push({
+        key: modeKey(item.engine, item.mode, item.registration), engine: item.engine, registration: item.registration, mode: item.mode,
+        compat: item.compatible === true ? 'yes' : 'no', reason: rangeRefusal ? RANGE_REFUSAL : said, federated: item.registration.namespace !== BUILTIN,
+        rangeRefusal,
+      });
+    }
+    return rows.sort((a, b) => Number(b.compat === 'yes') - Number(a.compat === 'yes'));
+  }
+  return catalog.flatMap((entry) => entry.modes.map((mode): ModeChoice => {
+    const rangeRefusal = refusesRanges(entry, mode.id);
+    return {
+      key: modeKey(entry, mode.id, null),
+      engine: { namespace: entry.namespace, name: entry.name, version: entry.version, digest: entry.digest },
+      registration: null, mode: mode.id, compat: rangeRefusal ? 'no' : 'unknown', reason: rangeRefusal ? RANGE_REFUSAL : null, federated: entry.namespace !== BUILTIN,
+      rangeRefusal,
+    };
+  }));
+}
+
+
+/**
+ * Does the mode declare `featureValues` with `interval` (open ranges included)? `undefined` when the mode isn't known. The gateway makes the
+ * dimension mandatory for `qos-binding/v1`, so a mode that doesn't name it accepts single values only.
+ */
+export function acceptsIntervals(mode: EngineMode | undefined): boolean | undefined {
+  if (!mode) return undefined;
+  const declared = mode.capabilities?.featureValues;
+  if (!declared) return false;
+  if (declared.selector === 'all') return true;
+  return declared.selector === 'only' && (declared.values ?? []).includes('interval');
+}
+
+/** `isa/random-search@1.0.0#sha256-…`, the address `?engine=` carries (`bimResourceKey`). */
+export function parseEngineParam(value: string | null): BimResourceRef | null {
+  const match = value?.match(/^(.+?)\/(.+?)@(.+?)#(.+)$/);
+  return match ? { namespace: match[1], name: match[2], version: match[3], digest: match[4] } : null;
+}
+
+export function modeOfCatalog(catalog: readonly EngineCatalogEntry[], choice: ModeChoice | null): EngineMode | undefined {
+  if (!choice) return undefined;
+  const entry = catalog.find((item) => item.namespace === choice.engine.namespace && item.name === choice.engine.name && item.version === choice.engine.version);
+  return entry?.modes.find((mode) => mode.id === choice.mode);
+}
+
+// --- settings against the plan
+
+export interface PlanCeilings {
+  /** Seconds one run may last; `null` when the plan has no ceiling or it is not known. */
+  seconds: number | null;
+  /** Iterations or evaluations one run may do. */
+  iterations: number | null;
+  /** log10 of the combinations the plan solves. */
+  complexity: number | null;
+}
+
+/** A capability of the account if it reports one, else the plan's value in the pricing document; `null` for no limit or unknown. */
+export function ceilingOf(usage: UsageView | null, catalog: Record<string, unknown> | null, plan: string | undefined, id: string): number | null {
+  const reported = usage?.capabilities?.[id];
+  if (typeof reported === 'number' && Number.isFinite(reported)) return reported;
+  return planLimit(catalog, usage?.plan ?? plan, id);
+}
+
+export function planCeilingsOf(usage: UsageView | null, catalog: Record<string, unknown> | null, plan: string | undefined): PlanCeilings {
+  return {
+    seconds: ceilingOf(usage, catalog, plan, 'maxTimeoutSeconds'),
+    iterations: ceilingOf(usage, catalog, plan, 'maxIterations'),
+    complexity: ceilingOf(usage, catalog, plan, 'maxInstanceComplexityLog10'),
+  };
+}
+
+export interface OptionInput {
+  name: string;
+  label: string;
+  /** What the person types: seconds for a time budget, a plain count for the rest. */
+  unit: string;
+  default: number | null;
+  kind: 'time' | 'effort' | 'other';
+  /** The plan's ceiling in the unit of the input; `null` when the plan does not reduce it. */
+  ceiling: number | null;
+  integer: boolean;
+}
+
+const LABELS: Record<string, string> = { time_budget_ms: 'Time budget', iterations: 'Iterations', max_evaluations: 'Evaluations', population_size: 'Population' };
+
+/** The numeric options a mode declares, as the form asks for them, with the plan’s ceiling beside each. */
+export function optionInputs(mode: EngineMode | undefined, ceilings: PlanCeilings): OptionInput[] {
+  if (!mode) return [];
+  return optionFacts(mode)
+    .filter((fact) => fact.type === 'integer' || fact.type === 'number' || typeof fact.default === 'number')
+    .map((fact): OptionInput => {
+      const kind: OptionInput['kind'] = fact.name === 'time_budget_ms' ? 'time' : fact.name === 'iterations' || fact.name === 'max_evaluations' ? 'effort' : 'other';
+      const fallback = typeof fact.default === 'number' ? fact.default : null;
+      return {
+        name: fact.name,
+        label: LABELS[fact.name] ?? fact.name.replace(/[_-]+/g, ' ').replace(/^./, (letter) => letter.toUpperCase()),
+        unit: kind === 'time' ? 's' : kind === 'effort' ? (fact.name === 'iterations' ? 'iterations' : 'evaluations') : fact.unit ?? '',
+        default: kind === 'time' && fallback !== null ? fallback / 1000 : fallback,
+        kind,
+        ceiling: kind === 'time' ? ceilings.seconds : kind === 'effort' ? ceilings.iterations : null,
+        integer: fact.type !== 'number',
+      };
+    });
+}
+
+export interface OptionPlan {
+  input: OptionInput;
+  /** What the person typed; `null` when the field is empty (the engine's own default applies). */
+  asked: number | null;
+  /** What the run will use after the plan's reduction; `null` when nothing is sent. */
+  effective: number | null;
+  reduced: boolean;
+  invalid: boolean;
+}
+
+/** A budget (time, iterations, evaluations) must be above 0; any other option (a seed, say) may be 0, and a whole number when its schema says integer. */
+export function allowsZero(input: OptionInput): boolean {
+  return input.kind === 'other';
+}
+
+export function parseAmount(raw: string, { zero = false, integer = false }: { zero?: boolean; integer?: boolean } = {}): number | null | 'invalid' {
+  const cleaned = raw.replace(/[\s,]/g, '');
+  if (!cleaned) return null;
+  const value = Number(cleaned);
+  if (!Number.isFinite(value) || (zero ? value < 0 : value <= 0)) return 'invalid';
+  return integer && !Number.isInteger(value) ? 'invalid' : value;
+}
+
+export function planOptions(inputs: readonly OptionInput[], values: Readonly<Record<string, string>>): OptionPlan[] {
+  return inputs.map((input) => {
+    const raw = input.name in values ? values[input.name] : input.default !== null ? String(input.default) : '';
+    const zero = allowsZero(input);
+    const parsed = parseAmount(raw, { zero, integer: zero && input.integer });
+    if (parsed === 'invalid') return { input, asked: null, effective: null, reduced: false, invalid: true };
+    const effective = parsed === null ? null : input.ceiling !== null ? Math.min(parsed, input.ceiling) : parsed;
+    return { input, asked: parsed, effective, reduced: parsed !== null && effective !== null && effective < parsed, invalid: false };
+  });
+}
+
+/** The options as the API takes them: milliseconds for a time budget, whole numbers for a count. */
+export function requestOptions(plans: readonly OptionPlan[]): Record<string, unknown> {
+  const options: Record<string, unknown> = {};
+  for (const plan of plans) {
+    if (plan.asked === null) continue;
+    const value = plan.input.kind === 'time' ? Math.round(plan.asked * 1000) : plan.input.integer ? Math.round(plan.asked) : plan.asked;
+    options[plan.input.name] = value;
+  }
+  return options;
+}
+
+// --- the size forecast
+
+interface ForecastInput {
+  ceilings: PlanCeilings;
+  /** The size of the problem, as the exact number of bindings. */
+  bindingSpace: string | null;
+  plan: string | undefined;
+}
+
+/** How big the problem is against the plan's ceiling. Nothing is consumed by a run, so this is the only measure. */
+export function forecastOf({ ceilings, bindingSpace, plan }: ForecastInput): ForecastBar[] {
+  const size = bindingSpace ? parseBindingSpace(bindingSpace).log10 : null;
+  const reference = ceilings.complexity ?? Math.max(30, Math.ceil((size ?? 0) * 1.2));
+  const sizeBar: ForecastBar = {
+    label: 'Problem size',
+    before: size === null ? 0 : Math.min(100, Math.round((size / reference) * 100)),
+    add: 0,
+    over: size !== null && ceilings.complexity !== null && size > ceilings.complexity,
+    text: size === null
+      ? 'The size of this problem isn’t known yet'
+      : `≈ 10^${Math.round(size * 10) / 10} of up to ${ceilings.complexity !== null ? `10^${ceilings.complexity}` : 'no ceiling'}${plan ? ` on your ${plan} plan` : ''}`,
+  };
+  return [sizeBar];
+}
+
+// --- the optimization a run selects
+
+/**
+ * How many criteria the compiled problem optimizes (`spec.optimization.criteria`), or `null` when the form can't be read. Not knowing it
+ * sends no optimization and leaves the gateway to refuse the run in its own words.
+ */
+export function criteriaCountOf(compiled: unknown): number | null {
+  const document = isRecord(compiled) && isRecord(compiled.document) ? compiled.document : compiled;
+  if (!isRecord(document) || !isRecord(document.spec)) return null;
+  const optimization = document.spec.optimization;
+  if (!isRecord(optimization)) return 0;
+  return Array.isArray(optimization.criteria) ? optimization.criteria.length : 0;
+}
+
+/** SINGLE for at most one criterion, MULTI for two or three, MANY beyond. */
+export function optimizationTypeOf(criteria: number): ExecutionOptimization['type'] {
+  return criteria <= 1 ? 'SINGLE' : criteria <= 3 ? 'MULTI' : 'MANY';
+}
+
+/**
+ * The execution-time optimization for a mode: SINGLE for one criterion, MULTI for two or three, MANY beyond; the first scalarization the
+ * mode declares for that type (`feasibility` when there is no criterion at all). `null` when the mode declares none that fits, or the
+ * number of criteria is not known.
+ */
+export function optimizationFor(mode: EngineMode | undefined, criteria: number | null): ExecutionOptimization | null {
+  if (!mode || criteria === null) return null;
+  const declared = (mode.capabilities as unknown as Record<string, unknown>).scalarizations;
+  const values = isRecord(declared) && Array.isArray(declared.values) ? declared.values.filter(isRecord) : [];
+  const type = optimizationTypeOf(criteria);
+  const fits = (item: Record<string, unknown>) => typeof item.id === 'string' && Array.isArray(item.objectiveTypes) && item.objectiveTypes.includes(type);
+  const picked = criteria === 0 ? values.find((item) => item.id === 'feasibility' && fits(item)) : values.find(fits);
+  return picked ? { type, scalarization: picked.id as string } : null;
+}
+
+// --- the request
+
+export type SettingsSource = 'inline' | 'saved';
+
+export interface RequestInput {
+  snapshot: string;
+  settings: SettingsSource;
+  configuration: ArtifactRef | null;
+  mode: ModeChoice | null;
+  options: Record<string, unknown>;
+  /** What the mode and the problem allow, from {@link optimizationFor}; left out of the request when `null`. */
+  optimization?: ExecutionOptimization | null;
+}
+
+/** What `POST /v1/jobs` gets, or `null` while something is missing. Sealed settings go alone: they carry their own engine, mode and options. */
+export function buildRequest(input: RequestInput): LaunchRequest | null {
+  if (!input.snapshot) return null;
+  if (input.settings === 'saved') return input.configuration ? { snapshot: input.snapshot, configuration: input.configuration } : null;
+  if (!input.mode || input.mode.compat === 'no') return null;
+  // Without a named deployment the gateway finds the built-in one installed with the engine from the engine reference alone.
+  return {
+    snapshot: input.snapshot, engine: input.mode.engine, mode: input.mode.mode, options: input.options,
+    ...(input.mode.registration ? { registration: input.mode.registration } : {}),
+    ...(input.optimization ? { optimization: input.optimization } : {}),
+  };
+}

@@ -5,16 +5,19 @@ ENV PYTHONUNBUFFERED=1 PYTHONPATH=/app/src SCHEMAS_DIR=/app/schemas
 WORKDIR /app
 COPY experimentation/qacobench/gateway.lock /tmp/gateway.lock
 RUN uv pip install --system -r /tmp/gateway.lock
+# The BIM language the gateway compiles and evaluates with (bim-core) and the port it calls
+# it through (bim-client), from this repository; their dependencies are in gateway.lock.
+COPY bim-toolchain/packages/bim-core/ /bim-toolchain/packages/bim-core/
+COPY bim-toolchain/packages/bim-client/ /bim-toolchain/packages/bim-client/
 COPY openbinding-gateway/pyproject.toml .
 COPY openbinding-gateway/src/ src/
-RUN uv pip install --system --no-deps .
+RUN uv pip install --system --no-deps --no-sources /bim-toolchain/packages/bim-core /bim-toolchain/packages/bim-client .
 COPY openbinding-gateway/alembic.ini .
 COPY openbinding-gateway/alembic/ alembic/
 COPY openbinding-gateway/tools/ tools/
 COPY experimentation/qacobench/seed_engines.py benchmark/seed_engines.py
 COPY schemas/ schemas/
 COPY examples/ examples/
-COPY space/pricing/openbinding.yml pricing/openbinding.yml
 COPY openbinding-gateway/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

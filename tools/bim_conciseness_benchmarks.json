@@ -18,7 +18,7 @@
           40.0
         ]
       },
-      "semanticProjectionSha256": "0b0719d717a4493d18ec12a6cc90925c6738ba35adef804116dbdfb14a06d3d7",
+      "semanticProjectionSha256": "06a0090a6b68c1ff9e4b2c37a787b2da6d0c9f470d164b792abb36dc742a4f65",
       "historicalComparison": {
         "status": "exact",
         "objectiveScore": 0.03,
@@ -41,7 +41,8 @@
             "id": "c3a"
           }
         },
-        "mode": "weighted",
+        "type": "SINGLE",
+        "scalarization": "weighted-sum",
         "score": 0.03,
         "penalty": 0.0,
         "violations": [],
@@ -65,7 +66,7 @@
           0.950202
         ]
       },
-      "semanticProjectionSha256": "540004829f0189397da9e37002a6bfd1dff11f7c71395eff167ce342a628339d",
+      "semanticProjectionSha256": "be0196976fa5431d740b2bea408ef4b2215ba6f8470f41b36ab81029fd22522f",
       "historicalComparison": {
         "status": "exact",
         "objectiveScore": 0.04979800000000001,
@@ -88,7 +89,8 @@
             "id": "c_b"
           }
         },
-        "mode": "weighted",
+        "type": "SINGLE",
+        "scalarization": "weighted-sum",
         "score": 0.04979800000000001,
         "penalty": 0.0,
         "violations": [],
@@ -107,7 +109,7 @@
         "placement": 10,
         "featureInterpretation": 16
       },
-      "expectedControls": 30,
+      "expectedControls": 29,
       "normalizationRanges": {
         "cost": [
           3.0,
@@ -122,7 +124,7 @@
           1.0
         ]
       },
-      "semanticProjectionSha256": "b1bc33b62cb6c02e6e8e54472d769d7759f51c88d9cd92949a63e1dcadd494dc",
+      "semanticProjectionSha256": "0546abdfdb3816e907dc2f3216f6d42c0db6c3b951681f94b63a05614e806fef",
       "historicalComparison": {
         "status": "normative-change",
         "previous": {
@@ -162,8 +164,9 @@
             "id": "c_fog"
           }
         },
-        "mode": "weighted",
-        "score": 0.192,
+        "type": "SINGLE",
+        "scalarization": "weighted-sum",
+        "score": 0.21666666666666665,
         "penalty": 0.0,
         "violations": [],
         "features": {
@@ -182,7 +185,7 @@
         "optimization": 5,
         "featureInterpretation": 25
       },
-      "expectedControls": 32,
+      "expectedControls": 34,
       "normalizationRanges": {
         "availability": [
           0.8666351366890651,
@@ -197,7 +200,7 @@
           1358.384
         ]
       },
-      "semanticProjectionSha256": "685c6ffb3a79e52343901467e765197cc5be3fe7852c94c51743b1f19bec2b06",
+      "semanticProjectionSha256": "4192f09cb527fc958e80ac5e1368296628570ff05e19448b1505afc97847760b",
       "historicalComparison": {
         "status": "normative-change",
         "previous": {
@@ -247,7 +250,13 @@
             "id": "svc_crs_1"
           }
         },
-        "mode": "pareto",
+        "execution": {
+          "type": "MULTI",
+          "scalarization": "pareto-front",
+          "weights": []
+        },
+        "type": "MULTI",
+        "scalarization": "pareto-front",
         "score": [
           0.03380773772288015,
           0.326,

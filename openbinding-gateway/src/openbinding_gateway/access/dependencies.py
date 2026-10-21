@@ -36,7 +36,8 @@ from ..security.apikeys import (
     required_permissions,
 )
 from ..security.tokens import TokenError, bearer_token, read_access_token
-from .contracts import reconcile_contract_renewal, settle_pending_contract
+from . import public_read
+from .contracts import settle_pending_contract
 
 #: What an unauthenticated caller is told to send.
 _AUTHENTICATE_CHALLENGE = {"WWW-Authenticate": 'Bearer realm="openbinding"'}
@@ -198,6 +199,15 @@ async def _user_for_credential(
     return user
 
 
+def _record_caller(request: Request, user: Optional[User]) -> None:
+    """Tell the error-telemetry middleware who was authenticated, if anyone.
+
+    Only a credential that resolved to an active account counts; the middleware
+    reads this instead of looking at the (forgeable) Authorization header.
+    """
+    request.state.user_id = user.id if user is not None else None
+
+
 def _route_path(request: Request) -> str:
     route = request.scope.get("route")
     return str(getattr(route, "path", request.url.path))
@@ -256,6 +266,7 @@ async def get_optional_user(
     still has to serve them. Insisting on a session would turn "nobody is signed
     in" into a 503 on a deployment where nobody can sign in at all.
     """
+    _record_caller(request, None)
     if session is None:
         return None
 
@@ -266,6 +277,7 @@ async def get_optional_user(
     user = await _user_for_credential(credential, session, settings)
     if user is None or not user.is_active:
         return None
+    _record_caller(request, user)
     _authorize_api_key(request, user)
     return user
 
@@ -283,8 +295,15 @@ async def get_current_user(
     separate kind of failure, so that disabling someone takes effect on their
     next request without needing their tokens back.
     """
+    _record_caller(request, None)
     credential = _credential(request, bearer, api_key)
     if not credential:
+        if public_read.allows_anonymous(request):
+            # Only GET routes of the public-read matrix: the project handler
+            # still refuses (401) unless the project is public.
+            request.state.api_key = None
+            public_read.bind(session, request, public_read.ANONYMOUS)
+            return public_read.ANONYMOUS  # type: ignore[return-value]
         raise api_error(
             status.HTTP_401_UNAUTHORIZED,
             "unauthorized",
@@ -301,12 +320,13 @@ async def get_current_user(
             headers=_AUTHENTICATE_CHALLENGE,
         )
 
+    _record_caller(request, user)
     _authorize_api_key(request, user)
 
     # An account registered while SPACE was unreachable owes a contract, and
     # nothing else ever settles it. Doing it here is what the flag was for.
     await settle_pending_contract(user, session)
-    await reconcile_contract_renewal(user, session)
+    public_read.bind(session, request, user)
     return user
 
 
@@ -319,11 +339,9 @@ async def solve_caller(
 ) -> User:
     """The authenticated account allowed to use an Engine.
 
-    Solving is the expensive operation and the one a plan is sold by, and an
-    unattributed solve cannot be metered, cannot be attributed to a job
-    somebody can read back, and cannot be refused when an allowance runs out.
-    There used to be a switch to permit it; there is not, because a deployment
-    that turns metering off by accident finds out from its bill.
+    Solving is the expensive operation, and an unattributed solve cannot be
+    attributed to a job somebody can read back, cannot count against the
+    owner's concurrency limit and cannot be refused by the plan's entitlements.
 
     Engine execution is never anonymous. A deployment without the accounts
     module therefore reports that authentication is unavailable instead of
@@ -333,6 +351,7 @@ async def solve_caller(
         require_accounts()
         raise AssertionError("require_accounts() must refuse an unconfigured gateway")
 
+    _record_caller(request, None)
     credential = _credential(request, bearer, api_key)
 
     if not credential:
@@ -351,9 +370,9 @@ async def solve_caller(
             "That credential is not valid.",
             headers=_AUTHENTICATE_CHALLENGE,
         )
+    _record_caller(request, user)
     _authorize_api_key(request, user)
     await settle_pending_contract(user, session)
-    await reconcile_contract_renewal(user, session)
     return user
 
 
@@ -363,6 +382,21 @@ async def require_admin(user: User = Depends(get_current_user)) -> User:
             status.HTTP_403_FORBIDDEN,
             "forbidden",
             "This endpoint is for administrators.",
+        )
+    return user
+
+
+async def require_platform_admin(user: User = Depends(get_current_user)) -> User:
+    """A platform administrator, refused with a code the client can act on.
+
+    Same rule as ``require_admin``; the distinct code is for endpoints outside
+    ``/v1/admin`` whose effect is shared by every account.
+    """
+    if not user.is_admin:
+        raise api_error(
+            status.HTTP_403_FORBIDDEN,
+            "platform_admin_required",
+            "This endpoint is for platform administrators.",
         )
     return user
 

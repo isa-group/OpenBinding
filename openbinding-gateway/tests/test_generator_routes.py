@@ -10,9 +10,22 @@ import zipfile
 import pytest
 
 from openbinding_gateway import space_client
-from openbinding_gateway.v1.compiler import compile_instance
-from openbinding_gateway.v1.package import InstancePackage
+from bim_core.compiler import compile_instance
+from bim_core.package import InstancePackage
 from _pricing import fake_pricing_gate, largest_plan
+from _repo import REPO_ROOT
+
+# The legacy generator shells out to a Maven-built jar that is not part of a
+# plain checkout (see generator/synthesizer.py); without it the legacy cases
+# cannot run, which is an environment gap rather than a regression.
+LEGACY_GENERATOR_JAR = REPO_ROOT / "engines/bim-generator/target/bim-generator-0.1.0-SNAPSHOT.jar"
+LEGACY_ENGINE = pytest.param(
+    True,
+    marks=pytest.mark.skipif(
+        not LEGACY_GENERATOR_JAR.is_file(),
+        reason=f"legacy BIM generator jar not built: {LEGACY_GENERATOR_JAR} (run mvn package in engines/bim-generator)",
+    ),
+)
 
 LARGER_PLAN = largest_plan()
 FEATURES = [
@@ -67,8 +80,7 @@ async def test_generate_instance_endpoint_success(api_client):
     assert data["name"] == "api_test_inst"
     assert "package_digest" in data
     assert "compilation_digest" in data
-    assert "workload_features" in data
-    assert data["workload_features"]["N_tasks"] > 0
+    assert "workload_features" not in data
 
     # Check 6 BIM v1 files
     files = data["files"]
@@ -123,8 +135,10 @@ async def test_generate_instance_incompatible_engines(api_client):
     }
     resp = await api_client.post("/v1/generator/instances", json=payload)
     assert resp.status_code == 422, resp.text
-    detail = resp.json()
-    assert detail.get("detail", {}).get("code") == "incompatible_target_engines"
+    problem = resp.json()
+    assert problem["code"] == "incompatible_target_engines"
+    # The route's own fields travel beside the canonical ones.
+    assert "conflicts" in problem
 
 
 @pytest.mark.asyncio
@@ -157,7 +171,7 @@ async def test_generate_instance_persist(api_client, registration, platform_gate
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("use_legacy_engine", [False, True])
+@pytest.mark.parametrize("use_legacy_engine", [False, LEGACY_ENGINE])
 async def test_generate_corpus_endpoint(api_client, use_legacy_engine):
     payload = {
         "count": 3,
@@ -179,7 +193,7 @@ async def test_generate_corpus_endpoint(api_client, use_legacy_engine):
     assert len(data["instances"]) == 3
     for inst in data["instances"]:
         assert "package_digest" in inst
-        assert "workload_features" in inst
+        assert "workload_features" not in inst
         assert inst["actual_constraint_count"] == 1
 
 
@@ -212,7 +226,7 @@ async def test_generate_corpus_as_zip_archive(api_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("use_legacy_engine", [False, True])
+@pytest.mark.parametrize("use_legacy_engine", [False, LEGACY_ENGINE])
 async def test_explicit_features_and_distributions_are_seeded(api_client, use_legacy_engine):
     payload = {
         "tasks": 7, "control_flow": 50, "loops": 0, "branches": 100, "parallel": 0,
@@ -279,7 +293,7 @@ async def test_anonymous_feature_count_assigns_stable_ids_without_weights(api_cl
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("use_legacy_engine", [False, True])
+@pytest.mark.parametrize("use_legacy_engine", [False, LEGACY_ENGINE])
 @pytest.mark.parametrize("kind", ["loop", "parallel"])
 async def test_structural_distributions_apply_in_both_synthesizers(api_client, use_legacy_engine, kind):
     payload = {"tasks": 7, "control_flow": 50, "loops": 100 if kind == "loop" else 0,
@@ -335,11 +349,11 @@ async def test_target_engine_rejects_unsupported_objective_and_aggregation(api_c
     assert product.status_code == 422
     assert "selection.product" in product.text
 
-    workflow = await api_client.post("/v1/generator/instances", json={
-        "features": [FEATURES[0]], "target_engines": ["meta-router-csp"], "constraints": 0,
+    unknown = await api_client.post("/v1/generator/instances", json={
+        "features": [FEATURES[0]], "target_engines": ["auto"], "constraints": 0,
     })
-    assert workflow.status_code == 422
-    assert "workflow" in workflow.text
+    assert unknown.status_code == 422
+    assert "manifest_not_found" in unknown.text
 
 
 @pytest.mark.asyncio
@@ -353,7 +367,7 @@ async def test_corpus_rejects_ignored_base_configuration(api_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("use_legacy_engine", [False, True])
+@pytest.mark.parametrize("use_legacy_engine", [False, LEGACY_ENGINE])
 async def test_guaranteed_constraints_share_a_feasible_witness(api_client, use_legacy_engine):
     response = await api_client.post("/v1/generator/instances", json={
         "tasks": 5, "features": [FEATURES[0], {**FEATURES[0], "id": "quality", "direction": "maximize"}],
@@ -400,36 +414,36 @@ END
     data = resp.json()
     assert data["name"] == "converted_from_api"
     assert "package_digest" in data
-    assert "workload_features" in data
+    assert "workload_features" not in data
     assert "application.json" in data["files"]
 
 
-@pytest.mark.asyncio
-async def test_calibrate_engine_endpoint(api_client):
-    observations = [
-        {
-            "workload_features": {"S": 10.0, "D_constr": 1, "N_tasks": 10, "N_cap": 5, "D_obj": 1, "T_budget": 60},
-            "latency": 1.2,
-            "quality": 0.95,
-            "success": True,
-        },
-        {
-            "workload_features": {"S": 20.0, "D_constr": 1, "N_tasks": 20, "N_cap": 5, "D_obj": 1, "T_budget": 60},
-            "latency": 3.4,
-            "quality": 0.91,
-            "success": True,
-        },
-    ]
-    payload = {
-        "engine": "evolutionary-heuristics",
-        "mode": "single-term",
-        "observations": observations,
+def test_generator_endpoints_stay_open_to_any_caller():
+    """Generation is a pure function of the request: no route requires an account or a role.
+
+    The exact set of paths also pins that the generator offers nothing beyond generation and conversion.
+    """
+    from openbinding_gateway.access.dependencies import get_current_user, get_optional_user, require_platform_admin
+    from openbinding_gateway.main import app
+
+    def calls(dependant):
+        found = {dependant.call}
+        for dependency in dependant.dependencies:
+            found |= calls(dependency)
+        return found
+
+    guards = {}
+    for included in app.routes:
+        original_router = getattr(included, "original_router", None)
+        for route in original_router.routes if original_router is not None else [included]:
+            path = getattr(route, "path", "")
+            if path.startswith("/v1/generator/"):
+                guards[path] = calls(route.dependant)
+    assert set(guards) == {
+        "/v1/generator/instances",
+        "/v1/generator/corpus",
+        "/v1/generator/convert-legacy",
     }
-    resp = await api_client.post("/v1/generator/calibrate-engine", json=payload)
-    assert resp.status_code == 200, resp.text
-    data = resp.json()
-    assert data["engine"] == "evolutionary-heuristics"
-    assert data["mode"] == "single-term"
-    assert data["sample_count"] == 2
-    assert data["status"] == "calibrated"
-    assert "latency_coefficients" in data
+    for found in guards.values():
+        assert get_optional_user in found
+        assert require_platform_admin not in found and get_current_user not in found

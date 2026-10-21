@@ -6,7 +6,6 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,10 +16,12 @@ from .db.models import (Artifact, ArtifactDependency, ArtifactDraft, ArtifactPub
 from .models.artifacts import ArtifactRef, DraftContent, CaseRevisionRef, StudyArtifactContent, CollectionArtifactContent
 from .models.errors import api_error
 from .security.apikeys import authenticated_api_key, boundary_of
-from .v1.canonical import canonical_json, digest, digest_bytes
-from .v1.compiler import (_dialect_type_matches, _dialect_xml_type_matches,
-    _resource_schema_diagnostics, installed_dialect_manifests, installed_profile_manifests)
-from .v1.package import InstancePackage, MAX_EXPANDED, PackageError, strict_json_loads
+from .core.jsonio import strict_json_loads
+from .integrations import bim, packages
+from .integrations.bim_host import (XmlResource, dialect_type_matches, dialect_xml_type_matches,
+    resource_schema_diagnostics)
+from bim_core import PackageError
+from bim_core.canonical import canonical_json, digest, digest_bytes
 
 
 def reference(artifact: Artifact, version: ArtifactVersion) -> dict:
@@ -145,23 +146,23 @@ def validate_content(kind: str, payload: DraftContent) -> tuple[bytes, list[dict
                 if not isinstance(document.get('engine'), dict) or not isinstance(document.get('mode'), str):
                     raise api_error(422, 'invalid_configuration', 'Execution configuration requires an exact engine and mode.')
         elif kind in {'Profile', 'Dialect', 'Engine', 'EngineRegistration'}:
-            from .routes.v1 import _schema_diagnostics
-            errors = _schema_diagnostics(document, kind)
+            from .services.engines import schema_diagnostics
+            errors = schema_diagnostics(document, kind)
             if document.get('kind') != kind or errors:
                 raise api_error(422, 'invalid_contract', str(errors or 'Contract kind mismatch.'))
             if kind in {'Profile', 'Dialect'}:
-                installed = installed_profile_manifests() if kind == 'Profile' else installed_dialect_manifests()
+                installed = bim.profile_manifests() if kind == 'Profile' else bim.dialect_manifests()
                 if not any(digest(item) == digest(document) for item in installed):
                     raise api_error(422, 'contract_not_installed', 'An exact trusted adapter must already be installed.')
         else:
             if document.get('kind') != kind:
                 raise api_error(422, 'kind_mismatch', 'The content kind must match the artifact type.')
-            matches = _dialect_type_matches(installed_dialect_manifests(), document.get('apiVersion'), kind, payload.media_type)
+            matches = dialect_type_matches(bim.dialect_manifests(), document.get('apiVersion'), kind, payload.media_type)
             if payload.contracts:
                 matches = [pair for pair in matches if contract_reference(pair[0]) in payload.contracts]
             if len(matches) != 1:
                 raise api_error(422, 'resource_contract', 'Select exactly one installed Dialect for this resource.')
-            errors = _resource_schema_diagnostics(document, document.get('apiVersion'), kind, payload.media_type, 'content', [matches[0][0]])
+            errors = resource_schema_diagnostics(document, document.get('apiVersion'), kind, payload.media_type, 'content', [matches[0][0]])
             if errors:
                 raise api_error(422, 'invalid_resource', str([error.as_dict() for error in errors]))
             contracts = [contract_reference(matches[0][0])]
@@ -171,21 +172,21 @@ def validate_content(kind: str, payload: DraftContent) -> tuple[bytes, list[dict
             raise api_error(422, 'invalid_content', 'Text/XML content must be a string.')
         content = payload.content.replace('\r\n', '\n').replace('\r', '\n').encode()
         if kind != 'Dataset':
-            package = InstancePackage({'instance.json': b'{}', 'resource.xml': content})
+            package = XmlResource(content)
             try:
-                root = package.xml_root('resource.xml')
+                root = package.root()
                 namespace, name = root.tag[1:].split('}', 1) if root.tag.startswith('{') else ('', root.tag)
-                matches = _dialect_xml_type_matches(installed_dialect_manifests(), namespace, name, payload.media_type)
+                matches = dialect_xml_type_matches(bim.dialect_manifests(), namespace, name, payload.media_type)
                 matches = [pair for pair in matches if pair[1]['kind'] == kind]
                 if payload.contracts:
                     matches = [pair for pair in matches if contract_reference(pair[0]) in payload.contracts]
                 if len(matches) != 1 or matches[0][0]['spec']['adapter']['id'] != 'bim-bpmn':
                     raise api_error(422, 'resource_contract', 'Select an installed XML validator.')
-                package.xml('resource.xml')
+                package.validate_bpmn()
                 contracts = [contract_reference(matches[0][0])]
             except (PackageError, ValueError) as exc:
                 raise api_error(422, 'invalid_resource', str(exc)) from exc
-    if len(content) > MAX_EXPANDED:
+    if len(content) > bim.package_limits()['max_expanded_bytes']:
         raise api_error(413, 'content_too_large', 'Resource exceeds the package content limit.')
     if payload.contracts and payload.contracts != contracts:
         raise api_error(422, 'contract_mismatch', 'Declared contracts do not match the validated resource.')
@@ -281,7 +282,7 @@ async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactD
                 raise api_error(422, 'case_not_executable', f'Member {position} has no materialized snapshot.')
             case_references.append((position, member.caseRevisionId))
         if artifact.kind == 'Study':
-            from .routes.v1 import _engine_mode
+            from .services.engines import engine_mode
             definition = StudyArtifactContent.model_validate(payload.content)
             if definition.collection:
                 if definition.collection not in payload.dependencies:
@@ -289,20 +290,19 @@ async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactD
                 collection_artifact, collection_version = await resolve_version(session, definition.collection, user)
                 if collection_artifact.kind != 'Collection':
                     raise api_error(422, 'invalid_collection', 'A study collection must reference a Collection version.')
-                from .v1.package import strict_json_loads
                 collection = CollectionArtifactContent.model_validate(strict_json_loads((await version_content(session, collection_version))[0]))
                 if any(member not in definition.cases for member in collection.members if isinstance(member, CaseRevisionRef)):
                     raise api_error(422, 'collection_case_mismatch', 'The study must include every exact case from its source collection.')
             for engine in definition.engines:
                 for parameters in definition.parameter_sets:
-                    await _engine_mode(engine['name'], engine.get('mode'), parameters, session,
+                    await engine_mode(engine['name'], engine.get('mode'), parameters, session,
                         caller=user, namespace=engine['namespace'], version=engine['version'], manifest_digest=engine['digest'])
     if artifact.kind == 'ExecutionConfiguration':
-        from .routes.v1 import _engine_mode
+        from .services.engines import engine_mode
         engine = payload.content['engine']
         if set(engine) != {'namespace', 'name', 'version', 'digest'}:
             raise api_error(422, 'invalid_configuration', 'Engine reference must be exact.')
-        await _engine_mode(engine['name'], payload.content['mode'], payload.content.get('options', {}),
+        await engine_mode(engine['name'], payload.content['mode'], payload.content.get('options', {}),
             session, caller=user, namespace=engine['namespace'], version=engine['version'], manifest_digest=engine['digest'])
     ordinal = int(await session.scalar(select(func.max(ArtifactVersion.ordinal)).where(
         ArtifactVersion.artifact_id == artifact.id)) or 0) + 1
@@ -349,8 +349,7 @@ async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactD
 async def materialize_case(session, user, organization, document, uses):
     """Build a closed BIM archive from refs, never from a second editable copy."""
     from copy import deepcopy
-    from .routes.v1 import _compile_resolved, _persist_snapshot
-    from .v1.compiler import manifest_id
+    from .services.snapshots import compile_resolved, persist_snapshot
     if document.get('kind') != 'Instance' or document.get('apiVersion') != 'bim/v1':
         raise api_error(422, 'instance_required', 'A case composition requires a BIM Instance index.')
     root = deepcopy(document)
@@ -386,15 +385,14 @@ async def materialize_case(session, user, organization, document, uses):
     if any(target not in aliases for use in uses for target in use.bindings.values()):
         raise api_error(422, 'unknown_alias', 'Every binding target must exist in the composition.')
     if 'contracts' not in spec:
-        profiles = [item for item in installed_profile_manifests() if manifest_id(item) == spec.get('profile')]
+        profiles = [entry['manifest'] for entry in bim.profile_entries() if entry['descriptor']['id'] == spec.get('profile')]
         if len(profiles) != 1:
             raise api_error(422, 'profile_selection_required', 'Select an exact installed Profile version.')
-        dialects = [item for item in installed_dialect_manifests() if spec['profile'] in item['spec']['compatibleProfiles']]
+        dialects = [entry for entry in bim.dialect_entries() if spec['profile'] in entry['manifest']['spec']['compatibleProfiles']]
         # Explicit resource contracts choose one revision of each family.
         families = {}
-        for item in dialects:
-            key = manifest_id(item)
-            families.setdefault(key, []).append(item)
+        for entry in dialects:
+            families.setdefault(entry['descriptor']['id'], []).append(entry['manifest'])
         selected = []
         for family, options in families.items():
             pinned = [item for item in options if contract_reference(item) in used_contracts]
@@ -410,9 +408,8 @@ async def materialize_case(session, user, organization, document, uses):
     source_spec['contracts'] = spec['contracts']
     root['spec'] = spec
     files['instance.json'] = canonical_json(root)
-    package = InstancePackage(files)
-    problem = await _compile_resolved(package, session)
-    snapshot_id = await _persist_snapshot(package, problem, user, session)
+    compilation = await compile_resolved(packages.zip_files(files), session)
+    snapshot_id = await persist_snapshot(compilation, user, session)
     source = {**root, 'spec': source_spec}
     return source, uuid.UUID(snapshot_id), rows
 

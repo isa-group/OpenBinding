@@ -10,15 +10,18 @@ from sqlalchemy import select
 
 from openbinding_gateway.db.models import InstanceSnapshot, Job, JobProvenance, JobState, utcnow
 from openbinding_gateway.db.platform_models import BindingCase, BindingCaseRevision, RunState, Study, StudyCell, StudyRun, StudyState
-from openbinding_gateway.routes import v1 as routes_v1
+from openbinding_gateway.generator.package import GeneratedPackage
+from openbinding_gateway.integrations import bim, packages
 from openbinding_gateway.models.platform import StudyDefinition
+from openbinding_gateway.services.snapshots import Compilation, compile_resolved, persist_snapshot
 from openbinding_gateway.studies import expand_study
-from openbinding_gateway.v1.canonical import digest
-from openbinding_gateway.v1.package import InstancePackage, load_package
-from openbinding_gateway.v1.compiler import compiler_bundle_digest
+from bim_core.canonical import digest
 from openbinding_gateway.v1.archive import VERSION as ANALYSIS_VERSION
 
-GENERATOR_VERSION = 3
+#: Bindings evaluated per request to the toolchain (a service accepts at most 1000).
+EVALUATION_BATCH = 500
+
+GENERATOR_VERSION = 4
 
 GALLERY = [
     ("tradeoffs", "17_analysis_tradeoffs", "All 36 bindings: fronts, weights, Voronoi, dual, hull, hypervolume and neighbors"),
@@ -36,8 +39,8 @@ GALLERY = [
 ]
 
 
-def gallery_package(examples_dir: Path, scenario: str, example: str) -> InstancePackage:
-    package = load_package(examples_dir / "demo" / example)
+def gallery_package(examples_dir: Path, scenario: str, example: str) -> GeneratedPackage:
+    package = GeneratedPackage(packages.directory_files(examples_dir / "demo" / example))
     if scenario not in {"large", "decision-rules", "power-slice", "geometry-limit", "background", "scale", "cancel-background"}:
         return package
     files = dict(package.files)
@@ -90,13 +93,33 @@ def gallery_package(examples_dir: Path, scenario: str, example: str) -> Instance
         files[name] = json.dumps(document, sort_keys=True).encode()
     if "constraintSet" in instance["spec"]["resources"]:
         files["constraints.json"] = json.dumps(constraints, sort_keys=True).encode()
-    return InstancePackage(files)
+    return GeneratedPackage(files)
 
 
-def enumerate_gallery(problem, scenario: str, description: str, *, limit: int | None = None, offset: int = 0) -> dict:
+def compile_gallery(package: GeneratedPackage) -> Compilation:
+    """Compile a gallery package with the toolchain (synchronously, for the archive builders)."""
+    archive = package.to_zip()
+    return Compilation.from_result(archive, bim.get_bim().compile(archive))
+
+
+def gallery_execution(problem: Compilation, scenario: str) -> dict:
+    """The execution optimization an archive is evaluated under (the IR only carries criteria).
+
+    The journey replays a scalar incumbent trace; every other archive keeps the full
+    objective vector so fronts and geometry can be analysed.
+    """
+    criteria = [item["id"] for item in problem.spec["optimization"]["criteria"]]
+    if scenario == "journey":
+        return {"type": "SINGLE", "scalarization": "weighted-sum",
+                "weights": [{"criteria": item, "value": 1.0 / len(criteria)} for item in criteria]}
+    return {"type": "MULTI" if len(criteria) <= 3 else "MANY", "scalarization": "pareto-front", "weights": []}
+
+
+def enumerate_gallery(problem: Compilation, scenario: str, description: str, *, limit: int | None = None, offset: int = 0) -> dict:
     """Retain actual evaluated candidates, including rejected ones, as a diagnostic archive."""
-    spec = problem.document["spec"]
-    tasks = sorted(problem.binding_space_breakdown)
+    spec = problem.spec
+    execution = gallery_execution(problem, scenario)
+    tasks = sorted(problem.analysis["bindingSpaceBreakdown"])
     cardinality = problem.binding_space_cardinality
     if scenario == "background" and limit is None:
         limit = 3000
@@ -108,11 +131,16 @@ def enumerate_gallery(problem, scenario: str, description: str, *, limit: int | 
     solutions, trace = [], []
     best = None
     count = cardinality if limit is None else limit
+    bindings = []
     for ordinal in range(offset, offset + count):
-        index = ordinal + 1
         refs = [options[(ordinal // math.prod(len(other) for other in choices[j+1:])) % len(options)] for j, options in enumerate(choices)]
-        binding = dict(zip(tasks, refs, strict=True))
-        evaluation = problem.evaluate(binding)
+        bindings.append(dict(zip(tasks, refs, strict=True)))
+    evaluations = []
+    for start in range(0, len(bindings), EVALUATION_BATCH):
+        outcomes = bim.get_bim().evaluate_many(problem.ir, bindings[start:start + EVALUATION_BATCH], execution)
+        evaluations.extend(outcome["evaluation"] for outcome in outcomes)
+    for ordinal, (binding, evaluation) in enumerate(zip(bindings, evaluations, strict=True), start=offset):
+        index = ordinal + 1
         objectives = evaluation["objectives"]
         penalties = {tuple(v["constraint"][key] for key in ("resource", "id")): v["penalty"] for v in evaluation["violations"] if v["enforcement"] == "soft"}
         solution = {"decision": {"kind": "binding", "binding": binding}, **evaluation,
@@ -156,9 +184,12 @@ async def ensure_analysis_gallery(session, org, project, user, examples_dir: Pat
                       description="Development diagnostic archives evaluated by the canonical reference. Includes rejected bindings; not a solver benchmark.",
                       state=StudyState.DRAFT, created_by_id=user.id)
     # Content changes create a new immutable run; rerunning unchanged seeds creates nothing.
-    packages = [(scenario, gallery_package(examples_dir, scenario, example), description) for scenario, example, description in GALLERY]
-    evaluator_digest = compiler_bundle_digest()
-    gallery_digest = digest({"version": GENERATOR_VERSION, "evaluator": evaluator_digest, "packages": [[s, p.package_digest, d] for s, p, d in packages]})
+    gallery = []
+    for scenario, example, description in GALLERY:
+        package = gallery_package(examples_dir, scenario, example)
+        gallery.append((scenario, package, await compile_resolved(package.to_zip(), session), description))
+    evaluator_digest = bim.toolchain_digest()
+    gallery_digest = digest({"version": GENERATOR_VERSION, "evaluator": evaluator_digest, "packages": [[s, c.package_digest, d] for s, _, c, d in gallery]})
     runs = (await session.execute(select(StudyRun).where(StudyRun.study_id == study.id))).scalars().all() if study.id else []
     existing = next((run for run in runs if run.summary.get("galleryDigest") == gallery_digest), None)
     if existing:
@@ -168,9 +199,12 @@ async def ensure_analysis_gallery(session, org, project, user, examples_dir: Pat
                    summary={"cells": len(GALLERY), "analysisFixture": True, "galleryDigest": gallery_digest}, created_by_id=user.id, finished_at=utcnow())
     case_ids = []
     pending_cells = []
-    for ordinal, (scenario, package, description) in enumerate(packages):
-        problem = await routes_v1._compile_resolved(package, session)
-        snapshot_id = await routes_v1._persist_snapshot(package, problem, user, session)
+    fixture_ref = {"namespace": "bim.dev", "name": "reference-enumeration", "version": "1", "digest": gallery_digest}
+    # Study engines must select an explicit mode and execution optimization (StudyDefinition).
+    study_engine = {**fixture_ref, "mode": "reference-enumeration",
+                    "optimization": {"type": "MANY", "scalarization": "pareto-front"}}
+    for ordinal, (scenario, package, compilation, description) in enumerate(gallery):
+        snapshot_id = await persist_snapshot(compilation, user, session)
         if not snapshot_id:
             raise ValueError(f"Unable to persist analysis snapshot: {scenario}")
         case_slug = f"analysis-{scenario}"
@@ -186,8 +220,7 @@ async def ensure_analysis_gallery(session, org, project, user, examples_dir: Pat
         document, materialized_id, uses = await ensure_library_composition(session, project, user, package, f'analysis-{scenario}')
         snapshot = await session.get(InstanceSnapshot, materialized_id)
         snapshot_id = str(materialized_id)
-        package = load_package(snapshot.source_archive)
-        problem = await routes_v1._compile_resolved(package, session, user)
+        problem = await compile_resolved(snapshot.source_archive, session, user)
         composition_digest = case_composition_digest(document, snapshot, [use.model_dump(mode='json') for use, _ in uses])
         revision = next((r for r in revisions if r.digest == composition_digest), None)
         if revision is None:
@@ -199,29 +232,27 @@ async def ensure_analysis_gallery(session, org, project, user, examples_dir: Pat
                 session.add(CaseArtifact(revision_id=revision.id, role=use.role, alias=use.alias, version_id=version.id, bindings=use.bindings))
         case_ids.append(revision.id)
         result = enumerate_gallery(problem, scenario, description)
-        fixture_ref = {"namespace": "bim.dev", "name": "reference-enumeration", "version": "1", "digest": gallery_digest}
-        provenance = {"engine": fixture_ref, "irDigest": problem.digest, "evaluatorDigest": evaluator_digest,
-            "compilerDigest": evaluator_digest, "evaluator": "bim-reference-evaluator/v1", "profile": problem.document["spec"]["profile"],
-            "packageDigest": package.package_digest, "instanceDigest": (await session.get(InstanceSnapshot, uuid.UUID(snapshot_id))).instance_digest,
+        provenance = {"engine": fixture_ref, "irDigest": problem.ir_digest, "evaluatorDigest": evaluator_digest,
+            "compilerDigest": evaluator_digest, "evaluator": "bim-reference-evaluator/v1", "profile": problem.spec["profile"],
+            "packageDigest": problem.package_digest, "instanceDigest": (await session.get(InstanceSnapshot, uuid.UUID(snapshot_id))).instance_digest,
             "analysisVersion": ANALYSIS_VERSION, "resultDigest": digest(result), **result["provenance"]}
         job = Job(owner_id=user.id, organization_id=org.id, project_id=project.id,
-                  billing_sponsor_user_id=org.billing_sponsor_user_id,
                   engine_id=f"analysis-gallery/{scenario}", engine_job_id=f"gallery-{scenario}-{run.id}",
                   service_url="https://example.invalid/development-archive-not-an-engine",
                   state=JobState.COMPLETED, termination="UNKNOWN", result=result,
                   provenance=provenance,
                   instance_snapshot_id=uuid.UUID(snapshot_id), options={"analysisScenario": scenario},
-                  metered=True, concurrency_released=True, finished_at=utcnow())
+                  finished_at=utcnow())
         session.add(job)
         await session.flush()
         session.add(JobProvenance(job_id=job.id, document=provenance, digest=digest(provenance)))
         pending_cells.append(StudyCell(study_run_id=run.id, ordinal=ordinal, binding_case_revision_id=revision.id,
-                              engine_ref=fixture_ref, parameters={}, seed=0,
+                              engine_ref=study_engine, parameters={}, seed=0,
                               fingerprint=digest({"gallery": gallery_digest, "scenario": scenario}), job_id=job.id,
                               state=RunState.COMPLETED, metrics={"status": "completed", "analysisFixture": True,
                               "evaluatedBindings": result["provenance"]["analysisFixture"]["evaluatedBindings"], "analysisScenario": scenario}))
     from openbinding_gateway.studies import seal_study_definition
-    definition = StudyDefinition(case_revision_ids=case_ids, engines=[fixture_ref], parameter_sets=[{}], seeds=[0])
+    definition = StudyDefinition(case_revision_ids=case_ids, engines=[study_engine], parameter_sets=[{}], seeds=[0])
     study.definition_version = await seal_study_definition(session, project, user, study.name, definition,
         current=study.definition_version if study.id else None, analysis_fixture=True)
     session.add(study)
@@ -249,28 +280,28 @@ async def ensure_scale_archives(session, org, project, user, examples_dir: Path)
     archives = {}
     for scenario, total in [("scale", 100_000), ("cancel-background", 10_000)]:
         package = gallery_package(examples_dir, scenario, "17_analysis_tradeoffs")
-        problem = await routes_v1._compile_resolved(package, session)
-        snapshot_id = uuid.UUID(await routes_v1._persist_snapshot(package, problem, user, session))
+        problem = await compile_resolved(package.to_zip(), session)
+        snapshot_id = uuid.UUID(await persist_snapshot(problem, user, session))
         snapshot = await session.get(InstanceSnapshot, snapshot_id)
-        evaluator = compiler_bundle_digest()
+        evaluator = bim.toolchain_digest()
         source_ids = []
         for offset in range(0, total, 500):
-            identity = digest({"generator": GENERATOR_VERSION, "package": package.package_digest,
+            identity = digest({"generator": GENERATOR_VERSION, "package": problem.package_digest,
                                "evaluator": evaluator, "scenario": scenario, "offset": offset, "count": 500})
             key = f"analysis-diagnostic-{project.id}-{identity}"
             job = (await session.execute(select(Job).where(Job.owner_id == user.id, Job.idempotency_key == key))).scalars().first()
             if job is None:
                 result = enumerate_gallery(problem, scenario, f"Canonical diagnostic batch {offset}–{offset+499}; not an engine benchmark", limit=500, offset=offset)
                 provenance = {"engine": {"namespace": "bim.dev", "name": "reference-enumeration", "version": str(GENERATOR_VERSION), "digest": identity},
-                    "irDigest": problem.digest, "evaluatorDigest": evaluator, "compilerDigest": evaluator,
-                    "instanceDigest": snapshot.instance_digest, "packageDigest": package.package_digest,
+                    "irDigest": problem.ir_digest, "evaluatorDigest": evaluator, "compilerDigest": evaluator,
+                    "instanceDigest": snapshot.instance_digest, "packageDigest": problem.package_digest,
                     "resultDigest": digest(result), "analysisVersion": ANALYSIS_VERSION, **result["provenance"]}
                 job = Job(owner_id=user.id, organization_id=org.id, project_id=project.id,
-                    billing_sponsor_user_id=org.billing_sponsor_user_id, engine_id=f"analysis-gallery/{scenario}",
+                    engine_id=f"analysis-gallery/{scenario}",
                     engine_job_id=identity, service_url="https://example.invalid/development-archive-not-an-engine",
                     state=JobState.COMPLETED, termination="UNKNOWN", result=result, provenance=provenance,
                     instance_snapshot_id=snapshot_id, options={"analysisScenario": scenario, "offset": offset, "count": 500},
-                    idempotency_key=key, idempotency_fingerprint=identity, metered=True, concurrency_released=True, finished_at=utcnow())
+                    idempotency_key=key, idempotency_fingerprint=identity, finished_at=utcnow())
                 session.add(job)
                 await session.flush()
                 session.add(JobProvenance(job_id=job.id, document=provenance, digest=digest(provenance)))
@@ -282,6 +313,19 @@ async def ensure_scale_archives(session, org, project, user, examples_dir: Path)
         else:
             archives[scenario] = source_ids
     return archives
+
+
+def analysis_link(job_ids, report: tuple[str, str, str] | None = None) -> str:
+    """Workspace address (frontend ``analysis-workspace``): jobs, or a saved report for large archives."""
+    from urllib.parse import quote
+    if report is not None:
+        return "/app/analysis/workspace?report=" + quote("/".join(report), safe="")
+    return "/app/analysis/workspace?" + "&".join(f"job={quote(str(sid), safe='')}" for sid in job_ids)
+
+
+def report_link(org_slug: str, project_slug: str, report_slug: str) -> str:
+    """Report screen (frontend ``rep-detail``)."""
+    return f"/app/{org_slug}/{project_slug}/reports/{report_slug}"
 
 
 async def prepare_analysis_workspace(session, org, project, user, examples_dir: Path, *, full=False, manifest_path: Path | None = None, live_jobs=None, study_runs=()):
@@ -318,7 +362,7 @@ async def prepare_analysis_workspace(session, org, project, user, examples_dir: 
         response = await analysis.query_analysis(query, user, session)
         elapsed = time.perf_counter() - started
         response_json = json.dumps(analysis.jsonable_encoder(response), separators=(",", ":"))
-        entry = {"jobIds": ids, "revision": response["revision"], "analysisLink": "/app/analysis?" + "&".join(f"job={sid}" for sid in ids),
+        entry = {"jobIds": ids, "revision": response["revision"], "analysisLink": analysis_link(ids),
                  "querySeconds": elapsed, "queryPayloadBytes": len(response_json.encode()), "counts": response["counts"],
                  "expected": next((d for s, _, d in GALLERY if s == scenario), "Complete compatible archive; exact rankings and unknown unexplored space"),
                  "reportLink": None}
@@ -330,9 +374,9 @@ async def prepare_analysis_workspace(session, org, project, user, examples_dir: 
                 await analysis.save_report(AnalysisReport(sources=ids, organization=org.slug, project=project.slug,
                     title=f"Binding decision · {scenario}", slug=slug), user, session)
                 await session.commit()
-            entry["reportLink"] = f"/app/{org.slug}/{project.slug}/reports/{slug}"
+            entry["reportLink"] = report_link(org.slug, project.slug, slug)
             if len(ids) > 100:
-                entry["analysisLink"] = f"/app/analysis?report={org.slug}/{project.slug}/{slug}"
+                entry["analysisLink"] = analysis_link(ids, (org.slug, project.slug, slug))
         if scenario == "background":
             task = await analysis.start_pareto(query.model_copy(update={"layers": True}), user, session)
             deadline = time.monotonic() + 120

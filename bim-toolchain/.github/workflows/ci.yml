@@ -1,0 +1,274 @@
+# CI of the future repository (javiercavlop/bim-toolchain). It is not run yet: the remote does not exist.
+#
+# SECURITY TODO: actions are pinned by major version because the commit SHAs could not be looked up (no network
+# when this file was written). Every `uses:` carries the marker PIN-PENDING, `licenses.json` ("action_pins") lists
+# exactly which actions are pending, and tools/test_workflows.py fails if a `uses:` is neither pinned to a 40-hex commit
+# SHA nor marked, or if the list and the workflows disagree. Before the first real run, pin each `uses:` to the full
+# commit SHA of the release that the major version points to (keep the version in a trailing comment, drop the marker
+# and the entry of the list) and let Dependabot update them. No SHA has been invented.
+#
+# The tests that run here leave out the tier that reads the OpenBinding corpus (`-m "not openbinding_corpus"`); the
+# golden-corpus job compares with the corpus and fails without it. If the OMG XSD files are not in the tree (the export
+# leaves them out until they are cleared, docs/OMG_XSD_RIGHTS.md), a step after each checkout fetches them from the
+# official source and verifies their SHA-256.
+#
+# No job publishes anything or reads a secret.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  # Runtime and test dependencies, with the ranges of the package metadata.
+  DEPS: >-
+    "jsonschema>=4.21,<5" "lxml>=5.2,<7" "pyyaml>=6,<7"
+    "fastapi>=0.110,<1.0" "pydantic>=2,<3" "uvicorn>=0.27,<1.0"
+    "httpx>=0.27,<1.0" "pytest>=8,<9"
+  SRC: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
+        with:
+          python-version: "3.12"
+      - run: python -m pip install ruff
+      # Each package carries its own [tool.ruff] table.
+      - run: ruff check packages tools
+
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+        package: [bim-core, bim-service, bim-client]
+    steps:
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install ${{ env.DEPS }}
+      # The corpus of BIM packages is not in this repository: the tests that need it skip with a warning
+      # (see the golden-corpus job, which fails without it). The equivalence of a directory and its ZIP is
+      # exercised without the corpus by the `equivalence` job below.
+      - name: Tests of ${{ matrix.package }}
+        run: python -m pytest -p no:cacheprovider --rootdir=. packages/${{ matrix.package }}/tests -rs
+        env:
+          PYTHONPATH: ${{ env.SRC }}
+
+  all-packages:
+    # The release workflow runs the three suites in ONE pytest session; running them only one by one here let a
+    # collision between their conftest/helper module names appear first on a tag. Same command, on every change.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install ${{ env.DEPS }}
+      - name: Tests of bim-core, bim-service and bim-client in one session (without the corpus tier, no test may be skipped)
+        shell: bash
+        run: |
+          python -m pytest -p no:cacheprovider --rootdir=. -m "not openbinding_corpus" -rs \
+            packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests | tee pytest.out
+          if grep -q "SKIPPED" pytest.out; then
+            echo "::error::a test was SKIPPED outside the corpus tier; it must run"
+            exit 1
+          fi
+        env:
+          PYTHONPATH: ${{ env.SRC }}
+
+  equivalence:
+    # Directory versus ZIP on synthetic packages written by the tests (no corpus, no dataset), and Limits at their
+    # boundary. Nothing here may skip: a skip would be a pass that compared nothing.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install ${{ env.DEPS }}
+      - name: Directory/ZIP equivalence and Limits near their boundary (no test may be skipped)
+        shell: bash
+        run: |
+          python -m pytest -p no:cacheprovider --rootdir=. -rs \
+            packages/bim-core/tests/test_zip_dir_equivalence.py \
+            packages/bim-core/tests/test_limits_near_boundary.py | tee pytest.out
+          if grep -q "SKIPPED" pytest.out; then
+            echo "::error::a test of the directory/ZIP equivalence was SKIPPED; it must run"
+            exit 1
+          fi
+        env:
+          PYTHONPATH: ${{ env.SRC }}
+
+  golden-corpus:
+    # The corpus lives in OpenBinding, not here. This job compares every package with golden/bim_baseline and
+    # golden/bim_core (including the package compiled from its ZIP) and FAILS when no corpus is available: a green
+    # run must mean that something was compared. BIM_CORPUS_ROOT (a repository variable pointing to a checked-out
+    # directory on a self-hosted runner, for example) provides it. A repository that deliberately has none sets the
+    # variable BIM_CORPUS_OPTIONAL to "true"; the job then reports in its summary that the comparison was SKIPPED.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install ${{ env.DEPS }}
+      - name: Compare with the baseline goldens
+        env:
+          PYTHONPATH: ${{ env.SRC }}
+          BIM_CORPUS_ROOT: ${{ vars.BIM_CORPUS_ROOT }}
+          BIM_CORPUS_OPTIONAL: ${{ vars.BIM_CORPUS_OPTIONAL }}
+          # With the corpus required, a corpus test that cannot find it fails instead of skipping.
+          BIM_REQUIRE_CORPUS: "1"
+        run: |
+          if [ -z "${BIM_CORPUS_ROOT}" ] || [ ! -d "${BIM_CORPUS_ROOT}" ]; then
+            if [ "${BIM_CORPUS_OPTIONAL}" = "true" ]; then
+              echo "::warning::The BIM corpus is not available (BIM_CORPUS_ROOT is unset or missing) and BIM_CORPUS_OPTIONAL=true: the golden/corpus comparison was SKIPPED."
+              echo "### Golden/corpus comparison SKIPPED: no BIM corpus (BIM_CORPUS_OPTIONAL=true)" >> "${GITHUB_STEP_SUMMARY}"
+              exit 0
+            fi
+            echo "::error::The BIM corpus is not available (BIM_CORPUS_ROOT is unset or missing): nothing was compared. Provide it, or set the variable BIM_CORPUS_OPTIONAL to true to accept that explicitly."
+            exit 1
+          fi
+          python tools/baseline_core.py --check
+          python -m pytest -p no:cacheprovider --rootdir=. packages/bim-core/tests/test_baseline_equivalence.py -rs
+
+  contracts:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install ${{ env.DEPS }}
+      - name: OpenAPI snapshot is the generated document
+        run: python tools/dump_service_openapi.py --check
+        env:
+          PYTHONPATH: ${{ env.SRC }}
+      - name: Consumer contracts replay against the service
+        run: python tools/consumer_fixtures.py --check
+        env:
+          PYTHONPATH: ${{ env.SRC }}
+      - name: Goldens are in their canonical byte form and match the protocol (no corpus needed, no skips)
+        shell: bash
+        run: |
+          python -m pytest -p no:cacheprovider --rootdir=. -rs packages/bim-core/tests/test_baseline_equivalence.py \
+            -k "canonical_byte_form or engine_contract_and_protocol_digest or carry_the_four_engines_only" | tee pytest.out
+          if grep -q "SKIPPED" pytest.out; then
+            echo "::error::a golden test was SKIPPED; it must run"
+            exit 1
+          fi
+        env:
+          PYTHONPATH: ${{ env.SRC }}
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: astral-sh/setup-uv@v5 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
+        with:
+          python-version: "3.12"
+      - name: Build wheel and sdist of each package
+        run: |
+          rm -rf dist
+          for package in bim-core bim-service bim-client; do
+            (cd "packages/${package}" && uv build --out-dir ../../dist)
+          done
+          ls -l dist
+      - uses: actions/upload-artifact@v4 # PIN-PENDING: replace by the full commit SHA
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+      # Tests that open the built archives (resources in the wheel and the sdist, metadata, digests). They build what
+      # they need themselves (a missing uv is an error, not a skip) and the guard runs the rest of the suite without a corpus.
+      - run: python -m pip install ${{ env.DEPS }}
+      - name: Packaging tests
+        run: python -m pytest -p no:cacheprovider --rootdir=. -m "not openbinding_corpus" tools -rs
+        env:
+          PYTHONPATH: ${{ env.SRC }}
+      - name: Verify the release (two reproducible builds, clean venv, digests, contracts)
+        run: python tools/verify_release.py --skip-corpus
+
+  clean-install:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4 # PIN-PENDING: replace by the full commit SHA
+        with:
+          name: dist
+          path: dist
+      - name: Install the wheels in a clean virtual environment
+        run: |
+          python -m venv .verify-venv
+          .verify-venv/bin/python -m pip install dist/*.whl
+          .verify-venv/bin/python -m pip list
+      - name: Smoke test, isolated (no PYTHONPATH, no source tree on the path)
+        run: env -i .verify-venv/bin/python -I tools/smoke_installed.py packages/bim-core/tests/fixtures/example-package
+      - name: Digest of the installed wheel equals the digest of the source tree
+        run: |
+          installed="$(env -i .verify-venv/bin/python -I -c 'import bim_core; print(bim_core.compiler_bundle_digest())')"
+          # Same interpreter (it has the dependencies), but bim_core is imported from the source tree.
+          tree="$(env -i .verify-venv/bin/python -I -c 'import sys; sys.path.insert(0, "packages/bim-core/src"); import bim_core; assert "src" in bim_core.__file__; print(bim_core.compiler_bundle_digest())')"
+          echo "installed ${installed}"
+          echo "tree      ${tree}"
+          test -n "${installed}" && test "${installed}" = "${tree}"
+      - name: toolchain.json of the installed wheels is reproducible
+        run: |
+          env -i .verify-venv/bin/python -I tools/toolchain_json.py --output toolchain.json
+          env -i .verify-venv/bin/python -I tools/toolchain_json.py --check toolchain.json
+
+  gate:
+    # The one check to require in branch protection. A job that was skipped or cancelled is not a pass: the gate
+    # fails unless every job ended as `success`.
+    if: ${{ always() }}
+    needs: [lint, tests, all-packages, equivalence, golden-corpus, contracts, build, clean-install]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: ${RESULTS}"
+          for result in ${RESULTS}; do
+            if [ "${result}" != "success" ]; then
+              echo "::error::a job ended as '${result}', not 'success'"
+              exit 1
+            fi
+          done

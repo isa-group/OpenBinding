@@ -148,6 +148,7 @@ async def test_collection_and_study_patch_and_delete(api_client, registration, p
 
     from test_studies_platform import executable_revision_payload
     from openbinding_gateway.routes import v1 as routes
+    from openbinding_gateway.services.engines import engine_ref
 
     # Create Case and Revision for Study
     await api_client.post(
@@ -172,7 +173,8 @@ async def test_collection_and_study_patch_and_delete(api_client, registration, p
             "description": "Initial study",
             "definition": {
                 "case_revision_ids": [case_rev_id],
-                "engines": [{**routes._engine_ref(routes._manifest("random-search"), "bim.builtin"), "mode": "seeded"}],
+                "engines": [{**engine_ref(routes._manifest("random-search"), "bim.builtin"), "mode": "seeded",
+                             "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}}],
                 "parameter_sets": [{}],
                 "seeds": [42],
             },
@@ -410,7 +412,13 @@ async def test_project_jobs_snapshots_and_engine_revisions(api_client, registrat
         z.writestr("model.bim", "apiVersion: bim/v1\nkind: BindingProblem\n")
     archive_bytes = buf.getvalue()
 
+    # A snapshot always has an owner; this one belongs to somebody else first.
+    other_headers = await _auth_headers(api_client, registration, platform_gate, username=f"user-{uuid.uuid4().hex[:6]}")
+    other_identity = await api_client.get("/v1/users/me", headers=other_headers)
+    assert other_identity.status_code == 200
+
     snap = InstanceSnapshot(
+        owner_id=uuid.UUID(other_identity.json()["id"]),
         name="test-snapshot",
         instance_digest="sha256-" + "1" * 64,
         package_digest="sha256-" + "2" * 64,

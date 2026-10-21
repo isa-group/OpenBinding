@@ -308,11 +308,11 @@ def parse_legacy_file(content_or_path: Union[str, bytes]) -> LegacyProblem:
         if not chunk:
             i += 1
             continue
-        lines = [l.strip() for l in chunk.splitlines() if l.strip()]
+        lines = [ln.strip() for ln in chunk.splitlines() if ln.strip()]
         if len(lines) == 1 and "(" not in lines[0]:
             task_name = lines[0]
             if i + 1 < len(chunks):
-                cand_lines = [l.strip() for l in chunks[i + 1].splitlines() if l.strip()]
+                cand_lines = [ln.strip() for ln in chunks[i + 1].splitlines() if ln.strip()]
                 cands: list[CandidateService] = []
                 for cline in cand_lines:
                     m = re.match(r"([A-Za-z0-9_.-]+)\s*\((.*)\)", cline)

@@ -22,25 +22,23 @@ class V1MultiSearchTest {
     Controller controller = new Controller();
     JsonObject document = multiProblem();
     JsonObject response = new JsonParser().parse(controller.solvePayload(
-        TestProblems.envelope(document,
+        TestProblems.paretoRequest(document, "MULTI",
             "{\"iterations\":30,\"archive_size\":10,\"seed\":9}"))).getAsJsonObject();
     assertEquals("FEASIBLE", response.get("termination").getAsString());
     assertTrue(response.getAsJsonArray("solutions").get(0).getAsJsonObject().has("decision"));
 
     assertThrows(IllegalArgumentException.class, () -> controller.solvePayload(
-        TestProblems.envelope(document, "{\"debug\":true}")));
+        TestProblems.paretoRequest(document, "MULTI", "{\"debug\":true}")));
 
-    JsonObject many = multiProblem();
-    JsonObject optimization = many.getAsJsonObject("spec").getAsJsonObject("optimization");
-    optimization.addProperty("type", "MANY");
-    optimization.getAsJsonArray("terms").add(optimization.getAsJsonArray("terms").get(0).deepCopy());
+    // A MANY execution is not this engine's class even when the IR has enough criteria.
+    JsonObject many = TestProblems.withCriteria(multiProblem(), 3);
     assertThrows(IllegalArgumentException.class, () -> controller.solvePayload(
-        TestProblems.envelope(many, "{}")));
-
-    JsonObject mono = TestProblems.twoCandidates();
-    mono.getAsJsonObject("spec").getAsJsonObject("optimization").addProperty("mode", "pareto");
+        TestProblems.paretoRequest(many, "MANY", "{}")));
+    // MULTI is two or three criteria: one criterion, or a SINGLE weighted-sum run, is refused.
     assertThrows(IllegalArgumentException.class, () -> controller.solvePayload(
-        TestProblems.envelope(mono, "{}")));
+        TestProblems.paretoRequest(TestProblems.twoCandidates(), "MULTI", "{}")));
+    assertThrows(IllegalArgumentException.class, () -> controller.solvePayload(
+        TestProblems.envelope(document, "{}")));
   }
 
   @Test void emptyFeasibleArchiveIsUnknown() {
@@ -50,17 +48,13 @@ class V1MultiSearchTest {
             + "\"when\":{\"kind\":\"literal\",\"value\":true},"
             + "\"assert\":{\"kind\":\"literal\",\"value\":false},\"enforcement\":\"hard\"}"));
     JsonObject response = new JsonParser().parse(new Controller().solvePayload(
-        TestProblems.envelope(document, "{\"iterations\":10}"))).getAsJsonObject();
+        TestProblems.paretoRequest(document, "MULTI", "{\"iterations\":10}"))).getAsJsonObject();
     assertEquals("UNKNOWN", response.get("termination").getAsString());
     assertEquals(0, response.getAsJsonArray("solutions").size());
   }
 
+  /** Two criteria over the same feature: the IR carries no objective type of its own. */
   private static JsonObject multiProblem() {
-    JsonObject document = TestProblems.twoCandidates();
-    JsonObject optimization = document.getAsJsonObject("spec").getAsJsonObject("optimization");
-    optimization.addProperty("mode", "pareto");
-    optimization.addProperty("type", "MULTI");
-    optimization.getAsJsonArray("terms").add(optimization.getAsJsonArray("terms").get(0).deepCopy());
-    return document;
+    return TestProblems.withCriteria(TestProblems.twoCandidates(), 2);
   }
 }

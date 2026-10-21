@@ -10,7 +10,6 @@ import argparse
 import hashlib
 import json
 import math
-import sys
 from collections import Counter
 from collections.abc import Mapping
 from itertools import product
@@ -18,9 +17,6 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-GATEWAY_SRC = ROOT / "openbinding-gateway" / "src"
-if str(GATEWAY_SRC) not in sys.path:
-    sys.path.insert(0, str(GATEWAY_SRC))
 
 BENCHMARKS = ROOT / "tools" / "bim_conciseness_benchmarks.json"
 SEMANTIC_IR_FIELDS = (
@@ -174,7 +170,11 @@ def _candidate_feature(spec: Mapping[str, Any], reference: Mapping[str, str], fe
     ]
     if len(aliases) != 1:
         raise ValueError(f"feature {feature_id!r} has no unique catalog binding")
-    return float(catalog["candidates"][reference["id"]]["features"][aliases[0]])
+    value = catalog["candidates"][reference["id"]]["features"][aliases[0]]
+    if isinstance(value, Mapping):
+        # A {min,max} range (possibly with null = infinite ends) has no scalar value here.
+        raise ValueError(f"feature {feature_id!r} of {reference['resource']}/{reference['id']} is a range, not a scalar")
+    return float(value)
 
 
 def _normalization_ranges(compiled: Any, *, enumeration_limit: int = 10_000) -> dict[str, list[float]]:
@@ -261,8 +261,7 @@ def _close(actual: Any, expected: Any) -> bool:
 
 
 def run_benchmarks() -> dict[str, Any]:
-    from openbinding_gateway.v1.compiler import compile_instance
-    from openbinding_gateway.v1.package import load_package
+    from bim_core import compile_instance, load_package
 
     configuration = json.loads(BENCHMARKS.read_text(encoding="utf-8"))
     minimum = float(configuration["minimumReduction"])
@@ -278,10 +277,13 @@ def run_benchmarks() -> dict[str, Any]:
         compiled = compile_instance(load_package(package))
         projection_digest = _projection_digest(compiled.document)
         normalization_ranges = _normalization_ranges(compiled)
-        evaluation = compiled.evaluate(benchmark["probe"]["binding"])
+        evaluation = compiled.evaluate(
+            benchmark["probe"]["binding"], benchmark["probe"].get("execution")
+        )
         actual_probe = {
             "features": evaluation["features"],
-            "mode": evaluation["objectives"]["mode"],
+            "type": evaluation["objectives"]["type"],
+            "scalarization": evaluation["objectives"]["scalarization"],
             "score": evaluation["objectives"]["score"],
             "penalty": evaluation["objectives"]["penalty"],
             "violations": sorted(item["constraint"]["id"] for item in evaluation["violations"]),

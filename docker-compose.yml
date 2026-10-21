@@ -1,7 +1,7 @@
 x-proxy-build-args: &proxy-build-args
   HTTP_PROXY: ${HTTP_PROXY_ARG:-}
   HTTPS_PROXY: ${HTTPS_PROXY_ARG:-}
-  NO_PROXY: ${NO_PROXY_ARG:-localhost,127.0.0.1,postgres,redis,gateway,gateway-dev,worker,worker-dev,space-server,space-mongodb,space-redis,engine-minizinc,engine-random-search,engine-many-heuristic,engine-multi-heuristic,engine-evolutionary-heuristics,frontend-dev,frontend-prod,nginx,nginx-dev}
+  NO_PROXY: ${NO_PROXY_ARG:-localhost,127.0.0.1,postgres,redis,gateway,gateway-dev,worker,worker-dev,engine-minizinc,engine-random-search,engine-many-heuristic,engine-multi-heuristic,engine-evolutionary-heuristics,frontend-dev,frontend-prod,nginx,nginx-dev}
 
 services:
   postgres:
@@ -33,106 +33,6 @@ services:
       timeout: 3s
       retries: 10
 
-  # SPACE v1.5 is optional because it owns a separate Mongo database. Point
-  # SPACE_SOURCE_DIR at a v1.5.0 checkout, then enable the `space` profile.
-  space-mongodb:
-    image: mongo:7.0.16
-    profiles: ["space", "dev"]
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${SPACE_DATABASE_ROOT_USERNAME:-root}
-      MONGO_INITDB_ROOT_PASSWORD: ${SPACE_DATABASE_ROOT_PASSWORD:-}
-      MONGO_INITDB_DATABASE: ${SPACE_DATABASE_NAME:-space_db}
-    volumes:
-      - space_mongodb:/data/db
-    networks: [space]
-    healthcheck:
-      test: ["CMD", "mongosh", "--username", "${SPACE_DATABASE_ROOT_USERNAME:-root}", "--password", "${SPACE_DATABASE_ROOT_PASSWORD:-}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 15s
-      retries: 10
-      start_period: 15s
-
-  space-redis:
-    image: redis:7.4-alpine
-    profiles: ["space", "dev"]
-    volumes:
-      - space_redisdata:/data
-    networks: [space]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  space-server:
-    build:
-      context: ${SPACE_SOURCE_DIR:-./space/space-src}/api
-      dockerfile: ./docker/local/Dockerfile
-      args:
-        <<: *proxy-build-args
-    profiles: ["space", "dev"]
-    # Local bootstrap and smoke tests. Production uses the Kubernetes service
-    # or an external SPACE URL; protect this all-interface listener at the host.
-    ports:
-      - "${SPACE_HOST_PORT:-5403}:3000"
-    labels:
-      org.opencontainers.image.version: "1.5.0"
-      org.opencontainers.image.revision: "79aea10c9acff1d85e4931d09aa21d3a253d1ce1"
-      org.opencontainers.image.source: "https://github.com/isa-group/space"
-    environment:
-      ENVIRONMENT: production
-      ADMIN_USER: ${SPACE_ADMIN_USER:-admin}
-      ADMIN_PASSWORD: ${SPACE_ADMIN_PASSWORD:-}
-      ADMIN_ORG_NAME: OpenBinding
-      SPACE_DATABASE_ROOT_PASSWORD: ${SPACE_DATABASE_ROOT_PASSWORD:-}
-      MONGO_URI: mongodb://${SPACE_DATABASE_ROOT_USERNAME:-root}:${SPACE_DATABASE_ROOT_PASSWORD:-}@space-mongodb:27017/${SPACE_DATABASE_NAME:-space_db}?authSource=admin
-      REDIS_URL: redis://space-redis:6379
-      JWT_SECRET: ${SPACE_JWT_SECRET:-}
-      JWT_SALT: ${SPACE_JWT_SALT:-}
-      JWT_EXPIRATION: ${SPACE_JWT_EXPIRATION:-1h}
-    command:
-      - sh
-      - -ec
-      - >-
-        test -n "$$ADMIN_PASSWORD" && test -n "$$JWT_SECRET" && test -n "$$JWT_SALT" &&
-        test -n "$$SPACE_DATABASE_ROOT_PASSWORD" ||
-        { echo 'SPACE_ADMIN_PASSWORD, SPACE_DATABASE_ROOT_PASSWORD, SPACE_JWT_SECRET and SPACE_JWT_SALT are required' >&2; exit 1; };
-        exec node dist/index.js
-    volumes:
-      - space_statics:/usr/src/server/public
-    networks: [space]
-    depends_on:
-      space-mongodb:
-        condition: service_healthy
-      space-redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/api/v1/healthcheck',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 15s
-
-  space-frontend:
-    build:
-      context: ${SPACE_SOURCE_DIR:-./space/space-src}/frontend
-      dockerfile: ./docker/local/Dockerfile
-      args:
-        <<: *proxy-build-args
-        VITE_SPACE_BASE_URL: ${SPACE_CLIENT_BASE_URL:-http://localhost:5403/api/v1}
-    profiles: ["space", "dev"]
-    ports:
-      - "${SPACE_FRONTEND_HOST_PORT:-5174}:5050"
-    environment:
-      VITE_SPACE_BASE_URL: ${SPACE_CLIENT_BASE_URL:-http://localhost:5403/api/v1}
-    networks:
-      - space
-      - default
-    depends_on:
-      space-server:
-        condition: service_healthy
-
-
   gateway:
     build:
       context: .
@@ -148,16 +48,21 @@ services:
       - PYTHONPATH=/app/src
       - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_PROD:-https://openbinding.score.us.es,https://openbinding.us.es}
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
-      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:?set GATEWAY_JWT_SECRET before starting the prod profile}
+      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:?set GATEWAY_JWT_SECRET (at least 32 random characters) before starting the prod profile}
+      # Networks whose X-Forwarded-For is believed (uvicorn --proxy-headers).
+      # The default trusts nobody: set it to the network of the reverse proxy
+      # in front of the gateway (the nginx service's compose network), or every
+      # client is counted as the proxy by the login throttling.
+      - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1}
       - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
       - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
-      - SPACE_ENABLED=${SPACE_ENABLED:-false}
-      - SPACE_URL=${SPACE_URL:-http://space-server:3000}
+      # Production refuses to start with SPACE_ENABLED=false (APP_ENV=prod).
+      - SPACE_ENABLED=${SPACE_ENABLED:-true}
+      - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
-      - SPACE_DESTRUCTIVE_API_KEY=${SPACE_DESTRUCTIVE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-closed}
       - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
       - REDIS_URL=redis://redis:6379/0
       - JOB_DISPATCH_MODE=dramatiq
       - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
@@ -170,15 +75,22 @@ services:
       - CAS_ENVIRONMENT=${CAS_ENVIRONMENT:-production}
       - CAS_STORE_BACKEND=redis
       - FRONTEND_URL=${FRONTEND_URL:-https://openbinding.score.us.es}
+      # Comma-separated Fernet keys for stored engine credentials: the first
+      # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
+      # single key, still read after them.
+      - SECRETS_FERNET_KEYS=${SECRETS_FERNET_KEYS:-}
       - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
       - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-true}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
       - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
-    networks:
-      - default
-      - space
+      # BIM (compile, evaluate, re-evaluate) runs in this process by default. To use a
+      # bim-service instead: BIM_MODE=http, BIM_SERVICE_URL=https://bim.internal and
+      # BIM_SERVICE_TOKEN_FILE=/run/secrets/bim_token (a mounted secret file, never the
+      # token). The service must run the same bim-toolchain release or the gateway
+      # refuses to start.
+      - BIM_MODE=${BIM_MODE:-inproc}
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
       interval: 10s
@@ -220,7 +132,6 @@ services:
       # deliberately not mounted or committed.
       - ./experimentation:/app/experimentation:ro
       - ./pricings:/app/pricings:ro
-      - ./space:/app/space:ro
       - artifacts:/var/lib/openbinding/artifacts
     environment:
       - APP_ENV=dev
@@ -229,18 +140,21 @@ services:
       - PYTHONPATH=/app/src
       - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_DEV:-http://localhost,http://localhost:80,http://localhost:5173,http://127.0.0.1,http://127.0.0.1:80,http://127.0.0.1:5173}
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
-      # Development only. Production refuses to start without a real one.
-      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:-development-secret-do-not-use-in-production}
+      # No default: a well-known signing key is worse than none. ./up.sh writes
+      # a random one into .env when it is missing; otherwise set it (>= 32 chars).
+      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:?set GATEWAY_JWT_SECRET (at least 32 random characters), or start the stack with ./up.sh which generates one}
+      # See the prod service: X-Forwarded-For is believed only from these networks.
+      - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1}
       - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
       - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
       - BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}
+      # false (the default here) builds the stateless open gate: development only.
       - SPACE_ENABLED=${SPACE_ENABLED:-false}
-      - SPACE_URL=${SPACE_URL:-http://space-server:3000}
+      - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
-      - SPACE_DESTRUCTIVE_API_KEY=${SPACE_DESTRUCTIVE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-open}
       - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
       - REDIS_URL=redis://redis:6379/0
       - JOB_DISPATCH_MODE=dramatiq
       - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
@@ -253,15 +167,24 @@ services:
       - CAS_ENVIRONMENT=${CAS_ENVIRONMENT:-preproduction}
       - CAS_STORE_BACKEND=redis
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      # BIM (compile, evaluate, re-evaluate) runs in this process by default. To use a
+      # bim-service instead: BIM_MODE=http, BIM_SERVICE_URL=http://bim-service:8080 and
+      # BIM_SERVICE_TOKEN_FILE=/run/secrets/bim_token (a mounted secret file, never the
+      # token). The client refuses a token over plain http to a host that is not loopback,
+      # so a development service on this network runs with BIM_SERVICE_ALLOW_ANONYMOUS_DEV=1
+      # and the gateway has no token file. The service must run the same bim-toolchain
+      # release or startup fails.
+      - BIM_MODE=${BIM_MODE:-inproc}
+      # Comma-separated Fernet keys for stored engine credentials: the first
+      # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
+      # single key, still read after them.
+      - SECRETS_FERNET_KEYS=${SECRETS_FERNET_KEYS:-}
       - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
       - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-false}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
       - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
-    networks:
-      - default
-      - space
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
       interval: 10s
@@ -296,30 +219,33 @@ services:
     environment:
       - SCHEMAS_DIR=/app/schemas
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
-      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:?set GATEWAY_JWT_SECRET before starting the prod profile}
       - REDIS_URL=redis://redis:6379/0
       - JOB_DISPATCH_MODE=dramatiq
-      - SPACE_ENABLED=${SPACE_ENABLED:-false}
-      - SPACE_URL=${SPACE_URL:-http://space-server:3000}
+      # Same gate as the production gateway: SPACE decides plans and contracts.
+      - SPACE_ENABLED=${SPACE_ENABLED:-true}
+      - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-closed}
       - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
+      # Comma-separated Fernet keys for stored engine credentials: the first
+      # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
+      # single key, still read after them.
+      - SECRETS_FERNET_KEYS=${SECRETS_FERNET_KEYS:-}
       - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
       - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-true}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
       - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
+      # The worker re-evaluates every engine answer through BIM: same choice as the gateway.
+      - BIM_MODE=${BIM_MODE:-inproc}
       - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-https://openbinding.score.us.es}
       - SPHERE_ENABLED=${SPHERE_ENABLED:-false}
       - SPHERE_URL=${SPHERE_URL:-https://sphere.score.us.es}
       - SPHERE_API_KEY=${SPHERE_API_KEY:-}
       - SPHERE_ORGANIZATION_ID=${SPHERE_ORGANIZATION_ID:-}
-    networks:
-      - default
-      - space
     depends_on:
       gateway:
         condition: service_healthy
@@ -349,36 +275,37 @@ services:
       - ./schemas:/app/schemas:ro
       - ./openbinding-gateway:/app
       - ./pricings:/app/pricings:ro
-      - ./space:/app/space:ro
       - artifacts:/var/lib/openbinding/artifacts
     environment:
       - SCHEMAS_DIR=/app/schemas
       - PYTHONPATH=/app/src
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
-      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:-development-secret-do-not-use-in-production}
       - REDIS_URL=redis://redis:6379/0
       - JOB_DISPATCH_MODE=dramatiq
       - SPACE_ENABLED=${SPACE_ENABLED:-false}
-      - SPACE_URL=${SPACE_URL:-http://space-server:3000}
+      - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-open}
       - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
+      # Comma-separated Fernet keys for stored engine credentials: the first
+      # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
+      # single key, still read after them.
+      - SECRETS_FERNET_KEYS=${SECRETS_FERNET_KEYS:-}
       - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
       - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-false}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
       - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
+      # The worker re-evaluates every engine answer through BIM: same choice as the gateway.
+      - BIM_MODE=${BIM_MODE:-inproc}
       - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:8000}
       - SPHERE_ENABLED=${SPHERE_ENABLED:-false}
       - SPHERE_URL=${SPHERE_URL:-https://sphere.score.us.es}
       - SPHERE_API_KEY=${SPHERE_API_KEY:-}
       - SPHERE_ORGANIZATION_ID=${SPHERE_ORGANIZATION_ID:-}
-    networks:
-      - default
-      - space
     depends_on:
       gateway-dev:
         condition: service_healthy
@@ -498,9 +425,6 @@ services:
       - PYTHONPATH=/workspace/openbinding-gateway/src:/workspace
       - OPENBINDING_GATEWAY_URL=http://gateway-dev:8000
       - SCHEMAS_DIR=/workspace/schemas
-    networks:
-      - default
-      - space
     depends_on:
       gateway-dev:
         condition: service_healthy
@@ -622,11 +546,6 @@ volumes:
   frontend_dist:
   pgdata:
   redisdata:
-  space_mongodb:
-  space_redisdata:
-  space_statics:
 
 networks:
   default:
-  space:
-    name: openbinding-space

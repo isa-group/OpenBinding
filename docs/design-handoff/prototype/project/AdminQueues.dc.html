@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Queues</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ob-spin{to{transform:rotate(360deg)}}
+@keyframes ob-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes ob-growy{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes ob-fadeup{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+.ob-spin{animation:ob-spin .9s linear infinite}
+.ob-grow{transform-origin:left;animation:ob-grow 600ms cubic-bezier(.4,0,.2,1) both}
+.ob-growy{transform-origin:bottom;animation:ob-growy 600ms cubic-bezier(.4,0,.2,1) both}
+.ob-in{animation:ob-fadeup 300ms ease-out both}
+.ob-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion: reduce){.ob-skel,.ob-spin,.ob-grow,.ob-growy,.ob-in{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="admin-queues" route="{{route}}" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="{{ctx}}" active="admin" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<sc-if value="{{gate}}" hint-placeholder-val="{{false}}"><main style="max-width: 1152px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px;"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1" aria-hidden="true"><path d="{{gateIcon}}"></path></svg><span style="font-size: 16px; font-weight: 500;">{{gateTitle}}</span><span style="max-width: 500px; color: #6a6a6a;">{{gateText}}</span><a href="{{gateHref}}" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">{{gateCta}}</a></div></main></sc-if>
+<sc-if value="{{inside}}" hint-placeholder-val="{{true}}">
+<div style="background: #ffffff; border-bottom: 1px solid #ededed;"><div style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 20px 16px 12px;"><nav aria-label="Breadcrumb" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: #6a6a6a;"><sc-for list="{{crumbs}}" as="c" hint-placeholder-count="4"><sc-if value="{{c.link}}" hint-placeholder-val="{{true}}"><a href="{{c.href}}" title="{{c.title}}">{{c.label}}</a><span aria-hidden="true">/</span></sc-if><sc-if value="{{c.cur}}" hint-placeholder-val="{{false}}"><span aria-current="page" style="color: #1f1f1f;">{{c.label}}</span></sc-if></sc-for></nav></div></div>
+<main style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 24px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px;"><span style="{{adminChip}}">Platform admin</span><nav aria-label="Administration" style="display: flex; flex-wrap: wrap; gap: 4px;"><sc-for list="{{adminNav}}" as="a" hint-placeholder-count="9"><a href="{{a.href}}" aria-current="{{a.current}}" style="{{a.style}}">{{a.label}}</a></sc-for></nav></div>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px;"><div><h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">Queues</h1><p style="margin: 4px 0 0; color: #6a6a6a;">Spot jobs that are stuck before people notice.</p></div><span style="display: flex; gap: 8px;"><button type="button" onClick="{{refresh}}" style="{{btnSecondary}}">Refresh</button><a href="AdminMaintenance.dc.html" style="{{btnSecondary}}">Go to maintenance</a></span></div>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}"><div class="ob-skel" style="height: 260px; border-radius: 16px; background: #ededed;"></div></sc-if>
+<sc-if value="{{isErr}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px;"><span style="flex: 1;">Queue status couldn't be loaded. Jobs keep running regardless.</span><button type="button" onClick="{{refresh}}" style="{{btnSecondary}}">Try again</button></div></sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}"><div style="border: 1px dashed #a8a8a8; border-radius: 16px; background: #ffffff; padding: 28px; text-align: center; color: #4a4a4a;">Queues are empty: nothing waiting, nothing running.</div></sc-if>
+<sc-if value="{{ready}}" hint-placeholder-val="{{true}}">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px;"><sc-for list="{{states}}" as="q" hint-placeholder-count="5"><div style="border: 1px solid #b8b8b8; border-radius: 14px; background: #ffffff; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;"><span style="display: flex; justify-content: space-between; font-size: 13px;"><span>{{q.l}}</span><span style="font-weight: 600;">{{q.n}}</span></span><span aria-hidden="true" style="height: 8px; border-radius: 9999px; background: #ededed; overflow: hidden;"><span class="ob-grow" style="display: block; height: 100%; width: {{q.w}}%; background: {{q.c}};"></span></span></div></sc-for></div>
+<sc-if value="{{stuck}}" hint-placeholder-val="{{true}}"><div role="note" style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 12px 14px;"><span style="flex: 1; min-width: 240px;"><span style="display: block; font-weight: 600;">One job has run far past its time budget</span><span style="font-size: 13px;">Lucía's MiniZinc job asked for 300 s and has been “running” since Oct 8. It may be abandoned; Lucía's usage shows 1 of her 3 concurrent jobs in use.</span></span><a href="AdminMaintenance.dc.html" style="{{btnPrimary}}">Reconcile abandoned jobs</a></div></sc-if>
+<section aria-labelledby="wait-title" style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<h2 id="wait-title" style="margin: 0; font-size: 16px; font-weight: 600;">Waiting and running</h2>
+<sc-for list="{{liveJobs}}" as="j" hint-placeholder-count="2"><div style="display: grid; grid-template-columns: 110px 1fr 220px; align-items: center; gap: 12px; border-top: 1px solid #ededed; padding-top: 10px;"><span style="{{j.chip}}">{{j.status}}</span><span><span style="font-weight: 600;">{{j.engine}}</span> <span style="font-size: 13px; color: #4a4a4a;">· {{j.owner}} · {{j.project}}</span><span style="display: block; font-size: 12px; color: #6a6a6a;">Since {{j.created}} · budget {{j.budget}}</span></span><span style="display: flex; flex-direction: column; gap: 3px;"><span style="font-size: 12px; color: {{j.ageFg}};">Age {{j.age}}</span><span aria-hidden="true" style="height: 6px; border-radius: 9999px; background: #ededed; overflow: hidden;"><span style="display: block; height: 100%; width: {{j.ageW}}%; background: {{j.ageFg}};"></span></span></span></div></sc-for>
+<sc-if value="{{noLive}}" hint-placeholder-val="{{false}}"><span style="color: #6a6a6a;">Nothing waiting or running.</span></sc-if>
+</section>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+<div style="border: 1px solid #ededed; border-radius: 14px; background: #ffffff; padding: 14px; display: flex; flex-direction: column; gap: 4px;"><span style="font-weight: 600;">Study cells</span><span style="font-size: 13px; color: #4a4a4a;">Engines × semillas run #1 finished partially (6 done, 1 failed, 1 cancelled). Nothing waiting.</span></div>
+<div style="border: 1px solid #ededed; border-radius: 14px; background: #ffffff; padding: 14px; display: flex; flex-direction: column; gap: 4px;"><span style="font-weight: 600;">Analysis tasks</span><span style="font-size: 13px; color: #4a4a4a;">Trade-off front computations. Their queue isn't in the prototype data.</span></div>
+</div>
+<span style="font-size: 12px; color: #6a6a6a;">Counts come from the six jobs in the prototype data. The queue endpoint has no fixed shape in the API description; this layout is a proposal. Ages are measured to Oct 9, 2026. After reconciling, the job shows as failed (a prototype choice).</span>
+</sc-if>
+</main>
+</sc-if>
+<div aria-live="polite" class="ob-sr">{{live}}</div>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1400}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ persona: "iker", st: "success", scenario: "ok", org: "isa-demo", project: "qos-benchmarks", live: "" }, { reconciled: false });
+  }
+  personas() {
+    return {
+      visitor: { key: "visitor", signedIn: false, user: "", name: "", first: "", email: "", initials: "", admin: false, plan: "BASIC" },
+      lucia: { key: "lucia", signedIn: true, user: "lucia.vega", name: "Lucía Vega", first: "Lucía", email: "lucia@example.invalid", initials: "LV", admin: false, plan: "RESEARCH" },
+      marco: { key: "marco", signedIn: true, user: "marco.diaz", name: "Marco Díaz", first: "Marco", email: "marco@example.invalid", initials: "MD", admin: false, plan: "BASIC" },
+      sofia: { key: "sofia", signedIn: true, user: "sofia.rey", name: "Sofía Rey", first: "Sofía", email: "sofia@example.invalid", initials: "SR", admin: false, plan: "BASIC", pending: true },
+      nora: { key: "nora", signedIn: true, user: "nora.campos", name: "Nora Campos", first: "Nora", email: "nora@example.invalid", initials: "NC", admin: false, plan: "ADVANCED" },
+      iker: { key: "iker", signedIn: true, user: "iker.mora", name: "Iker Mora", first: "Iker", email: "iker@example.invalid", initials: "IM", admin: true, plan: "PRO" },
+      pablo: { key: "pablo", signedIn: true, user: "pablo.ci", name: "Pablo Ibáñez", first: "Pablo", email: "pablo@example.invalid", initials: "PI", admin: false, plan: "PRO" }
+    };
+  }
+  fx() {
+    const D = { a1: "sha256-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4", b2: "sha256-b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5", c3: "sha256-c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6", d4: "sha256-d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607", e5: "sha256-e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718" };
+    const short = { a1: "sha256-a1b2…c3d4", b2: "sha256-b2c3…d4e5", c3: "sha256-c3d4…e5f6", d4: "sha256-d4e5…f607", e5: "sha256-e5f6…0718" };
+    return {
+      D: D, short: short,
+      orgs: {
+        "isa-demo": { slug: "isa-demo", name: "ISA Demo Group", parent: "", sponsor: "lucia", sponsorName: "Lucía Vega" },
+        "qos-lab": { slug: "qos-lab", name: "QoS Lab (sub-organización)", parent: "isa-demo", sponsor: "lucia", sponsorName: "Lucía Vega" },
+        "consultora-demo": { slug: "consultora-demo", name: "Consultora Demo", parent: "", sponsor: "nora", sponsorName: "Nora Campos" }
+      },
+      roles: {
+        lucia: { "isa-demo": "OWNER", "qos-lab": "OWNER" },
+        marco: { "isa-demo": "MEMBER", "qos-lab": "ADMIN", "consultora-demo": "VIEWER" },
+        sofia: { "isa-demo": "VIEWER", "qos-lab": "VIEWER" },
+        nora: { "consultora-demo": "OWNER" }, iker: {}, pablo: {}, visitor: {}
+      },
+      projects: {
+        "qos-benchmarks": { org: "isa-demo", slug: "qos-benchmarks", name: "QoS Benchmarks", desc: "Casos de referencia de binding con workflow y placement.", vis: "public" },
+        "checkout-privado": { org: "isa-demo", slug: "checkout-privado", name: "Checkout (privado)", desc: "Caso interno de pagos con candidatos propietarios.", vis: "private" },
+        "placement-edge": { org: "qos-lab", slug: "placement-edge", name: "Placement en el borde", desc: "Exploración con pools y latencias.", vis: "private" }
+      },
+      cases: {
+        "qos-benchmarks": [{ slug: "checkout-flow", name: "Flujo de checkout", desc: "Pagos con autenticación, stock y envío en paralelo.", revisions: [
+          { n: 1, digest: "a1", date: "Aug 1, 2026", size: 4.2, resources: [["Application", "checkout-app", "3"], ["CandidateCatalog", "providers-eu", "2"], ["ConstraintSet", "sla-hard", "1"], ["Optimization", "weighted-cost-latency", "1"]], change: "First revision." },
+          { n: 2, digest: "b2", date: "Aug 20, 2026", size: 5.1, resources: [["Application", "checkout-app", "3"], ["CandidateCatalog", "providers-eu", "3"], ["ConstraintSet", "sla-hard", "1"], ["Optimization", "weighted-cost-latency", "1"]], change: "Catálogo ampliado de 5 a 8 candidatos para la tarea pago." }
+        ] }]
+      },
+      workflow: [
+        { kind: "task", task: "autenticar", type: "service", cap: "auth", cands: 4 },
+        { kind: "parallel", agg: "max", items: [{ task: "inventario", cap: "stock", cands: 5 }, { task: "calcular-envio", cap: "shipping", cands: 3 }] },
+        { kind: "exclusive", items: [{ task: "pago-tarjeta", branch: "tarjeta", p: 0.7, cap: "payment", cands: 8 }, { task: "pago-transferencia", branch: "transferencia", p: 0.3, cap: "payment", cands: 4 }] },
+        { kind: "task", task: "notificar", type: "local" }
+      ],
+      candidates: [{ id: "payco-eu", latency: 180, cost: 0.021, availability: 99.95 }, { id: "fastpay", latency: 95, cost: 0.034, availability: 99.9 }],
+      constraints: [{ id: "sla-latencia", enf: "hard", text: "Latencia total ≤ 600 ms" }, { id: "sla-disponibilidad", enf: "soft", penalty: 5.0, text: "Disponibilidad ≥ 99.9 %" }],
+      objective: { mode: "weighted-sum", terms: [{ metric: "cost", weight: 0.6, dir: "minimize" }, { metric: "latency", weight: 0.4, dir: "minimize" }] },
+      library: [
+        { id: "d1", org: "isa-demo", kind: "CandidateCatalog", name: "providers-eu", display: "Proveedores UE", versions: [{ ord: 2, version: "2", content: "c3", vdigest: "d4", published: false }, { ord: 3, version: "3", content: "e5", vdigest: "a1", published: true, citation: "Catálogo de proveedores UE (sintético)" }], drafts: [{ id: "d4", rev: 4, basedOn: "3" }] },
+        { id: "d5", org: "isa-demo", kind: "Study", name: "engines-vs-seeds", display: "Engines × semillas", versions: [{ ord: 1, version: "1", published: false }], drafts: [] },
+        { id: "d6", org: "isa-demo", kind: "ExecutionConfiguration", name: "rs-60s", display: "Random Search 60 s", versions: [{ ord: 1, version: "1", published: false }], drafts: [] }
+      ],
+      jobs: [
+        { id: "f1", owner: "lucia", project: "qos-benchmarks", engine: "random-search", label: "Random Search", mode: "sampling", status: "completed", term: "FEASIBLE", created: "Sep 30, 2026, 09:00", dur: "1 min 5 s", durS: 65, sols: 1, clamp: true, req: [["time_budget_ms", 600000, "ms"], ["iterations", 100000, "iterations"]], app: [["time_budget_ms", 60000, "ms"], ["iterations", 100000, "iterations"]] },
+        { id: "f2", owner: "lucia", project: "qos-benchmarks", engine: "minizinc", label: "MiniZinc", mode: "cp", status: "running", term: "", created: "Oct 8, 2026, 08:00", dur: "running", durS: 0, sols: 0, req: [["time_budget_ms", 300000, "ms"]], app: [["time_budget_ms", 300000, "ms"]] },
+        { id: "f3", owner: "marco", project: "checkout-privado", engine: "random-search", label: "Random Search", mode: "sampling", status: "queued", term: "", created: "Oct 8, 2026, 08:10", dur: "waiting", durS: 0, sols: 0, req: [], app: [] },
+        { id: "f4", owner: "marco", project: "checkout-privado", engine: "evolutionary", label: "Evolutionary", mode: "genetic", status: "failed", term: "UNKNOWN", created: "Oct 7, 2026, 15:00", dur: "20 s", durS: 20, sols: 0, error: "The deployment didn't answer within the budget (engine unreachable).", retryable: true, req: [], app: [] },
+        { id: "f5", owner: "marco", project: "checkout-privado", engine: "random-search", label: "Random Search", mode: "sampling", status: "cancelled", term: "", created: "Oct 6, 2026, 12:00", dur: "3 s", durS: 3, sols: 0, retryable: true, req: [], app: [] },
+        { id: "f6", owner: "lucia", project: "qos-benchmarks", engine: "minizinc", label: "MiniZinc", mode: "cp", status: "completed", term: "INFEASIBLE", created: "Oct 1, 2026, 09:00", dur: "40 s", durS: 40, sols: 0, infeas: true, req: [], app: [] }
+      ],
+      study: { slug: "engines-vs-seeds", name: "Engines × semillas", project: "qos-benchmarks", archived: false, cases: ["checkout-flow@1", "checkout-flow@2"], engines: [["random-search", "Random Search", "sampling"], ["evolutionary", "Evolutionary", "genetic"]], params: 1, seeds: [1, 2], cellsN: 8,
+        run: { n: 1, state: "partial", matrix: "d4", created: "Sep 20, 2026, 09:00", finished: "Sep 20, 2026, 09:20", done: 6, failed: 1, cancelled: 1 },
+        cells: [
+          { o: 0, c: 1, e: "random-search", seed: 1, state: "completed", feasible: true, cost: 0.121, lat: 430, rt: 58 },
+          { o: 1, c: 1, e: "random-search", seed: 2, state: "completed", feasible: true, cost: 0.118, lat: 412, rt: 59 },
+          { o: 2, c: 1, e: "evolutionary", seed: 1, state: "completed", feasible: true, cost: 0.112, lat: 440, rt: 120 },
+          { o: 3, c: 1, e: "evolutionary", seed: 2, state: "failed", code: "engine_unreachable", detail: "timeout" },
+          { o: 4, c: 2, e: "random-search", seed: 1, state: "completed", feasible: true, cost: 0.109, lat: 398, rt: 60 },
+          { o: 5, c: 2, e: "random-search", seed: 2, state: "completed", feasible: true, cost: 0.111, lat: 405, rt: 60 },
+          { o: 6, c: 2, e: "evolutionary", seed: 1, state: "completed", feasible: true, cost: 0.104, lat: 420, rt: 118 },
+          { o: 7, c: 2, e: "evolutionary", seed: 2, state: "cancelled" }
+        ],
+        pareto: [[0.104, 420], [0.109, 398]] },
+      reports: [
+        { slug: "engines-vs-seeds-informe", title: "Comparativa de engines en checkout", state: "frozen", run: "Engines × semillas #1", version: "1", digest: "e5", pub: { slug: "checkout-comparativa", title: "Comparativa de engines en checkout (sintética)", authors: "Lucía Vega", year: 2026, date: "Sep 25, 2026" } },
+        { slug: "borrador-placement", title: "Borrador: placement", state: "draft", draftRev: 3 }
+      ],
+      snapshot: { id: "e1", owner: "lucia", instance: "a1", pkg: "b2", ir: "c3", size: 48213, date: "Aug 20, 2026, 10:05" },
+      engines: [
+        { ns: "bim.builtin", name: "random-search", label: "Random Search", version: "1.0.0", digest: "b2", mode: "sampling", vis: "public" },
+        { ns: "bim.builtin", name: "evolutionary", label: "Evolutionary", version: "1.0.0", digest: "c3", mode: "genetic", vis: "public" },
+        { ns: "bim.builtin", name: "minizinc", label: "MiniZinc", version: "1.0.0", digest: "d4", mode: "cp", vis: "public" },
+        { ns: "lucia-vega", name: "edge-solver", label: "edge-solver", version: "0.3.1", digest: "e5", mode: "—", vis: "private", owner: "lucia" }
+      ]
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); const o = window.localStorage.getItem("ob.org"); if (o && o !== "__new") this.setState({ org: o }); const pj = window.localStorage.getItem("ob.project"); if (pj && pj !== "__new") this.setState({ project: pj }); const m = window.localStorage.getItem("ob.reconciled"); if (m) this.setState({ reconciled: true }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); if (this.t2) clearTimeout(this.t2); }
+  setPersona(k) { this.setState(Object.assign({ persona: k }, {  })); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  later(ms, fn) { if (this.timer) clearTimeout(this.timer); this.timer = setTimeout(fn, ms); }
+  copy(text, key) { try { if (navigator.clipboard) navigator.clipboard.writeText(text); } catch (e) {} this.setState({ copied: key, live: "Copied." }); if (this.t2) clearTimeout(this.t2); this.t2 = setTimeout(() => this.setState({ copied: "" }), 2000); }
+  renderVals() {
+    const s = this.state;
+    const P = this.personas();
+    const who = P[s.persona] || P.visitor;
+    const st = s.st, sc = s.scenario;
+    const F = this.fx();
+    const SCENMAP = {"ok": "success", "err": "error", "key": "forbidden"};
+    const RESET = {  };
+    const projKey = F.projects[s.project] ? s.project : "qos-benchmarks";
+    const p = F.projects[projKey];
+    const orgKey = "app" === "project" ? p.org : (F.orgs[s.org] ? s.org : "isa-demo");
+    const org = F.orgs[orgKey];
+    const myRoles = F.roles[s.persona] || {};
+    const role = myRoles[orgKey] || (who.admin ? "PLATFORM ADMIN" : "");
+    const rank = { VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4, "PLATFORM ADMIN": 4 }[role] || 0;
+    const member = rank > 0;
+    const canMember = rank >= 2, canAdmin = rank >= 3;
+    const chip = (bg, fg, bd) => "display: inline-flex; align-items: center; gap: 4px; border-radius: 9999px; padding: 1px 10px; font-size: 12px; font-weight: 500; background: " + bg + "; color: " + fg + "; border: 1px solid " + bd + ";";
+    const roleChipOf = (r) => "border-radius: 9999px; padding: 1px 10px; font-size: 11px; font-weight: 600; " + ({ OWNER: "background: #023e8a; color: #ffffff;", ADMIN: "background: #0077b6; color: #ffffff;", MEMBER: "background: #caf0f8; color: #023e8a;", VIEWER: "background: #fafafa; color: #4a4a4a; border: 1px solid #b8b8b8;", "PLATFORM ADMIN": "background: #1f1f1f; color: #ffffff;" }[r] || "");
+    const btn = (kind) => "display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; " + (kind === "primary" ? "border: 0; background: #0077b6; color: #ffffff;" : (kind === "danger" ? "border: 1px solid #fca5a5; background: #ffffff; color: #b91c1c;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f;"));
+    const pill = (on) => "height: 30px; padding: 0 12px; border-radius: 9999px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; " + (on ? "border: 1px solid #0077b6; background: #0077b6; color: #ffffff;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #4a4a4a;");
+    const tab = (on) => "padding: 10px 16px; border: 0; background: transparent; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: -1px; " + (on ? "color: #0077b6; border-bottom: 2px solid #0077b6;" : "color: #6a6a6a; border-bottom: 2px solid transparent;");
+    const radio = (on) => ({ border: on ? "2px solid #0077b6" : "1px solid #b8b8b8", bg: on ? "rgba(0,119,182,0.05)" : "#ffffff", ring: on ? "#0077b6" : "#a8a8a8", fill: on ? "#0077b6" : "transparent" });
+    const n = (x) => Number(x).toLocaleString("en-US");
+    const later = (ms, fn) => this.later(ms, fn);
+    const forbiddenGate = false;
+    const allowVisitor = false;
+    const needMember = "app" === "project" || "app" === "org";
+    const gate = (!who.signedIn && !allowVisitor) || (who.signedIn && needMember && !member) || (forbiddenGate && st === "forbidden");
+    const __b = {
+      persona: s.persona, st: st, na: [], scenarios: [{"id": "ok", "label": "Loads"}, {"id": "err", "label": "Fails to load"}, {"id": "key", "label": "403 key permission"}], scenario: sc,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState(Object.assign({ st: x }, RESET)),
+      setScenario: (x) => this.setState(Object.assign({ scenario: x, st: SCENMAP[x] || "error" }, RESET)),
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      org: org, p: p, role: role, roleChip: roleChipOf(role),
+      ctx: "app" === "project" ? org.name + " / " + p.name : ("app" === "org" ? org.name : ""),
+      gate: gate, inside: !gate,
+      gateIcon: !who.signedIn ? "M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4" : "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-3.5-3.5",
+      gateTitle: !who.signedIn ? "Log in to continue" : (forbiddenGate && st === "forbidden" && member ? "Your role doesn’t reach this (403)" : "Not found"),
+      gateText: !who.signedIn ? "This page is only for signed-in members." : (forbiddenGate && st === "forbidden" && member ? "Ask an admin of the organization for a higher role." : "It doesn't exist, or you're not a member of the organization it belongs to. We show the same message either way."),
+      gateHref: who.signedIn ? "AppHome.dc.html" : "AuthLogin.dc.html", gateCta: who.signedIn ? "Back to Home" : "Log in",
+      live: s.live
+    };
+    const crumbBase = "app" === "project" ? [["Home", "AppHome.dc.html"], [org.name, "OrgOverview.dc.html"], [p.name, "ProjOverview.dc.html"]] : ("app" === "org" ? [["Home", "AppHome.dc.html"], [org.name, "OrgOverview.dc.html"]] : [["Home", "AppHome.dc.html"]]);
+    const ADM = [["overview", "Overview", "AdminOverview.dc.html"], ["users", "Accounts", "AdminUsers.dc.html"], ["audit", "Audit", "AdminAudit.dc.html"], ["errors", "Errors", "AdminErrors.dc.html"], ["queues", "Queues", "AdminQueues.dc.html"], ["moderation", "Moderation", "AdminModeration.dc.html"], ["maintenance", "Maintenance", "AdminMaintenance.dc.html"], ["routing", "Engine routing", "AdminRouting.dc.html"], ["pricing", "Pricing", "AdminPricing.dc.html"]];
+    const adminNav = (cur) => ADM.map(([k, l, h]) => ({ label: l, href: h, current: k === cur ? "page" : "false", style: "display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 9999px; font-size: 13px; text-decoration: none; " + (k === cur ? "background: #1f1f1f; color: #ffffff; border: 1px solid #1f1f1f;" : "background: #ffffff; color: #1f1f1f; border: 1px solid #b8b8b8;") }));
+    const keyForb = st === "forbidden" && who.admin;
+    const ADMG = {
+      gate: !who.signedIn || !who.admin || keyForb, inside: who.signedIn && who.admin && !keyForb,
+      gateTitle: !who.signedIn ? "Log in to continue" : (who.admin ? "This key can't use administration (403)" : "Not available (403)"),
+      gateText: !who.signedIn ? "Administration is only for platform administrators. A session is required (401)." : (who.admin ? "Your account is an administrator, but the API key behind this session doesn't include the administration permission this page needs." : "This page is for platform administrators. It doesn't appear in your navigation."),
+      gateHref: who.signedIn ? "AppHome.dc.html" : "AuthLogin.dc.html", gateCta: who.signedIn ? "Back to Home" : "Log in",
+      adminChip: roleChipOf("PLATFORM ADMIN"), btnPrimary: btn("primary"), btnSecondary: btn(), btnDanger: btn("danger")
+    };
+    const simChip = chip("#fafafa", "#6a6a6a", "#b8b8b8");
+    const saveLS = (k, v) => { try { window.localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+    const USERS = [
+      { id: "…0001", u: "lucia.vega", p: "lucia", name: "Lucía Vega", email: "lucia@example.invalid", role: "user", active: true, plan: "RESEARCH", created: "Mar 2, 2026", cas: true, pending: false, keys: 2 },
+      { id: "…0002", u: "marco.diaz", p: "marco", name: "Marco Díaz", email: "marco@example.invalid", role: "user", active: true, plan: "BASIC", created: "Jun 15, 2026", cas: false, pending: false, keys: 1 },
+      { id: "…0003", u: "sofia.rey", p: "sofia", name: "Sofía Rey", email: "sofia@example.invalid", role: "user", active: true, plan: "BASIC", created: "Jul 1, 2026", cas: false, pending: true, keys: 0 },
+      { id: "…0004", u: "nora.campos", p: "nora", name: "Nora Campos", email: "nora@example.invalid", role: "user", active: true, plan: "ADVANCED", created: "Apr 20, 2026", cas: false, pending: false, keys: 3 },
+      { id: "…0005", u: "iker.mora", p: "iker", name: "Iker Mora", email: "iker@example.invalid", role: "admin", active: true, plan: "PRO", created: "Jan 10, 2026", cas: false, pending: false, keys: 1 },
+      { id: "…0006", u: "pablo.ci", p: "pablo", name: "Pablo Ibáñez", email: "pablo@example.invalid", role: "user", active: true, plan: "PRO", created: "May 5, 2026", cas: false, pending: false, keys: 2 },
+      { id: "…0007", u: "baja.demo", p: "", name: "baja.demo", email: "baja@example.invalid", role: "user", active: false, plan: "BASIC", created: "Feb 2, 2026", cas: false, pending: false, keys: 0 }
+    ];
+    const PLANS = ["BASIC", "ADVANCED", "RESEARCH", "PRO"];
+    const PLANLIM = { taskStarts: ["Solves / month", [10, 25, 50, Infinity]], solverSeconds: ["Solver seconds / month", [900, 18000, 30000, 180000]], concurrentJobs: ["Concurrent jobs", [1, 2, 3, 8]], federatedEngines: ["Federated engines", [1, 3, 5, 20]], apiKeys: ["API keys", [1, 10, 25, Infinity]], studyRuns: ["Study runs / month", [3, 50, 100, 1000]], jobHistoryDays: ["Job history (days)", [7, 90, 180, 365]] };
+    const fmtLim = (v) => v === Infinity ? "Unlimited" : Number(v).toLocaleString("en-US");
+    const jobs = F.jobs.map((j) => s.reconciled && j.id === "f2" ? Object.assign({}, j, { status: "failed" }) : j);
+    const cnt = (k) => jobs.filter((j) => j.status === k).length;
+    const QS = [["queued", "Queued", "#a8a8a8"], ["running", "Running", "#0077b6"], ["completed", "Completed", "#15803d"], ["failed", "Failed", "#b91c1c"], ["cancelled", "Cancelled", "#6a6a6a"]];
+    const liveJ = jobs.filter((j) => j.status === "queued" || j.status === "running");
+    const AGE = { f2: ["about 1 day", 100, "#b91c1c", "5 min"], f3: ["about 1 day", 96, "#92400e", "plan default"] };
+    const V = Object.assign({}, ADMG, {
+      adminNav: adminNav("queues"),
+      refresh: () => { this.setState({ st: "loading" }); later(800, () => this.setState({ st: "success", scenario: "ok" })); },
+      isLoading: st === "loading", isErr: st === "error", isEmpty: st === "empty", ready: st === "success",
+      states: QS.map(([k, l, c]) => ({ l: l, n: String(cnt(k)), w: String(Math.round(cnt(k) / jobs.length * 100)), c: c })),
+      stuck: !s.reconciled,
+      liveJobs: liveJ.map((j) => ({ status: j.status === "queued" ? "Queued" : "Running", chip: j.status === "queued" ? chip("#fafafa", "#4a4a4a", "#b8b8b8") : chip("#eff6ff", "#1d4ed8", "#93c5fd"), engine: j.label, owner: j.owner === "lucia" ? "Lucía Vega" : "Marco Díaz", project: F.projects[j.project].name, created: j.created, budget: AGE[j.id][3], age: AGE[j.id][0], ageW: String(AGE[j.id][1]), ageFg: AGE[j.id][2] })),
+      noLive: liveJ.length === 0
+    });
+    const __crumbs = crumbBase.concat(V.crumbList || [["Administration", "AdminOverview.dc.html"], ["Queues"]]);
+    __b.crumbs = __crumbs.map((c, i) => ({ label: c[0], href: c[1] || "", title: c[2] || "", link: i < __crumbs.length - 1, cur: i === __crumbs.length - 1 }));
+    __b.route = V.route || "/app/admin/queues";
+    return Object.assign(__b, V);
+  }
+}
+</script>
+</body>
+</html>
