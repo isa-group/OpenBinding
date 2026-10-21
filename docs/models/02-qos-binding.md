@@ -11,7 +11,7 @@ lowering. It does not make the four QoS roles part of the generic BIM core.
 PlantUML source: [`02-qos-package.puml`](plantuml/02-qos-package.puml).
 Primary sources: [`profile.schema.json`](../../schemas/bim/v1/profile.schema.json),
 the installed manifest in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py),
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py),
 and the source schemas under [`schemas/bim/v1`](../../schemas/bim/v1/).
 
 The selected Profile requires exactly one Application, one or more candidate
@@ -46,7 +46,7 @@ PlantUML source:
 Primary sources:
 [`candidate-catalog.schema.json`](../../schemas/bim/v1/candidate-catalog.schema.json)
 and candidate normalization in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py).
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py).
 
 Catalog candidates publish capability types, optional stable scalar
 properties, providers, and feature slots. They never contain task ids.
@@ -63,7 +63,7 @@ PlantUML source:
 [`02-constraints-expressions.puml`](plantuml/02-constraints-expressions.puml).
 Primary sources:
 [`constraint-set.schema.json`](../../schemas/bim/v1/constraint-set.schema.json),
-and [`expressions.py`](../../openbinding-gateway/src/openbinding_gateway/v1/expressions.py).
+and [`expressions.py`](../../bim-toolchain/packages/bim-core/src/bim_core/expressions.py).
 
 Constraints use either the compact JSON AST or the restricted CEL form; both
 lower to the same typed Expression IR. `when` short-circuits the assertion.

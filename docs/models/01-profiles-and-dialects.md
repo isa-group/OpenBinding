@@ -14,7 +14,7 @@ and output schema.
 **Sources:** [`profile.schema.json`](../../schemas/bim/v1/profile.schema.json),
 the built-in Profile manifest, `install_profile_contract`, and framework
 cross-checks in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py).
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py).
 
 ![UML class diagram of a Profile manifest, role contracts, output IR contract, capability vocabulary, limits, and adapter descriptor](generated/01-profile-metamodel.svg)
 
@@ -46,7 +46,7 @@ identity must be supplied by a compatible installed Dialect.
 **Sources:** [`dialect.schema.json`](../../schemas/bim/v1/dialect.schema.json),
 Dialect installation, framework validation, resource matching, and extension
 lowering in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py).
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py).
 
 ![UML class diagram of a Dialect manifest, complete resource types, XML root contracts, inline extension points, IR features, and its adapter](generated/01-dialect-metamodel.svg)
 
@@ -73,9 +73,9 @@ extension data they do not understand.
 
 **Sources:** `installed_profile_manifests()` and
 `installed_dialect_manifests()` in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py),
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py),
 the source schemas under [`schemas/bim/v1`](../../schemas/bim/v1/), and the
-vendored [OMG BPMN 2.0.2 schema bundle](../../openbinding-gateway/src/openbinding_gateway/v1/vendor/omg/bpmn/2.0.2/).
+vendored [OMG BPMN 2.0.2 schema bundle](../../bim-toolchain/packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2/).
 
 ![UML object diagram of the installed qos-binding Profile and its QoS, BPMN, and Placement Dialects](generated/01-installed-framework.svg)
 
@@ -105,7 +105,7 @@ framework supports them for installed domain Dialects.
 **Sources:** resource matching in `_resource_index`, contract installation in
 `install_dialect_contract`, and generic lowering in
 `_lower_installed_dialect_resources` in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py).
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py).
 
 ```mermaid
 flowchart TD
@@ -147,7 +147,7 @@ language; it cannot provide or download its implementation.
 
 **Sources:** `_check_extensions`, `_lower_inline_extensions`,
 `install_extension_validator`, and `install_dialect_contract` in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py),
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py),
 plus [`dialect.schema.json`](../../schemas/bim/v1/dialect.schema.json).
 
 ```mermaid
@@ -184,7 +184,7 @@ installed.
 
 **Sources:** `install_profile_contract`, `install_dialect_contract`, and
 `installed_framework_diagnostics` in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py),
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py),
 [`profile.schema.json`](../../schemas/bim/v1/profile.schema.json), and
 [`dialect.schema.json`](../../schemas/bim/v1/dialect.schema.json).
 
@@ -237,9 +237,9 @@ Dialect additionally requires a dedicated installed parser/lowering adapter.
 
 **Sources:** `compile_instance`, `_resolve_instance`, installed-adapter
 lowering, and `_validated_profile_output` in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py),
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py),
 package access in
-[`package.py`](../../openbinding-gateway/src/openbinding_gateway/v1/package.py),
+[`package.py`](../../bim-toolchain/packages/bim-core/src/bim_core/package.py),
 and the [`BindingProblem` schema](../../schemas/bim/v1/binding-problem.schema.json).
 
 ```mermaid

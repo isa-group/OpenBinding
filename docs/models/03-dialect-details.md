@@ -18,7 +18,7 @@ PlantUML source:
 Primary sources:
 [`placement.schema.json`](../../schemas/bim/v1/placement.schema.json),
 [`PLACEMENT.md`](../PLACEMENT.md), and Placement lowering in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py).
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py).
 
 ![UML metamodel of Placement network links and external events](generated/03-placement-network.svg)
 
@@ -86,7 +86,7 @@ Status: **normative-derived**.
 PlantUML source: [`03-bpmn-mapping.puml`](plantuml/03-bpmn-mapping.puml).
 Primary sources: [`BPMN.md`](../BPMN.md), the vendored OMG BPMN 2.0.2 XSD
 bundle, and `_bpmn_workflow` in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py).
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py).
 
 BIM preserves normative BPMN XML but executes only one structured SESE process
 using resolvable service/local tasks, none start/end events, sequence flow,

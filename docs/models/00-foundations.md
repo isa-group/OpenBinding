@@ -11,7 +11,7 @@ different language version.
 
 **Sources:** [`instance.schema.json`](../../schemas/bim/v1/instance.schema.json),
 the installed framework and compiler boundary in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py),
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py),
 and the IR contract in
 [`binding-problem.schema.json`](../../schemas/bim/v1/binding-problem.schema.json).
 
@@ -54,9 +54,9 @@ IR for an Engine.
 
 **Sources:** [`instance.schema.json`](../../schemas/bim/v1/instance.schema.json),
 package loading in
-[`package.py`](../../openbinding-gateway/src/openbinding_gateway/v1/package.py),
+[`package.py`](../../bim-toolchain/packages/bim-core/src/bim_core/package.py),
 and resource indexing in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py).
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py).
 
 ![UML class diagram of the BIM package, Instance envelope, role groups, resource entries, local paths, and registered references](generated/00-core-metamodel.svg)
 
@@ -91,10 +91,10 @@ not to the reusable `Instance` metamodel.
 **Status:** `normative-derived`
 
 **Sources:** secure virtual-filesystem construction in
-[`package.py`](../../openbinding-gateway/src/openbinding_gateway/v1/package.py),
+[`package.py`](../../bim-toolchain/packages/bim-core/src/bim_core/package.py),
 the [`Instance` schema](../../schemas/bim/v1/instance.schema.json), and
 container resolution in
-[`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py).
+[`compiler.py`](../../bim-toolchain/packages/bim-core/src/bim_core/compiler.py).
 
 ```mermaid
 flowchart TD
