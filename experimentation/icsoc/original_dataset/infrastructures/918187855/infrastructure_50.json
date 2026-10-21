@@ -1,0 +1,7155 @@
+{
+    "nodes": [
+        {
+            "name": "edge1",
+            "type": "edge",
+            "provider": "privateCitizen2",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 512,
+                "v_cpu": 2,
+                "mhz": 1500
+            }
+        },
+        {
+            "name": "edge2",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge3",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge4",
+            "type": "edge",
+            "provider": "privateCitizen2",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 512,
+                "v_cpu": 2,
+                "mhz": 1500
+            }
+        },
+        {
+            "name": "edge5",
+            "type": "edge",
+            "provider": "privateCitizen1",
+            "security_caps": [],
+            "software_caps": [
+                "js"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 2500
+            }
+        },
+        {
+            "name": "edge6",
+            "type": "edge",
+            "provider": "privateCitizen1",
+            "security_caps": [],
+            "software_caps": [
+                "js"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 2500
+            }
+        },
+        {
+            "name": "edge7",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge8",
+            "type": "edge",
+            "provider": "privateCitizen1",
+            "security_caps": [],
+            "software_caps": [
+                "js"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 2500
+            }
+        },
+        {
+            "name": "edge9",
+            "type": "edge",
+            "provider": "privateCitizen1",
+            "security_caps": [],
+            "software_caps": [
+                "js"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 2500
+            }
+        },
+        {
+            "name": "edge10",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge11",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge12",
+            "type": "edge",
+            "provider": "privateCitizen1",
+            "security_caps": [],
+            "software_caps": [
+                "js"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 2500
+            }
+        },
+        {
+            "name": "edge13",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge14",
+            "type": "edge",
+            "provider": "privateCitizen1",
+            "security_caps": [],
+            "software_caps": [
+                "js"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 2500
+            }
+        },
+        {
+            "name": "edge15",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge16",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge17",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge18",
+            "type": "edge",
+            "provider": "privateCitizen1",
+            "security_caps": [],
+            "software_caps": [
+                "js"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 2500
+            }
+        },
+        {
+            "name": "edge19",
+            "type": "edge",
+            "provider": "privateCitizen1",
+            "security_caps": [],
+            "software_caps": [
+                "js"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 2500
+            }
+        },
+        {
+            "name": "edge20",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge21",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge22",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge23",
+            "type": "edge",
+            "provider": "privateCitizen1",
+            "security_caps": [],
+            "software_caps": [
+                "js"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 2500
+            }
+        },
+        {
+            "name": "edge24",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge25",
+            "type": "edge",
+            "provider": "privateCitizen1",
+            "security_caps": [],
+            "software_caps": [
+                "js"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 2500
+            }
+        },
+        {
+            "name": "edge26",
+            "type": "edge",
+            "provider": "privateCitizen1",
+            "security_caps": [],
+            "software_caps": [
+                "js"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 2500
+            }
+        },
+        {
+            "name": "edge27",
+            "type": "edge",
+            "provider": "privateCitizen2",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 512,
+                "v_cpu": 2,
+                "mhz": 1500
+            }
+        },
+        {
+            "name": "edge28",
+            "type": "edge",
+            "provider": "privateCitizen1",
+            "security_caps": [],
+            "software_caps": [
+                "js"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 2500
+            }
+        },
+        {
+            "name": "edge29",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge30",
+            "type": "edge",
+            "provider": "privateCitizen3",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 3000
+            }
+        },
+        {
+            "name": "edge31",
+            "type": "edge",
+            "provider": "privateCitizen1",
+            "security_caps": [],
+            "software_caps": [
+                "js"
+            ],
+            "hardware_caps": {
+                "memory": 1024,
+                "v_cpu": 4,
+                "mhz": 2500
+            }
+        },
+        {
+            "name": "fog1",
+            "type": "fog",
+            "provider": "university",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "py3",
+                "numPy"
+            ],
+            "hardware_caps": {
+                "memory": 4096,
+                "v_cpu": 4,
+                "mhz": 2000
+            }
+        },
+        {
+            "name": "fog2",
+            "type": "fog",
+            "provider": "telco",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 2048,
+                "v_cpu": 4,
+                "mhz": 1500
+            }
+        },
+        {
+            "name": "fog3",
+            "type": "fog",
+            "provider": "telco",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 3500,
+                "v_cpu": 16,
+                "mhz": 2000
+            }
+        },
+        {
+            "name": "fog4",
+            "type": "fog",
+            "provider": "telco",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 2048,
+                "v_cpu": 4,
+                "mhz": 1500
+            }
+        },
+        {
+            "name": "fog5",
+            "type": "fog",
+            "provider": "university",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "py3",
+                "numPy"
+            ],
+            "hardware_caps": {
+                "memory": 4096,
+                "v_cpu": 4,
+                "mhz": 2000
+            }
+        },
+        {
+            "name": "fog6",
+            "type": "fog",
+            "provider": "telco",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 3500,
+                "v_cpu": 16,
+                "mhz": 2000
+            }
+        },
+        {
+            "name": "fog7",
+            "type": "fog",
+            "provider": "university",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 2048,
+                "v_cpu": 2,
+                "mhz": 2000
+            }
+        },
+        {
+            "name": "fog8",
+            "type": "fog",
+            "provider": "telco",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 2048,
+                "v_cpu": 4,
+                "mhz": 1500
+            }
+        },
+        {
+            "name": "fog9",
+            "type": "fog",
+            "provider": "university",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "py3",
+                "numPy"
+            ],
+            "hardware_caps": {
+                "memory": 4096,
+                "v_cpu": 4,
+                "mhz": 2000
+            }
+        },
+        {
+            "name": "fog10",
+            "type": "fog",
+            "provider": "university",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "py3",
+                "numPy"
+            ],
+            "hardware_caps": {
+                "memory": 4096,
+                "v_cpu": 4,
+                "mhz": 2000
+            }
+        },
+        {
+            "name": "fog11",
+            "type": "fog",
+            "provider": "university",
+            "security_caps": [
+                "pubKeyE"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 2048,
+                "v_cpu": 2,
+                "mhz": 2000
+            }
+        },
+        {
+            "name": "fog12",
+            "type": "fog",
+            "provider": "telco",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "js",
+                "py3"
+            ],
+            "hardware_caps": {
+                "memory": 3500,
+                "v_cpu": 16,
+                "mhz": 2000
+            }
+        },
+        {
+            "name": "fog13",
+            "type": "fog",
+            "provider": "telco",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "py3",
+                "numPy"
+            ],
+            "hardware_caps": {
+                "memory": 2048,
+                "v_cpu": 4,
+                "mhz": 1500
+            }
+        },
+        {
+            "name": "fog14",
+            "type": "fog",
+            "provider": "university",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "py3",
+                "numPy"
+            ],
+            "hardware_caps": {
+                "memory": 4096,
+                "v_cpu": 4,
+                "mhz": 2000
+            }
+        },
+        {
+            "name": "fog15",
+            "type": "fog",
+            "provider": "university",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "py3",
+                "numPy"
+            ],
+            "hardware_caps": {
+                "memory": 4096,
+                "v_cpu": 4,
+                "mhz": 2000
+            }
+        },
+        {
+            "name": "fog16",
+            "type": "fog",
+            "provider": "university",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "py3",
+                "numPy"
+            ],
+            "hardware_caps": {
+                "memory": 4096,
+                "v_cpu": 4,
+                "mhz": 2000
+            }
+        },
+        {
+            "name": "cloud1",
+            "type": "cloud",
+            "provider": "cloudProvider",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "js",
+                "py3",
+                "numPy"
+            ],
+            "hardware_caps": {
+                "memory": "inf",
+                "v_cpu": "inf",
+                "mhz": "inf"
+            }
+        },
+        {
+            "name": "cloud2",
+            "type": "cloud",
+            "provider": "cloudProvider",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "js",
+                "py3",
+                "numPy"
+            ],
+            "hardware_caps": {
+                "memory": "inf",
+                "v_cpu": "inf",
+                "mhz": "inf"
+            }
+        },
+        {
+            "name": "cloud3",
+            "type": "cloud",
+            "provider": "cloudProvider",
+            "security_caps": [
+                "pubKeyE",
+                "antiTamp"
+            ],
+            "software_caps": [
+                "js",
+                "py3",
+                "numPy"
+            ],
+            "hardware_caps": {
+                "memory": "inf",
+                "v_cpu": "inf",
+                "mhz": "inf"
+            }
+        }
+    ],
+    "links": [
+        {
+            "nodeA": "cloud1",
+            "nodeB": "cloud2",
+            "latency": 44
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "cloud3",
+            "latency": 47
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog1",
+            "latency": 37
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog2",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog3",
+            "latency": 32
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog4",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog5",
+            "latency": 37
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog6",
+            "latency": 33
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog7",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog8",
+            "latency": 35
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog9",
+            "latency": 33
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog10",
+            "latency": 35
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog11",
+            "latency": 37
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog12",
+            "latency": 30
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog13",
+            "latency": 31
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog14",
+            "latency": 32
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog15",
+            "latency": 36
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "fog16",
+            "latency": 42
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge1",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge2",
+            "latency": 40
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge3",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge4",
+            "latency": 37
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge5",
+            "latency": 36
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge6",
+            "latency": 37
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge7",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge8",
+            "latency": 37
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge9",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge10",
+            "latency": 36
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge11",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge12",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge13",
+            "latency": 36
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge14",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge15",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge16",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge17",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge18",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge19",
+            "latency": 40
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge20",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge21",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge22",
+            "latency": 40
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge23",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge24",
+            "latency": 37
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge25",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge26",
+            "latency": 37
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge27",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge28",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge29",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge30",
+            "latency": 40
+        },
+        {
+            "nodeA": "cloud1",
+            "nodeB": "edge31",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "cloud3",
+            "latency": 52
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog1",
+            "latency": 40
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog2",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog3",
+            "latency": 36
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog4",
+            "latency": 37
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog5",
+            "latency": 31
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog6",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog7",
+            "latency": 40
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog8",
+            "latency": 34
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog9",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog10",
+            "latency": 34
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog11",
+            "latency": 33
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog12",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog13",
+            "latency": 31
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog14",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog15",
+            "latency": 34
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "fog16",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge1",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge2",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge3",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge4",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge5",
+            "latency": 36
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge6",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge7",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge8",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge9",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge10",
+            "latency": 36
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge11",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge12",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge13",
+            "latency": 36
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge14",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge15",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge16",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge17",
+            "latency": 36
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge18",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge19",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge20",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge21",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge22",
+            "latency": 36
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge23",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge24",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge25",
+            "latency": 37
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge26",
+            "latency": 37
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge27",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge28",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge29",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge30",
+            "latency": 40
+        },
+        {
+            "nodeA": "cloud2",
+            "nodeB": "edge31",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog1",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog2",
+            "latency": 34
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog3",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog4",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog5",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog6",
+            "latency": 37
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog7",
+            "latency": 40
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog8",
+            "latency": 34
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog9",
+            "latency": 33
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog10",
+            "latency": 44
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog11",
+            "latency": 43
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog12",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog13",
+            "latency": 42
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog14",
+            "latency": 35
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog15",
+            "latency": 43
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "fog16",
+            "latency": 35
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge1",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge2",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge3",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge4",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge5",
+            "latency": 42
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge6",
+            "latency": 40
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge7",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge8",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge9",
+            "latency": 40
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge10",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge11",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge12",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge13",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge14",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge15",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge16",
+            "latency": 43
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge17",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge18",
+            "latency": 38
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge19",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge20",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge21",
+            "latency": 40
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge22",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge23",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge24",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge25",
+            "latency": 40
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge26",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge27",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge28",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge29",
+            "latency": 41
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge30",
+            "latency": 39
+        },
+        {
+            "nodeA": "cloud3",
+            "nodeB": "edge31",
+            "latency": 42
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog2",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog3",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog4",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog5",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog6",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog7",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog8",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog9",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog10",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog11",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog12",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog13",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog14",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog15",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "fog16",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge1",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge2",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge3",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge4",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge5",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge6",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge7",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge8",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge9",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge10",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge11",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge12",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge13",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge14",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge15",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge16",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge17",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge18",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge19",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge20",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge21",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge22",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge23",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge24",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge25",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge26",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge27",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge28",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge29",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge30",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog1",
+            "nodeB": "edge31",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog3",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog4",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog5",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog6",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog7",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog8",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog9",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog10",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog11",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog12",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog13",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog14",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog15",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "fog16",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge1",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge2",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge3",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge4",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge5",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge6",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge7",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge8",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge9",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge10",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge11",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge12",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge13",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge14",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge15",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge16",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge17",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge18",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge19",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge20",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge21",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge22",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge23",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge24",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge25",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge26",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge27",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge28",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge29",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge30",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog2",
+            "nodeB": "edge31",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "fog4",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "fog5",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "fog6",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "fog7",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "fog8",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "fog9",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "fog10",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "fog11",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "fog12",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "fog13",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "fog14",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "fog15",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "fog16",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge1",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge2",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge3",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge4",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge5",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge6",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge7",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge8",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge9",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge10",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge11",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge12",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge13",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge14",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge15",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge16",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge17",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge18",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge19",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge20",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge21",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge22",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge23",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge24",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge25",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge26",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge27",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge28",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge29",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge30",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog3",
+            "nodeB": "edge31",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "fog5",
+            "latency": 15
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "fog6",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "fog7",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "fog8",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "fog9",
+            "latency": 15
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "fog10",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "fog11",
+            "latency": 14
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "fog12",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "fog13",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "fog14",
+            "latency": 15
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "fog15",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "fog16",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge1",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge2",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge3",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge4",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge5",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge6",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge7",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge8",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge9",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge10",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge11",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge12",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge13",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge14",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge15",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge16",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge17",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge18",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge19",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge20",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge21",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge22",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge23",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge24",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge25",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge26",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge27",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge28",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge29",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge30",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog4",
+            "nodeB": "edge31",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "fog6",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "fog7",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "fog8",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "fog9",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "fog10",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "fog11",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "fog12",
+            "latency": 14
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "fog13",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "fog14",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "fog15",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "fog16",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge1",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge2",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge3",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge4",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge5",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge6",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge7",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge8",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge9",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge10",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge11",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge12",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge13",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge14",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge15",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge16",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge17",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge18",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge19",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge20",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge21",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge22",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge23",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge24",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge25",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge26",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge27",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge28",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge29",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge30",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog5",
+            "nodeB": "edge31",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "fog7",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "fog8",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "fog9",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "fog10",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "fog11",
+            "latency": 14
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "fog12",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "fog13",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "fog14",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "fog15",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "fog16",
+            "latency": 14
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge1",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge2",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge3",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge4",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge5",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge6",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge7",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge8",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge9",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge10",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge11",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge12",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge13",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge14",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge15",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge16",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge17",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge18",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge19",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge20",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge21",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge22",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge23",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge24",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge25",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge26",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge27",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge28",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge29",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge30",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog6",
+            "nodeB": "edge31",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "fog8",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "fog9",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "fog10",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "fog11",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "fog12",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "fog13",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "fog14",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "fog15",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "fog16",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge1",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge2",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge3",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge4",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge5",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge6",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge7",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge8",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge9",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge10",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge11",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge12",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge13",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge14",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge15",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge16",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge17",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge18",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge19",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge20",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge21",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge22",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge23",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge24",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge25",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge26",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge27",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge28",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge29",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge30",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog7",
+            "nodeB": "edge31",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "fog9",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "fog10",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "fog11",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "fog12",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "fog13",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "fog14",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "fog15",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "fog16",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge1",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge2",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge3",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge4",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge5",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge6",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge7",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge8",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge9",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge10",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge11",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge12",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge13",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge14",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge15",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge16",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge17",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge18",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge19",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge20",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge21",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge22",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge23",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge24",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge25",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge26",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge27",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge28",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge29",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge30",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog8",
+            "nodeB": "edge31",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "fog10",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "fog11",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "fog12",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "fog13",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "fog14",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "fog15",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "fog16",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge1",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge2",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge3",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge4",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge5",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge6",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge7",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge8",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge9",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge10",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge11",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge12",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge13",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge14",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge15",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge16",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge17",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge18",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge19",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge20",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge21",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge22",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge23",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge24",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge25",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge26",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge27",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge28",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge29",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge30",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog9",
+            "nodeB": "edge31",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "fog11",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "fog12",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "fog13",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "fog14",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "fog15",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "fog16",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge1",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge2",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge3",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge4",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge5",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge6",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge7",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge8",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge9",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge10",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge11",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge12",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge13",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge14",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge15",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge16",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge17",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge18",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge19",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge20",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge21",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge22",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge23",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge24",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge25",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge26",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge27",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge28",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge29",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge30",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog10",
+            "nodeB": "edge31",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "fog12",
+            "latency": 14
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "fog13",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "fog14",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "fog15",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "fog16",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge1",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge2",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge3",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge4",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge5",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge6",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge7",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge8",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge9",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge10",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge11",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge12",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge13",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge14",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge15",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge16",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge17",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge18",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge19",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge20",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge21",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge22",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge23",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge24",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge25",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge26",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge27",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge28",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge29",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge30",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog11",
+            "nodeB": "edge31",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "fog13",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "fog14",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "fog15",
+            "latency": 13
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "fog16",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge1",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge2",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge3",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge4",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge5",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge6",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge7",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge8",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge9",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge10",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge11",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge12",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge13",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge14",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge15",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge16",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge17",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge18",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge19",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge20",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge21",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge22",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge23",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge24",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge25",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge26",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge27",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge28",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge29",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge30",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog12",
+            "nodeB": "edge31",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "fog14",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "fog15",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "fog16",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge1",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge2",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge3",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge4",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge5",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge6",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge7",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge8",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge9",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge10",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge11",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge12",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge13",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge14",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge15",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge16",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge17",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge18",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge19",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge20",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge21",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge22",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge23",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge24",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge25",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge26",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge27",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge28",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge29",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge30",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog13",
+            "nodeB": "edge31",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "fog15",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "fog16",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge1",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge2",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge3",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge4",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge5",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge6",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge7",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge8",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge9",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge10",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge11",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge12",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge13",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge14",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge15",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge16",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge17",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge18",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge19",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge20",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge21",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge22",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge23",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge24",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge25",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge26",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge27",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge28",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge29",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge30",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog14",
+            "nodeB": "edge31",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "fog16",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge1",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge2",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge3",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge4",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge5",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge6",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge7",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge8",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge9",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge10",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge11",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge12",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge13",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge14",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge15",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge16",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge17",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge18",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge19",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge20",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge21",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge22",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge23",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge24",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge25",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge26",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge27",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge28",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge29",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge30",
+            "latency": 6
+        },
+        {
+            "nodeA": "fog15",
+            "nodeB": "edge31",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge1",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge2",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge3",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge4",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge5",
+            "latency": 12
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge6",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge7",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge8",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge9",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge10",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge11",
+            "latency": 5
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge12",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge13",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge14",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge15",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge16",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge17",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge18",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge19",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge20",
+            "latency": 10
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge21",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge22",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge23",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge24",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge25",
+            "latency": 9
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge26",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge27",
+            "latency": 8
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge28",
+            "latency": 11
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge29",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge30",
+            "latency": 7
+        },
+        {
+            "nodeA": "fog16",
+            "nodeB": "edge31",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge2",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge3",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge4",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge5",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge6",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge7",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge8",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge9",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge10",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge11",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge12",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge13",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge14",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge15",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge16",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge17",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge18",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge19",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge20",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge21",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge22",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge23",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge24",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge25",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge26",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge27",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge28",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge29",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge30",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge1",
+            "nodeB": "edge31",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge3",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge4",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge5",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge6",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge7",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge8",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge9",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge10",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge11",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge12",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge13",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge14",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge15",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge16",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge17",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge18",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge19",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge20",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge21",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge22",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge23",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge24",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge25",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge26",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge27",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge28",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge29",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge30",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge2",
+            "nodeB": "edge31",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge4",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge5",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge6",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge7",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge8",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge9",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge10",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge11",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge12",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge13",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge14",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge15",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge16",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge17",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge18",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge19",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge20",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge21",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge22",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge23",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge24",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge25",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge26",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge27",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge28",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge29",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge30",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge3",
+            "nodeB": "edge31",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge5",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge6",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge7",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge8",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge9",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge10",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge11",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge12",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge13",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge14",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge15",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge16",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge17",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge18",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge19",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge20",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge21",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge22",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge23",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge24",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge25",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge26",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge27",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge28",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge29",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge30",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge4",
+            "nodeB": "edge31",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge6",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge7",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge8",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge9",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge10",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge11",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge12",
+            "latency": 9
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge13",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge14",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge15",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge16",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge17",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge18",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge19",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge20",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge21",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge22",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge23",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge24",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge25",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge26",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge27",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge28",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge29",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge30",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge5",
+            "nodeB": "edge31",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge7",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge8",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge9",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge10",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge11",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge12",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge13",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge14",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge15",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge16",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge17",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge18",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge19",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge20",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge21",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge22",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge23",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge24",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge25",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge26",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge27",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge28",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge29",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge30",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge6",
+            "nodeB": "edge31",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge8",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge9",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge10",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge11",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge12",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge13",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge14",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge15",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge16",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge17",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge18",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge19",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge20",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge21",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge22",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge23",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge24",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge25",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge26",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge27",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge28",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge29",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge30",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge7",
+            "nodeB": "edge31",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge9",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge10",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge11",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge12",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge13",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge14",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge15",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge16",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge17",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge18",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge19",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge20",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge21",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge22",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge23",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge24",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge25",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge26",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge27",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge28",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge29",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge30",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge8",
+            "nodeB": "edge31",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge10",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge11",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge12",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge13",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge14",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge15",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge16",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge17",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge18",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge19",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge20",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge21",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge22",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge23",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge24",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge25",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge26",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge27",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge28",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge29",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge30",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge9",
+            "nodeB": "edge31",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge11",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge12",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge13",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge14",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge15",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge16",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge17",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge18",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge19",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge20",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge21",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge22",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge23",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge24",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge25",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge26",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge27",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge28",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge29",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge30",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge10",
+            "nodeB": "edge31",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge12",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge13",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge14",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge15",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge16",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge17",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge18",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge19",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge20",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge21",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge22",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge23",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge24",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge25",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge26",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge27",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge28",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge29",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge30",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge11",
+            "nodeB": "edge31",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge13",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge14",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge15",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge16",
+            "latency": 9
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge17",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge18",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge19",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge20",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge21",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge22",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge23",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge24",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge25",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge26",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge27",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge28",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge29",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge30",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge12",
+            "nodeB": "edge31",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge14",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge15",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge16",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge17",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge18",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge19",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge20",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge21",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge22",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge23",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge24",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge25",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge26",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge27",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge28",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge29",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge30",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge13",
+            "nodeB": "edge31",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge15",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge16",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge17",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge18",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge19",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge20",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge21",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge22",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge23",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge24",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge25",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge26",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge27",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge28",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge29",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge30",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge14",
+            "nodeB": "edge31",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge16",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge17",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge18",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge19",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge20",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge21",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge22",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge23",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge24",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge25",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge26",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge27",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge28",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge29",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge30",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge15",
+            "nodeB": "edge31",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge17",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge18",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge19",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge20",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge21",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge22",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge23",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge24",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge25",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge26",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge27",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge28",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge29",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge30",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge16",
+            "nodeB": "edge31",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge18",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge19",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge20",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge21",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge22",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge23",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge24",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge25",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge26",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge27",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge28",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge29",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge30",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge17",
+            "nodeB": "edge31",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge18",
+            "nodeB": "edge19",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge18",
+            "nodeB": "edge20",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge18",
+            "nodeB": "edge21",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge18",
+            "nodeB": "edge22",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge18",
+            "nodeB": "edge23",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge18",
+            "nodeB": "edge24",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge18",
+            "nodeB": "edge25",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge18",
+            "nodeB": "edge26",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge18",
+            "nodeB": "edge27",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge18",
+            "nodeB": "edge28",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge18",
+            "nodeB": "edge29",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge18",
+            "nodeB": "edge30",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge18",
+            "nodeB": "edge31",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge19",
+            "nodeB": "edge20",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge19",
+            "nodeB": "edge21",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge19",
+            "nodeB": "edge22",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge19",
+            "nodeB": "edge23",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge19",
+            "nodeB": "edge24",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge19",
+            "nodeB": "edge25",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge19",
+            "nodeB": "edge26",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge19",
+            "nodeB": "edge27",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge19",
+            "nodeB": "edge28",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge19",
+            "nodeB": "edge29",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge19",
+            "nodeB": "edge30",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge19",
+            "nodeB": "edge31",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge20",
+            "nodeB": "edge21",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge20",
+            "nodeB": "edge22",
+            "latency": 3
+        },
+        {
+            "nodeA": "edge20",
+            "nodeB": "edge23",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge20",
+            "nodeB": "edge24",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge20",
+            "nodeB": "edge25",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge20",
+            "nodeB": "edge26",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge20",
+            "nodeB": "edge27",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge20",
+            "nodeB": "edge28",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge20",
+            "nodeB": "edge29",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge20",
+            "nodeB": "edge30",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge20",
+            "nodeB": "edge31",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge21",
+            "nodeB": "edge22",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge21",
+            "nodeB": "edge23",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge21",
+            "nodeB": "edge24",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge21",
+            "nodeB": "edge25",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge21",
+            "nodeB": "edge26",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge21",
+            "nodeB": "edge27",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge21",
+            "nodeB": "edge28",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge21",
+            "nodeB": "edge29",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge21",
+            "nodeB": "edge30",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge21",
+            "nodeB": "edge31",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge22",
+            "nodeB": "edge23",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge22",
+            "nodeB": "edge24",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge22",
+            "nodeB": "edge25",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge22",
+            "nodeB": "edge26",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge22",
+            "nodeB": "edge27",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge22",
+            "nodeB": "edge28",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge22",
+            "nodeB": "edge29",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge22",
+            "nodeB": "edge30",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge22",
+            "nodeB": "edge31",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge23",
+            "nodeB": "edge24",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge23",
+            "nodeB": "edge25",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge23",
+            "nodeB": "edge26",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge23",
+            "nodeB": "edge27",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge23",
+            "nodeB": "edge28",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge23",
+            "nodeB": "edge29",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge23",
+            "nodeB": "edge30",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge23",
+            "nodeB": "edge31",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge24",
+            "nodeB": "edge25",
+            "latency": 8
+        },
+        {
+            "nodeA": "edge24",
+            "nodeB": "edge26",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge24",
+            "nodeB": "edge27",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge24",
+            "nodeB": "edge28",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge24",
+            "nodeB": "edge29",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge24",
+            "nodeB": "edge30",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge24",
+            "nodeB": "edge31",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge25",
+            "nodeB": "edge26",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge25",
+            "nodeB": "edge27",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge25",
+            "nodeB": "edge28",
+            "latency": 7
+        },
+        {
+            "nodeA": "edge25",
+            "nodeB": "edge29",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge25",
+            "nodeB": "edge30",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge25",
+            "nodeB": "edge31",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge26",
+            "nodeB": "edge27",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge26",
+            "nodeB": "edge28",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge26",
+            "nodeB": "edge29",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge26",
+            "nodeB": "edge30",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge26",
+            "nodeB": "edge31",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge27",
+            "nodeB": "edge28",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge27",
+            "nodeB": "edge29",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge27",
+            "nodeB": "edge30",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge27",
+            "nodeB": "edge31",
+            "latency": 2
+        },
+        {
+            "nodeA": "edge28",
+            "nodeB": "edge29",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge28",
+            "nodeB": "edge30",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge28",
+            "nodeB": "edge31",
+            "latency": 5
+        },
+        {
+            "nodeA": "edge29",
+            "nodeB": "edge30",
+            "latency": 4
+        },
+        {
+            "nodeA": "edge29",
+            "nodeB": "edge31",
+            "latency": 6
+        },
+        {
+            "nodeA": "edge30",
+            "nodeB": "edge31",
+            "latency": 4
+        }
+    ],
+    "services": [
+        {
+            "name": "cMaps1",
+            "provider": "cloudProvider",
+            "type": "maps",
+            "node": "cloud3"
+        },
+        {
+            "name": "cMaps2",
+            "provider": "cloudProvider",
+            "type": "maps",
+            "node": "cloud2"
+        },
+        {
+            "name": "cMaps3",
+            "provider": "cloudProvider",
+            "type": "maps",
+            "node": "cloud1"
+        },
+        {
+            "name": "bucket4",
+            "provider": "cloudProvider",
+            "type": "bucket",
+            "node": "cloud2"
+        },
+        {
+            "name": "bucket5",
+            "provider": "cloudProvider",
+            "type": "bucket",
+            "node": "cloud1"
+        },
+        {
+            "name": "myUserDb6",
+            "provider": "appOp",
+            "type": "userDB",
+            "node": "fog12"
+        },
+        {
+            "name": "myUserDb7",
+            "provider": "appOp",
+            "type": "userDB",
+            "node": "fog16"
+        },
+        {
+            "name": "myUserDb8",
+            "provider": "appOp",
+            "type": "userDB",
+            "node": "fog11"
+        },
+        {
+            "name": "myDatabase9",
+            "provider": "appOp",
+            "type": "database",
+            "node": "fog10"
+        },
+        {
+            "name": "myDatabase10",
+            "provider": "appOp",
+            "type": "database",
+            "node": "fog7"
+        },
+        {
+            "name": "gp11",
+            "provider": "pa",
+            "type": "checkGp",
+            "node": "fog13"
+        },
+        {
+            "name": "gp12",
+            "provider": "pa",
+            "type": "checkGp",
+            "node": "fog15"
+        },
+        {
+            "name": "gp13",
+            "provider": "pa",
+            "type": "checkGp",
+            "node": "fog14"
+        },
+        {
+            "name": "rules14",
+            "provider": "pa",
+            "type": "checkRules",
+            "node": "fog9"
+        },
+        {
+            "name": "rules15",
+            "provider": "pa",
+            "type": "checkRules",
+            "node": "fog1"
+        },
+        {
+            "name": "rules16",
+            "provider": "pa",
+            "type": "checkRules",
+            "node": "fog3"
+        },
+        {
+            "name": "rules17",
+            "provider": "pa",
+            "type": "checkRules",
+            "node": "fog4"
+        },
+        {
+            "name": "openM18",
+            "provider": "openS",
+            "type": "maps",
+            "node": "edge19"
+        },
+        {
+            "name": "openM19",
+            "provider": "openS",
+            "type": "maps",
+            "node": "edge5"
+        },
+        {
+            "name": "openM20",
+            "provider": "openS",
+            "type": "maps",
+            "node": "edge31"
+        },
+        {
+            "name": "openM21",
+            "provider": "openS",
+            "type": "maps",
+            "node": "edge10"
+        },
+        {
+            "name": "openM22",
+            "provider": "openS",
+            "type": "maps",
+            "node": "edge28"
+        }
+    ],
+    "event_generators": [
+        {
+            "name": "device1",
+            "events": [
+                "event4",
+                "event3",
+                "event7",
+                "event1"
+            ],
+            "node": "edge27"
+        },
+        {
+            "name": "device2",
+            "events": [
+                "event6",
+                "event5",
+                "event3",
+                "event7"
+            ],
+            "node": "edge15"
+        },
+        {
+            "name": "device3",
+            "events": [
+                "event5",
+                "event4",
+                "event6",
+                "event1"
+            ],
+            "node": "edge30"
+        },
+        {
+            "name": "device4",
+            "events": [
+                "event5",
+                "event7",
+                "event3",
+                "event2"
+            ],
+            "node": "fog8"
+        },
+        {
+            "name": "device5",
+            "events": [
+                "event7",
+                "event4",
+                "event2",
+                "event6"
+            ],
+            "node": "fog6"
+        },
+        {
+            "name": "device6",
+            "events": [
+                "event5",
+                "event1",
+                "event2",
+                "event6"
+            ],
+            "node": "edge11"
+        }
+    ]
+}
