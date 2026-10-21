@@ -1,7 +1,7 @@
 # lab-deployment Specification
 
 Status: DRAFT for owner review (2026-10-21)
-Baseline: `spec/baseline` @ 9b5be00 — reverse-engineered, spec-anchored.
+Baseline: `spec/platform-baseline` (from `integration/platform` @ 912648c) — reverse-engineered, spec-anchored.
 
 ## Purpose
 
@@ -89,7 +89,7 @@ THE Kustomize manifests under `deploy/kubernetes` SHALL render without errors in
 
 `req~lab-deployment-kustomize-render~1`
 
-Evidence: `.github/workflows/ci.yml`; `deploy/kubernetes/kustomization.yaml`; GAP: CI also renders deploy/kubernetes/overlays/with-space, which was deleted in 9b81112 and no longer exists in the tree, so that CI step fails as written
+Evidence: `.github/workflows/ci.yml`; `deploy/kubernetes/kustomization.yaml`; `openbinding-gateway/tests/test_no_local_space.py`
 
 #### Scenario: Broken patch
 - **GIVEN** a change to `deploy/kubernetes/base/gateway.yaml` with an invalid field path
@@ -103,7 +103,8 @@ Evidence: `.github/workflows/ci.yml`; `deploy/kubernetes/kustomization.yaml`; GA
 
 ## TODO
 
-- Remove the `with-space` render step from CI (the overlay was removed with the local SPACE stack) or restore the overlay — owner decision.
+- CI materialises the ICSOC dataset from the branch data/icsoc-original-dataset when it is published; make that step a requirement.
+- CI job `engines` is red: `tools/check_bim_guard.py` reports 95 errors on 912648c (stale expectations, see handoff).
 - Adminer binds to loopback only (`127.0.0.1:8082`): add as a requirement with a test.
 - Process-mode profiles N1/N2 of `bim-service` (`compose.lab-process*.json`) and their probes.
 - Backup/restore runbooks (`deploy/kubernetes/restore-job.example.yaml`).

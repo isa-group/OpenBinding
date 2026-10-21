@@ -1,7 +1,7 @@
 # client-port Specification
 
 Status: DRAFT for owner review (2026-10-21)
-Baseline: OpenBinding `spec/baseline` @ 9b5be00, `bim-toolchain` 0.2.0 — reverse-engineered, spec-anchored. Paths are relative to `bim-toolchain/`.
+Baseline: OpenBinding `spec/platform-baseline` (from `integration/platform` @ 912648c), `bim-toolchain` 0.2.0 plus the owner's 1.1.1 compiler changes — reverse-engineered, spec-anchored. Paths are relative to `bim-toolchain/`.
 
 ## Purpose
 

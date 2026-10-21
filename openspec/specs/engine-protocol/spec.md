@@ -1,7 +1,7 @@
 # engine-protocol Specification
 
 Status: DRAFT for owner review (2026-10-21)
-Baseline: `spec/baseline` @ 9b5be00 — reverse-engineered, spec-anchored.
+Baseline: `spec/platform-baseline` (from `integration/platform` @ 912648c) — reverse-engineered, spec-anchored.
 
 ## Purpose
 
@@ -64,7 +64,7 @@ WHERE an engine declares the cancellation capability, THE engine SHALL answer `D
 
 `req~engine-protocol-cancellation~1`
 
-Evidence: `engines/minizinc-csp/src/cancel.test.ts`; `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineJobsTest.java::cancelRacingTheEndLeavesExactlyOneFinalStateThatNeverChanges`; `engines/minizinc-csp/README.md`; GAP: `DELETE` is not in `schemas/engine-contract.openapi.yaml`
+Evidence: `engines/minizinc-csp/src/cancel.test.ts`; `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineJobsTest.java::cancelRacingTheEndLeavesExactlyOneFinalStateThatNeverChanges`; `engines/minizinc-csp/README.md`; `openbinding-gateway/tools/cancel_probe.py`; GAP: `DELETE` and the cancellation capability are still not in `schemas/engine-contract.openapi.yaml`
 
 #### Scenario: Cancel races completion
 - **GIVEN** a running job whose solver finishes at the moment `DELETE` arrives

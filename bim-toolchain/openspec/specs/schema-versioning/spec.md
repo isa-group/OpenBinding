@@ -1,7 +1,7 @@
 # schema-versioning Specification
 
 Status: DRAFT for owner review (2026-10-21)
-Baseline: OpenBinding `spec/baseline` @ 9b5be00, `bim-toolchain` 0.2.0 — reverse-engineered, spec-anchored. Paths are relative to `bim-toolchain/`.
+Baseline: OpenBinding `spec/platform-baseline` (from `integration/platform` @ 912648c), `bim-toolchain` 0.2.0 plus the owner's 1.1.1 compiler changes — reverse-engineered, spec-anchored. Paths are relative to `bim-toolchain/`.
 
 ## Purpose
 
@@ -24,11 +24,11 @@ Evidence: `tools/test_packaging_metadata.py::test_the_three_distributions_have_o
 - **THEN** they fail
 
 ### Requirement: Goldens guard semantics
-THE toolchain SHALL compare every compilation, semantic digest, evaluation, negative diagnostic code and location against the committed goldens, and SHALL allow only the `toolchain` metadata members to be refreshed by `tools/regen_normalized_metadata.py`, leaving frozen baselines untouched.
+THE toolchain SHALL compare every compilation, semantic digest, evaluation, negative diagnostic code and location against the committed goldens, SHALL allow only the `toolchain` metadata members to be refreshed by `tools/regen_normalized_metadata.py`, and SHALL leave frozen baselines untouched, excluding from the frozen comparison only the engines listed in `baseline_core.CHANGED_MANIFESTS` (today `minizinc-csp`, whose manifest moved to 1.1.1).
 
 `req~bim-schema-versioning-goldens~1`
 
-Evidence: `packages/bim-core/tests/test_baseline_equivalence.py::test_the_normalized_goldens_match`; `packages/bim-core/tests/test_golden_toolchain_metadata.py::test_the_frozen_baselines_were_not_touched`; `packages/bim-core/tests/test_golden_toolchain_metadata.py::test_only_lines_that_hold_a_toolchain_digest_may_differ`
+Evidence: `packages/bim-core/tests/test_baseline_equivalence.py::test_the_normalized_goldens_match`; `packages/bim-core/tests/test_baseline_equivalence.py::CHANGED_MANIFESTS`; `docs/DIGESTS.md`; `packages/bim-core/tests/test_golden_toolchain_metadata.py::test_the_frozen_baselines_were_not_touched`; `packages/bim-core/tests/test_golden_toolchain_metadata.py::test_only_lines_that_hold_a_toolchain_digest_may_differ`
 
 #### Scenario: Refreshing goldens after a semantic change
 - **GIVEN** a change that alters one evaluation of a corpus package
@@ -90,6 +90,8 @@ Evidence: `tools/test_workflows.py::test_every_action_is_pinned_to_a_commit_or_m
 
 ## TODO
 
+- Review the `CHANGED_MANIFESTS` exception (OPEN QUESTION in the handoff): it removes `minizinc-csp` from every comparison with the frozen baseline.
+- `CHANGELOG.md` [Unreleased] still says no file under `packages/*/src` changed and quotes the old `compilerDigest`, but the integration ported the 1.1.1 linear-time schema validation into `bim_core/compiler.py` (PATCH by Article 2, digest moved).
 - Release tagging and the pin consumed by OpenBinding (ADR-0004 in OpenBinding).
 - Deprecation policy for Profiles/Dialects inside `v1`.
 - `toolchain.json` content requirements.

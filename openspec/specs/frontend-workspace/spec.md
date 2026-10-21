@@ -1,7 +1,7 @@
 # frontend-workspace Specification
 
 Status: DRAFT for owner review (2026-10-21)
-Baseline: `spec/baseline` @ 9b5be00 — reverse-engineered, spec-anchored.
+Baseline: `spec/platform-baseline` (from `integration/platform` @ 912648c) — reverse-engineered, spec-anchored.
 
 ## Purpose
 
@@ -108,4 +108,4 @@ Evidence: `frontend/src/test/e2eSpecs.test.ts::takes the synthetic users from th
 - Workbench (`InstanceWorkspace`), case composer, job launch and study builder flows.
 - Planned OpenAPI-generated SDK (`@hey-api/openapi-ts`) replacing hand-written `src/api/*.ts`.
 - Session tokens in `localStorage` (documented trade-off in `AuthContext.tsx`): owner to confirm.
-- The registry test asserts "82 screens of the prototype" while the prototype is to leave the repository (ADR-0008).
+- The registry test still speaks of "82 screens of the prototype"; the prototype (`docs/design-handoff/`) and the QA gallery screenshots were removed from the repository (ADR-0008), so the screen list in `src/routes/` is now the only source. The QA gallery writes to `QA_GALLERY_DIR` (default `frontend/node_modules/.cache/qa-gallery/screenshots/`).

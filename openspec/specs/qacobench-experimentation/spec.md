@@ -1,8 +1,8 @@
 # qacobench-experimentation Specification
 
 Status: DRAFT for owner review (2026-10-21)
-Baseline: `spec/baseline` @ 9b5be00 for the files cited as evidence; the reference behaviour is the owner's QACOBench
-1.1.1 release (014e43a, origin/feat-isa), whose additions are marked "feat-isa" and are not yet in the baseline tree.
+Baseline: `spec/platform-baseline` (from `integration/platform` @ 912648c, which contains the owner's QACOBench 1.1.1
+release 014e43a) — reverse-engineered, spec-anchored.
 
 ## Purpose
 
@@ -31,7 +31,7 @@ IF the digest of a registered engine manifest differs from the checkout's `schem
 
 `req~qacobench-experimentation-stale-registration~1`
 
-Evidence: GAP on the baseline tree (`experimentation/qacobench/campaign.py` has no manifest-digest check); implemented on feat-isa in origin/feat-isa:experimentation/qacobench/campaign.py
+Evidence: `experimentation/qacobench/campaign.py`; `experimentation/qacobench/README.md`
 
 #### Scenario: Engine manifest changed after the last build
 - **GIVEN** the minizinc manifest was edited and the Compose volumes still hold the old registration
@@ -39,11 +39,11 @@ Evidence: GAP on the baseline tree (`experimentation/qacobench/campaign.py` has 
 - **THEN** the runner stops and asks for `run.sh reset`
 
 ### Requirement: Run manifest
-WHEN a campaign is prepared, THE harness SHALL record a run manifest with image identities, a source-tree digest, engine manifest digests, seeds, budgets, configuration hashes and host information, and (feat-isa) the MiniZinc version and solver list.
+WHEN a campaign is prepared, THE harness SHALL record a run manifest with image identities, a source-tree digest (including the bim-core sources), engine manifest digests, seeds, budgets, configuration hashes, host information, and the MiniZinc version and solver list.
 
 `req~qacobench-experimentation-run-manifest~1`
 
-Evidence: `experimentation/qacobench/capture_run_manifest.py`; `experimentation/qacobench/test_qacobench.py::test_release_registry_and_seed_are_stable`
+Evidence: `experimentation/qacobench/capture_run_manifest.py`; `experimentation/qacobench/test_qacobench.py::test_release_registry_and_seed_are_stable`; `experimentation/qacobench/reference/1.1.1/run_manifest.json`
 
 #### Scenario: Two hosts
 - **GIVEN** the same tag run on two hosts
@@ -55,7 +55,7 @@ WHEN an engine refuses an instance with 422 for capability reasons, THE campaign
 
 `req~qacobench-experimentation-incompatible-is-data~1`
 
-Evidence: `experimentation/qacobench/campaign.py`; GAP: the classification test `test_rejections_keep_the_engine_detail_and_reasons_are_classified` exists only on feat-isa
+Evidence: `experimentation/qacobench/test_qacobench.py::test_rejections_keep_the_engine_detail_and_reasons_are_classified`; `experimentation/qacobench/campaign.py`; GAP: the runner recognises an incompatible job by the prefix `engine rejected BindingProblem (422)` of the job error, but since the integration the gateway shows only the catalog sentence of `engine_rejected` for failed engine jobs, so job-level rejections can no longer be told apart from other engine refusals (OPEN QUESTION: dedicated `engine_incompatible` code)
 
 #### Scenario: MiniZinc refuses a soft constraint
 - **GIVEN** an instance with a soft constraint expression
@@ -67,7 +67,7 @@ IF an engine's `INFEASIBLE` proof is contradicted by a validated binding of anot
 
 `req~qacobench-experimentation-contradiction-refusal~1`
 
-Evidence: GAP on the baseline tree (`experimentation/qacobench/evaluate_results.py` has no reconciliation); on feat-isa test_evaluation_reconciles_exact_labels_against_validated_bindings in experimentation/qacobench/test_qacobench.py and reference/1.1.1/evaluation/acceptance.json
+Evidence: `experimentation/qacobench/evaluate_results.py`; `experimentation/qacobench/test_qacobench.py::test_evaluation_reconciles_exact_labels_against_validated_bindings`; `experimentation/qacobench/reference/1.1.1/evaluation/acceptance.json`
 
 #### Scenario: UNSAT contradicted
 - **GIVEN** MiniZinc reports `INFEASIBLE` for an instance and random-search returns a binding the gateway validated as feasible
@@ -79,7 +79,7 @@ THE harness SHALL keep generated suites, raw results (`.artifacts/qacobench/`) a
 
 `req~qacobench-experimentation-data-outside-git~1`
 
-Evidence: `.gitignore`; `docs/adr/0008-datasets-outside-git.md`; on feat-isa tools/package_zenodo.sh and experimentation/qacobench/verify_dataset_digests.py
+Evidence: `.gitignore`; `docs/adr/0008-datasets-outside-git.md`; `tools/package_zenodo.sh`; `experimentation/qacobench/verify_dataset_digests.py`; `experimentation/qacobench/reference/1.1.1/checksums.json`
 
 #### Scenario: Accidental force-add
 - **GIVEN** a contributor runs `git add -f datasets/07_qfbs`
@@ -103,7 +103,7 @@ WHEN the ICSOC regression runs against the stack, THE platform SHALL regenerate 
 
 `req~qacobench-experimentation-icsoc-regression~1`
 
-Evidence: `openbinding-gateway/tests/integration/test_icsoc_regression.py`; `README.md`
+Evidence: `openbinding-gateway/tests/integration/test_icsoc_regression.py`; `README.md`; `experimentation/icsoc/README.md`; GAP: the regression skips unless the ICSOC dataset is materialized from the branch data/icsoc-original-dataset (CI does so when the branch is published)
 
 #### Scenario: Engine change alters the optimum
 - **GIVEN** a change to the MiniZinc model
@@ -117,7 +117,10 @@ Evidence: `openbinding-gateway/tests/integration/test_icsoc_regression.py`; `REA
 
 ## TODO
 
-- Re-baseline this spec when 014e43a is integrated (secondary analyses, reference 1.1.1, `--repeats`, `--concurrency`).
+- Secondary analyses (`secondary/`), `--repeats`, `--concurrency` and paper macros as requirements.
 - Tolerance for reproducing aggregate tables (INTENT O3) — owner to define.
-- `experimentation/icsoc/original_dataset/` must move to the `data/icsoc-original-dataset` branch (ADR-0008).
-- `watch_nipogi.sh` is removed in 014e43a; confirm.
+- Provenance digests recorded after the integration differ from `reference/1.1.1` (the run manifest now hashes bim-core
+  sources and the minizinc-csp manifest is 1.1.1); decide whether 1.1.1 is re-run on the integrated tree or kept as historical.
+- The ICSOC generator (`experimentation/icsoc/generator/`) writes Placement and RoutingOverlay under the `application` role,
+  which the installed `qos-binding/v1` Profile does not accept (it declares them in `candidateCatalog`); its validation test fails
+  (also on 014e43a).

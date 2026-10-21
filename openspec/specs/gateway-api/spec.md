@@ -1,7 +1,7 @@
 # gateway-api Specification
 
 Status: DRAFT for owner review (2026-10-21)
-Baseline: `spec/baseline` @ 9b5be00 — reverse-engineered, spec-anchored (the code is the executable truth).
+Baseline: `spec/platform-baseline` (from `integration/platform` @ 912648c) — reverse-engineered, spec-anchored (the code is the executable truth).
 
 ## Purpose
 

@@ -1,7 +1,7 @@
 # job-execution Specification
 
 Status: DRAFT for owner review (2026-10-21)
-Baseline: `spec/baseline` @ 9b5be00 — reverse-engineered, spec-anchored.
+Baseline: `spec/platform-baseline` (from `integration/platform` @ 912648c) — reverse-engineered, spec-anchored.
 
 ## Purpose
 
@@ -113,6 +113,18 @@ Evidence: `openbinding-gateway/tests/test_cancel_running_job.py::test_without_th
 - **WHEN** the owner calls `POST /v1/jobs/{id}/cancel`
 - **THEN** the gateway sends one `DELETE` to the engine and the job becomes `cancelled` after the engine confirms
 
+### Requirement: Failed jobs show catalog sentences only
+WHEN a job fails, THE gateway SHALL store and show only a stable failure code from the job-failure catalog (e.g. `engine_rejected`, `engine_unreachable`, `engine_timeout`, `bim_evaluation_failed`, `lease_lost`) with its fixed sentence, and SHALL keep the engine's own text, hosts and addresses out of every table and response, logging them with the job id instead.
+
+`req~job-execution-failure-catalog~1`
+
+Evidence: `openbinding-gateway/tests/test_job_error_text.py::test_the_fields_of_a_failed_job_are_the_sentence_the_code_and_the_id`; `openbinding-gateway/tests/test_job_error_text.py::test_an_unreachable_engine_shows_its_sentence_and_not_its_host`; `openbinding-gateway/tests/test_job_error_text.py::test_the_reason_is_in_the_log_with_the_id_of_the_job_and_not_in_the_database`; `openbinding-gateway/src/openbinding_gateway/core/public_errors.py`
+
+#### Scenario: Engine refuses the IR with 422
+- **GIVEN** a running job whose engine answers 422 with a detailed rejection
+- **WHEN** the worker records the failure
+- **THEN** the job shows code `engine_rejected` and "The engine rejected the request." and the engine's detail appears only in the log
+
 ### Requirement: Only owners and members act on jobs
 IF a caller who is not the job's owner, or whose organization role is below MEMBER, tries to launch, retry or cancel a job, THEN THE gateway SHALL refuse before compiling, reserving or writing anything (403 `insufficient_role`, or 404 when the caller has no role at all).
 
@@ -134,6 +146,7 @@ Evidence: `openbinding-gateway/tests/test_viewer_read_only.py::test_a_denied_vie
 
 - Result vocabulary (`OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, `UNKNOWN`) and job states (`queued`, `running`, `completed`, `failed`, `cancelled`) as an explicit state-machine requirement.
 - VIEWER redaction of failed-job errors (`docs/ACCOUNTS_AND_PLANS.md`).
+- Distinguishing a capability rejection (engine 422) from other refusals for API clients such as QACOBench (OPEN QUESTION: `engine_incompatible` code).
 - Publisher backoff and queue limit details; remote attempt ids and idempotency hints (G4).
 - Job events stream (`GET /v1/jobs/{id}/events`) and neighbourhood analysis endpoint.
 - Not exercised anywhere (per `docs/IDEMPOTENCY.md`): real Redis failing mid-batch, remote engines under crash injection; Java engines in async mode behind the gateway end to end.

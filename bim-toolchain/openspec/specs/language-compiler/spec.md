@@ -1,7 +1,7 @@
 # language-compiler Specification
 
 Status: DRAFT for owner review (2026-10-21)
-Baseline: OpenBinding `spec/baseline` @ 9b5be00, `bim-toolchain` 0.2.0 — reverse-engineered, spec-anchored. Paths are relative to `bim-toolchain/`.
+Baseline: OpenBinding `spec/platform-baseline` (from `integration/platform` @ 912648c), `bim-toolchain` 0.2.0 plus the owner's 1.1.1 compiler changes — reverse-engineered, spec-anchored. Paths are relative to `bim-toolchain/`.
 
 ## Purpose
 
@@ -102,6 +102,7 @@ Evidence: `packages/bim-core/tests/test_boundary.py::test_module_imports_only_st
 
 ## TODO
 
+- Performance requirement for very large catalogs (linear-time `uniqueItems`, inlined local `$ref`s ported from OpenBinding 1.1.1 into `compiler.py`): outcomes must be identical to the reference validator.
 - Expression language (CEL subset) requirements: bounded evaluation is covered in `evaluator-protocol`; syntax and typing not yet specified.
 - Registered resources compilation (`RegisteredResource`) and BPMN lowering equivalence with native JSON workflows.
 - Port the remaining compile-time tests of OpenBinding's `test_bim_v1_language_final.py` (EXTRACTION_LOG "Missing").
