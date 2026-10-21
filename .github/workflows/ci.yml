@@ -125,10 +125,9 @@ jobs:
         with:
           version: v1.31.0
 
-      - name: Render the base and SPACE Kubernetes manifests
-        run: |
-          kubectl kustomize deploy/kubernetes > /tmp/openbinding-kubernetes.yaml
-          kubectl kustomize deploy/kubernetes/overlays/with-space > /tmp/openbinding-kubernetes-with-space.yaml
+      # The local SPACE overlay was retired (tests/test_no_local_space.py): only the base is rendered.
+      - name: Render the base Kubernetes manifests
+        run: kubectl kustomize deploy/kubernetes > /tmp/openbinding-kubernetes.yaml
 
       # The ICSOC source dataset lives on its own branch so that development
       # branches stay small. Materialize it when the branch is published; the
