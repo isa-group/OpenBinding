@@ -99,7 +99,8 @@ Enforced: `tests/test_v1_job_guarantees.py`, `bim-core` goldens, `engines/bindin
 
 10.1 Secrets MUST NOT appear in the repository, images, logs, problem documents, frontend bundles or agent output.
 10.2 Every object access MUST be authorised server-side; a resource the caller may not see MUST be answered exactly
-as a missing one (404), never 403.
+as a missing one (same status and body: 404 for snapshots, jobs, engines and digests; `403 organization_forbidden`
+for organizations and projects), so that existence is never disclosed.
 10.3 Outbound calls to user-supplied endpoints MUST pass the destination policy (HTTPS, public addresses only, pinned
 resolution, no redirects).
 10.4 `APP_ENV=prod` MUST refuse insecure configuration (wildcard/empty CORS, missing/short JWT secret, plain-HTTP

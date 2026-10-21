@@ -21,7 +21,7 @@ tag yet (`openbinding-gateway` 0.1.0, `bim-*` 0.2.0 unpublished).
 |---|---|---|
 | Accounts and sessions | credential stuffing, token theft | argon2 passwords, login rate limit per address+identifier (`test_security_hardening.py`), refresh-token rotation, short access tokens (15 min) |
 | API keys | leakage, privilege escalation | `obk_` keys shown once, stored as SHA-256, closed permission sets, subset-only delegation (`test_api_keys.py`, `test_api_key_route_table.py`) |
-| Private projects, snapshots, jobs | cross-tenant read | per-object authorisation, uniform 404 for hidden resources (`test_v1_lifecycle_rbac.py`, `test_b3_public_read.py`, `test_viewer_read_only.py`) |
+| Private projects, snapshots, jobs | cross-tenant read | per-object authorisation, hidden resources answered exactly like missing ones (`test_v1_lifecycle_rbac.py`, `test_b3_public_read.py`, `test_viewer_read_only.py`) |
 | Federated engine endpoints | SSRF, DNS rebinding | HTTPS + public-address policy, off-loop resolution, pinned address, no redirects, bounded responses (`test_engine_registry_service.py`, `test_v1_remote.py`) |
 | Engine credentials | disclosure | `MultiFernet` encryption at rest, never serialised (`test_credential_store.py`) |
 | Uploaded packages and XML | zip bombs, XXE | bounded size/ratio/entry types, no DTD/entities (`test_package_bomb.py`, `test_cas_platform.py`, bim-core `test_package_security.py`) |

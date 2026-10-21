@@ -42,7 +42,7 @@ Maximum two fix rounds; then the coordinator opens a CRP.
 **reviewer (correctness vs spec)**
 - Every requirement in the delta spec has code and a test; EARS text matches behaviour; `GAP`s are not silently closed.
 - Error paths answer `application/problem+json` with a stable `code` (new codes documented in `docs/ERRORS.md` or the route's docstring); 422 has non-empty `diagnostics`.
-- Hidden resources answer 404 identical to "missing" (`docs/ACCESS_POLICY.md`, `docs/RESOLVER_AND_VERIFIER.md` §3).
+- Hidden resources answer exactly like missing ones, same status and body (`docs/ACCESS_POLICY.md` rule 2, `docs/RESOLVER_AND_VERIFIER.md` §3).
 - `docs/openapi.json` diff matches the intended contract change, and nothing else.
 - No new import of `routes` from `services/`, `domain/`, `jobs/`; ratchet lists not extended.
 
