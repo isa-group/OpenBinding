@@ -1,0 +1,2 @@
+suite,engine,diagnostics,runs
+03_hsc_llm,minizinc-csp,mode does not support requested aggregations values | mode does not support requested expressions values,10000

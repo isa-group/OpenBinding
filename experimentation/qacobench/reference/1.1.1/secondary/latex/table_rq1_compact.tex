@@ -1,0 +1,16 @@
+\begin{tabular}{@{}llll@{}}
+\toprule
+Factor & Proof within 5\,s (\%)$^{a}$ & Median proof (ms) & GA attains optimum (\%)$^{b}$ \\
+\midrule
+Workflow structure & 90 (sequence) -- 100 (XOR) & 79--110 & 57 (sequence) -- 87 (repeat) \\
+Tasks & 95 (48) -- 100 (12) & 75--140 & 44 (48) -- 98 (12) \\
+Objectives & 95 (5) -- 100 (1) & 76--132 & 56 (5) -- 90 (1) \\
+Constraint count mode & 96 (exact) -- 100 (expected) & 79--93 & 67 (exact) -- 85 (expected) \\
+Constraints & 96 (3) -- 99 (1) & 79--100 & 66 (3) -- 81 (1) \\
+Aggregation policy & 96 (default) -- 99 (max cost) & 84--100 & 65 (max cost) -- 79 (default) \\
+Constraint setting & 97 (setting 1) -- 99 (setting 2) & 86--99 & 60 (setting 2) -- 78 (setting 1) \\
+QoS value distribution & 97 (uniform) -- 98 (normal) & 85--94 & 65 (mixed) -- 80 (normal) \\
+Candidates per task & 97 (uniform 3--8) -- 98 (normal 3--8) & 76--99 & 68 (uniform 3--8) -- 78 (normal 3--8) \\
+\bottomrule
+\multicolumn{4}{p{0.97\linewidth}}{\footnotesize Lowest and highest level of each factor (marginal rates over the covering array, in which levels are not balanced across the other factors); factors ordered by the spread of the proof rate. $^{a}$ instances settled by the exact solver (OPTIMAL or UNSAT). $^{b}$ share of the instances with a certified optimum whose GA binding scores within $10^{-9}$ of it.}
+\end{tabular}

@@ -1,0 +1,12 @@
+\begin{tabular}{llr}
+\toprule
+Engine & Rejection reason (from the recorded diagnostics) & HSC \\
+\midrule
+minizinc-csp & aggregations: sequence.expression & 10,000 \\
+minizinc-csp & expressions: arithmetic & 10,000 \\
+minizinc-csp & expressions: call.product & 8,999 \\
+minizinc-csp & expressions: call.sum & 9,936 \\
+minizinc-csp & expressions: path.values & 10,000 \\
+\bottomrule
+\multicolumn{3}{l}{\footnotesize Instances rejected before execution (HTTP 422 or capability negotiation); every rejection is recorded as INCOMPATIBLE with its reason.}
+\end{tabular}

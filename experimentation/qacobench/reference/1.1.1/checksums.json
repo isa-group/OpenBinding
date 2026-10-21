@@ -1,0 +1,11 @@
+{
+  "results.jsonl": "60cd7ef1728d43326d71fff1aa9fbe304e10a8a7716478e232958070ff5510b8",
+  "dataset_archive": {
+    "name": "qacobench-bim-dataset-1.1.1.tar.xz",
+    "sha256": "aa8bdf740a0183b3f42f334577d2cab180e33b8e250895fedb33fe4223bac83f"
+  },
+  "software_archive": {
+    "name": "qacobench-software-1.1.1.tar.xz",
+    "sha256": "80fb133e516ef5f7f6f15a7ddf7efe50ef28d58991a33578a55ef07b90fd4972"
+  }
+}

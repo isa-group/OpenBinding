@@ -27,7 +27,15 @@ python datasets/scripts/transform_bws_scp.py --target datasets/06_bws_scp
 experimentation/qacobench/run.sh generate
 ```
 
-`03_hsc_llm` preserves sequential levels and parallel activities, uses one task per source activity, and retains the source per-activity reference binding. Its aggregation rules follow the source benchmark; engines that cannot execute those rules are reported as incompatible.
+(`experimentation/qacobench/run.sh transform` runs the three transformers whose encodings changed in the second release — HSC, RPRSR15 and BWS-SCP — inside the runner image, followed by `write_benchmark_metadata.py`.)
+
+`datasets/scripts/write_benchmark_metadata.py` (re)writes `benchmark-metadata.json` in every package of the six recovered suites: suite and instance identity, admission class, the provenance of the source benchmark taken from `recovery_catalogue.json`, the transformer's fidelity annotations, the SHA-256 of each resource and the package digest the campaign records (same recipe as `experimentation/qacobench/_common.py`; the metadata file itself is excluded from that digest). `--check` verifies the files without writing them. QFBS packages are described by `07_qfbs/manifest.jsonl` instead.
+
+Each transformer encodes the *source* objective and constraints, not a convenience approximation, and records in `benchmark-metadata.json` the fidelity facts a reader needs (`source_objective`, `objective_weights`, `attained_extremes`, aggregation and value conventions, reference solutions where the source provides them):
+
+* `03_hsc_llm` preserves sequential levels and parallel activities, uses one task per source activity, and retains the source per-activity reference binding. Its objective is the source paper's Eq. (1) and its constraints are the soft, squared-violation penalties of Eq. (2), encoded as soft BIM constraints whose penalty expression is `K * (value - c)^2`; the transformer verifies that the BIM score of the reference binding equals the paper's objective. Its sequence aggregations are custom expressions (means and geometric means over levels); engines that cannot execute those rules are reported as incompatible.
+* `04_rprsr15` keeps the per-file QoS model (sequence/parallel/branch/loop aggregation functions of the source, including the 26 files with loops), the branch probabilities and the loop counts; normalisation ranges are the extremes attained by witness bindings, not the clamped 0–100 ranges of the first release.
+* `06_bws_scp` encodes the source MILP: the weighted sum of total time, total cost and the negated sum of log-reliabilities with weights `1/(attained max - min)`, and the server capacities as a placement overlay (`placement.json`: one pool per server, per-task demands, hard capacity rules). The first release's normalisation collapsed the objective to a constant; see the suite README.
 
 `07_qfbs` contains 5,200 instances generated directly through the HTTP endpoint:
 

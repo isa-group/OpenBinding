@@ -1,0 +1,44 @@
+{
+  "title": "QACOBench: Software and Reproducibility Artifact",
+  "upload_type": "software",
+  "version": "1.1.1",
+  "creators": [
+    {
+      "name": "Cavero, Francisco Javier",
+      "affiliation": "Universidad de Sevilla",
+      "orcid": "0009-0004-2453-8814"
+    },
+    {
+      "name": "Parejo, José Antonio",
+      "affiliation": "Universidad de Sevilla",
+      "orcid": "0000-0002-4708-4606"
+    },
+    {
+      "name": "Ruiz-Cortés, Antonio",
+      "affiliation": "Universidad de Sevilla",
+      "orcid": "0000-0001-9827-1834"
+    }
+  ],
+  "description": "Software and reproducibility artifact accompanying \"QACOBench: A Reusable Benchmark Suite for QoS-Aware Service Composition\" (BenchSOC@ICSOC 2026). This release archives the OpenBinding repository, including the gateway, solver engines, QACOForge generator, BIM schemas, original benchmark source inputs, transformation scripts, Docker configuration, QFBS design settings, documentation and experiment notebooks. It also includes the recorded QACOBench campaign results (46,350 submissions to three solvers with a 5,000 ms budget), evaluation tables, figures, secondary analyses, executed notebooks and run metadata. The exact engine (minizinc-csp) supports additive, min/max and multiplicative aggregations and placement capacities, and is pinned to MiniZinc 2.8.7 / Gecode 6.3.0; the campaign tooling records engine revisions, termination reasons and the reconciliation acceptance tests. The 15,450-instance BIM corpus is distributed in the separate QACOBench BIM dataset deposit. Extract the dataset archive into the software directory to use the experiment scripts (tools/package_zenodo.sh rebuilds both archives). CC BY 4.0 applies to the original contributions. Reused third-party material retains its original rights and license terms; see the included attribution and license notices.",
+  "keywords": [
+    "QoS-aware service composition",
+    "QACOBench",
+    "Binding Instance Model",
+    "BIM",
+    "QACOForge",
+    "OpenBinding",
+    "benchmark",
+    "reproducibility"
+  ],
+  "license": "cc-by-4.0",
+  "access_right": "open",
+  "doi": "10.5281/zenodo.23336988",
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.23337038",
+      "scheme": "doi",
+      "relation": "isSupplementedBy",
+      "resource_type": "dataset"
+    }
+  ]
+}

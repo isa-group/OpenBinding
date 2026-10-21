@@ -1,0 +1,63 @@
+{
+  "name": "qacobench-rerun-20261015",
+  "source_head": "e2fd5e314e4646e42e74afe9afe1830d2bd19339",
+  "source_tree_sha256": "f559f0b20a8d51503ba3572cf819c9b2df38df782d32c32498f7dc28fefba375",
+  "source_bytes": 2944408335,
+  "source_files": 95935,
+  "working_tree_dirty": true,
+  "local_commits_or_edits": false,
+  "real_env_excluded": true,
+  "compose_project": "qacobench-rerun-20261015",
+  "revision": "rerun-20261015-f559f0b20a8d",
+  "loopback_port": 18021,
+  "cgroup_slice": "qacobenchrerun20261015.slice",
+  "slice_memory_mib": 6144,
+  "slice_cpu_quota_percent": 400,
+  "cpu_affinity": "6,7,14,15",
+  "cpu_exclusive": false,
+  "concurrency": 1,
+  "claude_admission_paused": true,
+  "timing_contention_must_be_reported": true,
+  "fresh_three_engine_campaign": true,
+  "stable_limits_from_start": true,
+  "java_heap_mib": 1024,
+  "bim_compressed_entry_bytes": 33554432,
+  "previous_campaign_preserved": "qacobench-mac-20261014",
+  "limits_mib": {
+    "postgres": 1536,
+    "redis": 64,
+    "engine-minizinc": 1024,
+    "engine-random-search": 1280,
+    "engine-evolutionary-heuristics": 1280,
+    "gateway": 1024,
+    "worker": 2048,
+    "seed-engines": 128,
+    "runner": 2048,
+    "jupyter": 2048
+  },
+  "previous_results_not_used": true,
+  "reset_not_run_new_namespace": true,
+  "operator_adapters_sha256": {
+    "experimentation/qacobench/run.sh": "3d02f151632d6a454a171eef8075a3415458b194a242fb05f8d9508363d4f82d",
+    ".dockerignore": "65f565a4b850f987c8facc9126d6cb4217fc79c5f6f0c6e47fe2dab59308ffba",
+    "compose.yml": "11e64ed50ae610cc0e8f77366af54122864bec19e0592b1fe604d00e09a19a9e",
+    "RunnerPermissions.Dockerfile": "77c95056dfd96b764541d92f361dbcdc6199c2f0a23870f7540ea34652845c8f",
+    "pipeline.py": "400c0b4bd1a8fe7e53994386f10b98a198c22db34a61d4ff121518dd105b94c8",
+    "wait_jobs.py": "55cc812ceca2d81d3324dd0d21db8fe75338800615aab4dec294ba3032cab7b5",
+    "capacity_preflight.py": "6525ca65c35f42b7b81af26a598f4524a493a93585634be085255c3ce8d0ad80",
+    "verify_completion.py": "cb3b4c485951536cf1801088ebdabec4213c9a36887586fc99e2a44602352a80",
+    "regression_real_cases.py": "f85b66733721ecc216c9710b1bdd7bb9bea2b96cd737ee00f74e4ed4a9b6392e"
+  },
+  "startup_read_permissions_repair": {
+    "reason": "new snapshot test_qacobench.py is mode0600 inside image; make public code readable in runner child layer",
+    "before_measurements": true,
+    "solver_options_unchanged": true,
+    "measured_old_database_kib": 2723964,
+    "main_admission_free_gib": 5.5,
+    "disk_budget_gib": {
+      "database": 3,
+      "results_export": 0.5,
+      "reserve": 2
+    }
+  }
+}

@@ -1,0 +1,46 @@
+\begin{tabular}{llrrrrrr}
+\toprule
+Factor & Level & Inst. & Proof$^{a}$ & Median proof ms & Unresolved & GA attains opt.$^{b}$ & GA mean gap \\
+\midrule
+Workflow structure & sequence & 800 & 90\% & 110 & 0.0\% & 57\% & 0.014 \\
+ & parallel & 600 & 100\% & 86 & 0.0\% & 74\% & 0.007 \\
+ & xor & 600 & 100\% & 92 & 0.0\% & 79\% & 0.003 \\
+ & repeat & 600 & 100\% & 85 & 0.0\% & 87\% & 0.003 \\
+ & parallel xor & 600 & 97\% & 86 & 0.0\% & 68\% & 0.008 \\
+ & parallel repeat & 600 & 100\% & 98 & 0.0\% & 72\% & 0.008 \\
+ & xor repeat & 600 & 100\% & 79 & 0.0\% & 73\% & 0.010 \\
+ & mixed & 800 & 96\% & 82 & 0.0\% & 76\% & 0.004 \\
+\addlinespace[2pt]
+Tasks & 12 & 1,600 & 100\% & 75 & 0.0\% & 98\% & 0.000 \\
+ & 24 & 2,000 & 98\% & 91 & 0.0\% & 74\% & 0.005 \\
+ & 48 & 1,600 & 95\% & 140 & 0.0\% & 44\% & 0.018 \\
+\addlinespace[2pt]
+Objectives & 1 & 1,600 & 100\% & 76 & 0.0\% & 90\% & 0.000 \\
+ & 3 & 2,000 & 97\% & 94 & 0.0\% & 69\% & 0.009 \\
+ & 5 & 1,600 & 95\% & 132 & 0.0\% & 56\% & 0.013 \\
+\addlinespace[2pt]
+Constraint count mode & exact & 3,600 & 96\% & 93 & 0.0\% & 67\% & 0.009 \\
+ & expected & 1,600 & 100\% & 79 & 0.0\% & 85\% & 0.002 \\
+\addlinespace[2pt]
+Constraints & 1 & 1,600 & 99\% & 79 & 0.0\% & 81\% & 0.004 \\
+ & 3 & 2,000 & 96\% & 100 & 0.0\% & 66\% & 0.009 \\
+ & 5 & 1,600 & 98\% & 87 & 0.0\% & 71\% & 0.009 \\
+\addlinespace[2pt]
+Aggregation policy & default & 2,000 & 96\% & 87 & 0.0\% & 79\% & 0.005 \\
+ & cost max & 1,600 & 99\% & 100 & 0.0\% & 65\% & 0.009 \\
+ & latency max & 1,600 & 98\% & 84 & 0.0\% & 73\% & 0.008 \\
+\addlinespace[2pt]
+Constraint setting & 0 & 3,600 & 97\% & 86 & 0.0\% & 78\% & 0.006 \\
+ & 1 & 1,600 & 99\% & 99 & 0.0\% & 60\% & 0.010 \\
+\addlinespace[2pt]
+QoS value distribution & uniform & 2,000 & 97\% & 88 & 0.0\% & 72\% & 0.008 \\
+ & normal & 1,600 & 98\% & 85 & 0.0\% & 80\% & 0.003 \\
+ & mixed & 1,600 & 98\% & 94 & 0.0\% & 65\% & 0.011 \\
+\addlinespace[2pt]
+Candidates per task & fixed 5 & 2,000 & 97\% & 88 & 0.0\% & 73\% & 0.008 \\
+ & uniform 3 8 & 1,600 & 97\% & 99 & 0.0\% & 68\% & 0.006 \\
+ & normal 3 8 & 1,600 & 98\% & 76 & 0.0\% & 78\% & 0.007 \\
+\addlinespace[2pt]
+\bottomrule
+\multicolumn{8}{p{0.95\linewidth}}{\footnotesize Marginal rates over the covering array (levels are not balanced across the other factors); factors ordered by the spread of the proof rate. $^{a}$ instances the exact solver settles within 5\,s (OPTIMAL or UNSAT). $^{b}$ share of the instances with a certified optimum whose GA binding scores within $10^{-9}$ of it.}
+\end{tabular}

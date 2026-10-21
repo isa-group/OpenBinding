@@ -1,0 +1,20 @@
+MiniZinc to FlatZinc converter, version 2.8.7, build 1478320236
+Copyright (C) 2014-2024 Monash University, NICTA, Data61
+MiniZinc driver.
+Available solver configurations:
+  Chuffed 0.13.2 (org.chuffed.chuffed, cp, lcg, int)
+  COIN-BC 2.10.12/1.17.10 (org.minizinc.mip.coin-bc, mip, float, api, osicbc, coinbc, cbc)
+  CPLEX <unknown version> (org.minizinc.mip.cplex, mip, float, api)
+  findMUS 0.7.0 (org.minizinc.findmus)
+  Gecode 6.3.0 (org.gecode.gecode, default solver, cp, int, float, set, restart)
+  Gecode Gist 6.3.0 (org.gecode.gist, cp, int, float, set, restart)
+  Globalizer 0.1.7.2 (org.minizinc.globalizer, experimental, tool)
+  Gurobi <unknown version> (org.minizinc.mip.gurobi, mip, float, api)
+  HiGHS 1.7.2 (org.minizinc.mip.highs, mip, float, api, highs)
+  OR Tools CP-SAT 9.11.4210 (cp-sat, cp-sat, cp, lcg, int)
+  SCIP <unknown version> (org.minizinc.mip.scip, mip, float, api)
+  Xpress <unknown version> (org.minizinc.mip.xpress, mip, float, api)
+Search path for solver configurations:
+  /opt/minizinc/share/minizinc/solvers
+  /usr/local/share/minizinc/solvers
+  /usr/share/minizinc/solvers

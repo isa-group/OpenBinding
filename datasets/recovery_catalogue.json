@@ -1,29 +1,30 @@
 {
-  "catalogue_version": "qacobench/v1",
-  "generated_date": "2026-09-27",
+  "catalogue_version": "qacobench/v2",
+  "generated_date": "2026-10-14",
   "conference": "BenchSOC @ ICSOC 2026",
-  "description": "Recovery catalogue for the seven-suite, 15,450-instance QACOBench release.",
+  "description": "Recovery catalogue for the seven-suite, 15,450-instance QACOBench release (v2: corrected provenance, regenerated BWS-SCP, HSC and RPRSR15 suites).",
   "admitted_suites": [
     {
       "suite_id": "01_icws",
-      "name": "ICWS 2007 Benchmark Scenarios",
+      "name": "OpenBinding scenarios",
       "instances_count": 48,
       "admission_class": "complete QACO",
       "status": "ADMITTED",
       "source": {
-        "title": "QoS-driven Web Service Composition Benchmarks (ICWS 2007)",
+        "title": "OpenBinding: An Extensible, Plug-and-Play API Gateway for Cross-Engine QACO Solving",
         "authors": [
-          "M. Alrifai",
-          "T. Risse",
-          "P. Dolog"
+          "Francisco Javier Cavero",
+          "José Antonio Parejo",
+          "Antonio Ruiz-Cortés"
         ],
-        "year": 2009,
-        "doi": "10.1145/1526709.1526723",
-        "url": "https://doi.org/10.1145/1526709.1526723",
+        "year": 2026,
+        "venue": "IEEE International Conference on Web Services (ICWS 2026)",
+        "doi": "10.1109/ICWS72778.2026.00110",
+        "url": "https://doi.org/10.1109/ICWS72778.2026.00110",
         "license": "Open Academic Research Benchmark"
       },
       "dialects": [],
-      "rationale": "Historical standard for QoS web service composition. Retains sequential task graphs, real-world candidate QoS matrices (response time, throughput, cost, availability, reliability), and linear multi-attribute utility scalarization."
+      "rationale": "Six literature workflows (SELF-SERV travel solution, warehouse example, textbook access, transport agency, RESTful e-commerce, entertainment planner) modelled in OpenBinding under eight objective/constraint variants: additive, min and multiplicative aggregations, XOR and repeat blocks, hard and soft constraints and provider co-location constraints. Suite directory 01_icws keeps the short name of the venue."
     },
     {
       "suite_id": "02_quantum",
@@ -36,6 +37,7 @@
         "authors": [
           "Adrián Romero-Flores",
           "Alfonso E. Márquez-Chamorro",
+          "José Antonio Parejo",
           "Antonio Ruiz-Cortés"
         ],
         "year": 2026,
@@ -47,44 +49,64 @@
     },
     {
       "suite_id": "03_hsc_llm",
-      "name": "HSC-LLM (Hierarchical Service Composition for LLM Workflows)",
+      "name": "HSC (Hugging Face AI Service Composition)",
       "instances_count": 10000,
       "admission_class": "derived composition",
       "status": "ADMITTED",
       "source": {
-        "title": "HSC-LLM: Hierarchical Service Composition and Routing for Foundation Model Pipelines",
+        "title": "HSC: An Artificial Intelligence Service Composition Dataset from Hugging Face",
         "authors": [
-          "HSC Research Group"
+          "Xiao Wang",
+          "Dunlei Rong",
+          "Hanchuan Xu",
+          "Xiangdong He",
+          "Zhongjie Wang"
         ],
         "year": 2025,
-        "license": "Open Academic Research Benchmark"
+        "venue": "Service-Oriented Computing -- ICSOC 2024, LNCS 15405, pp. 225-239",
+        "doi": "10.1007/978-981-96-0808-9_17",
+        "url": "https://doi.org/10.1007/978-981-96-0808-9_17",
+        "repository": "https://github.com/wangxiaohit/HSC",
+        "license": "CC BY 4.0 (repository README)"
       },
       "dialects": [],
-      "rationale": "Evaluates multi-agent LLM pipeline routing across heterogeneous models (latency, monetary cost per token, reasoning accuracy, and rate-limit throughput constraints)."
+      "rationale": "10,000 LLM-generated AI-service composition requirements over 15,463 Hugging Face models: sequential levels with parallel activities, six normalised QoS attributes (downloads, likes, response time, waiting time, reliability, successability) with mean/geometric-mean/sum/max/min aggregations, weighted objectives and soft constraints with squared-violation penalties (paper Eq. 1-2). The authors' best compositions are kept as reference annotations."
     },
     {
       "suite_id": "04_rprsr15",
-      "name": "RPRSR15 (Ramirez & Parejo Web Service Composition Benchmark)",
+      "name": "RPRSR15 (Ramírez, Parejo, Romero, Segura, Ruiz-Cortés)",
       "instances_count": 60,
       "admission_class": "complete QACO",
       "status": "ADMITTED",
       "source": {
-        "title": "An empirical study of GRASP heuristics for QoS-aware Web service composition / Optimization of service compositions with branches",
+        "title": "Evolutionary composition of QoS-aware web services: a many-objective perspective",
         "authors": [
-          "J. A. Parejo",
-          "A. Ruiz-Cortes",
-          "S. Ramirez",
-          "P. Chicano"
+          "Aurora Ramírez",
+          "José Antonio Parejo",
+          "José Raúl Romero",
+          "Sergio Segura",
+          "Antonio Ruiz-Cortés"
         ],
         "year": 2017,
-        "journal": "Expert Systems with Applications",
-        "doi": "10.1016/j.eswa.2017.03.064",
-        "url": "https://doi.org/10.5281/zenodo.10668798",
-        "repository": "https://github.com/joramirez/rprsr15-problemInstances",
-        "license": "GNU LGPL v3.0 / Open Access"
+        "journal": "Expert Systems with Applications 72:357-370",
+        "doi": "10.1016/j.eswa.2016.10.047",
+        "url": "https://www.uco.es/grupos/kdis/sbse/RPRSR15/",
+        "instance_generator": {
+          "title": "QoS-aware web services composition using GRASP with path relinking",
+          "authors": [
+            "José Antonio Parejo",
+            "Sergio Segura",
+            "Pablo Fernández",
+            "Antonio Ruiz-Cortés"
+          ],
+          "year": 2014,
+          "journal": "Expert Systems with Applications 41(9):4211-4223",
+          "doi": "10.1016/j.eswa.2013.12.036"
+        },
+        "license": "Academic / Research Open Benchmark"
       },
       "dialects": [],
-      "rationale": "Lossless conversion of 60 literature instances from Ramirez et al. Features both sequential and exclusive branch (XOR) structures mapped to RoutingOverlay with branch probabilities, 5 QoS metrics, and non-linear utility aggregation."
+      "rationale": "60 published instances with sequences, probabilistic branches and loops (26 files), nine QWS-based QoS attributes with the aggregation functions declared in each file (sum, product, min, probability-weighted sum/product, mean) and no constraints; many-objective source (all weights zero) optimised here as an equal-weight sum of losses normalised by attained extremes."
     },
     {
       "suite_id": "05_iots",
@@ -93,15 +115,16 @@
       "admission_class": "complete QACO",
       "status": "ADMITTED",
       "source": {
-        "title": "An improved multi-objective optimization algorithm for IoT service composition",
+        "title": "IoT service composition based on improved Shuffled Frog Leaping Algorithm",
         "authors": [
-          "M. Tang",
-          "L. Gao",
-          "Z. Xiao"
+          "Zhengyi Tang",
+          "Yongbing Wu",
+          "Jinshui Wang",
+          "Tianwei Ma"
         ],
         "year": 2024,
-        "journal": "Heliyon",
-        "doi": "10.1016/j.heliyon.2024.e24483",
+        "journal": "Heliyon 10(7):e28087",
+        "doi": "10.1016/j.heliyon.2024.e28087",
         "url": "https://doi.org/10.5281/zenodo.10440967",
         "license": "Creative Commons Attribution 4.0 International (CC-BY-4.0)"
       },
@@ -110,25 +133,27 @@
     },
     {
       "suite_id": "06_bws_scp",
-      "name": "BWS-SCP (Cloud Manufacturing Worker-Service Matching Benchmark)",
+      "name": "BWS-SCP (Reliability-Centric Cloud Manufacturing Service Composition)",
       "instances_count": 90,
       "admission_class": "placement-aware QACO",
       "status": "ADMITTED",
       "source": {
-        "title": "Bi-objective worker-service matching in cloud manufacturing considering worker fatigue and skill",
+        "title": "A Novel Integer Linear Model for Reliability-Centric Service Composition in Cloud Manufacturing",
         "authors": [
-          "F. Mahroo",
-          "M. B. Fakhrzad",
-          "M. R. Farahani"
+          "Fatemeh Mahroo",
+          "Nima Moradi",
+          "Navid Aftabi",
+          "Mahmoud Houshmand",
+          "Omid Fatahi Valilai"
         ],
-        "year": 2025,
-        "journal": "Computers & Industrial Engineering",
-        "doi": "10.1016/j.cie.2025.110820",
+        "year": 2026,
+        "journal": "Computers & Industrial Engineering 211:111603",
+        "doi": "10.1016/j.cie.2025.111603",
         "repository": "https://github.com/FMahroo/BWS-SCP",
-        "license": "Open Academic Research Benchmark"
+        "license": "MIT"
       },
       "dialects": [],
-      "rationale": "Cloud manufacturing service composition with bi-objective time-cost trade-offs and worker-to-service matching. The alpha/beta worker pricing model is deterministically converted into candidate costs."
+      "rationale": "90 instance files (70 main, 14 alpha/beta scenarios, 6 validation): tasks bound to servers with capacities and demands (placement overlay), total time, total cost and log-reliability objective normalised by attained ranges exactly as in the source MILP; the quadratic server-load cost of the 14 scenarios is linearised and annotated."
     },
     {
       "suite_id": "07_qfbs",

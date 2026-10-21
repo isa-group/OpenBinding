@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Rebuild the two paper figures from generation metadata and experiment CSV."""
+"""Rebuild the primary figures: the QFBS construct heat map (corpus description, one panel because both
+feasibility groups share their workflows by design) and the RQ2 coverage / binding-yield heat map."""
 
 from __future__ import annotations
 
@@ -13,18 +14,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from _common import SUITES
+
 STRUCTURES = ("Sequence", "Parallel", "XOR", "Repeat", "Parallel+XOR",
               "Parallel+repeat", "XOR+repeat", "Mixed")
 ENGINES = ("minizinc-csp", "random-search", "evolutionary-heuristics")
-SUITE_LABELS = {
-    "01_icws": "OpenBinding scenarios",
-    "02_quantum": "Quantum resource selection",
-    "03_hsc_llm": "HSC",
-    "04_rprsr15": "RPRSR15",
-    "05_iots": "IoTS",
-    "06_bws_scp": "BWS-SCP",
-    "07_qfbs": "QFBS",
-}
+# Figure labels follow the suite names used in the paper (the canonical names live in _common.SUITES).
+SUITE_LABELS = {key: value["name"] for key, value in SUITES.items()}
 
 
 def _rows(path: Path) -> list[dict[str, str]]:
@@ -32,7 +28,7 @@ def _rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(stream))
 
 
-def rq1(manifest_rows: list[dict], output: Path) -> None:
+def qfbs_structure(manifest_rows: list[dict], output: Path) -> None:
     groups = ("guaranteed", "non_guaranteed")
     counts = np.zeros((2, 8, 3), dtype=int)
     seen = np.zeros((2, 8, 3), dtype=int)
@@ -43,8 +39,8 @@ def rq1(manifest_rows: list[dict], output: Path) -> None:
         for column, key in enumerate(("parallel", "xor", "repeat")):
             counts[panel, structure, column] += bool(row["observed_structure"][key])
     if (seen == 0).any():
-        raise ValueError("RQ1 figure needs every QFBS structural profile")
-    csv_path = output / "rq1_structure.csv"
+        raise ValueError("The structure figure needs every QFBS structural profile")
+    csv_path = output / "qfbs_structure.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=["group", "structure", "construct", "observed", "instances", "proportion"])
         writer.writeheader()
@@ -55,7 +51,7 @@ def rq1(manifest_rows: list[dict], output: Path) -> None:
                                      "observed": counts[panel, i, j], "instances": seen[panel, i, j],
                                      "proportion": counts[panel, i, j] / seen[panel, i, j]})
     if not (np.array_equal(counts[0], counts[1]) and np.array_equal(seen[0], seen[1])):
-        raise ValueError("A shared RQ1 panel requires identical structural counts in both groups")
+        raise ValueError("A shared panel requires identical structural counts in both groups")
     fig, ax = plt.subplots(figsize=(5.7, 3.8), layout="constrained")
     rows = _rows(csv_path)
     selected = [row for row in rows if row["group"] == groups[0]]
@@ -72,8 +68,8 @@ def rq1(manifest_rows: list[dict], output: Path) -> None:
             ax.text(j, i, f'{row["observed"]}/{row["instances"]}', ha="center", va="center",
                     color="white" if proportions[i, j] > 0.65 else "black", fontsize=8)
     fig.colorbar(image, ax=ax, label="Proportion within each group")
-    fig.savefig(output / "rq1_structure.pdf")
-    fig.savefig(output / "rq1_structure.svg")
+    fig.savefig(output / "qfbs_structure.pdf")
+    fig.savefig(output / "qfbs_structure.svg")
     plt.close(fig)
 
 
@@ -107,6 +103,27 @@ def rq2(outcomes: list[dict[str, str]], output: Path) -> None:
     fig.savefig(output / "rq2_engine_coverage.svg")
     plt.close(fig)
 
+    # One-panel variant for the paper: processability follows from the declared capabilities alone
+    # (text), so the figure shows the conditional binding yield only; cells keep numerator/denominator.
+    fig, ax = plt.subplots(figsize=(6.4, 3.0), layout="constrained")
+    masked = np.ma.masked_invalid(values[1])
+    cmap = plt.get_cmap("Blues").copy()
+    cmap.set_bad("#f2f2f2")
+    image = ax.imshow(masked, vmin=0, vmax=1, cmap=cmap, aspect="auto")
+    # Solver acronyms as defined in the paper (CP = minizinc-csp, RS = random-search, GA = evolutionary-heuristics).
+    ax.set_xticks(range(3), ("CP", "RS", "GA"))
+    ax.set_yticks(range(len(suites)), [SUITE_LABELS.get(suite, suite) for suite in suites])
+    for i in range(len(suites)):
+        for j in range(3):
+            value = values[1, i, j]
+            text = labels[1][i][j] if not np.isnan(value) else "not processable"
+            ax.text(j, i, text, ha="center", va="center",
+                    color="white" if (not np.isnan(value) and value > 0.65) else "black", fontsize=8)
+    fig.colorbar(image, ax=ax, label="Binding yield", fraction=0.05, pad=0.02)
+    fig.savefig(output / "rq2_binding_yield.pdf")
+    fig.savefig(output / "rq2_binding_yield.svg")
+    plt.close(fig)
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -116,7 +133,7 @@ def main() -> int:
     args = parser.parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
     manifest = [json.loads(line) for line in args.qfbs_manifest.read_text(encoding="utf-8").splitlines()]
-    rq1(manifest, args.out_dir)
+    qfbs_structure(manifest, args.out_dir)
     rq2(_rows(args.outcomes_csv), args.out_dir)
     return 0
 

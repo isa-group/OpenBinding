@@ -1,5 +1,18 @@
 import { CandidateRef } from './dzn_builder';
 
+/**
+ * A decision returned by the solver violates a hard constraint under the exact
+ * evaluation. With the numeric slack of the lowering (numeric.ts) this is the
+ * expected outcome for a binding that lies within one slack beyond a limit: the
+ * solver's relaxed comparisons admit it, the exact ones do not.
+ */
+export class HardViolationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'HardViolationError';
+  }
+}
+
 export interface PlacementCandidate {
   ref: CandidateRef;
   features?: Record<string, number>;
@@ -17,8 +30,16 @@ export interface PlacementEncoding {
   taskInvocation: number[];
   capacityPool: number[];
   capacityScope: number[];
+  capacityColumn: number[];
   capacityLimit: number[];
-  capacityDemand: number[][];
+  /** candidate x resource-column demand table (columns are distinct (model, resource) pairs). */
+  candidateResourceDemand: number[][];
+  capacityResources: number;
+  /** Bin-packing columns: integer weight per task and integer capacity per pool slot. */
+  binWeights: number[][];
+  binCapacities: number[][];
+  /** Capacity checks already enforced by a bin-packing column. */
+  capacityInBin: boolean[];
   transitionModel: number[];
   transitionFromKind: number[];
   transitionFrom: number[];
@@ -87,16 +108,92 @@ function taskInvocations(problem: any, taskIndex: Map<string, number>): number[]
         visit(branch.flow, `${pointer}/branches/${index}/flow`, multiplier * probability!);
       });
     } else if (node.kind === 'repeat') {
-      visit(node.body, `${pointer}/body`, multiplier * Number(node.count));
+      // Expected invocation counts follow the gateway: exact counts and expected counts both scale linearly.
+      visit(node.body, `${pointer}/body`, multiplier * Number(node.expectedCount !== undefined ? node.expectedCount : node.count));
     }
   };
   visit(problem.spec.application.workflow, '/spec/application/workflow', 1);
   return result;
 }
 
+const INT32_MAX = 2147483647;
+
+/**
+ * Capacity checks as bin-packing columns. A group of checks (one resource column,
+ * one scope) becomes a native `bin_packing_capa` over the task pool variables when
+ * every task's demand is the same for all its candidates of the column's model
+ * (candidates of other models land in pools the column never constrains) and the
+ * weights and limits are integral after a common power-of-ten scaling that fits
+ * 32-bit integers. Gecode's bin-packing propagator reasons on the loads of all
+ * pools at once, whereas the reified-sum fallback only sees one pool per check.
+ */
+function binPackingColumns(input: {
+  columns: Array<{ model: number; resource: string }>;
+  capacityPool: number[]; capacityScope: number[]; capacityColumn: number[]; capacityLimit: number[];
+  candidateModel: number[]; candidateResourceDemand: number[][]; taskInvocation: number[];
+  eligibility: number[][]; selectionDisjoint: boolean; poolSlots: number; taskCount: number;
+}): { weights: number[][]; capacities: number[][]; covered: boolean[] } {
+  const weights: number[][] = [];
+  const capacities: number[][] = [];
+  const covered = input.capacityPool.map(() => false);
+  if (input.eligibility.length !== input.taskCount) return { weights, capacities, covered };
+  const groups = new Map<string, number[]>();
+  input.capacityPool.forEach((_pool, check) => {
+    const groupKey = `${input.capacityColumn[check]}\u0001${input.capacityScope[check]}`;
+    if (!groups.has(groupKey)) groups.set(groupKey, []);
+    groups.get(groupKey)!.push(check);
+  });
+  for (const checks of groups.values()) {
+    const column = input.capacityColumn[checks[0]];
+    const scope = input.capacityScope[checks[0]];
+    if (scope === 2 && !input.selectionDisjoint) continue;
+    if (checks.some((check) => !(input.capacityLimit[check] >= 0) || !Number.isFinite(input.capacityLimit[check]))) continue;
+    const model = input.columns[column - 1].model;
+    const taskWeights: number[] = [];
+    let constant = true;
+    for (let task = 0; task < input.taskCount && constant; task += 1) {
+      let demand: number | undefined;
+      for (const candidate of input.eligibility[task]) {
+        if (input.candidateModel[candidate - 1] !== model) continue;
+        const value = input.candidateResourceDemand[candidate - 1][column - 1];
+        if (demand === undefined) demand = value;
+        else if (value !== demand) { constant = false; break; }
+      }
+      const weight = (demand ?? 0) * (scope === 1 ? input.taskInvocation[task] : 1);
+      if (!(weight >= 0) || !Number.isFinite(weight)) constant = false;
+      taskWeights.push(weight);
+    }
+    if (!constant) continue;
+    const total = taskWeights.reduce((sum, value) => sum + value, 0);
+    let scale: number | null = null;
+    for (let digits = 0; digits <= 9; digits += 1) {
+      const factor = 10 ** digits;
+      if (total * factor > INT32_MAX) break;
+      const integral = taskWeights.every((weight) => {
+        const scaled = weight * factor;
+        return Math.abs(scaled - Math.round(scaled)) <= 1e-9 * Math.max(1, Math.abs(scaled));
+      });
+      if (integral) { scale = factor; break; }
+    }
+    if (scale === null) continue;
+    const scaledTotal = Math.round(total * scale);
+    const limits: number[] = Array(input.poolSlots).fill(Infinity);
+    for (const check of checks) {
+      const pool = input.capacityPool[check] - 1;
+      limits[pool] = Math.min(limits[pool], input.capacityLimit[check]);
+    }
+    weights.push(taskWeights.map((weight) => Math.round(weight * scale!)));
+    capacities.push(limits.map((limit) => limit === Infinity
+      ? scaledTotal : Math.max(0, Math.min(scaledTotal, Math.floor(limit * scale! + 1e-9)))));
+    for (const check of checks) covered[check] = true;
+  }
+  return { weights, capacities, covered };
+}
+
 /** Lower the canonical Placement IR. Empty Placement yields only a harmless dummy pool. */
 export function buildPlacementEncoding(problem: any, candidates: PlacementCandidate[], tasks: string[],
-    metricIndex: Map<string, number>, optimizationPenalty: Map<string, number>): PlacementEncoding {
+    metricIndex: Map<string, number>, optimizationPenalty: Map<string, number>,
+    eligibility: number[][] = [], selectionDisjoint = true): PlacementEncoding {
   const placements = problem.spec.placement as any[];
   const taskIndex = new Map(tasks.map((task, index) => [task, index + 1]));
   const poolModel = [0]; // one-based dummy pool keeps every MiniZinc array index valid
@@ -163,17 +260,32 @@ export function buildPlacementEncoding(problem: any, candidates: PlacementCandid
   const taskInvocation = taskInvocations(problem, taskIndex);
   const capacityPool: number[] = [];
   const capacityScope: number[] = [];
+  const capacityColumn: number[] = [];
   const capacityLimit: number[] = [];
-  const capacityDemand: number[][] = [];
-  placements.forEach((model) => {
+  const columnIndex = new Map<string, number>();
+  const columns: Array<{ model: number; resource: string }> = [];
+  placements.forEach((model, modelOffset) => {
     for (const rule of model.capacityRules || []) for (const pool of Object.values(model.pools || {}) as any[]) {
       for (const resource of rule.resources || []) {
+        const columnKey = `${modelOffset + 1}\u0001${resource}`;
+        if (!columnIndex.has(columnKey)) {
+          columns.push({ model: modelOffset + 1, resource });
+          columnIndex.set(columnKey, columns.length);
+        }
         capacityPool.push(poolIndex.get(key(pool.ref))!);
         capacityScope.push(rule.scope === 'invocation' ? 1 : 2);
+        capacityColumn.push(columnIndex.get(columnKey)!);
         capacityLimit.push(Number(pool.capacity[resource]));
-        capacityDemand.push(candidates.map((candidate) => assignments.get(key(candidate.ref))?.resources[resource] || 0));
       }
     }
+  });
+  const candidateResourceDemand = candidates.map((candidate) => columns.map((column) => {
+    const placed = assignments.get(key(candidate.ref));
+    return placed && placed.model === column.model ? Number(placed.resources[column.resource] || 0) : 0;
+  }));
+  const bins = binPackingColumns({
+    columns, capacityPool, capacityScope, capacityColumn, capacityLimit, candidateModel, candidateResourceDemand,
+    taskInvocation, eligibility, selectionDisjoint, poolSlots, taskCount: tasks.length,
   });
 
   const transitionModel: number[] = [];
@@ -301,6 +413,7 @@ export function buildPlacementEncoding(problem: any, candidates: PlacementCandid
       return result;
     }
     if (node.kind === 'repeat') {
+      if (node.expectedCount !== undefined) throw new Error('MiniZinc placement global latency requires exact repeat.count');
       let result = variants;
       for (let count = 0; count < Number(node.count); count += 1) {
         result = workflow(node.body, `${pointer}/body`, result, model, modelId, metric, includeExecution);
@@ -338,7 +451,9 @@ export function buildPlacementEncoding(problem: any, candidates: PlacementCandid
   const penaltyBound = Math.max(1, transitionPenalty.reduce((sum, value) => sum + value, 0));
   return {
     candidateModel, candidatePool, poolModel, poolLatency, eventModel, eventPool, eventLatency,
-    taskInvocation, capacityPool, capacityScope, capacityLimit, capacityDemand,
+    taskInvocation, capacityPool, capacityScope, capacityColumn, capacityLimit,
+    candidateResourceDemand, capacityResources: columns.length,
+    binWeights: bins.weights, binCapacities: bins.capacities, capacityInBin: bins.covered,
     transitionModel, transitionFromKind, transitionFrom, transitionToKind, transitionTo,
     transitionMaximum, transitionHard, transitionPenalty, globalMetricModel,
     scenarioModel, scenarioProbability, scenarioReady, activityModel, activityTask, activityExecMetric,
@@ -437,6 +552,7 @@ export function evaluatePlacement(problem: any, binding: Record<string, Candidat
         });
       }
       if (node.kind === 'repeat') {
+        if (node.expectedCount !== undefined) throw new Error('MiniZinc placement global latency requires exact repeat.count');
         let result = variants;
         for (let count = 0; count < Number(node.count); count += 1) result = walk(node.body, `${pointer}/body`, result);
         return result;
@@ -493,7 +609,10 @@ export function evaluatePlacement(problem: any, binding: Record<string, Candidat
         message: `Transition latency ${current} exceeds maximum ${transition.maximum}` });
     }
   }
-  if (violations.some((value) => value.enforcement === 'hard')) throw new Error('MiniZinc returned a decision that violates a hard placement constraint');
+  const hard = violations.find((value) => value.enforcement === 'hard');
+  if (hard) {
+    throw new HardViolationError(`MiniZinc returned a decision that violates hard placement constraint '${key(hard.constraint)}'`);
+  }
   const rawPenalty = new Map(violations.filter((value) => value.enforcement === 'soft').map((value) => [key(value.constraint), value.penalty]));
   const penalties = (problem.spec.optimization.penalties || []).map((item: any) =>
     (rawPenalty.get(key(item.constraint)) || 0) * Number(item.weight));

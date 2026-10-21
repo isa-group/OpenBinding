@@ -3,7 +3,7 @@
 ## 1. Provenance and Academic Attribution
 - **Dataset Name:** IoTS Dataset (Internet of Things Service Composition)
 - **Source Repository:** Zenodo [10.5281/zenodo.10440967](https://doi.org/10.5281/zenodo.10440967)
-- **Primary Paper:** M. Tang, L. Shen, J. Xiang, D. Song, H. Wang, Z. Ding. "IoT service composition based on improved Shuffled Frog Leaping Algorithm", *Heliyon*, 10(7):e28087, 2024.
+- **Primary Paper:** Z. Tang, Y. Wu, J. Wang, T. Ma. "IoT service composition based on improved Shuffled Frog Leaping Algorithm", *Heliyon*, 10(7):e28087, 2024.
 - **DOI:** [10.1016/j.heliyon.2024.e28087](https://doi.org/10.1016/j.heliyon.2024.e28087)
 - **License:** Creative Commons Attribution 4.0 International (CC BY 4.0)
 

@@ -1,0 +1,18 @@
+\begin{tabular}{lrr}
+\toprule
+ & guaranteed & non-guaranteed \\
+\midrule
+Instances & 2,600 & 2,600 \\
+MiniZinc OPTIMAL (proof) & 2,506 & 1,759 \\
+MiniZinc FEASIBLE (incumbent at 5\,s) & 94 & 42 \\
+MiniZinc UNSAT (proof) & 0 & 799 \\
+MiniZinc TIMEOUT (no incumbent) & 0 & 0 \\
+Known feasible (binding from any engine) & 2,600 & 1,801 \\
+Unresolved (no binding, no UNSAT proof) & 0 & 0 \\
+GA misses on known-feasible & 0 & 350 \\
+RS misses on known-feasible & 1 & 859 \\
+Heuristic binding on UNSAT instances (GA / RS) & 0 / 0 & 0 / 0 \\
+Heuristic binding on MiniZinc TIMEOUT (GA / RS) & 0 / 0 & 0 / 0 \\
+OPTIMAL labels beaten by a heuristic (GA / RS) & 0 / 0 & 0 / 0 \\
+\bottomrule
+\end{tabular}

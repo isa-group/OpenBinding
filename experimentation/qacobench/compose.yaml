@@ -55,7 +55,7 @@ services:
 
   engine-minizinc:
     build: {context: ../../engines/minizinc-csp, dockerfile: Dockerfile}
-    image: qacobench/minizinc:${QACOBENCH_REVISION:-qfbs-v2}
+    image: qacobench/minizinc:${QACOBENCH_REVISION:-qfbs-v3}
     healthcheck:
       test: [CMD, curl, -fsS, http://localhost:3000/health]
       interval: 10s
@@ -64,7 +64,7 @@ services:
 
   engine-random-search:
     build: {context: ../../engines, dockerfile: random-search/Dockerfile}
-    image: qacobench/random-search:${QACOBENCH_REVISION:-qfbs-v2}
+    image: qacobench/random-search:${QACOBENCH_REVISION:-qfbs-v3}
     healthcheck:
       test: [CMD, curl, -fsS, http://localhost:8080/health]
       interval: 10s
@@ -73,7 +73,7 @@ services:
 
   engine-evolutionary-heuristics:
     build: {context: ../../engines, dockerfile: evolutionary-heuristics/Dockerfile}
-    image: qacobench/evolutionary-heuristics:${QACOBENCH_REVISION:-qfbs-v2}
+    image: qacobench/evolutionary-heuristics:${QACOBENCH_REVISION:-qfbs-v3}
     healthcheck:
       test: [CMD, curl, -fsS, http://localhost:8080/health]
       interval: 10s
@@ -82,7 +82,7 @@ services:
 
   gateway:
     build: {context: ../.., dockerfile: experimentation/qacobench/Gateway.Dockerfile}
-    image: qacobench/gateway:${QACOBENCH_REVISION:-qfbs-v2}
+    image: qacobench/gateway:${QACOBENCH_REVISION:-qfbs-v3}
     environment: *gateway-environment
     volumes: [gateway-artifacts:/var/lib/openbinding/artifacts]
     ports: ["127.0.0.1:${QACOBENCH_GATEWAY_PORT:-18000}:8000"]
@@ -99,7 +99,7 @@ services:
       retries: 20
 
   worker:
-    image: qacobench/gateway:${QACOBENCH_REVISION:-qfbs-v2}
+    image: qacobench/gateway:${QACOBENCH_REVISION:-qfbs-v3}
     entrypoint: []
     command: [dramatiq, openbinding_gateway.worker, --processes, "1", --threads, "4", --queues, default]
     environment: *gateway-environment
@@ -108,7 +108,7 @@ services:
       gateway: {condition: service_healthy}
 
   seed-engines:
-    image: qacobench/gateway:${QACOBENCH_REVISION:-qfbs-v2}
+    image: qacobench/gateway:${QACOBENCH_REVISION:-qfbs-v3}
     entrypoint: []
     command: [python, benchmark/seed_engines.py]
     environment: *gateway-environment
@@ -117,7 +117,7 @@ services:
 
   runner:
     build: {context: ../.., dockerfile: experimentation/qacobench/Dockerfile}
-    image: qacobench/runner:${QACOBENCH_REVISION:-qfbs-v2}
+    image: qacobench/runner:${QACOBENCH_REVISION:-qfbs-v3}
     environment: *runner-environment
     volumes:
       - ../../datasets:/workspace/datasets
@@ -127,7 +127,7 @@ services:
       worker: {condition: service_started}
 
   jupyter:
-    image: qacobench/runner:${QACOBENCH_REVISION:-qfbs-v2}
+    image: qacobench/runner:${QACOBENCH_REVISION:-qfbs-v3}
     profiles: [jupyter]
     command: [jupyter, lab, --ip=0.0.0.0, --port=8888, --no-browser, --allow-root]
     environment: *runner-environment

@@ -1,0 +1,55 @@
+\begin{tabular}{llrrrrrr}
+\toprule
+Subset & Engine & OPTIMAL inst. & With binding & Attains optimum$^{a}$ & Mean gap & P90 gap & Max gap \\
+\midrule
+QFBS (all) & GA & 4,265 & 91.9\% & 79.1\% & 0.007 & 0.025 & 0.197 \\
+ & RS & 4,265 & 80.5\% & 3.4\% & 0.189 & 0.325 & 0.846 \\
+\addlinespace[2pt]
+\quad guaranteed & GA & 2,506 & 100.0\% & 75.6\% & 0.009 & 0.034 & 0.197 \\
+ & RS & 2,506 & 100.0\% & 3.2\% & 0.190 & 0.325 & 0.597 \\
+\addlinespace[2pt]
+\quad non-guaranteed & GA & 1,759 & 80.4\% & 85.4\% & 0.004 & 0.009 & 0.164 \\
+ & RS & 1,759 & 52.7\% & 3.8\% & 0.186 & 0.325 & 0.846 \\
+\addlinespace[2pt]
+\quad $k=1$ objective & GA & 1,458 & 90.4\% & 99.5\% & 0.000 & 0.000 & 0.009 \\
+ & RS & 1,458 & 82.9\% & 7.9\% & 0.193 & 0.322 & 0.846 \\
+\addlinespace[2pt]
+\quad $k=3$ & GA & 1,677 & 91.4\% & 75.7\% & 0.009 & 0.033 & 0.197 \\
+ & RS & 1,677 & 76.3\% & 1.2\% & 0.177 & 0.317 & 0.544 \\
+\addlinespace[2pt]
+\quad $k=5$ & GA & 1,130 & 94.8\% & 58.9\% & 0.013 & 0.045 & 0.164 \\
+ & RS & 1,130 & 83.6\% & 0.6\% & 0.200 & 0.342 & 0.469 \\
+\addlinespace[2pt]
+\quad 12 tasks & GA & 1,300 & 99.6\% & 98.1\% & 0.000 & 0.000 & 0.122 \\
+ & RS & 1,300 & 91.2\% & 8.2\% & 0.094 & 0.189 & 0.525 \\
+\addlinespace[2pt]
+\quad 24 tasks & GA & 1,759 & 90.3\% & 81.5\% & 0.005 & 0.016 & 0.170 \\
+ & RS & 1,759 & 77.2\% & 1.4\% & 0.201 & 0.286 & 0.846 \\
+\addlinespace[2pt]
+\quad 48 tasks & GA & 1,206 & 86.1\% & 51.6\% & 0.018 & 0.063 & 0.197 \\
+ & RS & 1,206 & 73.7\% & 0.0\% & 0.297 & 0.377 & 0.540 \\
+\addlinespace[2pt]
+OpenBinding scenarios & GA & 48 & 85.4\% & 73.2\% & 0.024 & 0.161 & 0.164 \\
+ & RS & 48 & 83.3\% & 0.0\% & 0.064 & 0.166 & 0.355 \\
+\addlinespace[2pt]
+Quantum & GA & 46 & 100.0\% & 100.0\% & 0.000 & 0.000 & 0.000 \\
+ & RS & 46 & 100.0\% & 100.0\% & 0.000 & 0.000 & 0.000 \\
+\addlinespace[2pt]
+RPRSR15 & GA & 17 & 100.0\% & 76.5\% & 0.004 & 0.012 & 0.030 \\
+ & RS & 17 & 100.0\% & 0.0\% & 0.122 & 0.149 & 0.163 \\
+\addlinespace[2pt]
+IoTS & GA & 6 & 100.0\% & 0.0\% & 0.050 & 0.081 & 0.107 \\
+ & RS & 6 & 100.0\% & 0.0\% & 0.229 & 0.258 & 0.266 \\
+\addlinespace[2pt]
+BWS-SCP & GA & 19 & 100.0\% & 84.2\% & 0.001 & 0.002 & 0.008 \\
+ & RS & 19 & 89.5\% & 5.9\% & 0.040 & 0.083 & 0.116 \\
+\addlinespace[2pt]
+Recovered suites (all) & GA & 136 & 94.9\% & 81.4\% & 0.011 & 0.016 & 0.164 \\
+ & RS & 136 & 92.6\% & 37.3\% & 0.053 & 0.163 & 0.355 \\
+\addlinespace[2pt]
+Whole corpus & GA & 4,401 & 92.0\% & 79.2\% & 0.007 & 0.025 & 0.197 \\
+ & RS & 4,401 & 80.8\% & 4.6\% & 0.184 & 0.324 & 0.846 \\
+\addlinespace[2pt]
+\bottomrule
+\multicolumn{8}{p{0.95\linewidth}}{\footnotesize $^{a}$ share of the instances with a binding whose score equals the MiniZinc optimum ($|\Delta| \le 10^{-9}$); gaps are differences of the weighted-sum score in $[0,1]$.}
+\end{tabular}

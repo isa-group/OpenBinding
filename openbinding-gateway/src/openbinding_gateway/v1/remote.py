@@ -380,8 +380,23 @@ async def solve_remote(
             finally:
                 await response.aclose()
         if response.status_code != 202:
-            await response.aclose()
-            raise RemoteEngineError(f"engine rejected BindingProblem ({response.status_code})")
+            # Keep the engine's own explanation (problem+json detail or plain text) so that
+            # an incompatibility recorded by a benchmark run names the construct at fault.
+            detail = ""
+            try:
+                raw = await _bounded_bytes(response)
+                try:
+                    body = json.loads(raw)
+                    detail = str(body.get("detail") or body.get("message") or "") if isinstance(body, dict) else ""
+                except ValueError:
+                    detail = raw.decode("utf-8", "replace")
+            except Exception:  # noqa: BLE001 - diagnostics must never mask the rejection itself
+                detail = ""
+            finally:
+                await response.aclose()
+            detail = " ".join(detail.split())[:400]
+            suffix = f": {detail}" if detail else ""
+            raise RemoteEngineError(f"engine rejected BindingProblem ({response.status_code}){suffix}")
         try:
             receipt = await _bounded_json(response)
         finally:

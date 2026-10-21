@@ -55,6 +55,11 @@ def main() -> int:
     )
     seen: set[tuple[str, str, str]] = set()
     duplicates = infrastructure_errors = false_unsat = records = 0
+    # Cross-engine reconciliation: per instance, the exact engine's label and every validated score.
+    exact: dict[tuple[str, str], dict[str, Any]] = {}
+    heuristic_scores: dict[tuple[str, str], list[tuple[str, float]]] = collections.defaultdict(list)
+    reasons: collections.Counter = collections.Counter()
+    incompatibilities: collections.Counter = collections.Counter()
     progress_path = args.out_dir / "progress.json"
     _progress(progress_path, 0, "running")
     for path in args.results:
@@ -90,6 +95,16 @@ def main() -> int:
                 runtime = record.get("runtime_ms")
                 if status not in {"INCOMPATIBLE", "ERROR"} and isinstance(runtime, (int, float)):
                     group["runtimes"].append(float(runtime))
+                reasons[(suite, engine, status, str(record.get("termination_reason") or ""))] += 1
+                if status == "INCOMPATIBLE":
+                    messages = sorted({str(item.get("message") or "") for item in (record.get("diagnostics") or []) if isinstance(item, dict)})
+                    incompatibilities[(suite, engine, " | ".join(messages)[:300] or str(record.get("error") or "")[:300])] += 1
+                quality = record.get("quality")
+                if int(record.get("repeat") or 0) == 0:
+                    if engine == "minizinc-csp":
+                        exact[(suite, instance_id)] = {"status": status, "quality": quality if isinstance(quality, (int, float)) else None}
+                    elif returned and isinstance(quality, (int, float)):
+                        heuristic_scores[(suite, instance_id)].append((engine, float(quality)))
                 if profile:
                     qgroup = qfbs_groups[(profile["group"], engine)]
                     qgroup["runs"] += 1
@@ -141,17 +156,44 @@ def main() -> int:
     latex_dir = args.out_dir / "latex"
     latex_dir.mkdir(exist_ok=True)
     (latex_dir / "evaluation_results.tex").write_text("\n".join(latex), encoding="utf-8")
+    _write_csv(args.out_dir / "termination_reasons.csv",
+               [{"suite": k[0], "engine": k[1], "status": k[2], "termination_reason": k[3], "runs": v}
+                for k, v in sorted(reasons.items())],
+               ["suite", "engine", "status", "termination_reason", "runs"])
+    _write_csv(args.out_dir / "incompatibilities.csv",
+               [{"suite": k[0], "engine": k[1], "diagnostics": k[2], "runs": v}
+                for k, v in sorted(incompatibilities.items(), key=lambda item: (item[0][0], item[0][1], -item[1]))],
+               ["suite", "engine", "diagnostics", "runs"])
+    # Reconciliation of exact labels against validated heuristic bindings (tolerance 1e-9 on the score).
+    unsat_with_binding: list[dict[str, Any]] = []
+    optimal_beaten: list[dict[str, Any]] = []
+    for key, label in exact.items():
+        others = heuristic_scores.get(key, [])
+        if label["status"] == "UNSAT" and others:
+            unsat_with_binding.append({"suite": key[0], "instance_id": key[1], "engines": sorted({e for e, _q in others})})
+        if label["status"] == "OPTIMAL" and label["quality"] is not None:
+            best = min(others, key=lambda item: item[1], default=None)
+            if best is not None and best[1] < label["quality"] - 1e-9:
+                optimal_beaten.append({"suite": key[0], "instance_id": key[1], "optimal_score": label["quality"],
+                                       "engine": best[0], "score": best[1]})
+    (args.out_dir / "reconciliation_failures.json").write_text(json.dumps({
+        "unsat_with_validated_binding": unsat_with_binding,
+        "optimal_beaten_by_other_engine": optimal_beaten,
+    }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     expected_runs = sum(EXPECTED_SUITE_COUNTS.values()) * len(DEFAULT_ENGINES)
     count_ok = not args.require_release_counts or records == expected_runs
     acceptance = {
-        "ok": count_ok and duplicates == 0 and infrastructure_errors == 0 and false_unsat == 0,
+        "ok": (count_ok and duplicates == 0 and infrastructure_errors == 0 and false_unsat == 0
+               and not unsat_with_binding and not optimal_beaten),
         "runs": records,
         "expected_runs": expected_runs if args.require_release_counts else None,
         "unique_triples": len(seen),
         "duplicates": duplicates,
         "infrastructure_errors": infrastructure_errors,
         "guaranteed_group_unsat_responses": false_unsat,
-        "evaluation": "gateway outcomes and returned bindings; no independent binding re-evaluation",
+        "unsat_with_validated_binding": len(unsat_with_binding),
+        "optimal_beaten_by_other_engine": len(optimal_beaten),
+        "evaluation": "gateway outcomes and returned bindings (validated by the gateway); exact labels are reconciled against the heuristic engines' validated scores with a 1e-9 tolerance",
     }
     (args.out_dir / "acceptance.json").write_text(json.dumps(acceptance, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     _progress(progress_path, records, "complete")

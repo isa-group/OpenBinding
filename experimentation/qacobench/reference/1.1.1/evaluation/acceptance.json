@@ -1,0 +1,12 @@
+{
+  "duplicates": 0,
+  "evaluation": "gateway outcomes and returned bindings (validated by the gateway); exact labels are reconciled against the heuristic engines' validated scores with a 1e-9 tolerance",
+  "expected_runs": 46350,
+  "guaranteed_group_unsat_responses": 0,
+  "infrastructure_errors": 0,
+  "ok": true,
+  "optimal_beaten_by_other_engine": 0,
+  "runs": 46350,
+  "unique_triples": 46350,
+  "unsat_with_validated_binding": 0
+}

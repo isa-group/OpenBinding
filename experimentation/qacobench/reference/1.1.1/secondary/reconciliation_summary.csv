@@ -1,0 +1,11 @@
+subset,instances,MZN_OPTIMAL,MZN_FEASIBLE,MZN_UNSAT,MZN_TIMEOUT,MZN_INCOMPATIBLE,GA_binding,RS_binding,known_feasible(any engine),"unresolved(no engine binding, not UNSAT)",GA_miss_on_known_feasible,RS_miss_on_known_feasible,GA_binding_on_MZN_UNSAT,RS_binding_on_MZN_UNSAT,GA_binding_on_MZN_TIMEOUT,RS_binding_on_MZN_TIMEOUT,MZN_TIMEOUT_no_heuristic_binding,GA_better_than_MZN_OPTIMAL,RS_better_than_MZN_OPTIMAL
+qfbs:guaranteed,2600,2506,94,0,0,0,2600,2599,2600,0,0,1,0,0,0,0,0,0,0
+qfbs:non_guaranteed,2600,1759,42,799,0,0,1451,942,1801,0,350,859,0,0,0,0,0,0,0
+qfbs:all,5200,4265,136,799,0,0,4051,3541,4401,0,350,860,0,0,0,0,0,0,0
+01_icws,48,48,0,0,0,0,41,40,48,0,7,8,0,0,0,0,0,0,0
+02_quantum,46,46,0,0,0,0,46,46,46,0,0,0,0,0,0,0,0,0,0
+03_hsc_llm,10000,0,0,0,0,10000,10000,10000,10000,0,0,0,0,0,0,0,0,0,0
+04_rprsr15,60,17,43,0,0,0,60,60,60,0,0,0,0,0,0,0,0,0,0
+05_iots,6,6,0,0,0,0,6,6,6,0,0,0,0,0,0,0,0,0,0
+06_bws_scp,90,19,71,0,0,0,79,75,90,0,11,15,0,0,0,0,0,0,0
+corpus,15450,4401,250,799,0,10000,14283,13768,14651,0,368,883,0,0,0,0,0,0,0

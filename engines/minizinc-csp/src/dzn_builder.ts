@@ -1,4 +1,5 @@
-import { fmt, fmt2d } from './encoders/format';
+import { fmt, fmt2d, fmt2dF, fmtF, fmtFloat } from './encoders/format';
+import { relaxLiteral, widenBound } from './numeric';
 import { buildPlacementEncoding } from './placement';
 
 export interface CandidateRef { resource: string; id: string }
@@ -9,6 +10,21 @@ export interface DznBuildResult {
   metrics: string[];
   tasks: string[];
   candidates: CandidateRef[];
+  /** Lowering facts that explain how multiplicative features were encoded. */
+  encoding: {
+    productConstraints: 'log' | 'real';
+    flatProducts: number;
+    logSpaceMetrics: string[];
+    logSpaceAtoms: number;
+    realSpaceProductAtoms: number;
+    softConstraints: number;
+    /** Capacity checks posted as native bin-packing columns / total capacity checks. */
+    binPackingColumns: number;
+    binPackingChecks: number;
+    capacityChecks: number;
+    /** Comparison literals moved by the numeric slack in the feasible direction (see numeric.ts). */
+    relaxedLiterals: number;
+  };
 }
 
 type CandidateEntry = {
@@ -19,10 +35,42 @@ type CandidateEntry = {
   properties: Record<string, string | number | boolean | null>;
 };
 
+type WorkflowRow = { kind: number; task: number; children: number[]; weights: number[]; repeat: number; source: any; pointer: string };
+
+type FlatProduct = {
+  node: number;
+  metric: number;
+  constant: number;
+  logConstant: number;
+  exponents: number[];
+};
+
+type Operand = {
+  kind: number; index: number; value: number; values: number[]; type: string;
+  rawValue: unknown; rawValues: unknown[];
+};
+
+const AGGREGATION_CODES: Record<string, Record<string, number>> = {
+  sequence: { sum: 1, product: 2, min: 3, max: 4 },
+  parallel: { sum: 1, product: 2, min: 3, max: 4 },
+  exclusive: { weightedSum: 5, weightedProduct: 7, min: 3, max: 4 },
+  repeat: { scale: 6, power: 9, identity: 8 },
+  selection: { sum: 1, product: 2, min: 3, max: 4 },
+};
+const PRODUCT_FAMILY: Record<string, Set<string>> = {
+  sequence: new Set(['product']),
+  parallel: new Set(['product']),
+  exclusive: new Set(['weightedProduct']),
+  repeat: new Set(['power', 'identity']),
+};
+/** Gap (in log units) separating "a zero factor was selected" from every all-positive selection. */
+const ZERO_GAP = 10;
+
 /** Strict lowering for the exact subset declared by the minizinc-csp manifest. */
 export class DznBuilder {
-  build(problem: any, _options: any = {}, executionOptimization?: any): DznBuildResult {
+  build(problem: any, options: any = {}, executionOptimization?: any): DznBuildResult {
     this.requireProblem(problem);
+    const productConstraints: 'log' | 'real' = options?.product_constraints === 'real' ? 'real' : 'log';
     const spec = problem.spec;
     const application = spec.application;
     const taskEntries = Object.entries(application.tasks || {}) as Array<[string, any]>;
@@ -49,7 +97,8 @@ export class DznBuilder {
     const metricEntries = encodedMetricIds.map((id) => [id, appFeatures[id]] as [string, any]);
     const metrics = metricEntries.map(([id]) => id);
     if (metrics.length === 0) throw new Error('MiniZinc requires at least one feature');
-    for (const [id, metric] of metricEntries) this.validateMetric(id, metric);
+    const activeContexts = this.activeContexts(application.workflow);
+    for (const [id, metric] of metricEntries) this.validateMetric(id, metric, activeContexts);
     const routing = this.routing(spec.routing);
     const usedRouting = new Set<string>();
 
@@ -81,23 +130,32 @@ export class DznBuilder {
         return index;
       }));
     }
+    // Value ordering: list each task's candidates from the most to the least promising
+    // (estimated weighted loss of the candidate's own values), so that the solver's
+    // in-order value selection reaches good incumbents early.
+    this.orderEligibility(eligibility, candidates, metrics, spec.optimization, executionOptimization);
     const maxCandidatesPerTask = tasks.length === 0
       ? 1 : Math.max(...eligibility.map((values) => values.length));
     const paddedEligibility = eligibility.map((values) => [
       ...values,
       ...Array(maxCandidatesPerTask - values.length).fill(values[0]),
     ]);
+    const candidateTaskCount = new Map<number, number>();
+    for (const values of eligibility) {
+      for (const candidate of values) candidateTaskCount.set(candidate, (candidateTaskCount.get(candidate) || 0) + 1);
+    }
+    const selectionDisjoint = [...candidateTaskCount.values()].every((count) => count <= 1);
 
     const candidateMetric = candidates.map((candidate) => metrics.map((metric) => {
       const value = Number(candidate.features?.[metric] ?? candidate.metrics?.[metric]);
       if (!Number.isFinite(value)) throw new Error(`Candidate '${candidate.ref.resource}:${candidate.ref.id}' is missing finite feature '${metric}'`);
       return value;
     }));
-    const nodes: Array<{ kind: number; task: number; children: number[]; weights: number[]; repeat: number }> = [];
+    const nodes: WorkflowRow[] = [];
     const visit = (node: any, pointer: string): number => {
       if (!node || typeof node !== 'object') throw new Error('Workflow node must be an object');
       const index = nodes.length + 1;
-      const row = { kind: 0, task: 0, children: [] as number[], weights: [] as number[], repeat: 0 };
+      const row: WorkflowRow = { kind: 0, task: 0, children: [], weights: [], repeat: 0, source: node, pointer };
       nodes.push(row);
       if (node.kind === 'task') {
         this.requireRef(node.task, 'workflow.task');
@@ -136,9 +194,9 @@ export class DznBuilder {
         const total = row.weights.reduce((sum, value) => sum + value, 0);
         if (Math.abs(total - 1) > 1e-12) throw new Error('XOR routing probabilities must sum to 1');
       } else if (node.kind === 'repeat') {
-        if (node.expectedCount !== undefined) throw new Error('MiniZinc mode does not support expectedCount; use exact repeat.count');
-        const count = Number(node.count);
-        if (!Number.isInteger(count) || count < 0) throw new Error('repeat.count must be a non-negative integer');
+        const count = Number(node.expectedCount !== undefined ? node.expectedCount : node.count);
+        if (!Number.isFinite(count) || count < 0) throw new Error('repeat count must be a finite non-negative number');
+        if (node.expectedCount === undefined && !Number.isInteger(count)) throw new Error('repeat.count must be a non-negative integer');
         row.kind = 6;
         row.repeat = count;
         row.children = [visit(node.body, `${pointer}/body`)];
@@ -151,20 +209,199 @@ export class DznBuilder {
     const root = visit(application.workflow, '/spec/application/workflow');
     const unknownRouting = [...routing.keys()].filter((key) => !usedRouting.has(key));
     if (unknownRouting.length) throw new Error('Routing contains targets outside the executable workflow');
+
+    // ---- Multiplicative features: flatten maximal pure-product subtrees.
+    const flats: FlatProduct[] = [];
+    const nodeFlat: number[][] = nodes.map(() => metrics.map(() => 0));
+    const eligibleAbsMax = (task: number, metricPosition: number): number =>
+      Math.max(0, ...eligibility[task - 1].map((candidate) => Math.abs(candidateMetric[candidate - 1][metricPosition])));
+    metricEntries.forEach(([metricId, metric], metricPosition) => {
+      if (metric.scope !== 'invocation') {
+        // Selected-candidate features never read the workflow tree: mark every node unused.
+        nodes.forEach((_row, index) => { nodeFlat[index][metricPosition] = -1; });
+        return;
+      }
+      const pure = new Map<number, boolean>();
+      const isPure = (nodeIndex: number): boolean => {
+        const cached = pure.get(nodeIndex);
+        if (cached !== undefined) return cached;
+        const row = nodes[nodeIndex - 1];
+        let result: boolean;
+        if (row.kind === 1 || row.kind === 2) result = true;
+        else if (row.kind === 3) result = metric.aggregation.sequence === 'product' && row.children.every(isPure);
+        else if (row.kind === 4) result = metric.aggregation.parallel === 'product' && row.children.every(isPure);
+        else if (row.kind === 5) result = metric.aggregation.exclusive === 'weightedProduct' && row.children.every(isPure);
+        else result = (metric.aggregation.repeat === 'power' || metric.aggregation.repeat === 'identity') && row.children.every(isPure);
+        pure.set(nodeIndex, result);
+        return result;
+      };
+      const markInside = (nodeIndex: number): void => {
+        for (const child of nodes[nodeIndex - 1].children) {
+          nodeFlat[child - 1][metricPosition] = -1;
+          markInside(child);
+        }
+      };
+      const collect = (nodeIndex: number, multiplier: number, flat: FlatProduct): void => {
+        const row = nodes[nodeIndex - 1];
+        if (row.kind === 1) {
+          const neutral = Number(metric.neutral);
+          if (neutral < 0 && !Number.isInteger(multiplier)) {
+            throw new Error(`Feature '${metricId}' raises a negative neutral to a fractional exponent`);
+          }
+          flat.constant *= neutral ** multiplier;
+        } else if (row.kind === 2) {
+          flat.exponents[row.task - 1] += multiplier;
+        } else if (row.kind === 5) {
+          row.children.forEach((child, index) => collect(child, multiplier * row.weights[index], flat));
+        } else if (row.kind === 6) {
+          const factor = metric.aggregation.repeat === 'identity' ? 1 : row.repeat;
+          collect(row.children[0], multiplier * factor, flat);
+        } else {
+          for (const child of row.children) collect(child, multiplier, flat);
+        }
+      };
+      const place = (nodeIndex: number): void => {
+        const row = nodes[nodeIndex - 1];
+        if (row.kind >= 3 && isPure(nodeIndex)) {
+          const flat: FlatProduct = {
+            node: nodeIndex, metric: metricPosition + 1, constant: 1, logConstant: 0,
+            exponents: tasks.map(() => 0),
+          };
+          collect(nodeIndex, 1, flat);
+          if (!Number.isFinite(flat.constant)) throw new Error(`Feature '${metricId}' has a non-finite neutral product`);
+          for (let task = 1; task <= tasks.length; task += 1) {
+            const exponent = flat.exponents[task - 1];
+            if (exponent === 0 || Number.isInteger(exponent)) continue;
+            if (eligibility[task - 1].some((candidate) => candidateMetric[candidate - 1][metricPosition] < 0)) {
+              throw new Error(`Feature '${metricId}' raises a negative candidate value of task '${tasks[task - 1]}' to a fractional exponent`);
+            }
+          }
+          flats.push(flat);
+          nodeFlat[nodeIndex - 1][metricPosition] = flats.length;
+          markInside(nodeIndex);
+          return;
+        }
+        if (row.kind === 5 && metric.aggregation.exclusive === 'weightedProduct') {
+          throw new Error(`Feature '${metricId}' applies exclusive.weightedProduct to a branch that is not a pure product`);
+        }
+        if (row.kind === 6 && metric.aggregation.repeat === 'power' && !Number.isInteger(row.repeat)) {
+          throw new Error(`Feature '${metricId}' applies repeat.power with a fractional count to a body that is not a pure product`);
+        }
+        for (const child of row.children) place(child);
+      };
+      place(root);
+    });
+
+    // ---- Bounds on |value| for every node and metric (0 for nodes inside flat products).
     let nodeMetricBound = 1;
     const metricBounds = new Map<string, number>();
+    const nodeBound = (nodeIndex: number, metricPosition: number, metric: any, candidateBound: number, all: number[]): number => {
+      const row = nodes[nodeIndex - 1];
+      const flat = nodeFlat[nodeIndex - 1][metricPosition];
+      let bound: number;
+      if (flat < 0) {
+        bound = 0;
+        for (const child of row.children) nodeBound(child, metricPosition, metric, candidateBound, all);
+      } else if (flat > 0) {
+        const descriptor = flats[flat - 1];
+        bound = Math.abs(descriptor.constant);
+        descriptor.exponents.forEach((exponent, task) => {
+          if (exponent !== 0) bound *= eligibleAbsMax(task + 1, metricPosition) ** exponent;
+        });
+        for (const child of row.children) nodeBound(child, metricPosition, metric, candidateBound, all);
+      } else if (row.kind === 1) bound = Math.abs(Number(metric.neutral));
+      else if (row.kind === 2) bound = eligibleAbsMax(row.task, metricPosition);
+      else if (row.kind === 3 || row.kind === 4) {
+        const values = row.children.map((child) => nodeBound(child, metricPosition, metric, candidateBound, all));
+        const operation = row.kind === 3 ? metric.aggregation.sequence : metric.aggregation.parallel;
+        bound = operation === 'sum' ? values.reduce((sum, value) => sum + value, 0)
+          : operation === 'product' ? values.reduce((product, value) => product * value, 1)
+            : Math.max(0, ...values);
+      } else if (row.kind === 5) {
+        const values = row.children.map((child) => nodeBound(child, metricPosition, metric, candidateBound, all));
+        const operation = metric.aggregation.exclusive;
+        bound = operation === 'weightedSum'
+          ? values.reduce((sum, value, index) => sum + Math.abs(row.weights[index]) * value, 0)
+          : operation === 'weightedProduct'
+            ? values.reduce((product, value, index) => product * (value ** row.weights[index]), 1)
+            : Math.max(0, ...values);
+      } else {
+        const body = nodeBound(row.children[0], metricPosition, metric, candidateBound, all);
+        const operation = metric.aggregation.repeat;
+        bound = operation === 'identity' ? body : operation === 'scale' ? body * row.repeat : body ** row.repeat;
+      }
+      all.push(bound);
+      return bound;
+    };
+    const selectionBound = (metricPosition: number, metric: any): number => {
+      const operation = metric.aggregation.selection;
+      const perTask = tasks.map((_task, index) => eligibleAbsMax(index + 1, metricPosition));
+      if (operation === 'sum') return perTask.reduce((sum, value) => sum + value, 0);
+      if (operation === 'product') return perTask.reduce((product, value) => product * Math.max(1, value), 1);
+      return Math.max(0, ...perTask);
+    };
     metricEntries.forEach(([metricId, metric], metricPosition) => {
-      const candidateBound = Math.max(...candidateMetric.map((row) => Math.abs(row[metricPosition])));
-      const nodeBounds: number[] = [];
-      const bound = this.workflowBound(application.workflow, '/spec/application/workflow', metric,
-        application, spec.sourceMap, routing, candidateBound, nodeBounds);
-      if (!Number.isFinite(bound) || bound > 1e100
-          || nodeBounds.some((value) => !Number.isFinite(value) || value > 1e100)) {
+      const candidateBound = Math.max(0, ...candidateMetric.map((row) => Math.abs(row[metricPosition])));
+      const all: number[] = [];
+      const bound = metric.scope === 'selectedCandidate'
+        ? selectionBound(metricPosition, metric)
+        : nodeBound(root, metricPosition, metric, candidateBound, all);
+      all.push(Math.abs(Number(metric.neutral)));
+      if (!Number.isFinite(bound) || bound > 1e100 || all.some((value) => !Number.isFinite(value) || value > 1e100)) {
         throw new Error(`Metric '${metricId}' exceeds the finite MiniZinc numeric domain`);
       }
-      metricBounds.set(metricId, bound);
-      for (const value of nodeBounds) nodeMetricBound = Math.max(nodeMetricBound, value);
+      metricBounds.set(metricId, Math.max(bound, Math.abs(Number(metric.neutral))));
+      for (const value of all) nodeMetricBound = Math.max(nodeMetricBound, value);
     });
+
+    // ---- Log-space availability, zero substitutes and bounds.
+    const logAvailable: boolean[] = metrics.map(() => false);
+    const zeroLog: number[] = metrics.map(() => 0);
+    const logThreshold: number[] = metrics.map(() => 0);
+    const hasZero: boolean[] = metrics.map(() => false);
+    let logMetricBound = 1;
+    metricEntries.forEach(([, metric], metricPosition) => {
+      let exponents: number[] | null = null;
+      let constant = 1;
+      if (metric.scope === 'selectedCandidate') {
+        if (metric.aggregation.selection === 'product') exponents = tasks.map(() => 1);
+      } else {
+        const flat = nodeFlat[root - 1][metricPosition];
+        if (flat > 0) { exponents = flats[flat - 1].exponents; constant = flats[flat - 1].constant; }
+      }
+      if (!exponents || constant <= 0 || !Number.isFinite(constant)) return;
+      let magnitude = Math.abs(Math.log(constant));
+      let minExponent = Infinity;
+      let zero = false;
+      let representable = true;
+      exponents.forEach((exponent, task) => {
+        if (exponent === 0) return;
+        minExponent = Math.min(minExponent, exponent);
+        let positiveMax = 0;
+        for (const candidate of eligibility[task]) {
+          const value = candidateMetric[candidate - 1][metricPosition];
+          if (value < 0) representable = false;
+          else if (value === 0) zero = true;
+          else positiveMax = Math.max(positiveMax, Math.abs(Math.log(value)));
+        }
+        magnitude += exponent * positiveMax;
+      });
+      if (!representable || !Number.isFinite(magnitude) || !Number.isFinite(minExponent)) return;
+      const zeroSubstitute = (2 * magnitude + ZERO_GAP) / minExponent;
+      logAvailable[metricPosition] = true;
+      hasZero[metricPosition] = zero;
+      zeroLog[metricPosition] = -zeroSubstitute;
+      logThreshold[metricPosition] = -magnitude - ZERO_GAP / 2;
+      const totalExponent = exponents.reduce((sum, exponent) => sum + exponent, 0);
+      logMetricBound = Math.max(logMetricBound, Math.abs(Math.log(constant)) + totalExponent * Math.max(magnitude, zeroSubstitute) + 1);
+    });
+    flats.forEach((flat) => {
+      flat.logConstant = logAvailable[flat.metric - 1] && flat.node === root ? Math.log(flat.constant) : 0;
+    });
+    if (!Number.isFinite(logMetricBound) || logMetricBound > 1e100) {
+      throw new Error('Log-space product features exceed the finite MiniZinc numeric domain');
+    }
+
     const maxChildren = Math.max(1, ...nodes.map((node) => node.children.length));
     const nodeChildren = nodes.map((node) => [...node.children, ...Array(maxChildren - node.children.length).fill(1)]);
     const nodeWeights = nodes.map((node) => [...node.weights, ...Array(maxChildren - node.weights.length).fill(0)]);
@@ -176,14 +413,21 @@ export class DznBuilder {
       this.aggregationCode(metric.aggregation.repeat, 'repeat', metricId),
     ]);
 
-    const constraints = this.constraints(spec.constraints || [], metricIndex, taskIndex, candidates);
     const optimization = this.optimization(spec.optimization, executionOptimization, application.resource, metricIndex);
-    const placement = buildPlacementEncoding(problem, candidates, tasks, metricIndex, optimization.penaltyWeight);
+    const constraints = this.constraints(spec.constraints || [], metricIndex, taskIndex, candidates,
+      optimization.penaltyWeight, {
+        productConstraints, logAvailable, hasZero, zeroLog, logThreshold, metricPositions: metrics,
+      });
+    const placement = buildPlacementEncoding(problem, candidates, tasks, metricIndex, optimization.penaltyWeight,
+      eligibility, selectionDisjoint);
     let objectiveBound = 0;
+    const termBounds: number[] = [];
     optimization.metric.forEach((metricPosition, index) => {
       const metricId = metrics[metricPosition - 1];
-      let termBound = placement.globalMetricModel[metricPosition - 1]
+      const rawBound = placement.globalMetricModel[metricPosition - 1]
         ? placement.timeBound : metricBounds.get(metricId) || 0;
+      termBounds.push(Math.max(1, rawBound));
+      let termBound = rawBound;
       if (optimization.hasNormalize[index]) {
         const range = optimization.max[index] - optimization.min[index];
         if (optimization.clamp[index]) {
@@ -198,10 +442,25 @@ export class DznBuilder {
       }
       objectiveBound += optimization.weight[index] * termBound;
     });
-    if (!Number.isFinite(objectiveBound) || objectiveBound > 1e100) {
+    const softBound = constraints.penalty.reduce((sum, value) => sum + value, 0);
+    if (!Number.isFinite(objectiveBound) || objectiveBound > 1e100 || !Number.isFinite(softBound)) {
       throw new Error('Weighted objective exceeds the finite MiniZinc numeric domain');
     }
-    objectiveBound = Math.max(1, objectiveBound + placement.penaltyBound);
+    // Margin: the objective is a float expression whose propagated bounds may exceed
+    // the mathematical bound by rounding; a slack of 1 keeps attainable values inside.
+    objectiveBound = Math.max(1, objectiveBound + placement.penaltyBound + softBound) + 1;
+
+    // Every technical bound printed below is widened (numeric.ts): MiniZinc prints float
+    // literals with 16 significant digits and Gecode propagates outward-rounded intervals,
+    // so a bound that is tight to the data (the sum of the largest latency of every task,
+    // the largest attainable cost) excludes exactly the extreme bindings it was computed
+    // from. The explicit `metric_bound` constraints of the model are the case the FlatZinc
+    // post-processing cannot repair: they leave the flattener as `float_le` constraints,
+    // not as declared domains, and `widenFloatDomains` must not touch those because it
+    // cannot tell them from user constraints. The first campaign recorded two false
+    // optima of this kind (qfbs_guaranteed_20_011 and _033).
+    const technicalMetricBound = (metricId: string, index: number): number =>
+      widenBound(Math.max(1, placement.globalMetricModel[index] ? placement.timeBound : metricBounds.get(metricId) || 0));
 
     const content = `
 n_tasks = ${tasks.length};
@@ -210,13 +469,18 @@ n_metrics = ${metrics.length};
 max_candidates_per_task = ${maxCandidatesPerTask};
 n_task_candidates = ${fmt(eligibility.map((values) => values.length))};
 task_candidates = ${fmt2d(paddedEligibility)};
-candidate_metric = ${fmt2d(candidateMetric)};
-metric_neutral = ${fmt(metricEntries.map(([, metric]) => Number(metric.neutral)))};
+candidate_metric = ${fmt2dF(candidateMetric)};
+metric_neutral = ${fmtF(metricEntries.map(([, metric]) => Number(metric.neutral)))};
 metric_scope = ${fmt(metricEntries.map(([, metric]) => metric.scope === 'selectedCandidate' ? 2 : 1))};
+metric_bound = ${fmtF(metrics.map(technicalMetricBound))};
 selection_aggregation = ${fmt(metricEntries.map(([metricId, metric]) =>
     this.selectionAggregationCode(metric.aggregation.selection, metricId)))};
-node_metric_bound = ${nodeMetricBound};
-objective_bound = ${objectiveBound};
+node_metric_bound = ${fmtFloat(widenBound(nodeMetricBound))};
+objective_bound = ${fmtFloat(widenBound(objectiveBound))};
+metric_log_available = ${fmt(logAvailable)};
+metric_zero_log = ${fmtF(zeroLog)};
+log_metric_bound = ${fmtFloat(widenBound(logMetricBound))};
+selection_disjoint = ${selectionDisjoint};
 
 root_node = ${root};
 n_nodes = ${nodes.length};
@@ -225,60 +489,78 @@ node_kind = ${fmt(nodes.map((node) => node.kind))};
 node_task = ${fmt(nodes.map((node) => node.task))};
 node_child_count = ${fmt(nodes.map((node) => node.children.length))};
 node_children = ${fmt2d(nodeChildren)};
-node_weights = ${fmt2d(nodeWeights)};
-node_repeat_count = ${fmt(nodes.map((node) => node.repeat))};
+node_weights = ${fmt2dF(nodeWeights)};
+node_repeat_count = ${fmtF(nodes.map((node) => node.repeat))};
 aggregation = ${fmt2d(aggregationCodes)};
 
-n_constraints = ${constraints.operator.length};
-constraint_operator = ${fmt(constraints.operator)};
-constraint_left_kind = ${fmt(constraints.leftKind)};
-constraint_left_index = ${fmt(constraints.leftIndex)};
-constraint_left_value = ${fmt(constraints.leftValue)};
-constraint_left_candidate_value = ${fmt2d(constraints.leftCandidateValue)};
-constraint_right_kind = ${fmt(constraints.rightKind)};
-constraint_right_index = ${fmt(constraints.rightIndex)};
-constraint_right_value = ${fmt(constraints.rightValue)};
-constraint_right_candidate_value = ${fmt2d(constraints.rightCandidateValue)};
+n_flat = ${flats.length};
+flat_metric = ${fmt(flats.map((flat) => flat.metric))};
+flat_constant = ${fmtF(flats.map((flat) => flat.constant))};
+flat_log_constant = ${fmtF(flats.map((flat) => flat.logConstant))};
+flat_exponent = ${this.fmt2dFixed(flats.map((flat) => flat.exponents.map(fmtFloat)), tasks.length)};
+node_flat = ${fmt2d(nodeFlat)};
+
+n_constraints = ${constraints.enforcement.length};
+constraint_enforcement = ${fmt(constraints.enforcement)};
+constraint_penalty = ${fmtF(constraints.penalty)};
+n_atoms = ${constraints.operator.length};
+atom_constraint = ${fmt(constraints.constraintOf)};
+atom_operator = ${fmt(constraints.operator)};
+atom_left_kind = ${fmt(constraints.leftKind)};
+atom_left_index = ${fmt(constraints.leftIndex)};
+atom_left_value = ${fmtF(constraints.leftValue)};
+atom_left_candidate_value = ${this.fmt2dFixed(constraints.leftCandidateValue.map((row) => row.map(fmtFloat)), candidates.length)};
+atom_right_kind = ${fmt(constraints.rightKind)};
+atom_right_index = ${fmt(constraints.rightIndex)};
+atom_right_value = ${fmtF(constraints.rightValue)};
+atom_right_candidate_value = ${this.fmt2dFixed(constraints.rightCandidateValue.map((row) => row.map(fmtFloat)), candidates.length)};
 
 n_terms = ${optimization.metric.length};
 term_metric = ${fmt(optimization.metric)};
-term_weight = ${fmt(optimization.weight)};
+term_weight = ${fmtF(optimization.weight)};
 term_direction = ${fmt(optimization.direction)};
 term_has_normalize = ${fmt(optimization.hasNormalize)};
-term_min = ${fmt(optimization.min)};
-term_max = ${fmt(optimization.max)};
+term_min = ${fmtF(optimization.min)};
+term_max = ${fmtF(optimization.max)};
 term_clamp = ${fmt(optimization.clamp)};
+term_bound = ${fmtF(termBounds.map(widenBound))};
 
 n_pool_slots = ${placement.poolModel.length};
 candidate_model = ${fmt(placement.candidateModel)};
 candidate_pool = ${fmt(placement.candidatePool)};
 pool_model = ${fmt(placement.poolModel)};
-pool_latency = ${fmt2d(placement.poolLatency)};
+pool_latency = ${fmt2dF(placement.poolLatency)};
 n_events = ${placement.eventModel.length};
 event_model = ${fmt(placement.eventModel)};
 event_pool = ${fmt(placement.eventPool)};
-event_latency = ${fmt2d(placement.eventLatency)};
-task_invocation = ${fmt(placement.taskInvocation)};
+event_latency = ${fmt2dF(placement.eventLatency)};
+task_invocation = ${fmtF(placement.taskInvocation)};
 n_capacity_checks = ${placement.capacityPool.length};
+n_capacity_resources = ${placement.capacityResources};
 capacity_pool = ${fmt(placement.capacityPool)};
 capacity_scope = ${fmt(placement.capacityScope)};
-capacity_limit = ${fmt(placement.capacityLimit)};
-capacity_demand = ${fmt2d(placement.capacityDemand)};
+capacity_column = ${fmt(placement.capacityColumn)};
+capacity_limit = ${fmtF(placement.capacityLimit.map((limit) => relaxLiteral(limit, 1)))};
+candidate_resource_demand = ${this.fmt2dFixed(placement.candidateResourceDemand.map((row) => row.map(fmtFloat)), placement.capacityResources)};
+n_bin_columns = ${placement.binWeights.length};
+bin_weight = ${this.fmt2dFixed(placement.binWeights.map((row) => row.map(String)), tasks.length)};
+bin_capacity = ${this.fmt2dFixed(placement.binCapacities.map((row) => row.map(String)), placement.poolModel.length)};
+capacity_in_bin = ${fmt(placement.capacityInBin)};
 n_transitions = ${placement.transitionModel.length};
 transition_model = ${fmt(placement.transitionModel)};
 transition_from_kind = ${fmt(placement.transitionFromKind)};
 transition_from = ${fmt(placement.transitionFrom)};
 transition_to_kind = ${fmt(placement.transitionToKind)};
 transition_to = ${fmt(placement.transitionTo)};
-transition_maximum = ${fmt(placement.transitionMaximum)};
+transition_maximum = ${fmtF(placement.transitionMaximum.map((limit) => relaxLiteral(limit, 1)))};
 transition_hard = ${fmt(placement.transitionHard)};
-transition_penalty = ${fmt(placement.transitionPenalty)};
-placement_penalty_bound = ${placement.penaltyBound};
+transition_penalty = ${fmtF(placement.transitionPenalty)};
+placement_penalty_bound = ${fmtFloat(widenBound(placement.penaltyBound))};
 global_metric_model = ${fmt(placement.globalMetricModel)};
-placement_time_bound = ${placement.timeBound};
+placement_time_bound = ${fmtFloat(widenBound(placement.timeBound))};
 n_scenarios = ${placement.scenarioModel.length};
 scenario_model = ${fmt(placement.scenarioModel)};
-scenario_probability = ${fmt(placement.scenarioProbability)};
+scenario_probability = ${fmtF(placement.scenarioProbability)};
 scenario_ready = ${fmt(placement.scenarioReady)};
 n_activities = ${placement.activityModel.length};
 max_activity_predecessors = ${placement.maxPreds};
@@ -297,7 +579,68 @@ ready_base = ${fmt(placement.readyBase)};
 ready_child_count = ${fmt(placement.readyChildCount)};
 ready_children = ${fmt2d(placement.readyChildren)};
 `;
-    return { dznContent: content.trimStart(), features: metrics, metrics, tasks, candidates: candidates.map((candidate) => candidate.ref) };
+    return {
+      dznContent: content.trimStart(), features: metrics, metrics, tasks,
+      candidates: candidates.map((candidate) => candidate.ref),
+      encoding: {
+        productConstraints,
+        flatProducts: flats.length,
+        logSpaceMetrics: metrics.filter((_metric, index) => logAvailable[index]),
+        logSpaceAtoms: constraints.logSpaceAtoms,
+        realSpaceProductAtoms: constraints.realSpaceProductAtoms,
+        softConstraints: constraints.enforcement.filter((value) => value === 2).length,
+        binPackingColumns: placement.binWeights.length,
+        binPackingChecks: placement.capacityInBin.filter(Boolean).length,
+        capacityChecks: placement.capacityInBin.length,
+        relaxedLiterals: constraints.relaxedLiterals,
+      },
+    };
+  }
+
+  private orderEligibility(eligibility: number[][], candidates: CandidateEntry[], metrics: string[],
+      optimization: any, execution: any): void {
+    const weights = new Map<string, number>((execution?.weights || []).map((item: any) => [item.criteria, Number(item.value)]));
+    const terms = (optimization?.criteria || []).map((term: any) => ({
+      metric: term?.feature?.id, weight: weights.get(term?.id) || 0, minimize: term?.direction !== 'maximize',
+    })).filter((term: any) => typeof term.metric === 'string' && metrics.includes(term.metric) && term.weight > 0);
+    if (!terms.length) return;
+    for (const values of eligibility) {
+      const estimate = new Map<number, number>();
+      for (const candidate of values) estimate.set(candidate, 0);
+      for (const term of terms) {
+        const raw = values.map((candidate) => Number(candidates[candidate - 1].features?.[term.metric]));
+        if (raw.some((value) => !Number.isFinite(value))) continue;
+        const low = Math.min(...raw);
+        const high = Math.max(...raw);
+        if (!(high > low)) continue;
+        values.forEach((candidate, index) => {
+          const normalized = (raw[index] - low) / (high - low);
+          estimate.set(candidate, estimate.get(candidate)! + term.weight * (term.minimize ? normalized : 1 - normalized));
+        });
+      }
+      values.sort((a, b) => (estimate.get(a)! - estimate.get(b)!) || (a - b));
+    }
+  }
+
+  /** MiniZinc requires 2-D literals with a consistent column count, including the empty case. */
+  private fmt2dFixed(rows: any[][], columns: number): string {
+    if (rows.length === 0 || columns === 0) return `array2d(1..${rows.length}, 1..${columns}, [])`;
+    return fmt2d(rows);
+  }
+
+  private activeContexts(workflow: any): Set<string> {
+    const contexts = new Set<string>();
+    const visit = (node: any): void => {
+      if (!node || typeof node !== 'object') return;
+      if (node.kind === 'sequence') { contexts.add('sequence'); (node.steps || []).forEach(visit); }
+      else if (node.kind === 'parallel') { contexts.add('parallel'); (node.branches || []).forEach(visit); }
+      else if (node.kind === 'exclusive') {
+        contexts.add('exclusive');
+        (node.branches || []).forEach((branch: any) => visit(branch?.flow));
+      } else if (node.kind === 'repeat') { contexts.add('repeat'); visit(node.body); }
+    };
+    visit(workflow);
+    return contexts;
   }
 
   private requireProblem(problem: any): void {
@@ -342,7 +685,7 @@ ready_children = ${fmt2d(placement.readyChildren)};
     }
   }
 
-  private validateMetric(id: string, metric: any): void {
+  private validateMetric(id: string, metric: any, activeContexts: Set<string>): void {
     if (!metric || !['invocation', 'selectedCandidate'].includes(metric.scope)) {
       throw new Error(`MiniZinc mode does not support metric scope '${String(metric?.scope)}' (metric '${id}')`);
     }
@@ -353,9 +696,20 @@ ready_children = ${fmt2d(placement.readyChildren)};
     if (!aggregation || typeof aggregation !== 'object' || Array.isArray(aggregation)) {
       throw new Error(`Metric '${id}' requires materialized aggregation IR`);
     }
+    const active = metric.scope === 'selectedCandidate' ? new Set(['selection']) : activeContexts;
     for (const key of ['sequence', 'parallel', 'exclusive', 'repeat', 'selection']) {
       if (aggregation[key] === undefined) throw new Error(`Metric '${id}' is missing aggregation.${key}`);
+      if (!active.has(key)) continue;
       if (typeof aggregation[key] !== 'string') throw new Error(`MiniZinc does not support aggregation expressions (${id}.${key})`);
+      if (!AGGREGATION_CODES[key][aggregation[key]]) {
+        throw new Error(`MiniZinc does not support aggregation '${aggregation[key]}' at ${id}.${key}`);
+      }
+    }
+    for (const key of ['sequence', 'parallel', 'exclusive', 'repeat', 'selection']) {
+      // Inactive contexts are only required to be well-formed; they never execute.
+      if (typeof aggregation[key] !== 'string' && !(typeof aggregation[key] === 'object' && aggregation[key] !== null)) {
+        throw new Error(`Metric '${id}' has a malformed aggregation.${key}`);
+      }
     }
   }
 
@@ -413,60 +767,175 @@ ready_children = ${fmt2d(placement.readyChildren)};
   }
 
   private constraints(items: any[], metricIndex: Map<string, number>, taskIndex: Map<string, number>,
-      candidates: CandidateEntry[]) {
+      candidates: CandidateEntry[], penaltyWeight: Map<string, number>, logSpace: {
+        productConstraints: 'log' | 'real'; logAvailable: boolean[]; hasZero: boolean[]; zeroLog: number[];
+        logThreshold: number[]; metricPositions: string[];
+      }) {
     const result = {
+      enforcement: [] as number[], penalty: [] as number[],
+      constraintOf: [] as number[],
       operator: [] as number[], leftKind: [] as number[], leftIndex: [] as number[], leftValue: [] as number[],
       leftCandidateValue: [] as number[][], rightKind: [] as number[], rightIndex: [] as number[],
       rightValue: [] as number[], rightCandidateValue: [] as number[][],
+      logSpaceAtoms: 0, realSpaceProductAtoms: 0, relaxedLiterals: 0,
     };
     const opCode: Record<string, number> = { lte: 1, gte: 2, eq: 3, lt: 4, gt: 5, ne: 6 };
+    const flipped: Record<string, string> = { lte: 'gte', gte: 'lte', eq: 'eq', lt: 'gt', gt: 'lt', ne: 'ne' };
     for (const constraint of items) {
       this.requireRef(constraint?.ref, 'constraint.ref');
-      if (constraint.enforcement !== 'hard') throw new Error(`MiniZinc does not support soft constraint '${constraint.ref.id}'`);
-      if (constraint.penalty !== undefined) throw new Error(`Hard constraint '${constraint.ref.id}' cannot have penalty`);
+      const constraintId = constraint.ref.id;
+      if (!['hard', 'soft'].includes(constraint.enforcement)) {
+        throw new Error(`Constraint '${constraintId}' has an unsupported enforcement`);
+      }
       if (constraint.when?.kind !== 'literal' || constraint.when.value !== true) {
-        throw new Error(`MiniZinc does not support conditional constraint '${constraint.ref.id}'`);
+        throw new Error(`MiniZinc does not support conditional constraint '${constraintId}'`);
       }
-      const assertion = constraint.assert;
-      if (!assertion || assertion.kind !== 'compare' || !opCode[assertion.op]) {
-        throw new Error(`MiniZinc supports only hard comparisons (constraint '${constraint.ref.id}')`);
+      let weightedPenalty = 0;
+      if (constraint.enforcement === 'soft') {
+        const penalty = constraint.penalty;
+        if (!penalty || penalty.kind !== 'literal' || typeof penalty.value !== 'number'
+            || !Number.isFinite(penalty.value) || penalty.value < 0) {
+          throw new Error(`MiniZinc supports only constant non-negative soft penalties (constraint '${constraintId}')`);
+        }
+        weightedPenalty = Number(penalty.value) * (penaltyWeight.get(this.refKey(constraint.ref)) || 0);
+      } else if (constraint.penalty !== undefined) {
+        throw new Error(`Hard constraint '${constraintId}' cannot have penalty`);
       }
-      const left = this.constraintOperand(assertion.left, metricIndex, taskIndex, candidates, constraint.ref.id);
-      const right = this.constraintOperand(assertion.right, metricIndex, taskIndex, candidates, constraint.ref.id);
-      if (left.type !== right.type || (!['number', 'string'].includes(left.type)
-          && !['eq', 'ne'].includes(assertion.op))) {
-        throw new Error(`Constraint '${constraint.ref.id}' compares incompatible operand types`);
-      }
-      if (left.type === 'string' || left.type === 'ref') {
-        const values = [...left.rawValues, ...right.rawValues].map(String);
-        const ordered = [...new Set(values)].sort((a, b) => {
-          const aa = [...a], bb = [...b];
-          for (let index = 0; index < Math.min(aa.length, bb.length); index += 1) {
-            const difference = aa[index].codePointAt(0)! - bb[index].codePointAt(0)!;
-            if (difference) return difference;
+      const atoms: any[] = [];
+      const collect = (node: any): void => {
+        if (node?.kind === 'and') { collect(node.left); collect(node.right); return; }
+        atoms.push(node);
+      };
+      collect(constraint.assert);
+      result.enforcement.push(constraint.enforcement === 'hard' ? 1 : 2);
+      result.penalty.push(weightedPenalty);
+      const constraintPosition = result.enforcement.length;
+      for (const assertion of atoms) {
+        if (!assertion || assertion.kind !== 'compare' || !opCode[assertion.op]) {
+          throw new Error(`MiniZinc supports only (conjunctions of) comparisons (constraint '${constraintId}')`);
+        }
+        let op: string = assertion.op;
+        let left = this.constraintOperand(assertion.left, metricIndex, taskIndex, candidates, constraintId);
+        let right = this.constraintOperand(assertion.right, metricIndex, taskIndex, candidates, constraintId);
+        if (left.type !== right.type || (!['number', 'string'].includes(left.type)
+            && !['eq', 'ne'].includes(assertion.op))) {
+          throw new Error(`Constraint '${constraintId}' compares incompatible operand types`);
+        }
+        if (left.type === 'string' || left.type === 'ref') {
+          const values = [...left.rawValues, ...right.rawValues].map(String);
+          const ordered = [...new Set(values)].sort((a, b) => {
+            const aa = [...a], bb = [...b];
+            for (let index = 0; index < Math.min(aa.length, bb.length); index += 1) {
+              const difference = aa[index].codePointAt(0)! - bb[index].codePointAt(0)!;
+              if (difference) return difference;
+            }
+            return aa.length - bb.length;
+          });
+          const code = new Map(ordered.map((value, index) => [value, index + 1]));
+          left.values = left.rawValues.map((value) => code.get(String(value))!);
+          right.values = right.rawValues.map((value) => code.get(String(value))!);
+          left.value = code.get(String(left.rawValue)) || 0;
+          right.value = code.get(String(right.rawValue)) || 0;
+        }
+        if (left.type === 'number') {
+          // Put a log-representable product metric on the left so that the rewrite has one shape.
+          const isLogMetric = (operand: Operand): boolean => operand.kind === 1 && logSpace.logAvailable[operand.index - 1];
+          if (!isLogMetric(left) && isLogMetric(right)) {
+            [left, right] = [right, left];
+            op = flipped[op];
           }
-          return aa.length - bb.length;
-        });
-        const code = new Map(ordered.map((value, index) => [value, index + 1]));
-        left.values = left.rawValues.map((value) => code.get(String(value))!);
-        right.values = right.rawValues.map((value) => code.get(String(value))!);
-        left.value = code.get(String(left.rawValue)) || 0;
-        right.value = code.get(String(right.rawValue)) || 0;
+          if (isLogMetric(left)) {
+            const rewritten = logSpace.productConstraints === 'log'
+              ? this.logSpaceAtom(left, op, right, logSpace, candidates.length) : null;
+            if (rewritten) {
+              [left, op, right] = rewritten;
+              result.logSpaceAtoms += 1;
+            } else {
+              result.realSpaceProductAtoms += 1;
+            }
+          }
+          if (this.relaxComparison(left, op, right)) result.relaxedLiterals += 1;
+        }
+        result.constraintOf.push(constraintPosition);
+        result.operator.push(opCode[op]);
+        result.leftKind.push(left.kind); result.leftIndex.push(left.index); result.leftValue.push(left.value);
+        result.leftCandidateValue.push(left.values);
+        result.rightKind.push(right.kind); result.rightIndex.push(right.index); result.rightValue.push(right.value);
+        result.rightCandidateValue.push(right.values);
       }
-      result.operator.push(opCode[assertion.op]);
-      result.leftKind.push(left.kind); result.leftIndex.push(left.index); result.leftValue.push(left.value);
-      result.leftCandidateValue.push(left.values);
-      result.rightKind.push(right.kind); result.rightIndex.push(right.index); result.rightValue.push(right.value);
-      result.rightCandidateValue.push(right.values);
     }
     return result;
   }
 
+  /**
+   * Rewrite `P op X` (P a log-representable product metric) into log space.
+   * Returns null when the comparison must stay in real space.
+   */
+  private logSpaceAtom(left: Operand, op: string, right: Operand, logSpace: {
+      logAvailable: boolean[]; hasZero: boolean[]; zeroLog: number[]; logThreshold: number[];
+    }, candidateCount: number): [Operand, string, Operand] | null {
+    const metricPosition = left.index - 1;
+    const threshold = logSpace.logThreshold[metricPosition];
+    const literalAtom = (truth: boolean): [Operand, string, Operand] => [
+      this.literalOperand(1, candidateCount), 'eq', this.literalOperand(truth ? 1 : 0, candidateCount)];
+    const logMetric: Operand = { ...left, kind: 4, values: left.values.map(() => 0) };
+    if (right.kind === 3) {
+      const value = right.value;
+      if (value > 0) {
+        return [logMetric, op, this.literalOperand(Math.max(Math.log(value), threshold), candidateCount)];
+      }
+      if (value === 0) {
+        // P >= 0 always holds; P > 0 / P != 0 mean "no zero factor"; P <= 0 / P == 0 mean "a zero factor".
+        if (op === 'gte') return literalAtom(true);
+        if (op === 'lt') return literalAtom(false);
+        if (op === 'gt' || op === 'ne') return [logMetric, 'gt', this.literalOperand(threshold, candidateCount)];
+        return [logMetric, 'lt', this.literalOperand(threshold, candidateCount)];
+      }
+      return literalAtom(op === 'gte' || op === 'gt' || op === 'ne');
+    }
+    if (logSpace.hasZero[metricPosition]) return null;
+    if (right.kind === 1) {
+      const otherPosition = right.index - 1;
+      if (!logSpace.logAvailable[otherPosition] || logSpace.hasZero[otherPosition]) return null;
+      return [logMetric, op, { ...right, kind: 4, values: right.values.map(() => 0) }];
+    }
+    if (right.kind === 2) {
+      if (right.values.some((value) => !(value > 0))) return null;
+      return [logMetric, op, { ...right, kind: 5, values: right.values.map((value) => Math.log(value)) }];
+    }
+    return null;
+  }
+
+  /**
+   * Move the literal side of a non-strict numeric comparison by the numeric slack in
+   * the direction that enlarges the feasible region (numeric.ts): `X <= L` raises `L`,
+   * `X >= L` lowers it, and the mirrored forms with the literal on the left do the
+   * opposite. MiniZinc prints the literal into the FlatZinc with 16 significant digits,
+   * so a limit that equals an attainable value exactly (a generated instance whose
+   * limit is the value of a reference binding) can otherwise come out one ulp below
+   * it and exclude the boundary binding. Strict comparisons and (in)equalities keep
+   * their literal: a boundary binding is infeasible for them anyway, and widening an
+   * equality has no single direction. Returns true when a literal moved.
+   */
+  private relaxComparison(left: Operand, op: string, right: Operand): boolean {
+    if (op !== 'lte' && op !== 'gte') return false;
+    const leftLiteral = left.kind === 3;
+    const rightLiteral = right.kind === 3;
+    if (leftLiteral === rightLiteral) return false; // two variables, or two constants
+    const literal = rightLiteral ? right : left;
+    const direction: 1 | -1 = (rightLiteral ? op === 'lte' : op === 'gte') ? 1 : -1;
+    literal.value = relaxLiteral(literal.value, direction);
+    literal.values = literal.values.map((value) => relaxLiteral(value, direction));
+    return true;
+  }
+
+  private literalOperand(value: number, candidateCount: number): Operand {
+    return { kind: 3, index: 1, value, values: Array(candidateCount).fill(value), type: 'number',
+      rawValue: value, rawValues: Array(candidateCount).fill(value) };
+  }
+
   private constraintOperand(node: any, metricIndex: Map<string, number>, taskIndex: Map<string, number>,
-      candidates: CandidateEntry[], constraintId: string): {
-        kind: number; index: number; value: number; values: number[]; type: string;
-        rawValue: unknown; rawValues: unknown[];
-      } {
+      candidates: CandidateEntry[], constraintId: string): Operand {
     if (node?.kind === 'literal') {
       const type = typeof node.value;
       if (!['number', 'string', 'boolean'].includes(type) || (type === 'number' && !Number.isFinite(node.value))) {
@@ -573,60 +1042,17 @@ ready_children = ${fmt2d(placement.readyChildren)};
   }
 
   private selectionAggregationCode(value: string, metric: string): number {
-    const codes: Record<string, number> = { sum: 1, min: 3, max: 4 };
-    if (!codes[value]) throw new Error(`MiniZinc does not support aggregation '${value}' at ${metric}.selection`);
-    return codes[value];
+    const code = AGGREGATION_CODES.selection[value];
+    if (!code) throw new Error(`MiniZinc does not support aggregation '${value}' at ${metric}.selection`);
+    return code;
   }
 
   private aggregationCode(value: string, place: string, metric: string): number {
-    const general: Record<string, number> = { sum: 1, min: 3, max: 4 };
-    if (place === 'sequence' || place === 'parallel') {
-      if (general[value]) return general[value];
-    } else if (place === 'exclusive') {
-      const exclusive: Record<string, number> = { weightedSum: 5, min: 3, max: 4 };
-      if (exclusive[value]) return exclusive[value];
-    } else if (place === 'repeat') {
-      const repeat: Record<string, number> = { scale: 6, identity: 8 };
-      if (repeat[value]) return repeat[value];
-    }
-    throw new Error(`MiniZinc does not support aggregation '${value}' at ${metric}.${place}`);
-  }
-
-  private workflowBound(node: any, pointer: string, metric: any, application: any,
-      sourceMap: any, routing: Map<string, number>, candidateBound: number,
-      nodeBounds: number[]): number {
-    const record = (value: number): number => { nodeBounds.push(value); return value; };
-    if (node.kind === 'empty') return record(Math.abs(Number(metric.neutral)));
-    if (node.kind === 'task') return record(application.tasks[node.task.id]?.kind === 'local'
-      ? Math.abs(Number(metric.neutral)) : candidateBound);
-    if (node.kind === 'sequence' || node.kind === 'parallel') {
-      const children = node.kind === 'sequence' ? node.steps : node.branches;
-      const field = node.kind === 'sequence' ? 'steps' : 'branches';
-      const values = children.map((child: any, index: number) => this.workflowBound(
-        child, `${pointer}/${field}/${index}`, metric, application, sourceMap, routing,
-        candidateBound, nodeBounds));
-      const operation = metric.aggregation[node.kind];
-      return record(operation === 'sum'
-        ? values.reduce((sum: number, value: number) => sum + value, 0)
-        : Math.max(0, ...values));
-    }
-    if (node.kind === 'exclusive') {
-      const values = node.branches.map((branch: any, index: number) => this.workflowBound(
-        branch.flow, `${pointer}/branches/${index}/flow`, metric, application, sourceMap,
-        routing, candidateBound, nodeBounds));
-      if (metric.aggregation.exclusive === 'weightedSum') {
-        return record(node.branches.reduce((sum: number, branch: any, index: number) =>
-          sum + Math.abs(Number(routing.get(this.refKey(this.workflowBranchRef(
-            application.resource, sourceMap, pointer, index, branch.id))))) * values[index], 0));
-      }
-      return record(Math.max(0, ...values));
-    }
-    if (node.kind === 'repeat') {
-      const body = this.workflowBound(node.body, `${pointer}/body`, metric, application,
-        sourceMap, routing, candidateBound, nodeBounds);
-      return record(metric.aggregation.repeat === 'identity' ? body : body * Number(node.count));
-    }
-    throw new Error(`Unsupported workflow node '${String(node.kind)}' while bounding MiniZinc floats`);
+    const code = AGGREGATION_CODES[place]?.[value];
+    // Inactive contexts (validated as well-formed only) are emitted with a harmless placeholder.
+    if (!code) return place === 'repeat' ? 8 : 1;
+    void metric;
+    return code;
   }
 
   private requireRef(value: any, where: string): asserts value is CandidateRef {

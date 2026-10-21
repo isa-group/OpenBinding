@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import random
+import shutil
 import time
 from pathlib import Path
 from typing import Any
@@ -32,9 +33,41 @@ from _common import (
 ROOT = discover_project_root(Path(__file__))
 install_gateway_import(ROOT)
 
+from openbinding_gateway.v1.canonical import digest as manifest_digest  # noqa: E402
 from openbinding_gateway.v1.package import load_package  # noqa: E402
 
 MAX_TIMEOUT_MS = 5_000
+MANIFEST_DIR = Path(os.environ.get("SCHEMAS_DIR", ROOT / "schemas")) / "bim" / "v1" / "manifests"
+
+
+def expected_engine_digests(engines: tuple[str, ...]) -> dict[str, str | None]:
+    """Digest of each engine manifest in this checkout (None when the manifest is unavailable)."""
+    result: dict[str, str | None] = {}
+    for engine in engines:
+        path = MANIFEST_DIR / f"{engine}.json"
+        try:
+            result[engine] = manifest_digest(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            result[engine] = None
+    return result
+
+
+def termination_reason(engine: str, status: str, provenance: dict[str, Any], timeout_ms: int) -> str:
+    """Why the engine stopped: a proof, the evaluation budget, the time budget or an incompatibility."""
+    if status in {"INCOMPATIBLE", "ERROR"}:
+        return status.lower()
+    if engine == "minizinc-csp":
+        return "proof" if status in {"OPTIMAL", "UNSAT"} else "time_budget"
+    options = provenance.get("options") or {}
+    reported = provenance.get("engineReported") or {}
+    budget = options.get("iterations", options.get("max_evaluations"))
+    evaluations = reported.get("evaluations")
+    elapsed = reported.get("elapsed_ms")
+    if isinstance(budget, (int, float)) and isinstance(evaluations, (int, float)) and evaluations >= budget:
+        return "evaluation_budget"
+    if isinstance(elapsed, (int, float)) and elapsed >= 0.95 * timeout_ms:
+        return "time_budget"
+    return "engine_stop"
 
 
 def _packages(root: Path, suite_filter: str | None, explicit: list[Path]) -> list[Path]:
@@ -72,7 +105,10 @@ def _resume_key(record: dict[str, Any]) -> tuple[str, str, str, int, int, str]:
 def _normalized_result(data: dict[str, Any], wall_ms: float) -> dict[str, Any]:
     result = data.get("result") or {}
     if data.get("status") == "failed" and not result:
-        return {"status": "ERROR", "runtime_ms": 0.0, "wall_ms": round(wall_ms, 3), "overhead_ms": round(wall_ms, 3), "binding": None, "features": None, "objectives": {}, "quality": None, "violations": [], "provenance": {}, "trace": [], "trace_kind": None, "engine_evaluations": None, "error": data.get("error") or "gateway job failed"}
+        error = data.get("error") or "gateway job failed"
+        # The gateway relays the engine's own rejection text ("engine rejected BindingProblem (422): ...").
+        status = "INCOMPATIBLE" if isinstance(error, str) and error.startswith("engine rejected BindingProblem (422)") else "ERROR"
+        return {"status": status, "runtime_ms": 0.0, "wall_ms": round(wall_ms, 3), "overhead_ms": round(wall_ms, 3), "binding": None, "features": None, "objectives": {}, "quality": None, "violations": [], "provenance": {}, "trace": [], "trace_kind": None, "engine_evaluations": None, "error": error, "diagnostics": [{"message": error}] if status == "INCOMPATIBLE" else []}
     termination = str(result.get("termination") or "UNKNOWN").upper()
     status = {
         "INFEASIBLE": "UNSAT",
@@ -105,6 +141,8 @@ def _normalized_result(data: dict[str, Any], wall_ms: float) -> dict[str, Any]:
         "quality": float(score) if isinstance(score, (int, float)) else None,
         "violations": solution.get("violations") or [],
         "provenance": provenance,
+        "engine_options": provenance.get("options") or {},
+        "engine_digest": (provenance.get("engine") or {}).get("digest"),
         "trace": engine_reported.get("trace") or [],
         "trace_kind": engine_reported.get("trace_kind"),
         "engine_evaluations": engine_reported.get("evaluations"),
@@ -113,11 +151,12 @@ def _normalized_result(data: dict[str, Any], wall_ms: float) -> dict[str, Any]:
 
 
 class Gateway:
-    def __init__(self, url: str, username: str, password: str):
+    def __init__(self, url: str, username: str, password: str, expected_digests: dict[str, str | None]):
         self.url = url.rstrip("/")
         self.username = username
         self.password = password
         self.headers: dict[str, str] = {}
+        self.expected_digests = expected_digests
 
     async def connect(self, client: httpx.AsyncClient) -> None:
         health = await client.get(f"{self.url}/health", timeout=5)
@@ -167,6 +206,29 @@ class Gateway:
             raise RuntimeError(f"validation rejected: HTTP {validation.status_code} {validation.text[:300]}")
         return snapshot_id, validation.json()
 
+    def select_mode(self, compatible_modes: list[dict[str, Any]], engine: str) -> dict[str, Any] | None:
+        """Pick the installed mode for `engine`; it must be the revision described by this checkout's manifest.
+
+        A gateway database that outlives a manifest change keeps the previous EngineRevision
+        registered; running the campaign against it would silently negotiate stale capabilities.
+        """
+        mode = ENGINE_MODES[engine]
+        entries = [item for item in compatible_modes if item.get("engine", {}).get("name") == engine and item.get("mode") == mode]
+        expected = self.expected_digests.get(engine)
+        if expected is None:
+            return entries[0] if entries else None
+        matching = [item for item in entries if item.get("engine", {}).get("digest") == expected]
+        if matching:
+            return matching[0]
+        if entries:
+            installed = sorted({str(item.get("engine", {}).get("version")) + "@" + str(item.get("engine", {}).get("digest"))[:19] for item in entries})
+            raise RuntimeError(
+                f"engine {engine!r} is registered as {installed} but this checkout's manifest has digest "
+                f"{expected[:19]}...: the gateway registry is stale. Run `run.sh reset` (drops the Compose volumes) "
+                "and `run.sh build` before the campaign."
+            )
+        return None
+
     async def solve(
         self,
         client: httpx.AsyncClient,
@@ -179,7 +241,7 @@ class Gateway:
         optimization: dict[str, Any],
     ) -> dict[str, Any]:
         mode = ENGINE_MODES[engine]
-        selected = next((item for item in compatible_modes if item.get("engine", {}).get("name") == engine and item.get("mode") == mode), None)
+        selected = self.select_mode(compatible_modes, engine)
         if selected is None or not selected.get("compatible"):
             return {
                 "status": "INCOMPATIBLE",
@@ -225,7 +287,17 @@ class Gateway:
             if response.status_code == 429 or response.status_code >= 500:
                 raise RuntimeError(f"gateway job submission failed: HTTP {response.status_code} {response.text[:500]}")
             status = "INCOMPATIBLE" if response.status_code == 422 else "ERROR"
-            return {"status": status, "runtime_ms": 0.0, "wall_ms": 0.0, "overhead_ms": 0.0, "mode": mode, "engine_ref": selected["engine"], "registration_ref": selected["registration"], "error": response.text[:500], "trace": []}
+            diagnostics: list[dict[str, Any]] = []
+            try:
+                body = response.json()
+                detail = body.get("detail") if isinstance(body, dict) else None
+                if isinstance(detail, dict):
+                    diagnostics = list(detail.get("diagnostics") or [])
+                    if not diagnostics and detail.get("message"):
+                        diagnostics = [{"code": detail.get("code"), "message": detail.get("message")}]
+            except ValueError:
+                pass
+            return {"status": status, "runtime_ms": 0.0, "wall_ms": 0.0, "overhead_ms": 0.0, "mode": mode, "engine_ref": selected["engine"], "registration_ref": selected["registration"], "error": response.text[:500], "diagnostics": diagnostics, "trace": []}
         job_id = response.json()["id"]
         deadline = time.monotonic() + timeout_ms / 1000 + 30
         while time.monotonic() < deadline:
@@ -246,6 +318,40 @@ class Gateway:
         raise RuntimeError(f"gateway polling deadline exceeded for job {job_id}")
 
 
+def _load_completed(out: Path, redo_engines: set[str]) -> tuple[set[tuple], int]:
+    """Return the resume keys already recorded, rewriting the file without the engines to redo."""
+    completed: set[tuple] = set()
+    dropped = 0
+    if not out.exists():
+        return completed, dropped
+    lines = out.read_text(encoding="utf-8").splitlines()
+    if redo_engines:
+        backup = out.with_name(f"{out.name}.bak-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}")
+        shutil.copyfile(out, backup)
+        kept: list[str] = []
+        for line in lines:
+            try:
+                record = json.loads(line)
+            except (ValueError, json.JSONDecodeError):
+                kept.append(line)
+                continue
+            if record.get("engine") in redo_engines:
+                dropped += 1
+                continue
+            kept.append(line)
+        out.write_text("".join(f"{line}\n" for line in kept), encoding="utf-8")
+        lines = kept
+        print(f"redo: dropped {dropped} records of {sorted(redo_engines)} (backup: {backup.name})", flush=True)
+    for line in lines:
+        try:
+            record = json.loads(line)
+            if record.get("status") != "ERROR":
+                completed.add(_resume_key(record))
+        except (ValueError, json.JSONDecodeError):
+            continue
+    return completed, dropped
+
+
 async def run(args: argparse.Namespace) -> int:
     if not 1 <= args.timeout_ms <= MAX_TIMEOUT_MS:
         raise SystemExit(f"--timeout-ms must be between 1 and {MAX_TIMEOUT_MS}")
@@ -253,6 +359,11 @@ async def run(args: argparse.Namespace) -> int:
     unknown = set(engines) - set(DEFAULT_ENGINES)
     if unknown:
         raise SystemExit(f"unsupported campaign engines: {sorted(unknown)}")
+    redo_engines = {item.strip() for item in (args.redo_engine or []) if item.strip()}
+    if redo_engines - set(engines):
+        raise SystemExit(f"--redo-engine names engines outside --engines: {sorted(redo_engines - set(engines))}")
+    if args.repeats < 1 or args.concurrency < 1:
+        raise SystemExit("--repeats and --concurrency must be positive")
     packages = _packages(args.instances_dir, args.suite, args.package)
     if args.source_only:
         if args.suite or args.package:
@@ -262,51 +373,57 @@ async def run(args: argparse.Namespace) -> int:
         rng = random.Random(args.seed)
         packages = sorted(rng.sample(packages, min(args.sample, len(packages))))
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    full_campaign = args.all and not args.suite and not args.package and not args.source_only
+    full_campaign = args.all and not args.suite and not args.package and not args.source_only and args.repeats == 1
     if full_campaign:
         expected_packages = sum(EXPECTED_SUITE_COUNTS.values())
         counts = Counter(package.relative_to(args.instances_dir).parts[0] for package in packages)
         if counts != EXPECTED_SUITE_COUNTS:
             raise RuntimeError(f"campaign corpus counts do not match the design: {dict(counts)}; expected {EXPECTED_SUITE_COUNTS}")
+        del expected_packages
     marker = args.out.with_name("CAMPAIGN_DONE")
     if full_campaign:
         marker.unlink(missing_ok=True)
     if args.fresh and args.out.exists():
         args.out.unlink()
-    completed = set()
-    if args.out.exists():
-        for line in args.out.read_text(encoding="utf-8").splitlines():
-            try:
-                record = json.loads(line)
-                if record.get("status") != "ERROR":
-                    completed.add(_resume_key(record))
-            except (ValueError, json.JSONDecodeError):
-                continue
-    gateway = Gateway(args.gateway_url, args.username, args.password)
+    completed, _dropped = _load_completed(args.out, redo_engines)
+    gateway = Gateway(args.gateway_url, args.username, args.password, expected_engine_digests(engines))
     current_completed = 0
-    async with httpx.AsyncClient(limits=httpx.Limits(max_connections=8)) as client:
+    write_lock = asyncio.Lock()
+    semaphore = asyncio.Semaphore(args.concurrency)
+    progress = {"done": 0}
+
+    async with httpx.AsyncClient(limits=httpx.Limits(max_connections=8 * args.concurrency)) as client:
         await gateway.connect(client)
-        with args.out.open("a", encoding="utf-8") as output:
-            for position, package_dir in enumerate(packages, start=1):
-                relative = package_dir.relative_to(args.instances_dir).as_posix()
-                suite, instance_id = relative.split("/", 1)
-                package_digest = package_digest_from_dir(package_dir)
-                metadata = []
-                for engine in engines:
+        output = args.out.open("a", encoding="utf-8")
+
+        async def process(position: int, package_dir: Path) -> int:
+            nonlocal current_completed
+            relative = package_dir.relative_to(args.instances_dir).as_posix()
+            suite, instance_id = relative.split("/", 1)
+            package_digest = package_digest_from_dir(package_dir)
+            metadata = []
+            for engine in engines:
+                for repeat in range(args.repeats):
                     seed = stable_instance_seed(args.seed, suite, instance_id, engine)
+                    if repeat:
+                        if engine not in HEURISTIC_ENGINES:
+                            continue
+                        seed = stable_instance_seed(args.seed + repeat, suite, instance_id, engine)
                     key = (suite, instance_id, engine, args.timeout_ms, seed, package_digest)
                     if key in completed:
                         current_completed += 1
                         continue
-                    metadata.append((engine, seed, key))
-                if not metadata:
-                    print(f"[{position}/{len(packages)}] {relative}: 0 new runs", flush=True)
-                    continue
+                    metadata.append((engine, seed, repeat, key))
+            if not metadata:
+                progress["done"] += 1
+                print(f"[{progress['done']}/{len(packages)}] {relative}: 0 new runs", flush=True)
+                return 0
+            async with semaphore:
                 package = load_package(package_dir)
                 execution_optimization = package_execution_spec(package)
                 snapshot_id, validation = await gateway.prepare(client, package.to_zip())
                 pending = []
-                for engine, seed, key in metadata:
+                for engine, seed, repeat, key in metadata:
                     idem = hashlib.sha256("\0".join(map(str, key)).encode()).hexdigest()
                     pending.append(gateway.solve(client, snapshot_id, validation.get("compatibleModes", []), engine, args.timeout_ms, seed, f"qacobench-{idem}", execution_optimization))
                 if args.serial_engines:
@@ -315,7 +432,8 @@ async def run(args: argparse.Namespace) -> int:
                         results.append(await request)
                 else:
                     results = await asyncio.gather(*pending)
-                for (engine, seed, key), result in zip(metadata, results):
+            async with write_lock:
+                for (engine, seed, repeat, key), result in zip(metadata, results):
                     if result.get("status") == "ERROR":
                         raise RuntimeError(f"engine or gateway error at {relative}/{engine}: {result.get('error')}")
                     record = {
@@ -327,14 +445,27 @@ async def run(args: argparse.Namespace) -> int:
                         "engine": engine,
                         "timeout_ms": args.timeout_ms,
                         "seed": seed,
+                        "repeat": repeat,
                         **result,
                     }
+                    record["termination_reason"] = termination_reason(engine, record.get("status", "ERROR"), record.get("provenance") or {}, args.timeout_ms)
                     output.write(json.dumps(record, sort_keys=True) + "\n")
                     output.flush()
                     os.fsync(output.fileno())
                     completed.add(key)
                     current_completed += 1
-                print(f"[{position}/{len(packages)}] {relative}: {len(results)} new runs", flush=True)
+                progress["done"] += 1
+                print(f"[{progress['done']}/{len(packages)}] {relative}: {len(results)} new runs", flush=True)
+            return len(results)
+
+        try:
+            if args.concurrency == 1:
+                for position, package_dir in enumerate(packages, start=1):
+                    await process(position, package_dir)
+            else:
+                await asyncio.gather(*(process(position, package_dir) for position, package_dir in enumerate(packages, start=1)))
+        finally:
+            output.close()
     if full_campaign:
         expected = len(packages) * len(engines)
         if current_completed != expected:
@@ -358,6 +489,24 @@ def main() -> int:
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--source-only", action="store_true", help="Run all six source suites while QFBS is generating")
     parser.add_argument("--fresh", action="store_true")
+    parser.add_argument(
+        "--redo-engine",
+        action="append",
+        default=[],
+        help="drop the recorded runs of this engine (a backup of the results file is kept) and run it again; repeatable",
+    )
+    parser.add_argument(
+        "--repeats",
+        type=int,
+        default=1,
+        help="number of heuristic repetitions per instance with distinct seeds (repeat k uses base seed + k); 1 = reference campaign",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=1,
+        help="packages in flight at once (each still runs its engines in parallel); >1 speeds the campaign up but adds CPU contention to runtime measurements",
+    )
     parser.add_argument(
         "--serial-engines",
         action="store_true",

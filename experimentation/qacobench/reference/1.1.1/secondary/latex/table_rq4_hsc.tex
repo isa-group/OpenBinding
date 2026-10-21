@@ -1,0 +1,14 @@
+\begin{tabular}{lrrrrrrr}
+\toprule
+Soft constraints & Instances & Reference violates$^{c}$ & GA zero penalty & GA better / equal / worse$^{d}$ & GA median gap & RS zero penalty & RS better / equal / worse \\
+\midrule
+0 & 2,055 & 0 (0\%) & 2,055 (100\%) & 1,165 / 861 / 29 & -0.004 & 2,055 (100\%) & 774 / 477 / 804 \\
+1 & 1,915 & 834 (44\%) & 1,016 (53\%) & 1,075 / 822 / 18 & -0.004 & 960 (50\%) & 694 / 443 / 778 \\
+2 & 1,987 & 1,457 (73\%) & 497 (25\%) & 1,055 / 909 / 23 & -0.001 & 426 (21\%) & 614 / 512 / 861 \\
+3 & 1,949 & 1,719 (88\%) & 193 (10\%) & 1,008 / 907 / 34 & -0.001 & 151 (8\%) & 540 / 499 / 910 \\
+4 & 2,094 & 2,013 (96\%) & 72 (3\%) & 1,095 / 972 / 27 & -0.001 & 49 (2\%) & 526 / 542 / 1,026 \\
+\midrule
+All & 10,000 & 6,023 (60\%) & 3,833 (38\%) & 5,398 / 4,471 / 131 & -- & 3,641 (36\%) & 3,148 / 2,473 / 4,379 \\
+\bottomrule
+\multicolumn{8}{p{0.95\linewidth}}{\footnotesize $^{c}$ the authors' reference composition incurs a non-zero Eq.\,2 penalty on the released data. $^{d}$ gateway score of the heuristic binding against the reference composition's objective (Eq.\,1\,+\,2 recomputed on the released data); gaps are differences of that objective.}
+\end{tabular}

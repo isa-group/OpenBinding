@@ -6,10 +6,11 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
+# Suite names as used in the paper (tables, figures and prose).
 SUITES = {
-    "01_icws": {"name": "ICWS", "count": 48},
-    "02_quantum": {"name": "Quantum service composition", "count": 46},
-    "03_hsc_llm": {"name": "HSC-LLM", "count": 10_000},
+    "01_icws": {"name": "OpenBinding scenarios", "count": 48},
+    "02_quantum": {"name": "Quantum resource selection", "count": 46},
+    "03_hsc_llm": {"name": "HSC", "count": 10_000},
     "04_rprsr15": {"name": "RPRSR15", "count": 60},
     "05_iots": {"name": "IoTS", "count": 6},
     "06_bws_scp": {"name": "BWS-SCP", "count": 90},

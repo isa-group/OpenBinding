@@ -248,3 +248,10 @@ space/space-src/
 
 # macOS metadata
 .DS_Store
+
+# Zenodo downloads and generated release bundles stay outside Git history.
+/output/zenodo/*.tar.xz
+/output/zenodo/*.tar.gz
+/output/zenodo/*.zip
+/output/zenodo/*.part*
+/output/zenodo/stage-*/

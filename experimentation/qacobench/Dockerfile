@@ -6,7 +6,7 @@ COPY openbinding-gateway/ openbinding-gateway/
 COPY schemas/ schemas/
 COPY space/pricing/openbinding.yml space/pricing/openbinding.yml
 COPY experimentation/qacobench/ experimentation/qacobench/
-COPY datasets/scripts/transform_*.py transformations/scripts/
+COPY datasets/scripts/transform_*.py datasets/scripts/write_benchmark_metadata.py transformations/scripts/
 RUN uv pip install --system -r experimentation/qacobench/requirements.lock
 RUN mkdir -p datasets .artifacts/qacobench
 CMD ["python", "experimentation/qacobench/campaign.py", "--help"]

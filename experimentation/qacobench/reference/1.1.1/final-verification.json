@@ -1,0 +1,39 @@
+{
+  "runs": 46350,
+  "counts": {
+    "minizinc-csp": 15450,
+    "random-search": 15450,
+    "evolutionary-heuristics": 15450
+  },
+  "versions": {
+    "minizinc-csp": [
+      "1.1.1"
+    ],
+    "random-search": [
+      "1.0.0"
+    ],
+    "evolutionary-heuristics": [
+      "1.0.0"
+    ]
+  },
+  "results_sha256": "60cd7ef1728d43326d71fff1aa9fbe304e10a8a7716478e232958070ff5510b8",
+  "notebooks": [
+    "02_docker_environment_and_smoke.ipynb",
+    "03_experimentation_campaign.ipynb",
+    "04_evaluation_and_visualization.ipynb",
+    "01_dataset_generation.ipynb"
+  ],
+  "new_slice_events": {
+    "low": "0",
+    "high": "0",
+    "max": "0",
+    "oom": "0",
+    "oom_kill": "0",
+    "oom_group_kill": "0",
+    "sock_throttled": "23"
+  },
+  "original_campaign_unchanged": true,
+  "scientific_acceptance": true,
+  "host_shared": true,
+  "optional_seed_repetitions_not_run": true
+}

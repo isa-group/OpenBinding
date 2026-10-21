@@ -1,0 +1,6 @@
+suite,engine,reason,detail,instances
+03_hsc_llm,minizinc-csp,aggregations: sequence.expression,,10000
+03_hsc_llm,minizinc-csp,expressions: arithmetic,,10000
+03_hsc_llm,minizinc-csp,expressions: call.product,,8999
+03_hsc_llm,minizinc-csp,expressions: call.sum,,9936
+03_hsc_llm,minizinc-csp,expressions: path.values,,10000

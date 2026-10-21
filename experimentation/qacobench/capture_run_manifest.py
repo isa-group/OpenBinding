@@ -46,6 +46,8 @@ def main() -> int:
     parser.add_argument("--images-json", type=Path, required=True)
     parser.add_argument("--host-text", type=Path, required=True)
     parser.add_argument("--revision-file", type=Path, required=True)
+    parser.add_argument("--solver-versions", type=Path, default=None,
+                        help="text captured from `minizinc --version; minizinc --solvers` inside the exact engine image")
     args = parser.parse_args()
     inspected = json.loads(args.images_json.read_text(encoding="utf-8"))
     images = {}
@@ -62,9 +64,23 @@ def main() -> int:
     except (AttributeError, ValueError, OSError):
         pass
     revision = args.revision_file.read_text(encoding="utf-8").strip() or None
+    solver_versions = None
+    if args.solver_versions and args.solver_versions.is_file():
+        text = args.solver_versions.read_text(encoding="utf-8", errors="replace")
+        solver_versions = {
+            "minizinc": next((line.strip() for line in text.splitlines() if "version" in line.lower()), None),
+            "gecode": next((line.strip() for line in text.splitlines() if line.strip().startswith("Gecode ")), None),
+            "raw": text[:4000],
+        }
     payload = {
-        "schema": "qacobench/run-manifest/v1",
+        "schema": "qacobench/run-manifest/v2",
         "source_revision": revision,
+        "solver_versions": solver_versions,
+        "engine_manifests_sha256": {
+            name: sha256(ROOT / "schemas/bim/v1/manifests" / f"{name}.json")
+            for name in ("minizinc-csp", "random-search", "evolutionary-heuristics")
+            if (ROOT / "schemas/bim/v1/manifests" / f"{name}.json").is_file()
+        },
         "source_tree_sha256": source_tree_sha256(),
         "source_dirty": None,
         "files_sha256": {name: sha256(ROOT / name) for name in FILES if (ROOT / name).is_file()},
@@ -76,7 +92,12 @@ def main() -> int:
                        "qfbs_groups": {"guaranteed": 2600, "non_guaranteed": 2600}, "corpus_packages": 15450,
                        "engine_runs": 46350, "timeout_ms": 5000, "campaign_seed": 20260921,
                        "qfbs_base_seed": 20261004,
-                       "engines": ["minizinc-csp", "random-search", "evolutionary-heuristics"]},
+                       "engines": ["minizinc-csp", "random-search", "evolutionary-heuristics"],
+                       "engine_budgets": {
+                           "minizinc-csp": "time_budget_ms=5000 (MiniZinc flattening + Gecode search)",
+                           "random-search": "iterations=1000 evaluations (engine default) within time_budget_ms=5000",
+                           "evolutionary-heuristics": "population_size=100, max_evaluations=10000, crossover_probability=0.9, archive_size=100 (engine defaults) within time_budget_ms=5000",
+                       }},
         "reproducibility": {"exact": ["HTTP package bytes", "compiled semantics", "derived calculations"],
                             "time_sensitive": ["engine termination at the time budget", "runtime measurements"]},
     }

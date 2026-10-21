@@ -4,15 +4,15 @@
 
 | ID | Dataset | Instances | Admission |
 |---|---|---:|---|
-| `01_icws` | ICWS scenarios | 48 | Complete QACO |
-| `02_quantum` | Quantum service selection | 46 | Related QACO |
-| `03_hsc_llm` | HSC-LLM | 10,000 | Derived composition |
-| `04_rprsr15` | RPRSR15 | 60 | Complete QACO |
-| `05_iots` | IoTS | 6 | Complete QACO |
-| `06_bws_scp` | BWS-SCP | 90 | Complete QACO |
+| `01_icws` | OpenBinding scenarios (Cavero et al., ICWS 2026) | 48 | Complete QACO |
+| `02_quantum` | Quantum service selection (Romero-Flores et al., 2026) | 46 | Related QACO |
+| `03_hsc_llm` | HSC (Wang et al., ICSOC 2024) | 10,000 | Derived composition |
+| `04_rprsr15` | RPRSR15 (Ramírez et al., ESWA 2017) | 60 | Complete QACO |
+| `05_iots` | IoTS (Tang et al., Heliyon 2024) | 6 | Complete QACO |
+| `06_bws_scp` | BWS-SCP (Mahroo et al., CIE 2026) | 90 | Placement-aware QACO |
 | `07_qfbs` | QFBS HTTP workload | 5,200 | Synthetic benchmark |
 
-The admitted corpus contains exactly 15,450 canonical BIM v1 instances. IDs are consecutive and have no reserved gaps.
+The admitted corpus contains exactly 15,450 canonical BIM v1 instances. IDs are consecutive and have no reserved gaps. The structured provenance of every suite (`recovery_catalogue.json`, version `qacobench/v2`) is the single source for the per-package `benchmark-metadata.json` written by `scripts/write_benchmark_metadata.py` and for `sources/*/README.md`; the first release carried attributions that did not match the sources (see the revision notes in those READMEs).
 
 ## Classified but not admitted
 

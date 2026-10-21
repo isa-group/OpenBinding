@@ -1,0 +1,103 @@
+{
+  "engine_manifests_sha256": {
+    "evolutionary-heuristics": "9149d94aece95d4b8a8e30de63f925f8e2a6d54077c2b123d78bbbb8cb5c903a",
+    "minizinc-csp": "7c89017ae3fdd0020cd6c508000763398ef337316277c68e4d957363ca1fc4f7",
+    "random-search": "01ddeb62a781ed25788a2a13bac90df40f075951bdb6c4d9b59cab3fa0b3768b"
+  },
+  "files_sha256": {
+    "datasets/07_qfbs/manifest.jsonl": "7449fe95cec302410e7226f08c7d1b2449c77500662b9009c58f894a3e3f7cf2",
+    "experimentation/qacobench/compose.yaml": "476c33d5b3e4646cb2f764d960db91d432e11b4c8a3d92b2327f43704c9c4f37",
+    "experimentation/qacobench/design_matrix.json": "389a6bd811c06f77438d194ea80bb54c42e30748c058465a4839b4e6d8170bd1",
+    "experimentation/qacobench/gateway.lock": "afdffee24a73e098ef60ce09cab917eace26b19f93d27388c3d72a9db9bb273b",
+    "experimentation/qacobench/requirements.lock": "c424e1750730ea7fc09cb97523a394ed7a35cc984608b16f434398ecadbabaae",
+    "space/pricing/openbinding.yml": "78dd2546778eefa11e2c60200911dd04ea166424fef10e01c24c9200bd5cea42"
+  },
+  "host": {
+    "container_platform": "Linux-7.0.0-30-generic-x86_64-with-glibc2.36",
+    "cpu_count": 16,
+    "host_report": "Linux nipogi 7.0.0-30-generic #30-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 18:22:54 UTC 2026 x86_64 GNU/Linux\n",
+    "machine": "x86_64",
+    "memory_bytes": 15481774080,
+    "processor": ""
+  },
+  "images": {
+    "evolutionary-heuristics": {
+      "id": "sha256:03f64206f96402fc4b5ed6e3c41d8afcb97b0e2bc9624ff33cde3435dca84405",
+      "platform": "linux/amd64",
+      "repo_digests": [
+        "qacobench/evolutionary-heuristics@sha256:03f64206f96402fc4b5ed6e3c41d8afcb97b0e2bc9624ff33cde3435dca84405"
+      ]
+    },
+    "gateway": {
+      "id": "sha256:b72a2dc769af8c28859c4e64fa142d5cc009135be03f12dca0aeed2b29b5f1ed",
+      "platform": "linux/amd64",
+      "repo_digests": [
+        "qacobench/gateway@sha256:b72a2dc769af8c28859c4e64fa142d5cc009135be03f12dca0aeed2b29b5f1ed"
+      ]
+    },
+    "minizinc": {
+      "id": "sha256:2417d4db326b364d8a46b4a6e30a729466afc2b233062f8a0617409eeb326a7b",
+      "platform": "linux/amd64",
+      "repo_digests": [
+        "qacobench/minizinc@sha256:2417d4db326b364d8a46b4a6e30a729466afc2b233062f8a0617409eeb326a7b"
+      ]
+    },
+    "random-search": {
+      "id": "sha256:09a8f4b2ab22e2f8906ff61524952c90951aa9d89991b8f5d0d29b0cbfb19334",
+      "platform": "linux/amd64",
+      "repo_digests": [
+        "qacobench/random-search@sha256:09a8f4b2ab22e2f8906ff61524952c90951aa9d89991b8f5d0d29b0cbfb19334"
+      ]
+    },
+    "runner": {
+      "id": "sha256:7eb37a397eafaa0185ee19e035666ece770de987d27f234703c6d94474f7ca3e",
+      "platform": "linux/amd64",
+      "repo_digests": [
+        "qacobench/runner@sha256:7eb37a397eafaa0185ee19e035666ece770de987d27f234703c6d94474f7ca3e"
+      ]
+    }
+  },
+  "parameters": {
+    "campaign_seed": 20260921,
+    "corpus_packages": 15450,
+    "engine_budgets": {
+      "evolutionary-heuristics": "population_size=100, max_evaluations=10000, crossover_probability=0.9, archive_size=100 (engine defaults) within time_budget_ms=5000",
+      "minizinc-csp": "time_budget_ms=5000 (MiniZinc flattening + Gecode search)",
+      "random-search": "iterations=1000 evaluations (engine default) within time_budget_ms=5000"
+    },
+    "engine_runs": 46350,
+    "engines": [
+      "minizinc-csp",
+      "random-search",
+      "evolutionary-heuristics"
+    ],
+    "qfbs_base_seed": 20261004,
+    "qfbs_design": "qacobench/qfbs-design/v2",
+    "qfbs_groups": {
+      "guaranteed": 2600,
+      "non_guaranteed": 2600
+    },
+    "qfbs_packages": 5200,
+    "timeout_ms": 5000
+  },
+  "reproducibility": {
+    "exact": [
+      "HTTP package bytes",
+      "compiled semantics",
+      "derived calculations"
+    ],
+    "time_sensitive": [
+      "engine termination at the time budget",
+      "runtime measurements"
+    ]
+  },
+  "schema": "qacobench/run-manifest/v2",
+  "solver_versions": {
+    "gecode": "Gecode 6.3.0 (org.gecode.gecode, default solver, cp, int, float, set, restart)",
+    "minizinc": "MiniZinc to FlatZinc converter, version 2.8.7, build 1478320236",
+    "raw": "MiniZinc to FlatZinc converter, version 2.8.7, build 1478320236\nCopyright (C) 2014-2024 Monash University, NICTA, Data61\nMiniZinc driver.\nAvailable solver configurations:\n  Chuffed 0.13.2 (org.chuffed.chuffed, cp, lcg, int)\n  COIN-BC 2.10.12/1.17.10 (org.minizinc.mip.coin-bc, mip, float, api, osicbc, coinbc, cbc)\n  CPLEX <unknown version> (org.minizinc.mip.cplex, mip, float, api)\n  findMUS 0.7.0 (org.minizinc.findmus)\n  Gecode 6.3.0 (org.gecode.gecode, default solver, cp, int, float, set, restart)\n  Gecode Gist 6.3.0 (org.gecode.gist, cp, int, float, set, restart)\n  Globalizer 0.1.7.2 (org.minizinc.globalizer, experimental, tool)\n  Gurobi <unknown version> (org.minizinc.mip.gurobi, mip, float, api)\n  HiGHS 1.7.2 (org.minizinc.mip.highs, mip, float, api, highs)\n  OR Tools CP-SAT 9.11.4210 (cp-sat, cp-sat, cp, lcg, int)\n  SCIP <unknown version> (org.minizinc.mip.scip, mip, float, api)\n  Xpress <unknown version> (org.minizinc.mip.xpress, mip, float, api)\nSearch path for solver configurations:\n  /opt/minizinc/share/minizinc/solvers\n  /usr/local/share/minizinc/solvers\n  /usr/share/minizinc/solvers\n"
+  },
+  "source_dirty": null,
+  "source_revision": "e2fd5e314e4646e42e74afe9afe1830d2bd19339+mac-working-tree-f559f0b20a8d51503ba3572cf819c9b2df38df782d32c32498f7dc28fefba375",
+  "source_tree_sha256": "e0263c50ca874f79966476d71a6e76bc46ddfb0bc8d4c0762b7df7f52628ea93"
+}

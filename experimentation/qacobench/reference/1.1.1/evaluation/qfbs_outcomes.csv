@@ -1,0 +1,7 @@
+group,engine,runs,processable,binding_returned,timeout,unsat
+guaranteed,evolutionary-heuristics,2600,2600,2600,0,0
+guaranteed,minizinc-csp,2600,2600,2600,0,0
+guaranteed,random-search,2600,2600,2599,1,0
+non_guaranteed,evolutionary-heuristics,2600,2600,1451,1149,0
+non_guaranteed,minizinc-csp,2600,2600,1801,0,799
+non_guaranteed,random-search,2600,2600,942,1658,0

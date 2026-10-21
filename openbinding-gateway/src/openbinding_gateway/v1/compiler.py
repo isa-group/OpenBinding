@@ -15,7 +15,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+import copy
+
 import jsonschema
+import jsonschema.validators
 
 from .canonical import canonical_json, digest, digest_bytes
 from .expressions import Expression, ExpressionError, compile_expression
@@ -23,6 +26,111 @@ from .package import InstancePackage, PackageError, resource_digest
 
 
 BIM_API_VERSION = "bim/v1"
+
+
+def _hashable_json(value: Any) -> Any:
+    """Hashable key reproducing jsonschema's JSON equality (1 == 1.0, True != 1, key order ignored)."""
+    if isinstance(value, bool):
+        return ("b", value)
+    if isinstance(value, dict):
+        return ("m", tuple(sorted((key, _hashable_json(item)) for key, item in value.items())))
+    if isinstance(value, (list, tuple)):
+        return ("s", tuple(_hashable_json(item) for item in value))
+    return value
+
+
+def _unique_items_linear(validator: Any, unique: Any, instance: Any, schema: Any) -> Iterable[jsonschema.ValidationError]:
+    """`uniqueItems` in linear time.
+
+    jsonschema's reference implementation compares every pair of unhashable
+    elements, which is quadratic in the length of the array: the eligibility
+    lists and demand tables of catalogs with tens of thousands of candidates
+    spent most of the compilation time there. The outcome is identical: the
+    same elements are considered equal and the same error message is raised.
+    """
+    if not unique or not validator.is_type(instance, "array"):
+        return
+    seen: set[Any] = set()
+    for item in instance:
+        try:
+            key = _hashable_json(item)
+            duplicate = key in seen
+            seen.add(key)
+        except TypeError:  # pragma: no cover - non-JSON values fall back to the reference check
+            duplicate = not jsonschema._utils.uniq(instance)
+        if duplicate:
+            yield jsonschema.ValidationError(f"{instance!r} has non-unique elements")
+            return
+
+
+_SchemaValidatorClass = jsonschema.validators.extend(
+    jsonschema.Draft202012Validator, validators={"uniqueItems": _unique_items_linear},
+)
+
+_REF_ANNOTATIONS = {"$ref", "description", "title", "$comment", "examples", "deprecated"}
+
+
+def _inline_local_refs(schema: dict[str, Any]) -> dict[str, Any]:
+    """Expand non-recursive `#/$defs/...` references in place of the `$ref` node.
+
+    Resolving a reference costs jsonschema a registry lookup per visited node;
+    a catalog with 50,000 candidates visits several hundred thousand of them.
+    Only references that are the sole applicator of their node (annotations such
+    as `description` aside) and whose definition does not reach itself are
+    expanded, which is exactly equivalent under Draft 2020-12; recursive
+    definitions (the workflow tree) keep their `$ref`.
+    """
+    defs = schema.get("$defs")
+    if not isinstance(defs, dict):
+        return schema
+    prefix = "#/$defs/"
+
+    def references(node: Any, found: set[str]) -> set[str]:
+        if isinstance(node, dict):
+            target = node.get("$ref")
+            if isinstance(target, str) and target.startswith(prefix):
+                found.add(target[len(prefix):])
+            for value in node.values():
+                references(value, found)
+        elif isinstance(node, list):
+            for value in node:
+                references(value, found)
+        return found
+
+    graph = {name: references(body, set()) for name, body in defs.items()}
+
+    def reachable(start: str) -> set[str]:
+        seen: set[str] = set()
+        stack = [start]
+        while stack:
+            for target in graph.get(stack.pop(), ()):
+                if target not in seen:
+                    seen.add(target)
+                    stack.append(target)
+        return seen
+
+    recursive = {name for name in defs if name in reachable(name)}
+
+    def expand(node: Any) -> Any:
+        if isinstance(node, dict):
+            target = node.get("$ref")
+            if (
+                isinstance(target, str) and target.startswith(prefix)
+                and set(node) <= _REF_ANNOTATIONS
+            ):
+                name = target[len(prefix):]
+                if name in defs and name not in recursive:
+                    return expand(copy.deepcopy(defs[name]))
+            return {key: expand(value) for key, value in node.items()}
+        if isinstance(node, list):
+            return [expand(value) for value in node]
+        return node
+
+    return expand(schema)
+
+
+def _SchemaValidator(schema: dict[str, Any]) -> Any:
+    return _SchemaValidatorClass(_inline_local_refs(dict(schema)))
 PROFILE_ID = "qos-binding/v1"
 QOS_API_VERSION = "qos-binding/v1"
 CORE_DIALECT_ID = "qos-binding/v1"
@@ -555,7 +663,7 @@ def _schema_validator(kind: str) -> jsonschema.Draft202012Validator | None:
         return None
     schema_path = _schema_root() / schema_name
     try:
-        return jsonschema.Draft202012Validator(json.loads(schema_path.read_text(encoding="utf-8")))
+        return _SchemaValidator(json.loads(schema_path.read_text(encoding="utf-8")))
     except (OSError, json.JSONDecodeError):
         return None
 
@@ -571,7 +679,7 @@ def _profile_output_validator(
             schema_path = _schema_root() / "binding-problem.schema.json"
             if digest_bytes(schema_path.read_bytes()) != manifest["spec"]["output"]["schemaDigest"]:
                 return None
-            return jsonschema.Draft202012Validator(
+            return _SchemaValidator(
                 json.loads(schema_path.read_text(encoding="utf-8"))
             )
         return _PROFILE_OUTPUT_VALIDATORS.get(_profile_output_key(manifest))
@@ -684,7 +792,7 @@ def _resource_schema_validator(
     if filename is None:
         return _ADDITIONAL_RESOURCE_SCHEMA_VALIDATORS.get((api_version, kind, media_type))
     try:
-        return jsonschema.Draft202012Validator(
+        return _SchemaValidator(
             json.loads((_schema_root() / filename).read_text(encoding="utf-8"))
         )
     except (OSError, json.JSONDecodeError):
@@ -753,7 +861,7 @@ def install_extension_validator(
         target_kind,
         normalized_pointer,
         actual_digest,
-    )] = jsonschema.Draft202012Validator(dict(schema))
+    )] = _SchemaValidator(dict(schema))
 
 
 def uninstall_extension_validator(
@@ -4353,7 +4461,7 @@ def install_profile_contract(
     _ADDITIONAL_INSTALLED_PROFILES[identity] = deepcopy(manifest)
     _PROFILE_ADAPTERS[adapter_key] = adapter
     _PROFILE_OUTPUT_VALIDATORS[_profile_output_key(manifest)] = (
-        jsonschema.Draft202012Validator(dict(output_schema))
+        _SchemaValidator(dict(output_schema))
     )
     installed_framework_diagnostics.cache_clear()
 
@@ -4470,8 +4578,8 @@ def install_dialect_contract(
         raise ValueError(f"Dialect id {manifest_id(manifest)!r} is already installed")
     _ADDITIONAL_INSTALLED_DIALECTS[key] = deepcopy(manifest)
     for identity, schema in resource_schemas.items():
-        _ADDITIONAL_RESOURCE_SCHEMA_VALIDATORS[identity] = jsonschema.Draft202012Validator(dict(schema))
-        _RESOURCE_VALIDATORS_BY_DIGEST[digest(schema)] = jsonschema.Draft202012Validator(dict(schema))
+        _ADDITIONAL_RESOURCE_SCHEMA_VALIDATORS[identity] = _SchemaValidator(dict(schema))
+        _RESOURCE_VALIDATORS_BY_DIGEST[digest(schema)] = _SchemaValidator(dict(schema))
         _DIALECT_RESOURCE_LOWERERS[
             _dialect_resource_lowerer_key(manifest, *identity)
         ] = resource_lowerers[identity]

@@ -1,9 +1,34 @@
-"""Transform 10,000 Hugging Face AI service composition workflows into BIM v1 packages.
+"""Transform the 10,000 HSC (Hugging Face Service Composition) requirements into BIM v1 packages.
 
-Extracts workflows, requirements, normalized model metrics, and optimal solutions from
-datasets/sources/hsc. Embeds LLM natural language user requirement
-descriptions into instance metadata annotations. Sharded into 10 batches of 1,000 instances
-(batch_0000_0999/, etc.) to comply with directory size limits.
+Source: X. Wang, D. Rong, H. Xu, X. He, Z. Wang, "HSC: An Artificial Intelligence Service Composition
+Dataset from Hugging Face", Service-Oriented Computing -- ICSOC 2024, LNCS 15405, pp. 225-239 (2025). Files: workflow.json (flows, objective weights, constraint values),
+requirements.json (natural-language requirements), normalized_model.json (15,463 Hugging Face
+models with min-max normalised QoS), best_solution.json (reference compositions and objective
+values). Sharded into 10 batches of 1,000 instances (batch_0000_0999/, ...).
+
+Fidelity to the source semantics (Section 3.3 of the paper):
+
+* **Aggregations (Table 3).** Downloads/likes: sum over a parallel level, mean over the sequence of
+  levels. Response/waiting time: max over a parallel level, mean over levels. Reliability and
+  successability: min over a parallel level, geometric mean over levels. Means and geometric means
+  are expressed as BIM aggregation expressions over the ``values`` of the sequence (the number of
+  levels is known per instance).
+* **Objective (Eq. 1).** ``f(x) = sum_{i in {3,4}} w_i f_i(x) + sum_{i in {1,2,5,6}} w_i (1 - f_i(x))``
+  with the requirement's weights ``w_i`` (they sum to one). BIM criteria use the identity
+  normalisation ``[0, 1]`` without clamping, so the normalised loss is exactly ``f_i`` for the two
+  minimised attributes and ``1 - f_i`` for the four maximised ones; the weights travel in the
+  instance annotation ``objective_weights`` (the campaign passes them as execution weights).
+* **Constraints (Eq. 2).** The paper treats every constraint as soft and adds the squared violation
+  ``(max(0, g_j - c_j))^2`` (minimised attributes) or ``(min(0, g_j - c_j))^2`` (maximised
+  attributes) to the objective; the released ``cons`` values are already multiplied by the scale
+  coefficients ``p_j``. Each constraint is therefore a soft BIM constraint whose penalty is
+  ``K * (g_j - c_j)^2`` where ``K`` is the number of constraints of the instance: the compiler
+  normalises penalty weights to ``1/K``, so the weighted penalty sum is exactly the paper's
+  ``sum_j (g_j - c_j)^2`` and the BIM score equals ``f~(x)``.
+* **Values.** Model attributes are copied at full precision. ``best_solution.json`` is kept as the
+  ``reference_binding`` / ``reference_value`` annotations: these are the authors' solutions and
+  objective values, which the released ``normalized_model.json`` does not reproduce exactly for most
+  requirements (see ``datasets/sources/hsc/README.md``); they are provenance, not ground truth.
 """
 
 from __future__ import annotations
@@ -25,13 +50,23 @@ from openbinding_gateway.v1.package import load_package
 DEFAULT_SOURCE = ROOT / "datasets" / "sources" / "hsc"
 DEFAULT_TARGET = ROOT / "datasets" / "03_hsc_llm"
 
+PAPER = {
+    "authors": "X. Wang, D. Rong, H. Xu, X. He, Z. Wang",
+    "title": "HSC: An Artificial Intelligence Service Composition Dataset from Hugging Face",
+    "venue": "Service-Oriented Computing -- ICSOC 2024, LNCS 15405",
+    "pages": "225-239",
+    "year": 2025,
+    "doi": "10.1007/978-981-96-0808-9_17",
+}
+
+# Paper ordering i = 1..6: downloads, likes, response time, waiting time, reliability, successability.
 FEAT_META = {
-    "normalized_downloads": {"dir": "maximize", "parallel": "sum", "hsc_key": "average number of downloads"},
-    "normalized_likes": {"dir": "maximize", "parallel": "sum", "hsc_key": "average number of likes"},
-    "normalized_response_times": {"dir": "minimize", "parallel": "max", "hsc_key": "average response time"},
-    "normalized_waiting_times": {"dir": "minimize", "parallel": "max", "hsc_key": "average waiting time"},
-    "reliabilities": {"dir": "maximize", "parallel": "min", "hsc_key": "reliability", "geometric": True},
-    "successabilities": {"dir": "maximize", "parallel": "min", "hsc_key": "successability", "geometric": True},
+    "normalized_downloads": {"dir": "maximize", "parallel": "sum", "hsc_key": "average number of downloads", "default": 0.5},
+    "normalized_likes": {"dir": "maximize", "parallel": "sum", "hsc_key": "average number of likes", "default": 0.5},
+    "normalized_response_times": {"dir": "minimize", "parallel": "max", "hsc_key": "average response time", "default": 0.5},
+    "normalized_waiting_times": {"dir": "minimize", "parallel": "max", "hsc_key": "average waiting time", "default": 0.5},
+    "reliabilities": {"dir": "maximize", "parallel": "min", "hsc_key": "reliability", "geometric": True, "default": 0.9},
+    "successabilities": {"dir": "maximize", "parallel": "min", "hsc_key": "successability", "geometric": True, "default": 0.9},
 }
 
 
@@ -45,6 +80,66 @@ def _sequence_aggregation(level_count: int, geometric: bool) -> dict:
     return {"expression": expression}
 
 
+def paper_objective(wf: dict, models: list[dict], binding_models: list[int]) -> float:
+    """Eq. (1) + Eq. (2) of the HSC paper evaluated directly on the source data (Table 3 aggregations)."""
+    objective, penalty = paper_objective_components(wf, models, binding_models)
+    return objective + penalty
+
+
+def paper_objective_components(wf: dict, models: list[dict], binding_models: list[int]) -> tuple[float, float]:
+    """(weighted objective of Eq. 1, squared-violation penalty of Eq. 2) for one binding."""
+    stages = wf.get("flow", [])
+    values: dict[str, float] = {}
+    for f_id, meta in FEAT_META.items():
+        level_values = []
+        k = 0
+        for stage in stages:
+            vals = []
+            for _ in stage:
+                vals.append(float(models[binding_models[k]].get(f_id, meta["default"])))
+                k += 1
+            level_values.append({"sum": sum, "max": max, "min": min}[meta["parallel"]](vals) if len(vals) > 1 else vals[0])
+        n = max(1, len(stages))
+        if meta.get("geometric"):
+            prod = 1.0
+            for v in level_values:
+                prod *= v
+            values[f_id] = prod ** (1.0 / n)
+        else:
+            values[f_id] = sum(level_values) / n
+    objective = 0.0
+    penalty = 0.0
+    for f_id, meta in FEAT_META.items():
+        w = float(wf.get("obj_func", {}).get(meta["hsc_key"], 0.0))
+        objective += w * (values[f_id] if meta["dir"] == "minimize" else 1.0 - values[f_id])
+        c = float(wf.get("cons", {}).get(meta["hsc_key"], 0.0))
+        if c > 0:
+            gap = values[f_id] - c
+            violation = max(0.0, gap) if meta["dir"] == "minimize" else min(0.0, gap)
+            penalty += violation * violation
+    return objective, penalty
+
+
+def _load_source(source_path: Path) -> tuple[list, list, list, list]:
+    if source_path.is_dir():
+        read = lambda name: json.loads((source_path / name).read_text(encoding="utf-8"))  # noqa: E731
+    elif source_path.is_file():
+        archive = zipfile.ZipFile(source_path)
+        names = archive.namelist()
+
+        def read(fname: str):
+            for candidate in (fname, f"HSC-main/{fname}"):
+                if candidate in names:
+                    return json.loads(archive.read(candidate).decode("utf-8"))
+            target = next((n for n in names if n.endswith(f"/{fname}") and not n.startswith("__MACOSX")), None)
+            if target:
+                return json.loads(archive.read(target).decode("utf-8"))
+            raise FileNotFoundError(f"Cannot find {fname} in {source_path}")
+    else:
+        raise FileNotFoundError(f"HSC source not found at {source_path}")
+    return read("workflow.json"), read("requirements.json"), read("normalized_model.json"), read("best_solution.json")
+
+
 def transform_hsc_instances(
     source_path: Path = DEFAULT_SOURCE,
     target_dir: Path = DEFAULT_TARGET,
@@ -54,33 +149,7 @@ def transform_hsc_instances(
 ) -> int:
     target_dir.mkdir(parents=True, exist_ok=True)
     print(f"Loading HSC dataset from {source_path}...")
-
-    if source_path.is_dir():
-        workflows = json.loads((source_path / "workflow.json").read_text(encoding="utf-8"))
-        requirements = json.loads((source_path / "requirements.json").read_text(encoding="utf-8"))
-        models = json.loads((source_path / "normalized_model.json").read_text(encoding="utf-8"))
-        best_solutions = json.loads((source_path / "best_solution.json").read_text(encoding="utf-8"))
-    elif source_path.is_file():
-        with zipfile.ZipFile(source_path) as z:
-            names = z.namelist()
-
-            def read_json_from_zip(fname: str) -> dict | list:
-                if fname in names:
-                    return json.loads(z.read(fname).decode("utf-8"))
-                nested = f"HSC-main/{fname}"
-                if nested in names:
-                    return json.loads(z.read(nested).decode("utf-8"))
-                target = next((n for n in names if n.endswith(f"/{fname}") and not n.startswith("__MACOSX")), None)
-                if target:
-                    return json.loads(z.read(target).decode("utf-8"))
-                raise FileNotFoundError(f"Cannot find {fname} in {source_path}")
-
-            workflows = read_json_from_zip("workflow.json")
-            requirements = read_json_from_zip("requirements.json")
-            models = read_json_from_zip("normalized_model.json")
-            best_solutions = read_json_from_zip("best_solution.json")
-    else:
-        raise FileNotFoundError(f"HSC source not found at {source_path}")
+    workflows, requirements, models, best_solutions = _load_source(source_path)
 
     if limit:
         workflows = workflows[:limit]
@@ -100,7 +169,7 @@ def transform_hsc_instances(
     def build_instance_package(idx: int) -> tuple[Path, bool, str | None]:
         wf = workflows[idx]
         req = requirements[idx]
-        bs = best_solutions[idx] if idx < len(best_solutions) else {"best_value": 0.0, "best_solution": []}
+        bs = best_solutions[idx] if idx < len(best_solutions) else {"best_value": None, "best_solution": []}
 
         batch_start = (idx // 1000) * 1000
         batch_end = batch_start + 999
@@ -147,9 +216,10 @@ def transform_hsc_instances(
 
         candidates = {}
         reference_binding = {}
+        reference = bs.get("best_solution") or []
         for activity_index, (_stage_index, category) in enumerate(activities):
             tid = f"task_{activity_index + 1}"
-            opt_model_idx = bs.get("best_solution", [])[activity_index] if activity_index < len(bs.get("best_solution", [])) else None
+            opt_model_idx = reference[activity_index] if activity_index < len(reference) else None
             matching_models = models_by_func.get(category, [])
             if not matching_models:
                 raise ValueError(f"No HSC models for function category {category!r}")
@@ -161,17 +231,15 @@ def transform_hsc_instances(
                 candidates[cid] = {
                     "provides": f"service/{tid}",
                     "provider": {"resource": "catalog", "id": "provider_huggingface"},
-                    "features": {
-                        "normalized_downloads": round(float(m.get("normalized_downloads", 0.5)), 4),
-                        "normalized_likes": round(float(m.get("normalized_likes", 0.5)), 4),
-                        "normalized_response_times": round(float(m.get("normalized_response_times", 0.5)), 4),
-                        "normalized_waiting_times": round(float(m.get("normalized_waiting_times", 0.5)), 4),
-                        "reliabilities": round(float(m.get("reliabilities", 0.9)), 4),
-                        "successabilities": round(float(m.get("successabilities", 0.9)), 4),
-                    },
+                    "features": {k: float(m.get(k, v["default"])) for k, v in FEAT_META.items()},
                 }
                 if model_index == opt_model_idx:
                     reference_binding[tid] = {"resource": "catalog", "id": cid}
+        if len(reference) == len(activities) and len(reference_binding) == len(activities):
+            objective_part, reference_penalty = paper_objective_components(wf, models, list(reference))
+            reference_objective = objective_part + reference_penalty  # the BIM score of the reference binding
+        else:
+            reference_objective = reference_penalty = None
 
         cat_doc = {
             "apiVersion": "qos-binding/v1",
@@ -184,12 +252,21 @@ def transform_hsc_instances(
             },
         }
 
+        # Eq. (2): every constraint is soft and contributes its squared violation. With K
+        # constraints the compiler normalises the penalty weights to 1/K, hence the factor K.
+        active = [(f_id, v, float(wf.get("cons", {}).get(v["hsc_key"], 0.0))) for f_id, v in FEAT_META.items()]
+        active = [(f_id, v, val) for f_id, v, val in active if val > 0]
+        constraint_count = len(active)
         constraints = {}
-        for f_id, v in FEAT_META.items():
-            val = float(wf.get("cons", {}).get(v["hsc_key"], 0.0))
-            if val > 0:
-                op = "<=" if v["dir"] == "minimize" else ">="
-                constraints[f_id] = {"assert": f"features.{f_id} {op} {val}", "enforcement": "hard"}
+        penalties = []
+        for f_id, v, val in active:
+            op = "<=" if v["dir"] == "minimize" else ">="
+            constraints[f_id] = {
+                "assert": f"features.{f_id} {op} {val!r}",
+                "enforcement": "soft",
+                "penalty": f"{constraint_count} * (features.{f_id} - {val!r}) * (features.{f_id} - {val!r})",
+            }
+            penalties.append({"constraint": {"resource": "constraints", "id": f_id}, "weight": 1})
 
         cons_doc = {
             "apiVersion": "qos-binding/v1",
@@ -207,23 +284,27 @@ def transform_hsc_instances(
                     "id": f_id,
                     "feature": {"resource": "application", "id": f_id},
                     "direction": v["dir"],
-                    "normalize": {"min": 0.0, "max": 1.0, "clamp": True},
+                    "normalize": {"min": 0.0, "max": 1.0, "clamp": False},
                 })
                 objective_weights[f_id] = w
         if not criteria:
+            # No requirement in the released data lacks objectives; kept for robustness.
             criteria.append({
                 "id": "normalized_response_times",
                 "feature": {"resource": "application", "id": "normalized_response_times"},
                 "direction": "minimize",
-                "normalize": {"min": 0.0, "max": 1.0, "clamp": True},
+                "normalize": {"min": 0.0, "max": 1.0, "clamp": False},
             })
             objective_weights["normalized_response_times"] = 1.0
 
+        opt_spec: dict = {"criteria": criteria}
+        if penalties:
+            opt_spec["penalties"] = penalties
         opt_doc = {
             "apiVersion": "qos-binding/v1",
             "kind": "Optimization",
             "metadata": {"name": f"{inst_name}_optimization"},
-            "spec": {"criteria": criteria},
+            "spec": opt_spec,
         }
 
         inst_doc = {
@@ -231,17 +312,25 @@ def transform_hsc_instances(
             "kind": "Instance",
             "metadata": {
                 "name": inst_name,
-                "version": "1.0.0",
-                "description": "HSC Hugging Face AI service composition workflow instance",
+                "version": "2.0.0",
+                "description": "HSC Hugging Face AI service composition requirement (soft quadratic constraint penalties, Eq. 2 of the source paper)",
                 "annotations": {
-                    "source": "HSC Dataset (Hugging Face AI Service Composition)",
+                    "source": "HSC Dataset (Hugging Face AI Service Composition), https://github.com/wangxiaohit/HSC",
+                    "paper": PAPER,
                     "workflow_index": idx,
                     "user_requirement": req,
-                    "best_value": bs.get("best_value", 0.0),
+                    "objective_weights": objective_weights,
+                    "constraint_values": {f_id: val for f_id, _v, val in active},
+                    "constraint_semantics": "soft; penalty = squared violation (paper Eq. 2); score = f(x) + sum_j (g_j - c_j)^2",
                     "reference_binding": reference_binding,
+                    "reference_value": bs.get("best_value"),
+                    "reference_value_note": "best_value from best_solution.json as published by the HSC authors; not reproducible exactly from the released normalized_model.json for most requirements",
+                    # Eq. (1) + Eq. (2) of the reference binding recomputed on the released data: the value a BIM
+                    # engine must beat, since the BIM score of a binding equals this objective (verified below).
+                    "reference_objective": reference_objective,
+                    "reference_objective_penalty": reference_penalty,
                     "source_task_count": len(activities),
                     "source_level_count": len(stages),
-                    "objective_weights": objective_weights,
                 },
             },
             "spec": {
@@ -282,11 +371,29 @@ def transform_hsc_instances(
         print(f"Verifying compilation of {min(verify_sample, len(created_dirs))} sample instances...")
         for p in created_dirs[:verify_sample]:
             try:
-                compile_instance(load_package(p))
+                package = load_package(p)
+                problem = compile_instance(package)
+                # Fidelity check: the BIM score of the reference composition must equal the paper's
+                # objective f~(x) computed directly on the source data.
+                annotations = package.json("instance.json")["metadata"]["annotations"]
+                idx = int(annotations["workflow_index"])
+                binding = annotations["reference_binding"]
+                if binding and len(binding) == annotations["source_task_count"]:
+                    weights = annotations["objective_weights"]
+                    total = sum(weights.values())
+                    execution = {
+                        "type": "SINGLE",
+                        "scalarization": "weighted-sum",
+                        "weights": [{"criteria": key, "value": value / total} for key, value in weights.items()],
+                    }
+                    score = float(problem.evaluate(binding, execution)["objectives"]["score"])
+                    expected = paper_objective(workflows[idx], models, list(best_solutions[idx]["best_solution"]))
+                    if abs(score - expected) > 1e-9:
+                        raise AssertionError(f"BIM score {score!r} differs from the paper objective {expected!r}")
             except Exception as exc:
                 print(f"Verification failure on {p.name}: {exc}")
                 return 1
-        print("Sample verification passed successfully.")
+        print("Sample verification passed successfully (compilation and Eq. 1-2 fidelity).")
 
     return 0
 

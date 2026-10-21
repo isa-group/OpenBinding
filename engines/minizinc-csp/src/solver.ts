@@ -1,7 +1,8 @@
+import * as fs from 'fs';
 import * as path from 'path';
 import { CandidateRef, DznBuilder, DznBuildResult } from './dzn_builder';
 import { MiniZincRunner, MiniZincRunResult } from './minizinc_runner';
-import { evaluatePlacement } from './placement';
+import { HardViolationError, evaluatePlacement } from './placement';
 
 /** Executes the exact MiniZinc subset and returns BIM Engine Protocol v1. */
 export class Solver {
@@ -20,10 +21,11 @@ export class Solver {
     const execution = executionOptimization;
     if (!execution) throw new Error('Execution optimization is required');
     const built = this.validate(problem, normalizedOptions, execution);
+    if (process.env.MINIZINC_CSP_DUMP_DZN) fs.appendFileSync(process.env.MINIZINC_CSP_DUMP_DZN, `${built.dznContent}\n%%%% END\n`);
     const solverName = String(normalizedOptions.solver || 'gecode');
     const timeLimitMs = normalizedOptions.time_budget_ms == null
       ? 30000 : Number(normalizedOptions.time_budget_ms);
-    const modelPath = path.resolve(__dirname, '../model/binding_problem.mzn');
+    const modelPath = process.env.MINIZINC_CSP_MODEL || path.resolve(__dirname, '../model/binding_problem.mzn');
     const run = await this.runner.run(solverName, modelPath, built.dznContent,
       this.tmpDir, ['--time-limit', String(Math.round(timeLimitMs)), '--intermediate-solutions']);
 
@@ -35,13 +37,54 @@ export class Solver {
     const complete = run.stdout.includes('==========');
     const provenance = {
       algorithm: 'minizinc-csp', solver: solverName, elapsed_ms: run.durationMs,
-      time_budget_ms: timeLimitMs,
+      time_budget_ms: timeLimitMs, flatten_ms: run.flattenMs, widened_float_domains: run.widenedDomains,
+      suppressed_float_branchers: run.suppressedFloatBranchers,
+      ozn_rendered: run.oznRendered === true,
+      encoding: built.encoding,
     };
     if (unsatisfiable) return { termination: 'INFEASIBLE', solutions: [], provenance };
 
     const incumbents = this.parseIncumbents(run);
     if (incumbents.length === 0) return { termination: 'UNKNOWN', solutions: [], provenance };
-    const incumbent = incumbents[incumbents.length - 1];
+    // The solver reasons about relaxed comparisons (numeric.ts): a limit is moved by the
+    // numeric slack so that rounding can never exclude a boundary binding. The exact
+    // evaluation below is the arbiter. An incumbent that satisfies only the relaxed
+    // comparisons (it lies within one slack beyond a limit) is rejected; the latest
+    // earlier incumbent that is exactly feasible is then returned as FEASIBLE, never as
+    // OPTIMAL, because the proof covered the relaxed problem only.
+    const rejected: string[] = [];
+    for (let position = incumbents.length - 1; position >= 0; position -= 1) {
+      const incumbent = incumbents[position];
+      const binding = this.bindingOf(problem, built, incumbent);
+      const objectiveValue = Number(incumbent.objective_value);
+      if (!Number.isFinite(objectiveValue)) throw new Error('MiniZinc returned a non-finite objective');
+      let evaluation: any;
+      try {
+        evaluation = this.evaluate(problem, binding, execution);
+      } catch (error) {
+        if (!(error instanceof HardViolationError)) throw error;
+        rejected.push(error.message);
+        continue;
+      }
+      if (Math.abs(Number(evaluation.objectives.score) - objectiveValue) > 1e-6) {
+        throw new Error('MiniZinc objective disagrees with the canonical BIM v1 evaluation');
+      }
+      return {
+        termination: complete && rejected.length === 0 ? 'OPTIMAL' : 'FEASIBLE',
+        solutions: [{
+          decision: { kind: 'binding', binding },
+          features: evaluation.features,
+          objectives: evaluation.objectives,
+          penalties: evaluation.penalties,
+          violations: evaluation.violations,
+        }],
+        provenance: rejected.length ? { ...provenance, relaxed_incumbents_rejected: rejected } : provenance,
+      };
+    }
+    return { termination: 'UNKNOWN', solutions: [], provenance: { ...provenance, relaxed_incumbents_rejected: rejected } };
+  }
+
+  private bindingOf(problem: any, built: DznBuildResult, incumbent: any): Record<string, CandidateRef> {
     if (!Array.isArray(incumbent.selected_cand) || incumbent.selected_cand.length !== built.tasks.length) {
       throw new Error('MiniZinc incumbent has an invalid selected_cand vector');
     }
@@ -60,31 +103,18 @@ export class Solver {
       }
       binding[task] = candidate;
     });
-    const objectiveValue = Number(incumbent.objective_value);
-    if (!Number.isFinite(objectiveValue)) throw new Error('MiniZinc returned a non-finite objective');
-    const evaluation = this.evaluate(problem, binding, execution);
-    if (Math.abs(Number(evaluation.objectives.score) - objectiveValue) > 1e-6) {
-      throw new Error('MiniZinc objective disagrees with the canonical BIM v1 evaluation');
-    }
-    return {
-      termination: complete ? 'OPTIMAL' : 'FEASIBLE',
-      solutions: [{
-        decision: { kind: 'binding', binding },
-        features: evaluation.features,
-        objectives: evaluation.objectives,
-        penalties: evaluation.penalties,
-        violations: evaluation.violations,
-      }],
-      provenance,
-    };
+    return binding;
   }
 
   private validateOptions(options: any): void {
     if (!options || typeof options !== 'object' || Array.isArray(options)) {
       throw new Error('Engine options must be an object');
     }
-    const unknown = Object.keys(options).filter((key) => !['time_budget_ms', 'solver'].includes(key));
+    const unknown = Object.keys(options).filter((key) => !['time_budget_ms', 'solver', 'product_constraints'].includes(key));
     if (unknown.length) throw new Error(`Unknown engine options: ${unknown.join(', ')}`);
+    if (options.product_constraints !== undefined && !['log', 'real'].includes(String(options.product_constraints))) {
+      throw new Error("product_constraints must be 'log' or 'real'");
+    }
     if (options.time_budget_ms !== undefined
         && (!Number.isInteger(Number(options.time_budget_ms)) || Number(options.time_budget_ms) < 1
           || Number(options.time_budget_ms) > 3600000)) {
@@ -154,17 +184,24 @@ export class Solver {
         const values = node.branches.map((branch: any, index: number) => invocation(
           metricId, branch.flow, `${pointer}/branches/${index}/flow`));
         const operation = metric.aggregation.exclusive;
+        const weights = node.branches.map((branch: any, index: number) => Number(routing.get(this.refKey(
+          this.workflowBranchRef(application.resource, spec.sourceMap, pointer, index, branch.id)))));
         if (operation === 'weightedSum') {
-          return node.branches.reduce((sum: number, branch: any, index: number) =>
-            sum + Number(routing.get(this.refKey(this.workflowBranchRef(
-              application.resource, spec.sourceMap, pointer, index, branch.id)))) * values[index], 0);
+          return values.reduce((sum: number, value: number, index: number) => sum + weights[index] * value, 0);
+        }
+        if (operation === 'weightedProduct') {
+          return values.reduce((product: number, value: number, index: number) =>
+            weights[index] === 0 ? product : product * (value ** weights[index]), 1);
         }
         return this.aggregate(operation, values, Number(metric.neutral));
       }
       if (node.kind === 'repeat') {
         const value = invocation(metricId, node.body, `${pointer}/body`);
         const operation = metric.aggregation.repeat;
-        return operation === 'identity' ? value : value * Number(node.count);
+        const count = Number(node.expectedCount !== undefined ? node.expectedCount : node.count);
+        if (operation === 'identity') return value;
+        if (operation === 'power') return value ** count;
+        return value * count;
       }
       throw new Error(`Unsupported workflow node '${String(node.kind)}' during result evaluation`);
     };
@@ -201,6 +238,7 @@ export class Solver {
         if (value === undefined || value === null || !(segment in value)) throw new Error(`Missing expression path '${node.segments.join('.')}'`);
         return value[segment];
       }, context as any);
+      if (node?.kind === 'and') return Boolean(expression(node.left)) && Boolean(expression(node.right));
       if (node?.kind === 'compare') {
         const left = expression(node.left), right = expression(node.right);
         const equal = typeof left === 'object' && typeof right === 'object'
@@ -214,10 +252,19 @@ export class Solver {
       }
       throw new Error('Unsupported MiniZinc constraint expression');
     };
+    const penaltyWeights = new Map<string, number>((spec.optimization?.penalties || []).map((item: any) =>
+      [this.refKey(item.constraint), Number(item.weight)]));
+    const violations: any[] = [...placement.violations];
+    let softPenalty = 0;
     for (const constraint of spec.constraints) {
-      if (expression(constraint.when) && !expression(constraint.assert)) {
-        throw new Error(`MiniZinc returned a decision that violates hard constraint '${constraint.ref.resource}:${constraint.ref.id}'`);
+      if (!expression(constraint.when) || expression(constraint.assert)) continue;
+      if (constraint.enforcement !== 'soft') {
+        throw new HardViolationError(`MiniZinc returned a decision that violates hard constraint '${constraint.ref.resource}:${constraint.ref.id}'`);
       }
+      const penalty = Number(expression(constraint.penalty));
+      if (!Number.isFinite(penalty) || penalty < 0) throw new Error(`Soft constraint '${constraint.ref.id}' produced an invalid penalty`);
+      violations.push({ constraint: constraint.ref, enforcement: 'soft', penalty });
+      softPenalty += penalty * (penaltyWeights.get(this.refKey(constraint.ref)) || 0);
     }
     const weights = new Map((optimization?.weights || []).map((item: any) => [item.criteria, Number(item.value)]));
     const components = spec.optimization.criteria.map((criterion: any) => {
@@ -235,15 +282,16 @@ export class Solver {
       return { criteria: criterion.id, feature: featureRef, value, loss, weight: weights.get(criterion.id) || 0 };
     });
     const weighted = components.reduce((sum: number, component: any) => sum + component.loss * component.weight, 0);
+    const penalty = placement.penalty + softPenalty;
     const score = optimization.type === 'SINGLE'
-      ? (optimization.scalarization === 'feasibility' ? placement.penalty : weighted + placement.penalty)
-      : components.map((component: any) => component.loss).concat([placement.penalty]);
+      ? (optimization.scalarization === 'feasibility' ? penalty : weighted + penalty)
+      : components.map((component: any) => component.loss).concat([penalty]);
     return {
       features: metrics,
       metrics,
-      objectives: { type: optimization.type, scalarization: optimization.scalarization, components, penalty: placement.penalty, score },
+      objectives: { type: optimization.type, scalarization: optimization.scalarization, components, penalty, score },
       penalties: placement.penalties,
-      violations: placement.violations,
+      violations,
     };
   }
 
@@ -258,6 +306,7 @@ export class Solver {
   private aggregate(operation: string, values: number[], neutral: number): number {
     if (values.length === 0) return neutral;
     if (operation === 'sum') return values.reduce((sum, value) => sum + value, 0);
+    if (operation === 'product') return values.reduce((product, value) => product * value, 1);
     if (operation === 'min') return Math.min(...values);
     if (operation === 'max') return Math.max(...values);
     throw new Error(`Unsupported aggregation '${operation}' during result evaluation`);

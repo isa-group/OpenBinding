@@ -2,8 +2,8 @@
 
 ## Provenance
 
-- **Source:** Adrián Romero-Flores, Alfonso E. Márquez-Chamorro, José Antonio Parejo and Antonio Ruiz-Cortés, *Quantum Resource Selection as a QoS-Aware Composition Problem* (2026).
-- **Archive:** [Zenodo concept DOI 10.5281/zenodo.21442195](https://doi.org/10.5281/zenodo.21442195), which points to the latest version of the supplementary artifact.
+- **Source:** Adrián Romero-Flores, Alfonso E. Márquez-Chamorro, José Antonio Parejo and Antonio Ruiz-Cortés, *Quantum Resource Selection as a QoS-Aware Composition Problem*, Service-Oriented Computing -- ICSOC 2026 (in press).
+- **Archive:** [Zenodo 10.5281/zenodo.21442195](https://doi.org/10.5281/zenodo.21442195).
 - **Source files:** `quantumbim.json`, reconstruction and knitting workflow JSON, plus the circuit scaling experiment under `datasets/sources/quantum/`.
 
 ## Representation in QACOBench

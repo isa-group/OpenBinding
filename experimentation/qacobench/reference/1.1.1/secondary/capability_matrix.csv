@@ -1,0 +1,6 @@
+engine,reason,03_hsc_llm
+minizinc-csp,aggregations: sequence.expression,10000
+minizinc-csp,expressions: arithmetic,10000
+minizinc-csp,expressions: call.product,8999
+minizinc-csp,expressions: call.sum,9936
+minizinc-csp,expressions: path.values,10000

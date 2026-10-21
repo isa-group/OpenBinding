@@ -1,0 +1,27 @@
+\begin{tabular}{llrrrrrrr}
+\toprule
+Suite & Engine & Processed & Proof & Eval. budget & Time budget & Median ms & No-binding runs & Median ms (no binding) \\
+\midrule
+OpenBinding scenarios & GA & 48 & 0\% & 100\% & 0\% & 1,067 & 7 & 2,602 \\
+OpenBinding scenarios & MZN & 48 & 100\% & 0\% & 0\% & 81 & 0 & -- \\
+OpenBinding scenarios & RS & 48 & 0\% & 100\% & 0\% & 91 & 8 & 236 \\
+Quantum & GA & 46 & 0\% & 100\% & 0\% & 140 & 0 & -- \\
+Quantum & MZN & 46 & 100\% & 0\% & 0\% & 65 & 0 & -- \\
+Quantum & RS & 46 & 0\% & 100\% & 0\% & 11 & 0 & -- \\
+HSC & GA & 10,000 & 0\% & 100\% & 0\% & 623 & 0 & -- \\
+HSC & RS & 10,000 & 0\% & 100\% & 0\% & 62 & 0 & -- \\
+RPRSR15 & GA & 60 & 0\% & 30\% & 70\% & 5,000 & 0 & -- \\
+RPRSR15 & MZN & 60 & 28\% & 0\% & 72\% & 5,027 & 0 & -- \\
+RPRSR15 & RS & 60 & 0\% & 100\% & 0\% & 760 & 0 & -- \\
+IoTS & GA & 6 & 0\% & 83\% & 17\% & 3,086 & 0 & -- \\
+IoTS & MZN & 6 & 100\% & 0\% & 0\% & 276 & 0 & -- \\
+IoTS & RS & 6 & 0\% & 100\% & 0\% & 397 & 0 & -- \\
+BWS-SCP & GA & 90 & 0\% & 47\% & 53\% & 5,000 & 11 & 5,007 \\
+BWS-SCP & MZN & 90 & 21\% & 0\% & 79\% & 5,021 & 0 & -- \\
+BWS-SCP & RS & 90 & 0\% & 60\% & 40\% & 1,481 & 15 & 5,014 \\
+QFBS & GA & 5,200 & 0\% & 100\% & 0\% & 1,046 & 1,149 & 1,282 \\
+QFBS & MZN & 5,200 & 97\% & 0\% & 3\% & 88 & 0 & -- \\
+QFBS & RS & 5,200 & 0\% & 100\% & 0\% & 95 & 1,659 & 118 \\
+\bottomrule
+\multicolumn{9}{l}{\footnotesize Termination reasons as recorded per run: proof (exact engine), evaluation budget (1,000 / 10,000 evaluations) or the 5\,s time budget.}
+\end{tabular}

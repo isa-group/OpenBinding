@@ -1,0 +1,4 @@
+group,FEASIBLE,OPTIMAL,UNSAT,All
+guaranteed,94,2506,0,2600
+non_guaranteed,42,1759,799,2600
+All,136,4265,799,5200

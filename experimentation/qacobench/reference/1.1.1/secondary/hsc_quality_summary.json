@@ -1,0 +1,71 @@
+{
+ "instances": 10000,
+ "tasks: min/median/max": [
+  1,
+  3.0,
+  21
+ ],
+ "levels: min/median/max": [
+  1,
+  2.0,
+  10
+ ],
+ "instances with a parallel level": 7557,
+ "candidates per task: min/median/max": [
+  1,
+  85.0,
+  1187
+ ],
+ "log10 |B|: min/median/max": [
+  0.0,
+  4.00518051250378,
+  46.18538976382306
+ ],
+ "constraints: distribution": {
+  "0": 2055,
+  "1": 1915,
+  "2": 1987,
+  "3": 1949,
+  "4": 2094
+ },
+ "objectives: distribution": {
+  "2": 3323,
+  "3": 3388,
+  "4": 3289
+ },
+ "reference binding complete": 10000,
+ "reference violates its own soft constraints (penalty > 0)": 6023,
+ "reference median penalty when violated": 0.11522299414617306,
+ "corr(authors' best_value, recomputed reference objective)": 0.7746023352134781,
+ "max |best_value - recomputed reference objective|": 1.290436976688114,
+ "share |best_value - recomputed| <= 1e-6": 0.0433,
+ "GA: runs": 10000,
+ "GA: INCOMPATIBLE": 0,
+ "GA: binding yield": 1.0,
+ "GA: instances with binding and reference": 10000,
+ "GA: zero-penalty bindings (all soft constraints met)": 3833,
+ "GA: binding identical to reference": 4128,
+ "GA: better than reference (<-1e-9)": 5398,
+ "GA: equal to reference": 4471,
+ "GA: worse than reference": 131,
+ "GA: median gap to reference": -0.0022073380090314176,
+ "GA: median gap when worse": 0.012541551968599629,
+ "GA: median improvement when better": 0.027068964532783457,
+ "GA: median runtime ms": 623.0,
+ "RS: runs": 10000,
+ "RS: INCOMPATIBLE": 0,
+ "RS: binding yield": 1.0,
+ "RS: instances with binding and reference": 10000,
+ "RS: zero-penalty bindings (all soft constraints met)": 3641,
+ "RS: binding identical to reference": 2248,
+ "RS: better than reference (<-1e-9)": 3148,
+ "RS: equal to reference": 2473,
+ "RS: worse than reference": 4379,
+ "RS: median gap to reference": 0.0,
+ "RS: median gap when worse": 0.05137824341327485,
+ "RS: median improvement when better": 0.0285306795935496,
+ "RS: median runtime ms": 62.0,
+ "MZN: runs": 10000,
+ "MZN: INCOMPATIBLE": 10000,
+ "MZN: binding yield": 0.0
+}
