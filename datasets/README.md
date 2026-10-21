@@ -43,3 +43,16 @@ Each transformer encodes the *source* objective and constraints, not a convenien
 - 2,600 non-guaranteed instances: the same 26 configurations × 100 seeds, using threshold bands without a satisfiability label.
 
 `experimentation/qacobench/design_matrix.json` fixes every configuration and the base seed. The manifest records each request, response digest, actual counts and observed workflow structure. The campaign requires 15,450 instances before submitting jobs. There is no separate corpus-wide audit or second generation pass.
+
+## ICSOC placement dataset
+
+The source dataset of the ICSOC placement experiment
+(`experimentation/icsoc/original_dataset/`) is not stored on the main
+development branches. It is published on the separate branch
+`data/icsoc-original-dataset` of
+[isa-group/OpenBinding](https://github.com/isa-group/OpenBinding); fetch it with
+`git fetch origin data/icsoc-original-dataset` and materialize it with
+`git archive FETCH_HEAD experimentation/icsoc/original_dataset | tar -x` (or
+check it out separately with `git worktree add`).
+See [`experimentation/icsoc/README.md`](../experimentation/icsoc/README.md#source-dataset).
+The HSC sources under `datasets/sources/hsc/` remain part of this repository.

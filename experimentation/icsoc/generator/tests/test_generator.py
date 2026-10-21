@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from openbinding_gateway.v1.compiler import compile_instance
 from openbinding_gateway.v1.package import load_package
 
@@ -18,11 +19,18 @@ from experimentation.icsoc.generator.validation import validate_instance
 
 ROOT = Path(__file__).resolve().parents[4]
 DATASET = ROOT / "experimentation/icsoc/original_dataset"
+# The source dataset is published on the separate data/icsoc-original-dataset
+# branch; tests that read it are skipped when it has not been materialized.
+requires_dataset = pytest.mark.skipif(
+    not (DATASET / "applications.json").is_file(),
+    reason="ICSOC original_dataset not present (see experimentation/icsoc/README.md)",
+)
 PRICINGS = ROOT / "pricings"
 SCHEMA = ROOT / "schemas/bim/v1/instance.schema.json"
 CONFIG = ROOT / "experimentation/icsoc/generator/configs/default.yml"
 
 
+@requires_dataset
 def test_orchestration_parser_derives_expected_transitions() -> None:
     app = load_json(DATASET / "applications.json")[0]
     orchestration = parse_orchestration(app["orchestration_structure"])
@@ -48,6 +56,7 @@ def test_orchestration_parser_derives_expected_transitions() -> None:
     }
 
 
+@requires_dataset
 def test_security_is_translated_to_numeric_thresholds() -> None:
     app = load_json(DATASET / "applications.json")[0]
     orchestration = parse_orchestration(app["orchestration_structure"])
@@ -260,6 +269,7 @@ def test_generated_latency_provider_and_geo_classes() -> None:
     )
 
 
+@requires_dataset
 def test_generate_one_instance_layout_and_validation(tmp_path: Path) -> None:
     reports = generate_dataset(
         dataset=DATASET,

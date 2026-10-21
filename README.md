@@ -213,7 +213,9 @@ docker compose exec -T gateway-dev test \
   tests/integration/test_engine_representation_regression.py -m integration
 
 # Regenerate mediaOrch/146588263/infrastructure_50, reproduce the historical
-# MiniZinc optimum, and classify the seeded heuristic results.
+# MiniZinc optimum, and classify the seeded heuristic results. Needs the ICSOC
+# source dataset from the data/icsoc-original-dataset branch (see
+# experimentation/icsoc/README.md); the test is skipped without it.
 docker compose exec -T gateway-dev test \
   tests/integration/test_icsoc_regression.py -m integration
 

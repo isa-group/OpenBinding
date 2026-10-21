@@ -130,6 +130,18 @@ jobs:
           kubectl kustomize deploy/kubernetes > /tmp/openbinding-kubernetes.yaml
           kubectl kustomize deploy/kubernetes/overlays/with-space > /tmp/openbinding-kubernetes-with-space.yaml
 
+      # The ICSOC source dataset lives on its own branch so that development
+      # branches stay small. Materialize it when the branch is published; the
+      # dataset-dependent tests skip themselves otherwise.
+      - name: Materialize the ICSOC source dataset
+        run: |
+          if git ls-remote --exit-code origin refs/heads/data/icsoc-original-dataset >/dev/null; then
+            git fetch --depth=1 origin data/icsoc-original-dataset
+            git archive FETCH_HEAD experimentation/icsoc/original_dataset | tar -x
+          else
+            echo "::warning::data/icsoc-original-dataset not found; ICSOC dataset tests will be skipped"
+          fi
+
       - name: Build and start services
         run: docker compose up --build -d --wait gateway-dev engine-multi-heuristic
 

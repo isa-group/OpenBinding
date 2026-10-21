@@ -58,7 +58,7 @@ the same Instance; cross-instance summaries use normalized gaps or ranks.
 
 ```text
 experimentation/icsoc/
-├── original_dataset/          # source applications and infrastructures
+├── original_dataset/          # source data, fetched from a separate branch (see below)
 ├── generator/                 # BIM v1 generator and unit tests
 ├── campaign.py                # resumable /v1 campaign runner
 ├── regression/                # tiny pinned historical baseline (not the corpus)
@@ -81,6 +81,32 @@ seeds. The baseline records Q1, Q3, the quantile method, and the current seeded
 observations, all of which are asserted in CI. Generate a fresh full corpus and
 run the current campaign before evaluating or publishing new figures.
 
+## Source dataset
+
+The original ICSOC dataset (`original_dataset/`: applications and
+infrastructures, about 980 MiB in 1,401 files) is not part of this branch. It is
+published unchanged on the separate branch `data/icsoc-original-dataset` of
+[isa-group/OpenBinding](https://github.com/isa-group/OpenBinding), whose tree
+contains only `experimentation/icsoc/original_dataset/`. The path is listed in
+`.gitignore`, so a materialized copy is never committed again.
+
+Materialize it before generating the corpus:
+
+```bash
+git fetch origin data/icsoc-original-dataset
+
+# Option A (recommended, also for the Compose stack and the tests): extract the
+# files into this checkout; .gitignore keeps them out of commits
+git archive FETCH_HEAD experimentation/icsoc/original_dataset | tar -x
+
+# Option B: a separate worktree, passed explicitly to the generator with
+# --dataset ../openbinding-icsoc-data/experimentation/icsoc/original_dataset
+git worktree add --detach ../openbinding-icsoc-data FETCH_HEAD
+```
+
+Without it, the generator tests that read the source data and
+`tests/integration/test_icsoc_regression.py` are skipped.
+
 ## Run the experiment
 
 ```bash
@@ -91,7 +117,7 @@ uv pip install -e ./openbinding-gateway pandas matplotlib scipy httpx --python .
 docker compose --profile dev up -d --build gateway-dev \
   engine-minizinc engine-random-search engine-evolutionary-heuristics
 
-# 2) Deterministic corpus
+# 2) Deterministic corpus (requires original_dataset/, see "Source dataset")
 .venv/bin/python -m experimentation.icsoc.generator.cli generate \
   --dataset experimentation/icsoc/original_dataset \
   --pricing-dir pricings \
