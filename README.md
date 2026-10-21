@@ -33,6 +33,10 @@ current state of the work, [`docs/qa/JOINT_STATUS.md`](docs/qa/JOINT_STATUS.md).
 
 See the [interactive BIM v1 architecture map](docs/diagrams/bim-v1-architecture.html) for the package, compilation, and engine boundaries.
 
+## Project governance
+
+Agents and contributors start at [`AGENTS.md`](AGENTS.md). Purpose and rules: [`INTENT.md`](INTENT.md), [`constitution.md`](constitution.md), [`REVIEW.md`](REVIEW.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), [`TESTING.md`](TESTING.md), [`SECURITY.md`](SECURITY.md), [Definition of Done](docs/DEFINITION_OF_DONE.md); living specs in [`openspec/`](openspec/project.md); decisions in [`docs/adr/`](docs/adr/0001-record-architecture-decisions.md).
+
 ## BIM v1 at a glance
 
 ```mermaid

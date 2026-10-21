@@ -1,5 +1,7 @@
 # bim-toolchain
 
+Agents and contributors start at [`AGENTS.md`](AGENTS.md) ([`INTENT.md`](INTENT.md), [`constitution.md`](constitution.md), [`REVIEW.md`](REVIEW.md), [`openspec/`](openspec/project.md)).
+
 The BIM toolchain, prepared as the root of its own (future, private) repository.
 
 **BIM here is a service-composition and binding language**: a package of JSON (and BPMN) documents describes an
