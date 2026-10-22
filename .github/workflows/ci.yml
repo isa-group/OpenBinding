@@ -220,4 +220,4 @@ jobs:
 
       - name: Run Playground browser tests
         working-directory: frontend
-        run: pnpm test:e2e
+        run: pnpm exec playwright test --project=mocked
