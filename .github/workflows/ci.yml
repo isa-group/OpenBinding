@@ -156,7 +156,9 @@ jobs:
         run: docker compose up --build -d --wait gateway-dev engine-multi-heuristic
 
       - name: Run unit tests
-        run: docker compose exec -T gateway-dev test
+        # The tests that need the whole checkout read it from the read-only
+        # /workspace mount; `test` is a wrapper around pytest, so the variable passes through.
+        run: docker compose exec -T -e OPENBINDING_REPO_ROOT=/workspace gateway-dev test
 
       - name: Run ICSOC generator tests
         run: docker compose exec -T gateway-dev env PYTHONPATH=/app:/app/src pytest /app/experimentation/icsoc/generator/tests
@@ -189,7 +191,8 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # jsdom 30 (the Vitest environment) requires Node ^22.22.2 || ^24.15.0 || >=26.
+          node-version: '22'
 
       - name: Enable pnpm
         run: corepack enable
