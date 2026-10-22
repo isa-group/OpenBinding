@@ -114,6 +114,8 @@
 .proj-row-card {
   display: flex;
   flex-direction: column;
+  /* Explicit: the phone rule for links (globals.css) sets `align-items: center` at zero specificity, which would shrink the cell bar to nothing. */
+  align-items: stretch;
   gap: var(--tp-spacing-xs);
   padding: var(--tp-spacing-sm);
   border: 1px solid var(--tp-hairline-soft);

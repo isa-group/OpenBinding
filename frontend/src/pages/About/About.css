@@ -147,6 +147,8 @@
   display: flex;
   flex: 1;
   flex-direction: column;
+  /* Explicit: the phone rule for links (globals.css) sets `align-items: center` at zero specificity, which would shrink the logo tile and its size-less SVG to nothing. */
+  align-items: stretch;
   gap: 10px;
   padding: var(--tp-spacing-sm);
   border: 1px solid var(--tp-hairline);
