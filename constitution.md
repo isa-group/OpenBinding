@@ -1,4 +1,5 @@
-Status: PROPOSED for owner review (2026-10-22). Articles 6, 15–19 are new or amended in this version.
+Status: PROPOSED for owner review (2026-10-22, revision 2). Articles 6, 15–19 are new or amended in this version;
+revision 2 adds 6.8, 6.9 and 15.5 and amends 15.1 and 16.6.
 
 # Constitution — OpenBinding
 
@@ -70,8 +71,13 @@ interface; `domain` MUST NOT import FastAPI, SQLAlchemy, HTTP clients or any ada
 another feature; pages compose features; only `shared/api` talks HTTP.
 6.7 Moving existing code into modules is a behaviour-preserving `refactor/<id>` change with characterization tests;
 it MUST NOT be mixed with feature work.
+6.8 A new routed screen, public endpoint or domain concept MUST name the journey of `INTENT.md` §2 it serves; the
+number of routed screens MUST NOT exceed the budget of INTENT O12 (ADR-0020).
+6.9 Every environment, production included, MUST be deployable with the Docker Compose files of the repository
+(`docker-compose.yml`, `deploy/compose/`); no manifests of another orchestrator are kept (ADR-0021).
 Enforced: `tests/test_architecture_layers.py`. GAP for 6.5–6.6: import-linter contracts for modules and an ESLint
-boundaries rule for the frontend.
+boundaries rule for the frontend. GAP for 6.8: a route-registry count test. GAP for 6.9: `docker compose config` of
+every environment in CI.
 
 ## Article 7 — Data
 
@@ -154,7 +160,7 @@ Latency targets are INTENT O9; they are measured in the lab before a release.
 ## Article 15 — Render, never dump
 
 15.1 No screen MAY present raw JSON, YAML, XML or an unprocessed API response as its main content. Results,
-analyses, reports, manifests, logs and diagnostics MUST be rendered with the components of the rendering catalogue
+study metrics, published results, manifests, logs and diagnostics MUST be rendered with the components of the rendering catalogue
 (`docs/ARCHITECTURE.md` §5.3): tables, cards, matrices and charts.
 15.2 A source view is allowed only as a secondary, labelled tab or an explicit download, never as the default view,
 and it MUST use the read-only code viewer of the catalogue.
@@ -162,8 +168,13 @@ and it MUST use the read-only code viewer of the catalogue.
 grouped by resource and pointer with their stable `code`.
 15.4 Screens MUST stay informative without overloading: each screen has one primary question it answers, shows at
 most one dense table above the fold and puts details behind tabs or disclosure.
+15.5 Screens MUST identify problems, versions, collections, runs, studies and published results by name, version
+number and date. SHAs, digests, hashes, fingerprints and UUIDs MUST NOT appear as labels, card lines or columns; a
+digest MAY appear only on the Verify page, in citation panels and in export manifests, as one copyable value (INTENT
+principle 13, `docs/ARCHITECTURE.md` §5.4).
 Enforced: GAP — `frontend/src/hygiene.test.ts` rule that fails on `JSON.stringify` rendered in JSX or `<pre>`
-outside the source-view components; ui-qa screenshots in G12.
+outside the source-view components, and on digest-shaped strings or UUIDs outside the components of §5.4; ui-qa
+screenshots in G12.
 
 ## Article 16 — External platforms through their real clients
 
@@ -175,9 +186,11 @@ write to SPHERE. The pricing is changed only in SPHERE.
 16.4 Client libraries and SPHERE/SPACE images MUST be pinned to exact versions; upgrading them is a change with
 contract tests against the pinned images in the lab.
 16.5 A SPACE API key MUST NEVER reach the browser; the browser receives only the user's pricing token.
-16.6 Tests and previews MUST NOT use the production SPACE/SPHERE deployments.
-Enforced: GAP — architecture test forbidding HTTP clients aimed at SPACE/SPHERE outside the plans module; lab
-`pricing` profile with pinned images.
+16.6 Unit and CI tests MUST NOT reach SPACE or SPHERE over the network; they use a recorded pricing and a fake plans
+port. The lab, previews and production read the pricing from SPHERE at `sphere.score.us.es` and MUST NOT write to
+it; until the owner switches them to `space.score.us.es` (INTENT D5), they run their own pinned SPACE.
+Enforced: GAP — architecture test forbidding HTTP clients aimed at SPACE/SPHERE outside the plans module; a test
+that the unit suites open no connection to SPACE or SPHERE; lab `pricing` profile with a pinned SPACE image.
 
 ## Article 17 — Language extensions
 
