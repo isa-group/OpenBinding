@@ -36,11 +36,12 @@ Goal: `develop` is green, gated and previewable, and the lab does not fill up.
 |---|---|---|
 | M0.1 | Land PR #24 (integration of the platform on the QACOBench 1.1.1 release) | CI green; review panel approved; `develop` fast-forwarded to the reviewed head, keeping the 303 commits |
 | M0.2 | OpenSpec strict validation | `openspec validate --strict --all` exits 0 (today 16 specs fail on requirement text length) |
-| M0.3 | Gate tooling | OpenSpec CLI (G1) and OpenFastTrace (G6) run in CI and in the gate runner; `acceptance/api` (pytest) and `acceptance/ui` (Playwright) runners exist; import-linter and ESLint boundaries run in report-only mode (G9) |
+| M0.3 | Gate tooling | OpenSpec CLI (G1) and OpenFastTrace (G6) run in CI and in the gate runner; `acceptance/api` (pytest) and `acceptance/ui` (Playwright) runners exist; import-linter and ESLint boundaries run in report-only mode (G9); a `bim-toolchain` CI job runs its tests and goldens on every change under `bim-toolchain/` until the extraction to `isa-group/bim-toolchain` |
 | M0.4 | Develop preview | a lab stack follows `develop`; `https://openbinding.home.javiercavlop.com` opens from the Mac and the iPhone (homelab Caddy site and AdGuard rewrite, one owner action); its origin is in `CORS_ALLOW_ORIGINS` |
 | M0.5 | PR previews | the factory brings up a preview per PR head on demand and expires it after 7 idle days |
 | M0.6 | Storage and retention in the lab | stale work trees and task branches archived through the factory maintenance operations; retention jobs for reports and archives; lab disk below 70 % of the quota |
 | M0.7 | Factory hygiene | local integration commits keep the Conventional Commit subject and trailers of the task |
+| M0.8 | QACOBench after the integration: capability refusals get their own error code `engine_incompatible` (additive, in `docs/ERRORS.md` and the OpenAPI snapshot) instead of `campaign.py` parsing messages; `minizinc-csp` 1.1.1 gets a new frozen baseline and the `CHANGED_MANIFESTS` exception goes; `reference/1.1.1` stays the historical reference and 1.1.2 is released from a green `develop` (CRP for the release itself) | no baseline exceptions left; a `reference/1.1.2` whose provenance digests match the platform; `reference/1.1.1` unchanged |
 
 ## M1 — Specification v2
 
