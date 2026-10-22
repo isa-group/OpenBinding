@@ -110,7 +110,8 @@ values remain out of range. A normalized minimizing term has loss `n`, while a
 normalized maximizing term has loss `1-n`. Without normalization the losses
 are respectively `x` and `-x`.
 
-Weighted optimization accepts positive relative weights and the compiler
+Weighted optimization accepts positive relative weights, supplied in the
+`optimization` object of the execution request rather than the package, and
 normalizes them to sum to one. Its loss is the weighted sum of term losses and
 the explicitly weighted soft penalties. Terms with different units require
 normalization. Lexicographic optimization compares its ordered loss vector.

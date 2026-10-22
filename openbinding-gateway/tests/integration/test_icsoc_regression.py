@@ -41,7 +41,18 @@ LANES = {
         },
     ),
 }
-OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
+# The package declares criteria only; the historical weights of configs/default.yml
+# belong to the request. Without them the gateway fills equal weights and the
+# exact optimum changes.
+OPTIMIZATION = {
+    "type": "SINGLE",
+    "scalarization": "weighted-sum",
+    "weights": [
+        {"criteria": "latency", "value": 0.33},
+        {"criteria": "cost", "value": 0.34},
+        {"criteria": "security", "value": 0.33},
+    ],
+}
 
 
 def _repository_root() -> Path:
