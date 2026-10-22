@@ -467,7 +467,7 @@ flowchart LR
   subgraph SPAS["SPACE 1.7.1 · local now, space.score.us.es later"]
     SV[service openbinding<br/>source sphere, policy all_last]
     CT[(contracts)]
-    EV[feature evaluation<br/>solver hours, pricing tokens]
+    EV[feature evaluation<br/>solver hours, generated instances,<br/>pricing tokens]
   end
   subgraph OBS[OpenBinding]
     PM[plans module<br/>space-python-client]
@@ -484,7 +484,7 @@ flowchart LR
 | Who | Responsibility |
 |---|---|
 | SPHERE (`sphere.score.us.es`) | authoring and versioning of the OpenBinding pricing; public permanent-link API |
-| SPACE | contracts, feature evaluation, the solver-hours usage level, contract migration when the pricing changes, events |
+| SPACE | contracts, feature evaluation, the solver-hours and generated-instances usage levels, contract migration when the pricing changes, events |
 | OpenBinding | enforcement points and its own counts for the other limits, contract creation (registration, CAS link), plan changes for FREE and RESEARCH and by administrators, pricing display, token issuance to the browser |
 
 | Environment | SPHERE | SPACE |
@@ -500,12 +500,15 @@ flowchart LR
 - The **entitlement map** (operation → SPACE feature id `openbinding-<name>` and limits) lives in
   `modules/plans/domain`. At start-up and on `pricing_activated`, the gateway checks that every feature and limit it
   references exists in the active pricing and fails closed otherwise.
-- Pricing 0.2.0 (`docs/pricing/`) declares seven features and seven limits. SPACE tracks one usage level,
-  `solverHours` (renewable, monthly). A run on a built-in engine, a study cell or a solver-aware generation is
-  admitted while the month's hours are not exhausted and then consumes its time budget; a run that stops early is
-  not refunded, so the count can be checked against the budgets. The other limits are plan values that the gateway
-  compares with its own counts (running runs, cells of a study run, a run's budget, private projects, federated
-  engines, API keys), so no counter can drift.
+- Pricing 0.2.0 (`docs/pricing/`) declares seven features and twelve limits. SPACE tracks two usage levels, both
+  renewable and monthly: `solverHours` and `generatedInstances`. A run on a built-in engine, a study cell or the
+  solver part of a solver-aware generation is admitted while the month's hours are not exhausted and then consumes
+  its time budget; a run that stops early is not refunded, so the count can be checked against the budgets. A
+  generation is admitted while the month's instances are not exhausted and consumes the instances it writes. The
+  other limits are plan values that the gateway compares with its own counts (running runs, cells of a study run, a
+  run's budget, instances per generation request, problems and collections owned, repository storage, private
+  projects, federated engines, API keys), so no counter can drift. The repository limits apply to FREE only; the
+  other plans declare them as `.inf`.
 - Gated operations call `evaluate(user, feature, expected_consumption)`; an operation that fails after consuming
   calls `revert_evaluation` (SPACE honours it within two minutes).
 - SPACE events (`synchronized`, `pricing_created`, `pricing_activated`, `pricing_archived`, `service_disabled`)

@@ -245,7 +245,7 @@ Each has a default that applies if the owner accepts this document as is. D5 and
 | D1 | UI vocabulary Problem/Run instead of Case/Job (API `v1` unchanged) | yes |
 | D2 | Licence: Apache-2.0 for code, CC BY 4.0 for documentation and data | keep CC BY 4.0 until the owner decides |
 | D3 | Organization plans | retire sponsorship; plans are per-account SPACE contracts, RESEARCH and LAB assigned by agreement |
-| D4 | Renewable usage limits enforced through SPACE when the pricing declares them | yes, only solver hours per month (pricing 0.2.0) |
+| D4 | Renewable usage limits enforced through SPACE when the pricing declares them | yes: solver hours and generated instances per month (pricing 0.2.0) |
 | D5 | SPHERE and SPACE outside production | decided: SPHERE at `sphere.score.us.es` everywhere; a local SPACE of the latest release (1.7.1), linked to that pricing, until `space.score.us.es` runs it |
 | D6 | SPACE synchronization policy for OpenBinding's service | `all_last` (every subscription follows the latest published pricing) |
 | D7 | Targets of section 7 | as written |

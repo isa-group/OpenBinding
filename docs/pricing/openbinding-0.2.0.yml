@@ -39,8 +39,8 @@ features:
     tag: Laboratory
     type: DOMAIN
     valueType: BOOLEAN
-    defaultValue: false
-    expression: pricingContext['features']['generator'] && subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']
+    defaultValue: true
+    expression: pricingContext['features']['generator'] && subscriptionContext['generatedInstances'] < pricingContext['usageLimits']['generatedInstances']
   federatedEngines:
     description: Register remote engines that pass conformance and run problems on them.
     tag: Engines
@@ -65,6 +65,36 @@ features:
     defaultValue: true
     expression: pricingContext['features']['apiAccess']
 usageLimits:
+  maxProblems:
+    description: Problems the account owns in the repository, public or private.
+    tag: Repository
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 25
+    unit: problem
+    linkedFeatures:
+    - repository
+  maxCollections:
+    description: Collections the account owns in the repository.
+    tag: Repository
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 5
+    unit: collection
+    linkedFeatures:
+    - repository
+  maxRepositoryStorage:
+    description: Stored size of every version of the problems and collections the account owns.
+    tag: Repository
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 500
+    unit: MB
+    linkedFeatures:
+    - repository
   solverHours:
     description: Solver time on the built-in engines per account and month; each run counts its time budget when it
       starts.
@@ -79,7 +109,6 @@ usageLimits:
     linkedFeatures:
     - runs
     - studies
-    - generator
   maxRunMinutes:
     description: Largest time budget of one run.
     tag: Laboratory
@@ -114,6 +143,28 @@ usageLimits:
     unit: cell
     linkedFeatures:
     - studies
+  generatedInstances:
+    description: Problem instances the generator writes per account and month; each generated instance counts once.
+    tag: Laboratory
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    valueType: NUMERIC
+    defaultValue: 1000
+    unit: instance/month
+    linkedFeatures:
+    - generator
+  maxInstancesPerGeneration:
+    description: Instances in one generation request.
+    tag: Laboratory
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: instance
+    linkedFeatures:
+    - generator
   maxFederatedEngines:
     description: Federated engine deployments registered by the account.
     tag: Engines
@@ -146,7 +197,8 @@ usageLimits:
     - apiAccess
 plans:
   FREE:
-    description: For any researcher. Author, run, compare and publish binding problems.
+    description: For any researcher. Author, run, compare, generate and publish binding problems, with a repository
+      sized for one author.
     price: 0
     unit: user/month
     features:
@@ -157,7 +209,7 @@ plans:
       studies:
         value: true
       generator:
-        value: false
+        value: true
       federatedEngines:
         value: true
       collaboration:
@@ -165,6 +217,12 @@ plans:
       apiAccess:
         value: true
     usageLimits:
+      maxProblems:
+        value: 25
+      maxCollections:
+        value: 5
+      maxRepositoryStorage:
+        value: 500
       solverHours:
         value: 5
       maxRunMinutes:
@@ -173,6 +231,10 @@ plans:
         value: 1
       maxStudyCells:
         value: 500
+      generatedInstances:
+        value: 1000
+      maxInstancesPerGeneration:
+        value: 100
       maxFederatedEngines:
         value: 1
       maxPrivateProjects:
@@ -180,8 +242,8 @@ plans:
       maxApiKeys:
         value: 2
   RESEARCH:
-    description: Free for Universidad de Sevilla members who sign in with CAS. Adds the generator and research-scale
-      limits.
+    description: Free for Universidad de Sevilla members who sign in with CAS. An unlimited repository and
+      research-scale laboratory limits.
     price: 0
     unit: user/month
     features:
@@ -200,6 +262,12 @@ plans:
       apiAccess:
         value: true
     usageLimits:
+      maxProblems:
+        value: .inf
+      maxCollections:
+        value: .inf
+      maxRepositoryStorage:
+        value: .inf
       solverHours:
         value: 100
       maxRunMinutes:
@@ -208,6 +276,10 @@ plans:
         value: 4
       maxStudyCells:
         value: 5000
+      generatedInstances:
+        value: 100000
+      maxInstancesPerGeneration:
+        value: 10000
       maxFederatedEngines:
         value: 3
       maxPrivateProjects:
@@ -215,7 +287,8 @@ plans:
       maxApiKeys:
         value: 10
   LAB:
-    description: By agreement, for groups that run benchmark campaigns or operate engines.
+    description: By agreement, for groups that run benchmark campaigns or operate engines. Campaign-scale solver time,
+      concurrency and generation.
     price: Contact us
     unit: user/month
     features:
@@ -234,17 +307,27 @@ plans:
       apiAccess:
         value: true
     usageLimits:
+      maxProblems:
+        value: .inf
+      maxCollections:
+        value: .inf
+      maxRepositoryStorage:
+        value: .inf
       solverHours:
-        value: 1000
+        value: 10000
       maxRunMinutes:
-        value: 120
+        value: 1440
       maxConcurrentRuns:
-        value: 8
+        value: 32
       maxStudyCells:
-        value: 50000
+        value: 500000
+      generatedInstances:
+        value: 1000000
+      maxInstancesPerGeneration:
+        value: 100000
       maxFederatedEngines:
-        value: 10
+        value: 50
       maxPrivateProjects:
-        value: 50
+        value: 500
       maxApiKeys:
-        value: 50
+        value: 200

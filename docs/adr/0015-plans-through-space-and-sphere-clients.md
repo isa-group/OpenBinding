@@ -32,8 +32,9 @@ application). Official clients exist for every side: `space-python-client` (alre
    release, whose `openbinding` service is created from that permanent link (`source: sphere`, `all_last`) by a
    bootstrap. Switching to `space.score.us.es` is a change of configuration. Unit and CI tests use a recorded
    pricing and never reach SPACE or SPHERE.
-6. Nothing is charged: no checkout, credits or invoices. SPACE tracks the one usage limit that the pricing declares
-   as renewable (solver hours per month, INTENT D4); the gateway compares the other limits with its own counts.
+6. Nothing is charged: no checkout, credits or invoices. SPACE tracks the usage limits that the pricing declares as
+   renewable (solver hours and generated instances per month, INTENT D4); the gateway compares the other limits with
+   its own counts.
 7. Removed: `sphere_client.py`, `pricing_catalog.py`, the deprecated `/v1/pricing` proxy and `/v1/pricing/catalog`,
    admin pricing validation, `space_client/deployments.py` and the release sweeps.
 

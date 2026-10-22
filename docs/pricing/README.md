@@ -17,7 +17,7 @@ Summary:
 | Plans | BASIC (0), ADVANCED (contact us), RESEARCH (0, US CAS), PRO (contact us) | FREE (0), RESEARCH (0, US CAS), LAB (contact us) |
 | Add-ons | 6, all "contact us" | none |
 | Features | 11 | 7 |
-| Usage limits | 19, 4 of them renewable | 7, 1 renewable (solver hours per month) |
+| Usage limits | 19, 4 of them renewable | 12, 2 renewable (solver hours and generated instances per month) |
 | Configuration space | 50 subscriptions | 3 subscriptions |
 
 ## 1. Method
@@ -65,7 +65,7 @@ The cycle also applies INTENT principle 12: what no journey of INTENT §2 needs 
 | `repository`: author, version and publish problems and collections; permanent links, citations, Verify | P1; journeys 1, 2 | yes | — |
 | `runs`: run problem versions on the built-in engines | P2, P3; journey 2 | yes | `repository` |
 | `studies`: compare engines over problems or a collection; protocol metrics; published results | P2; journey 3 | yes | `runs`, `repository` |
-| `generator`: solver-aware generation of collections | P2; curators | no | `runs` |
+| `generator`: solver-aware generation of collections | P2; curators | no; in every plan, made key by its limits | `runs` for the solver-aware option |
 | `federatedEngines`: register remote engines that pass conformance | P3; journey 4 | yes, with a limit | `runs` |
 | `collaboration`: organizations, projects, members, roles; public or private projects | E1; journey 6 | yes | — |
 | `apiAccess`: API keys for scripts, QACOBench and MCP clients | E1; journey 6 | yes | — |
@@ -96,38 +96,49 @@ does not already give.
 
 **Key features.**
 
-- `generator` is the one non-essential feature. It is valuable to curators and costs compute.
+- `generator` is the one non-essential feature. It is valuable to curators and costs compute, so every plan has it
+  and its two limits make it key: instances per month and instances per request.
+- The repository is essential and open science is the point of the platform, so only FREE limits it (problems,
+  collections and stored size). RESEARCH and LAB declare those limits as `.inf`: `pricing4ts` 0.12.1, the library
+  SPACE uses, reads `.inf` as its unlimited value.
 - The other key features are essential features turned key by their usage limits:
 
 | Limit | Makes key | FREE | RESEARCH | LAB | Why these values |
 |---|---|---|---|---|---|
-| `solverHours` (renewable, per month) | `runs`, `studies`, `generator` | 5 | 100 | 1,000 | FREE: about 300 one-minute runs. RESEARCH: the whole QACOBench 1.1.1 reference campaign (46,350 executions × 5 s ≈ 64 h of budget) fits in a month, in study runs of at most 5,000 cells. LAB: several campaigns a month |
-| `maxRunMinutes` | `runs`, `studies` | 5 | 30 | 120 | interactive runs; exact solvers on research instances; large exact runs |
-| `maxConcurrentRuns` | all execution | 1 | 4 | 8 | fair sharing: on a 16-core host, one LAB account uses at most half |
-| `maxStudyCells` (per study run) | `studies` | 500 | 5,000 | 50,000 | a small collection × 3 engines; a QACOBench suite; the whole reference campaign as one study run |
-| `maxFederatedEngines` | `federatedEngines` | 1 | 3 | 10 | an author tries one engine; a group maintains a few; a lab hosts a portfolio |
-| `maxPrivateProjects` | `collaboration` | 1 | 10 | 50 | public by default (open science); private work before a paper |
-| `maxApiKeys` | `apiAccess` | 2 | 10 | 50 | one script and one MCP client; a group's automation; campaign infrastructure |
+| `maxProblems` | `repository` | 25 | `.inf` | `.inf` | FREE: one author's working set; RESEARCH and LAB: unlimited, the repository is the open-science core |
+| `maxCollections` | `repository` | 5 | `.inf` | `.inf` | FREE: a few suites of one author |
+| `maxRepositoryStorage` (MB, every version) | `repository` | 500 | `.inf` | `.inf` | FREE: hundreds of versions of typical BIM packages (kilobytes to a few megabytes each); the limit only stops a free account from becoming a bulk mirror |
+| `solverHours` (renewable, per month) | `runs`, `studies` | 5 | 100 | 10,000 | FREE: about 300 one-minute runs. RESEARCH: the whole QACOBench 1.1.1 reference campaign (46,350 executions × 5 s ≈ 64 h of budget) fits in a month, in study runs of at most 5,000 cells. LAB: many reference campaigns a month, in parallel |
+| `maxRunMinutes` | `runs`, `studies` | 5 | 30 | 1,440 | interactive runs; exact solvers on research instances; day-long exact runs |
+| `maxConcurrentRuns` | all execution | 1 | 4 | 32 | fair sharing for FREE and RESEARCH; LAB runs campaigns in parallel and its agreement includes the capacity (see the capacity check) |
+| `maxStudyCells` (per study run) | `studies` | 500 | 5,000 | 500,000 | a small collection × 3 engines; a QACOBench suite; several reference campaigns as one study run |
+| `generatedInstances` (renewable, per month) | `generator` | 1,000 | 100,000 | 1,000,000 | FREE: try the generator on small suites; RESEARCH: the generated suites of a paper; LAB: benchmark-scale suites |
+| `maxInstancesPerGeneration` | `generator` | 100 | 10,000 | 100,000 | one request stays well inside the month's allowance and the gateway's generator ceilings |
+| `maxFederatedEngines` | `federatedEngines` | 1 | 3 | 50 | an author tries one engine; a group maintains a few; a lab hosts a portfolio |
+| `maxPrivateProjects` | `collaboration` | 1 | 10 | 500 | public by default (open science); private work before a paper; a lab's internal projects |
+| `maxApiKeys` | `apiAccess` | 2 | 10 | 200 | one script and one MCP client; a group's automation; campaign infrastructure |
 
-**Distribution heuristic.** FREE ⊂ RESEARCH ⊂ LAB:
+**Distribution heuristic.** FREE ⊂ RESEARCH ⊂ LAB. Every plan has the same seven features; the plans differ in their
+limits only:
 
-- RESEARCH adds `generator` and raises every limit;
-- LAB raises every limit and adds no feature.
+- RESEARCH lifts the repository limits and raises every laboratory and collaboration limit;
+- LAB keeps the unlimited repository and raises the laboratory limits to campaign scale, above all solver time, run
+  length, concurrency and generation.
 
 The process accepts raised limits on key features as added value. Inventing a LAB-only feature that no journey needs
 would break principle 12.
 
 **Consistency.** With plans only, every subscription is exactly one plan. Every plan defines every feature and limit.
 Every limit is linked to a declared feature. Every expression reads only declared features and limits. The file parses
-with `pricing4ts` 0.12.1, the library SPACE 1.7.1 uses (3 plans, 0 add-ons, 7 features, 7 limits).
+with `pricing4ts` 0.12.1, the library SPACE 1.7.1 uses (3 plans, 0 add-ons, 7 features, 12 limits).
 
 **Moved out of the pricing.** These rules are the same for every account:
 
 - **Technical ceilings** become gateway settings, using today's RESEARCH values: 128 MiB per package, 1,000,000
   iterations per run, binding spaces up to 10^20 for exact engines.
 - **Run history** follows the retention rules of ARCHITECTURE §10.
-- **Organizations, members, projects and collections** are not limited. A research platform should not throttle
-  colleagues working together.
+- **Organizations, members and projects** are not limited. A research platform should not throttle colleagues
+  working together. Collections are limited only on FREE, as part of its repository limits.
 
 ## 5. Stage 3: prices
 
@@ -142,12 +153,17 @@ with `pricing4ts` 0.12.1, the library SPACE 1.7.1 uses (3 plans, 0 add-ons, 7 fe
   (dedicated cloud cores), the monthly OpEx is:
   - FREE: €0.05–0.25;
   - RESEARCH: €1–5;
-  - LAB: €10–50.
+  - LAB: €100–500.
+
+  Generation adds little next to solver time: an instance is a small package, and the solver-aware option is charged
+  as solver hours.
 
   The owner replaces *c* with the real cost of the production server.
 - **Capacity check.** A host with *K* cores offers about 730 × *K* core-hours a month. At a 60 % target load, a
-  16-core host offers ≈ 7,000 h. The allowances of active accounts should stay below that. In particular, LAB is
-  assigned to at most *K*/8 accounts at a time, or its concurrency is lowered.
+  16-core host offers ≈ 7,000 h. The allowances of active accounts should stay below that. One LAB account at full
+  use (10,000 h, 32 concurrent runs) exceeds a 16-core host on its own, so every LAB agreement states where its
+  capacity comes from: dedicated or federated engines, or a larger host. Without that, runs above the host's
+  capacity wait in the engines' queues.
 - **Annual discount.** The process recommends monthly prices plus a discounted annual price. That does not apply,
   because nothing is charged. `billing` keeps `monthly: 1` only.
 
@@ -157,18 +173,22 @@ Feature ids in SPACE are `openbinding-<feature>`; limit ids are `openbinding-<li
 
 | Operation | Feature evaluated | Checked by the gateway | Consumption sent to SPACE |
 |---|---|---|---|
-| seal a problem or collection version; publish | `repository` | — | — |
+| create a problem | `repository` | problems the account owns < `maxProblems` | — |
+| create a collection | `repository` | collections the account owns < `maxCollections` | — |
+| seal a problem or collection version; publish | `repository` | stored size of the account's versions + the new package ≤ `maxRepositoryStorage` | — |
 | start a run on a built-in engine | `runs` | budget ≤ `maxRunMinutes`; running runs < `maxConcurrentRuns` | `solverHours` = budget in hours |
 | start a run on a federated engine | `federatedEngines` | running runs < `maxConcurrentRuns` | — |
 | create a study run | `studies` | cells ≤ `maxStudyCells`; each cell's budget ≤ `maxRunMinutes` | — |
 | start a study cell on a built-in engine | `studies` | running runs < `maxConcurrentRuns` | `solverHours` = budget in hours |
-| generate with the solver-aware option | `generator` | running runs < `maxConcurrentRuns` | `solverHours` = budget in hours |
+| generate instances | `generator` | instances requested ≤ `maxInstancesPerGeneration`; running runs < `maxConcurrentRuns` | `generatedInstances` = instances written |
+| generate with the solver-aware option | `generator`, then `runs` | as above, and budget ≤ `maxRunMinutes` | `generatedInstances` = instances written; `solverHours` = budget in hours |
 | register a federated engine | `federatedEngines` | registered < `maxFederatedEngines` | — |
 | make a project private | `collaboration` | private projects of the owner's organizations < `maxPrivateProjects` | — |
 | create an API key | `apiAccess` | active keys < `maxApiKeys` | — |
 
-SPACE admits an evaluation while the month's hours are not exhausted, then adds the consumption. One run can
-therefore end a month slightly over the allowance. That is accepted: the count stays exact and predictable.
+SPACE admits an evaluation while the month's hours or instances are not exhausted, then adds the consumption. One
+run or one generation can therefore end a month slightly over the allowance. That is accepted: the count stays exact
+and predictable.
 
 ## 7. From 0.1.5 to 0.2.0 in SPACE
 
