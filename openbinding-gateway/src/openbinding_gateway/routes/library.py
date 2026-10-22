@@ -1,6 +1,7 @@
 """Organization artifact library; sealing and public publication are independent."""
 from __future__ import annotations
 
+import re
 import uuid
 import json
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -20,6 +21,11 @@ from ..models.artifacts import (ArtifactCreate, ArtifactRef, ArtifactUpdate, Dra
 from ..models.errors import api_error
 
 router = APIRouter(prefix='/v1', tags=['Artifact library'])
+
+
+def _safe_filename(value: str) -> str:
+    """A download name made of ``[A-Za-z0-9._-]`` only; anything else becomes ``_``."""
+    return re.sub(r'[^A-Za-z0-9._-]', '_', value) or 'download'
 
 
 async def _version(session, artifact_id, version_id, user):
@@ -121,8 +127,12 @@ async def get_content(artifact_id: uuid.UUID, version_id: uuid.UUID,
     _, version = await _version(session, artifact_id, version_id, user)
     content, media_type = await version_content(session, version)
     public = await session.get(ArtifactPublication, version.id) is not None
+    # The media type comes from the sealed manifest and is chosen by the uploader: the bytes are never rendered
+    # inline in the origin of the SPA, whatever they claim to be.
     return Response(content, media_type=media_type, headers={'ETag': '"' + version.content_digest + '"',
-        'Cache-Control': 'public, max-age=31536000, immutable' if public else 'private, no-store'})
+        'Cache-Control': 'public, max-age=31536000, immutable' if public else 'private, no-store',
+        'Content-Disposition': f'attachment; filename="{_safe_filename(version.content_digest)}"',
+        'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; sandbox"})
 
 
 @router.post('/artifacts/resolve', response_model=ArtifactVersionView)
