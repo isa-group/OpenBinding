@@ -24,6 +24,25 @@ pytestmark = pytest.mark.integration
 
 GATEWAY_URL = "http://127.0.0.1:8000"
 
+LANES = {
+    "minizinc-csp": (
+        "exact-weighted",
+        {"solver": "gecode", "time_budget_ms": 30_000},
+    ),
+    "random-search": ("seeded", {"iterations": 1_000, "seed": 7}),
+    "evolutionary-heuristics": (
+        "elitist-genetic",
+        {
+            "algorithm": "elitist-genetic",
+            "population_size": 20,
+            "max_evaluations": 1_000,
+            "archive_size": 20,
+            "seed": 7,
+        },
+    ),
+}
+OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
+
 
 def _repository_root() -> Path:
     if (REPO_ROOT / "experimentation/icsoc/original_dataset/applications.json").is_file():
@@ -90,11 +109,11 @@ def test_reduced_dataset_reproduces_the_historical_case(
         "globalLatencyRules": len(placement["spec"]["globalLatency"]),
     }
     normalization = {
-        term["feature"]["id"]: {
-            "min": term["normalize"]["min"],
-            "max": term["normalize"]["max"],
+        criterion["feature"]["id"]: {
+            "min": criterion["normalize"]["min"],
+            "max": criterion["normalize"]["max"],
         }
-        for term in optimization["spec"]["terms"]
+        for criterion in optimization["spec"]["criteria"]
     }
 
     assert observed == baseline["structure"]
@@ -204,6 +223,7 @@ def _solve(
             "registration": selection["registration"],
             "mode": mode,
             "options": options,
+            "optimization": OPTIMIZATION,
         },
     )
     assert accepted.status_code == 202, accepted.text
@@ -245,23 +265,7 @@ def test_reduced_campaign_matches_or_remains_statistically_sensible(
     baseline: dict,
     bootstrap_admin_credentials: tuple[str, str],
 ) -> None:
-    lanes = {
-        "minizinc-csp": (
-            "exact-weighted",
-            {"solver": "gecode", "time_budget_ms": 30_000},
-        ),
-        "random-search": ("seeded", {"iterations": 1_000, "seed": 7}),
-        "evolutionary-heuristics": (
-            "elitist-genetic",
-            {
-                "algorithm": "elitist-genetic",
-                "population_size": 20,
-                "max_evaluations": 1_000,
-                "archive_size": 20,
-                "seed": 7,
-            },
-        ),
-    }
+    lanes = LANES
     with httpx.Client(base_url=GATEWAY_URL, timeout=45.0) as client:
         headers = _admin_headers(client, bootstrap_admin_credentials)
         response = client.post(
