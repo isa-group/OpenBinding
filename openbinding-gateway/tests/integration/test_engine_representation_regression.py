@@ -7,7 +7,6 @@ from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
-import time
 import uuid
 
 import httpx
@@ -16,6 +15,7 @@ import pytest
 from _repo import REPO_ROOT
 from bim_core.canonical import canonical_json
 from bim_core.package import InstancePackage, load_package
+from job_polling import wait_for_job
 
 
 GATEWAY_URL = "http://127.0.0.1:8000"
@@ -212,16 +212,7 @@ def _wait_for_job(
     job_id: str,
     headers: dict[str, str],
 ) -> dict:
-    deadline = time.monotonic() + 60
-    latest: dict = {}
-    while time.monotonic() < deadline:
-        response = client.get(f"/v1/jobs/{job_id}", headers=headers)
-        assert response.status_code == 200, response.text
-        latest = response.json()
-        if latest.get("status") in {"completed", "failed"}:
-            return latest
-        time.sleep(0.1)
-    pytest.fail(f"job {job_id} did not terminate: {json.dumps(latest, sort_keys=True)}")
+    return wait_for_job(client, job_id, headers, timeout_s=60)
 
 
 def _solve(

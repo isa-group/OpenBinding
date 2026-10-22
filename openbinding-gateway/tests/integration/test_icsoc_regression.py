@@ -6,7 +6,6 @@ import json
 import math
 from pathlib import Path
 import re
-import time
 import uuid
 
 import httpx
@@ -15,6 +14,7 @@ import pytest
 from _repo import REPO_ROOT
 from bim_core.compiler import compile_instance
 from bim_core.package import InstancePackage, load_package
+from job_polling import wait_for_job
 
 from experimentation.icsoc.generator.config import load_config
 from experimentation.icsoc.generator.generator import generate_dataset
@@ -181,16 +181,7 @@ def _admin_headers(client: httpx.Client, credentials: tuple[str, str]) -> dict[s
 
 
 def _wait(client: httpx.Client, job_id: str, headers: dict[str, str]) -> dict:
-    deadline = time.monotonic() + 120
-    latest: dict = {}
-    while time.monotonic() < deadline:
-        response = client.get(f"/v1/jobs/{job_id}", headers=headers)
-        assert response.status_code == 200, response.text
-        latest = response.json()
-        if latest.get("status") in {"completed", "failed"}:
-            return latest
-        time.sleep(0.1)
-    pytest.fail(f"ICSOC job {job_id} timed out: {json.dumps(latest, sort_keys=True)}")
+    return wait_for_job(client, job_id, headers, timeout_s=120, label="ICSOC job")
 
 
 def _solve(

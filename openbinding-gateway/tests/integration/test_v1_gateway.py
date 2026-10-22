@@ -5,17 +5,16 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 import json
-import time
 import uuid
 
 import httpx
 import pytest
 
 from bim_core.canonical import digest
+from job_polling import wait_for_job
 
 
 GATEWAY_URL = "http://127.0.0.1:8000"
-TERMINAL_JOB_STATES = {"completed", "failed"}
 
 
 def _semantic_ir_digest(document: dict) -> str:
@@ -122,16 +121,7 @@ def _wait_for_job(
     *,
     timeout_s: float = 45.0,
 ) -> dict:
-    deadline = time.monotonic() + timeout_s
-    latest: dict = {}
-    while time.monotonic() < deadline:
-        response = client.get(f"/v1/jobs/{job_id}", headers=headers)
-        assert response.status_code == 200, response.text
-        latest = response.json()
-        if latest.get("status") in TERMINAL_JOB_STATES:
-            return latest
-        time.sleep(0.1)
-    pytest.fail(f"job {job_id} did not terminate: {json.dumps(latest, sort_keys=True)}")
+    return wait_for_job(client, job_id, headers, timeout_s=timeout_s)
 
 
 @pytest.mark.integration
