@@ -322,10 +322,40 @@ def test_generate_one_instance_layout_and_validation(tmp_path: Path) -> None:
         for entry in placement["spec"]["network"]
     }
     assert all(source <= target for source, target in pairs)
-    assert all(term["normalize"]["clamp"] for term in optimization["spec"]["terms"])
+    _assert_optimization_matches_profile(optimization, constraints)
     assert problem.as_dict()["spec"]["profile"]["id"] == "qos-binding/v1"
 
     assert reports
+
+
+def _assert_optimization_matches_profile(
+    optimization: dict, constraints: dict
+) -> None:
+    """Assert the qos-binding/v1 Optimization shape (criteria and penalties).
+
+    The schema (optimization.schema.json) defines spec.criteria and
+    spec.penalties; there is no 'terms' key.
+    """
+    spec = optimization["spec"]
+    assert set(spec) <= {"criteria", "penalties"}
+    assert "terms" not in spec
+    criteria = spec["criteria"]
+    assert [criterion["id"] for criterion in criteria] == [
+        "latency",
+        "cost",
+        "security",
+    ]
+    for criterion in criteria:
+        assert criterion["feature"] == {"resource": "application", "id": criterion["id"]}
+        assert criterion["direction"] == "minimize"
+        normalize = criterion["normalize"]
+        assert normalize["clamp"] is True
+        assert normalize["min"] <= normalize["max"]
+    for penalty in spec.get("penalties", []):
+        assert penalty["constraint"]["resource"] == "constraints"
+        constraint = constraints["spec"]["constraints"][penalty["constraint"]["id"]]
+        assert constraint["enforcement"] == "soft"
+        assert penalty["weight"] > 0
 
 
 def _write_synthetic_dataset(root: Path, orchestration: str) -> Path:
@@ -418,6 +448,38 @@ def test_synthetic_instance_places_routing_and_placement_under_catalog(
     assert validate_instance(instance_path, SCHEMA) == []
     problem = compile_instance(load_package(instance_path))
     assert problem.as_dict()["spec"]["profile"]["id"] == "qos-binding/v1"
+
+
+def test_synthetic_instance_optimization_uses_current_profile_schema(
+    tmp_path: Path,
+) -> None:
+    """Pin the Optimization structure without the ICSOC dataset.
+
+    Same assertions as the dataset-backed layout test, so a mismatch between
+    the generated resource and the installed qos-binding/v1 Profile (for
+    example reading a 'terms' key that the schema does not define) is caught
+    where the dataset is not materialized.
+    """
+    dataset = _write_synthetic_dataset(
+        tmp_path, "seq(fun(fA,[],10),seq(fun(fB,[],10),fun(fC,[],10)))"
+    )
+    out = tmp_path / "out"
+
+    generate_dataset(
+        dataset=dataset,
+        pricing_dir=PRICINGS,
+        config=load_config(CONFIG),
+        seed=12345,
+        out=out,
+    )
+
+    instance_path = out / "instances/synth/1/infrastructure_5"
+    package = load_package(instance_path)
+    compile_instance(package)
+    optimization = package.json("optimization.json")
+    assert optimization["apiVersion"] == "qos-binding/v1"
+    assert optimization["kind"] == "Optimization"
+    _assert_optimization_matches_profile(optimization, package.json("constraints.json"))
 
 
 def test_latency_bounds_schedule_the_scenario_dag() -> None:
