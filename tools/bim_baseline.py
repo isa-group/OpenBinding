@@ -53,7 +53,7 @@ stable = core.stable
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Write the semantic BIM baseline goldens")
     parser.add_argument("--output", type=Path, default=GOLDEN_DIR)
-    parser.add_argument("--expected", type=int, default=83)
+    parser.add_argument("--expected", type=int, default=82)
     parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1))
     args = parser.parse_args(argv)
 
