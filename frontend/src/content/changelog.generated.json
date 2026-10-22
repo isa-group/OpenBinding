@@ -89,6 +89,9 @@
       "date": "2026-10-22",
       "title": "OpenBinding documentation",
       "changes": [
+        "Propose pricing 0.2.0 from a pricification cycle",
+        "Align architecture, roadmap and agent guide with the smaller platform",
+        "Keep only what the pillars need and deploy with Docker Compose",
         "Align the agent guide, README and project context with the vision",
         "Record ADR-0014 to ADR-0019 and supersede ADR-0010",
         "Describe the target architecture and keep the gateway as-is document",
