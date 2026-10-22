@@ -285,7 +285,10 @@ def test_reduced_campaign_matches_or_remains_statistically_sensible(
     exact_baseline = baseline["legacyExact"]
     exact = _best_solution(results["minizinc-csp"])
     _assert_feasible(exact)
-    assert results["minizinc-csp"]["termination"] == "OPTIMAL"
+    assert results["minizinc-csp"]["termination"] == "OPTIMAL", (
+        f"termination={results['minizinc-csp'].get('termination')!r} "
+        f"provenance={json.dumps(results['minizinc-csp'].get('provenance'), sort_keys=True)}"
+    )
     assert float(exact["objectives"]["score"]) == pytest.approx(
         exact_baseline["score"], abs=1e-9
     )

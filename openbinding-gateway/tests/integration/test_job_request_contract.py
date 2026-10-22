@@ -81,5 +81,16 @@ def test_icsoc_jobs_send_a_resolvable_optimization(engine: str) -> None:
     assert {
         "type": resolved["type"],
         "scalarization": resolved["scalarization"],
-    } == icsoc.OPTIMIZATION
+    } == {
+        "type": icsoc.OPTIMIZATION["type"],
+        "scalarization": icsoc.OPTIMIZATION["scalarization"],
+    }
     assert [weight["criteria"] for weight in resolved["weights"]] == list(criteria)
+    requested = icsoc.OPTIMIZATION["weights"]
+    total = sum(weight["value"] for weight in requested)
+    assert [weight["criteria"] for weight in resolved["weights"]] == [
+        weight["criteria"] for weight in requested
+    ]
+    assert [weight["value"] for weight in resolved["weights"]] == pytest.approx(
+        [weight["value"] / total for weight in requested]
+    )
