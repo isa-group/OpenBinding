@@ -1,4 +1,4 @@
-Status: PROPOSED for owner review (2026-10-22)
+Status: PROPOSED for owner review (2026-10-22, revision 2)
 
 # AGENTS.md — operating guide for agents working on OpenBinding
 
@@ -11,11 +11,11 @@ owner decide.
 ## 1. What this repository is
 
 OpenBinding is to QoS-aware service binding (service-composition) problems what SPHERE is to SaaS pricings: a
-repository of versioned, citable problems, a collaborative analysis platform and a laboratory for reproducible engine
-comparison. Problems are written in **BIM v1**, the Binding Instance Model (a binding language — nothing to do with
+repository of versioned, citable problems and a laboratory for reproducible engine comparison, used by groups that
+work together. Problems are written in **BIM v1**, the Binding Instance Model (a binding language — nothing to do with
 Building Information Modeling). A FastAPI gateway compiles BIM packages to a canonical `BindingProblem` IR through the BIM toolchain,
 runs jobs on separate engine services behind the `bim-engine/v1` protocol, re-evaluates every engine answer, and
-adds accounts, organizations, projects, versioned artifacts, studies, analysis and reports. A React frontend is the
+adds accounts, organizations, projects, versioned problems and collections, studies and published results. A React frontend is the
 web client. QACOBench is the experiment harness built on the public API.
 
 ## 2. Layout
@@ -27,13 +27,13 @@ web client. QACOBench is the experiment harness built on the public API.
 | `engines/minizinc-csp/` | exact engine `minizinc-csp@1.1.1` (pinned MiniZinc 2.8.7 / Gecode 6.3.0 bundle) | Node 20, TypeScript, Fastify, pnpm |
 | `engines/{binding-core,random-search,many-heuristic,multi-heuristic,evolutionary-heuristics}/` | Java engines and their shared canonical evaluator | Maven, JUnit 5; binding-core targets Java 8 bytecode, CI uses JDK 21 |
 | `engines/bim-generator/` | Java QACO instance generator used by `/v1/generator` | Maven |
-| `frontend/` | React web client (route registry in `src/routes/`, pages in `src/pages/`) | React 19, Vite, TypeScript, Vitest, Playwright, pnpm |
+| `frontend/` | React web client (route registry in `src/routes/`, pages in `src/pages/`) | Node 22, React 19, Vite, TypeScript, Vitest, Playwright, pnpm |
 | `schemas/` | `bim/v1/*.schema.json` (language contracts), `bim/v1/manifests/` (bundled engine manifests), `engine-contract.openapi.yaml` (`bim-engine/v1`) | JSON Schema 2020-12, OpenAPI 3.1 |
 | `docs/openapi.json` | committed snapshot of the gateway OpenAPI (the HTTP contract) | generated |
 | `experimentation/` | `qacobench/` (campaign harness), `icsoc/`, `icws/` (historical experiments) | Python, Docker Compose |
 | `examples/` | BIM v1 packages (part of the 82-package corpus) | BIM |
 | `datasets/` | dataset recovery scripts and source READMEs (data itself lives in Zenodo) | Python |
-| `deploy/kubernetes/`, `docker-compose.yml`, `compose.*.json`, `nginx/`, `lab/tests/` | deployment, lab demo profiles and their static checks | Kustomize, Compose |
+| `docker-compose.yml`, `compose.*.json`, `nginx/`, `lab/tests/` | Docker Compose for every environment (ADR-0021), lab profiles and their static checks; `deploy/kubernetes/` is being removed (`ROADMAP.md` M0.9) | Compose |
 | `tools/` | repo-level checks (corpus, BIM guard, changelog, diagrams) | Python, shell |
 | `openspec/` | project context, living specs, changes | OpenSpec |
 | `docs/` | architecture, contracts, QA records (`docs/qa/`), ADRs (`docs/adr/`), agent work (`docs/agent-work/<id>/`) | Markdown |
@@ -86,7 +86,7 @@ python3 tools/check_bim_guard.py
 (cd engines/minizinc-csp && pnpm test:lab)                                      # real MiniZinc; lab image only
 ```
 
-**Frontend** (CI job `frontend`), from `frontend/`:
+**Frontend** (CI job `frontend`, Node 22: jsdom 30 needs ≥ 22.22.2), from `frontend/`:
 
 ```bash
 corepack enable && pnpm install --frozen-lockfile
@@ -129,8 +129,9 @@ On NiPoGi the host has no `uv`, `node`, `pnpm`, `mvn` or `java`: run checks thro
   (style of `docs/qa/JOINT_STATUS.md`).
 - Requirements: EARS + OpenFastTrace ids `req~<capability>-<slug>~<rev>`; tag code/tests with `[impl->req~x~1]` /
   `[utest->req~x~1]` when you touch them.
-- Vocabulary: UI text and new docs use the glossary of `INTENT.md` §5 (Problem, Run, Component, …); the `v1` API keeps
-  its resource names (`cases`, `jobs`, `artifacts`, …).
+- Vocabulary: UI text and new docs use the glossary of `INTENT.md` §5 (Problem, Run, Published result, …); the `v1`
+  API keeps its resource names (`cases`, `jobs`, `publications`, …). Screens name things by name, version number and
+  date, never by SHA, digest, fingerprint or UUID (constitution 15.5, `docs/ARCHITECTURE.md` §5.4).
 - Rendering: never show raw JSON/YAML/XML or an API response as a screen's main content; use the rendering catalogue
   (`docs/ARCHITECTURE.md` §5.3); sources only in `SourceView` tabs or downloads (constitution Article 15).
 - Architecture: new backend code goes into `modules/<context>/{domain,application,adapters}`; new frontend code follows
@@ -144,14 +145,20 @@ Do:
 - Regenerate and commit `docs/openapi.json` when (and only when) the HTTP contract changes; treat its diff as a contract review item.
 - Use synthetic data in tests, seeds and the lab (`tools/seed_dev.py`, `openbinding-gateway/tools/seed_lab.py`).
 - Write `docs/agent-work/<id>/handoff.md` for every task.
+- Treat CI as part of done: when a pushed head fails, read the failing job with the factory's `ci_status` and
+  `ci_log` tools, fix it and push again before reporting the task finished.
 
 Don't:
 - Push to, merge into, tag or retarget `main`; force-push anything.
 - Commit datasets, raw campaign results, QA screenshots or design prototypes (they belong to Zenodo, the
   `data/icsoc-original-dataset` branch or outside the repo; `docs/frontend-qa/` and `docs/design-handoff/` are git-ignored).
 - Talk to SPACE other than through `space-python-client` in the plans module or `space-react-client` in the browser;
-  read SPHERE other than through its public permanent-link API; use production SPACE/SPHERE, production services,
-  Zenodo or PyPI from tests, the lab or previews (use the lab `pricing` profile).
+  read SPHERE other than through its public permanent-link API at `sphere.score.us.es`, or write to SPHERE; reach
+  SPACE or SPHERE from unit or CI tests (use the recorded pricing); use production services, Zenodo or PyPI from
+  tests, the lab or previews. The lab and previews run their own SPACE (`pricing` profile) until the owner switches
+  them to `space.score.us.es`.
+- Add a screen, endpoint or concept that no journey of `INTENT.md` §2 needs, or bring back a retired one (ADR-0020);
+  add Kubernetes or other orchestrator manifests (ADR-0021).
 - Add a custom pricing table (use `pricing-renderer`) or re-implement SPACE/SPHERE behaviour.
 - Change BIM semantics, IR digests, goldens, the engine protocol or public schemas without a CRP.
 - Touch `INTENT.md`, `constitution.md`, `REVIEW.md`, the milestones of `ROADMAP.md`, `.github/CODEOWNERS`,

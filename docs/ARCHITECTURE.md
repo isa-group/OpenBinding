@@ -1,4 +1,4 @@
-Status: PROPOSED for owner review (2026-10-22).
+Status: PROPOSED for owner review (2026-10-22, revision 2: smaller platform, plans topology, Docker Compose).
 
 # OpenBinding architecture (target)
 
@@ -22,10 +22,15 @@ Contents: 1 Principles · 2 System context · 3 Containers · 4 Backend · 5 Fro
    SPHERE, CAS, blob storage and mail are adapters; contracts are versioned and tested on both sides.
 4. **Render, never dump.** The frontend renders every domain object with a shared catalogue of components; source
    views are secondary (constitution, Article 15).
-5. **Immutable, digest-addressed evidence.** Versions, compiled forms, runs, study cells and report editions are
-   sealed; permanent links and digests make them citable.
+5. **Immutable evidence, named for people and addressed by digest for machines.** Problem and collection versions,
+   compiled forms, runs, study runs and published results are sealed; permanent links and digests make them citable
+   and verifiable. Screens name them by name, version number and date; a digest appears only where verifying is the
+   task (§5.4).
 6. **Small, reversible steps.** The target is reached by strangling the current code module by module, never by a
    rewrite.
+7. **Small surface.** Every module, endpoint and screen serves a journey of `INTENT.md` §2; what none needs is
+   retired before anything is moved or polished (ADR-0020).
+8. **One way to deploy.** Docker Compose runs every environment, production included (ADR-0021).
 
 ## 2. System context
 
@@ -40,8 +45,8 @@ flowchart LR
     W[Web app]
     G[Gateway API]
   end
-  SPH[(SPHERE<br/>pricing repository)]
-  SPA[(SPACE<br/>subscriptions and feature access)]
+  SPH[(SPHERE<br/>sphere.score.us.es)]
+  SPA[(SPACE 1.7.1<br/>local now, space.score.us.es later)]
   CAS[(Universidad de Sevilla CAS)]
   FED[(Federated engines)]
   ADS[(Adapter services)]
@@ -57,9 +62,12 @@ flowchart LR
   R -. datasets and artifacts .-> Z
 ```
 
-SPHERE and SPACE are separate deployments of the group: the OpenBinding pricing is written and versioned in SPHERE;
-SPACE follows it through SPHERE's permanent link and operates subscriptions. OpenBinding never writes to SPHERE and
-never re-implements SPACE (§9).
+SPHERE and SPACE are separate deployments of the group. The OpenBinding pricing is written and versioned in SPHERE
+at `sphere.score.us.es`, under the permanent link `https://sphere.score.us.es/p/6ab0a323697330667ccce891`, and
+every environment reads it there through SPHERE's public API. SPACE follows that permanent link and operates
+subscriptions. Until `space.score.us.es` runs the latest SPACE release (1.7.1 today), each stack that needs plans
+runs its own SPACE of that release, linked to the same permanent link; moving to `space.score.us.es` is a change of
+configuration (§9.4, INTENT D5). OpenBinding never writes to SPHERE and never re-implements SPACE (§9).
 
 ## 3. Containers
 
@@ -70,7 +78,7 @@ flowchart TB
   end
   subgraph Gateway host
     API[Gateway API<br/>FastAPI · modules §4]
-    WRK[Workers<br/>Dramatiq: runs, studies, analysis, maintenance]
+    WRK[Workers<br/>Dramatiq: runs, study cells, maintenance]
     PG[(PostgreSQL)]
     RD[(Redis<br/>queues, cache, SPACE client cache)]
     BL[(Blob store<br/>content-addressed files)]
@@ -94,12 +102,15 @@ flowchart TB
 |---|---|---|
 | Web app | every screen; renders, never dumps; gates UI features with the pricing token | React 19, Vite, TypeScript, Recharts, `pricing-renderer`, `space-react-client` |
 | Gateway API | `/v1` HTTP API, authentication, authorization, all use cases | Python 3.11, FastAPI, SQLAlchemy async, Alembic |
-| Workers | runs, study cells, analysis tasks, retention and reconciliation jobs | Dramatiq over Redis |
+| Workers | runs, study cells and their metrics, generation, retention and reconciliation jobs | Dramatiq over Redis |
 | PostgreSQL | operational source of truth | PostgreSQL 16 |
 | Redis | queues, leases, caches (including the SPACE client cache) | Redis 7 |
 | Blob store | content-addressed bytes (packages, uploads, logs, exports) | filesystem volume; S3-compatible later |
 | bim-service | the BIM toolchain over HTTP when the gateway runs `BIM_MODE=http` | `isa-group/bim-toolchain` |
 | Engines | solvers behind `bim-engine/v1`; built-in ones run beside the gateway, federated ones anywhere | Node/TypeScript (MiniZinc), Java |
+
+Every container is a Docker Compose service (§12). Until `space.score.us.es` is used, a local SPACE (`space-api`,
+its MongoDB and Redis) joins the stack through the `pricing` profile (§9.4).
 
 ## 4. Backend: a modular monolith
 
@@ -109,14 +120,14 @@ flowchart TB
 |---|---|---|---|
 | `identity` | accounts, sessions, passwords, API keys, external identities (CAS) | `IdentityProvider` (CAS), `Mailer` | `routes/auth.py`, `routes/users.py`, `routes/cas.py`, `cas.py`, `security/*` |
 | `collaboration` | organizations (nested), projects, memberships, roles, invitations, audit, notifications, public read | — | `collaboration.py`, `routes/organizations.py` (org/project/member parts), `repositories/organizations.py`, `access/public_read.py` |
-| `repository` | problems and versions, components and their versions, collections, blobs, project packages, permanent links, problem metrics | `BimPort`, `BlobStore` | `artifacts.py`, `routes/artifacts.py`, case/collection/resource/blob routes, `services/snapshots.py`, `services/instances.py` |
+| `repository` | problems and versions, collections, package import and export, blobs, permanent links of problems and collections, problem metrics, and the versioned-artifact store as internal storage of sealed parts (resources of problem versions, study definitions, execution configurations) | `BimPort`, `BlobStore` | case/collection/blob routes, `services/snapshots.py`, `services/instances.py`, `artifacts.py`; the library as a catalogue (`routes/library.py`, the library and project-resource parts of `routes/artifacts.py`) retires (§4.3) |
 | `language` | profiles, dialects, adapters, schemas, examples, compilation, the extension lifecycle | `BimPort`, `AdapterServicePort` | `integrations/bim*.py`, `services/discovery.py`, dialect/resource/profile routes, `v1/archive.py` |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
-| `execution` | runs: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results, neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py`, job routes |
-| `laboratory` | studies, study runs, cells, analytics (protocol metrics, trade-offs), the generator | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py`, `analysis_jobs.py`, analysis routes, `generator/*` |
-| `publishing` | reports, editions, publications, citations, resolver, verifier | — | `reports.py`, report/publication routes, `routes/resolve.py`, verifier routes |
-| `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`, `sponsor_proposals.py` |
-| `administration` | overview dashboards, accounts admin, moderation, queues, errors, maintenance and retention | application APIs of the other modules | `routes/admin.py`, `telemetry.py` |
+| `execution` | runs: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py`, job routes |
+| `laboratory` | studies, study runs, cells, protocol metrics, trade-offs across engines, the generator | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py`, `generator/*`; the decision-space workspace (`analysis_jobs.py`, analysis routes) retires |
+| `publishing` | published results (a frozen study run or collection version), citations, Zenodo-ready export, permanent-link resolution, Verify | application APIs of `repository` and `laboratory` | publication parts of `reports.py` and its routes, `routes/resolve.py`, `routes/verifier.py`; reports and editions retire |
+| `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`; local metering (`domain/usage_counters.py`) and sponsorship (`sponsor_proposals.py`) retire |
+| `administration` | users, queues and engine health, storage and retention, audit, moderation of public content | application APIs of the other modules | `routes/admin.py`, `telemetry.py` |
 | `shared` (kernel) | settings, logging, problem+json errors, pagination, digests, clock, ids, mail | — | `core/*`, `mailer.py`, `security/bodylimit.py` |
 
 ### 4.2 Layout and dependency rules
@@ -138,6 +149,9 @@ openbinding-gateway/src/openbinding_gateway/
 - Inside a module: `adapters → application → domain`. `domain` imports nothing from frameworks or adapters.
 - Between modules: only through the other module's `application` public API, or through in-process domain events
   (audit, notifications, cache invalidation). No cross-module ORM joins; each table has one owning module.
+- Modules form layers, and a module imports only modules below it: `administration` → `publishing` → `laboratory`
+  → `execution` → `engines` | `repository` → `language` → `collaboration` → `identity` → `plans` → `shared`
+  (`|` marks independent siblings).
 - External systems only through ports: `BimPort` (exists), `PlanPort`, `PricingSource`, `EngineTransport`,
   `AdapterServicePort`, `BlobStore`, `IdentityProvider`, `Mailer`, `Clock`.
 - Patterns: ports and adapters; application services as use-case functions; repositories with a unit of work per
@@ -148,6 +162,14 @@ openbinding-gateway/src/openbinding_gateway/
 
 ### 4.3 Migration: strangler, one module at a time
 
+0. Retire first (ADR-0020). The decision-space workspace, the report editor, the library as a catalogue (organization
+   library, project resources, project library), the composer and sponsorship lose their screens, then their
+   endpoints (`Deprecation` and `Sunset` headers for one minor release, CRP), then their code, so nothing retired is
+   ever moved. The versioned-artifact store itself stays as the repository's internal storage of sealed parts:
+   problems are edited and versioned as a whole, and sealed problem versions keep referencing their parts by exact
+   digest, so nothing sealed changes. Data follows CRP rules (INTENT §11.5): existing publications keep their
+   permanent links as read-only published results; report drafts, decision-space workspaces and sponsorship
+   proposals are exported for the owner and dropped.
 1. Create `app/`, `shared/` and `modules/` with import-linter contracts; move nothing.
 2. New capabilities land directly in modules: `plans` (M4) and the language registry (M5) are the first.
 3. Move existing code one module per `refactor/<id>` change, behind characterization tests, keeping
@@ -164,12 +186,12 @@ openbinding-gateway/src/openbinding_gateway/
 frontend/src/
   app/        providers (auth, query cache, SpaceProvider), router and route registry, shell (header, navigation)
   pages/      route-level screens; compose widgets and features; no HTTP
-  widgets/    composite blocks shared by pages (ProblemHeader, RunResult, StudyAnalytics, PlanSummary)
-  features/   user actions (create-problem-version, launch-run, compare-runs, publish-report, install-extension, change-plan)
+  widgets/    composite blocks shared by pages (ProblemHeader, RunResult, StudyResults, TradeOffs, PlanSummary)
+  features/   user actions (create-problem-version, launch-run, compare-runs, publish-result, install-extension, change-plan)
   entities/   read models with their API hooks and small views (problem, version, run, engine, study, collection,
-              report, organization, profile, dialect, plan)
+              published-result, organization, profile, dialect, plan)
   shared/     ui (design system and rendering catalogue §5.3), api (types generated from docs/openapi.json, http,
-              problem+json), lib (formatters, digests), config
+              problem+json), lib (formatters, including the identity labels of §5.4), config
 ```
 
 Imports go downwards only (`pages → widgets → features → entities → shared`); features never import each other;
@@ -178,15 +200,22 @@ types. Enforced with `eslint-plugin-boundaries` (constitution 6.6).
 
 ### 5.2 Information architecture
 
-- **Public:** Home · Explore (Problems · Collections · Studies and publications · Engines) · Engines · Language ·
-  Pricing · About · Verify · Log in / Sign up.
-- **Signed in:** header with organization/project switcher; Home · Problems · Lab (Runs · Studies · Generate) ·
+- **Public:** Home · Explore (Problems · Collections · Published results) · Engines · Language · Pricing · Verify ·
+  About · Log in / Sign up.
+- **Signed in:** header with organization/project switcher; Home · Problems · Lab (Runs · Studies · Generator) ·
   Engines · Language · Admin (administrators); "+ New" (problem, collection, study, run); search; notifications;
   account menu (Profile · Plan · API keys · Identities · Notifications).
-- **Project:** Overview · Problems · Collections · Runs · Studies · Reports · Settings (General · Components ·
-  Files · Package).
+- **Project:** Overview · Problems · Collections · Runs · Studies · Published · Settings (General · Members).
 - **Problem page (the SPHERE "pricing page" analogue):** header with metrics and version selector; tabs Overview ·
-  Analysis · Runs · Versions · Source · Settings.
+  Runs · Versions · Source · Settings.
+- **Run page:** verdict, engine mode and budget first; then the binding table, QoS against bounds, the objective
+  breakdown and engine-claimed versus evaluated values; the trade-off set when there are several objectives; the
+  log collapsed at the bottom.
+- **Study page:** Setup · Progress · Results (protocol metrics, verdicts, gaps, times, ranking, trade-offs) ·
+  Publish.
+- **Published result page:** what was frozen and when, the rendered results and the citation panel.
+- **Screen budget:** at most 45 routed screens (INTENT O12). A test counts the route registry, and each journey of
+  INTENT §2 has a Playwright flow that completes in at most five screens.
 
 ### 5.3 Rendering catalogue
 
@@ -197,12 +226,12 @@ types. Enforced with `eslint-plugin-boundaries` (constitution 6.6).
 | `WorkflowGraph` | the compiled workflow (SEQ, AND, XOR with probabilities, LOOP) | problem Overview, version compare |
 | `CandidateMatrix` | tasks × candidates × features, colour scales per feature, intervals as ranges | problem Overview |
 | `ConstraintList`, `ObjectiveView` | bounds, hard/soft, penalties; objective terms, weights, directions | problem Overview, run result |
-| `MetricSmallMultiples` | evolution of problem metrics across versions | problem Analysis, collection analytics |
-| `DistributionChart` | feature-value distributions per task or catalog | problem Analysis |
+| `MetricSmallMultiples` | evolution of problem metrics across versions | problem Versions, collection page |
+| `DistributionChart` | feature-value distributions per task or catalog | problem Overview |
 | `BindingTable` | task → candidate → provider with per-feature contributions | run result |
 | `QoSAgainstBounds` | aggregated QoS against constraint bounds | run result |
 | `ObjectiveBreakdown` | weighted terms of the objective | run result, study cell |
-| `ParetoChart` | 2-D fronts; parallel coordinates for 3+ objectives | run result, study trade-offs |
+| `TradeOffChart` | the trade-off set: non-dominated bindings as a table and a two-axis chart whose axes are chosen among the objectives | run result, study results |
 | `EvaluationDiff` | engine-claimed versus gateway-evaluated values and downgrade reasons | run result |
 | `VerdictBadge` | OPTIMAL · FEASIBLE · UNSAT · TIMEOUT · INCOMPATIBLE (with reasons) | everywhere a run appears |
 | `CapabilityMatrix`, `ConformanceReport` | engine modes × capabilities; verification checks | engines, extensions |
@@ -213,9 +242,30 @@ types. Enforced with `eslint-plugin-boundaries` (constitution 6.6).
 | `FeatureGate` | UI gated by plan (`space-react-client` `<Feature>`) | anywhere a feature depends on the plan |
 | `PlanUsage` | features and limits of the user's subscription from the pricing token | Plan, dashboards |
 | `SourceView` | read-only code viewer with copy and download | only in Source tabs |
+| `CitationPanel` | permanent link, citation (BibTeX, CSL-JSON) and the one copyable digest | problem, collection and published-result pages |
+| `VerifyResult` | what a permanent link, a digest or a file resolves to, and whether it matches | Verify |
 
 Charts use Recharts (already a dependency). A hygiene test forbids rendering `JSON.stringify` output or `<pre>`
-outside `SourceView` and `LogPanel` (constitution, Article 15).
+outside `SourceView` and `LogPanel`, and digest-shaped text outside the components that §5.4 allows (constitution,
+Article 15).
+
+### 5.4 Identifiers on screen
+
+People read names, machines read digests (INTENT principle 13).
+
+| Thing | Shown as | Not shown |
+|---|---|---|
+| Problem version | `checkout-flow` v3 · sealed 20 Aug 2026 | content or version digests |
+| Collection version | `QACOBench icws` v2 · 12 problems | digests, member fingerprints |
+| Run | run 14 of `checkout-flow` v3 · `minizinc-csp` 1.1.1 exact · 21 Oct 2026 | job UUID, request digest |
+| Study run | `engines-vs-suite` run 3 · 21 Oct 2026 | matrix or cell fingerprints |
+| Published result | its title · published 22 Oct 2026 | edition fingerprint |
+| Engine | `minizinc-csp` 1.1.1 · mode exact | manifest digest |
+
+The API keeps every digest. `CitationPanel`, `VerifyResult` and export manifests are the only places that show one,
+as a single value with a copy button; `SourceView` shows files as they are. UUIDs never appear in UI text; URLs
+use permanent ids or slugs. The hygiene test fails on a digest-shaped string (`sha256-` or 40/64 hexadecimal
+characters) or a UUID rendered anywhere else.
 
 ## 6. Domain model
 
@@ -224,11 +274,8 @@ classDiagram
   direction LR
   Organization "1" --> "*" Organization : parent of
   Organization "1" --> "*" Project
-  Organization "1" --> "*" Component
-  Component "1" --> "*" ComponentVersion
   Project "1" --> "*" Problem
   Problem "1" --> "*" ProblemVersion
-  ProblemVersion "*" --> "*" ComponentVersion : uses exact
   ProblemVersion "1" --> "1" CompiledForm
   Project "1" --> "*" Collection
   Collection "1" --> "*" CollectionVersion
@@ -242,20 +289,24 @@ classDiagram
   Study "1" --> "*" StudyRun
   StudyRun "1" --> "*" Cell
   Cell "1" --> "0..1" Run
-  Report "1" --> "*" ReportEdition
-  ReportEdition "1" --> "0..1" Publication
+  PublishedResult "*" --> "0..1" StudyRun : freezes
+  PublishedResult "*" --> "0..1" CollectionVersion : freezes
   Profile "*" --> "0..1" Profile : extends
   Dialect "*" --> "*" Profile : compatible with
   Account "1" --> "1" Plan : SPACE contract
 ```
 
 Mapping to `v1` names: Problem = `BindingCase`, ProblemVersion = case revision, CompiledForm = snapshot (`InstanceSnapshot`
-and its IR), Component = library `Artifact`, Run = `Job`, Result = job result plus re-evaluation. Every sealed entity
-has a content digest; permanent links address problems, collections and publications independently of slugs.
+and its IR), Run = `Job`, Result = job result plus re-evaluation, PublishedResult = a simplified `publications`
+record (no report, no editions). A problem version's resources are sealed parts in the internal versioned-artifact
+store, addressed by digest; there is no component catalogue (ADR-0020). Every sealed entity has a content digest
+that the API returns and Verify checks;
+screens name it as §5.4 says. Permanent links address problems, collections and published results independently of
+slugs.
 
 ## 7. Key flows
 
-### 7.1 Author, validate, version and analyse a problem
+### 7.1 Author, validate and version a problem
 
 ```mermaid
 sequenceDiagram
@@ -272,7 +323,7 @@ sequenceDiagram
   W->>G: POST .../problems/{p}/versions
   G->>B: compile (exact contracts)
   G->>G: seal version and compiled form, compute problem metrics
-  G-->>W: version with digest, metrics, permanent link
+  G-->>W: sealed version (number, digest), metrics, permanent link
 ```
 
 ### 7.2 Run a problem
@@ -294,7 +345,7 @@ sequenceDiagram
     Q->>E: IR + options (bim-engine/v1)
     E-->>Q: bindings and claims
     Q->>Q: canonical re-evaluation, downgrade unsupported claims
-    Q-->>U: SSE status, then the rendered result
+    Q-->>U: SSE status, then the rendered result (trade-off set if several objectives)
   end
 ```
 
@@ -305,12 +356,23 @@ matrix into cells, each one a run with frozen inputs; cells retry independently.
 results and compute the QACOBench protocol metrics: coverage (processable over submitted), conditional binding
 yield (binding-returning over processable), gap to the certified optimum, verdict reconciliation (an UNSAT proof
 contradicted by a validated binding, or an OPTIMAL beaten, invalidates the run), runtime distributions and rankings.
+With several objectives, the results view also shows, per problem, the trade-off set across engines. The QACOBench
+harness keeps working against the public API; the study is the same protocol inside the platform.
 
-### 7.4 Plans
+### 7.4 Publish a result
 
-See §9.3.
+`Publish` freezes a finished study run or a collection version. The gateway seals the exact problem versions, engine
+revisions, budgets, seeds and computed metrics into a published result with a permanent link, a digest and a
+citation, and offers a Zenodo-ready export (results as CSV and JSON plus a manifest with every digest). A published
+result is never edited: a correction is a new published result that names the one it corrects, and withdrawal hides
+it from Explore while its permanent link keeps answering (§10). There is no document editor; the text of a paper lives
+in the paper.
 
-### 7.5 Language extension lifecycle
+### 7.5 Plans
+
+See §9.
+
+### 7.6 Language extension lifecycle
 
 See §8.4.
 
@@ -398,21 +460,21 @@ repository and a how-to in `docs/`.
 
 ```mermaid
 flowchart LR
-  subgraph SPHERE
+  subgraph SPHS["SPHERE · sphere.score.us.es"]
     PR[OpenBinding pricing<br/>Pricing2Yaml 3.1, versions]
-    PL[public permanent-link API]
+    PL[public permanent-link API<br/>/p/6ab0a323697330667ccce891]
   end
-  subgraph SPACE
-    SV[service openbinding<br/>linked to the permanent link]
+  subgraph SPAS["SPACE 1.7.1 · local now, space.score.us.es later"]
+    SV[service openbinding<br/>source sphere, policy all_last]
     CT[(contracts)]
-    EV[feature evaluation<br/>usage levels, pricing tokens]
+    EV[feature evaluation<br/>solver hours, pricing tokens]
   end
-  subgraph OpenBinding
+  subgraph OBS[OpenBinding]
     PM[plans module<br/>space-python-client]
     UI[web: space-react-client token-only<br/>pricing-renderer]
   end
   PR --> PL
-  PL -- poll, hash check, all_last --> SV
+  PL -- synchronization, every 5 min --> SV
   SV --- CT --- EV
   PM -- contracts, evaluate, revert, token, events --> EV
   PM -- pricing descriptor and YAML --> PL
@@ -421,9 +483,15 @@ flowchart LR
 
 | Who | Responsibility |
 |---|---|
-| SPHERE | authoring and versioning of the OpenBinding pricing; public permanent-link API |
-| SPACE | contracts, feature evaluation, usage levels, contract migration when the pricing changes, events |
-| OpenBinding | enforcement points, contract creation (registration, CAS link), plan changes for free plans and by administrators, pricing display, token issuance to the browser |
+| SPHERE (`sphere.score.us.es`) | authoring and versioning of the OpenBinding pricing; public permanent-link API |
+| SPACE | contracts, feature evaluation, the solver-hours usage level, contract migration when the pricing changes, events |
+| OpenBinding | enforcement points and its own counts for the other limits, contract creation (registration, CAS link), plan changes for FREE and RESEARCH and by administrators, pricing display, token issuance to the browser |
+
+| Environment | SPHERE | SPACE |
+|---|---|---|
+| Unit tests and CI | a recorded copy of the pricing in `tests/fixtures`; no network | a fake `PlanPort` or `OpenGate` |
+| Lab, PR previews, develop preview | `sphere.score.us.es`, read only | the stack's own SPACE 1.7.1 (`pricing` profile), linked to the permanent link |
+| Production | `sphere.score.us.es` | the same local profile until `space.score.us.es` runs the latest release, then `space.score.us.es` |
 
 ### 9.2 Gateway side
 
@@ -432,15 +500,23 @@ flowchart LR
 - The **entitlement map** (operation → SPACE feature id `openbinding-<name>` and limits) lives in
   `modules/plans/domain`. At start-up and on `pricing_activated`, the gateway checks that every feature and limit it
   references exists in the active pricing and fails closed otherwise.
+- Pricing 0.2.0 (`docs/pricing/`) declares seven features and seven limits. SPACE tracks one usage level,
+  `solverHours` (renewable, monthly). A run on a built-in engine, a study cell or a solver-aware generation is
+  admitted while the month's hours are not exhausted and then consumes its time budget; a run that stops early is
+  not refunded, so the count can be checked against the budgets. The other limits are plan values that the gateway
+  compares with its own counts (running runs, cells of a study run, a run's budget, private projects, federated
+  engines, API keys), so no counter can drift.
 - Gated operations call `evaluate(user, feature, expected_consumption)`; an operation that fails after consuming
   calls `revert_evaluation` (SPACE honours it within two minutes).
 - SPACE events (`synchronized`, `pricing_created`, `pricing_activated`, `pricing_archived`, `service_disabled`)
   invalidate caches and are relayed to browsers as a `plans.changed` notification.
 - `GET /v1/plans/pricing` (public) returns the pricing descriptor (permanent link, SPHERE version id and label,
-  content hash, the version SPACE has activated) and the YAML read from SPHERE's public API (bounded to 5 MiB,
-  hash-verified, ETag-cached). OpenBinding holds no SPHERE key.
+  content hash, the version SPACE has activated) and the YAML read from SPHERE's public API
+  (`/api/v1/public/pricings/{pricingId}` and `.../versions/{versionId}/yaml`, bounded to 5 MiB, hash-verified,
+  ETag-cached). OpenBinding holds no SPHERE key.
 - Removed: `sphere_client.py`, `pricing_catalog.py`, the deprecated `/v1/pricing` proxy and `/v1/pricing/catalog`,
-  admin pricing validation, `space_client/deployments.py` and the release sweeps (ADR-0015).
+  admin pricing validation, `space_client/deployments.py`, the release sweeps, local metering
+  (`domain/usage_counters.py`) and the sponsorship capacity checks (ADR-0015, ADR-0020).
 
 ### 9.3 Browser side
 
@@ -448,29 +524,41 @@ flowchart LR
   refreshed on sign-in, on plan change and on `plans.changed`. No SPACE key ever reaches the browser.
 - `<Feature id="openbinding-…">` gates UI; the server enforces the same decision.
 - The Pricing page and the account Plan page render the pricing with `pricing-renderer` (React adapter, themed with
-  the OpenBinding tokens); signed-in users see their plan selected; free plans change self-service, other plans
-  show "Contact us".
+  the OpenBinding tokens); signed-in users see their plan selected; FREE, and RESEARCH for accounts with a
+  Universidad de Sevilla CAS identity, change self-service; LAB shows "Contact us".
 - `space-react-client` 0.3.3 declares React ^18.3.1; OpenBinding runs React 19. A spike validates it in token-only
   mode; if it fails, the fix is proposed upstream to `Alex-GF/space-react-client` rather than forked.
 
-### 9.4 Lab: two connected deployments
+### 9.4 A local SPACE linked to the remote SPHERE
 
-The lab gains an optional `pricing` profile modelled on the TomatoMeter lab: pinned public images of SPHERE
-(`ghcr.io/scorelabus/sphere-api`, `sphere-client`, MongoDB, Redis) and SPACE (`space-api`, `space-client`, MongoDB,
-Redis) on the lab network, plus a one-shot `pricing-bootstrap` that creates the lab users and organization,
-publishes the reference pricing `deploy/pricing/openbinding.yml` in SPHERE, links the SPACE service to its permanent
-link (`all_last`, one-minute poll), stores the SPACE key in the lab secret store and creates contracts for the
-synthetic users. Estimated memory ≈ 1.5 GiB, measured before it is enabled by default. Production uses the group's
-deployments by configuration only.
+The stack gains an optional `pricing` profile with SPACE 1.7.1 (`ghcr.io/scorelabus/space-api:1.7.1`, pinned by
+digest, with its MongoDB and Redis; the SPACE web client only when an administrator needs it) and a one-shot
+`pricing-bootstrap` that:
+
+1. creates the SPACE organization of the stack and a MANAGEMENT key, kept in the stack's secret store;
+2. creates the `openbinding` service from the SPHERE permanent link (`source: sphere`, `policy: all_last`) and runs a
+   first synchronization;
+3. creates contracts for the synthetic users of the seed.
+
+SPACE runs with `SPHERE_PUBLIC_URL=https://sphere.score.us.es` and `SPHERE_SYNC_ENABLED=true`: its worker checks the
+link on a staggered five-minute schedule, so a new public version of the pricing migrates the contracts without any
+change in OpenBinding. SPHERE is not run locally; the stack needs outbound HTTPS to `sphere.score.us.es` only.
+Estimated memory ≈ 0.7 GiB, measured before the profile is on by default.
+
+When `space.score.us.es` runs the latest release, the owner switches by configuration (SPACE URL and key); the plans
+module, the entitlement map and the browser code do not change. Contracts held by a local SPACE are synthetic and are
+not carried over.
 
 ## 10. Storage and retention
 
 | Data | Where | Retention |
 |---|---|---|
-| Sealed problem, component and collection versions, compiled forms, published report editions | PostgreSQL + blob store | permanent; withdrawal hides, never deletes |
+| Sealed problem and collection versions, compiled forms, published results | PostgreSQL + blob store | permanent; withdrawal hides, never deletes |
+| Sealed parts in the versioned-artifact store (resources, study definitions, execution configurations) | PostgreSQL + blob store | permanent while a sealed version, a study run or a run references them |
 | Drafts | PostgreSQL | until deleted; owner notified after 180 idle days |
-| Runs and results | PostgreSQL + blob store | permanent while referenced by a study, report or publication; otherwise per plan history limit |
-| Raw engine logs | blob store | 90 days unless pinned by a study cell, report or publication |
+| Runs and results | PostgreSQL + blob store | permanent while part of a study run or a published result; otherwise 365 days |
+| Raw engine logs | blob store | 90 days unless the run belongs to a published result |
+| Data of retired features (report drafts, decision-space workspaces, sponsorship proposals) | export for the owner | dropped after the export, by a CRP migration (§4.3) |
 | Uploads not referenced by any version | blob store | 30 days |
 | Notifications | PostgreSQL | 180 days |
 | Audit events | PostgreSQL | permanent |
@@ -489,7 +577,7 @@ factory's maintenance operations (constitution, Article 18).
 | Specification | EARS requirements with `req~…~N` ids, scenarios | `openspec/` | G1, G2 |
 | Acceptance | executable scenarios written from the spec before the code: API flows with pytest, UI flows with Playwright | `acceptance/api/`, `acceptance/ui/` | G3, G4 |
 | Unit and property | pytest, Hypothesis, Vitest | per package | G5 |
-| Contract | OpenAPI snapshot, JSON Schemas, Schemathesis, BIM and engine consumer contracts, SPACE/SPHERE against pinned images | CI and lab | G7 |
+| Contract | OpenAPI snapshot, JSON Schemas, Schemathesis, BIM and engine consumer contracts; SPHERE against a recorded pricing in CI and `sphere.score.us.es` in the lab; SPACE against its pinned image in the lab | CI and lab | G7 |
 | Traceability | OpenFastTrace over specs, code, tests and acceptance | CI | G6 |
 | Mutation | mutmut (Python), Stryker (TypeScript) on changed code | Actions | G8 |
 | Static | ruff, mypy (ratcheted), ESLint, Semgrep, dependency audit, licences, import-linter, boundaries | CI | G9 |
@@ -502,16 +590,20 @@ implementation and runs against the preview of the change's head.
 
 ## 12. Environments and previews
 
-| Environment | Where | Data | Purpose |
-|---|---|---|---|
-| Development | developer machine or factory work tree, `docker compose` | synthetic | build and unit tests |
-| Lab | NiPoGi rootless lab Docker (`compose.lab.json` profiles) | synthetic seed | integration, gates, e2e |
-| PR preview | NiPoGi lab, one stack per PR head on demand | synthetic seed | G12 before merging into `develop` |
-| Develop preview | NiPoGi lab, follows `develop`; `https://openbinding.home.javiercavlop.com` | synthetic seed | the owner reviews `develop` from the Mac or the iPhone |
-| Production | Universidad de Sevilla servers (`openbinding.score.us.es`) | real | only on the owner's order |
+| Environment | Where | Compose files | Data | Purpose |
+|---|---|---|---|---|
+| Development | developer machine or factory work tree | `docker-compose.yml` (profile `dev`) | synthetic | build and unit tests |
+| Lab | NiPoGi rootless lab Docker | `deploy/compose/lab*.json` profiles | synthetic seed | integration, gates, e2e |
+| PR preview | NiPoGi lab, one stack per PR head on demand | the lab files | synthetic seed | G12 before merging into `develop` |
+| Develop preview | NiPoGi lab, follows `develop`; `https://openbinding.home.javiercavlop.com` | the lab files | synthetic seed | the owner reviews `develop` from the Mac or the iPhone |
+| Production | Universidad de Sevilla servers (`openbinding.score.us.es`) | `deploy/compose/production` overlay | real | only on the owner's order |
 
-The develop preview sits behind the homelab Caddy (TLS, home network and tailnet) with an AdGuard rewrite; its
-origin is added to `CORS_ALLOW_ORIGINS` of the preview stack. PR previews expire after 7 idle days.
+Docker Compose is the only deployment tool (ADR-0021): one base definition and an overlay per environment, images
+pinned by digest, secrets mounted as files, health checks on every service, PostgreSQL backups by a scheduled
+`pg_dump` service and volume snapshots. There are no Kubernetes manifests.
+
+The develop preview sits behind the homelab Caddy (TLS, home network and WireGuard VPN only) with an AdGuard
+rewrite; web and API share its origin (`/api`), so no CORS entry is needed. PR previews expire after 7 idle days.
 
 ## 13. Repository layout
 
@@ -520,10 +612,12 @@ The application directories keep their names; the clutter at the root moves:
 | From | To |
 |---|---|
 | `compose.lab*.json`, `compose.pgtest.json` | `deploy/compose/` |
+| `docker-compose.yml` | stays at the root as the development entry point |
+| `deploy/kubernetes/` | removed (ADR-0021) |
 | `nginx/`, `up.sh` | `deploy/` |
 | `pricings/` (FaaS iPricings of CLASP) | `experimentation/clasp/pricings/` |
 | `output/` (Zenodo packaging) | `experimentation/qacobench/zenodo/` |
-| — | `acceptance/` (new), `deploy/pricing/` (new) |
+| — | `acceptance/` (new), `deploy/compose/production/` (new), `docs/pricing/` (OpenBinding's pricing proposals and their rationale; SPHERE holds the published versions) |
 | `bim-toolchain/` | removed after the extraction to `isa-group/bim-toolchain` (ADR-0004) |
 
 Each move is one `refactor/<id>` change that updates CI, Dockerfiles, documentation links and tests together.
@@ -534,8 +628,10 @@ Each move is one `refactor/<id>` change that updates CI, Dockerfiles, documentat
 |---|---|
 | [0001](adr/0001-record-architecture-decisions.md)–[0013](adr/0013-committed-openapi-snapshot.md) | baseline decisions (BIM as canonical language behind a port, engines as services, durable jobs, pinned MiniZinc, datasets outside Git, frontend stack, problem+json, layered gateway, OpenAPI snapshot) |
 | [0014](adr/0014-render-never-dump.md) | render, never dump |
-| [0015](adr/0015-plans-through-space-and-sphere-clients.md) | plans through SPACE and SPHERE with their real clients (supersedes 0010) |
+| [0015](adr/0015-plans-through-space-and-sphere-clients.md) | plans through SPACE and SPHERE with their real clients (supersedes 0010); SPHERE at `sphere.score.us.es`, a local SPACE until `space.score.us.es` runs the latest release |
 | [0016](adr/0016-extensible-language-profiles-and-dialects.md) | profiles that extend profiles, adapter tiers, language API |
 | [0017](adr/0017-modular-monolith-and-feature-sliced-frontend.md) | modular monolith and feature-sliced frontend (evolves 0012) |
 | [0018](adr/0018-problem-centred-vocabulary.md) | problem-centred vocabulary in the UI, API `v1` unchanged |
 | [0019](adr/0019-previews-and-retention.md) | previews before merge and storage retention |
+| [0020](adr/0020-smaller-platform.md) | a smaller platform: journeys decide what exists; five features retire; people read names, machines read digests |
+| [0021](adr/0021-docker-compose-only.md) | Docker Compose deploys every environment; Kubernetes manifests removed |

@@ -13,8 +13,8 @@ artifacts, project resources and jobs. Renaming the HTTP resources would break c
 
 ## Decision
 
-The UI and new documentation use the glossary of `INTENT.md` §5 (Problem, Problem version, Component, Collection,
-Run, Study, Report, Publication, Engine, Engine deployment, Profile, Dialect, Plan). The `v1` API keeps its resource
+The UI and new documentation use the glossary of `INTENT.md` §5 (Problem, Problem version, Collection, Run, Study,
+Published result, Engine, Engine deployment, Profile, Dialect, Plan). The `v1` API keeps its resource
 names; its documentation maps both. A `v2` with the new names is a separate owner decision.
 
 ## Consequences

@@ -1,5 +1,9 @@
 # Organization artifact library
 
+> Being reduced (ADR-0020). The library as a catalogue (organization library, project resources, project
+> library, its pages and endpoints) retires; the versioned-artifact store described here stays as the
+> repository's internal storage of sealed parts, and sealed problem versions keep their exact references.
+
 The artifact cutover is in progress. The shared library, private sealing, version publication, exact BIM references and case materialization are implemented. Study definitions are stored exclusively in library versions; project study contexts select a version, and each run pins its original definition with a restrictive FK. Library Study and Collection versions validate typed definitions and protect exact case references. Report documents now live in common drafts and sealed versions; publications pin a version and withdrawal retains their citation. The specialized Collection routes still use their earlier model. External citation metadata remains a declaration, not proof that an external dataset is available.
 
 ## Identity and content

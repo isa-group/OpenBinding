@@ -1,5 +1,8 @@
 # Accounts, plans and limits
 
+> As implemented today (pricing 0.1.x, sponsorship, local usage counters). The target is ADR-0015,
+> `docs/ARCHITECTURE.md` §9 and the pricing proposal 0.2.0 in [`docs/pricing/`](pricing/README.md).
+
 The OpenBinding `/v1` gateway separates public validation from authenticated
 job ownership: every `/v1/jobs` request resolves to an account (`401`
 otherwise), which owns the job.

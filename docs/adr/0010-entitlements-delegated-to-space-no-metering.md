@@ -2,7 +2,8 @@ Status: DRAFT for owner review (2026-10-21)
 
 # ADR-0010: Plans are read from remote SPACE/SPHERE; nothing is metered or charged
 
-- Status: Superseded by ADR-0015 (its "nothing is metered or charged" rule stays)
+- Status: Superseded by ADR-0015 (its "nothing is charged" rule stays; SPACE may track the usage limits that the
+  pricing declares, INTENT D4)
 - Date: 2026-10-21 (recorded; decided 2026-10-13/14)
 - Deciders: owner
 
