@@ -406,5 +406,5 @@ real remote Engines under crash injection, the cancel call against an Engine tha
 implements it.
 
 Related: [ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md) (the concurrency cap),
-[ARCHITECTURE.md](ARCHITECTURE.md) (where `jobs/` sits), and
+[gateway-as-is.md](architecture/gateway-as-is.md) (where `jobs/` sits), and
 [qa/JOINT_STATUS.md](qa/JOINT_STATUS.md).

@@ -1,4 +1,4 @@
-Status: DRAFT for owner review (2026-10-21)
+Status: PROPOSED for owner review (2026-10-22)
 
 # REVIEW — how changes to OpenBinding are reviewed
 
@@ -62,10 +62,10 @@ Maximum two fix rounds; then the coordinator opens a CRP.
 - Supply chain: new deps locked and licence-compatible; images pinned by digest; Actions pinned by SHA; prompt-injection exposure of agent tooling.
 
 **arch-reviewer**
-- Constitution articles 4–7; ADRs respected or superseded by a new ADR.
+- Constitution articles 4–7 and 15–19; ADRs respected or superseded by a new ADR; new code placed in the modules of `docs/ARCHITECTURE.md` §4–5 (constitution 6.5–6.7).
 - BIM: no platform concept enters `bim-toolchain`; platform reaches BIM only through `BimPort`; `compilerDigest` pinning kept.
 - Engines receive only the IR; manifests and modes declare capabilities; no engine-specific logic in the gateway beyond manifests.
-- Coupling: top-level legacy modules (`artifacts.py`, `reports.py`, `studies.py`, `study_jobs.py`, …) are not grown; debt in `docs/ARCHITECTURE.md` "Known debt" updated.
+- Coupling: top-level legacy modules (`artifacts.py`, `reports.py`, `studies.py`, `study_jobs.py`, …) are not grown; debt in `docs/architecture/gateway-as-is.md` "Known debt" updated.
 
 **perf-reviewer**
 - Hot paths: compile (uniqueItems/`$ref` cost on 50k-candidate catalogs), job submission (account lock), re-evaluation, neighbourhood (2 s budget), study matrix expansion (bounded before job creation).
@@ -77,6 +77,9 @@ Maximum two fix rounds; then the coordinator opens a CRP.
 - Keyboard navigation, focus order, accessible names, landmarks, 24 px targets (`mobileTouchTargets.test.ts`).
 - States: loading, empty, error (problem document rendered per pointer), forbidden, not found.
 - `hygiene.test.ts` rules (no prototype names, palette) still pass; route ids/paths in `src/routes/` unchanged unless the spec says so.
+- Render, never dump (constitution Article 15): no raw JSON/YAML/XML or API response as a screen's main content; sources only in `SourceView` tabs or downloads; logs in `LogPanel`; data views built from the rendering catalogue (`docs/ARCHITECTURE.md` §5.3).
+- Preview (constitution Article 19): the screenshots and Playwright flows come from the NiPoGi preview of the head SHA, not only from mocks.
+- Plans: UI gating uses `space-react-client` `<Feature>` and matches the server decision; pricings use `pricing-renderer` (constitution Article 16).
 
 ## 4. Blocking criteria (any one blocks the merge)
 

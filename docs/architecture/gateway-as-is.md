@@ -1,4 +1,4 @@
-# Architecture of the OpenBinding gateway
+# OpenBinding gateway: architecture as it is (912648c)
 
 This describes `openbinding-gateway/src/openbinding_gateway/` as it is, not as
 it is meant to become. Claims cite the file that supports them. Where the code
@@ -25,7 +25,7 @@ routes/  ──►  services/  ──►  repositories/ , integrations  ──�
 | `models/` | Pydantic request/response schemas (DTO), see below | `models/*.py` |
 | `core/` | `settings.py` (every environment variable in one place) and `logging.py` | `core/` |
 | `access/`, `security/` | Plan policy (`access/policy.py`: clamping, ceilings and quota rules, applied through `services/entitlements.py`), contract bookkeeping (`access/contracts.py`), public-read matrix; hashing of passwords, tokens and API keys | respective files |
-| `jobs/` | The job lifecycle: `leases.py`, `reconciler.py`, `limits.py`, `lifecycle.py` ([IDEMPOTENCY.md](IDEMPOTENCY.md)) | `jobs/*.py` |
+| `jobs/` | The job lifecycle: `leases.py`, `reconciler.py`, `limits.py`, `lifecycle.py` ([IDEMPOTENCY.md](../IDEMPOTENCY.md)) | `jobs/*.py` |
 | `integrations/bim.py`, `v1/`, `generator/` | The BIM port (`BimPort`, settings, error translation), the remaining `v1/` platform code (archive, remote Engine transport) and the instance generator (see [the BIM boundary](#the-bim--platform-boundary)) | `integrations/`, `v1/`, `generator/` |
 
 Not every module follows the layer table yet: several top-level modules
@@ -376,14 +376,14 @@ reports, the resolver and the HTTP routes. The toolchain must not know the
 platform, and the platform reaches BIM through a small port.
 
 **Current state.** The gateway depends on `bim-core` and `bim-client` from
-[`bim-toolchain/`](../bim-toolchain/README.md) (the future private repository
+[`bim-toolchain/`](../../bim-toolchain/README.md) (the future private repository
 `javiercavlop/bim-toolchain`; the remote does not exist yet) and reaches the
 language only through `bim_client.BimPort`, built in
 `openbinding_gateway/integrations/bim.py`. `BIM_MODE=inproc` (default) runs
 `InProcessBim`; `BIM_MODE=http` runs `HttpBim` against `bim-service` and refuses
 to start if the service `compilerDigest` differs from the local one. Routes,
 services, the generator, studies and reports use the port; BIM errors are
-translated to HTTP in one place. Details in [BIM_CORE.md](BIM_CORE.md).
+translated to HTTP in one place. Details in [BIM_CORE.md](../BIM_CORE.md).
 
 `integrations/` may import `core`, `models` and the BIM packages, and must not
 import `routes`, `services`, `repositories`, `jobs` or `db`
@@ -426,5 +426,5 @@ These are real and not scheduled; no dates are promised.
   (it needs the session for the count); only the read of the plan goes through
   the service.
 
-Related: [ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md),
-[IDEMPOTENCY.md](IDEMPOTENCY.md), [qa/JOINT_STATUS.md](qa/JOINT_STATUS.md).
+Related: [ACCOUNTS_AND_PLANS.md](../ACCOUNTS_AND_PLANS.md),
+[IDEMPOTENCY.md](../IDEMPOTENCY.md), [qa/JOINT_STATUS.md](../qa/JOINT_STATUS.md).

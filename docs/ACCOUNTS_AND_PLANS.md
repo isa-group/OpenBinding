@@ -402,7 +402,7 @@ counter.
 
 Every decision above starts from the account's capabilities, and they are read in
 exactly one place: `services/entitlements.py` (`EntitlementService`, see
-[ARCHITECTURE.md](ARCHITECTURE.md#entitlements)). It is the only module that calls
+[gateway-as-is.md](architecture/gateway-as-is.md#entitlements)). It is the only module that calls
 `get_gate().caps(...)` (enforced by `tests/test_architecture_layers.py`). The rules
 stay in `access/policy.py` and `domain/entitlements.py`; the service names them
 (`require_feature`, `payload_ceiling`, `solve_timeout`, `clamp_options`,

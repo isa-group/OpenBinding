@@ -14,4 +14,4 @@ all; `services/`, `domain/`, `jobs/` never import `routes`. Legacy exceptions ar
 
 ## Evidence
 
-`docs/ARCHITECTURE.md`, `openbinding-gateway/tests/test_architecture_layers.py`.
+`docs/architecture/gateway-as-is.md`, `openbinding-gateway/tests/test_architecture_layers.py`.
