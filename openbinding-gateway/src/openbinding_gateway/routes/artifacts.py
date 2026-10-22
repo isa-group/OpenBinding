@@ -8,6 +8,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import tempfile
 import uuid
 import zipfile
@@ -166,6 +167,11 @@ def _artifact_path(settings: Settings, digest_value: str) -> Path:
     return Path(settings.artifact_root) / hexadecimal[:2] / hexadecimal[2:4] / hexadecimal
 
 
+def _safe_filename(digest_value: str) -> str:
+    """The digest as a header-safe file name: ASCII letters, digits, ``.``, ``_`` and ``-`` only."""
+    return re.sub(r"[^A-Za-z0-9._-]", "_", digest_value) or "blob"
+
+
 async def _storage_limit(session: AsyncSession, organization: Organization, incoming: int) -> None:
     sponsor = await session.get(User, organization.billing_sponsor_user_id)
     await session.execute(select(User.id).where(User.id == sponsor.id).with_for_update())
@@ -313,9 +319,17 @@ async def download_artifact(
         storage_path = _artifact_path(get_settings(), artifact.digest)
         if not storage_path.is_file():
             raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Blob not found.")
+    # Stored bytes and their media type come from the uploader and are served from the
+    # same origin as the SPA: never let a browser render them.
+    name = _safe_filename(artifact.digest)
     return FileResponse(
         str(storage_path), media_type=artifact.media_type,
-        headers={"ETag": f'"{artifact.digest}"', "Cache-Control": "no-store"},
+        headers={
+            "ETag": f'"{name}"', "Cache-Control": "no-store",
+            "Content-Disposition": f'attachment; filename="{name}"',
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+        },
     )
 
 
