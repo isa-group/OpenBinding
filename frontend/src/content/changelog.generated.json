@@ -2,9 +2,12 @@
   "platform": [
     {
       "version": "0.1.0",
-      "date": "2026-10-21",
+      "date": "2026-10-22",
       "title": "OpenBinding platform",
       "changes": [
+        "Plan the vision in milestones M0-M9 with acceptance criteria and previews",
+        "Describe the target architecture and keep the gateway as-is document",
+        "Add rendering, real-client, extension, retention and preview articles to the constitution",
         "Rebase the living specs on the integrated platform",
         "Add gate configuration, PR template and code owners",
         "Add baseline specs of the frontend, experiments and deployment",
@@ -82,9 +85,13 @@
   "documentation": [
     {
       "version": "0.1.0",
-      "date": "2026-10-21",
+      "date": "2026-10-22",
       "title": "OpenBinding documentation",
       "changes": [
+        "Align the agent guide, README and project context with the vision",
+        "Record ADR-0014 to ADR-0019 and supersede ADR-0010",
+        "Describe the target architecture and keep the gateway as-is document",
+        "Restate the intent as a repository, analysis platform and laboratory for binding problems",
         "Update the spec-baseline handoff to the integrated platform",
         "Record owner decisions and the integrated state",
         "Add spec-baseline handoff",
