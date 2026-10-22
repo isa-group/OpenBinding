@@ -1,0 +1,250 @@
+syntaxVersion: '3.1'
+saasName: OpenBinding
+version: 0.2.0
+createdAt: '2026-10-22'
+currency: EUR
+billing:
+  monthly: 1
+tags:
+- Repository
+- Laboratory
+- Engines
+- Collaboration
+features:
+  repository:
+    description: Author, version and publish binding problems and collections, with permanent links, citations and
+      verification.
+    tag: Repository
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['repository']
+  runs:
+    description: Run problem versions on the built-in engines; the platform re-evaluates every result.
+    tag: Laboratory
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['runs'] && subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']
+  studies:
+    description: Compare engines over problems or a collection with budgets and seeds, read the protocol metrics and
+      publish frozen, citable results.
+    tag: Laboratory
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['studies'] && subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']
+  generator:
+    description: Generate problem collections with the solver-aware generator, with provenance.
+    tag: Laboratory
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    expression: pricingContext['features']['generator'] && subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']
+  federatedEngines:
+    description: Register remote engines that pass conformance and run problems on them.
+    tag: Engines
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['federatedEngines']
+  collaboration:
+    description: Organizations, projects and members with roles; projects are public or private.
+    tag: Collaboration
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['collaboration']
+  apiAccess:
+    description: Use the public API with API keys, from scripts, QACOBench or MCP clients.
+    tag: Collaboration
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['apiAccess']
+usageLimits:
+  solverHours:
+    description: Solver time on the built-in engines per account and month; each run counts its time budget when it
+      starts.
+    tag: Laboratory
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    valueType: NUMERIC
+    defaultValue: 5
+    unit: hour/month
+    linkedFeatures:
+    - runs
+    - studies
+    - generator
+  maxRunMinutes:
+    description: Largest time budget of one run.
+    tag: Laboratory
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 5
+    unit: minute
+    linkedFeatures:
+    - runs
+    - studies
+  maxConcurrentRuns:
+    description: Runs of one account executing at the same time, on built-in or federated engines.
+    tag: Laboratory
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: run
+    linkedFeatures:
+    - runs
+    - studies
+    - generator
+    - federatedEngines
+  maxStudyCells:
+    description: Cells (problem version × engine mode × budget × seed) in one study run.
+    tag: Laboratory
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 500
+    unit: cell
+    linkedFeatures:
+    - studies
+  maxFederatedEngines:
+    description: Federated engine deployments registered by the account.
+    tag: Engines
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: engine
+    linkedFeatures:
+    - federatedEngines
+  maxPrivateProjects:
+    description: Private projects in the organizations the account owns.
+    tag: Collaboration
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: project
+    linkedFeatures:
+    - collaboration
+  maxApiKeys:
+    description: Active API keys of the account.
+    tag: Collaboration
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 2
+    unit: key
+    linkedFeatures:
+    - apiAccess
+plans:
+  FREE:
+    description: For any researcher. Author, run, compare and publish binding problems.
+    price: 0
+    unit: user/month
+    features:
+      repository:
+        value: true
+      runs:
+        value: true
+      studies:
+        value: true
+      generator:
+        value: false
+      federatedEngines:
+        value: true
+      collaboration:
+        value: true
+      apiAccess:
+        value: true
+    usageLimits:
+      solverHours:
+        value: 5
+      maxRunMinutes:
+        value: 5
+      maxConcurrentRuns:
+        value: 1
+      maxStudyCells:
+        value: 500
+      maxFederatedEngines:
+        value: 1
+      maxPrivateProjects:
+        value: 1
+      maxApiKeys:
+        value: 2
+  RESEARCH:
+    description: Free for Universidad de Sevilla members who sign in with CAS. Adds the generator and research-scale
+      limits.
+    price: 0
+    unit: user/month
+    features:
+      repository:
+        value: true
+      runs:
+        value: true
+      studies:
+        value: true
+      generator:
+        value: true
+      federatedEngines:
+        value: true
+      collaboration:
+        value: true
+      apiAccess:
+        value: true
+    usageLimits:
+      solverHours:
+        value: 100
+      maxRunMinutes:
+        value: 30
+      maxConcurrentRuns:
+        value: 4
+      maxStudyCells:
+        value: 5000
+      maxFederatedEngines:
+        value: 3
+      maxPrivateProjects:
+        value: 10
+      maxApiKeys:
+        value: 10
+  LAB:
+    description: By agreement, for groups that run benchmark campaigns or operate engines.
+    price: Contact us
+    unit: user/month
+    features:
+      repository:
+        value: true
+      runs:
+        value: true
+      studies:
+        value: true
+      generator:
+        value: true
+      federatedEngines:
+        value: true
+      collaboration:
+        value: true
+      apiAccess:
+        value: true
+    usageLimits:
+      solverHours:
+        value: 1000
+      maxRunMinutes:
+        value: 120
+      maxConcurrentRuns:
+        value: 8
+      maxStudyCells:
+        value: 50000
+      maxFederatedEngines:
+        value: 10
+      maxPrivateProjects:
+        value: 50
+      maxApiKeys:
+        value: 50
