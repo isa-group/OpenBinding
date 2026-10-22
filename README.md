@@ -1,23 +1,26 @@
 # OpenBinding
 
-OpenBinding is a collaborative platform for describing, solving, comparing and
-publishing binding and service-composition problems. **BIM v1** remains its
-extensible language contract; the platform adds organizations, projects,
-immutable case and resource revisions, collections, reproducible studies,
-analysis, reports, administration and durable execution around the existing
-compiler, registry, API and engines.
+OpenBinding is to QoS-aware service binding and composition problems what
+[SPHERE](https://sphere.score.us.es) is to SaaS pricings: a **repository** of
+versioned, citable binding problems, a **collaborative analysis** platform and a
+**laboratory** that compares interchangeable engines reproducibly. Problems are
+written in **BIM v1**, the Binding Instance Model, an extensible language whose
+profiles and dialects compile every problem to one canonical IR; the gateway
+re-evaluates every engine answer so results are comparable and verifiable by
+digest. Vision and scope: [`INTENT.md`](INTENT.md); target architecture:
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); plan: [`ROADMAP.md`](ROADMAP.md).
 
-The platform deliberately keeps those layers separate:
+Its layers stay deliberately separate:
 
 - BIM packages compile through installed Profiles and Dialects into a canonical
   IR before any engine sees them.
 - PostgreSQL owns users, collaboration, jobs, provenance and release metadata;
   Redis delivers durable work and one-use CAS state.
-- SPHERE and SPACE are **remote** services administered in their own consoles.
-  OpenBinding shows the plan, permissions and links, reads the published
-  pricing read-only and delegates sign-up and plan changes to the official
-  SPACE client (`MANAGEMENT` scope). There is no local SPACE stack and no
-  pricing editor or contract renewal of its own in OpenBinding.
+- OpenBinding's own pricing lives in SPHERE and is operated by SPACE, which
+  follows SPHERE's permanent link. OpenBinding talks to SPACE only through its
+  official clients (`space-python-client`, `space-react-client`), reads SPHERE
+  only through its public API and renders pricings with `pricing-renderer`
+  (ADR-0015). It has no pricing editor or contract console of its own.
 - Nothing is metered or charged: there are no credits or compute units, and the
   only execution limit that is not a plan entitlement is a technical
   per-account concurrency cap (`MAX_CONCURRENT_JOBS_PER_USER`, answered with
@@ -26,8 +29,8 @@ The platform deliberately keeps those layers separate:
 - Universidad de Sevilla CAS accounts receive the `RESEARCH` contract and a
   compact institutional mark. No identity is ever linked by email alone.
 
-For the layers of the gateway and the BIM/platform boundary, see
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); for the guarantees of job
+For the layers of the gateway today and the BIM/platform boundary, see
+[`docs/architecture/gateway-as-is.md`](docs/architecture/gateway-as-is.md); for the guarantees of job
 submission and execution, [`docs/IDEMPOTENCY.md`](docs/IDEMPOTENCY.md); for the
 current state of the work, [`docs/qa/JOINT_STATUS.md`](docs/qa/JOINT_STATUS.md).
 
@@ -35,7 +38,7 @@ See the [interactive BIM v1 architecture map](docs/diagrams/bim-v1-architecture.
 
 ## Project governance
 
-Agents and contributors start at [`AGENTS.md`](AGENTS.md). Purpose and rules: [`INTENT.md`](INTENT.md), [`constitution.md`](constitution.md), [`REVIEW.md`](REVIEW.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), [`TESTING.md`](TESTING.md), [`SECURITY.md`](SECURITY.md), [Definition of Done](docs/DEFINITION_OF_DONE.md); living specs in [`openspec/`](openspec/project.md); decisions in [`docs/adr/`](docs/adr/0001-record-architecture-decisions.md).
+Agents and contributors start at [`AGENTS.md`](AGENTS.md). Purpose and rules: [`INTENT.md`](INTENT.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`ROADMAP.md`](ROADMAP.md), [`constitution.md`](constitution.md), [`REVIEW.md`](REVIEW.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), [`TESTING.md`](TESTING.md), [`SECURITY.md`](SECURITY.md), [Definition of Done](docs/DEFINITION_OF_DONE.md); living specs in [`openspec/`](openspec/project.md); decisions in [`docs/adr/`](docs/adr/0001-record-architecture-decisions.md).
 
 ## BIM v1 at a glance
 

@@ -1,12 +1,14 @@
-Status: DRAFT for owner review (2026-10-21)
+Status: PROPOSED for owner review (2026-10-22)
 
 # Project context — OpenBinding
 
 ## Purpose
 
-OpenBinding is a collaborative platform for describing, solving, comparing and publishing QoS-aware service binding
-problems written in BIM v1. See `INTENT.md` for purpose, users, objectives and non-goals, and `constitution.md` for the
-binding rules.
+OpenBinding is to QoS-aware service binding and composition problems what SPHERE is to SaaS pricings: a repository
+of versioned, citable problems written in BIM (the Binding Instance Model), a collaborative analysis platform and a
+laboratory that compares interchangeable engines reproducibly. See `INTENT.md` (purpose, pillars, glossary, scope,
+objectives, non-goals), `docs/ARCHITECTURE.md` (target architecture), `ROADMAP.md` (milestones) and
+`constitution.md` (binding rules).
 
 ## Tech stack
 
@@ -17,7 +19,8 @@ binding rules.
   bytecode, CI on JDK 21) with Maven + JUnit 5.
 - Frontend: React 19, TypeScript, Vite, React Router 7, pnpm, ESLint, Vitest, Playwright.
 - Infrastructure: Docker Compose profiles, NiPoGi lab profiles (`compose.lab*.json`), Kustomize, nginx.
-- Remote services: SPACE (contracts and entitlements, on hold) and SPHERE (published pricing, read-only).
+- Remote services: SPACE (subscriptions and feature access, through `space-python-client` and `space-react-client`) and
+  SPHERE (the OpenBinding pricing, read through its public permanent-link API); pricings rendered with `pricing-renderer`.
 
 ## Conventions
 
@@ -32,6 +35,10 @@ binding rules.
 - Code and test tags: `[impl->req~x~N]`, `[utest->req~x~N]`, `[itest->req~x~N]` in comments next to the implementing code or test.
 - Changes live in `openspec/changes/<id>/` (proposal, design, tasks, delta specs) and are archived on merge.
 - Spec level: spec-anchored. The code is the executable truth; the living specs describe it and tests enforce alignment.
+- Vocabulary: new requirements and UI text use the glossary of `INTENT.md` §5 (Problem, Run, Component…); requirements
+  about the HTTP API name the `v1` resources (`cases`, `jobs`, `artifacts`…).
+- UI requirements state how data is rendered (constitution Article 15); "shows the JSON" is never an acceptable
+  behaviour.
 
 ## Capabilities (living specs)
 
@@ -56,25 +63,28 @@ binding rules.
 
 ## Domain glossary
 
-- **BIM v1**: the binding language of OpenBinding (service binding, not Building Information Modeling).
+- **BIM v1**: the Binding Instance Model, the binding language of OpenBinding (service binding, not Building Information
+  Modeling). **QACO**: QoS-aware service composition.
 - **Instance / Profile / Dialect**: package root / semantic frame (`qos-binding/v1`) / versioned sublanguage.
 - **IR / BindingProblem**: canonical compiled problem; identified by `irDigest`; valid only for its `compilerDigest`.
-- **Snapshot**: an owner's stored compilation of a package. **Case / revision**: a versioned experiment composition.
+- **Snapshot**: an owner's stored compilation of a package (UI: the compiled form of a problem version).
+  **Case / revision** (UI: Problem / Problem version): a versioned problem composed of exact component versions.
+- **Profile chain**: a profile and the profiles it extends; recorded in the IR (ADR-0016).
 - **Engine / mode / registration**: solver service / declared algorithm contract / a deployment of an engine revision.
 - **Termination**: `OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, `UNKNOWN`. **Job states**: `queued`, `running`, `completed`, `failed`, `cancelled`.
 - **Study / run / cell**: a matrix definition / one execution of it / one (case revision × engine mode × options) job.
 - **QFBS**: synthetic suite of QACOBench generated through the generator endpoint.
 
-> OPEN QUESTION: the expansion of the acronym BIM is not stated anywhere in the repository; add it to the glossary.
-
 ## Constraints
 
-See `INTENT.md` §6 and `constitution.md`. Datasets never in Git; synthetic data only; SPACE on hold; only the owner merges `main`.
+See `INTENT.md` §8–9 and `constitution.md`. Datasets never in Git; synthetic data only; SPACE and SPHERE only through their
+official clients and public API; only the owner merges `main`.
 
 ## External dependencies
 
-SPACE (`https://space.score.us.es`), SPHERE, Zenodo deposits (QACOBench software and dataset), MiniZincIDE releases
+SPACE (`https://space.score.us.es`; pinned `ghcr.io/scorelabus/space-*` images in the lab), SPHERE (`https://sphere.score.us.es`;
+pinned `ghcr.io/scorelabus/sphere-*` images in the lab), `space-python-client`, `space-react-client`, `pricing-renderer`, Zenodo deposits (QACOBench software and dataset), MiniZincIDE releases
 (solver bundle), OMG BPMN 2.0.2 XSDs (vendored in bim-core; redistribution not demonstrated).
 
-> OPEN QUESTION: the OpenSpec CLI version to pin in CI (G1) and whether the OFT importer accepts the requirement layout
-> above (id after the EARS sentence); to be confirmed in the pilot.
+The OpenSpec CLI used for G1 is `@fission-ai/openspec` (1.14.3 validated locally on 2026-10-22); pinning it in CI and
+confirming that the OFT importer accepts the requirement layout above is `ROADMAP.md` M0.2–M0.3.
