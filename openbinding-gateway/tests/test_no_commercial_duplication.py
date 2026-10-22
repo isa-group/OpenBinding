@@ -1,11 +1,12 @@
 """Regression guard: production code must not become a second iPricing."""
 
 import re
-from pathlib import Path
+
+from _paths import GATEWAY_ROOT
 
 
 def test_production_backend_contains_no_commercial_catalog_or_mapping() -> None:
-    source_root = Path(__file__).resolve().parents[1] / "src"
+    source_root = GATEWAY_ROOT / "src"
     source = "\n".join(path.read_text() for path in source_root.rglob("*.py"))
     forbidden = (
         "custom.openbinding",

@@ -15,10 +15,11 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine
 from sqlalchemy.schema import CreateTable
 
+from _paths import GATEWAY_ROOT
 from openbinding_gateway.db.base import Base
 from openbinding_gateway.db.models import SponsorProposal  # noqa: F401  (registers the table)
 
-ROOT = Path(__file__).parents[1]
+ROOT = GATEWAY_ROOT
 PREVIOUS_HEAD = "c0d1e2f3a4b5"
 THIS_REVISION = "d1e2f3a4b5c6"
 

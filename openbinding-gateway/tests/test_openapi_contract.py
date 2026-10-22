@@ -21,6 +21,7 @@ import pytest
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
+from _paths import GATEWAY_ROOT
 from _repo import REPO_ROOT
 from openbinding_gateway.access.dependencies import (
     get_current_user,
@@ -32,7 +33,6 @@ from openbinding_gateway.access.dependencies import (
 from openbinding_gateway.main import app
 from openbinding_gateway.security.apikeys import ENGINE_LIMITED_PERMISSIONS
 
-GATEWAY_ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = REPO_ROOT / "docs" / "openapi.json"
 
 

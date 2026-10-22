@@ -9,6 +9,7 @@ that imported a helper out of another test module.
 from __future__ import annotations
 
 import os
+import re
 import sys
 import uuid
 
@@ -22,27 +23,11 @@ REPO_ROOT = os.environ.get(
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-# Set before anything imports the gateway: schema paths are resolved when the
-# validators are constructed.
-os.environ.setdefault(
-    "GENERAL_SCHEMA_PATH", os.path.join(REPO_ROOT, "schemas", "general", "schema.json")
-)
-os.environ.setdefault("SCHEMAS_DIR", os.path.join(REPO_ROOT, "schemas"))
-# The accounts tests sign real tokens, so they need a real secret. It has no
-# bearing on any deployment: this one only ever signs tokens for the suite.
-os.environ.setdefault("GATEWAY_JWT_SECRET", "test-secret-not-used-anywhere-real")
-os.environ.setdefault("JOB_DISPATCH_MODE", "inline")
-os.environ["SPHERE_ENABLED"] = "false"
-os.environ.pop("SPHERE_ORGANIZATION_ID", None)
-# The fake gate installed below is built from tests/fixtures/pricing_test.yml
-# (version 0.1.0, default plan BASIC); the gateway names that version and plan
-# when it creates contracts.
-os.environ["SPACE_PRICING_VERSION"] = "0.1.0"
-os.environ["SPACE_DEFAULT_PLAN"] = "BASIC"
 # The administrator configuration of the environment the suite runs in (the CI
 # job generates one per run for the integration tests). Unit tests must never
 # see it: they build their own settings. Only ``bootstrap_admin_credentials``
-# hands it out, and only to integration tests.
+# hands it out, and only to integration tests. Captured before the environment
+# is cleaned below.
 _ADMIN_ENVIRONMENT = (
     "BOOTSTRAP_ADMIN_USERNAME",
     "BOOTSTRAP_ADMIN_PASSWORD",
@@ -52,15 +37,54 @@ _ADMIN_ENVIRONMENT = (
 _CAPTURED_ADMIN_ENVIRONMENT = {
     name: os.environ[name] for name in _ADMIN_ENVIRONMENT if name in os.environ
 }
-for _name in _ADMIN_ENVIRONMENT:
-    os.environ.pop(_name, None)
 
+# Hermetic environment: the gateway container (and a developer's shell) carries
+# the deployment's own configuration, and a value that is already set would win
+# over the suite's. Everything ``Settings`` reads is removed before the gateway
+# is imported, then only the values the suite itself needs are set below.
+# ``TEST_DATABASE_URL`` is not a setting of the gateway and is left alone.
+from openbinding_gateway.core.settings import Settings  # noqa: E402  (reads field names; builds no settings)
 
+assert Settings.model_config["case_sensitive"] is False and not Settings.model_config.get("env_prefix")
+_DEPLOYMENT_VARIABLES = {name.upper() for name in Settings.model_fields}
+_DEPLOYMENT_VARIABLES.update(_ADMIN_ENVIRONMENT)
+# Read outside ``Settings``: the per-engine endpoints (``Settings.engine_urls``), the built-in cancellation
+# switch and the BIM package limits (``BIM_MAX_*``).
+_OTHER_DEPLOYMENT_VARIABLE = re.compile(r"ENGINE_[A-Z0-9_]+_URL|ENGINE_CANCELLATION_BUILTIN|BIM_MAX_[A-Z0-9_]+")
+for _name in list(os.environ):
+    if _name.upper() in _DEPLOYMENT_VARIABLES or _OTHER_DEPLOYMENT_VARIABLE.fullmatch(_name.upper()):
+        del os.environ[_name]
+
+# Set before anything imports the gateway: schema paths are resolved when the
+# validators are constructed.
+#
+# The schemas sit in the repository's ``schemas`` directory in a checkout and in the gateway project's own
+# ``schemas`` directory in the container image (``/app/schemas``): the first that holds the BIM v1 schemas wins.
+_GATEWAY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_SCHEMAS_ROOT = next(
+    (
+        root
+        for root in (REPO_ROOT, _GATEWAY_DIR)
+        if os.path.isdir(os.path.join(root, "schemas", "bim", "v1"))
+    ),
+    REPO_ROOT,
+)
+os.environ["GENERAL_SCHEMA_PATH"] = os.path.join(_SCHEMAS_ROOT, "schemas", "general", "schema.json")
+os.environ["SCHEMAS_DIR"] = os.path.join(_SCHEMAS_ROOT, "schemas")
+# The accounts tests sign real tokens, so they need a real secret. It has no
+# bearing on any deployment: this one only ever signs tokens for the suite.
+os.environ["GATEWAY_JWT_SECRET"] = "test-secret-not-used-anywhere-real"
+# Jobs run in the request that creates them; there is no worker to claim a queued one.
+os.environ["JOB_DISPATCH_MODE"] = "inline"
+os.environ["SPHERE_ENABLED"] = "false"
+# The fake gate installed below is built from tests/fixtures/pricing_test.yml
+# (version 0.1.0, default plan BASIC); the gateway names that version and plan
+# when it creates contracts.
+os.environ["SPACE_PRICING_VERSION"] = "0.1.0"
+os.environ["SPACE_DEFAULT_PLAN"] = "BASIC"
 # The suite always uses the toolchain installed beside the gateway: a ``BIM_MODE=http`` left in the environment
 # would point every test at a service that is not there.
 os.environ["BIM_MODE"] = "inproc"
-for _name in ("BIM_SERVICE_URL", "BIM_SERVICE_TOKEN_FILE", "BIM_TENANT"):
-    os.environ.pop(_name, None)
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -13,7 +13,9 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-PACKAGE = Path(__file__).resolve().parents[1] / "src" / "openbinding_gateway"
+from _paths import GATEWAY_ROOT
+
+PACKAGE = GATEWAY_ROOT / "src" / "openbinding_gateway"
 
 #: Names the platform takes from the top level of ``bim_core``: the errors it translates.
 ERRORS = frozenset({

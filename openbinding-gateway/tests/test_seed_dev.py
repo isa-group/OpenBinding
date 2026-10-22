@@ -5,12 +5,13 @@ from __future__ import annotations
 # ruff: noqa: E402
 
 import sys
-from pathlib import Path
 
 import pytest
+from _paths import GATEWAY_ROOT
+from _repo import REPO_ROOT
 from sqlalchemy import select
 
-_tools_dir = str(Path(__file__).resolve().parents[1] / "tools")
+_tools_dir = str(GATEWAY_ROOT / "tools")
 if _tools_dir not in sys.path:
     sys.path.insert(0, _tools_dir)
 
@@ -167,8 +168,7 @@ async def test_seed_dev_lifecycle(db_session):
     assert projects["score-ai/smart-orchestration"].visibility == Visibility.PRIVATE
 
     # 4. Snapshots & Cases
-    repo_root = Path(__file__).resolve().parents[2]
-    examples_dir = repo_root / "examples"
+    examples_dir = REPO_ROOT / "examples"
     snapshots = await load_and_persist_snapshots(db_session, users["alice"], examples_dir)
 
     qos_proj = projects["score-ai/qos-placement"]

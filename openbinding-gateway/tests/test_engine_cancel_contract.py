@@ -27,6 +27,7 @@ from pathlib import Path
 
 import pytest
 
+from _repo import REPO_ROOT
 from analysis_b3_b4_b6._helpers import PER_ATTEMPT_CANCELLATION, a_job, a_registration, only_job
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import JobState
@@ -34,7 +35,7 @@ from openbinding_gateway.services import engines, execution
 from openbinding_gateway.v1 import remote
 from test_remote_cancel import cancel_rows, claim_and_record, cycle, frozen, lose_and_sweep, owner  # noqa: F401
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = REPO_ROOT
 TOKEN_A = "tenant-a-token-0123456789"
 TOKEN_B = "tenant-b-token-0123456789"
 JOB_PATH = "/internal/v1/jobs/"

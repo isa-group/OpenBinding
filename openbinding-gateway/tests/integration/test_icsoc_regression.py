@@ -12,6 +12,7 @@ import uuid
 import httpx
 import pytest
 
+from _repo import REPO_ROOT
 from bim_core.compiler import compile_instance
 from bim_core.package import InstancePackage, load_package
 
@@ -25,9 +26,8 @@ GATEWAY_URL = "http://127.0.0.1:8000"
 
 
 def _repository_root() -> Path:
-    for root in (Path(__file__).parents[2], Path(__file__).parents[3]):
-        if (root / "experimentation/icsoc/original_dataset/applications.json").is_file():
-            return root
+    if (REPO_ROOT / "experimentation/icsoc/original_dataset/applications.json").is_file():
+        return REPO_ROOT
     pytest.skip(
         "experimentation/icsoc/original_dataset is not present; it lives on the "
         "data/icsoc-original-dataset branch (see experimentation/icsoc/README.md)"

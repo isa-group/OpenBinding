@@ -23,6 +23,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
+from _paths import GATEWAY_ROOT
 from _pricing import fake_pricing_gate
 from openbinding_gateway import space_client
 from openbinding_gateway.core.settings import Settings, get_settings
@@ -31,7 +32,6 @@ from openbinding_gateway.db.bootstrap import seed_default_administrator
 from openbinding_gateway.db.models import User, UserRole
 from openbinding_gateway.security.passwords import verify_password
 
-GATEWAY_ROOT = Path(__file__).resolve().parents[1]
 BOOTSTRAP_SOURCE = GATEWAY_ROOT / "src" / "openbinding_gateway" / "db" / "bootstrap.py"
 SEED_ADMIN_TOOL = GATEWAY_ROOT / "tools" / "seed_admin.py"
 

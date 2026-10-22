@@ -20,6 +20,7 @@ from types import SimpleNamespace
 import pytest
 import pytest_asyncio
 
+from _paths import GATEWAY_ROOT
 from _pricing import pricing_catalog
 from openbinding_gateway import job_dispatch
 from openbinding_gateway.db.models import Job, JobState, User, UserRole, utcnow
@@ -265,7 +266,7 @@ async def test_inline_mode_has_nothing_to_republish(db_session, owner, monkeypat
 
 # -- The migration --------------------------------------------------------------
 
-ROOT = Path(__file__).parents[1]
+ROOT = GATEWAY_ROOT
 PREVIOUS_REVISION = "e1f2a3b4c5d6"
 
 

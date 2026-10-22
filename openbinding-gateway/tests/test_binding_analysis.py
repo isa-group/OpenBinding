@@ -1,9 +1,9 @@
 """Real canonical counterfactuals, bounded coverage and owner-scoped access."""
 import copy
 import uuid
-from pathlib import Path
 
 import pytest
+from _repo import REPO_ROOT
 from sqlalchemy import select
 
 from openbinding_gateway.db.models import Job, JobState, User
@@ -11,7 +11,7 @@ from bim_core.neighborhood import analyze_neighborhood
 from bim_core.compiler import BindingProblem, compile_instance
 from bim_core.package import load_package
 
-EXAMPLES = Path(__file__).resolve().parents[2] / "examples/demo"
+EXAMPLES = REPO_ROOT / "examples/demo"
 
 
 def problem_and_binding(example="17_analysis_tradeoffs"):

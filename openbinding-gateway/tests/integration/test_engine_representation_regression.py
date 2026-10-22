@@ -13,6 +13,7 @@ import uuid
 import httpx
 import pytest
 
+from _repo import REPO_ROOT
 from bim_core.canonical import canonical_json
 from bim_core.package import InstancePackage, load_package
 
@@ -99,9 +100,8 @@ def test_representation_matrix_covers_every_repository_engine() -> None:
 
 
 def _repository_root() -> Path:
-    for root in (Path(__file__).parents[2], Path(__file__).parents[3]):
-        if (root / "examples/demo/15_bpmn_complete").is_dir():
-            return root
+    if (REPO_ROOT / "examples/demo/15_bpmn_complete").is_dir():
+        return REPO_ROOT
     raise AssertionError("repository examples are not mounted in the integration runner")
 
 

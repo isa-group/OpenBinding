@@ -8,11 +8,13 @@ import sys
 import uuid
 from pathlib import Path
 
+from _paths import GATEWAY_ROOT
+
 
 def test_v1_migration_creates_resources_and_preserves_account_tables(tmp_path: Path) -> None:
     database = tmp_path / "migration.db"
     environment = {**os.environ, "DATABASE_URL": f"sqlite+aiosqlite:///{database}"}
-    root = Path(__file__).parents[1]
+    root = GATEWAY_ROOT
     completed = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"],
         cwd=root,
@@ -73,7 +75,7 @@ def test_v1_migration_creates_resources_and_preserves_account_tables(tmp_path: P
 def test_v1_cutover_reports_exact_purge_and_preserves_accounts(tmp_path: Path) -> None:
     database = tmp_path / "cutover.db"
     environment = {**os.environ, "DATABASE_URL": f"sqlite+aiosqlite:///{database}"}
-    root = Path(__file__).parents[1]
+    root = GATEWAY_ROOT
     before = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "441e59a50be2"],
         cwd=root,
@@ -137,7 +139,7 @@ def test_v1_cutover_reports_exact_purge_and_preserves_accounts(tmp_path: Path) -
 def test_private_engine_lifecycle_migration_fails_closed(tmp_path: Path) -> None:
     database = tmp_path / "engine-lifecycle.db"
     environment = {**os.environ, "DATABASE_URL": f"sqlite+aiosqlite:///{database}"}
-    root = Path(__file__).parents[1]
+    root = GATEWAY_ROOT
     before = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "9f1c2d3e4a5b"],
         cwd=root,
@@ -227,7 +229,7 @@ def test_grants_migration_retires_only_a_superseded_invalid_deployment(
 ) -> None:
     database = tmp_path / "granular-keys.db"
     environment = {**os.environ, "DATABASE_URL": f"sqlite+aiosqlite:///{database}"}
-    root = Path(__file__).parents[1]
+    root = GATEWAY_ROOT
     before = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "c7b2a4d91e30"],
         cwd=root,

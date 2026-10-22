@@ -26,6 +26,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select, update
 
 from _b1_helpers import gate, make_key  # noqa: F401
+from _paths import GATEWAY_ROOT
 from _pricing import pricing_catalog
 from analysis_b3_b4_b6._helpers import account_with_snapshot, answer, only_job, precondition, submit
 from openbinding_gateway.core.public_errors import JOB_FAILURES
@@ -46,7 +47,7 @@ from test_viewer_read_only import (  # noqa: F401
     organization_job,
 )
 
-ROOT = Path(__file__).parents[1]
+ROOT = GATEWAY_ROOT
 
 #: Present only in the engine's raw answer, so finding it means the raw answer is exposed or kept.
 MARKER = "raw-engine-marker-9e21"

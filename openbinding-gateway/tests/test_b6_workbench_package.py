@@ -12,9 +12,9 @@ is refused, and this is where that shows.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
+from _repo import REPO_ROOT
 
 from bim_core.compiler import (
     CompileError,
@@ -25,7 +25,7 @@ from bim_core.compiler import (
 )
 from bim_core.package import InstancePackage
 
-FIXTURES = Path(__file__).resolve().parents[2] / "frontend" / "src" / "test" / "fixtures" / "bim-package"
+FIXTURES = REPO_ROOT / "frontend" / "src" / "test" / "fixtures" / "bim-package"
 
 # One file per resource, named as the Workbench names them (DEFAULT_FILES in bimDocuments.ts).
 DEFAULT_PATHS = ("instance.json", "application.json", "candidates.json", "optimization.json", "workflow.bpmn")
