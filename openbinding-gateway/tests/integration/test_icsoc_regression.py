@@ -6,6 +6,7 @@ import json
 import math
 from pathlib import Path
 import re
+import time
 import uuid
 
 import httpx
@@ -236,6 +237,48 @@ def _solve(
     return result
 
 
+def _engine_reported(result: dict) -> dict:
+    provenance = result.get("provenance") or {}
+    reported = provenance.get("engineReported")
+    return reported if isinstance(reported, dict) else {}
+
+
+def _lane_summary(engine: str, result: dict, wall_s: float) -> str:
+    """One line per lane: wall time seen by the test and the engine's own split.
+
+    ``elapsed_ms`` covers flattening and search together for minizinc-csp (the
+    time budget applies to the sum); ``flatten_ms`` is the flattening share, so
+    ``search_ms`` is what remained for fzn-gecode.
+    """
+    reported = _engine_reported(result)
+    elapsed = reported.get("elapsed_ms")
+    flatten = reported.get("flatten_ms")
+    search = (
+        elapsed - flatten
+        if isinstance(elapsed, (int, float)) and isinstance(flatten, (int, float))
+        else None
+    )
+    return (
+        f"lane={engine} termination={result.get('termination')!r} "
+        f"test_wall_s={wall_s:.3f} engine_elapsed_ms={elapsed} "
+        f"engine_flatten_ms={flatten} engine_search_ms={search} "
+        f"time_budget_ms={reported.get('time_budget_ms')}"
+    )
+
+
+def _lane_diagnostics(
+    summaries: dict[str, str], results: dict[str, dict], engine: str
+) -> str:
+    """Complete, untruncated evidence for one lane, for assertion messages."""
+    return (
+        "\n".join(summaries.values())
+        + f"\n{engine} provenance.engineReported (complete):\n"
+        + json.dumps(_engine_reported(results[engine]), sort_keys=True, indent=2)
+        + f"\n{engine} provenance (complete):\n"
+        + json.dumps(results[engine].get("provenance"), sort_keys=True, indent=2)
+    )
+
+
 def _best_solution(result: dict) -> dict:
     return min(
         result["solutions"],
@@ -277,17 +320,31 @@ def test_reduced_campaign_matches_or_remains_statistically_sensible(
         )
         assert response.status_code == 201, response.text
         snapshot = response.json()
-        results = {
-            engine: _solve(client, headers, snapshot, engine, mode, options)
-            for engine, (mode, options) in lanes.items()
-        }
+        results: dict[str, dict] = {}
+        summaries: dict[str, str] = {}
+        for engine, (mode, options) in lanes.items():
+            started = time.monotonic()
+            results[engine] = _solve(client, headers, snapshot, engine, mode, options)
+            summaries[engine] = _lane_summary(
+                engine, results[engine], time.monotonic() - started
+            )
+            # Printed as soon as the lane ends, so pytest shows it in the captured
+            # stdout of a failing run (and live with -s) whatever fails afterwards.
+            print(summaries[engine], flush=True)
+        print(
+            "minizinc-csp provenance.engineReported:\n"
+            + json.dumps(_engine_reported(results["minizinc-csp"]), sort_keys=True, indent=2),
+            flush=True,
+        )
 
     exact_baseline = baseline["legacyExact"]
     exact = _best_solution(results["minizinc-csp"])
     _assert_feasible(exact)
     assert results["minizinc-csp"]["termination"] == "OPTIMAL", (
         f"termination={results['minizinc-csp'].get('termination')!r} "
-        f"provenance={json.dumps(results['minizinc-csp'].get('provenance'), sort_keys=True)}"
+        f"(expected OPTIMAL; the legacy baseline proved it in "
+        f"{baseline['legacyExact']['elapsedSeconds']} s)\n"
+        + _lane_diagnostics(summaries, results, "minizinc-csp")
     )
     assert float(exact["objectives"]["score"]) == pytest.approx(
         exact_baseline["score"], abs=1e-9
