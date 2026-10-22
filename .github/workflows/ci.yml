@@ -34,7 +34,7 @@ jobs:
         run: uv sync --locked --project openbinding-gateway --no-dev
 
       - name: Compile the complete checked-in BIM corpus
-        run: openbinding-gateway/.venv/bin/python tools/check_bim_corpus.py --expected 82 --jobs 4
+        run: openbinding-gateway/.venv/bin/python tools/check_bim_corpus.py --expected 83 --jobs 4
 
       - name: Check shared example authoring
         run: openbinding-gateway/.venv/bin/python tools/build_shared_examples.py --check
@@ -172,6 +172,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@v4

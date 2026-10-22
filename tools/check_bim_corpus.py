@@ -14,6 +14,12 @@ DERIVED_ROOTS = {
     # Frontend test fixtures are not part of the checked-in corpus.
     ROOT / "frontend",
 }
+# Files that sit next to a package but are not entries of it: the example's
+# binding is evaluated against the package, never compiled as part of it (see
+# bim-toolchain/tools/test_packaging_metadata.py).
+NON_ENTRY_FILES = {
+    Path("bim-toolchain/packages/bim-core/tests/fixtures/example-package"): frozenset({"binding.json"}),
+}
 
 
 def package_directories(base: Path = ROOT, excluded: set[Path] | None = None) -> list[Path]:
@@ -35,10 +41,14 @@ def package_directories(base: Path = ROOT, excluded: set[Path] | None = None) ->
 
 
 def compile_one(directory: Path) -> tuple[str, str | None, str | None]:
-    from bim_core import compile_instance, load_package
+    from bim_core import InstancePackage, compile_instance, load_package
 
     try:
-        problem = compile_instance(load_package(directory))
+        package = load_package(directory)
+        ignored = NON_ENTRY_FILES.get(directory.relative_to(ROOT), frozenset())
+        if ignored:
+            package = InstancePackage({name: data for name, data in package.files.items() if name not in ignored})
+        problem = compile_instance(package)
         return str(directory.relative_to(ROOT)), problem.digest, None
     except Exception as exc:  # noqa: BLE001  # pragma: no cover - report every package failure
         return str(directory.relative_to(ROOT)), None, f"{type(exc).__name__}: {exc}"
@@ -46,7 +56,7 @@ def compile_one(directory: Path) -> tuple[str, str | None, str | None]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Compile the complete BIM v1 corpus")
-    parser.add_argument("--expected", type=int, default=82)
+    parser.add_argument("--expected", type=int, default=83)
     parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1))
     args = parser.parse_args()
 
