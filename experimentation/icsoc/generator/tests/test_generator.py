@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -291,11 +292,8 @@ def test_generate_one_instance_layout_and_validation(tmp_path: Path) -> None:
     assert {"application", "candidateCatalog", "constraintSet", "optimization"} == set(
         groups
     )
-    assert groups["application"] == {
-        "application": "application.json",
-        "placement": "placement.json",
-        "routing": "routing.json",
-    }
+    assert groups["application"] == {"application": "application.json"}
+    assert set(groups["candidateCatalog"]) == {"catalog", "placement", "routing"}
     violations = validate_instance(instance_path, SCHEMA)
     assert violations == []
 
@@ -328,6 +326,98 @@ def test_generate_one_instance_layout_and_validation(tmp_path: Path) -> None:
     assert problem.as_dict()["spec"]["profile"]["id"] == "qos-binding/v1"
 
     assert reports
+
+
+def _write_synthetic_dataset(root: Path, orchestration: str) -> Path:
+    """Write a one-application, one-node dataset in the ICSOC source format."""
+    function = {
+        "inputs": ["_"],
+        "outputs": ["_"],
+        "hw_reqs": {"memory": 128, "v_cpu": 1, "mhz": 500},
+        "sw_reqs": [],
+        "service_reqs": [],
+    }
+    dataset = root / "dataset"
+    infra_dir = dataset / "infrastructures" / "1"
+    infra_dir.mkdir(parents=True)
+    (dataset / "applications.json").write_text(
+        json.dumps(
+            [
+                {
+                    "orchestration_id": "synth",
+                    "name": "Synthetic",
+                    "orchestration_structure": orchestration,
+                    "trigger": "event1,[low]",
+                    "functions": [
+                        {"id": name, **function} for name in ("fA", "fB", "fC")
+                    ],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (infra_dir / "infrastructure_5.json").write_text(
+        json.dumps(
+            {
+                "nodes": [
+                    {
+                        "name": "edge1",
+                        "type": "edge",
+                        "provider": "acme",
+                        "hardware_caps": {"memory": 4096, "v_cpu": 4, "mhz": 2000},
+                        "software_caps": [],
+                        "security_caps": ["pubKeyE"],
+                    }
+                ],
+                "links": [],
+                "services": [],
+                "event_generators": [
+                    {"name": "gen1", "node": "edge1", "events": ["event1"]}
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return dataset
+
+
+@pytest.mark.parametrize(
+    ("orchestration", "has_routing"),
+    [
+        ("if(fun(fA,[],10),fun(fB,[],10),fun(fC,[],10))", True),
+        ("seq(fun(fA,[],10),seq(fun(fB,[],10),fun(fC,[],10)))", False),
+    ],
+)
+def test_synthetic_instance_places_routing_and_placement_under_catalog(
+    tmp_path: Path, orchestration: str, has_routing: bool
+) -> None:
+    """Layout and compilation check that does not need the ICSOC dataset.
+
+    BIM core only accepts Application and BPMN under the 'application' group;
+    the placement and routing overlays belong to 'candidateCatalog'.
+    """
+    dataset = _write_synthetic_dataset(tmp_path, orchestration)
+    out = tmp_path / "out"
+
+    generate_dataset(
+        dataset=dataset,
+        pricing_dir=PRICINGS,
+        config=load_config(CONFIG),
+        seed=12345,
+        out=out,
+    )
+
+    instance_path = out / "instances/synth/1/infrastructure_5"
+    groups = load_json(instance_path / "instance.json")["spec"]["resources"]
+    expected_catalog = {"catalog", "placement"} | ({"routing"} if has_routing else set())
+    assert groups["application"] == {"application": "application.json"}
+    assert set(groups["candidateCatalog"]) == expected_catalog
+    assert groups["candidateCatalog"]["placement"] == "placement.json"
+    assert (instance_path / "routing.json").is_file() == has_routing
+
+    assert validate_instance(instance_path, SCHEMA) == []
+    problem = compile_instance(load_package(instance_path))
+    assert problem.as_dict()["spec"]["profile"]["id"] == "qos-binding/v1"
 
 
 def test_latency_bounds_schedule_the_scenario_dag() -> None:

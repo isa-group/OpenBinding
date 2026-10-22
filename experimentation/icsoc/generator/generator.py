@@ -604,8 +604,8 @@ def build_instance(
         "optimization.json": optimization,
         "placement.json": placement,
     }
-    application_resources = {
-        "application": "application.json",
+    candidate_catalog_resources = {
+        "catalog": "candidates.json",
         "placement": "placement.json",
     }
     if entries:
@@ -615,7 +615,7 @@ def build_instance(
             "metadata": {"name": f"{name}_routing"},
             "spec": {"entries": entries},
         }
-        application_resources["routing"] = "routing.json"
+        candidate_catalog_resources["routing"] = "routing.json"
     instance = {
         "apiVersion": "bim/v1",
         "kind": "Instance",
@@ -638,8 +638,8 @@ def build_instance(
         "spec": {
             "profile": "qos-binding/v1",
             "resources": {
-                "application": application_resources,
-                "candidateCatalog": {"catalog": "candidates.json"},
+                "application": {"application": "application.json"},
+                "candidateCatalog": candidate_catalog_resources,
                 "constraintSet": {"constraints": "constraints.json"},
                 "optimization": {"optimization": "optimization.json"},
             },
