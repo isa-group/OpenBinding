@@ -153,7 +153,12 @@ jobs:
           fi
 
       - name: Build and start services
-        run: docker compose up --build -d --wait gateway-dev engine-multi-heuristic
+        # gateway-dev dispatches jobs through Dramatiq: POST /v1/jobs stores a
+        # QUEUED row, publishes it to Redis and answers 202, and only a worker
+        # moves it on. worker-dev depends on gateway-dev, not the reverse, so
+        # compose does not start it unless it is named; without it every job
+        # stays queued and the integration tests time out.
+        run: docker compose up --build -d --wait gateway-dev worker-dev engine-multi-heuristic
 
       - name: Run unit tests
         # The tests that need the whole checkout read it from the read-only
@@ -174,7 +179,7 @@ jobs:
       
       - name: Show service logs on failure
         if: failure()
-        run: docker compose logs --no-color gateway-dev engine-minizinc engine-random-search engine-many-heuristic engine-multi-heuristic engine-evolutionary-heuristics
+        run: docker compose logs --no-color gateway-dev worker-dev engine-minizinc engine-random-search engine-many-heuristic engine-multi-heuristic engine-evolutionary-heuristics
 
       - name: Shutdown services
         if: always()
