@@ -309,10 +309,13 @@ class EngineJobsTest {
   }
 
   @Test void idsAreRandomUuidsAndAreLostWithTheProcess() throws Exception {
-    EngineJobs jobs = jobs(2, 8, 5000L);
+    int submissions = 20;
+    // Admission holds maxConcurrent + maxQueued jobs: with room for every submission nothing depends on
+    // how fast the runner finishes jobs before the next submit.
+    EngineJobs jobs = jobs(2, submissions, 5000L);
     Set<String> seen = new HashSet<String>();
     String last = null;
-    for (int index = 0; index < 20; index++) {
+    for (int index = 0; index < submissions; index++) {
       last = jobs.submit("t", new EngineJobs.Work() {
         @Override public String run() { return RESULT; }
       }).id();
