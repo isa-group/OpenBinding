@@ -482,6 +482,51 @@ def test_synthetic_instance_optimization_uses_current_profile_schema(
     _assert_optimization_matches_profile(optimization, package.json("constraints.json"))
 
 
+def test_transition_latency_bound_is_not_candidate_execution_latency(
+    tmp_path: Path,
+) -> None:
+    """The bound of a transition limits the transfer; it is not execution time.
+
+    placement.globalLatency includes candidate execution, so copying the bound
+    into the candidates' latency feature would inflate the critical path and the
+    latency normalization bounds.
+    """
+
+    def generate(bound: int) -> tuple[dict, dict, list[dict]]:
+        root = tmp_path / f"bound{bound}"
+        dataset = _write_synthetic_dataset(
+            root,
+            f"seq(fun(fA,[],{bound}),seq(fun(fB,[],{bound}),fun(fC,[],{bound})))",
+        )
+        out = root / "out"
+        generate_dataset(
+            dataset=dataset,
+            pricing_dir=PRICINGS,
+            config=load_config(CONFIG),
+            seed=12345,
+            out=out,
+        )
+        package = load_package(out / "instances/synth/1/infrastructure_5")
+        candidates = package.json("candidates.json")["spec"]["candidates"]
+        transitions = package.json("placement.json")["spec"]["transitions"]
+        criteria = {
+            criterion["id"]: criterion
+            for criterion in package.json("optimization.json")["spec"]["criteria"]
+        }
+        return candidates, transitions, criteria["latency"]["normalize"]
+
+    candidates_low, transitions_low, norm_low = generate(10)
+    candidates_high, transitions_high, norm_high = generate(77)
+
+    for candidates in (candidates_low, candidates_high):
+        assert candidates
+        assert {c["features"]["latency"] for c in candidates.values()} == {0.0}
+    for bound, transitions in ((10.0, transitions_low), (77.0, transitions_high)):
+        assert transitions
+        assert {t["maximum"] for t in transitions.values()} == {bound}
+    assert norm_low == norm_high
+
+
 def test_latency_bounds_schedule_the_scenario_dag() -> None:
     """Normalization bounds schedule the actual precedence DAG."""
     from experimentation.icsoc.generator.generator import (
