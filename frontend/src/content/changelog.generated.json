@@ -5,6 +5,7 @@
       "date": "2026-10-22",
       "title": "OpenBinding platform",
       "changes": [
+        "Schedule the QACOBench follow-ups and the bim-toolchain CI job",
         "Plan the vision in milestones M0-M9 with acceptance criteria and previews",
         "Describe the target architecture and keep the gateway as-is document",
         "Add rendering, real-client, extension, retention and preview articles to the constitution",
