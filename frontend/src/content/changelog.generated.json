@@ -89,6 +89,7 @@
       "date": "2026-10-22",
       "title": "OpenBinding documentation",
       "changes": [
+        "Limit the free repository, open the generator to every plan and raise the lab plan",
         "Propose pricing 0.2.0 from a pricification cycle",
         "Align architecture, roadmap and agent guide with the smaller platform",
         "Keep only what the pillars need and deploy with Docker Compose",
