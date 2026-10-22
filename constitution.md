@@ -1,10 +1,11 @@
-Status: DRAFT for owner review (2026-10-21)
+Status: PROPOSED for owner review (2026-10-22). Articles 6, 15–19 are new or amended in this version.
 
 # Constitution — OpenBinding
 
 Non-negotiable rules for every change to this repository, by agents or humans. MUST/MUST NOT are binding; a change
 that breaks one is blocked (`REVIEW.md`). Only the owner amends this document. Each rule names how it is enforced
-today (`Enforced:`) or that enforcement is still missing (`GAP`). Gates G1–G12 are those of the factory brief §7.
+today (`Enforced:`) or that enforcement is still missing (`GAP`). Gates G1–G12 are those of the factory
+(`docs/GATES.md` of `agentic-factory`).
 
 ## Article 1 — Spec first
 
@@ -60,9 +61,17 @@ GAP for 5.2: today `openbinding-gateway/pyproject.toml` uses editable path sourc
 6.1 Dependencies point `routes → services → repositories/integrations → db`; `services/`, `domain/`, `jobs/` MUST NOT
 import `routes`.
 6.2 Legacy allow-lists and size ceilings MUST only shrink (`ALLOWED_LEGACY`, `GATE_LIFECYCLE_LEGACY`, `MAX_LINES`).
-6.3 Plan capabilities MUST be read only through `services/entitlements.py`.
+6.3 Plan capabilities MUST be read only through the plans port (today `services/entitlements.py`).
 6.4 Engines MUST be separate services that receive only the IR (never source packages) over `bim-engine/v1`.
-Enforced: `tests/test_architecture_layers.py`.
+6.5 New backend code MUST live in a module of `docs/ARCHITECTURE.md` §4 (`modules/<context>/{domain,application,
+adapters}`); a module MUST NOT import another module's `domain` internals or `adapters`, only its `application`
+interface; `domain` MUST NOT import FastAPI, SQLAlchemy, HTTP clients or any adapter.
+6.6 New frontend code MUST follow the feature-sliced layout of `docs/ARCHITECTURE.md` §5; a feature MUST NOT import
+another feature; pages compose features; only `shared/api` talks HTTP.
+6.7 Moving existing code into modules is a behaviour-preserving `refactor/<id>` change with characterization tests;
+it MUST NOT be mixed with feature work.
+Enforced: `tests/test_architecture_layers.py`. GAP for 6.5–6.6: import-linter contracts for modules and an ESLint
+boundaries rule for the frontend.
 
 ## Article 7 — Data
 
@@ -119,20 +128,20 @@ by major version; no secret scanning, Semgrep or dependency audit in CI.
 11.2 Interactive controls MUST be keyboard operable, have accessible names, and a minimum 24 px target.
 Enforced: `frontend/src/test/mobileTouchTargets.test.ts`, live Playwright screen checks (`frontend/e2e/`).
 GAP: no automated axe/WCAG scan, no `eslint-plugin-jsx-a11y`.
-> OPEN QUESTION: AA is assumed; confirm the conformance level.
+WCAG 2.2 AA is the target level (owner may raise it).
 
 ## Article 12 — Internationalisation
 
 12.1 The UI and documentation are English; no i18n framework exists. New UI text MUST be English and kept in
 components so a later extraction is mechanical.
-> OPEN QUESTION: Is a Spanish UI planned? If yes, adopt an i18n library before more screens are added.
+No Spanish UI is planned in `ROADMAP.md`; if one is, an i18n library is adopted before more screens are added.
 
 ## Article 13 — Performance and resource budgets
 
 13.1 Existing technical limits MUST NOT be raised without a CRP: per-account concurrency (`MAX_CONCURRENT_JOBS_PER_USER`,
 default 8), JSON body 16 MiB, generator ≤ 100 features and ≤ 1,000,000 candidate-feature values, `bim-service` 256 MiB in the lab.
 13.2 Changes on hot paths (compile, job submission, re-evaluation, corpus-size uniqueItems) MUST include a measurement.
-> OPEN QUESTION: latency/throughput SLOs (see INTENT O7) are not defined.
+Latency targets are INTENT O9; they are measured in the lab before a release.
 
 ## Article 14 — Flow and integrity of history
 
@@ -141,6 +150,67 @@ default 8), JSON body 16 MiB, generator ≤ 100 features and ≤ 1,000,000 candi
 14.3 Commits follow Conventional Commits with `Change:`/`Refs:` trailers, no AI-assistance markers, no co-author trailers.
 14.4 Reports MUST state only what was executed, with the SHA; unexecuted checks are `NOT EXECUTED`.
 14.5 When local work conflicts with a commit of the owner, the owner's commit wins.
+
+## Article 15 — Render, never dump
+
+15.1 No screen MAY present raw JSON, YAML, XML or an unprocessed API response as its main content. Results,
+analyses, reports, manifests, logs and diagnostics MUST be rendered with the components of the rendering catalogue
+(`docs/ARCHITECTURE.md` §5.3): tables, cards, matrices and charts.
+15.2 A source view is allowed only as a secondary, labelled tab or an explicit download, never as the default view,
+and it MUST use the read-only code viewer of the catalogue.
+15.3 Engine logs MUST be shown as a collapsed, searchable panel below the rendered result; diagnostics MUST be
+grouped by resource and pointer with their stable `code`.
+15.4 Screens MUST stay informative without overloading: each screen has one primary question it answers, shows at
+most one dense table above the fold and puts details behind tabs or disclosure.
+Enforced: GAP — `frontend/src/hygiene.test.ts` rule that fails on `JSON.stringify` rendered in JSX or `<pre>`
+outside the source-view components; ui-qa screenshots in G12.
+
+## Article 16 — External platforms through their real clients
+
+16.1 SPACE MUST be reached only through its official clients: `space-python-client` in the gateway (plans module)
+and `space-react-client` in the browser (token-only mode). No module MAY call SPACE's HTTP API directly.
+16.2 SPHERE MUST be read only through its public permanent-link API; OpenBinding MUST NOT hold a SPHERE API key or
+write to SPHERE. The pricing is changed only in SPHERE.
+16.3 Pricings MUST be rendered with `pricing-renderer`; no custom pricing table MAY be added.
+16.4 Client libraries and SPHERE/SPACE images MUST be pinned to exact versions; upgrading them is a change with
+contract tests against the pinned images in the lab.
+16.5 A SPACE API key MUST NEVER reach the browser; the browser receives only the user's pricing token.
+16.6 Tests and previews MUST NOT use the production SPACE/SPHERE deployments.
+Enforced: GAP — architecture test forbidding HTTP clients aimed at SPACE/SPHERE outside the plans module; lab
+`pricing` profile with pinned images.
+
+## Article 17 — Language extensions
+
+17.1 A BIM package MUST NEVER carry executable code; extensions are installed contracts (profiles, dialects,
+adapters) pinned by `{namespace,name,version,digest}`.
+17.2 Lowering MUST be deterministic: the platform lowers twice and requires byte-identical RFC 8785 output before
+installing or using an adapter.
+17.3 A profile that extends another MUST declare the evaluation semantics of everything it adds, implemented in the
+canonical evaluator, so that the gateway can re-evaluate every binding of that profile (Article 9).
+17.4 The compiled IR MUST record the full profile chain, the dialects and every adapter digest; a snapshot MUST keep
+what is needed to re-check a binding without re-running an adapter service.
+17.5 Declarative (tier 1) adapters MUST be total and bounded in size and time; adapter services (tier 2) MUST pass
+the destination policy of Article 10.3 and a determinism and conformance check before approval.
+17.6 Installing, approving or retiring an extension in production is an owner decision (CRP).
+Enforced: bim-core double-lowering check for installed dialects. GAP: `extends`, tiers 1–2 and the extension
+lifecycle (`ROADMAP.md` M5).
+
+## Article 18 — Storage and retention
+
+18.1 Every class of stored data (database rows, blobs, run logs, previews, lab volumes, work trees, caches) MUST
+have a retention rule in `docs/ARCHITECTURE.md` §10 before the code that creates it is merged.
+18.2 Sealed, published or cited data MUST NOT be deleted by retention; it can only be withdrawn from discovery.
+18.3 Deletion of anything else happens only through the documented maintenance operations (admin purge, factory
+archive and retention jobs, `labctl destroy`), never ad hoc.
+Enforced: `/v1/admin/maintenance/preview|purge`. GAP: retention table and lab/factory retention jobs (`ROADMAP.md` M0).
+
+## Article 19 — Preview before merge
+
+19.1 A change that affects the UI or the runtime MUST be deployed to a NiPoGi lab preview and pass G12 (Playwright
+flows and ui-qa screenshots, desktop and mobile) on its head SHA before it is merged into `develop`.
+19.2 `develop` MUST always be deployable to the develop preview; a release PR to `main` MUST name the preview and the
+SHA the owner can review.
+Enforced: G12. GAP: develop preview reachable from the owner's devices (`ROADMAP.md` M0).
 
 ## Amendments
 
