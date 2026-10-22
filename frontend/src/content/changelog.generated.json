@@ -46,9 +46,10 @@
   "bim": [
     {
       "version": "BIM v1",
-      "date": "2026-10-21",
+      "date": "2026-10-22",
       "title": "Binding language and engines",
       "changes": [
+        "Regenerate the diagrams changed by the metrics-to-features migration",
         "Give the test solver stub the encoding facts",
         "Track the minizinc-csp 1.1.1 manifest in the goldens",
         "Move the original ICSOC dataset to a separate data branch",
@@ -70,9 +71,10 @@
   "documentation": [
     {
       "version": "0.1.0",
-      "date": "2026-10-21",
+      "date": "2026-10-22",
       "title": "OpenBinding documentation",
       "changes": [
+        "Regenerate the diagrams changed by the metrics-to-features migration",
         "Point the source links to bim-core",
         "Remove the frontend QA gallery and the design hand-off prototype",
         "Move the original ICSOC dataset to a separate data branch",
