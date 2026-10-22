@@ -41,6 +41,9 @@ export class Solver {
       time_budget_ms: timeLimitMs, flatten_ms: run.flattenMs, widened_float_domains: run.widenedDomains,
       suppressed_float_branchers: run.suppressedFloatBranchers,
       ozn_rendered: run.oznRendered === true,
+      // Diagnostic only: `null` when fzn-gecode printed no statistics. Never read by the termination logic.
+      gecode_statistics: run.gecodeStatistics?.values ?? null,
+      gecode_statistics_raw: run.gecodeStatistics?.raw ?? null,
       encoding: built.encoding,
     };
     if (unsatisfiable) return { termination: 'INFEASIBLE', solutions: [], provenance };

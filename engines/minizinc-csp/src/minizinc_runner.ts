@@ -24,6 +24,8 @@ export interface MiniZincRunResult {
   suppressedFloatBranchers?: number;
   /** True when the solver stream had to be rendered through the `.ozn` output specification. */
   oznRendered?: boolean;
+  /** `fzn-gecode -s` statistics; absent when the solver printed none. Diagnostic only. */
+  gecodeStatistics?: GecodeStatistics;
 }
 
 /** Budget for the (rare) `.ozn` rendering pass; it reads an already complete solver stream. */
@@ -156,6 +158,55 @@ export function renderSolverOutputDetailed(raw: string): { text: string; incompl
     lines.push(text);
   }
   return { text: `${lines.join('\n')}\n`, incomplete };
+}
+
+/**
+ * Search statistics printed by `fzn-gecode -s`, kept apart from the solution stream.
+ * `values` has one entry per statistic under a normalised name (`nodes`, `failures`, `restarts`,
+ * `propagations`, `peak_depth`, `runtime_ms`, `solvetime_ms`, ...): a number when the value is
+ * numeric (times that Gecode prints with a millisecond figure in parentheses become `<name>_ms`),
+ * the text otherwise. `raw` keeps the original lines, so a name this parser does not know is never lost.
+ */
+export interface GecodeStatistics {
+  values: Record<string, number | string>;
+  raw: string[];
+}
+
+// Gecode 6.3 prints `%%  peak depth:    12`; newer front-ends also print `%%%mzn-stat: nodes=12`.
+const GECODE_STAT_LINE = /^%%\s+([A-Za-z][A-Za-z _-]*?):\s*(.*?)\s*$/;
+const MZN_STAT_LINE = /^%%%mzn-stat:\s*([A-Za-z_][\w.]*)\s*=\s*(.*?)\s*$/;
+const MZN_STAT_END = /^%%%mzn-stat-end\s*$/;
+const STAT_NUMBER = /^-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?$/;
+const STAT_MILLISECONDS = /\(\s*(-?\d+(?:\.\d+)?)\s*ms\s*\)/;
+
+function statName(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+/**
+ * Separates the statistics block of `fzn-gecode -s` from the solver stream. The returned `stdout` has
+ * those lines removed, so neither the solution blocks nor the `==========` / `=====UNSATISFIABLE=====`
+ * markers are affected by their presence; `statistics` is undefined when the solver printed none
+ * (older Gecode, a killed solver, a fake solver).
+ */
+export function extractGecodeStatistics(stdout: string): { stdout: string; statistics?: GecodeStatistics } {
+  const values: Record<string, number | string> = {};
+  const raw: string[] = [];
+  const kept: string[] = [];
+  for (const line of stdout.split('\n')) {
+    const text = line.trim();
+    if (MZN_STAT_END.test(text)) { raw.push(text); continue; }
+    const match = text.match(MZN_STAT_LINE) ?? text.match(GECODE_STAT_LINE);
+    if (!match) { kept.push(line); continue; }
+    raw.push(text);
+    const name = statName(match[1]);
+    if (!name) continue;
+    const milliseconds = match[2].match(STAT_MILLISECONDS);
+    if (milliseconds) values[`${name}_ms`] = Number(milliseconds[1]);
+    else values[name] = STAT_NUMBER.test(match[2]) ? Number(match[2]) : match[2];
+  }
+  if (raw.length === 0) return { stdout };
+  return { stdout: kept.join('\n'), statistics: { values, raw } };
 }
 
 function formatFloat(value: number): string {
@@ -366,34 +417,39 @@ export class MiniZincRunner {
       fs.writeFileSync(widenedPath, widened.text);
       const remainingMs = Math.max(1, timeLimitMs - flattenMs);
       const solve = await this.spawn(this.gecodeCommand, this.gecodeCommandArgs,
-        ['-a', '-time', String(Math.round(remainingMs)), widenedPath], env, remainingMs + 2000, startTime, signal);
+        ['-a', '-time', String(Math.round(remainingMs)), '-s', widenedPath], env, remainingMs + 2000, startTime, signal);
+      // `-s` adds a comment block of search statistics. It is taken out of the stream before anything
+      // reads the solutions or looks for the completion markers; the raw events keep it untouched.
+      const split = extractGecodeStatistics(solve.stdout);
+      const gecodeStatistics = split.statistics ?? extractGecodeStatistics(solve.stderr).statistics;
       if (solve.code !== 0 && !solve.timedOut) {
         return { code: solve.code, stdout: solve.stdout, stderr: solve.stderr, durationMs: Date.now() - startTime,
-          stdoutEvents: solve.events, flattenMs, widenedDomains: widened.count, suppressedFloatBranchers: widened.suppressed };
+          stdoutEvents: solve.events, flattenMs, widenedDomains: widened.count, suppressedFloatBranchers: widened.suppressed,
+          gecodeStatistics };
       }
       // The FlatZinc output variables are rendered from the solver stream directly. When a
       // solution block carries no `selected_candidate` or `objective_value` line, MiniZinc
       // fixed that output at flattening time (every candidate decided by propagation, a
       // constant objective) and only the `.ozn` output specification can render it: that
       // is the one case where the stream goes through MiniZinc's own solns2out pass.
-      const rendered = renderSolverOutputDetailed(solve.stdout);
+      const rendered = renderSolverOutputDetailed(split.stdout);
       let stdout = rendered.text;
       let oznRendered = false;
       if (rendered.incomplete > 0) {
         const output = await this.spawn(this.command, this.commandArgs, ['--ozn-file', oznPath], env,
-          OZN_RENDER_TIMEOUT_MS, startTime, signal, solve.stdout);
+          OZN_RENDER_TIMEOUT_MS, startTime, signal, split.stdout);
         if (output.code !== 0 || output.timedOut) {
           return { code: output.code === 0 ? 1 : output.code, stdout: solve.stdout,
             stderr: output.stderr || 'MiniZinc could not render the solver output with the .ozn specification',
             durationMs: Date.now() - startTime, stdoutEvents: solve.events, flattenMs,
-            widenedDomains: widened.count, suppressedFloatBranchers: widened.suppressed };
+            widenedDomains: widened.count, suppressedFloatBranchers: widened.suppressed, gecodeStatistics };
         }
         stdout = output.stdout;
         oznRendered = true;
       }
       return { code: 0, stdout, stderr: solve.stderr, durationMs: Date.now() - startTime,
         stdoutEvents: solve.events, flattenMs, widenedDomains: widened.count, suppressedFloatBranchers: widened.suppressed,
-        oznRendered };
+        oznRendered, gecodeStatistics };
     } finally {
       for (const file of [dznPath, fznPath, oznPath, widenedPath]) {
         try { fs.unlinkSync(file); } catch { /* best effort */ }

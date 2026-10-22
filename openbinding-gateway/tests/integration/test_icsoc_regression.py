@@ -262,7 +262,8 @@ def _lane_summary(engine: str, result: dict, wall_s: float) -> str:
         f"lane={engine} termination={result.get('termination')!r} "
         f"test_wall_s={wall_s:.3f} engine_elapsed_ms={elapsed} "
         f"engine_flatten_ms={flatten} engine_search_ms={search} "
-        f"time_budget_ms={reported.get('time_budget_ms')}"
+        f"time_budget_ms={reported.get('time_budget_ms')} "
+        f"gecode_statistics={json.dumps(reported.get('gecode_statistics'), sort_keys=True)}"
     )
 
 

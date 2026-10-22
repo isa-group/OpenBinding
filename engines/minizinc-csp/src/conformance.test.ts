@@ -463,6 +463,27 @@ describe('BIM Engine Protocol v1', () => {
     assert.deepEqual(runner.extraArgs.slice(0, 2), ['--time-limit', '1234']);
   });
 
+  it('reports the Gecode statistics in the provenance without changing the termination', async () => {
+    class StatsRunner extends MiniZincRunner {
+      constructor(private readonly statistics?: MiniZincRunResult['gecodeStatistics']) { super(); }
+      override async run(): Promise<MiniZincRunResult> {
+        return {
+          code: 0, stderr: '', durationMs: 4, stdoutEvents: [], gecodeStatistics: this.statistics,
+          stdout: '{"selected_cand":[2],"objective_value":9}\n----------\n==========\n',
+        };
+      }
+    }
+    const statistics = { values: { nodes: 12, failures: 3, peak_depth: 4 }, raw: ['%%  nodes:         12'] };
+    const withStats = await new Solver(new StatsRunner(statistics)).solve(problem(), {}, execution());
+    assert.equal(withStats.termination, 'OPTIMAL');
+    assert.deepEqual(withStats.provenance.gecode_statistics, statistics.values);
+    assert.deepEqual(withStats.provenance.gecode_statistics_raw, statistics.raw);
+    const without = await new Solver(new StatsRunner()).solve(problem(), {}, execution());
+    assert.equal(without.termination, 'OPTIMAL');
+    assert.equal(without.provenance.gecode_statistics, null);
+    assert.deepEqual(without.solutions, withStats.solutions);
+  });
+
   it('post-checks Placement metrics and rejects a hard placement violation', async () => {
     class PlacementRunner extends MiniZincRunner {
       constructor(private readonly selection: number, private readonly objective: number) { super(); }
