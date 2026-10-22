@@ -116,6 +116,17 @@ jobs:
           # profile selected, so it needs a value here even though only the dev
           # profile runs. A throwaway one, generated per run.
           echo "GATEWAY_JWT_SECRET=$(openssl rand -hex 32)" >> .env
+          # The administrator the integration tests sign in as. The gateway has
+          # no default account, so the run creates one with a password nobody
+          # knows in advance: generated here, masked in the logs, written to
+          # .env for the dev service (compose passes BOOTSTRAP_ADMIN_* through)
+          # and read from the container's environment by pytest.
+          ADMIN_PASSWORD="$(openssl rand -hex 16)"
+          echo "::add-mask::${ADMIN_PASSWORD}"
+          {
+            echo "BOOTSTRAP_ADMIN_USERNAME=admin"
+            echo "BOOTSTRAP_ADMIN_PASSWORD=${ADMIN_PASSWORD}"
+          } >> .env
 
       - name: Validate Docker Compose configuration
         run: docker compose config

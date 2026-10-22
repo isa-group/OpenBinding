@@ -119,7 +119,9 @@ services:
         <<: *proxy-build-args
     profiles: ["dev"]
     ports:
-      - "8000:8000"
+      # Loopback only: this profile runs with development defaults and must
+      # not be reachable from other machines.
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./schemas:/app/schemas
       - ./openbinding-gateway:/app
@@ -148,6 +150,9 @@ services:
       - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
       - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
       - BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}
+      # Opt-in: seed an `admin` account (password: BOOTSTRAP_ADMIN_PASSWORD) when
+      # the database has no accounts. Off unless set; there is no default password.
+      - SEED_DEFAULT_ADMIN=${SEED_DEFAULT_ADMIN:-false}
       # false (the default here) builds the stateless open gate: development only.
       - SPACE_ENABLED=${SPACE_ENABLED:-false}
       - SPACE_URL=${SPACE_URL:-https://space.score.us.es}

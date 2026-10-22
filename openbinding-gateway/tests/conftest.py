@@ -39,9 +39,21 @@ os.environ.pop("SPHERE_ORGANIZATION_ID", None)
 # when it creates contracts.
 os.environ["SPACE_PRICING_VERSION"] = "0.1.0"
 os.environ["SPACE_DEFAULT_PLAN"] = "BASIC"
-os.environ.pop("BOOTSTRAP_ADMIN_USERNAME", None)
-os.environ.pop("BOOTSTRAP_ADMIN_PASSWORD", None)
-os.environ.pop("BOOTSTRAP_ADMIN_EMAIL", None)
+# The administrator configuration of the environment the suite runs in (the CI
+# job generates one per run for the integration tests). Unit tests must never
+# see it: they build their own settings. Only ``bootstrap_admin_credentials``
+# hands it out, and only to integration tests.
+_ADMIN_ENVIRONMENT = (
+    "BOOTSTRAP_ADMIN_USERNAME",
+    "BOOTSTRAP_ADMIN_PASSWORD",
+    "BOOTSTRAP_ADMIN_EMAIL",
+    "SEED_DEFAULT_ADMIN",
+)
+_CAPTURED_ADMIN_ENVIRONMENT = {
+    name: os.environ[name] for name in _ADMIN_ENVIRONMENT if name in os.environ
+}
+for _name in _ADMIN_ENVIRONMENT:
+    os.environ.pop(_name, None)
 
 
 # The suite always uses the toolchain installed beside the gateway: a ``BIM_MODE=http`` left in the environment
@@ -82,9 +94,41 @@ def micro_placement_instance():
 def clean_mock_env(monkeypatch):
     monkeypatch.setenv("SPHERE_ENABLED", "false")
     monkeypatch.delenv("SPHERE_ORGANIZATION_ID", raising=False)
-    monkeypatch.delenv("BOOTSTRAP_ADMIN_USERNAME", raising=False)
-    monkeypatch.delenv("BOOTSTRAP_ADMIN_PASSWORD", raising=False)
-    monkeypatch.delenv("BOOTSTRAP_ADMIN_EMAIL", raising=False)
+    for name in _ADMIN_ENVIRONMENT:
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture
+def bootstrap_admin_credentials(request):
+    """``(username, password)`` of the administrator the running stack was started with.
+
+    For the integration tests only: they sign in to a real gateway whose
+    administrator comes from ``BOOTSTRAP_ADMIN_USERNAME`` / ``BOOTSTRAP_ADMIN_PASSWORD``.
+    Nothing is assumed about them - there is no default account.
+    """
+    if request.node.get_closest_marker("integration") is None:
+        pytest.fail(
+            "bootstrap_admin_credentials is only for tests marked @pytest.mark.integration; "
+            "unit tests create their own accounts and never see the environment's."
+        )
+    username = _CAPTURED_ADMIN_ENVIRONMENT.get("BOOTSTRAP_ADMIN_USERNAME", "")
+    password = _CAPTURED_ADMIN_ENVIRONMENT.get("BOOTSTRAP_ADMIN_PASSWORD", "")
+    if not username or not password:
+        pytest.fail(
+            "The integration tests sign in as the bootstrap administrator, so "
+            "BOOTSTRAP_ADMIN_USERNAME and BOOTSTRAP_ADMIN_PASSWORD must be set in the "
+            "environment pytest runs in (the CI job writes them to .env and passes them "
+            "to the container). Missing: "
+            + ", ".join(
+                name
+                for name, value in (
+                    ("BOOTSTRAP_ADMIN_USERNAME", username),
+                    ("BOOTSTRAP_ADMIN_PASSWORD", password),
+                )
+                if not value
+            )
+        )
+    return username, password
 
 
 @pytest.fixture(autouse=True)

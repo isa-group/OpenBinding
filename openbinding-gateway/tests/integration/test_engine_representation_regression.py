@@ -121,10 +121,11 @@ def _package(example: str, case: RepresentationCase) -> bytes:
     return InstancePackage(files).to_zip()
 
 
-def _admin_headers(client: httpx.Client) -> dict[str, str]:
+def _admin_headers(client: httpx.Client, credentials: tuple[str, str]) -> dict[str, str]:
+    username, password = credentials
     logged = client.post(
         "/v1/auth/login",
-        json={"username_or_email": "admin", "password": "4dm1n"},
+        json={"username_or_email": username, "password": password},
     )
     assert logged.status_code == 200, logged.text
     return {"Authorization": f"Bearer {logged.json()['access_token']}"}
@@ -272,9 +273,10 @@ def _solutions(result: dict) -> list[str]:
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case.engine)
 def test_every_engine_returns_the_same_result_for_bpmn_and_native_json(
     case: RepresentationCase,
+    bootstrap_admin_credentials: tuple[str, str],
 ) -> None:
     with httpx.Client(base_url=GATEWAY_URL, timeout=30.0) as client:
-        headers = _admin_headers(client)
+        headers = _admin_headers(client, bootstrap_admin_credentials)
         registration_ref = None
         if case.engine == "multi-heuristic":
             registration_ref = _ensure_multi_registration(client, headers)

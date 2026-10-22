@@ -120,15 +120,30 @@ recreated, so somebody who registered normally can be given the role by
 restarting with their username set. Nothing happens once any administrator
 exists, so leaving the variables in place is harmless.
 
-**Seeded**, for a database with nothing in it at all:
+**Seeded**, for a database with nothing in it at all, and only on request:
+
+```
+SEED_DEFAULT_ADMIN=true
+BOOTSTRAP_ADMIN_PASSWORD=<at least 10 characters>
+```
+
+With both set, an empty database gets an `admin` account with that password at
+startup, whatever `APP_ENV` is. Without the opt-in nothing is seeded, and
+without a password (or with a weak one) no account is created and a warning
+that never contains the password is logged. There is no built-in password.
+Sign in, create a real administrator, deactivate this one.
 
 ```bash
 python tools/seed_admin.py
 ```
 
-Creates `admin` / `4dm1n`, and refuses if there is even one account already. The
-credentials are deliberately weak and well known — sign in once, create a real
-administrator, deactivate this one. They are a way in, not a login.
+Does the same by hand: it uses `BOOTSTRAP_ADMIN_PASSWORD` when set, otherwise it
+generates a random password and shows it once in the terminal. It refuses if
+there is even one account already.
+
+The `dev` profile of `docker-compose.yml` passes `SEED_DEFAULT_ADMIN` through
+and listens on `127.0.0.1:8000` only; it is not meant to be reachable from other
+machines.
 
 ## Organization roles and owner-only changes
 
@@ -542,6 +557,7 @@ does for a declared size.
 | `MAX_CONCURRENT_JOBS_PER_USER` | Technical cap on queued plus running jobs per account (default 8). |
 | `JOB_DISPATCH_MODE` | `inline` (tests, single-process development) or `dramatiq` (Redis-backed queue). |
 | `BOOTSTRAP_ADMIN_*` | The first administrator, above. |
+| `SEED_DEFAULT_ADMIN` | Opt-in `admin` account for an empty database; needs `BOOTSTRAP_ADMIN_PASSWORD`. |
 | `FEDERATION_SECRET_KEY` | Fernet key for credentials registered with federated engines. |
 | `CORS_ALLOW_ORIGINS` | Browser origins allowed to call the API, comma separated: a **closed list**. Default: only the local development origins `http://localhost:5173`, `http://127.0.0.1:5173` (Vite) and `http://localhost:4177`, `http://127.0.0.1:4177` (Playwright). There is no wildcard default, because session tokens live in the browser's `localStorage`. With `APP_ENV=prod`, an empty list or a `*` entry makes the gateway **refuse to start** (`CORS_ALLOW_ORIGINS … APP_ENV=prod`), so a production deployment must name its frontend origin(s) exactly. A `*` outside production still works and switches credentialed requests off. |
 | `CORS_ALLOW_CREDENTIALS` | Whether credentialed cross-origin requests are allowed (default `true`; ignored when the list contains `*`). |

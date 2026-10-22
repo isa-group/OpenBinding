@@ -176,7 +176,13 @@ docker compose exec -T gateway-dev python tools/seed_dev.py --reset
 The integrated [binding decision workspace](docs/analysis/binding-decision-workspace.md) documents the evidence contract, geometric views, limits, scenario coverage and reproducible API/browser checks. Population writes `openbinding-gateway/tools/analysis-manifest.json` with analysis and draft Report links.
 
 All test accounts (`alice`, `bob`, `carol`, `david`, `elena`, `frank`) use password: `devpass123`.
-The administrator (`admin`) uses `devpass123` (or bootstrap password `4dm1n`).
+The administrator (`admin`) uses `devpass123`.
+
+The gateway ships no default administrator. To start with one, set
+`BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` in `.env`, or opt in
+with `SEED_DEFAULT_ADMIN=true` plus `BOOTSTRAP_ADMIN_PASSWORD` to get an `admin`
+account in an empty database. The `dev` profile publishes the gateway on
+`127.0.0.1:8000` only, so it is not reachable from other machines.
 
 
 The gateway exposes `/v1/profiles`, `/v1/dialects`, `/v1/resources`,

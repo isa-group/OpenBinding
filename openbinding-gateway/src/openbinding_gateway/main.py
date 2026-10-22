@@ -134,14 +134,11 @@ async def _lifespan(settings: Settings):
     if settings.database_url:
         async with db_base.session_factory()() as session:
             configured = await ensure_administrator(session, settings)
-            if (
-                not configured
-                and settings.app_env != "prod"
-                and await seed_default_administrator(session, settings)
-            ):
+            if not configured and await seed_default_administrator(session, settings):
                 logging.getLogger(__name__).warning(
-                    "No administrator existed, so bootstrap account '%s' was created. "
-                    "Sign in, create a real administrator, and delete the bootstrap account.",
+                    "No account existed and SEED_DEFAULT_ADMIN is set, so '%s' was created "
+                    "with BOOTSTRAP_ADMIN_PASSWORD. Create a real administrator and "
+                    "delete this account.",
                     DEFAULT_ADMIN_USERNAME,
                 )
             await session.commit()

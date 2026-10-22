@@ -151,10 +151,11 @@ def test_reduced_dataset_reproduces_the_historical_case(
         assert history["robustUpperFence"] == pytest.approx(expected_fence, abs=1e-15)
 
 
-def _admin_headers(client: httpx.Client) -> dict[str, str]:
+def _admin_headers(client: httpx.Client, credentials: tuple[str, str]) -> dict[str, str]:
+    username, password = credentials
     response = client.post(
         "/v1/auth/login",
-        json={"username_or_email": "admin", "password": "4dm1n"},
+        json={"username_or_email": username, "password": password},
     )
     assert response.status_code == 200, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
@@ -242,6 +243,7 @@ def _classification(score: float, exact: float, history: dict) -> str:
 def test_reduced_campaign_matches_or_remains_statistically_sensible(
     reduced_package: InstancePackage,
     baseline: dict,
+    bootstrap_admin_credentials: tuple[str, str],
 ) -> None:
     lanes = {
         "minizinc-csp": (
@@ -261,7 +263,7 @@ def test_reduced_campaign_matches_or_remains_statistically_sensible(
         ),
     }
     with httpx.Client(base_url=GATEWAY_URL, timeout=45.0) as client:
-        headers = _admin_headers(client)
+        headers = _admin_headers(client, bootstrap_admin_credentials)
         response = client.post(
             "/v1/instances",
             headers={**headers, "Content-Type": "application/vnd.bim+zip"},
