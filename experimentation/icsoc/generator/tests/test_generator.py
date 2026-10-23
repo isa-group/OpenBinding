@@ -322,20 +322,22 @@ def test_generate_one_instance_layout_and_validation(tmp_path: Path) -> None:
         for entry in placement["spec"]["network"]
     }
     assert all(source <= target for source, target in pairs)
-    _assert_optimization_matches_profile(optimization, constraints)
+    _assert_optimization_matches_profile(optimization, constraints, application)
     assert problem.as_dict()["spec"]["profile"]["id"] == "qos-binding/v1"
 
     assert reports
 
 
 def _assert_optimization_matches_profile(
-    optimization: dict, constraints: dict
+    optimization: dict, constraints: dict, application: dict
 ) -> None:
     """Assert the qos-binding/v1 Optimization shape (criteria and penalties).
 
     The schema (optimization.schema.json) defines spec.criteria and
-    spec.penalties; there is no 'terms' key.
+    spec.penalties; there is no 'terms' key. Each criterion takes its direction
+    from the feature it scores (application.spec.features).
     """
+    features = application["spec"]["features"]
     spec = optimization["spec"]
     assert set(spec) <= {"criteria", "penalties"}
     assert "terms" not in spec
@@ -347,7 +349,7 @@ def _assert_optimization_matches_profile(
     ]
     for criterion in criteria:
         assert criterion["feature"] == {"resource": "application", "id": criterion["id"]}
-        assert criterion["direction"] == "minimize"
+        assert criterion["direction"] == features[criterion["id"]]["direction"]
         normalize = criterion["normalize"]
         assert normalize["clamp"] is True
         assert normalize["min"] <= normalize["max"]
@@ -479,7 +481,18 @@ def test_synthetic_instance_optimization_uses_current_profile_schema(
     optimization = package.json("optimization.json")
     assert optimization["apiVersion"] == "qos-binding/v1"
     assert optimization["kind"] == "Optimization"
-    _assert_optimization_matches_profile(optimization, package.json("constraints.json"))
+    _assert_optimization_matches_profile(
+        optimization, package.json("constraints.json"), package.json("application.json")
+    )
+    directions = {
+        criterion["id"]: criterion["direction"]
+        for criterion in optimization["spec"]["criteria"]
+    }
+    assert directions == {
+        "latency": "minimize",
+        "cost": "minimize",
+        "security": "maximize",
+    }
 
 
 def test_transition_latency_bound_is_not_candidate_execution_latency(

@@ -523,7 +523,7 @@ def build_instance(
                 {
                     "id": feature_name,
                     "feature": {"resource": "application", "id": feature_name},
-                    "direction": "minimize",
+                    "direction": features[feature_name]["direction"],
                     "normalize": {**normalize_bounds[feature_name], "clamp": True},
                 }
                 for feature_name in ("latency", "cost", "security")
