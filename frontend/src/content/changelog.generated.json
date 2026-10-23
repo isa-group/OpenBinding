@@ -60,12 +60,12 @@
   "bim": [
     {
       "version": "BIM v1",
-      "date": "2026-10-21",
+      "date": "2026-10-22",
       "title": "Binding language and engines",
       "changes": [
+        "Regenerate the diagrams changed by the metrics-to-features migration",
         "Add bim-toolchain openspec context and baseline specs",
         "Add bim-toolchain agent guide and governance drafts",
-        "Regenerate the diagrams changed by the metrics-to-features migration",
         "Give the test solver stub the encoding facts",
         "Track the minizinc-csp 1.1.1 manifest in the goldens",
         "Move the original ICSOC dataset to a separate data branch",
@@ -87,13 +87,15 @@
   "documentation": [
     {
       "version": "0.1.0",
-      "date": "2026-10-22",
+      "date": "2026-10-23",
       "title": "OpenBinding documentation",
       "changes": [
+        "Describe the retired markers without spelling them",
         "Limit the free repository, open the generator to every plan and raise the lab plan",
         "Propose pricing 0.2.0 from a pricification cycle",
         "Align architecture, roadmap and agent guide with the smaller platform",
         "Keep only what the pillars need and deploy with Docker Compose",
+        "Regenerate the diagrams changed by the metrics-to-features migration",
         "Align the agent guide, README and project context with the vision",
         "Record ADR-0014 to ADR-0019 and supersede ADR-0010",
         "Describe the target architecture and keep the gateway as-is document",
@@ -104,7 +106,6 @@
         "Link the governance documents from the readmes",
         "Record architecture decisions already in force",
         "Add contributing, testing, security and done criteria",
-        "Regenerate the diagrams changed by the metrics-to-features migration",
         "Point the source links to bim-core",
         "Remove the frontend QA gallery and the design hand-off prototype",
         "Move the original ICSOC dataset to a separate data branch",
