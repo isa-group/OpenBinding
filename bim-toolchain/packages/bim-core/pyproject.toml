@@ -37,17 +37,27 @@ dependencies = [
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
+# The five OMG BPMN 2.0.2 XSDs are not versioned in Git (.gitignore); hatch_build.py,
+# next to this file and outside src/bim_core, downloads them from omg.org over https and
+# checks their SHA-256 before every build (all five or nothing). `artifacts` makes the
+# wheel and the sdist carry them although Git ignores them.
+[tool.hatch.build]
+artifacts = ["src/bim_core/resources/vendor/omg/bpmn/2.0.2/*.xsd"]
+
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
+
 # Everything under src/bim_core ships, including resources/ (JSON Schemas,
-# the engine contract and the vendored OMG BPMN 2.0.2 XSDs), which are read
+# the engine contract and the OMG BPMN 2.0.2 XSDs), which are read
 # through importlib.resources, and py.typed.
 [tool.hatch.build.targets.wheel]
 packages = ["src/bim_core"]
 
-# The sdist carries the sources, the resources, the readme, the license and the
-# notice. The tests are not shipped: they read goldens and fixtures that live at
-# the root of the repository, outside this directory.
+# The sdist carries the sources, the resources, the readme, the license, the
+# notice and the build hook. The tests are not shipped: they read goldens and
+# fixtures that live at the root of the repository, outside this directory.
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/README.md", "/LICENSE", "/NOTICE.md", "/pyproject.toml"]
+include = ["/src", "/README.md", "/LICENSE", "/NOTICE.md", "/pyproject.toml", "/hatch_build.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -6,6 +6,7 @@ from __future__ import annotations
 import io
 import json
 import shutil
+import sys
 import tarfile
 import zipfile
 from pathlib import Path
@@ -97,6 +98,61 @@ def test_a_missing_uv_is_an_error_and_a_failed_run(monkeypatch: pytest.MonkeyPat
     assert verify_release.main([]) == 1
     summary = json.loads(capsys.readouterr().out)
     assert summary["ok"] is False and "uv is required" in summary["checks"]["environment"]["error"]
+
+
+def declared_files() -> dict[str, bytes]:
+    """The five OMG XSDs as ``licenses.json`` declares them, read from this tree (``ensure_xsd`` put them there)."""
+    ps.ensure_xsd()
+    directory, digests = ps.declared_xsd()
+    return {name: (ps.ROOT / "packages" / "bim-core" / "src" / directory / name).read_bytes() for name in digests}
+
+
+def test_the_omg_xsds_are_checked_inside_a_wheel_and_an_sdist_by_their_bytes(tmp_path: Path) -> None:
+    directory, _ = ps.declared_xsd()
+    files = declared_files()
+    wheel = write_wheel(tmp_path / "ok.whl", {f"{directory}/{name}": data for name, data in files.items()})
+    sdist = write_sdist(tmp_path / "ok.tar.gz", {f"bim_core-0.2.0/src/{directory}/{name}": data for name, data in files.items()})
+    assert ps.xsd_problems(wheel) == [] and ps.xsd_problems(sdist) == []
+
+    missing = {f"{directory}/{name}": data for name, data in files.items() if name != "DC.xsd"}
+    assert ps.xsd_problems(write_wheel(tmp_path / "missing.whl", missing)) == ["missing.whl: 0 copies of DC.xsd, expected 1"]
+    tampered = {f"{directory}/{name}": data + (b" " if name == "DI.xsd" else b"") for name, data in files.items()}
+    (problem,) = ps.xsd_problems(write_wheel(tmp_path / "tampered.whl", tampered))
+    assert "DI.xsd is not the declared bytes" in problem
+    elsewhere = {f"bim_core-0.2.0/src/{directory}x/{name}": data for name, data in files.items()}
+    assert len(ps.xsd_problems(write_sdist(tmp_path / "elsewhere.tar.gz", elsewhere))) == 5
+    assert len(ps.xsd_problems(write_wheel(tmp_path / "none.whl", {"a/x.py": b"1"}))) == 5
+
+
+def test_the_omg_xsds_are_ensured_before_anything_is_built_and_a_failure_is_an_environment_error(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    built: list[object] = []
+
+    def refuse() -> bool:
+        raise ps.BuildError("the OMG BPMN 2.0.2 XSDs are not there and could not be downloaded; run python3 tools/xsd_inventory.py --ensure")
+
+    monkeypatch.setattr(ps, "require_uv", lambda: sys.executable)
+    monkeypatch.setattr(ps, "ensure_xsd", refuse)
+    monkeypatch.setattr(ps, "copy_source_tree", lambda *arguments, **keywords: built.append(arguments))
+    assert verify_release.main([]) == 1
+    summary = json.loads(capsys.readouterr().out)
+    assert summary["ok"] is False and "xsd_inventory.py --ensure" in summary["checks"]["environment"]["error"]
+    assert built == [], "nothing was copied or built"
+
+
+def test_ensure_xsd_turns_a_missing_download_into_a_build_error_with_the_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import xsd_inventory
+
+    shutil.copy2(ps.ROOT / "licenses.json", tmp_path / "licenses.json")
+
+    def unreachable(url: str) -> bytes:
+        raise xsd_inventory.hatch_build.NetworkError(f"{url}: no network")
+
+    monkeypatch.setattr(xsd_inventory.hatch_build, "urlopen", unreachable)
+    with pytest.raises(ps.BuildError, match="python3 tools/xsd_inventory.py --ensure"):
+        ps.ensure_xsd(tmp_path)
+    assert not list(tmp_path.rglob("*.xsd"))
 
 
 def test_the_epoch_and_the_environment_of_a_build_are_fixed(monkeypatch: pytest.MonkeyPatch) -> None:

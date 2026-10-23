@@ -41,6 +41,35 @@ def test_actions_are_pinned_by_major_version_and_the_todo_is_documented(name: st
     assert "SECURITY TODO" in text
 
 
+ENSURE_XSD = "python3 tools/xsd_inventory.py --ensure"
+
+
+@pytest.mark.parametrize("name", ["ci.yml", "release.yml"])
+def test_every_checkout_is_followed_by_the_verified_download_of_the_omg_xsds(name: str) -> None:
+    """The five XSDs are not versioned in Git: a job that builds or tests needs them in place before its first step runs."""
+    checkouts = 0
+    for job, definition in load(name)["jobs"].items():
+        steps = definition["steps"]
+        for index, step in enumerate(steps):
+            if str(step.get("uses", "")).startswith("actions/checkout@"):
+                checkouts += 1
+                assert steps[index + 1].get("run") == ENSURE_XSD, f"{name}: {job}"
+    assert checkouts >= 1
+    assert (WORKFLOWS / name).read_text(encoding="utf-8").count(ENSURE_XSD) == checkouts
+
+
+def test_the_lint_job_checks_that_git_does_not_version_the_omg_xsds() -> None:
+    runs = [step.get("run") for step in load("ci.yml")["jobs"]["lint"]["steps"]]
+    assert "python3 tools/xsd_inventory.py --check" in runs
+    assert runs.index(ENSURE_XSD) < runs.index("python3 tools/xsd_inventory.py --check")
+
+
+def test_the_workflows_never_exclude_the_xsds_from_the_artifacts_they_build() -> None:
+    for name in ("ci.yml", "release.yml"):
+        text = (WORKFLOWS / name).read_text(encoding="utf-8")
+        assert "--exclude" not in text and "*.xsd" not in text, name
+
+
 def test_ci_has_the_agreed_jobs() -> None:
     workflow = load("ci.yml")
     assert {"lint", "tests", "golden-corpus", "contracts", "build", "clean-install"} <= set(workflow["jobs"])

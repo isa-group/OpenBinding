@@ -8,13 +8,26 @@ that imported a helper out of another test module.
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import re
 import sys
+import types
 import uuid
 
 import pytest
-import pytest_asyncio
+
+# A few tests only read files of the repository (``test_omg_xsd_wiring.py``: Dockerfiles, ignore files, workflows) and
+# also run where neither the gateway nor its dependencies are installed (the registered check of the BIM toolchain
+# runs them next to its own tests). There the gateway's setup below is left out and a test that does need the gateway
+# fails on its own import. Where the gateway is installed nothing changes: a missing dependency still stops the session.
+GATEWAY_INSTALLED = importlib.util.find_spec("openbinding_gateway") is not None
+try:
+    import pytest_asyncio
+except ImportError:
+    if GATEWAY_INSTALLED:
+        raise
+    pytest_asyncio = types.SimpleNamespace(fixture=pytest.fixture)
 
 REPO_ROOT = os.environ.get(
     "OPENBINDING_REPO_ROOT",
@@ -43,17 +56,18 @@ _CAPTURED_ADMIN_ENVIRONMENT = {
 # over the suite's. Everything ``Settings`` reads is removed before the gateway
 # is imported, then only the values the suite itself needs are set below.
 # ``TEST_DATABASE_URL`` is not a setting of the gateway and is left alone.
-from openbinding_gateway.core.settings import Settings  # noqa: E402  (reads field names; builds no settings)
+if GATEWAY_INSTALLED:
+    from openbinding_gateway.core.settings import Settings  # noqa: E402  (reads field names; builds no settings)
 
-assert Settings.model_config["case_sensitive"] is False and not Settings.model_config.get("env_prefix")
-_DEPLOYMENT_VARIABLES = {name.upper() for name in Settings.model_fields}
-_DEPLOYMENT_VARIABLES.update(_ADMIN_ENVIRONMENT)
-# Read outside ``Settings``: the per-engine endpoints (``Settings.engine_urls``), the built-in cancellation
-# switch and the BIM package limits (``BIM_MAX_*``).
-_OTHER_DEPLOYMENT_VARIABLE = re.compile(r"ENGINE_[A-Z0-9_]+_URL|ENGINE_CANCELLATION_BUILTIN|BIM_MAX_[A-Z0-9_]+")
-for _name in list(os.environ):
-    if _name.upper() in _DEPLOYMENT_VARIABLES or _OTHER_DEPLOYMENT_VARIABLE.fullmatch(_name.upper()):
-        del os.environ[_name]
+    assert Settings.model_config["case_sensitive"] is False and not Settings.model_config.get("env_prefix")
+    _DEPLOYMENT_VARIABLES = {name.upper() for name in Settings.model_fields}
+    _DEPLOYMENT_VARIABLES.update(_ADMIN_ENVIRONMENT)
+    # Read outside ``Settings``: the per-engine endpoints (``Settings.engine_urls``), the built-in cancellation
+    # switch and the BIM package limits (``BIM_MAX_*``).
+    _OTHER_DEPLOYMENT_VARIABLE = re.compile(r"ENGINE_[A-Z0-9_]+_URL|ENGINE_CANCELLATION_BUILTIN|BIM_MAX_[A-Z0-9_]+")
+    for _name in list(os.environ):
+        if _name.upper() in _DEPLOYMENT_VARIABLES or _OTHER_DEPLOYMENT_VARIABLE.fullmatch(_name.upper()):
+            del os.environ[_name]
 
 # Set before anything imports the gateway: schema paths are resolved when the
 # validators are constructed.
@@ -96,6 +110,9 @@ def cheap_password_hashing():
     suite. The hash format carries its parameters, so a hash made here still verifies anywhere and a hash made
     with the production parameters still verifies here; only the cost of making one changes.
     """
+    if not GATEWAY_INSTALLED:
+        yield
+        return
     from argon2 import PasswordHasher
 
     from openbinding_gateway.security import passwords
@@ -163,6 +180,9 @@ def isolated_auth_rate_limiter():
     counter shared between tests would make a test depend on how many logins
     ran before it. ``tests/test_security_hardening.py`` installs its own.
     """
+    if not GATEWAY_INSTALLED:
+        yield
+        return
     from openbinding_gateway.core.ratelimit import AuthRateLimiter, set_auth_limiter
 
     set_auth_limiter(AuthRateLimiter(primary=None))
@@ -173,6 +193,9 @@ def isolated_auth_rate_limiter():
 @pytest.fixture(autouse=True)
 def fresh_bim_port():
     """Each test builds the BIM port its settings ask for (in process by default) and leaves none behind."""
+    if not GATEWAY_INSTALLED:
+        yield
+        return
     from openbinding_gateway.integrations import bim
 
     bim.set_bim(None)
@@ -183,6 +206,9 @@ def fresh_bim_port():
 @pytest.fixture(autouse=True)
 def pricing_catalog_gate():
     """Every test gets a SPACE substitute built from the synthetic pricing fixture."""
+    if not GATEWAY_INSTALLED:
+        yield
+        return
     from _pricing import fake_pricing_gate
     from openbinding_gateway import space_client
 
