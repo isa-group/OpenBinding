@@ -17,11 +17,12 @@ Before anything is written it checks the staged tree and refuses (exit 1, nothin
 * no file that is not the holder's own: nothing under a ``vendor`` directory except what ``licenses.json`` declares, no
   binary files;
 * no reference that leaves the repository (a Markdown link that resolves outside it);
-* the OMG BPMN XSD switch: ``--xsd auto`` (default) includes the five files only if ``licenses.json`` says they are cleared,
-  ``--xsd exclude`` never, ``--xsd include`` refuses unless they are cleared;
+* the OMG BPMN XSDs: the repository never carries the five files, so the export refuses a committed tree that versions
+  one of them or whose ``licenses.json`` does not say ``present_in_tree: false``, and never copies them; the exported
+  workflows and builds download them with a verified SHA-256 (``tools/xsd_inventory.py --ensure``);
 * self-containment: the exported tree, copied somewhere else, passes ``pytest -m 'not openbinding_corpus'`` from scratch with
-  no corpus and no skipped test (``--skip-self-test`` turns this off; the OMG files, when excluded, are restored from the
-  source in that copy only, verifying their SHA-256, which is what the verified download does in a real build).
+  no corpus and no skipped test (``--skip-self-test`` turns this off; in that copy the OMG files are downloaded with the
+  verified download, which is what a real build does).
 """
 
 from __future__ import annotations
@@ -38,7 +39,7 @@ import sys
 import tarfile
 import tempfile
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Callable
 
 TOOLS = Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:
@@ -71,11 +72,6 @@ SECRET_PATTERNS: dict[str, re.Pattern[str]] = {
     ),
 }
 MARKDOWN_LINK = re.compile(r"\]\(([^)\s]+)\)")
-CHECKOUT_STEP = re.compile(r"^\s+- uses: actions/checkout@")
-FETCH_STEP = (
-    "      - name: Fetch the OMG BPMN XSDs from the official source and verify their SHA-256\n"
-    "        run: python3 tools/xsd_inventory.py --fetch packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2\n"
-)
 SUITES = ("packages/bim-core/tests", "packages/bim-service/tests", "packages/bim-client/tests", "tools")
 
 
@@ -152,51 +148,25 @@ def stage_tree(original: Path, stage: Path) -> list[str]:
     return left_out
 
 
-# --- the OMG XSD switch ------------------------------------------------------------------------------------
+# --- the OMG XSDs: never in the tree -----------------------------------------------------------------------
 
 
-def include_xsd(mode: str, licenses: dict[str, Any]) -> bool:
-    """Whether the five OMG files travel: ``auto`` only when cleared, ``include`` refused unless cleared, ``exclude`` never."""
-    cleared = xsd_inventory.is_cleared(licenses)
-    if mode == "exclude":
-        return False
-    if mode == "include":
-        if not cleared:
-            raise ExportError(
-                "--xsd include refused: omg_bpmn_xsd.cleared is not true (or its record is incomplete) in licenses.json; "
-                "see docs/OMG_XSD_RIGHTS.md"
-            )
-        return True
-    return cleared
-
-
-def patch_workflow(text: str) -> str:
-    """The workflow with a verified download of the XSDs right after every checkout."""
-    out = []
-    for line in text.splitlines(keepends=True):
-        out.append(line)
-        if CHECKOUT_STEP.match(line):
-            out.append(FETCH_STEP)
-    return "".join(out)
-
-
-def drop_xsd(stage: Path, licenses: dict[str, Any]) -> list[str]:
-    """Remove the five files from ``stage`` and record it: ``present_in_tree`` false, a fetch step in the workflows."""
-    section = licenses["omg_bpmn_xsd"]
-    removed = []
-    for name in section["files"]:
-        path = stage / section["directory"] / name
-        if path.is_file():
-            path.unlink()
-            removed.append(f"{section['directory']}/{name}")
-    licenses = json.loads(json.dumps(licenses))
-    licenses["omg_bpmn_xsd"]["present_in_tree"] = False
-    (stage / xsd_inventory.LICENSES_NAME).write_text(json.dumps(licenses, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    workflows = stage / ".github" / "workflows"
-    if workflows.is_dir():
-        for workflow in sorted(workflows.glob("*.yml")):
-            workflow.write_text(patch_workflow(workflow.read_text(encoding="utf-8")), encoding="utf-8")
-    return removed
+def committed_xsd_problems(original: Path) -> list[str]:
+    """Why the committed tree cannot be exported: it versions one of the five OMG files, or does not declare that it does not."""
+    try:
+        section = xsd_inventory.load_licenses(original)["omg_bpmn_xsd"]
+    except (OSError, ValueError, KeyError) as exc:
+        return [f"licenses.json cannot be read: {exc}"]
+    problems = []
+    versioned = [name for name in section["files"] if (original / section["directory"] / name).is_file()]
+    if versioned:
+        problems.append(
+            f"the committed tree versions the OMG BPMN XSDs ({', '.join(sorted(versioned))}); the repository never carries "
+            f"them: `git rm --cached` them, they are downloaded and verified at build time (docs/OMG_XSD_RIGHTS.md)"
+        )
+    if section.get("present_in_tree") is not False:
+        problems.append('licenses.json: omg_bpmn_xsd.present_in_tree must be false (the files are downloaded, never versioned)')
+    return problems
 
 
 # --- the checks on the staged tree ---------------------------------------------------------------------------
@@ -260,14 +230,11 @@ def license_problems(stage: Path) -> list[str]:
             problems.append(f"{package.name}/pyproject.toml lost the classifier Private :: Do Not Upload")
     section = licenses.get("omg_bpmn_xsd", {})
     problems += [f"licenses.json: {item}" for item in xsd_inventory.clearance_problems(section)]
-    present = [bool((stage / section.get("directory", "") / name).is_file()) for name in section.get("files", [])]
-    if section.get("present_in_tree", True):
-        if not all(present):
-            problems.append("licenses.json: present_in_tree is true but some of the files are not in the tree")
-    elif any(present) and not all(present):
-        problems.append("licenses.json: present_in_tree is false and only some of the files are in the tree")
-    if any(present) and not xsd_inventory.is_cleared(licenses):
-        problems.append("the OMG XSDs are in the tree but licenses.json does not mark them as cleared")
+    if section.get("present_in_tree") is not False:
+        problems.append("licenses.json: present_in_tree must be false (the OMG XSDs are downloaded, never versioned)")
+    present = [name for name in section.get("files", []) if (stage / section.get("directory", "") / name).is_file()]
+    if present:
+        problems.append(f"the OMG XSDs are in the tree ({', '.join(sorted(present))}): the repository never carries them")
     return problems
 
 
@@ -308,21 +275,21 @@ def outside_references(stage: Path) -> list[str]:
     return problems
 
 
-def self_test(stage: Path, original: Path, restore_xsd: bool) -> list[str]:
-    """Copy the staged tree elsewhere and run the suite without the corpus from scratch."""
+def self_test(stage: Path, *, fetch_xsd: bool = False, opener: Callable[[str], bytes] | None = None) -> list[str]:
+    """Copy the staged tree elsewhere and run the suite without the corpus from scratch.
+
+    With ``fetch_xsd`` the five OMG files, which the tree does not carry, are downloaded into the copy by the verified
+    download of ``xsd_inventory`` (``opener`` replaces the network in tests); a digest that is not the declared one is a problem.
+    """
     with tempfile.TemporaryDirectory(prefix="export-self-test-") as directory:
         copy = Path(directory) / "repo"
         shutil.copytree(stage, copy)
-        if restore_xsd:
-            licenses = xsd_inventory.load_licenses(original)
-            section = licenses["omg_bpmn_xsd"]
-            target = copy / section["directory"]
-            target.mkdir(parents=True, exist_ok=True)
-            for name in section["files"]:
-                data = (original / section["directory"] / name).read_bytes()
-                if xsd_inventory.sha256_hex(data) != section["sha256"][name]:
-                    return [f"{name}: the source copy is not the declared bytes; refusing to restore it"]
-                (target / name).write_bytes(data)
+        if fetch_xsd:
+            section = xsd_inventory.load_licenses(copy)["omg_bpmn_xsd"]
+            try:
+                xsd_inventory.fetch(copy / section["directory"], copy, opener=opener)
+            except xsd_inventory.FetchError as exc:
+                return [f"the OMG XSDs could not be downloaded into the copy: {exc}"]
         empty = Path(directory) / "no-corpus"
         empty.mkdir()
         sources = os.pathsep.join(str(copy / "packages" / name / "src") for name in ("bim-core", "bim-service", "bim-client"))
@@ -341,7 +308,7 @@ def self_test(stage: Path, original: Path, restore_xsd: bool) -> list[str]:
         return problems
 
 
-def verify_stage(stage: Path, original: Path, xsd_included: bool, *, run_self_test: bool) -> list[str]:
+def verify_stage(stage: Path, *, run_self_test: bool, opener: Callable[[str], bytes] | None = None) -> list[str]:
     problems = [f"secret: {item}" for item in scan_secrets(stage)]
     problems += [f"license: {item}" for item in license_problems(stage)]
     problems += [f"not own material: {item}" for item in foreign_files(stage)]
@@ -351,7 +318,7 @@ def verify_stage(stage: Path, original: Path, xsd_included: bool, *, run_self_te
             problems.append(f"{required} is missing from the root of the exported tree")
     if run_self_test and not problems:
         progress("self-containment: running the suite without the corpus on a copy (this takes a few minutes)")
-        problems += [f"self-containment: {item}" for item in self_test(stage, original, restore_xsd=not xsd_included)]
+        problems += [f"self-containment: {item}" for item in self_test(stage, fetch_xsd=True, opener=opener)]
     return problems
 
 
@@ -366,12 +333,12 @@ def identity(top: Path) -> tuple[str, str]:
     return name, email
 
 
-def commit_message(commit: str, xsd_included: bool) -> str:
+def commit_message(commit: str) -> str:
     return (
         f"Import bim-toolchain from OpenBinding at {commit}\n\n"
         f"Source: the committed contents of {TREE}/ at commit {commit} of the OpenBinding repository. "
         "No history is carried over.\n"
-        f"OMG BPMN XSD files: {'included' if xsd_included else 'not included (fetched and verified at build time)'}.\n"
+        "OMG BPMN XSD files: not versioned (downloaded and SHA-256 verified at build time).\n"
     )
 
 
@@ -397,7 +364,7 @@ def create_repository(output: Path, stage: Path, identity_pair: tuple[str, str],
     }
 
 
-def export(arguments: argparse.Namespace) -> dict[str, Any]:
+def export(arguments: argparse.Namespace, opener: Callable[[str], bytes] | None = None) -> dict[str, Any]:
     output = arguments.output.resolve()
     if output.exists() and any(output.iterdir()):
         raise ExportError(f"{output} exists and is not empty")
@@ -409,36 +376,34 @@ def export(arguments: argparse.Namespace) -> dict[str, Any]:
         work = Path(directory)
         original, stage = work / "original", work / "stage"
         commit = extract_committed_tree(top, original)
-        licenses = xsd_inventory.load_licenses(original)
-        xsd_included = include_xsd(arguments.xsd, licenses)
+        refused = committed_xsd_problems(original)
+        if refused:
+            raise ExportError("the export was refused:\n- " + "\n- ".join(refused))
         left_out = stage_tree(original, stage)
-        removed = [] if xsd_included else drop_xsd(stage, licenses)
-        problems = verify_stage(stage, original, xsd_included, run_self_test=not arguments.skip_self_test)
+        problems = verify_stage(stage, run_self_test=not arguments.skip_self_test, opener=opener)
         if problems:
             raise ExportError("the export was refused:\n- " + "\n- ".join(problems))
-        created = create_repository(output, stage, identity_pair, commit_message(commit, xsd_included))
+        created = create_repository(output, stage, identity_pair, commit_message(commit))
     return {
         "output": str(output),
         "sourceCommit": commit,
-        "xsd": "included" if xsd_included else "excluded",
-        "xsdFilesRemoved": removed,
+        "xsd": "not versioned: downloaded and verified at build time",
         "leftOut": left_out,
         "selfTest": "skipped" if arguments.skip_self_test else "passed",
         **created,
     }
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, opener: Callable[[str], bytes] | None = None) -> int:
+    """``opener`` replaces the network of the self-containment run (the tests inject one; a real run downloads)."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--output", type=Path, required=True, help="the directory of the new repository (absent or empty)")
     parser.add_argument("--source", type=Path, default=TOOLS, help="a path inside the OpenBinding clone (default: this checkout)")
-    parser.add_argument("--xsd", choices=("auto", "include", "exclude"), default="auto",
-                        help="the OMG BPMN XSD files: auto = only if licenses.json says cleared (default)")
     parser.add_argument("--skip-self-test", action="store_true", help="do not run the suite on the exported tree")
     parser.add_argument("--allow-dirty", action="store_true", help="export the committed contents although the working tree differs")
     arguments = parser.parse_args(argv)
     try:
-        summary = export(arguments)
+        summary = export(arguments, opener)
     except ExportError as exc:
         print(f"export_repo: {exc}", file=sys.stderr)
         return 1

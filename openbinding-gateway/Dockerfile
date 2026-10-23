@@ -28,6 +28,13 @@ COPY bim-toolchain/packages/bim-core/src/ /bim-toolchain/packages/bim-core/src/
 COPY bim-toolchain/packages/bim-client/pyproject.toml bim-toolchain/packages/bim-client/README.md bim-toolchain/packages/bim-client/NOTICE.md /bim-toolchain/packages/bim-client/
 COPY bim-toolchain/packages/bim-client/src/ /bim-toolchain/packages/bim-client/src/
 
+# The five OMG BPMN 2.0.2 XSDs that bim-core validates BPMN with are not versioned in Git. They are
+# downloaded from omg.org over https here, before the install, and each SHA-256 is verified (all five
+# or the build fails, nothing is written); the install then ships them inside bim_core. If a copy of the
+# files is already in the context it is verified instead. The same script is the build hook of bim-core.
+COPY bim-toolchain/packages/bim-core/hatch_build.py /bim-toolchain/packages/bim-core/
+RUN python /bim-toolchain/packages/bim-core/hatch_build.py --ensure
+
 COPY openbinding-gateway/pyproject.toml .
 COPY openbinding-gateway/src/ src/
 

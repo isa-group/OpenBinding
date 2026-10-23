@@ -18,6 +18,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # The five OMG BPMN 2.0.2 XSDs that bim-core validates BPMN with are not versioned in Git. They are
+      # downloaded from omg.org over https and each SHA-256 is verified (all five or an error) before the
+      # editable install below builds bim-core, and Git must neither list nor fail to ignore them.
+      - name: Download the OMG BPMN XSDs, verify them and check that Git does not version them
+        run: |
+          python3 bim-toolchain/tools/xsd_inventory.py --ensure
+          python3 bim-toolchain/tools/xsd_inventory.py --check
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

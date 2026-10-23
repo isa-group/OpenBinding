@@ -241,6 +241,17 @@ tree only `bim-toolchain/packages/bim-core` exists (see
 evaluates with its own copy under `openbinding-gateway/src/openbinding_gateway/v1`
 and does not depend on `bim-toolchain`. See [BIM core](docs/BIM_CORE.md).
 
+**OMG BPMN XSDs.** The five OMG BPMN 2.0.2 XML Schemas (`BPMN20.xsd`, `Semantic.xsd`, `BPMNDI.xsd`, `DC.xsd`, `DI.xsd`) under
+`bim-toolchain/packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2/` are **not versioned in Git** (their
+redistribution is not demonstrated: [`bim-toolchain/docs/OMG_XSD_RIGHTS.md`](bim-toolchain/docs/OMG_XSD_RIGHTS.md)). The system
+behaves as if they were inside: wherever they are missing they are downloaded from omg.org over https and the SHA-256 of
+each is verified (all five or an error; nothing is written otherwise). The build hook of `bim-core`
+(`bim-toolchain/packages/bim-core/hatch_build.py`) does it for `uv sync`, `pip install` and `-e`; the Docker images
+(`openbinding-gateway`, `bim-service`, `experimentation/qacobench`), the CI jobs, the test sessions and the tools do it too.
+Without network the error names the exact command, `python3 bim-toolchain/tools/xsd_inventory.py --ensure` from this directory.
+`python3 bim-toolchain/tools/xsd_inventory.py --check` fails if Git lists the files or does not ignore them. Wheels,
+sdists, the SDK and the images do carry the files; keeping them in the artifacts is a decision of the owner.
+
 Start with the [progressive BIM model atlas](docs/models/README.md) for the
 metamodels and concrete instances, continue with the
 [BIM architecture](docs/BIM_V1.md), explore the

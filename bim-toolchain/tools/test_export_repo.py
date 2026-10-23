@@ -1,6 +1,8 @@
 """``tools/export_repo.py``, in temporary directories: one commit with the identity of whoever runs it, no history, remote,
 tag or push; the checks that refuse an export (secrets, licenses, foreign files, references outside the repository); the
-switch of the OMG XSD files; and, once, the whole export of this very tree with the suite run on the result."""
+OMG XSD files, which the repository never carries (a tree that versions them is refused, the self-containment run downloads
+them into its copy with the SHA-256 checked, the network replaced by an injected opener); and, once, the whole export of
+this very tree with the suite run on the result."""
 
 from __future__ import annotations
 
@@ -10,7 +12,6 @@ import subprocess
 from pathlib import Path, PurePosixPath
 
 import pytest
-import yaml
 
 import export_repo
 import xsd_inventory
@@ -27,12 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # PIN-PENDING
+      - run: python3 tools/xsd_inventory.py --ensure
       - run: echo one
-  two:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: echo two
 """
 IDENTITY = ("Export Tester", "export.tester@example.org")
 
@@ -44,17 +41,35 @@ PACKAGE_PYPROJECT = (
 )
 
 
+@pytest.fixture(autouse=True)
+def tmp_trees_are_not_inside_a_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The trees below are made in a temporary directory; Git must not find a repository above it."""
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
+
+
 def base_licenses() -> dict:
-    """``licenses.json`` of a tree that carries the files and has not cleared them, whatever this repository's state is."""
+    """``licenses.json`` of a tree that does not carry the files and has not cleared them, whatever this repository's state is."""
     document = json.loads((ROOT / "licenses.json").read_text(encoding="utf-8"))
     document["omg_bpmn_xsd"].update(
-        present_in_tree=True, cleared=False, status="not-demonstrated", cleared_by=None, cleared_on=None, evidence=None
+        present_in_tree=False, cleared=False, status="not-demonstrated", cleared_by=None, cleared_on=None, evidence=None
     )
     return document
 
 
 def licenses_bytes(document: dict) -> bytes:
     return (json.dumps(document, indent=2) + "\n").encode("utf-8")
+
+
+def rights_document() -> str:
+    """The rights document of a tree that does not carry the files: only the generated table, which lists the digests."""
+    block = xsd_inventory.current_block((ROOT / "docs" / "OMG_XSD_RIGHTS.md").read_text(encoding="utf-8"))
+    assert block is not None
+    return f"# Rights\n\n{block}\n"
+
+
+def served_from_this_tree() -> dict[str, bytes]:
+    """What omg.org serves, taken from the files of this tree (the tests of the download never use the network)."""
+    return {f"https://www.omg.org/spec/BPMN/20100501/{name}": (ROOT / VENDOR / name).read_bytes() for name in XSD_FILES}
 
 
 def git(cwd: Path, *arguments: str) -> str:
@@ -70,6 +85,7 @@ def mini_files() -> dict[str, bytes]:
         "NOTICE.md": NOTICE,
         "THIRD_PARTY_NOTICES.md": "# Third-party notices\n",
         "docs/LICENSING.md": "# Licensing\n",
+        "docs/OMG_XSD_RIGHTS.md": rights_document(),
         "pyproject.toml": '[tool.uv.workspace]\nmembers = ["packages/pkg-a"]\n',
         "tools/helper.py": "VALUE = 1\n",
         "packages/pkg-a/NOTICE.md": NOTICE,
@@ -77,17 +93,17 @@ def mini_files() -> dict[str, bytes]:
         "packages/pkg-a/README.md": "pkg a\n",
         "packages/pkg-a/pyproject.toml": PACKAGE_PYPROJECT.format(name="pkg-a"),
         "packages/pkg-a/src/pkg_a/__init__.py": "",
-        # the OMG files live in packages/bim-core, which therefore is a package of the tree like pkg-a
+        # the OMG files go in packages/bim-core, which therefore is a package of the tree like pkg-a
         "packages/bim-core/NOTICE.md": NOTICE,
         "packages/bim-core/LICENSE": LICENSE_TEXT,
         "packages/bim-core/README.md": "core\n",
         "packages/bim-core/pyproject.toml": PACKAGE_PYPROJECT.format(name="bim-core"),
         ".github/workflows/ci.yml": WORKFLOW,
+        ".gitignore": f"dist/\n/{VENDOR}/*.xsd\n",
         ".extraction-bootstrap": "marker\n",
         "licenses.json": licenses_bytes(base_licenses()),
         f"{VENDOR}/README.md": "# vendored\n",
     }
-    files.update({f"{VENDOR}/{name}": f"<xsd:schema/> {name}\n" for name in XSD_FILES})
     return {name: data.encode("utf-8") if isinstance(data, str) else data for name, data in files.items()}
 
 
@@ -121,7 +137,9 @@ def make_clone(tmp_path: Path, extra: dict[str, bytes] | None = None, *, identit
 
 def export(tmp_path: Path, clone: Path, *extra: str, capsys: pytest.CaptureFixture[str]) -> tuple[int, dict, str]:
     output = tmp_path / "exported"
-    code = export_repo.main(["--output", str(output), "--source", str(clone), "--skip-self-test", *extra])
+    code = export_repo.main(
+        ["--output", str(output), "--source", str(clone), "--skip-self-test", *extra], opener=served_from_this_tree().__getitem__
+    )
     captured = capsys.readouterr()
     summary = json.loads(captured.out) if code == 0 else {}
     return code, summary, captured.err
@@ -292,7 +310,7 @@ def test_the_license_inventory_stops_a_package_license_that_is_not_a_copy_and_mi
     assert "bim-core/pyproject.toml does not declare license-files" not in errors
 
 
-# --- the OMG XSD switch ----------------------------------------------------------------------------------------
+# --- the OMG XSD files: never versioned, never exported ---------------------------------------------------------
 
 
 def cleared_licenses() -> bytes:
@@ -303,47 +321,54 @@ def cleared_licenses() -> bytes:
     return licenses_bytes(document)
 
 
-def test_by_default_the_xsd_files_are_blocked_and_the_build_fetches_them(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_the_xsd_files_are_not_in_the_export_which_ignores_them_and_says_how_they_arrive(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     clone = make_clone(tmp_path)
     code, summary, errors = export(tmp_path, clone, capsys=capsys)
     assert code == 0, errors
     out = tmp_path / "exported"
-    assert summary["xsd"] == "excluded" and len(summary["xsdFilesRemoved"]) == 5
     names = tracked(out)
-    assert not any(name.endswith(".xsd") for name in names) and f"{VENDOR}/README.md" in names
-    licenses = json.loads((out / "licenses.json").read_text(encoding="utf-8"))
-    assert licenses["omg_bpmn_xsd"]["present_in_tree"] is False and licenses["omg_bpmn_xsd"]["cleared"] is False
-    assert xsd_inventory.check(out) == []
-    workflow = yaml.safe_load((out / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
-    for job in ("one", "two"):
-        steps = workflow["jobs"][job]["steps"]
-        assert "uses" in steps[0] and "xsd_inventory.py --fetch" in steps[1]["run"] and steps[2]["run"] == f"echo {'one' if job == 'one' else 'two'}"
-    assert "not included" in git(out, "log", "-1", "--format=%B")
+    assert not any(name.endswith(".xsd") for name in names)
+    assert f"{VENDOR}/README.md" in names and ".gitignore" in names
+    section = json.loads((out / "licenses.json").read_text(encoding="utf-8"))["omg_bpmn_xsd"]
+    assert section["present_in_tree"] is False and section["cleared"] is False
+    assert summary["xsd"].startswith("not versioned")
+    assert xsd_inventory.check(out) == []  # Git ignores the files and lists none, and the table lists every declared digest
+    assert "not versioned" in git(out, "log", "-1", "--format=%B")
+    workflow = (out / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert workflow == WORKFLOW, "the workflows travel as committed: they already carry the verified download"
 
 
-def test_include_is_refused_while_the_files_are_not_cleared(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    clone = make_clone(tmp_path)
-    code, _, errors = export(tmp_path, clone, "--xsd", "include", capsys=capsys)
-    assert code == 1 and "--xsd include refused" in errors and not (tmp_path / "exported").exists()
+def test_a_committed_tree_that_versions_an_xsd_file_is_refused(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    clone = make_clone(tmp_path, {f"{VENDOR}/DC.xsd": b"<xsd:schema/>\n", f"{VENDOR}/DI.xsd": b"<xsd:schema/>\n"})
+    code, _, errors = export(tmp_path, clone, capsys=capsys)
+    assert code == 1 and not (tmp_path / "exported").exists()
+    assert "versions the OMG BPMN XSDs (DC.xsd, DI.xsd)" in errors and "git rm --cached" in errors
 
 
-def test_once_the_holder_clears_them_the_files_travel_with_their_exact_bytes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_licenses_json_that_says_the_files_are_in_the_tree_is_refused(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    document = base_licenses()
+    document["omg_bpmn_xsd"]["present_in_tree"] = True
+    clone = make_clone(tmp_path, {"licenses.json": licenses_bytes(document)})
+    code, _, errors = export(tmp_path, clone, capsys=capsys)
+    assert code == 1 and "present_in_tree must be false" in errors and not (tmp_path / "exported").exists()
+
+
+def test_the_stage_with_one_of_the_files_is_refused_by_the_license_inventory(tmp_path: Path) -> None:
+    write_files(tmp_path, mini_files())
+    assert export_repo.license_problems(tmp_path) == []
+    (tmp_path / VENDOR / "DC.xsd").write_bytes(b"<xsd:schema/>\n")
+    assert any("the OMG XSDs are in the tree (DC.xsd)" in item for item in export_repo.license_problems(tmp_path))
+
+
+def test_the_xsd_switch_is_gone_and_a_clearance_does_not_make_the_files_travel(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit):
+        export_repo.main(["--output", str(tmp_path / "x"), "--xsd", "include"])
+    capsys.readouterr()
+    assert not hasattr(export_repo, "include_xsd") and not hasattr(export_repo, "drop_xsd") and not hasattr(export_repo, "patch_workflow")
     clone = make_clone(tmp_path, {"licenses.json": cleared_licenses()})
     code, summary, errors = export(tmp_path, clone, capsys=capsys)
     assert code == 0, errors
-    out = tmp_path / "exported"
-    assert summary["xsd"] == "included" and summary["xsdFilesRemoved"] == []
-    for name in XSD_FILES:
-        assert (out / VENDOR / name).read_bytes() == (clone / "bim-toolchain" / VENDOR / name).read_bytes()
-    assert json.loads((out / "licenses.json").read_text(encoding="utf-8"))["omg_bpmn_xsd"]["present_in_tree"] is True
-    assert "xsd_inventory" not in (out / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-
-
-def test_exclude_wins_over_a_clearance(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    clone = make_clone(tmp_path, {"licenses.json": cleared_licenses()})
-    code, summary, errors = export(tmp_path, clone, "--xsd", "exclude", capsys=capsys)
-    assert code == 0, errors
-    assert summary["xsd"] == "excluded"
+    assert summary["xsd"].startswith("not versioned")
     assert not any(name.endswith(".xsd") for name in tracked(tmp_path / "exported"))
 
 
@@ -354,15 +379,6 @@ def test_a_clearance_without_its_record_is_an_incoherent_licenses_json_and_stops
     code, _, errors = export(tmp_path, clone, capsys=capsys)
     assert code == 1 and '"cleared" is true but "evidence" is empty' in errors
     assert not (tmp_path / "exported").exists()
-
-
-def test_the_workflow_patch_adds_the_verified_download_after_every_checkout() -> None:
-    patched = export_repo.patch_workflow(WORKFLOW)
-    assert patched.count("xsd_inventory.py --fetch") == 2
-    loaded = yaml.safe_load(patched)
-    for job in loaded["jobs"].values():
-        assert "uses" in job["steps"][0] and "--fetch" in job["steps"][1]["run"]
-    assert export_repo.patch_workflow("name: x\njobs: {}\n") == "name: x\njobs: {}\n"
 
 
 # --- the self-containment run ---------------------------------------------------------------------------------
@@ -381,15 +397,15 @@ def tiny_stage(tmp_path: Path, extra_test: str = "") -> Path:
 
 def test_the_self_test_passes_a_tree_whose_tests_pass(tmp_path: Path) -> None:
     stage = tiny_stage(tmp_path)
-    assert export_repo.self_test(stage, stage, restore_xsd=False) == []
+    assert export_repo.self_test(stage) == []
 
 
 def test_the_self_test_fails_on_a_skip_and_on_a_failure(tmp_path: Path) -> None:
     skipped = tiny_stage(tmp_path / "a", "import pytest\n\ndef test_needs_something():\n    pytest.skip('no corpus here')\n")
-    (problem,) = export_repo.self_test(skipped, skipped, restore_xsd=False)
+    (problem,) = export_repo.self_test(skipped)
     assert "skipped" in problem and "no corpus here" in problem
     failing = tiny_stage(tmp_path / "b", "def test_broken():\n    assert False\n")
-    (problem,) = export_repo.self_test(failing, failing, restore_xsd=False)
+    (problem,) = export_repo.self_test(failing)
     assert "failed" in problem and "test_broken" in problem
 
 
@@ -405,33 +421,61 @@ def test_the_self_test_runs_without_the_corpus_and_without_the_callers_bim_varia
         "    assert os.path.isdir(root) and not os.listdir(root)\n"
     )
     stage = tiny_stage(tmp_path, probe)
-    assert export_repo.self_test(stage, stage, restore_xsd=False) == []
+    assert export_repo.self_test(stage) == []
 
 
-def test_the_xsd_files_are_restored_only_after_their_digest_is_checked(tmp_path: Path) -> None:
-    original = tmp_path / "original"
-    write_files(original, mini_files())
+def test_the_self_test_downloads_the_xsd_files_into_its_copy_only(tmp_path: Path) -> None:
+    probe = (
+        "from pathlib import Path\n\n"
+        "def test_the_files_are_in_the_copy():\n"
+        f"    directory = Path('{VENDOR}')\n"
+        f"    assert sorted(path.name for path in directory.glob('*.xsd')) == {XSD_FILES!r}\n"
+    )
+    stage = tiny_stage(tmp_path, probe)
+    shutil.copy2(ROOT / "licenses.json", stage / "licenses.json")
+    served = served_from_this_tree()
+    assert export_repo.self_test(stage, fetch_xsd=True, opener=served.__getitem__) == []
+    assert not any(stage.rglob("*.xsd")), "the staged tree stays without the files"
+
+
+def test_the_self_test_stops_when_a_download_is_not_the_declared_bytes(tmp_path: Path) -> None:
     stage = tiny_stage(tmp_path)
-    (problem,) = export_repo.self_test(stage, original, restore_xsd=True)
-    assert "the source copy is not the declared bytes" in problem
-    assert not any(stage.rglob("*.xsd"))
+    shutil.copy2(ROOT / "licenses.json", stage / "licenses.json")
+    served = served_from_this_tree()
+    served["https://www.omg.org/spec/BPMN/20100501/Semantic.xsd"] += b" "
+    (problem,) = export_repo.self_test(stage, fetch_xsd=True, opener=served.__getitem__)
+    assert "could not be downloaded" in problem and "Semantic.xsd: SHA-256" in problem and "nothing was written" in problem
+
+
+def test_without_network_the_self_test_says_so_and_runs_nothing(tmp_path: Path) -> None:
+    stage = tiny_stage(tmp_path)
+    shutil.copy2(ROOT / "licenses.json", stage / "licenses.json")
+
+    def unreachable(url: str) -> bytes:
+        raise xsd_inventory.hatch_build.NetworkError(f"{url}: no network")
+
+    (problem,) = export_repo.self_test(stage, fetch_xsd=True, opener=unreachable)
+    assert "could not be downloaded" in problem and "no network" in problem
 
 
 # --- this very tree ----------------------------------------------------------------------------------------------
 
 
-IGNORED = shutil.ignore_patterns("dist", ".venv", ".verify-venv", ".pytest_cache", "__pycache__", ".ruff_cache", "*.pyc", "*.egg-info")
+#: What is copied of this tree: the five XSDs are on disk (a build put them there) but are not part of the repository.
+IGNORED = shutil.ignore_patterns(
+    "dist", ".venv", ".verify-venv", ".pytest_cache", "__pycache__", ".ruff_cache", "*.pyc", "*.egg-info", "*.xsd"
+)
 
 
 def test_the_static_checks_pass_on_this_tree(tmp_path: Path) -> None:
     original = tmp_path / "original"
     shutil.copytree(ROOT, original, ignore=IGNORED)
+    assert export_repo.committed_xsd_problems(original) == []
     stage = tmp_path / "stage"
     left_out = export_repo.stage_tree(original, stage)  # in an exported copy there is nothing left to leave out
     assert not any(not export_repo.excluded(PurePosixPath(name)) for name in left_out)
     assert not (stage / ".extraction-bootstrap").exists()
-    removed = export_repo.drop_xsd(stage, xsd_inventory.load_licenses(original))
-    assert sorted(item.rsplit("/", 1)[-1] for item in removed) == XSD_FILES
+    assert not any(stage.rglob("*.xsd"))
     assert export_repo.scan_secrets(stage) == []
     assert export_repo.license_problems(stage) == []
     assert export_repo.foreign_files(stage) == []
@@ -441,8 +485,9 @@ def test_the_static_checks_pass_on_this_tree(tmp_path: Path) -> None:
 
 @pytest.mark.spawns_suite
 def test_this_tree_exports_and_the_export_passes_the_suite_without_the_corpus(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """The whole thing, once: a clone with this tree, the export with the self-containment run (default: the OMG files are
-    blocked, so the suite runs on a copy in which they are restored from the source after checking their SHA-256)."""
+    """The whole thing, once: a clone with this tree, the export with the self-containment run (the OMG files are not
+    versioned, so the suite runs on a copy in which they are downloaded with their SHA-256 checked; the network is replaced
+    by the bytes of this tree)."""
     clone = tmp_path / "openbinding"
     clone.mkdir()
     git(clone, "init", "-q")
@@ -452,14 +497,14 @@ def test_this_tree_exports_and_the_export_passes_the_suite_without_the_corpus(tm
     write_files(clone, {"README.md": b"OPENBINDING ROOT\n"})
     head = commit_all(clone)
     output = tmp_path / "exported"
-    code = export_repo.main(["--output", str(output), "--source", str(clone)])
+    code = export_repo.main(["--output", str(output), "--source", str(clone)], opener=served_from_this_tree().__getitem__)
     captured = capsys.readouterr()
     assert code == 0, captured.err[-6000:]
     summary = json.loads(captured.out)
-    assert summary["selfTest"] == "passed" and summary["xsd"] == "excluded" and summary["sourceCommit"] == head
+    assert summary["selfTest"] == "passed" and summary["xsd"].startswith("not versioned") and summary["sourceCommit"] == head
     names = tracked(output)
     assert not any(name.endswith(".xsd") for name in names)
-    assert {"pyproject.toml", "licenses.json", "NOTICE.md", "tools/export_repo.py", "docs/DELIVERY.md"} <= set(names)
+    assert {"pyproject.toml", "licenses.json", "NOTICE.md", "tools/export_repo.py", "docs/DELIVERY.md", ".gitignore"} <= set(names)
     source = {path.relative_to(ROOT).as_posix() for path in ROOT.rglob("*") if path.is_file()}
     expected = {
         name for name in source if not export_repo.excluded(PurePosixPath(name)) and not name.endswith(".xsd")

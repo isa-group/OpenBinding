@@ -1,34 +1,43 @@
-"""Inventory of the vendored OMG BPMN 2.0.2 XSDs, read from their bytes, and the verified download that replaces them.
+"""Inventory of the OMG BPMN 2.0.2 XSDs, read from their bytes, and the verified download that puts them in place.
 
-    python tools/xsd_inventory.py --check        # exit 1 if the tree, licenses.json and docs/OMG_XSD_RIGHTS.md disagree
-    python tools/xsd_inventory.py --write        # refresh the generated table of docs/OMG_XSD_RIGHTS.md
+    python tools/xsd_inventory.py --ensure       # download the five files unless they are there and verify (needs network if not)
+    python tools/xsd_inventory.py --check        # exit 1 if the bytes, licenses.json, Git and docs/OMG_XSD_RIGHTS.md disagree
+    python tools/xsd_inventory.py --write        # refresh the generated table of docs/OMG_XSD_RIGHTS.md (the five files must be there)
     python tools/xsd_inventory.py --json         # the inventory as JSON
     python tools/xsd_inventory.py --fetch DIR    # download the five files from the official source into DIR, verified
+
+The repository never carries the five files: ``.gitignore`` ignores them, ``licenses.json`` says ``present_in_tree`` is
+false, and ``--check`` fails if ``git ls-files`` lists one or Git does not ignore it (it says nothing outside a checkout).
+Wheels, sdists, the SDK and the images do carry them: every build downloads them over https first and compares each with
+the SHA-256 declared in ``licenses.json`` (``packages/bim-core/hatch_build.py``, shared with this tool), all five or none.
 
 For every file the inventory records its path, the origin and SHA-256 the vendored README declares, the SHA-256 and
 size of the bytes actually present, and whether those bytes *contain* a copyright or license notice (the inventory
 reads the files, not the README, which claims that the notices are preserved).  Nothing but the standard library is
 needed, so the verified download also runs in a build that has no dependency installed.
 
-``licenses.json`` is the versioned switch: the files may be exported only when ``omg_bpmn_xsd.cleared`` is ``true`` and
-the record is complete (who, when, evidence).  ``--fetch`` does not need the clearance: it is the build step of a tree
-that does not carry the files, and it refuses any download whose SHA-256 is not the declared one.
+``licenses.json`` also holds the clearance record (``omg_bpmn_xsd.cleared``): whether the rights to redistribute the
+files are demonstrated.  They are not, and shipping the files inside artifacts is a decision of the holder
+(``docs/OMG_XSD_RIGHTS.md``); the download does not need the clearance.
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
+import importlib.util
 import json
 import re
+import subprocess
 import sys
-import urllib.request
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parents[1]
 LICENSES_NAME = "licenses.json"
 DOC_RELATIVE = Path("docs") / "OMG_XSD_RIGHTS.md"
+HATCH_BUILD = ROOT / "packages" / "bim-core" / "hatch_build.py"
+ENSURE_COMMAND = "python3 tools/xsd_inventory.py --ensure"
 BEGIN = "<!-- xsd-inventory:begin -->"
 END = "<!-- xsd-inventory:end -->"
 SCHEMA = "bim-toolchain/xsd-inventory/1"
@@ -40,8 +49,23 @@ README_ROW = re.compile(r"^\|\s*`([^`]+)`\s*\|\s*`([0-9a-f]{64})`\s*\|\s*$", re.
 README_BASE = re.compile(r"Source base:\s*<([^>]+)>")
 
 
-class FetchError(RuntimeError):
-    """A download that could not be made or whose bytes are not the declared ones."""
+def _load_hatch_build() -> ModuleType:
+    """``packages/bim-core/hatch_build.py`` of this checkout: the one implementation of the verified download."""
+    name = "bim_core_hatch_build"
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(name, HATCH_BUILD)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"{HATCH_BUILD} cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+hatch_build = _load_hatch_build()
+#: A download that could not be made or whose bytes are not the declared ones.
+FetchError = hatch_build.FetchError
 
 
 def load_licenses(root: Path = ROOT) -> dict[str, Any]:
@@ -84,7 +108,7 @@ def scan(data: bytes) -> dict[str, Any]:
 
 
 def sha256_hex(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+    return hatch_build.sha256_hex(data)
 
 
 def inventory(root: Path = ROOT) -> dict[str, Any]:
@@ -118,22 +142,23 @@ def inventory(root: Path = ROOT) -> dict[str, Any]:
 
 
 def problems(found: dict[str, Any], licenses: dict[str, Any]) -> list[str]:
-    """Disagreements between the inventory and what ``licenses.json`` says the tree holds."""
+    """Disagreements between the inventory and what ``licenses.json`` says about the files."""
     section = licenses["omg_bpmn_xsd"]
-    expected_present = bool(section.get("present_in_tree", True))
     result = [f"licenses.json: {item}" for item in clearance_problems(section)]
+    if section.get("present_in_tree") is not False:
+        result.append(
+            "licenses.json: present_in_tree must be false: the repository never carries the files "
+            "(they are downloaded and verified at build time)"
+        )
     if set(section["files"]) != set(section["sha256"]):
         result.append("licenses.json: files and sha256 do not list the same names")
     all_present = all(entry["present"] for entry in found["files"])
-    any_present = any(entry["present"] for entry in found["files"])
     for entry in found["files"]:
         name = entry["path"].rsplit("/", 1)[-1]
-        if expected_present and not entry["present"]:
-            result.append(f"{name}: present=False but present_in_tree=True")
-        elif not expected_present and any_present and not all_present and not entry["present"]:
-            # present_in_tree=false is an export without the files: none of them, or all five after the verified download
-            result.append(f"{name}: missing while the other files of the set are present (fetch all five or none)")
         if not entry["present"]:
+            if not all_present and any(other["present"] for other in found["files"]):
+                # none of them, or all five after the verified download
+                result.append(f"{name}: missing while the other files of the set are present (download all five or none)")
             continue
         if entry["sha256"] != entry["declared_sha256"]:
             result.append(f"{name}: sha256 {entry['sha256']} is not the one in licenses.json")
@@ -186,67 +211,107 @@ def current_block(text: str) -> str | None:
 
 
 def write(root: Path = ROOT) -> bool:
-    """Refresh the table in the document; True when the document changed."""
+    """Refresh the table in the document, from the five files; True when the document changed.
+
+    The table records what the bytes say, so it is only written with all five present (``--ensure`` puts them there).
+    """
+    found = inventory(root)
+    missing = [entry["path"].rsplit("/", 1)[-1] for entry in found["files"] if not entry["present"]]
+    if missing:
+        raise FetchError(f"the table is generated from the bytes and {', '.join(missing)} is not present: run {ENSURE_COMMAND}")
     path = root / DOC_RELATIVE
     text = path.read_text(encoding="utf-8")
-    updated = _replace_block(text, render_block(inventory(root)))
+    updated = _replace_block(text, render_block(found))
     if updated == text:
         return False
     path.write_text(updated, encoding="utf-8")
     return True
 
 
-def check(root: Path = ROOT) -> list[str]:
-    """Every disagreement between the bytes, ``licenses.json`` and the document; empty when all agree."""
-    licenses = load_licenses(root)
-    found = inventory(root)
-    result = problems(found, licenses)
-    if licenses["omg_bpmn_xsd"].get("present_in_tree", True):
-        document = root / DOC_RELATIVE
-        if not document.is_file():
-            result.append(f"{DOC_RELATIVE.as_posix()} does not exist")
-        elif current_block(document.read_text(encoding="utf-8")) != render_block(found):
-            result.append(f"{DOC_RELATIVE.as_posix()}: the generated table is not the inventory of the bytes (run --write)")
+def _git(root: Path, *arguments: str) -> subprocess.CompletedProcess[str] | None:
+    try:
+        return subprocess.run(["git", "-C", str(root), *arguments], capture_output=True, text=True, check=False)
+    except OSError:
+        return None
+
+
+def git_problems(root: Path, section: dict[str, Any]) -> list[str]:
+    """Git tracks one of the files, or does not ignore it.  Nothing is said outside a Git checkout (an export, an archive)."""
+    inside = _git(root, "rev-parse", "--is-inside-work-tree")
+    if inside is None or inside.returncode != 0 or inside.stdout.strip() != "true":
+        return []
+    paths = [f"{section['directory']}/{name}" for name in sorted(section["files"])]
+    result = []
+    listed = _git(root, "ls-files", "-z", "--", *paths)
+    if listed is not None and listed.returncode == 0:
+        for item in (entry for entry in listed.stdout.split("\0") if entry):
+            result.append(f"{item}: listed by `git ls-files`; the repository never versions the files (git rm --cached)")
+    for path in paths:
+        ignored = _git(root, "check-ignore", "--no-index", "-q", "--", path)
+        if ignored is not None and ignored.returncode == 1:
+            result.append(f"{path}: not ignored by Git; .gitignore must ignore the five files")
     return result
 
 
-def _urlopen(url: str) -> bytes:
-    if not url.startswith("https://"):
-        raise FetchError(f"{url}: only https downloads are made")
-    try:
-        with urllib.request.urlopen(url, timeout=60) as response:  # noqa: S310 (https only, checked above)
-            return response.read()
-    except OSError as exc:
-        raise FetchError(f"{url}: {exc}") from exc
+def check(root: Path = ROOT) -> list[str]:
+    """Every disagreement between the bytes, ``licenses.json``, Git and the document; empty when all agree."""
+    licenses = load_licenses(root)
+    section = licenses["omg_bpmn_xsd"]
+    found = inventory(root)
+    result = problems(found, licenses) + git_problems(root, section)
+    document = root / DOC_RELATIVE
+    if not document.is_file():
+        result.append(f"{DOC_RELATIVE.as_posix()} does not exist")
+        return result
+    block = current_block(document.read_text(encoding="utf-8"))
+    present = [entry["present"] for entry in found["files"]]
+    if all(present):
+        if block != render_block(found):
+            result.append(f"{DOC_RELATIVE.as_posix()}: the generated table is not the inventory of the bytes (run --write)")
+    elif not any(present):
+        # Without the bytes the table must still list the digests that licenses.json declares.
+        for name, digest in sorted(section["sha256"].items()):
+            if block is None or f"`{digest}`" not in block:
+                result.append(f"{DOC_RELATIVE.as_posix()}: the generated table does not list the SHA-256 of {name} declared in licenses.json")
+    return result
 
 
 def fetch(destination: Path, root: Path = ROOT, opener: Callable[[str], bytes] | None = None) -> list[str]:
     """Download the files from ``source_base`` into ``destination``; nothing is written unless all five are the declared bytes."""
     section = load_licenses(root)["omg_bpmn_xsd"]
-    read = opener or _urlopen
-    downloaded: dict[str, bytes] = {}
-    for name in sorted(section["files"]):
-        url = f"{section['source_base']}{name}"
-        data = read(url)
-        found, declared = sha256_hex(data), section["sha256"][name]
-        if found != declared:
-            raise FetchError(f"{url}: SHA-256 {found} is not the declared {declared}; nothing was written")
-        downloaded[name] = data
-    destination.mkdir(parents=True, exist_ok=True)
-    for name, data in downloaded.items():
-        (destination / name).write_bytes(data)
-    return sorted(downloaded)
+    return hatch_build.download(destination, opener=opener, source_base=section["source_base"], digests=section["sha256"])
+
+
+def ensure(root: Path = ROOT, opener: Callable[[str], bytes] | None = None) -> bool:
+    """Put the five files in place below ``root`` unless they are there with the declared bytes; True if downloaded."""
+    section = load_licenses(root)["omg_bpmn_xsd"]
+    return hatch_build.ensure(
+        root / section["directory"],
+        opener=opener,
+        source_base=section["source_base"],
+        digests=section["sha256"],
+        command=ENSURE_COMMAND,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--root", type=Path, default=ROOT, help="the repository root (default: this one)")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--check", action="store_true", help="exit 1 if the bytes, licenses.json and the document disagree")
+    group.add_argument("--ensure", action="store_true", help="download the files unless they are present and verify")
+    group.add_argument("--check", action="store_true", help="exit 1 if the bytes, licenses.json, Git and the document disagree")
     group.add_argument("--write", action="store_true", help="refresh the generated table of the document")
     group.add_argument("--json", action="store_true", help="print the inventory as JSON")
     group.add_argument("--fetch", type=Path, metavar="DIR", help="download the files from the official source, verifying SHA-256")
     arguments = parser.parse_args(argv)
+    if arguments.ensure:
+        try:
+            downloaded = ensure(arguments.root)
+        except FetchError as exc:
+            print(f"ensure failed: {exc}", file=sys.stderr)
+            return 1
+        print("xsd files: " + ("downloaded and verified" if downloaded else "already present and verified"))
+        return 0
     if arguments.fetch is not None:
         try:
             names = fetch(arguments.fetch, arguments.root)
@@ -256,7 +321,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"fetched and verified {len(names)} files into {arguments.fetch}")
         return 0
     if arguments.write:
-        print("updated" if write(arguments.root) else "already current")
+        try:
+            print("updated" if write(arguments.root) else "already current")
+        except FetchError as exc:
+            print(f"write failed: {exc}", file=sys.stderr)
+            return 1
         return 0
     if arguments.json:
         print(json.dumps(inventory(arguments.root), indent=2, sort_keys=True))

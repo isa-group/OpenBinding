@@ -153,6 +153,8 @@ def test_sdist_has_sources_license_notice_readme_and_pyproject_only(name: str) -
     expected = {f"src/{module}/{item}" for item in files_below(source)}
     # hatchling adds .gitignore and PKG-INFO to every sdist
     expected |= {".gitignore", "PKG-INFO", "README.md", "LICENSE", "NOTICE.md", "pyproject.toml"}
+    if name == "bim-core":
+        expected.add("hatch_build.py")  # the build hook that downloads and verifies the OMG XSDs when the wheel is built from it
     assert members == expected
     assert all(item.startswith(f"{top}/") for item in names)
 
@@ -163,6 +165,33 @@ def test_the_core_sdist_has_every_resource() -> None:
     for item in files_below(CORE_SRC / "resources"):
         assert f"{top}/resources/{item}" in members, item
     assert f"{top}/py.typed" in members
+
+
+def test_the_wheel_and_the_sdist_of_bim_core_carry_the_five_omg_xsds_with_the_declared_bytes() -> None:
+    """Git does not version the files and the build downloads them; the artifacts must carry them all the same, byte for byte."""
+    assert ps.xsd_problems(wheel_of("bim-core")) == []
+    assert ps.xsd_problems(sdist_of("bim-core")) == []
+    for name in ("bim-service", "bim-client"):
+        assert not any(item.endswith(".xsd") for item in wheel_names(wheel_of(name)))
+
+
+def test_the_sdist_of_bim_core_carries_the_build_hook_and_the_wheel_does_not() -> None:
+    members = set(sdist_names(sdist_of("bim-core")))
+    assert "bim_core-0.2.0/hatch_build.py" in members
+    assert not any(item.endswith("hatch_build.py") for item in wheel_names(wheel_of("bim-core")))
+
+
+def test_a_wheel_rebuilt_from_the_sdist_carries_the_xsds_too(tmp_path: Path) -> None:
+    uv = ps.require_uv()
+    unpacked = extract_sdist(sdist_of("bim-core"), tmp_path / "sdist")
+    out = tmp_path / "wheel"
+    result = subprocess.run(
+        [uv, "build", "--wheel", "--out-dir", str(out), str(unpacked)],
+        capture_output=True, text=True, check=False, cwd=tmp_path, env=ps.build_environment(),
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    (rebuilt,) = out.glob("bim_core-*.whl")
+    assert ps.xsd_problems(rebuilt) == []
 
 
 def test_the_digest_of_the_wheel_equals_the_digest_of_the_source_tree() -> None:

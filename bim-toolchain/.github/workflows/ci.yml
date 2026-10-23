@@ -8,9 +8,9 @@
 # and the entry of the list) and let Dependabot update them. No SHA has been invented.
 #
 # The tests that run here leave out the tier that reads the OpenBinding corpus (`-m "not openbinding_corpus"`); the
-# golden-corpus job compares with the corpus and fails without it. If the OMG XSD files are not in the tree (the export
-# leaves them out until they are cleared, docs/OMG_XSD_RIGHTS.md), a step after each checkout fetches them from the
-# official source and verifies their SHA-256.
+# golden-corpus job compares with the corpus and fails without it. The five OMG XSD files are not versioned in Git
+# (docs/OMG_XSD_RIGHTS.md): a step right after each checkout downloads them from the official source over https and
+# verifies their SHA-256 (all five or an error); the wheels and sdists built afterwards carry them.
 #
 # No job publishes anything or reads a secret.
 
@@ -42,9 +42,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - name: Download the OMG BPMN XSDs and verify their SHA-256 (they are not versioned in Git)
+        run: python3 tools/xsd_inventory.py --ensure
       - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: "3.12"
+      # Git must neither list nor fail to ignore the five OMG XSDs, and the table of docs/OMG_XSD_RIGHTS.md is their inventory.
+      - name: The repository does not version the OMG BPMN XSDs
+        run: python3 tools/xsd_inventory.py --check
       - run: python -m pip install ruff
       # Each package carries its own [tool.ruff] table.
       - run: ruff check packages tools
@@ -58,6 +63,8 @@ jobs:
         package: [bim-core, bim-service, bim-client]
     steps:
       - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - name: Download the OMG BPMN XSDs and verify their SHA-256 (they are not versioned in Git)
+        run: python3 tools/xsd_inventory.py --ensure
       - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: ${{ matrix.python-version }}
@@ -80,6 +87,8 @@ jobs:
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - name: Download the OMG BPMN XSDs and verify their SHA-256 (they are not versioned in Git)
+        run: python3 tools/xsd_inventory.py --ensure
       - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: ${{ matrix.python-version }}
@@ -106,6 +115,8 @@ jobs:
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - name: Download the OMG BPMN XSDs and verify their SHA-256 (they are not versioned in Git)
+        run: python3 tools/xsd_inventory.py --ensure
       - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: ${{ matrix.python-version }}
@@ -136,6 +147,8 @@ jobs:
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - name: Download the OMG BPMN XSDs and verify their SHA-256 (they are not versioned in Git)
+        run: python3 tools/xsd_inventory.py --ensure
       - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: ${{ matrix.python-version }}
@@ -168,6 +181,8 @@ jobs:
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - name: Download the OMG BPMN XSDs and verify their SHA-256 (they are not versioned in Git)
+        run: python3 tools/xsd_inventory.py --ensure
       - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: ${{ matrix.python-version }}
@@ -196,6 +211,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - name: Download the OMG BPMN XSDs and verify their SHA-256 (they are not versioned in Git)
+        run: python3 tools/xsd_inventory.py --ensure
       - uses: astral-sh/setup-uv@v5 # PIN-PENDING: replace by the full commit SHA
       - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
@@ -227,6 +244,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - name: Download the OMG BPMN XSDs and verify their SHA-256 (they are not versioned in Git)
+        run: python3 tools/xsd_inventory.py --ensure
       - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:
           python-version: "3.12"

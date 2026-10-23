@@ -4,15 +4,20 @@ clean venv are, and how they are built.
 Building is done on demand: ``ensure_dist()`` and ``ensure_verify_venv()`` build (and rebuild when the sources changed)
 what the tests need, so that no packaging test has to skip for lack of ``dist/`` or ``.verify-venv``.  They need ``uv``
 and fail with a clear message when it is missing; nothing here skips.
+
+The five OMG BPMN XSDs are not versioned: ``ensure_xsd()`` puts them in place (verified download, nothing to do when
+they are there) before anything is built, and ``xsd_problems()`` checks their bytes inside a wheel or an sdist.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 import tomllib
 import venv
@@ -236,8 +241,65 @@ def source_fingerprint(root: Path = ROOT) -> str:
     return digest.hexdigest()
 
 
+def ensure_xsd(root: Path = ROOT) -> bool:
+    """The five OMG BPMN XSDs in place below ``root`` (they are not versioned; a build needs them to ship them).
+
+    Nothing happens when they are there with the declared bytes; otherwise they are downloaded and verified, and without
+    network that is a ``BuildError`` naming the command to run.  True if they were downloaded now.
+    """
+    if str(Path(__file__).resolve().parent) not in sys.path:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import xsd_inventory
+
+    try:
+        return xsd_inventory.ensure(root)
+    except xsd_inventory.FetchError as exc:
+        raise BuildError(str(exc)) from exc
+
+
+def declared_xsd(root: Path = ROOT) -> tuple[str, dict[str, str]]:
+    """The directory of the XSDs inside the package (``bim_core/resources/vendor/...``) and the SHA-256 ``licenses.json`` declares."""
+    section = json.loads((root / "licenses.json").read_text(encoding="utf-8"))["omg_bpmn_xsd"]
+    return section["directory"].removeprefix("packages/bim-core/src/"), dict(section["sha256"])
+
+
+def xsd_problems(path: Path, root: Path = ROOT) -> list[str]:
+    """What is wrong with the OMG XSDs inside a wheel or an sdist of ``bim-core``: a file missing, repeated or not the declared bytes.
+
+    They are not versioned, so they reach an artifact only through the download of the build; this reads the bytes of
+    the archive, not the tree the archive was made from.
+    """
+    directory, digests = declared_xsd(root)
+    if path.suffix == ".whl":
+        with zipfile.ZipFile(path) as archive:
+            contents = {name: archive.read(name) for name in archive.namelist()}
+        wanted = {name: f"{directory}/{name}" for name in digests}
+        members = {name: [member for member in contents if member == wanted[name]] for name in digests}
+    else:
+        with tarfile.open(path) as archive:
+            contents = {
+                member.name: archive.extractfile(member).read()  # type: ignore[union-attr]
+                for member in archive.getmembers()
+                if member.isfile()
+            }
+        # the sdist keeps the layout of the project below one top directory: <top>/src/bim_core/resources/...
+        wanted = {name: f"src/{directory}/{name}" for name in digests}
+        members = {
+            name: [member for member in contents if member.partition("/")[2] == wanted[name]] for name in digests
+        }
+    problems: list[str] = []
+    for name, declared in sorted(digests.items()):
+        found = members[name]
+        if len(found) != 1:
+            problems.append(f"{path.name}: {len(found)} copies of {name}, expected 1")
+        elif hashlib.sha256(contents[found[0]]).hexdigest() != declared:
+            problems.append(f"{path.name}: {found[0]} is not the declared bytes (SHA-256 of licenses.json)")
+    return problems
+
+
 def ensure_dist() -> Path:
     """``dist/`` with the wheels and sdists of the current sources, built now unless they are already up to date."""
+    ensure_xsd()
     fingerprint = source_fingerprint()
     marker = DIST / FINGERPRINT_FILE
     if marker.is_file() and marker.read_text(encoding="utf-8").strip() == fingerprint and len(artifacts_in(DIST)) == 2 * len(PACKAGES):

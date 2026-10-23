@@ -44,6 +44,27 @@ def test_licenses_json_records_the_holder_the_spdx_identifier_and_the_scope(lice
     assert omg["license"] == "not demonstrated"
 
 
+def test_the_omg_schemas_are_not_versioned_and_the_documents_leave_shipping_them_to_the_owner(licenses: dict) -> None:
+    """Git never carries the five files and every build downloads them; the artifacts do ship them. The rights stay
+    not demonstrated, and whether the artifacts may carry them is the owner's decision, not this repository's."""
+    section = licenses["omg_bpmn_xsd"]
+    assert section["present_in_tree"] is False
+    assert section["cleared"] is False and section["status"] == "not-demonstrated"
+    omg = next(item for item in licenses["third_party"] if "OMG BPMN" in item["name"])
+    assert omg["license"] == "not demonstrated"
+    assert "not versioned" in omg["redistribution"] and "decision of the owner" in omg["redistribution"]
+    assert "SHA-256" in omg["redistribution"] and "images" in omg["redistribution"]
+    for name in (
+        "NOTICE.md", "THIRD_PARTY_NOTICES.md", "README.md", "docs/LICENSING.md", "docs/OMG_XSD_RIGHTS.md", "docs/PACKAGING.md",
+        "docs/RELEASING.md", "docs/DELIVERY.md", "CHANGELOG.md",
+    ):
+        flat = re.sub(r"\s+", " ", read(name))
+        assert "decision of the owner" in flat, name
+        assert "leaves them out until" not in flat and "blocked in the export" not in flat, name
+    for name in ("NOTICE.md", "THIRD_PARTY_NOTICES.md", "README.md", "docs/LICENSING.md", "docs/RELEASING.md", "docs/PACKAGING.md"):
+        assert "--xsd include" not in read(name), name
+
+
 def test_the_spdx_identifier_is_declared_by_the_manifest_not_by_every_module(licenses: dict) -> None:
     """A comment in a module of bim_core would change compilerDigest (it covers every .py file) and the goldens."""
     assert "compilerDigest" in licenses["spdx_policy"]

@@ -18,24 +18,32 @@ semantic digests, evaluations and `zip_equivalence` unchanged, and a coherence t
 `bim-service` Docker image built in the laboratory with the per-package `LICENSE`.
 
 **Not executed:** push, GitHub, the real CI (`ci.yml` has never run anywhere), Python 3.12, macOS, the `export_repo.py` sequence
-on the Mac, and the operator's `gh auth`. The holder's decision on the OMG XSDs is pending.
+on the Mac, and the operator's `gh auth`. The decision of the owner on whether the OMG XSDs may stay inside the artifacts is
+open.
+
+**The hashes above are out of date.** The OMG XSDs are no longer versioned in Git: `packages/bim-core/hatch_build.py` (a
+hatchling build hook) downloads them and checks their SHA-256 before every build, and `artifacts` in the `pyproject.toml` of
+`bim-core` makes the wheel and the sdist carry them. That, and the new text of `NOTICE.md`, changed all six artifacts
+(`compilerDigest` did not). Run `python3 tools/verify_release.py --skip-corpus` for the current hashes before comparing
+anything with `DELIVERY.md`.
 
 Steps for the Mac, in order (the exact commands, the checks of each step and the rollback are in [`DELIVERY.md`](DELIVERY.md);
 this procedure does not push anything by itself):
 
 1. In a clone of OpenBinding with `bim-toolchain/` committed, with `git config user.name` and `user.email` set, run
    `python3 bim-toolchain/tools/export_repo.py --output "$HOME/export/bim-toolchain"` (`DELIVERY.md`, sections 0 and 1). The
-   default leaves the five OMG XSDs out.
+   five OMG XSDs are not versioned, so they are not in the export either.
 2. Look at the result before anything else (`DELIVERY.md`, section 2): one commit, your identity, no remote, no tag;
-   `tools/xsd_inventory.py --check`; fetch the XSDs and run `tools/verify_release.py --skip-corpus` and compare the hashes with
-   `DELIVERY.md`, section 4. Python 3.12 and macOS results are new information at this step: record them.
+   `tools/xsd_inventory.py --check`; `tools/xsd_inventory.py --ensure` downloads and verifies the XSDs; run
+   `tools/verify_release.py --skip-corpus`, whose hashes replace the table of `DELIVERY.md`, section 4 (out of date). Python 3.12 and macOS results are new information at this step: record them.
 3. Only after that, and only if you decide to publish: `gh auth status`, `gh repo create`, add the remote and push
    (`DELIVERY.md`, section 3). Then pin the actions to SHAs and check the first run of `ci.yml` before tagging. If you do not
    decide to publish, stop after step 2: nothing has left the machine.
 
-What stands between this tree and a published repository is: (1) the holder's decision on the five OMG BPMN XSDs, whose
-redistribution is **not demonstrated** ([`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md)): either the export leaves them out and the
-build fetches them with a verified download (the default), or the holder records a clearance in `licenses.json`; (2) a Git
+What stands between this tree and a published repository is: (1) the decision of the owner on the five OMG BPMN XSDs, whose
+redistribution is **not demonstrated** ([`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md)): the repository never versions them and every
+build downloads them with a verified SHA-256, but the wheels, sdists, SDK and images carry them, and releasing those
+artifacts is the owner's decision; (2) a Git
 credential limited to that repository, used by the person who publishes; (3) pinning the actions of the workflows to commit
 SHAs (the exact list is in `licenses.json`, `action_pins`; they are marked `PIN-PENDING` and a test fails on an unmarked
 one). The status of the other items is in "Estado reconciliado" of `EXTRACTION_LOG.md`.
@@ -74,8 +82,10 @@ A change to `bim_core/toolchain.py` (the definition of what the digest covers) i
    until you do.
 3. `python tools/dump_service_openapi.py --check` and `python tools/consumer_fixtures.py --check`. The OpenAPI
    document changes only with the API; review the diff as a contract change.
-4. `python tools/verify_release.py` (add `--skip-corpus` in a tree without the corpus): builds the three wheels and sdists
-   twice in two directories and requires the same SHA-256, installs the wheels in a clean venv, runs
+4. `python tools/verify_release.py` (add `--skip-corpus` in a tree without the corpus): puts the OMG XSDs in place (verified
+   download, only if a file is missing), builds the three wheels and sdists
+   twice in two directories and requires the same SHA-256 (and the XSDs inside the wheel and the sdist of `bim-core` with
+   the bytes `licenses.json` declares), installs the wheels in a clean venv, runs
    `tools/smoke_installed.py` with `-I`, compares the `compilerDigest` of wheel, tree, sdist, installation and service
    (`PACKAGING.md`), checks the OpenAPI document, the consumer fixtures, the corpus baseline and `toolchain.json`, and
    prints the hashes. The release workflow does steps 2-4 again.
@@ -111,8 +121,8 @@ make the repository is `tools/export_repo.py`, which writes a new repository wit
 python3 bim-toolchain/tools/export_repo.py --output ../bim-toolchain-export     # from a clone of OpenBinding, committed
 ```
 
-It refuses to export (nothing is created) if it finds a secret, an inconsistent license inventory, a file that is not the
-holder's own, a link that leaves the repository, or if the exported tree does not pass `-m 'not openbinding_corpus'` from
+It refuses to export (nothing is created) if it finds a secret, an inconsistent license inventory, a committed tree that
+versions the OMG XSDs, a file that is not the holder's own, a link that leaves the repository, or if the exported tree does not pass `-m 'not openbinding_corpus'` from
 scratch. The history is not carried over: the earlier alternative, `git subtree split`, carries the commit messages of this
 directory and is no longer the documented way.
 
@@ -121,10 +131,11 @@ private), push `main`, and pin the actions to SHAs (`PIN-PENDING` in both workfl
 
 ### Decide before publishing
 
-1. **The OMG XSDs.** Their redistribution is not demonstrated ([`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md)). By default the export
-   leaves the five files out and its workflows fetch them from the official source, verifying their SHA-256. To export
-   them, the holder first records the clearance in `licenses.json` (`cleared`, `cleared_by`, `cleared_on`, `evidence`).
-   The license of the code, CC-BY-4.0, and its holder are already recorded ([`LICENSING.md`](LICENSING.md)); changing the
+1. **The OMG XSDs.** Their redistribution is not demonstrated ([`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md)). The repository, and
+   therefore the export, never carries the five files, and the workflows download them from the official source, verifying
+   their SHA-256. The wheels and sdists of a release do carry them: whether that is acceptable is a decision of the owner,
+   and a clearance recorded in `licenses.json` (`cleared`, `cleared_by`, `cleared_on`, `evidence`) is what would settle the
+   rights. The license of the code, CC-BY-4.0, and its holder are already recorded ([`LICENSING.md`](LICENSING.md)); changing the
    license means changing `LICENSE`, the three `pyproject.toml`, `NOTICE.md` and its copies, `licenses.json` and the tests
    that pin them.
 2. **Whether the history may travel.** The export does not carry it; the commit cites the OpenBinding commit it came from.

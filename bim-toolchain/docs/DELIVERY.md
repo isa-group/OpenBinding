@@ -16,10 +16,13 @@ and nothing was pushed. No secret and no credential is stored in this repository
 * `git config user.name` and `git config user.email` are set in that clone: the single commit of the new repository is
   authored by that identity. The message is neutral (`Import bim-toolchain from OpenBinding at <commit>`) and cites the commit
   it came from. The tool never adds trailers and never names a tool or an assistant.
-* The decision about the OMG XSD files ([`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md)). By default (`--xsd auto`) they are **blocked**:
-  the export leaves the five files out. To include them, edit `licenses.json` in the clone (`omg_bpmn_xsd`: `cleared: true`,
-  `status: "cleared"`, `cleared_by`, `cleared_on`, `evidence`), commit, and export with `--xsd include`; the tool refuses
-  `--xsd include` while the record is not complete.
+* The OMG XSD files ([`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md)) are **never** in the repository: the clone does not version
+  them (`git ls-files` does not list them; `python3 bim-toolchain/tools/xsd_inventory.py --check` fails if it does), and the
+  export refuses a committed tree that does and never copies them. Every build downloads them from omg.org over https and
+  verifies their SHA-256. The wheels, sdists, SDK and images do carry them; whether they may stay there is a decision of the
+  owner (the rights are not demonstrated). The old switch (`--xsd auto|include|exclude`) no longer exists.
+* **The hashes of the artifacts in section 4 are out of date.** The build hook, `artifacts` and the new text of `NOTICE.md`
+  changed all six files (`compilerDigest` did not). Run `python3 tools/verify_release.py --skip-corpus` and use its hashes.
 
 ## 1. Export (writes only the output directory)
 
@@ -31,13 +34,13 @@ python3 bim-toolchain/tools/export_repo.py --output "$HOME/export/bim-toolchain"
 The output directory must not exist or be empty. The tool stages the committed tree, leaves out what never travels
 (bootstrap markers, configuration and credentials, logs, datasets, caches and build output), and **refuses, creating
 nothing**, if any of these fails: the scan for secrets (it reports file, line and kind, never the secret); the license
-inventory (`licenses.json` coherent, `CC-BY-4.0` everywhere, the four `NOTICE.md` equal, `Private :: Do Not Upload` kept);
-no file that is not the holder's own (nothing vendored that `licenses.json` does not declare, no binary file); no Markdown link
-that leaves the repository; and self-containment: the tree, copied elsewhere, passes `pytest -m 'not openbinding_corpus'` from
-scratch with an empty corpus and no skipped test (a few minutes: it builds the wheels and a clean venv). When the OMG files are
-excluded, that copy gets them back from the source after checking their SHA-256, which is what the verified download does.
-`--skip-self-test` skips only that last check. It prints a JSON summary (commit, tree, number of files, source commit, whether
-the OMG files are included).
+inventory (`licenses.json` coherent, `present_in_tree` false, `CC-BY-4.0` everywhere, the four `NOTICE.md` equal, `Private :: Do
+Not Upload` kept); the OMG XSDs (the committed tree must not version any of them); no file that is not the holder's own
+(nothing vendored that `licenses.json` does not declare, no binary file); no Markdown link that leaves the repository; and
+self-containment: the tree, copied elsewhere, passes `pytest -m 'not openbinding_corpus'` from scratch with an empty corpus
+and no skipped test (a few minutes: it builds the wheels and a clean venv). In that copy the OMG files are **downloaded** from
+omg.org with their SHA-256 checked, so this step needs network access. `--skip-self-test` skips only that last check. It prints
+a JSON summary (commit, tree, number of files, source commit, how the OMG files arrive).
 
 Then it creates the repository: `git init`, branch `main`, one commit. It adds no remote, no tag, and pushes nothing.
 
@@ -52,18 +55,19 @@ git show --stat HEAD | grep -E 'licenses.json|NOTICE.md|LICENSE'
 python3 tools/xsd_inventory.py --check
 ```
 
-If the OMG files were excluded, fetch them (this is the step the exported workflows run after every checkout) and verify the
-release the way it is verified here:
+Download the OMG files (this is the step the workflows run after every checkout; `verify_release.py` and the builds also do
+it when a file is missing) and verify the release the way it is verified here:
 
 ```sh
-python3 tools/xsd_inventory.py --fetch packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2   # needs network; writes nothing unless all five SHA-256 match
+python3 tools/xsd_inventory.py --ensure   # needs network unless the five files are already there; writes nothing unless all five SHA-256 match
 python3 -m pip install 'jsonschema>=4.21,<5' 'lxml>=5.2,<7' 'pyyaml>=6,<7' 'fastapi>=0.110,<1.0' 'pydantic>=2,<3' 'uvicorn>=0.27,<1.0' 'httpx>=0.27,<1.0' 'pytest>=8,<9'
 python3 tools/verify_release.py --skip-corpus --artifacts-out /tmp/bim-release
 ```
 
-After the fetch `git status` lists the five files as untracked: do not add or commit them while their rights are not
-demonstrated (`git stash -u` or deleting them restores the exported state). `verify_release.py` prints one JSON summary and
-exits 0 only if everything passed; compare its artifact hashes with the table below.
+After the download `git status` does not list the five files (`.gitignore` ignores them) and `git ls-files` never does:
+`python3 tools/xsd_inventory.py --check` fails if that changes. Never `git add --force` them while their rights are not
+demonstrated. `verify_release.py` prints one JSON summary and exits 0 only if everything passed; **its artifact hashes
+replace the table below, which is out of date** (see the note in section 4).
 
 ## 3. Publish (by hand, after you have looked)
 
@@ -80,8 +84,14 @@ Then, in the new repository: pin the actions to commit SHAs (the workflows mark 
 
 ## 4. Expected values
 
+**Out of date.** The six artifact hashes below were obtained before the OMG XSDs stopped being versioned. `bim-core` now
+has a build hook (`hatch_build.py`, also in its sdist), an `artifacts` entry and a new `NOTICE.md` (copied into the three
+packages), so **all six artifacts changed** (`compilerDigest`, `protocolDigest`, `irDigest` and the goldens did not). Run
+`python3 tools/verify_release.py --skip-corpus` after `python3 tools/xsd_inventory.py --ensure` and take the hashes from its
+summary; they have not been recomputed here.
+
 Obtained by `python tools/verify_release.py` (Python 3.11, `uv build`, hatchling as recorded in `generator`), two builds in two
-directories with `SOURCE_DATE_EPOCH=1767225600`. They hold for this content of the packages (sources, readmes, notices,
+directories with `SOURCE_DATE_EPOCH=1767225600`. They held for that content of the packages (sources, readmes, notices,
 `pyproject.toml`) **with the five OMG XSD files in place**; a wheel built without them is another file, and the
 `compilerDigest` differs too. A different `hatchling` or `uv` may write other bytes: compare `generator` first.
 
@@ -125,5 +135,5 @@ venv installs whatever the index offers (the run above installed `lxml 6.1.3.0`,
   tag exists.
 * After the push: the repository is private and has one commit and no tag. Delete it as above, or make a fixing commit; do not
   rewrite what others may have cloned. Never reuse a tag once one exists (`RELEASING.md`).
-* If the OMG XSD files were exported by mistake: delete the repository (its history holds them) rather than removing the files
-  in a later commit.
+* If the OMG XSD files were committed by mistake (`xsd_inventory.py --check` and the export refuse that): delete the repository
+  (its history holds them) rather than removing the files in a later commit.

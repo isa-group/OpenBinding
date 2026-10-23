@@ -5,6 +5,10 @@ WORKDIR /workspace
 COPY openbinding-gateway/ openbinding-gateway/
 # The BIM language the benchmark compiles and evaluates with (bim-core; its dependencies are in requirements.lock).
 COPY bim-toolchain/packages/bim-core/src/ bim-toolchain/packages/bim-core/src/
+# The five OMG BPMN 2.0.2 XSDs bim-core validates BPMN with are not versioned in Git: downloaded here from omg.org over
+# https, each SHA-256 verified (all five or the build fails, nothing is written); verified instead if the context has them.
+COPY bim-toolchain/packages/bim-core/hatch_build.py bim-toolchain/packages/bim-core/
+RUN python bim-toolchain/packages/bim-core/hatch_build.py --ensure
 COPY schemas/ schemas/
 COPY experimentation/qacobench/ experimentation/qacobench/
 COPY datasets/scripts/transform_*.py datasets/scripts/write_benchmark_metadata.py transformations/scripts/

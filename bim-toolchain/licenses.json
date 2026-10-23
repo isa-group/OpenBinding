@@ -11,6 +11,7 @@
       "packages/*/src (Python sources of bim-core, bim-service and bim-client)",
       "packages/*/tests",
       "packages/*/README.md",
+      "packages/bim-core/hatch_build.py (the build hook that downloads and verifies the OMG schemas)",
       "packages/bim-core/src/bim_core/resources/schemas (JSON Schemas and the engine contract, written for BIM)",
       "tools",
       "docs",
@@ -37,7 +38,7 @@
       "name": "OMG BPMN 2.0.2 XML Schemas (BPMN20.xsd, Semantic.xsd, BPMNDI.xsd, DC.xsd, DI.xsd)",
       "paths": ["packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2"],
       "license": "not demonstrated",
-      "redistribution": "blocked in the export until omg_bpmn_xsd.cleared is true",
+      "redistribution": "not versioned in Git: downloaded from omg.org over https with SHA-256 verified at build time; wheels, sdists, the SDK and the images carry them, and including them in artifacts is a decision of the owner",
       "details": "docs/OMG_XSD_RIGHTS.md"
     },
     {
@@ -69,8 +70,8 @@
     "cleared_by": null,
     "cleared_on": null,
     "evidence": null,
-    "cleared_format": "To release the files for export the holder sets \"cleared\" to true, \"status\" to \"cleared\" and fills \"cleared_by\" (who), \"cleared_on\" (YYYY-MM-DD) and \"evidence\" (where the written confirmation of OMG, or the terms read, can be found). Nothing else clears them: tools/export_repo.py refuses --xsd include while \"cleared\" is not true and complete.",
-    "present_in_tree": true
+    "cleared_format": "To record that the rights are demonstrated the holder sets \"cleared\" to true, \"status\" to \"cleared\" and fills \"cleared_by\" (who), \"cleared_on\" (YYYY-MM-DD) and \"evidence\" (where the written confirmation of OMG, or the terms read, can be found). The record does not change how the files arrive: they are never versioned in Git (present_in_tree stays false) and are downloaded and verified at build time.",
+    "present_in_tree": false
   },
   "action_pins": {
     "state": "pending",

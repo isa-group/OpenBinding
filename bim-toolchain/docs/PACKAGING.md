@@ -24,6 +24,18 @@ Every wheel and sdist also carries `LICENSE` and `NOTICE.md` (`license-files`) a
   copy differs from the root file, and `verify_release.py` checks the built archives (`license-files`).
   `THIRD_PARTY_NOTICES.md` is not shipped. The OMG BPMN XSDs inside the wheel of `bim-core` are not
   covered by the license: [`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md), [`LICENSING.md`](LICENSING.md).
+- **The five OMG BPMN XSDs are not versioned in Git but are in every artifact.** `packages/bim-core/hatch_build.py` (standard
+  library only, outside `src/bim_core`, so `compilerDigest` does not change) is a hatchling build hook
+  (`[tool.hatch.build.hooks.custom]`): before every build (wheel, sdist, editable: `pip install`, `pip install -e`, `uv sync`,
+  `uv build`) it downloads the files from omg.org over https, compares each SHA-256 with the declared one and writes nothing
+  unless all five match; it does nothing if they are there. `[tool.hatch.build] artifacts` lists the five paths so that the
+  wheel and the sdist carry them although `.gitignore` ignores them, and the sdist includes `/hatch_build.py` so that
+  `uv build` can build the wheel from it. Nothing excludes them from an artifact. Without network the build stops with
+  `python3 <path>/hatch_build.py --ensure --directory <dir>`; put the files in place beforehand with
+  `python3 tools/xsd_inventory.py --ensure` (which is what the workflows, `tools/xsd_session.py` and
+  `packaging_support.ensure_xsd()` do). `verify_release.py` and `test_built_artifacts.py` compare the bytes of the five files
+  inside the wheel and the sdist with `licenses.json`. Whether they stay in the artifacts is a decision of the owner
+  ([`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md)).
 - **`NOTICE.md` and `LICENSE` exist four times each**: at the root and in each `packages/*/` directory, because hatchling
   only reads files below the project directory. `tools/test_packaging_metadata.py` and `tools/test_license_metadata.py` fail
   if a copy differs from the root file.
@@ -35,7 +47,7 @@ Every wheel and sdist also carries `LICENSE` and `NOTICE.md` (`license-files`) a
 - **The version is written twice** (`pyproject.toml` and `_version.py`, which becomes `__version__`) and a test fails
   if they differ, or if the three packages differ.
 - **The sdist** contains `src/`, `README.md`, `LICENSE`, `NOTICE.md`, `pyproject.toml`, `PKG-INFO` and the `.gitignore` hatchling
-  adds. It does not contain the tests: they read goldens and fixtures that live at the root of the repository, so an
+  adds (the sdist of `bim-core` also has `hatch_build.py`, the build hook). It does not contain the tests: they read goldens and fixtures that live at the root of the repository, so an
   sdist could not run them.
 
 ## Workspace (development)
@@ -55,6 +67,7 @@ checks of the extraction use.
 ## Build
 
 ```sh
+python3 tools/xsd_inventory.py --ensure      # the OMG XSDs are not in Git; the build hook would download them anyway
 rm -rf dist
 for p in bim-core bim-service bim-client; do (cd packages/$p && uv build --out-dir ../../dist); done
 ```
@@ -139,7 +152,8 @@ invalidates every stored IR (`DIGESTS.md`): recompile after upgrading, and repla
 
 The SHA-256 and sizes of the six artifacts are in the table of [`DELIVERY.md`](DELIVERY.md#4-expected-values), obtained by
 two identical builds after `LICENSE` was added to the packages (that change altered all six files; `compilerDigest` is the
-same as before).
+same as before). **Those hashes are out of date**: the build hook, the `artifacts` entry and the changed `NOTICE.md` changed
+all six artifacts (the `compilerDigest` is the same). Run `python3 tools/verify_release.py --skip-corpus` for the current ones.
 
 `tools/verify_release.py` builds the three packages twice, each time from a fresh copy of the sources in another directory,
 with `SOURCE_DATE_EPOCH=1767225600`, and compares the SHA-256 of the six artifacts. In the run recorded in `DELIVERY.md` they
@@ -151,8 +165,8 @@ wheel is reported in the summary); a different backend version may write other b
 ## Not verified
 
 - The release and CI workflows have never run (no remote); `.github/workflows/*.yml` is checked only by
-  `tools/test_workflows.py` (parsed as YAML, structure and policy), not by GitHub. The exported workflows (with the fetch step
-  that `export_repo.py` inserts) were parsed, not run.
+  `tools/test_workflows.py` (parsed as YAML, structure and policy), not by GitHub. That includes the step after every checkout
+  that runs `python3 tools/xsd_inventory.py --ensure`.
 - Actions are pinned by major version only: every `uses:` is marked `PIN-PENDING`, a test fails on one that is neither marked nor
   pinned to a commit SHA, and `licenses.json` lists exactly which are pending. No SHA was looked up or invented (no network
   to GitHub).
@@ -162,8 +176,11 @@ wheel is reported in the summary); a different backend version may write other b
 - `uv sync` / `uv run` inside the workspace were not run (the registered checks use the gateway's own uv project).
   `uv build` of each member did run with the workspace root in place (and in a copy of it) and accepted it.
 - Only Python 3.11 was used here; 3.12 is covered by the CI matrix, not run.
-- The verified download of the OMG XSDs (`xsd_inventory.py --fetch`) was exercised with a stand-in for the network
-  (digest match, mismatch, https only); it has never downloaded from omg.org here.
+- The verified download of the OMG XSDs (`hatch_build.py`, `xsd_inventory.py --ensure` and `--fetch`) is tested with a
+  stand-in for the network (digest match, mismatch, https only, no network, nothing written on a failure); the tests never use
+  the network. Whether hatchling really runs the hook and includes the ignored files through `artifacts` is exercised by
+  `tools/test_built_artifacts.py` and `verify_release.py`, which this change did not run (they are not among its registered
+  checks); the download from omg.org itself has never run from this work.
 - `ruff` was not run on this change (it is not a registered check).
 - The `Dockerfile` was edited to copy `NOTICE.md`; no record of a build was found (sin verificar). It does create and
   use UID/GID 10001 (`USER 10001:10001`), and `compose.lab.json` limits the `bim-service` container to `cpus` 1.5 and

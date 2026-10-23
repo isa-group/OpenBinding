@@ -499,3 +499,15 @@ The documents were edited after these runs (the figures above are those of the r
 - The download of the XSDs from omg.org (tested with a stand-in); the terms of OMG, which nobody here has read.
 - Legal questions about CC BY 4.0 for software (recorded as a risk, not decided) and the legal name of the holder.
 - `packages/*/README.md` still say the license is undecided; they were not among the files this step could change.
+
+## Step 7: the OMG XSDs leave Git (update to step 6)
+
+*This section supersedes what step 6 says about the XSDs ("the export blocks them by default", the `--xsd` switch, the stand-in
+download).* The five files are no longer versioned: `.gitignore` ignores them, `licenses.json` has `present_in_tree: false`, and
+`tools/xsd_inventory.py --check` fails if Git lists one or does not ignore it. Every build downloads them from omg.org over
+https and verifies each SHA-256, all five or none (`packages/bim-core/hatch_build.py`, a hatchling hook outside `src/bim_core`,
+so `compilerDigest` and the goldens are unchanged); the workflows, the Docker images, the test sessions and the tools do the same
+(`docs/OMG_XSD_RIGHTS.md`, "How the files arrive"). The wheels, sdists, SDK and images do carry the files. Rights: still not
+demonstrated; whether the artifacts may carry them is a decision of the owner. The six artifacts changed, so the hashes of
+`docs/DELIVERY.md` are out of date (`verify_release.py --skip-corpus` gives the current ones). What was run for this step is in the
+report of the task, not here.

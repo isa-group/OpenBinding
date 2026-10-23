@@ -32,10 +32,16 @@ WORKDIR /build
 # copied with it; nothing else of the packages is.
 COPY packages/bim-core/pyproject.toml packages/bim-core/README.md packages/bim-core/LICENSE packages/bim-core/NOTICE.md packages/bim-core/
 COPY packages/bim-core/src packages/bim-core/src
+# The five OMG BPMN 2.0.2 XSDs are not versioned in Git: they are downloaded from omg.org over https before the install
+# and each SHA-256 is verified (all five or the build fails, nothing is written). The same script is the build hook of
+# bim-core; a copy of the files already in the context is verified instead of downloaded.
+COPY packages/bim-core/hatch_build.py packages/bim-core/
+RUN python packages/bim-core/hatch_build.py --ensure
 COPY packages/bim-service/pyproject.toml packages/bim-service/README.md packages/bim-service/LICENSE packages/bim-service/NOTICE.md packages/bim-service/
 COPY packages/bim-service/src packages/bim-service/src
 
-# The licence texts and notices travel with the code (the OMG BPMN schemas inside bim_core keep their own).
+# The licence texts and notices travel with the code (the OMG BPMN schemas inside bim_core are not covered by them:
+# docs/OMG_XSD_RIGHTS.md).
 COPY LICENSE NOTICE.md THIRD_PARTY_NOTICES.md /usr/share/doc/bim-service/
 
 # One pip invocation, so that bim-service's requirement on bim-core is met by the local copy.

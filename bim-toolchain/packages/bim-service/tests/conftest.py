@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import signal
+import sys
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,13 @@ from starlette.testclient import TestClient
 
 from bim_service.app import create_app
 from bim_service.settings import BimServiceSettings
+
+# The OMG BPMN XSDs are not versioned: the session that runs these tests puts them in place first (tools/xsd_session.py).
+TOOLS_DIR = Path(__file__).resolve().parents[3] / "tools"
+if str(TOOLS_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOLS_DIR))
+
+from xsd_session import pytest_report_header, pytest_sessionstart  # noqa: E402,F401
 
 
 #: Measurements that tests want to show: written by the ``report`` fixture, printed once at the end of the session.

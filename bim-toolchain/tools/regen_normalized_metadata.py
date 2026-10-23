@@ -353,6 +353,7 @@ def write(arguments: argparse.Namespace) -> int:
     else:
         messages.append(f"{relative(SYNTHETIC)} already current")
 
+    xsd_inventory.ensure(ROOT)  # the table is generated from the bytes; the files are not versioned
     messages.append("docs/OMG_XSD_RIGHTS.md table " + ("refreshed" if xsd_inventory.write(ROOT) else "already current"))
     for message in messages:
         print(message)

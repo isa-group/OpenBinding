@@ -48,7 +48,7 @@ projects) is part of this repository: only the notice is.
 
 | Material | Where | Status |
 |---|---|---|
-| OMG BPMN 2.0.2 XML Schemas (`BPMN20.xsd`, `Semantic.xsd`, `BPMNDI.xsd`, `DC.xsd`, `DI.xsd`) | `packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2/` | Not covered by the license of this repository. The terms under which OMG allows their redistribution are **not demonstrated** (`docs/OMG_XSD_RIGHTS.md`); the export leaves them out until the holder records a clearance in `licenses.json`. |
+| OMG BPMN 2.0.2 XML Schemas (`BPMN20.xsd`, `Semantic.xsd`, `BPMNDI.xsd`, `DC.xsd`, `DI.xsd`) | `packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2/` (downloaded, not in Git) | Not covered by the license of this repository. The terms under which OMG allows their redistribution are **not demonstrated** (`docs/OMG_XSD_RIGHTS.md`). Git does not version them: every build downloads them from omg.org over https and verifies their SHA-256 (all five or none). Wheels, sdists, the SDK and the images carry them as downloaded; keeping them in the artifacts is a decision of the owner. |
 | Python dependencies (`jsonschema`, `lxml`, `PyYAML`, `FastAPI`, `pydantic`, `uvicorn`, `httpx`) and the build backend (`hatchling`) | not in this repository | Not vendored. Installed from an index; each is under its own license, stated in the metadata of the installed distribution. |
 
 The license of the material written for this repository is CC-BY-4.0 (`LICENSE`,

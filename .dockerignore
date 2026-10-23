@@ -3,8 +3,11 @@
 !openbinding-gateway/**
 # The gateway image installs bim-core and bim-client (metadata and sources) and nothing else of
 # the toolchain: not bim-service, not the tests, not the corpus. openbinding-gateway/Dockerfile
-# COPYs exactly these paths; tests/test_docker_context.py keeps both in step.
+# COPYs exactly these paths; tests/test_docker_context.py keeps both in step. hatch_build.py is the
+# build hook of bim-core and the verified download of its five OMG XSDs, which Git does not version
+# (tests/test_omg_xsd_wiring.py).
 !bim-toolchain/packages/bim-core/pyproject.toml
+!bim-toolchain/packages/bim-core/hatch_build.py
 !bim-toolchain/packages/bim-core/README.md
 !bim-toolchain/packages/bim-core/NOTICE.md
 !bim-toolchain/packages/bim-core/src

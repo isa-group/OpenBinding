@@ -31,7 +31,7 @@ keeps a byte copy of the root `LICENSE` and `NOTICE.md`, and tests fail if a cop
 | Python sources of `bim-core`, `bim-service`, `bim-client`; their tests; `tools/`; `docs/`; `contracts/`; `.github/` | CC-BY-4.0 |
 | The JSON Schemas and the engine contract in `bim_core/resources/schemas` (written for BIM) | CC-BY-4.0 |
 | `golden/` (digests and numeric summaries computed by this toolchain; no dataset content) | CC-BY-4.0 |
-| The five OMG BPMN 2.0.2 XML Schemas under `bim_core/resources/vendor/omg/bpmn/2.0.2/` | **Not covered.** Rights not demonstrated: [`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md) |
+| The five OMG BPMN 2.0.2 XML Schemas under `bim_core/resources/vendor/omg/bpmn/2.0.2/` (not versioned in Git: downloaded and verified at build time, carried by the wheels, sdists, SDK and images) | **Not covered.** Rights not demonstrated: [`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md) |
 | Python dependencies (`jsonschema`, `lxml`, `PyYAML`, `FastAPI`, `pydantic`, `uvicorn`, `httpx`) and the build backend | **Not covered, not vendored.** Each is installed from an index under its own license |
 | The material credited in `THIRD_PARTY_NOTICES.md` (the Universidad de Sevilla mark and the MIT projects of OpenBinding) | **Not covered.** Only its notice is here; none of that material is |
 
@@ -59,7 +59,9 @@ holder is untouched, and changing it later means replacing `LICENSE`, the `licen
 
 ## What this does not settle
 
-* The rights over the OMG schemas (state: not demonstrated; the export leaves them out until the holder clears them).
+* The rights over the OMG schemas (state: not demonstrated). The repository never versions the five files and every build
+  downloads them with a verified SHA-256, but the wheels, sdists, SDK and images do carry them, so whether they may stay in
+  the artifacts and in a release is a decision of the owner ([`OMG_XSD_RIGHTS.md`](OMG_XSD_RIGHTS.md)).
 * The rights of anyone who contributed code or data before it was in this repository: the holder is the person who decides
   and answers for it.
 * The license of the dependencies a user installs.

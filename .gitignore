@@ -258,6 +258,11 @@ space/space-src/
 # macOS metadata
 .DS_Store
 
+# The five OMG BPMN 2.0.2 XSDs are never versioned: they are downloaded from omg.org and their SHA-256
+# is verified (bim-toolchain/packages/bim-core/hatch_build.py, bim-toolchain/tools/xsd_inventory.py --ensure).
+# Wheels, sdists, the SDK and the images do carry them. `xsd_inventory.py --check` fails if Git lists them.
+/bim-toolchain/packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2/*.xsd
+
 # Zenodo downloads and generated release bundles stay outside Git history.
 /output/zenodo/*.tar.xz
 /output/zenodo/*.tar.gz
