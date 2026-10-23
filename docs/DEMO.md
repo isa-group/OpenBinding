@@ -555,7 +555,7 @@ diagnostic guide, not a list of verified results.
    empty for uid 101 under rootless docker. **The configuration is baked into the image, not bind-mounted.** The
    `lab` stage of `frontend/Dockerfile` (`FROM prod AS lab`) copies
    `frontend/nginx.lab.conf` over `/etc/nginx/conf.d/default.conf`; `prod`,
-   which Kubernetes uses, is unchanged. An earlier version bind-mounted the
+   the production image, is unchanged. An earlier version bind-mounted the
    configuration from the host; with rootless docker and an extracted,
    read-only copy of the tree that directory could be empty or unreadable for
    uid 101, so nginx started its workers with no `server` block: nothing

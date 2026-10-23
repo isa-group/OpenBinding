@@ -569,8 +569,8 @@ Cross-origin responses expose these headers to the browser (not configurable):
 `Retry-After`, `ETag`, `Location`, `Content-Disposition`, `Digest` and
 `Idempotency-Key`. Without `Retry-After` the frontend cannot read the delay of a
 `429`. **Upgrading:** a deployment that relied on the old `*` default must now set
-`CORS_ALLOW_ORIGINS`; the provided `docker-compose.yml` and Kubernetes config
-already do.
+`CORS_ALLOW_ORIGINS`; the provided `docker-compose.yml`
+already does.
 
 Every one of these is declared in `core/settings.py`, which is the answer to
 "what can be configured?".

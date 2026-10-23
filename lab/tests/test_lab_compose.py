@@ -773,7 +773,7 @@ def test_nginx_listens_on_the_published_target_and_strips_the_api_prefix(service
 
 
 def test_prod_stage_is_stock_nginx_and_lab_stage_bakes_in_the_lab_config():
-    # Target `prod` (used by Kubernetes) is nginx:1.27-alpine plus the build output and must not
+    # Target `prod` (the production image) is nginx:1.27-alpine plus the build output and must not
     # change; target `lab` is built FROM it and only replaces conf.d/default.conf.
     dockerfile = DOCKERFILE.read_text(encoding="utf-8")
     assert dockerfile.count("FROM nginx:1.27-alpine AS prod") == 1
