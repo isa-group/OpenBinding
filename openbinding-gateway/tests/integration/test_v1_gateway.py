@@ -5,17 +5,16 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 import json
-import time
 import uuid
 
 import httpx
 import pytest
 
 from bim_core.canonical import digest
+from job_polling import wait_for_job
 
 
 GATEWAY_URL = "http://127.0.0.1:8000"
-TERMINAL_JOB_STATES = {"completed", "failed"}
 
 
 def _semantic_ir_digest(document: dict) -> str:
@@ -33,6 +32,9 @@ class EngineCase:
     example: str
     endpoint: str
     options: dict[str, object]
+    # POST /v1/jobs answers 422 optimization_required without it; the weights
+    # are omitted and the toolchain assigns equal ones.
+    optimization: dict[str, str]
     algorithm: str
     reported_algorithm: str
     terminations: tuple[str, ...]
@@ -45,6 +47,7 @@ ENGINE_CASES = (
         example="demo/01_simple_seq",
         endpoint="http://engine-minizinc:3000",
         options={"solver": "gecode", "time_budget_ms": 10_000},
+        optimization={"type": "SINGLE", "scalarization": "weighted-sum"},
         algorithm="minizinc-csp",
         reported_algorithm="minizinc-csp",
         terminations=("OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"),
@@ -55,6 +58,7 @@ ENGINE_CASES = (
         example="demo/01_simple_seq",
         endpoint="http://engine-random-search:8080",
         options={"iterations": 16, "seed": 7},
+        optimization={"type": "SINGLE", "scalarization": "weighted-sum"},
         algorithm="seeded-random-search",
         reported_algorithm="seeded-random-search",
         terminations=("FEASIBLE", "UNKNOWN"),
@@ -65,6 +69,7 @@ ENGINE_CASES = (
         example="demo/12_many_obj_pareto",
         endpoint="http://engine-many-heuristic:8080",
         options={"iterations": 16, "archive_size": 8, "seed": 7},
+        optimization={"type": "MANY", "scalarization": "pareto-front"},
         algorithm="bounded-pareto-sampling",
         reported_algorithm="bounded-pareto-sampling",
         terminations=("FEASIBLE", "UNKNOWN"),
@@ -81,6 +86,7 @@ ENGINE_CASES = (
             "archive_size": 4,
             "seed": 7,
         },
+        optimization={"type": "SINGLE", "scalarization": "weighted-sum"},
         algorithm="elitist-genetic-search",
         reported_algorithm="elitist-genetic",
         terminations=("FEASIBLE", "UNKNOWN"),
@@ -115,25 +121,19 @@ def _wait_for_job(
     *,
     timeout_s: float = 45.0,
 ) -> dict:
-    deadline = time.monotonic() + timeout_s
-    latest: dict = {}
-    while time.monotonic() < deadline:
-        response = client.get(f"/v1/jobs/{job_id}", headers=headers)
-        assert response.status_code == 200, response.text
-        latest = response.json()
-        if latest.get("status") in TERMINAL_JOB_STATES:
-            return latest
-        time.sleep(0.1)
-    pytest.fail(f"job {job_id} did not terminate: {json.dumps(latest, sort_keys=True)}")
+    return wait_for_job(client, job_id, headers, timeout_s=timeout_s)
 
 
 @pytest.mark.integration
 def test_health_and_v1_catalog_are_available() -> None:
     with httpx.Client(base_url=GATEWAY_URL, timeout=10.0) as client:
         health = client.get("/health")
-        catalog = client.get("/v1/catalog")
+        anonymous = client.get("/v1/catalog")
+        catalog = client.get("/v1/catalog", headers=_register_and_login(client))
     assert health.status_code == 200
-    assert catalog.status_code == 200
+    # The catalog was never anonymous (see tests/test_v1_lifecycle_rbac.py).
+    assert anonymous.status_code == 401, anonymous.text
+    assert catalog.status_code == 200, catalog.text
     assert catalog.json()["apiVersion"] == "bim/v1"
 
 
@@ -188,6 +188,7 @@ def test_every_builtin_engine_executes_only_canonical_ir_and_returns_a_reevaluat
                 "registration": selection["registration"],
                 "mode": case.mode,
                 "options": case.options,
+                "optimization": case.optimization,
             },
         )
         assert accepted.status_code == 202, accepted.text
@@ -248,6 +249,8 @@ def test_every_builtin_engine_executes_only_canonical_ir_and_returns_a_reevaluat
         assert provenance["adapters"]
         for option, value in case.options.items():
             assert provenance["options"][option] == value
+        for field, value in case.optimization.items():
+            assert provenance["optimization"][field] == value
 
         result_provenance = result["provenance"]
         assert result_provenance["irDigest"] == provenance["irDigest"]

@@ -28,9 +28,10 @@ from openbinding_gateway.db.platform_models import Report, ReportState
 from openbinding_gateway.routes import resolve as resolve_routes
 from bim_core.package import load_package
 from _pricing import fake_pricing_gate, largest_plan
+from _paths import GATEWAY_ROOT
 from _repo import REPO_ROOT
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+sys.path.insert(0, str(GATEWAY_ROOT / "tools"))
 from seed_analysis import analysis_link, report_link  # noqa: E402
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"

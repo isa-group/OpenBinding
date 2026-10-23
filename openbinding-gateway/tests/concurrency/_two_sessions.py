@@ -14,13 +14,11 @@ deployment actually gets. Between tests the data is truncated; the schema stays.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 import pytest
 import pytest_asyncio
+from _paths import GATEWAY_ROOT
 from sqlalchemy.engine import make_url
-
-GATEWAY_ROOT = Path(__file__).resolve().parents[2]
 
 
 def check_test_database_url(url: str) -> None:

@@ -10,7 +10,9 @@ const api = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
 const platform = vi.hoisted(() => ({ members: vi.fn(), updateMembersBatch: vi.fn(), inviteMember: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+// A small limit keeps the "queue is full" test to a handful of rows; the screen reads the limit from this module.
+const BATCH_LIMIT = vi.hoisted(() => 3);
+vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), MEMBER_BATCH_LIMIT: BATCH_LIMIT, platformApi: platform }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const lab = org('qos-lab', { name: 'QoS Lab', parent_id: group.id });
@@ -112,17 +114,18 @@ describe('Members', () => {
     await waitFor(() => expect(platform.updateMembersBatch).toHaveBeenCalledWith('isa-demo', [{ user_id: 'user-sofia', role: null }]));
   });
 
-  it('stops queueing at the 100 changes a batch can hold', async () => {
-    const many: OrganizationMember[] = Array.from({ length: 101 }, (_, index) => member(`person${index}`, 'MEMBER'));
+  it('stops queueing at the changes a batch can hold', async () => {
+    const many: OrganizationMember[] = Array.from({ length: BATCH_LIMIT + 1 }, (_, index) => member(`person${index}`, 'MEMBER'));
     platform.members.mockResolvedValue([lucia, ...many]);
     renderMembers();
 
     await screen.findByLabelText('Role for person0');
-    for (const person of many) fireEvent.change(roleSelect(person.username!), { target: { value: 'VIEWER' } });
+    const selects = many.map((person) => roleSelect(person.username!));
+    for (const select of selects) fireEvent.change(select, { target: { value: 'VIEWER' } });
 
     const queue = screen.getByRole('complementary', { name: /Pending changes/ });
-    expect(within(queue).getByRole('button', { name: 'Apply 100 changes' })).toBeEnabled();
-    expect(within(queue).getByText(/The queue is full: a batch holds at most 100 changes/)).toBeInTheDocument();
+    expect(within(queue).getByRole('button', { name: `Apply ${BATCH_LIMIT} changes` })).toBeEnabled();
+    expect(within(queue).getByText(new RegExp(`The queue is full: a batch holds at most ${BATCH_LIMIT} changes`))).toBeInTheDocument();
   });
 
   describe('when the gateway refuses the batch', () => {

@@ -24,14 +24,29 @@ licensing, goldens' metadata, export and verification only.
 - **OMG BPMN XSD inventory** (`tools/xsd_inventory.py`, `docs/OMG_XSD_RIGHTS.md`): per file, the bytes' SHA-256 and size, the
   origin and digest the vendored README declares, and whether the bytes contain a copyright or license notice. None of the five
   does (and none has an XML comment): the README and the previous `NOTICE.md`, which said the notices were preserved, were
-  wrong about these bytes. State: not demonstrated. `licenses.json` → `omg_bpmn_xsd.cleared` is the switch the export obeys.
-  `--fetch` downloads the five files from the official source and verifies their SHA-256 (nothing is written unless all
-  match); it was tested with a stand-in for the network.
+  wrong about these bytes. State: not demonstrated; `licenses.json` → `omg_bpmn_xsd.cleared` records it (the files no longer
+  depend on it: see the next entry). `--fetch` downloads the five files from the official source and verifies their SHA-256
+  (nothing is written unless all match); it was tested with a stand-in for the network.
+- **The five OMG BPMN XSDs are no longer versioned in Git, and every build downloads them verified.** `.gitignore` (the root of
+  OpenBinding and the one of `bim-toolchain`) ignores them; `licenses.json` says `present_in_tree: false`;
+  `tools/xsd_inventory.py --check` (also in the tests and in the lint job) fails if `git ls-files` lists one or Git does not
+  ignore it. New `packages/bim-core/hatch_build.py` (standard library only, outside `src/bim_core`: `compilerDigest` and the
+  goldens do not change): it downloads the files over https, compares each SHA-256 with the declared one and writes nothing
+  unless all five match; it is a hatchling build hook (`[tool.hatch.build.hooks.custom]`), so `pip install` from the sources,
+  `pip install -e`, `uv sync` and `uv build` put the files in place first; `[tool.hatch.build] artifacts` and `/hatch_build.py` in the
+  sdist `include` make the wheel and the sdist carry them. `tools/xsd_inventory.py --ensure` (nothing to do if they are
+  there; without network, an error with the exact command) runs after every checkout of the workflows (and in the root CI job
+  `bim-corpus`); the Dockerfiles of `bim-service`, `openbinding-gateway` and `experimentation/qacobench` copy the hook and run
+  it before the install; `tools/xsd_session.py` (in the `conftest.py` files) ensures the files before a test session and
+  `packaging_support.ensure_xsd()` before anything is built. The wheels, sdists, SDK and images **do** carry the files
+  (`verify_release.py` and `test_built_artifacts.py` compare their bytes with `licenses.json`); whether they may is a
+  decision of the owner (rights not demonstrated, `docs/OMG_XSD_RIGHTS.md`). The tests never use the network (injected opener).
 - **`tools/export_repo.py`**: exports the committed `bim-toolchain/` of an OpenBinding clone as a new repository (one commit by the
   invoking identity, neutral message citing the source commit, no history, remote, tag or push). Refuses on secrets, an
   inconsistent license inventory, files that are not the holder's own, links that leave the repository, or a failing
-  self-containment run (`-m 'not openbinding_corpus'`, no skip). The OMG XSDs are blocked by default: left out, the exported
-  workflows fetch them after each checkout. `docs/DELIVERY.md` has the steps for the Mac, the expected hashes and the rollback.
+  self-containment run (`-m 'not openbinding_corpus'`, no skip; the OMG XSDs are downloaded into the copy where it runs). It
+  also refuses a committed tree that versions the OMG XSDs; the `--xsd` switch is gone. `docs/DELIVERY.md` has the steps for the
+  Mac, the expected values and the rollback.
 - **`tools/verify_release.py`**: two builds in two directories with a fixed `SOURCE_DATE_EPOCH` compared by SHA-256 (identical
   in the recorded run: `bim_core-0.2.0-py3-none-any.whl` `80dd58ba…`, `bim_core-0.2.0.tar.gz` `690da1fb…`,
   `bim_service-0.2.0-py3-none-any.whl` `45ca51bd…`, `bim_service-0.2.0.tar.gz` `e767c77f…`, `bim_client-0.2.0-py3-none-any.whl`
@@ -53,6 +68,10 @@ licensing, goldens' metadata, export and verification only.
 
 ### Changed
 
+- **The six artifacts changed** (`bim-core` has a build hook and an `artifacts` entry, `hatch_build.py` is in its sdist, and
+  `NOTICE.md` has a new text in the four places): the hashes of `docs/DELIVERY.md` are out of date; run
+  `python3 tools/verify_release.py --skip-corpus` for the current ones. `compilerDigest`, `protocolDigest`, `irDigest` and the
+  goldens are the same.
 - `golden/bim_normalized/corpus.json` and `openbinding-gateway/tests/golden/bim_baseline/corpus.json` (same bytes): only
   their `toolchain` members, `compilerDigest` `sha256-749170b5…` → `sha256-ccc55839…` (the 0.2.0 value) and the 82 `irDigest`;
   SHA-256 `9322bc09…` → `6f60c4fa…`, 165 lines, same size. `golden/bim_baseline` and `golden/ir_previous` untouched.

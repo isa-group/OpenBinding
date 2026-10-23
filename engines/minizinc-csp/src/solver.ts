@@ -4,6 +4,19 @@ import { CandidateRef, DznBuilder, DznBuildResult } from './dzn_builder';
 import { MiniZincRunner, MiniZincRunResult } from './minizinc_runner';
 import { HardViolationError, evaluatePlacement } from './placement';
 
+/**
+ * Order in which the incumbents of a run are examined: best objective value first and, among equal
+ * values, the latest first. A sequential branch and bound prints strictly improving incumbents, so this
+ * is simply "last to first"; a parallel search (`fzn-gecode -p`) may print them in another order, and the
+ * answer must be the best one, not the one that happened to arrive last. A value that is not a number
+ * comes last.
+ */
+export function incumbentOrder(objectives: number[]): number[] {
+  const rank = (value: number): number => (Number.isNaN(value) ? Infinity : value);
+  return objectives.map((_value, position) => position).sort((a, b) =>
+    rank(objectives[a]) === rank(objectives[b]) ? b - a : rank(objectives[a]) < rank(objectives[b]) ? -1 : 1);
+}
+
 /** Executes the exact MiniZinc subset and returns BIM Engine Protocol v1. */
 export class Solver {
   private readonly tmpDir = path.resolve(__dirname, '../tmp_minizinc');
@@ -41,6 +54,11 @@ export class Solver {
       time_budget_ms: timeLimitMs, flatten_ms: run.flattenMs, widened_float_domains: run.widenedDomains,
       suppressed_float_branchers: run.suppressedFloatBranchers,
       ozn_rendered: run.oznRendered === true,
+      // Threads of the fzn-gecode search (`-p`); `null` when the run ended before the solver started.
+      gecode_threads: run.gecodeThreads ?? null,
+      // Diagnostic only: `null` when fzn-gecode printed no statistics. Never read by the termination logic.
+      gecode_statistics: run.gecodeStatistics?.values ?? null,
+      gecode_statistics_raw: run.gecodeStatistics?.raw ?? null,
       encoding: built.encoding,
     };
     if (unsatisfiable) return { termination: 'INFEASIBLE', solutions: [], provenance };
@@ -54,7 +72,7 @@ export class Solver {
     // earlier incumbent that is exactly feasible is then returned as FEASIBLE, never as
     // OPTIMAL, because the proof covered the relaxed problem only.
     const rejected: string[] = [];
-    for (let position = incumbents.length - 1; position >= 0; position -= 1) {
+    for (const position of incumbentOrder(incumbents.map((incumbent) => Number(incumbent.objective_value)))) {
       const incumbent = incumbents[position];
       const binding = this.bindingOf(problem, built, incumbent);
       const objectiveValue = Number(incumbent.objective_value);

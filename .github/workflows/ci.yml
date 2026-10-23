@@ -18,6 +18,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # The five OMG BPMN 2.0.2 XSDs that bim-core validates BPMN with are not versioned in Git. They are
+      # downloaded from omg.org over https and each SHA-256 is verified (all five or an error) before the
+      # editable install below builds bim-core, and Git must neither list nor fail to ignore them.
+      - name: Download the OMG BPMN XSDs, verify them and check that Git does not version them
+        run: |
+          python3 bim-toolchain/tools/xsd_inventory.py --ensure
+          python3 bim-toolchain/tools/xsd_inventory.py --check
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -34,7 +42,7 @@ jobs:
         run: uv sync --locked --project openbinding-gateway --no-dev
 
       - name: Compile the complete checked-in BIM corpus
-        run: openbinding-gateway/.venv/bin/python tools/check_bim_corpus.py --expected 82 --jobs 4
+        run: openbinding-gateway/.venv/bin/python tools/check_bim_corpus.py --expected 83 --jobs 4
 
       - name: Check shared example authoring
         run: openbinding-gateway/.venv/bin/python tools/build_shared_examples.py --check
@@ -116,6 +124,17 @@ jobs:
           # profile selected, so it needs a value here even though only the dev
           # profile runs. A throwaway one, generated per run.
           echo "GATEWAY_JWT_SECRET=$(openssl rand -hex 32)" >> .env
+          # The administrator the integration tests sign in as. The gateway has
+          # no default account, so the run creates one with a password nobody
+          # knows in advance: generated here, masked in the logs, written to
+          # .env for the dev service (compose passes BOOTSTRAP_ADMIN_* through)
+          # and read from the container's environment by pytest.
+          ADMIN_PASSWORD="$(openssl rand -hex 16)"
+          echo "::add-mask::${ADMIN_PASSWORD}"
+          {
+            echo "BOOTSTRAP_ADMIN_USERNAME=admin"
+            echo "BOOTSTRAP_ADMIN_PASSWORD=${ADMIN_PASSWORD}"
+          } >> .env
 
       - name: Validate Docker Compose configuration
         run: docker compose config
@@ -142,10 +161,17 @@ jobs:
           fi
 
       - name: Build and start services
-        run: docker compose up --build -d --wait gateway-dev engine-multi-heuristic
+        # gateway-dev dispatches jobs through Dramatiq: POST /v1/jobs stores a
+        # QUEUED row, publishes it to Redis and answers 202, and only a worker
+        # moves it on. worker-dev depends on gateway-dev, not the reverse, so
+        # compose does not start it unless it is named; without it every job
+        # stays queued and the integration tests time out.
+        run: docker compose up --build -d --wait gateway-dev worker-dev engine-multi-heuristic
 
       - name: Run unit tests
-        run: docker compose exec -T gateway-dev test
+        # The tests that need the whole checkout read it from the read-only
+        # /workspace mount; `test` is a wrapper around pytest, so the variable passes through.
+        run: docker compose exec -T -e OPENBINDING_REPO_ROOT=/workspace gateway-dev test
 
       - name: Run ICSOC generator tests
         run: docker compose exec -T gateway-dev env PYTHONPATH=/app:/app/src pytest /app/experimentation/icsoc/generator/tests
@@ -161,7 +187,7 @@ jobs:
       
       - name: Show service logs on failure
         if: failure()
-        run: docker compose logs --no-color gateway-dev engine-minizinc engine-random-search engine-many-heuristic engine-multi-heuristic engine-evolutionary-heuristics
+        run: docker compose logs --no-color gateway-dev worker-dev engine-minizinc engine-random-search engine-many-heuristic engine-multi-heuristic engine-evolutionary-heuristics
 
       - name: Shutdown services
         if: always()
@@ -172,11 +198,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # jsdom 30 (the Vitest environment) requires Node ^22.22.2 || ^24.15.0 || >=26.
+          node-version: '22'
 
       - name: Enable pnpm
         run: corepack enable
@@ -204,4 +233,4 @@ jobs:
 
       - name: Run Playground browser tests
         working-directory: frontend
-        run: pnpm test:e2e
+        run: pnpm exec playwright test --project=mocked

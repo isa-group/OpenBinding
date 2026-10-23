@@ -11,6 +11,9 @@ COPY bim-toolchain/packages/bim-core/ /bim-toolchain/packages/bim-core/
 COPY bim-toolchain/packages/bim-client/ /bim-toolchain/packages/bim-client/
 COPY openbinding-gateway/pyproject.toml .
 COPY openbinding-gateway/src/ src/
+# The five OMG BPMN 2.0.2 XSDs of bim-core are not versioned in Git: downloaded here over https with each SHA-256
+# verified (all five or the build fails) so that the install below ships them; the build hook of bim-core is this script.
+RUN python /bim-toolchain/packages/bim-core/hatch_build.py --ensure
 RUN uv pip install --system --no-deps --no-sources /bim-toolchain/packages/bim-core /bim-toolchain/packages/bim-client .
 COPY openbinding-gateway/alembic.ini .
 COPY openbinding-gateway/alembic/ alembic/

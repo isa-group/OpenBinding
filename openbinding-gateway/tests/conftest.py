@@ -8,12 +8,26 @@ that imported a helper out of another test module.
 
 from __future__ import annotations
 
+import importlib.util
 import os
+import re
 import sys
+import types
 import uuid
 
 import pytest
-import pytest_asyncio
+
+# A few tests only read files of the repository (``test_omg_xsd_wiring.py``: Dockerfiles, ignore files, workflows) and
+# also run where neither the gateway nor its dependencies are installed (the registered check of the BIM toolchain
+# runs them next to its own tests). There the gateway's setup below is left out and a test that does need the gateway
+# fails on its own import. Where the gateway is installed nothing changes: a missing dependency still stops the session.
+GATEWAY_INSTALLED = importlib.util.find_spec("openbinding_gateway") is not None
+try:
+    import pytest_asyncio
+except ImportError:
+    if GATEWAY_INSTALLED:
+        raise
+    pytest_asyncio = types.SimpleNamespace(fixture=pytest.fixture)
 
 REPO_ROOT = os.environ.get(
     "OPENBINDING_REPO_ROOT",
@@ -22,33 +36,69 @@ REPO_ROOT = os.environ.get(
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
+# The administrator configuration of the environment the suite runs in (the CI
+# job generates one per run for the integration tests). Unit tests must never
+# see it: they build their own settings. Only ``bootstrap_admin_credentials``
+# hands it out, and only to integration tests. Captured before the environment
+# is cleaned below.
+_ADMIN_ENVIRONMENT = (
+    "BOOTSTRAP_ADMIN_USERNAME",
+    "BOOTSTRAP_ADMIN_PASSWORD",
+    "BOOTSTRAP_ADMIN_EMAIL",
+    "SEED_DEFAULT_ADMIN",
+)
+_CAPTURED_ADMIN_ENVIRONMENT = {
+    name: os.environ[name] for name in _ADMIN_ENVIRONMENT if name in os.environ
+}
+
+# Hermetic environment: the gateway container (and a developer's shell) carries
+# the deployment's own configuration, and a value that is already set would win
+# over the suite's. Everything ``Settings`` reads is removed before the gateway
+# is imported, then only the values the suite itself needs are set below.
+# ``TEST_DATABASE_URL`` is not a setting of the gateway and is left alone.
+if GATEWAY_INSTALLED:
+    from openbinding_gateway.core.settings import Settings  # noqa: E402  (reads field names; builds no settings)
+
+    assert Settings.model_config["case_sensitive"] is False and not Settings.model_config.get("env_prefix")
+    _DEPLOYMENT_VARIABLES = {name.upper() for name in Settings.model_fields}
+    _DEPLOYMENT_VARIABLES.update(_ADMIN_ENVIRONMENT)
+    # Read outside ``Settings``: the per-engine endpoints (``Settings.engine_urls``), the built-in cancellation
+    # switch and the BIM package limits (``BIM_MAX_*``).
+    _OTHER_DEPLOYMENT_VARIABLE = re.compile(r"ENGINE_[A-Z0-9_]+_URL|ENGINE_CANCELLATION_BUILTIN|BIM_MAX_[A-Z0-9_]+")
+    for _name in list(os.environ):
+        if _name.upper() in _DEPLOYMENT_VARIABLES or _OTHER_DEPLOYMENT_VARIABLE.fullmatch(_name.upper()):
+            del os.environ[_name]
+
 # Set before anything imports the gateway: schema paths are resolved when the
 # validators are constructed.
-os.environ.setdefault(
-    "GENERAL_SCHEMA_PATH", os.path.join(REPO_ROOT, "schemas", "general", "schema.json")
+#
+# The schemas sit in the repository's ``schemas`` directory in a checkout and in the gateway project's own
+# ``schemas`` directory in the container image (``/app/schemas``): the first that holds the BIM v1 schemas wins.
+_GATEWAY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_SCHEMAS_ROOT = next(
+    (
+        root
+        for root in (REPO_ROOT, _GATEWAY_DIR)
+        if os.path.isdir(os.path.join(root, "schemas", "bim", "v1"))
+    ),
+    REPO_ROOT,
 )
-os.environ.setdefault("SCHEMAS_DIR", os.path.join(REPO_ROOT, "schemas"))
+os.environ["GENERAL_SCHEMA_PATH"] = os.path.join(_SCHEMAS_ROOT, "schemas", "general", "schema.json")
+os.environ["SCHEMAS_DIR"] = os.path.join(_SCHEMAS_ROOT, "schemas")
 # The accounts tests sign real tokens, so they need a real secret. It has no
 # bearing on any deployment: this one only ever signs tokens for the suite.
-os.environ.setdefault("GATEWAY_JWT_SECRET", "test-secret-not-used-anywhere-real")
-os.environ.setdefault("JOB_DISPATCH_MODE", "inline")
+os.environ["GATEWAY_JWT_SECRET"] = "test-secret-not-used-anywhere-real"
+# Jobs run in the request that creates them; there is no worker to claim a queued one.
+os.environ["JOB_DISPATCH_MODE"] = "inline"
 os.environ["SPHERE_ENABLED"] = "false"
-os.environ.pop("SPHERE_ORGANIZATION_ID", None)
 # The fake gate installed below is built from tests/fixtures/pricing_test.yml
 # (version 0.1.0, default plan BASIC); the gateway names that version and plan
 # when it creates contracts.
 os.environ["SPACE_PRICING_VERSION"] = "0.1.0"
 os.environ["SPACE_DEFAULT_PLAN"] = "BASIC"
-os.environ.pop("BOOTSTRAP_ADMIN_USERNAME", None)
-os.environ.pop("BOOTSTRAP_ADMIN_PASSWORD", None)
-os.environ.pop("BOOTSTRAP_ADMIN_EMAIL", None)
-
-
 # The suite always uses the toolchain installed beside the gateway: a ``BIM_MODE=http`` left in the environment
 # would point every test at a service that is not there.
 os.environ["BIM_MODE"] = "inproc"
-for _name in ("BIM_SERVICE_URL", "BIM_SERVICE_TOKEN_FILE", "BIM_TENANT"):
-    os.environ.pop(_name, None)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -60,6 +110,9 @@ def cheap_password_hashing():
     suite. The hash format carries its parameters, so a hash made here still verifies anywhere and a hash made
     with the production parameters still verifies here; only the cost of making one changes.
     """
+    if not GATEWAY_INSTALLED:
+        yield
+        return
     from argon2 import PasswordHasher
 
     from openbinding_gateway.security import passwords
@@ -82,9 +135,41 @@ def micro_placement_instance():
 def clean_mock_env(monkeypatch):
     monkeypatch.setenv("SPHERE_ENABLED", "false")
     monkeypatch.delenv("SPHERE_ORGANIZATION_ID", raising=False)
-    monkeypatch.delenv("BOOTSTRAP_ADMIN_USERNAME", raising=False)
-    monkeypatch.delenv("BOOTSTRAP_ADMIN_PASSWORD", raising=False)
-    monkeypatch.delenv("BOOTSTRAP_ADMIN_EMAIL", raising=False)
+    for name in _ADMIN_ENVIRONMENT:
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture
+def bootstrap_admin_credentials(request):
+    """``(username, password)`` of the administrator the running stack was started with.
+
+    For the integration tests only: they sign in to a real gateway whose
+    administrator comes from ``BOOTSTRAP_ADMIN_USERNAME`` / ``BOOTSTRAP_ADMIN_PASSWORD``.
+    Nothing is assumed about them - there is no default account.
+    """
+    if request.node.get_closest_marker("integration") is None:
+        pytest.fail(
+            "bootstrap_admin_credentials is only for tests marked @pytest.mark.integration; "
+            "unit tests create their own accounts and never see the environment's."
+        )
+    username = _CAPTURED_ADMIN_ENVIRONMENT.get("BOOTSTRAP_ADMIN_USERNAME", "")
+    password = _CAPTURED_ADMIN_ENVIRONMENT.get("BOOTSTRAP_ADMIN_PASSWORD", "")
+    if not username or not password:
+        pytest.fail(
+            "The integration tests sign in as the bootstrap administrator, so "
+            "BOOTSTRAP_ADMIN_USERNAME and BOOTSTRAP_ADMIN_PASSWORD must be set in the "
+            "environment pytest runs in (the CI job writes them to .env and passes them "
+            "to the container). Missing: "
+            + ", ".join(
+                name
+                for name, value in (
+                    ("BOOTSTRAP_ADMIN_USERNAME", username),
+                    ("BOOTSTRAP_ADMIN_PASSWORD", password),
+                )
+                if not value
+            )
+        )
+    return username, password
 
 
 @pytest.fixture(autouse=True)
@@ -95,6 +180,9 @@ def isolated_auth_rate_limiter():
     counter shared between tests would make a test depend on how many logins
     ran before it. ``tests/test_security_hardening.py`` installs its own.
     """
+    if not GATEWAY_INSTALLED:
+        yield
+        return
     from openbinding_gateway.core.ratelimit import AuthRateLimiter, set_auth_limiter
 
     set_auth_limiter(AuthRateLimiter(primary=None))
@@ -105,6 +193,9 @@ def isolated_auth_rate_limiter():
 @pytest.fixture(autouse=True)
 def fresh_bim_port():
     """Each test builds the BIM port its settings ask for (in process by default) and leaves none behind."""
+    if not GATEWAY_INSTALLED:
+        yield
+        return
     from openbinding_gateway.integrations import bim
 
     bim.set_bim(None)
@@ -115,6 +206,9 @@ def fresh_bim_port():
 @pytest.fixture(autouse=True)
 def pricing_catalog_gate():
     """Every test gets a SPACE substitute built from the synthetic pricing fixture."""
+    if not GATEWAY_INSTALLED:
+        yield
+        return
     from _pricing import fake_pricing_gate
     from openbinding_gateway import space_client
 

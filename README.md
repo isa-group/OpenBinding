@@ -183,7 +183,13 @@ docker compose exec -T gateway-dev python tools/seed_dev.py --reset
 The integrated [binding decision workspace](docs/analysis/binding-decision-workspace.md) documents the evidence contract, geometric views, limits, scenario coverage and reproducible API/browser checks. Population writes `openbinding-gateway/tools/analysis-manifest.json` with analysis and draft Report links.
 
 All test accounts (`alice`, `bob`, `carol`, `david`, `elena`, `frank`) use password: `devpass123`.
-The administrator (`admin`) uses `devpass123` (or bootstrap password `4dm1n`).
+The administrator (`admin`) uses `devpass123`.
+
+The gateway ships no default administrator. To start with one, set
+`BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` in `.env`, or opt in
+with `SEED_DEFAULT_ADMIN=true` plus `BOOTSTRAP_ADMIN_PASSWORD` to get an `admin`
+account in an empty database. The `dev` profile publishes the gateway on
+`127.0.0.1:8000` only, so it is not reachable from other machines.
 
 
 The gateway exposes `/v1/profiles`, `/v1/dialects`, `/v1/resources`,
@@ -241,6 +247,17 @@ tree only `bim-toolchain/packages/bim-core` exists (see
 **Transitional state:** until the cut-over, OpenBinding still compiles and
 evaluates with its own copy under `openbinding-gateway/src/openbinding_gateway/v1`
 and does not depend on `bim-toolchain`. See [BIM core](docs/BIM_CORE.md).
+
+**OMG BPMN XSDs.** The five OMG BPMN 2.0.2 XML Schemas (`BPMN20.xsd`, `Semantic.xsd`, `BPMNDI.xsd`, `DC.xsd`, `DI.xsd`) under
+`bim-toolchain/packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2/` are **not versioned in Git** (their
+redistribution is not demonstrated: [`bim-toolchain/docs/OMG_XSD_RIGHTS.md`](bim-toolchain/docs/OMG_XSD_RIGHTS.md)). The system
+behaves as if they were inside: wherever they are missing they are downloaded from omg.org over https and the SHA-256 of
+each is verified (all five or an error; nothing is written otherwise). The build hook of `bim-core`
+(`bim-toolchain/packages/bim-core/hatch_build.py`) does it for `uv sync`, `pip install` and `-e`; the Docker images
+(`openbinding-gateway`, `bim-service`, `experimentation/qacobench`), the CI jobs, the test sessions and the tools do it too.
+Without network the error names the exact command, `python3 bim-toolchain/tools/xsd_inventory.py --ensure` from this directory.
+`python3 bim-toolchain/tools/xsd_inventory.py --check` fails if Git lists the files or does not ignore them. Wheels,
+sdists, the SDK and the images do carry the files; keeping them in the artifacts is a decision of the owner.
 
 Start with the [progressive BIM model atlas](docs/models/README.md) for the
 metamodels and concrete instances, continue with the

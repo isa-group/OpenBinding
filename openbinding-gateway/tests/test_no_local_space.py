@@ -6,8 +6,9 @@ from pathlib import Path
 
 import pytest
 import yaml
+from _repo import REPO_ROOT
 
-ROOT = Path(__file__).parents[2]
+ROOT = REPO_ROOT
 COMPOSE = ROOT / "docker-compose.yml"
 # Assembled from parts so a repository-wide search for the retired key finds no
 # literal here; the key itself must not come back anywhere in the stacks.

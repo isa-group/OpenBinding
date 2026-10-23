@@ -12,7 +12,9 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-ROOT = Path(__file__).parents[1]
+from _paths import GATEWAY_ROOT
+
+ROOT = GATEWAY_ROOT
 PREVIOUS_REVISION = "b4c5d6e7f8a9"
 THIS_REVISION = "c8d9e0f1a2b3"
 RETIRED_COLUMNS = {"metered", "concurrency_released", "billing_sponsor_user_id"}

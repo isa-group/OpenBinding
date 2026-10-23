@@ -7,7 +7,7 @@ import tomllib
 
 import pytest
 
-from packaging_support import EXAMPLE_PACKAGE, PACKAGES, ROOT, package_dir, pyproject, requirement_name, source_version
+from packaging_support import EXAMPLE_PACKAGE, PACKAGES, ROOT, ensure_xsd, package_dir, pyproject, requirement_name, source_version
 
 NAMES = sorted(PACKAGES)
 
@@ -74,7 +74,39 @@ def test_build_configuration(name: str) -> None:
     assert data["build-system"]["requires"] == ["hatchling>=1.27"]
     targets = data["tool"]["hatch"]["build"]["targets"]
     assert targets["wheel"]["packages"] == [f"src/{PACKAGES[name][0]}"]
-    assert set(targets["sdist"]["include"]) == {"/src", "/README.md", "/LICENSE", "/NOTICE.md", "/pyproject.toml"}
+    # bim-core also ships its build hook, the verified download of the OMG XSDs, which its sdist rebuilds the wheel with
+    hook = {"/hatch_build.py"} if name == "bim-core" else set()
+    assert set(targets["sdist"]["include"]) == {"/src", "/README.md", "/LICENSE", "/NOTICE.md", "/pyproject.toml"} | hook
+
+
+def test_bim_core_downloads_verifies_and_ships_the_omg_xsds_through_its_build_hook() -> None:
+    """Git ignores the five files; the hook puts them in place before every build and ``artifacts`` makes the wheel and the
+    sdist carry them anyway.  Nothing excludes them from an artifact."""
+    build = pyproject("bim-core")["tool"]["hatch"]["build"]
+    assert build["hooks"]["custom"] == {"path": "hatch_build.py"}
+    assert build["artifacts"] == ["src/bim_core/resources/vendor/omg/bpmn/2.0.2/*.xsd"]
+    for table in (build, build["targets"]["wheel"], build["targets"]["sdist"]):
+        assert not any("xsd" in str(item) for key in ("exclude", "force-exclude") for item in table.get(key, []))
+    core = package_dir("bim-core")
+    assert (core / "hatch_build.py").is_file()
+    assert not list((core / "src" / "bim_core").rglob("hatch_build.py")), "the hook lives outside src/bim_core: compilerDigest"
+    for name in ("bim-service", "bim-client"):
+        assert "hooks" not in pyproject(name)["tool"]["hatch"]["build"] and "artifacts" not in pyproject(name)["tool"]["hatch"]["build"]
+
+
+def test_the_build_hook_uses_only_the_standard_library_and_hatchling() -> None:
+    import ast
+
+    tree = ast.parse((package_dir("bim-core") / "hatch_build.py").read_text(encoding="utf-8"))
+    modules = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            modules.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            modules.add(node.module.split(".")[0])
+    import sys
+
+    assert modules <= set(sys.stdlib_module_names) | {"hatchling"}, modules - set(sys.stdlib_module_names)
 
 
 def test_the_workspace_ties_the_members_together() -> None:
@@ -100,10 +132,11 @@ def test_no_dist_info_or_cache_is_tracked_inside_the_sources() -> None:
 
 
 def test_the_example_package_is_the_demo_package_and_compiles() -> None:
+    ensure_xsd()  # compiling validates BPMN against the OMG XSDs, which Git does not version
     import bim_core
     import consumer_fixtures
 
-    files = {path.name: path.read_bytes() for path in sorted(EXAMPLE_PACKAGE.glob("*.json")) if path.name != "binding.json"}
+    files ={path.name: path.read_bytes() for path in sorted(EXAMPLE_PACKAGE.glob("*.json")) if path.name != "binding.json"}
     assert {name: json.loads(data) for name, data in files.items()} == {
         name: json.loads(data) for name, data in consumer_fixtures.demo_files().items()
     }

@@ -11,7 +11,9 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-ROOT = Path(__file__).parents[1]
+from _paths import GATEWAY_ROOT
+
+ROOT = GATEWAY_ROOT
 PREVIOUS_REVISION = "c8d9e0f1a2b3"
 THIS_REVISION = "d9e0f1a2b3c4"
 

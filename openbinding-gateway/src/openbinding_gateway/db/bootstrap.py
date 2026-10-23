@@ -17,6 +17,10 @@ administrator who registered normally can be granted the role by restarting
 with their username set. And nothing happens at all once any administrator
 exists, so leaving the variables in place is harmless.
 
+Separately, ``SEED_DEFAULT_ADMIN=true`` opts an installation with no accounts at
+all into an ``admin`` account whose password is ``BOOTSTRAP_ADMIN_PASSWORD``.
+No password is built in, and without the opt-in nothing is seeded.
+
 The bootstrap writes accounts only. It reads no pricing and chooses no plan
 from one: the administrator's plan is ``BOOTSTRAP_ADMIN_PLAN`` when configured;
 otherwise the account is created without a plan and SPACE assigns the
@@ -36,15 +40,9 @@ from .models import User, UserRole
 
 logger = logging.getLogger(__name__)
 
-#: The account a brand-new installation gets, so there is somebody who can
-#: create a real one. Short and well known on purpose - it is meant to be used
-#: once and replaced, in the same spirit as SPACE's own admin/space4all.
+#: The name of the account an opted-in, empty installation gets. There is no
+#: built-in password: it comes from the operator.
 DEFAULT_ADMIN_USERNAME = "admin"
-DEFAULT_ADMIN_PASSWORD = "4dm1n"
-#: `example.org` rather than `localhost`: the API models validate emails,
-#: and a domain without a dot is rejected - which turned the whole user
-#: listing into a 500 the first time this account appeared in it.
-DEFAULT_ADMIN_EMAIL = "admin@example.org"
 
 
 def operational_plan(settings: Settings | None = None) -> str:
@@ -101,12 +99,13 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
         return False
 
     complaint = password_complaint(password)
-    if complaint and password != DEFAULT_ADMIN_PASSWORD:
+    if complaint:
         logger.warning("The bootstrap administrator password is unusable: %s", complaint)
         return False
 
-    # Same reason as DEFAULT_ADMIN_EMAIL: a domain with no dot fails the
-    # email validation every response model applies.
+    # `example.org` rather than `localhost`: the API models validate emails,
+    # and a domain without a dot is rejected - which turned the whole user
+    # listing into a 500 the first time such an account appeared in it.
     email = (settings.bootstrap_admin_email or f"{username}@example.org").lower()
     session.add(_administrator(username, email, password, plan))
     await session.flush()
@@ -129,27 +128,52 @@ def _administrator(username: str, email: str, password: str, plan: str) -> User:
 
 
 async def seed_default_administrator(
-    session: AsyncSession, settings: Settings | None = None
+    session: AsyncSession, settings: Settings | None = None, password: str | None = None
 ) -> bool:
-    """Give an empty database one throwaway administrator. Returns whether it did.
+    """Give an empty database its first ``admin`` account. Returns whether it did.
 
-    Only when there are **no accounts at all**, so this can never take over an
-    installation that is in use - not even one whose administrators have all
-    been deactivated, which is a situation that wants a human rather than a
-    surprise account with a guessable password.
+    Two conditions, both required. The operator opted in
+    (``settings.seed_default_admin``, ``SEED_DEFAULT_ADMIN``), and there are
+    **no accounts at all**, so this can never take over an installation that is
+    in use - not even one whose administrators have all been deactivated, which
+    is a situation that wants a human rather than a surprise account.
 
-    The credentials are deliberately weak and well known. They exist so that
-    somebody can sign in once, create a real administrator, and delete this
-    one; they are not a login anybody should keep. ``ensure_administrator``
-    is the configured, non-guessable path for a deployment that knows who its
-    administrator is up front.
+    The password is ``password`` or else ``BOOTSTRAP_ADMIN_PASSWORD``; there is
+    no built-in one. Without it, or if it fails ``password_complaint``, nothing
+    is created. The warning never includes the password.
     """
+    settings = settings or get_settings()
+    if not settings.seed_default_admin:
+        return False
+
     any_user = await session.scalar(select(func.count()).select_from(User))
     if any_user:
         return False
 
+    if password is None:
+        password = settings.bootstrap_admin_password
+    if not password:
+        logger.warning(
+            "SEED_DEFAULT_ADMIN is set but no password was given, so '%s' was not "
+            "created. Set BOOTSTRAP_ADMIN_PASSWORD.",
+            DEFAULT_ADMIN_USERNAME,
+        )
+        return False
+    complaint = password_complaint(password)
+    if complaint:
+        logger.warning(
+            "SEED_DEFAULT_ADMIN is set but the password is unusable, so '%s' was not "
+            "created: %s",
+            DEFAULT_ADMIN_USERNAME,
+            complaint,
+        )
+        return False
+
     session.add(_administrator(
-        DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, operational_plan(settings)
+        DEFAULT_ADMIN_USERNAME,
+        f"{DEFAULT_ADMIN_USERNAME}@example.org",
+        password,
+        operational_plan(settings),
     ))
     await session.flush()
     return True

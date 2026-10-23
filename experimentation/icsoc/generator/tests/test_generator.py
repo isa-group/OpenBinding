@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -291,11 +292,8 @@ def test_generate_one_instance_layout_and_validation(tmp_path: Path) -> None:
     assert {"application", "candidateCatalog", "constraintSet", "optimization"} == set(
         groups
     )
-    assert groups["application"] == {
-        "application": "application.json",
-        "placement": "placement.json",
-        "routing": "routing.json",
-    }
+    assert groups["application"] == {"application": "application.json"}
+    assert set(groups["candidateCatalog"]) == {"catalog", "placement", "routing"}
     violations = validate_instance(instance_path, SCHEMA)
     assert violations == []
 
@@ -324,10 +322,222 @@ def test_generate_one_instance_layout_and_validation(tmp_path: Path) -> None:
         for entry in placement["spec"]["network"]
     }
     assert all(source <= target for source, target in pairs)
-    assert all(term["normalize"]["clamp"] for term in optimization["spec"]["terms"])
+    _assert_optimization_matches_profile(optimization, constraints, application)
     assert problem.as_dict()["spec"]["profile"]["id"] == "qos-binding/v1"
 
     assert reports
+
+
+def _assert_optimization_matches_profile(
+    optimization: dict, constraints: dict, application: dict
+) -> None:
+    """Assert the qos-binding/v1 Optimization shape (criteria and penalties).
+
+    The schema (optimization.schema.json) defines spec.criteria and
+    spec.penalties; there is no 'terms' key. Each criterion takes its direction
+    from the feature it scores (application.spec.features).
+    """
+    features = application["spec"]["features"]
+    spec = optimization["spec"]
+    assert set(spec) <= {"criteria", "penalties"}
+    assert "terms" not in spec
+    criteria = spec["criteria"]
+    assert [criterion["id"] for criterion in criteria] == [
+        "latency",
+        "cost",
+        "security",
+    ]
+    for criterion in criteria:
+        assert criterion["feature"] == {"resource": "application", "id": criterion["id"]}
+        assert criterion["direction"] == features[criterion["id"]]["direction"]
+        normalize = criterion["normalize"]
+        assert normalize["clamp"] is True
+        assert normalize["min"] <= normalize["max"]
+    for penalty in spec.get("penalties", []):
+        assert penalty["constraint"]["resource"] == "constraints"
+        constraint = constraints["spec"]["constraints"][penalty["constraint"]["id"]]
+        assert constraint["enforcement"] == "soft"
+        assert penalty["weight"] > 0
+
+
+def _write_synthetic_dataset(root: Path, orchestration: str) -> Path:
+    """Write a one-application, one-node dataset in the ICSOC source format."""
+    function = {
+        "inputs": ["_"],
+        "outputs": ["_"],
+        "hw_reqs": {"memory": 128, "v_cpu": 1, "mhz": 500},
+        "sw_reqs": [],
+        "service_reqs": [],
+    }
+    dataset = root / "dataset"
+    infra_dir = dataset / "infrastructures" / "1"
+    infra_dir.mkdir(parents=True)
+    (dataset / "applications.json").write_text(
+        json.dumps(
+            [
+                {
+                    "orchestration_id": "synth",
+                    "name": "Synthetic",
+                    "orchestration_structure": orchestration,
+                    "trigger": "event1,[low]",
+                    "functions": [
+                        {"id": name, **function} for name in ("fA", "fB", "fC")
+                    ],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (infra_dir / "infrastructure_5.json").write_text(
+        json.dumps(
+            {
+                "nodes": [
+                    {
+                        "name": "edge1",
+                        "type": "edge",
+                        "provider": "acme",
+                        "hardware_caps": {"memory": 4096, "v_cpu": 4, "mhz": 2000},
+                        "software_caps": [],
+                        "security_caps": ["pubKeyE"],
+                    }
+                ],
+                "links": [],
+                "services": [],
+                "event_generators": [
+                    {"name": "gen1", "node": "edge1", "events": ["event1"]}
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return dataset
+
+
+@pytest.mark.parametrize(
+    ("orchestration", "has_routing"),
+    [
+        ("if(fun(fA,[],10),fun(fB,[],10),fun(fC,[],10))", True),
+        ("seq(fun(fA,[],10),seq(fun(fB,[],10),fun(fC,[],10)))", False),
+    ],
+)
+def test_synthetic_instance_places_routing_and_placement_under_catalog(
+    tmp_path: Path, orchestration: str, has_routing: bool
+) -> None:
+    """Layout and compilation check that does not need the ICSOC dataset.
+
+    BIM core only accepts Application and BPMN under the 'application' group;
+    the placement and routing overlays belong to 'candidateCatalog'.
+    """
+    dataset = _write_synthetic_dataset(tmp_path, orchestration)
+    out = tmp_path / "out"
+
+    generate_dataset(
+        dataset=dataset,
+        pricing_dir=PRICINGS,
+        config=load_config(CONFIG),
+        seed=12345,
+        out=out,
+    )
+
+    instance_path = out / "instances/synth/1/infrastructure_5"
+    groups = load_json(instance_path / "instance.json")["spec"]["resources"]
+    expected_catalog = {"catalog", "placement"} | ({"routing"} if has_routing else set())
+    assert groups["application"] == {"application": "application.json"}
+    assert set(groups["candidateCatalog"]) == expected_catalog
+    assert groups["candidateCatalog"]["placement"] == "placement.json"
+    assert (instance_path / "routing.json").is_file() == has_routing
+
+    assert validate_instance(instance_path, SCHEMA) == []
+    problem = compile_instance(load_package(instance_path))
+    assert problem.as_dict()["spec"]["profile"]["id"] == "qos-binding/v1"
+
+
+def test_synthetic_instance_optimization_uses_current_profile_schema(
+    tmp_path: Path,
+) -> None:
+    """Pin the Optimization structure without the ICSOC dataset.
+
+    Same assertions as the dataset-backed layout test, so a mismatch between
+    the generated resource and the installed qos-binding/v1 Profile (for
+    example reading a 'terms' key that the schema does not define) is caught
+    where the dataset is not materialized.
+    """
+    dataset = _write_synthetic_dataset(
+        tmp_path, "seq(fun(fA,[],10),seq(fun(fB,[],10),fun(fC,[],10)))"
+    )
+    out = tmp_path / "out"
+
+    generate_dataset(
+        dataset=dataset,
+        pricing_dir=PRICINGS,
+        config=load_config(CONFIG),
+        seed=12345,
+        out=out,
+    )
+
+    instance_path = out / "instances/synth/1/infrastructure_5"
+    package = load_package(instance_path)
+    compile_instance(package)
+    optimization = package.json("optimization.json")
+    assert optimization["apiVersion"] == "qos-binding/v1"
+    assert optimization["kind"] == "Optimization"
+    _assert_optimization_matches_profile(
+        optimization, package.json("constraints.json"), package.json("application.json")
+    )
+    directions = {
+        criterion["id"]: criterion["direction"]
+        for criterion in optimization["spec"]["criteria"]
+    }
+    assert directions == {
+        "latency": "minimize",
+        "cost": "minimize",
+        "security": "maximize",
+    }
+
+
+def test_transition_latency_bound_is_not_candidate_execution_latency(
+    tmp_path: Path,
+) -> None:
+    """The bound of a transition limits the transfer; it is not execution time.
+
+    placement.globalLatency includes candidate execution, so copying the bound
+    into the candidates' latency feature would inflate the critical path and the
+    latency normalization bounds.
+    """
+
+    def generate(bound: int) -> tuple[dict, dict, list[dict]]:
+        root = tmp_path / f"bound{bound}"
+        dataset = _write_synthetic_dataset(
+            root,
+            f"seq(fun(fA,[],{bound}),seq(fun(fB,[],{bound}),fun(fC,[],{bound})))",
+        )
+        out = root / "out"
+        generate_dataset(
+            dataset=dataset,
+            pricing_dir=PRICINGS,
+            config=load_config(CONFIG),
+            seed=12345,
+            out=out,
+        )
+        package = load_package(out / "instances/synth/1/infrastructure_5")
+        candidates = package.json("candidates.json")["spec"]["candidates"]
+        transitions = package.json("placement.json")["spec"]["transitions"]
+        criteria = {
+            criterion["id"]: criterion
+            for criterion in package.json("optimization.json")["spec"]["criteria"]
+        }
+        return candidates, transitions, criteria["latency"]["normalize"]
+
+    candidates_low, transitions_low, norm_low = generate(10)
+    candidates_high, transitions_high, norm_high = generate(77)
+
+    for candidates in (candidates_low, candidates_high):
+        assert candidates
+        assert {c["features"]["latency"] for c in candidates.values()} == {0.0}
+    for bound, transitions in ((10.0, transitions_low), (77.0, transitions_high)):
+        assert transitions
+        assert {t["maximum"] for t in transitions.values()} == {bound}
+    assert norm_low == norm_high
 
 
 def test_latency_bounds_schedule_the_scenario_dag() -> None:

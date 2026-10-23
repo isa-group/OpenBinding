@@ -15,7 +15,8 @@ The following are counted:
 - workflow-dialect selection, while the irreducible workflow topology is not;
 - constraint formulation and enforcement fields, while identifiers and
   referenced entities are not;
-- optimization criteria, authored weights, and normalization controls;
+- optimization criteria and normalization controls (weights and scalarization
+  belong to the execution request, not the package);
 - routing policy selection, placement accounting, network direction, and
   global-latency controls.
 

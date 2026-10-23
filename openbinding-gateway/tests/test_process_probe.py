@@ -21,9 +21,10 @@ from pathlib import Path
 
 import pytest
 
+from _paths import GATEWAY_ROOT
 from _repo import REPO_ROOT
 
-TOOLS = Path(__file__).resolve().parents[1] / "tools"
+TOOLS = GATEWAY_ROOT / "tools"
 TOOLCHAIN = REPO_ROOT / "bim-toolchain"
 SERVICE_SRC = TOOLCHAIN / "packages" / "bim-service" / "src"
 CONTRACT = TOOLCHAIN / "contracts" / "consumers" / "openbinding" / "compile.json"

@@ -4,10 +4,23 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_PACKAGES = 82
+EXPECTED_PACKAGES = 83
+# Same scope as tools/check_bim_corpus.py: datasets/ duplicates sources and
+# frontend/ holds test fixtures, so neither contributes corpus packages.
+NON_CORPUS_ROOTS = {
+    ROOT / "experimentation" / "icsoc" / "out" / "bim-v1",
+    ROOT / "datasets",
+    ROOT / "frontend",
+}
+# Example binding shipped next to a package fixture; it is not a package entry
+# (see bim-toolchain/tools/smoke_installed.py and test_packaging_metadata.py).
+UNDECLARED_PACKAGE_FILES = {
+    Path("bim-toolchain/packages/bim-core/tests/fixtures/example-package/binding.json"),
+}
 THIRD_PARTY_DIRECTORY_NAMES = {
     ".git",
     ".pnpm-store",
@@ -22,6 +35,10 @@ THIRD_PARTY_ROOTS = {
     # A local 479 MB campaign build is reproducible output, not checked-in
     # language corpus.  ICSOC's official regression generates one case in tmp.
     ROOT / "experimentation" / "icsoc" / "out" / "bim-v1",
+    # Third-party datasets keep their own field names: weights_sum_to_one and
+    # aggregation_policies in datasets/sources/quantum are not consumed by any
+    # code (transform_quantum.py reads other fields).
+    ROOT / "datasets" / "sources",
 }
 CACHE_DIRECTORY_NAMES = {"__pycache__", ".pytest_cache", ".ruff_cache"}
 
@@ -59,13 +76,10 @@ FORBIDDEN_TEXT = {
     _OLD_API_VERSION,
     _OLD_PRODUCT_VERSION,
     _OLD_SCHEMA_ROOT,
-    _OLD_BRAND,
     "." + _OLD_BRAND + ".json",
-    _retired("project", ".json"),
     _retired("whole", "json"),
     _retired("parts", "json"),
     "/api/" + "instances",
-    "/api/" + "jobs",
     "/api/" + "engines",
     "/api/" + "schemas",
     "/api/" + "examples",
@@ -93,6 +107,23 @@ FORBIDDEN_TEXT = {
     '"different_' + 'candidate"',
     '"scaled_' + 'sum"',
     '"scaled_' + 'product"',
+}
+# Markers that also occur legitimately inside longer tokens are matched as
+# regular expressions (case-insensitive) so only the retired spelling is flagged.
+FORBIDDEN_PATTERNS = {
+    # BimStartupError is an unrelated identifier.
+    _OLD_BRAND: r"(?<![a-z0-9])" + re.escape(_OLD_BRAND) + r"(?![a-z0-9])",
+    # A relative import such as '../../api/jobs' is not the retired HTTP route.
+    "/api/" + "jobs": r"(?<!\.)" + re.escape("/api/" + "jobs"),
+    # The HTTP client method project.json() is not the retired file name.
+    _retired("project", ".json"): re.escape(_retired("project", ".json")) + r"(?!\()",
+}
+_TEXT_PATTERNS = {
+    label: re.compile(source, re.IGNORECASE) for label, source in FORBIDDEN_PATTERNS.items()
+}
+_BYTES_PATTERNS = {
+    label: re.compile(source.encode("utf-8"), re.IGNORECASE)
+    for label, source in FORBIDDEN_PATTERNS.items()
 }
 TEXT_SUFFIXES = {
     ".conf",
@@ -188,12 +219,18 @@ def _cache_marker(path: Path) -> str | None:
     markers = sorted(
         {
             *(marker.encode("utf-8").lower() for marker in FORBIDDEN_TEXT),
-            *(marker.encode("utf-8").lower() for marker in FORBIDDEN_PATH_FRAGMENTS),
+            # The brand is matched by its stricter pattern below.
+            *(
+                marker.encode("utf-8").lower()
+                for marker in FORBIDDEN_PATH_FRAGMENTS
+                if marker not in FORBIDDEN_PATTERNS
+            ),
         },
         key=len,
         reverse=True,
     )
-    overlap = max(map(len, markers), default=1) - 1
+    # Patterns add at most one byte of lookbehind/lookahead to their literal.
+    overlap = max(map(len, markers), default=1) + 1
     try:
         with path.open("rb") as handle:
             previous = b""
@@ -202,7 +239,10 @@ def _cache_marker(path: Path) -> str | None:
                 for marker in markers:
                     if marker in haystack:
                         return marker.decode("utf-8")
-                previous = haystack[-overlap:] if overlap else b""
+                for label, pattern in _BYTES_PATTERNS.items():
+                    if pattern.search(haystack):
+                        return label
+                previous = haystack[-overlap:]
     except OSError:
         return None
     return None
@@ -233,9 +273,9 @@ def _package_errors(path: Path) -> list[str]:
     identities: list[tuple[str, str, str]] = []
     qos_roles = {
         ("qos-binding/v1", "Application"): "application",
-        ("qos-binding/v1", "RoutingOverlay"): "application",
+        ("qos-binding/v1", "RoutingOverlay"): "candidateCatalog",
         ("omg/bpmn/2.0.2", "BPMN"): "application",
-        ("qos-binding-placement/v1", "Placement"): "application",
+        ("qos-binding-placement/v1", "Placement"): "candidateCatalog",
         ("qos-binding/v1", "CandidateCatalog"): "candidateCatalog",
         ("qos-binding/v1", "ConstraintSet"): "constraintSet",
         ("qos-binding/v1", "Optimization"): "optimization",
@@ -301,14 +341,24 @@ def _package_errors(path: Path) -> list[str]:
         errors.append(f"{prefix}: expected at most one RoutingOverlay")
 
     for resource_path in path.parent.iterdir():
-        if resource_path.is_file() and resource_path.name != "instance.json" and resource_path.name not in declared:
+        if (
+            resource_path.is_file()
+            and resource_path.name != "instance.json"
+            and resource_path.name not in declared
+            and resource_path.relative_to(ROOT) not in UNDECLARED_PACKAGE_FILES
+        ):
             errors.append(f"{prefix}: undeclared package file {resource_path.name}")
     return errors
 
 
 def main() -> int:
     directories, files = repository_tree()
-    roots = sorted(path for path in files if path.name == "instance.json")
+    roots = sorted(
+        path
+        for path in files
+        if path.name == "instance.json"
+        and not any(root in path.parents for root in NON_CORPUS_ROOTS)
+    )
     errors: list[str] = []
     if len(roots) != EXPECTED_PACKAGES:
         errors.append(f"expected {EXPECTED_PACKAGES} BIM packages, found {len(roots)}")
@@ -355,6 +405,9 @@ def main() -> int:
         for marker in FORBIDDEN_TEXT:
             if marker.casefold() in text:
                 errors.append(f"{relative}: retired language marker {marker!r}")
+        for label, pattern in _TEXT_PATTERNS.items():
+            if pattern.search(text):
+                errors.append(f"{relative}: retired language marker {label!r}")
 
     print(f"BIM guard: {len(roots)} packages, {len(errors)} errors")
     for error in errors[:200]:

@@ -29,10 +29,11 @@ import pytest_asyncio
 from fastapi import HTTPException
 from sqlalchemy import func, select
 
+from _paths import GATEWAY_ROOT
 from _pricing import pricing_catalog
 from _repo import REPO_ROOT
 
-_tools_dir = str(Path(__file__).resolve().parents[1] / "tools")
+_tools_dir = str(GATEWAY_ROOT / "tools")
 if _tools_dir not in sys.path:
     sys.path.insert(0, _tools_dir)
 

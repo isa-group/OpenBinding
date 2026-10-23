@@ -5,8 +5,10 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from _paths import GATEWAY_ROOT
+
 PACKAGE = "openbinding_gateway"
-SOURCE = Path(__file__).resolve().parents[1] / "src" / PACKAGE
+SOURCE = GATEWAY_ROOT / "src" / PACKAGE
 ROUTES = f"{PACKAGE}.routes"
 
 #: Layers that must stay independent of ``routes``.

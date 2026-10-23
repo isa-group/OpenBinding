@@ -21,6 +21,9 @@ from failure_digest import (  # noqa: E402,F401
     pytest_unconfigure,
 )
 
+# The OMG BPMN XSDs are not versioned: the session that runs these tests puts them in place first (tools/xsd_session.py).
+from xsd_session import pytest_report_header, pytest_sessionstart  # noqa: E402,F401
+
 
 @pytest.fixture(scope="session")
 def baseline_tool():

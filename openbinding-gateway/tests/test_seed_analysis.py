@@ -1,11 +1,12 @@
 """The analysis gallery contains genuine evaluated evidence and stable seed identities."""
 import sys
-from pathlib import Path
 
 import pytest
+from _paths import GATEWAY_ROOT
+from _repo import REPO_ROOT
 from sqlalchemy import select
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+sys.path.insert(0, str(GATEWAY_ROOT / "tools"))
 from seed_analysis import (
     GALLERY,
     compile_gallery,
@@ -19,7 +20,7 @@ from openbinding_gateway.db.models import Job, JobState
 from openbinding_gateway.db.platform_models import StudyCell, StudyRun
 from openbinding_gateway.integrations import bim
 
-EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
+EXAMPLES = REPO_ROOT / "examples"
 
 
 def evaluations(problem, bindings, execution):

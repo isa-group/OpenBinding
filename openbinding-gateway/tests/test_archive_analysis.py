@@ -2,9 +2,9 @@
 import copy
 import itertools
 import random
-from pathlib import Path
 
 import pytest
+from _repo import REPO_ROOT
 
 from openbinding_gateway.models.analysis import AnalysisQuery, AnalysisSource, Requirement
 from openbinding_gateway.v1.archive import (
@@ -160,7 +160,7 @@ def test_budgets_use_one_witness_ignore_own_axes_and_do_not_invert_upper_bounds(
 
 
 def test_real_canonical_archive_keeps_hard_violations_and_penalty_dimension():
-    problem = compile_instance(load_package(Path(__file__).parents[2] / "examples/demo/18_analysis_constraints"))
+    problem = compile_instance(load_package(REPO_ROOT / "examples/demo/18_analysis_constraints"))
     tasks = sorted(problem.document["spec"]["eligibility"])
     solutions = []
     for refs in itertools.product(*(problem.document["spec"]["eligibility"][t] for t in tasks)):
@@ -205,7 +205,7 @@ async def test_api_canonical_sources_revision_export_and_auth(api_client, db_ses
     token = (await api_client.post("/v1/auth/login", json={"username_or_email": details["username"], "password": details["password"]})).json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     owner = (await db_session.execute(select(User).where(User.username == details["username"]))).scalar_one()
-    problem = compile_instance(load_package(Path(__file__).parents[2] / "examples/demo/17_analysis_tradeoffs"))
+    problem = compile_instance(load_package(REPO_ROOT / "examples/demo/17_analysis_tradeoffs"))
     binding = {t: refs[0] for t, refs in problem.document["spec"]["eligibility"].items()}
     result = {"solutions": [{"decision": {"kind": "binding", "binding": binding}, **problem.evaluate(binding)}]}
     jobs = [Job(owner_id=owner.id, engine_id="diagnostic", engine_job_id=f"fixture-{i}", service_url="https://example.invalid",
@@ -281,7 +281,7 @@ async def test_analysis_worker_atomic_completion_failure_retry_and_cancel(db_ses
     from openbinding_gateway.db import base
     from openbinding_gateway.db.models import AnalysisTask, Job, JobState, User
     from openbinding_gateway.routes import analysis
-    problem = compile_instance(load_package(Path(__file__).parents[2] / "examples/demo/17_analysis_tradeoffs"))
+    problem = compile_instance(load_package(REPO_ROOT / "examples/demo/17_analysis_tradeoffs"))
     owner = User(username="worker-owner", email="worker@example.invalid", password_hash="unused", is_active=True, plan_cache="BASIC")
     db_session.add(owner)
     await db_session.flush()

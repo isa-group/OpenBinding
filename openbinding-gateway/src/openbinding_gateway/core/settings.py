@@ -221,6 +221,10 @@ class Settings(BaseSettings):
     #: commercial plan: unset, the administrator is created without one and SPACE
     #: assigns it (``SPACE_DEFAULT_PLAN`` applies to ordinary sign-ups only).
     bootstrap_admin_plan: Optional[str] = None
+    #: Opt-in to seeding an ``admin`` account in a database with no accounts at
+    #: all. It needs a password from the operator (``BOOTSTRAP_ADMIN_PASSWORD``);
+    #: nothing is ever seeded with a built-in one, whatever ``APP_ENV`` says.
+    seed_default_admin: bool = False
 
     # -- SPACE (pricing-driven access control) ---------------------------
     #: SPACE and SPHERE own pricings, versions, plans and contracts and are

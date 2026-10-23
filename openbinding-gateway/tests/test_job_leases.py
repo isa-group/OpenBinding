@@ -25,6 +25,7 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from _paths import GATEWAY_ROOT
 from _pricing import pricing_catalog
 from _repo import REPO_ROOT as EXAMPLES_ROOT
 from openbinding_gateway.core.public_errors import JOB_FAILURES
@@ -34,7 +35,7 @@ from openbinding_gateway.services import execution
 from openbinding_gateway.services.engine_registry import CancellationCapability
 from bim_core.package import load_package
 
-ROOT = Path(__file__).parents[1]
+ROOT = GATEWAY_ROOT
 EXAMPLE = EXAMPLES_ROOT / "examples/demo/01_simple_seq"
 
 

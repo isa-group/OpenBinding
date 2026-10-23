@@ -22,6 +22,8 @@ export interface DznBuildResult {
     binPackingColumns: number;
     binPackingChecks: number;
     capacityChecks: number;
+    /** Reified capacity checks that no selection can violate; the model does not post them. */
+    vacuousCapacityChecks: number;
     /** Comparison literals moved by the numeric slack in the feasible direction (see numeric.ts). */
     relaxedLiterals: number;
   };
@@ -49,6 +51,46 @@ type Operand = {
   kind: number; index: number; value: number; values: number[]; type: string;
   rawValue: unknown; rawValues: unknown[];
 };
+
+/**
+ * Capacity checks that hold for every selection, so the model does not post them.
+ *
+ * A check `sum over tasks of [pool(task) = p] * weight * demand <= limit` cannot fail when the
+ * largest load any selection can put on pool `p` -- the sum, over tasks, of the largest weighted
+ * demand of an eligible candidate that sits in `p` (0 when there is none) -- stays within the
+ * limit. Such a check only costs propagators in every node of the search (a reified pool
+ * equality, a float product and a float sum per task). The test uses the limit as it is printed
+ * into the data file (already relaxed by the numeric slack) and keeps one more relative slack
+ * for the rounding of the sum, so a load that touches the limit exactly keeps its check.
+ * Checks already enforced by a bin-packing column, and "distinct selected candidate" checks over
+ * candidates that are eligible for several tasks, are never reported (the latter has no
+ * per-task bound).
+ */
+export function vacuousCapacityChecks(input: {
+  capacityPool: number[]; capacityScope: number[]; capacityColumn: number[]; capacityLimit: number[];
+  capacityInBin: boolean[]; candidatePool: number[]; candidateResourceDemand: number[][];
+  taskInvocation: number[]; eligibility: number[][]; selectionDisjoint: boolean;
+}): boolean[] {
+  return input.capacityPool.map((pool, check) => {
+    if (input.capacityInBin[check]) return false;
+    const perInvocation = input.capacityScope[check] === 1;
+    if (!perInvocation && !input.selectionDisjoint) return false;
+    const column = input.capacityColumn[check] - 1;
+    let load = 0;
+    input.eligibility.forEach((candidates, task) => {
+      let largest = 0;
+      for (const candidate of candidates) {
+        if (input.candidatePool[candidate - 1] !== pool) continue;
+        const demand = input.candidateResourceDemand[candidate - 1][column]
+          * (perInvocation ? input.taskInvocation[task] : 1);
+        if (!Number.isFinite(demand)) { load = NaN; break; }
+        if (demand > largest) largest = demand;
+      }
+      load += largest;
+    });
+    return Number.isFinite(load) && load * (1 + 1e-9) <= input.capacityLimit[check];
+  });
+}
 
 const AGGREGATION_CODES: Record<string, Record<string, number>> = {
   sequence: { sum: 1, product: 2, min: 3, max: 4 },
@@ -420,6 +462,13 @@ export class DznBuilder {
       });
     const placement = buildPlacementEncoding(problem, candidates, tasks, metricIndex, optimization.penaltyWeight,
       eligibility, selectionDisjoint);
+    const capacityLimit = placement.capacityLimit.map((limit) => relaxLiteral(limit, 1));
+    const capacityVacuous = vacuousCapacityChecks({
+      capacityPool: placement.capacityPool, capacityScope: placement.capacityScope,
+      capacityColumn: placement.capacityColumn, capacityLimit, capacityInBin: placement.capacityInBin,
+      candidatePool: placement.candidatePool, candidateResourceDemand: placement.candidateResourceDemand,
+      taskInvocation: placement.taskInvocation, eligibility, selectionDisjoint,
+    });
     let objectiveBound = 0;
     const termBounds: number[] = [];
     optimization.metric.forEach((metricPosition, index) => {
@@ -540,12 +589,13 @@ n_capacity_resources = ${placement.capacityResources};
 capacity_pool = ${fmt(placement.capacityPool)};
 capacity_scope = ${fmt(placement.capacityScope)};
 capacity_column = ${fmt(placement.capacityColumn)};
-capacity_limit = ${fmtF(placement.capacityLimit.map((limit) => relaxLiteral(limit, 1)))};
+capacity_limit = ${fmtF(capacityLimit)};
 candidate_resource_demand = ${this.fmt2dFixed(placement.candidateResourceDemand.map((row) => row.map(fmtFloat)), placement.capacityResources)};
 n_bin_columns = ${placement.binWeights.length};
 bin_weight = ${this.fmt2dFixed(placement.binWeights.map((row) => row.map(String)), tasks.length)};
 bin_capacity = ${this.fmt2dFixed(placement.binCapacities.map((row) => row.map(String)), placement.poolModel.length)};
 capacity_in_bin = ${fmt(placement.capacityInBin)};
+capacity_vacuous = ${fmt(capacityVacuous)};
 n_transitions = ${placement.transitionModel.length};
 transition_model = ${fmt(placement.transitionModel)};
 transition_from_kind = ${fmt(placement.transitionFromKind)};
@@ -592,6 +642,7 @@ ready_children = ${fmt2d(placement.readyChildren)};
         binPackingColumns: placement.binWeights.length,
         binPackingChecks: placement.capacityInBin.filter(Boolean).length,
         capacityChecks: placement.capacityInBin.length,
+        vacuousCapacityChecks: capacityVacuous.filter(Boolean).length,
         relaxedLiterals: constraints.relaxedLiterals,
       },
     };

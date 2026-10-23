@@ -23,7 +23,7 @@ For now the code was copied, not moved; see [`docs/EXTRACTION_LOG.md`](docs/EXTR
 ```
 bim-toolchain/
   pyproject.toml                    uv workspace of the three packages (builds nothing)
-  .gitignore                        dist/, .venv/, .verify-venv/, __pycache__
+  .gitignore                        dist/, .venv/, .verify-venv/, __pycache__, and the five OMG XSDs (never versioned)
   .github/workflows/                ci.yml, release.yml (for the future repository; never run yet)
   CHANGELOG.md                      SemVer; says what changed in the digests
   LICENSE                           CC BY 4.0 (OpenBinding's, unchanged)
@@ -32,8 +32,9 @@ bim-toolchain/
   licenses.json                     the manifest: SPDX identifier, scope, OMG XSD clearance switch, pending action pins
   packages/bim-core/
     pyproject.toml, README.md, LICENSE and NOTICE.md (copies of the root ones, shipped as license-files)
+    hatch_build.py                  build hook and script: downloads and verifies the OMG XSDs (outside src/bim_core)
     src/bim_core/                   the package (src layout, py.typed)
-      resources/                    JSON Schemas, engine contract, vendored OMG BPMN 2.0.2 XSDs
+      resources/                    JSON Schemas, engine contract, OMG BPMN 2.0.2 XSDs (downloaded; not in Git)
     tests/                          tests/fixtures/manifests: Engine manifests; fixtures/example-package: a small BIM package
   packages/bim-service/
     pyproject.toml, README.md, LICENSE, NOTICE.md, Dockerfile
@@ -60,12 +61,29 @@ bim-toolchain/
   tools/smoke_installed.py          smoke test of installed wheels, run with python -I in a clean venv
   tools/verify_release.py           two reproducible builds, clean venv, smoke test, digests, contracts, one JSON summary
   tools/export_repo.py              exports this directory as a new repository, one commit (docs/DELIVERY.md)
-  tools/xsd_inventory.py            inventory of the vendored OMG XSDs, read from their bytes; verified download
+  tools/xsd_inventory.py            inventory of the OMG XSDs, read from their bytes; --ensure: verified download; --check: Git does not version them
+  tools/xsd_session.py              pytest hooks (in the conftest.py files) that put the OMG XSDs in place before a session
   tools/corpus_tier.py              marks the tests that read the OpenBinding corpus (-m 'not openbinding_corpus')
   tools/test_*.py, packaging_support.py   packaging, license, export and release tests; workflows
   docs/                             CONTRACT.md, DIGESTS.md, SERVICE.md, CLIENT.md, PACKAGING.md, RELEASING.md, EXTRACTION_LOG.md,
                                     LICENSING.md, OMG_XSD_RIGHTS.md, GOLDEN_METADATA.md, DELIVERY.md
 ```
+
+## The OMG BPMN XSDs
+
+The five OMG BPMN 2.0.2 XSDs that `bim-core` validates BPMN with are **not versioned in Git** (their redistribution is not
+demonstrated, [`docs/OMG_XSD_RIGHTS.md`](docs/OMG_XSD_RIGHTS.md)), but the system works as if they were inside: wherever they
+are missing they are downloaded from omg.org over https and the SHA-256 of each is verified (all five or an error; nothing is
+written otherwise). `bim_core` itself downloads nothing when it is used; the download lives around it: the build hook
+(`packages/bim-core/hatch_build.py`: `pip install`, `pip install -e`, `uv sync`, `uv build`), the workflows, the Docker images,
+the test sessions and the tools. To put them in place by hand, with network access:
+
+```sh
+python3 tools/xsd_inventory.py --ensure      # nothing to do if the five files are there and verify
+python3 tools/xsd_inventory.py --check       # Git must neither list nor fail to ignore them
+```
+
+Without network the error names the exact command to run where there is. The wheels, sdists and images **do** carry the files.
 
 ## Building and installing
 
@@ -91,7 +109,8 @@ PYTHONPATH=packages/bim-core/src:packages/bim-service/src:packages/bim-client/sr
 ```
 
 The tests in `tools/` that open the built archives or use the clean venv build what they need (`dist/`, `.verify-venv`,
-rebuilt when the sources change) with `uv`; a missing `uv` is an error, not a skip.
+rebuilt when the sources change) with `uv`; a missing `uv` is an error, not a skip. A session that runs the suites first puts
+the OMG XSDs in place (`tools/xsd_session.py`; `BIM_XSD_SESSION=skip` turns it off for a run that does not need them).
 
 The corpus of BIM packages is not part of this directory. The tests that read it are marked `openbinding_corpus`
 (found by reading the tests, `tools/corpus_tier.py`); they look under `BIM_CORPUS_ROOT` (default: the directory that
@@ -138,8 +157,9 @@ The material written for this repository is licensed under **CC-BY-4.0** (SPDX),
 javiercavlop (titular del repositorio OpenBinding); credit the holder, link the license and indicate changes. It is
 declared in the `license` field of each `pyproject.toml` (the wheels carry `License-Expression: CC-BY-4.0`) and in
 [`licenses.json`](licenses.json). It does **not** cover the five OMG BPMN 2.0.2 schemas under
-`bim_core/resources/vendor` (rights not demonstrated, [`docs/OMG_XSD_RIGHTS.md`](docs/OMG_XSD_RIGHTS.md): the export leaves
-them out until the holder clears them), the dependencies, or the material credited in `THIRD_PARTY_NOTICES.md`. CC BY 4.0
+`bim_core/resources/vendor` (rights not demonstrated, [`docs/OMG_XSD_RIGHTS.md`](docs/OMG_XSD_RIGHTS.md): Git does not version
+them, builds download them verified, and keeping them in the artifacts is a decision of the owner), the dependencies, or the
+material credited in `THIRD_PARTY_NOTICES.md`. CC BY 4.0
 is not designed for software: that risk is recorded in [`docs/LICENSING.md`](docs/LICENSING.md) and the decision of the
 holder is untouched. No dataset is redistributed. See [`NOTICE.md`](NOTICE.md).
 

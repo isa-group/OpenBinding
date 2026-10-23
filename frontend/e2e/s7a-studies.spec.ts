@@ -443,7 +443,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'New study' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Archive' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Delete' })).toHaveCount(0);
-      await expect(main.getByText('Counted against the sponsor’s plan; their usage isn’t shown to you')).toBeVisible();
+      // Nothing is counted per account here, so a viewer is told nothing about the sponsor's plan or usage.
+      await expect(main.getByText(/sponsor’s plan|usage isn’t shown/)).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-viewer`);
 
       await page.goto('/app/isa-demo/ghost/studies');

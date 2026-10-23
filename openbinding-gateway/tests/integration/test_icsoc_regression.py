@@ -12,8 +12,10 @@ import uuid
 import httpx
 import pytest
 
+from _repo import REPO_ROOT
 from bim_core.compiler import compile_instance
 from bim_core.package import InstancePackage, load_package
+from job_polling import wait_for_job
 
 from experimentation.icsoc.generator.config import load_config
 from experimentation.icsoc.generator.generator import generate_dataset
@@ -23,11 +25,40 @@ pytestmark = pytest.mark.integration
 
 GATEWAY_URL = "http://127.0.0.1:8000"
 
+LANES = {
+    "minizinc-csp": (
+        "exact-weighted",
+        {"solver": "gecode", "time_budget_ms": 30_000},
+    ),
+    "random-search": ("seeded", {"iterations": 1_000, "seed": 7}),
+    "evolutionary-heuristics": (
+        "elitist-genetic",
+        {
+            "algorithm": "elitist-genetic",
+            "population_size": 20,
+            "max_evaluations": 1_000,
+            "archive_size": 20,
+            "seed": 7,
+        },
+    ),
+}
+# The package declares criteria only; the historical weights of configs/default.yml
+# belong to the request. Without them the gateway fills equal weights and the
+# exact optimum changes.
+OPTIMIZATION = {
+    "type": "SINGLE",
+    "scalarization": "weighted-sum",
+    "weights": [
+        {"criteria": "latency", "value": 0.33},
+        {"criteria": "cost", "value": 0.34},
+        {"criteria": "security", "value": 0.33},
+    ],
+}
+
 
 def _repository_root() -> Path:
-    for root in (Path(__file__).parents[2], Path(__file__).parents[3]):
-        if (root / "experimentation/icsoc/original_dataset/applications.json").is_file():
-            return root
+    if (REPO_ROOT / "experimentation/icsoc/original_dataset/applications.json").is_file():
+        return REPO_ROOT
     pytest.skip(
         "experimentation/icsoc/original_dataset is not present; it lives on the "
         "data/icsoc-original-dataset branch (see experimentation/icsoc/README.md)"
@@ -90,11 +121,11 @@ def test_reduced_dataset_reproduces_the_historical_case(
         "globalLatencyRules": len(placement["spec"]["globalLatency"]),
     }
     normalization = {
-        term["feature"]["id"]: {
-            "min": term["normalize"]["min"],
-            "max": term["normalize"]["max"],
+        criterion["feature"]["id"]: {
+            "min": criterion["normalize"]["min"],
+            "max": criterion["normalize"]["max"],
         }
-        for term in optimization["spec"]["terms"]
+        for criterion in optimization["spec"]["criteria"]
     }
 
     assert observed == baseline["structure"]
@@ -151,26 +182,18 @@ def test_reduced_dataset_reproduces_the_historical_case(
         assert history["robustUpperFence"] == pytest.approx(expected_fence, abs=1e-15)
 
 
-def _admin_headers(client: httpx.Client) -> dict[str, str]:
+def _admin_headers(client: httpx.Client, credentials: tuple[str, str]) -> dict[str, str]:
+    username, password = credentials
     response = client.post(
         "/v1/auth/login",
-        json={"username_or_email": "admin", "password": "4dm1n"},
+        json={"username_or_email": username, "password": password},
     )
     assert response.status_code == 200, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 def _wait(client: httpx.Client, job_id: str, headers: dict[str, str]) -> dict:
-    deadline = time.monotonic() + 120
-    latest: dict = {}
-    while time.monotonic() < deadline:
-        response = client.get(f"/v1/jobs/{job_id}", headers=headers)
-        assert response.status_code == 200, response.text
-        latest = response.json()
-        if latest.get("status") in {"completed", "failed"}:
-            return latest
-        time.sleep(0.1)
-    pytest.fail(f"ICSOC job {job_id} timed out: {json.dumps(latest, sort_keys=True)}")
+    return wait_for_job(client, job_id, headers, timeout_s=120, label="ICSOC job")
 
 
 def _solve(
@@ -203,6 +226,7 @@ def _solve(
             "registration": selection["registration"],
             "mode": mode,
             "options": options,
+            "optimization": OPTIMIZATION,
         },
     )
     assert accepted.status_code == 202, accepted.text
@@ -211,6 +235,49 @@ def _solve(
     result = job["result"]
     assert result["solutions"], json.dumps(result, sort_keys=True)
     return result
+
+
+def _engine_reported(result: dict) -> dict:
+    provenance = result.get("provenance") or {}
+    reported = provenance.get("engineReported")
+    return reported if isinstance(reported, dict) else {}
+
+
+def _lane_summary(engine: str, result: dict, wall_s: float) -> str:
+    """One line per lane: wall time seen by the test and the engine's own split.
+
+    ``elapsed_ms`` covers flattening and search together for minizinc-csp (the
+    time budget applies to the sum); ``flatten_ms`` is the flattening share, so
+    ``search_ms`` is what remained for fzn-gecode.
+    """
+    reported = _engine_reported(result)
+    elapsed = reported.get("elapsed_ms")
+    flatten = reported.get("flatten_ms")
+    search = (
+        elapsed - flatten
+        if isinstance(elapsed, (int, float)) and isinstance(flatten, (int, float))
+        else None
+    )
+    return (
+        f"lane={engine} termination={result.get('termination')!r} "
+        f"test_wall_s={wall_s:.3f} engine_elapsed_ms={elapsed} "
+        f"engine_flatten_ms={flatten} engine_search_ms={search} "
+        f"time_budget_ms={reported.get('time_budget_ms')} "
+        f"gecode_statistics={json.dumps(reported.get('gecode_statistics'), sort_keys=True)}"
+    )
+
+
+def _lane_diagnostics(
+    summaries: dict[str, str], results: dict[str, dict], engine: str
+) -> str:
+    """Complete, untruncated evidence for one lane, for assertion messages."""
+    return (
+        "\n".join(summaries.values())
+        + f"\n{engine} provenance.engineReported (complete):\n"
+        + json.dumps(_engine_reported(results[engine]), sort_keys=True, indent=2)
+        + f"\n{engine} provenance (complete):\n"
+        + json.dumps(results[engine].get("provenance"), sort_keys=True, indent=2)
+    )
 
 
 def _best_solution(result: dict) -> dict:
@@ -229,6 +296,116 @@ def _assert_feasible(solution: dict) -> None:
     assert not hard, json.dumps(hard, sort_keys=True)
 
 
+def _solution_report(label: str, result: dict) -> str:
+    """Best incumbent of one lane: score, features, penalty, violations and binding."""
+    solutions = result.get("solutions") or []
+    if not solutions:
+        return f"{label}: no solution (termination={result.get('termination')!r})"
+    best = _best_solution(result)
+    objectives = best.get("objectives") or {}
+    components = [
+        {
+            key: component.get(key)
+            for key in ("criteria", "value", "loss", "weight")
+        }
+        for component in objectives.get("components") or []
+    ]
+    binding = (best.get("decision") or {}).get("binding")
+    return (
+        f"{label}: termination={result.get('termination')!r} "
+        f"solutions={len(solutions)} score={objectives.get('score')!r} "
+        f"penalty={objectives.get('penalty')!r}\n"
+        f"  features={json.dumps(best.get('features'), sort_keys=True)}\n"
+        f"  components={json.dumps(components, sort_keys=True)}\n"
+        f"  violations={json.dumps(best.get('violations'), sort_keys=True)}\n"
+        f"  binding={json.dumps(binding, sort_keys=True)}"
+    )
+
+
+def _rescore(features: dict, criteria: list[dict], weights: dict[str, float]) -> float:
+    """Score of a feature vector under the package's own criteria and the request weights.
+
+    Same formula as the engine and the gateway: normalise with the criterion's
+    bounds (clamped when asked), then the loss is ``1 - x`` for ``maximize`` and
+    ``x`` for ``minimize``; the score is the weighted sum of the losses.
+    """
+    total = 0.0
+    for criterion in criteria:
+        value = float(features[criterion["feature"]["id"]])
+        normalized = value
+        normalize = criterion.get("normalize")
+        if normalize:
+            span = float(normalize["max"]) - float(normalize["min"])
+            normalized = (value - float(normalize["min"])) / span
+            if normalize.get("clamp"):
+                normalized = max(0.0, min(1.0, normalized))
+        loss = (
+            (1.0 - normalized if normalize else -normalized)
+            if criterion["direction"] == "maximize"
+            else normalized
+        )
+        total += weights.get(criterion["id"], 0.0) * loss
+    return total
+
+
+def _campaign_report(
+    results: dict[str, dict], baseline: dict, package: InstancePackage
+) -> str:
+    """Everything needed to tell a wrong 'OPTIMAL' from a stale baseline.
+
+    Printed before any score assertion. It compares the lanes with each other
+    and with the baseline, and re-scores the baseline's own feature vectors under
+    the criteria (direction, normalisation, clamp) the package declares today:
+    a baseline recorded under other criteria would not score what it recorded.
+    """
+    criteria = _document(package, "optimization.json")["spec"]["criteria"]
+    features = _document(package, "application.json")["spec"]["features"]
+    weights = {item["criteria"]: item["value"] for item in OPTIMIZATION["weights"]}
+    lines = [
+        "package criteria (id: criterion direction / feature direction / normalize):",
+    ]
+    for criterion in criteria:
+        lines.append(
+            f"  {criterion['id']}: {criterion['direction']} / "
+            f"{features.get(criterion['feature']['id'], {}).get('direction')} / "
+            f"{json.dumps(criterion.get('normalize'), sort_keys=True)} "
+            f"weight={weights.get(criterion['id'])}"
+        )
+    for engine, result in results.items():
+        lines.append(_solution_report(engine, result))
+    for name in ("legacyExact", "currentExact"):
+        lines.append(
+            f"baseline {name}: recorded score={baseline[name]['score']!r} "
+            f"features={json.dumps(baseline[name]['features'], sort_keys=True)} "
+            f"rescored under the package criteria="
+            f"{_rescore(baseline[name]['features'], criteria, weights)!r}"
+        )
+    for engine, observed in baseline["currentObserved"].items():
+        if not isinstance(observed, dict):
+            continue
+        lines.append(
+            f"baseline currentObserved[{engine}]: recorded score={observed['score']!r} "
+            f"features={json.dumps(observed['features'], sort_keys=True)} "
+            f"rescored under the package criteria="
+            f"{_rescore(observed['features'], criteria, weights)!r}"
+        )
+    scores = {
+        engine: float(_best_solution(result)["objectives"]["score"])
+        for engine, result in results.items()
+        if result.get("solutions")
+    }
+    lines.append(f"best score per lane: {json.dumps(scores, sort_keys=True)}")
+    exact = scores.get("minizinc-csp")
+    for engine in ("random-search", "evolutionary-heuristics"):
+        if exact is not None and engine in scores and scores[engine] + 1e-9 < exact:
+            lines.append(
+                f"WARNING: {engine} found {scores[engine]!r} < minizinc-csp "
+                f"{exact!r}: the exact lane's OPTIMAL is not an optimum of the "
+                "problem the gateway evaluates"
+            )
+    return "\n".join(lines)
+
+
 def _classification(score: float, exact: float, history: dict) -> str:
     if math.isclose(score, exact, rel_tol=0.0, abs_tol=1e-9):
         return "coincide"
@@ -242,26 +419,11 @@ def _classification(score: float, exact: float, history: dict) -> str:
 def test_reduced_campaign_matches_or_remains_statistically_sensible(
     reduced_package: InstancePackage,
     baseline: dict,
+    bootstrap_admin_credentials: tuple[str, str],
 ) -> None:
-    lanes = {
-        "minizinc-csp": (
-            "exact-weighted",
-            {"solver": "gecode", "time_budget_ms": 30_000},
-        ),
-        "random-search": ("seeded", {"iterations": 1_000, "seed": 7}),
-        "evolutionary-heuristics": (
-            "elitist-genetic",
-            {
-                "algorithm": "elitist-genetic",
-                "population_size": 20,
-                "max_evaluations": 1_000,
-                "archive_size": 20,
-                "seed": 7,
-            },
-        ),
-    }
+    lanes = LANES
     with httpx.Client(base_url=GATEWAY_URL, timeout=45.0) as client:
-        headers = _admin_headers(client)
+        headers = _admin_headers(client, bootstrap_admin_credentials)
         response = client.post(
             "/v1/instances",
             headers={**headers, "Content-Type": "application/vnd.bim+zip"},
@@ -269,15 +431,35 @@ def test_reduced_campaign_matches_or_remains_statistically_sensible(
         )
         assert response.status_code == 201, response.text
         snapshot = response.json()
-        results = {
-            engine: _solve(client, headers, snapshot, engine, mode, options)
-            for engine, (mode, options) in lanes.items()
-        }
+        results: dict[str, dict] = {}
+        summaries: dict[str, str] = {}
+        for engine, (mode, options) in lanes.items():
+            started = time.monotonic()
+            results[engine] = _solve(client, headers, snapshot, engine, mode, options)
+            summaries[engine] = _lane_summary(
+                engine, results[engine], time.monotonic() - started
+            )
+            # Printed as soon as the lane ends, so pytest shows it in the captured
+            # stdout of a failing run (and live with -s) whatever fails afterwards.
+            print(summaries[engine], flush=True)
+        print(
+            "minizinc-csp provenance.engineReported:\n"
+            + json.dumps(_engine_reported(results["minizinc-csp"]), sort_keys=True, indent=2),
+            flush=True,
+        )
+
+    # Before the first score assertion, so a failing run shows it in the captured stdout.
+    print(_campaign_report(results, baseline, reduced_package), flush=True)
 
     exact_baseline = baseline["legacyExact"]
     exact = _best_solution(results["minizinc-csp"])
     _assert_feasible(exact)
-    assert results["minizinc-csp"]["termination"] == "OPTIMAL"
+    assert results["minizinc-csp"]["termination"] == "OPTIMAL", (
+        f"termination={results['minizinc-csp'].get('termination')!r} "
+        f"(expected OPTIMAL; the legacy baseline proved it in "
+        f"{baseline['legacyExact']['elapsedSeconds']} s)\n"
+        + _lane_diagnostics(summaries, results, "minizinc-csp")
+    )
     assert float(exact["objectives"]["score"]) == pytest.approx(
         exact_baseline["score"], abs=1e-9
     )

@@ -523,7 +523,7 @@ def build_instance(
                 {
                     "id": feature_name,
                     "feature": {"resource": "application", "id": feature_name},
-                    "direction": "minimize",
+                    "direction": features[feature_name]["direction"],
                     "normalize": {**normalize_bounds[feature_name], "clamp": True},
                 }
                 for feature_name in ("latency", "cost", "security")
@@ -604,8 +604,8 @@ def build_instance(
         "optimization.json": optimization,
         "placement.json": placement,
     }
-    application_resources = {
-        "application": "application.json",
+    candidate_catalog_resources = {
+        "catalog": "candidates.json",
         "placement": "placement.json",
     }
     if entries:
@@ -615,7 +615,7 @@ def build_instance(
             "metadata": {"name": f"{name}_routing"},
             "spec": {"entries": entries},
         }
-        application_resources["routing"] = "routing.json"
+        candidate_catalog_resources["routing"] = "routing.json"
     instance = {
         "apiVersion": "bim/v1",
         "kind": "Instance",
@@ -638,8 +638,8 @@ def build_instance(
         "spec": {
             "profile": "qos-binding/v1",
             "resources": {
-                "application": application_resources,
-                "candidateCatalog": {"catalog": "candidates.json"},
+                "application": {"application": "application.json"},
+                "candidateCatalog": candidate_catalog_resources,
                 "constraintSet": {"constraints": "constraints.json"},
                 "optimization": {"optimization": "optimization.json"},
             },
@@ -783,7 +783,10 @@ def generate_task_candidates(
 ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     names = feature_names if feature_names is not None else (metric_names or [])
     task_name = safe_id(function["id"])
-    base_latency = float(getattr(task_call, "latency_bound_ms", 0.0) or 0.0)
+    # task_call.latency_bound_ms is the bound of the incoming transition (emitted
+    # as its `maximum`), not the execution latency of a candidate. Candidates keep
+    # the default latency: globalLatency includes execution, so using the bound
+    # here would inflate the critical path and the normalization bounds.
     demand = _task_demand(function)
     service_reqs = function.get("service_reqs", []) or []
     counters = Counter()
@@ -832,7 +835,6 @@ def generate_task_candidates(
                     base_cost,
                     security_score,
                     selected_services,
-                    latency=base_latency,
                 ),
             }
             demands.append(
@@ -900,7 +902,6 @@ def generate_task_candidates(
                             cost,
                             1.0,
                             selected_services,
-                            latency=base_latency,
                         ),
                     }
                     demands.append(

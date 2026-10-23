@@ -131,11 +131,13 @@ for jobs you intend to solve. See [features](FEATURES.md).
 Capability matching and an optional typed predicate construct eligibility
 before optimization.
 
-Put policy in ConstraintSet and decision strategy in Optimization. Constraints
+Put policy in ConstraintSet and the criteria in Optimization. Constraints
 use safe CEL or JSON AST. Every soft assertion has a non-negative penalty and
-must be referenced explicitly by the Optimization. Choose `satisfy`,
-`weighted-sum`, `lexicographic`, or `pareto-front`; normalize criteria explicitly when units
-differ.
+must be referenced explicitly by the Optimization. The package declares each
+criterion (id, feature, direction) and normalizes criteria explicitly when units
+differ; weights, scalarization (`weighted-sum`, `lexicographic`,
+`pareto-front`, ...), and objective type go in the `optimization` object of the
+execution request.
 
 Keep XOR probabilities in a RoutingOverlay. Supply every branch probability or
 none, make supplied values sum exactly to one, and request uniform routing with

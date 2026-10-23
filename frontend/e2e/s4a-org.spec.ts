@@ -735,7 +735,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(table.getByRole('row', { name: /lucia\.vega@example\.org/ }).getByText('(you)')).toBeVisible();
       await expect(main.getByLabel('Role for marco')).toHaveValue('MEMBER');
       await expect(table.getByRole('row', { name: /marco@example\.org/ }).getByText('Apr 12, 2026')).toBeVisible();
-      await expect(main.getByText(/Unique members across everything you sponsor:/)).toContainText('3 of 15');
+      // The gateway reports the plan's ceiling and no consumption, so the screen says what the plan allows and no "n of 15".
+      await expect(main.getByText(/unique members across everything you sponsor/)).toContainText('Your plan allows up to 15 unique members');
+      await expect(main.getByText(/\b\d+ of 15\b/)).toHaveCount(0);
       await expect(main.getByText('To confirm')).toHaveCount(0);
       await capture(page, testInfo, `members-${name}-success`);
 
@@ -779,7 +781,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
       const seats = main.getByRole('alert');
       await expect(seats).toContainText('The sponsor has no member seats left (402 · sponsor_quota_exceeded): 15 of 15 used. Nothing changed.');
-      await expect(seats.getByRole('link', { name: 'See sponsor usage' })).toHaveAttribute('href', '/app/account/usage');
+      await expect(seats.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       await expect(seats.getByRole('link', { name: 'Change sponsor' })).toHaveAttribute('href', '/app/isa-demo/settings');
       await capture(page, testInfo, `members-${name}-402`);
       state.refuse.batch = detail(422, 'member_mismatch', 'Path and payload user differ.');

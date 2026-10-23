@@ -7,14 +7,15 @@ from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
-import time
 import uuid
 
 import httpx
 import pytest
 
+from _repo import REPO_ROOT
 from bim_core.canonical import canonical_json
 from bim_core.package import InstancePackage, load_package
+from job_polling import wait_for_job
 
 
 GATEWAY_URL = "http://127.0.0.1:8000"
@@ -25,22 +26,29 @@ class RepresentationCase:
     engine: str
     mode: str
     objective_type: str
-    term_count: int
+    scalarization: str
+    criteria_count: int
     options: dict[str, object]
+
+    @property
+    def optimization(self) -> dict[str, str]:
+        return {"type": self.objective_type, "scalarization": self.scalarization}
 
 
 CASES = (
     RepresentationCase(
         "minizinc-csp",
         "exact-weighted",
-        "MONO",
+        "SINGLE",
+        "weighted-sum",
         4,
         {"solver": "gecode", "time_budget_ms": 10_000},
     ),
     RepresentationCase(
         "random-search",
         "seeded",
-        "MONO",
+        "SINGLE",
+        "weighted-sum",
         4,
         {"iterations": 256, "seed": 7},
     ),
@@ -48,6 +56,7 @@ CASES = (
         "evolutionary-heuristics",
         "pareto-genetic",
         "MULTI",
+        "pareto-front",
         2,
         {
             "algorithm": "pareto-genetic",
@@ -61,6 +70,7 @@ CASES = (
         "multi-heuristic",
         "pareto-sampling",
         "MULTI",
+        "pareto-front",
         2,
         {"iterations": 256, "archive_size": 32, "seed": 7},
     ),
@@ -68,6 +78,7 @@ CASES = (
         "many-heuristic",
         "pareto-sampling",
         "MANY",
+        "pareto-front",
         3,
         {"iterations": 256, "archive_size": 32, "seed": 7},
     ),
@@ -99,9 +110,8 @@ def test_representation_matrix_covers_every_repository_engine() -> None:
 
 
 def _repository_root() -> Path:
-    for root in (Path(__file__).parents[2], Path(__file__).parents[3]):
-        if (root / "examples/demo/15_bpmn_complete").is_dir():
-            return root
+    if (REPO_ROOT / "examples/demo/15_bpmn_complete").is_dir():
+        return REPO_ROOT
     raise AssertionError("repository examples are not mounted in the integration runner")
 
 
@@ -109,22 +119,20 @@ def _package(example: str, case: RepresentationCase) -> bytes:
     package = load_package(_repository_root() / "examples" / example)
     files = dict(package.files)
     optimization = deepcopy(package.json("optimization.json"))
-    if case.objective_type == "MONO":
-        assert case.term_count == len(optimization["spec"]["terms"])
+    criteria = optimization["spec"]["criteria"]
+    if case.objective_type == "SINGLE":
+        assert case.criteria_count == len(criteria)
     else:
-        optimization["spec"]["mode"] = "pareto"
-        optimization["spec"]["type"] = case.objective_type
-        optimization["spec"]["terms"] = optimization["spec"]["terms"][: case.term_count]
-        for term in optimization["spec"]["terms"]:
-            term.pop("weight", None)
+        optimization["spec"]["criteria"] = criteria[: case.criteria_count]
     files["optimization.json"] = canonical_json(optimization)
     return InstancePackage(files).to_zip()
 
 
-def _admin_headers(client: httpx.Client) -> dict[str, str]:
+def _admin_headers(client: httpx.Client, credentials: tuple[str, str]) -> dict[str, str]:
+    username, password = credentials
     logged = client.post(
         "/v1/auth/login",
-        json={"username_or_email": "admin", "password": "4dm1n"},
+        json={"username_or_email": username, "password": password},
     )
     assert logged.status_code == 200, logged.text
     return {"Authorization": f"Bearer {logged.json()['access_token']}"}
@@ -204,16 +212,7 @@ def _wait_for_job(
     job_id: str,
     headers: dict[str, str],
 ) -> dict:
-    deadline = time.monotonic() + 60
-    latest: dict = {}
-    while time.monotonic() < deadline:
-        response = client.get(f"/v1/jobs/{job_id}", headers=headers)
-        assert response.status_code == 200, response.text
-        latest = response.json()
-        if latest.get("status") in {"completed", "failed"}:
-            return latest
-        time.sleep(0.1)
-    pytest.fail(f"job {job_id} did not terminate: {json.dumps(latest, sort_keys=True)}")
+    return wait_for_job(client, job_id, headers, timeout_s=60)
 
 
 def _solve(
@@ -253,6 +252,7 @@ def _solve(
             "registration": selection["registration"],
             "mode": case.mode,
             "options": case.options,
+            "optimization": case.optimization,
         },
     )
     assert accepted.status_code == 202, accepted.text
@@ -272,9 +272,10 @@ def _solutions(result: dict) -> list[str]:
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case.engine)
 def test_every_engine_returns_the_same_result_for_bpmn_and_native_json(
     case: RepresentationCase,
+    bootstrap_admin_credentials: tuple[str, str],
 ) -> None:
     with httpx.Client(base_url=GATEWAY_URL, timeout=30.0) as client:
-        headers = _admin_headers(client)
+        headers = _admin_headers(client, bootstrap_admin_credentials)
         registration_ref = None
         if case.engine == "multi-heuristic":
             registration_ref = _ensure_multi_registration(client, headers)

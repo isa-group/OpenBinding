@@ -188,7 +188,10 @@ async def test_running_the_bootstrap_leaves_every_pricing_file_untouched(db_sess
 
     before = (_tree_hash(REPO_ROOT / "pricings"), _tree_hash(REPO_ROOT / "space") if (REPO_ROOT / "space").is_dir() else "")
 
-    await seed_default_administrator(db_session, Settings(_env_file=None))
+    await seed_default_administrator(
+        db_session,
+        Settings(_env_file=None, seed_default_admin=True, bootstrap_admin_password="a-long-enough-one"),
+    )
     await ensure_administrator(
         db_session,
         Settings(_env_file=None, bootstrap_admin_username="alice", bootstrap_admin_password="a-long-enough-one"),

@@ -4,10 +4,13 @@
 
 What it does, in this order (it stops being "ok" at the first thing that fails, but runs every step it can):
 
+0. puts the five OMG BPMN XSDs in place if they are not (they are not versioned in Git: verified download, which needs
+   network only when a file is missing);
 1. builds the wheels and sdists of the three distributions **twice**, in two different directories (a copy of the
    sources each time) with a fixed ``SOURCE_DATE_EPOCH``, and compares the SHA-256 of every artifact: a build that is
    not reproducible is a failure, reported member by member;
-   and checks that each wheel and sdist carries ``LICENSE`` and ``NOTICE.md`` equal to the ones at the root;
+   and checks that each wheel and sdist carries ``LICENSE`` and ``NOTICE.md`` equal to the ones at the root, and that the
+   wheel and the sdist of ``bim-core`` carry the five XSDs with the bytes ``licenses.json`` declares;
 2. makes a clean virtual environment, installs the wheels of the first build and runs ``python -I
    tools/smoke_installed.py`` with an empty environment (it imports ``bim_core``, ``bim_service`` and ``bim_client``);
 3. compares ``compilerDigest`` of the wheel, of the source tree, of the unpacked sdist, of the installed distribution and
@@ -187,6 +190,9 @@ def verify(arguments: argparse.Namespace, work: Path, report: Report, summary: d
     summary["python"] = platform.python_version()
     summary["epoch"] = arguments.epoch
 
+    # 0. the OMG XSDs are not versioned: in place (verified download if they are not) before anything is copied or built
+    summary["xsdDownloaded"] = ps.ensure_xsd()
+
     # 1. two builds, in two different directories
     builds: dict[str, dict[str, Path]] = {}
     for label in ("first", "second"):
@@ -207,6 +213,8 @@ def verify(arguments: argparse.Namespace, work: Path, report: Report, summary: d
         report.add("artifacts-present", False, wheels=[path.name for path in wheels])
         return
     summary["generator"] = ps.wheel_generator(core_wheel)
+    xsd_problems = [*ps.xsd_problems(core_wheel), *ps.xsd_problems(core_sdist)]
+    report.add("xsd-in-artifacts", not xsd_problems, problems=xsd_problems)
 
     # 2. clean venv, installed wheels, isolated smoke test
     progress("installing the wheels in a clean virtual environment")

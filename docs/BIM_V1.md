@@ -266,8 +266,10 @@ The remaining source semantics described here belong specifically to
   finite numbers or `null` (an infinite end). It never lists task ids.
 - `ConstraintSet` contains safe typed CEL or JSON-AST conditions, assertions,
   and explicit hard/soft enforcement.
-- `Optimization` defines `satisfy`, weighted, lexicographic, or Pareto
-  selection and explicitly activates every soft penalty.
+- `Optimization` declares the criteria (id, feature, direction, normalization)
+  and explicitly activates every soft penalty. Weights, scalarization, and
+  objective type are supplied in the `optimization` object of the execution
+  request.
 - `RoutingOverlay` keeps probabilities outside the workflow notation.
 - the optional Placement Dialect adds pools, assignments, capacity, network,
   transitions, events, and global-latency policy.

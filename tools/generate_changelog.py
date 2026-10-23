@@ -19,6 +19,17 @@ BIM_SCOPES = {"bim", "core", "engines", "engine", "federation", "experiments"}
 DOC_SCOPES = {"docs", "documentation"}
 PLATFORM_SCOPES = {"account", "admin", "auth", "frontend", "gateway", "platform", "space", "pricing"}
 
+# Files that only maintain the changelog itself. A commit touching nothing
+# else is left out of the changelog: the output is derived from the git log, so
+# a commit that regenerates the committed JSON would otherwise enter the log it
+# is regenerating and leave the file stale as soon as it is committed. A commit
+# that touches any other path counts as usual.
+MAINTENANCE_PATHS = {
+    "frontend/src/content/changelog.generated.json",
+    "tools/generate_changelog.py",
+    "tools/changelog-baseline",
+}
+
 
 def git_log() -> list[tuple[str, str, str, list[str]]]:
     baseline = BASELINE.read_text(encoding="utf-8").strip()
@@ -78,6 +89,8 @@ def generate() -> dict[str, list[dict[str, object]]]:
         if not match:
             continue
         if match.group("scope") == "changelog":
+            continue
+        if paths and set(paths) <= MAINTENANCE_PATHS:
             continue
         title = match.group("title").rstrip(".")
         sentence = title[:1].upper() + title[1:]

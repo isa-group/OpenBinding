@@ -36,6 +36,7 @@ import pytest_asyncio
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from _paths import GATEWAY_ROOT
 from _pricing import pricing_catalog
 from analysis_b3_b4_b6._helpers import (
     PER_ATTEMPT_CANCELLATION,
@@ -71,7 +72,7 @@ from openbinding_gateway.services.engine_registry import (
 )
 from openbinding_gateway.v1 import remote
 
-ROOT = Path(__file__).parents[1]
+ROOT = GATEWAY_ROOT
 SOURCE = ROOT / "src" / "openbinding_gateway"
 SECRET = "engine-credential-that-must-not-leave-for-another-host"
 JOB_PATH = "/internal/v1/jobs/{id}"

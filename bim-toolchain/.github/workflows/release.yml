@@ -11,8 +11,9 @@
 # marked. Before the first real run, pin each `uses:` to the full commit SHA of the release that the major version
 # points to (keep the version in a trailing comment, drop the marker and the entry of the list). No SHA was invented.
 #
-# If the OMG XSD files are not in the tree (the export leaves them out until they are cleared,
-# docs/OMG_XSD_RIGHTS.md), a step after each checkout fetches them and verifies their SHA-256.
+# The five OMG XSD files are not versioned in Git (docs/OMG_XSD_RIGHTS.md): a step right after the checkout downloads
+# them from the official source over https and verifies their SHA-256 (all five or an error); the wheels and sdists
+# built afterwards carry them, and tools/verify_release.py compares their bytes inside the artifacts.
 
 name: release
 
@@ -36,6 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # PIN-PENDING: replace by the full commit SHA
+      - name: Download the OMG BPMN XSDs and verify their SHA-256 (they are not versioned in Git)
+        run: python3 tools/xsd_inventory.py --ensure
       - uses: astral-sh/setup-uv@v5 # PIN-PENDING: replace by the full commit SHA
       - uses: actions/setup-python@v5 # PIN-PENDING: replace by the full commit SHA
         with:

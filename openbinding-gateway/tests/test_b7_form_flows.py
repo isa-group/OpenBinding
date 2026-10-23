@@ -18,9 +18,9 @@ this file documents what each piece is for:
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
+from _repo import REPO_ROOT
 
 from bim_core.compiler import (
     CompileError,
@@ -31,7 +31,7 @@ from bim_core.compiler import (
 )
 from bim_core.package import InstancePackage
 
-FIXTURES = Path(__file__).resolve().parents[2] / "frontend" / "src" / "test" / "fixtures" / "bim-package"
+FIXTURES = REPO_ROOT / "frontend" / "src" / "test" / "fixtures" / "bim-package"
 FLOW = "form-flow"
 
 # One file per resource, named as the Workbench names them; the flow adds the rules file.

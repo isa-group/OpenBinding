@@ -8,9 +8,10 @@ import copy
 import json
 import sys
 import uuid
-from pathlib import Path
 
-_tools_dir = str(Path(__file__).resolve().parents[1] / "tools")
+from _paths import GATEWAY_ROOT
+
+_tools_dir = str(GATEWAY_ROOT / "tools")
 if _tools_dir not in sys.path:
     sys.path.insert(0, _tools_dir)
 

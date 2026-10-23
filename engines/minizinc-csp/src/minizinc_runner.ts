@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { AbortedError, NotTerminatedError, envInteger } from './job_manager';
 import { FLOAT_DOMAIN_SLACK, slackOf } from './numeric';
@@ -24,6 +25,10 @@ export interface MiniZincRunResult {
   suppressedFloatBranchers?: number;
   /** True when the solver stream had to be rendered through the `.ozn` output specification. */
   oznRendered?: boolean;
+  /** `fzn-gecode -s` statistics; absent when the solver printed none. Diagnostic only. */
+  gecodeStatistics?: GecodeStatistics;
+  /** Threads given to fzn-gecode (`-p`); absent when the run ended before the solver started. */
+  gecodeThreads?: number;
 }
 
 /** Budget for the (rare) `.ozn` rendering pass; it reads an already complete solver stream. */
@@ -158,6 +163,55 @@ export function renderSolverOutputDetailed(raw: string): { text: string; incompl
   return { text: `${lines.join('\n')}\n`, incomplete };
 }
 
+/**
+ * Search statistics printed by `fzn-gecode -s`, kept apart from the solution stream.
+ * `values` has one entry per statistic under a normalised name (`nodes`, `failures`, `restarts`,
+ * `propagations`, `peak_depth`, `runtime_ms`, `solvetime_ms`, ...): a number when the value is
+ * numeric (times that Gecode prints with a millisecond figure in parentheses become `<name>_ms`),
+ * the text otherwise. `raw` keeps the original lines, so a name this parser does not know is never lost.
+ */
+export interface GecodeStatistics {
+  values: Record<string, number | string>;
+  raw: string[];
+}
+
+// Gecode 6.3 prints `%%  peak depth:    12`; newer front-ends also print `%%%mzn-stat: nodes=12`.
+const GECODE_STAT_LINE = /^%%\s+([A-Za-z][A-Za-z _-]*?):\s*(.*?)\s*$/;
+const MZN_STAT_LINE = /^%%%mzn-stat:\s*([A-Za-z_][\w.]*)\s*=\s*(.*?)\s*$/;
+const MZN_STAT_END = /^%%%mzn-stat-end\s*$/;
+const STAT_NUMBER = /^-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?$/;
+const STAT_MILLISECONDS = /\(\s*(-?\d+(?:\.\d+)?)\s*ms\s*\)/;
+
+function statName(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+/**
+ * Separates the statistics block of `fzn-gecode -s` from the solver stream. The returned `stdout` has
+ * those lines removed, so neither the solution blocks nor the `==========` / `=====UNSATISFIABLE=====`
+ * markers are affected by their presence; `statistics` is undefined when the solver printed none
+ * (older Gecode, a killed solver, a fake solver).
+ */
+export function extractGecodeStatistics(stdout: string): { stdout: string; statistics?: GecodeStatistics } {
+  const values: Record<string, number | string> = {};
+  const raw: string[] = [];
+  const kept: string[] = [];
+  for (const line of stdout.split('\n')) {
+    const text = line.trim();
+    if (MZN_STAT_END.test(text)) { raw.push(text); continue; }
+    const match = text.match(MZN_STAT_LINE) ?? text.match(GECODE_STAT_LINE);
+    if (!match) { kept.push(line); continue; }
+    raw.push(text);
+    const name = statName(match[1]);
+    if (!name) continue;
+    const milliseconds = match[2].match(STAT_MILLISECONDS);
+    if (milliseconds) values[`${name}_ms`] = Number(milliseconds[1]);
+    else values[name] = STAT_NUMBER.test(match[2]) ? Number(match[2]) : match[2];
+  }
+  if (raw.length === 0) return { stdout };
+  return { stdout: kept.join('\n'), statistics: { values, raw } };
+}
+
 function formatFloat(value: number): string {
   const text = String(value);
   return /[.eE]/.test(text) ? text : `${text}.0`;
@@ -172,6 +226,11 @@ export interface RunnerOptions {
   gecodeCommand?: string;
   /** Arguments placed before the fzn-gecode ones. */
   gecodeCommandArgs?: string[];
+  /**
+   * Threads of the fzn-gecode search (`-p <n>`). Default: `FZN_GECODE_THREADS`, else the processors
+   * available to the engine, at most `MAX_AUTO_GECODE_THREADS`.
+   */
+  threads?: number;
   /** Extra environment for the solver process (on top of the engine's own). */
   env?: Record<string, string>;
   /** After SIGTERM the process group gets this long before SIGKILL. */
@@ -217,10 +276,42 @@ export function gecodeCommandFromEnv(env: NodeJS.ProcessEnv): { gecodeCommand: s
   return { gecodeCommand: command, gecodeCommandArgs: commandArgs };
 }
 
+/** Upper bound of the automatic thread count: beyond it the extra cloning and memory traffic stop paying. */
+export const MAX_AUTO_GECODE_THREADS = 8;
+
+/** Processors available to this process (cgroup/affinity aware where Node is); 1 when unknown. */
+export function availableProcessors(): number {
+  try {
+    return Math.max(1, Math.floor(os.availableParallelism()));
+  } catch {
+    return 1;
+  }
+}
+
+/**
+ * Threads for `fzn-gecode -p`. `FZN_GECODE_THREADS` is an integer in [1,64] (`1` reproduces the
+ * sequential search) or `auto` / empty, which is `min(processors, MAX_AUTO_GECODE_THREADS)`.
+ *
+ * Reproducibility: the sequence of incumbents and the node counts of a parallel search depend on how
+ * the threads interleave, and among several optimal bindings the one that is reported can differ
+ * between runs. The optimal objective value and the proof of optimality do not depend on the thread
+ * count (the same search space is explored, only in another order), and `Solver` ranks the incumbents by
+ * objective value instead of trusting their arrival order. Set `FZN_GECODE_THREADS=1` for a
+ * deterministic run.
+ */
+export function gecodeThreadsFromEnv(env: NodeJS.ProcessEnv, processors: number = availableProcessors()): number {
+  const raw = env.FZN_GECODE_THREADS?.trim().toLowerCase();
+  if (raw === undefined || raw === '' || raw === 'auto') {
+    return Math.max(1, Math.min(MAX_AUTO_GECODE_THREADS, Math.floor(processors)));
+  }
+  return envInteger(env, 'FZN_GECODE_THREADS', 1, 1, 64);
+}
+
 export function runnerOptionsFromEnv(env: NodeJS.ProcessEnv = process.env): RunnerOptions {
   return {
     ...commandFromEnv(env),
     ...gecodeCommandFromEnv(env),
+    threads: gecodeThreadsFromEnv(env),
     killGraceMs: envInteger(env, 'ENGINE_KILL_GRACE_MS', 2000, 0, 60_000),
     reapWaitMs: envInteger(env, 'ENGINE_REAP_WAIT_MS', 3000, 0, 60_000),
   };
@@ -298,6 +389,7 @@ export class MiniZincRunner {
   private readonly commandArgs: string[];
   private readonly gecodeCommand: string;
   private readonly gecodeCommandArgs: string[];
+  private readonly threads: number;
   private readonly extraEnv: Record<string, string>;
   private readonly killGraceMs: number;
   private readonly reapWaitMs: number;
@@ -309,6 +401,7 @@ export class MiniZincRunner {
     this.commandArgs = merged.commandArgs ?? [];
     this.gecodeCommand = merged.gecodeCommand ?? 'fzn-gecode';
     this.gecodeCommandArgs = merged.gecodeCommandArgs ?? [];
+    this.threads = Math.max(1, Math.floor(merged.threads ?? 1));
     this.extraEnv = merged.env ?? {};
     this.killGraceMs = merged.killGraceMs ?? 2000;
     this.reapWaitMs = merged.reapWaitMs ?? 3000;
@@ -366,34 +459,41 @@ export class MiniZincRunner {
       fs.writeFileSync(widenedPath, widened.text);
       const remainingMs = Math.max(1, timeLimitMs - flattenMs);
       const solve = await this.spawn(this.gecodeCommand, this.gecodeCommandArgs,
-        ['-a', '-time', String(Math.round(remainingMs)), widenedPath], env, remainingMs + 2000, startTime, signal);
+        ['-a', '-time', String(Math.round(remainingMs)), '-s', '-p', String(this.threads), widenedPath],
+        env, remainingMs + 2000, startTime, signal);
+      // `-s` adds a comment block of search statistics. It is taken out of the stream before anything
+      // reads the solutions or looks for the completion markers; the raw events keep it untouched.
+      const split = extractGecodeStatistics(solve.stdout);
+      const gecodeStatistics = split.statistics ?? extractGecodeStatistics(solve.stderr).statistics;
       if (solve.code !== 0 && !solve.timedOut) {
         return { code: solve.code, stdout: solve.stdout, stderr: solve.stderr, durationMs: Date.now() - startTime,
-          stdoutEvents: solve.events, flattenMs, widenedDomains: widened.count, suppressedFloatBranchers: widened.suppressed };
+          stdoutEvents: solve.events, flattenMs, widenedDomains: widened.count, suppressedFloatBranchers: widened.suppressed,
+          gecodeStatistics, gecodeThreads: this.threads };
       }
       // The FlatZinc output variables are rendered from the solver stream directly. When a
       // solution block carries no `selected_candidate` or `objective_value` line, MiniZinc
       // fixed that output at flattening time (every candidate decided by propagation, a
       // constant objective) and only the `.ozn` output specification can render it: that
       // is the one case where the stream goes through MiniZinc's own solns2out pass.
-      const rendered = renderSolverOutputDetailed(solve.stdout);
+      const rendered = renderSolverOutputDetailed(split.stdout);
       let stdout = rendered.text;
       let oznRendered = false;
       if (rendered.incomplete > 0) {
         const output = await this.spawn(this.command, this.commandArgs, ['--ozn-file', oznPath], env,
-          OZN_RENDER_TIMEOUT_MS, startTime, signal, solve.stdout);
+          OZN_RENDER_TIMEOUT_MS, startTime, signal, split.stdout);
         if (output.code !== 0 || output.timedOut) {
           return { code: output.code === 0 ? 1 : output.code, stdout: solve.stdout,
             stderr: output.stderr || 'MiniZinc could not render the solver output with the .ozn specification',
             durationMs: Date.now() - startTime, stdoutEvents: solve.events, flattenMs,
-            widenedDomains: widened.count, suppressedFloatBranchers: widened.suppressed };
+            widenedDomains: widened.count, suppressedFloatBranchers: widened.suppressed, gecodeStatistics,
+            gecodeThreads: this.threads };
         }
         stdout = output.stdout;
         oznRendered = true;
       }
       return { code: 0, stdout, stderr: solve.stderr, durationMs: Date.now() - startTime,
         stdoutEvents: solve.events, flattenMs, widenedDomains: widened.count, suppressedFloatBranchers: widened.suppressed,
-        oznRendered };
+        oznRendered, gecodeStatistics, gecodeThreads: this.threads };
     } finally {
       for (const file of [dznPath, fznPath, oznPath, widenedPath]) {
         try { fs.unlinkSync(file); } catch { /* best effort */ }

@@ -2,8 +2,9 @@
 
 Registration is open and produces ordinary users, so a new deployment has no
 administrator and no way to acquire one - promoting an account is itself an
-administrator's privilege. Two ways out: a configured account, and a
-throwaway one for a database with nothing in it at all.
+administrator's privilege. Two ways out: a configured account, and an opt-in
+``admin`` account for a database with nothing in it at all, whose password the
+operator provides (there is no built-in one; see test_default_admin_seed.py).
 """
 
 from __future__ import annotations
@@ -13,7 +14,6 @@ from sqlalchemy import select
 from _pricing import fake_pricing_gate, pricing_catalog
 from openbinding_gateway.core.settings import Settings
 from openbinding_gateway.db.bootstrap import (
-    DEFAULT_ADMIN_PASSWORD,
     DEFAULT_ADMIN_USERNAME,
     ensure_administrator,
     seed_default_administrator,
@@ -21,16 +21,24 @@ from openbinding_gateway.db.bootstrap import (
 from openbinding_gateway.db.models import User, UserRole
 from openbinding_gateway.security.passwords import verify_password
 
+SEED_PASSWORD = "an-operator-chosen-passphrase"
+
+
+def seeding(**overrides) -> Settings:
+    """Settings that opt in to the seeded account, with the operator's password."""
+    values = {"seed_default_admin": True, "bootstrap_admin_password": SEED_PASSWORD, **overrides}
+    return Settings(_env_file=None, **values)
+
 
 async def users(session) -> list[User]:
     return list((await session.execute(select(User))).scalars().all())
 
 
-# -- The throwaway account --------------------------------------------------
+# -- The opt-in account -----------------------------------------------------
 
 
 async def test_an_empty_database_gets_an_administrator(db_session):
-    assert await seed_default_administrator(db_session) is True
+    assert await seed_default_administrator(db_session, seeding()) is True
 
     seeded = (await users(db_session))[0]
     assert seeded.username == DEFAULT_ADMIN_USERNAME
@@ -41,7 +49,7 @@ async def test_an_administrator_is_seeded_without_a_plan_unless_one_is_configure
     # Administration authority and commercial entitlements are independent, and
     # the bootstrap reads no pricing to choose a plan: SPACE assigns it unless
     # BOOTSTRAP_ADMIN_PLAN names one.
-    await seed_default_administrator(db_session, Settings(_env_file=None))
+    await seed_default_administrator(db_session, seeding())
     admin = (
         await db_session.execute(
             select(User).where(User.username == DEFAULT_ADMIN_USERNAME)
@@ -53,9 +61,7 @@ async def test_an_administrator_is_seeded_without_a_plan_unless_one_is_configure
 
 
 async def test_a_configured_bootstrap_plan_is_used_as_given(db_session):
-    await seed_default_administrator(
-        db_session, Settings(_env_file=None, bootstrap_admin_plan="PRO")
-    )
+    await seed_default_administrator(db_session, seeding(bootstrap_admin_plan="PRO"))
     admin = (
         await db_session.execute(
             select(User).where(User.username == DEFAULT_ADMIN_USERNAME)
@@ -65,24 +71,24 @@ async def test_a_configured_bootstrap_plan_is_used_as_given(db_session):
     assert admin.plan_cache == "PRO"
 
 
-async def test_the_seeded_password_is_the_documented_one(db_session):
-    await seed_default_administrator(db_session)
+async def test_the_seeded_password_is_the_configured_one(db_session):
+    await seed_default_administrator(db_session, seeding())
 
     seeded = (await users(db_session))[0]
-    assert verify_password(DEFAULT_ADMIN_PASSWORD, seeded.password_hash)
+    assert verify_password(SEED_PASSWORD, seeded.password_hash)
 
 
 async def test_the_seeded_password_is_not_stored_in_the_clear(db_session):
-    await seed_default_administrator(db_session)
+    await seed_default_administrator(db_session, seeding())
 
     seeded = (await users(db_session))[0]
-    assert DEFAULT_ADMIN_PASSWORD not in seeded.password_hash
+    assert SEED_PASSWORD not in seeded.password_hash
 
 
 async def test_seeding_is_refused_once_anybody_exists(db_session):
-    # Not just "once an administrator exists": a surprise account with a
-    # guessable password must never appear in an installation that is in use,
-    # including one whose administrators were all deactivated.
+    # Not just "once an administrator exists": a surprise account must never
+    # appear in an installation that is in use, including one whose
+    # administrators were all deactivated.
     db_session.add(
         User(
             username="someone",
@@ -93,14 +99,14 @@ async def test_seeding_is_refused_once_anybody_exists(db_session):
     )
     await db_session.flush()
 
-    assert await seed_default_administrator(db_session) is False
+    assert await seed_default_administrator(db_session, seeding()) is False
     assert len(await users(db_session)) == 1
 
 
 async def test_seeding_twice_creates_one_account(db_session):
-    await seed_default_administrator(db_session)
+    await seed_default_administrator(db_session, seeding())
 
-    assert await seed_default_administrator(db_session) is False
+    assert await seed_default_administrator(db_session, seeding()) is False
     assert len(await users(db_session)) == 1
 
 
@@ -110,7 +116,7 @@ async def test_the_seeded_email_survives_being_read_back_by_the_api(db_session):
     # this account appeared in the results.
     from openbinding_gateway.models.accounts import AdminUserView
 
-    await seed_default_administrator(db_session)
+    await seed_default_administrator(db_session, seeding())
     seeded = (await users(db_session))[0]
 
     AdminUserView(
@@ -260,7 +266,8 @@ def test_starting_on_an_empty_database_produces_an_administrator(tmp_path, monke
     make one, because promoting somebody is an administrator's privilege and
     there was no administrator.
 
-    This asserts the outcome a person cares about: start it, sign in.
+    This asserts the outcome a person cares about: start it, sign in. It
+    now takes the opt-in and a password; without them nothing is seeded.
     """
     import asyncio
 
@@ -279,6 +286,9 @@ def test_starting_on_an_empty_database_produces_an_administrator(tmp_path, monke
     monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{database}")
     monkeypatch.setenv("GATEWAY_JWT_SECRET", "a-secret-long-enough-for-hs256-signing")
     monkeypatch.delenv("BOOTSTRAP_ADMIN_USERNAME", raising=False)
+    # Without BOOTSTRAP_ADMIN_USERNAME, so it is the opt-in account that is under test.
+    monkeypatch.setenv("SEED_DEFAULT_ADMIN", "true")
+    monkeypatch.setenv("BOOTSTRAP_ADMIN_PASSWORD", SEED_PASSWORD)
     get_settings.cache_clear()
 
     from openbinding_gateway.main import app
@@ -297,7 +307,7 @@ def test_starting_on_an_empty_database_produces_an_administrator(tmp_path, monke
                 "/v1/auth/login",
                 json={
                     "username_or_email": DEFAULT_ADMIN_USERNAME,
-                    "password": DEFAULT_ADMIN_PASSWORD,
+                    "password": SEED_PASSWORD,
                 },
             )
             assert signed_in.status_code == 200, signed_in.text
@@ -332,7 +342,7 @@ async def test_a_pending_contract_is_settled_on_the_next_request(db_session):
     from openbinding_gateway.access.contracts import settle_pending_contract
     from _pricing import fake_pricing_gate
 
-    await seed_default_administrator(db_session)
+    await seed_default_administrator(db_session, seeding())
     await db_session.flush()
     admin = (
         await db_session.execute(
@@ -359,7 +369,7 @@ async def test_settling_is_skipped_for_an_account_that_owes_nothing(db_session):
     from openbinding_gateway.access.contracts import settle_pending_contract
     from _pricing import fake_pricing_gate
 
-    await seed_default_administrator(db_session)
+    await seed_default_administrator(db_session, seeding())
     admin = (
         await db_session.execute(
             select(User).where(User.username == DEFAULT_ADMIN_USERNAME)
@@ -383,7 +393,7 @@ async def test_an_account_stays_pending_while_space_is_still_down(db_session):
     from openbinding_gateway.access.contracts import settle_pending_contract
     from _pricing import fake_pricing_gate
 
-    await seed_default_administrator(db_session)
+    await seed_default_administrator(db_session, seeding())
     admin = (
         await db_session.execute(
             select(User).where(User.username == DEFAULT_ADMIN_USERNAME)
