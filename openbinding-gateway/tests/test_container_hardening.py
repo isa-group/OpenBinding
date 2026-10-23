@@ -27,6 +27,8 @@ S_IWOTH = 0o002
 
 # A reference to a variable the supervisor supplies: nothing else may stand where a secret goes.
 ALLOWED_REFERENCE = re.compile(r"\$\{(?:DEMO|SPACE|SPHERE)_[A-Z0-9_]+\}")
+# The one reference allowed a default, and only this one: the public origin falls back to the local port.
+ALLOWED_DEFAULT_REFERENCE = "DEMO_PUBLIC_ORIGIN:-http://localhost:18100"
 ANY_REFERENCE = re.compile(r"\$\{([^}]*)\}")
 SECRET_NAME = re.compile(r"KEY|SECRET|TOKEN|PASSWORD", re.IGNORECASE)
 SECRET_SHAPES = re.compile(
@@ -268,7 +270,8 @@ def test_compose_holds_no_literal_secret(services: dict) -> None:
     document = json.loads(raw)
     for text in _strings(document):
         for reference in ANY_REFERENCE.findall(text):
-            assert ALLOWED_REFERENCE.fullmatch("${" + reference + "}"), f"unexpected variable ${{{reference}}}"
+            allowed = reference == ALLOWED_DEFAULT_REFERENCE or ALLOWED_REFERENCE.fullmatch("${" + reference + "}")
+            assert allowed, f"unexpected variable ${{{reference}}}"
     assert not SECRET_SHAPES.search(raw)
     for name, service in services.items():
         for key, value in service.get("environment", {}).items():
