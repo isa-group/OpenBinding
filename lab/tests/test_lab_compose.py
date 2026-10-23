@@ -410,7 +410,7 @@ def _expand(value: str, supplied: str | None) -> str:
 
 
 def _cors_list(value: str) -> list[str]:
-    """How Settings.cors_origins reads the variable: comma separated, blanks dropped."""
+    """How Settings.cors_origin_list reads the variable: comma separated, blanks dropped."""
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
