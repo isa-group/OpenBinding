@@ -82,7 +82,8 @@ The QA gallery (`frontend/e2e/qa-gallery.spec.ts`) writes screenshots to `QA_GAL
 
 - `python3 tools/check_bim_guard.py` (CI job `engines`): 95 errors — expects 82 packages and finds 134, places
   `RoutingOverlay`/`Placement` in the `application` role while the installed Profile declares them in `candidateCatalog`,
-  and flags retired markers (`/api/jobs` in the frontend, `bimstar`, `project.json`).
+  and flags retired markers (the old jobs API route in the frontend, the former language name and the old project
+  file name).
 - `experimentation/icsoc/generator/tests/test_generator.py` (CI job `test`, when the dataset is materialized): the generator
   writes Placement under `application`; the compiler refuses it. Also fails on 014e43a.
 

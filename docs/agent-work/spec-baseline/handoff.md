@@ -70,9 +70,10 @@ owner rules "owner's commit wins" and "red CI = fast lane" in `constitution.md` 
 
 1. **Red CI.** (a) `tools/check_bim_guard.py`: 95 errors — expects 82 packages and finds 134, requires
    `RoutingOverlay`/`Placement` in the `application` role while the installed `qos-binding/v1` Profile (bim-core
-   `compiler.py`) declares them in `candidateCatalog`, flags retired markers (`/api/jobs` in 17 frontend files, `bimstar`,
-   `project.json`). (b) `experimentation/icsoc/generator` writes Placement and RoutingOverlay under `application`; its
-   validation test fails when the dataset is materialized (also on 014e43a). Owner decision: fast-lane fixes.
+   `compiler.py`) declares them in `candidateCatalog`, flags retired markers (the old jobs API route in 17 frontend
+   files, the former language name and the old project file name). (b) `experimentation/icsoc/generator` writes
+   Placement and RoutingOverlay under `application`; its validation test fails when the dataset is materialized (also
+   on 014e43a). Owner decision: fast-lane fixes.
 2. **QACOBench vs the job-failure catalog.** `campaign.py` classifies `INCOMPATIBLE` by the prefix
    `engine rejected BindingProblem (422)` in the job error; the gateway now stores only `engine_rejected` with a fixed
    sentence, so capability rejections are indistinguishable from other refusals in a new campaign.
@@ -105,7 +106,7 @@ repository), conflicts (the owner's commit wins), red CI (agents may fix it as f
 3. Accept the `CHANGED_MANIFESTS` exception (minizinc-csp left out of the frozen-baseline comparison), or record a new
    frozen baseline for minizinc-csp 1.1.1?
 4. `check_bim_guard.py` expectations: should it count only `examples/` (82) or every package in the tree (134), and
-   should it keep flagging `/api/jobs`, `bimstar`, `project.json`?
+   should it keep flagging the old jobs API route, the former language name and the old project file name?
 5. Placement and RoutingOverlay: `candidateCatalog` role (as the installed Profile and the examples say) or `application`
    role (as the guard and the ICSOC generator say)? The fix differs: Profile change (BIM MAJOR) vs guard + generator fix.
 
