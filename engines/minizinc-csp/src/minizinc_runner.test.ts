@@ -7,6 +7,8 @@ import { spawnSync } from 'node:child_process';
 
 import { AbortedError, NotTerminatedError } from './job_manager';
 import { vacuousCapacityChecks } from './dzn_builder';
+import { fmt2dF } from './encoders/format';
+import { buildPlacementEncoding } from './placement';
 import {
   MAX_AUTO_GECODE_THREADS, MiniZincRunner, RunnerOptions, availableProcessors, commandFromEnv, extractGecodeStatistics,
   gecodeCommandFromEnv, gecodeThreadsFromEnv, groupAlive, runnerOptionsFromEnv,
@@ -388,6 +390,53 @@ describe('model/binding_problem.mzn latency lookups', () => {
       'event_pool_latency(activity_predecessor_source[activity, predecessor], activity_pool[activity])'));
     assert.ok(code.includes(
       'pool_pair_latency(activity_pool[activity_predecessor_source[activity, predecessor]], activity_pool[activity])'));
+  });
+});
+
+describe('placement latency tables as the model reads them', () => {
+  const at = (pool: string) => ({ resource: 'placement', id: pool });
+  const link = (from: string, to: string, latency: number) => ({ from: at(from), to: at(to), latency });
+  const problem: any = {
+    spec: {
+      application: { resource: 'app', workflow: { kind: 'task', task: { resource: 'app', id: 't' } } },
+      routing: [],
+      placement: [{
+        resource: 'placement',
+        pools: { a: { ref: at('a') }, b: { ref: at('b') }, c: { ref: at('c') } },
+        demands: [{ candidate: { resource: 'cat', id: 'x' }, pool: at('b'), resources: {} }],
+        // Asymmetric on purpose: a transposed or mis-strided table changes every off-diagonal cell.
+        network: [link('a', 'b', 3), link('b', 'a', 7), link('a', 'c', 11),
+          link('c', 'a', 5), link('b', 'c', 13), link('c', 'b', 17)],
+        events: { ingress: { pool: at('a'), latency: [{ pool: at('c'), latency: 99 }] } },
+        transitions: [], capacityRules: [],
+      }],
+    },
+  };
+  const encoding = buildPlacementEncoding(problem, [{ ref: { resource: 'cat', id: 'x' }, metrics: {} }],
+    ['t'], new Map(), new Map(), [[1]], true);
+
+  it('declares n_pool_slots rows and columns, the dummy pool first', () => {
+    assert.equal(encoding.poolModel.length, 4);
+    assert.deepEqual(encoding.poolLatency.map((row) => row.length), [4, 4, 4, 4]);
+    assert.deepEqual(encoding.poolLatency, [[0, 0, 0, 0], [0, 0, 3, 11], [0, 7, 0, 13], [0, 5, 17, 0]]);
+    assert.equal(fmt2dF(encoding.poolLatency),
+      '[| 0.0, 0.0, 0.0, 0.0 | 0.0, 0.0, 3.0, 11.0 | 0.0, 7.0, 0.0, 13.0 | 0.0, 5.0, 17.0, 0.0 |]');
+  });
+
+  it('puts the cell of (from, to) at (from - 1) * n_pool_slots + to of the row-major flattening', () => {
+    const flat = encoding.poolLatency.flat();
+    const n = encoding.poolModel.length;
+    assert.equal(flat[(3 - 1) * n + 4 - 1], 13); // pool b (3) -> pool c (4)
+    assert.equal(flat[(4 - 1) * n + 3 - 1], 17); // pool c (4) -> pool b (3)
+    assert.equal(flat[(2 - 1) * n + 4 - 1], 11); // pool a (2) -> pool c (4)
+    assert.equal(Math.min(...flat), 0);
+    assert.equal(Math.max(...flat), 17);
+  });
+
+  it('gives each event one row of n_pool_slots cells, an explicit latency overriding the network', () => {
+    assert.deepEqual(encoding.eventPool, [2]);
+    assert.deepEqual(encoding.eventLatency, [[0, 0, 3, 99]]);
+    assert.equal(fmt2dF(encoding.eventLatency), '[| 0.0, 0.0, 3.0, 99.0 |]');
   });
 });
 

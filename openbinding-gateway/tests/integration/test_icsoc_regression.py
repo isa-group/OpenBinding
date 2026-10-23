@@ -296,6 +296,116 @@ def _assert_feasible(solution: dict) -> None:
     assert not hard, json.dumps(hard, sort_keys=True)
 
 
+def _solution_report(label: str, result: dict) -> str:
+    """Best incumbent of one lane: score, features, penalty, violations and binding."""
+    solutions = result.get("solutions") or []
+    if not solutions:
+        return f"{label}: no solution (termination={result.get('termination')!r})"
+    best = _best_solution(result)
+    objectives = best.get("objectives") or {}
+    components = [
+        {
+            key: component.get(key)
+            for key in ("criteria", "value", "loss", "weight")
+        }
+        for component in objectives.get("components") or []
+    ]
+    binding = (best.get("decision") or {}).get("binding")
+    return (
+        f"{label}: termination={result.get('termination')!r} "
+        f"solutions={len(solutions)} score={objectives.get('score')!r} "
+        f"penalty={objectives.get('penalty')!r}\n"
+        f"  features={json.dumps(best.get('features'), sort_keys=True)}\n"
+        f"  components={json.dumps(components, sort_keys=True)}\n"
+        f"  violations={json.dumps(best.get('violations'), sort_keys=True)}\n"
+        f"  binding={json.dumps(binding, sort_keys=True)}"
+    )
+
+
+def _rescore(features: dict, criteria: list[dict], weights: dict[str, float]) -> float:
+    """Score of a feature vector under the package's own criteria and the request weights.
+
+    Same formula as the engine and the gateway: normalise with the criterion's
+    bounds (clamped when asked), then the loss is ``1 - x`` for ``maximize`` and
+    ``x`` for ``minimize``; the score is the weighted sum of the losses.
+    """
+    total = 0.0
+    for criterion in criteria:
+        value = float(features[criterion["feature"]["id"]])
+        normalized = value
+        normalize = criterion.get("normalize")
+        if normalize:
+            span = float(normalize["max"]) - float(normalize["min"])
+            normalized = (value - float(normalize["min"])) / span
+            if normalize.get("clamp"):
+                normalized = max(0.0, min(1.0, normalized))
+        loss = (
+            (1.0 - normalized if normalize else -normalized)
+            if criterion["direction"] == "maximize"
+            else normalized
+        )
+        total += weights.get(criterion["id"], 0.0) * loss
+    return total
+
+
+def _campaign_report(
+    results: dict[str, dict], baseline: dict, package: InstancePackage
+) -> str:
+    """Everything needed to tell a wrong 'OPTIMAL' from a stale baseline.
+
+    Printed before any score assertion. It compares the lanes with each other
+    and with the baseline, and re-scores the baseline's own feature vectors under
+    the criteria (direction, normalisation, clamp) the package declares today:
+    a baseline recorded under other criteria would not score what it recorded.
+    """
+    criteria = _document(package, "optimization.json")["spec"]["criteria"]
+    features = _document(package, "application.json")["spec"]["features"]
+    weights = {item["criteria"]: item["value"] for item in OPTIMIZATION["weights"]}
+    lines = [
+        "package criteria (id: criterion direction / feature direction / normalize):",
+    ]
+    for criterion in criteria:
+        lines.append(
+            f"  {criterion['id']}: {criterion['direction']} / "
+            f"{features.get(criterion['feature']['id'], {}).get('direction')} / "
+            f"{json.dumps(criterion.get('normalize'), sort_keys=True)} "
+            f"weight={weights.get(criterion['id'])}"
+        )
+    for engine, result in results.items():
+        lines.append(_solution_report(engine, result))
+    for name in ("legacyExact", "currentExact"):
+        lines.append(
+            f"baseline {name}: recorded score={baseline[name]['score']!r} "
+            f"features={json.dumps(baseline[name]['features'], sort_keys=True)} "
+            f"rescored under the package criteria="
+            f"{_rescore(baseline[name]['features'], criteria, weights)!r}"
+        )
+    for engine, observed in baseline["currentObserved"].items():
+        if not isinstance(observed, dict):
+            continue
+        lines.append(
+            f"baseline currentObserved[{engine}]: recorded score={observed['score']!r} "
+            f"features={json.dumps(observed['features'], sort_keys=True)} "
+            f"rescored under the package criteria="
+            f"{_rescore(observed['features'], criteria, weights)!r}"
+        )
+    scores = {
+        engine: float(_best_solution(result)["objectives"]["score"])
+        for engine, result in results.items()
+        if result.get("solutions")
+    }
+    lines.append(f"best score per lane: {json.dumps(scores, sort_keys=True)}")
+    exact = scores.get("minizinc-csp")
+    for engine in ("random-search", "evolutionary-heuristics"):
+        if exact is not None and engine in scores and scores[engine] + 1e-9 < exact:
+            lines.append(
+                f"WARNING: {engine} found {scores[engine]!r} < minizinc-csp "
+                f"{exact!r}: the exact lane's OPTIMAL is not an optimum of the "
+                "problem the gateway evaluates"
+            )
+    return "\n".join(lines)
+
+
 def _classification(score: float, exact: float, history: dict) -> str:
     if math.isclose(score, exact, rel_tol=0.0, abs_tol=1e-9):
         return "coincide"
@@ -337,6 +447,9 @@ def test_reduced_campaign_matches_or_remains_statistically_sensible(
             + json.dumps(_engine_reported(results["minizinc-csp"]), sort_keys=True, indent=2),
             flush=True,
         )
+
+    # Before the first score assertion, so a failing run shows it in the captured stdout.
+    print(_campaign_report(results, baseline, reduced_package), flush=True)
 
     exact_baseline = baseline["legacyExact"]
     exact = _best_solution(results["minizinc-csp"])
