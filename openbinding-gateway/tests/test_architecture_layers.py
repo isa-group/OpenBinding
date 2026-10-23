@@ -278,7 +278,7 @@ def test_gate_lifecycle_legacy_has_no_stale_entries() -> None:
     assert not stale, f"These modules no longer use get_gate; remove them from GATE_LIFECYCLE_LEGACY: {sorted(stale)}"
 
 
-#: The v1 router is being emptied into services (docs/ARCHITECTURE.md, "Known debt").  This is a ratchet: the
+#: The v1 router is being emptied into services (docs/architecture/gateway-as-is.md, "Known debt").  This is a ratchet: the
 #: ceiling is the size of ``routes/v1.py`` rounded up to the hundred, and it can only go down.  Lower it when an
 #: extraction brings the file under the previous hundred; never raise it.
 V1_ROUTER = SOURCE / "routes" / "v1.py"

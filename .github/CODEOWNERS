@@ -1,0 +1,25 @@
+# Status: DRAFT for owner review (2026-10-21)
+# The owner reviews everything; later rules take precedence, so governance files are listed explicitly at the end.
+
+*                                   @javiercavlop
+
+# Governance and contracts (owner approval required; REVIEW.md R11)
+/INTENT.md                          @javiercavlop
+/constitution.md                    @javiercavlop
+/REVIEW.md                          @javiercavlop
+/AGENTS.md                          @javiercavlop
+/CLAUDE.md                          @javiercavlop
+/openspec/specs/                    @javiercavlop
+/openspec/project.md                @javiercavlop
+/docs/adr/                          @javiercavlop
+/.agentic/                          @javiercavlop
+/.github/                           @javiercavlop
+/docs/openapi.json                  @javiercavlop
+/schemas/                           @javiercavlop
+
+# BIM toolchain (until it moves to its own repository)
+/bim-toolchain/INTENT.md            @javiercavlop
+/bim-toolchain/constitution.md      @javiercavlop
+/bim-toolchain/REVIEW.md            @javiercavlop
+/bim-toolchain/openspec/specs/      @javiercavlop
+/bim-toolchain/contracts/           @javiercavlop
