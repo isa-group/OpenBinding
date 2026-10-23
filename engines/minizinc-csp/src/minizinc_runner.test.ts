@@ -6,9 +6,12 @@ import { after, describe, it } from 'node:test';
 import { spawnSync } from 'node:child_process';
 
 import { AbortedError, NotTerminatedError } from './job_manager';
+import { vacuousCapacityChecks } from './dzn_builder';
 import {
-  MiniZincRunner, RunnerOptions, commandFromEnv, extractGecodeStatistics, gecodeCommandFromEnv, groupAlive, runnerOptionsFromEnv,
+  MAX_AUTO_GECODE_THREADS, MiniZincRunner, RunnerOptions, availableProcessors, commandFromEnv, extractGecodeStatistics,
+  gecodeCommandFromEnv, gecodeThreadsFromEnv, groupAlive, runnerOptionsFromEnv,
 } from './minizinc_runner';
+import { incumbentOrder } from './solver';
 
 // Everything below runs REAL child processes (tests/fake_minizinc.mjs) and reads /proc.
 const FAKE = path.resolve(__dirname, '../tests/fake_minizinc.mjs');
@@ -26,7 +29,7 @@ after(() => {
 function fakeRunner(options: RunnerOptions = {}): MiniZincRunner {
   return new MiniZincRunner({
     command: process.execPath, commandArgs: [FAKE], gecodeCommand: process.execPath, gecodeCommandArgs: [FAKE],
-    killGraceMs: 300, reapWaitMs: 2000, ...options,
+    threads: 1, killGraceMs: 300, reapWaitMs: 2000, ...options,
   });
 }
 
@@ -170,11 +173,27 @@ describe('MiniZincRunner with a real child process', () => {
     assert.equal(solve.argv[1], '-time');
     assert.ok(Number(solve.argv[2]) > 0 && Number(solve.argv[2]) <= 1234, `time budget ${solve.argv[2]}`);
     assert.equal(solve.argv[3], '-s', 'fzn-gecode is asked for its search statistics');
-    assert.match(solve.argv[4], /\.widened\.fzn$/);
+    assert.deepEqual(solve.argv.slice(4, 6), ['-p', '1'], 'fzn-gecode is told how many threads to search with');
+    assert.match(solve.argv[6], /\.widened\.fzn$/);
+    assert.equal(solve.argv.length, 7, 'the FlatZinc file is the last argument');
+    assert.equal(result.gecodeThreads, 1);
     assert.equal(result.gecodeStatistics, undefined, 'a solver that prints no statistics yields none');
     for (const call of seen) assert.equal(call.tmpdir, path.join(dir, 'tmp'));
     assert.deepEqual(fs.readdirSync(path.join(dir, 'tmp')), [], 'the run removes its intermediate files');
     assert.equal(zombieChildren().length, 0);
+  });
+
+  it('searches with the configured number of threads (fzn-gecode -p) and reports it', async () => {
+    const dir = fs.mkdtempSync(path.join(SCRATCH, 'threads-'));
+    const argsFile = path.join(dir, 'args.json');
+    const result = await withEnv({ FAKE_MINIZINC_ARGS_FILE: argsFile }, () =>
+      fakeRunner({ threads: 3 }).run('gecode', '/m/model.mzn', '', path.join(dir, 'tmp'), ['--time-limit', '1234']));
+    assert.equal(result.code, 0);
+    assert.equal(result.gecodeThreads, 3);
+    const solve = JSON.parse(fs.readFileSync(argsFile, 'utf8')).find((call: { phase: string }) => call.phase === 'solve');
+    assert.deepEqual(solve.argv.slice(0, 1), ['-a'], 'all incumbents are still requested');
+    assert.deepEqual(solve.argv.slice(3, 6), ['-s', '-p', '3']);
+    assert.match(solve.argv[6], /\.widened\.fzn$/);
   });
 
   it('renders blocks without output variables through the .ozn pass', async () => {
@@ -273,6 +292,74 @@ describe('extractGecodeStatistics', () => {
     ].join('\n'));
     assert.equal(stdout, 'selected_candidate = array1d(1..1, [2]);\nobjective_value = 9;\n----------\n%% a free comment\n==========\n');
     assert.deepEqual(statistics?.values, { nodes: 5, failures: 1 });
+  });
+});
+
+describe('incumbentOrder', () => {
+  it('examines a sequential (improving) run from the last incumbent to the first', () => {
+    assert.deepEqual(incumbentOrder([3, 2, 1]), [2, 1, 0]);
+    assert.deepEqual(incumbentOrder([5]), [0]);
+    assert.deepEqual(incumbentOrder([]), []);
+  });
+
+  it('examines the best objective first when the incumbents did not arrive in improving order', () => {
+    assert.deepEqual(incumbentOrder([1, 5, 3]), [0, 2, 1]);
+    assert.deepEqual(incumbentOrder([-2, -1, -3]), [2, 0, 1]);
+  });
+
+  it('breaks ties towards the latest incumbent and puts a value that is not a number last', () => {
+    assert.deepEqual(incumbentOrder([2, 2, 2]), [2, 1, 0]);
+    assert.deepEqual(incumbentOrder([Number.NaN, 1]), [1, 0]);
+  });
+});
+
+describe('vacuousCapacityChecks', () => {
+  // Pool 1 is the dummy pool. Task 1 can use candidate 1 (pool 2, demand 1) or 2 (pool 3, demand 2);
+  // task 2 only candidate 3 (pool 2, demand 0.5) and is invoked twice.
+  const base = {
+    capacityPool: [2, 2, 3, 3, 2, 2], capacityScope: [1, 1, 1, 1, 2, 2], capacityColumn: [1, 1, 1, 1, 1, 1],
+    capacityLimit: [3, 1.9, 2, 2.1, 1.5, 1.6], capacityInBin: [false, false, false, false, false, false],
+    candidatePool: [2, 3, 2], candidateResourceDemand: [[1], [2], [0.5]], taskInvocation: [1, 2],
+    eligibility: [[1, 2], [3]], selectionDisjoint: true,
+  };
+
+  it('reports the checks whose largest possible load stays within the limit, and only those', () => {
+    // pool 2 per invocation: 1 * 1 + 2 * 0.5 = 2; pool 3: 2 * 1 = 2; pool 2 per candidate: 1 + 0.5 = 1.5.
+    assert.deepEqual(vacuousCapacityChecks(base), [true, false, false, true, false, true]);
+  });
+
+  it('keeps the check of a load that touches the limit', () => {
+    const touching = vacuousCapacityChecks({ ...base, capacityLimit: [2, 2, 2, 2, 1.5, 1.5] });
+    assert.deepEqual(touching, [false, false, false, false, false, false]);
+  });
+
+  it('never reports a check a bin-packing column enforces, nor an unbounded distinct-candidate one', () => {
+    assert.deepEqual(vacuousCapacityChecks({ ...base, capacityInBin: [true, false, false, true, false, false] }),
+      [false, false, false, false, false, true]);
+    assert.deepEqual(vacuousCapacityChecks({ ...base, selectionDisjoint: false }), [true, false, false, true, false, false]);
+  });
+
+  it('keeps a check when a demand is not a finite number', () => {
+    // Task 2 only has a candidate in pool 2: the per-invocation checks of pool 2 (0, 1) lose their bound,
+    // the pool 3 ones (2, 3) and the per-candidate ones (4, 5) do not involve its invocation count.
+    assert.deepEqual(vacuousCapacityChecks({ ...base, taskInvocation: [1, Number.NaN] }),
+      [false, false, false, true, false, true]);
+  });
+
+  it('is empty without capacity checks', () => {
+    assert.deepEqual(vacuousCapacityChecks({
+      ...base, capacityPool: [], capacityScope: [], capacityColumn: [], capacityLimit: [], capacityInBin: [],
+    }), []);
+  });
+});
+
+describe('model/binding_problem.mzn capacity checks', () => {
+  const model = fs.readFileSync(path.resolve(__dirname, '../model/binding_problem.mzn'), 'utf8');
+
+  it('reads capacity_vacuous from the data file and does not post those checks or their demand tables', () => {
+    assert.match(model, /array\[1\.\.n_capacity_checks\] of bool: capacity_vacuous;/);
+    assert.match(model, /if capacity_in_bin\[check\] \\\/ capacity_vacuous\[check\] then true/);
+    assert.match(model, /not capacity_in_bin\[check\] \/\\ not capacity_vacuous\[check\]/);
   });
 });
 
@@ -397,6 +484,23 @@ describe('runner configuration', () => {
     assert.deepEqual(gecodeCommandFromEnv({ FZN_GECODE: '["node","/x/fake.mjs"]' }),
       { gecodeCommand: 'node', gecodeCommandArgs: ['/x/fake.mjs'] });
     assert.throws(() => gecodeCommandFromEnv({ FZN_GECODE: '[]' }), /FZN_GECODE/);
+  });
+
+  it('chooses the fzn-gecode threads from FZN_GECODE_THREADS or from the available processors', () => {
+    assert.equal(gecodeThreadsFromEnv({}, 4), 4);
+    assert.equal(gecodeThreadsFromEnv({}, 1), 1);
+    assert.equal(gecodeThreadsFromEnv({}, 64), MAX_AUTO_GECODE_THREADS, 'the automatic choice is capped');
+    assert.equal(gecodeThreadsFromEnv({ FZN_GECODE_THREADS: 'auto' }, 2), 2);
+    assert.equal(gecodeThreadsFromEnv({ FZN_GECODE_THREADS: '  ' }, 3), 3);
+    assert.equal(gecodeThreadsFromEnv({ FZN_GECODE_THREADS: '1' }, 16), 1, '1 is the sequential, reproducible search');
+    assert.equal(gecodeThreadsFromEnv({ FZN_GECODE_THREADS: '12' }, 2), 12, 'an explicit value is not capped by the automatic limit');
+    for (const bad of ['0', '65', '-1', '2.5', 'many']) {
+      assert.throws(() => gecodeThreadsFromEnv({ FZN_GECODE_THREADS: bad }, 4), /FZN_GECODE_THREADS/, bad);
+    }
+    assert.ok(availableProcessors() >= 1);
+    assert.equal(runnerOptionsFromEnv({ FZN_GECODE_THREADS: '5' }).threads, 5);
+    const automatic = runnerOptionsFromEnv({}).threads as number;
+    assert.ok(automatic >= 1 && automatic <= MAX_AUTO_GECODE_THREADS, `automatic threads ${automatic}`);
   });
 
   it('bounds the kill timings', () => {

@@ -89,7 +89,7 @@ class ProcessSolver {
       dznContent: '', features: [], metrics: [], tasks: [], candidates: [],
       encoding: {
         productConstraints: 'log', flatProducts: 0, logSpaceMetrics: [], logSpaceAtoms: 0, realSpaceProductAtoms: 0,
-        softConstraints: 0, binPackingColumns: 0, binPackingChecks: 0, capacityChecks: 0, relaxedLiterals: 0,
+        softConstraints: 0, binPackingColumns: 0, binPackingChecks: 0, capacityChecks: 0, vacuousCapacityChecks: 0, relaxedLiterals: 0,
       },
     };
   }

@@ -109,6 +109,10 @@ int: n_bin_columns;
 array[1..n_bin_columns, 1..n_tasks] of int: bin_weight;
 array[1..n_bin_columns, 1..n_pool_slots] of int: bin_capacity;
 array[1..n_capacity_checks] of bool: capacity_in_bin;
+% Reified checks that hold for every selection (the largest load any eligible
+% candidate can put on the pool is within the limit) are not posted: they would
+% only add propagators to every node of the search.
+array[1..n_capacity_checks] of bool: capacity_vacuous;
 
 int: n_transitions;
 array[1..n_transitions] of int: transition_model;
@@ -288,7 +292,8 @@ array[1..n_tasks] of var 0..max(1, max(candidate_model)): task_model =
 % Demand columns that no bin-packing column covers are read per task through the
 % slot; covered columns never materialise a variable.
 array[1..n_capacity_resources] of bool: column_needs_demand =
-  [exists(check in 1..n_capacity_checks)(capacity_column[check] == column /\ not capacity_in_bin[check])
+  [exists(check in 1..n_capacity_checks)(
+     capacity_column[check] == column /\ not capacity_in_bin[check] /\ not capacity_vacuous[check])
    | column in 1..n_capacity_resources];
 array[1..n_tasks, 1..n_capacity_resources] of var float: task_resource_demand =
   array2d(1..n_tasks, 1..n_capacity_resources, [
@@ -313,7 +318,7 @@ constraint forall(column in 1..n_bin_columns)(
                    [bin_weight[column, task] | task in 1..n_tasks])
 );
 constraint forall(check in 1..n_capacity_checks)(
-  if capacity_in_bin[check] then true
+  if capacity_in_bin[check] \/ capacity_vacuous[check] then true
   elseif capacity_scope[check] == 1 then
     sum(task in 1..n_tasks)(
       bool2int(task_pool[task] == capacity_pool[check]) * task_invocation[task]

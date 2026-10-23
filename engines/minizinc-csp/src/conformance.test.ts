@@ -163,7 +163,7 @@ function placedProblem(): any {
 
 
 /** Three tasks, each with a cheap candidate in pool A and a dear one in pool B; A holds two units. */
-function capacityProblem(constantDemand = true): any {
+function capacityProblem(constantDemand = true, poolACapacity = 2): any {
   const value = problem();
   value.spec.dialects.push({
     namespace: 'bim.builtin', id: 'qos-binding-placement/v1', version: '1.0.0',
@@ -200,7 +200,7 @@ function capacityProblem(constantDemand = true): any {
   value.spec.placement = [{
     resource: 'placement',
     pools: {
-      a: { ref: ref('placement', 'a'), kind: 'edge', capacity: { units: 2 }, properties: {} },
+      a: { ref: ref('placement', 'a'), kind: 'edge', capacity: { units: poolACapacity }, properties: {} },
       b: { ref: ref('placement', 'b'), kind: 'cloud', capacity: { units: 10 }, properties: {} },
     },
     demands, network: [], events: {}, transitions: [],
@@ -338,6 +338,8 @@ describe('canonical BIM v1 lowering', () => {
     assert.equal(parameter(placed, 'bin_weight'), '[| 1 |]');
     assert.equal(parameter(placed, 'bin_capacity'), '[| 1, 1, 1 |]');
     assert.equal(parameter(placed, 'capacity_in_bin'), '[true, true]');
+    assert.equal(parameter(placed, 'capacity_vacuous'), '[false, false]', 'a check a bin-packing column enforces is not vacuous');
+    assert.equal(parameter(empty, 'capacity_vacuous'), '[]');
   });
 
   it('falls back to reified capacity sums when a task\'s demand depends on the candidate', () => {
@@ -348,6 +350,22 @@ describe('canonical BIM v1 lowering', () => {
     assert.equal(parameter(built.dznContent, 'capacity_in_bin'), '[false, false]');
     assert.equal(built.encoding.binPackingChecks, 0);
     assert.equal(built.encoding.capacityChecks, 2);
+    // One task, a pool capacity of 1 and demands of 1 and 0.5: neither pool can ever overflow.
+    assert.equal(parameter(built.dznContent, 'capacity_vacuous'), '[true, true]');
+    assert.equal(built.encoding.vacuousCapacityChecks, 2);
+  });
+
+  it('keeps the reified check of a pool that the eligible candidates can overflow and drops the other', () => {
+    // Three tasks, two candidates each: pool a holds 2 units and all three tasks can demand one there
+    // (it can overflow); pool b holds 10 units and the three tasks can demand at most 3 (it cannot).
+    const built = build(capacityProblem(false), {});
+    assert.equal(parameter(built.dznContent, 'capacity_in_bin'), '[false, false]');
+    assert.equal(parameter(built.dznContent, 'capacity_vacuous'), '[false, true]');
+    assert.equal(built.encoding.vacuousCapacityChecks, 1);
+    // With constant demands the checks belong to a bin-packing column instead.
+    const packed = build(capacityProblem(true), {});
+    assert.equal(parameter(packed.dznContent, 'capacity_vacuous'), '[false, false]');
+    assert.equal(packed.encoding.vacuousCapacityChecks, 0);
   });
 
   it('rejects every construct outside the declared exact-weighted mode', () => {
@@ -481,7 +499,25 @@ describe('BIM Engine Protocol v1', () => {
     const without = await new Solver(new StatsRunner()).solve(problem(), {}, execution());
     assert.equal(without.termination, 'OPTIMAL');
     assert.equal(without.provenance.gecode_statistics, null);
+    assert.equal(without.provenance.gecode_threads, null, 'no thread count when the runner reports none');
     assert.deepEqual(without.solutions, withStats.solutions);
+  });
+
+  it('reports the solver threads and answers with the best incumbent whatever order they arrived in', async () => {
+    class ParallelRunner extends MiniZincRunner {
+      override async run(): Promise<MiniZincRunResult> {
+        // A parallel search need not print its incumbents in improving order: the worse one comes last here.
+        return {
+          code: 0, stderr: '', durationMs: 1, stdoutEvents: [], gecodeThreads: 4,
+          stdout: '{"selected_cand":[1],"objective_value":1}\n----------\n{"selected_cand":[2],"objective_value":9}\n----------\n==========\n',
+        };
+      }
+    }
+    const result = await new Solver(new ParallelRunner()).solve(problem(), {}, execution());
+    assert.equal(result.termination, 'OPTIMAL');
+    assert.deepEqual(result.solutions[0].decision.binding.t, ref('catalog-a', 'same-id'));
+    assert.equal(result.solutions[0].objectives.score, 1);
+    assert.equal(result.provenance.gecode_threads, 4);
   });
 
   it('post-checks Placement metrics and rejects a hard placement violation', async () => {
@@ -583,7 +619,9 @@ describe('BIM Engine Protocol v1', () => {
       override async run(): Promise<MiniZincRunResult> {
         return {
           code: 0, stderr: '', durationMs: 1, stdoutEvents: [],
-          stdout: '{"selected_cand":[1],"objective_value":1}\n----------\n{"selected_cand":[2],"objective_value":9}\n----------\n==========\n',
+          // A minimising search prints improving incumbents: the later one has the lower value. It is the
+          // binding that satisfies only the relaxed comparisons of the model, so the exact check rejects it.
+          stdout: '{"selected_cand":[1],"objective_value":1}\n----------\n{"selected_cand":[2],"objective_value":0.5}\n----------\n==========\n',
         };
       }
     }
@@ -876,6 +914,19 @@ describe('MiniZinc/Gecode integration', { skip: !haveMiniZinc && 'minizinc is no
       assert.equal(result.solutions[0].violations.length, 0);
       assert.equal(result.provenance.encoding.binPackingColumns, constantDemand ? 1 : 0);
     }
+  });
+
+  it('posts no capacity check when no selection can overflow a pool, and the same optimum results', async () => {
+    const roomy = capacityProblem(false, 10);
+    const built = new Solver().validate(roomy, {}, execution());
+    assert.equal(parameter(built.dznContent, 'capacity_vacuous'), '[true, true]');
+    const result = await new Solver().solve(roomy, { time_budget_ms: 20000 }, execution());
+    assert.equal(result.termination, 'OPTIMAL');
+    const inA = Object.values(result.solutions[0].decision.binding).filter((item: any) => item.id.endsWith('-a')).length;
+    assert.equal(inA, 3, 'every task takes the cheap candidate once no pool constrains it');
+    assert.equal(result.solutions[0].features.cost, 3);
+    assert.equal(result.provenance.encoding.vacuousCapacityChecks, 2);
+    assert.equal(result.solutions[0].violations.length, 0);
   });
 
   it('returns the binding that attains a constraint limit exactly, even when the limit has 17 significant digits', async () => {
