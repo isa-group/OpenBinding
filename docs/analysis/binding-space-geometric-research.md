@@ -1,5 +1,8 @@
 # Geometric exploration of binding feasibility and preferences
 
+> Historical. The decision-space workspace retires (ADR-0020); only the trade-off set of multi-objective
+> runs survives, in the run and study pages (`docs/ARCHITECTURE.md` §5.2).
+
 **Recommendation.** Use a polynomial-time analysis layer over explicitly supplied candidates: objective-budget attainment maps, preference slices, exact candidate ranking, and linked inspection of actual bindings. Voronoi diagrams remain useful for proximity; power diagrams can represent some preference partitions exactly. The analysis must not depend on fresh NP-hard optimization, implicit solution enumeration, exact high-dimensional volume, or unrestricted symbolic projection. A timeout does not make an NP-hard algorithm a polynomial-time solution.
 
 The agreed scope is a complete comparison of all returned/evaluated bindings, with unexplored space explicitly unknown. Runtime is measured against archive size N, objective count m, model size, and numerical precision. A complete generic map of an implicit combinatorial space cannot be promised with polynomial runtime: even testing whether it contains a feasible binding can encode an NP-complete decision problem. Whole-space guarantees require additional model structure; they are outside the selected scope.

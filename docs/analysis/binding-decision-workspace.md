@@ -1,5 +1,8 @@
 # Binding decision workspace
 
+> Historical. The decision-space workspace retires (ADR-0020); only the trade-off set of multi-objective
+> runs survives, in the run and study pages (`docs/ARCHITECTURE.md` §5.2).
+
 The integrated `/app/analysis` workspace compares stored evidence, makes a recommendation under explicit priorities, and saves a reproducible draft decision. It never launches a solver or evaluates new bindings. Playground, project Jobs, Account execution history and project Analytics expose the same **Open analysis** action.
 
 ## Evidence and ranking contract

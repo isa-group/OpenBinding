@@ -1,5 +1,7 @@
 # Contributing
 
+See [`../CONTRIBUTING.md`](../CONTRIBUTING.md) for the current branch, commit and review workflow.
+
 Thanks for contributing to OpenBinding.
 
 ## Branching model

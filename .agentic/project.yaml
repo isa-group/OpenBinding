@@ -1,0 +1,172 @@
+# Status: DRAFT for owner review (2026-10-21)
+# Factory configuration for OpenBinding: gates, thresholds, risk areas, audit rotation and roles.
+# Commands are argv arrays taken from the repository's own tooling (.github/workflows/ci.yml, AGENTS.md).
+# `cwd` is relative to the repository root. `needs` names what the runner must provide (container, service, tool).
+# Items marked `todo: true` are not available in the repository yet (see TESTING.md); the gate runner reports them
+# as NOT EXECUTED instead of passing them.
+
+version: 1
+project:
+  id: openbinding
+  repository: isa-group/OpenBinding
+  integration_branch: develop
+  release_branch: main            # owner-only
+  change_size_limit_lines: 300    # excluding tests and generated files
+  docs:
+    intent: INTENT.md
+    architecture: docs/ARCHITECTURE.md
+    roadmap: ROADMAP.md
+    constitution: constitution.md
+    review: REVIEW.md
+    specs: openspec/specs
+    changes: openspec/changes
+    adr: docs/adr
+    agent_work: docs/agent-work
+  generated_paths:                # excluded from the size limit; must be regenerated, never hand-edited
+    - docs/openapi.json
+    - frontend/src/content/changelog.generated.json
+    - bim-toolchain/contracts/openapi/bim-service.v1.json
+    - "**/uv.lock"
+    - "**/pnpm-lock.yaml"
+
+gates:
+  G1_spec:
+    - {name: openspec-validate, cwd: ., argv: [openspec, validate, --strict], needs: [openspec-cli], todo: true}
+  G2_epic:
+    - {name: epic-review, role: spec-auditor, threshold: 2}       # >= 2/3 on each applicable dimension
+  G3_red_before:
+    - {name: red-before, policy: "new/changed acceptance and unit tests fail on the base commit"}
+  G4_acceptance_frozen:
+    - {name: acceptance-frozen, paths: ["acceptance/**"], writer_role: test-designer}
+  G5_green_after:
+    - {name: gateway-unit, cwd: openbinding-gateway, argv: [uv, run, --locked, --extra, test, pytest], needs: [uv]}
+    - {name: gateway-unit-compose, cwd: ., argv: [docker, compose, exec, -T, gateway-dev, test], needs: [compose-dev-stack]}
+    - {name: gateway-postgres, cwd: openbinding-gateway, argv: [sh, tools/test_pg.sh], needs: [docker], when_paths: ["openbinding-gateway/src/openbinding_gateway/{jobs,db,repositories}/**", "openbinding-gateway/alembic/**", "openbinding-gateway/src/openbinding_gateway/*jobs.py"]}
+    - {name: gateway-integration, cwd: ., argv: [docker, compose, exec, -T, gateway-dev, test, tests/integration, -m, integration], needs: [compose-dev-stack, engines]}
+    - {name: icsoc-generator, cwd: ., argv: [docker, compose, exec, -T, gateway-dev, env, "PYTHONPATH=/app:/app/src", pytest, /app/experimentation/icsoc/generator/tests], needs: [compose-dev-stack]}
+    - {name: lab-static, cwd: openbinding-gateway, argv: [uv, run, --locked, --extra, test, pytest, ../lab/tests], needs: [uv]}
+    - {name: bim-toolchain, cwd: bim-toolchain, argv: [python, -m, pytest, --rootdir=., packages/bim-core/tests, packages/bim-service/tests, packages/bim-client/tests, tools], env: {PYTHONPATH: "packages/bim-core/src:packages/bim-service/src:packages/bim-client/src"}, needs: [python311, uv]}
+    - {name: bim-corpus, cwd: ., argv: [openbinding-gateway/.venv/bin/python, tools/check_bim_corpus.py, --expected, "82", --jobs, "4"], needs: [gateway-venv]}
+    - {name: bim-guard, cwd: ., argv: [python3, tools/check_bim_guard.py]}
+    - {name: shared-examples, cwd: ., argv: [openbinding-gateway/.venv/bin/python, tools/build_shared_examples.py, --check], needs: [gateway-venv]}
+    - {name: bim-diagrams, cwd: ., argv: [tools/render_bim_diagrams.sh, --check]}
+    - {name: engines-jvm, cwd: engines, argv: [mvn, -B, install], needs: [jdk21, maven]}
+    - {name: engine-minizinc, cwd: engines/minizinc-csp, argv: [pnpm, test], needs: [node20, pnpm]}
+    - {name: engine-minizinc-real, cwd: engines/minizinc-csp, argv: [pnpm, "test:lab"], needs: [minizinc-image], when_paths: ["engines/minizinc-csp/**"]}
+    - {name: frontend-unit, cwd: frontend, argv: [pnpm, test], needs: [node20, pnpm]}
+    - {name: frontend-e2e-mocked, cwd: frontend, argv: [pnpm, "test:e2e"], needs: [playwright-chromium]}
+    - {name: qacobench-unit, cwd: ., argv: [python3, -m, pytest, experimentation/qacobench/test_qacobench.py], when_paths: ["experimentation/qacobench/**"]}
+  G6_trace:
+    - {name: oft-trace, cwd: ., argv: [oft, trace, -o, plain, openspec/specs, openbinding-gateway/src, openbinding-gateway/tests, engines, frontend/src, acceptance], needs: [openfasttrace], todo: true}
+  G7_contracts:
+    - {name: openapi-snapshot, cwd: openbinding-gateway, argv: [uv, run, --locked, python, tools/dump_openapi.py, --check], needs: [uv]}
+    - {name: openapi-contract-tests, cwd: openbinding-gateway, argv: [uv, run, --locked, --extra, test, pytest, tests/test_openapi_contract.py, tests/test_b4_problem_schema.py, tests/test_bim_consumer_contract.py], needs: [uv]}
+    - {name: bim-service-openapi, cwd: bim-toolchain, argv: [python, tools/dump_service_openapi.py, --check], env: {PYTHONPATH: "packages/bim-core/src:packages/bim-service/src"}}
+    - {name: bim-consumer-fixtures, cwd: bim-toolchain, argv: [python, tools/consumer_fixtures.py, --check], env: {PYTHONPATH: "packages/bim-core/src:packages/bim-service/src"}}
+    - {name: schemathesis, cwd: ., argv: [schemathesis, run, docs/openapi.json, --base-url, "http://localhost:8000"], needs: [compose-dev-stack, schemathesis], todo: true}
+  G8_mutation:
+    - {name: mutmut-gateway, cwd: openbinding-gateway, argv: [mutmut, run, --paths-to-mutate, "${CHANGED_PY}"], todo: true}
+    - {name: stryker-frontend, cwd: frontend, argv: [pnpm, exec, stryker, run], todo: true}
+    - {name: pit-engines, cwd: engines, argv: [mvn, -B, org.pitest:pitest-maven:mutationCoverage], todo: true}
+  G9_quality:
+    - {name: ruff-gateway, cwd: openbinding-gateway, argv: [uv, run, --locked, --extra, test, ruff, check, src, tests]}
+    - {name: ruff-bim, cwd: bim-toolchain, argv: [ruff, check, packages, tools]}
+    - {name: eslint, cwd: frontend, argv: [pnpm, lint]}
+    - {name: typecheck-build, cwd: frontend, argv: [pnpm, build]}
+    - {name: engine-minizinc-build, cwd: engines/minizinc-csp, argv: [pnpm, build]}
+    - {name: compose-config, cwd: ., argv: [docker, compose, config, --quiet]}
+    - {name: kustomize, cwd: ., argv: [kubectl, kustomize, deploy/kubernetes]}
+    - {name: changelog, cwd: ., argv: [python3, tools/generate_changelog.py, --check]}
+    - {name: semgrep, cwd: ., argv: [semgrep, scan, --config, auto, --error], todo: true}
+    - {name: pip-audit, cwd: openbinding-gateway, argv: [uv, run, --with, pip-audit, pip-audit], todo: true}
+    - {name: pnpm-audit, cwd: frontend, argv: [pnpm, audit, --prod], todo: true}
+  G10_secrets_ownership:
+    - {name: gitleaks, cwd: ., argv: [gitleaks, detect, --no-banner, --redact], todo: true}
+    - {name: forbidden-paths, policy: "no new files under datasets/0*_*/, .artifacts/, experimentation/icsoc/original_dataset/, docs/frontend-qa/, docs/design-handoff/; no .env"}
+    - {name: owner-only-paths, policy: "R11 paths changed only with owner approval"}
+  G11_review:
+    - {name: review-panel, policy: "REVIEW.md section 2 by risk level"}
+  G12_lab_ui:
+    - {name: lab-smoke, policy: "openbinding-gateway/tools/smoke_lab.py through the lab seed container"}
+    - {name: playwright-live, cwd: frontend, argv: [pnpm, exec, playwright, test, --project=live], env: {PLAYWRIGHT_BASE_URL: "http://localhost:18100"}, needs: [lab-stack, LAB_SEED_PASSWORD]}
+    - {name: ui-qa, role: ui-qa, policy: "screenshots 1440x900 and 390x844 reviewed for changed screens"}
+
+thresholds:
+  epic_min_per_dimension: 2          # of 3
+  mutation_score_changed_code: null  # OPEN QUESTION: calibrate in the pilot (e.g. 0.60)
+  max_fix_rounds: 2
+  flaky_quarantine_days: 7           # OPEN QUESTION (INTENT O4)
+  proposals_per_night: 3
+
+risk_areas:                          # mirrors REVIEW.md section 1; GW = openbinding-gateway/src/openbinding_gateway
+  R1_auth_roles:
+    level: high
+    globs: ["openbinding-gateway/src/openbinding_gateway/routes/{auth,cas,users,admin,organizations,sponsor_proposals}.py", "openbinding-gateway/src/openbinding_gateway/access/**", "openbinding-gateway/src/openbinding_gateway/security/**", "openbinding-gateway/src/openbinding_gateway/{collaboration,cas}.py", "frontend/src/contexts/**", "frontend/src/components/ProtectedRoute.tsx", "frontend/src/routes/**"]
+  R2_plans_pricing:
+    level: high
+    globs: ["openbinding-gateway/src/openbinding_gateway/services/entitlements.py", "openbinding-gateway/src/openbinding_gateway/domain/{entitlements,usage_counters}.py", "openbinding-gateway/src/openbinding_gateway/access/policy.py", "openbinding-gateway/src/openbinding_gateway/space_client/**", "openbinding-gateway/src/openbinding_gateway/{sphere_client,pricing_catalog}.py", "openbinding-gateway/src/openbinding_gateway/routes/pricing.py", "frontend/src/pages/Pricing/**", "frontend/src/content/plans.ts", "pricings/**"]
+  R3_public_api_schemas:
+    level: high_if_breaking
+    globs: ["docs/openapi.json", "openbinding-gateway/src/openbinding_gateway/models/**", "openbinding-gateway/src/openbinding_gateway/routes/**", "openbinding-gateway/src/openbinding_gateway/core/public_errors.py", "schemas/**", "bim-toolchain/contracts/**"]
+  R4_engine_numeric_semantics:
+    level: high
+    globs: ["engines/**", "openbinding-gateway/src/openbinding_gateway/services/{execution,engines}.py", "openbinding-gateway/src/openbinding_gateway/v1/remote.py", "schemas/bim/v1/manifests/**", "bim-toolchain/packages/bim-core/src/bim_core/{evaluator,reevaluate,compat,protocol,compiler,expressions}.py"]
+  R5_jobs_concurrency:
+    level: high
+    globs: ["openbinding-gateway/src/openbinding_gateway/jobs/**", "openbinding-gateway/src/openbinding_gateway/{job_dispatch,worker,study_jobs,analysis_jobs}.py", "openbinding-gateway/src/openbinding_gateway/services/job_submission.py", "openbinding-gateway/src/openbinding_gateway/domain/idempotency.py"]
+  R6_persistence_migrations:
+    level: high
+    globs: ["openbinding-gateway/alembic/**", "openbinding-gateway/src/openbinding_gateway/db/**", "openbinding-gateway/src/openbinding_gateway/repositories/**"]
+  R7_bim_boundary:
+    level: high
+    globs: ["bim-toolchain/**", "openbinding-gateway/src/openbinding_gateway/integrations/**", "openbinding-gateway/pyproject.toml", "openbinding-gateway/uv.lock", "openbinding-gateway/tests/test_bim_*"]
+  R8_experiments_data:
+    level: medium
+    escalate_to_high: ["experimentation/qacobench/reference/**", "engines/minizinc-csp/Dockerfile"]
+    globs: ["experimentation/**", "datasets/**", "examples/**", "tools/check_bim_corpus.py", "tools/package_zenodo.sh", "engines/bim-generator/**", "openbinding-gateway/src/openbinding_gateway/generator/**"]
+  R9_frontend_a11y:
+    level: medium
+    globs: ["frontend/src/**/*.tsx", "frontend/src/**/*.css", "frontend/e2e/**", "frontend/index.html"]
+  R10_infra_supply_chain:
+    level: high
+    globs: ["docker-compose.yml", "compose.*.json", "**/Dockerfile*", "deploy/**", "nginx/**", ".github/**", "**/uv.lock", "**/pnpm-lock.yaml", "**/pom.xml", "**/package.json", "up.sh", ".env.example"]
+  R11_governance:
+    level: owner
+    globs: ["INTENT.md", "constitution.md", "REVIEW.md", "openspec/specs/**", ".github/CODEOWNERS", ".agentic/**", "docs/adr/**", "bim-toolchain/{INTENT,constitution,REVIEW}.md", "bim-toolchain/openspec/specs/**"]
+
+review_panel:
+  low: [reviewer]
+  medium: [reviewer, test-reviewer]
+  medium_external_input: [reviewer, test-reviewer, security-auditor]
+  high: [reviewer, test-reviewer, security-auditor, arch-reviewer]
+  high_hot_path: [reviewer, test-reviewer, security-auditor, arch-reviewer, perf-reviewer]
+  ui: [ui-qa]
+  owner: [owner]
+
+audits:
+  daily_light:
+    cheap_checks: [bim-guard, changelog, compose-config, openapi-snapshot, ruff-gateway, eslint]
+    rotation:                        # one specialist focus per day, cycling
+      - {focus: bugs, role: debugger}
+      - {focus: security, role: security-auditor, focus_paths: [R1_auth_roles, R10_infra_supply_chain]}
+      - {focus: performance, role: perf-reviewer, focus_paths: [R5_jobs_concurrency, R4_engine_numeric_semantics]}
+      - {focus: reliability, role: reviewer, focus_paths: [R5_jobs_concurrency]}
+      - {focus: maintainability_arch, role: arch-reviewer, watch: ["ALLOWED_LEGACY", "GATE_LIFECYCLE_LEGACY", "MAX_LINES routes/v1.py"]}
+      - {focus: spec_drift, role: doc-steward, watch: ["Evidence GAP lines", "untagged code paths"]}
+      - {focus: dependencies, role: security-auditor, watch: ["uv.lock", "pnpm-lock.yaml", "pom.xml", "unpinned Actions"]}
+      - {focus: docs, role: doc-steward, watch: ["docs/qa/JOINT_STATUS.md NOT EXECUTED items", "README vs ARCHITECTURE drift"]}
+  weekly_deep: {panel: [reviewer, test-reviewer, security-auditor, arch-reviewer, perf-reviewer, ui-qa]}
+  before_release: {panel: all}
+
+roles:
+  enabled: [coordinator, proposer, specifier, spec-auditor, test-designer, planner, implementer, mechanical, debugger,
+            explorer, refactorer, doc-steward, pr-steward, reviewer, test-reviewer, security-auditor, arch-reviewer,
+            perf-reviewer, ui-qa, release, retro, auditor]
+  disabled: []
+  notes:
+    test-designer: "writes only acceptance/**; sees only specs and public interfaces (docs/openapi.json, schemas/**, frontend/src/routes/)"
+    ui-qa: "lab at http://localhost:18100 through the lab profile; synthetic users only"
+
+data_rules:
+  synthetic_only: true
+  forbidden_remote_calls: [SPACE, SPHERE-writes, Zenodo, PyPI, production]

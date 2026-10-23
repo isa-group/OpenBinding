@@ -1,5 +1,8 @@
 # Binding analysis upgrade
 
+> Historical. The decision-space workspace retires (ADR-0020); only the trade-off set of multi-objective
+> runs survives, in the run and study pages (`docs/ARCHITECTURE.md` §5.2).
+
 ## A. Audit (2026-09-08)
 
 ### Surfaces and limitations

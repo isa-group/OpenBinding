@@ -1,5 +1,8 @@
 # Accounts, plans and limits
 
+> As implemented today (pricing 0.1.x, sponsorship, local usage counters). The target is ADR-0015,
+> `docs/ARCHITECTURE.md` §9 and the pricing proposal 0.2.0 in [`docs/pricing/`](pricing/README.md).
+
 The OpenBinding `/v1` gateway separates public validation from authenticated
 job ownership: every `/v1/jobs` request resolves to an account (`401`
 otherwise), which owns the job.
@@ -417,7 +420,7 @@ counter.
 
 Every decision above starts from the account's capabilities, and they are read in
 exactly one place: `services/entitlements.py` (`EntitlementService`, see
-[ARCHITECTURE.md](ARCHITECTURE.md#entitlements)). It is the only module that calls
+[gateway-as-is.md](architecture/gateway-as-is.md#entitlements)). It is the only module that calls
 `get_gate().caps(...)` (enforced by `tests/test_architecture_layers.py`). The rules
 stay in `access/policy.py` and `domain/entitlements.py`; the service names them
 (`require_feature`, `payload_ceiling`, `solve_timeout`, `clamp_options`,

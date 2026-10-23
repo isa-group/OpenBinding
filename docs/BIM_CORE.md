@@ -60,7 +60,7 @@ document and rejects a mismatch.
 
 The toolchain does not know accounts, organizations, projects, plans, jobs,
 queues, persistence, the artifact library, studies, reports, the resolver or the
-HTTP routes. See [ARCHITECTURE.md](ARCHITECTURE.md#the-bim--platform-boundary).
+HTTP routes. See [gateway-as-is.md](architecture/gateway-as-is.md#the-bim--platform-boundary).
 Engine manifests are a platform catalogue.
 
 Checks about a single document (resource schema validation, secure XML parse and
