@@ -64,6 +64,34 @@ jobs:
           openbinding-gateway/.venv/bin/python tools/build_bim_packages.py --output "$second" "${packages[@]}"
           diff -qr "$first" "$second"
 
+  # The lab tests live outside openbinding-gateway/tests, so no other job
+  # collects them. They run on the locked gateway environment with the test extra.
+  lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.8.14'
+          enable-cache: true
+          cache-dependency-glob: openbinding-gateway/uv.lock
+
+      - name: Restore the locked gateway environment with test dependencies
+        run: uv sync --locked --project openbinding-gateway --extra test
+
+      - name: Run the lab tests
+        run: openbinding-gateway/.venv/bin/python -m pytest lab/tests -q
+
   # The engines' own tests. They were never run here, which is how a MiniZinc
   # builder that could not solve a single repeat workflow, and a Java unit test
   # that had been failing for months, both went unnoticed.
