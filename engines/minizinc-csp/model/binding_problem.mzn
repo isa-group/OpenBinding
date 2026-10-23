@@ -341,10 +341,22 @@ array[1..n_transitions] of var 1..n_pool_slots: transition_from_pool =
 array[1..n_transitions] of var 1..n_pool_slots: transition_to_pool =
   [if transition_to_kind[index] == 1 then event_pool[transition_to[index]]
    else task_pool[transition_to[index]] endif | index in 1..n_transitions];
+% Network latencies are float tables read through a pool variable (or two). Gecode has
+% no float element propagator, so `pool_latency[a, b]` with variable pools would be
+% decomposed into one reified equality per cell (n_pool_slots^2 of them for every
+% single access) and `event_latency[e, p]` into one per pool. They go through the
+% fixed-point native integer element of table_value instead; the 2-D table is
+% flattened row-major, so the cell of (a, b) is (a - 1) * n_pool_slots + b.
+function var float: pool_pair_latency(var int: from_pool, var int: to_pool) =
+  table_value([pool_latency[a, b] | a in 1..n_pool_slots, b in 1..n_pool_slots],
+              (from_pool - 1) * n_pool_slots + to_pool);
+function var float: event_pool_latency(int: event, var int: to_pool) =
+  table_value([event_latency[event, p] | p in 1..n_pool_slots], to_pool);
+
 array[1..n_transitions] of var float: transition_latency =
   [if transition_from_kind[index] == 1 then
-     event_latency[transition_from[index], transition_to_pool[index]]
-   else pool_latency[transition_from_pool[index], transition_to_pool[index]] endif
+     event_pool_latency(transition_from[index], transition_to_pool[index])
+   else pool_pair_latency(transition_from_pool[index], transition_to_pool[index]) endif
    | index in 1..n_transitions];
 constraint forall(index in 1..n_transitions)(
   (if transition_from_kind[index] == 2 then
@@ -371,8 +383,8 @@ constraint forall(activity in 1..n_activities)(
         (if activity_predecessor_ready[activity, predecessor] == 0 then 0.0
          else ready_value[activity_predecessor_ready[activity, predecessor]] endif)
         + (if activity_predecessor_kind[activity, predecessor] == 1 then
-             event_latency[activity_predecessor_source[activity, predecessor], activity_pool[activity]]
-           else pool_latency[activity_pool[activity_predecessor_source[activity, predecessor]], activity_pool[activity]] endif)
+             event_pool_latency(activity_predecessor_source[activity, predecessor], activity_pool[activity])
+           else pool_pair_latency(activity_pool[activity_predecessor_source[activity, predecessor]], activity_pool[activity]) endif)
       )
     endif /\
   activity_finish[activity] = activity_start[activity]

@@ -363,6 +363,34 @@ describe('model/binding_problem.mzn capacity checks', () => {
   });
 });
 
+describe('model/binding_problem.mzn latency lookups', () => {
+  const lines = fs.readFileSync(path.resolve(__dirname, '../model/binding_problem.mzn'), 'utf8')
+    .split('\n').filter((line) => !line.trimStart().startsWith('%'));
+  const code = lines.join('\n');
+
+  it('subscripts the float latency tables only inside the comprehensions that feed table_value', () => {
+    const raw = lines.filter((line) => /\b(pool_latency|event_latency)\s*\[/.test(line));
+    assert.equal(raw.length, 2, raw.join('\n'));
+    assert.ok(raw.some((line) => line.includes('table_value([pool_latency[a, b] |')), raw.join('\n'));
+    assert.ok(raw.some((line) => line.includes('table_value([event_latency[event, p] |')), raw.join('\n'));
+  });
+
+  it('flattens pool_latency row-major and reads event_latency by destination pool', () => {
+    assert.ok(code.includes('| a in 1..n_pool_slots, b in 1..n_pool_slots]'));
+    assert.ok(code.includes('(from_pool - 1) * n_pool_slots + to_pool'));
+    assert.ok(code.includes('table_value([event_latency[event, p] | p in 1..n_pool_slots], to_pool)'));
+  });
+
+  it('routes transition latencies and activity predecessors through the two lookup functions', () => {
+    assert.ok(code.includes('event_pool_latency(transition_from[index], transition_to_pool[index])'));
+    assert.ok(code.includes('pool_pair_latency(transition_from_pool[index], transition_to_pool[index])'));
+    assert.ok(code.includes(
+      'event_pool_latency(activity_predecessor_source[activity, predecessor], activity_pool[activity])'));
+    assert.ok(code.includes(
+      'pool_pair_latency(activity_pool[activity_predecessor_source[activity, predecessor]], activity_pool[activity])'));
+  });
+});
+
 describe('MiniZincRunner failure handling', () => {
   it('returns the exit code and stderr of a solver that rejects the model', async () => {
     const dir = fs.mkdtempSync(path.join(SCRATCH, 'reject-'));
