@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 import yaml
 from _repo import REPO_ROOT
@@ -45,20 +43,8 @@ def test_no_space_network_or_volumes() -> None:
     assert not [v for v in (compose.get("volumes") or {}) if v.startswith("space")]
 
 
-@pytest.mark.parametrize(
-    "relative",
-    ["space/prepare.sh", "deploy/kubernetes/space", "deploy/kubernetes/overlays/with-space"],
-)
-def test_local_space_paths_are_gone(relative: str) -> None:
-    assert not (ROOT / relative).exists()
-
-
-def _k8s_text() -> list[tuple[Path, str]]:
-    return [
-        (p, p.read_text(encoding="utf-8"))
-        for p in (ROOT / "deploy" / "kubernetes").rglob("*")
-        if p.is_file()
-    ]
+def test_local_space_paths_are_gone() -> None:
+    assert not (ROOT / "space/prepare.sh").exists()
 
 
 def test_destructive_key_is_not_referenced() -> None:
@@ -67,8 +53,6 @@ def test_destructive_key_is_not_referenced() -> None:
         path = ROOT / relative
         if path.is_file():
             assert FORBIDDEN_KEY not in path.read_text(encoding="utf-8"), relative
-    for path, text in _k8s_text():
-        assert FORBIDDEN_KEY not in text, str(path)
 
 
 def test_remote_space_defaults_without_keys() -> None:

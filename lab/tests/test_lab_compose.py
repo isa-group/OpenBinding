@@ -55,6 +55,21 @@ SECRET_SHAPES = re.compile(
 )
 REFERENCE = re.compile(r"\$\{([^}]*)\}")
 WHOLE_REFERENCE = re.compile(r"\$\{[A-Z][A-Z0-9_]*\}")
+# The one reference allowed a default: the origin the browser reaches the lab by.  Unset, the lab
+# is the local one; set, the supervisor's origin is added to the CORS list and used for links.
+PUBLIC_ORIGIN = "DEMO_PUBLIC_ORIGIN"
+LOCAL_ORIGIN = "http://localhost:18100"
+PUBLIC_ORIGIN_DEFAULTED = f"${{{PUBLIC_ORIGIN}:-{LOCAL_ORIGIN}}}"
+PUBLIC_ORIGIN_BARE = f"${{{PUBLIC_ORIGIN}}}"
+LOCAL_CORS = f"{LOCAL_ORIGIN},http://127.0.0.1:18100"
+# Variables of the gateway, the worker and the seed that carry the public origin, by service.
+PUBLIC_ORIGIN_VARIABLES = {
+    "gateway": {"PUBLIC_BASE_URL": PUBLIC_ORIGIN_DEFAULTED, "FRONTEND_URL": PUBLIC_ORIGIN_DEFAULTED,
+                "CORS_ALLOW_ORIGINS": f"{LOCAL_CORS},{PUBLIC_ORIGIN_BARE}"},
+    "worker": {"PUBLIC_BASE_URL": PUBLIC_ORIGIN_DEFAULTED},
+    "seed": {"PUBLIC_BASE_URL": PUBLIC_ORIGIN_DEFAULTED, "FRONTEND_URL": PUBLIC_ORIGIN_DEFAULTED,
+             "CORS_ALLOW_ORIGINS": f"{LOCAL_CORS},{PUBLIC_ORIGIN_BARE}"},
+}
 
 # The gateway is the only service that signs sessions.  Everything else either never verifies a
 # token (workers, engines, bim-service, web) or talks to the gateway over HTTP (seed): a seed that
@@ -120,6 +135,11 @@ def _strings(node):
     elif isinstance(node, list):
         for item in node:
             yield from _strings(item)
+
+
+def reference_name(body: str) -> str:
+    """The variable a ``${...}`` body names: DEMO_PUBLIC_ORIGIN's default is dropped, any other default stays."""
+    return PUBLIC_ORIGIN if body == f"{PUBLIC_ORIGIN}:-{LOCAL_ORIGIN}" else body
 
 
 def _command_text(service: dict) -> str:
@@ -355,10 +375,68 @@ def test_references_are_demo_or_private_and_never_have_defaults(compose):
     seen = set()
     for text in _strings(compose):
         for body in REFERENCE.findall(text):
-            assert re.fullmatch(r"[A-Z][A-Z0-9_]*", body), f"reference with a default or modifier: ${{{body}}}"
-            assert body.startswith("DEMO_") or body in PRIVATE_VARIABLES, body
-            seen.add(body)
+            name = reference_name(body)
+            assert re.fullmatch(r"[A-Z][A-Z0-9_]*", name), f"reference with a default or modifier: ${{{body}}}"
+            assert name.startswith("DEMO_") or name in PRIVATE_VARIABLES, body
+            seen.add(name)
     assert seen & PRIVATE_VARIABLES, "the private SPACE/SPHERE variables are expected to be referenced"
+
+
+def test_only_the_public_origin_has_a_default_and_it_is_the_local_origin(compose):
+    defaulted = {body for text in _strings(compose) for body in REFERENCE.findall(text) if ":-" in body or ":" in body}
+    assert defaulted == {f"{PUBLIC_ORIGIN}:-{LOCAL_ORIGIN}"}
+    assert PUBLIC_ORIGIN_DEFAULTED == "${DEMO_PUBLIC_ORIGIN:-http://localhost:18100}"
+
+
+def test_public_origin_reaches_gateway_worker_and_seed_by_interpolation(services):
+    for name, expected in PUBLIC_ORIGIN_VARIABLES.items():
+        env = _env(services[name])
+        assert {key: env[key] for key in expected} == expected, name
+    holders = [n for n, s in services.items() if PUBLIC_ORIGIN in json.dumps(s)]
+    assert holders == ["gateway", "worker", "seed"]
+    # the worker only needs the base URL: no CORS and no frontend link
+    assert not {"CORS_ALLOW_ORIGINS", "FRONTEND_URL"} & set(_env(services["worker"]))
+
+
+def _expand(value: str, supplied: str | None) -> str:
+    """Compose's interpolation of the two forms used here: ``${V:-default}`` (unset or empty) and ``${V}``."""
+    def replace(match):
+        body = match.group(1)
+        if ":-" in body:
+            variable, default = body.split(":-", 1)
+            return supplied or default
+        return supplied or ""
+    return REFERENCE.sub(replace, value)
+
+
+def _cors_list(value: str) -> list[str]:
+    """How Settings.cors_origin_list reads the variable: comma separated, blanks dropped."""
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+@pytest.mark.parametrize("name", sorted(PUBLIC_ORIGIN_VARIABLES))
+def test_unset_or_empty_public_origin_leaves_the_local_lab(services, name):
+    env = _env(services[name])
+    for supplied in (None, ""):
+        for key in PUBLIC_ORIGIN_VARIABLES[name]:
+            value = _expand(env[key], supplied)
+            if key == "CORS_ALLOW_ORIGINS":
+                assert value == f"{LOCAL_CORS},"  # the trailing empty item is dropped by Settings
+                assert _cors_list(value) == LOCAL_CORS.split(",")
+            else:
+                assert value == LOCAL_ORIGIN, (name, key)
+
+
+@pytest.mark.parametrize("name", sorted(PUBLIC_ORIGIN_VARIABLES))
+def test_a_public_origin_replaces_the_urls_and_is_appended_to_the_local_cors_origins(services, name):
+    origin = "https://demo.example.org"
+    env = _env(services[name])
+    for key in PUBLIC_ORIGIN_VARIABLES[name]:
+        value = _expand(env[key], origin)
+        if key == "CORS_ALLOW_ORIGINS":
+            assert _cors_list(value) == [*LOCAL_CORS.split(","), origin]
+        else:
+            assert value == origin, (name, key)
 
 
 def test_no_real_secret_shapes_and_no_destructive_key(compose):
@@ -518,7 +596,7 @@ def test_gateway_environment(services):
     env = _env(services["gateway"])
     assert env["APP_ENV"] == "dev"
     assert env["CAS_ENABLED"] == "false"
-    assert env["CORS_ALLOW_ORIGINS"] == "http://localhost:18100,http://127.0.0.1:18100"
+    assert env["CORS_ALLOW_ORIGINS"] == f"{LOCAL_CORS},{PUBLIC_ORIGIN_BARE}"
     assert env["FEDERATION_SECRET_KEY"] == "${DEMO_FERNET_KEY}"  # the name settings.py reads
     assert env["SPACE_PRICING_VERSION"] == "${DEMO_SPACE_PRICING_VERSION}"
     assert env["SPACE_DEFAULT_PLAN"] == "${DEMO_SPACE_DEFAULT_PLAN}"
@@ -695,7 +773,7 @@ def test_nginx_listens_on_the_published_target_and_strips_the_api_prefix(service
 
 
 def test_prod_stage_is_stock_nginx_and_lab_stage_bakes_in_the_lab_config():
-    # Target `prod` (used by Kubernetes) is nginx:1.27-alpine plus the build output and must not
+    # Target `prod` (the production image) is nginx:1.27-alpine plus the build output and must not
     # change; target `lab` is built FROM it and only replaces conf.d/default.conf.
     dockerfile = DOCKERFILE.read_text(encoding="utf-8")
     assert dockerfile.count("FROM nginx:1.27-alpine AS prod") == 1
@@ -774,8 +852,16 @@ def test_nginx_upstream_hosts_are_compose_services(services):
 def test_demo_doc_states_the_memory_sum_and_every_demo_variable(compose, services):
     doc = DEMO_DOC.read_text(encoding="utf-8")
     assert f"{_total_mib(services)} MiB" in doc
-    variables = {body for text in _strings(compose) for body in REFERENCE.findall(text) if body.startswith("DEMO_")}
+    names = {reference_name(body) for text in _strings(compose) for body in REFERENCE.findall(text)}
+    variables = {name for name in names if name.startswith("DEMO_")}
     assert variables
     for variable in sorted(variables):
         assert f"`{variable}`" in doc, f"docs/DEMO.md does not describe {variable}"
+
+
+def test_demo_doc_states_the_default_and_the_cors_effect_of_the_public_origin():
+    doc = DEMO_DOC.read_text(encoding="utf-8")
+    row = next(line for line in doc.splitlines() if line.startswith(f"| `{PUBLIC_ORIGIN}`"))
+    assert LOCAL_ORIGIN in row and "CORS_ALLOW_ORIGINS" in row
+    assert "PUBLIC_BASE_URL" in row and "FRONTEND_URL" in row
     assert "18100" in doc and "lab_compose" in doc

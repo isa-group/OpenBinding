@@ -53,8 +53,8 @@ COPY openbinding-gateway/alembic.ini .
 COPY openbinding-gateway/alembic/ alembic/
 
 # A deployable image owns the exact language contract it serves. Compose may
-# still mount these paths while developing, but Kubernetes needs no generated
-# ConfigMap or out-of-band copy step.
+# still mount these paths while developing, but the image needs no bind mount
+# or out-of-band copy step to run.
 COPY schemas/ schemas/
 COPY examples/ examples/
 

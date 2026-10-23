@@ -118,7 +118,7 @@ saltan con motivo y con `BIM_REQUIRE_CORPUS=1` fallan (mismo convenio que `test_
 
 El SDK conserva `tenant=` por compatibilidad (etiqueta de log) y su docstring (`http.py:46-47`, `CLIENT.md:136`) debe
 decir que **no** decide la cuota. `bim-service` no está publicado por nginx ni por puertos en el laboratorio
-(`compose.lab.json:126-160` no tiene `ports`); no se comprobó el despliegue Kubernetes.
+(`compose.lab.json:126-160` no tiene `ports`).
 
 ### 2.6 Rotación de dos tokens
 
@@ -449,7 +449,7 @@ aun así los dos de latencia pueden dar un falso resultado en una máquina muy c
 * No hay peor caso real de compilación o evaluación (ningún paquete patológico probado): la gravedad de "un hilo
   retiene su slot" depende de él.
 * `baseline_core.py --check`, las 82 en ZIP crudo frente a directorio, Python 3.12 y los workflows en GitHub no se
-  ejecutaron; tampoco `docker compose` ni el despliegue Kubernetes.
+  ejecutaron; tampoco `docker compose`.
 * Motores reales con semilla; tests de motores que fijen salidas con semilla.
 * `normalized(canonical) == canonical` no se fijó como test: en una sonda previa se cumplía en 75 de 82 y fallaba en los
   7 con `placement` (el ZIP canónico conserva el orden de `network` del autor y el de grupos en `demands`), lo que

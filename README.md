@@ -222,8 +222,6 @@ OpenBinding guarantees strict cryptographic immutability and provenance:
 - `openbinding-gateway`: secure package handling, BIM compilation, registry,
   provenance, and the OpenBinding `/v1` API.
 - `frontend`: the BIM Instance Workspace.
-- `deploy`: plain Kustomize manifests, network policies and backup/restore
-  runbooks; no Helm dependency.
 - `bim-toolchain`: self-contained directory being extracted into its own
   private repository (`javiercavlop/bim-toolchain`; the remote has not been
   created). See [BIM extraction status](#bim-extraction-status).

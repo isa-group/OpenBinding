@@ -207,8 +207,9 @@ def test_secrets_are_references_never_literals_and_references_have_no_defaults(p
                 assert value == f"${{{key}}}", f"{name}:{key}"
     for text in rules._strings(manifest):
         for body in rules.REFERENCE.findall(text):
-            assert re.fullmatch(r"[A-Z][A-Z0-9_]*", body), body
-            assert body.startswith("DEMO_") or body in rules.PRIVATE_VARIABLES, body
+            name = rules.reference_name(body)
+            assert re.fullmatch(r"[A-Z][A-Z0-9_]*", name), body
+            assert name.startswith("DEMO_") or name in rules.PRIVATE_VARIABLES, body
     text = profile.path.read_text(encoding="utf-8")
     assert not rules.SECRET_SHAPES.search(text)
     assert rules.DESTRUCTIVE_KEY not in text and "VITE_API_KEY" not in text

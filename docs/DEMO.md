@@ -195,6 +195,7 @@ secrets**; use your own.
 | `DEMO_SEED_ARGS` | seed | `--verbose` for a seed, `--with-space` for the smoke (see "Seeding" and "API smoke") |
 | `DEMO_SEED_PASSWORD` | seed (`seed_lab.py`, `smoke_lab.py`) and e2e (the live specs sign the synthetic users in with it) | any synthetic value of 10+ characters; the supervisor injects it; `compose.lab.json` passes it only to `seed` and `e2e`, as `${DEMO_SEED_PASSWORD}` with no value and no default |
 | `DEMO_E2E` | e2e | `1` runs the live specs when the service starts; anything else (`0`, unset) only creates `/results/done` and sleeps. See "Browser specs and visual QA inside the lab" |
+| `DEMO_PUBLIC_ORIGIN` | gateway, worker (`PUBLIC_BASE_URL` only), seed | optional; default `http://localhost:18100`. The origin the browser reaches the lab by, with no trailing slash (for example `https://demo.example.org`). It becomes `PUBLIC_BASE_URL` and `FRONTEND_URL` (the worker gets only `PUBLIC_BASE_URL`) and is appended to `CORS_ALLOW_ORIGINS` after `http://localhost:18100,http://127.0.0.1:18100`. Unset or empty, the URLs stay `http://localhost:18100` and the list gains an empty item that `Settings.cors_origin_list` discards, so CORS allows only the two local origins. The published port is unchanged (`127.0.0.1:18100`) |
 | `SMOKE_BASE_URL` | seed (`smoke_lab.py`) | fixed in the file to `http://web:8080` on `seed` only |
 
 The file writes no SPACE service or plan name: those come from `DEMO_*`
@@ -554,7 +555,7 @@ diagnostic guide, not a list of verified results.
    empty for uid 101 under rootless docker. **The configuration is baked into the image, not bind-mounted.** The
    `lab` stage of `frontend/Dockerfile` (`FROM prod AS lab`) copies
    `frontend/nginx.lab.conf` over `/etc/nginx/conf.d/default.conf`; `prod`,
-   which Kubernetes uses, is unchanged. An earlier version bind-mounted the
+   the production image, is unchanged. An earlier version bind-mounted the
    configuration from the host; with rootless docker and an extracted,
    read-only copy of the tree that directory could be empty or unreadable for
    uid 101, so nginx started its workers with no `server` block: nothing
