@@ -5,6 +5,7 @@
       "date": "2026-10-24",
       "title": "OpenBinding platform",
       "changes": [
+        "Mark completed slices in the Status column (#44)",
         "Stop the engine cancel contract test from depending on setup time (#42)",
         "Isolation probe, PR previews docs and shorter preview evidence (M0.5 S4) (#39)",
         "Gate tooling in CI and acceptance runners (M0.3) (#37)",

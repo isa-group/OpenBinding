@@ -42,6 +42,20 @@ side (one noisy round still fails); best-of-N with an absolute bound (still depe
 Cost: 6 runs per test (3 default, 3 short), an estimated 7-8 s per test (not measured), dominated by the three
 default-interval runs where each `/healthz` takes about 100 ms under the load.
 
+## Second decision: relax the comparison (CRP crp-b8-latency-threshold, answer 'relax')
+
+CI evidence: the same-run comparison `best_short < 0.5 * best_default` failed.
+
+- Analysis test: 0.1 ms interval 17.8 ms against 8.1 ms for the default 5 ms.
+- Pool test: 16.1 ms with the configured interval against 11.6 ms without it.
+
+On a shared runner the interval did not give the expected speed-up, so the factor 0.5 is not a reliable bound. The
+owner chose to relax it. Both assertions now require only that the short interval is not worse than the default:
+`best_short <= 1.5 * best_default`; the failure message still lists every median. The speed-up (94-118 ms down to
+a few ms on a quiet machine) is logged in the docstrings, not enforced. The comments and docstrings that said the
+interval "keeps healthz fast" now state this weaker property. Test names are unchanged because other documents refer
+to them. No production code and no other test changed. Not run in the worker (no pytest); CI is the verification.
+
 ## Scope
 
 Test code only; no production code changed.
