@@ -22,53 +22,58 @@ Full lab suite, used as a green check by every slice:
   `lab/tests/test_ci_gate_tooling.py` (created with the helpers of design.md §8).
 - Requirements: `openspec-job`, `openspec-report-only`, `trace-download`, `trace-paths`, `tools-not-shipped`,
   `pinned-steps`, `project-yaml-notes` (design.md §2–§3).
-- [ ] 1.1 Tests: `test_openspec_job_installs_pinned_cli_and_validates_all`, `test_openspec_validate_is_report_only`,
+- [x] 1.1 Tests: `test_openspec_job_installs_pinned_cli_and_validates_all`, `test_openspec_validate_is_report_only`,
   `test_trace_job_downloads_and_verifies_pinned_jar`, `test_trace_step_covers_g6_paths_report_only`,
   `test_gate_tools_not_committed_or_in_images`, `test_gate_jobs_pin_versions_and_add_no_actions`,
   `test_project_yaml_g1_g6_stay_todo_with_notes`. Expected green on the base: `test_gate_tools_not_committed_or_in_images`
   (guard); every other one red.
-- [ ] 1.2 `ci.yml`: jobs `openspec` and `trace` as in design.md §2.
-- [ ] 1.3 `.agentic/project.yaml`: the comment lines of design.md §3; no other byte changes.
+- [x] 1.2 `ci.yml`: jobs `openspec` and `trace` as in design.md §2.
+- [x] 1.3 `.agentic/project.yaml`: the comment lines of design.md §3; no other byte changes.
 - `-k`: `test_openspec_job_installs_pinned_cli_and_validates_all or test_openspec_validate_is_report_only or test_trace_job_downloads_and_verifies_pinned_jar or test_trace_step_covers_g6_paths_report_only or test_gate_tools_not_committed_or_in_images or test_gate_jobs_pin_versions_and_add_no_actions or test_project_yaml_g1_g6_stay_todo_with_notes`
 - Checks: red_before and green with the argv above; the full lab suite. MRP evidence: the PR's CI run shows both jobs,
   `openspec --version` printing `1.14.3`, `sha256sum` printing `OK`, and the trace and validate reports.
 
 ## S2. import-linter and ESLint boundaries (~70 non-test lines + ~120 test lines + lockfiles; turn budget 50)
 
+- Delivered as S2a (gateway: `.importlinter`, the `lint` group, the `lab` step, 3 tests) and S2b (frontend:
+  `eslint-plugin-boundaries` 7.3.0 as an exact devDependency, 2 tests).
 - Owned: `.github/workflows/ci.yml` (one step in `lab`), `lab/tests/test_ci_gate_tooling.py` (append),
   `openbinding-gateway/.importlinter`, `openbinding-gateway/pyproject.toml`, `openbinding-gateway/uv.lock`,
   `frontend/package.json`, `frontend/pnpm-lock.yaml`, `frontend/eslint.config.js`. Read-only: `frontend/Dockerfile`,
   `frontend/Dockerfile.e2e`, `openbinding-gateway/Dockerfile`, `lab/tests/test_lab_compose.py`.
 - Requirements: `import-linter-contract`, `import-linter-dev-only`, `import-linter-report-only`, `eslint-boundaries`,
   `frontend-images` (design.md §4–§5).
-- [ ] 2.1 Tests: `test_importlinter_contract_mirrors_layers`, `test_import_linter_is_locked_dev_only`,
+- [x] 2.1 Tests: `test_importlinter_contract_mirrors_layers`, `test_import_linter_is_locked_dev_only`,
   `test_import_linter_step_is_report_only`, `test_eslint_boundaries_warns_page_to_page`,
   `test_frontend_images_get_plugin_only_by_frozen_install`. All red on the base.
-- [ ] 2.2 `.importlinter`, the `lint` dependency group and the `lab` step of design.md §4.
-- [ ] 2.3 The devDependency and the `eslint.config.js` block of design.md §5. If the node resolver needs a package
+- [x] 2.2 `.importlinter`, the `lint` dependency group and the `lab` step of design.md §4.
+- [x] 2.3 The devDependency and the `eslint.config.js` block of design.md §5. If the node resolver needs a package
   that is not already locked, stop and report it (a new dependency needs an exact pin and a decision).
-- [ ] 2.4 The PR body states that the lab e2e image (`frontend/Dockerfile.e2e`) and the frontend `dev`/`build` stages
+- [x] 2.4 The PR body states that the lab e2e image (`frontend/Dockerfile.e2e`) and the frontend `dev`/`build` stages
   now install `eslint-plugin-boundaries`, and gives the first counts of broken contracts and of boundaries warnings.
 - `-k`: `test_importlinter_contract_mirrors_layers or test_import_linter_is_locked_dev_only or test_import_linter_step_is_report_only or test_eslint_boundaries_warns_page_to_page or test_frontend_images_get_plugin_only_by_frozen_install`
 - Checks, in order (the two lock updates need the package index and are registered by the lead):
   1. red_before with the argv above.
   2. `["bash","-c","cd openbinding-gateway && uv add --group lint 'import-linter==2.15'"]`
-  3. `["bash","-c","cd frontend && pnpm add --save-dev --save-exact eslint-plugin-boundaries@7.3.0"]`
+  3. `["bash","-c","cd frontend && pnpm add --save-dev --save-exact --workspace-root eslint-plugin-boundaries@7.3.0"]`
+     (`--workspace-root` because `frontend/pnpm-workspace.yaml` has `packages: [.]` and a `policies` key)
   4. green with the argv above; the full lab suite (memory, users and image anchors stay green).
-  5. `["bash","-c","cd openbinding-gateway && uv run --locked --extra test --group lint lint-imports --config .importlinter > /tmp/lint-imports.txt 2>&1; echo \"lint-imports exit $?\"; cat /tmp/lint-imports.txt"]`:
-     report-only, so the evidence is the recorded exit code and count, not exit 0.
+  5. `["bash","-c","cd openbinding-gateway && uv run --locked --extra test --group lint lint-imports --config .importlinter > /tmp/lint-imports.txt 2>&1; echo \"lint-imports exit $?\"; grep -E 'Contracts: [0-9]+ kept, [0-9]+ broken' /tmp/lint-imports.txt"]`:
+     report-only, so the evidence is the recorded exit code and the summary line `Contracts: N kept, M broken`, not
+     exit 0. The first count was 1 kept, 2 broken.
   6. `["bash","-c","cd frontend && pnpm install --frozen-lockfile && pnpm lint && pnpm test && pnpm build"]`: no ESLint
      error; the warning count goes into the PR.
-  7. Probe that the rule fires: `["bash","-c","cd frontend && printf \"import '../Account/Account'\\nexport {}\\n\" | pnpm exec eslint --stdin --stdin-filename src/pages/About/Probe.tsx > /tmp/boundaries-probe.txt; grep -c 'boundaries/' /tmp/boundaries-probe.txt"]`
-     (exits non-zero when no boundaries warning is printed).
+  7. Probe that the rule fires: `["bash","-c","cd frontend && printf \"import '../Account/Account'\\nexport {}\\n\" | pnpm exec eslint --stdin --stdin-filename src/pages/About/Probe.tsx > /tmp/boundaries-probe.txt && grep -c 'boundaries/' /tmp/boundaries-probe.txt"]`
+     (default formatter; `&&` so that ESLint's own exit status is checked; exits non-zero when ESLint fails or no
+     boundaries warning is printed).
 
 ## S3. Job `bim-toolchain` (~35 non-test lines + ~60 test lines; turn budget 30)
 
 - Owned: `.github/workflows/ci.yml` (new job), `lab/tests/test_ci_gate_tooling.py` (append). Read-only:
   `bim-toolchain/**`, `.agentic/project.yaml` G5 `bim-toolchain`.
 - Requirements: `bim-toolchain-tests`, `bim-toolchain-goldens` (design.md §6).
-- [ ] 3.1 Tests: `test_bim_toolchain_job_runs_package_tests`, `test_bim_toolchain_job_checks_goldens`. Both red on the base.
-- [ ] 3.2 `ci.yml`: job `bim-toolchain` as in design.md §6, no `continue-on-error`.
+- [x] 3.1 Tests: `test_bim_toolchain_job_runs_package_tests`, `test_bim_toolchain_job_checks_goldens`. Both red on the base.
+- [x] 3.2 `ci.yml`: job `bim-toolchain` as in design.md §6, no `continue-on-error`.
 - `-k`: `test_bim_toolchain_job_runs_package_tests or test_bim_toolchain_job_checks_goldens`
 - Checks: red_before and green with the argv above; the full lab suite; and the real commands, which need the five
   OMG XSDs present or omg.org reachable:
@@ -85,17 +90,18 @@ Requirements: `api-runner`, `ui-runner`, `acceptance-docs` (design.md §7). No a
 - Owned: `.github/workflows/ci.yml` (one step in `lab`, one in `frontend`), `lab/tests/test_ci_gate_tooling.py`
   (append), `frontend/playwright.acceptance.config.ts`, `frontend/src/test/e2eSpecs.test.ts` (add the config to
   `configs`), `TESTING.md` (§2).
-- [ ] 4.1 Tests: `test_api_runner_passes_empty_and_runs_in_lab` (runs `sys.executable -m pytest -c
+- [x] 4.1 Tests: `test_api_runner_passes_empty_and_runs_in_lab` (runs `sys.executable -m pytest -c
   acceptance/api/pytest.ini acceptance/api -q -p no:cacheprovider -k zz_selects_nothing` from the root through
   `subprocess`, `check=False`, and asserts exit 0; with all tests deselected pytest reports 5, so the hook is exercised
   whether or not acceptance tests exist), `test_ui_runner_passes_empty_in_frontend_job`,
   `test_acceptance_docs_name_runners_and_writer`. All red on the base.
-- [ ] 4.2 The two CI steps, the Playwright config, the `e2eSpecs.test.ts` line and `TESTING.md` §2.
+- [x] 4.2 The two CI steps, the Playwright config, the `e2eSpecs.test.ts` line and `TESTING.md` §2. The API acceptance
+  step sits in job `lab` before the import-linter step, which stays the last step of `lab`.
 
 ### S4b. Test-designer (turn budget 20; after S4a, same PR)
 - Owned: `acceptance/README.md`, `acceptance/api/pytest.ini`, `acceptance/api/conftest.py`, `acceptance/ui/.gitkeep`
   (G4 path; runners and documentation only, no test).
-- [ ] 4.3 The four files of design.md §7.
+- [x] 4.3 The four files of design.md §7.
 
 - `-k`: `test_api_runner_passes_empty_and_runs_in_lab or test_ui_runner_passes_empty_in_frontend_job or test_acceptance_docs_name_runners_and_writer`
 - Checks: red_before (S4a, base files) with the argv above; after S4b: green with the argv above, the full lab suite,
