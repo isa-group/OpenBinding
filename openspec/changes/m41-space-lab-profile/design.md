@@ -8,11 +8,11 @@ loopback-only and secret-free.
 
 | Decision | Choice | Considered |
 |---|---|---|
-| Where the profile lives | its own file `compose.lab-pricing.json`, run together with the lab file | a Compose `profiles:` entry in `compose.lab.json`: it would change the 4032 MiB sum and the `profiles == ["seed"]` rule of `lab/tests/test_lab_compose.py` for every lab |
+| Where the profile lives | its own file `compose.lab-pricing.json`, a standalone project `openbinding-lab-pricing` brought up by `lab_compose up file=compose.lab-pricing.json` (the pattern of `compose.lab-engines.json`); not an overlay of the lab project, because a later file's top-level `name` would rename the develop lab | a Compose `profiles:` entry in `compose.lab.json`: it would change the 4032 MiB sum and the `profiles == ["seed"]` rule of `lab/tests/test_lab_compose.py` for every lab |
 | Publishing | no host port | a loopback port for the SPACE web client: not needed, and the lab keeps one published port (`single-loopback-port`) |
 | Data | named volumes `lab-pricing-mongo` (`/data/db`) and `lab-pricing-redis` (`/data`), declared with labels only at top level | tmpfs: the service would lose its SPACE organization and contracts at each restart |
 | Networks | the project default network; the manifest has no `networks` key | a dedicated network: the existing rule forbids `networks` keys |
-| Isolation of SPACE from the gateway | the gateway reaches `space-api` by service name only when `DEMO_SPACE_ENABLED=true` is set by the operator; the profile never edits `compose.lab.json` | wiring the gateway env in the base file: it would make the base depend on the optional file |
+| Gateway wiring | none in M4.1: the gateway is NOT wired to this SPACE. M4.2/M4.5 either fold the services (names, keys and rules are merge-ready) into the main lab manifest or choose another route with a recorded exception to the no-`networks` rule; this change does not decide how `SPACE_URL` reaches the gateway | wiring the gateway env in the base file: it would make the base depend on the optional file |
 
 ## 2. Services (final state)
 
@@ -33,9 +33,10 @@ sets `mem_limit`, a numeric non-root `user` (mongo and redis `999:999`, `space-a
 for `space-api`, which waits for both databases with `condition: service_healthy`. Memory caps inside the containers:
 MongoDB `--wiredTigerCacheSizeGB 0.25`, Redis `--maxmemory 64mb`, Node `--max-old-space-size=192`.
 
-UNVERIFIED: the `space-api` user `1000:1000`, its healthcheck path and its port 3000 are taken from the SPACE source,
-not from a running image, because the image is the GAP marker. They are checked when the real image is available (S4
-task 4.3); the static tests only require a numeric non-root user and a healthcheck.
+The healthcheck path and port 3000 come from the SPACE v1.7.1 source (`api/src/main/routes/HealthcheckRoutes.ts`,
+`api/src/main/app.ts`; medium confidence, lookup). UNVERIFIED: the `space-api` user `1000:1000` and the absence of curl
+in the image; no running image has been inspected because the image is the GAP marker. They are checked when the real
+image is available (S4 task 4.3); the static tests only require a numeric non-root user and a healthcheck.
 
 ## 3. Images and the runbook
 
@@ -44,17 +45,19 @@ Verified by the coordinator on 2026-10-24 against Docker Hub: `mongo:7.0.16`
 `sha256:fbdbaea47b9ae4ecc2082ecdb4e1cea81e32176ffb1dcf643d422ad07427e5d9`. They are the only entries of the runbook's
 verified list (`docs/qa/PRICING_PROFILE.md`, S2) and the static tests read that list.
 
-`space-api` is **unresolved**. No published SPACE image has been found: `isa-group/space` has no packages, its production
-Compose builds from source, and release v1.7.1 lives in `SCORELabUS/space`. A name and digest obtained from an
-unverified lookup were discarded; no digest is guessed anywhere. `space-api` comes either from a build from the commit
-of tag v1.7.1 pinned by commit SHA, or from an official image if the owner supplies one (CRP question 1). Until the
-answer:
+`space-api` is **unresolved**: no space-api reference has been verified by this change. `isa-group/space` has no
+packages, its production Compose builds from source, and release v1.7.1 lives in `SCORELabUS/space`. ARCHITECTURE §9.4
+names `ghcr.io/scorelabus/space-api:1.7.1`; it is an UNVERIFIED candidate, submitted to the owner as part of CRP
+question 1, and is neither pinned nor given a digest here. A name and digest obtained from an unverified lookup were
+discarded; no digest is guessed anywhere. `space-api` comes either from a build from the commit of tag v1.7.1, or from
+an official image by verified digest (CRP question 1). Until the answer:
 
 - the manifest and the tests carry the marker `gap.invalid/space-api:1.7.1`; the `.invalid` TLD can never resolve, so
   the profile cannot start by accident with an unverified image;
 - the runbook has a GAP entry for it, and a rule that the marker is accepted for `space-api` only;
-- after the answer, the marker is replaced by a reference pinned by digest (or a locally built image whose build
-  names the commit SHA), listed as verified in the runbook with its date and source.
+- after the answer, the marker is replaced by a reference pinned by digest, listed as verified in the runbook with its
+  date and source. The build option needs a revision 2 of `pinned-images` (build context pinned by commit SHA plus a
+  check for it); the digest path needs none.
 
 ## 4. Static rules (S1, tests first)
 
@@ -64,9 +67,13 @@ refuses what it must. The trace names are `optional`, `pinned-images`, `isolated
 `secret-references`, `start-order` and `remote-sphere`: separate file, service set and no `profiles` key; no
 `ports`/`expose`/`networks`, only the two named volumes, numeric non-root users; mongo and redis images
 `name:tag@sha256:<64 hex>` listed in the runbook, `space-api` the GAP marker (with an open GAP entry) or a listed
-`:1.7.1@sha256:` reference; `mem_limit` on every service, sum equal to the runbook and at most 1152, caches below
-limits; four bare secret references documented in the runbook; healthchecks and `service_healthy`; the four SPHERE
-variables and no other external host.
+`:1.7.1@sha256:` reference (the marker is refused once the verified list holds a `space-api` digest); `mem_limit` on
+every service, sum equal to the runbook and at most 1152, caches and heap fixed below limits; no `$` other than the four
+exact secret references (unbraced `$VAR` refused), each variable pinned to its own reference, `MONGO_URI` embedding the
+Mongo reference, a `SECRET_SHAPES` scan, all four documented in the runbook; an allow-list of service keys (`image`,
+`user`, `command`, `environment`, `volumes`, `mem_limit`, `healthcheck`, `depends_on`), so `security_opt`,
+`userns_mode`, `build` and the like are refused; healthchecks and `service_healthy`; the four SPHERE variables and every
+URL of any scheme with a host in {`space-mongo`, `space-redis`, `space-api`, `sphere.score.us.es`, `127.0.0.1`}.
 
 `openbinding-gateway/tests/test_no_local_space.py` reads `compose.lab-pricing.json` apart and checks every other
 manifest (`docker-compose.yml`, `compose.lab*.json`, `compose.pgtest.json`, `deploy/**`): SPACE services only in the
@@ -84,25 +91,33 @@ See §2. The profile memory is a declared budget, not a measurement; S5 measures
 ## 6. Network
 
 The profile publishes nothing. `space-api` listens inside the project network; `pricing-bootstrap` reaches it by service
-name. Outbound HTTPS to `sphere.score.us.es` is the only external access SPACE needs. Rootless Docker keeps the host
+name. The gateway is not wired to it in M4.1 (§1). The in-container healthcheck of `space-api` is SPACE's own
+container probe, not an OpenBinding module. Outbound HTTPS to `sphere.score.us.es` is the only external access SPACE needs. Rootless Docker keeps the host
 loopback unreachable from containers (m05-pr-previews design.md §8).
 
 ## 7. Interaction with PR previews
 
 SPACE stays disabled in previews until a memory decision is made for them (m05-pr-previews design.md §6). With this
 profile the preview plus profile arithmetic is 4032 + 1088 per preview that enables it; the base stack and the profile
-together are checked by the lab at run time. This change does not alter preview planning.
+together are checked by the lab at run time. This change does not alter preview planning. Follow-ups: the lab admission
+check and the preview planner must count this project's memory (factory F1/F2); M4.5 needs a memory decision for SPACE
+in previews (2 x (4032 + 1088) > 9216) and must change the seed guard that refuses service `openbinding`
+(`docs/DEMO.md`, about line 195).
 
 ## 8. Bootstrap tool and constitution 16.1
 
-`pricing-bootstrap` runs `tools/space_lab_bootstrap.py` (S4). The MANAGEMENT key is not copied to a lab secret store:
-it stays inside SPACE, and the tool reads SPACE's own key store, until M4.5 delivers it. To create an organization, a key, a service from the
+`pricing-bootstrap` runs `tools/space_lab_bootstrap.py` (S4). Where the MANAGEMENT key lives is an OPEN decision:
+ARCHITECTURE §9.4 says it is kept in the stack's secret store; the alternative is to keep it inside SPACE until M4.5.
+It is settled with the owner request before S4 (question 3 of `crp-openbinding-m41-space-image-and-16-1`, to be added by
+the coordinator); ARCHITECTURE §9.4 is updated once decided (the coordinator owns that file). To create an organization, a key, a service from the
 SPHERE link and contracts, the tool has to call SPACE's HTTP API. Constitution 16.1 says: "SPACE MUST be reached only
 through its official clients: `space-python-client` in the gateway (plans module) and `space-react-client` in the
 browser (token-only mode). No module MAY call SPACE's HTTP API directly." Whether the lab tool is a "module" and
 whether the official client offers the needed operations is the second question of the owner request
-`crp-openbinding-m41-space-image-and-16-1`, which is in progress. This is risk R8. S3 (bootstrap tests) and S4 (the tool
-and the `pricing-bootstrap` service) are blocked until it is answered. The tool never writes to SPHERE and holds no
+`crp-openbinding-m41-space-image-and-16-1`, which is in progress. ADR-0015 §2 says the plans module is the only code
+that talks to SPACE; whether a lab tool may do so is the same question and its answer is recorded as an ADR amendment
+before S4. This is risk R8. S3 (bootstrap tests) and S4 (the tool and the `pricing-bootstrap` service) are blocked until
+it is answered. The tool never writes to SPHERE and holds no
 SPHERE key (constitution 16.2). Requirements about the bootstrap stay in the delta spec because they are the final
 state; they are not met until S4.
 
@@ -123,13 +138,18 @@ state; they are not met until S4.
 
 ## 10. Failure and rollback
 
-- Removing the profile means not passing `compose.lab-pricing.json` to Compose; the base lab is unchanged.
-- A failed bootstrap leaves SPACE running with no service; it is re-run idempotently (S4); `labctl destroy` removes
-  the `lab-pricing-*` volumes with the project.
+- Removing the profile means not bringing up `compose.lab-pricing.json`; the base lab is unchanged.
+- A failed bootstrap leaves SPACE running with no service; it is re-run idempotently (S4); `labctl destroy` of the
+  `openbinding-lab-pricing` project removes its own `lab-pricing-*` volumes.
 - Reverting S1+S2 deletes one new file and narrows one test back.
 
 ## 11. Open questions
 
 - CRP question 1: which SPACE image or build for `space-api` (build from the commit of tag v1.7.1, or an official image).
-- CRP question 2: does constitution 16.1 admit an exception for `tools/space_lab_bootstrap.py`.
-- How `lab_compose` (factory) accepts the overlay file. Outside this repository.
+- CRP question 2: does constitution 16.1 admit an exception for `tools/space_lab_bootstrap.py`, and does ADR-0015 §2
+  (the plans module is the only code that talks to SPACE) need an amendment; the answer is recorded as an ADR amendment
+  before S4.
+- CRP question 3 (to be added by the coordinator): where the MANAGEMENT key lives (the stack's secret store per
+  ARCHITECTURE §9.4, or inside SPACE until M4.5), settled before S4.
+- How `lab_compose` (factory, follow-up F1) accepts `file=compose.lab-pricing.json`. Outside this repository.
+- How `SPACE_URL` reaches the gateway (M4.2/M4.5), and the admission and preview memory accounting (factory F1/F2).
