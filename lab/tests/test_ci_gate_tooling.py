@@ -401,10 +401,16 @@ def test_eslint_boundaries_warns_page_to_page():
 TOOLCHAIN_PYTHON = "../openbinding-gateway/.venv/bin/python"
 TOOLCHAIN_PYTHONPATH = "packages/bim-core/src:packages/bim-service/src:packages/bim-client/src"
 TOOLCHAIN_TESTS = ["packages/bim-core/tests", "packages/bim-service/tests", "packages/bim-client/tests"]
-TOOLCHAIN_DESELECTED = (
-    "packages/bim-service/tests/analysis/test_analysis_b8_evidence.py"
-    "::test_the_throughput_cost_of_a_short_switch_interval"
-)
+TOOLCHAIN_DESELECTED = [
+    (
+        "packages/bim-service/tests/analysis/test_analysis_b8_evidence.py"
+        "::test_the_throughput_cost_of_a_short_switch_interval"
+    ),
+    (
+        "packages/bim-service/tests/analysis/test_analysis_b8_probe.py"
+        "::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]"
+    ),
+]
 
 
 # [utest->req~gate-tooling-bim-toolchain-tests~1]
@@ -420,12 +426,13 @@ def test_bim_toolchain_job_runs_package_tests():
     pytest_step = _step(job, f"{TOOLCHAIN_PYTHON} -m pytest")
     assert pytest_step.get("working-directory") == "bim-toolchain"
     assert (pytest_step.get("env") or {}).get("PYTHONPATH") == TOOLCHAIN_PYTHONPATH
-    arguments = pytest_step["run"].split()
+    arguments = shlex.split(pytest_step["run"])
     deselects = [i for i, a in enumerate(arguments) if a == "--deselect" or a.startswith("--deselect=")]
-    assert len(deselects) == 1, f"expected exactly one --deselect: {arguments}"
-    assert arguments[deselects[0]] == "--deselect", arguments
-    assert arguments[deselects[0] + 1] == TOOLCHAIN_DESELECTED, arguments
-    directories = [a for i, a in enumerate(arguments) if a.startswith("packages/") and i != deselects[0] + 1]
+    assert len(deselects) == len(TOOLCHAIN_DESELECTED), f"expected exactly the two --deselect options: {arguments}"
+    assert all(arguments[i] == "--deselect" for i in deselects), arguments
+    assert [arguments[i + 1] for i in deselects] == TOOLCHAIN_DESELECTED, arguments
+    values = {i + 1 for i in deselects}
+    directories = [a for i, a in enumerate(arguments) if a.startswith("packages/") and i not in values]
     assert directories == TOOLCHAIN_TESTS, arguments
     steps = job["steps"]
     assert steps.index(ensure) < steps.index(sync) < steps.index(pytest_step)
