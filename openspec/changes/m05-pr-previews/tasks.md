@@ -147,7 +147,7 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
   after `labctl destroy preview <pr>` no `openbinding-pr-<n>_*` volume is left.
 
 ## S4. Docs and live probe (~110 lines)
-- [ ] 4.1 `lab/tests/test_preview_isolation.py`: the live probe of design.md §8, tagged
+- [x] 4.1 `lab/tests/test_preview_isolation.py`: the live probe of design.md §8, tagged
   `[utest->req~lab-deployment-preview-isolation~1]`. It runs only when `OPENBINDING_LAB_PROBE=1`; with it set, a
   missing lab fails. Precondition: the develop lab stopped, or two small stand-in projects named `openbinding-pr-*`.
   Client: a `python -c` socket connect run with `docker exec` in A's `gateway` container, printing `ok` or the errno
@@ -155,12 +155,15 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
   and the client prints `ECONNREFUSED` (a timeout, another errno or an exec error fails the test). Controls: the
   client connects to A's own `web:8080`; B's port answers from the host at `127.0.0.1:<B port>`; A's `web` resolves
   to A's own container address, which differs from B's.
+  Note: S1a, S2, F1 and F2 are moved to a later change, so the preview docs state the plan truthfully.
+  `docs/qa/E2E_PLAN.md` and `TESTING.md` naming the preview port, and the ARCHITECTURE §10 row, are follow-ups
+  outside this change.
 - [ ] 4.2 `docs/previews/README.md` changes from plan to in force. `docs/DEMO.md` gets a "PR previews" section.
   `TESTING.md` and `docs/qa/E2E_PLAN.md` name the preview port.
 - [ ] 4.3 Follow-up for the coordinator (ARCHITECTURE.md is outside this change): extend the ARCHITECTURE §10 row
   "Lab previews" to cover images, the work tree and the state record.
 - Acceptance: `["uv", "run", "--locked", "--extra", "test", "pytest", "-q", "../lab/tests"]` passes, and
-  `["env", "OPENBINDING_LAB_PROBE=1", "uv", "run", "--locked", "--extra", "test", "pytest", "-q", "-rs", "../lab/tests/test_preview_isolation.py"]`
+  `["env", "OPENBINDING_LAB_PROBE=1", "OPENBINDING_PROBE_PROJECT_A=openbinding-pr-<a>", "OPENBINDING_PROBE_PROJECT_B=openbinding-pr-<b>", "OPENBINDING_PROBE_PORT_A=<18101-18199>", "OPENBINDING_PROBE_PORT_B=<18101-18199>", "uv", "run", "--locked", "--extra", "test", "pytest", "-q", "-rs", "../lab/tests/test_preview_isolation.py"]`
   passes in the lab with 0 skipped. Every `GAP` in the delta spec is replaced by a test path before the archive.
 
 ## A. Archive (after S4, explicit archive task)

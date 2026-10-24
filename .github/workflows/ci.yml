@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+permissions:
+  contents: read
+
 jobs:
   # Structural checks catch retired syntax, but only compilation proves that
   # every migrated package lowers through the installed BIM Profile and
@@ -64,6 +67,54 @@ jobs:
           openbinding-gateway/.venv/bin/python tools/build_bim_packages.py --output "$second" "${packages[@]}"
           diff -qr "$first" "$second"
 
+  # The bim-toolchain package tests and goldens run on every pull request, in the
+  # gateway's locked environment, until the toolchain moves to its own repository.
+  # These are tests, so no step is report-only.
+  bim-toolchain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # bim-core validates BPMN with the five OMG BPMN 2.0.2 XSDs, which are not versioned in Git.
+      - name: Download the OMG BPMN XSDs and verify them
+        run: python3 bim-toolchain/tools/xsd_inventory.py --ensure
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.8.14'
+          enable-cache: true
+          cache-dependency-glob: openbinding-gateway/uv.lock
+
+      - name: Restore the locked gateway environment with test dependencies
+        run: uv sync --locked --project openbinding-gateway --extra test
+
+      # Two tests are deselected. Both are timing measurements that depend on the shared runner's
+      # CPU, not correctness tests: one asserts a throughput ratio (47.6% against a 50% bound), the
+      # other is a strict xfail on GIL-switching latency that XPASSes on the runner. The toolchain's
+      # own CI keeps running both. Nothing else is deselected:
+      # packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval
+      # packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]
+      - name: Run the bim-toolchain package tests
+        working-directory: bim-toolchain
+        env:
+          PYTHONPATH: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
+        run: ../openbinding-gateway/.venv/bin/python -m pytest -p no:cacheprovider --rootdir=. -rs packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests --deselect packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval --deselect 'packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]'
+
+      - name: Check the bim-toolchain goldens
+        working-directory: bim-toolchain
+        env:
+          PYTHONPATH: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
+        run: ../openbinding-gateway/.venv/bin/python tools/baseline_core.py --check
+
   # The lab tests live outside openbinding-gateway/tests, so no other job
   # collects them. They run on the locked gateway environment with the test extra.
   lab:
@@ -91,6 +142,81 @@ jobs:
 
       - name: Run the lab tests
         run: openbinding-gateway/.venv/bin/python -m pytest lab/tests -q
+
+      # Gate G4 runner. It exits 0 while acceptance/api holds no test. It runs after a failing lab test too.
+      - name: Run the API acceptance tests
+        if: ${{ !cancelled() }}
+        run: openbinding-gateway/.venv/bin/python -m pytest -c acceptance/api/pytest.ini acceptance/api
+
+      # Gate G9. Report-only: a broken contract is logged and does not fail the job.
+      - name: Check import contracts (report-only)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        working-directory: openbinding-gateway
+        run: uv run --locked --extra test --group lint lint-imports --config .importlinter
+
+  # Gate G1 tooling. Report-only: the validate step may fail until a run into
+  # develop exits 0. A broken install or version step still fails the job.
+  openspec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install OpenSpec 1.14.3
+        run: npm install --global @fission-ai/openspec@1.14.3
+
+      - name: Print the OpenSpec version
+        run: openspec --version
+
+      - name: Validate the specs and changes (report-only)
+        continue-on-error: true
+        run: openspec validate --strict --all
+
+  # Gate G6 tooling. OpenFastTrace is downloaded at an exact version and
+  # verified; only the trace itself is report-only.
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Download OpenFastTrace 4.11.0
+        run: |
+          mkdir -p "$RUNNER_TEMP/oft"
+          curl --fail --location --silent --show-error --proto '=https' --proto-redir '=https' --retry 3 --output "$RUNNER_TEMP/oft/openfasttrace-4.11.0.jar" \
+            https://github.com/itsallcode/openfasttrace/releases/download/4.11.0/openfasttrace-4.11.0.jar
+
+      - name: Verify the OpenFastTrace checksum
+        run: echo "f094cd314f0fc4236f513f66fb39260a16f72e2320beb6b4fdeb7940b9b8cf87  $RUNNER_TEMP/oft/openfasttrace-4.11.0.jar" | sha256sum -c -
+
+      - name: Trace requirements (report-only)
+        continue-on-error: true
+        run: |
+          paths=()
+          for path in openspec/specs openbinding-gateway/src openbinding-gateway/tests engines frontend/src acceptance; do
+            if [ -e "$path" ]; then paths+=("$path"); else echo "skipped (absent): $path"; fi
+          done
+          java -jar "$RUNNER_TEMP/oft/openfasttrace-4.11.0.jar" trace -o plain "${paths[@]}"
 
   # The engines' own tests. They were never run here, which is how a MiniZinc
   # builder that could not solve a single repeat workflow, and a Java unit test
@@ -253,3 +379,8 @@ jobs:
       - name: Run Playground browser tests
         working-directory: frontend
         run: pnpm exec playwright test --project=mocked
+
+      # Gate G4 runner. It exits 0 while acceptance/ui holds no spec.
+      - name: Run the UI acceptance tests
+        working-directory: frontend
+        run: pnpm exec playwright test --config playwright.acceptance.config.ts --pass-with-no-tests

@@ -1,0 +1,6 @@
+Goal: reduced M0.5 change (Evidence trim, isolation probe, S4 docs); S1a+S2 deferred to a later change by coordinator decision.
+State: PR 39 open (draft) into develop. Round 1 panel on bfb7a294: reviewer eeb6f0d1 and test-reviewer ec12401b both approve (0 blocker/major). Minor findings fixed by task 266287d4 (docs wording, tags removed from 2 helper tests, 'live:' label, tasks.md probe command), integrated; new head pushed next. Round 2 panel (narrow, wording-only delta) then lead_ready.
+Decisions: README stays PLAN; DEMO_LAB_PORT row not added (belongs to S2). Probe live run never done (no lab): S4 acceptance stays open until a lab run with 0 skipped before archive.
+Follow-ups outside scope: S1a+S2 (compose.lab*.json, compose.lab-process*.json x4, lab rule tests, test_container_hardening.py, test_lab_compose_config.py) in a new change; factory F1 validator must accept published ${DEMO_LAB_PORT:-18100} in 18100-18199, image tag :${DEMO_LAB_PORT:-18100}, project-name argument; docs/qa/E2E_PLAN.md, TESTING.md, ARCHITECTURE §10 row; reviewer noted the lab job's import-linter step logs exit 1 yet passes (develop ci.yml, not this diff); optional second negative on the slirp/host-gateway address.
+G1 not run (owner exemption until PR 37).
+Next: push, wait CI, round-2 panel, set_review_package, lead_ready.

@@ -608,6 +608,33 @@ diagnostic guide, not a list of verified results.
    evolutionary engine's Dockerfile uses `ENTRYPOINT`, so a `command` override
    would not reach it).
 
+## PR previews
+
+Previews are planned, not running yet. By design (`docs/previews/README.md`) each open PR gets one Compose project
+`openbinding-pr-<n>` on its own loopback port in 18101-18199; 18100 stays the develop lab. They hold synthetic data
+only, expire after 7 idle days and are deleted only through `labctl destroy`.
+
+- `lab/previews/previews.py` (stdlib only, no side effects) is the executable reference of these rules, and
+  `lab/tests/test_previews.py` is its contract.
+- The Compose parameterisation of the published port and `labctl preview` are not yet in force. Today only the
+  develop lab on `127.0.0.1:18100` runs, and its Compose files still publish 18100 literally. For that reason the
+  port variable is deliberately not in the Variables table.
+- Isolation probe: `lab/tests/test_preview_isolation.py` checks on a live Docker host that two preview projects
+  do not reach each other. It needs `OPENBINDING_LAB_PROBE=1`, two project names
+  `OPENBINDING_PROBE_PROJECT_A` and `OPENBINDING_PROBE_PROJECT_B` of the form `openbinding-pr-<n>`, and their ports
+  `OPENBINDING_PROBE_PORT_A` and `OPENBINDING_PROBE_PORT_B` (18101-18199). From preview A it checks that B's port
+  is refused and that A reaches its own `web` (one direction; swap A and B and run again for the other). Until the
+  Compose parameterisation and `labctl preview` land, only two stand-in projects can run the probe. Each needs a
+  `gateway` service with `python` on PATH, a `web` service whose container port 8080 is published on
+  `127.0.0.1:<port>`, and the default network `<project>_default`; both must be up and healthy. (Once real previews
+  exist, stop the develop lab first.) From `openbinding-gateway`:
+
+  ```sh
+  OPENBINDING_LAB_PROBE=1 uv run --locked --extra test pytest -q -rs ../lab/tests/test_preview_isolation.py
+  ```
+
+  With the variable set, a missing lab fails the test instead of skipping it.
+
 ## Known limits
 
 - Observed on 2026-10-13: build and `lab_compose up` completed with every

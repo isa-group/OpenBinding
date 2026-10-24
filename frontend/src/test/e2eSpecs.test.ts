@@ -31,7 +31,7 @@ const options: ts.CompilerOptions = {
   noUnusedParameters: true,
 };
 
-const configs = [`${root}/playwright.config.ts`, `${root}/playwright.live.config.ts`];
+const configs = [`${root}/playwright.config.ts`, `${root}/playwright.live.config.ts`, `${root}/playwright.acceptance.config.ts`];
 const liveFiles = ts.sys.readDirectory(live, ['.ts']);
 const rootNames = [...ts.sys.readDirectory(e2e, ['.ts']), ...configs];
 const program = ts.createProgram({ rootNames, options });
@@ -51,6 +51,8 @@ describe('the Playwright specs', () => {
     expect(liveFiles.length).toBeGreaterThanOrEqual(8);
     expect(rootNames.length).toBeGreaterThan(liveFiles.length);
     expect(program.getSourceFile(`${live}/support.ts`)).toBeDefined();
+    // A listed configuration that does not exist is not reported as a diagnostic of an own file, so check it is in the program.
+    for (const config of configs) expect(program.getSourceFile(config), config).toBeDefined();
     expect(diagnostics).toEqual([]);
   }, 180_000);
 
