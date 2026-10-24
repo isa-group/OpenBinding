@@ -135,7 +135,7 @@ services:
       - ./experimentation:/app/experimentation:ro
       - ./pricings:/app/pricings:ro
       # The whole checkout, read-only. The service's own tree is only /app plus
-      # the mounts above; tests that read bim-toolchain/, frontend/, deploy/,
+      # the mounts above; tests that read bim-toolchain/, frontend/,
       # the compose files or .env.example run with OPENBINDING_REPO_ROOT=/workspace.
       - .:/workspace:ro
       - artifacts:/var/lib/openbinding/artifacts

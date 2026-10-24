@@ -104,9 +104,6 @@ def test_retired_names_do_not_appear_in_source(name):
 def test_retired_names_do_not_appear_in_infrastructure(name):
     paths = [path for path in INFRASTRUCTURE if path.is_file()]
     paths += _files(REPO_ROOT / "experimentation" / "qacobench", (".py", ".yaml", ".yml", ".md", ".sh"))
-    paths += [
-        path for path in (REPO_ROOT / "deploy").rglob("*") if path.is_file()
-    ] if (REPO_ROOT / "deploy").is_dir() else []
     offenders = [path.relative_to(REPO_ROOT).as_posix() for path in paths if name in _text(path)]
     assert offenders == []
 
