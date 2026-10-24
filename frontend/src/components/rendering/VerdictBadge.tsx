@@ -1,4 +1,3 @@
-import { useId } from 'react';
 import { Badge } from '../ui/Badge';
 import './VerdictBadge.css';
 
@@ -19,20 +18,19 @@ const KNOWN: Record<string, { variant: 'success' | 'info' | 'error' | 'warning' 
 /** The outcome of a solve as text in a badge, with a plain-language description for assistive technology. */
 // [impl->req~frontend-rendering-verdict-badge~1]
 export function VerdictBadge({ verdict, reasons = [], size = 'sm' }: VerdictBadgeProps) {
-  const id = useId();
   const known = Object.hasOwn(KNOWN, verdict) ? KNOWN[verdict] : undefined;
 
   return (
-    <span className="rendering-verdict">
-      <span aria-describedby={known ? id : undefined}>
+    <div className="rendering-verdict">
+      <span>
         <Badge variant={known?.variant ?? 'default'} size={size}>{verdict}</Badge>
-        {known && <span id={id} className="sr-only">{known.description}</span>}
+        {known && <span className="sr-only">, {known.description}</span>}
       </span>
       {reasons.length > 0 && (
         <ul aria-label="Reasons" className="rendering-verdict__reasons">
           {reasons.map((reason, i) => <li key={i}>{reason}</li>)}
         </ul>
       )}
-    </span>
+    </div>
   );
 }

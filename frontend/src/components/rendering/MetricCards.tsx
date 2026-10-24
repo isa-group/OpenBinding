@@ -24,8 +24,8 @@ export function MetricCards({ metrics, label = 'Key figures' }: MetricCardsProps
 
   return (
     <ul aria-label={label} className="rendering-metrics">
-      {metrics.map((m) => (
-        <li key={m.id ?? m.label} className="rendering-metrics__card">
+      {metrics.map((m, index) => (
+        <li key={m.id ?? `${m.label}-${index}`}className="rendering-metrics__card">
           <dl>
             <dt>{m.label}</dt>
             <dd>

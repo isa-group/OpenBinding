@@ -15,6 +15,7 @@
 }
 
 .rendering-source__bar button {
+  min-height: 24px;
   padding: 0.125rem 0.625rem;
   border: 1px solid var(--color-border-hover);
   border-radius: var(--radius-sm);

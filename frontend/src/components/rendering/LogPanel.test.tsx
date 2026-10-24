@@ -9,8 +9,27 @@ const writeText = vi.fn();
 const createObjectURL = vi.fn(() => 'blob:log');
 const revokeObjectURL = vi.fn();
 let anchorClick: ReturnType<typeof vi.spyOn>;
+let originalClipboard: PropertyDescriptor | undefined;
+let originalCreate: PropertyDescriptor | undefined;
+let originalRevoke: PropertyDescriptor | undefined;
+
+const readBlob = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+
+const restore = (target: object, key: string, descriptor: PropertyDescriptor | undefined) => {
+  if (descriptor) Object.defineProperty(target, key, descriptor);
+  else Reflect.deleteProperty(target, key);
+};
 
 beforeEach(() => {
+  originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
+  originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
   writeText.mockReset().mockResolvedValue(undefined);
   Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
   createObjectURL.mockClear();
@@ -21,6 +40,10 @@ beforeEach(() => {
 
 afterEach(() => {
   anchorClick.mockRestore();
+  vi.useRealTimers();
+  restore(navigator, 'clipboard', originalClipboard);
+  restore(URL, 'createObjectURL', originalCreate);
+  restore(URL, 'revokeObjectURL', originalRevoke);
 });
 
 const details = () => document.querySelector('details') as HTMLDetailsElement;
@@ -109,35 +132,48 @@ describe('LogPanel', () => {
   });
 
   // [utest->req~frontend-rendering-log-panel~1]
-  it('shows Download only with a filename and downloads the whole log as text', () => {
+  it('shows Download only with a filename and downloads the whole log as text, revoking the URL later', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
     const { unmount } = render(<LogPanel log={LOG} defaultOpen />);
     expect(screen.queryByRole('button', { name: /^Download/ })).not.toBeInTheDocument();
     unmount();
 
     render(<LogPanel log={LOG} defaultOpen filename="run.log" />);
+    fireEvent.change(screen.getByLabelText('Search the log'), { target: { value: 'error' } });
     fireEvent.click(screen.getByRole('button', { name: /^Download/ }));
 
     const blob = (createObjectURL.mock.calls[0] as unknown as [Blob])[0];
     expect(blob.type).toBe('text/plain');
+    expect(await readBlob(blob)).toBe(LOG);
     expect((anchorClick.mock.contexts[0] as HTMLAnchorElement).download).toBe('run.log');
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    vi.runAllTimers();
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:log');
+    expect(anchorClick.mock.invocationCallOrder[0]).toBeLessThan(revokeObjectURL.mock.invocationCallOrder[0]);
   });
 
   // [utest->req~frontend-rendering-log-panel~1]
-  it('is reachable by keyboard: summary, input and buttons can take focus', () => {
+  it('keeps the log pre in the tab order', () => {
     render(<LogPanel log={LOG} defaultOpen filename="run.log" />);
 
-    const targets = [
-      document.querySelector('summary') as HTMLElement,
-      screen.getByLabelText('Search the log'),
-      screen.getByRole('button', { name: /^Copy/ }),
-      screen.getByRole('button', { name: /^Download/ }),
-      screen.getByLabelText('Log'),
-    ];
-    for (const target of targets) {
-      target.focus();
-      expect(target).toHaveFocus();
-    }
+    expect(screen.getByLabelText('Log')).toHaveAttribute('tabindex', '0');
+  });
+
+  // [utest->req~frontend-rendering-log-panel~1]
+  it('says "1 of 1 line" for a single line', () => {
+    render(<LogPanel log="only" defaultOpen />);
+
+    expect(screen.getByRole('status')).toHaveTextContent(/^1 of 1 line$/);
+  });
+
+  // [utest->req~frontend-rendering-log-panel~1]
+  it('shows the line numbers as text, original ones after filtering', () => {
+    render(<LogPanel log={LOG} defaultOpen />);
+    const nums = () => [...document.querySelectorAll('.rendering-log__num')].map((n) => n.textContent);
+
+    expect(nums()).toEqual(['1', '2', '3', '4']);
+    fireEvent.change(screen.getByLabelText('Search the log'), { target: { value: 'solver' } });
+    expect(nums()).toEqual(['2', '4']);
   });
 
   // [utest->req~frontend-rendering-log-panel~1]

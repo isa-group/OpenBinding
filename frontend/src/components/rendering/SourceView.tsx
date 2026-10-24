@@ -1,4 +1,5 @@
 import { useCopy } from '../ui/useCopy';
+import { saveText } from './download';
 import './SourceView.css';
 
 interface SourceViewProps {
@@ -21,16 +22,7 @@ export function SourceView({ source, label, language, filename, maxHeight }: Sou
   const isObject = typeof source !== 'string';
   const text = isObject ? JSON.stringify(source, null, 2) : source;
 
-  const download = () => {
-    const url = URL.createObjectURL(new Blob([text], { type: isObject ? 'application/json' : 'text/plain' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = filename ?? '';
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
-  };
+  const download = () => saveText(text, filename ?? '', isObject ? 'application/json' : 'text/plain');
 
   return (
     <section className="rendering-source" role="region" aria-label={label} data-language={language}>

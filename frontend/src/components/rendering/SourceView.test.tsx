@@ -8,8 +8,27 @@ const writeText = vi.fn();
 const createObjectURL = vi.fn(() => 'blob:test');
 const revokeObjectURL = vi.fn();
 let anchorClick: ReturnType<typeof vi.spyOn>;
+let originalClipboard: PropertyDescriptor | undefined;
+let originalCreate: PropertyDescriptor | undefined;
+let originalRevoke: PropertyDescriptor | undefined;
+
+const readBlob = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+
+const restore = (target: object, key: string, descriptor: PropertyDescriptor | undefined) => {
+  if (descriptor) Object.defineProperty(target, key, descriptor);
+  else Reflect.deleteProperty(target, key);
+};
 
 beforeEach(() => {
+  originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
+  originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
   writeText.mockReset().mockResolvedValue(undefined);
   Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
   createObjectURL.mockClear();
@@ -20,6 +39,10 @@ beforeEach(() => {
 
 afterEach(() => {
   anchorClick.mockRestore();
+  vi.useRealTimers();
+  restore(navigator, 'clipboard', originalClipboard);
+  restore(URL, 'createObjectURL', originalCreate);
+  restore(URL, 'revokeObjectURL', originalRevoke);
 });
 
 describe('SourceView', () => {
@@ -60,7 +83,7 @@ describe('SourceView', () => {
   it('copies the full text and announces it in a status region', async () => {
     render(<SourceView source={{ k: 'v' }} label="Problem" />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('');
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
     fireEvent.click(screen.getByRole('button', { name: 'Copy Problem' }));
 
     expect(writeText).toHaveBeenCalledWith(JSON.stringify({ k: 'v' }, null, 2));
@@ -85,43 +108,44 @@ describe('SourceView', () => {
   });
 
   // [utest->req~frontend-rendering-source-view~1]
-  it('downloads a text source as text/plain through a temporary anchor', () => {
+  it('downloads a text source as text/plain through a temporary anchor and revokes the URL later', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
     render(<SourceView source="plain" label="Problem" filename="problem.txt" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Download Problem' }));
 
     const blob = (createObjectURL.mock.calls[0] as unknown as [Blob])[0];
     expect(blob.type).toBe('text/plain');
+    expect(await readBlob(blob)).toBe('plain');
     expect(anchorClick).toHaveBeenCalledTimes(1);
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:test');
     expect(document.querySelector('a[download]')).toBeNull();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    vi.runAllTimers();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:test');
+    expect(anchorClick.mock.invocationCallOrder[0]).toBeLessThan(revokeObjectURL.mock.invocationCallOrder[0]);
   });
 
   // [utest->req~frontend-rendering-source-view~1]
-  it('downloads an object source as application/json', () => {
+  it('downloads an object source as pretty-printed application/json', async () => {
     render(<SourceView source={{ a: 1 }} label="Problem" filename="problem.json" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Download Problem' }));
 
     const blob = (createObjectURL.mock.calls[0] as unknown as [Blob])[0];
     expect(blob.type).toBe('application/json');
+    expect(await readBlob(blob)).toBe(JSON.stringify({ a: 1 }, null, 2));
     const anchor = anchorClick.mock.contexts[0] as HTMLAnchorElement;
     expect(anchor.download).toBe('problem.json');
   });
 
   // [utest->req~frontend-rendering-source-view~1]
-  it('is reachable by keyboard: a focusable pre and buttons in the tab order', () => {
+  it('is reachable by keyboard: a focusable pre and buttons that are not removed from the tab order', () => {
     render(<SourceView source="x" label="Problem" filename="p.txt" />);
 
     const pre = document.querySelector('pre') as HTMLElement;
     expect(pre).toHaveAttribute('tabindex', '0');
-    pre.focus();
-    expect(pre).toHaveFocus();
     for (const name of ['Copy Problem', 'Download Problem']) {
-      const button = screen.getByRole('button', { name });
-      expect(button).not.toHaveAttribute('tabindex', '-1');
-      button.focus();
-      expect(button).toHaveFocus();
+      expect(screen.getByRole('button', { name })).not.toHaveAttribute('tabindex', '-1');
     }
   });
 

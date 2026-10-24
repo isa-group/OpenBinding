@@ -40,6 +40,15 @@ export function DiagnosticsList({ diagnostics, headingLevel = 3 }: DiagnosticsLi
     const key = d.resource || null;
     groups.set(key, [...(groups.get(key) ?? []), d]);
   }
+  // Inside a resource, items with the same pointer stay together, in order of first appearance.
+  for (const [key, items] of groups) {
+    const byPointer = new Map<string | null, Diagnostic[]>();
+    for (const d of items) {
+      const p = d.pointer || null;
+      byPointer.set(p, [...(byPointer.get(p) ?? []), d]);
+    }
+    groups.set(key, [...byPointer.values()].flat());
+  }
 
   return (
     <div className="rendering-diagnostics">

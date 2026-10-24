@@ -21,34 +21,32 @@ describe('VerdictBadge', () => {
   });
 
   // [utest->req~frontend-rendering-verdict-badge~1]
-  it.each(CASES)('describes %s in plain language through aria-describedby', (verdict, _variant, description) => {
-    render(<VerdictBadge verdict={verdict} />);
+  it.each(CASES)('reads %s followed by its plain-language description, visually hidden', (verdict, _variant, description) => {
+    const { container } = render(<VerdictBadge verdict={verdict} />);
 
     const wrapper = screen.getByText(verdict).parentElement as HTMLElement;
-    const id = wrapper.getAttribute('aria-describedby') as string;
-    expect(id).toBeTruthy();
-    const target = document.getElementById(id) as HTMLElement;
-    expect(target).toHaveTextContent(description);
-    expect(target).toHaveClass('sr-only');
-    expect(wrapper).toHaveAccessibleDescription(description);
+    expect(wrapper).not.toHaveAttribute('aria-describedby');
+    expect(wrapper.textContent).toBe(`${verdict}, ${description}`);
+    const hidden = container.querySelector('.sr-only') as HTMLElement;
+    expect(hidden.textContent).toBe(`, ${description}`);
+    expect(wrapper).toContainElement(hidden);
   });
 
   // [utest->req~frontend-rendering-verdict-badge~1]
-  it('gives every instance its own description id', () => {
-    render(<><VerdictBadge verdict="OPTIMAL" /><VerdictBadge verdict="OPTIMAL" /></>);
+  it('uses a div as outer element so the reasons list is not inside a span', () => {
+    const { container } = render(<VerdictBadge verdict="UNSAT" reasons={['x']} />);
 
-    const [a, b] = screen.getAllByText('OPTIMAL');
-    expect(a.parentElement?.getAttribute('aria-describedby')).not.toBe(b.parentElement?.getAttribute('aria-describedby'));
+    expect((container.firstElementChild as HTMLElement).tagName).toBe('DIV');
   });
 
   // [utest->req~frontend-rendering-verdict-badge~1]
   it('renders an unknown verdict neutral, with its own text and no description', () => {
-    render(<VerdictBadge verdict="WEIRD" />);
+    const { container } = render(<VerdictBadge verdict="WEIRD" />);
 
     const badge = screen.getByText('WEIRD');
     expect(badge).toHaveClass('badge-default');
-    expect(badge.closest('[aria-describedby]')).toBeNull();
-    expect(document.querySelector('.sr-only')).toBeNull();
+    expect(badge.parentElement?.textContent).toBe('WEIRD');
+    expect(container.querySelector('.sr-only')).toBeNull();
   });
 
   // [utest->req~frontend-rendering-verdict-badge~1]
@@ -80,13 +78,6 @@ describe('VerdictBadge', () => {
     const badge = screen.getByText('UNSAT');
     expect(badge.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(container.querySelector('pre')).toBeNull();
-  });
-
-  // [utest->req~frontend-rendering-verdict-badge~1]
-  it('carries the verdict in text, not only in colour', () => {
-    render(<VerdictBadge verdict="TIMEOUT" />);
-
-    expect(screen.getByText('TIMEOUT').textContent).toBe('TIMEOUT');
   });
 
   // [utest->req~frontend-rendering-verdict-badge~1]

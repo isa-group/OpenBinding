@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useCopy } from '../ui/useCopy';
+import { saveText } from './download';
 import './LogPanel.css';
 
 interface LogPanelProps {
@@ -20,16 +21,7 @@ export function LogPanel({ log, title = 'Log', filename, defaultOpen = false }: 
   const needle = query.toLowerCase();
   const shown = lines.flatMap((text, i) => (text.toLowerCase().includes(needle) ? [{ n: i + 1, text }] : []));
 
-  const download = () => {
-    const url = URL.createObjectURL(new Blob([log], { type: 'text/plain' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = filename ?? '';
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
-  };
+  const download = () => saveText(log, filename ?? '', 'text/plain');
 
   return (
     <details className="rendering-log" open={defaultOpen}>
@@ -46,7 +38,7 @@ export function LogPanel({ log, title = 'Log', filename, defaultOpen = false }: 
             {filename && <button type="button" aria-label={`Download ${title}`} onClick={download}>Download</button>}
           </div>
           <p role="status" className="rendering-log__count">
-            {shown.length} of {lines.length} lines
+            {shown.length} of {lines.length} {lines.length === 1 ? 'line' : 'lines'}
             {state === 'copied' && ` · ${title} copied`}
             {state === 'failed' && ` · Could not copy the ${title}`}
           </p>

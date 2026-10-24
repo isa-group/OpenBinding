@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MetricCards } from './MetricCards';
 
 describe('MetricCards', () => {
@@ -56,6 +56,23 @@ describe('MetricCards', () => {
   });
 
   // [utest->req~frontend-rendering-metric-cards~1]
+  it('shows no unit for a null value', () => {
+    render(<MetricCards metrics={[{ label: 'Gap', value: null, unit: 'ms' }]} />);
+
+    expect(screen.getByRole('listitem').querySelector('dd')).not.toHaveTextContent('ms');
+  });
+
+  // [utest->req~frontend-rendering-metric-cards~1]
+  it('renders same-label metrics without ids without a key warning', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(<MetricCards metrics={[{ label: 'Cost', value: 1 }, { label: 'Cost', value: 2 }]} />);
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  // [utest->req~frontend-rendering-metric-cards~1]
   it('shows the trend label as visible text with an aria-hidden arrow', () => {
     render(
       <MetricCards
@@ -69,7 +86,7 @@ describe('MetricCards', () => {
 
     const items = screen.getAllByRole('listitem');
     for (const [i, arrow, text] of [[0, '↑', '+5% vs last run'], [1, '↓', '-2%'], [2, '→', 'no change']] as const) {
-      expect(within(items[i]).getByText(text)).toBeVisible();
+      expect(within(items[i]).getByText(text).textContent).toBe(text);
       const glyph = within(items[i]).getByText(arrow);
       expect(glyph).toHaveAttribute('aria-hidden', 'true');
     }

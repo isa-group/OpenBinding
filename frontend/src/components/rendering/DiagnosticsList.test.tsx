@@ -56,6 +56,49 @@ describe('DiagnosticsList', () => {
   });
 
   // [utest->req~frontend-rendering-diagnostics-list~1]
+  it('keeps items with the same pointer together inside a resource', () => {
+    render(
+      <DiagnosticsList
+        diagnostics={[
+          { severity: 'warning', code: 'P1a', message: 'm', resource: 'r', pointer: '/p1' },
+          { severity: 'error', code: 'P2', message: 'm', resource: 'r', pointer: '/p2' },
+          { severity: 'info', code: 'P1b', message: 'm', resource: 'r', pointer: '/p1' },
+        ]}
+      />,
+    );
+
+    // severity sort: P2, P1a, P1b -> pointer groups by first appearance: /p2, /p1
+    expect(codes()).toEqual(['P2', 'P1a', 'P1b']);
+    expect(screen.getAllByRole('list')).toHaveLength(1);
+  });
+
+  // [utest->req~frontend-rendering-diagnostics-list~1]
+  it('orders pointer groups by worst severity and puts items without pointer in their own group', () => {
+    render(
+      <DiagnosticsList
+        diagnostics={[
+          { severity: 'info', code: 'N1', message: 'm', resource: 'r' },
+          { severity: 'warning', code: 'A1', message: 'm', resource: 'r', pointer: '/a' },
+          { severity: 'error', code: 'B1', message: 'm', resource: 'r', pointer: '/b' },
+          { severity: 'error', code: 'N2', message: 'm', resource: 'r' },
+          { severity: 'info', code: 'B2', message: 'm', resource: 'r', pointer: '/b' },
+          { severity: 'warning', code: 'A2', message: 'm', resource: 'r', pointer: '/a' },
+        ]}
+      />,
+    );
+
+    // sorted: B1 N2 A1 A2 N1 B2 -> groups /b, none, /a
+    expect(codes()).toEqual(['B1', 'B2', 'N2', 'N1', 'A1', 'A2']);
+  });
+
+  // [utest->req~frontend-rendering-diagnostics-list~1]
+  it('counts several info diagnostics as "2 info"', () => {
+    render(<DiagnosticsList diagnostics={[DIAGS[0], DIAGS[0]]} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('2 info');
+  });
+
+  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('shows severity as text in a badge, the code, the message, the labelled pointer and the hint', () => {
     render(<DiagnosticsList diagnostics={[DIAGS[1], DIAGS[2]]} />);
 
