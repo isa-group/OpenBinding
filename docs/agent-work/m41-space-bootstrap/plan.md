@@ -1,0 +1,1 @@
+Built: spec+ADR, tests, space Dockerfile+runbook, tool+tool Dockerfile+requirements. Now: push, PR, CI, panel (reviewer, test-reviewer, security-auditor, arch-reviewer) on the pushed head, fixes if any, ready. No push after ready.
