@@ -16,7 +16,7 @@ WHEN an engine receives `POST /internal/v1/binding-problems`, THE engine SHALL a
 
 `req~engine-protocol-ir-only~1`
 
-Evidence: `schemas/engine-contract.openapi.yaml`; `engines/random-search/src/test/java/es/us/isa/qosawarewsbinding/search/V1RandomSearchTest.java::httpAcceptsOnlyBimIrAndReturnsCanonicalDecision`; `engines/minizinc-csp/src/conformance.test.ts`
+Evidence: `schemas/engine-contract.openapi.yaml`; `engines/random-search/src/test/java/es/us/isa/qosawarewsbinding/search/V1RandomSearchTest.java`
 
 #### Scenario: Source package sent to an engine
 - **GIVEN** a request whose body is an `Instance` source envelope instead of an IR
@@ -28,7 +28,7 @@ IF the IR or the options are not supported by the requested mode (unknown option
 
 `req~engine-protocol-refusal-before-work~1`
 
-Evidence: `engines/random-search/src/test/java/es/us/isa/qosawarewsbinding/api/RandomSearchCancelTest.java::aRequestTheEngineRefusesIsA422BeforeAnyJobExists`; `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineHttpTest.java::anInvalidRequestIsA422AndCreatesNothing`; `engines/minizinc-csp/src/conformance.test.ts`
+Evidence: `engines/random-search/src/test/java/es/us/isa/qosawarewsbinding/api/RandomSearchCancelTest.java`; `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineHttpTest.java`
 
 #### Scenario: Unknown option
 - **GIVEN** the `seeded` mode of random-search
@@ -40,7 +40,7 @@ THE engine SHALL identify every candidate in a returned decision by the full `{r
 
 `req~engine-protocol-qualified-identity~1`
 
-Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/CanonicalEvaluatorConformanceTest.java::catalogQualifiedCandidateIdentityChangesTheObjective`; `engines/random-search/src/test/java/es/us/isa/qosawarewsbinding/search/V1RandomSearchTest.java::searchUsesCanonicalObjectiveAndPreservesCatalogRef`; `engines/minizinc-csp/src/conformance.test.ts`
+Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/CanonicalEvaluatorConformanceTest.java`; `engines/random-search/src/test/java/es/us/isa/qosawarewsbinding/search/V1RandomSearchTest.java`; `engines/minizinc-csp/src/conformance.test.ts`
 
 #### Scenario: Equal local ids in two catalogs
 - **GIVEN** two catalogs that both contain a candidate with id `s1`
@@ -48,11 +48,23 @@ Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/Canonic
 - **THEN** the decision names `{resource: <second catalog>, id: "s1"}`
 
 ### Requirement: Asynchronous jobs
-WHERE an engine runs in asynchronous mode, THE engine SHALL issue random unguessable job ids, report `GET /internal/v1/jobs/{id}` as `queued`, `running`, `completed` or `failed`, keep terminal states immutable, and answer an unknown id and another tenant's id with an identical 404.
+WHERE an engine runs in asynchronous mode, THE engine SHALL issue random unguessable job ids, report `GET /internal/v1/jobs/{id}` as `queued`, `running`, `completed` or `failed`, and keep terminal states immutable.
 
-`req~engine-protocol-async-jobs~1`
+`req~engine-protocol-async-jobs~2`
 
-Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineHttpTest.java::getReturnsExactlyTheEngineJobShapesOfTheContract`; `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineJobsTest.java::aForeignOrUnknownIdIsNotFoundAndNothingIsCancelledForAnotherTenant`; `engines/minizinc-csp/src/job_manager.test.ts`
+Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineHttpTest.java`; `engines/minizinc-csp/src/job_manager.test.ts`
+
+#### Scenario: Cancelled job whose solver later returns
+- **GIVEN** a cancelled job whose solver later returns a result
+- **WHEN** a client polls it
+- **THEN** the job is not reopened
+
+### Requirement: Job isolation between tenants
+WHERE an engine runs in asynchronous mode, THE engine SHALL answer an unknown job id and another tenant's job id with an identical 404.
+
+`req~engine-protocol-job-isolation~1`
+
+Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineJobsTest.java::aForeignOrUnknownIdIsNotFoundAndNothingIsCancelledForAnotherTenant`
 
 #### Scenario: Another tenant polls a job
 - **GIVEN** a job created with tenant A's token
@@ -60,11 +72,23 @@ Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineH
 - **THEN** the engine answers 404 with the same body as for an unknown id
 
 ### Requirement: Optional cancellation extension
-WHERE an engine declares the cancellation capability, THE engine SHALL answer `DELETE /internal/v1/jobs/{id}` by stopping and reaping the solver (200 `cancelled`), removing a queued job without running it, answering 202 `cancelling` with `Retry-After` while the solver is not confirmed gone, and answering a finished job with its final state unchanged.
+WHERE an engine declares the cancellation capability, THE engine SHALL answer `DELETE /internal/v1/jobs/{id}` by stopping and reaping the solver (200 `cancelled`) and removing a queued job without running it.
 
-`req~engine-protocol-cancellation~1`
+`req~engine-protocol-cancellation~2`
 
-Evidence: `engines/minizinc-csp/src/cancel.test.ts`; `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineJobsTest.java::cancelRacingTheEndLeavesExactlyOneFinalStateThatNeverChanges`; `engines/minizinc-csp/README.md`; `openbinding-gateway/tools/cancel_probe.py`; GAP: `DELETE` and the cancellation capability are still not in `schemas/engine-contract.openapi.yaml`
+Evidence: `engines/minizinc-csp/src/cancel.test.ts`; `engines/minizinc-csp/README.md`; GAP: `DELETE` and the capability are not in `schemas/engine-contract.openapi.yaml`
+
+#### Scenario: Queued job is cancelled
+- **GIVEN** a queued job
+- **WHEN** a client calls `DELETE /internal/v1/jobs/{id}`
+- **THEN** the job is removed and its solver never starts
+
+### Requirement: Cancellation confirmation
+WHERE an engine declares the cancellation capability, THE engine SHALL answer `DELETE` with 202 `cancelling` and `Retry-After` while the solver is not confirmed gone, and with the final state unchanged for a finished job.
+
+`req~engine-protocol-cancel-confirmation~1`
+
+Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineJobsTest.java`; `engines/minizinc-csp/src/cancel.test.ts`; `openbinding-gateway/tools/cancel_probe.py`
 
 #### Scenario: Cancel races completion
 - **GIVEN** a running job whose solver finishes at the moment `DELETE` arrives
@@ -76,7 +100,7 @@ WHEN a randomised engine mode receives the same IR, options and seed, THE engine
 
 `req~engine-protocol-seeded-determinism~1`
 
-Evidence: `engines/random-search/src/test/java/es/us/isa/qosawarewsbinding/api/RandomSearchCancelTest.java::theSameSeedGivesTheSameResultThroughAJob`; `engines/evolutionary-heuristics/src/test/java/es/us/isa/openbinding/evolutionary/EvolutionaryCancelTest.java::theSameSeedGivesTheSameResultThroughAJob`
+Evidence: `engines/random-search/src/test/java/es/us/isa/qosawarewsbinding/api/RandomSearchCancelTest.java`; `engines/evolutionary-heuristics/src/test/java/es/us/isa/openbinding/evolutionary/EvolutionaryCancelTest.java`
 
 #### Scenario: Re-run with the same seed
 - **GIVEN** an IR and `seed: 42`
@@ -88,7 +112,7 @@ THE engine SHALL claim `OPTIMAL` or `INFEASIBLE` only when its mode proves it, a
 
 `req~engine-protocol-honest-termination~1`
 
-Evidence: `engines/random-search/src/test/java/es/us/isa/qosawarewsbinding/search/V1RandomSearchTest.java::heuristicNeverInfersInfeasibleFromAnEmptySample`; `engines/many-heuristic/src/test/java/es/us/isa/qosawarewsbinding/search/V1ManySearchTest.java::paretoHeuristicNeverClaimsInfeasibility`; `engines/evolutionary-heuristics/src/test/java/es/us/isa/openbinding/evolutionary/EvolutionarySolverTest.java::geneticHeuristicNeverClaimsInfeasibility`
+Evidence: `engines/random-search/src/test/java/es/us/isa/qosawarewsbinding/search/V1RandomSearchTest.java`; `engines/evolutionary-heuristics/src/test/java/es/us/isa/openbinding/evolutionary/EvolutionarySolverTest.java`
 
 #### Scenario: Empty sample
 - **GIVEN** a random search that found no feasible binding in its budget

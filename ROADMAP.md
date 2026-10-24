@@ -16,10 +16,10 @@ need the owner), the develop preview at `https://openbinding.home.javiercavlop.c
 | Id | Milestone | Depends on | Preview checkpoint | Release | Status |
 |---|---|---|---|---|---|
 | M0 | Foundation: integration landed, gates, previews, storage, Docker Compose only | — | develop preview reachable from the Mac and the iPhone | — | in progress |
-| M1 | Specification v2 (this document set) | — | — | — | in review |
+| M1 | Specification v2 (this document set) | — | — | — | done |
 | M2 | Render, never dump; retirements, navigation and vocabulary | M0 | every screen in the QA gallery, desktop and mobile, within the screen budget | R1 = M0–M2 | planned |
 | M3 | Problem repository | M2 (catalogue) | Explore → problem page → versions → runs | R2 = M3–M4 | planned |
-| M4 | Plans: SPHERE remote, SPACE local then remote | M0; pricing 0.2.0 published | the pricing-change scenario of M4 | R2 | planned |
+| M4 | Plans: SPHERE remote, SPACE local then remote | M0; pricing 0.2.0 published | the pricing-change scenario of M4 | R2 | in progress |
 | M5 | Language extensibility | M0; bim-toolchain release | placement as an extension; a tier-1 dialect installed | R3 = M5–M6 | planned |
 | M6 | Laboratory, published results and QACOBench inside the platform | M3 | a study reproducing an icws suite, published and verified | R3 | planned |
 | M7 | Engines | M5 (profile support) | engine health and onboarding | R4 | planned |
