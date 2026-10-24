@@ -161,7 +161,7 @@ async def bootstrap(config: Config, *, transport: httpx.AsyncBaseTransport | Non
         orgs = await _call(client, "organization", "GET", "/organizations", admin_key)
         if not isinstance(orgs, list):
             raise BootstrapError("organization: GET /organizations returned no list")
-        org =next((o for o in orgs if isinstance(o, Mapping) and o.get("name") == ORGANIZATION_NAME), None)
+        org = next((o for o in orgs if isinstance(o, Mapping) and o.get("name") == ORGANIZATION_NAME), None)
         report["organization"] = "exists" if org else "created"
         if org is None:
             org = await _call(client, "organization", "POST", "/organizations", admin_key,
