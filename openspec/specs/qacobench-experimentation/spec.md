@@ -43,7 +43,7 @@ WHEN a campaign is prepared, THE harness SHALL record a run manifest with image 
 
 `req~qacobench-experimentation-run-manifest~1`
 
-Evidence: `experimentation/qacobench/capture_run_manifest.py`; `experimentation/qacobench/reference/1.1.1/run_manifest.json`
+Evidence: `experimentation/qacobench/capture_run_manifest.py`; `experimentation/qacobench/test_qacobench.py`
 
 #### Scenario: Two hosts
 - **GIVEN** the same tag run on two hosts

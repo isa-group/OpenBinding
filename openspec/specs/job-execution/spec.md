@@ -106,7 +106,7 @@ WHEN the owner cancels a job, THE gateway SHALL move a queued job to `cancelled`
 
 `req~job-execution-cancellation~1`
 
-Evidence: `openbinding-gateway/tests/test_cancel_running_job.py`; `docs/qa/ENGINE_CANCELLATION_E2E.md`
+Evidence: `openbinding-gateway/tests/test_cancel_running_job.py`; `openbinding-gateway/tests/test_concurrency_limit.py`; `docs/qa/ENGINE_CANCELLATION_E2E.md`
 
 #### Scenario: Cancel a running MiniZinc job
 - **GIVEN** a running job on `minizinc-csp`, which declares cancellation
@@ -118,7 +118,7 @@ WHEN a job fails, THE gateway SHALL store and show only a stable failure code fr
 
 `req~job-execution-failure-catalog~1`
 
-Evidence: `openbinding-gateway/tests/test_job_error_text.py`
+Evidence: `openbinding-gateway/tests/test_job_error_text.py`; `openbinding-gateway/src/openbinding_gateway/core/public_errors.py`
 
 #### Scenario: Engine refuses the IR with 422
 - **GIVEN** a running job whose engine answers 422 with a detailed rejection

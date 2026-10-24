@@ -41,7 +41,7 @@ WHEN a study cell is launched or retried more than once, THE gateway SHALL retur
 
 `req~studies-analysis-one-job-per-cell~1`
 
-Evidence: `openbinding-gateway/tests/test_study_cell_launch.py`; `openbinding-gateway/tests/concurrency/test_study_cells_pg.py`
+Evidence: `openbinding-gateway/tests/test_study_cell_launch.py`; `openbinding-gateway/tests/concurrency/test_study_cells_pg.py`; `openbinding-gateway/tests/test_study_run_concurrency.py`
 
 #### Scenario: Double click on retry
 - **GIVEN** a failed cell

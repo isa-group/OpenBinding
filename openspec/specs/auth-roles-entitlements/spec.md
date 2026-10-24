@@ -113,7 +113,7 @@ WHEN a decision depends on the caller's plan, THE gateway SHALL read the capabil
 
 `req~auth-roles-entitlements-plan-reads~1`
 
-Evidence: `openbinding-gateway/tests/test_entitlement_service.py`; `openbinding-gateway/tests/test_pricing_gate.py`
+Evidence: `openbinding-gateway/tests/test_entitlement_service.py`; `openbinding-gateway/tests/test_pricing_gate.py`; `openbinding-gateway/tests/test_architecture_layers.py`
 
 #### Scenario: SPACE unreachable during a launch
 - **GIVEN** `SPACE_ENABLED=true` and SPACE not answering

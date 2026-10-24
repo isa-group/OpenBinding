@@ -62,21 +62,29 @@ auth api-key-quota; qacobench stale-registration.
 ## What changed besides Evidence
 
 - `job-execution-failure-catalog`: the sentence listed five example codes; it now lists two (`engine_rejected`,
-  `lease_lost`). The catalog itself is unchanged and still the source of the other codes.
+  `lease_lost`). The catalog itself is unchanged and still the source of the other codes. Round 1 (R1-REV-004): the
+  evidence cites `core/public_errors.py` again.
 - `qacobench-experimentation`: the long GAP notes of `incompatible-is-data` and `icsoc-regression` moved to the TODO
   section of the spec; the Evidence lines keep a short GAP marker.
 
-## Evidence references dropped (documentation only; the files exist and are named in most cases at file level)
+## Evidence references dropped (after round 1)
 
-Evidence lines now cite test files instead of every test function, and dropped references were: idempotency-key
-`concurrency/test_jobs_idempotency_pg.py`; concurrency-cap none (file kept); lease-recovery `jobs/reconciler.py`;
-authoritative-reevaluation `services/execution.py`; cancellation `test_concurrency_limit.py::test_cancelling_a_queued_job_frees_its_slot`;
-failure-catalog `core/public_errors.py`; gateway problem-document `core/public_errors.py`; auth plan-reads
-`test_architecture_layers.py`; org-roles `test_collaboration_platform.py`; qacobench run-manifest `test_qacobench.py::test_release_registry_and_seed_are_stable`,
-data-outside-git `reference/1.1.1/checksums.json`, contradiction-refusal `reference/1.1.1/evaluation/acceptance.json`,
-qfbs-generation `design_matrix.json`, icsoc-regression `README.md` and `experimentation/icsoc/README.md` (moved to TODO).
+Evidence lines cite test files instead of every test function. Round 1 (R1-REV-001/002) restored the only test of
+four clauses: run-manifest `experimentation/qacobench/test_qacobench.py` (its `reference/1.1.1/run_manifest.json`
+reference is dropped instead), cancellation `tests/test_concurrency_limit.py`, one-job-per-cell
+`tests/test_study_run_concurrency.py`, plan-reads `tests/test_architecture_layers.py`; failure-catalog cites
+`core/public_errors.py` again (R1-REV-004).
+
+References still dropped (secondary: another test or source file stays cited for the clause): idempotency-key
+`concurrency/test_jobs_idempotency_pg.py`; lease-recovery `jobs/reconciler.py`; authoritative-reevaluation
+`services/execution.py`; gateway problem-document `core/public_errors.py`; org-roles `test_collaboration_platform.py`;
+data-outside-git `reference/1.1.1/checksums.json`; contradiction-refusal `reference/1.1.1/evaluation/acceptance.json`;
+qfbs-generation `design_matrix.json`; icsoc-regression `README.md` and `experimentation/icsoc/README.md` (moved to TODO).
+Test-function names (e.g. `::test_cancelling_a_queued_job_frees_its_slot`) are no longer cited.
 
 ## Not done
 
-- Nothing was run (`openspec validate --strict` is not available here); the 500-character claim rests on the hand count
-  and the regex check above.
+- Nothing was run; the 500-character claim rests on the hand count and the regex check above, taken on the tree at
+  head 7300269 (develop merged) plus the round 1 edits, uncommitted at the time of writing.
+- openspec validate --strict --all: NOT EXECUTED (exencion del propietario 24-10-2026).
+- Round 1 counts (hand count, body without blank lines): run-manifest ≈ 424 (a test replaced a longer reference), cancellation ≈ 464, one-job-per-cell ≈ 372, plan-reads ≈ 486, failure-catalog ≈ 467; all ≤ 500.
