@@ -2,14 +2,12 @@
 
 Each slice is ≤ 300 non-test diff lines and writes its tests first. Check commands run from the repository root; every
 pytest check is one argv `["uv", "run", "--directory", "openbinding-gateway", "--locked", "--extra", "test", "pytest", "-q", …]`
-with paths relative to `openbinding-gateway/` (so the lab tests are `../lab/tests/…`). S1 and S2 are built; S3 to S5 are not.
+with paths relative to `openbinding-gateway/` (so the lab tests are `../lab/tests/…`). S1 and S2 are built; S2b, S3, S4 and S5 are not.
 
-Order: S1+S2 in one PR (about 300 lines), then S3 and S4 (both BLOCKED on the owner request
-`crp-openbinding-m41-space-image-and-16-1`: question 2 about constitution 16.1 and ADR-0015 §2, whose answer is
-recorded as an ADR amendment before S4, and question 3, to be added by the coordinator, about where the MANAGEMENT key
-lives), then S5. The `space-api` image is also open (question 1, which includes the unverified candidate
-`ghcr.io/scorelabus/space-api:1.7.1`): until answered, the marker `gap.invalid/space-api:1.7.1` stands and no digest is
-guessed.
+Order: S1+S2 in one PR (about 300 lines), then S2b, S3 and S4 in a follow-on PR after this one merges, then S5. The
+owner answered `crp-openbinding-m41-space-image-and-16-1` on 24-10-2026 (option build-pinned-exception); its
+implementation is the follow-on PR, so the marker `gap.invalid/space-api:1.7.1` stays in this PR and no digest is
+guessed. The MANAGEMENT key placement (proposed question 3) is still open.
 
 Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml`, so tags in `lab/tests/` are not traced
 until those paths are added.
@@ -45,23 +43,38 @@ next to the proof that it refuses what it must; splitting them would separate a 
   Measured: the registered check ran 290 tests, all passing (round 1, over all of `lab/tests`). The latest registered
   check, over `../lab/tests/test_lab_pricing_profile.py` and `tests/test_no_local_space.py`, measured 63 tests.
 
-## S3. Tests first, bootstrap — BLOCKED on the CRP (questions 2 and 3)
-- [ ] 3.1 `openbinding-gateway/tests/test_space_lab_bootstrap.py`: tests for `pricing-profile-bootstrap` and
+## S2b. Build from the pinned commit — follow-on PR
+- [ ] 2b.1 `compose.lab-pricing.json`: SPACE is built from `SCORELabUS/space` pinned to the commit
+  `ef4dc8949435d998e2aff525226e3fcc85e2f7ba` of tag `v1.7.1` (never the tag; source
+  `https://api.github.com/repos/SCORELabUS/space/git/refs/tags/v1.7.1`), replacing the `gap.invalid` marker; mongo and
+  redis stay by digest. Needs revision ~2 of `pinned-images` (build context pinned by commit SHA) and the manifest and
+  test allow-list for `build`; the runbook GAP entry closes and the user, healthcheck and port are checked against the
+  build.
+
+## S3. Tests first, bootstrap — follow-on PR
+- [ ] 3.1 `lab/tests/test_space_lab_bootstrap.py`: tests for `pricing-profile-bootstrap` and
   `pricing-profile-bootstrap-boundary` (organization and key, service from the permanent link with `all_last`,
   idempotence, contracts for the synthetic users, no SPHERE key, no write to SPHERE; the key-placement test follows the
-  owner's answer to question 3). Not started until the owner says whether 16.1 and ADR-0015 §2 admit the exception.
+  owner's answer to question 3), plus an architecture test that forbids direct HTTP to SPACE outside `lab/tools` and
+  the plans module.
 
-## S4. Bootstrap tool and service — BLOCKED on the CRP (questions 2 and 3)
-- [ ] 4.1 `tools/space_lab_bootstrap.py` and its use of the official client where it covers the operation.
+## S4. Bootstrap tool and service — follow-on PR
+- [ ] 4.1 `lab/tools/space_lab_bootstrap.py`, using `space-python-client` wherever it covers the operation. The 16.1
+  exception applies only to this lab bootstrap tool and is recorded in a short ADR,
+  `docs/adr/0022-lab-bootstrap-exception-to-constitution-16-1.md` (owner's answer to the CRP, 24-10-2026, option
+  build-pinned-exception).
 - [ ] 4.2 `compose.lab-pricing.json`: the one-shot `pricing-bootstrap` service (96 MiB); the sum becomes 1088 MiB, the
   service set four; `test_lab_pricing_profile.py`, the runbook and `docs/DEMO.md` follow.
-- [ ] 4.3 The real `space-api` reference replaces the marker once question 1 is answered, listed as verified in the
-  runbook with its source and date; the `space-api` user, healthcheck and port are checked against it. A build option
-  needs a revision 2 of `pinned-images` first; a digest needs none.
 
 ## Follow-ups outside this change
 - Factory F1/F2: `lab_compose` accepts `file=compose.lab-pricing.json`; the lab admission check and the preview planner
-  count this project's memory; a preflight refuses an unset or empty `DEMO_SPACE_*` value.
+  count this project's memory; a preflight refuses an unset or empty `DEMO_SPACE_*` value (missing today: with an empty
+  value SPACE may start with weak settings or fail to start, UNVERIFIED because the image is unresolved).
+- Follow-on PR (S2b, S3, S4): build from the pinned commit, the bootstrap tests and the tool under `lab/`, and the ADR
+  0022 exception, as above.
+- Test control pending in the profile test file: a control that pins the `command` of the three services, `MONGO_URI` and
+  the mongo and redis healthchecks by equality (the spec states it; cite its test name in the remote-sphere Evidence
+  once it lands).
 - M4.2/M4.5: how `SPACE_URL` reaches the gateway (fold the services into the main lab manifest, or another route with a
   recorded exception to the no-`networks` rule); a memory decision for SPACE in previews (2 x (4032 + 1088) > 9216); the
   seed guard that refuses service `openbinding` (`docs/DEMO.md`, about line 195).
@@ -70,8 +83,8 @@ next to the proof that it refuses what it must; splitting them would separate a 
 - S4 takes a revision 2 of `start-order` so that the one-shot `pricing-bootstrap` has no healthcheck (lab convention
   ONE_SHOT; R2-REV-001).
 - Coordinator: update ARCHITECTURE §9.4 once the MANAGEMENT key placement is decided.
-- Owner: confirm the lab-only risk of redis 7.4.2 and mongo 7.0.16 (runbook, Known advisories); bump to current patch
-  releases by verified digest.
+- Owner: confirm the lab-only risk of redis 7.4.2 and mongo 7.0.16 (runbook, Known advisories, a non-exhaustive list);
+  the follow-up bumps both to the latest 7.4.x and 7.0.x patch by verified digest, to be decided by the owner.
 
 ## S5. Live evidence (after S4)
 - [ ] 5.1 `labctl`/`lab_compose` brings the profile up in the lab; SPACE shows the `openbinding` service `ready` on the

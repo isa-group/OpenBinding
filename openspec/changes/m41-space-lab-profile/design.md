@@ -1,6 +1,6 @@
 # Design: m41-space-lab-profile
 
-Status: slices S1 and S2 are built (manifest, runbook, tests); S3 to S5 are not. Fixed inputs: ROADMAP M4.1, ARCHITECTURE §9.4, constitution 16.1 and 16.2,
+Status: slices S1 and S2 are built (manifest, runbook, tests); S2b, S3, S4 and S5 are not. Fixed inputs: ROADMAP M4.1, ARCHITECTURE §9.4, constitution 16.1 and 16.2,
 the lab memory cap of 9216 MiB (m05-pr-previews design.md §6), and the rule that the lab file set stays tracked,
 loopback-only and secret-free.
 
@@ -21,7 +21,7 @@ loopback-only and secret-free.
 | `space-mongo` | `mongo:7.0.16@sha256:c630c59342c1493d50345136df2af14a76b9e827dd5316bfabee07a0880a5f3a` | 512 MiB | S2 |
 | `space-redis` | `redis:7.4.2@sha256:fbdbaea47b9ae4ecc2082ecdb4e1cea81e32176ffb1dcf643d422ad07427e5d9` | 96 MiB | S2 |
 | `space-api` | `gap.invalid/space-api:1.7.1` (marker, §3) | 384 MiB | S2 |
-| `pricing-bootstrap` (one-shot) | the lab gateway image with `tools/space_lab_bootstrap.py` | 96 MiB | S4, blocked on the CRP |
+| `pricing-bootstrap` (one-shot) | the lab gateway image with `lab/tools/space_lab_bootstrap.py` | 96 MiB | S4, follow-on PR |
 
 The S2 manifest has three services and a sum of 992 MiB (512 + 96 + 384). S4 adds `pricing-bootstrap` and reaches 1088
 MiB. The profile ceiling stays 1152 MiB. With the develop lab (4032) and one preview (4032) the lab holds
@@ -36,7 +36,7 @@ MongoDB `--wiredTigerCacheSizeGB 0.25`, Redis `--maxmemory 64mb`, Node `--max-ol
 The healthcheck path and port 3000 come from the SPACE v1.7.1 source (`api/src/main/routes/HealthcheckRoutes.ts`,
 `api/src/main/app.ts`; medium confidence, lookup). UNVERIFIED: the `space-api` user `1000:1000` and the absence of curl
 in the image; no running image has been inspected because the image is the GAP marker. They are checked when the real
-image is available (S4 task 4.3); the static tests only require a numeric non-root user and a healthcheck.
+image is available (S2b); the static tests only require a numeric non-root user and a healthcheck.
 
 ## 3. Images and the runbook
 
@@ -47,17 +47,18 @@ verified list (`docs/qa/PRICING_PROFILE.md`, S2) and the static tests read that 
 
 `space-api` is **unresolved**: no space-api reference has been verified by this change. `isa-group/space` has no
 packages, its production Compose builds from source, and release v1.7.1 lives in `SCORELabUS/space`. ARCHITECTURE §9.4
-names `ghcr.io/scorelabus/space-api:1.7.1`; it is an UNVERIFIED candidate, submitted to the owner as part of CRP
-question 1, and is neither pinned nor given a digest here. A name and digest obtained from an unverified lookup were
-discarded; no digest is guessed anywhere. `space-api` comes either from a build from the commit of tag v1.7.1, or from
-an official image by verified digest (CRP question 1). Until the answer:
+names `ghcr.io/scorelabus/space-api:1.7.1`; it is an UNVERIFIED candidate and is neither pinned nor given a digest
+here. A name and digest obtained from an unverified lookup were discarded; no digest is guessed anywhere. The owner
+answered CRP question 1 on 24-10-2026 (option build-pinned-exception): SPACE is built from `SCORELabUS/space` pinned to
+the commit `ef4dc8949435d998e2aff525226e3fcc85e2f7ba` of tag `v1.7.1` (never the tag; source
+`https://api.github.com/repos/SCORELabUS/space/git/refs/tags/v1.7.1`), mongo and redis by digest. Implementing it is
+slice S2b of a follow-on PR, so in this PR:
 
 - the manifest and the tests carry the marker `gap.invalid/space-api:1.7.1`; the `.invalid` TLD can never resolve, so
   the profile cannot start by accident with an unverified image;
 - the runbook has a GAP entry for it, and a rule that the marker is accepted for `space-api` only;
-- after the answer, the marker is replaced by a reference pinned by digest, listed as verified in the runbook with its
-  date and source. The build option needs a revision 2 of `pinned-images` (build context pinned by commit SHA plus a
-  check for it); the digest path needs none.
+- in S2b the build from the pinned commit replaces the marker. It needs a revision ~2 of `pinned-images` (build context
+  pinned by commit SHA plus a check for it) and the manifest and test allow-list for `build`.
 
 ## 4. Static rules (S1, tests first)
 
@@ -106,18 +107,19 @@ in previews (2 x (4032 + 1088) > 9216) and must change the seed guard that refus
 
 ## 8. Bootstrap tool and constitution 16.1
 
-`pricing-bootstrap` runs `tools/space_lab_bootstrap.py` (S4). Where the MANAGEMENT key lives is an OPEN decision:
+`pricing-bootstrap` runs `lab/tools/space_lab_bootstrap.py` (S4). Where the MANAGEMENT key lives is an OPEN decision:
 ARCHITECTURE §9.4 says it is kept in the stack's secret store; the alternative is to keep it inside SPACE until M4.5.
-It is settled with the owner request before S4 (question 3 of `crp-openbinding-m41-space-image-and-16-1`, to be added by
+It is settled with the owner before S4 (question 3 of `crp-openbinding-m41-space-image-and-16-1`, to be added by
 the coordinator); ARCHITECTURE §9.4 is updated once decided (the coordinator owns that file). To create an organization, a key, a service from the
 SPHERE link and contracts, the tool has to call SPACE's HTTP API. Constitution 16.1 says: "SPACE MUST be reached only
 through its official clients: `space-python-client` in the gateway (plans module) and `space-react-client` in the
-browser (token-only mode). No module MAY call SPACE's HTTP API directly." Whether the lab tool is a "module" and
-whether the official client offers the needed operations is the second question of the owner request
-`crp-openbinding-m41-space-image-and-16-1`, which is in progress. ADR-0015 §2 says the plans module is the only code
-that talks to SPACE; whether a lab tool may do so is the same question and its answer is recorded as an ADR amendment
-before S4. This is risk R8. S3 (bootstrap tests) and S4 (the tool and the `pricing-bootstrap` service) are blocked until
-it is answered. The tool never writes to SPHERE and holds no
+browser (token-only mode). No module MAY call SPACE's HTTP API directly." ADR-0015 §2 says the plans module is the only
+code that talks to SPACE. This is risk R8. The owner answered on 24-10-2026 (option build-pinned-exception): the 16.1
+exception applies only to the lab bootstrap tool under `lab/tools`; an architecture test forbids direct HTTP to SPACE
+outside `lab/tools` and the plans module; the client is used wherever `space-python-client` covers the operation; the
+exception is recorded in a short ADR, `docs/adr/0022-lab-bootstrap-exception-to-constitution-16-1.md`. S3 (bootstrap
+tests and architecture test, under `lab/tests`) and S4 (the tool under `lab/tools` and the `pricing-bootstrap`
+service) are planned for a follow-on PR after this one merges. The tool never writes to SPHERE and holds no
 SPHERE key (constitution 16.2). Requirements about the bootstrap stay in the delta spec because they are the final
 state; they are not met until S4.
 
@@ -132,8 +134,8 @@ state; they are not met until S4.
 | `pricing-profile-secret-references` | S1 tests, S2 file and runbook |
 | `pricing-profile-start-order` | S1 tests, S2 file |
 | `pricing-profile-remote-sphere` | S1 tests, S2 file; live evidence S5 |
-| `pricing-profile-bootstrap` | S3 tests and S4 tool, both blocked on the CRP; S5 live evidence |
-| `pricing-profile-bootstrap-boundary` | S3 tests and S4 tool, both blocked on the CRP |
+| `pricing-profile-bootstrap` | S3 tests and S4 tool, both in the follow-on PR; S5 live evidence |
+| `pricing-profile-bootstrap-boundary` | S3 tests and S4 tool, both in the follow-on PR |
 | `no-local-space` ~2 (MODIFIED) | S1 (narrowed test) |
 
 ## 10. Failure and rollback
@@ -145,10 +147,9 @@ state; they are not met until S4.
 
 ## 11. Open questions
 
-- CRP question 1: which SPACE image or build for `space-api` (build from the commit of tag v1.7.1, or an official image).
-- CRP question 2: does constitution 16.1 admit an exception for `tools/space_lab_bootstrap.py`, and does ADR-0015 §2
-  (the plans module is the only code that talks to SPACE) need an amendment; the answer is recorded as an ADR amendment
-  before S4.
+- CRP questions 1 and 2 are answered (24-10-2026, option build-pinned-exception): build from the pinned commit, and a
+  16.1 exception limited to `lab/tools`. Their implementation (S2b, S3, S4, ADR 0022) is the follow-on PR; the marker
+  stays in this PR.
 - CRP question 3 (to be added by the coordinator): where the MANAGEMENT key lives (the stack's secret store per
   ARCHITECTURE §9.4, or inside SPACE until M4.5), settled before S4.
 - How `lab_compose` (factory, follow-up F1) accepts `file=compose.lab-pricing.json`. Outside this repository.

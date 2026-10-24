@@ -68,7 +68,7 @@ THE services of the pricing profile SHALL use images pinned by digest and listed
 
 Evidence: `lab/tests/test_lab_pricing_profile.py::test_pinned_images_match_the_runbook`; `lab/tests/test_lab_pricing_profile.py::test_runbook_documents_the_gap_and_the_bring_up`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_unpinned_images`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_an_unverified_space_api_version`; `lab/tests/test_lab_pricing_profile.py::test_control_runbook_parsers_refuse_malformed_text`
 
-Verified on 2026-10-24 against Docker Hub: `mongo:7.0.16` `sha256:c630c59342c1493d50345136df2af14a76b9e827dd5316bfabee07a0880a5f3a` and `redis:7.4.2` `sha256:fbdbaea47b9ae4ecc2082ecdb4e1cea81e32176ffb1dcf643d422ad07427e5d9`. No space-api reference has been verified by this change; no digest is guessed for `space-api`. `ghcr.io/scorelabus/space-api:1.7.1` (ARCHITECTURE §9.4) is an unverified candidate submitted to the owner in question 1 of the open owner request. A build option would need a revision 2 of this requirement (build context pinned by commit SHA plus a check for it); the digest path needs none.
+Verified on 2026-10-24 against Docker Hub: `mongo:7.0.16` `sha256:c630c59342c1493d50345136df2af14a76b9e827dd5316bfabee07a0880a5f3a` and `redis:7.4.2` `sha256:fbdbaea47b9ae4ecc2082ecdb4e1cea81e32176ffb1dcf643d422ad07427e5d9`. No space-api reference has been verified by this change; no digest is guessed for `space-api`. The owner answered question 1 on 24-10-2026 (option build-pinned-exception): SPACE is to be built from `SCORELabUS/space` pinned to the commit `ef4dc8949435d998e2aff525226e3fcc85e2f7ba` of tag `v1.7.1` (never the tag; source `https://api.github.com/repos/SCORELabUS/space/git/refs/tags/v1.7.1`). That build needs a revision 2 of this requirement (build context pinned by commit SHA, plus the manifest and test allow-list for `build`); it is slice S2b of a follow-on PR, so the marker stays in this PR.
 
 #### Scenario: Mongo and redis by digest
 - **GIVEN** `compose.lab-pricing.json` and the verified list of the runbook
@@ -142,11 +142,11 @@ The final sum is 1088 MiB: 512 (`space-mongo`) + 96 (`space-redis`) + 384 (`spac
 - **THEN** they fail
 
 ### Requirement: Pricing profile isolated from the host
-THE pricing profile SHALL publish no host port and expose none, use no `networks` or `network_mode` key (the project default network applies), mount no socket or host path (only its two named volumes `lab-pricing-mongo` and `lab-pricing-redis`, declared with labels only and no `driver_opts`), declare no top-level `networks`, set no privilege or destructive key, run every service as a numeric non-root user with a numeric non-root group id when the `user` value carries one (`uid:gid`), and use only the service keys `image`, `user`, `command`, `environment`, `volumes`, `mem_limit`, `healthcheck` and `depends_on`.
+THE pricing profile SHALL publish no host port and expose none, use no `networks` or `network_mode` key (the project default network applies), mount no socket or host path (only its two named volumes `lab-pricing-mongo` and `lab-pricing-redis`, declared with labels only and no `driver_opts`), declare no top-level `networks`, set no privilege or destructive key, run every service as a numeric non-root `uid:gid` user with a numeric non-zero gid (a user without a gid is refused), and use only the service keys `image`, `user`, `command`, `environment`, `volumes`, `mem_limit`, `healthcheck` and `depends_on`.
 
 `req~lab-deployment-pricing-profile-isolated~1`
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_isolated_services`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_non_isolated_profile`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_keys_outside_the_allow_list`
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_isolated_services`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_non_isolated_profile`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_keys_outside_the_allow_list`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_bind_networks_socket_and_bad_gid`
 
 #### Scenario: A published port added
 - **GIVEN** `compose.lab-pricing.json` plus a published port for `space-api`
@@ -164,7 +164,7 @@ Evidence: `lab/tests/test_lab_pricing_profile.py::test_isolated_services`; `lab/
 - **THEN** they fail
 
 #### Scenario: Group id, volume driver or top-level network
-- **GIVEN** a profile service with user `1000:0`, a volume declared with `driver_opts`, or a top-level `networks` section
+- **GIVEN** a profile service with user `1000:0` or `1000` (no gid), a volume declared with `driver_opts`, or a top-level `networks` section
 - **WHEN** the static checks run
 - **THEN** they fail
 
@@ -218,11 +218,11 @@ Evidence: `lab/tests/test_lab_pricing_profile.py::test_start_order_waits_for_hea
 - **THEN** the start-order rule does not fail for it
 
 ### Requirement: Remote SPHERE only
-THE `space-api` service of the pricing profile SHALL be configured with `SPHERE_SYNC_ENABLED=true`, `SPHERE_PUBLIC_URL=https://sphere.score.us.es`, `SPHERE_API_URL=https://sphere.score.us.es/api/v1` and `SPHERE_ALLOW_LOCAL_HTTP=false`, and every URL of any scheme in the manifest SHALL have a host in {`space-mongo`, `space-redis`, `space-api`, `sphere.score.us.es`, `127.0.0.1`}, checking every host of a multi-host URI; the environment keys of `space-api` and its healthcheck command are pinned.
+THE `space-api` service of the pricing profile SHALL be configured with `SPHERE_SYNC_ENABLED=true`, `SPHERE_PUBLIC_URL=https://sphere.score.us.es`, `SPHERE_API_URL=https://sphere.score.us.es/api/v1` and `SPHERE_ALLOW_LOCAL_HTTP=false`, and every URL of any scheme in the manifest SHALL have a host in {`space-mongo`, `space-redis`, `space-api`, `sphere.score.us.es`, `127.0.0.1`}, checking every host of a multi-host URI; the environment keys of `space-api` and its healthcheck command are pinned, and the command of the three services, `MONGO_URI` and the mongo and redis healthchecks are pinned by equality.
 
 `req~lab-deployment-pricing-profile-remote-sphere~1`
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_remote_sphere_is_the_only_sphere`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_local_sphere`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_foreign_host_in_any_url_scheme`; live: GAP `lab/tests/test_lab_pricing_profile_live.py::test_the_lab_reaches_sphere_over_https`
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_remote_sphere_is_the_only_sphere`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_local_sphere`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_foreign_host_in_any_url_scheme`; `lab/tests/test_lab_pricing_profile.py::test_api_surface_is_pinned`; `lab/tests/test_lab_pricing_profile.py::test_control_pins_the_api_environment_and_healthcheck`; live: GAP `lab/tests/test_lab_pricing_profile_live.py::test_the_lab_reaches_sphere_over_https`
 
 #### Scenario: SPHERE address
 - **GIVEN** `space-api` configured with the four SPHERE variables above
@@ -245,18 +245,18 @@ Evidence: `lab/tests/test_lab_pricing_profile.py::test_remote_sphere_is_the_only
 - **THEN** they fail, because every host is checked
 
 #### Scenario: Pinned environment and healthcheck of space-api
-- **GIVEN** `space-api` with an extra or missing environment key, or a changed healthcheck command
+- **GIVEN** `space-api` with an extra or missing environment key, or a changed healthcheck command, or a changed `command` of any of the three services, a changed `MONGO_URI`, or a changed mongo or redis healthcheck
 - **WHEN** the static checks run
 - **THEN** they fail
 
 ### Requirement: Bootstrap of the SPACE service from the SPHERE link
-WHEN the pricing profile starts, THE `pricing-bootstrap` one-shot SHALL create the SPACE organization and a MANAGEMENT key, create the `openbinding` service from the SPHERE permanent link `https://sphere.score.us.es/p/6ab0a323697330667ccce891` with `source: sphere` and `policy: all_last`, run a first synchronization, create contracts for the synthetic users of the seed, and be safe to re-run; the placement of the MANAGEMENT key (the stack's secret store per ARCHITECTURE §9.4, or kept inside SPACE until M4.5) is an open decision settled with the owner request before slice S4, and this requirement takes a revision once it is decided.
+WHEN the pricing profile starts, THE `pricing-bootstrap` one-shot SHALL create the SPACE organization and a MANAGEMENT key, create the `openbinding` service from the SPHERE permanent link `https://sphere.score.us.es/p/6ab0a323697330667ccce891` with `source: sphere` and `policy: all_last`, run a first synchronization, create contracts for the synthetic users of the seed, and be safe to re-run; the placement of the MANAGEMENT key (the stack's secret store per ARCHITECTURE §9.4, or kept inside SPACE until M4.5) is an open decision settled with the owner before slice S4, and this requirement takes a revision once it is decided.
 
 `req~lab-deployment-pricing-profile-bootstrap~1`
 
-Evidence: GAP `openbinding-gateway/tests/test_space_lab_bootstrap.py::test_it_creates_organization_key_service_and_contracts`; GAP `openbinding-gateway/tests/test_space_lab_bootstrap.py::test_the_service_comes_from_the_sphere_link_with_all_last`; GAP `openbinding-gateway/tests/test_space_lab_bootstrap.py::test_a_second_run_changes_nothing`; live (S5): GAP `lab/tests/test_lab_pricing_profile_live.py::test_space_shows_the_openbinding_service_ready_on_the_latest_version`
+Evidence: GAP `lab/tests/test_space_lab_bootstrap.py::test_it_creates_organization_key_service_and_contracts`; GAP `lab/tests/test_space_lab_bootstrap.py::test_the_service_comes_from_the_sphere_link_with_all_last`; GAP `lab/tests/test_space_lab_bootstrap.py::test_a_second_run_changes_nothing`; live (S5): GAP `lab/tests/test_lab_pricing_profile_live.py::test_space_shows_the_openbinding_service_ready_on_the_latest_version`
 
-This requirement is the final state. Its tests (slice S3) and the tool (slice S4) are blocked on the owner request `crp-openbinding-m41-space-image-and-16-1`; live evidence is slice S5.
+This requirement is the final state. Its tests (slice S3) and the tool (slice S4) are planned for a follow-on PR after this one merges (the owner has answered `crp-openbinding-m41-space-image-and-16-1`; see design.md §8); live evidence is slice S5.
 
 #### Scenario: First run
 - **GIVEN** a started profile with an empty SPACE
@@ -269,13 +269,13 @@ This requirement is the final state. Its tests (slice S3) and the tool (slice S4
 - **THEN** no organization, key, service or contract is duplicated
 
 ### Requirement: Bootstrap boundary with SPACE and SPHERE
-THE bootstrap tool SHALL write nothing to SPHERE and hold no SPHERE key, and SHALL call SPACE's HTTP API directly only if the owner has recorded an exception to constitution 16.1 for `tools/space_lab_bootstrap.py`; WHILE no such exception is recorded, THE repository SHALL contain no module that calls SPACE's HTTP API directly.
+THE bootstrap tool SHALL write nothing to SPHERE and hold no SPHERE key, and SHALL call SPACE's HTTP API directly only if the owner has recorded an exception to constitution 16.1 for `lab/tools/space_lab_bootstrap.py`; WHILE no such exception is recorded, THE repository SHALL contain no module that calls SPACE's HTTP API directly.
 
 `req~lab-deployment-pricing-profile-bootstrap-boundary~1`
 
-Evidence: GAP `openbinding-gateway/tests/test_space_lab_bootstrap.py::test_the_tool_holds_no_sphere_key_and_never_writes_to_sphere`; GAP `openbinding-gateway/tests/test_space_lab_bootstrap.py::test_the_tool_is_the_only_direct_space_http_caller`
+Evidence: GAP `lab/tests/test_space_lab_bootstrap.py::test_the_tool_holds_no_sphere_key_and_never_writes_to_sphere`; GAP `lab/tests/test_space_lab_bootstrap.py::test_the_tool_is_the_only_direct_space_http_caller`
 
-Risk R8: the exception is the second question of the open owner request `crp-openbinding-m41-space-image-and-16-1`. ADR-0015 §2 says the plans module is the only code that talks to SPACE, so the answer is also put to the owner and recorded as an ADR amendment before slice S4. Tests (slice S3) and tool (slice S4) wait for the answer.
+Risk R8: the owner answered the second question of `crp-openbinding-m41-space-image-and-16-1` on 24-10-2026 (option build-pinned-exception): the 16.1 exception applies only to the lab bootstrap tool under `lab/tools`, recorded in the short ADR `docs/adr/0022-lab-bootstrap-exception-to-constitution-16-1.md`; an architecture test forbids direct HTTP to SPACE outside `lab/tools` and the plans module, and the tool uses `space-python-client` wherever it covers the operation. Tests (slice S3) and tool (slice S4) are planned for a follow-on PR after this one merges.
 
 #### Scenario: SPHERE key
 - **GIVEN** the bootstrap tool and its service environment
@@ -283,6 +283,6 @@ Risk R8: the exception is the second question of the open owner request `crp-ope
 - **THEN** no `SPHERE_API_KEY` value is set and no request to SPHERE other than reading the public permanent link is made
 
 #### Scenario: Other module calling SPACE directly
-- **GIVEN** a module other than `tools/space_lab_bootstrap.py` that calls SPACE's HTTP API directly
+- **GIVEN** a module other than `lab/tools/space_lab_bootstrap.py` that calls SPACE's HTTP API directly
 - **WHEN** the unit suite runs
 - **THEN** it fails
