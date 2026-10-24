@@ -14,7 +14,7 @@ guessed.
 Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml`, so tags in `lab/tests/` are not traced
 until those paths are added.
 
-Known deviation: `lab/tests/test_lab_pricing_profile.py` has 581 lines and 23 test functions (several parametrized), over the ~300-line PR guideline. The rule
+Known deviation: `lab/tests/test_lab_pricing_profile.py` has 585 non-blank lines and 27 test functions (several parametrized; extended in round 2), over the ~300-line PR guideline. The rule
 functions (one per requirement) and the controls that mutate a conforming sample live in one file so that each rule sits
 next to the proof that it refuses what it must; splitting them would separate a rule from its control.
 
@@ -42,7 +42,8 @@ next to the proof that it refuses what it must; splitting them would separate a 
 - [x] 2.3 `docs/DEMO.md`: a pointer to the runbook, stating the profile is optional and not part of the 4032 MiB sum.
 - Acceptance: S1 passes; `lab/tests` and `tests/test_container_hardening.py` still pass. Check:
   `["uv", "run", "--directory", "openbinding-gateway", "--locked", "--extra", "test", "pytest", "-q", "../lab/tests", "tests/test_no_local_space.py", "tests/test_container_hardening.py"]`.
-  Measured: the registered check ran 290 tests, all passing.
+  Measured: the registered check ran 290 tests, all passing (round 1, over all of `lab/tests`). The latest registered
+  check, over `../lab/tests/test_lab_pricing_profile.py` and `tests/test_no_local_space.py`, measured 63 tests.
 
 ## S3. Tests first, bootstrap — BLOCKED on the CRP (questions 2 and 3)
 - [ ] 3.1 `openbinding-gateway/tests/test_space_lab_bootstrap.py`: tests for `pricing-profile-bootstrap` and
