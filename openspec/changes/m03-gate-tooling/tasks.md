@@ -142,7 +142,7 @@ token in an `Evidence:` line) covers the two over-length requirement texts the C
 | ARC-004 (one line in `docs/ARCHITECTURE.md` §5.1: pages do not import other pages) | Deferred: owner path, not done here |
 | Two requirement texts over 500 characters (`import-linter-contract`, `bim-toolchain-tests`) | Fixed: shortened under 450, details moved into scenarios |
 | `GAP` token in the `Evidence:` lines | Fixed: dropped from all 17 |
-| Contracts presented as mirroring the architecture test | Fixed: design.md §4 and proposal.md state the differences, the first-run count and the M9.1 trigger; `telemetry -> main` recorded as architecture debt |
+| Contracts presented as mirroring the architecture test | Fixed: design.md §4 and proposal.md state the differences, the first-run count and the M9.2 trigger; `telemetry -> main` recorded as architecture debt |
 | ESLint severity trigger and baseline | Fixed: ROADMAP M9.3, about 316 warnings (design.md §5) |
 | OpenFastTrace licence, CI-only use and workflow hardening | Fixed: design.md §2; the hardening is applied to `ci.yml` by the implementer |
 | Risks pointing to design.md §7 | Fixed: now §9 |

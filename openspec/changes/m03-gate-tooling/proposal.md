@@ -21,7 +21,7 @@ The GAP lines stay until the gates block (design.md §9).
   do not mirror `tests/test_architecture_layers.py` exactly: they check whole import chains, mirror neither
   `ALLOWED_LEGACY` nor the composition root `main`, and the `integrations` contract is a deny-list subset of the
   test's allow-list. The first CI run is `Contracts: 1 kept, 2 broken` (see design.md §4); the gate stays report-only
-  until the legacy refactors of ROADMAP M9.1.
+  until the legacy refactors of ROADMAP M9.2.
 - Workflow hardening: top-level `permissions: contents: read`, `persist-credentials: false` and `timeout-minutes: 10`
   on jobs `openspec` and `trace`, a HTTPS-only retrying download of the OpenFastTrace jar (GPL-3.0, CI-only, never
   committed or distributed), and `if: ${{ !cancelled() }}` on the API acceptance and import-linter steps of `lab`.

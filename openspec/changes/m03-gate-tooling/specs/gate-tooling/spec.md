@@ -205,6 +205,7 @@ Evidence: lab/tests/test_ci_gate_tooling.py::test_bim_toolchain_job_runs_package
 - **THEN** the workflow triggers on `pull_request` with no `paths` filter and job `bim-toolchain` has no `if`
 - **AND** its steps fetch and verify the OMG BPMN XSDs with `xsd_inventory.py --ensure`, restore the gateway's locked environment with `uv sync --locked --project openbinding-gateway --extra test`, and run `../openbinding-gateway/.venv/bin/python -m pytest` over `packages/bim-core/tests`, `packages/bim-service/tests` and `packages/bim-client/tests` with `working-directory` `bim-toolchain`
 - **AND** no step has `continue-on-error`
+- **AND** the pytest command also carries exactly two `--deselect` options, for `packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval` and `packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]` (timing-dependent, design.md section 6), and nothing else is deselected
 
 #### Scenario: A failing bim-service test
 - **GIVEN** a pull request that breaks a test of `packages/bim-service/tests`

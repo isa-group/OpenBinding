@@ -75,9 +75,10 @@ def _step(job: dict, text: str) -> dict:
     return hits[0]
 
 
-def _fails_job(job: dict, step: dict, *, allow_if: bool = False) -> None:
+def _fails_job(job: dict, step: dict, *, allow_if: bool = False, allow_pipe: bool = False) -> None:
     """Assert that a failure of ``step`` fails the job: nothing masks its exit status or skips it."""
     assert "continue-on-error" not in job and "if" not in job, "job-level continue-on-error or if"
+    assert "defaults" not in job, "job-level defaults (could change the shell)"
     assert any(step is s for s in job["steps"]), "the step is not a step of the job"
     assert "continue-on-error" not in step, f"step-level continue-on-error: {step.get('name')}"
     assert "shell" not in step, f"step with its own shell: {step.get('name')}"
@@ -85,7 +86,10 @@ def _fails_job(job: dict, step: dict, *, allow_if: bool = False) -> None:
         assert "if" not in step, f"step-level if: {step.get('name')}"
     run = _active(str(step.get("run", "")))
     assert run.strip(), f"step without a run text: {step.get('name')}"
-    for pattern in (r"\|\|", r"\bset\s+\+e\b", r";\s*true\b"):
+    patterns = [r"\|\|", r"\bset\s+\+e\b", r";\s*true\b", r"\bexit\s+0\b", r"\|\s*true"]
+    if not allow_pipe:
+        patterns.append(r"\|")
+    for pattern in patterns:
         assert not re.search(pattern, run), f"{step.get('name')}: {pattern} masks the exit status"
 
 
@@ -181,7 +185,9 @@ def test_trace_job_downloads_and_verifies_pinned_jar():
     trace = _step(job, "trace -o plain")
     assert "if" not in trace
     _fails_job(job, download)
-    _fails_job(job, verify)
+    _fails_job(job, verify, allow_pipe=True)
+    others = [s for s in steps if s is not trace]
+    assert others and all("continue-on-error" not in s for s in others)
     assert steps.index(download) < steps.index(verify) < steps.index(trace)
 
 
@@ -203,7 +209,8 @@ def test_trace_step_covers_g6_paths_report_only():
 def test_gate_tools_not_committed_or_in_images():
     forbidden = ["openfasttrace", "@fission-ai/openspec", "import-linter", "importlinter", "lint-imports"]
     jars, dirty = [], []
-    listing = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, text=True, check=True)
+    listing = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, text=True, check=False)
+    assert listing.returncode == 0, f"git ls-files failed: {listing.stderr}"
     for relative in filter(None, listing.stdout.split("\0")):
         path = ROOT / relative
         if fnmatch.fnmatch(path.name.lower(), "openfasttrace*.jar"):
@@ -584,7 +591,7 @@ def test_ui_runner_passes_empty_in_frontend_job():
         "playwright.acceptance.config.ts has no single testDir '../acceptance/ui'"
     )
     assert not re.search(r"\b(testIgnore|testMatch|grepInvert|grep|only)\b", config), "the UI runner configuration filters tests"
-    assert re.search(r"\bprojects\s*:\s*\[\s*\{\s*name\s*:\s*'acceptance'\s*\}\s*\]", config), "the projects entries are not just a name"
+    assert re.search(r"\bprojects\s*:\s*\[\s*\{\s*name\s*:\s*'acceptance'\s*\}\s*,?\s*\]", config), "the projects entries are not just a name"
     assert (ROOT / "acceptance" / "ui" / ".gitkeep").is_file(), "acceptance/ui/.gitkeep is missing"
 
     job = _job("frontend")
