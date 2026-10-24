@@ -64,6 +64,48 @@ jobs:
           openbinding-gateway/.venv/bin/python tools/build_bim_packages.py --output "$second" "${packages[@]}"
           diff -qr "$first" "$second"
 
+  # The bim-toolchain package tests and goldens run on every pull request, in the
+  # gateway's locked environment, until the toolchain moves to its own repository.
+  # These are tests, so no step is report-only.
+  bim-toolchain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # bim-core validates BPMN with the five OMG BPMN 2.0.2 XSDs, which are not versioned in Git.
+      - name: Download the OMG BPMN XSDs and verify them
+        run: python3 bim-toolchain/tools/xsd_inventory.py --ensure
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.8.14'
+          enable-cache: true
+          cache-dependency-glob: openbinding-gateway/uv.lock
+
+      - name: Restore the locked gateway environment with test dependencies
+        run: uv sync --locked --project openbinding-gateway --extra test
+
+      - name: Run the bim-toolchain package tests
+        working-directory: bim-toolchain
+        env:
+          PYTHONPATH: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
+        run: ../openbinding-gateway/.venv/bin/python -m pytest -p no:cacheprovider --rootdir=. -rs packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests
+
+      - name: Check the bim-toolchain goldens
+        working-directory: bim-toolchain
+        env:
+          PYTHONPATH: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
+        run: ../openbinding-gateway/.venv/bin/python tools/baseline_core.py --check
+
   # The lab tests live outside openbinding-gateway/tests, so no other job
   # collects them. They run on the locked gateway environment with the test extra.
   lab:

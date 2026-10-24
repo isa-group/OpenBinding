@@ -2,7 +2,7 @@
 ``m03-gate-tooling``), without running a workflow.
 
 The helpers assert instead of raising ``KeyError``, so a missing job, step or file is an ``AssertionError``.  PyYAML
-reads the workflow key ``on`` as ``True``; no test reads it.
+reads the workflow key ``on`` as ``True``; the trigger test reads it as ``_ci().get(True)``.
 
 Run from ``openbinding-gateway`` with its environment::
 
@@ -279,6 +279,40 @@ def test_eslint_boundaries_warns_page_to_page():
     assert re.search(r"policies:\s*\[", config) and "from.element.captured.name" in config, "no page-to-page policy"
     for name, severity in rules:
         assert severity in ("'warn'", '"warn"'), f"{name} has severity {severity}, not 'warn'"
+
+
+TOOLCHAIN_PYTHON = "../openbinding-gateway/.venv/bin/python"
+TOOLCHAIN_PYTHONPATH = "packages/bim-core/src:packages/bim-service/src:packages/bim-client/src"
+TOOLCHAIN_TESTS = ["packages/bim-core/tests", "packages/bim-service/tests", "packages/bim-client/tests"]
+
+
+# [utest->req~gate-tooling-bim-toolchain-tests~1]
+def test_bim_toolchain_job_runs_package_tests():
+    trigger = _ci().get(True)
+    assert isinstance(trigger, dict) and "pull_request" in trigger, f"ci.yml does not trigger on pull_request: {trigger!r}"
+    assert "paths" not in (trigger["pull_request"] or {}), "the pull_request trigger has a paths filter"
+    job = _job("bim-toolchain")
+    assert "if" not in job
+    assert all("continue-on-error" not in s for s in job["steps"])
+    ensure = _step(job, "xsd_inventory.py --ensure")
+    sync = _step(job, "uv sync --locked --project openbinding-gateway --extra test")
+    pytest_step = _step(job, f"{TOOLCHAIN_PYTHON} -m pytest")
+    assert pytest_step.get("working-directory") == "bim-toolchain"
+    assert (pytest_step.get("env") or {}).get("PYTHONPATH") == TOOLCHAIN_PYTHONPATH
+    arguments = pytest_step["run"].split()
+    assert [a for a in arguments if a.startswith("packages/")] == TOOLCHAIN_TESTS, arguments
+    steps = job["steps"]
+    assert steps.index(ensure) < steps.index(sync) < steps.index(pytest_step)
+
+
+# [utest->req~gate-tooling-bim-toolchain-goldens~1]
+def test_bim_toolchain_job_checks_goldens():
+    job = _job("bim-toolchain")
+    goldens = _step(job, f"{TOOLCHAIN_PYTHON} tools/baseline_core.py --check")
+    assert goldens.get("working-directory") == "bim-toolchain"
+    assert (goldens.get("env") or {}).get("PYTHONPATH") == TOOLCHAIN_PYTHONPATH
+    assert "continue-on-error" not in goldens and "if" not in goldens
+    assert all("continue-on-error" not in s for s in job["steps"])
 
 
 def _lockfile_dev_dependencies() -> str:
