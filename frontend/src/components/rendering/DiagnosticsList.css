@@ -1,0 +1,39 @@
+.rendering-diagnostics { min-width: 0; }
+
+.rendering-diagnostics__summary, .rendering-diagnostics__empty { margin: 0 0 0.5rem; color: var(--color-text-secondary); font-size: 0.8125rem; }
+
+.rendering-diagnostics__group {
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+}
+
+.rendering-diagnostics__group > :is(h2, h3, h4, h5) {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.rendering-diagnostics__group ul { margin: 0; padding: 0; list-style: none; }
+
+.rendering-diagnostics__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.rendering-diagnostics__item:first-child { border-top: 0; }
+
+.rendering-diagnostics__item code { font-family: var(--font-mono); font-size: 0.75rem; overflow-wrap: anywhere; }
+
+.rendering-diagnostics__message { flex-basis: 100%; overflow-wrap: anywhere; }
+
+.rendering-diagnostics__meta { flex-basis: 100%; color: var(--color-text-secondary); font-size: 0.75rem; overflow-wrap: anywhere; }
