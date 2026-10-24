@@ -13,12 +13,15 @@ Run from ``openbinding-gateway`` with its environment::
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import importlib.util
 import json
 import logging
 import re
 import sys
+import tomllib
+import urllib.parse
 import uuid
 from pathlib import Path
 from types import SimpleNamespace
@@ -48,6 +51,9 @@ ADMIN_USER = "lab-space-admin"
 ADMIN_PASSWORD = "Sample-Admin-Password-7731"
 ADMIN_KEY = "admin-key-sample-AAAA1111"
 SPACE_URL = "http://space-api:3000"
+SPHERE_SAMPLE_KEY = "sphere-sample-key"
+UV_LOCK = ROOT / "openbinding-gateway" / "uv.lock"
+IN_PROGRESS = ("queued", "checking", "applying")
 
 
 def seed_id(name: str) -> str:
@@ -404,43 +410,64 @@ def test_control_dockerfile_rules_refuse_violations():
 
 
 class FakeSpace:
-    """A stateful in-memory SPACE served through ``httpx.MockTransport``; it counts every call and records violations
-    (a host other than SPACE_URL's, any SPHERE key header, an unknown api key)."""
+    """A stateful in-memory SPACE served through ``httpx.MockTransport``; it records every call and every violation
+    (a host other than SPACE_URL's, any SPHERE key header, an unknown key or the wrong key for a route).
 
-    host = "space-api"
+    The shapes follow SPACE at ef4dc894 as read from its source (MEDIUM confidence, unverified live):
+    ``GET /organizations`` answers the admin ``{"data": [...], "pagination": {...}}`` (``orgs_shape="data"``: only
+    ``data``; ``"list"``: a bare list) filtered by ``q`` and paged by ``limit`` (default 10, max 50) and ``offset``; a
+    created organization carries a first key of scope ALL; a service created from SPHERE carries ``source`` and the
+    ``sphere`` sub-document; the synchronization status is ``configuration.status`` (``sync_shape="top"``: top level).
+    """
 
-    def __init__(self, *, pricings=None, sync_script=("queued", "checking", "applying", "ready"),
-                 created_name="openbinding", echo_on_error=False, fail_service_post=False, map_shape=False):
+    def __init__(self, *, host="space-api", port=3000, admin_user=ADMIN_USER, admin_key=ADMIN_KEY, pricings=None,
+                 sync_script=("queued", "checking", "applying", "ready"), created_name="openbinding",
+                 echo_on_error=False, fail_service_post=False, orgs_shape="admin", id_field="id", sync_shape="nested",
+                 hide_management_values=False, redirect_organizations=None):
+        self.host, self.port, self.admin_user, self.admin_key = host, port, admin_user, admin_key
         self.organizations: list[dict] = []
         self.services: dict[str, dict] = {}
         self.sync_status: dict[str, str] = {}
         self.sync_script = list(sync_script)
         self.pricings = pricings if pricings is not None else [{"version": "1.0.0", "id": "p1"}, {"version": "1.1.0", "id": "p2"}]
-        self.map_shape = map_shape
         self.created_name = created_name
         self.echo_on_error = echo_on_error
         self.fail_service_post = fail_service_post
+        self.orgs_shape, self.id_field, self.sync_shape = orgs_shape, id_field, sync_shape
+        self.hide_management_values = hide_management_values
+        self.redirect_organizations = redirect_organizations
         self.requests: list[tuple[str, str]] = []
+        self.queries: list[tuple[str, str, dict]] = []
+        self.sent: list[str] = []
         self.violations: list[str] = []
         self.issued_keys: list[str] = []
+        self.all_keys: list[str] = []
         self.key_posts = 0
         self.org_seq = 0
         self.sync_polls = 0
 
     # state helpers
-    def add_organization(self, *, with_key: bool = False) -> dict:
+    def add_organization(self, *, with_key: bool = False, name: str = "openbinding", org_id: str | None = None) -> dict:
         self.org_seq += 1
-        org = {"id": f"org-{self.org_seq}", "name": "openbinding", "owner": ADMIN_USER, "apiKeys": []}
+        all_key = f"all-key-sample-{self.org_seq:03d}-YY88"
+        self.all_keys.append(all_key)
+        org = {self.id_field: org_id or f"65a1b2c3d4e5f6a7b8c9{self.org_seq:04d}", "name": name,
+               "owner": self.admin_user, "apiKeys": [{"key": all_key, "scope": "ALL"}]}
         if with_key:
             self._new_key(org)
         self.organizations.append(org)
         return org
 
-    def add_service(self, *, ready: bool = True, **overrides) -> dict:
-        service = {"name": "openbinding", "source": "sphere", "permanentUrl": SPHERE_LINK, "policy": "all_last"}
-        service.update(overrides)
+    def add_service(self, *, ready: bool = True, sync: str | None = None, flat: bool = False, **overrides) -> dict:
+        settings = {"source": "sphere", "permanentUrl": SPHERE_LINK, "policy": "all_last"}
+        settings.update(overrides)
+        if flat:
+            service = {"name": "openbinding", **settings}
+        else:
+            service = {"name": "openbinding", "source": settings["source"],
+                       "sphere": {"permanentUrl": settings["permanentUrl"], "policy": settings["policy"], "status": "ready"}}
         self.services[service["name"]] = service
-        self.sync_status[service["name"]] = "ready" if ready else "queued"
+        self.sync_status[service["name"]] = sync or ("ready" if ready else "queued")
         return service
 
     def _new_key(self, org: dict) -> str:
@@ -449,68 +476,111 @@ class FakeSpace:
         self.issued_keys.append(key)
         return key
 
+    def _org_view(self, org: dict) -> dict:
+        view = json.loads(json.dumps(org))
+        if self.hide_management_values:
+            for entry in view["apiKeys"]:
+                if entry["scope"] == "MANAGEMENT":
+                    entry.pop("key")
+        return view
+
     @property
     def secrets(self) -> list[str]:
-        return [ADMIN_PASSWORD, ADMIN_KEY, *self.issued_keys]
+        return [ADMIN_PASSWORD, self.admin_key, *self.issued_keys, *self.all_keys]
 
     def count(self, method: str, fragment: str = "", exact: bool = False) -> int:
         return sum(1 for m, p in self.requests if m == method and (p == fragment if exact else fragment in p))
 
     def changes(self) -> list[tuple[str, str]]:
-        """Requests that change SPACE, apart from the authentication."""
-        return [(m, p) for m, p in self.requests if m == "POST" and not p.endswith("/users/authenticate")]
+        """Every request other than a GET, apart from the authentication."""
+        return [(m, p) for m, p in self.requests if m != "GET" and not (m == "POST" and p.endswith("/users/authenticate"))]
 
     # transport
     def transport(self) -> httpx.MockTransport:
         return httpx.MockTransport(self._handle)
 
     def _handle(self, request: httpx.Request) -> httpx.Response:
-        if request.url.host != self.host:
-            self.violations.append(f"request to {request.url.host}")
+        if request.url.host != self.host or request.url.port != self.port:
+            self.violations.append(f"request to {request.url.host}:{request.url.port}")
             return httpx.Response(599, json={"error": "foreign host"})
         for name in request.headers:
             if "sphere" in name.lower():
                 self.violations.append(f"SPHERE header {name}")
         method, path = request.method, request.url.path
         self.requests.append((method, path))
+        self.queries.append((method, path, dict(request.url.params)))
+        self.sent.append(f"{request.url} {dict(request.headers)} {request.content.decode('utf-8', 'replace')}")
         body = json.loads(request.content) if request.content else {}
         if path == "/api/v1/users/authenticate" and method == "POST":
-            if body.get("username") == ADMIN_USER and body.get("password") == ADMIN_PASSWORD:
-                return httpx.Response(200, json={"username": ADMIN_USER, "apiKey": ADMIN_KEY, "role": "ADMIN"})
+            if body.get("username") == self.admin_user and body.get("password") == ADMIN_PASSWORD:
+                return httpx.Response(200, json={"username": self.admin_user, "apiKey": self.admin_key, "role": "ADMIN"})
             return httpx.Response(401, json={"error": "bad credentials"})
+        # Which key each route takes is an assumption of these tests (UNVERIFIED against a live v1.7.1): the admin key
+        # on the organization routes, the organization's MANAGEMENT key on the service and pricing routes.  So is the
+        # visibility of key values in GET /organizations (``hide_management_values`` simulates the opposite).
         key = request.headers.get("x-api-key")
-        if key != ADMIN_KEY and key not in self.issued_keys:
-            self.violations.append(f"unknown api key on {method} {path}")
-            return httpx.Response(401, json={"error": "unknown key"})
-        return self._route(method, path, body)
+        wanted = self.admin_key if path.startswith("/api/v1/organizations") else None
+        if wanted is not None and key != wanted:
+            self.violations.append(f"not the admin key on {method} {path}")
+            return httpx.Response(401, json={"error": "admin key required"})
+        if wanted is None and key not in self.issued_keys:
+            self.violations.append(f"not a MANAGEMENT key on {method} {path}")
+            return httpx.Response(401, json={"error": "MANAGEMENT key required"})
+        return self._route(method, request.url.raw_path.decode("ascii").split("?", 1)[0], path,
+                           dict(request.url.params), body)
 
-    def _route(self, method: str, path: str, body: dict) -> httpx.Response:
+    def _route(self, method: str, raw: str, path: str, params: dict, body: dict) -> httpx.Response:
         if path == "/api/v1/organizations":
             if method == "GET":
-                return httpx.Response(200, json=json.loads(json.dumps(self.organizations)))
+                if self.redirect_organizations:
+                    return httpx.Response(302, headers={"location": self.redirect_organizations})
+                found = [o for o in self.organizations if params.get("q", "").lower() in o["name"].lower()]
+                limit = min(int(params.get("limit", 10)), 50)
+                offset = int(params.get("offset", 0))
+                page = [self._org_view(o) for o in found[offset:offset + limit]]
+                if self.orgs_shape == "list":
+                    return httpx.Response(200, json=page)
+                if self.orgs_shape == "data":
+                    return httpx.Response(200, json={"data": page})
+                return httpx.Response(200, json={"data": page, "pagination": {
+                    "offset": offset, "limit": limit, "total": len(found), "page": offset // limit + 1,
+                    "pages": -(-len(found) // limit)}})
             if method == "POST":
-                if body.get("name") != "openbinding" or body.get("owner") != ADMIN_USER:
+                if body.get("name") != "openbinding" or body.get("owner") != self.admin_user:
                     return httpx.Response(400, json={"error": "bad organization"})
                 org = self.add_organization()
-                return httpx.Response(201, json=json.loads(json.dumps(org)))
-        match = re.fullmatch(r"/api/v1/organizations/([^/]+)/api-keys", path)
+                return httpx.Response(201, json=self._org_view(org))
+        match = re.fullmatch(r"/api/v1/organizations/([^/]+)/api-keys", raw)
         if match and method == "POST":
-            org = next((o for o in self.organizations if o["id"] == match.group(1)), None)
+            org_id = urllib.parse.unquote(match.group(1))
+            org = next((o for o in self.organizations if o[self.id_field] == org_id), None)
             if org is None or body.get("scope") != "MANAGEMENT":
                 return httpx.Response(400, json={"error": "bad key request"})
             self.key_posts += 1
             self._new_key(org)
             return httpx.Response(200, json=json.loads(json.dumps(org)))
+        match = re.fullmatch(r"/api/v1/organizations/([^/]+)", raw)
+        if match and method in ("PUT", "PATCH", "DELETE"):
+            org_id = urllib.parse.unquote(match.group(1))
+            org = next((o for o in self.organizations if o[self.id_field] == org_id), None)
+            if org is None:
+                return httpx.Response(404, json={"error": "not found"})
+            if method == "DELETE":
+                self.organizations.remove(org)
+                return httpx.Response(204)
+            org.update(body)
+            return httpx.Response(200, json=self._org_view(org))
         if path == "/api/v1/services" and method == "GET":
-            return httpx.Response(200, json=list(self.services.values()))
+            return httpx.Response(200, json=json.loads(json.dumps(list(self.services.values()))))
         if path == "/api/v1/services" and method == "POST":
             if self.fail_service_post:
-                text = f"service failed for key {self.issued_keys[-1] if self.issued_keys else ADMIN_KEY} password {ADMIN_PASSWORD}" \
+                text = f"service failed for key {self.issued_keys[-1] if self.issued_keys else self.admin_key} password {ADMIN_PASSWORD}" \
                     if self.echo_on_error else "service failed"
                 return httpx.Response(500, json={"error": text}, headers={"x-debug": text} if self.echo_on_error else {})
             if (body.get("source"), body.get("permanentUrl"), body.get("policy")) != ("sphere", SPHERE_LINK, "all_last"):
                 return httpx.Response(400, json={"error": "bad service"})
-            service = {"name": self.created_name, **body}
+            service = {"name": self.created_name, "source": "sphere",
+                       "sphere": {"permanentUrl": SPHERE_LINK, "policy": "all_last", "status": "queued"}}
             self.services[self.created_name] = service
             self.sync_status[self.created_name] = "queued"
             return httpx.Response(201, json=service)
@@ -522,29 +592,53 @@ class FakeSpace:
                 return httpx.Response(404, json={"error": "not found"})
             if tail == "" and method == "GET":
                 return httpx.Response(200, json=service)
+            if tail == "" and method in ("PUT", "PATCH"):
+                service.update(body)
+                return httpx.Response(200, json=service)
+            if tail == "" and method == "DELETE":
+                del self.services[name]
+                return httpx.Response(204)
             if tail == "/synchronization/run" and method == "POST":
                 self.sync_status[name] = "queued"
                 return httpx.Response(202, json={"status": "queued"})
             if tail == "/synchronization" and method == "GET":
-                if self.sync_status[name] != "ready" and self.sync_script:
+                # only a synchronization in progress advances; ready and the abort statuses stay
+                if self.sync_status[name] in IN_PROGRESS and self.sync_script:
                     self.sync_status[name] = self.sync_script.pop(0) if len(self.sync_script) > 1 else self.sync_script[0]
                 self.sync_polls += 1
                 status = self.sync_status[name]
-                return httpx.Response(200, json={"status": status, "error": "sync broke" if status in ("failed", "blocked") else None})
+                if self.sync_shape == "top":
+                    return httpx.Response(200, json={"status": status})
+                return httpx.Response(200, json={
+                    "source": "sphere",
+                    "configuration": {"permanentUrl": SPHERE_LINK, "policy": "all_last", "status": status,
+                                      "error": "sync broke" if status in ("failed", "blocked") else None},
+                    "retainedVersions": [], "run": None})
             if tail == "/pricings" and method == "GET":
-                if self.map_shape:
-                    return httpx.Response(200, json=self.pricings)
                 return httpx.Response(200, json=self.pricings)
         return httpx.Response(404, json={"error": f"unexpected {method} {path}"})
 
 
-class FakeContracts:
-    """Records the ContractToCreate models of space_client.types.models; get_contract returns None when missing."""
+def space_api_error(status_code: int, payload=None):
+    """A SpaceApiError as space-python-client 1.0.0 raises it: (status_code, method, path, payload)."""
+    from space_client import SpaceApiError
 
-    def __init__(self):
+    return SpaceApiError(status_code=status_code, method="GET", path="/contracts/sample", payload=payload)
+
+
+class FakeContracts:
+    """Records the ContractToCreate models of space_client.types.models.
+
+    ``missing``: what get_contract does for a user without a contract, ``"none"`` (return None) or ``"404"`` (raise
+    SpaceApiError 404, as the client does).  ``refuse``: add_contract returns None and stores nothing, as the client
+    does on a 4xx.  ``error``: an exception get_contract raises for every user.
+    """
+
+    def __init__(self, *, missing: str = "none", refuse: bool = False, error: Exception | None = None):
         self.store: dict[str, SimpleNamespace] = {}
         self.added: list = []
         self.gets: list[str] = []
+        self.missing, self.refuse, self.error = missing, refuse, error
 
     def preload(self, name: str, version: str = "1.1.0", plan: str = "FREE") -> None:
         self.store[seed_id(name)] = SimpleNamespace(contracted_services={"openbinding": version},
@@ -552,10 +646,16 @@ class FakeContracts:
 
     async def get_contract(self, user_id: str):
         self.gets.append(user_id)
+        if self.error is not None:
+            raise self.error
+        if user_id not in self.store and self.missing == "404":
+            raise space_api_error(404, {"error": "Contract not found"})
         return self.store.get(user_id)
 
     async def add_contract(self, contract_to_create):
         self.added.append(contract_to_create)
+        if self.refuse:
+            return None
         user_id = contract_to_create.user_contact.user_id
         self.store[user_id] = SimpleNamespace(contracted_services=dict(contract_to_create.contracted_services),
                                               subscription_plans=dict(contract_to_create.subscription_plans))
@@ -639,7 +739,8 @@ def test_it_creates_organization_key_service_and_contracts(tool):
     assert report == {"organization": "created", "apiKey": "created", "service": "created", "synchronization": "ready",
                       "contracts": {name: "created" for name in USERS}}
     assert len(fake.organizations) == 1 and fake.organizations[0]["owner"] == ADMIN_USER
-    assert [k["scope"] for k in fake.organizations[0]["apiKeys"]] == ["MANAGEMENT"]
+    # SPACE gives a new organization a key of scope ALL; the tool adds exactly one MANAGEMENT key
+    assert [k["scope"] for k in fake.organizations[0]["apiKeys"]] == ["ALL", "MANAGEMENT"]
     assert set(fake.services) == {"openbinding"}
     assert len(contracts.added) == 6
 
@@ -695,7 +796,7 @@ def test_contracts_use_the_client_and_the_ids_of_the_seed(tool):
 def test_archived_pricings_are_ignored_in_the_map_shape(tool):
     # [utest->req~lab-space-bootstrap-creates~1]
     pricings = {"activePricings": {"1.0.0": {}, "1.1.0": {}}, "archivedPricings": {"2.0.0": {}}}
-    fake, contracts = FakeSpace(pricings=pricings, map_shape=True), FakeContracts()
+    fake, contracts = FakeSpace(pricings=pricings), FakeContracts()
     run(tool, fake, contracts)
     assert {m.contracted_services["openbinding"] for m in contracts.added} == {"1.1.0"}
 
@@ -746,7 +847,7 @@ def test_a_created_service_with_a_foreign_name_aborts(tool):
 def test_no_active_pricing_version_aborts(tool):
     # [utest->req~lab-space-bootstrap-creates~1]
     _assert_aborted(tool, FakeSpace(pricings=[]), FakeContracts(), "pricing")
-    _assert_aborted(tool, FakeSpace(pricings={"activePricings": {}, "archivedPricings": {"2.0.0": {}}}, map_shape=True),
+    _assert_aborted(tool, FakeSpace(pricings={"activePricings": {}, "archivedPricings": {"2.0.0": {}}}),
                     FakeContracts(), "pricing")
 
 
@@ -777,7 +878,8 @@ def test_a_second_run_changes_nothing(tool):
     assert fake.changes() == [], "a second run sent a creating request"
     assert contracts.added == []
     assert fake.count("POST", "/synchronization/run") == 0 and fake.key_posts == 1
-    assert len(fake.organizations) == 1 and len(fake.organizations[0]["apiKeys"]) == 1
+    assert len(fake.organizations) == 1
+    assert [k["scope"] for k in fake.organizations[0]["apiKeys"]].count("MANAGEMENT") == 1
 
 
 def test_a_partial_state_is_completed(tool):
@@ -820,8 +922,10 @@ def test_the_tool_holds_no_sphere_key_and_never_writes_to_sphere(tool):
     code = "\n".join(line for line in source.splitlines() if not line.lstrip().startswith("#"))
     assert "SPHERE_API_KEY" not in source
     assert not re.search(r"environ(?:\.get)?\s*[\[(]\s*['\"]SPHERE_", code), "reads a SPHERE_* variable"
-    assert not re.search(r"""open\([^)]*['"][wax+]b?['"]|\.write_text\(|\.write_bytes\(|Path\([^)]*\)\.write|os\.write\(|\.write\(""",
+    assert not re.search(r"(?:getenv|environ)[^\n]*SPHERE_", code), "reads a SPHERE_* variable"
+    assert not re.search(r"""open\([^)]*['"][rwxab+t]+['"]|\.write_text\(|\.write_bytes\(|Path\([^)]*\)\.write|os\.write\(|\.write\(""",
                          code), "the tool writes to a file"
+    assert not re.search(r"\bos\.open\(|\.touch\(|FileHandler\b", code), "the tool creates a file"
     assert not re.search(r"(print|log\w*\.\w+|logger\.\w+|logging\.\w+)\([^)]*(password|api_?key|\.key\b|secret)", code,
                          re.IGNORECASE), "a password or key is printed or logged"
     # behaviour: every request goes to the SPACE host, none to SPHERE and none with a SPHERE header
@@ -845,11 +949,13 @@ def test_nothing_secret_is_printed_or_persisted(tool, capsys, caplog, tmp_path, 
         haystack = "\n".join([out, err, _logging_records(caplog), *extra])
         for secret in fake.secrets:
             assert secret not in haystack, "a secret reached the output, a log or an error"
+        assert SPHERE_SAMPLE_KEY not in haystack + "\n".join(fake.sent), "the SPHERE key was used"
         assert list(tmp_path.iterdir()) == [], "the tool wrote a file"
 
-    # a successful run through main
+    # a successful run through main; a SPHERE key in the environment is never read nor sent
     fake, contracts = FakeSpace(), FakeContracts()
-    environ = {"SPACE_URL": SPACE_URL, "SPACE_ADMIN_USER": ADMIN_USER, "SPACE_ADMIN_PASSWORD": ADMIN_PASSWORD}
+    environ = {"SPACE_URL": SPACE_URL, "SPACE_ADMIN_USER": ADMIN_USER, "SPACE_ADMIN_PASSWORD": ADMIN_PASSWORD,
+               "SPHERE_API_KEY": SPHERE_SAMPLE_KEY}
 
     async def fake_bootstrap(config, **kwargs):
         return await real(config, transport=fake.transport(), contracts=contracts, sleep=Sleeps())
@@ -859,8 +965,9 @@ def test_nothing_secret_is_printed_or_persisted(tool, capsys, caplog, tmp_path, 
     assert tool.main([], environ) == 0
     out, err = capsys.readouterr()
     assert len(out.strip().splitlines()) == 1 and json.loads(out)["organization"] == "created"
-    for secret in fake.secrets:
+    for secret in [*fake.secrets, SPHERE_SAMPLE_KEY]:
         assert secret not in out and secret not in err
+    assert fake.sent and SPHERE_SAMPLE_KEY not in "\n".join(fake.sent + [repr(m) for m in contracts.added])
     assert_clean(fake)
 
     # bootstrap directly: the report holds no secret
@@ -890,6 +997,297 @@ def test_nothing_secret_is_printed_or_persisted(tool, capsys, caplog, tmp_path, 
     assert tool.main([], environ) == 1
     out, err = capsys.readouterr()
     assert out == "" and len(err.strip().splitlines()) == 1
-    for secret in fake.secrets:
+    for secret in [*fake.secrets, SPHERE_SAMPLE_KEY]:
         assert secret not in err
+    assert SPHERE_SAMPLE_KEY not in "\n".join(fake.sent)
     assert list(tmp_path.iterdir()) == []
+
+
+# -- review round 1: realistic SPACE shapes, existing services, contracts, configuration and boundaries -------------
+
+
+def _error_text(error: BaseException) -> str:
+    text = str(error) + repr(error) + "".join(map(str, error.args))
+    seen = {id(error)}
+    while (error.__cause__ or error.__context__) and id(error.__cause__ or error.__context__) not in seen:
+        error = error.__cause__ or error.__context__
+        seen.add(id(error))
+        text += str(error) + repr(error)
+    return text
+
+
+def test_the_organization_lookup_filters_by_name_and_matches_exactly(tool):
+    # [utest->req~lab-space-bootstrap-idempotent~1]
+    fake, contracts = FakeSpace(), FakeContracts()
+    for index in range(12):  # more than SPACE's default page of 10, all matching the name filter
+        fake.add_organization(name=f"openbinding-lab-{index}")
+    fake.add_organization(with_key=True)
+    report = run(tool, fake, contracts)
+    assert report["organization"] == "exists" and report["apiKey"] == "exists"
+    assert fake.count("POST", "/api/v1/organizations", exact=True) == 0 and fake.key_posts == 0
+    lookups = [params for method, path, params in fake.queries if method == "GET" and path == "/api/v1/organizations"]
+    assert lookups == [{"q": "openbinding", "limit": "50"}]
+
+
+@pytest.mark.parametrize("orgs_shape,id_field", [("admin", "id"), ("admin", "_id"), ("data", "id"), ("list", "_id")])
+def test_a_second_run_on_each_organizations_shape_changes_nothing(tool, orgs_shape, id_field):
+    # [utest->req~lab-space-bootstrap-idempotent~1]
+    fake, contracts = FakeSpace(orgs_shape=orgs_shape, id_field=id_field), FakeContracts(missing="404")
+    first = run(tool, fake, contracts)
+    assert first["organization"] == "created" and first["service"] == "created"
+    fake.requests.clear()
+    contracts.added.clear()
+    report = run(tool, fake, contracts)
+    assert report == {"organization": "exists", "apiKey": "exists", "service": "exists", "synchronization": "skipped",
+                      "contracts": {name: "exists" for name in USERS}}
+    assert fake.changes() == [] and contracts.added == [] and fake.key_posts == 1
+
+
+def test_the_organization_id_is_percent_encoded_in_the_key_route(tool):
+    # [utest->req~lab-space-bootstrap-creates~1]
+    fake, contracts = FakeSpace(), FakeContracts()
+    fake.add_organization(org_id="org/1 x")
+    report = run(tool, fake, contracts)
+    assert report["apiKey"] == "created" and fake.key_posts == 1
+
+
+def test_a_management_key_listed_without_its_value_aborts(tool):
+    # [utest->req~lab-space-bootstrap-idempotent~1]
+    fake, contracts = FakeSpace(hide_management_values=True), FakeContracts()
+    fake.add_organization(with_key=True)
+    _assert_aborted(tool, fake, contracts, "apiKey: the organization lists a MANAGEMENT key without its value")
+    assert fake.key_posts == 0 and fake.changes() == [], "no key may be minted for a hidden one"
+
+
+def test_an_existing_service_still_synchronizing_is_polled_until_ready(tool):
+    # [utest->req~lab-space-bootstrap-idempotent~1]
+    fake, contracts, sleeps = FakeSpace(sync_script=("checking", "applying", "ready")), FakeContracts(), Sleeps()
+    fake.add_organization(with_key=True)
+    fake.add_service(sync="queued")
+    report = run(tool, fake, contracts, sleeps)
+    assert report["service"] == "exists" and report["synchronization"] == "ready"
+    assert fake.count("POST", "/synchronization/run") == 0 and fake.changes() == []
+    assert fake.sync_polls >= 3 and sleeps.calls and set(sleeps.calls) == {5}
+    assert len(contracts.added) == 6
+
+
+@pytest.mark.parametrize("status", ["blocked", "degraded", "failed"])
+def test_an_existing_service_with_a_broken_synchronization_aborts(tool, status):
+    # [utest->req~lab-space-bootstrap-creates~1]
+    fake, contracts = FakeSpace(), FakeContracts()
+    fake.add_organization(with_key=True)
+    fake.add_service(sync=status)
+    _assert_aborted(tool, fake, contracts, f"synchronization.*{status}")
+    assert fake.changes() == [], "nothing is created or run for a broken synchronization"
+
+
+def test_a_top_level_status_and_a_flat_service_are_accepted(tool):
+    # [utest->req~lab-space-bootstrap-idempotent~1]
+    fake, contracts = FakeSpace(sync_shape="top"), FakeContracts()
+    assert run(tool, fake, contracts)["synchronization"] == "ready"
+    fake.requests.clear()
+    assert run(tool, fake, contracts)["synchronization"] == "skipped" and fake.changes() == []
+    fake, contracts = FakeSpace(), FakeContracts()
+    fake.add_organization(with_key=True)
+    fake.add_service(flat=True)
+    report = run(tool, fake, contracts)
+    assert report["service"] == "exists" and report["synchronization"] == "skipped" and fake.changes() == []
+
+
+def test_archived_pricings_are_ignored_in_the_list_shape(tool):
+    # [utest->req~lab-space-bootstrap-creates~1]
+    pricings = [{"version": "1.0.0", "status": "active"}, {"version": "1.1.0"},
+                {"version": "2.0.0", "status": "archived"}]
+    fake, contracts = FakeSpace(pricings=pricings), FakeContracts()
+    run(tool, fake, contracts)
+    assert {m.contracted_services["openbinding"] for m in contracts.added} == {"1.1.0"}
+
+
+def test_a_missing_contract_reported_as_404_is_created(tool):
+    # [utest->req~lab-space-bootstrap-creates~1]
+    fake, contracts = FakeSpace(), FakeContracts(missing="404")
+    contracts.preload("lab-admin")
+    report = run(tool, fake, contracts)
+    assert report["contracts"] == {"lab-admin": "exists", **{name: "created" for name in USERS[1:]}}
+    assert {m.user_contact.user_id for m in contracts.added} == {seed_id(n) for n in USERS[1:]}
+
+
+def test_a_contract_refused_without_an_error_aborts(tool):
+    # [utest->req~lab-space-bootstrap-creates~1]
+    fake, contracts = FakeSpace(), FakeContracts(refuse=True)
+    with pytest.raises(tool.BootstrapError) as raised:
+        asyncio.run(tool.bootstrap(make_config(tool), transport=fake.transport(), contracts=contracts, sleep=Sleeps()))
+    assert str(raised.value) == "contracts: lab-admin not confirmed"
+    assert len(contracts.added) == 1, "the bootstrap stops at the first contract it cannot confirm"
+
+
+def test_a_contract_with_another_plan_is_not_confirmed(tool):
+    # [utest->req~lab-space-bootstrap-creates~1]
+    fake, contracts = FakeSpace(), FakeContracts()
+    real_add = contracts.add_contract
+
+    async def downgrading(model):
+        await real_add(model)
+        contracts.store[model.user_contact.user_id].subscription_plans = {"openbinding": "OTHER"}
+
+    contracts.add_contract = downgrading
+    with pytest.raises(tool.BootstrapError) as raised:
+        asyncio.run(tool.bootstrap(make_config(tool, plan="PRO"), transport=fake.transport(), contracts=contracts,
+                                   sleep=Sleeps()))
+    assert str(raised.value) == "contracts: lab-admin not confirmed"
+
+
+def test_a_contract_lookup_error_names_only_its_type(tool):
+    # [utest->req~lab-space-bootstrap-sphere-readonly~1]
+    fake = FakeSpace()
+    contracts = FakeContracts(error=space_api_error(500, {"error": f"broken for {ADMIN_KEY} {ADMIN_PASSWORD}"}))
+    with pytest.raises(tool.BootstrapError) as raised:
+        asyncio.run(tool.bootstrap(make_config(tool), transport=fake.transport(), contracts=contracts, sleep=Sleeps()))
+    assert str(raised.value) == "contracts: lab-admin failed (SpaceApiError)"
+    text = _error_text(raised.value)
+    for secret in fake.secrets:
+        assert secret not in text
+    assert contracts.added == []
+
+
+def test_the_contracts_client_gets_the_management_key_and_is_closed(tool, monkeypatch):
+    # [utest->req~lab-space-bootstrap-creates~1]
+    fake, contracts = FakeSpace(), FakeContracts()
+    calls: list[tuple] = []
+    closed: list[bool] = []
+
+    async def close():
+        closed.append(True)
+
+    def connect_async(url, api_key, timeout=None):
+        calls.append((url, api_key))
+        return SimpleNamespace(contracts=contracts, close=close)
+
+    monkeypatch.setattr(tool.SpaceClientFactory, "connect_async", staticmethod(connect_async))
+    report = asyncio.run(tool.bootstrap(make_config(tool), transport=fake.transport(), sleep=Sleeps()))
+    assert not fake.violations, fake.violations
+    assert set(report["contracts"].values()) == {"created"} and len(contracts.added) == 6
+    assert calls == [(SPACE_URL, fake.issued_keys[-1])], "the SDK must use the MANAGEMENT key, not the admin key"
+    assert closed == [True]
+
+
+@pytest.mark.parametrize("step", ["connect", "close"])
+def test_a_failing_contracts_client_names_only_the_exception_type(tool, monkeypatch, step):
+    # [utest->req~lab-space-bootstrap-sphere-readonly~1]
+    fake, contracts = FakeSpace(), FakeContracts()
+
+    async def close():
+        if step == "close":
+            raise RuntimeError(f"close failed with {fake.issued_keys[-1]}")
+
+    def connect_async(url, api_key, timeout=None):
+        if step == "connect":
+            raise RuntimeError(f"cannot connect with {api_key}")
+        return SimpleNamespace(contracts=contracts, close=close)
+
+    monkeypatch.setattr(tool.SpaceClientFactory, "connect_async", staticmethod(connect_async))
+    with pytest.raises(tool.BootstrapError) as raised:
+        asyncio.run(tool.bootstrap(make_config(tool), transport=fake.transport(), sleep=Sleeps()))
+    text = _error_text(raised.value)
+    assert "RuntimeError" in str(raised.value)
+    for secret in fake.secrets:
+        assert secret not in text
+
+
+def test_another_space_host_and_admin_user(tool):
+    # [utest->req~lab-space-bootstrap-creates~1]
+    fake, contracts = FakeSpace(host="other-space", admin_user="another-admin", admin_key="admin-key-sample-BBBB2222"), \
+        FakeContracts()
+    config = tool.Config.from_environ({"SPACE_URL": "http://other-space:3000", "SPACE_ADMIN_USER": "another-admin",
+                                       "SPACE_ADMIN_PASSWORD": ADMIN_PASSWORD})
+    report = asyncio.run(tool.bootstrap(config, transport=fake.transport(), contracts=contracts, sleep=Sleeps()))
+    assert not fake.violations, fake.violations
+    assert report["organization"] == "created" and fake.organizations[0]["owner"] == "another-admin"
+    assert len(contracts.added) == 6
+
+
+@pytest.mark.parametrize("url", ["ftp://x", "http://user:pw@host", "http://", "http:///path", "space-api:3000",
+                                 "https://:443"])
+def test_an_invalid_space_url_is_refused(tool, url):
+    # [utest->req~lab-space-bootstrap-creates~1]
+    with pytest.raises(tool.BootstrapError) as raised:
+        tool.Config.from_environ({"SPACE_URL": url, "SPACE_ADMIN_PASSWORD": "pw"})
+    assert url not in str(raised.value) and "user:pw" not in _error_text(raised.value)
+    assert str(raised.value).startswith("configuration: SPACE_URL")
+
+
+@pytest.mark.parametrize("url", ["http://space-api:3000", "https://space.example.org", "http://other-space:3000/"])
+def test_a_valid_space_url_is_accepted(tool, url):
+    # [utest->req~lab-space-bootstrap-creates~1]
+    assert tool.Config.from_environ({"SPACE_URL": url, "SPACE_ADMIN_PASSWORD": "pw"}).space_url == url
+
+
+def test_a_redirect_is_not_followed_and_proxies_are_not_read(tool):
+    # [utest->req~lab-space-bootstrap-sphere-readonly~1]
+    fake, contracts = FakeSpace(redirect_organizations="http://elsewhere:3000/api/v1/organizations"), FakeContracts()
+    _assert_aborted(tool, fake, contracts, "organization")
+    assert fake.count("GET", "/api/v1/organizations") == 1
+    code = _source()
+    assert "follow_redirects=False" in code and "trust_env=False" in code
+
+
+def test_main_reports_an_unexpected_error_by_its_type_only(tool, capsys, monkeypatch):
+    # [utest->req~lab-space-bootstrap-sphere-readonly~1]
+    async def exploding(config, **kwargs):
+        raise RuntimeError(f"boom {ADMIN_KEY} {ADMIN_PASSWORD}")
+
+    monkeypatch.setattr(tool, "bootstrap", exploding)
+    environ = {"SPACE_URL": SPACE_URL, "SPACE_ADMIN_USER": ADMIN_USER, "SPACE_ADMIN_PASSWORD": ADMIN_PASSWORD}
+    assert tool.main([], environ) == 1
+    out, err = capsys.readouterr()
+    assert out == "" and err == "space_lab_bootstrap: unexpected RuntimeError\n"
+
+
+def test_control_the_fake_records_and_applies_modifications():
+    # [utest->req~lab-space-bootstrap-creates~1]
+    fake = FakeSpace()
+    fake.add_organization(with_key=True)
+    fake.add_service()
+
+    async def modify():
+        async with httpx.AsyncClient(base_url=SPACE_URL, transport=fake.transport()) as client:
+            headers = {"x-api-key": fake.issued_keys[-1]}
+            await client.put("/api/v1/services/openbinding", headers=headers, json={"source": "local"})
+            await client.delete("/api/v1/services/openbinding", headers=headers)
+
+    asyncio.run(modify())
+    assert fake.changes() == [("PUT", "/api/v1/services/openbinding"), ("DELETE", "/api/v1/services/openbinding")]
+    assert fake.services == {} and not fake.violations
+
+
+def test_the_tool_imports_only_the_standard_library_httpx_and_space_client():
+    # [utest->req~lab-space-no-direct-http~1]
+    tree = ast.parse(_source())
+    imported = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            assert node.level == 0, "relative import"
+            imported.add(node.module)
+    roots = {name.split(".")[0] for name in imported}
+    assert "openbinding_gateway" not in roots
+    assert roots - set(sys.stdlib_module_names) - {"httpx", "space_client"} == set(), roots
+
+
+def _normalise(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def test_the_tool_requirements_follow_the_gateway_lock():
+    # [utest->req~lab-space-image-pinned-commit~1]
+    locked = {_normalise(p["name"]): p["version"] for p in tomllib.loads(_read(UV_LOCK))["package"] if "version" in p}
+    pins = {}
+    for raw in _read(REQUIREMENTS).splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if "==" in line:
+            name, version = line.split("==", 1)
+            pins[_normalise(name.split("[", 1)[0])] = version.strip()
+    shared = set(pins) & set(locked)
+    assert {"httpx", "space-python-client"} <= shared
+    assert {name: pins[name] for name in shared} == {name: locked[name] for name in shared}
