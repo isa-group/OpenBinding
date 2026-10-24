@@ -1,9 +1,13 @@
 # PR previews: operator runbook
 
-**Status: PLAN, not implemented.** The commands below are the ones change `m05-pr-previews` specifies
-(`openspec/changes/m05-pr-previews/`). They do not exist until the factory's `labctl preview` and the repository's
-Compose parameterisation have landed. Until then, the only lab stack is the develop lab on `127.0.0.1:18100`
-(`docs/DEMO.md`).
+**Status: PLAN for the operator commands.** The commands below are the ones change `m05-pr-previews` specifies
+(`openspec/changes/m05-pr-previews/`). `labctl preview` is factory-side and not built.
+
+- In the repository already: the planner `lab/previews/previews.py` with its tests (`lab/tests/test_previews.py`),
+  and the live isolation probe `lab/tests/test_preview_isolation.py`.
+- Still pending: the Compose parameterisation of the published port (a separate change) and `labctl preview`.
+
+Until then, the only lab stack is the develop lab on `127.0.0.1:18100` (`docs/DEMO.md`).
 
 ## What a preview is
 
@@ -50,6 +54,17 @@ Then open <http://localhost:18101>. The API is at <http://localhost:18101/api/he
 synthetic users of `docs/DEMO.md`. Each preview has its own seed password, kept in the factory's private store: ask
 the operator, who reads it there for you. It is never written in the repository or in the preview's record. Previews
 have no public hostname: the homelab Caddy serves only the develop preview.
+
+## Isolation check
+
+`lab/tests/test_preview_isolation.py` checks, from preview A, that B's port is refused and that A reaches its own
+`web` (one direction; swap A and B and run again for the other). Until the Compose parameterisation and
+`labctl preview` land, only two stand-in projects can run it: each needs a `gateway` service with `python` on PATH, a
+`web` service whose container port 8080 is published on `127.0.0.1:<port>`, and the default network
+`<project>_default`, both up and healthy. It runs only with `OPENBINDING_LAB_PROBE=1` and needs `OPENBINDING_PROBE_PROJECT_A` and
+`OPENBINDING_PROBE_PROJECT_B` (projects `openbinding-pr-<n>`) with `OPENBINDING_PROBE_PORT_A` and
+`OPENBINDING_PROBE_PORT_B` (18101–18199). With the variable set, a missing lab fails instead of skipping. The command
+and the preconditions are in `docs/DEMO.md`, section `PR previews`.
 
 ## When something fails
 
