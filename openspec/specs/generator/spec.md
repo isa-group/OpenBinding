@@ -49,16 +49,28 @@ Evidence: `openbinding-gateway/tests/test_generator_routes.py::test_explicit_fea
 - **THEN** both packages compile to the same `compilation_digest`
 
 ### Requirement: Configuration validation
-IF a configuration has unknown keys (including `qos_properties`, `templates`, `weights`), incomplete feature definitions, aggregations foreign to the feature scope, a scalar together with its distribution, `tension` without guaranteed feasibility, or more than 100 expanded features or 1,000,000 candidate-feature values, THEN THE gateway SHALL answer 422 naming the field.
+IF a configuration has unknown keys (including `qos_properties`, `templates`, `weights`), incomplete feature definitions, aggregations foreign to the feature scope, a scalar with its distribution, or `tension` without guaranteed feasibility, THEN THE gateway SHALL answer 422 naming the field.
 
-`req~generator-config-validation~1`
+`req~generator-config-validation~2`
 
-Evidence: `openbinding-gateway/tests/test_generator_routes.py::test_invalid_generator_configuration_reports_field`; `openbinding-gateway/tests/test_generator_routes.py::test_corpus_rejects_ignored_base_configuration`; `docs/BIM_GENERATOR.md`
+Evidence: `openbinding-gateway/tests/test_generator_routes.py::test_invalid_generator_configuration_reports_field`; `openbinding-gateway/tests/test_generator_routes.py::test_corpus_rejects_ignored_base_configuration`
 
 #### Scenario: Weights in a generation request
 - **GIVEN** a configuration with a `weights` member
 - **WHEN** it is posted
 - **THEN** the gateway answers 422 with a diagnostic pointing at `weights`
+
+### Requirement: Configuration size limits
+IF a configuration expands to more than 100 features or 1,000,000 candidate-feature values, THEN THE gateway SHALL answer 422 naming the field.
+
+`req~generator-config-size-limits~1`
+
+Evidence: GAP — no test names these limits yet; `docs/BIM_GENERATOR.md`
+
+#### Scenario: Too many features
+- **GIVEN** a configuration that expands to 101 features
+- **WHEN** it is posted
+- **THEN** the gateway answers 422 naming the field
 
 ### Requirement: Guaranteed feasibility witness
 WHERE `guarantee_feasibility` is true, THE generator SHALL derive every constraint bound so that one common witness selection satisfies all constraints.
@@ -73,7 +85,7 @@ Evidence: `openbinding-gateway/tests/test_generator_routes.py::test_guaranteed_c
 - **THEN** there is a binding that satisfies all three constraints
 
 ### Requirement: Target engine compatibility hint
-WHERE `target_engines` is given, THE generator SHALL refuse with 422 a configuration whose objectives or aggregations the target engine modes cannot run, and SHALL NOT select an engine on the user's behalf.
+WHERE `target_engines` is given, THE generator SHALL refuse with 422 a configuration whose objectives or aggregations the target modes cannot run, and SHALL NOT select an engine for the user.
 
 `req~generator-target-engines~1`
 

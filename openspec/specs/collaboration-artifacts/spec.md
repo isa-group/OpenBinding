@@ -13,7 +13,7 @@ Sources: `docs/ACCESS_POLICY.md`, `docs/VERSIONED_ARTIFACTS.md`; code in `collab
 ## Requirements
 
 ### Requirement: Private projects are indistinguishable from missing ones
-IF a non-member requests a private project or one that does not exist, THEN THE gateway SHALL answer `403 organization_forbidden` with the same body for both (401 for an anonymous caller).
+IF a non-member requests a private or missing project, THEN THE gateway SHALL answer `403 organization_forbidden` with the same body (401 if anonymous).
 
 `req~collaboration-artifacts-private-indistinguishable~1`
 
@@ -25,11 +25,11 @@ Evidence: `openbinding-gateway/tests/test_b3_public_read.py::test_denied_reads_l
 - **THEN** both answers are 403 `organization_forbidden` with identical bodies
 
 ### Requirement: Public read is GET-only and deny-by-default
-WHERE a project's visibility is `public`, THE gateway SHALL let any caller, including anonymous ones, use only the GET routes listed in the public-read matrix, and SHALL refuse every other route exactly as for a non-member.
+WHERE a project is `public`, THE gateway SHALL let any caller, anonymous included, use only the GET routes in the public-read matrix and SHALL refuse every other route as for a non-member.
 
 `req~collaboration-artifacts-public-read-matrix~1`
 
-Evidence: `openbinding-gateway/tests/test_b3_public_read.py::test_every_get_route_is_classified_exactly_once`; `openbinding-gateway/tests/test_b3_public_read.py::test_nothing_but_get_is_ever_eligible`; `openbinding-gateway/src/openbinding_gateway/access/public_read.py`
+Evidence: `openbinding-gateway/tests/test_b3_public_read.py::test_every_get_route_is_classified_exactly_once`; `openbinding-gateway/tests/test_b3_public_read.py::test_nothing_but_get_is_ever_eligible`
 
 #### Scenario: A new project route is added
 - **GIVEN** a developer adds `GET .../projects/{project}/secrets` without classifying it
@@ -37,23 +37,35 @@ Evidence: `openbinding-gateway/tests/test_b3_public_read.py::test_every_get_rout
 - **THEN** the route-table test fails
 
 ### Requirement: Visitors see only published material
-WHILE a caller reads a public project as a visitor, THE gateway SHALL show only frozen reports with a live publication, publications that are not withdrawn, files marked public, and library artifacts that are published.
+WHILE a caller reads a public project as a visitor, THE gateway SHALL show only frozen reports with a live publication and publications that are not withdrawn.
 
-`req~collaboration-artifacts-visitor-filtering~1`
+`req~collaboration-artifacts-visitor-filtering~2`
 
-Evidence: `openbinding-gateway/tests/test_b3_public_read.py::test_reports_are_only_the_frozen_ones_with_a_live_publication`; `openbinding-gateway/tests/test_b3_public_read.py::test_files_are_listed_and_downloaded_only_when_public`; `openbinding-gateway/tests/test_b3_public_read.py::test_the_library_shows_only_published_artifacts_to_visitors`
+Evidence: `openbinding-gateway/tests/test_b3_public_read.py::test_reports_are_only_the_frozen_ones_with_a_live_publication`
 
 #### Scenario: Draft report in a public project
 - **GIVEN** a public project with one draft report and one frozen published report
 - **WHEN** an anonymous visitor lists reports
 - **THEN** only the frozen published report is listed
 
+### Requirement: Visitors see only public files and published artifacts
+WHILE a caller reads a public project as a visitor, THE gateway SHALL show only files marked public and library artifacts that are published.
+
+`req~collaboration-artifacts-visitor-files-library~1`
+
+Evidence: `openbinding-gateway/tests/test_b3_public_read.py::test_files_are_listed_and_downloaded_only_when_public`; `openbinding-gateway/tests/test_b3_public_read.py::test_the_library_shows_only_published_artifacts_to_visitors`
+
+#### Scenario: Private file in a public project
+- **GIVEN** a public project with one private file and one public file
+- **WHEN** an anonymous visitor lists files
+- **THEN** only the public file is listed
+
 ### Requirement: Public read rate limit
 WHEN a visitor exceeds `PUBLIC_READ_RATE_PER_MINUTE` public reads in a sliding minute, THE gateway SHALL answer 429 `rate_limit_exceeded` with `Retry-After`, without limiting members.
 
 `req~collaboration-artifacts-public-read-rate~1`
 
-Evidence: `openbinding-gateway/tests/test_b3_public_read.py::test_reads_are_limited_per_caller_and_never_touch_the_sponsor`; `openbinding-gateway/tests/test_b3_public_read.py::test_the_limit_can_be_switched_off`; `openbinding-gateway/src/openbinding_gateway/access/public_read.py`
+Evidence: `openbinding-gateway/tests/test_b3_public_read.py::test_reads_are_limited_per_caller_and_never_touch_the_sponsor`; `openbinding-gateway/tests/test_b3_public_read.py::test_the_limit_can_be_switched_off`
 
 #### Scenario: Scraping a public project
 - **GIVEN** the default limit of 240 per minute
@@ -73,7 +85,7 @@ Evidence: `openbinding-gateway/tests/test_artifact_library.py::test_sealed_versi
 - **THEN** the database rejects the statement
 
 ### Requirement: Exact references in case composition
-WHEN a case revision is created, THE gateway SHALL resolve each resource by its exact `{namespace, name, version, versionDigest}`, compile the composition against exact installed contracts without substituting nearby releases, and materialize an executable snapshot.
+WHEN a case revision is created, THE gateway SHALL resolve each resource by its exact `{namespace, name, version, versionDigest}`, compile against the exact installed contracts, never a nearby release, and materialize an executable snapshot.
 
 `req~collaboration-artifacts-exact-composition~1`
 

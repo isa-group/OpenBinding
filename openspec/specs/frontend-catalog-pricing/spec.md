@@ -13,11 +13,23 @@ administered in the remote SPHERE and SPACE consoles; OpenBinding only displays 
 ## Requirements
 
 ### Requirement: Live pricing document
-WHEN the pricing page loads, THE frontend SHALL render the live catalog and release returned by the gateway (version, date, currency, fingerprint), label a pre-1.0 pricing as a development copy, and not use the deprecated YAML document.
+WHEN the pricing page loads, THE frontend SHALL render the live catalog and release returned by the gateway, not the deprecated YAML document.
 
-`req~frontend-catalog-pricing-live-document~1`
+`req~frontend-catalog-pricing-live-document~2`
 
-Evidence: `frontend/src/pages/Pricing/Pricing.test.tsx::reads the live catalog and release, not the deprecated pricing document`; `frontend/src/pages/Pricing/Pricing.test.tsx::labels the release: version, date, currency, fingerprint and the development copy`; `openbinding-gateway/tests/test_published_pricing.py::test_the_catalog_is_the_published_document_as_json`
+Evidence: `frontend/src/pages/Pricing/Pricing.test.tsx::reads the live catalog and release, not the deprecated pricing document`; `openbinding-gateway/tests/test_published_pricing.py::test_the_catalog_is_the_published_document_as_json`
+
+#### Scenario: Deprecated document ignored
+- **GIVEN** the gateway serves a catalog and a release
+- **WHEN** a visitor opens `/pricing`
+- **THEN** the page renders them and does not read the deprecated YAML document
+
+### Requirement: Release labels
+WHEN a release is rendered, THE frontend SHALL show its version, date, currency and fingerprint and label a pre-1.0 pricing as a development copy.
+
+`req~frontend-catalog-pricing-release-labels~1`
+
+Evidence: `frontend/src/pages/Pricing/Pricing.test.tsx::labels the release: version, date, currency, fingerprint and the development copy`
 
 #### Scenario: Pricing 0.1.0
 - **GIVEN** a published pricing with version `0.1.0`
@@ -37,23 +49,35 @@ Evidence: `frontend/src/pages/Pricing/Pricing.test.tsx::offers no price and no c
 - **THEN** `Pro` shows "Contact us" and no amount
 
 ### Requirement: Pricing changes need no code change
-WHEN plans, limits, features or add-ons change in the published document, THE frontend SHALL reflect them without a code change, reading unknown limits by their type, and SHALL contain no OpenBinding-specific mapping layer.
+WHEN plans, limits, features or add-ons change in the published document, THE frontend SHALL reflect them without a code change, reading unknown limits by their type.
 
-`req~frontend-catalog-pricing-document-driven~1`
+`req~frontend-catalog-pricing-document-driven~2`
 
-Evidence: `frontend/src/pricingManifest.test.ts::reflects plan, limit, feature and add-on changes without code changes`; `frontend/src/pricingManifest.test.ts::contains no OpenBinding mapping layer`; `frontend/src/pages/Pricing/pricingModel.test.ts::reads a limit that no table knows by its type`
+Evidence: `frontend/src/pricingManifest.test.ts::reflects plan, limit, feature and add-on changes without code changes`; `frontend/src/pages/Pricing/pricingModel.test.ts::reads a limit that no table knows by its type`
 
 #### Scenario: New limit in the document
 - **GIVEN** a new limit `maxStudies` added in SPHERE
 - **WHEN** the page renders the new release
 - **THEN** the limit is shown with its value without a frontend release
 
+### Requirement: No pricing mapping layer
+THE frontend SHALL contain no OpenBinding-specific mapping layer between the published pricing document and the pricing page.
+
+`req~frontend-catalog-pricing-no-mapping-layer~1`
+
+Evidence: `frontend/src/pricingManifest.test.ts::contains no OpenBinding mapping layer`
+
+#### Scenario: Frontend sources scanned
+- **GIVEN** the frontend pricing sources
+- **WHEN** the manifest test runs
+- **THEN** it finds no OpenBinding-specific mapping layer
+
 ### Requirement: Read-only pricing source
-THE gateway SHALL only issue GET requests to SPHERE, serve only the configured published version, and answer 503 `pricing_unavailable` when SPHERE or the configured version is unavailable.
+THE gateway SHALL only issue GET requests to SPHERE, serve only the configured published version, and answer 503 `pricing_unavailable` if SPHERE or that version is unavailable.
 
 `req~frontend-catalog-pricing-read-only-source~1`
 
-Evidence: `openbinding-gateway/tests/test_published_pricing.py::test_only_get_requests_ever_reach_sphere`; `openbinding-gateway/tests/test_published_pricing.py::test_a_private_version_is_never_shown`; `openbinding-gateway/tests/test_published_pricing.py::test_the_sphere_client_has_no_write_operations`
+Evidence: `openbinding-gateway/tests/test_published_pricing.py::test_only_get_requests_ever_reach_sphere`; `openbinding-gateway/tests/test_published_pricing.py::test_a_private_version_is_never_shown`
 
 #### Scenario: SPHERE down
 - **GIVEN** SPHERE does not answer

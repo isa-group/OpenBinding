@@ -13,11 +13,11 @@ reproducibility.
 ## Requirements
 
 ### Requirement: Resolution without leakage
-WHEN a caller resolves a digest, THE gateway SHALL answer 200 with provenance and only the locations the caller may see if at least one location is public or accessible, and SHALL answer 404 otherwise, identically for a private element and an unknown digest.
+WHEN a caller resolves a digest, THE gateway SHALL answer 200 with provenance and only the locations the caller may see if one is public or accessible, and otherwise 404, identically for a private element and an unknown digest.
 
 `req~resolver-verifier-no-leakage~1`
 
-Evidence: `openbinding-gateway/tests/test_resolve.py::test_resolve_public_and_private_case_revisions`; `openbinding-gateway/tests/test_resolve.py::test_resolve_multi_location_and_pagination`; `docs/RESOLVER_AND_VERIFIER.md`
+Evidence: `openbinding-gateway/tests/test_resolve.py::test_resolve_public_and_private_case_revisions`; `openbinding-gateway/tests/test_resolve.py::test_resolve_multi_location_and_pagination`
 
 #### Scenario: Digest of a private case revision
 - **GIVEN** a case revision in a private project of `acme`
@@ -36,12 +36,36 @@ Evidence: `openbinding-gateway/tests/test_resolve.py::test_resolve_digest_tolera
 - **WHEN** a client calls `GET /v1/resolve/spaceship/{digest}`
 - **THEN** the gateway answers 422
 
-### Requirement: Verifier requires an account and filters by visibility
-IF an anonymous caller uses the verifier, THEN THE gateway SHALL answer 401; WHEN an authenticated caller inspects a document or file, THE gateway SHALL list only registered elements the caller may see, so that a hidden element is indistinguishable from an unregistered digest (same status, fields, text and query work).
+### Requirement: Verifier requires an account
+IF an anonymous caller uses the verifier, THEN THE gateway SHALL answer 401.
 
-`req~resolver-verifier-inspect-visibility~1`
+`req~resolver-verifier-inspect-auth~1`
 
-Evidence: `openbinding-gateway/tests/test_b1_verifier.py::test_anonymous_callers_are_still_refused`; `openbinding-gateway/tests/test_b1_verifier.py::test_members_see_a_private_case_and_everyone_else_sees_nothing`; `openbinding-gateway/tests/test_b1_verifier.py::test_a_hidden_digest_runs_the_same_queries_as_an_unknown_one`
+Evidence: `openbinding-gateway/tests/test_b1_verifier.py::test_anonymous_callers_are_still_refused`
+
+#### Scenario: Anonymous inspection
+- **GIVEN** no credentials
+- **WHEN** a client posts a document to `/v1/verifier/inspect`
+- **THEN** the gateway answers 401
+
+### Requirement: Verifier filters by visibility
+WHEN an authenticated caller inspects a document or file, THE gateway SHALL list only the registered elements the caller may see.
+
+`req~resolver-verifier-inspect-visibility~2`
+
+Evidence: `openbinding-gateway/tests/test_b1_verifier.py::test_members_see_a_private_case_and_everyone_else_sees_nothing`
+
+#### Scenario: Member inspects a private case
+- **GIVEN** a case revision in a private project of `acme`
+- **WHEN** a member of `acme` inspects its document
+- **THEN** the registered element is listed
+
+### Requirement: Hidden elements look unregistered
+WHEN an element is hidden from the caller, THE gateway SHALL answer an inspection exactly as for an unregistered digest (same status, fields, text and query work).
+
+`req~resolver-verifier-inspect-indistinguishable~1`
+
+Evidence: `openbinding-gateway/tests/test_b1_verifier.py::test_a_hidden_digest_runs_the_same_queries_as_an_unknown_one`
 
 #### Scenario: Platform administrator inspects a private file
 - **GIVEN** a platform ADMIN with no role in `acme`
