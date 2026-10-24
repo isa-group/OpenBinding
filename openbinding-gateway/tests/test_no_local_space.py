@@ -127,7 +127,7 @@ def test_pricing_profile_defines_exactly_the_space_services() -> None:
     assert PRICING.is_file()
     manifest = yaml.safe_load(PRICING.read_text(encoding="utf-8"))
     assert _space_service_names(manifest) == PRICING_SPACE_SERVICES
-    assert all(v.startswith("space-") for v in (manifest.get("volumes") or {}))
+    assert all(v.startswith("lab-pricing-") for v in (manifest.get("volumes") or {}))
     assert not _sphere_problems(manifest)
     assert not _space_api_image_problems(manifest)
     assert FORBIDDEN_KEY not in PRICING.read_text(encoding="utf-8")
