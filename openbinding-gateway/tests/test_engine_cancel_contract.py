@@ -28,9 +28,10 @@ from pathlib import Path
 import pytest
 
 from _repo import REPO_ROOT
-from analysis_b3_b4_b6._helpers import PER_ATTEMPT_CANCELLATION, a_job, a_registration, only_job
+from analysis_b3_b4_b6._helpers import PER_ATTEMPT_CANCELLATION, a_job, a_registration, lose_the_worker, only_job
 from openbinding_gateway.core.settings import get_settings
-from openbinding_gateway.db.models import JobState
+from openbinding_gateway.db.models import JobState, utcnow
+from openbinding_gateway.jobs import reconciler
 from openbinding_gateway.services import engines, execution
 from openbinding_gateway.v1 import remote
 from test_remote_cancel import cancel_rows, claim_and_record, cycle, frozen, lose_and_sweep, owner  # noqa: F401
@@ -164,12 +165,21 @@ def credential(monkeypatch) -> dict[str, str]:
     return held
 
 
-async def lost_attempt(session, owner, engine: SimulatedEngine, remote_id: str, **registration):
+async def lost_attempt(session, owner, engine: SimulatedEngine, remote_id: str, frozen=None, **registration):
     """A job whose first attempt used ``remote_id`` on ``engine`` and then lost its lease."""
     deployment = await a_registration(session, owner, endpoint=engine.url, **registration)
     job = await a_job(session, owner, registration=deployment)
     await claim_and_record(session, job, remote_id)
-    await lose_and_sweep(session, job)
+    if frozen is None:
+        await lose_and_sweep(session, job)
+    else:
+        # ``lose_the_worker`` stamps the lease with the real clock, one second in the past; the sweep reads the
+        # frozen one, taken when the fixture started. Bring it up to the real time so that the lease has lapsed
+        # for the sweep however long the setup took.
+        await lose_the_worker(session, job)
+        frozen.now = max(frozen.now, utcnow())
+        await reconciler.sweep_abandoned(session)
+        await session.commit()
     return deployment, job
 
 
@@ -231,7 +241,9 @@ async def test_the_credential_of_another_tenant_cannot_stop_the_job_and_the_404_
     engine = engine_factory()
     remote_id = engine.start_job("tenant-a")
     credential["token"] = TOKEN_B  # the gateway holds the credential of tenant b for this deployment
-    _, job = await lost_attempt(db_session, owner, engine, remote_id, cancellation=PER_ATTEMPT_CANCELLATION)
+    _, job = await lost_attempt(
+        db_session, owner, engine, remote_id, frozen=frozen, cancellation=PER_ATTEMPT_CANCELLATION
+    )
 
     for _ in range(3):
         await cycle(db_session, frozen)
@@ -241,6 +253,25 @@ async def test_the_credential_of_another_tenant_cannot_stop_the_job_and_the_404_
     assert await cancel_rows(db_session, job) == {1: ("skipped", 1)}
 
 
+async def test_a_slow_setup_behind_the_frozen_clock_still_gets_its_lost_attempt_cancelled(
+    db_session, owner, engine_factory, credential, frozen
+):
+    """Regression for an intermittent failure: the frozen clock is taken when the fixture starts, and the lease
+    that ``lose_the_worker`` stamps comes from the real clock. A setup slower than the one-second margin of that
+    helper left the lease in the frozen clock's future, so the sweep saw a live worker and nothing was cancelled."""
+    engine = engine_factory()
+    remote_id = engine.start_job()
+    frozen.advance(-5)  # what a slow setup does to the distance between the two clocks
+    _, job = await lost_attempt(
+        db_session, owner, engine, remote_id, frozen=frozen, cancellation=PER_ATTEMPT_CANCELLATION
+    )
+
+    await cycle(db_session, frozen)
+
+    assert engine.deletes == [remote_id]
+    assert await cancel_rows(db_session, job) == {1: ("sent", 1)}
+
+
 async def test_an_unauthenticated_delete_is_refused_retried_a_bounded_number_of_times_and_stops_nothing(
     db_session, owner, engine_factory, credential, frozen, monkeypatch
 ):
@@ -248,7 +279,9 @@ async def test_an_unauthenticated_delete_is_refused_retried_a_bounded_number_of_
     engine = engine_factory()
     remote_id = engine.start_job()
     credential["token"] = "not-a-token-of-this-engine-01"
-    _, job = await lost_attempt(db_session, owner, engine, remote_id, cancellation=PER_ATTEMPT_CANCELLATION)
+    _, job = await lost_attempt(
+        db_session, owner, engine, remote_id, frozen=frozen, cancellation=PER_ATTEMPT_CANCELLATION
+    )
 
     for _ in range(6):
         await cycle(db_session, frozen)
@@ -267,7 +300,9 @@ async def test_a_202_is_not_a_confirmation_it_is_retried_until_the_engine_confir
     engine = engine_factory()
     engine.stopping_polls = 2  # two answers of "cancelling" (202), then the job is stopped (200)
     remote_id = engine.start_job()
-    _, job = await lost_attempt(db_session, owner, engine, remote_id, cancellation=PER_ATTEMPT_CANCELLATION)
+    _, job = await lost_attempt(
+        db_session, owner, engine, remote_id, frozen=frozen, cancellation=PER_ATTEMPT_CANCELLATION
+    )
 
     first = await cycle(db_session, frozen)
     assert first == 0
@@ -295,7 +330,9 @@ async def test_a_202_that_never_turns_into_a_confirmation_stops_after_the_bounde
     engine = engine_factory()
     engine.stopping_polls = 1000
     remote_id = engine.start_job()
-    _, job = await lost_attempt(db_session, owner, engine, remote_id, cancellation=PER_ATTEMPT_CANCELLATION)
+    _, job = await lost_attempt(
+        db_session, owner, engine, remote_id, frozen=frozen, cancellation=PER_ATTEMPT_CANCELLATION
+    )
 
     sent = 0
     for _ in range(8):
@@ -353,7 +390,9 @@ async def test_an_engine_that_forgot_the_job_answers_404_and_is_not_asked_again(
 ):
     engine = engine_factory()
     remote_id = engine.start_job()
-    _, job = await lost_attempt(db_session, owner, engine, remote_id, cancellation=PER_ATTEMPT_CANCELLATION)
+    _, job = await lost_attempt(
+        db_session, owner, engine, remote_id, frozen=frozen, cancellation=PER_ATTEMPT_CANCELLATION
+    )
     with engine._lock:
         engine.jobs.clear()  # expiry (TTL) or a restart: the jobs are in memory
 
