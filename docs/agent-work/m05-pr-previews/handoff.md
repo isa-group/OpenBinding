@@ -1,7 +1,6 @@
 GOAL: PR previews per PR head in the NiPoGi lab (ROADMAP M0.5), repo side only.
-STATE: spec task ec26ee0461d64be6 integrated into change branch (1b6d833): proposal, design, tasks, delta spec (1 MODIFIED + 9 ADDED reqs), docs/previews/README.md (plan). Clean review inside the task found 4 major + 7 minor, all fixed. G1 task 76e602a7ed7e43dc blocked: openspec binary missing in the QA runner (FileNotFoundError); not a spec defect. CRP crp-openbinding-openspec-g1-waiver open. Branch not yet pushed at the start of this run.
-DECISIONS: slice order set by coordinator: S1b+S3, then S4, S1a+S2 last (S2 waits for the validator accepting DEMO_LAB_PORT, managed by coordinator). One PR preview beside develop is a documented limit. No AI mentions in anything published.
-RULED OUT: touching lab_compose / labctl (outside the repo).
-OPEN: auto-stop of idle running preview (owner question, not blocking). design.md is ~195 lines, change ~540 markdown lines (over the 300 target, spec only).
-NEXT: (1) push and open the spec PR, say G1 not run; (2) panel reviewer + test-reviewer on pushed head, then lead_ready; (3) after merge, slices S1b+S3, S4, S1a+S2 in that order.
-EVIDENCE: task ec26ee0461d64be6 commit d29a958, integrated 1b6d833; task 76e602a7ed7e43dc blocked on G1.
+STATE: PR 30 (draft) is the spec slice. The earlier integration of the specifier task (1b6d833) never reached the pushed branch (pushed 0eaf0d1 only had plan/handoff), so panel round 1 (dbe61d52, e4471dc4) was blocked: nothing to review. A git-based restore task (fc76ed2b) failed: workers have no shell. Restored by three mechanical tasks that wrote the files verbatim from the specifier diff (e00429ab design.md, cc93cd09 proposal+spec, c1619af2 tasks+README), integrated at 50fbce1. Content was copied, not diffed; reviewers must read it.
+DECISIONS: slice order from the coordinator: S1b+S3, S4, S1a+S2 last (S2 waits for the validator accepting DEMO_LAB_PORT). One PR preview beside develop is a documented limit. G1 cannot run (no openspec binary, CRP crp-openbinding-openspec-g1-waiver); say so in the PR.
+OPEN: a lead worktree does not show integrated files; read through lead_task_diff. After PR 30 merges this change completes; later slices need the coordinator to continue them.
+NEXT: (1) push 50fbce1, rerun reviewer + test-reviewer; (2) pr_ready, set_review_package, lead_ready; (3) after merge, slices S1b+S3, S4, S1a+S2.
+EVIDENCE: integrated 50fbce126b52fe07d206d7226a18e2653699dbcf; tasks e00429ab898c4fa3, cc93cd094d8a4fa5, c1619af27ed44fb8.
