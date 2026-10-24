@@ -116,7 +116,7 @@ THE preview manager SHALL run each PR preview as its own Compose project `openbi
 
 `req~lab-deployment-preview-isolation~1`
 
-Evidence: `lab/tests/test_previews.py::test_names_derive_from_the_pr_number`; `lab/tests/test_lab_compose.py::test_top_level_volumes_and_networks_carry_only_labels`; `lab/tests/test_lab_compose.py::test_volumes_are_structured_and_declared`; live probe (S4): GAP `lab/tests/test_preview_isolation.py::test_cross_preview_port_is_unreachable_and_web_is_local`
+Evidence: `lab/tests/test_previews.py::test_names_derive_from_the_pr_number`; `lab/tests/test_lab_compose.py::test_top_level_volumes_and_networks_carry_only_labels`; `lab/tests/test_preview_isolation.py::test_b_port_refused_from_a`; `lab/tests/test_preview_isolation.py::test_a_reaches_own_web`; `lab/tests/test_preview_isolation.py::test_b_port_answers_on_host`; `lab/tests/test_preview_isolation.py::test_web_resolves_to_own_container`
 
 #### Scenario: Two previews
 - **GIVEN** `ready` records of PR 42 on 18101 and PR 57 on 18102, and both PRs moved to new heads
