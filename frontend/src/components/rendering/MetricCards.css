@@ -1,0 +1,28 @@
+.rendering-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rendering-metrics__card {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+}
+
+.rendering-metrics__card dl { margin: 0; }
+.rendering-metrics__card dt { color: var(--color-text-secondary); font-size: 0.75rem; }
+.rendering-metrics__card dd { margin: 0.125rem 0 0; color: var(--color-text-primary); font-size: 1.25rem; font-weight: 600; overflow-wrap: anywhere; }
+
+.rendering-metrics__unit { color: var(--color-text-secondary); font-size: 0.75rem; font-weight: 400; }
+
+.rendering-metrics__trend { margin: 0.25rem 0 0; font-size: 0.75rem; color: var(--color-text-secondary); }
+.rendering-metrics__trend.is-up { color: var(--color-success-text); }
+.rendering-metrics__trend.is-down { color: var(--color-error-text); }
+
+.rendering-metrics__hint { display: block; margin-top: 0.25rem; color: var(--color-text-tertiary); font-size: 0.6875rem; }

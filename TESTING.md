@@ -20,21 +20,38 @@ docs use; `AGENTS.md` §3 lists them per component. Counts are from `spec/platfo
 | QACOBench (`experimentation/qacobench/`) | `test_qacobench.py` (registry/seed stability, resume key, rejection classification, reconciliation, recovery provenance) | `run.sh pilot` (2 instances × 3 engines); `verify_dataset_digests.py` | full campaign (reference `reference/1.1.1/`) | pytest, Docker Compose |
 | ICSOC (`experimentation/icsoc/`) | `generator/tests` (needs the dataset from the branch `data/icsoc-original-dataset`, skipped otherwise) | `tests/integration/test_icsoc_regression.py` (skipped without the dataset) | — | pytest |
 
-## 2. `acceptance/` layout (to be created)
+## 2. `acceptance/` layout and runners
 
 ```
 acceptance/
-  <capability>/
-    <req-slug>.<ext>      # one file per requirement or scenario group; tagged [utest->req~<capability>-<slug>~N]
-  README.md               # how to run, which runner per capability
+  README.md               # how to run, which runner per surface
+  api/
+    pytest.ini            # runner configuration (pytest)
+    conftest.py           # maps "no tests collected" (exit 5) to exit 0
+    <capability>/
+      test_<slug>.py      # tagged [utest->req~<capability>-<slug>~N]
+  ui/
+    <capability>/
+      <slug>.spec.ts      # Playwright; tagged the same way
 ```
 
 - Written only by the test-designer from the spec and public interfaces (OpenAPI, BIM schemas, engine protocol,
   route registry); never by the implementer; frozen for the duration of a change (G4).
 - Gateway acceptance tests are pytest against `create_app()` or the Compose stack; frontend acceptance tests are
   Playwright specs; engine acceptance tests speak `bim-engine/v1` over HTTP.
+- One runner per surface, both exit 0 while `acceptance/` holds no tests:
+  - API, from the repository root (CI job `lab`):
+    `openbinding-gateway/.venv/bin/python -m pytest -c acceptance/api/pytest.ini acceptance/api`.
+  - UI, from `frontend/` (CI job `frontend`):
+    `pnpm exec playwright test --config playwright.acceptance.config.ts --pass-with-no-tests`. The configuration
+    (`frontend/playwright.acceptance.config.ts`) has `testDir` `../acceptance/ui` and starts the Vite dev server unless
+    `PLAYWRIGHT_BASE_URL` is set.
+- `--pass-with-no-tests` and the exit-5-to-0 mapping of `acceptance/api/conftest.py` exist only for the empty start. Remove
+  them when the first acceptance test of each surface lands, so that a runner that collects nothing fails from then on.
+- Engine acceptance tests (`bim-engine/v1` over HTTP) are pytest files under `acceptance/api/<capability>/`.
 
-> OPEN QUESTION: one top-level `acceptance/` with per-component runners, or `acceptance/` inside each component?
+Decision: one top-level `acceptance/` with one runner per surface, not an `acceptance/` inside each component. The
+tests are frozen apart from the implementation (G4), so they sit outside the component trees that the implementer edits.
 
 ## 3. Property-based tests
 
