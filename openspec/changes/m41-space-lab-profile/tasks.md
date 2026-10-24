@@ -28,9 +28,9 @@ next to the proof that it refuses what it must; splitting them would separate a 
   service and that a tag-only or unlisted-digest reference is refused for `space-api`.
 - [x] 1.3 `openbinding-gateway/tests/test_no_local_space.py`: narrowed as design.md §4 says;
   `[utest->req~lab-deployment-no-local-space~2]`.
-- Acceptance: the tests fail while `compose.lab-pricing.json` does not exist (assertion on the file). The red_before
-  check cannot see non-acceptance files, so it does not prove this. The tests-first proof is the integration order: the
-  tests are integrated first, red by design, then S2 turns them green.
+- Acceptance: the tests were written before the manifest and the runbook, in separate tasks. No red run is recorded: a
+  red_before check cannot see non-acceptance files. The evidence that each rule can fail is the set of controls that
+  mutate the conforming SAMPLE and expect a refusal. S1 is not integrated alone; it ships in the S2 PR.
 
 ## S2. Manifest, runbook and pointer (~150 lines + S1; same PR as S1)
 - [x] 2.1 `compose.lab-pricing.json`: three services `space-mongo`, `space-redis`, `space-api` and the volumes
@@ -64,6 +64,10 @@ next to the proof that it refuses what it must; splitting them would separate a 
 - M4.2/M4.5: how `SPACE_URL` reaches the gateway (fold the services into the main lab manifest, or another route with a
   recorded exception to the no-`networks` rule); a memory decision for SPACE in previews (2 x (4032 + 1088) > 9216); the
   seed guard that refuses service `openbinding` (`docs/DEMO.md`, about line 195).
+- Before the archive task: add `lab/tests` to the oft-trace paths in `.agentic/project.yaml` (R2-REV-004), so the tags in
+  the lab tests are traced.
+- S4 takes a revision 2 of `start-order` so that the one-shot `pricing-bootstrap` has no healthcheck (lab convention
+  ONE_SHOT; R2-REV-001).
 - Coordinator: update ARCHITECTURE §9.4 once the MANAGEMENT key placement is decided.
 - Owner: confirm the lab-only risk of redis 7.4.2 and mongo 7.0.16 (runbook, Known advisories); bump to current patch
   releases by verified digest.

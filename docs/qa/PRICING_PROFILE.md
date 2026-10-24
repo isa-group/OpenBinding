@@ -52,9 +52,15 @@ The supervisor injects them; the manifest holds bare references only, with no va
 - `DEMO_SPACE_MONGO_PASSWORD`: password of the MongoDB root user `space`, used by `space-mongo` and in the `MONGO_URI` of
   `space-api`. Use only letters, digits, `-`, `_` and `.`: it is embedded in a URL.
 
-All four values must be set and non-empty before bring-up. Compose turns an unset variable into an empty string, and
-SPACE would then start with an empty admin password. A preflight that refuses an unset or empty value is a factory
-follow-up.
+All four values must be set and non-empty before bring-up. Compose turns an unset variable into an empty string. The
+impact of an empty value, per variable:
+
+- `DEMO_SPACE_ADMIN_PASSWORD` empty: SPACE would start with an empty admin password.
+- `DEMO_SPACE_JWT_SECRET` empty: token signing is weakened.
+- `DEMO_SPACE_JWT_SALT` empty: token signing is weakened.
+- `DEMO_SPACE_MONGO_PASSWORD` empty: MongoDB may be left without authentication (UNVERIFIED).
+
+A preflight that refuses an unset or empty value does not exist yet; it is a factory follow-up.
 
 MongoDB creates its root user on the first start of an empty volume only. Changing `DEMO_SPACE_MONGO_PASSWORD` later means
 removing the project's `lab-pricing-mongo` volume (`labctl destroy` of this project removes its own `lab-pricing-*`
@@ -82,6 +88,12 @@ inside the project.
 
 Medium-confidence facts from secondary sources, to be confirmed by the owner. `redis` 7.4.2 and `mongo` 7.0.16 are the
 versions of SPACE 1.7.1's production compose, and their digests were verified on Docker Hub on 2026-10-24. They predate
-later patch releases with published advisories (redis fixes in 7.4.3 to 7.4.6; mongo 7.0.28). The profile is lab-only,
-publishes no port, holds synthetic data and has a single peer. Bumping to current patch releases by verified digest is a
-follow-up; the acceptance of this lab-only risk is for the owner to confirm.
+later patch releases with published advisories:
+
+- Redis, fixed in 7.4.3 to 7.4.6: CVE-2025-21605, CVE-2025-27151, CVE-2025-32023, CVE-2025-48367, CVE-2025-49844,
+  CVE-2025-46817, CVE-2025-46818, CVE-2025-46819.
+- MongoDB, fixed in 7.0.28: CVE-2025-14847.
+
+These ids come from secondary sources (medium confidence). Redis runs without a password and its only peer is
+`space-api`. The profile is lab-only, publishes no port and holds synthetic data. Bumping to current patch releases by
+verified digest is a follow-up; the acceptance of this lab-only risk remains the owner's decision.

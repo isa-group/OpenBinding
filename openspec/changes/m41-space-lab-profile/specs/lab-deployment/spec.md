@@ -66,7 +66,7 @@ THE services of the pricing profile SHALL use images pinned by digest and listed
 
 `req~lab-deployment-pricing-profile-pinned-images~1`
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_pinned_images_match_the_runbook`; `lab/tests/test_lab_pricing_profile.py::test_runbook_documents_the_gap_and_the_bring_up`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_unpinned_images`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_an_unverified_space_api_version`
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_pinned_images_match_the_runbook`; `lab/tests/test_lab_pricing_profile.py::test_runbook_documents_the_gap_and_the_bring_up`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_unpinned_images`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_an_unverified_space_api_version`; `lab/tests/test_lab_pricing_profile.py::test_control_runbook_parsers_refuse_malformed_text`
 
 Verified on 2026-10-24 against Docker Hub: `mongo:7.0.16` `sha256:c630c59342c1493d50345136df2af14a76b9e827dd5316bfabee07a0880a5f3a` and `redis:7.4.2` `sha256:fbdbaea47b9ae4ecc2082ecdb4e1cea81e32176ffb1dcf643d422ad07427e5d9`. No space-api reference has been verified by this change; no digest is guessed for `space-api`. `ghcr.io/scorelabus/space-api:1.7.1` (ARCHITECTURE §9.4) is an unverified candidate submitted to the owner in question 1 of the open owner request. A build option would need a revision 2 of this requirement (build context pinned by commit SHA plus a check for it); the digest path needs none.
 
@@ -106,6 +106,11 @@ Verified on 2026-10-24 against Docker Hub: `mongo:7.0.16` `sha256:c630c59342c149
 - **WHEN** the image rule is applied
 - **THEN** it fails
 
+#### Scenario: Parser controls on malformed runbook text
+- **GIVEN** text samples of a GAP entry and of the verified list that are malformed (a GAP entry that does not name `space-api` or the request id, a verified line without a date or with a short digest)
+- **WHEN** the runbook parsers read them
+- **THEN** the parsers refuse them, so a runbook that does not document the GAP cannot satisfy the image rule
+
 ### Requirement: Memory budget of the pricing profile
 THE pricing profile SHALL set a whole-unit `mem_limit` on every service, keep their sum equal to the sum documented in the runbook and within the profile ceiling of 1152 MiB, and keep the MongoDB cache, the Redis `maxmemory` and the Node heap each below the limit of its container, so that the develop lab, one PR preview and the profile stay within the 9216 MiB lab cap.
 
@@ -120,7 +125,6 @@ The final sum is 1088 MiB: 512 (`space-mongo`) + 96 (`space-redis`) + 384 (`spac
 - **WHEN** the static checks sum them
 - **THEN** the profile sum is 992 MiB (1088 MiB after S4), at most 1152 MiB
 - **AND** 4032 + 4032 + 1088 is at most 9216 MiB
-- **AND** 2 x 4032 + 1088 is at most 9216 MiB
 
 #### Scenario: A service without a limit
 - **GIVEN** a profile service whose `mem_limit` is removed
@@ -138,7 +142,7 @@ The final sum is 1088 MiB: 512 (`space-mongo`) + 96 (`space-redis`) + 384 (`spac
 - **THEN** they fail
 
 ### Requirement: Pricing profile isolated from the host
-THE pricing profile SHALL publish no host port and expose none, use no `networks` or `network_mode` key (the project default network applies), mount no socket or host path (only its two named volumes `lab-pricing-mongo` and `lab-pricing-redis`, declared with labels only), set no privilege or destructive key, run every service as a numeric non-root user, and use only the service keys `image`, `user`, `command`, `environment`, `volumes`, `mem_limit`, `healthcheck` and `depends_on`.
+THE pricing profile SHALL publish no host port and expose none, use no `networks` or `network_mode` key (the project default network applies), mount no socket or host path (only its two named volumes `lab-pricing-mongo` and `lab-pricing-redis`, declared with labels only and no `driver_opts`), declare no top-level `networks`, set no privilege or destructive key, run every service as a numeric non-root user with a numeric non-root group id when the `user` value carries one (`uid:gid`), and use only the service keys `image`, `user`, `command`, `environment`, `volumes`, `mem_limit`, `healthcheck` and `depends_on`.
 
 `req~lab-deployment-pricing-profile-isolated~1`
 
@@ -156,6 +160,11 @@ Evidence: `lab/tests/test_lab_pricing_profile.py::test_isolated_services`; `lab/
 
 #### Scenario: Key outside the allow-list
 - **GIVEN** a profile service with `security_opt`, `userns_mode` or `build`
+- **WHEN** the static checks run
+- **THEN** they fail
+
+#### Scenario: Group id, volume driver or top-level network
+- **GIVEN** a profile service with user `1000:0`, a volume declared with `driver_opts`, or a top-level `networks` section
 - **WHEN** the static checks run
 - **THEN** they fail
 
@@ -187,7 +196,7 @@ Evidence: `lab/tests/test_lab_pricing_profile.py::test_secret_references_are_bar
 - **THEN** they fail
 
 ### Requirement: Start order of the pricing profile
-THE pricing profile SHALL give every service a healthcheck, and `space-api` SHALL depend on `space-mongo` and `space-redis` with the condition `service_healthy` only.
+THE pricing profile SHALL give every long-running service (`space-mongo`, `space-redis` and `space-api`) a healthcheck that is not disabled (a test of `NONE` or a `disable` key does not count), and `space-api` SHALL depend on `space-mongo` and `space-redis` with the condition `service_healthy` only; the one-shot `pricing-bootstrap` is exempt, as in the lab rules.
 
 `req~lab-deployment-pricing-profile-start-order~1`
 
@@ -199,12 +208,17 @@ Evidence: `lab/tests/test_lab_pricing_profile.py::test_start_order_waits_for_hea
 - **THEN** they fail
 
 #### Scenario: Service without healthcheck
-- **GIVEN** a profile service with no healthcheck test
+- **GIVEN** a long-running profile service with no healthcheck test, or with a test of `NONE` or a `disable` key
 - **WHEN** the static checks run
 - **THEN** they fail
 
+#### Scenario: One-shot bootstrap
+- **GIVEN** the one-shot `pricing-bootstrap` service without a healthcheck (slice S4)
+- **WHEN** the static checks run
+- **THEN** the start-order rule does not fail for it
+
 ### Requirement: Remote SPHERE only
-THE `space-api` service of the pricing profile SHALL be configured with `SPHERE_SYNC_ENABLED=true`, `SPHERE_PUBLIC_URL=https://sphere.score.us.es`, `SPHERE_API_URL=https://sphere.score.us.es/api/v1` and `SPHERE_ALLOW_LOCAL_HTTP=false`, and every URL of any scheme in the manifest SHALL have a host in {`space-mongo`, `space-redis`, `space-api`, `sphere.score.us.es`, `127.0.0.1`}.
+THE `space-api` service of the pricing profile SHALL be configured with `SPHERE_SYNC_ENABLED=true`, `SPHERE_PUBLIC_URL=https://sphere.score.us.es`, `SPHERE_API_URL=https://sphere.score.us.es/api/v1` and `SPHERE_ALLOW_LOCAL_HTTP=false`, and every URL of any scheme in the manifest SHALL have a host in {`space-mongo`, `space-redis`, `space-api`, `sphere.score.us.es`, `127.0.0.1`}, checking every host of a multi-host URI; the environment keys of `space-api` and its healthcheck command are pinned.
 
 `req~lab-deployment-pricing-profile-remote-sphere~1`
 
@@ -222,6 +236,16 @@ Evidence: `lab/tests/test_lab_pricing_profile.py::test_remote_sphere_is_the_only
 
 #### Scenario: A foreign host in another scheme
 - **GIVEN** a URL such as `mongodb://other-host:27017/` or `redis://other-host:6379` anywhere in the manifest
+- **WHEN** the static checks run
+- **THEN** they fail
+
+#### Scenario: A foreign host among several
+- **GIVEN** a multi-host URI such as `mongodb://space-mongo:27017,other-host:27017/`
+- **WHEN** the static checks run
+- **THEN** they fail, because every host is checked
+
+#### Scenario: Pinned environment and healthcheck of space-api
+- **GIVEN** `space-api` with an extra or missing environment key, or a changed healthcheck command
 - **WHEN** the static checks run
 - **THEN** they fail
 
