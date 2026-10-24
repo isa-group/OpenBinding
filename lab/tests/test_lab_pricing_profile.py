@@ -17,7 +17,6 @@ import importlib.util
 import json
 import re
 from pathlib import Path
-from urllib.parse import urlsplit
 
 import pytest
 
@@ -50,7 +49,14 @@ PINNED_OWNER = {"MONGO_INITDB_ROOT_PASSWORD": "space-mongo"}  # the others belon
 MONGO_PASSWORD_REFERENCE = "${DEMO_SPACE_MONGO_PASSWORD}"
 ALLOWED_HOSTS = {*SERVICES, "sphere.score.us.es", "127.0.0.1"}
 URL = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://[^\s'\"`<>]*")
-FINAL_BUDGET_MIB = 1088  # the manifest's 992 MiB plus the deferred bootstrap service (runbook: final budget)
+BOOTSTRAP_MIB = 96  # the deferred pricing-bootstrap service; the final budget is the runbook's sum plus this
+# The keys and the command are pinned, not the image-dependent values the runbook still lists as unverified.
+API_ENV_KEYS = {"NODE_OPTIONS", "MONGO_URI", "REDIS_URL", "JWT_SECRET", "JWT_SALT", "ADMIN_USER", "ADMIN_PASSWORD",
+                "SERVER_PORT", "SPHERE_SYNC_ENABLED", "SPHERE_PUBLIC_URL", "SPHERE_API_URL", "SPHERE_ALLOW_LOCAL_HTTP"}
+API_HEALTHCHECK = [
+    "CMD", "node", "-e",
+    "fetch('http://127.0.0.1:3000/api/v1/healthcheck').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+]
 SPHERE = {
     "SPHERE_SYNC_ENABLED": "true",
     "SPHERE_PUBLIC_URL": "https://sphere.score.us.es",
@@ -61,19 +67,21 @@ MONGO_IMAGE = "mongo:7.0.16@sha256:c630c59342c1493d50345136df2af14a76b9e827dd531
 REDIS_IMAGE = "redis:7.4.2@sha256:fbdbaea47b9ae4ecc2082ecdb4e1cea81e32176ffb1dcf643d422ad07427e5d9"
 SYNTHETIC_API_IMAGE = "example.invalid/space-api:1.7.1@sha256:" + "ab" * 32  # only for the in-memory controls
 
+# SAMPLE mirrors compose.lab-pricing.json: update it together with the manifest.
 SAMPLE = {
     "name": "openbinding-lab-pricing",
     "services": {
         "space-mongo": {
             "image": MONGO_IMAGE, "user": "999:999", "mem_limit": "512m",
             "command": ["mongod", "--wiredTigerCacheSizeGB", "0.25"],
-            "environment": {"MONGO_INITDB_ROOT_PASSWORD": "${DEMO_SPACE_MONGO_PASSWORD}"},
+            "environment": {"MONGO_INITDB_ROOT_USERNAME": "space",
+                            "MONGO_INITDB_ROOT_PASSWORD": "${DEMO_SPACE_MONGO_PASSWORD}"},
             "volumes": [{"type": "volume", "source": "lab-pricing-mongo", "target": "/data/db"}],
-            "healthcheck": {"test": ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ping:1})'"]},
+            "healthcheck": {"test": ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\""]},
         },
         "space-redis": {
             "image": REDIS_IMAGE, "user": "999:999", "mem_limit": "96m",
-            "command": ["redis-server", "--maxmemory", "64mb"],
+            "command": ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "noeviction"],
             "volumes": [{"type": "volume", "source": "lab-pricing-redis", "target": "/data"}],
             "healthcheck": {"test": ["CMD", "redis-cli", "ping"]},
         },
@@ -81,17 +89,18 @@ SAMPLE = {
             "image": SPACE_API_GAP_IMAGE, "user": "1000:1000", "mem_limit": "384m",
             "environment": {
                 "NODE_OPTIONS": "--max-old-space-size=192",
-                "MONGO_URI": "mongodb://root:${DEMO_SPACE_MONGO_PASSWORD}@space-mongo:27017/space",
+                "MONGO_URI": "mongodb://space:${DEMO_SPACE_MONGO_PASSWORD}@space-mongo:27017/space_db?authSource=admin",
                 "REDIS_URL": "redis://space-redis:6379",
                 "JWT_SECRET": "${DEMO_SPACE_JWT_SECRET}", "JWT_SALT": "${DEMO_SPACE_JWT_SALT}",
-                "ADMIN_PASSWORD": "${DEMO_SPACE_ADMIN_PASSWORD}", **SPHERE,
+                "ADMIN_USER": "lab-space-admin", "ADMIN_PASSWORD": "${DEMO_SPACE_ADMIN_PASSWORD}",
+                "SERVER_PORT": "3000", **SPHERE,
             },
             "depends_on": {"space-mongo": {"condition": "service_healthy"},
                            "space-redis": {"condition": "service_healthy"}},
-            "healthcheck": {"test": ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health || exit 1"]},
+            "healthcheck": {"test": list(API_HEALTHCHECK)},
         },
     },
-    "volumes": {"lab-pricing-mongo": {"labels": {"profile": "pricing"}}, "lab-pricing-redis": {}},
+    "volumes": {"lab-pricing-mongo": {"labels": {"profile": "pricing"}}, "lab-pricing-redis": {"labels": {"profile": "pricing"}}},
 }
 SAMPLE_VERIFIED = [MONGO_IMAGE, REDIS_IMAGE]
 
@@ -127,9 +136,9 @@ def rule_isolated(manifest: dict) -> str | None:
                 return f"{name} uses {key}"
         if set(service) - ALLOWED_SERVICE_KEYS:
             return f"{name} uses keys outside the allow-list: {sorted(set(service) - ALLOWED_SERVICE_KEYS)}"
-        uid = str(service.get("user", "0")).split(":")[0]
-        if not uid.isdigit() or int(uid) == 0:
-            return f"{name} must run as a numeric non-root user"
+        ids = str(service.get("user", "0")).split(":")
+        if len(ids) != 2 or not all(i.isdigit() and int(i) > 0 for i in ids):
+            return f"{name} must run as a numeric non-root user and a numeric non-zero group"
         for mount in service.get("volumes", []):
             if mount.get("type") != "volume" or VOLUMES.get(mount.get("source")) != mount.get("target"):
                 return f"{name}: mount {mount} is not one of the named volumes"
@@ -224,13 +233,44 @@ def rule_secrets(manifest: dict, documented: set[str]) -> str | None:
 
 def rule_start_order(manifest: dict) -> str | None:
     services = manifest["services"]
-    for name in SERVICES:
-        if not services[name].get("healthcheck", {}).get("test"):
+    for name in SERVICES:  # the three long-running services; a one-shot bootstrap will follow its own rule
+        check = services[name].get("healthcheck", {})
+        if not check.get("test"):
             return f"{name} has no healthcheck"
+        if check["test"][0] == "NONE" or "disable" in check:
+            return f"{name} has a disabled healthcheck"
     ready = {"condition": "service_healthy"}
     if services["space-api"].get("depends_on") != {"space-mongo": ready, "space-redis": ready}:
         return "space-api must wait for space-mongo and space-redis with service_healthy only"
     return None
+
+
+def rule_api_surface(manifest: dict) -> str | None:
+    api = manifest["services"]["space-api"]
+    env = rules._env(api)
+    if set(env) != API_ENV_KEYS:
+        return f"space-api environment keys differ: {sorted(set(env) ^ API_ENV_KEYS)}"
+    if not re.fullmatch(r"--max-old-space-size=\d+", env["NODE_OPTIONS"]):
+        return "NODE_OPTIONS may only set --max-old-space-size"
+    if env["REDIS_URL"] != "redis://space-redis:6379":
+        return "REDIS_URL must be redis://space-redis:6379, without credentials"
+    if api.get("healthcheck", {}).get("test") != API_HEALTHCHECK:
+        return "space-api healthcheck command differs from the pinned one"
+    return None
+
+
+def _hosts(url: str) -> list[str]:
+    """Every host of the URL's authority: userinfo ends at the last '@', a comma separates hosts (multi-host URIs)."""
+    authority = re.split(r"[/?#\\]", url.split("://", 1)[1], maxsplit=1)[0].rpartition("@")[2]
+    hosts = []
+    for item in authority.split(","):
+        if item.startswith("["):
+            if "]" not in item:
+                raise ValueError(f"unterminated IPv6 literal in {url}")
+            hosts.append(item[: item.index("]") + 1].lower())
+        else:
+            hosts.append(item.partition(":")[0].lower())
+    return hosts
 
 
 def rule_remote_sphere(manifest: dict) -> str | None:
@@ -239,13 +279,14 @@ def rule_remote_sphere(manifest: dict) -> str | None:
     if wrong:
         return f"SPHERE variables differ: {wrong}"
     for text in rules._strings(manifest):
-        for url in URL.findall(text):
+        for url in URL.findall(re.sub(r"[\t\r\n]", "", text)):  # URL parsers drop tabs and newlines
             try:
-                host = urlsplit(url).hostname
+                hosts = _hosts(url)
             except ValueError:
                 return f"unparsable address {url}"
-            if host not in ALLOWED_HOSTS:
-                return f"external address {host!r} in {url}"
+            for host in hosts:
+                if host not in ALLOWED_HOSTS:
+                    return f"external address {host!r} in {url}"
     return None
 
 
@@ -314,9 +355,12 @@ def test_isolated_services():
 def test_memory_budget_matches_the_runbook():
     # [utest->req~lab-deployment-pricing-profile-memory-budget~1]
     assert RUNBOOK.is_file()
-    assert rule_memory(_manifest(), documented_sum(_runbook())) is None
+    text = _runbook()
+    assert rule_memory(_manifest(), documented_sum(text)) is None
+    final = documented_sum(text) + BOOTSTRAP_MIB
+    assert final == 1088 and re.search(rf"\b{final} MiB", text), "the runbook must state the final budget"
     # Scenario (two lab stacks of 4032 MiB plus the final profile budget) fits the 9216 MiB host.
-    assert 2 * rules.EXPECTED_MIB + FINAL_BUDGET_MIB <= 9216
+    assert 2 * rules.EXPECTED_MIB + final <= 9216
 
 
 def test_secret_references_are_bare_and_documented():
@@ -344,7 +388,12 @@ def test_runbook_documents_the_gap_and_the_bring_up():
     text = _runbook()
     if _manifest()["services"]["space-api"]["image"] == SPACE_API_GAP_IMAGE:
         assert gap_is_open(text), f"## GAP must name space-api and {CRP} while the manifest carries the marker"
-    assert "compose.lab-pricing.json" in text
+
+
+def test_api_surface_is_pinned():
+    # [utest->req~lab-deployment-pricing-profile-remote-sphere~1]
+    assert COMPOSE.is_file()
+    assert rule_api_surface(_manifest()) is None
 
 
 # -- controls: the rules on the in-memory SAMPLE ---------------------------------------------------------------------
@@ -361,6 +410,7 @@ def test_control_sample_conforms():
     assert rule_images(sample(), SAMPLE_VERIFIED, True) is None
     assert rule_memory(sample(), 992) is None and rule_secrets(sample(), names) is None
     assert rule_start_order(sample()) is None and rule_remote_sphere(sample()) is None
+    assert rule_api_surface(sample()) is None
     digested = sample()
     _api(digested)["image"] = SYNTHETIC_API_IMAGE
     assert rule_images(digested, [*SAMPLE_VERIFIED, SYNTHETIC_API_IMAGE], False) is None
@@ -398,6 +448,25 @@ def _privileged(m): _api(m)["privileged"] = True
 
 @pytest.mark.parametrize("mutate", [_port, _bind, _root, _privileged], ids=lambda f: f.__name__)
 def test_control_refuses_a_non_isolated_profile(mutate):
+    # [utest->req~lab-deployment-pricing-profile-isolated~1]
+    manifest = sample()
+    mutate(manifest)
+    assert rule_isolated(manifest)
+
+
+def _driver_opts(m): m["volumes"]["lab-pricing-mongo"]["driver_opts"] = {"type": "none", "o": "bind", "device": "/"}
+def _networks(m): m["networks"] = {"host": {"external": True}}
+def _docker_sock(m): _api(m)["environment"]["DOCKER_HOST"] = "unix:///var/run/docker.sock"
+def _gid_zero(m): _api(m)["user"] = "1000:0"
+def _gid_name(m): _api(m)["user"] = "1000:root"
+def _gid_empty(m): _api(m)["user"] = "1000:"
+def _gid_missing(m): _api(m)["user"] = "1000"
+
+
+@pytest.mark.parametrize("mutate",
+                         [_driver_opts, _networks, _docker_sock, _gid_zero, _gid_name, _gid_empty, _gid_missing],
+                         ids=lambda f: f.__name__)
+def test_control_refuses_bind_networks_socket_and_bad_gid(mutate):
     # [utest->req~lab-deployment-pricing-profile-isolated~1]
     manifest = sample()
     mutate(manifest)
@@ -549,6 +618,12 @@ def test_control_refuses_a_service_without_a_healthcheck():
     one = sample()
     _api(one)["depends_on"] = {"space-mongo": {"condition": "service_healthy"}}
     assert "must wait" in rule_start_order(one)
+    none = sample()
+    none["services"]["space-redis"]["healthcheck"] = {"test": ["NONE"]}
+    assert "disabled" in rule_start_order(none)
+    disabled = sample()
+    disabled["services"]["space-mongo"]["healthcheck"]["disable"] = True
+    assert "disabled" in rule_start_order(disabled)
 
 
 def test_control_refuses_a_local_sphere():
@@ -566,7 +641,11 @@ def test_control_refuses_a_foreign_host_in_any_url_scheme():
                        ("WEBHOOK_URL", "https://hooks.example.org/x?u=a@b"),
                        ("WEBHOOK_URL", "https://evil.example/x?u=a@sphere.score.us.es"),
                        ("WEBHOOK_URL", "HTTPS://evil.example/x"),
-                       ("MONGO_URI", uri), ("REDIS_URL", "redis://evil.example:6379")]:
+                       ("MONGO_URI", uri), ("REDIS_URL", "redis://evil.example:6379"),
+                       ("MONGO_URI", "mongodb://space:${DEMO_SPACE_MONGO_PASSWORD}@space-mongo:27017,evil.example:27017/s"),
+                       ("MONGO_URI", "mongodb://space-mongo:27017,[::2]:27017/s"),
+                       ("WEBHOOK_URL", "https://evil.example\\@sphere.score.us.es/x"),
+                       ("WEBHOOK_URL", "https://sphere.score.us.es\t@evil.example/x")]:
         manifest = sample()
         _env_of(manifest)[key] = value
         message = rule_remote_sphere(manifest)
@@ -579,3 +658,48 @@ def test_control_refuses_a_foreign_host_in_any_url_scheme():
     query = sample()
     _env_of(query)["WEBHOOK_URL"] = "https://sphere.score.us.es/x?u=a@b"
     assert rule_remote_sphere(query) is None
+    hosts = sample()
+    _env_of(hosts)["MONGO_URI"] = "mongodb://space:${DEMO_SPACE_MONGO_PASSWORD}@space-mongo:27017,127.0.0.1:27017/s"
+    assert rule_remote_sphere(hosts) is None, "every listed host is allowed"
+    unparsable = sample()
+    _env_of(unparsable)["WEBHOOK_URL"] = "http://[evil/x"
+    assert "unparsable" in rule_remote_sphere(unparsable)
+
+
+def test_control_pins_the_api_environment_and_healthcheck():
+    # [utest->req~lab-deployment-pricing-profile-remote-sphere~1]
+    proxy = sample()
+    _env_of(proxy)["HTTP_PROXY"] = "evil.example:3128"
+    assert "environment keys" in rule_api_surface(proxy)
+    dropped = sample()
+    del _env_of(dropped)["SERVER_PORT"]
+    assert "environment keys" in rule_api_surface(dropped)
+    require = sample()
+    _env_of(require)["NODE_OPTIONS"] = "--require /tmp/x.js --max-old-space-size=192"
+    assert "NODE_OPTIONS" in rule_api_surface(require)
+    for url in ("redis://:${DEMO_SPACE_ADMIN_PASSWORD}@space-redis:6379", "redis://user:pw@space-redis:6379",
+                "redis://space-redis:6379,evil.example:6379"):
+        redis = sample()
+        _env_of(redis)["REDIS_URL"] = url
+        assert "REDIS_URL" in rule_api_surface(redis), url
+    health = sample()
+    _api(health)["healthcheck"]["test"] = ["CMD-SHELL", "wget -qO- http://evil.example/x || exit 1"]
+    assert "healthcheck" in rule_api_surface(health)
+    gone = sample()
+    del _api(gone)["healthcheck"]
+    assert "healthcheck" in rule_api_surface(gone)
+
+
+def test_control_runbook_parsers_refuse_malformed_text():
+    # [utest->req~lab-deployment-pricing-profile-pinned-images~1]
+    good = (f"# Runbook\n\n## Verified image references\n\n- `{MONGO_IMAGE}` - verified 2026-10-24\n\n"
+            f"## GAP\n\n- space-api has no digest yet, see {CRP}\n\n## Memory\n\nMemory sum: 992 MiB\n")
+    assert verified_images(good) == [MONGO_IMAGE] and gap_is_open(good) and documented_sum(good) == 992
+    assert not gap_is_open(good.replace("## GAP", "## Notes")), "no ## GAP section"
+    assert not gap_is_open(good.replace(f"see {CRP}", "see the owner")), "space-api without the CRP id"
+    assert not gap_is_open(good.replace(f"see {CRP}", "see the owner")
+                           + f"\n## Notes\n\n- space-api waits for {CRP}\n"), "named only outside ## GAP"
+    assert verified_images(good.replace(" - verified 2026-10-24", " - pending")) == []
+    assert verified_images(good.replace(" - verified 2026-10-24", " - verified")) == []
+    assert verified_images(good.replace("## Verified image references", "## Candidates")) == []
+    assert documented_sum(good.replace("Memory sum:", "Total:")) is None
