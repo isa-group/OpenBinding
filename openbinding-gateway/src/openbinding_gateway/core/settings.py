@@ -11,7 +11,9 @@ tenable.
 The values keep their historical names. The one default that changed is CORS,
 which is now a closed list of local development origins instead of ``*``; a
 production deployment (``APP_ENV=prod``) must name its origins, and an empty or
-wildcard list stops the process at startup. Two rules that used to live at their
+wildcard list stops the process at startup, and so does a malformed public
+origin (``PUBLIC_BASE_URL``, ``FRONTEND_URL``, a CORS entry), which a browser
+would otherwise ignore without a word. Two rules that used to live at their
 call sites now live here, where they can be stated once: the
 wildcard-versus-credentials rule for CORS, and the fact that a schema path from
 the environment is only a preference, not a promise that the file exists.
@@ -23,6 +25,7 @@ import os
 import re
 from functools import lru_cache
 from typing import List, Literal, Optional
+from urllib.parse import urlsplit
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -63,6 +66,58 @@ DEFAULT_SPACE_SERVICE_NAME = "openbinding"
 SPACE_SERVICE_NAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]{1,62}")
 
 
+def _mask_userinfo(value: str) -> str:
+    """``value`` with everything between ``://`` (or the start) and its last ``@`` replaced by ``***``."""
+    head, at, tail = value.rpartition("@")
+    if not at:
+        return value
+    scheme_end = head.find("://")
+    prefix = head[: scheme_end + 3] if scheme_end >= 0 else ""
+    return f"{prefix}***@{tail}"
+
+
+#: Host of an origin: a name, or a bracketed IPv6 literal.
+HOST_PATTERN = re.compile(r"[A-Za-z0-9.-]+|\[[0-9A-Fa-f:.]+\]")
+
+
+# [impl->req~gateway-api-public-origin-format~1]
+# [impl->req~gateway-api-cors-origin-format~1]
+# [impl->req~gateway-api-origin-error-masking~1]
+def _require_origin(name: str, value: str, *, trailing_slash: bool) -> None:
+    """Raise unless ``value`` is ``http(s)://host[:port]``, naming ``name`` if not.
+
+    No path, query, fragment, userinfo, wildcard, comma or whitespace; a single
+    trailing ``/`` only when ``trailing_slash`` is true.
+    """
+    body = value[:-1] if trailing_slash and value.endswith("/") else value
+    try:
+        parts = urlsplit(body)
+        port = parts.port  # raises ValueError for a port that is not a number in range
+        netloc = parts.netloc
+        host = netloc[: netloc.index("]") + 1] if netloc.startswith("[") and "]" in netloc else netloc.split(":")[0]
+        valid = (
+            parts.scheme in ("http", "https")
+            and bool(HOST_PATTERN.fullmatch(host))
+            and port != 0
+            and not netloc.endswith(":")
+            and (netloc.startswith("[") or netloc.count(":") <= 1)
+            and "@" not in netloc
+            and not parts.path
+            and not parts.query
+            and not parts.fragment
+            and not re.search(r"[\s*,?#]", body)
+        )
+    except ValueError:
+        valid = False
+    if not valid:
+        slash = " (one trailing '/' is tolerated)" if trailing_slash else " (no trailing '/')"
+        raise ValueError(
+            f"{name} has an invalid value {_mask_userinfo(value)!r}: expected scheme://host[:port] with an http or "
+            f"https scheme, no path, query, fragment, userinfo, '*', comma or space{slash}, "
+            "for example https://openbinding.example.org."
+        )
+
+
 class Settings(BaseSettings):
     """The gateway's configuration, read from the environment once."""
 
@@ -73,6 +128,8 @@ class Settings(BaseSettings):
         # The process environment carries far more than this class describes,
         # and a stray variable is not a configuration error.
         extra="ignore",
+        # A validation error would otherwise echo every input, secrets included.
+        hide_input_in_errors=True,
     )
 
     app_env: Literal["dev", "test", "prod"] = "dev"
@@ -160,6 +217,11 @@ class Settings(BaseSettings):
     #: in the browser's ``localStorage`` and a wildcard would let any site read
     #: the API as the signed-in user. In ``APP_ENV=prod`` an empty list or a
     #: ``*`` entry is refused at startup (see ``closed_cors_in_production``).
+    #: Every entry must be scheme://host[:port] exactly as a browser sends it in
+    #: ``Origin`` (no path, no trailing /, no * inside an entry, lower-case,
+    #: default port omitted); a malformed one stops the process (see
+    #: ``well_formed_public_origins``). Entries are compared as exact strings, so
+    #: a non-canonical one is accepted but never matches.
     cors_allow_origins: str = DEV_CORS_ORIGINS
     cors_allow_credentials: bool = True
 
@@ -266,12 +328,17 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
     job_dispatch_mode: Literal["inline", "dramatiq"] = "inline"
     artifact_root: str = "/var/lib/openbinding/artifacts"
+    #: Origin the gateway is reached by, used to build links
+    #: (``PUBLIC_BASE_URL``): scheme://host[:port], one trailing / tolerated;
+    #: checked at startup like the CORS origins.
     public_base_url: str = "http://localhost:8000"
 
     # -- Universidad de Sevilla CAS ------------------------------------
     cas_enabled: bool = False
     cas_environment: Literal["production", "preproduction"] = "production"
     cas_base_url: Optional[str] = None
+    #: Origin of the frontend the CAS flow returns to (``FRONTEND_URL``); same
+    #: format as ``PUBLIC_BASE_URL``.
     frontend_url: str = "http://localhost:5173"
     cas_state_ttl_s: int = 10 * 60
     cas_exchange_ttl_s: int = 30
@@ -350,6 +417,23 @@ class Settings(BaseSettings):
                 "CORS_ALLOW_ORIGINS contains '*' while APP_ENV=prod: a wildcard is not "
                 "allowed in production; list the exact frontend origins instead."
             )
+        return self
+
+    @model_validator(mode="after")
+    def well_formed_public_origins(self) -> "Settings":
+        """Refuse a public origin a browser or a link builder would mishandle.
+
+        The URLs tolerate one trailing slash (routes strip it); a CORS entry is
+        exactly what the browser sends in ``Origin``, so it has none. A bare
+        ``*`` is tolerated outside production (``closed_cors_in_production``
+        refuses it there, with its own message).
+        """
+        for name, value in (("PUBLIC_BASE_URL", self.public_base_url), ("FRONTEND_URL", self.frontend_url)):
+            _require_origin(name, value, trailing_slash=True)
+        for entry in self.cors_origin_list:
+            if entry == "*" and self.app_env != "prod":
+                continue
+            _require_origin("CORS_ALLOW_ORIGINS", entry, trailing_slash=False)
         return self
 
     @model_validator(mode="after")
