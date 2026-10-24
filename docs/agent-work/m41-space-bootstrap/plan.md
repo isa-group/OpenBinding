@@ -1,1 +1,1 @@
-Round-1 fixes integrated (a6243986 tool+tests, 2285154a detector, b0a6a3df Dockerfiles+rules, 70fc56bc docs). Next: push, round-2 panel (reviewer, test-reviewer, security-auditor, arch-reviewer) on pushed head, fix any blocker/major, set review package, lead_ready. No push after ready.
+Round-2 fixes integrated (829fd017 tests, 80b2f443 docs). Push, final panel on the pushed head (four roles), then set_review_package and lead_ready. No push after ready.
