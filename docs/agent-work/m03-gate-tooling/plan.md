@@ -1,0 +1,1 @@
+M0.3 gate tooling: S1 openspec+trace jobs (G1/G6, report-only), S2a import-linter, S2b ESLint boundaries 7.3.0 (warn), S3 bim-toolchain job, S4 acceptance runners (config and docs only). All integrated. Remaining: push, PR, CI, panel (high risk), review package, ready.

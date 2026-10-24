@@ -1,0 +1,36 @@
+[importlinter]
+root_package = openbinding_gateway
+
+[importlinter:contract:layers]
+name = routes -> services -> repositories | integrations -> db
+type = layers
+containers =
+    openbinding_gateway
+layers =
+    routes
+    services
+    repositories | integrations
+    db
+
+[importlinter:contract:no-routes]
+name = services, domain and jobs do not import routes
+type = forbidden
+source_modules =
+    openbinding_gateway.services
+    openbinding_gateway.domain
+    openbinding_gateway.jobs
+forbidden_modules =
+    openbinding_gateway.routes
+
+[importlinter:contract:integrations]
+name = integrations depend on nothing above them
+type = forbidden
+source_modules =
+    openbinding_gateway.integrations
+forbidden_modules =
+    openbinding_gateway.routes
+    openbinding_gateway.services
+    openbinding_gateway.repositories
+    openbinding_gateway.db
+    openbinding_gateway.domain
+    openbinding_gateway.jobs
