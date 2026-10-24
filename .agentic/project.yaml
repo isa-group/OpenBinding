@@ -32,6 +32,8 @@ project:
 gates:
   G1_spec:
     - {name: openspec-validate, cwd: ., argv: [openspec, validate, --strict], needs: [openspec-cli], todo: true}
+    # M0.3: CI job `openspec` runs `openspec validate --strict --all` (report-only). This argv lacks --all.
+    # todo: true stays until a CI run into develop exits 0 and the factory runner (F1) has openspec-cli.
   G2_epic:
     - {name: epic-review, role: spec-auditor, threshold: 2}       # >= 2/3 on each applicable dimension
   G3_red_before:
@@ -58,6 +60,8 @@ gates:
     - {name: qacobench-unit, cwd: ., argv: [python3, -m, pytest, experimentation/qacobench/test_qacobench.py], when_paths: ["experimentation/qacobench/**"]}
   G6_trace:
     - {name: oft-trace, cwd: ., argv: [oft, trace, -o, plain, openspec/specs, openbinding-gateway/src, openbinding-gateway/tests, engines, frontend/src, acceptance], needs: [openfasttrace], todo: true}
+    # M0.3: CI job `trace` runs OpenFastTrace 4.11.0 over these paths, skipping absent ones (report-only).
+    # todo: true stays until a CI run into develop exits 0 and the factory runner (F1) has the jar.
   G7_contracts:
     - {name: openapi-snapshot, cwd: openbinding-gateway, argv: [uv, run, --locked, python, tools/dump_openapi.py, --check], needs: [uv]}
     - {name: openapi-contract-tests, cwd: openbinding-gateway, argv: [uv, run, --locked, --extra, test, pytest, tests/test_openapi_contract.py, tests/test_b4_problem_schema.py, tests/test_bim_consumer_contract.py], needs: [uv]}

@@ -92,6 +92,63 @@ jobs:
       - name: Run the lab tests
         run: openbinding-gateway/.venv/bin/python -m pytest lab/tests -q
 
+  # Gate G1 tooling. Report-only: the validate step may fail until a run into
+  # develop exits 0. A broken install or version step still fails the job.
+  openspec:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install OpenSpec 1.14.3
+        run: npm install --global @fission-ai/openspec@1.14.3
+
+      - name: Print the OpenSpec version
+        run: openspec --version
+
+      - name: Validate the specs and changes (report-only)
+        continue-on-error: true
+        run: openspec validate --strict --all
+
+  # Gate G6 tooling. OpenFastTrace is downloaded at an exact version and
+  # verified; only the trace itself is report-only.
+  trace:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Download OpenFastTrace 4.11.0
+        run: |
+          mkdir -p "$RUNNER_TEMP/oft"
+          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/oft/openfasttrace-4.11.0.jar" \
+            https://github.com/itsallcode/openfasttrace/releases/download/4.11.0/openfasttrace-4.11.0.jar
+
+      - name: Verify the OpenFastTrace checksum
+        run: echo "f094cd314f0fc4236f513f66fb39260a16f72e2320beb6b4fdeb7940b9b8cf87  $RUNNER_TEMP/oft/openfasttrace-4.11.0.jar" | sha256sum -c -
+
+      - name: Trace requirements (report-only)
+        continue-on-error: true
+        run: |
+          paths=()
+          for path in openspec/specs openbinding-gateway/src openbinding-gateway/tests engines frontend/src acceptance; do
+            if [ -e "$path" ]; then paths+=("$path"); else echo "skipped (absent): $path"; fi
+          done
+          java -jar "$RUNNER_TEMP/oft/openfasttrace-4.11.0.jar" trace -o plain "${paths[@]}"
+
   # The engines' own tests. They were never run here, which is how a MiniZinc
   # builder that could not solve a single repeat workflow, and a Java unit test
   # that had been failing for months, both went unnoticed.
