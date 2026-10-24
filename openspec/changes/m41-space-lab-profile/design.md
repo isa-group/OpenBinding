@@ -1,6 +1,6 @@
 # Design: m41-space-lab-profile
 
-Status: plan. Nothing here is built yet. Fixed inputs: ROADMAP M4.1, ARCHITECTURE §9.4, constitution 16.1 and 16.2,
+Status: slices S1 and S2 are built (manifest, runbook, tests); S3 to S5 are not. Fixed inputs: ROADMAP M4.1, ARCHITECTURE §9.4, constitution 16.1 and 16.2,
 the lab memory cap of 9216 MiB (m05-pr-previews design.md §6), and the rule that the lab file set stays tracked,
 loopback-only and secret-free.
 
@@ -10,8 +10,8 @@ loopback-only and secret-free.
 |---|---|---|
 | Where the profile lives | its own file `compose.lab-pricing.json`, run together with the lab file | a Compose `profiles:` entry in `compose.lab.json`: it would change the 4032 MiB sum and the `profiles == ["seed"]` rule of `lab/tests/test_lab_compose.py` for every lab |
 | Publishing | no host port | a loopback port for the SPACE web client: not needed, and the lab keeps one published port (`single-loopback-port`) |
-| Data | named volumes `space-mongo-data` and `space-redis-data`, labels only at top level | tmpfs: the service would lose its SPACE organization and contracts at each restart |
-| Networks | the project default network | a dedicated network: the existing rule forbids `networks` keys |
+| Data | named volumes `lab-pricing-mongo` (`/data/db`) and `lab-pricing-redis` (`/data`), declared with labels only at top level | tmpfs: the service would lose its SPACE organization and contracts at each restart |
+| Networks | the project default network; the manifest has no `networks` key | a dedicated network: the existing rule forbids `networks` keys |
 | Isolation of SPACE from the gateway | the gateway reaches `space-api` by service name only when `DEMO_SPACE_ENABLED=true` is set by the operator; the profile never edits `compose.lab.json` | wiring the gateway env in the base file: it would make the base depend on the optional file |
 
 ## 2. Services (final state)
@@ -26,8 +26,16 @@ loopback-only and secret-free.
 The S2 manifest has three services and a sum of 992 MiB (512 + 96 + 384). S4 adds `pricing-bootstrap` and reaches 1088
 MiB. The profile ceiling stays 1152 MiB. With the develop lab (4032) and one preview (4032) the lab holds
 4032 + 4032 + 1088 = 9152 MiB, within the 9216 MiB cap. `space-api` runs with `SPHERE_PUBLIC_URL=https://sphere.score.us.es`
-and `SPHERE_SYNC_ENABLED=true` (ARCHITECTURE §9.4); all secrets are `${DEMO_*}` references without defaults, no
-service is privileged, and every service sets `mem_limit`.
+and `SPHERE_SYNC_ENABLED=true` (ARCHITECTURE §9.4); all secrets are the four bare `${DEMO_SPACE_*}` references without
+defaults (`JWT_SECRET`, `JWT_SALT`, `ADMIN_PASSWORD`, `MONGO_PASSWORD`), no service is privileged, and every service
+sets `mem_limit`, a numeric non-root `user` (mongo and redis `999:999`, `space-api` `1000:1000`) and a healthcheck:
+`mongosh` ping for mongo, `redis-cli ping` for redis, and a `node` fetch of `http://127.0.0.1:3000/api/v1/healthcheck`
+for `space-api`, which waits for both databases with `condition: service_healthy`. Memory caps inside the containers:
+MongoDB `--wiredTigerCacheSizeGB 0.25`, Redis `--maxmemory 64mb`, Node `--max-old-space-size=192`.
+
+UNVERIFIED: the `space-api` user `1000:1000`, its healthcheck path and its port 3000 are taken from the SPACE source,
+not from a running image, because the image is the GAP marker. They are checked when the real image is available (S4
+task 4.3); the static tests only require a numeric non-root user and a healthcheck.
 
 ## 3. Images and the runbook
 
@@ -50,18 +58,23 @@ answer:
 
 ## 4. Static rules (S1, tests first)
 
-`lab/tests/test_lab_pricing_profile.py` reads `compose.lab-pricing.json` and `docs/qa/PRICING_PROFILE.md` and checks:
-file exists and is separate; service set; no `ports`/`expose`; every service has `mem_limit` and the sum equals the
-documented one (992 in S2) and is at most 1152; mongo and redis images are `name:tag@sha256:<64 hex>` and appear in the
-runbook's verified list; `space-api` is the GAP marker or a reference listed as verified; the marker, a tag-only
-reference or an unlisted digest is refused for `space-api` and the marker is refused for any other service; no literal
-secrets, no `privileged`, `cap_add`, binds or `networks` keys. Their order and red expectations are in tasks.md.
+`lab/tests/test_lab_pricing_profile.py` holds one rule function per requirement (manifest dict in, failure message or
+None out), applies each to the real files, and calls each on a conforming in-memory sample mutated to prove the rule
+refuses what it must. The trace names are `optional`, `pinned-images`, `isolated`, `memory-budget`,
+`secret-references`, `start-order` and `remote-sphere`: separate file, service set and no `profiles` key; no
+`ports`/`expose`/`networks`, only the two named volumes, numeric non-root users; mongo and redis images
+`name:tag@sha256:<64 hex>` listed in the runbook, `space-api` the GAP marker (with an open GAP entry) or a listed
+`:1.7.1@sha256:` reference; `mem_limit` on every service, sum equal to the runbook and at most 1152, caches below
+limits; four bare secret references documented in the runbook; healthchecks and `service_healthy`; the four SPHERE
+variables and no other external host.
 
-`openbinding-gateway/tests/test_no_local_space.py` keeps its checks on `docker-compose.yml` and adds that no other
-deployment file (`compose*.json`, `deploy/kubernetes`) declares a SPACE service, network or volume except
-`compose.lab-pricing.json`, which may declare only `space-mongo`, `space-redis`, `space-api`, `pricing-bootstrap` and
-volumes named `space-*`. The lab test `test_no_space_services` in `lab/tests/test_lab_compose.py` keeps its meaning on
-`compose.lab.json`, which stays SPACE-free.
+`openbinding-gateway/tests/test_no_local_space.py` reads `compose.lab-pricing.json` apart and checks every other
+manifest (`docker-compose.yml`, `compose.lab*.json`, `compose.pgtest.json`, `deploy/**`): SPACE services only in the
+pricing profile, which defines exactly `space-mongo`, `space-redis`, `space-api` (plus `pricing-bootstrap` later) with
+volumes named `lab-pricing-*`; no SPHERE service in any manifest; the `space-api` image is the marker
+`gap.invalid/space-api:1.7.1` or `<repo>:1.7.1@sha256:<64 hex>`; no SPACE service, profile, network, volume or
+destructive key elsewhere. The lab test `test_no_space_services` in `lab/tests/test_lab_compose.py` keeps its meaning
+on `compose.lab.json`, which stays SPACE-free.
 
 ## 5. Memory
 
@@ -82,7 +95,8 @@ together are checked by the lab at run time. This change does not alter preview 
 
 ## 8. Bootstrap tool and constitution 16.1
 
-`pricing-bootstrap` runs `tools/space_lab_bootstrap.py` (S4). To create an organization, a key, a service from the
+`pricing-bootstrap` runs `tools/space_lab_bootstrap.py` (S4). The MANAGEMENT key is not copied to a lab secret store:
+it stays inside SPACE, and the tool reads SPACE's own key store, until M4.5 delivers it. To create an organization, a key, a service from the
 SPHERE link and contracts, the tool has to call SPACE's HTTP API. Constitution 16.1 says: "SPACE MUST be reached only
 through its official clients: `space-python-client` in the gateway (plans module) and `space-react-client` in the
 browser (token-only mode). No module MAY call SPACE's HTTP API directly." Whether the lab tool is a "module" and
@@ -96,11 +110,13 @@ state; they are not met until S4.
 
 | Requirement | Slice |
 |---|---|
-| `pricing-profile-optional-file` | S1 tests, S2 file (three services; the fourth in S4) |
+| `pricing-profile-optional` | S1 tests, S2 file (three services; the fourth in S4) |
 | `pricing-profile-pinned-images` | S1 tests, S2 file and runbook |
 | `pricing-profile-memory-budget` | S1/S2 (992 MiB); S4 raises the sum to 1088 |
-| `pricing-profile-internal-only` | S1 tests, S2 file |
-| `pricing-profile-secrets-and-privileges` | S1 tests, S2 file |
+| `pricing-profile-isolated` | S1 tests, S2 file |
+| `pricing-profile-secret-references` | S1 tests, S2 file and runbook |
+| `pricing-profile-start-order` | S1 tests, S2 file |
+| `pricing-profile-remote-sphere` | S1 tests, S2 file; live evidence S5 |
 | `pricing-profile-bootstrap` | S3 tests and S4 tool, both blocked on the CRP; S5 live evidence |
 | `pricing-profile-bootstrap-boundary` | S3 tests and S4 tool, both blocked on the CRP |
 | `no-local-space` ~2 (MODIFIED) | S1 (narrowed test) |
@@ -109,7 +125,7 @@ state; they are not met until S4.
 
 - Removing the profile means not passing `compose.lab-pricing.json` to Compose; the base lab is unchanged.
 - A failed bootstrap leaves SPACE running with no service; it is re-run idempotently (S4); `labctl destroy` removes
-  the `space-*` volumes with the project.
+  the `lab-pricing-*` volumes with the project.
 - Reverting S1+S2 deletes one new file and narrows one test back.
 
 ## 11. Open questions

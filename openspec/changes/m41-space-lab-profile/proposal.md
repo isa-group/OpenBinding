@@ -21,7 +21,7 @@ stack's own SPACE 1.7.1 linked to the SPHERE permanent link. Today the lab has n
   ceiling of 1152 MiB. Develop lab (4032) + one preview (4032) + profile (1088) = 9152 MiB, within the 9216 MiB lab cap.
 - The profile publishes no host port. SPACE is reached inside its Compose network; the stack needs outbound HTTPS to
   `sphere.score.us.es` only. SPHERE is not run locally and no SPHERE key is used (constitution 16.2).
-- `pricing-bootstrap` creates the SPACE organization and a MANAGEMENT key, the `openbinding` service from the SPHERE
+- `pricing-bootstrap` creates the SPACE organization and a MANAGEMENT key (kept inside SPACE, not in a lab secret store), the `openbinding` service from the SPHERE
   permanent link (`source: sphere`, `policy: all_last`) with a first synchronization, and contracts for the synthetic
   users of the seed. Blocked on the owner's answer about constitution 16.1.
 - `openbinding-gateway/tests/test_no_local_space.py` is narrowed: the SPACE exemption exists only for
