@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import configparser
 import fnmatch
+import json
 import os
 import re
 import tomllib
@@ -25,6 +26,8 @@ CI = ROOT / ".github" / "workflows" / "ci.yml"
 PROJECT = ROOT / ".agentic" / "project.yaml"
 GATEWAY = ROOT / "openbinding-gateway"
 IMPORTLINTER = GATEWAY / ".importlinter"
+FRONTEND = ROOT / "frontend"
+PLUGIN = "eslint-plugin-boundaries"
 
 OFT_SHA256 = "f094cd314f0fc4236f513f66fb39260a16f72e2320beb6b4fdeb7940b9b8cf87"
 OFT_URL = "https://github.com/itsallcode/openfasttrace/releases/download/4.11.0/openfasttrace-4.11.0.jar"
@@ -249,3 +252,79 @@ def test_import_linter_step_is_report_only():
     assert steps.index(_step(job, "pytest lab/tests")) < steps.index(lint)
     assert steps[-1] is lint, "the import-linter step is not the last step of job lab"
     assert all("continue-on-error" not in s for s in steps if s is not lint)
+
+
+# [utest->req~gate-tooling-eslint-boundaries~1]
+def test_eslint_boundaries_warns_page_to_page():
+    package = json.loads(_read(FRONTEND / "package.json"))
+    dev = package.get("devDependencies", {})
+    assert dev.get(PLUGIN) == "7.3.0", f"devDependencies {PLUGIN}: {dev.get(PLUGIN)!r}"
+    assert PLUGIN not in package.get("dependencies", {}), f"{PLUGIN} is a runtime dependency"
+    lint = package.get("scripts", {}).get("lint")
+    assert isinstance(lint, str) and lint, "package.json has no lint script"
+    assert "--max-warnings" not in lint, lint
+
+    config = _read(FRONTEND / "eslint.config.js")
+    assert re.search(rf"""from\s+['"]{PLUGIN}['"]""", config), f"eslint.config.js does not import {PLUGIN}"
+    assert re.search(r"""type:\s*['"]page['"]""", config), "no element type 'page'"
+    assert re.search(r"""pattern:\s*['"]src/pages/\*['"]""", config), "no element pattern 'src/pages/*'"
+    assert "rules:" in config, "eslint.config.js has no rules block"
+    rules = [
+        match
+        for part in config.split("rules:")[1:]
+        for match in re.findall(r"""['"](boundaries/[\w-]+)['"]\s*:\s*\[?\s*([^\s,\]]+)""", part)
+    ]
+    assert rules, "eslint.config.js sets no boundaries/ rule"
+    assert re.search(r"capture:\s*\[\s*['\"]name['\"]\s*\]", config), "the page element captures no name"
+    assert re.search(r"policies:\s*\[", config) and "from.element.captured.name" in config, "no page-to-page policy"
+    for name, severity in rules:
+        assert severity in ("'warn'", '"warn"'), f"{name} has severity {severity}, not 'warn'"
+
+
+def _lockfile_dev_dependencies() -> str:
+    lock = _read(FRONTEND / "pnpm-lock.yaml")
+    importer = re.search(r"^importers:\n\n  \.:\n(?P<body>(?:    .*\n|\n)*)", lock, re.MULTILINE)
+    assert importer, "pnpm-lock.yaml has no importer '.'"
+    body = importer.group("body")
+    dev = re.search(r"^    devDependencies:\n(?P<entries>(?:      .*\n)*)", body, re.MULTILINE)
+    assert dev, "the importer has no devDependencies"
+    runtime = re.search(r"^    dependencies:\n(?P<entries>(?:      .*\n)*)", body, re.MULTILINE)
+    assert runtime and PLUGIN not in runtime.group("entries"), f"{PLUGIN} is a runtime dependency in the lockfile"
+    return dev.group("entries")
+
+
+def _stages(dockerfile: str) -> dict[str, list[str]]:
+    stages: dict[str, list[str]] = {}
+    current = None
+    for line in dockerfile.replace("\\\n", " ").splitlines():
+        head = re.match(r"FROM\s+\S+\s+AS\s+(\w[\w-]*)\s*$", line.strip(), re.IGNORECASE)
+        if head:
+            current = head.group(1)
+            stages[current] = []
+        elif current is not None and line.strip() and not line.lstrip().startswith("#"):
+            stages[current].append(line.strip())
+    return stages
+
+
+# [utest->req~gate-tooling-frontend-images~1]
+def test_frontend_images_get_plugin_only_by_frozen_install():
+    entries = _lockfile_dev_dependencies()
+    locked = re.search(rf"^      '?{PLUGIN}'?:\n        specifier: 7\.3\.0\n        version: 7\.3\.0(?:\(|\s*$)", entries, re.MULTILINE)
+    assert locked, f"pnpm-lock.yaml does not resolve {PLUGIN} 7.3.0 as a devDependency of the importer"
+
+    for name in ("Dockerfile", "Dockerfile.e2e"):
+        text = _read(FRONTEND / name)
+        assert re.search(r"^RUN pnpm install --frozen-lockfile$", text, re.MULTILINE), f"{name}: no frozen pnpm install"
+        assert PLUGIN not in text, f"{name} names {PLUGIN}"
+
+    stages = _stages(_read(FRONTEND / "Dockerfile"))
+    for stage in ("prod-assets", "prod", "lab"):
+        assert stage in stages, f"frontend/Dockerfile has no stage {stage!r}"
+        for line in stages[stage]:
+            if line.upper().startswith("RUN "):
+                assert not re.search(r"\b(install|add|pnpm|npm|yarn|apk|apt-get|corepack)\b", line), f"{stage} installs: {line}"
+            copy = re.match(r"COPY\s+--from=build\s+(\S+)\s+", line, re.IGNORECASE)
+            if copy:
+                assert copy.group(1) == "/app/dist", f"{stage} copies {copy.group(1)} from build"
+    for stage in ("prod-assets", "prod"):
+        assert any(re.match(r"COPY\s+--from=build\s+/app/dist\s", line) for line in stages[stage]), f"{stage} does not copy /app/dist from build"

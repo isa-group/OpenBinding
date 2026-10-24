@@ -59,7 +59,7 @@ Full lab suite, used as a green check by every slice:
      report-only, so the evidence is the recorded exit code and count, not exit 0.
   6. `["bash","-c","cd frontend && pnpm install --frozen-lockfile && pnpm lint && pnpm test && pnpm build"]`: no ESLint
      error; the warning count goes into the PR.
-  7. Probe that the rule fires: `["bash","-c","cd frontend && printf \"import '../Account/Account'\\nexport {}\\n\" | pnpm exec eslint --stdin --stdin-filename src/pages/About/Probe.tsx --format unix > /tmp/boundaries-probe.txt; grep -c 'boundaries/' /tmp/boundaries-probe.txt"]`
+  7. Probe that the rule fires: `["bash","-c","cd frontend && printf \"import '../Account/Account'\\nexport {}\\n\" | pnpm exec eslint --stdin --stdin-filename src/pages/About/Probe.tsx > /tmp/boundaries-probe.txt; grep -c 'boundaries/' /tmp/boundaries-probe.txt"]`
      (exits non-zero when no boundaries warning is printed).
 
 ## S3. Job `bim-toolchain` (~35 non-test lines + ~60 test lines; turn budget 30)
