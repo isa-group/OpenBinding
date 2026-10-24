@@ -2,9 +2,10 @@
   "platform": [
     {
       "version": "0.1.0",
-      "date": "2026-10-23",
+      "date": "2026-10-24",
       "title": "OpenBinding platform",
       "changes": [
+        "Validate public origins at startup and clean up lab leftovers (#29)",
         "Public origin of the demo, and Docker as the only deployment (#27)",
         "Specification v2 — repository, laboratory, a smaller platform, plans through SPHERE and SPACE, Docker Compose (#25)",
         "Measure the search phase in the engine cancellation check",
@@ -76,7 +77,8 @@
       "date": "2026-10-24",
       "title": "OpenBinding documentation",
       "changes": [
-        "Panel-27-followups plan and handoff",
+        "M05-pr-previews plan and handoff",
+        "Validate public origins at startup and clean up lab leftovers (#29)",
         "Public origin of the demo, and Docker as the only deployment (#27)",
         "Specification v2 — repository, laboratory, a smaller platform, plans through SPHERE and SPACE, Docker Compose (#25)",
         "Regenerate the diagrams changed by the metrics-to-features migration",
