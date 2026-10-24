@@ -7,15 +7,15 @@ IF `PUBLIC_BASE_URL` or `FRONTEND_URL` is not a public origin of the form define
 
 Needs: impl, utest
 
-Evidence: GAP: implemented by a later task in `openbinding-gateway/src/openbinding_gateway/core/settings.py` (`_require_origin`); tests to be tagged `[utest->req~gateway-api-public-origin-format~1]`
+Evidence: `openbinding-gateway/src/openbinding_gateway/core/settings.py` (`_require_origin`, tagged `[impl->req~gateway-api-public-origin-format~1]`); `openbinding-gateway/tests/test_public_origin.py` (tagged `[utest->req~gateway-api-public-origin-format~1]`)
 
 A public origin is the whole variable value, with nothing trimmed, made of, in this order:
 1. a scheme `http` or `https` (letter case not significant), followed by `://`;
-2. a host: either a name of one or more ASCII letters, digits, `.` and `-`, or an IPv6 address enclosed in `[` and `]` (for example `[::1]`);
-3. optionally `:` followed by a port of one or more ASCII digits whose decimal value is between 1 and 65535 inclusive;
+2. a host: either a name of one or more ASCII letters, digits, `.` and `-`, or a bracketed host, that is `[`, one or more of the characters `0-9`, `A-F`, `a-f`, `:` and `.`, and `]` (for example `[::1]`); a bracketed host is checked for those characters only, it is not parsed as an IPv6 address;
+3. optionally `:` followed by a port of ASCII digits whose decimal value is between 1 and 65535 inclusive;
 4. optionally one single `/`.
 
-Consequently a value with userinfo (`user:password@` before the host), a path other than the single `/`, a query (`?`), a fragment (`#`), two or more trailing `/`, an empty host, an empty port, port `0`, a port above 65535 or any whitespace is refused.
+Consequently a value with userinfo (`@` in the authority), a path other than the single `/`, a query (`?`), a fragment (`#`), two or more trailing `/`, an empty host, an empty port (`host:`), port `0`, a port above 65535 or not a number, an unbracketed IPv6 address (more than one `:` outside brackets), a missing scheme or a scheme other than `http`/`https`, a `*`, a `,` or any whitespace is refused. Names containing other characters (for example `_`) are refused.
 
 #### Scenario: Malformed public base URL refused
 - **GIVEN** `APP_ENV=dev` and `PUBLIC_BASE_URL=https://openbinding.example.org/api`
@@ -47,6 +47,16 @@ Consequently a value with userinfo (`user:password@` before the host), a path ot
 - **WHEN** the gateway process reads its settings
 - **THEN** start-up succeeds
 
+#### Scenario: Unbracketed IPv6 address refused
+- **GIVEN** `APP_ENV=dev` and `FRONTEND_URL=http://::1:8000`
+- **WHEN** the gateway process reads its settings
+- **THEN** start-up fails with an error that contains `FRONTEND_URL`
+
+#### Scenario: URL without a scheme refused
+- **GIVEN** `APP_ENV=dev` and `PUBLIC_BASE_URL=openbinding.example.org`
+- **WHEN** the gateway process reads its settings
+- **THEN** start-up fails with an error that contains `PUBLIC_BASE_URL`
+
 ### Requirement: CORS origin entry format
 IF an entry of `CORS_ALLOW_ORIGINS` is neither exactly `*` nor a browser origin of the form defined below, THEN THE gateway SHALL refuse to start, in every `APP_ENV`.
 
@@ -54,9 +64,11 @@ IF an entry of `CORS_ALLOW_ORIGINS` is neither exactly `*` nor a browser origin 
 
 Needs: impl, utest
 
-Evidence: GAP: implemented by a later task in `openbinding-gateway/src/openbinding_gateway/core/settings.py` (`_require_origin`); tests to be tagged `[utest->req~gateway-api-cors-origin-format~1]`
+Evidence: `openbinding-gateway/src/openbinding_gateway/core/settings.py` (`_require_origin`, `well_formed_public_origins`, tagged `[impl->req~gateway-api-cors-origin-format~1]`); `openbinding-gateway/tests/test_public_origin.py` (tagged `[utest->req~gateway-api-cors-origin-format~1]`)
 
-Entries are the comma-separated parts of `CORS_ALLOW_ORIGINS` with surrounding whitespace removed; empty parts are ignored. A browser origin has the shape of a public origin (requirement `req~gateway-api-public-origin-format~1`, items 1 to 3) exactly as a browser sends it in the `Origin` request header: it ends after the host or the port, so a trailing `/` is refused, and it contains no `*` and no whitespace. A bare `*` entry passes this format check in every `APP_ENV`; while `APP_ENV` is `prod` it is still refused by `req~gateway-api-cors-production~1`.
+Entries are the comma-separated parts of `CORS_ALLOW_ORIGINS` with surrounding whitespace removed; empty parts are ignored, so an empty list passes this check. A browser origin has the shape of a public origin (requirement `req~gateway-api-public-origin-format~1`, items 1 to 3) as a browser sends it in the `Origin` request header: it ends after the host or the port, so a trailing `/` is refused, and it contains no `*` and no whitespace. The format check does not canonicalise: an entry in upper case, with a default port (`:443`, `:80`) or with a zero-padded port has the right shape and is accepted, but never matches a request (see the known limitation in `design.md`).
+
+A bare `*` entry is skipped by this format check outside `prod`. In `prod` the validator `closed_cors_in_production` runs first and refuses it with its own message (`req~gateway-api-cors-production~1`); a `*` next to a malformed entry is refused because the other entry is checked.
 
 #### Scenario: CORS entry with a trailing slash refused
 - **GIVEN** `APP_ENV=dev` and `CORS_ALLOW_ORIGINS=http://localhost:5173,https://openbinding.example.org/`
@@ -78,6 +90,21 @@ Entries are the comma-separated parts of `CORS_ALLOW_ORIGINS` with surrounding w
 - **WHEN** the gateway process reads its settings with `APP_ENV` set to `dev` and to `test` in turn
 - **THEN** start-up succeeds each time
 
+#### Scenario: Bare wildcard in production keeps its own refusal
+- **GIVEN** `APP_ENV=prod`, an otherwise valid production configuration and `CORS_ALLOW_ORIGINS=*`
+- **WHEN** the gateway process reads its settings
+- **THEN** start-up fails with an error that contains `CORS_ALLOW_ORIGINS contains '*' while APP_ENV=prod`
+
+#### Scenario: Wildcard next to a malformed entry refused
+- **GIVEN** `APP_ENV=dev` and `CORS_ALLOW_ORIGINS=*,https://example.org/app`
+- **WHEN** the gateway process reads its settings
+- **THEN** start-up fails with an error that contains `CORS_ALLOW_ORIGINS`
+
+#### Scenario: Empty list accepted outside production
+- **GIVEN** `APP_ENV=dev` and `CORS_ALLOW_ORIGINS=` (empty)
+- **WHEN** the gateway process reads its settings
+- **THEN** start-up succeeds
+
 #### Scenario: Exact origins with surrounding spaces and an empty part accepted
 - **GIVEN** `APP_ENV=dev` and `CORS_ALLOW_ORIGINS=http://localhost:5173, http://[::1]:5173,`
 - **WHEN** the gateway process reads its settings
@@ -90,9 +117,9 @@ WHEN the gateway refuses to start because `PUBLIC_BASE_URL`, `FRONTEND_URL` or a
 
 Needs: impl, utest
 
-Evidence: GAP: implemented by a later task in `openbinding-gateway/src/openbinding_gateway/core/settings.py` (`_require_origin`); tests to be tagged `[utest->req~gateway-api-origin-error-masking~1]`
+Evidence: `openbinding-gateway/src/openbinding_gateway/core/settings.py` (`_mask_userinfo`, `_require_origin`, `hide_input_in_errors=True` in `Settings.model_config`, tagged `[impl->req~gateway-api-origin-error-masking~1]`); `openbinding-gateway/tests/test_public_origin.py` (tagged `[utest->req~gateway-api-origin-error-masking~1]`)
 
-The offending value is the whole variable value for `PUBLIC_BASE_URL` and `FRONTEND_URL`, and the malformed entry for `CORS_ALLOW_ORIGINS` (with several malformed entries, the first in list order). A value without `@` is reported unchanged. "Error" means the complete text of the start-up failure as raised and as printed, not only its first line.
+The offending value is the whole variable value for `PUBLIC_BASE_URL` and `FRONTEND_URL`, and the malformed entry for `CORS_ALLOW_ORIGINS` (with several malformed entries, the first in list order). The value is shown with `repr()`, so it appears between quotes. A value without `@` is reported unchanged. "Error" means the complete text of the start-up failure as raised and as printed, not only its first line; pydantic does not echo the input because `Settings` sets `hide_input_in_errors=True`.
 
 #### Scenario: Userinfo masked in the error
 - **GIVEN** `APP_ENV=dev` and `PUBLIC_BASE_URL=https://admin:s3cr3t-pw@example.org`
@@ -106,6 +133,13 @@ The offending value is the whole variable value for `PUBLIC_BASE_URL` and `FRONT
 - **WHEN** the gateway process reads its settings
 - **THEN** start-up fails with an error that contains `CORS_ALLOW_ORIGINS` and `https://***@openbinding.example.org`
 - **AND** the error text does not contain `hunter2`
+
+#### Scenario: Userinfo with reserved characters masked completely
+- **GIVEN** `APP_ENV=dev` and `PUBLIC_BASE_URL=https://zed:pa/ss?w@example.org` (the same value as `FRONTEND_URL` or as a CORS entry behaves alike)
+- **WHEN** the gateway process reads its settings
+- **THEN** start-up fails with an error that contains `PUBLIC_BASE_URL` and `https://***@example.org`
+- **AND** the error text does not contain `zed`
+- **AND** the error text does not contain `pa/ss`
 
 #### Scenario: Value without userinfo reported unchanged
 - **GIVEN** `APP_ENV=dev` and `FRONTEND_URL=https://openbinding.example.org/app?x=1`

@@ -27,7 +27,9 @@ variable, instead of degrading at run time.
 - A bare `*` CORS entry stays allowed in `dev` and `test`; `prod` keeps refusing it (`req~gateway-api-cors-production~1`,
   unchanged).
 - The start-up error names the variable and the offending value, with any userinfo replaced by `***`
-  (`https://***@example.org`).
+  (`https://***@example.org`); the input is not echoed by pydantic (`hide_input_in_errors=True`).
+- The development CORS default in `docker-compose.yml` drops the `:80` entries, which a browser never sends.
+- The accepted shapes are described in `docs/ACCOUNTS_AND_PLANS.md` and `openbinding-gateway/.env.example`.
 
 New requirements (delta `specs/gateway-api/spec.md`):
 `req~gateway-api-public-origin-format~1`, `req~gateway-api-cors-origin-format~1`,
@@ -37,7 +39,8 @@ New requirements (delta `specs/gateway-api/spec.md`):
 
 - Capability: `gateway-api` only (start-up guards). No HTTP endpoint, OpenAPI document, schema or database change.
 - Code: `openbinding-gateway/src/openbinding_gateway/core/settings.py` (a shared origin check, `_require_origin`, used by
-  the settings validators); tests in `openbinding-gateway/tests/`. Implemented by separate tasks (see `tasks.md`).
+  the settings validators, `_mask_userinfo`, `HOST_PATTERN`, `well_formed_public_origins`); tests in
+  `openbinding-gateway/tests/test_public_origin.py`; `docker-compose.yml`; docs as above.
 - Operators: a deployment whose values were malformed but happened to work (for example `FRONTEND_URL` with a path)
   now stops at start-up with an explicit error. The defaults (`http://localhost:8000`, `http://localhost:5173`, the
   development CORS list) and the lab compose files (`compose.lab*.json`, including an empty `DEMO_PUBLIC_ORIGIN`
@@ -47,8 +50,9 @@ New requirements (delta `specs/gateway-api/spec.md`):
 
 ## Out of scope
 
-- Canonicalising CORS entries (lower-casing, dropping default ports): entries are still compared as exact strings by
-  the CORS middleware; see the known limitation in `design.md`.
+- Canonicalising or refusing non-canonical CORS entries (upper case, `:443`/`:80`, zero-padded port): they pass the
+  format check and never match, because the CORS middleware compares exact strings; see the known limitation in
+  `design.md`.
 - Masking credentials in other settings (`DATABASE_URL`, `REDIS_URL`, `SMTP_URL`, `SPACE_URL`, …) and in log lines
   outside the start-up error.
 - Reachability or DNS checks of the configured hosts, and checks that `PUBLIC_BASE_URL` uses `https` in production.
