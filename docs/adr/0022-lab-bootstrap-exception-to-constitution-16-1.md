@@ -22,7 +22,8 @@ service operation, so the bootstrap cannot be written with the client alone.
 2. The tool uses `space-python-client` wherever it covers the operation (contracts, features, health).
 3. The constitution is not edited; this ADR is the record of the exception.
 4. An architecture test (`lab/tests/test_no_direct_space_http.py`, `req~lab-space-no-direct-http~1`) forbids direct
-   HTTP to SPACE or SPHERE outside `lab/tools/**` and the gateway plans module.
+   HTTP to SPACE or SPHERE outside `lab/tools/**` and the gateway plans module. The allow-list is at directory level,
+   but a test pins `lab/tools/space_lab_bootstrap.py` as the only direct caller under `lab/tools`.
 5. The tool holds no SPHERE key and sends nothing to SPHERE; SPACE reads the public link itself (constitution 16.2).
 
 ## Consequences
@@ -41,4 +42,8 @@ service operation, so the bootstrap cannot be written with the client alone.
 
 - `constitution.md` Article 16 (16.1, 16.2); ADR-0015 §2 and §5; `docs/ARCHITECTURE.md` §9.4; `ROADMAP.md` M4.1
 - `openspec/changes/m41-space-bootstrap/` (design.md §4 and §6); `openspec/changes/m41-space-lab-profile/design.md` §8
+- Architecture test `lab/tests/test_no_direct_space_http.py`: `test_no_direct_http_to_space_or_sphere_outside_the_allowed_paths`,
+  `test_known_deviations_are_pinned_and_still_needed`, `test_the_lab_tools_exception_is_recorded_in_the_adr`,
+  `test_lab_tools_has_only_the_bootstrap_as_a_direct_caller`, `test_control_detects_a_direct_call`,
+  `test_control_detects_more_clients_and_aliases`, `test_control_skips_tests_and_mocks`
 - Owner answers own-36b6e089, own-78031d63 (build-pinned-exception) and own-e95fb0a1 (approve-m41)
