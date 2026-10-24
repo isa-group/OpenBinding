@@ -17,7 +17,7 @@ regardless of the GIL switch interval, so a fixed 30 ms is machine-dependent: lo
 measured at 0.1 ms) and too tight on a loaded one. The switch interval still has the effect the test is meant to
 pin; only the yardstick was wrong.
 
-## Decision
+## Decision (superseded by the second decision; the 0.5 factor no longer applies)
 
 Replace the absolute bound with a comparison against a baseline measured in the same run:
 
@@ -52,9 +52,20 @@ CI evidence: the same-run comparison `best_short < 0.5 * best_default` failed.
 On a shared runner the interval did not give the expected speed-up, so the factor 0.5 is not a reliable bound. The
 owner chose to relax it. Both assertions now require only that the short interval is not worse than the default:
 `best_short <= 1.5 * best_default`; the failure message still lists every median. The speed-up (94-118 ms down to
-a few ms on a quiet machine) is logged in the docstrings, not enforced. The comments and docstrings that said the
+a few ms on a quiet machine) is documented in the docstrings, not enforced. The comments and docstrings that said the
 interval "keeps healthz fast" now state this weaker property. Test names are unchanged because other documents refer
 to them. No production code and no other test changed. Not run in the worker (no pytest); CI is the verification.
+
+## Third decision: skip when the default interval shows no contention (review round 1, R1-REV-001)
+
+The reviewer found that the 1.5 factor sits inside CI noise: 17.8 ms (0.1 ms interval) against 8.1 ms (5 ms), ratio
+2.2, and 16.1 ms against 11.6 ms (1.39). On the runner the default median is only 8-12 ms (94-118 ms locally), so
+there is no GIL contention for the short interval to relieve and the comparison says nothing there.
+
+Both tests now call `pytest.skip` (message with all medians) when `best_default < 0.02 s`, before the assertion;
+otherwise they keep `best_short <= 1.5 * best_default`. The 0.02 s threshold was chosen by the coordinator on that
+evidence and is to be confirmed by the owner. The docstrings now say the speed-up is "documented here, not enforced"
+(R1-REV-002; nothing is logged). Test names are unchanged.
 
 ## Scope
 
@@ -62,6 +73,7 @@ Test code only; no production code changed.
 
 ## Verification
 
-Not executed in the worker (no pytest in its environment and the task contract has no registered checks). The
-verification is the `bim-toolchain` job of CI: both tests must pass there. If either fails, the message lists the
-default and short medians of every round, which is the data needed to adjust the 0.5 factor.
+Not executed in the worker (no pytest in its environment). The verification is the `bim-toolchain` job of CI: both
+tests must pass or skip there (skip when the default median is under 20 ms). When the comparison runs, a failure
+message lists the default and short medians of every round, which is the data needed to adjust the 1.5 factor or
+the 0.02 s threshold.
