@@ -439,6 +439,47 @@ def test_a_public_origin_replaces_the_urls_and_is_appended_to_the_local_cors_ori
             assert value == origin, (name, key)
 
 
+# What Settings reads; cleared so a variable of the test process cannot change the outcome.
+SETTINGS_ENVIRONMENT = (
+    "BIM_MODE", "GATEWAY_JWT_SECRET", "APP_ENV", "SPACE_ENABLED", "SPHERE_ENABLED",
+    "CORS_ALLOW_ORIGINS", "PUBLIC_BASE_URL", "FRONTEND_URL",
+)
+
+
+def _clear_settings_environment(monkeypatch):
+    for variable in SETTINGS_ENVIRONMENT:
+        monkeypatch.delenv(variable, raising=False)
+
+
+def test_a_trailing_slash_in_the_public_origin_fails_the_cors_list_only(services, monkeypatch):
+    from pydantic import ValidationError
+
+    from openbinding_gateway.core.settings import Settings
+
+    _clear_settings_environment(monkeypatch)
+    env = _env(services["gateway"])
+    # Lower-case keys, so Settings really receives them (upper-case names are ignored by extra="ignore").
+    expanded = {key.lower(): _expand(env[key], "https://demo.example.org/") for key in PUBLIC_ORIGIN_VARIABLES["gateway"]}
+    # A URL tolerates one trailing slash; a CORS entry is what the browser sends in Origin, so it has none.
+    with pytest.raises(ValidationError, match="CORS_ALLOW_ORIGINS"):
+        Settings(_env_file=None, app_env="dev", **expanded)
+    expanded.pop("cors_allow_origins")
+    configured = Settings(_env_file=None, app_env="dev", **expanded)
+    assert configured.public_base_url == "https://demo.example.org/"
+
+
+@pytest.mark.parametrize("name", sorted(PUBLIC_ORIGIN_VARIABLES))
+@pytest.mark.parametrize("supplied", [None, "", "https://demo.example.org"])
+def test_the_expanded_public_origins_pass_the_gateway_settings(services, monkeypatch, name, supplied):
+    from openbinding_gateway.core.settings import Settings
+
+    _clear_settings_environment(monkeypatch)
+    env = _env(services[name])
+    expanded = {key.lower(): _expand(env[key], supplied) for key in PUBLIC_ORIGIN_VARIABLES[name]}
+    configured = Settings(_env_file=None, app_env="dev", **expanded)
+    assert configured.public_base_url == expanded["public_base_url"]
+
+
 def test_no_real_secret_shapes_and_no_destructive_key(compose):
     text = COMPOSE.read_text(encoding="utf-8")
     assert not SECRET_SHAPES.search(text)
