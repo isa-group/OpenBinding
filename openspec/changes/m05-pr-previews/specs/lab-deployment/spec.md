@@ -36,7 +36,7 @@ THE preview manager SHALL start a PR preview only on an explicit request naming 
 
 `req~lab-deployment-preview-on-demand~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_request_for_an_open_pr_plans_one_stack_at_its_head`; GAP `lab/tests/test_previews.py::test_closed_or_merged_pr_is_refused_as_not_eligible`; GAP `lab/tests/test_previews.py::test_fork_pr_is_refused_as_not_eligible`; GAP `lab/tests/test_previews.py::test_only_request_and_refresh_plan_an_up_without_a_record`; GAP `lab/tests/test_previews.py::test_missing_required_flag_is_a_usage_error`; F2 acceptance: `labctl preview list` after a push to a PR without a preview shows no `openbinding-pr-<n>` project
+Evidence: `lab/tests/test_previews.py::test_request_for_an_open_pr_plans_one_stack_at_its_head`; `lab/tests/test_previews.py::test_closed_or_merged_pr_is_refused_as_not_eligible`; `lab/tests/test_previews.py::test_fork_pr_is_refused_as_not_eligible`; `lab/tests/test_previews.py::test_only_request_and_refresh_plan_an_up_without_a_record`
 
 #### Scenario: Request for an open PR
 - **GIVEN** open PR 42 of `isa-group/OpenBinding` with head `3f2a…`, no record and port 18101 free
@@ -69,7 +69,7 @@ THE preview manager SHALL publish each PR preview on exactly one port of `127.0.
 
 `req~lab-deployment-preview-port-range~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_first_preview_gets_18101`; GAP `lab/tests/test_previews.py::test_lowest_free_port_fills_gaps`; GAP `lab/tests/test_previews.py::test_listened_on_port_is_skipped`; GAP `lab/tests/test_previews.py::test_stopped_preview_keeps_its_port`; GAP `lab/tests/test_previews.py::test_failed_record_without_a_port_gets_the_lowest_free_port`; GAP `lab/tests/test_previews.py::test_destroyed_record_frees_its_port`; GAP `lab/tests/test_previews.py::test_98_held_ports_allocate_18199`; GAP `lab/tests/test_previews.py::test_18100_is_never_allocated`; static test (the `127.0.0.1` host): GAP `lab/tests/test_lab_compose.py::test_single_published_port_on_loopback`
+Evidence: `lab/tests/test_previews.py::test_first_preview_gets_18101`; `lab/tests/test_previews.py::test_lowest_free_port_fills_gaps`; `lab/tests/test_previews.py::test_98_held_ports_allocate_18199`; `lab/tests/test_lab_compose.py::test_single_published_port_on_loopback`
 
 #### Scenario: First preview
 - **GIVEN** no PR preview record, port 18101 free and the develop lab on 18100
@@ -116,7 +116,7 @@ THE preview manager SHALL run each PR preview as its own Compose project `openbi
 
 `req~lab-deployment-preview-isolation~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_names_derive_from_the_pr_number`; static tests: `lab/tests/test_lab_compose.py::test_top_level_volumes_and_networks_carry_only_labels`; `lab/tests/test_lab_compose.py::test_volumes_are_structured_and_declared`; `lab/tests/test_lab_compose.py::test_no_host_code_is_bind_mounted_and_the_image_carries_the_seed_tools`; `lab/tests/test_lab_process_profiles.py::test_volumes_are_structured_declared_and_used`; live probe (S4): GAP `lab/tests/test_preview_isolation.py::test_cross_preview_port_is_unreachable_and_web_is_local`
+Evidence: `lab/tests/test_previews.py::test_names_derive_from_the_pr_number`; `lab/tests/test_lab_compose.py::test_top_level_volumes_and_networks_carry_only_labels`; `lab/tests/test_lab_compose.py::test_volumes_are_structured_and_declared`; live probe (S4): GAP `lab/tests/test_preview_isolation.py::test_cross_preview_port_is_unreachable_and_web_is_local`
 
 #### Scenario: Two previews
 - **GIVEN** `ready` records of PR 42 on 18101 and PR 57 on 18102, and both PRs moved to new heads
@@ -137,7 +137,7 @@ THE preview manager SHALL start a PR preview only from a lab Compose file tracke
 
 `req~lab-deployment-preview-synthetic-only~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_untracked_compose_is_refused`; GAP `lab/tests/test_previews.py::test_first_request_plans_a_synthetic_environment`; GAP `lab/tests/test_previews.py::test_generated_secrets_follow_the_demo_formats`; GAP `lab/tests/test_previews.py::test_secrets_differ_between_prs_and_repeat_with_the_seed`; GAP `lab/tests/test_previews.py::test_refresh_and_reopen_keep_the_environment_and_secrets`; F2 acceptance: the stored environment of a real preview meets the same format rules
+Evidence: `lab/tests/test_previews.py::test_untracked_compose_is_refused`; `lab/tests/test_previews.py::test_first_request_plans_a_synthetic_environment`; `lab/tests/test_previews.py::test_generated_secrets_follow_the_demo_formats`; `lab/tests/test_previews.py::test_refresh_and_reopen_keep_the_environment_and_secrets`
 
 #### Scenario: Untracked Compose file
 - **GIVEN** open PR 42 whose tracked files at the head do not include `compose.lab-process.json`
@@ -168,7 +168,7 @@ WHEN a preview is requested or refreshed while it holds a different head SHA tha
 
 `req~lab-deployment-preview-refresh~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_new_head_refreshes_in_place`; GAP `lab/tests/test_previews.py::test_same_running_head_only_records_activity`; GAP `lab/tests/test_previews.py::test_refresh_keeps_head_until_the_build_succeeds`; GAP `lab/tests/test_previews.py::test_g12_on_a_stale_head_is_refused`; F2 acceptance: a refresh whose build fails leaves the old head serving on the same port
+Evidence: `lab/tests/test_previews.py::test_new_head_refreshes_in_place`; `lab/tests/test_previews.py::test_same_running_head_only_records_activity`; `lab/tests/test_previews.py::test_refresh_keeps_head_until_the_build_succeeds`; `lab/tests/test_previews.py::test_g12_on_a_stale_head_is_refused`; F2: failed refresh keeps old head
 
 #### Scenario: New commit then request
 - **GIVEN** the `ready` record of PR 42 at head `3f2a…` on port 18101
@@ -195,7 +195,7 @@ WHEN 168 hours or more have passed since a PR preview's last recorded activity (
 
 `req~lab-deployment-preview-idle-expiry~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_expiry_at_exactly_168_idle_hours`; GAP `lab/tests/test_previews.py::test_kept_at_167_hours_59_minutes`; GAP `lab/tests/test_previews.py::test_transient_and_destroyed_records_are_skipped_by_the_sweep`; GAP `lab/tests/test_previews.py::test_stopped_and_failed_previews_age`; GAP `lab/tests/test_previews.py::test_unknown_activity_kind_is_a_usage_error`; GAP `lab/tests/test_previews.py::test_g12_activity_resets_the_clock`
+Evidence: `lab/tests/test_previews.py::test_expiry_at_exactly_168_idle_hours`; `lab/tests/test_previews.py::test_kept_at_167_hours_59_minutes`; `lab/tests/test_previews.py::test_stopped_and_failed_previews_age`; `lab/tests/test_previews.py::test_g12_activity_resets_the_clock`
 
 #### Scenario: Idle for exactly seven days
 - **GIVEN** the `ready` record of PR 42 on 18101, last active at 2026-11-01T10:00:00Z
@@ -232,7 +232,7 @@ THE preview manager SHALL delete a PR preview's volumes and images only through 
 
 `req~lab-deployment-preview-destroy-maintenance~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_only_labctl_destroy_deletes`; GAP `lab/tests/test_previews.py::test_expire_routes_every_deletion_to_labctl_destroy`; GAP `lab/tests/test_previews.py::test_destroy_keeps_an_image_another_record_references`; GAP `lab/tests/test_previews.py::test_destroy_removes_an_image_only_a_destroyed_record_lists`; GAP `lab/tests/test_previews.py::test_destroy_after_port_reuse_leaves_the_second_image`; GAP `lab/tests/test_previews.py::test_destroy_keeps_an_image_the_develop_tag_resolves_to`; F2 acceptance: after `refresh` and `stop` every `openbinding-pr-<n>_*` volume still exists, and after `labctl destroy preview <n>` none does
+Evidence: `lab/tests/test_previews.py::test_only_labctl_destroy_deletes`; `lab/tests/test_previews.py::test_stop_keeps_port_volumes_and_images_and_runs_down_without_volumes`; `lab/tests/test_previews.py::test_destroy_check_destroys_the_project_and_marks_the_record`; `lab/tests/test_previews.py::test_destroy_keeps_an_image_another_record_references`
 
 #### Scenario: Refresh, stop and expire delete nothing themselves
 - **GIVEN** the `ready` record of PR 42 on 18101 with its volumes and images
@@ -266,7 +266,7 @@ IF starting a PR preview (a request, refresh or open that moves it from absent, 
 
 `req~lab-deployment-preview-running-cap~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_start_refused_above_the_lab_cap`; GAP `lab/tests/test_previews.py::test_cap_boundary_9216_allowed_9217_refused`; GAP `lab/tests/test_previews.py::test_start_well_under_the_cap_is_allowed`; GAP `lab/tests/test_previews.py::test_stopped_previews_do_not_count`; GAP `lab/tests/test_previews.py::test_two_previews_fit_without_the_develop_lab`; GAP `lab/tests/test_previews.py::test_refresh_of_a_stopped_or_failed_preview_runs_admission`; GAP `lab/tests/test_previews.py::test_refresh_of_a_running_preview_skips_admission`
+Evidence: `lab/tests/test_previews.py::test_start_refused_above_the_lab_cap`; `lab/tests/test_previews.py::test_cap_boundary_9216_allowed_9217_refused`; `lab/tests/test_previews.py::test_stopped_previews_do_not_count`; `lab/tests/test_previews.py::test_refresh_of_a_running_preview_skips_admission`
 
 #### Scenario: Develop lab and one preview running
 - **GIVEN** running `openbinding-lab` (4032 MiB) and `openbinding-pr-42` (4032 MiB), and PR 57 at a head of 4032 MiB
@@ -303,7 +303,7 @@ IF no port in 18101–18199 is free, each being held by a PR preview record or l
 
 `req~lab-deployment-preview-ports-exhausted~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_refusal_when_99_ports_are_held`; GAP `lab/tests/test_previews.py::test_refusal_when_98_are_held_and_one_is_listened_on`; GAP `lab/tests/test_previews.py::test_first_failing_check_wins_in_order`
+Evidence: `lab/tests/test_previews.py::test_refusal_when_99_ports_are_held`; `lab/tests/test_previews.py::test_refusal_when_98_are_held_and_one_is_listened_on`; `lab/tests/test_previews.py::test_first_failing_check_wins_in_order`
 
 #### Scenario: Hundredth preview
 - **GIVEN** 99 records holding 18101–18199
