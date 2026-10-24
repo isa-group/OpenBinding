@@ -1,0 +1,1 @@
+1. Tests first (done, task f9175669874a45cd, red by assertion). 2. Planner (done, task 0275827a37144668, 106 tests and lab/tests 331 green). 3. Push, PR into develop, panel reviewer + test-reviewer on the final head, lead_ready.
