@@ -5,6 +5,7 @@
       "date": "2026-10-24",
       "title": "OpenBinding platform",
       "changes": [
+        "Shorten over-length lab-deployment requirements (M0.2) (#35)",
         "Shorten over-length requirements, batch B (M0.2) (#33)",
         "PR previews per head (M0.5), OpenSpec change and runbook plan (#30)",
         "Validate public origins at startup and clean up lab leftovers (#29)",
@@ -79,9 +80,11 @@
       "date": "2026-10-24",
       "title": "OpenBinding documentation",
       "changes": [
+        "Shorten over-length lab-deployment requirements (M0.2) (#35)",
         "Shorten over-length requirements, batch A (M0.2) (#32)",
         "Shorten over-length requirements, batch C (M0.2) (#31)",
         "Shorten over-length requirements, batch B (M0.2) (#33)",
+        "M05-s1b-planner plan and handoff",
         "PR previews per head (M0.5), OpenSpec change and runbook plan (#30)",
         "Validate public origins at startup and clean up lab leftovers (#29)",
         "Public origin of the demo, and Docker as the only deployment (#27)",
