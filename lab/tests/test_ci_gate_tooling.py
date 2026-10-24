@@ -362,3 +362,56 @@ def test_frontend_images_get_plugin_only_by_frozen_install():
                 assert copy.group(1) == "/app/dist", f"{stage} copies {copy.group(1)} from build"
     for stage in ("prod-assets", "prod"):
         assert any(re.match(r"COPY\s+--from=build\s+/app/dist\s", line) for line in stages[stage]), f"{stage} does not copy /app/dist from build"
+
+
+API_RUNNER = "openbinding-gateway/.venv/bin/python -m pytest -c acceptance/api/pytest.ini acceptance/api"
+UI_RUNNER = "pnpm exec playwright test --config playwright.acceptance.config.ts --pass-with-no-tests"
+
+
+# [utest->req~gate-tooling-api-runner~1]
+def test_api_runner_passes_empty_and_runs_in_lab():
+    import subprocess
+    import sys
+
+    conftest = _read(ROOT / "acceptance" / "api" / "conftest.py")
+    assert "pytest_sessionfinish" in conftest, "acceptance/api/conftest.py has no pytest_sessionfinish hook"
+    done = subprocess.run(
+        [sys.executable, "-m", "pytest", "-c", "acceptance/api/pytest.ini", "acceptance/api", "-q",
+         "-p", "no:cacheprovider", "-k", "zz_selects_nothing"],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+    )
+    assert done.returncode == 0, f"exit {done.returncode}\n{done.stdout}\n{done.stderr}"
+
+    job = _job("lab")
+    runner = _step(job, "-m pytest -c acceptance/api/pytest.ini acceptance/api")
+    assert runner["run"].strip() == API_RUNNER
+    assert "continue-on-error" not in runner
+    steps = job["steps"]
+    assert steps.index(_step(job, "pytest lab/tests")) < steps.index(runner) < steps.index(_step(job, "lint-imports"))
+
+
+# [utest->req~gate-tooling-ui-runner~1]
+def test_ui_runner_passes_empty_in_frontend_job():
+    config = _read(FRONTEND / "playwright.acceptance.config.ts")
+    assert "testDir: '../acceptance/ui'" in config, "playwright.acceptance.config.ts has no testDir '../acceptance/ui'"
+    assert (ROOT / "acceptance" / "ui" / ".gitkeep").is_file(), "acceptance/ui/.gitkeep is missing"
+
+    job = _job("frontend")
+    runner = _step(job, "--config playwright.acceptance.config.ts")
+    assert runner["run"].strip() == UI_RUNNER
+    assert runner.get("working-directory") == "frontend"
+    assert "continue-on-error" not in runner
+    steps = job["steps"]
+    assert steps.index(_step(job, "playwright install")) < steps.index(runner)
+    assert steps[-1] is runner, "the acceptance runner is not the last step of job frontend"
+
+
+# [utest->req~gate-tooling-acceptance-docs~1]
+def test_acceptance_docs_name_runners_and_writer():
+    for path in (ROOT / "acceptance" / "README.md", ROOT / "TESTING.md"):
+        text = _read(path)
+        for needle in ("pytest -c acceptance/api/pytest.ini", "playwright.acceptance.config.ts", "test-designer"):
+            assert needle in text, f"{path.relative_to(ROOT)} does not contain {needle!r}"
+    headings = [line for line in _read(ROOT / "TESTING.md").splitlines() if line.startswith("## 2.")]
+    assert len(headings) == 1, headings
+    assert "to be created" not in headings[0], headings[0]

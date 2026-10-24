@@ -134,6 +134,10 @@ jobs:
       - name: Run the lab tests
         run: openbinding-gateway/.venv/bin/python -m pytest lab/tests -q
 
+      # Gate G4 runner. It exits 0 while acceptance/api holds no test.
+      - name: Run the API acceptance tests
+        run: openbinding-gateway/.venv/bin/python -m pytest -c acceptance/api/pytest.ini acceptance/api
+
       # Gate G9. Report-only: a broken contract is logged and does not fail the job.
       - name: Check import contracts (report-only)
         continue-on-error: true
@@ -358,3 +362,8 @@ jobs:
       - name: Run Playground browser tests
         working-directory: frontend
         run: pnpm exec playwright test --project=mocked
+
+      # Gate G4 runner. It exits 0 while acceptance/ui holds no spec.
+      - name: Run the UI acceptance tests
+        working-directory: frontend
+        run: pnpm exec playwright test --config playwright.acceptance.config.ts --pass-with-no-tests

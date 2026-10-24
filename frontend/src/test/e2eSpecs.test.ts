@@ -31,7 +31,7 @@ const options: ts.CompilerOptions = {
   noUnusedParameters: true,
 };
 
-const configs = [`${root}/playwright.config.ts`, `${root}/playwright.live.config.ts`];
+const configs = [`${root}/playwright.config.ts`, `${root}/playwright.live.config.ts`, `${root}/playwright.acceptance.config.ts`];
 const liveFiles = ts.sys.readDirectory(live, ['.ts']);
 const rootNames = [...ts.sys.readDirectory(e2e, ['.ts']), ...configs];
 const program = ts.createProgram({ rootNames, options });
