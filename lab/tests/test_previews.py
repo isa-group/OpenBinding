@@ -168,6 +168,14 @@ def non_secret_env(plan: dict) -> dict:
     return {name: value for name, value in plan["env"].items() if name not in SECRETS}
 
 
+def assert_env_kept(tmp_path: Path, plan: dict) -> None:
+    """The five secrets are kept and the rest equals the environment of a first start on the same port."""
+    assert all(plan["env"][name] == {"keep": True} for name in SECRETS)
+    first = plan_for(tmp_path, "request", listening=list(range(18101, plan["port"])))
+    assert first["port"] == plan["port"]
+    assert non_secret_env(plan) == non_secret_env(first)
+
+
 # --- Preview on demand per PR head -------------------------------------------------------------
 
 
@@ -209,10 +217,10 @@ def test_only_request_and_refresh_plan_an_up_without_a_record(tmp_path):
         name: plan_for(tmp_path, name, [other], head=NEW, kind="open")
         for name in ("open", "expire", "activity", "stop", "destroy-check")
     }
-    assert set(plans) == {"open", "expire", "activity", "stop", "destroy-check"}
     for name, plan in plans.items():
         assert plan["refusal"] is None, name
         assert plan["record"] is None, name
+        assert plan["commands"] == [], name
         assert not any("up" in command for command in plan["commands"]), name
     # the other two start a stack for the same state
     for name in ("request", "refresh"):
@@ -239,6 +247,16 @@ REQUIRED = {
 }
 MISSING = [(name, "open", flag) for name, needed in REQUIRED.items() for flag in needed]
 MISSING += [("activity", kind, "--pr-info") for kind in ("g12", "screenshot")]
+EXACT = [(name, "open") for name in REQUIRED] + [("activity", kind) for kind in ("g12", "screenshot")]
+
+
+# [utest->req~lab-deployment-preview-on-demand~1]
+@pytest.mark.parametrize(("name", "kind"), EXACT)
+def test_exactly_the_required_flags_are_enough(tmp_path, name, kind):
+    given = flags(write_state(tmp_path, [record(42, status="stopped")]), kind=kind)
+    needed = REQUIRED[name] + (["--pr-info"] if name == "activity" and kind != "open" else [])
+    plan = planned(name, *argv({flag: value for flag, value in given.items() if flag in needed}))
+    assert plan["action"] == name
 
 
 # [utest->req~lab-deployment-preview-on-demand~1]
@@ -266,6 +284,29 @@ def test_malformed_json_flag_is_a_usage_error(tmp_path, name, flag):
     given = flags(write_state(tmp_path, []), tags={})
     given[flag] = "{not json"
     usage_error(name, *argv(given))
+
+
+# [utest->req~lab-deployment-preview-on-demand~1]
+@pytest.mark.parametrize(("flag", "value"), [
+    ("--tracked", json.dumps(COMPOSE)),  # a string would pass a substring check
+    ("--tracked", json.dumps([COMPOSE, 7])),
+    ("--tracked", json.dumps({COMPOSE: True})),
+    ("--listening", json.dumps(["18101"])),
+    ("--listening", json.dumps("18101")),
+    ("--listening", json.dumps([True])),
+    ("--running", json.dumps([{"project": "openbinding-lab", "mem_mib": -1}])),
+    ("--running", json.dumps([{"project": "openbinding-lab", "mem_mib": "4032"}])),
+    ("--running", json.dumps([{"mem_mib": MEM}])),
+    ("--running", json.dumps(["openbinding-lab"])),
+    ("--tags", json.dumps({"openbinding-lab-gateway:18101": 7})),
+    ("--tags", json.dumps(["openbinding-lab-gateway:18101"])),
+    ("--head-mem-mib", "-1"),
+    ("--head-mem-mib", "lots"),
+])
+def test_wrongly_typed_flag_is_a_usage_error(tmp_path, flag, value):
+    given = flags(write_state(tmp_path, []), tags={})
+    given[flag] = value
+    usage_error("request", *argv(given))
 
 
 # [utest->req~lab-deployment-preview-on-demand~1]
@@ -311,9 +352,22 @@ def test_first_preview_gets_18101(tmp_path):
 
 
 # [utest->req~lab-deployment-preview-port-range~1]
-def test_lowest_free_port_fills_gaps(tmp_path):
-    records = [record(42, port=18101), record(43, port=18103)]
+@pytest.mark.parametrize(
+    "status", ["requested", "starting", "seeding", "ready", "stopped", "failed", "destroying"],
+)
+def test_lowest_free_port_fills_gaps(tmp_path, status):
+    records = [record(42, status=status, port=18101), record(43, port=18103)]
     assert plan_for(tmp_path, "request", records, pr=57)["port"] == 18102
+
+
+# [utest->req~lab-deployment-preview-port-range~1]
+def test_failed_record_with_a_port_keeps_it_on_restart(tmp_path):
+    plan = plan_for(tmp_path, "request", [record(42, status="failed", port=18101)])
+    assert plan["refusal"] is None
+    assert plan["port"] == 18101
+    assert plan["record"]["port"] == 18101
+    assert plan["commands"] == [up(42)]
+    assert_env_kept(tmp_path, plan)
 
 
 # [utest->req~lab-deployment-preview-port-range~1]
@@ -351,6 +405,7 @@ def test_failed_record_without_a_port_gets_the_lowest_free_port(tmp_path):
     assert plan["port"] == 18102
     assert plan["record"]["port"] == 18102
     assert plan["commands"] == [up(42)]
+    assert_env_kept(tmp_path, plan)
 
 
 # [utest->req~lab-deployment-preview-port-range~1]
@@ -410,7 +465,9 @@ def test_names_derive_from_the_pr_number(tmp_path):
 
 
 # [utest->req~lab-deployment-preview-synthetic-only~1]
-@pytest.mark.parametrize("tracked", [[], ["README.md", "compose.lab.json"]])
+@pytest.mark.parametrize("tracked", [
+    [], ["README.md", "compose.lab.json"], ["docs/" + COMPOSE], [COMPOSE + ".bak"],
+])
 def test_untracked_compose_is_refused(tmp_path, tracked):
     plan = plan_for(tmp_path, "request", tracked=tracked)
     assert plan["refusal"] == "preview_untracked_compose"
@@ -442,19 +499,28 @@ def test_destroyed_record_counts_as_no_record(tmp_path):
 
 # [utest->req~lab-deployment-preview-synthetic-only~1]
 def test_generated_secrets_follow_the_demo_formats(tmp_path):
-    for pr in (42, 57):
-        env = plan_for(tmp_path, "request", pr=pr, seed=7)["env"]
-        assert all(env[name]["generate"] is True and env[name]["value"] for name in SECRETS)
-        assert re.fullmatch(r"[A-Za-z0-9._-]+", env["DEMO_PG_PASSWORD"]["value"])
-        fernet = env["DEMO_FERNET_KEY"]["value"]
-        raw = base64.urlsafe_b64decode(fernet)
-        assert len(raw) == 32
-        assert base64.urlsafe_b64encode(raw).decode() == fernet
-        token = env["DEMO_BIM_TOKEN"]["value"]
-        assert 32 <= len(token) <= 127
-        assert all(0x21 <= ord(char) <= 0x7E for char in token)
-        assert len(env["DEMO_SEED_PASSWORD"]["value"]) >= 10
-        assert len(env["DEMO_JWT_SECRET"]["value"]) >= 32
+    for seed in (1, 7, 2026):
+        for pr in (42, 57):
+            env = plan_for(tmp_path, "request", pr=pr, seed=seed)["env"]
+            assert all(env[name]["generate"] is True and env[name]["value"] for name in SECRETS)
+            assert re.fullmatch(r"[A-Za-z0-9._-]+", env["DEMO_PG_PASSWORD"]["value"])
+            fernet = env["DEMO_FERNET_KEY"]["value"]
+            raw = base64.urlsafe_b64decode(fernet)
+            assert len(raw) == 32
+            assert base64.urlsafe_b64encode(raw).decode() == fernet
+            token = env["DEMO_BIM_TOKEN"]["value"]
+            assert 32 <= len(token) <= 127
+            assert all(0x21 <= ord(char) <= 0x7E for char in token)
+            assert len(env["DEMO_SEED_PASSWORD"]["value"]) >= 10
+            assert len(env["DEMO_JWT_SECRET"]["value"]) >= 32
+
+
+# [utest->req~lab-deployment-preview-synthetic-only~1]
+def test_seeded_secret_values_stay_out_of_the_record_and_the_commands(tmp_path):
+    plan = plan_for(tmp_path, "request", seed=7)
+    values = [plan["env"][name]["value"] for name in SECRETS]
+    printed = json.dumps(plan["record"]) + json.dumps(plan["commands"])
+    assert all(value not in printed for value in values)
 
 
 # [utest->req~lab-deployment-preview-synthetic-only~1]
@@ -495,6 +561,7 @@ def test_new_head_refreshes_in_place(tmp_path):
     assert plan["port"] == 18101
     assert plan["commands"] == [up(42, "--build")]
     assert plan["record"]["volumes"] == ready["volumes"]
+    assert_env_kept(tmp_path, plan)
 
 
 # [utest->req~lab-deployment-preview-refresh~1]
@@ -504,6 +571,7 @@ def test_same_running_head_only_records_activity(tmp_path):
     assert plan["refusal"] is None
     assert plan["commands"] == []
     assert plan["record"] == {**ready, "last_active_at": NOW, "last_activity": "request"}
+    assert_env_kept(tmp_path, plan)
 
 
 # [utest->req~lab-deployment-preview-refresh~1]
@@ -515,12 +583,30 @@ def test_refresh_keeps_head_until_the_build_succeeds(tmp_path, name):
 
 
 # [utest->req~lab-deployment-preview-refresh~1]
+def test_restart_at_the_recorded_head_clears_a_pending_head(tmp_path):
+    failed = {**record(42, status="failed", port=18101), "pending_head_sha": NEW}
+    plan = plan_for(tmp_path, "request", [failed])
+    assert plan["record"]["head_sha"] == HEAD
+    assert plan["record"]["pending_head_sha"] is None
+
+
+# [utest->req~lab-deployment-preview-refresh~1]
 @pytest.mark.parametrize("kind", ["g12", "screenshot"])
 def test_g12_on_a_stale_head_is_refused(tmp_path, kind):
     plan = plan_for(tmp_path, "activity", [record(42)], kind=kind, head=NEW)
     assert plan["refusal"] == "preview_head_stale"
     assert plan["record"] is None
     assert plan["commands"] == []
+
+
+# [utest->req~lab-deployment-preview-refresh~1]
+@pytest.mark.parametrize("kind", ["request", "refresh", "open"])
+def test_other_activity_kinds_on_a_moved_head_are_recorded(tmp_path, kind):
+    held = record(42, last_active=ago(50))
+    plan = plan_for(tmp_path, "activity", [held], kind=kind, head=NEW)
+    assert plan["refusal"] is None
+    assert plan["commands"] == []
+    assert plan["record"] == {**held, "last_active_at": NOW, "last_activity": kind}
 
 
 # --- Preview expiry after 7 idle days ----------------------------------------------------------
@@ -640,6 +726,51 @@ def test_destroy_check_destroys_the_project_and_marks_the_record(tmp_path):
 
 
 # [utest->req~lab-deployment-preview-destroy-maintenance~1]
+def test_destroy_removes_its_own_tag_and_unshared_image(tmp_path):
+    own = "openbinding-lab-gateway:18101"
+    plan = plan_for(tmp_path, "destroy-check", [record(42, port=18101, images=[(AA, own)])], tags={own: AA})
+    assert plan["commands"] == [
+        ["lab_compose", "destroy", "--project", "openbinding-pr-42"],
+        ["docker", "image", "rm", own],
+        ["docker", "image", "rm", AA],
+    ]
+
+
+# [utest->req~lab-deployment-preview-destroy-maintenance~1]
+@pytest.mark.parametrize("outside", ["openbinding-lab-gateway:18102", "openbinding-lab-gateway:latest"])
+def test_destroy_keeps_an_image_an_outside_tag_resolves_to(tmp_path, outside):
+    own = "openbinding-lab-gateway:18101"
+    records = [record(42, port=18101, images=[(AA, own)])]
+    plan = plan_for(tmp_path, "destroy-check", records, tags={own: AA, outside: AA})
+    assert plan["commands"] == [
+        ["lab_compose", "destroy", "--project", "openbinding-pr-42"],
+        ["docker", "image", "rm", own],
+    ]
+
+
+# [utest->req~lab-deployment-preview-destroy-maintenance~1]
+def test_destroy_after_port_reuse_with_the_same_image_id_keeps_the_tag(tmp_path):
+    tag = "openbinding-lab-gateway:18101"
+    records = [
+        record(42, status="failed", port=None, images=[(AA, tag)]),
+        record(57, port=18101, images=[(AA, tag)]),
+    ]
+    plan = plan_for(tmp_path, "destroy-check", records, tags={tag: AA})
+    assert plan["commands"] == [["lab_compose", "destroy", "--project", "openbinding-pr-42"]]
+
+
+# [utest->req~lab-deployment-preview-destroy-maintenance~1]
+def test_destroy_keeps_the_image_of_a_tag_another_record_lists(tmp_path):
+    tag = "openbinding-lab-gateway:18101"
+    records = [
+        record(42, status="failed", port=None, images=[(A1, tag)]),
+        record(57, port=18101, images=[(B2, tag)]),
+    ]
+    plan = plan_for(tmp_path, "destroy-check", records, tags={tag: A1})
+    assert plan["commands"] == [["lab_compose", "destroy", "--project", "openbinding-pr-42"]]
+
+
+# [utest->req~lab-deployment-preview-destroy-maintenance~1]
 def test_destroy_keeps_an_image_another_record_references(tmp_path):
     records = [
         record(42, port=18101, images=[(AA, "openbinding-lab-gateway:18101")]),
@@ -719,7 +850,8 @@ def test_start_well_under_the_cap_is_allowed(tmp_path):
 
 # [utest->req~lab-deployment-preview-running-cap~1]
 def test_stopped_previews_do_not_count(tmp_path):
-    plan = plan_for(tmp_path, "request", [record(42, status="stopped", port=18101)], pr=57)
+    plan = plan_for(tmp_path, "request", [record(42, status="stopped", port=18101)], pr=57,
+                    running=[stack("openbinding-lab")])
     assert plan["refusal"] is None
     assert plan["commands"] == [up(57, "--build")]
 
@@ -744,6 +876,24 @@ def test_refresh_of_a_stopped_or_failed_preview_runs_admission(tmp_path, held):
     plan = plan_for(tmp_path, "refresh", [held], head=NEW, running=running)
     assert plan["refusal"] == "preview_capacity_reached"
     assert plan["commands"] == []
+
+
+# [utest->req~lab-deployment-preview-running-cap~1]
+@pytest.mark.parametrize("name", ["request", "open"])
+@pytest.mark.parametrize("held", [
+    record(42, status="stopped", port=18101),
+    record(42, status="failed", port=None),
+])
+@pytest.mark.parametrize(("others", "refusal"), [
+    (5184, None), (5185, "preview_capacity_reached"), (2 * MEM, "preview_capacity_reached"),
+])
+def test_restart_at_the_same_head_runs_admission(tmp_path, name, held, others, refusal):
+    running = [stack("openbinding-lab"), stack("openbinding-pr-57", others - MEM)]
+    plan = plan_for(tmp_path, name, [held], running=running)
+    assert plan["refusal"] == refusal
+    assert plan["commands"] == ([up(42)] if refusal is None else [])
+    assert (plan["record"] is None) == (refusal is not None)
+    assert (plan["port"] is None) == (refusal is not None)
 
 
 # [utest->req~lab-deployment-preview-running-cap~1]

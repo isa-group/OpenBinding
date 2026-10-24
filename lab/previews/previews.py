@@ -69,6 +69,25 @@ def time_arg(text: str) -> str:
     return text
 
 
+def json_arg(check):
+    def load(text: str):
+        value = json.loads(text)
+        if not check(value):
+            raise ValueError(f"unexpected shape: {text}")
+        return value
+
+    return load
+
+
+def list_of(kind: type):
+    return lambda value: isinstance(value, list) and all(type(item) is kind for item in value)
+
+
+def is_stack(value) -> bool:
+    return isinstance(value, dict) and type(value.get("project")) is str and type(value.get("mem_mib")) is int \
+        and value["mem_mib"] >= 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = Parser(prog="previews.py", allow_abbrev=False, add_help=False)
     parser.add_argument("command", choices=["plan"])
@@ -77,13 +96,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pr", type=pr_arg)
     parser.add_argument("--head")
     parser.add_argument("--now", type=time_arg)
-    parser.add_argument("--tracked", type=json.loads)
-    parser.add_argument("--running", type=json.loads, default=[])
+    parser.add_argument("--tracked", type=json_arg(list_of(str)))
+    parser.add_argument("--running", type=json_arg(lambda value: isinstance(value, list) and all(map(is_stack, value))),
+                        default=[])
     parser.add_argument("--pr-info", type=json.loads)
     parser.add_argument("--kind", choices=KINDS)
-    parser.add_argument("--head-mem-mib", type=int)
-    parser.add_argument("--listening", type=json.loads, default=[])
-    parser.add_argument("--tags", type=json.loads, default={})
+    parser.add_argument("--head-mem-mib", type=json_arg(lambda value: type(value) is int and value >= 0))
+    parser.add_argument("--listening", type=json_arg(list_of(int)), default=[])
+    parser.add_argument("--tags", type=json_arg(lambda v: isinstance(v, dict) and list_of(str)(list(v.values()))),
+                        default={})
     parser.add_argument("--seed-rng", type=int)
     return parser
 
@@ -156,8 +177,7 @@ def started(args, rec: dict | None, head: str, port: int) -> dict:
     }
     new = {**(rec or fresh), "port": port, "mem_mib": args.head_mem_mib, "status": "starting", "error": None,
            "last_active_at": args.now, "last_activity": args.name}
-    if head != new["head_sha"]:
-        new["pending_head_sha"] = head  # head_sha moves only when `up` succeeds
+    new["pending_head_sha"] = head if head != new["head_sha"] else None  # head_sha moves only when `up` succeeds
     return new
 
 
@@ -211,10 +231,12 @@ def destroy_check(args) -> dict:
         return result(args)
     images = rec["images"]
     own_tags = {image["tag"] for image in images}
-    others = {image["id"] for r in args.state if r is not rec and r["status"] != "destroyed" for image in r["images"]}
-    shared = others | {image for tag, image in args.tags.items() if tag not in own_tags}
+    elsewhere = [image for r in args.state if r is not rec and r["status"] != "destroyed" for image in r["images"]]
+    held = {image["tag"] for image in elsewhere}  # a tag another record lists is not this record's to remove
+    shared = {image["id"] for image in elsewhere} | {i for t, i in args.tags.items() if t not in own_tags or t in held}
     own_ids = list(dict.fromkeys(image["id"] for image in images))
-    tags = list(dict.fromkeys(tag for tag in (i["tag"] for i in images) if args.tags.get(tag) in own_ids))
+    tags = list(dict.fromkeys(i["tag"] for i in images
+                              if args.tags.get(i["tag"]) in own_ids and i["tag"] not in held))
     ids = [i for i in own_ids if i not in shared]
     commands = [["lab_compose", "destroy", "--project", rec["project"]]]
     commands += [["docker", "image", "rm", target] for target in (*tags, *ids)]
