@@ -1,0 +1,57 @@
+.rendering-log {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+}
+
+.rendering-log summary { padding: 0.5rem 0.75rem; cursor: pointer; font-weight: 500; }
+
+.rendering-log__bar { display: flex; gap: 0.5rem; padding: 0 0.75rem; }
+
+.rendering-log__bar input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-border-hover);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+}
+
+.rendering-log__bar button {
+  padding: 0.125rem 0.625rem;
+  border: 1px solid var(--color-border-hover);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.rendering-log__bar button.is-copied { border-color: var(--color-success); color: var(--color-success-text); }
+.rendering-log__bar button.is-failed { border-color: var(--color-error); color: var(--color-error-text); }
+
+.rendering-log__count, .rendering-log__empty { margin: 0; padding: 0.375rem 0.75rem; color: var(--color-text-secondary); font-size: 0.75rem; }
+
+.rendering-log pre {
+  max-height: 24rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  overflow: auto;
+  border-top: 1px solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.rendering-log__num {
+  display: inline-block;
+  min-width: 3ch;
+  margin-right: 1ch;
+  color: var(--color-text-tertiary);
+  text-align: right;
+  user-select: none;
+}
