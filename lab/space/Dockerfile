@@ -22,7 +22,7 @@ FROM node:21.1@sha256:0052410af98158173b17a26e0e2a46a3932095ac9a0ded660439a8ffae
 WORKDIR /src
 RUN git init
 RUN git fetch --depth 1 https://github.com/SCORELabUS/space.git ef4dc8949435d998e2aff525226e3fcc85e2f7ba
-RUN git checkout --detach FETCH_HEAD
+RUN git checkout FETCH_HEAD
 RUN test "$(git rev-parse HEAD)" = "ef4dc8949435d998e2aff525226e3fcc85e2f7ba"
 
 FROM node:21.1-slim@sha256:cba276a6db06f49c589bcea35c598b5a960880ed5631bd4407a61c414ec7a9b9 AS build

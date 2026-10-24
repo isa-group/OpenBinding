@@ -453,8 +453,8 @@ class FakeSpace:
     def secrets(self) -> list[str]:
         return [ADMIN_PASSWORD, ADMIN_KEY, *self.issued_keys]
 
-    def count(self, method: str, fragment: str = "") -> int:
-        return sum(1 for m, p in self.requests if m == method and fragment in p)
+    def count(self, method: str, fragment: str = "", exact: bool = False) -> int:
+        return sum(1 for m, p in self.requests if m == method and (p == fragment if exact else fragment in p))
 
     def changes(self) -> list[tuple[str, str]]:
         """Requests that change SPACE, apart from the authentication."""
@@ -658,7 +658,7 @@ def test_the_service_comes_from_the_sphere_link_with_all_last(tool):
     transport = httpx.MockTransport(spy)
     asyncio.run(tool.bootstrap(make_config(tool), transport=transport, contracts=contracts, sleep=Sleeps()))
     assert posted == [{"source": "sphere", "permanentUrl": SPHERE_LINK, "policy": "all_last"}]
-    assert fake.count("POST", "/api/v1/services") == 1
+    assert fake.count("POST", "/api/v1/services", exact=True) == 1
 
 
 def test_it_waits_for_the_first_synchronization(tool):
