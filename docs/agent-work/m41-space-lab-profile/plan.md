@@ -1,0 +1,1 @@
+M4.1 slices S1+S2 (continuation scope): optional pricing lab profile with space-api as explicit GAP; tests first; spec aligned. S3/S4/S5 blocked on the owner CRP crp-openbinding-m41-space-image-and-16-1. Steps: push, PR into develop, panel (reviewer, test-reviewer, security-auditor, arch-reviewer) on final head, fixes, lead_ready.
