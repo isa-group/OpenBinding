@@ -566,7 +566,14 @@ does for a declared size.
 | `CORS_ALLOW_CREDENTIALS` | Whether credentialed cross-origin requests are allowed (default `true`; ignored when the list contains `*`). |
 | `APP_ENV` | `dev` (default), `test` or `prod`; `prod` enables the startup checks above. |
 | `BIM_SERVICE_ALLOW_INSECURE_HTTP`, `FEDERATION_REQUIRE_HTTPS` | Plain-http switches for a trusted development or lab network (the bim-service bearer token over `http`; federated engines over `http`). With `APP_ENV=prod`, `BIM_SERVICE_ALLOW_INSECURE_HTTP=true` or `FEDERATION_REQUIRE_HTTPS=false` makes the gateway **refuse to start**, like `SPACE_ENABLED=false`. `dev`, `test` and the lab are unaffected. |
-| `FRONTEND_URL` | Where the CAS callback returns the browser (`/auth/cas/callback?code=…` or `?error=…`). |
+| `FRONTEND_URL` | Where the CAS callback returns the browser (`/auth/cas/callback?code=…` or `?error=…`). It must be `scheme://host[:port]`, with no path, query, fragment or userinfo. |
+
+Origin values (`FRONTEND_URL` and every `CORS_ALLOW_ORIGINS` entry) must be
+`scheme://host[:port]` with no path, query, fragment or userinfo, and
+`CORS_ALLOW_ORIGINS` entries must be written exactly as a browser sends them in
+`Origin`: lower-case, no trailing `/`, default port omitted (`http://localhost`,
+not `http://localhost:80`). The gateway checks the format at startup and refuses
+to start, naming the variable.
 
 Cross-origin responses expose these headers to the browser (not configurable):
 `Retry-After`, `ETag`, `Location`, `Content-Disposition`, `Digest` and
