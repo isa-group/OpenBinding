@@ -135,7 +135,7 @@ services:
       - ./experimentation:/app/experimentation:ro
       - ./pricings:/app/pricings:ro
       # The whole checkout, read-only. The service's own tree is only /app plus
-      # the mounts above; tests that read bim-toolchain/, frontend/, deploy/,
+      # the mounts above; tests that read bim-toolchain/, frontend/,
       # the compose files or .env.example run with OPENBINDING_REPO_ROOT=/workspace.
       - .:/workspace:ro
       - artifacts:/var/lib/openbinding/artifacts
@@ -144,7 +144,7 @@ services:
       - OPENBINDING_REPO_ROOT=/app
       - SCHEMAS_DIR=/app/schemas
       - PYTHONPATH=/app/src
-      - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_DEV:-http://localhost,http://localhost:80,http://localhost:5173,http://127.0.0.1,http://127.0.0.1:80,http://127.0.0.1:5173}
+      - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_DEV:-http://localhost,http://localhost:5173,http://127.0.0.1,http://127.0.0.1:5173}
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
       # No default: a well-known signing key is worse than none. ./up.sh writes
       # a random one into .env when it is missing; otherwise set it (>= 32 chars).
