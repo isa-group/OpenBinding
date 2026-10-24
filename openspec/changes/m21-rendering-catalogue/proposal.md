@@ -14,49 +14,54 @@ the components exist.
 
 ## What Changes
 
-State: the components, their tests and the hygiene test with its allow-list are built (S1–S3); the catalogue page (S4)
-and the review and archive (S5) are not done (tasks.md).
+State: the components, their tests, the hygiene test with its allow-list and the catalogue page are built (S1–S4),
+with the fixes of review round 1 of PR 38; the review sign-off and the archive (S5) are open (tasks.md).
 
 - Five shared rendering components under `frontend/src/components/rendering/`: `SourceView` (read-only source in a
   named region with Copy and optional Download), `LogPanel` (collapsed, searchable, copyable log with line numbers),
-  `DiagnosticsList` (diagnostics grouped by resource, errors first, with a lowercase severity badge, code, pointer and
-  hint, and a count summary), `VerdictBadge` (the five run verdicts with a plain-language description and reasons) and
-  `MetricCards` (labelled key figures with unit, trend and hint).
+  `DiagnosticsList` (diagnostics grouped by resource and, inside a resource, by pointer, errors first, with a lowercase
+  severity badge, code, pointer and hint, and a count summary), `VerdictBadge` (the five run verdicts with a
+  plain-language description as visually hidden text after the verdict, and reasons) and `MetricCards` (labelled key
+  figures with unit, trend and hint). `SourceView` and `LogPanel` share one download helper, `download.ts`.
 - Each component has unit and accessibility tests that query by Testing Library roles, accessible names and
   descriptions, and a check that its stylesheet holds no hex colour.
 - A hygiene test `frontend/src/test/rawRenderingHygiene.test.ts` with a line-based detector fails on any new `<pre>`
-  tag or rendered `JSON.stringify` (a JSX child or a bare attribute value) outside `SourceView` and `LogPanel`.
+  tag or rendered `JSON.stringify` (a JSX child, a child alone on its line, a rendered template-literal child or a
+  bare attribute value) outside `SourceView` and `LogPanel`. Its known limits are pinned by `known limit:` tests.
 - Its allow-list `frontend/src/test/rawRenderingAllowList.ts` lists the 15 offenders of ROADMAP M2 (paths under
-  `frontend/src`, matched by file and trimmed line text, with the line number kept correct by a test) and may only
-  shrink: an entry that no longer matches fails the test. Two detector findings that ROADMAP does not list are kept
-  apart in `UNLISTED_FINDINGS` for the coordinator to classify.
-- A catalogue page `docs/qa/RENDERING_CATALOGUE.md` documents the five components, their props and when to use each
-  (S4, not done yet).
+  `frontend/src`, matched as a multiset by file and trimmed line text, with the line number kept correct by a test)
+  and may only shrink: an entry that no longer matches fails the test. Two detector findings that ROADMAP does not list
+  are kept apart in `UNLISTED_FINDINGS` for the coordinator to classify.
+- A catalogue page `docs/qa/RENDERING_CATALOGUE.md` documents the five components, their props, when to use each and
+  the detector's limits.
 - No screen changes in this change: the offenders are replaced in M2.3–M2.6.
 
 ## Impact
 
 - Capability: `frontend-rendering` (new). Six ADDED requirements: `source-view`, `log-panel`, `diagnostics-list`,
   `verdict-badge`, `metric-cards` and `raw-hygiene`, all `~1`.
-- Repository: new files only, `frontend/src/components/rendering/*.{tsx,css,test.tsx}`,
+- Repository: new files only, `frontend/src/components/rendering/*.{tsx,css,test.tsx}` and `download.ts`,
   `frontend/src/test/rawRenderingHygiene.test.ts`, `frontend/src/test/rawRenderingAllowList.ts` and
   `docs/qa/RENDERING_CATALOGUE.md`. No existing screen, no `package.json` and no lockfile change; no new dependency.
 - ARCHITECTURE §5.3 is the catalogue table and is owned by the coordinator; this change does not edit it. ARCHITECTURE
   §5.1 places the catalogue under `shared/ui`; that layout does not exist yet, so the components go next to
   `components/ui` and move with it when the feature-sliced layout lands (design.md §1).
 - No HTTP API, OpenAPI or database schema change. No production impact.
-- Risks: the detector is a line-based text scan, so it misses a `JSON.stringify` on a different line from the `{` that
-  opens its expression and raw rendering built without the literal `<pre` or `JSON.stringify(` (design.md §4, §7).
+- Risks: the detector is a line-based text scan with known limits (an apostrophe in JSX text, a template literal inside
+  a larger child expression, a `JSON.stringify` on a different line from its opening `{`, a call wrapped in an
+  attribute value) and misses raw rendering built without the literal `<pre` or `JSON.stringify(` (design.md §4, §7).
   Accessibility is checked by roles, names and descriptions only, with no automated WCAG scan (constitution 11 GAP).
 - Findings for the coordinator: `UNLISTED_FINDINGS` 16 (`pages/Workbench/SourcePanel.tsx:108`, a diff `<pre>`) and 17
   (`pages/Analysis/SavedDecision.tsx:34`, a stringified reference) have `retiredBy: null` until classified. Offender 5
-  lists only `RepDetail.tsx:326`: ROADMAP's :77 and :329 are not rendered `JSON.stringify`.
+  lists only `RepDetail.tsx:326`: ROADMAP's :77 (`sourceText`, shown in the textarea at :317 through a variable the
+  detector does not see) and :329 (a copy handler) are not flagged. `VerdictBadge` does not yet know the API
+  `Termination` values `INFEASIBLE` and `UNKNOWN` (M2.3 maps them).
 - Deviation: one PR carries M2.1 and M2.2 together, over the ~300-line guideline (constitution 14.1), because the
   owner scoped this change to both. No red_before (G3) run is recorded (design.md §8).
 - G1 (`openspec validate m21-rendering-catalogue --strict`) is NOT run: owner exemption until M0.3 (PR 37) puts the
   OpenSpec CLI in CI. The format was checked by reading against `openspec/changes/m41-space-lab-profile/` and
   `openspec/changes/m05-pr-previews/`.
-- Order: S1, S2, S3 built in one PR; S4 still to do; then S5 (tasks.md).
+- Order: S1–S4 built in one PR, with review round 1 fixes (R1); then S5 (tasks.md).
 
 ## Out of scope
 
