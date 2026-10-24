@@ -5,8 +5,11 @@ containers, so preview A cannot reach preview B's published port. The probe runs
 in A's ``gateway`` container with a one-line ``socket.create_connection`` client and compares
 what it prints. The planner is not imported; the lab is only read through the ``docker`` CLI.
 
-The module is skipped unless ``OPENBINDING_LAB_PROBE=1``. With it set, a missing ``docker``,
-project or container FAILS the test. Environment (both projects named ``openbinding-pr-<n>``,
+The live tests are skipped unless ``OPENBINDING_LAB_PROBE=1``; the helper tests always run. With it set, a
+missing ``docker``, project or container FAILS the test. The negative check shows that B's loopback-only publish
+is not reachable at A's network gateway address; it does not probe the slirp/host-gateway address (a possible
+later negative). Pytest must run on the Docker host (127.0.0.1 is the host loopback) and both projects must be
+up and healthy before the run. Environment (both projects named ``openbinding-pr-<n>``,
 ports decimal in 18101-18199 and different)::
 
     OPENBINDING_PROBE_PROJECT_A / _B   OPENBINDING_PROBE_PORT_A / _B
@@ -122,13 +125,13 @@ def test_web_resolves_to_own_container(probe):
 
 
 def test_project_names():
-    """[utest->req~lab-deployment-preview-isolation~1] Only ``openbinding-pr-<n>`` names are accepted."""
+    """Only ``openbinding-pr-<n>`` names are accepted."""
     assert valid_name("openbinding-pr-42")
     assert not any(valid_name(v) for v in ("openbinding-pr-", "openbinding-pr-4x", "x openbinding-pr-4", "openbinding-pr-4\n"))
 
 
 def test_ports_and_output():
-    """[utest->req~lab-deployment-preview-isolation~1] Ports stay in 18101-18199; output is trimmed."""
+    """Ports stay in 18101-18199; output is trimmed."""
     assert valid_port("18101") and valid_port("18199")
     assert not any(valid_port(v) for v in ("18100", "18200", "1810", "abc", ""))
     assert parse_output("ECONNREFUSED\n") == "ECONNREFUSED"

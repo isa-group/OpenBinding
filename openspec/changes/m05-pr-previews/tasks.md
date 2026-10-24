@@ -163,7 +163,7 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
 - [ ] 4.3 Follow-up for the coordinator (ARCHITECTURE.md is outside this change): extend the ARCHITECTURE §10 row
   "Lab previews" to cover images, the work tree and the state record.
 - Acceptance: `["uv", "run", "--locked", "--extra", "test", "pytest", "-q", "../lab/tests"]` passes, and
-  `["env", "OPENBINDING_LAB_PROBE=1", "uv", "run", "--locked", "--extra", "test", "pytest", "-q", "-rs", "../lab/tests/test_preview_isolation.py"]`
+  `["env", "OPENBINDING_LAB_PROBE=1", "OPENBINDING_PROBE_PROJECT_A=openbinding-pr-<a>", "OPENBINDING_PROBE_PROJECT_B=openbinding-pr-<b>", "OPENBINDING_PROBE_PORT_A=<18101-18199>", "OPENBINDING_PROBE_PORT_B=<18101-18199>", "uv", "run", "--locked", "--extra", "test", "pytest", "-q", "-rs", "../lab/tests/test_preview_isolation.py"]`
   passes in the lab with 0 skipped. Every `GAP` in the delta spec is replaced by a test path before the archive.
 
 ## A. Archive (after S4, explicit archive task)

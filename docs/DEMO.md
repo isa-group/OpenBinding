@@ -622,8 +622,12 @@ only, expire after 7 idle days and are deleted only through `labctl destroy`.
 - Isolation probe: `lab/tests/test_preview_isolation.py` checks on a live Docker host that two preview projects
   do not reach each other. It needs `OPENBINDING_LAB_PROBE=1`, two project names
   `OPENBINDING_PROBE_PROJECT_A` and `OPENBINDING_PROBE_PROJECT_B` of the form `openbinding-pr-<n>`, and their ports
-  `OPENBINDING_PROBE_PORT_A` and `OPENBINDING_PROBE_PORT_B` (18101-18199). Stop the develop lab first, or use two
-  small stand-in projects. From `openbinding-gateway`:
+  `OPENBINDING_PROBE_PORT_A` and `OPENBINDING_PROBE_PORT_B` (18101-18199). From preview A it checks that B's port
+  is refused and that A reaches its own `web` (one direction; swap A and B and run again for the other). Until the
+  Compose parameterisation and `labctl preview` land, only two stand-in projects can run the probe. Each needs a
+  `gateway` service with `python` on PATH, a `web` service whose container port 8080 is published on
+  `127.0.0.1:<port>`, and the default network `<project>_default`; both must be up and healthy. (Once real previews
+  exist, stop the develop lab first.) From `openbinding-gateway`:
 
   ```sh
   OPENBINDING_LAB_PROBE=1 uv run --locked --extra test pytest -q -rs ../lab/tests/test_preview_isolation.py

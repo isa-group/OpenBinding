@@ -57,8 +57,11 @@ have no public hostname: the homelab Caddy serves only the develop preview.
 
 ## Isolation check
 
-`lab/tests/test_preview_isolation.py` checks that two preview projects cannot reach each other's port, while each
-reaches its own `web`. It runs only with `OPENBINDING_LAB_PROBE=1` and needs `OPENBINDING_PROBE_PROJECT_A` and
+`lab/tests/test_preview_isolation.py` checks, from preview A, that B's port is refused and that A reaches its own
+`web` (one direction; swap A and B and run again for the other). Until the Compose parameterisation and
+`labctl preview` land, only two stand-in projects can run it: each needs a `gateway` service with `python` on PATH, a
+`web` service whose container port 8080 is published on `127.0.0.1:<port>`, and the default network
+`<project>_default`, both up and healthy. It runs only with `OPENBINDING_LAB_PROBE=1` and needs `OPENBINDING_PROBE_PROJECT_A` and
 `OPENBINDING_PROBE_PROJECT_B` (projects `openbinding-pr-<n>`) with `OPENBINDING_PROBE_PORT_A` and
 `OPENBINDING_PROBE_PORT_B` (18101–18199). With the variable set, a missing lab fails instead of skipping. The command
 and the preconditions are in `docs/DEMO.md`, section `PR previews`.
