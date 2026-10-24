@@ -1,1 +1,1 @@
-Built: spec+ADR, tests, space Dockerfile+runbook, tool+tool Dockerfile+requirements. Now: push, PR, CI, panel (reviewer, test-reviewer, security-auditor, arch-reviewer) on the pushed head, fixes if any, ready. No push after ready.
+Round-1 fixes integrated (a6243986 tool+tests, 2285154a detector, b0a6a3df Dockerfiles+rules, 70fc56bc docs). Next: push, round-2 panel (reviewer, test-reviewer, security-auditor, arch-reviewer) on pushed head, fix any blocker/major, set review package, lead_ready. No push after ready.
