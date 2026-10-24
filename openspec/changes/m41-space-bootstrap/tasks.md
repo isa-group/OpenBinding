@@ -2,7 +2,7 @@
 
 Slices in build order; the tests of S-B are written before S-C and S-D. Check commands run from the repository root;
 pytest checks are one argv `["uv", "run", "--directory", "openbinding-gateway", "--locked", "--extra", "test", "pytest",
-"-q", …]` with the lab tests as `../lab/tests/…`. Only S-A is done.
+"-q", …]` with the lab tests as `../lab/tests/…`. S-A, S-B and S-D are done; S-C is in progress.
 
 ## S-A. Spec and ADR
 - [x] A.1 `openspec/changes/m41-space-bootstrap/` (proposal, design, tasks, delta spec of `lab-deployment` with five
@@ -11,23 +11,23 @@ pytest checks are one argv `["uv", "run", "--directory", "openbinding-gateway", 
 - Acceptance: every requirement block under 500 characters, five blocks (registered check); ADR names `lab/tools`.
   G1 is not run (owner exemption until PR 37 merges, design.md §9).
 
-## S-B. Tests first
-- [ ] B.1 `lab/tests/test_space_lab_bootstrap.py`: the tests named in the Evidence lines of
+## S-B. Tests first (done)
+- [x] B.1 `lab/tests/test_space_lab_bootstrap.py`: the tests named in the Evidence lines of
   `lab-space-image-pinned-commit`, `lab-space-bootstrap-creates`, `lab-space-bootstrap-idempotent` and
   `lab-space-bootstrap-sphere-readonly`, tagged `[utest->req~…~1]`; a simulated SPACE transport and an injected sleep,
   no network.
-- [ ] B.2 `lab/tests/test_no_direct_space_http.py`: the three tests of `lab-space-no-direct-http`, with
+- [x] B.2 `lab/tests/test_no_direct_space_http.py`: the five tests of `lab-space-no-direct-http`, with
   `openbinding-gateway/tools/_remote_common.py` and `openbinding-gateway/src/openbinding_gateway/sphere_client.py` as
   the only pinned deviations (design.md §6).
 
-## S-C. Tool
+## S-C. Tool (in progress)
 - [ ] C.1 `lab/tools/space_lab_bootstrap.py` and its requirements file (exact pins): the sequence of design.md §4,
   `space-python-client` for contracts, httpx for the rest (ADR 0022).
 - Acceptance: S-B passes.
 
-## S-D. Images and runbook
-- [ ] D.1 `lab/space/Dockerfile` and `lab/tools/Dockerfile` (design.md §2 and §3).
-- [ ] D.2 `docs/qa/PRICING_PROFILE.md`: the build from the pinned commit, the three base digests as unverified until
+## S-D. Images and runbook (done)
+- [x] D.1 `lab/space/Dockerfile` and `lab/tools/Dockerfile` (design.md §2 and §3).
+- [x] D.2 `docs/qa/PRICING_PROFILE.md`: the build from the pinned commit, the three base digests as unverified until
   the lab builds them, and the bootstrap procedure.
 - Acceptance: S-B passes; `lab/tests` passes as a whole.
 

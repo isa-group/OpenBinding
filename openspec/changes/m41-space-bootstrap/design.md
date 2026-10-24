@@ -1,6 +1,7 @@
 # Design: m41-space-bootstrap
 
-Status: slice S-A (this delta spec, ADR 0022) is written; S-B, S-C and S-D are not built. Fixed inputs: ROADMAP M4.1,
+Status: slice S-A (this delta spec, ADR 0022), S-B (tests) and S-D (Dockerfiles, runbook) are done; S-C (the tool) is in
+progress. Fixed inputs: ROADMAP M4.1,
 ARCHITECTURE §9.4, constitution 16.1, 16.2 and 16.4, ADR-0015 §2 and §5, the owner answers own-78031d63
 (build-pinned-exception), own-e95fb0a1 (approve-m41) and own-36b6e089 (24-10-2026: "M4.1 second part, SPACE image from
 the v1.7.1 commit and bootstrap with exception 16.1 in lab/tools"), and `openspec/changes/m41-space-lab-profile/`
@@ -17,7 +18,9 @@ this delta (`lab-space-image-pinned-commit`, `lab-space-bootstrap-creates`, `lab
 `req~lab-space-no-direct-http~1`.
 
 The requirement texts are short because each block (header, statement, id and Evidence line) stays under 500
-characters; the concrete values (names, link, policy, polling bounds, user list) are in the scenarios.
+characters; the concrete values (names, link, policy, polling bounds, user list) are in the scenarios. Where a
+requirement has more tests than fit, the Evidence line of the block lists the main ones and the Evidence line of a
+scenario lists the others, so every test function appears once at least.
 
 ## 2. SPACE image (`lab/space/Dockerfile`)
 
@@ -48,12 +51,18 @@ runbook lists them as verified. mongo `7.0.16@sha256:c630c593…` and redis `7.4
 requirements file with exact `name==version` lines (`space-python-client==1.0.0` and `httpx==0.28.1`, the versions locked
 in `openbinding-gateway/uv.lock`, plus their exact transitive pins), `pip install --no-cache-dir -r`, the tool copied in, no secret,
 `USER 1000:1000`. The build context is the repository root (`.`). The tool keeps its own copy of the six usernames and
-of `SEED_NAMESPACE` (importing `seed_lab.py` would pull the gateway into the image); an S-B test compares them with
-`openbinding-gateway/tools/seed_lab.py`.
+of `SEED_NAMESPACE` (importing `seed_lab.py` would pull the gateway into the image); the test
+`test_the_constants_and_the_synthetic_users_follow_the_seed` compares the namespace and the six usernames (in order)
+with the text of `openbinding-gateway/tools/seed_lab.py`. The static rules also require: `ENTRYPOINT` running the tool,
+`pip install` only from `requirements.txt`, and in the SPACE file `git fetch` (never `git clone`), `checkout FETCH_HEAD`,
+the HEAD check comparing with the literal commit, and every `pnpm install` frozen.
 
 ## 4. Bootstrap tool (`lab/tools/space_lab_bootstrap.py`)
 
-Environment: `SPACE_URL`, `SPACE_ADMIN_USER`, `SPACE_ADMIN_PASSWORD`. Nothing else is read; no `SPHERE_*` variable.
+Environment, read by `Config.from_environ` into a frozen `Config`: `SPACE_URL` (default `http://space-api:3000`),
+`SPACE_ADMIN_USER` (default `lab-space-admin`), `SPACE_ADMIN_PASSWORD` (required and non-empty, else `BootstrapError`)
+and `SPACE_BOOTSTRAP_PLAN` (the plan of the contracts, default `FREE`). `Config` also holds `poll_attempts` (60) and
+`poll_seconds` (5). Nothing else is read; no `SPHERE_*` variable.
 
 HTTP sequence (from the SPACE documentation of the main branch; MEDIUM confidence, UNVERIFIED against a live v1.7.1;
 the live proof is slice S5 of `m41-space-lab-profile`):
@@ -68,22 +77,26 @@ the live proof is slice S5 of `m41-space-lab-profile`):
    https://sphere.score.us.es/p/6ab0a323697330667ccce891, policy: all_last}`. An existing `openbinding` with another
    source, link or policy, or a created service whose name is not `openbinding`, aborts (never modified).
 5. `POST /api/v1/services/openbinding/synchronization/run` only when the service was just created or has never reached
-   `ready`; then `GET …/synchronization` every 5 s, at most 60 times (300 s), until `ready`; `failed` or timeout aborts.
+   `ready`; then `GET …/synchronization` every `poll_seconds` (5 s), at most `poll_attempts` (60) times, until `ready`;
+   the statuses `failed`, `blocked` and `degraded`, or exhaustion of the polls, abort.
 6. `GET /api/v1/services/openbinding/pricings`: the newest active version (archived versions are ignored; no active
    version aborts).
 7. Contracts through `space-python-client` (`contracts.get_contract`, `contracts.add_contract`, as the existing
-   `SpaceRemote` uses them): one per seed user (`lab-admin`, `lab-owner`, `lab-orgadmin`, `lab-member`, `lab-viewer`,
+   `SpaceRemote` uses them; `bootstrap` takes the contracts client, the httpx transport and the sleep function as
+parameters so tests inject fakes): one per seed user (`lab-admin`, `lab-owner`, `lab-orgadmin`, `lab-member`, `lab-viewer`,
    `lab-outsider`), user id `uuid5(SEED_NAMESPACE, "user:<username>")` of `openbinding-gateway/tools/seed_lab.py`.
 
 Steps 1-6 use httpx: `space-python-client` 1.0.0 covers contracts, features and health only, with no organization,
 api-key, user or service operation; that is the 16.1 exception of ADR 0022. Steps 4-7 use the organization's
-`MANAGEMENT` key in memory (UNVERIFIED which key SPACE 1.7.1 requires for service routes). ASSUMPTION: each contract
-subscribes `openbinding` at that version with the first plan SPACE lists and no add-on; mapping seed roles to plans is
-M4.2.
+`MANAGEMENT` key in memory (UNVERIFIED which key SPACE 1.7.1 requires for service routes). Each contract subscribes
+`openbinding` at that version with the plan `Config.plan` (from `SPACE_BOOTSTRAP_PLAN`, default `FREE`) and no add-on,
+the same plan for every user; mapping seed roles to plans is M4.2.
 
-Output: one line per item, `<item> created|existing`, and exit status 0; any failure prints the failed item without
-response bodies or headers and exits 1. A partial state is completed on the next run (idempotence is by lookup before
-each create). Tests use a simulated transport and an injected sleep; they never reach SPACE or SPHERE (constitution 16.6).
+Output: ONE JSON line on standard output and exit status 0, `{"organization", "apiKey", "service", "synchronization",
+"contracts": {<username>: …}}`. A present item is `exists` (created: `created`); the synchronization is `ready` after a
+wait and `skipped` for an already existing service; the contracts map holds one entry per seed user. Any failure raises
+`BootstrapError` naming the failed item without response bodies or headers; `main` prints one redacted line on standard
+error and exits 1. A partial state is completed on the next run (idempotence is by lookup before each create). Tests use a simulated transport and an injected sleep; they never reach SPACE or SPHERE (constitution 16.6).
 
 ## 5. Secrets and the MANAGEMENT key
 
@@ -99,7 +112,10 @@ Scans tracked Python and frontend TypeScript sources, test directories excluded 
 a direct caller when it creates an HTTP client or sends a request (`httpx.Client`/`AsyncClient`/`get`/`post`,
 `requests`, `aiohttp`, `urllib.request`, `fetch`, `axios`) and names a SPACE or SPHERE target (`SPACE_URL`, `space_url`,
 `SPHERE_*URL`, `sphere_url`, `sphere.score.us.es`, `space.score.us.es`, SPACE route prefixes `/api/v1/services`,
-`/api/v1/organizations`, `/api/v1/contracts`, SPHERE `/api/v1/public/pricings`). Allowed: `lab/tools/**` and the
+`/api/v1/organizations`, `/api/v1/contracts`, `/users/authenticate`, `/synchronization/run`, SPHERE
+`/api/v1/public/pricings`). Using httpx only for types or transports (`httpx.AsyncBaseTransport`,
+`httpx.MockTransport`, `logging.getLogger("httpx")`) is not a call, and the official clients (`space_client`,
+`space-react-client`) are fine. The test also asserts that ADR 0022 exists and names `lab/tools`. Allowed: `lab/tools/**` and the
 gateway plans module (`openbinding_gateway/plans/**`; today the SPACE adapter is `openbinding_gateway/space_client/**`,
 which makes no direct call and uses `space-python-client`).
 
@@ -107,7 +123,8 @@ Pinned known deviations, each with its reason:
 
 - `openbinding-gateway/tools/_remote_common.py`: its `SpaceRemote` uses httpx for services and pricings and its
   `SphereRemote` calls SPHERE directly; it is a development probe outside `lab/tools`, and `remote_probe.py`,
-  `remote_provision.py` and `seed_lab.py` reach SPACE only through it (they import httpx for transport types only).
+  `remote_provision.py` and `seed_lab.py` reach SPACE only through it (they use httpx for transport types only and are
+not detected).
 - `openbinding-gateway/src/openbinding_gateway/sphere_client.py`: the gateway's home-made SPHERE client (httpx with
   `x-api-key` from `sphere_api_key`, used by `pricing_catalog.py`), which ADR-0015 §7 removes.
 
@@ -116,16 +133,27 @@ it can only shrink. Moving or retiring them is a followup.
 
 ## 7. Compose wiring (follow-up for the coordinator; no compose file is edited here)
 
-In `compose.lab-pricing.json`: a one-shot `pricing-bootstrap` (`build: {context: ., dockerfile: lab/tools/Dockerfile}`,
-`SPACE_URL=http://space-api:3000`, `SPACE_ADMIN_USER=lab-space-admin`,
-`SPACE_ADMIN_PASSWORD=${DEMO_SPACE_ADMIN_PASSWORD}`, `depends_on: {space-api: {condition: service_healthy}}`,
-`mem_limit: 96m`, no ports); `space-api` built from
-`https://github.com/SCORELabUS/space.git#ef4dc8949435d998e2aff525226e3fcc85e2f7ba` or the local `lab/space/Dockerfile`.
-The pricing-profile requirements and tests of `m41-space-lab-profile` then need revisions: `pinned-images` ~2 (build
-pinned by commit), the `optional` service set (four), the `isolated` allow-list (`build`), the 1088 MiB sum,
-`secret-references` ~2 (`${DEMO_SPACE_ADMIN_PASSWORD}` would appear twice, today it must appear once), `remote-sphere`
-~2 if the git URL context is chosen (host `github.com` is not in the allowed hosts), `start-order` ~2 for the one-shot,
-and `no-local-space` ~3 (the `space-api` image is today the marker or a digest).
+As written in `docs/qa/PRICING_PROFILE.md` (sections "Compose wiring still needed" and "Bootstrap"). In
+`compose.lab-pricing.json`:
+
+- add the one-shot `pricing-bootstrap`: `build: {context: ., dockerfile: lab/tools/Dockerfile}`,
+  `SPACE_URL=http://space-api:3000`, `SPACE_ADMIN_USER=lab-space-admin`,
+  `SPACE_ADMIN_PASSWORD=${DEMO_SPACE_ADMIN_PASSWORD}`, `depends_on: {space-api: {condition: service_healthy}}`,
+  `mem_limit: 96m`, no ports, `restart: "no"`;
+- replace the marker image of `space-api` by `build: {context: lab/space, dockerfile: Dockerfile}` with the image name
+  `openbinding-lab/space-api:1.7.1` (the local file; a git URL context is not used).
+
+Consequences for `lab/tests/test_lab_pricing_profile.py` and `lab/tests/test_no_local_space.py`:
+
+- `build` is allowed for `space-api` and `pricing-bootstrap` (`pinned-images` ~2, the `isolated` allow-list, which also
+  needs `restart`); the marker rule and the runbook GAP section are retired;
+- the profile has four services and the memory sum becomes 1088 MiB (992 + 96);
+- `${DEMO_SPACE_ADMIN_PASSWORD}` appears twice (`space-api` and `pricing-bootstrap`), where today it must appear once
+  (`secret-references` ~2);
+- `start-order` exempts the one-shot `pricing-bootstrap`;
+- `no-local-space` accepts the built `space-api` image name.
+
+The runbook GAP is closed once the lab has built the image and verified the three base digests.
 
 ## 8. Requirements and slices
 
