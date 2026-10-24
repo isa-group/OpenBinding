@@ -439,6 +439,16 @@ def test_a_public_origin_replaces_the_urls_and_is_appended_to_the_local_cors_ori
             assert value == origin, (name, key)
 
 
+@pytest.mark.parametrize("supplied", [None, "", "https://demo.example.org"])
+def test_the_expanded_public_origins_pass_the_gateway_settings(services, supplied):
+    from openbinding_gateway.core.settings import Settings
+
+    for name, variables in PUBLIC_ORIGIN_VARIABLES.items():
+        env = _env(services[name])
+        expanded = {key.lower(): _expand(env[key], supplied) for key in variables}
+        Settings(_env_file=None, app_env="dev", **expanded)
+
+
 def test_no_real_secret_shapes_and_no_destructive_key(compose):
     text = COMPOSE.read_text(encoding="utf-8")
     assert not SECRET_SHAPES.search(text)
