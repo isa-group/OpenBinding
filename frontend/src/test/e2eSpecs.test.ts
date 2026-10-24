@@ -51,6 +51,8 @@ describe('the Playwright specs', () => {
     expect(liveFiles.length).toBeGreaterThanOrEqual(8);
     expect(rootNames.length).toBeGreaterThan(liveFiles.length);
     expect(program.getSourceFile(`${live}/support.ts`)).toBeDefined();
+    // A listed configuration that does not exist is not reported as a diagnostic of an own file, so check it is in the program.
+    for (const config of configs) expect(program.getSourceFile(config), config).toBeDefined();
     expect(diagnostics).toEqual([]);
   }, 180_000);
 

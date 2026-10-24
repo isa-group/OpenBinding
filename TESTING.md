@@ -46,6 +46,9 @@ acceptance/
     `pnpm exec playwright test --config playwright.acceptance.config.ts --pass-with-no-tests`. The configuration
     (`frontend/playwright.acceptance.config.ts`) has `testDir` `../acceptance/ui` and starts the Vite dev server unless
     `PLAYWRIGHT_BASE_URL` is set.
+- `--pass-with-no-tests` and the exit-5-to-0 mapping of `acceptance/api/conftest.py` exist only for the empty start. Remove
+  them when the first acceptance test of each surface lands, so that a runner that collects nothing fails from then on.
+- Engine acceptance tests (`bim-engine/v1` over HTTP) are pytest files under `acceptance/api/<capability>/`.
 
 Decision: one top-level `acceptance/` with one runner per surface, not an `acceptance/` inside each component. The
 tests are frozen apart from the implementation (G4), so they sit outside the component trees that the implementer edits.
