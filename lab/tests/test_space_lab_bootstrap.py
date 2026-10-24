@@ -947,7 +947,7 @@ def test_it_waits_for_the_first_synchronization(tool):
     assert report["synchronization"] == "ready"
     assert fake.count("POST", "/synchronization/run") == 1
     assert fake.sync_polls == 4
-    assert sleeps.calls and set(sleeps.calls) == {5} and len(sleeps.calls) <= 60
+    assert sleeps.calls == [5, 5, 5]
     # the run comes before the first poll; contracts only after readiness
     paths = [p for _, p in fake.requests]
     assert paths.index("/api/v1/services/openbinding/synchronization/run") < paths.index(
@@ -989,23 +989,24 @@ def _assert_aborted(tool, fake: FakeSpace, contracts: FakeContracts, named: str 
 
 
 @pytest.mark.parametrize("status", ["failed", "blocked", "degraded"])
-def test_a_failed_synchronization_or_foreign_service_name_aborts(tool, status):
+def test_a_failed_synchronization_aborts(tool, status, capsys, monkeypatch):
     # [utest->req~lab-space-bootstrap-creates~1]
     _assert_aborted(tool, FakeSpace(sync_script=("queued", status)), FakeContracts(), "synchroni")
 
-    # through main: non-zero status and one redacted line on stderr
+    # through main: non-zero status, nothing on stdout and one redacted line on stderr
     fake = FakeSpace(sync_script=("queued", status))
     real = tool.bootstrap
 
     async def aborting(config, **kwargs):
         return await real(config, transport=fake.transport(), contracts=FakeContracts(), sleep=Sleeps())
 
-    tool.bootstrap = aborting
-    try:
-        environ = {"SPACE_URL": SPACE_URL, "SPACE_ADMIN_USER": ADMIN_USER, "SPACE_ADMIN_PASSWORD": ADMIN_PASSWORD}
-        assert tool.main([], environ) == 1
-    finally:
-        tool.bootstrap = real
+    monkeypatch.setattr(tool, "bootstrap", aborting)
+    environ = {"SPACE_URL": SPACE_URL, "SPACE_ADMIN_USER": ADMIN_USER, "SPACE_ADMIN_PASSWORD": ADMIN_PASSWORD}
+    capsys.readouterr()
+    assert tool.main([], environ) == 1
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert err == f"space_lab_bootstrap: synchronization: the service synchronization is {status}\n"
 
 
 def test_a_synchronization_that_never_gets_ready_aborts_after_the_polls(tool):
@@ -1014,12 +1015,18 @@ def test_a_synchronization_that_never_gets_ready_aborts_after_the_polls(tool):
     with pytest.raises(tool.BootstrapError):
         asyncio.run(tool.bootstrap(make_config(tool, poll_attempts=3), transport=fake.transport(), contracts=contracts,
                                    sleep=sleeps))
-    assert fake.sync_polls == 3 and len(sleeps.calls) <= 3 and contracts.added == []
+    assert fake.sync_polls == 3 and sleeps.calls == [5, 5] and contracts.added == []
 
 
 def test_a_created_service_with_a_foreign_name_aborts(tool):
     # [utest->req~lab-space-bootstrap-creates~1]
-    _assert_aborted(tool, FakeSpace(created_name="something-else"), FakeContracts(), "service")
+    fake, contracts = FakeSpace(created_name="something-else"), FakeContracts()
+    with pytest.raises(tool.BootstrapError) as raised:
+        asyncio.run(tool.bootstrap(make_config(tool), transport=fake.transport(), contracts=contracts, sleep=Sleeps()))
+    assert str(raised.value) == "service: the created service is not named openbinding"
+    assert not fake.violations, fake.violations
+    assert fake.count("POST", "/synchronization/run") == 0, "a synchronization was run for the foreign service"
+    assert fake.sync_polls == 0 and contracts.added == [] and contracts.gets == []
 
 
 def test_no_active_pricing_version_aborts(tool):
@@ -1175,6 +1182,7 @@ def test_nothing_secret_is_printed_or_persisted(tool, capsys, caplog, tmp_path, 
     assert tool.main([], environ) == 1
     out, err = capsys.readouterr()
     assert out == "" and len(err.strip().splitlines()) == 1
+    assert err.startswith("space_lab_bootstrap: service:")
     for secret in [*fake.secrets, SPHERE_SAMPLE_KEY]:
         assert secret not in err
     assert SPHERE_SAMPLE_KEY not in "\n".join(fake.sent)
@@ -1195,7 +1203,7 @@ def _error_text(error: BaseException) -> str:
 
 
 def test_the_organization_lookup_filters_by_name_and_matches_exactly(tool):
-    # [utest->req~lab-space-bootstrap-idempotent~1]
+    # [utest->req~lab-space-bootstrap-creates~1]
     fake, contracts = FakeSpace(), FakeContracts()
     for index in range(12):  # more than SPACE's default page of 10, all matching the name filter
         fake.add_organization(name=f"openbinding-lab-{index}")
@@ -1230,7 +1238,7 @@ def test_the_organization_id_is_percent_encoded_in_the_key_route(tool):
 
 
 def test_a_management_key_listed_without_its_value_aborts(tool):
-    # [utest->req~lab-space-bootstrap-idempotent~1]
+    # [utest->req~lab-space-bootstrap-creates~1]
     fake, contracts = FakeSpace(hide_management_values=True), FakeContracts()
     fake.add_organization(with_key=True)
     _assert_aborted(tool, fake, contracts, "apiKey: the organization lists a MANAGEMENT key without its value")
@@ -1245,13 +1253,13 @@ def test_an_existing_service_still_synchronizing_is_polled_until_ready(tool):
     report = run(tool, fake, contracts, sleeps)
     assert report["service"] == "exists" and report["synchronization"] == "ready"
     assert fake.count("POST", "/synchronization/run") == 0 and fake.changes() == []
-    assert fake.sync_polls >= 3 and sleeps.calls and set(sleeps.calls) == {5}
+    assert fake.sync_polls == 3 and sleeps.calls == [5, 5]
     assert len(contracts.added) == 6
 
 
 @pytest.mark.parametrize("status", ["blocked", "degraded", "failed"])
 def test_an_existing_service_with_a_broken_synchronization_aborts(tool, status):
-    # [utest->req~lab-space-bootstrap-creates~1]
+    # [utest->req~lab-space-bootstrap-idempotent~1]
     fake, contracts = FakeSpace(), FakeContracts()
     fake.add_organization(with_key=True)
     fake.add_service(sync=status)
@@ -1315,6 +1323,22 @@ def test_a_contract_with_another_plan_is_not_confirmed(tool):
     assert str(raised.value) == "contracts: lab-admin not confirmed"
 
 
+def test_a_contract_stored_with_another_version_is_not_confirmed(tool):
+    # [utest->req~lab-space-bootstrap-creates~1]
+    fake, contracts = FakeSpace(), FakeContracts()
+    real_add = contracts.add_contract
+
+    async def keeping_another_version(model):
+        await real_add(model)
+        contracts.store[model.user_contact.user_id].contracted_services = {"openbinding": "0.0.1"}
+
+    contracts.add_contract = keeping_another_version
+    with pytest.raises(tool.BootstrapError) as raised:
+        asyncio.run(tool.bootstrap(make_config(tool), transport=fake.transport(), contracts=contracts, sleep=Sleeps()))
+    assert str(raised.value) == "contracts: lab-admin not confirmed"
+    assert len(contracts.added) == 1
+
+
 def test_a_contract_lookup_error_names_only_its_type(tool):
     # [utest->req~lab-space-bootstrap-sphere-readonly~1]
     fake = FakeSpace()
@@ -1329,7 +1353,7 @@ def test_a_contract_lookup_error_names_only_its_type(tool):
 
 
 def test_the_contracts_client_gets_the_management_key_and_is_closed(tool, monkeypatch):
-    # [utest->req~lab-space-bootstrap-creates~1]
+    # [utest->req~lab-space-bootstrap-sphere-readonly~1]
     fake, contracts = FakeSpace(), FakeContracts()
     calls: list[tuple] = []
     closed: list[bool] = []
@@ -1347,6 +1371,30 @@ def test_the_contracts_client_gets_the_management_key_and_is_closed(tool, monkey
     assert set(report["contracts"].values()) == {"created"} and len(contracts.added) == 6
     assert calls == [(SPACE_URL, fake.issued_keys[-1])], "the SDK must use the MANAGEMENT key, not the admin key"
     assert closed == [True]
+
+
+def test_a_contracts_error_behind_the_sdk_client_closes_it_and_swallows_the_close_error(tool, monkeypatch):
+    # [utest->req~lab-space-bootstrap-sphere-readonly~1]
+    fake = FakeSpace()
+    contracts = FakeContracts(error=space_api_error(500, {"error": "broken"}))
+    closed: list[bool] = []
+
+    async def close():
+        closed.append(True)
+        raise RuntimeError(f"close failed with {fake.issued_keys[-1]}")
+
+    def connect_async(url, api_key, timeout=None):
+        return SimpleNamespace(contracts=contracts, close=close)
+
+    monkeypatch.setattr(tool.SpaceClientFactory, "connect_async", staticmethod(connect_async))
+    with pytest.raises(tool.BootstrapError) as raised:
+        asyncio.run(tool.bootstrap(make_config(tool), transport=fake.transport(), sleep=Sleeps()))
+    assert str(raised.value) == "contracts: lab-admin failed (SpaceApiError)"
+    assert closed == [True], "the SDK client was not closed after the contracts error"
+    text = _error_text(raised.value)
+    assert "RuntimeError" not in text and "close failed" not in text, "the close error replaced or joined the real one"
+    for secret in fake.secrets:
+        assert secret not in text
 
 
 @pytest.mark.parametrize("step", ["connect", "close"])
@@ -1385,7 +1433,7 @@ def test_another_space_host_and_admin_user(tool):
 
 
 @pytest.mark.parametrize("url", ["ftp://x", "http://user:pw@host", "http://", "http:///path", "space-api:3000",
-                                 "https://:443"])
+                                 "https://:443", "http://host:abc", "http://host:99999"])
 def test_an_invalid_space_url_is_refused(tool, url):
     # [utest->req~lab-space-bootstrap-creates~1]
     with pytest.raises(tool.BootstrapError) as raised:
@@ -1439,7 +1487,7 @@ def test_control_the_fake_records_and_applies_modifications():
 
 
 def test_the_tool_imports_only_the_standard_library_httpx_and_space_client():
-    # [utest->req~lab-space-no-direct-http~1]
+    # [utest->req~lab-space-bootstrap-sphere-readonly~1]
     tree = ast.parse(_source())
     imported = set()
     for node in ast.walk(tree):
@@ -1457,9 +1505,34 @@ def _normalise(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).lower()
 
 
+LINUX_PY312 = {"sys_platform": "linux", "platform_system": "Linux", "os_name": "posix", "python_version": "3.12",
+               "python_full_version": "3.12.8", "implementation_name": "cpython",
+               "platform_python_implementation": "CPython", "platform_machine": "x86_64", "extra": ""}
+
+
+def _dependency_closure(packages: dict, roots: set[str]) -> set[str]:
+    """Names reachable from ``roots`` through each package's ``dependencies`` (not its optional ones), skipping entries
+    whose marker is false on linux with python 3.12."""
+    from packaging.markers import Marker
+
+    seen, todo = set(), list(roots)
+    while todo:
+        name = todo.pop()
+        if name in seen:
+            continue
+        seen.add(name)
+        for dep in packages[name].get("dependencies", []):
+            marker = dep.get("marker")
+            if marker and not Marker(marker).evaluate(LINUX_PY312):
+                continue
+            todo.append(_normalise(dep["name"]))
+    return seen
+
+
 def test_the_tool_requirements_follow_the_gateway_lock():
-    # [utest->req~lab-space-image-pinned-commit~1]
-    locked = {_normalise(p["name"]): p["version"] for p in tomllib.loads(_read(UV_LOCK))["package"] if "version" in p}
+    # [utest->req~lab-space-bootstrap-sphere-readonly~1]
+    packages = {_normalise(p["name"]): p for p in tomllib.loads(_read(UV_LOCK))["package"]}
+    locked = {name: p["version"] for name, p in packages.items() if "version" in p}
     pins = {}
     for raw in _read(REQUIREMENTS).splitlines():
         line = raw.split("#", 1)[0].strip()
@@ -1469,3 +1542,12 @@ def test_the_tool_requirements_follow_the_gateway_lock():
     shared = set(pins) & set(locked)
     assert {"httpx", "space-python-client"} <= shared
     assert {name: pins[name] for name in shared} == {name: locked[name] for name in shared}
+    closure = _dependency_closure(packages, {"httpx", "space-python-client"})
+    assert {"httpx", "space-python-client"} <= closure
+    assert not closure - set(pins), f"locked dependencies missing from lab/tools/requirements.txt: {sorted(closure - set(pins))}"
+    # control: a marker that excludes linux python 3.12 is ignored, one that includes it is followed
+    sample = {"a": {"dependencies": [{"name": "b"}, {"name": "c", "marker": "sys_platform == 'win32'"},
+                                      {"name": "d", "marker": "python_full_version < '3.10'"},
+                                      {"name": "e", "marker": "python_version >= '3.11'"}]},
+              "b": {}, "c": {}, "d": {}, "e": {}}
+    assert _dependency_closure(sample, {"a"}) == {"a", "b", "e"}

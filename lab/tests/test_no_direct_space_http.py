@@ -13,6 +13,7 @@ Run from ``openbinding-gateway`` with its environment::
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -21,7 +22,7 @@ ROOT = HERE.parents[1]
 
 SKIPPED_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", "dist", "build", ".next", ".mypy_cache",
                 ".pytest_cache", ".ruff_cache", "coverage", "playwright-report", "test-results"}
-SOURCE_SUFFIXES = {".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}
+SOURCE_SUFFIXES = {".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"}
 # Only these trees are test code; a directory that is merely called tests/test/mocks/fixtures elsewhere (for example a
 # production module under openbinding-gateway/src/openbinding_gateway/tests/) is scanned.
 TEST_TREES = ("lab/tests/", "openbinding-gateway/tests/", "openbinding-gateway/tools/tests/", "frontend/e2e/",
@@ -50,7 +51,7 @@ HTTP_CALL = re.compile(
     r"|\bhttps?\.(?:request|get)\s*\("  # Node http / https
     r"|(?:\bfrom\s+|\brequire\s*\(\s*|\bimport\s+)['\"](?:got|ky)['\"]"
     r"|\bXMLHttpRequest\b"
-    r"|(?<![\w.])fetch\s*\(|\baxios\b"
+    r"|(?<![\w.])fetch\s*\(|\b(?:window|globalThis|self)\.fetch\s*\(|\baxios\b"
 )
 # ``import httpx as h`` followed by ``h.get(...)``: the alias is resolved per text.
 ALIAS_IMPORT = re.compile(r"\bimport\s+(httpx|requests|aiohttp|urllib3)\s+as\s+(\w+)")
@@ -105,21 +106,23 @@ def is_allowed(rel: str) -> bool:
     return rel.startswith(ALLOWED_PREFIXES)
 
 
-def source_files() -> list[str]:
+def source_files(root: Path = ROOT) -> list[str]:
     found = []
-    for path in sorted(ROOT.rglob("*")):
-        rel_parts = path.relative_to(ROOT).parts
-        if any(p in SKIPPED_DIRS or p.endswith(".egg-info") for p in rel_parts):
-            continue
-        if path.is_file() and path.suffix in SOURCE_SUFFIXES:
-            rel = "/".join(rel_parts)
-            if not is_test_path(rel):
-                found.append(rel)
-    return found
+    for dirpath, dirnames, filenames in os.walk(root):
+        # prune skipped directories so their trees are never walked
+        dirnames[:] = [d for d in dirnames if d not in SKIPPED_DIRS and not d.endswith(".egg-info")]
+        for name in filenames:
+            path = Path(dirpath) / name
+            if path.suffix in SOURCE_SUFFIXES:
+                rel = "/".join(path.relative_to(root).parts)
+                if not is_test_path(rel):
+                    found.append(rel)
+    return sorted(found)
 
 
-def detected() -> set[str]:
-    return {rel for rel in source_files() if is_direct_caller((ROOT / rel).read_text(encoding="utf-8", errors="replace"))}
+def detected(root: Path = ROOT) -> set[str]:
+    return {rel for rel in source_files(root)
+            if is_direct_caller((root / rel).read_text(encoding="utf-8", errors="replace"))}
 
 
 def outside_allowed() -> set[str]:
@@ -206,6 +209,9 @@ def test_control_detects_more_clients_and_aliases():
         "got": "import got from 'got'\nawait got(`${spaceUrl}/x`)",
         "ky": "import ky from 'ky'\nky.get(`${sphereUrl}/x`)",
         "XMLHttpRequest": "const x = new XMLHttpRequest()\nx.open('GET', SPACE_URL)",
+        "window.fetch": "await window.fetch(`${spaceUrl}/api/v1/services`)",
+        "globalThis.fetch": "await globalThis.fetch(`${sphereUrl}/x`)",
+        "self.fetch": "await self.fetch(SPACE_URL)",
     }
     for name, text in samples.items():
         assert is_direct_caller(text), name
@@ -217,8 +223,31 @@ def test_control_detects_more_clients_and_aliases():
         "space_client only": "from space_client import SpaceClientFactory\nSpaceClientFactory.connect(SPACE_URL)",
         "node http without call": "import http from 'node:http'\nconst agent = new http.Agent()\nconst u = SPACE_URL",
         "client without target": "from httpx import AsyncClient\nAsyncClient().get('https://example.org')",
+        "window.fetch without target": "await window.fetch('/api/v1/health')",
+        "globalThis.fetch without target": "await globalThis.fetch('https://example.org')",
+        "self.fetch without target": "await self.fetch('/data.json')",
+        "fetch method of another object": "await cache.fetch(SPACE_URL)",
     }.items():
         assert not is_direct_caller(text), name
+
+
+def test_control_scans_mts_and_cts_and_prunes_skipped_directories(tmp_path):
+    # [utest->req~lab-space-no-direct-http~1]
+    assert {".mts", ".cts"} <= SOURCE_SUFFIXES
+    files = {
+        "web/a.mts": "await window.fetch(`${spaceUrl}/api/v1/services`)",
+        "web/b.cts": "await globalThis.fetch(SPACE_URL)",
+        "web/c.mts": "const x = 1",
+        "node_modules/pkg/d.mts": "await self.fetch(SPACE_URL)",
+        "web/node_modules/e.py": DIRECT,
+        "web/e.egg-info/f.py": DIRECT,
+        "web/a.test.mts": "await window.fetch(SPACE_URL)",
+    }
+    for rel, text in files.items():
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(text, encoding="utf-8")
+    assert source_files(tmp_path) == ["web/a.mts", "web/b.cts", "web/c.mts"]
+    assert detected(tmp_path) == {"web/a.mts", "web/b.cts"}
 
 
 def test_control_skips_tests_and_mocks():
