@@ -11,9 +11,11 @@ Run from ``openbinding-gateway`` with its environment::
 
 from __future__ import annotations
 
+import configparser
 import fnmatch
 import os
 import re
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -21,6 +23,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 CI = ROOT / ".github" / "workflows" / "ci.yml"
 PROJECT = ROOT / ".agentic" / "project.yaml"
+GATEWAY = ROOT / "openbinding-gateway"
+IMPORTLINTER = GATEWAY / ".importlinter"
 
 OFT_SHA256 = "f094cd314f0fc4236f513f66fb39260a16f72e2320beb6b4fdeb7940b9b8cf87"
 OFT_URL = "https://github.com/itsallcode/openfasttrace/releases/download/4.11.0/openfasttrace-4.11.0.jar"
@@ -175,3 +179,73 @@ def test_project_yaml_g1_g6_stay_todo_with_notes():
     for notes in (g1_notes, g6_notes):
         assert "todo: true" in notes and "F1" in notes, notes
     assert "lacks --all" in g1_notes, g1_notes
+
+
+def _lines(value: str) -> list[str]:
+    return [line.strip() for line in value.splitlines() if line.strip()]
+
+
+def _toml(path: Path) -> dict:
+    return tomllib.loads(_read(path))
+
+
+# [utest->req~gate-tooling-import-linter-contract~1]
+def test_importlinter_contract_mirrors_layers():
+    config = configparser.ConfigParser()
+    config.read_string(_read(IMPORTLINTER))
+    assert config.has_section("importlinter"), "no [importlinter] section"
+    assert config.get("importlinter", "root_package") == "openbinding_gateway"
+    pkg = "openbinding_gateway"
+
+    layers = "importlinter:contract:layers"
+    assert config.has_section(layers), f"no [{layers}] section"
+    assert config.get(layers, "type") == "layers"
+    assert _lines(config.get(layers, "containers")) == [pkg]
+    assert _lines(config.get(layers, "layers")) == ["routes", "services", "repositories | integrations", "db"]
+
+    no_routes = "importlinter:contract:no-routes"
+    assert config.has_section(no_routes), f"no [{no_routes}] section"
+    assert config.get(no_routes, "type") == "forbidden"
+    assert _lines(config.get(no_routes, "source_modules")) == [f"{pkg}.services", f"{pkg}.domain", f"{pkg}.jobs"]
+    assert _lines(config.get(no_routes, "forbidden_modules")) == [f"{pkg}.routes"]
+
+    integrations = "importlinter:contract:integrations"
+    assert config.has_section(integrations), f"no [{integrations}] section"
+    assert config.get(integrations, "type") == "forbidden"
+    assert _lines(config.get(integrations, "source_modules")) == [f"{pkg}.integrations"]
+    assert _lines(config.get(integrations, "forbidden_modules")) == [
+        f"{pkg}.{name}" for name in ("routes", "services", "repositories", "db", "domain", "jobs")
+    ]
+    contracts = [s for s in config.sections() if s.startswith("importlinter:contract:")]
+    assert sorted(contracts) == sorted([layers, no_routes, integrations]), contracts
+
+
+# [utest->req~gate-tooling-import-linter-dev-only~1]
+def test_import_linter_is_locked_dev_only():
+    pyproject = _toml(GATEWAY / "pyproject.toml")
+    group = pyproject.get("dependency-groups", {}).get("lint")
+    assert isinstance(group, list), "pyproject.toml has no [dependency-groups].lint"
+    assert "import-linter==2.15" in group, group
+    project = pyproject.get("project", {})
+    extras = project.get("optional-dependencies", {})
+    assert "test" in extras, "pyproject.toml has no test extra"
+    for where, entries in (("[project].dependencies", project.get("dependencies", [])), ("the test extra", extras["test"])):
+        assert not [e for e in entries if "import-linter" in e.lower().replace("_", "-")], f"import-linter in {where}"
+    locked = [p for p in _toml(GATEWAY / "uv.lock").get("package", []) if p.get("name") == "import-linter"]
+    assert len(locked) == 1 and locked[0].get("version") == "2.15", locked
+    dockerfile = _read(GATEWAY / "Dockerfile")
+    assert '".[test]"' in dockerfile, "the gateway image no longer installs .[test]"
+    assert "--group" not in dockerfile, "the gateway image installs a dependency group"
+
+
+# [utest->req~gate-tooling-import-linter-report-only~1]
+def test_import_linter_step_is_report_only():
+    job = _job("lab")
+    lint = _step(job, "lint-imports")
+    assert lint["run"].strip() == "uv run --locked --extra test --group lint lint-imports --config .importlinter"
+    assert lint.get("working-directory") == "openbinding-gateway"
+    assert lint.get("continue-on-error") is True
+    steps = job["steps"]
+    assert steps.index(_step(job, "pytest lab/tests")) < steps.index(lint)
+    assert steps[-1] is lint, "the import-linter step is not the last step of job lab"
+    assert all("continue-on-error" not in s for s in steps if s is not lint)

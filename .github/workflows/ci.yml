@@ -92,6 +92,12 @@ jobs:
       - name: Run the lab tests
         run: openbinding-gateway/.venv/bin/python -m pytest lab/tests -q
 
+      # Gate G9. Report-only: a broken contract is logged and does not fail the job.
+      - name: Check import contracts (report-only)
+        continue-on-error: true
+        working-directory: openbinding-gateway
+        run: uv run --locked --extra test --group lint lint-imports --config .importlinter
+
   # Gate G1 tooling. Report-only: the validate step may fail until a run into
   # develop exits 0. A broken install or version step still fails the job.
   openspec:
