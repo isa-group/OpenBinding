@@ -83,10 +83,10 @@ A static check also exists (`lab/tests/test_lab_compose.py`).
 | `engine-evolutionary-heuristics` | `engines/evolutionary-heuristics/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
 | `engine-minizinc` | `engines/minizinc-csp/Dockerfile` | 192 MiB | Node, `--max-old-space-size=96` |
 | `bim-service` | `bim-toolchain`, `packages/bim-service/Dockerfile` | 256 MiB | port 8080, `/healthz`, tokens file in a tmpfs |
-| `gateway` | `openbinding-gateway/Dockerfile`, tagged `openbinding-lab-gateway:latest` (the only build of this image) | 640 MiB | `alembic upgrade head` through the image entrypoint, then uvicorn with `--proxy-headers` |
-| `worker` | `image: openbinding-lab-gateway:latest`, no build | 448 MiB | dramatiq, one process, 2 threads, queues `default` and `analysis` |
+| `gateway` | `openbinding-gateway/Dockerfile`, tagged `openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}` (the only build of this image) | 640 MiB | `alembic upgrade head` through the image entrypoint, then uvicorn with `--proxy-headers` |
+| `worker` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 448 MiB | dramatiq, one process, 2 threads, queues `default` and `analysis` |
 | `web` | `frontend/Dockerfile`, target `lab` (config `frontend/nginx.lab.conf` baked in) | 96 MiB | nginx: production build of the frontend, `/api/` to the gateway without the prefix; **the only published port** |
-| `seed` | `image: openbinding-lab-gateway:latest`, no build | 384 MiB | `profiles: ["seed"]`; not started by `up` |
+| `seed` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 384 MiB | `profiles: ["seed"]`; not started by `up` |
 | `e2e` | `frontend/Dockerfile.e2e` (`mcr.microsoft.com/playwright:v1.62.1-jammy`, the version `pnpm-lock.yaml` resolves for `@playwright/test`) | 576 MiB | `user: pwuser`, volume `lab-e2e` on `/results`; runs the live specs when `DEMO_E2E=1`, then stays alive; healthy when `/results/done` exists |
 
 **Memory sum of all `mem_limit`: 4032 MiB** (3.9375 GiB; lab ceiling 4096 MiB,
@@ -198,7 +198,8 @@ secrets**; use your own.
 | `DEMO_SEED_ARGS` | seed | `--verbose` for a seed, `--with-space` for the smoke (see "Seeding" and "API smoke") |
 | `DEMO_SEED_PASSWORD` | seed (`seed_lab.py`, `smoke_lab.py`) and e2e (the live specs sign the synthetic users in with it) | any synthetic value of 10+ characters; the supervisor injects it; `compose.lab.json` passes it only to `seed` and `e2e`, as `${DEMO_SEED_PASSWORD}` with no value and no default |
 | `DEMO_E2E` | e2e | `1` runs the live specs when the service starts; anything else (`0`, unset) only creates `/results/done` and sleeps. See "Browser specs and visual QA inside the lab" |
-| `DEMO_PUBLIC_ORIGIN` | gateway, worker (`PUBLIC_BASE_URL` only), seed | optional; default `http://localhost:18100`. The origin the browser reaches the lab by, with no trailing slash (for example `https://demo.example.org`). It becomes `PUBLIC_BASE_URL` and `FRONTEND_URL` (the worker gets only `PUBLIC_BASE_URL`) and is appended to `CORS_ALLOW_ORIGINS` after `http://localhost:18100,http://127.0.0.1:18100`. Unset or empty, the URLs stay `http://localhost:18100` and the list gains an empty item that `Settings.cors_origin_list` discards, so CORS allows only the two local origins. The published port is unchanged (`127.0.0.1:18100`) |
+| `DEMO_PUBLIC_ORIGIN` | gateway, worker (`PUBLIC_BASE_URL` only), seed | optional; default `http://localhost:18100`. The origin the browser reaches the lab by, with no trailing slash (for example `https://demo.example.org`). It becomes `PUBLIC_BASE_URL` and `FRONTEND_URL` (the worker gets only `PUBLIC_BASE_URL`) and is appended to `CORS_ALLOW_ORIGINS` after `http://localhost:${DEMO_LAB_PORT:-18100},http://127.0.0.1:${DEMO_LAB_PORT:-18100}`. Unset or empty, the URLs stay `http://localhost:18100` and the list gains an empty item that `Settings.cors_origin_list` discards, so CORS allows only the two local origins. The published port is `127.0.0.1:${DEMO_LAB_PORT:-18100}` |
+| `DEMO_LAB_PORT` | `web` (published port), gateway, worker, seed (image tag and local CORS origins) | optional; default `18100` (the develop lab); PR previews use 18101-18199. The loopback port `web` publishes (`127.0.0.1:<port>`). It also sets the gateway image tag `openbinding-lab-gateway:<port>` and the local CORS origins `http://localhost:<port>,http://127.0.0.1:<port>`. The `DEMO_PUBLIC_ORIGIN` defaults keep `http://localhost:18100` |
 | `SMOKE_BASE_URL` | seed (`smoke_lab.py`) | fixed in the file to `http://web:8080` on `seed` only |
 
 The file writes no SPACE service or plan name: those come from `DEMO_*`
@@ -259,7 +260,8 @@ Observed remotely on 2026-10-13:
 
 Fixed in the file: `APP_ENV=dev`, `CAS_ENABLED=false`,
 `SPHERE_ENABLED=true`, `MAX_CONCURRENT_JOBS_PER_USER=3`,
-`CORS_ALLOW_ORIGINS=http://localhost:18100,http://127.0.0.1:18100`,
+`CORS_ALLOW_ORIGINS=http://localhost:${DEMO_LAB_PORT:-18100},http://127.0.0.1:${DEMO_LAB_PORT:-18100}`
+(plus `DEMO_PUBLIC_ORIGIN`),
 `PUBLIC_BASE_URL` and `FRONTEND_URL` `http://localhost:18100`.
 `FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`.
 
@@ -616,15 +618,13 @@ only, expire after 7 idle days and are deleted only through `labctl destroy`.
 
 - `lab/previews/previews.py` (stdlib only, no side effects) is the executable reference of these rules, and
   `lab/tests/test_previews.py` is its contract.
-- The Compose parameterisation of the published port and `labctl preview` are not yet in force. Today only the
-  develop lab on `127.0.0.1:18100` runs, and its Compose files still publish 18100 literally. For that reason the
-  port variable is deliberately not in the Variables table.
+- The Compose files are parameterised by `DEMO_LAB_PORT` (see the Variables table); `labctl preview` is not yet in force. Today only the develop lab on `127.0.0.1:18100` runs.
 - Isolation probe: `lab/tests/test_preview_isolation.py` checks on a live Docker host that two preview projects
   do not reach each other. It needs `OPENBINDING_LAB_PROBE=1`, two project names
   `OPENBINDING_PROBE_PROJECT_A` and `OPENBINDING_PROBE_PROJECT_B` of the form `openbinding-pr-<n>`, and their ports
   `OPENBINDING_PROBE_PORT_A` and `OPENBINDING_PROBE_PORT_B` (18101-18199). From preview A it checks that B's port
-  is refused and that A reaches its own `web` (one direction; swap A and B and run again for the other). Until the
-  Compose parameterisation and `labctl preview` land, only two stand-in projects can run the probe. Each needs a
+  is refused and that A reaches its own `web` (one direction; swap A and B and run again for the other). Until
+  `labctl preview` lands, only two stand-in projects can run the probe. Each needs a
   `gateway` service with `python` on PATH, a `web` service whose container port 8080 is published on
   `127.0.0.1:<port>`, and the default network `<project>_default`; both must be up and healthy. (Once real previews
   exist, stop the develop lab first.) From `openbinding-gateway`:
@@ -661,7 +661,8 @@ only, expire after 7 idle days and are deleted only through `labctl destroy`.
   else to stay under 4096 MiB (the current total, 4032 MiB, leaves 64 MiB).
 - A single worker serves both queues with two threads; analysis jobs and solve
   jobs can delay each other.
-- `gateway`, `worker` and `seed` share one image, `openbinding-lab-gateway:latest`,
+- `gateway`, `worker` and `seed` share one image, `openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`
+  (`openbinding-lab-gateway:18100` by default; the first `up --build` after this change builds it once),
   built only by `gateway`. Reason: `up --build` rebuilds only services without a
   profile, and `run --rm --no-deps seed` reuses an existing image without
   rebuilding it, so a `seed` with its own `build` ran code from an earlier build
