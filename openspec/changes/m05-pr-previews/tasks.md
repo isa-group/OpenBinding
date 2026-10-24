@@ -15,11 +15,14 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
 - [ ] 1.3 `lab/tests/test_previews.py`: the planner tests named in the delta spec's `Evidence:` lines, each tagged
   `[utest->req~lab-deployment-preview-…~1]`. They drive the planner contract of design.md §1 through `subprocess`, so
   the file has no import of `lab/previews/` that could fail at collection.
-- [ ] 1.4 One shared helper, `run_planner(*args) -> tuple[int, dict | None]`, runs
-  `python lab/previews/previews.py plan …` and returns the exit code and the parsed stdout (`None` when stdout is not
-  JSON; it never raises). Every test asserts on both: `returncode == 0` and the keys of the JSON, or, for the
-  usage-error tests, `returncode == 64` (`EX_USAGE`, design.md §1) and `None`. Tests that loop over allocated ports
-  assert the list is non-empty first.
+- [ ] 1.4 One shared helper, `run_planner(*args) -> tuple[int, dict | None]`, runs the planner with `sys.executable`
+  and the path `Path(__file__).resolve().parents[2] / "lab" / "previews" / "previews.py"` built from the repository
+  root (checks run from `openbinding-gateway/`, so no relative path), followed by `plan …`, and returns the exit code
+  and the parsed stdout (`None` when stdout is not JSON; it never raises). Every test asserts on both:
+  `returncode == 0` and the keys of the JSON, or, for the usage-error tests, `returncode == 64` (`EX_USAGE`,
+  design.md §1) and `None`. Tests that loop over allocated ports assert the list is non-empty first.
+  `test_missing_required_flag_is_a_usage_error` drops each required flag of design.md §1 in turn (for example
+  `--now` of `request`) and expects 64; it is tagged `[utest->req~lab-deployment-preview-on-demand~1]`.
 - [ ] 1.5 Planner-layer proxy for deletion, element by element (so `--verbose` in a seed argument does not match
   `-v`): in the `commands` of `request`, `refresh`, `open`, `stop`, `activity` and `expire`, no argv has an element
   equal to `-v`, `--volumes`, `--rmi` or `rmi`, nor the consecutive elements `volume rm` or `image rm`; every
@@ -64,8 +67,15 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
     and stay raw. `LOCAL_CORS` keeps the expanded 18100 form that the two `_expand` tests compare against. The
     expanded comparison for 18101 and 18199 is only in `test_gateway_image_tag_and_local_cors_follow_the_port`.
   - `int(port['published'])` and `ports[0][1] == PUBLISHED` in `test_single_published_port_on_loopback` read the
-    expanded value; the rule becomes a function `_assert_single_loopback_port(services, supplied)` that checks
-    `published` is all digits before `int()`, so `abc` fails by assertion.
+    expanded value; the rule becomes a function `_assert_single_loopback_port(services, supplied="18100")` that
+    checks `published` is all digits before `int()`, so `abc` fails by assertion, that it is in 18100–18199 (both
+    failures with a message naming the range), and that it equals the supplied port, not only that it is in range.
+    It reads `published` as `str(port["published"])` (the base has the int 18100) before expanding and before the
+    digits check, and compares strings, `published == str(supplied)`, so no `int()` of `supplied` can raise.
+  - A helper `_rule_failure(services, supplied) -> str | None` returns the `AssertionError` message of
+    `_assert_single_loopback_port` or `None`. The refusal tests assert on it (`assert msg is not None` and, for the
+    range test, the range in `msg`) instead of `pytest.raises`, so their red on the base is an `AssertionError`, never
+    `Failed: DID NOT RAISE`.
   - The literal `openbinding-lab-gateway:latest` of `test_gateway_worker_and_seed_share_one_always_rebuilt_image`
     becomes the expanded `openbinding-lab-gateway:<port>`.
   - New tests: `test_single_published_port_on_loopback` parameterised over unset, 18101 and 18199;
@@ -73,18 +83,24 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
     `test_gateway_image_tag_and_local_cors_follow_the_port`; `test_demo_doc_has_the_demo_lab_port_row`, which
     requires a row starting with `` | `DEMO_LAB_PORT` `` naming 18100 and 18101–18199 unconditionally (the generic
     loop of `test_demo_doc_states_the_memory_sum_and_every_demo_variable` passes on the base, which has no reference);
-    and the negative control `test_port_rule_refuses_an_extra_published_port`, which applies
-    `_assert_single_loopback_port` to a copy of the manifest with an extra `8000:8000` on the gateway and expects
-    `AssertionError`. Tag `[utest->req~lab-deployment-single-loopback-port~2]`.
+    and the negative control `test_port_rule_refuses_an_extra_published_port`, which applies `_rule_failure` to a
+    copy of the manifest with an extra `8000:8000` on the gateway and asserts a message. On the base, the range test
+    is red because the literal 18100 differs from the supplied 18099, 18200 or `abc` and that message does not name
+    the range. Tag `[utest->req~lab-deployment-single-loopback-port~2]`.
 - [ ] 1.2 `openbinding-gateway/tests/test_container_hardening.py`: `SHARED_IMAGE` becomes
   `openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`; `ALLOWED_DEFAULT_REFERENCE` becomes a set with
-  `DEMO_LAB_PORT:-18100` added. `lab/tests/test_lab_process_profiles.py`: the `rules.PUBLISHED` comparison of
-  `test_only_the_gateway_holds_the_jwt_secret_and_one_port_is_published` uses the raw published reference.
+  `DEMO_LAB_PORT:-18100` added. `lab/tests/test_lab_compose.py` gets the constant
+  `PUBLISHED_REFERENCE = {"target": 8080, "published": "${DEMO_LAB_PORT:-18100}", "host_ip": "127.0.0.1"}`, the raw
+  published reference; `lab/tests/test_lab_process_profiles.py` (line ~223) compares `ports` with
+  `[("web", rules.PUBLISHED_REFERENCE)]` in `test_only_the_gateway_holds_the_jwt_secret_and_one_port_is_published`.
+  `PUBLISHED` stays the dict with the int `published` 18100 for its other uses: the `target` reads, and the expanded
+  unset comparison, which checks `int(published) == PUBLISHED["published"]`, `host_ip` and `target` field by field
+  instead of comparing dicts (the expanded value is a string).
 - [ ] 1.7 `lab/tests/test_lab_compose_config.py` (new): runs
   `docker compose -f compose.lab.json --profile seed config --format json` (without `--profile seed` the rendered file
-  has no `seed` service) unset, with `DEMO_LAB_PORT=18101` and with `18199`, and compares `web`'s published port and host, the image of
-  gateway, worker and seed, and the gateway's `CORS_ALLOW_ORIGINS` with the expected values. It runs only when
-  `OPENBINDING_COMPOSE_CONFIG=1`; with that variable set, a missing `docker` fails it.
+  has no `seed` service) unset, with `DEMO_LAB_PORT=18101` and with `18199`, and compares `web`'s published port and
+  host, the image of gateway, worker and seed, and the gateway's `CORS_ALLOW_ORIGINS` with the expected values. It
+  runs only when `OPENBINDING_COMPOSE_CONFIG=1`; with that variable set, a missing `docker` fails it.
 - Expected red on the base (G3), by assertion only: the 18101 and 18199 cases of
   `test_single_published_port_on_loopback`; `test_published_port_outside_the_range_is_refused`;
   `test_gateway_image_tag_and_local_cors_follow_the_port`; `test_demo_doc_has_the_demo_lab_port_row`;
@@ -94,8 +110,8 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
   `test_only_the_gateway_holds_the_jwt_secret_and_one_port_is_published`; the hardening tests that go through
   `_gateway_image_services` (`SHARED_IMAGE`); and, with `OPENBINDING_COMPOSE_CONFIG=1`, every case of
   `test_compose_config_expands_port_image_and_cors` (the base image tag is still `latest`). Expected green on the
-  base: the unset (18100) case of `test_single_published_port_on_loopback`, the
-  negative control `test_port_rule_refuses_an_extra_published_port`, `test_unset_or_empty_public_origin_leaves_the_local_lab`,
+  base: the unset (18100) case of `test_single_published_port_on_loopback`, the negative control
+  `test_port_rule_refuses_an_extra_published_port`, `test_unset_or_empty_public_origin_leaves_the_local_lab`,
   `test_a_public_origin_replaces_the_urls_and_is_appended_to_the_local_cors_origins` and
   `test_compose_holds_no_literal_secret`.
   Checks (red_before):
@@ -113,7 +129,9 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
   `["env", "DEMO_LAB_PORT=18101", "docker", "compose", "-f", "../compose.lab.json", "--profile", "seed", "config", "--format", "json"]`;
   `["docker", "compose", "-f", "../compose.lab.json", "--profile", "seed", "config", "--format", "json"]`;
   `["env", "OPENBINDING_COMPOSE_CONFIG=1", "uv", "run", "--locked", "--extra", "test", "pytest", "-q", "-rs", "../lab/tests/test_lab_compose_config.py"]`
-  with 0 skipped. After F1, `lab_compose validate` passes.
+  with 0 skipped. The two bare `docker compose … config` checks are MRP evidence only (they prove exit 0 and show the
+  rendered file); the assertion on port, image and CORS is the last pytest check. After F1, `lab_compose validate`
+  passes.
 
 ## F2. Factory: `labctl preview` and `labctl destroy preview` (prerequisite of S4)
 - [ ] The state store, activity recording, the eligibility and stale-head checks, the hourly sweep, memory admission,
@@ -132,9 +150,11 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
 - [ ] 4.1 `lab/tests/test_preview_isolation.py`: the live probe of design.md §8, tagged
   `[utest->req~lab-deployment-preview-isolation~1]`. It runs only when `OPENBINDING_LAB_PROBE=1`; with it set, a
   missing lab fails. Precondition: the develop lab stopped, or two small stand-in projects named `openbinding-pr-*`.
-  Negative: from a container of A, B's port is refused through the host-side gateway address of A's network. Positive
-  controls: B's port answers from the host at `127.0.0.1:<B port>`; A's `web` resolves to A's own container address,
-  which differs from B's.
+  Client: a `python -c` socket connect run with `docker exec` in A's `gateway` container, printing `ok` or the errno
+  name. Negative: from a container of A, B's port is refused through the host-side gateway address of A's network,
+  and the client prints `ECONNREFUSED` (a timeout, another errno or an exec error fails the test). Controls: the
+  client connects to A's own `web:8080`; B's port answers from the host at `127.0.0.1:<B port>`; A's `web` resolves
+  to A's own container address, which differs from B's.
 - [ ] 4.2 `docs/previews/README.md` changes from plan to in force. `docs/DEMO.md` gets a "PR previews" section.
   `TESTING.md` and `docs/qa/E2E_PLAN.md` name the preview port.
 - [ ] 4.3 Follow-up for the coordinator (ARCHITECTURE.md is outside this change): extend the ARCHITECTURE §10 row

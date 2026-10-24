@@ -51,7 +51,7 @@ Output: one JSON object on stdout, with these keys and no others:
 | `port` | the preview's port, or `null` |
 | `project` | `openbinding-pr-<n>`, or `null` |
 | `env` | non-secret entries as name → value; the five secrets of §5 only as name → `{"generate": true}` (first start) or `{"keep": true}` (kept names). The planner never prints a secret value, except that with `--seed-rng` each generated entry also carries `value` so tests can check its format |
-| `commands` | the argv lists the manager would run through `lab_compose`, in order (`[]` when there is nothing to run) |
+| `commands` | the argv lists the manager would run, in order (`[]` when there is nothing to run), only of these shapes: `["lab_compose", "up", "--project", "openbinding-pr-<n>", "--build"]` (first start, or a new head); `["lab_compose", "up", "--project", "openbinding-pr-<n>"]` (restart of a `stopped` or `failed` record at the same head); `["lab_compose", "down", "--project", "openbinding-pr-<n>"]` (stop, never `-v`); `["labctl", "destroy", "preview", "<n>"]` (expire); and, for `destroy-check` only, `["lab_compose", "destroy", "--project", "openbinding-pr-<n>"]` (the `down --volumes --rmi local` of §2) followed by one `["docker", "image", "rm", "<tag or image ID>"]` per removal. `lab_compose validate` before and `lab_compose seed` after an `up` (§2) are the manager's and are not listed |
 | `record` | the record after the action, or `null` (refusal, no record, or `expire`) |
 
 Exit code 0 for a plan and for a refusal: a refusal is data. Exit code 64 (`EX_USAGE`) only for usage errors, the
@@ -60,23 +60,27 @@ missing required flag, or `--head` differing from `pr-info.head_sha`. The code i
 (Python's "can't open file" exits 2) cannot pass a usage-error test.
 
 Checks run in this order, and the first failing one is the refusal: eligibility (`state` is `open` and `head_repo` is
-`isa-group/OpenBinding`), tracked file (`compose.lab-process.json` is in `--tracked`), free port, memory cap. They
-apply to the plans that run `up`: `request`, `refresh`, and `open` of a `stopped` or `failed` record. `stop`,
-`expire`, `destroy-check` and `activity` skip them, so a preview of a closed or merged PR can still be stopped,
-expired or destroyed. `activity` of kind `g12` or `screenshot` has one check of its own, the stale head. A refusal
-writes no record and holds no port.
+`isa-group/OpenBinding`), tracked file (`compose.lab-process.json` is in `--tracked`), free port (only when the plan
+allocates one: no record, or a record with `port: null`), memory cap (only when the plan moves the preview from
+absent, `stopped` or `failed` to running, §6; a refresh of a running preview skips it). They apply to the plans that
+run `up`: `request`, `refresh`, and `open` of a `stopped` or `failed` record. `stop`, `expire`, `destroy-check` and
+`activity` skip them, so a preview of a closed or merged PR can still be stopped, expired or destroyed. `activity`
+of kind `g12` or `screenshot` has one check of its own, the stale head. A refusal writes no record and holds no port.
 
 A record in `destroyed` counts as no record: a later request allocates, admits and generates new secrets.
 
-| Plan | What it does |
-|---|---|
-| `request` | no record: allocate (§4), admit (§6), first start. Record on a different head: as `refresh`. Same head and `stopped` or `failed`: admit (allocating a port again when `port` is null), then `up`. Same head and running: activity only, no commands |
-| `refresh` | as `request` on an existing record, a `stopped` or `failed` one being admitted first; with no record, as `request` |
-| `open` | `stopped` or `failed`: admit (allocating a port again when `port` is null), then `up`; running: activity only. Records `open`. No record: nothing |
-| `stop` | `down` without `-v`; status `stopped`; port and record kept |
-| `expire` | one `["labctl", "destroy", "preview", "<n>"]` per record idle ≥ 168 h and not `requested`, `starting`, `seeding`, `destroying` or `destroyed`; `record: null` |
-| `activity` | sets `last_active_at = now` and `last_activity = kind`; refused with `preview_head_stale` for `g12` or `screenshot` when the record's `head_sha` differs from `pr-info.head_sha` |
-| `destroy-check` | the Docker commands `labctl destroy preview <n>` runs (§2, "destroy"); record `destroyed` with `port: null` |
+| Plan | Required flags; defaults | What it does |
+|---|---|---|
+| `request` | `--state`, `--pr`, `--now`, `--pr-info`, `--tracked`, `--head-mem-mib`; `--head` defaults to `pr-info.head_sha`, `--running` to `[]`, `--listening` to `[]` | no record: allocate (§4), admit (§6), first start. Record on a different head: as `refresh`. Same head and `stopped` or `failed`: allocate a port again when `port` is null, admit, then `up`. Same head and running: activity only, no commands |
+| `refresh` | as `request` | as `request` on an existing record, a `stopped` or `failed` one being admitted first; with no record, as `request` |
+| `open` | as `request` | `stopped` or `failed`: allocate a port again when `port` is null, admit, then `up`; running: activity only. Records `open`. No record: nothing |
+| `stop` | `--state`, `--pr` (no `--tracked`) | `down` without `-v`; status `stopped`; port and record kept |
+| `expire` | `--state`, `--now` | one `["labctl", "destroy", "preview", "<n>"]` per record idle ≥ 168 h and not `requested`, `starting`, `seeding`, `destroying` or `destroyed`; `record: null` |
+| `activity` | `--state`, `--pr`, `--now`, `--kind`; `--pr-info` too for `g12` and `screenshot` | sets `last_active_at = now` and `last_activity = kind`; refused with `preview_head_stale` for `g12` or `screenshot` when the record's `head_sha` differs from `pr-info.head_sha` |
+| `destroy-check` | `--state`, `--pr`; `--tags` defaults to `{}` | the Docker commands `labctl destroy preview <n>` runs (§2, "destroy"); record `destroyed` with `port: null` |
+
+`--seed-rng` is optional for every plan (default: the system generator). A flag a plan does not use is ignored. A
+missing required flag is a usage error, exit 64 (`test_missing_required_flag_is_a_usage_error`).
 
 A plan for a PR with no record other than `request` or `refresh` has `record: null` and no commands.
 
@@ -84,15 +88,18 @@ A plan for a PR with no record other than `request` or `refresh` has `record: nu
 
 `request → allocate port → up → seed → ready → (refresh on a different head) → idle → expire → destroy`
 
+The checks, their order and the plans are those of §1: `open` and the admission of `refresh` apply to a `stopped` or
+`failed` record, eligibility comes first, and a free port is checked before the memory cap.
+
 | Step | What happens | Status after |
 |---|---|---|
-| request | `labctl preview request <pr>` checks that the PR is open and its head branch is in this repository, refusing otherwise with `preview_pr_not_eligible` (closed, merged or fork). It resolves the head SHA and checks that the Compose file to run is tracked at that head (`git ls-files`), refusing otherwise with `preview_untracked_compose`. With no record, or a `destroyed` one, go to allocate. With a record on a different head, go to refresh. With a record on the same head that is stopped or failed, run memory admission (§6), allocate a port again if it has none, and start it again. With the same head running, it only records activity. | `requested` |
+| request | `labctl preview request <pr>` checks that the PR is open and its head branch is in this repository, refusing otherwise with `preview_pr_not_eligible` (closed, merged or fork). It resolves the head SHA and checks that the Compose file to run is tracked at that head (`git ls-files`), refusing otherwise with `preview_untracked_compose`. With no record, or a `destroyed` one, go to allocate. With a record on a different head, go to refresh. With a record on the same head that is stopped or failed, allocate a port again if it has none, run memory admission (§6), and start it again. With the same head running, it only records activity. | `requested` |
 | allocate | Lowest free port in 18101–18199 (§4). Refusal: `preview_ports_exhausted`. Memory admission (§6). Refusal: `preview_capacity_reached`. A refused request writes no record and holds no port. The five secrets of §5 are generated now, once. | `starting` |
 | up | Checks out the PR head in the preview's work tree. `lab_compose validate`, then `lab_compose up` with project `openbinding-pr-<n>`, `compose.lab-process.json` (the profile the develop lab uses today), `DEMO_E2E=0` and the environment of §5. Before `up`, `docker compose config` must show `web` published on `127.0.0.1:<port>`; otherwise nothing starts. A PR head that branched before slice S2 still publishes a literal 18100, so it is refused until it is rebased onto `develop`. | `seeding` |
 | seed | `lab_compose seed` with `DEMO_SEED_TOOL=seed_lab.py`, `DEMO_SEED_ARGS=--verbose` and the preview's kept `DEMO_SEED_PASSWORD`. | `ready` on exit 0 |
 | ready | G12 runs inside the project (`DEMO_E2E=1` with the same `DEMO_SEED_PASSWORD`, as `docs/DEMO.md` describes), only when the record's `head_sha` is the PR's current head; otherwise it is refused with `preview_head_stale` and counts as no activity. The owner opens the preview through the tunnel. | `ready` |
-| refresh | The same project, port, volumes and secrets. A stopped preview first passes memory admission (§6). `up --build` at the new head, then the idempotent seed. The new head is held in `pending_head_sha` and becomes `head_sha` only when `up` exits 0. Migrations apply at start (`req~lab-deployment-migrate-on-start~1`). The ID of every image built goes into `images`. | `ready` |
-| open | `labctl preview open <pr>` records the access and prints the tunnel command. On a `stopped` preview it first runs memory admission (§6) and `up`. | `ready` |
+| refresh | The same project, port, volumes and secrets. A stopped or failed preview first passes the checks of §1 (a port again if it has none, then memory admission, §6); a running one skips admission. `up --build` at the new head, then the idempotent seed. The new head is held in `pending_head_sha` and becomes `head_sha` only when `up` exits 0. Migrations apply at start (`req~lab-deployment-migrate-on-start~1`). The ID of every image built goes into `images`. | `ready` |
+| open | `labctl preview open <pr>` records the access and prints the tunnel command. On a `stopped` or `failed` preview it first runs the checks of §1 (memory admission, §6) and `up`. | `ready` |
 | stop | `labctl preview stop <pr>`: `docker compose down` without `-v`. It removes the containers and the network, frees memory and deletes no volume or image. | `stopped` |
 | expire | `labctl preview expire [--dry-run]`, the hourly sweep, finds `now − last_active_at ≥ 168 h` and calls `labctl destroy preview <pr>`. | `destroying` |
 | destroy | `labctl destroy preview <pr>`: `down --volumes --rmi local` (which removes only the project's images built without an `image` key), then each tag labelled in this record's `images` only if `--tags` resolves it to an ID of this record, then each image ID of this record that no other record outside `destroyed` lists and no tag outside this record resolves to (the develop lab's `openbinding-lab-gateway:18100` included). `image rm` never uses `-f` or `--force`. Then the work tree is removed, the stored secrets are deleted and the port is released. | `destroyed` |
@@ -103,9 +110,9 @@ access), and a G12 or screenshot (`lab_screenshot`) run against the preview's cu
 health checks, automatic restarts, `list` or `status`, the expiry sweep itself, a refused G12 or screenshot run, and
 traffic the factory cannot see. A manual SSH tunnel opened without `open` counts only if `open` is run. The sweep runs
 hourly, so a preview is destroyed between 168 h and 169 h of idleness. It skips records in `requested`, `starting`,
-`seeding`, `destroying` or `destroyed`. `failed` and `stopped` previews age like any other. Closing or merging the PR does not destroy the
-preview: the same 7-day rule applies, and the operator can destroy it earlier. Pushing to the PR starts and refreshes
-nothing.
+`seeding`, `destroying` or `destroyed`. `failed` and `stopped` previews age like any other. Closing or merging the PR
+does not destroy the preview: the same 7-day rule applies, and the operator can destroy it earlier. Pushing to the PR
+starts and refreshes nothing.
 
 ## 3. State record
 
@@ -139,7 +146,7 @@ resolves them with `labctl destroy`.
 - Range 18101–18199: 99 ports. 18100 belongs to the develop lab and is never allocated.
 - Allocation: the lowest port that no record outside `destroyed` holds and that nothing listens on (the factory
   probes `127.0.0.1:<port>` and passes the busy ports as `--listening`). A port stays with its PR until destroy,
-  including while the preview is stopped.
+  including while the preview is stopped, unless `up` fails on a collision (next item).
 - Collision: if `up` still fails with "port is already allocated", the record becomes `failed` with `port: null`.
   The port is released and the volumes and image IDs stay listed for `labctl destroy`. The next request or refresh
   allocates a free port again. Another PR may take the released port and build a new image under the same tag; the
@@ -215,8 +222,8 @@ develop lab).
 
 - A failed build during refresh: Compose recreates nothing, the old head keeps running, the record keeps `head_sha`,
   clears `pending_head_sha` and stores `error`.
-- `up` or seed fails: status `failed`, then `down` without `-v`. The port, volumes, images and secrets are kept and
-  the logs stay readable through `lab_compose logs`. To retry, refresh. To roll back, refresh to `previous_head_sha`.
+- `up` or seed fails: status `failed`, then `down` without `-v`. The port, volumes, images and secrets are kept,
+  except after a port collision, which releases the port (§4), and the logs stay readable through `lab_compose logs`. To retry, refresh. To roll back, refresh to `previous_head_sha`.
 - A database that cannot migrate (for example after a force-push to an older schema): `labctl destroy preview <pr>`,
   then a new request. Data is synthetic, and the new start generates new secrets.
 - Rolling back the repository change means reverting the Compose parameterisation. Because the default is 18100, the
@@ -235,9 +242,13 @@ develop lab).
     test instead of skipping it. S4's evidence is a pytest run with 0 skipped.
   - Precondition: the develop lab is stopped, because develop plus two previews (3 × 4032 MiB = 12096 MiB) exceed the
     9216 MiB cap; or the probe uses two small stand-in projects named `openbinding-pr-*`.
+  - Client: `docker exec` in A's `gateway` container of `python -c` with a `socket.create_connection` (5 s timeout)
+    that prints `ok` or the `errno` name of the failure and exits 0.
   - Negative: from a container of A, B's port is refused through the host-side gateway address of A's network (not
-    `127.0.0.1`, which is A's own loopback). Positive controls: B's port answers from the host at
-    `127.0.0.1:<B port>`, and A's `web` resolves to A's own container address, which differs from B's.
+    `127.0.0.1`, which is A's own loopback). The client must print `ECONNREFUSED`; a timeout, another errno or a
+    non-zero exit of `docker exec` fails the test. Controls: the same client connects to A's own `web:8080` (`ok`),
+    B's port answers from the host at `127.0.0.1:<B port>`, and A's `web` resolves to A's own container address,
+    which differs from B's.
 - Secrets: only `${VAR}` references with no default, and synthetic values generated per preview. No SPACE or SPHERE
   key and no production value is ever placed in a preview environment.
 - Isolation: one network and volume set per project, no external or named shared ones, no bind mounts.

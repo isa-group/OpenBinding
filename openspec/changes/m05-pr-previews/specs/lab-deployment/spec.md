@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Single loopback port in the lab
-THE lab profile SHALL publish exactly one host port, from the `web` service only, bound to `127.0.0.1` at `${DEMO_LAB_PORT:-18100}` with `DEMO_LAB_PORT` in 18100–18199, and SHALL use that port in the gateway image tag and the local CORS origins, so the develop lab keeps 18100.
+THE lab profile SHALL publish exactly one host port, from the `web` service only, which no other service exposes, bound to `127.0.0.1` at `${DEMO_LAB_PORT:-18100}` (the variable in 18100–18199), and SHALL use that port in the gateway image tag and the local CORS origins, so the develop lab keeps 18100.
 
 `req~lab-deployment-single-loopback-port~2`
 
@@ -36,12 +36,12 @@ THE preview manager SHALL start a PR preview only on an explicit request naming 
 
 `req~lab-deployment-preview-on-demand~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_request_for_an_open_pr_plans_one_stack_at_its_head`; GAP `lab/tests/test_previews.py::test_closed_or_merged_pr_is_refused_as_not_eligible`; GAP `lab/tests/test_previews.py::test_fork_pr_is_refused_as_not_eligible`; GAP `lab/tests/test_previews.py::test_only_request_and_refresh_plan_an_up_without_a_record`; F2 acceptance: `labctl preview list` after a push to a PR without a preview shows no `openbinding-pr-<n>` project
+Evidence: planner tests: GAP `lab/tests/test_previews.py::test_request_for_an_open_pr_plans_one_stack_at_its_head`; GAP `lab/tests/test_previews.py::test_closed_or_merged_pr_is_refused_as_not_eligible`; GAP `lab/tests/test_previews.py::test_fork_pr_is_refused_as_not_eligible`; GAP `lab/tests/test_previews.py::test_only_request_and_refresh_plan_an_up_without_a_record`; GAP `lab/tests/test_previews.py::test_missing_required_flag_is_a_usage_error`; F2 acceptance: `labctl preview list` after a push to a PR without a preview shows no `openbinding-pr-<n>` project
 
 #### Scenario: Request for an open PR
 - **GIVEN** open PR 42 of `isa-group/OpenBinding` with head `3f2a…`, no record and port 18101 free
 - **WHEN** the planner plans `request` for PR 42
-- **THEN** the plan has `refusal: null`, project `openbinding-pr-42`, port 18101 and an `up` command for that project
+- **THEN** the plan has `refusal: null`, project `openbinding-pr-42`, port 18101 and the command `["lab_compose", "up", "--project", "openbinding-pr-42", "--build"]`
 - **AND** the planned record has `head_sha` `3f2a…`
 
 #### Scenario: Closed or merged PR
@@ -65,11 +65,11 @@ Evidence: planner tests: GAP `lab/tests/test_previews.py::test_request_for_an_op
 - **THEN** no project `openbinding-pr-42` exists afterwards
 
 ### Requirement: Preview port range on loopback
-THE preview manager SHALL publish each PR preview on one port of `127.0.0.1` in 18101–18199, the lowest that no other record holds and no other process listens on, and keep that port until destroy, also while stopped; never 18100 and never another interface.
+THE preview manager SHALL publish each PR preview on exactly one port of `127.0.0.1` in 18101–18199, the lowest that no other record holds and no other process listens on, keep it until destroy, also while stopped, unless `up` fails on a port collision, which releases it, and SHALL never allocate 18100 or bind another interface.
 
 `req~lab-deployment-preview-port-range~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_first_preview_gets_18101`; GAP `lab/tests/test_previews.py::test_lowest_free_port_fills_gaps`; GAP `lab/tests/test_previews.py::test_stopped_preview_keeps_its_port`; GAP `lab/tests/test_previews.py::test_destroyed_record_frees_its_port`; GAP `lab/tests/test_previews.py::test_98_held_ports_allocate_18199`; GAP `lab/tests/test_previews.py::test_18100_is_never_allocated`; static test (the `127.0.0.1` host): GAP `lab/tests/test_lab_compose.py::test_single_published_port_on_loopback`
+Evidence: planner tests: GAP `lab/tests/test_previews.py::test_first_preview_gets_18101`; GAP `lab/tests/test_previews.py::test_lowest_free_port_fills_gaps`; GAP `lab/tests/test_previews.py::test_listened_on_port_is_skipped`; GAP `lab/tests/test_previews.py::test_stopped_preview_keeps_its_port`; GAP `lab/tests/test_previews.py::test_failed_record_without_a_port_gets_the_lowest_free_port`; GAP `lab/tests/test_previews.py::test_destroyed_record_frees_its_port`; GAP `lab/tests/test_previews.py::test_98_held_ports_allocate_18199`; GAP `lab/tests/test_previews.py::test_18100_is_never_allocated`; static test (the `127.0.0.1` host): GAP `lab/tests/test_lab_compose.py::test_single_published_port_on_loopback`
 
 #### Scenario: First preview
 - **GIVEN** no PR preview record, port 18101 free and the develop lab on 18100
@@ -81,10 +81,20 @@ Evidence: planner tests: GAP `lab/tests/test_previews.py::test_first_preview_get
 - **WHEN** the planner plans `request` for PR 57
 - **THEN** the plan has port 18102
 
+#### Scenario: Port listened on by another process is skipped
+- **GIVEN** no PR preview record and `--listening [18101]`
+- **WHEN** the planner plans `request` for PR 42
+- **THEN** the plan has port 18102
+
 #### Scenario: Stopped preview keeps its port
 - **GIVEN** the `stopped` record of PR 42 on 18101
 - **WHEN** the planner plans `request` for PR 57
 - **THEN** the plan does not have port 18101
+
+#### Scenario: Failed record without a port gets a port again
+- **GIVEN** the `failed` record of PR 42 at the PR's head with `port: null` after a collision, the record of PR 57 on 18101, port 18102 free and no running stack
+- **WHEN** the planner plans `request` for PR 42
+- **THEN** the plan has `refusal: null` and port 18102, and its record has `port` 18102
 
 #### Scenario: Destroyed record frees its port
 - **GIVEN** the `destroyed` record of PR 42, which held 18101, and no other record
@@ -109,15 +119,17 @@ THE preview manager SHALL run each PR preview as its own Compose project `openbi
 Evidence: planner tests: GAP `lab/tests/test_previews.py::test_names_derive_from_the_pr_number`; static tests: `lab/tests/test_lab_compose.py::test_top_level_volumes_and_networks_carry_only_labels`; `lab/tests/test_lab_compose.py::test_volumes_are_structured_and_declared`; `lab/tests/test_lab_compose.py::test_no_host_code_is_bind_mounted_and_the_image_carries_the_seed_tools`; `lab/tests/test_lab_process_profiles.py::test_volumes_are_structured_declared_and_used`; live probe (S4): GAP `lab/tests/test_preview_isolation.py::test_cross_preview_port_is_unreachable_and_web_is_local`
 
 #### Scenario: Two previews
-- **GIVEN** records of PR 42 on 18101 and PR 57 on 18102
+- **GIVEN** `ready` records of PR 42 on 18101 and PR 57 on 18102, and both PRs moved to new heads
 - **WHEN** the planner plans `refresh` for each
-- **THEN** every command of PR 42 names project `openbinding-pr-42` and its record lists only `openbinding-pr-42_*` volumes
+- **THEN** each plan has non-empty `commands` and a non-null `record` that lists its volumes
+- **AND** every command of PR 42 names project `openbinding-pr-42` and its record lists only `openbinding-pr-42_*` volumes
 - **AND** every command of PR 57 names `openbinding-pr-57` and its record lists only `openbinding-pr-57_*` volumes
 
 #### Scenario: Cross-preview access (live probe)
 - **GIVEN** previews of PR 42 on 18101 and PR 57 on 18102 running, with the develop lab stopped
-- **WHEN** a container of PR 42 resolves `web` and connects to port 18102 through the host-side gateway address of its own network
-- **THEN** `web` resolves to PR 42's own `web` container address, which differs from PR 57's, and port 18102 is refused
+- **WHEN** a `python -c` socket client in a container of PR 42 resolves `web`, connects to `web:8080`, and connects to port 18102 through the host-side gateway address of its own network
+- **THEN** `web` resolves to PR 42's own `web` container address, which differs from PR 57's, and `web:8080` answers (control)
+- **AND** the connection to port 18102 fails with `ECONNREFUSED`, not with a timeout or an exec error
 - **AND** from the host, `127.0.0.1:18102` answers (positive control)
 
 ### Requirement: Tracked Compose file and synthetic data only
@@ -161,7 +173,7 @@ Evidence: planner tests: GAP `lab/tests/test_previews.py::test_new_head_refreshe
 #### Scenario: New commit then request
 - **GIVEN** the `ready` record of PR 42 at head `3f2a…` on port 18101
 - **WHEN** PR 42 moves to head `9c1d…` and the planner plans `request`
-- **THEN** the plan is a refresh of project `openbinding-pr-42` on port 18101 with the same volumes and an `up --build` command
+- **THEN** the plan is a refresh of project `openbinding-pr-42` on port 18101 with the same volumes and the command `["lab_compose", "up", "--project", "openbinding-pr-42", "--build"]`
 
 #### Scenario: Same head already running
 - **GIVEN** the `ready` record of PR 42 at head `3f2a…`, which is also the PR's head
@@ -176,7 +188,7 @@ Evidence: planner tests: GAP `lab/tests/test_previews.py::test_new_head_refreshe
 #### Scenario: G12 on a stale head
 - **GIVEN** the record of PR 42 at head `3f2a…` while the PR's head is `9c1d…`
 - **WHEN** the planner plans `activity --kind g12`, and again `--kind screenshot`
-- **THEN** the plan has `refusal: "preview_head_stale"` and the record's `last_active_at` is unchanged
+- **THEN** the plan has `refusal: "preview_head_stale"`, `record: null` and `commands: []`
 
 ### Requirement: Preview expiry after 7 idle days
 WHEN 168 hours or more have passed since a PR preview's last recorded activity (a request or start, a refresh, an open, a G12 or a screenshot run), THE preview manager SHALL expire it through `labctl destroy`, except while it is `requested`, `starting`, `seeding`, `destroying` or `destroyed`.
@@ -188,7 +200,7 @@ Evidence: planner tests: GAP `lab/tests/test_previews.py::test_expiry_at_exactly
 #### Scenario: Idle for exactly seven days
 - **GIVEN** the `ready` record of PR 42 on 18101, last active at 2026-11-01T10:00:00Z
 - **WHEN** the planner plans `expire` at 2026-11-08T10:00:00Z
-- **THEN** its only command is `labctl destroy preview 42`
+- **THEN** its only command is `["labctl", "destroy", "preview", "42"]`
 
 #### Scenario: One minute short
 - **GIVEN** the same record
@@ -216,40 +228,45 @@ Evidence: planner tests: GAP `lab/tests/test_previews.py::test_expiry_at_exactly
 - **THEN** the expiry plan has no command for PR 42
 
 ### Requirement: Destroy only through the maintenance operation
-THE preview manager SHALL delete a PR preview's volumes and images only through `labctl destroy` (constitution 18.3), without force, removing only its record's image IDs that no other record lists and no tag outside the record resolves to, and only tags that resolve to its own IDs.
+THE preview manager SHALL delete a PR preview's volumes and images only through `labctl destroy` (constitution 18.3), without force, removing only the image IDs of its record that no other record outside `destroyed` lists and no tag outside the record resolves to, and only tags that resolve to its own IDs.
 
 `req~lab-deployment-preview-destroy-maintenance~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_only_labctl_destroy_deletes`; GAP `lab/tests/test_previews.py::test_expire_routes_every_deletion_to_labctl_destroy`; GAP `lab/tests/test_previews.py::test_destroy_keeps_an_image_another_record_references`; GAP `lab/tests/test_previews.py::test_destroy_after_port_reuse_leaves_the_second_image`; GAP `lab/tests/test_previews.py::test_destroy_keeps_an_image_the_develop_tag_resolves_to`; F2 acceptance: after `refresh` and `stop` every `openbinding-pr-<n>_*` volume still exists, and after `labctl destroy preview <n>` none does
+Evidence: planner tests: GAP `lab/tests/test_previews.py::test_only_labctl_destroy_deletes`; GAP `lab/tests/test_previews.py::test_expire_routes_every_deletion_to_labctl_destroy`; GAP `lab/tests/test_previews.py::test_destroy_keeps_an_image_another_record_references`; GAP `lab/tests/test_previews.py::test_destroy_removes_an_image_only_a_destroyed_record_lists`; GAP `lab/tests/test_previews.py::test_destroy_after_port_reuse_leaves_the_second_image`; GAP `lab/tests/test_previews.py::test_destroy_keeps_an_image_the_develop_tag_resolves_to`; F2 acceptance: after `refresh` and `stop` every `openbinding-pr-<n>_*` volume still exists, and after `labctl destroy preview <n>` none does
 
 #### Scenario: Refresh, stop and expire delete nothing themselves
 - **GIVEN** the `ready` record of PR 42 on 18101 with its volumes and images
 - **WHEN** the planner plans `request`, `refresh`, `open`, `stop` and `expire` past 168 idle hours
 - **THEN** no argv has an element equal to `-v`, `--volumes`, `--rmi` or `rmi`, nor the consecutive elements `volume rm` or `image rm`
-- **AND** the only deleting command is `labctl destroy preview 42`, in the `expire` plan
+- **AND** the only deleting command is `["labctl", "destroy", "preview", "42"]`, in the `expire` plan
 
 #### Scenario: Image shared with another record
 - **GIVEN** records of PR 42 and PR 57 that both list image ID `sha256:aa…`
 - **WHEN** the planner plans `destroy-check` for PR 42
 - **THEN** no command removes `sha256:aa…`
 
+#### Scenario: Image shared only with a destroyed record
+- **GIVEN** the `destroyed` record of PR 42 and the record of PR 57, both listing image ID `sha256:dd…`, which no tag in `--tags` resolves to
+- **WHEN** the planner plans `destroy-check` for PR 57
+- **THEN** its commands include `["docker", "image", "rm", "sha256:dd…"]`
+
 #### Scenario: Image shared with the develop lab
 - **GIVEN** the record of PR 42 listing image ID `sha256:cc…` labelled `openbinding-lab-gateway:18101`, and `--tags` resolving both `openbinding-lab-gateway:18101` and `openbinding-lab-gateway:18100` to `sha256:cc…`
 - **WHEN** the planner plans `destroy-check` for PR 42
-- **THEN** it removes the tag `openbinding-lab-gateway:18101` and not `sha256:cc…`
+- **THEN** its commands include `["docker", "image", "rm", "openbinding-lab-gateway:18101"]` and none removes `sha256:cc…`
 - **AND** no command contains `-f` or `--force` after `image rm`
 
 #### Scenario: Port reused after a collision
 - **GIVEN** the `failed` record of PR 42 with `port: null` and image ID `sha256:a1…` labelled `openbinding-lab-gateway:18101`, and the record of PR 57 on 18101 with image ID `sha256:b2…`, to which `--tags` now resolves that tag
 - **WHEN** the planner plans `destroy-check` for PR 42
-- **THEN** it removes `sha256:a1…` and neither the tag `openbinding-lab-gateway:18101` nor `sha256:b2…`
+- **THEN** its commands include `["docker", "image", "rm", "sha256:a1…"]` and none removes the tag `openbinding-lab-gateway:18101` or `sha256:b2…`
 
 ### Requirement: Cap on running previews
 IF starting a PR preview (a request, refresh or open that moves it from absent, stopped or failed to running) would raise the summed `mem_limit` of running lab stacks above the 9216 MiB lab cap, THEN THE preview manager SHALL refuse it with `preview_capacity_reached` and stop nothing.
 
 `req~lab-deployment-preview-running-cap~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_start_refused_above_the_lab_cap`; GAP `lab/tests/test_previews.py::test_cap_boundary_9216_allowed_9217_refused`; GAP `lab/tests/test_previews.py::test_start_well_under_the_cap_is_allowed`; GAP `lab/tests/test_previews.py::test_stopped_previews_do_not_count`; GAP `lab/tests/test_previews.py::test_two_previews_fit_without_the_develop_lab`; GAP `lab/tests/test_previews.py::test_refresh_of_a_stopped_or_failed_preview_runs_admission`
+Evidence: planner tests: GAP `lab/tests/test_previews.py::test_start_refused_above_the_lab_cap`; GAP `lab/tests/test_previews.py::test_cap_boundary_9216_allowed_9217_refused`; GAP `lab/tests/test_previews.py::test_start_well_under_the_cap_is_allowed`; GAP `lab/tests/test_previews.py::test_stopped_previews_do_not_count`; GAP `lab/tests/test_previews.py::test_two_previews_fit_without_the_develop_lab`; GAP `lab/tests/test_previews.py::test_refresh_of_a_stopped_or_failed_preview_runs_admission`; GAP `lab/tests/test_previews.py::test_refresh_of_a_running_preview_skips_admission`
 
 #### Scenario: Develop lab and one preview running
 - **GIVEN** running `openbinding-lab` (4032 MiB) and `openbinding-pr-42` (4032 MiB), and PR 57 at a head of 4032 MiB
@@ -276,20 +293,29 @@ Evidence: planner tests: GAP `lab/tests/test_previews.py::test_start_refused_abo
 - **WHEN** the planner plans `refresh` for PR 42 to a new head
 - **THEN** each plan has `refusal: "preview_capacity_reached"` and no commands
 
+#### Scenario: Refresh of a running preview
+- **GIVEN** the `ready` record of PR 42 on 18101 at head `3f2a…`, `--running` listing `openbinding-lab` (4032 MiB) and `openbinding-pr-42` (4032 MiB), and `--head-mem-mib 4032`
+- **WHEN** PR 42 moves to head `9c1d…` and the planner plans `request`
+- **THEN** the plan has `refusal: null` and the command `["lab_compose", "up", "--project", "openbinding-pr-42", "--build"]`
+
 ### Requirement: Refusal when preview ports are exhausted
 IF no port in 18101–18199 is free, each being held by a PR preview record or listened on by another process, THEN THE preview manager SHALL refuse a new preview with `preview_ports_exhausted`, write no record and evict none.
 
 `req~lab-deployment-preview-ports-exhausted~1`
 
-Evidence: planner tests: GAP `lab/tests/test_previews.py::test_refusal_when_99_ports_are_held`; GAP `lab/tests/test_previews.py::test_refusal_when_98_are_held_and_one_is_listened_on`
+Evidence: planner tests: GAP `lab/tests/test_previews.py::test_refusal_when_99_ports_are_held`; GAP `lab/tests/test_previews.py::test_refusal_when_98_are_held_and_one_is_listened_on`; GAP `lab/tests/test_previews.py::test_first_failing_check_wins_in_order`
 
 #### Scenario: Hundredth preview
 - **GIVEN** 99 records holding 18101–18199
 - **WHEN** the planner plans `request` for PR 300
-- **THEN** the plan has `refusal: "preview_ports_exhausted"`, `record: null` and no commands
-- **AND** the 99 records are unchanged
+- **THEN** the plan has `refusal: "preview_ports_exhausted"`, `record: null` and `commands: []`
 
 #### Scenario: Last port taken by another process
 - **GIVEN** 98 records holding 18101–18198 and port 18199 listened on by another process
 - **WHEN** the planner plans `request` for PR 300
 - **THEN** the plan has `refusal: "preview_ports_exhausted"` and `record: null`
+
+#### Scenario: First failing check wins
+- **GIVEN** closed PR 300 with no record, `--tracked` without `compose.lab-process.json`, 99 records holding 18101–18199, running stacks of 8064 MiB and `--head-mem-mib 4032`
+- **WHEN** the planner plans `request` for PR 300, then again with the PR open, then also with the file tracked, then also with the record of 18199 removed
+- **THEN** the refusals are `preview_pr_not_eligible`, `preview_untracked_compose`, `preview_ports_exhausted` and `preview_capacity_reached`, in that order

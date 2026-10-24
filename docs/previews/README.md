@@ -11,7 +11,7 @@ Compose parameterisation have landed. Until then, the only lab stack is the deve
   has its own network and its own volumes (`openbinding-pr-<number>_lab-pg-3`, …).
 - Only open PRs whose head branch is in this repository get one. Closed, merged and fork PRs are refused.
 - One port of `127.0.0.1` in 18101–18199. 18100 is always the develop lab. A preview keeps its port until it is
-  destroyed, also while stopped.
+  destroyed, also while stopped, unless its start fails on a port collision, which releases the port.
 - Synthetic data only: the `seed_lab.py` users of `docs/DEMO.md`, SPACE disabled, and synthetic secrets
   (`DEMO_PG_PASSWORD`, `DEMO_JWT_SECRET`, `DEMO_FERNET_KEY`, `DEMO_BIM_TOKEN`, `DEMO_SEED_PASSWORD`) generated when
   the preview is first started and kept unchanged until it is destroyed.
@@ -54,7 +54,8 @@ have no public hostname: the homelab Caddy serves only the develop preview.
 ## When something fails
 
 - `failed` after a request or refresh: `lab_compose logs` on the project. Retry with `refresh` (subject to the cap,
-  and on a new port if the old one was lost to a collision), or refresh to the previous head. A failed build during a refresh leaves the old head running.
+  and on a new port if the old one was lost to a collision), or refresh to the previous head. A failed build during a
+  refresh leaves the old head running.
 - A schema that no longer migrates: `labctl destroy preview <pr>`, then `request` again. The data is synthetic, and
   the new preview gets new secrets.
 - `preview_pr_not_eligible`: the PR is closed or merged, or its head branch is in a fork. Push the branch to this
@@ -63,5 +64,5 @@ have no public hostname: the homelab Caddy serves only the develop preview.
 - `preview_ports_exhausted`: no port in 18101–18199 is free. Destroy one of the least recently active previews that
   `list` shows.
 - `preview_untracked_compose`: the Compose file is not tracked at the PR head. Commit it to the PR branch.
-- `preview_head_stale`: the preview runs a different head than the PR's current one. Run `labctl preview refresh <pr>`, then
-  G12 or the screenshot again.
+- `preview_head_stale`: the preview runs a different head than the PR's current one. Run
+  `labctl preview refresh <pr>`, then G12 or the screenshot again.
