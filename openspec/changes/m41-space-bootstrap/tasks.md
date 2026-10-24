@@ -42,7 +42,11 @@ pytest checks are one argv `["uv", "run", "--directory", "openbinding-gateway", 
   bootstrap runs in the lab gateway image (design.md §1).
 - Revise `docs/ARCHITECTURE.md` §9.4: SPACE is built from the pinned commit until upstream publishes a verifiable image;
   the placement of the `MANAGEMENT` key is pending owner question 3.
-- Hashes for the tool pip requirements: `--require-hashes` generated from `openbinding-gateway/uv.lock`.
+- Hashes for the tool pip requirements: `--require-hashes` generated from `openbinding-gateway/uv.lock`. Once the
+  closure is complete, add `pip --only-binary=:all:` and `--no-deps` to the install, and an integrity check for the
+  npm-installed pnpm in the SPACE image.
+- After the live run (S5), decide whether the tool sends the run request for an existing service that was never
+  synchronized (today a later run only polls its status; recovery is to delete the service in SPACE and run again).
 - `pnpm prune --prod` in the SPACE image, so the runtime stage does not carry the development dependencies.
 - Move the node 21.1 (end of life) and python 3.12.8 bases to maintained tags, by verified digest.
 - Add `lab/tests` to the oft-trace paths of `.agentic/project.yaml`, so the tags in the lab tests are traced.

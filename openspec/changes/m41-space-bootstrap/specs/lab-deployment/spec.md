@@ -34,7 +34,7 @@ WHEN SPACE is empty, the bootstrap SHALL create the organization, key, service a
 
 `req~lab-space-bootstrap-creates~1`
 
-Evidence: test_space_lab_bootstrap.py::test_it_creates_organization_key_service_and_contracts; ::test_the_configuration_comes_from_the_environment; ::test_the_constants_and_the_synthetic_users_follow_the_seed
+Evidence: test_space_lab_bootstrap.py::test_it_creates_organization_key_service_and_contracts; ::test_a_created_service_with_a_foreign_name_aborts; ::test_the_configuration_comes_from_the_environment; ::test_the_constants_and_the_synthetic_users_follow_the_seed
 
 #### Scenario: Configuration and constants
 - **GIVEN** the environment variables `SPACE_URL` (default `http://space-api:3000`), `SPACE_ADMIN_USER` (default `lab-space-admin`), `SPACE_ADMIN_PASSWORD` (required, non-empty) and `SPACE_BOOTSTRAP_PLAN` (default `FREE`)
@@ -66,7 +66,7 @@ Evidence: test_space_lab_bootstrap.py::test_it_creates_organization_key_service_
 - **GIVEN** a synchronization whose status becomes `failed`, `blocked` or `degraded`, or is not `ready` after `poll_attempts` polls; a service created from the link whose name is not `openbinding`; no active pricing version; an existing service `openbinding` with another `source`, `permanentUrl` or `policy`; a `MANAGEMENT` key listed without its value; or a created contract that the read-back does not confirm (a refused request returns no error, or another plan)
 - **WHEN** the bootstrap runs
 - **THEN** it raises `BootstrapError` naming the failed item, and modifies and runs nothing for an existing foreign service; through `main` it exits with status 1
-- Evidence: test_space_lab_bootstrap.py::test_a_failed_synchronization_or_foreign_service_name_aborts; ::test_a_synchronization_that_never_gets_ready_aborts_after_the_polls; ::test_a_created_service_with_a_foreign_name_aborts; ::test_no_active_pricing_version_aborts; ::test_an_existing_service_with_other_settings_aborts_unchanged; ::test_a_management_key_listed_without_its_value_aborts; ::test_a_contract_refused_without_an_error_aborts; ::test_a_contract_with_another_plan_is_not_confirmed
+- Evidence: test_space_lab_bootstrap.py::test_a_failed_synchronization_aborts; ::test_a_synchronization_that_never_gets_ready_aborts_after_the_polls; ::test_a_created_service_with_a_foreign_name_aborts; ::test_no_active_pricing_version_aborts; ::test_an_existing_service_with_other_settings_aborts_unchanged; ::test_a_management_key_listed_without_its_value_aborts; ::test_a_contract_refused_without_an_error_aborts; ::test_a_contract_with_another_plan_is_not_confirmed
 
 ### Requirement: Idempotent SPACE bootstrap
 WHEN SPACE already holds some bootstrap items, the bootstrap SHALL create only the missing ones and report present ones as `exists`.
@@ -142,5 +142,5 @@ Evidence: test_no_direct_space_http.py::test_no_direct_http_to_space_or_sphere_o
 - **WHEN** the detection rule is applied to it
 - **THEN** it is reported as a direct call, also through aliases and other clients (`requests`, `urllib3`, `http.client`, node `http`, `got`, `ky`, `XMLHttpRequest`)
 - **AND** a module that uses httpx only for annotations or `MockTransport`, or the official `space_client`, is not
-- **AND** test paths (`tests`, `e2e`, `conftest.py`, `*.test.ts`, `*.spec.tsx`) are skipped
+- **AND** the detector skips only the test trees `lab/tests`, `openbinding-gateway/tests`, `openbinding-gateway/tools/tests`, the frontend e2e and test trees (`frontend/e2e`, `frontend/tests`, `frontend/src/test`) and files named `test_*.py` or `*.test.*` / `*.spec.*`, and scans everything else (a directory merely called `tests` or `fixtures` elsewhere is scanned)
 - Evidence: test_no_direct_space_http.py::test_control_detects_a_direct_call; ::test_control_detects_more_clients_and_aliases; ::test_control_skips_tests_and_mocks

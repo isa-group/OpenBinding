@@ -32,7 +32,9 @@ service operation, so the bootstrap cannot be written with the client alone.
   uses httpx for services and its `SphereRemote` calls SPHERE; a development probe outside `lab/tools`) and
   `openbinding-gateway/src/openbinding_gateway/sphere_client.py` (direct SPHERE client, removed by ADR-0015 §7). A pin
   fails once it is no longer needed; moving or retiring them is a follow-up.
-- Any new direct caller outside the allowed paths fails the unit suite.
+- Any new direct caller outside the allowed paths fails the unit suite. The architecture test is a heuristic: it does
+  not detect injected clients or unusual client libraries, and it guards against accidents, not against deliberate
+  evasion.
 - The exception is revisited when `space-python-client` covers organizations, api keys and services: the tool then
   moves to the client and this ADR is superseded.
 - The SPACE HTTP sequence is unverified against a live 1.7.1 until the lab runs the profile (slice S5 of

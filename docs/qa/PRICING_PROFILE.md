@@ -133,6 +133,11 @@ printed. ASSUMPTION, pending owner question 3: the `MANAGEMENT` key stays inside
 organization's existing key. The HTTP sequence comes from the SPACE documentation and is UNVERIFIED against a live
 1.7.1. Its direct HTTP use is the constitution 16.1 exception of ADR 0022.
 
+Recovery: a service created but never synchronized (the run request was lost) is not completed by a later run, which
+only polls the status. SPACE is believed to import the pricing and reach `ready` when the service is created
+(UNVERIFIED). If the status never becomes `ready`, delete the service in SPACE and run the tool again; the follow-up
+decides after the live run (S5) whether the tool sends the run request itself.
+
 ## Compose wiring still needed (follow-up for the coordinator)
 
 No compose file is edited by this change. In `compose.lab-pricing.json`:
@@ -141,6 +146,9 @@ No compose file is edited by this change. In `compose.lab-pricing.json`:
   `SPACE_URL=http://space-api:3000`, `SPACE_ADMIN_USER=lab-space-admin`,
   `SPACE_ADMIN_PASSWORD=${DEMO_SPACE_ADMIN_PASSWORD}`, `depends_on: {space-api: {condition: service_healthy}}`,
   `mem_limit: 96m`, no ports, `restart: "no"`;
+- harden `pricing-bootstrap`: no `HTTP_PROXY`, `HTTPS_PROXY` or `ALL_PROXY`, `read_only: true`, `cap_drop: [ALL]`,
+  `security_opt: [no-new-privileges:true]`, attached only to the project network (it needs `space-api` only). The first
+  live run must confirm that the SDK does not follow redirects off-host and ignores proxy variables;
 - replace the marker image of `space-api` by `build: {context: lab/space, dockerfile: Dockerfile}` with the image name
   `openbinding-lab/space-api:1.7.1`.
 
@@ -170,6 +178,10 @@ releases fix more advisories (medium confidence, secondary sources).
 The new builds also start from old base images: `node:21.1` and `node:21.1-slim` (node 21 is end of life; the image was
 last updated on 2023-11-01) and `python:3.12.8-slim-bookworm`. They are a lab-only risk that the owner must accept
 (medium confidence, secondary sources). The follow-up moves both to maintained tags by verified digest.
+
+Supply chain, deferred: the tool requirements carry no hashes. The follow-up generates `--require-hashes` from
+`openbinding-gateway/uv.lock` and, once the closure is complete, adds `pip --only-binary=:all:` and `--no-deps`; it also
+adds an integrity check for the npm-installed pnpm in the SPACE image.
 
 These ids come from secondary sources (medium confidence). Redis runs without a password and its only peer is
 `space-api`. The profile is lab-only, publishes no port and holds synthetic data. The follow-up bumps both to the latest

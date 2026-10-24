@@ -127,7 +127,11 @@ Output: ONE JSON line on standard output and exit status 0, `{"organization", "a
 `created`. Any failure raises `BootstrapError` naming the failed item, method, route and status code (or the exception
 type), never a response body, header or secret; `main` prints one redacted line on standard error and exits 1, and an
 unexpected exception is reported by its type only. A partial state is completed on the next run (idempotence is by
-lookup before each create). Tests use a simulated transport and an injected sleep; they never reach SPACE or SPHERE
+lookup before each create), with one exception: a service created but never synchronized (the run request was lost) is
+NOT completed by a later run, which only polls the status. SPACE is believed to import the pricing and reach `ready`
+when the service is created (UNVERIFIED); if the status stays other than `ready`, the recovery is to delete the service
+in SPACE and run the tool again. Whether the tool should send the run request for an existing never-synchronized
+service is decided after the live run (S5). Tests use a simulated transport and an injected sleep; they never reach SPACE or SPHERE
 (constitution 16.6).
 
 ## 5. Secrets and the MANAGEMENT key
@@ -178,7 +182,7 @@ As written in `docs/qa/PRICING_PROFILE.md` (sections "Compose wiring still neede
 - replace the marker image of `space-api` by `build: {context: lab/space, dockerfile: Dockerfile}` with the image name
   `openbinding-lab/space-api:1.7.1` (the local file; a git URL context is not used).
 
-Consequences for `lab/tests/test_lab_pricing_profile.py` and `lab/tests/test_no_local_space.py`:
+Consequences for `lab/tests/test_lab_pricing_profile.py` and `openbinding-gateway/tests/test_no_local_space.py`:
 
 - `build` is allowed for `space-api` and `pricing-bootstrap` (`pinned-images` ~2, the `isolated` allow-list, which also
   needs `restart`); the marker rule and the runbook GAP section are retired;
