@@ -101,6 +101,7 @@ def _require_origin(name: str, value: str, *, trailing_slash: bool) -> None:
             and port != 0
             and not netloc.endswith(":")
             and (netloc.startswith("[") or netloc.count(":") <= 1)
+            and (not netloc.startswith("[") or re.fullmatch(r"(:[0-9]+)?", netloc[netloc.index("]") + 1 :]) is not None)
             and "@" not in netloc
             and not parts.path
             and not parts.query

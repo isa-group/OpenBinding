@@ -11,7 +11,7 @@ Evidence: `openbinding-gateway/src/openbinding_gateway/core/settings.py` (`_requ
 
 A public origin is the whole variable value, with nothing trimmed, made of, in this order:
 1. a scheme `http` or `https` (letter case not significant), followed by `://`;
-2. a host: either a name of one or more ASCII letters, digits, `.` and `-`, or a bracketed host, that is `[`, one or more of the characters `0-9`, `A-F`, `a-f`, `:` and `.`, and `]` (for example `[::1]`); a bracketed host is checked for those characters only, it is not parsed as an IPv6 address;
+2. a host: either a name of one or more ASCII letters, digits, `.` and `-`, or a bracketed host, that is `[`, one or more of the characters `0-9`, `A-F`, `a-f`, `:` and `.`, and `]` (for example `[::1]`); a bracketed host must also be an IPv6 literal that urllib accepts (so `[1.2.3.4]` is refused), and only an optional `:port` may follow the `]` (so `http://[::1]x` is refused);
 3. optionally `:` followed by a port of ASCII digits whose decimal value is between 1 and 65535 inclusive;
 4. optionally one single `/`.
 

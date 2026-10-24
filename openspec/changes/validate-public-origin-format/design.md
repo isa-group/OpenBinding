@@ -18,8 +18,8 @@ guards are `@model_validator(mode="after")` methods raising `ValueError` with a 
      lower-case the host), accept paths, queries and userinfo, and print the raw input in their errors.
    - Chosen: `urllib.parse.urlsplit` as the parser, with explicit checks on top because it alone is lenient. The check
      requires scheme `http` or `https` (`urlsplit` lower-cases it, so case is not significant); a host matched whole by
-     `HOST_PATTERN` (`[A-Za-z0-9.-]+` or `\[[0-9A-Fa-f:.]+\]`; a bracketed host is checked for characters only, it is
-     not parsed as an IPv6 address); a port from `urlsplit(...).port` (which raises `ValueError` for a non-number or a
+     `HOST_PATTERN` (`[A-Za-z0-9.-]+` or `\[[0-9A-Fa-f:.]+\]`; a bracketed host must also be an IPv6 literal that
+     urllib accepts, and only an optional `:port` may follow the `]`); a port from `urlsplit(...).port` (which raises `ValueError` for a non-number or a
      value out of range) that is not `0`; no empty port (`host:`); no more than one `:` outside brackets (an
      unbracketed IPv6 address); no `@` in the netloc; no path, query or fragment; and none of whitespace, `*`, `,`, `?`
      or `#` anywhere in the value. Any `ValueError` from `urlsplit` counts as malformed. For a URL, one trailing `/` is
@@ -35,7 +35,7 @@ guards are `@model_validator(mode="after")` methods raising `ValueError` with a 
    harmless and common in operator input; two or more are refused because they usually mean a pasted path. A CORS entry
    is compared with the browser's `Origin` header, which never ends in `/`, so an entry with a `/` could never match.
 4. **Host grammar.** A name is one or more ASCII letters, digits, `.` and `-` (DNS names and IPv4 addresses); an IPv6
-   address must be bracketed, and a bracketed host only has to consist of hex digits, `:` and `.`. Internationalised
+   address must be bracketed, and a bracketed host consists of hex digits, `:` and `.` and is an IPv6 literal that urllib accepts. Internationalised
    names must be written in their ASCII (punycode) form, which is also what browsers send in `Origin`. Underscores
    and `*` are refused.
 5. **Masking rule.** `_mask_userinfo` takes the text before the *last* `@` of the value; from the first `://` of that

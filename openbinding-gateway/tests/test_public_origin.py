@@ -9,6 +9,8 @@ must not leak it anywhere else either (pydantic's echo of the input included).
 
 from __future__ import annotations
 
+import traceback
+
 import pytest
 from pydantic import ValidationError
 
@@ -43,6 +45,10 @@ INVALID_ORIGINS = [
     "http://",
     "https://zed@example.org",
     "https://zed:secret@example.org",
+    "https://admin:s3cr3t-pw@example.org",
+    "http://ops:hunter2@example.org:8080",
+    "http://[::1]x",
+    "http://[1.2.3.4]",
     "https://example.org:",
     "https://example.org:port",
     "https://example.org:70000",
@@ -100,7 +106,11 @@ def assert_message(excinfo, name: str, value: str) -> str:
     text = str(excinfo.value)
     assert name in text
     assert repr(shown(value)) in text
-    assert "secret" not in text
+    traced = "".join(traceback.format_exception(excinfo.value))
+    context = repr(excinfo.value.__context__) + str(excinfo.value.__context__)
+    for literal in ("secret", "s3cr3t-pw", "hunter2", "admin:", "ops:", "zed:"):
+        for where in (text, traced, context):
+            assert literal not in where
     for hint in HINTS:
         assert hint in text
     return text
