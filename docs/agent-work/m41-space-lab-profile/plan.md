@@ -1,1 +1,1 @@
-Round 2: push the fixed head, run a smaller panel (reviewer, test-reviewer, security-auditor, arch-reviewer) on it, fix findings, then lead_ready. Changelog CI failure is for the coordinator's last commit.
+Round 3 panel (security-auditor, test-reviewer, plus reviewer for a final coherence check) on pushed head; then lead_ready with set_review_package.
