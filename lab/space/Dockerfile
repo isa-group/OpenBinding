@@ -45,6 +45,9 @@ ENV NODE_ENV=production
 
 COPY --from=build --chown=1000:1000 /usr/src/server/node_modules ./node_modules
 COPY --from=build --chown=1000:1000 /usr/src/server/dist ./dist
+# Upstream steps kept: api/package.json declares "type": "module", and SPACE writes pricing files under public/.
+COPY --from=source --chown=1000:1000 /src/api/package.json ./
+RUN mkdir -p public/static/pricings && chown -R 1000:1000 public
 
 EXPOSE 3000
 USER 1000:1000

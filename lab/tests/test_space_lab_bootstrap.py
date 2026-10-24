@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import ast
 import asyncio
+import fnmatch
 import importlib.util
 import json
 import logging
@@ -39,6 +40,7 @@ TOOL = ROOT / "lab" / "tools" / "space_lab_bootstrap.py"
 SEED = ROOT / "openbinding-gateway" / "tools" / "seed_lab.py"
 
 COMMIT = "ef4dc8949435d998e2aff525226e3fcc85e2f7ba"
+OTHER_COMMIT = "0123456789abcdef0123456789abcdef01234567"
 API_IMAGE = "node:21.1-slim@sha256:cba276a6db06f49c589bcea35c598b5a960880ed5631bd4407a61c414ec7a9b9"
 GIT_IMAGE = "node:21.1@sha256:0052410af98158173b17a26e0e2a46a3932095ac9a0ded660439a8ffae65b1e3"
 PYTHON_IMAGE = "python:3.12.8-slim-bookworm@sha256:2199a62885a12290dc9c5be3ca0681d367576ab7bf037da120e564723292a2f0"
@@ -141,6 +143,30 @@ def rule_user(text: str) -> str | None:
     return None
 
 
+HEAD_EQUALS_COMMIT = re.compile(
+    r"(?:test|\[)\s+\"?(?:\$\(\s*git[^)]*rev-parse\s+HEAD\s*\)|`\s*git[^`]*rev-parse\s+HEAD\s*`)\"?"
+    rf"\s+==?\s+[\"']?{COMMIT}[\"']?(?:\s+\])?")
+PACKAGE_COPY = "COPY --from=source --chown=1000:1000 /src/api/package.json ./"
+PUBLIC_RUN = "RUN mkdir -p public/static/pricings && chown -R 1000:1000 public"
+
+
+def rule_space_runtime(text: str) -> str | None:
+    """The final stage reproduces two upstream steps: api/package.json ("type": "module") and a writable public/."""
+    items = final_stage(text)
+    users = [i for i, (name, _) in enumerate(items) if name == "USER"]
+    if not users:
+        return "the final stage has no USER"
+    before = items[:users[-1]]
+    if not any(name == "COPY" and "--from=source" in args.split() and "--chown=1000:1000" in args.split()
+               and args.split()[-2:] == ["/src/api/package.json", "./"] for name, args in before):
+        return "the final stage must copy /src/api/package.json from source (owned by 1000:1000) before USER"
+    steps = [c.strip() for name, args in before if name == "RUN" for c in args.split("&&")]
+    if "mkdir -p public/static/pricings" not in steps or "chown -R 1000:1000 public" not in steps or \
+            steps.index("mkdir -p public/static/pricings") > steps.index("chown -R 1000:1000 public"):
+        return "the final stage must mkdir -p public/static/pricings and chown -R 1000:1000 public before USER"
+    return None
+
+
 def rule_space_commit(text: str) -> str | None:
     live = [(n, a) for n, a in instructions(text)]
     joined = "\n".join(a for _, a in live)
@@ -151,6 +177,10 @@ def rule_space_commit(text: str) -> str | None:
     cmds = commands(text)
     if any(re.search(r"\bgit\s+(?:\S+\s+)*clone\b", c) for c in cmds):
         return "git clone is forbidden: fetch the commit"
+    for c in cmds:
+        if re.search(r"\bgit\b.*\b(?:fetch|checkout|rev-parse)\b", c):
+            if [h for h in re.findall(r"\b[0-9a-f]{40}\b", c) if h != COMMIT]:
+                return f"a commit other than the pinned one is named in {c!r}"
     if any(re.search(r"v1\.7\.1|--branch|\brefs/|\b(?:main|master|develop)\b", c) for c in cmds):
         return "a tag, branch or ref is used in a command"
     fetches = [c for c in cmds if re.search(r"\bgit\b.*\bfetch\b", c)]
@@ -166,8 +196,9 @@ def rule_space_commit(text: str) -> str | None:
         rest = re.sub(r"\$\(\s*git[^)]*rev-parse\s+HEAD\s*\)|`\s*git[^`]*rev-parse\s+HEAD\s*`", "", c)
         if COMMIT not in rest or "$" in rest:
             return "the HEAD verification must compare with the literal commit, not a variable"
-    if not any(re.search(r"(?:^|\s)(?:test|\[)\s", c) for c in checks):
-        return "the HEAD verification does not fail the build"
+    for c in checks:
+        if not HEAD_EQUALS_COMMIT.fullmatch(c):
+            return f"the HEAD verification must be test/[ with = or == against the literal commit: {c!r}"
     for name, args in instructions(text):
         if name == "RUN" and "rev-parse" in args and re.search(r"\|\||;", args):
             return "the HEAD verification must not be neutralised by || or ;"
@@ -195,7 +226,8 @@ def rule_expose(text: str) -> str | None:
 
 
 def rule_space_dockerfile(text: str) -> str | None:
-    for rule in (rule_space_commit, lambda t: rule_from_lines(t, [GIT_IMAGE, API_IMAGE]), rule_pnpm, rule_expose):
+    for rule in (rule_space_commit, lambda t: rule_from_lines(t, [GIT_IMAGE, API_IMAGE]), rule_pnpm, rule_expose,
+                 rule_space_runtime):
         message = rule(text)
         if message:
             return message
@@ -207,6 +239,44 @@ def rule_space_dockerfile(text: str) -> str | None:
 
 def rule_space_hygiene(text: str) -> str | None:
     return rule_no_secret(text) or rule_user(text)
+
+
+def host_copy_sources(text: str) -> list[str]:
+    """Sources of the COPY/ADD instructions that read the build context (those without --from), as written."""
+    found = []
+    for name, args in instructions(text):
+        if name not in ("COPY", "ADD"):
+            continue
+        tokens = args.split()
+        if any(t.startswith("--from=") for t in tokens):
+            continue
+        tokens = [t for t in tokens if not t.startswith("--")]
+        found.extend(t[2:] if t.startswith("./") else t for t in tokens[:-1])
+    return found
+
+
+def ignored_by_context(path: str, patterns: list[str]) -> bool:
+    """.dockerignore semantics for the three kinds used here: ``*``, ``!name`` and plain names (the last match wins;
+    a pattern matching a parent directory of the path matches the path)."""
+    parts = path.split("/")
+    prefixes = ["/".join(parts[:i]) for i in range(1, len(parts) + 1)]
+    state = False
+    for raw in patterns:
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        negate = line.startswith("!")
+        pattern = (line[1:] if negate else line).strip("/")
+        if any(fnmatch.fnmatchcase(p, pattern) for p in prefixes):
+            state = not negate
+    return state
+
+
+def rule_context_copies(text: str, patterns: list[str]) -> str | None:
+    for source in host_copy_sources(text):
+        if ignored_by_context(source, patterns):
+            return f"COPY source {source!r} is excluded by the .dockerignore of the build context"
+    return None
 
 
 def rule_requirements(text: str) -> str | None:
@@ -249,11 +319,14 @@ def rule_tool_dockerfile(text: str) -> str | None:
                 positional.append(token)
         if not requirement or not requirement.endswith("requirements.txt") or positional:
             return f"pip install must install only from requirements.txt: {c!r}"
-    args = [a for n, a in instructions(text) if n in ("COPY", "ADD")]
-    if not any("lab/tools/requirements.txt" in a for a in args):
-        return "lab/tools/requirements.txt is not copied"
-    if not any("lab/tools/space_lab_bootstrap.py" in a for a in args):
+    # the build context is lab/tools: sources are relative to it
+    sources = host_copy_sources(text)
+    if "requirements.txt" not in sources:
+        return "requirements.txt is not copied"
+    if "space_lab_bootstrap.py" not in sources:
         return "space_lab_bootstrap.py is not copied"
+    if set(sources) - {"requirements.txt", "space_lab_bootstrap.py"}:
+        return f"unexpected COPY sources {sources} (the context is lab/tools)"
     entry = [a for n, a in instructions(text) if n == "ENTRYPOINT"]
     if not entry or "space_lab_bootstrap" not in entry[-1]:
         return "ENTRYPOINT must run the tool"
@@ -274,6 +347,12 @@ WORKDIR /app
 COPY --from=source /src/api/ ./
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
+
+FROM {API_IMAGE}
+WORKDIR /app
+COPY --from=api /app/dist ./dist
+{PACKAGE_COPY}
+{PUBLIC_RUN}
 EXPOSE 3000
 USER 1000:1000
 CMD ["pnpm", "start"]
@@ -281,9 +360,9 @@ CMD ["pnpm", "start"]
 
 SAMPLE_TOOL = f"""FROM {PYTHON_IMAGE}
 WORKDIR /app
-COPY lab/tools/requirements.txt ./requirements.txt
+COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
-COPY lab/tools/space_lab_bootstrap.py ./space_lab_bootstrap.py
+COPY space_lab_bootstrap.py ./space_lab_bootstrap.py
 USER 1000:1000
 ENTRYPOINT ["python", "/app/space_lab_bootstrap.py"]
 """
@@ -349,6 +428,23 @@ SPACE_MUTATIONS = {
     "other base image": _swap("node:21.1-slim@", "node:22-slim@"),
     "secret ARG": _append_final("ARG SPACE_ADMIN_PASSWORD"),
     "secret ENV": _append_final("ENV JWT_SALT=pepper"),
+    "secret-shaped literal": _append_final("ENV GREETING=sk-AAAAAAAAAAAAAAAAAAAA"),
+    "other repository": _swap("SCORELabUS/space.git", "someone/space.git"),
+    "ADD of a tag": _swap("WORKDIR /src", "WORKDIR /src\nADD https://github.com/SCORELabUS/space.git#v1.7.1 /x"),
+    "final stage on the git image": _swap(f"FROM {API_IMAGE}\nWORKDIR /app\nCOPY --from=api",
+                                          f"FROM {GIT_IMAGE}\nWORKDIR /app\nCOPY --from=api"),
+    "verification neutralised by ||": _swap(f'= "{COMMIT}"', f'= "{COMMIT}" || true'),
+    "verification neutralised by ;": _swap(f'= "{COMMIT}"', f'= "{COMMIT}"; true'),
+    "verification inverted": _swap(f')" = "{COMMIT}"', f')" != "{COMMIT}"'),
+    "fetch of another commit": _swap(f"space.git {COMMIT}", f"space.git {OTHER_COMMIT}"),
+    "fetch of two commits": _swap(f"space.git {COMMIT}", f"space.git {COMMIT} {OTHER_COMMIT}"),
+    "checkout of another commit": _swap("checkout FETCH_HEAD", f"checkout {OTHER_COMMIT}"),
+    "package.json not copied": _swap(PACKAGE_COPY + "\n", ""),
+    "package.json not owned by the user": _swap(PACKAGE_COPY, "COPY --from=source /src/api/package.json ./"),
+    "pricings directory not created": _swap(PUBLIC_RUN + "\n", ""),
+    "pricings directory not chowned": _swap(" && chown -R 1000:1000 public", ""),
+    "runtime steps after USER": lambda text: text.replace(f"{PACKAGE_COPY}\n{PUBLIC_RUN}\nEXPOSE 3000\nUSER 1000:1000\n",
+                                                           f"EXPOSE 3000\nUSER 1000:1000\n{PACKAGE_COPY}\n{PUBLIC_RUN}\n"),
     "root user": _swap("USER 1000:1000", "USER root"),
     "uid zero": _swap("USER 1000:1000", "USER 0"),
     "user by name": _swap("USER 1000:1000", "USER node"),
@@ -370,7 +466,11 @@ TOOL_MUTATIONS = {
     "secret ARG": _swap("WORKDIR /app", "ARG SPACE_ADMIN_PASSWORD\nWORKDIR /app"),
     "root user": _swap("USER 1000:1000", "USER root"),
     "user by name": _swap("USER 1000:1000", "USER app"),
-    "tool not copied": _swap("COPY lab/tools/space_lab_bootstrap.py ./space_lab_bootstrap.py\n", ""),
+    "secret-shaped literal": _swap("WORKDIR /app", "ENV GREETING=sk-AAAAAAAAAAAAAAAAAAAA\nWORKDIR /app"),
+    "tool not copied": _swap("COPY space_lab_bootstrap.py ./space_lab_bootstrap.py\n", ""),
+    "requirements not copied": _swap("COPY requirements.txt ./requirements.txt\n", ""),
+    "source relative to the repository root": _swap("COPY space_lab_bootstrap.py", "COPY lab/tools/space_lab_bootstrap.py"),
+    "extra file copied": _swap("COPY space_lab_bootstrap.py ./", "COPY secrets.env space_lab_bootstrap.py ./"),
     "entrypoint elsewhere": _swap("/app/space_lab_bootstrap.py", "/app/other.py"),
 }
 
@@ -404,6 +504,84 @@ def test_control_dockerfile_rules_refuse_violations():
     # comments may mention the tag and a variable: only commands count
     commented = "# the tag v1.7.1 moves, so only the commit is used\n" + SAMPLE_SPACE
     assert _space_all(commented) is None
+
+
+def _from_space(text: str) -> str | None:
+    return rule_from_lines(text, [GIT_IMAGE, API_IMAGE])
+
+
+def _from_tool(text: str) -> str | None:
+    return rule_from_lines(text, [PYTHON_IMAGE])
+
+
+# (rule, sample, mutations, labels): each listed mutation must be refused by that rule alone, not by a neighbour
+ALONE_CONTROLS = [
+    (_from_space, SAMPLE_SPACE, SPACE_MUTATIONS, ["tag-only FROM", "short digest", "other base image"]),
+    (rule_no_secret, SAMPLE_SPACE, SPACE_MUTATIONS, ["secret ARG", "secret ENV", "secret-shaped literal"]),
+    (rule_user, SAMPLE_SPACE, SPACE_MUTATIONS,
+     ["root user", "uid zero", "user by name", "gid zero", "no gid", "no user"]),
+    (rule_space_commit, SAMPLE_SPACE, SPACE_MUTATIONS,
+     ["tag instead of the commit", "branch instead of the commit", "git clone", "checkout of a tag", "no verification",
+      "variable in the verification", "verification neutralised by ||", "verification neutralised by ;",
+      "verification inverted", "fetch of another commit", "fetch of two commits", "checkout of another commit", "other repository", "ADD of a tag"]),
+    (rule_space_dockerfile, SAMPLE_SPACE, SPACE_MUTATIONS, ["final stage on the git image"]),
+    (rule_pnpm, SAMPLE_SPACE, SPACE_MUTATIONS,
+     ["unpinned pnpm", "pnpm major only", "pnpm install without frozen lockfile", "second install not frozen"]),
+    (rule_expose, SAMPLE_SPACE, SPACE_MUTATIONS, ["wrong port"]),
+    (rule_space_runtime, SAMPLE_SPACE, SPACE_MUTATIONS,
+     ["package.json not copied", "package.json not owned by the user", "pricings directory not created",
+      "pricings directory not chowned", "runtime steps after USER"]),
+    (_from_tool, SAMPLE_TOOL, TOOL_MUTATIONS, ["tag-only FROM", "short digest"]),
+    (rule_no_secret, SAMPLE_TOOL, TOOL_MUTATIONS, ["secret ARG", "secret-shaped literal"]),
+    (rule_user, SAMPLE_TOOL, TOOL_MUTATIONS, ["root user", "user by name"]),
+    (rule_tool_dockerfile, SAMPLE_TOOL, TOOL_MUTATIONS,
+     ["pip install of a package name", "package next to the requirements", "tool not copied", "requirements not copied",
+      "source relative to the repository root", "extra file copied", "entrypoint elsewhere"]),
+]
+
+
+def test_control_each_dockerfile_rule_refuses_its_mutations_alone():
+    # [utest->req~lab-space-image-pinned-commit~1]
+    for rule, sample, mutations, labels in ALONE_CONTROLS:
+        assert rule(sample) is None, f"{rule.__name__}: the conforming sample must pass"
+        for label in labels:
+            mutated = mutations[label](sample)
+            assert mutated != sample, label
+            assert rule(mutated), f"{rule.__name__}: {label} was not refused by this rule alone"
+
+
+# -- the build context: every host COPY must survive the .dockerignore of the declared context -----------------------
+
+SPACE_CONTEXT = ROOT / "lab" / "space"  # `docker build lab/space` (the repository root also works: no host COPY)
+TOOL_CONTEXT = ROOT / "lab" / "tools"  # `docker build -f lab/tools/Dockerfile lab/tools`
+SAMPLE_IGNORE = ["*", "!requirements.txt", "!space_lab_bootstrap.py"]
+
+
+def test_every_host_copy_survives_the_ignore_rules_of_its_context():
+    # [utest->req~lab-space-image-pinned-commit~1]
+    for dockerfile, context in ((SPACE_DOCKERFILE, SPACE_CONTEXT), (TOOL_DOCKERFILE, TOOL_CONTEXT)):
+        ignore = context / ".dockerignore"
+        assert ignore.is_file(), f"{ignore.relative_to(ROOT)} does not exist"
+        text = _read(dockerfile)
+        assert rule_context_copies(text, ignore.read_text(encoding="utf-8").splitlines()) is None
+        for source in host_copy_sources(text):
+            assert (context / source).is_file(), f"{source} is not in {context.relative_to(ROOT)}"
+    assert host_copy_sources(_read(TOOL_DOCKERFILE)), "the tool image copies nothing from its context"
+    assert not (ROOT / "lab" / "tools" / "Dockerfile.dockerignore").exists(), "a Dockerfile.dockerignore is forbidden"
+
+
+def test_control_the_context_matcher_refuses_excluded_copies():
+    # [utest->req~lab-space-image-pinned-commit~1]
+    assert rule_context_copies(SAMPLE_TOOL, SAMPLE_IGNORE) is None
+    assert host_copy_sources(SAMPLE_TOOL) == ["requirements.txt", "space_lab_bootstrap.py"]
+    assert host_copy_sources(SAMPLE_SPACE) == []  # COPY --from reads another stage, not the context
+    assert rule_context_copies(SAMPLE_TOOL, ["*"]), "everything excluded must be refused"
+    assert rule_context_copies(SAMPLE_TOOL, ["*", "!requirements.txt"]), "an excluded tool source must be refused"
+    assert rule_context_copies(SAMPLE_TOOL, ["*", "!space_lab_bootstrap.py"]), "an excluded requirements file must be refused"
+    assert rule_context_copies(SAMPLE_TOOL, ["requirements.txt", "!requirements.txt", "space_lab_bootstrap.py"])
+    old = SAMPLE_TOOL.replace("COPY requirements.txt", "COPY lab/tools/requirements.txt")
+    assert rule_context_copies(old, SAMPLE_IGNORE), "a repository-root path is not in the lab/tools context"
+    assert rule_context_copies(SAMPLE_TOOL.replace("COPY space_lab_bootstrap.py", "COPY secrets.env"), SAMPLE_IGNORE)
 
 
 # -- the fake SPACE ---------------------------------------------------------------------------------------------------
