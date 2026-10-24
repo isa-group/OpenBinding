@@ -1,1 +1,1 @@
-Round 3 panel (security-auditor, test-reviewer, plus reviewer for a final coherence check) on pushed head; then lead_ready with set_review_package.
+Push 55b2e5b+checkpoint commit, narrow final reviewer, set_review_package, pr_ready, lead_ready. No pushes after ready.
