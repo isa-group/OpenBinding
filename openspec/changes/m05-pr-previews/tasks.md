@@ -38,7 +38,7 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
   `["uv", "run", "--locked", "--extra", "test", "pytest", "-q", "../lab/tests/test_previews.py"]`.
 
 ## S3. Planner (~160 lines + S1b)
-- [ ] 3.1 `lab/previews/previews.py`: stdlib only; `plan request|refresh|open|stop|expire|activity|destroy-check`
+- [x] 3.1 `lab/previews/previews.py`: stdlib only; `plan request|refresh|open|stop|expire|activity|destroy-check`
   with the flags, output keys, exit codes and check order of design.md §1. `activity` records one of
   `request`, `refresh`, `open`, `g12`, `screenshot` and refuses `g12` and `screenshot` on a stale head
   (`preview_head_stale`); any other `--kind` is a usage error (exit 64). Tags `[impl->req~lab-deployment-preview-…~1]`.
