@@ -14,16 +14,24 @@ the components exist.
 
 ## What Changes
 
-- Five shared rendering components under `frontend/src/components/rendering/`: `SourceView` (read-only source with
-  Copy and optional Download), `LogPanel` (collapsed, searchable, copyable log), `DiagnosticsList` (diagnostics grouped
-  by resource, errors first, with code, pointer and hint), `VerdictBadge` (the five run verdicts with a plain-language
-  description and reasons) and `MetricCards` (labelled key numbers with unit and trend).
-- Each component has unit and accessibility tests that query by Testing Library roles and accessible names.
-- A hygiene test `frontend/src/test/rawRenderingHygiene.test.ts` fails on any new `<pre>` or rendered
-  `JSON.stringify` outside `SourceView` and `LogPanel`.
-- Its allow-list `frontend/src/test/rawRenderingAllowList.ts` lists the 15 offenders of ROADMAP M2 and may only shrink:
-  an entry that no longer matches fails the test.
-- A catalogue page `docs/qa/RENDERING_CATALOGUE.md` documents the five components, their props and when to use each.
+State: the components, their tests and the hygiene test with its allow-list are built (S1–S3); the catalogue page (S4)
+and the review and archive (S5) are not done (tasks.md).
+
+- Five shared rendering components under `frontend/src/components/rendering/`: `SourceView` (read-only source in a
+  named region with Copy and optional Download), `LogPanel` (collapsed, searchable, copyable log with line numbers),
+  `DiagnosticsList` (diagnostics grouped by resource, errors first, with a lowercase severity badge, code, pointer and
+  hint, and a count summary), `VerdictBadge` (the five run verdicts with a plain-language description and reasons) and
+  `MetricCards` (labelled key figures with unit, trend and hint).
+- Each component has unit and accessibility tests that query by Testing Library roles, accessible names and
+  descriptions, and a check that its stylesheet holds no hex colour.
+- A hygiene test `frontend/src/test/rawRenderingHygiene.test.ts` with a line-based detector fails on any new `<pre>`
+  tag or rendered `JSON.stringify` (a JSX child or a bare attribute value) outside `SourceView` and `LogPanel`.
+- Its allow-list `frontend/src/test/rawRenderingAllowList.ts` lists the 15 offenders of ROADMAP M2 (paths under
+  `frontend/src`, matched by file and trimmed line text, with the line number kept correct by a test) and may only
+  shrink: an entry that no longer matches fails the test. Two detector findings that ROADMAP does not list are kept
+  apart in `UNLISTED_FINDINGS` for the coordinator to classify.
+- A catalogue page `docs/qa/RENDERING_CATALOGUE.md` documents the five components, their props and when to use each
+  (S4, not done yet).
 - No screen changes in this change: the offenders are replaced in M2.3–M2.6.
 
 ## Impact
@@ -37,15 +45,18 @@ the components exist.
   §5.1 places the catalogue under `shared/ui`; that layout does not exist yet, so the components go next to
   `components/ui` and move with it when the feature-sliced layout lands (design.md §1).
 - No HTTP API, OpenAPI or database schema change. No production impact.
-- Risks: the detector is a line-based text scan, so it can miss a `<pre>` split over lines in an unusual way or flag a
-  non-rendering `JSON.stringify` in a `.tsx` file (design.md §4, §7); the second goes to `UNLISTED_FINDINGS`, not to
-  the offender list. Accessibility is checked by roles and names only, with no automated WCAG scan (constitution 11 GAP).
+- Risks: the detector is a line-based text scan, so it misses a `JSON.stringify` on a different line from the `{` that
+  opens its expression and raw rendering built without the literal `<pre` or `JSON.stringify(` (design.md §4, §7).
+  Accessibility is checked by roles, names and descriptions only, with no automated WCAG scan (constitution 11 GAP).
+- Findings for the coordinator: `UNLISTED_FINDINGS` 16 (`pages/Workbench/SourcePanel.tsx:108`, a diff `<pre>`) and 17
+  (`pages/Analysis/SavedDecision.tsx:34`, a stringified reference) have `retiredBy: null` until classified. Offender 5
+  lists only `RepDetail.tsx:326`: ROADMAP's :77 and :329 are not rendered `JSON.stringify`.
 - Deviation: one PR carries M2.1 and M2.2 together, over the ~300-line guideline (constitution 14.1), because the
   owner scoped this change to both. No red_before (G3) run is recorded (design.md §8).
 - G1 (`openspec validate m21-rendering-catalogue --strict`) is NOT run: owner exemption until M0.3 (PR 37) puts the
   OpenSpec CLI in CI. The format was checked by reading against `openspec/changes/m41-space-lab-profile/` and
   `openspec/changes/m05-pr-previews/`.
-- Order: S1, S2, S3, S4 in one PR, then S5 (tasks.md).
+- Order: S1, S2, S3 built in one PR; S4 still to do; then S5 (tasks.md).
 
 ## Out of scope
 
