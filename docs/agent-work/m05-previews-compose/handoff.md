@@ -1,0 +1,6 @@
+Goal: M0.5 remaining slices, reduced: Evidence trim, isolation probe, S4 docs. S1a+S2 deferred to another change (coordinator decision).
+State: head 1b4275c1 (3 tasks integrated: 05e103db probe, 71e4ef7f trim, 2e2a9cc8 docs+isolation Evidence). Not pushed yet. Task 124a2f0c superseded (not integrated).
+Decisions: README stays 'PLAN for operator commands' (labctl preview not built); DEMO.md section says DEMO_LAB_PORT not yet in force and adds no table row (static tests of DEMO.md untouched). Isolation Evidence line computed at ~480 chars with id line (worktree read was stale, measured by hand).
+Not done / follow-ups: S1a+S2 for the next lead; factory validator (F1) must accept published ${DEMO_LAB_PORT:-18100} in 18100-18199, image tag openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}, and a project-name argument; docs/qa/E2E_PLAN.md, TESTING.md, ARCHITECTURE §10 row are follow-ups outside scope; G1 not run (owner exemption until M0.3/PR 37 puts the CLI in CI); the live probe and pytest were never run by workers (no registered checks): CI is the first run.
+Risks: probe untested live; the tag/evidence 'GAP' for compose tests of single-loopback-port remain for the later change.
+Next: push, open PR, follow CI, panel reviewer + test-reviewer on the pushed head, set_review_package, lead_ready.
