@@ -5,7 +5,7 @@ WHEN a pull request into `main` or `develop` runs CI, THE `openspec` job SHALL s
 
 `req~gate-tooling-openspec-job~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_openspec_job_installs_pinned_cli_and_validates_all
+Evidence: lab/tests/test_ci_gate_tooling.py::test_openspec_job_installs_pinned_cli_and_validates_all
 
 #### Scenario: The job in the workflow
 - **GIVEN** `.github/workflows/ci.yml`
@@ -18,7 +18,7 @@ THE `openspec` job SHALL run `openspec validate --strict --all` in a step with `
 
 `req~gate-tooling-openspec-report-only~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_openspec_validate_is_report_only
+Evidence: lab/tests/test_ci_gate_tooling.py::test_openspec_validate_is_report_only
 
 #### Scenario: Validation errors are reported, not blocking
 - **GIVEN** a pull request whose specs fail `openspec validate --strict --all`
@@ -35,7 +35,7 @@ WHEN CI runs, THE `trace` job SHALL set up Temurin Java 21, download `openfasttr
 
 `req~gate-tooling-trace-download~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_trace_job_downloads_and_verifies_pinned_jar
+Evidence: lab/tests/test_ci_gate_tooling.py::test_trace_job_downloads_and_verifies_pinned_jar
 
 #### Scenario: Download and checksum steps
 - **GIVEN** `ci.yml`
@@ -54,7 +54,7 @@ THE `trace` job SHALL run the verified jar with `trace -o plain` over those of `
 
 `req~gate-tooling-trace-paths~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_trace_step_covers_g6_paths_report_only
+Evidence: lab/tests/test_ci_gate_tooling.py::test_trace_step_covers_g6_paths_report_only
 
 #### Scenario: An absent path is skipped
 - **GIVEN** a checkout without `acceptance/`
@@ -71,7 +71,7 @@ THE repository SHALL NOT commit the OpenFastTrace jar, and no Dockerfile in it S
 
 `req~gate-tooling-tools-not-shipped~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_gate_tools_not_committed_or_in_images
+Evidence: lab/tests/test_ci_gate_tooling.py::test_gate_tools_not_committed_or_in_images
 
 #### Scenario: Repository tree and Dockerfiles
 - **GIVEN** the repository tree without `.git`, `node_modules` and `.venv`
@@ -84,7 +84,7 @@ THE gate tooling jobs SHALL name an exact version for every package or file a st
 
 `req~gate-tooling-pinned-steps~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_gate_jobs_pin_versions_and_add_no_actions
+Evidence: lab/tests/test_ci_gate_tooling.py::test_gate_jobs_pin_versions_and_add_no_actions
 
 #### Scenario: Pinned installs
 - **GIVEN** jobs `openspec` and `trace`
@@ -101,7 +101,7 @@ THE G1 `openspec-validate` and G6 `oft-trace` entries of `.agentic/project.yaml`
 
 `req~gate-tooling-project-yaml-notes~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_project_yaml_g1_g6_stay_todo_with_notes
+Evidence: lab/tests/test_ci_gate_tooling.py::test_project_yaml_g1_g6_stay_todo_with_notes
 
 #### Scenario: Entries unchanged, comments added
 - **GIVEN** `.agentic/project.yaml`
@@ -110,16 +110,19 @@ Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_project_yaml_g1_g6_stay_to
 - **AND** the comment lines right after each entry name `todo: true` and F1, and those after G1 name `--all`
 
 ### Requirement: import-linter layers contract
-THE gateway SHALL declare in `openbinding-gateway/.importlinter`, for root package `openbinding_gateway`, a layers contract `routes`, `services`, `repositories | integrations`, `db` (top to bottom), a forbidden contract from `services`, `domain` and `jobs` to `routes`, and a forbidden contract from `integrations` to `routes`, `services`, `repositories`, `db`, `domain` and `jobs`.
+THE gateway SHALL declare in `openbinding-gateway/.importlinter`, for root package `openbinding_gateway`, three contracts: a layers contract, a forbidden contract keeping `services`, `domain` and `jobs` off `routes`, and a forbidden contract keeping `integrations` off the layers above it.
 
 `req~gate-tooling-import-linter-contract~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_importlinter_contract_mirrors_layers
+Evidence: lab/tests/test_ci_gate_tooling.py::test_importlinter_contract_mirrors_layers
 
 #### Scenario: Contracts in the file
 - **GIVEN** `openbinding-gateway/.importlinter`
 - **WHEN** it is read with `configparser`
-- **THEN** `root_package` is `openbinding_gateway` and the three contracts have exactly the layers, sources and forbidden modules above
+- **THEN** `root_package` is `openbinding_gateway`
+- **AND** the layers contract lists `routes`, `services`, `repositories | integrations`, `db` (top to bottom)
+- **AND** the `no-routes` contract forbids `routes` from `services`, `domain` and `jobs`
+- **AND** the `integrations` contract forbids `routes`, `services`, `repositories`, `db`, `domain` and `jobs` from `integrations`
 
 #### Scenario: A service importing a route
 - **GIVEN** a module of `services/` that imports `openbinding_gateway.routes`
@@ -131,7 +134,7 @@ THE gateway SHALL pin `import-linter==2.15` in the dependency group `lint` of `o
 
 `req~gate-tooling-import-linter-dev-only~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_import_linter_is_locked_dev_only
+Evidence: lab/tests/test_ci_gate_tooling.py::test_import_linter_is_locked_dev_only
 
 #### Scenario: Group, lock and image
 - **GIVEN** `pyproject.toml`, `uv.lock` and `openbinding-gateway/Dockerfile`
@@ -144,7 +147,7 @@ WHEN the `lab` job runs, THE job SHALL run `uv run --locked --extra test --group
 
 `req~gate-tooling-import-linter-report-only~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_import_linter_step_is_report_only
+Evidence: lab/tests/test_ci_gate_tooling.py::test_import_linter_step_is_report_only
 
 #### Scenario: Broken contracts are reported
 - **GIVEN** a gateway that breaks a contract
@@ -161,7 +164,7 @@ THE frontend SHALL list `eslint-plugin-boundaries` `7.3.0`, exact, in `devDepend
 
 `req~gate-tooling-eslint-boundaries~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_eslint_boundaries_warns_page_to_page
+Evidence: lab/tests/test_ci_gate_tooling.py::test_eslint_boundaries_warns_page_to_page
 
 #### Scenario: Dependency and configuration
 - **GIVEN** `frontend/package.json` and `frontend/eslint.config.js`
@@ -180,7 +183,7 @@ THE frontend images SHALL get `eslint-plugin-boundaries` only through the existi
 
 `req~gate-tooling-frontend-images~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_frontend_images_get_plugin_only_by_frozen_install
+Evidence: lab/tests/test_ci_gate_tooling.py::test_frontend_images_get_plugin_only_by_frozen_install
 
 #### Scenario: Lockfile and stages
 - **GIVEN** `frontend/pnpm-lock.yaml`, `frontend/Dockerfile` and `frontend/Dockerfile.e2e`
@@ -190,17 +193,17 @@ Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_frontend_images_get_plugin
 - **AND** in `frontend/Dockerfile` the stages `prod-assets`, `prod` and `lab` run no package install and copy from `build` only `/app/dist`
 
 ### Requirement: bim-toolchain tests on every pull request
-WHEN a pull request into `main` or `develop` runs CI, THE `bim-toolchain` job SHALL, with no path filter, fetch and verify the OMG BPMN XSDs, restore the gateway's locked environment with the `test` extra, and run pytest over `packages/bim-core/tests`, `packages/bim-service/tests` and `packages/bim-client/tests` from `bim-toolchain/` with that Python, failing on any test failure.
+WHEN a pull request into `main` or `develop` runs CI, THE `bim-toolchain` job SHALL, with no path filter, run the pytest suites of the `bim-core`, `bim-service` and `bim-client` packages with the gateway's locked environment, and SHALL fail on any test failure.
 
 `req~gate-tooling-bim-toolchain-tests~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_bim_toolchain_job_runs_package_tests
+Evidence: lab/tests/test_ci_gate_tooling.py::test_bim_toolchain_job_runs_package_tests
 
 #### Scenario: The job in the workflow
 - **GIVEN** `ci.yml`
 - **WHEN** it is parsed
 - **THEN** the workflow triggers on `pull_request` with no `paths` filter and job `bim-toolchain` has no `if`
-- **AND** its steps run `xsd_inventory.py --ensure`, `uv sync --locked --project openbinding-gateway --extra test` and `../openbinding-gateway/.venv/bin/python -m pytest` over the three test directories with `working-directory` `bim-toolchain`
+- **AND** its steps fetch and verify the OMG BPMN XSDs with `xsd_inventory.py --ensure`, restore the gateway's locked environment with `uv sync --locked --project openbinding-gateway --extra test`, and run `../openbinding-gateway/.venv/bin/python -m pytest` over `packages/bim-core/tests`, `packages/bim-service/tests` and `packages/bim-client/tests` with `working-directory` `bim-toolchain`
 - **AND** no step has `continue-on-error`
 
 #### Scenario: A failing bim-service test
@@ -213,7 +216,7 @@ WHEN the `bim-toolchain` job runs, THE job SHALL compare the checked-in corpus w
 
 `req~gate-tooling-bim-toolchain-goldens~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_bim_toolchain_job_checks_goldens
+Evidence: lab/tests/test_ci_gate_tooling.py::test_bim_toolchain_job_checks_goldens
 
 #### Scenario: Goldens step
 - **GIVEN** job `bim-toolchain` in `ci.yml`
@@ -230,7 +233,7 @@ THE repository SHALL provide `acceptance/api/pytest.ini` and `acceptance/api/con
 
 `req~gate-tooling-api-runner~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_api_runner_passes_empty_and_runs_in_lab
+Evidence: lab/tests/test_ci_gate_tooling.py::test_api_runner_passes_empty_and_runs_in_lab
 
 #### Scenario: No acceptance test yet
 - **GIVEN** `acceptance/api` with only `pytest.ini` and `conftest.py`
@@ -252,7 +255,7 @@ THE frontend SHALL provide `frontend/playwright.acceptance.config.ts` with `test
 
 `req~gate-tooling-ui-runner~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_ui_runner_passes_empty_in_frontend_job
+Evidence: lab/tests/test_ci_gate_tooling.py::test_ui_runner_passes_empty_in_frontend_job
 
 #### Scenario: Config, folder and step
 - **GIVEN** the repository
@@ -269,7 +272,7 @@ THE repository SHALL describe in `acceptance/README.md` and in `TESTING.md` §2 
 
 `req~gate-tooling-acceptance-docs~1`
 
-Evidence: GAP lab/tests/test_ci_gate_tooling.py::test_acceptance_docs_name_runners_and_writer
+Evidence: lab/tests/test_ci_gate_tooling.py::test_acceptance_docs_name_runners_and_writer
 
 #### Scenario: README and TESTING
 - **GIVEN** `acceptance/README.md` and `TESTING.md`

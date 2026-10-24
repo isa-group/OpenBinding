@@ -115,3 +115,37 @@ Requirements: `api-runner`, `ui-runner`, `acceptance-docs` (design.md §7). No a
   the constitution GAP lines and `todo: true`, once the gates block.
 
 G1 for this change: `["openspec", "validate", "m03-gate-tooling", "--strict"]` (not registered for workers today).
+
+## Evidence recorded
+
+Results of the registered checks per slice:
+
+| Slice | red_before | Green and suite | Other checks |
+|---|---|---|---|
+| S1 | 6 `AssertionError` | 7 passed; lab suite 441 | |
+| S2a | 5 `AssertionError` | lab suite 444, 2 frontend tests pending, then green | `lint-imports` exit 1, `Contracts: 1 kept, 2 broken` |
+| S2b | | 12 gate tests; lab suite 446 | frontend lint, test and build exit 0; probe: 1 `boundaries/` warning, exit 0 |
+| S3 | | 14 gate tests; lab suite 448 | |
+| S4a | | 17 gate tests; lab suite 451 | frontend 177 files / 2471 tests; acceptance Playwright exit 0 |
+
+G1 (`openspec validate`) was not executed in the lab for lack of a binary; the CI job `openspec` runs it. After round 1
+the registered spec check (17 requirement blocks, 17 distinct ids, no SHALL statement over 450 characters, no `GAP`
+token in an `Evidence:` line) covers the two over-length requirement texts the CI run reported.
+
+## Review round 1
+
+| Finding | Disposition |
+|---|---|
+| SEC-002 (`--ignore-scripts`, OpenSpec transitive dependencies) | Deferred: design.md §9, follow-up |
+| SEC-006 (Actions pinned by tag, not by SHA) | Deferred: design.md §9, repository-wide follow-up |
+| ARC-007 | Deferred: follow-up |
+| ARC-004 (one line in `docs/ARCHITECTURE.md` §5.1: pages do not import other pages) | Deferred: owner path, not done here |
+| Two requirement texts over 500 characters (`import-linter-contract`, `bim-toolchain-tests`) | Fixed: shortened under 450, details moved into scenarios |
+| `GAP` token in the `Evidence:` lines | Fixed: dropped from all 17 |
+| Contracts presented as mirroring the architecture test | Fixed: design.md §4 and proposal.md state the differences, the first-run count and the M9.1 trigger; `telemetry -> main` recorded as architecture debt |
+| ESLint severity trigger and baseline | Fixed: ROADMAP M9.3, about 316 warnings (design.md §5) |
+| OpenFastTrace licence, CI-only use and workflow hardening | Fixed: design.md §2; the hardening is applied to `ci.yml` by the implementer |
+| Risks pointing to design.md §7 | Fixed: now §9 |
+| Items to record under "Not fixed here" | Fixed: design.md §9 |
+
+No finding was disputed in this round.

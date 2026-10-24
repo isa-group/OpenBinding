@@ -15,18 +15,20 @@ checked against the repository head and, for external tools, against their relea
 
 ## 2. Jobs `openspec` and `trace` (S1, G1 and G6)
 
-`openspec` (no `needs`): checkout; `actions/setup-node@v4` with `node-version: '22'`; `npm install --global
-@fission-ai/openspec@1.14.3`; `openspec --version`; `openspec validate --strict --all` with `continue-on-error: true`.
-The install and version steps fail the job: a broken install must not look like a report.
+`openspec` (no `needs`, `timeout-minutes: 10`): checkout with `persist-credentials: false`; `actions/setup-node@v4`
+with `node-version: '22'`; `npm install --global @fission-ai/openspec@1.14.3`; `openspec --version`; `openspec
+validate --strict --all` with `continue-on-error: true`. The install and version steps fail the job: a broken install
+must not look like a report.
 
-`trace` (no `needs`): checkout; `actions/setup-java@v4` with `distribution: temurin`, `java-version: '21'` (OFT 4.x
-needs Java 17+); then
+`trace` (no `needs`, `timeout-minutes: 10`): checkout with `persist-credentials: false`; `actions/setup-java@v4` with
+`distribution: temurin`, `java-version: '21'` (OFT 4.x needs Java 17+); then
 
 ```yaml
 - name: Download OpenFastTrace 4.11.0
   run: |
     mkdir -p "$RUNNER_TEMP/oft"
-    curl --fail --location --silent --show-error --output "$RUNNER_TEMP/oft/openfasttrace-4.11.0.jar" \
+    curl --proto '=https' --proto-redir '=https' --retry 3 --fail --location --silent --show-error \
+      --output "$RUNNER_TEMP/oft/openfasttrace-4.11.0.jar" \
       https://github.com/itsallcode/openfasttrace/releases/download/4.11.0/openfasttrace-4.11.0.jar
 - name: Verify the OpenFastTrace checksum
   run: echo "f094cd314f0fc4236f513f66fb39260a16f72e2320beb6b4fdeb7940b9b8cf87  $RUNNER_TEMP/oft/openfasttrace-4.11.0.jar" | sha256sum -c -
@@ -43,6 +45,18 @@ needs Java 17+); then
 The paths are the G6 argv of `.agentic/project.yaml`, in its order. `acceptance` is absent until S4. OFT exits 1 when
 the trace has defects; with no tags in the code base (constitution 3) the first runs are expected red, hence
 report-only.
+
+Hardening decided in review round 1 (applies to the whole workflow and the two new jobs):
+
+- Top-level `permissions: contents: read`, so no job holds a write token.
+- `persist-credentials: false` on the checkout of jobs `openspec` and `trace`, and `timeout-minutes: 10` on both.
+- The OFT download accepts only HTTPS, also across redirects, and retries: `curl --proto '=https' --proto-redir
+  '=https' --retry 3` (snippet above). The checksum step still decides whether the jar is used.
+- In job `lab`, the API acceptance step and the import-linter step carry `if: ${{ !cancelled() }}`, so a failure of
+  the lab tests does not hide the acceptance and import-linter results (they run unless the run is cancelled).
+
+OpenFastTrace is licensed GPL-3.0. It is a CI-only tool: downloaded at run time, never committed to the repository
+and never distributed in an image or an artifact (requirement `tools-not-shipped`).
 
 ## 3. `.agentic/project.yaml` (S1)
 
@@ -62,8 +76,16 @@ Only comment lines, right after each entry; argv and `todo: true` stay:
 
 ## 4. import-linter (S2, G9)
 
-`openbinding-gateway/.importlinter` mirrors `tests/test_architecture_layers.py` (and ARCHITECTURE §4.2, constitution
-6.1):
+`openbinding-gateway/.importlinter` states the layer rule of ADR-0012 and constitution 6.1. It does **not** mirror
+`tests/test_architecture_layers.py` exactly (the test-function name keeps "mirrors" only as its id):
+
+- The test checks the direct imports of each module against an allow-list; import-linter checks whole import chains
+  (a module that reaches a forbidden layer through other modules breaks the contract too).
+- The contracts mirror neither `ALLOWED_LEGACY` (the frozen, listed exceptions of the test) nor the composition root
+  `main`, which the test exempts.
+- The `integrations` contract is a deny-list, so it is a subset of the test's allow-list for `integrations`.
+- ARCHITECTURE §4.2 and constitution 6.5 are not the source: their GAP stays open until the legacy refactors of
+  ROADMAP M9.1.
 
 ```ini
 [importlinter]
@@ -104,15 +126,22 @@ forbidden_modules =
     openbinding_gateway.jobs
 ```
 
-The `|` siblings must be independent, which is stricter than the architecture test; the frozen debt of
-`ALLOWED_LEGACY` is not mirrored. The first run gives the real count of broken contracts.
+The `|` siblings must be independent, which is stricter than the architecture test.
+
+First CI run: `Contracts: 1 kept, 2 broken`. The broken ones are `layers` and `no-routes`, through the chains
+`artifacts`, `reports`, `study_jobs`, `analysis_jobs` and `telemetry` -> `main`, and `platform_models` -> `artifacts`;
+`integrations` is kept. The gate stays report-only, and blocking waits for the legacy refactors of ROADMAP M9.1.
+
+Architecture debt to follow up: `telemetry -> main` (services and jobs reaching the composition root). It is not
+fixed here and not exempted in the contracts.
 
 - Dependency: `[dependency-groups] lint = ["import-linter==2.15"]` (2.15 is the PyPI release of 2026-09-04,
   Python ≥ 3.10). A group, not the `test` extra: the gateway image installs `".[test]"`
   (`openbinding-gateway/Dockerfile`), and only the `dev` group is synced by default, so no other job or image gets it.
 - CI: last step of the `lab` job, `working-directory: openbinding-gateway`, `run: uv run --locked --extra test --group
-  lint lint-imports --config .importlinter`, `continue-on-error: true`. After the lab tests, so its sync cannot change
-  what they ran on. Exit 1 means a broken contract.
+  lint lint-imports --config .importlinter`, `continue-on-error: true`, `if: ${{ !cancelled() }}`. After the lab
+  tests (and the API acceptance step of S4), so its sync cannot change what they ran on. Exit 1 means a broken
+  contract.
 - `uv.lock` is regenerated through a registered check (`uv lock`, needs the package index); CI reads it with uv
   0.8.14 (`--locked`).
 
@@ -127,8 +156,11 @@ The `|` siblings must be independent, which is stricter than the architecture te
   the list under `rules` or `policies` is not settled by its docs, so S2 uses the key the installed package accepts
   without a deprecation warning.
 - Report-only: severity `warn` and `pnpm lint` (`eslint .`) has no `--max-warnings`, so the existing `Lint and test
-  frontend` step reports the count and fails only on errors. The first lint run gives the real count. A probe check in
-  S2 proves the rule fires (tasks.md).
+  frontend` step reports the count and fails only on errors. A probe check in S2 proves the rule fires (tasks.md).
+- Baseline: about 316 page-to-page warnings, read from a temporary run at severity `error` (not committed; the
+  committed severity is `warn`). The trigger to raise the severity to `error` is ROADMAP M9.3.
+- Follow-up, owner path and not done here: one line in `docs/ARCHITECTURE.md` §5.1 saying that pages do not import
+  other pages.
 - Images: no Dockerfile changes. The `base` stage of `frontend/Dockerfile` (`dev`, `build`) and
   `frontend/Dockerfile.e2e` run `pnpm install --frozen-lockfile`, so both get the plugin from the lockfile; the e2e
   image of the lab therefore changes, which the S2 PR states. `prod-assets`, `prod` and `lab` copy only `/app/dist`.
@@ -195,9 +227,13 @@ release API `itsallcode/openfasttrace` 4.11.0 and its `.jar.sha256` asset (same 
 |---|---|---|
 | `ci.yml` `check_bim_corpus.py --expected 83` vs 82 | `.agentic/project.yaml` G5 `bim-corpus` and `TESTING.md` say 82; `baseline_core.py` defaults to `--expected 82` | the S3 goldens step may fail on the count; S3 then checkpoints, it does not add `continue-on-error` |
 | uv 0.8.14 vs 0.8.22 | CI `setup-uv` 0.8.14; `openbinding-gateway/Dockerfile` copies uv 0.8.22 | the S2 lock must pass `uv sync --locked` under 0.8.14 |
-| Actions pinned by tag | constitution 10.5 GAP | unchanged; no action added |
+| Actions pinned by tag | constitution 10.5 GAP | unchanged; no action added. Repository-wide follow-up: pin every action by commit SHA (finding SEC-006) |
 | Constitution GAP lines 1, 2, 3, 6 | `constitution.md` (owner-only) | stay until the gates block |
-| OpenSpec transitive dependencies unpinned | `npm install --global` pins the top package only | a transitive release can change a run; report-only limits it |
+| OpenSpec transitive npm dependencies unpinned, `--ignore-scripts` not used | `npm install --global` pins the top package only and runs install scripts of its dependencies (finding SEC-002) | a transitive release can change a run or run code in it; report-only and `contents: read` limit it |
+| `bim-toolchain` job weaker than the toolchain's own CI | the job does not fail on skipped tests and runs no OpenAPI or consumer-fixture check | regressions those checks catch pass here; they stay in the toolchain's CI and G5 |
+| G4 does not cover `frontend/playwright.acceptance.config.ts` | its shape is pinned by a lab test; adding it to the G4 paths of `.agentic/project.yaml` is an owner decision (R11) | the implementer, not the test-designer, owns that config |
+| `--pass-with-no-tests` and the exit-5 mapping | the Playwright flag and the `pytest_sessionfinish` hook of `acceptance/api/conftest.py` make empty runners pass | both are dropped when the first acceptance test of each surface lands |
+| Import-linter contracts and `ALLOWED_LEGACY` | §4: chains, no `ALLOWED_LEGACY`, no `main` exemption; first run 1 kept, 2 broken | report-only; blocking waits for ROADMAP M9.1. `telemetry -> main` is architecture debt to follow up |
 | G6 paths do not include `lab/` | `.agentic/project.yaml` G6 | the evidence tags of this change are not traced |
 | UI specs outside `frontend/` | `testDir: '../acceptance/ui'` | a spec there may not resolve `@playwright/test` from `frontend/node_modules`; proved by the first UI acceptance test |
 | G1 argv lacks `--all` | `.agentic/project.yaml` G1 | comment only (§3) |
@@ -213,7 +249,7 @@ release API `itsallcode/openfasttrace` 4.11.0 and its `.jar.sha256` asset (same 
 | `req~gate-tooling-tools-not-shipped~1` | gate tools neither committed nor in images | `lab/tests/test_ci_gate_tooling.py::test_gate_tools_not_committed_or_in_images` |
 | `req~gate-tooling-pinned-steps~1` | exact versions, no new actions | `lab/tests/test_ci_gate_tooling.py::test_gate_jobs_pin_versions_and_add_no_actions` |
 | `req~gate-tooling-project-yaml-notes~1` | G1/G6 stay `todo: true` with comment lines | `lab/tests/test_ci_gate_tooling.py::test_project_yaml_g1_g6_stay_todo_with_notes` |
-| `req~gate-tooling-import-linter-contract~1` | import-linter contracts mirror the layer tests | `lab/tests/test_ci_gate_tooling.py::test_importlinter_contract_mirrors_layers` |
+| `req~gate-tooling-import-linter-contract~1` | import-linter contracts state the gateway layer rule (ADR-0012, constitution 6.1) | `lab/tests/test_ci_gate_tooling.py::test_importlinter_contract_mirrors_layers` |
 | `req~gate-tooling-import-linter-dev-only~1` | import-linter 2.15 locked in the `lint` group only | `lab/tests/test_ci_gate_tooling.py::test_import_linter_is_locked_dev_only` |
 | `req~gate-tooling-import-linter-report-only~1` | `lint-imports` runs report-only in the `lab` job | `lab/tests/test_ci_gate_tooling.py::test_import_linter_step_is_report_only` |
 | `req~gate-tooling-eslint-boundaries~1` | page-to-page imports warn, plugin 7.3.0 dev-only | `lab/tests/test_ci_gate_tooling.py::test_eslint_boundaries_warns_page_to_page` |

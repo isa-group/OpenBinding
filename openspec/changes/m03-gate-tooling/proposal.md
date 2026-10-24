@@ -9,7 +9,7 @@ and `acceptance/ui` (Playwright) runners exist; import-linter and ESLint boundar
 
 Constitution GAP lines this change starts to close: 1 ("OpenSpec CLI not yet installed in CI"), 2 ("`acceptance/`
 does not exist yet"), 3 (G6 has no tool to run), 6.5–6.6 ("import-linter contracts … and an ESLint boundaries rule").
-The GAP lines stay until the gates block (design.md §7).
+The GAP lines stay until the gates block (design.md §9).
 
 ## What Changes
 
@@ -17,7 +17,14 @@ The GAP lines stay until the gates block (design.md §7).
 - CI job `trace`: Temurin 21, OpenFastTrace 4.11.0 downloaded into `$RUNNER_TEMP/oft` and checked by SHA-256, then
   `trace -o plain` over the G6 paths of `.agentic/project.yaml`, report-only. Download and checksum steps fail hard.
 - import-linter (gateway, dependency group `lint`) and `eslint-plugin-boundaries` 7.3.0 (frontend devDependency, rule
-  at `warn`), both report-only (G9).
+  at `warn`), both report-only (G9). The three contracts state the layer rule of ADR-0012 and constitution 6.1; they
+  do not mirror `tests/test_architecture_layers.py` exactly: they check whole import chains, mirror neither
+  `ALLOWED_LEGACY` nor the composition root `main`, and the `integrations` contract is a deny-list subset of the
+  test's allow-list. The first CI run is `Contracts: 1 kept, 2 broken` (see design.md §4); the gate stays report-only
+  until the legacy refactors of ROADMAP M9.1.
+- Workflow hardening: top-level `permissions: contents: read`, `persist-credentials: false` and `timeout-minutes: 10`
+  on jobs `openspec` and `trace`, a HTTPS-only retrying download of the OpenFastTrace jar (GPL-3.0, CI-only, never
+  committed or distributed), and `if: ${{ !cancelled() }}` on the API acceptance and import-linter steps of `lab`.
 - CI job `bim-toolchain`: the bim-toolchain package tests and goldens on every pull request, in the gateway's locked
   environment.
 - Acceptance runners without tests: `acceptance/api` (pytest, `lab` job) and `acceptance/ui` (Playwright, `frontend`
@@ -46,6 +53,9 @@ The GAP lines stay until the gates block (design.md §7).
 - Making G1, G6 or G9 blocking, and removing `todo: true` or the constitution GAP lines (after a run into `develop`
   exits 0 and the factory runner F1 has the tools).
 - Acceptance tests themselves (test-designer, G4).
-- The items listed in design.md §7: `--expected 83` vs 82, uv 0.8.14 vs 0.8.22, Actions pinned by tag, OpenSpec
-  transitive dependencies, G6 paths without `lab/`.
+- The items listed in design.md §9: `--expected 83` vs 82, uv 0.8.14 vs 0.8.22, Actions pinned by tag, OpenSpec
+  transitive dependencies, G6 paths without `lab/`, the weaker `bim-toolchain` job, G4 and the Playwright acceptance
+  config, the empty-runner exemptions.
+- Fixing the architecture debt the import-linter contracts report (first run: `Contracts: 1 kept, 2 broken`, including
+  `telemetry -> main`), and raising the ESLint severity to `error` (ROADMAP M9.3, baseline about 316 warnings).
 - The extraction of `bim-toolchain/` to `isa-group/bim-toolchain`.
