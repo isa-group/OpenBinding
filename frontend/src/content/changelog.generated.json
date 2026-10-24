@@ -5,6 +5,7 @@
       "date": "2026-10-24",
       "title": "OpenBinding platform",
       "changes": [
+        "Isolation probe, PR previews docs and shorter preview evidence (M0.5 S4) (#39)",
         "Gate tooling in CI and acceptance runners (M0.3) (#37)",
         "Rendering catalogue foundations and raw-rendering hygiene test (M2.1, M2.2) (#38)",
         "Optional pricing profile for a local SPACE, static tests and narrowed no-local-space test (M4.1, S1+S2) (#36)",
@@ -84,7 +85,7 @@
       "date": "2026-10-24",
       "title": "OpenBinding documentation",
       "changes": [
-        "M05-previews-compose plan and handoff",
+        "Isolation probe, PR previews docs and shorter preview evidence (M0.5 S4) (#39)",
         "Gate tooling in CI and acceptance runners (M0.3) (#37)",
         "Rendering catalogue foundations and raw-rendering hygiene test (M2.1, M2.2) (#38)",
         "Optional pricing profile for a local SPACE, static tests and narrowed no-local-space test (M4.1, S1+S2) (#36)",
