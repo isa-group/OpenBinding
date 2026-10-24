@@ -99,7 +99,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tracked", type=json_arg(list_of(str)))
     parser.add_argument("--running", type=json_arg(lambda value: isinstance(value, list) and all(map(is_stack, value))),
                         default=[])
-    parser.add_argument("--pr-info", type=json.loads)
+    parser.add_argument("--pr-info", type=json_arg(lambda value: isinstance(value, dict) and all(
+        type(value.get(key)) is str for key in ("state", "head_repo", "head_sha"))))
     parser.add_argument("--kind", choices=KINDS)
     parser.add_argument("--head-mem-mib", type=json_arg(lambda value: type(value) is int and value >= 0))
     parser.add_argument("--listening", type=json_arg(list_of(int)), default=[])
@@ -231,12 +232,11 @@ def destroy_check(args) -> dict:
         return result(args)
     images = rec["images"]
     own_tags = {image["tag"] for image in images}
-    elsewhere = [image for r in args.state if r is not rec and r["status"] != "destroyed" for image in r["images"]]
-    held = {image["tag"] for image in elsewhere}  # a tag another record lists is not this record's to remove
-    shared = {image["id"] for image in elsewhere} | {i for t, i in args.tags.items() if t not in own_tags or t in held}
+    listed = {image["id"] for r in args.state if r is not rec and r["status"] != "destroyed" for image in r["images"]}
+    shared = listed | {i for t, i in args.tags.items() if t not in own_tags}  # ownership goes by ID, a tag is a label
     own_ids = list(dict.fromkeys(image["id"] for image in images))
     tags = list(dict.fromkeys(i["tag"] for i in images
-                              if args.tags.get(i["tag"]) in own_ids and i["tag"] not in held))
+                              if args.tags.get(i["tag"]) in own_ids and args.tags[i["tag"]] not in listed))
     ids = [i for i in own_ids if i not in shared]
     commands = [["lab_compose", "destroy", "--project", rec["project"]]]
     commands += [["docker", "image", "rm", target] for target in (*tags, *ids)]

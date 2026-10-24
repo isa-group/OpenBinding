@@ -247,14 +247,14 @@ REQUIRED = {
 }
 MISSING = [(name, "open", flag) for name, needed in REQUIRED.items() for flag in needed]
 MISSING += [("activity", kind, "--pr-info") for kind in ("g12", "screenshot")]
-EXACT = [(name, "open") for name in REQUIRED] + [("activity", kind) for kind in ("g12", "screenshot")]
+EXACT = [(name, "open") for name in REQUIRED] + [("activity", kind) for kind in ("request", "refresh", "g12", "screenshot")]
 
 
 # [utest->req~lab-deployment-preview-on-demand~1]
 @pytest.mark.parametrize(("name", "kind"), EXACT)
 def test_exactly_the_required_flags_are_enough(tmp_path, name, kind):
     given = flags(write_state(tmp_path, [record(42, status="stopped")]), kind=kind)
-    needed = REQUIRED[name] + (["--pr-info"] if name == "activity" and kind != "open" else [])
+    needed = REQUIRED[name] + (["--pr-info"] if name == "activity" and kind in ("g12", "screenshot") else [])
     plan = planned(name, *argv({flag: value for flag, value in given.items() if flag in needed}))
     assert plan["action"] == name
 
@@ -300,6 +300,9 @@ def test_malformed_json_flag_is_a_usage_error(tmp_path, name, flag):
     ("--running", json.dumps(["openbinding-lab"])),
     ("--tags", json.dumps({"openbinding-lab-gateway:18101": 7})),
     ("--tags", json.dumps(["openbinding-lab-gateway:18101"])),
+    ("--pr-info", json.dumps(["open", REPO, HEAD])),
+    ("--pr-info", json.dumps({"state": "open", "head_repo": REPO})),
+    ("--pr-info", json.dumps({"state": "open", "head_repo": REPO, "head_sha": 7})),
     ("--head-mem-mib", "-1"),
     ("--head-mem-mib", "lots"),
 ])
@@ -446,6 +449,10 @@ def test_names_derive_from_the_pr_number(tmp_path):
         assert plan["project"] == f"openbinding-pr-{pr}"
         assert re.fullmatch(r"[a-z][a-z0-9-]{0,62}", plan["project"])
         assert plan["commands"] == [up(pr, "--build")]
+        assert plan["record"]["project"] == f"openbinding-pr-{pr}"
+        assert plan["record"]["compose_file"] == COMPOSE
+        assert plan["record"]["volumes"] == [f"openbinding-pr-{pr}_{name}" for name in
+                                             ("lab-pg-3", "lab-redis", "lab-artifacts-2", "lab-e2e")]
     # two previews, both PRs moved to a new head: every command and every volume stays its own
     records = [record(42, port=18101), record(57, port=18102)]
     for pr in (42, 57):
@@ -459,6 +466,22 @@ def test_names_derive_from_the_pr_number(tmp_path):
             assert f"openbinding-pr-{other}" not in command
         assert plan["record"]["volumes"]
         assert all(volume.startswith(f"openbinding-pr-{pr}_") for volume in plan["record"]["volumes"])
+
+
+# [utest->req~lab-deployment-preview-isolation~1]
+def test_a_planned_start_record_is_starting_with_the_head_memory(tmp_path):
+    plan = plan_for(tmp_path, "request", mem=2048)
+    assert plan["record"]["status"] == "starting"
+    assert plan["record"]["mem_mib"] == 2048 != MEM
+
+
+# [utest->req~lab-deployment-preview-isolation~1]
+def test_restarting_a_failed_record_clears_its_error_and_keeps_its_creation_time(tmp_path):
+    failed = {**record(42, status="failed", port=18101), "error": "x"}
+    plan = plan_for(tmp_path, "request", [failed])
+    assert plan["record"]["status"] == "starting"
+    assert plan["record"]["error"] is None
+    assert plan["record"]["created_at"] == failed["created_at"]
 
 
 # --- Tracked Compose file and synthetic data only ----------------------------------------------
@@ -760,14 +783,46 @@ def test_destroy_after_port_reuse_with_the_same_image_id_keeps_the_tag(tmp_path)
 
 
 # [utest->req~lab-deployment-preview-destroy-maintenance~1]
-def test_destroy_keeps_the_image_of_a_tag_another_record_lists(tmp_path):
+def test_destroy_removes_a_tag_that_resolves_to_its_own_unshared_image(tmp_path):
     tag = "openbinding-lab-gateway:18101"
     records = [
         record(42, status="failed", port=None, images=[(A1, tag)]),
         record(57, port=18101, images=[(B2, tag)]),
     ]
     plan = plan_for(tmp_path, "destroy-check", records, tags={tag: A1})
-    assert plan["commands"] == [["lab_compose", "destroy", "--project", "openbinding-pr-42"]]
+    assert plan["commands"] == [
+        ["lab_compose", "destroy", "--project", "openbinding-pr-42"],
+        ["docker", "image", "rm", tag],
+        ["docker", "image", "rm", A1],
+    ]
+
+
+# [utest->req~lab-deployment-preview-destroy-maintenance~1]
+def test_destroy_of_the_port_holder_removes_its_tag_despite_an_older_label(tmp_path):
+    tag = "openbinding-lab-gateway:18101"
+    records = [
+        record(42, status="failed", port=None, images=[(A1, tag)]),
+        record(57, port=18101, images=[(B2, tag)]),
+    ]
+    plan = plan_for(tmp_path, "destroy-check", records, pr=57, tags={tag: B2})
+    assert plan["commands"] == [
+        ["lab_compose", "destroy", "--project", "openbinding-pr-57"],
+        ["docker", "image", "rm", tag],
+        ["docker", "image", "rm", B2],
+    ]
+
+
+# [utest->req~lab-deployment-preview-destroy-maintenance~1]
+def test_destroy_removes_each_tag_of_an_image_and_the_image_once(tmp_path):
+    t1, t2 = "openbinding-lab-gateway:18101", "openbinding-lab-web:18101"
+    plan = plan_for(tmp_path, "destroy-check", [record(42, port=18101, images=[(AA, t1), (AA, t2)])],
+                    tags={t1: AA, t2: AA})
+    assert plan["commands"] == [
+        ["lab_compose", "destroy", "--project", "openbinding-pr-42"],
+        ["docker", "image", "rm", t1],
+        ["docker", "image", "rm", t2],
+        ["docker", "image", "rm", AA],
+    ]
 
 
 # [utest->req~lab-deployment-preview-destroy-maintenance~1]
