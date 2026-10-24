@@ -12,7 +12,7 @@ guessed. The MANAGEMENT key placement (proposed question 3) is still open.
 Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml`, so tags in `lab/tests/` are not traced
 until those paths are added.
 
-Known deviation: `lab/tests/test_lab_pricing_profile.py` has 585 non-blank lines and 27 test functions (several parametrized; extended in round 2), over the ~300-line PR guideline. The rule
+Known deviation: `lab/tests/test_lab_pricing_profile.py` has 624 non-blank lines and 27 test functions (several parametrized; extended in rounds 2 and 3), over the ~300-line PR guideline. The rule
 functions (one per requirement) and the controls that mutate a conforming sample live in one file so that each rule sits
 next to the proof that it refuses what it must; splitting them would separate a rule from its control.
 
@@ -41,7 +41,13 @@ next to the proof that it refuses what it must; splitting them would separate a 
 - Acceptance: S1 passes; `lab/tests` and `tests/test_container_hardening.py` still pass. Check:
   `["uv", "run", "--directory", "openbinding-gateway", "--locked", "--extra", "test", "pytest", "-q", "../lab/tests", "tests/test_no_local_space.py", "tests/test_container_hardening.py"]`.
   Measured: the registered check ran 290 tests, all passing (round 1, over all of `lab/tests`). The latest registered
-  check, over `../lab/tests/test_lab_pricing_profile.py` and `tests/test_no_local_space.py`, measured 63 tests.
+  check, over `../lab/tests/test_lab_pricing_profile.py` and `tests/test_no_local_space.py`, measured 63 tests, all
+  passing. The round-3 controls are cited in the Evidence lines of the delta spec: `rule_api_surface` pins the commands
+  of `space-mongo` and `space-redis`, forbids any `command` or `entrypoint` on `space-api` and pins the mongo and redis
+  healthcheck tests (`test_api_surface_is_pinned`, `test_control_pins_the_api_environment_and_healthcheck`, remote-sphere);
+  `MONGO_URI` is pinned to its full literal (`test_control_refuses_unbraced_or_swapped_secret_references`,
+  secret-references); the truncated-digest parser control is in `test_control_runbook_parsers_refuse_malformed_text`
+  (pinned-images).
 
 ## S2b. Build from the pinned commit — follow-on PR
 - [ ] 2b.1 `compose.lab-pricing.json`: SPACE is built from `SCORELabUS/space` pinned to the commit
@@ -72,9 +78,6 @@ next to the proof that it refuses what it must; splitting them would separate a 
   value SPACE may start with weak settings or fail to start, UNVERIFIED because the image is unresolved).
 - Follow-on PR (S2b, S3, S4): build from the pinned commit, the bootstrap tests and the tool under `lab/`, and the ADR
   0022 exception, as above.
-- Test control pending in the profile test file: a control that pins the `command` of the three services, `MONGO_URI` and
-  the mongo and redis healthchecks by equality (the spec states it; cite its test name in the remote-sphere Evidence
-  once it lands).
 - M4.2/M4.5: how `SPACE_URL` reaches the gateway (fold the services into the main lab manifest, or another route with a
   recorded exception to the no-`networks` rule); a memory decision for SPACE in previews (2 x (4032 + 1088) > 9216); the
   seed guard that refuses service `openbinding` (`docs/DEMO.md`, about line 195).

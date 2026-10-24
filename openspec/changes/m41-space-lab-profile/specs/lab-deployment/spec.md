@@ -66,7 +66,7 @@ THE services of the pricing profile SHALL use images pinned by digest and listed
 
 `req~lab-deployment-pricing-profile-pinned-images~1`
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_pinned_images_match_the_runbook`; `lab/tests/test_lab_pricing_profile.py::test_runbook_documents_the_gap_and_the_bring_up`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_unpinned_images`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_an_unverified_space_api_version`; `lab/tests/test_lab_pricing_profile.py::test_control_runbook_parsers_refuse_malformed_text`
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_pinned_images_match_the_runbook`; `lab/tests/test_lab_pricing_profile.py::test_runbook_documents_the_gap_and_the_bring_up`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_unpinned_images`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_an_unverified_space_api_version`; `lab/tests/test_lab_pricing_profile.py::test_control_runbook_parsers_refuse_malformed_text` (also covers a truncated digest)
 
 Verified on 2026-10-24 against Docker Hub: `mongo:7.0.16` `sha256:c630c59342c1493d50345136df2af14a76b9e827dd5316bfabee07a0880a5f3a` and `redis:7.4.2` `sha256:fbdbaea47b9ae4ecc2082ecdb4e1cea81e32176ffb1dcf643d422ad07427e5d9`. No space-api reference has been verified by this change; no digest is guessed for `space-api`. The owner answered question 1 on 24-10-2026 (option build-pinned-exception): SPACE is to be built from `SCORELabUS/space` pinned to the commit `ef4dc8949435d998e2aff525226e3fcc85e2f7ba` of tag `v1.7.1` (never the tag; source `https://api.github.com/repos/SCORELabUS/space/git/refs/tags/v1.7.1`). That build needs a revision 2 of this requirement (build context pinned by commit SHA, plus the manifest and test allow-list for `build`); it is slice S2b of a follow-on PR, so the marker stays in this PR.
 
@@ -173,7 +173,7 @@ THE pricing profile SHALL reference its secrets only as the four bare variables 
 
 `req~lab-deployment-pricing-profile-secret-references~1`
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_secret_references_are_bare_and_documented`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_defaulted_or_literal_secrets`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_unbraced_or_swapped_secret_references`
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_secret_references_are_bare_and_documented`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_defaulted_or_literal_secrets`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_unbraced_or_swapped_secret_references` (also covers `MONGO_URI` pinned to its full literal)
 
 #### Scenario: Literal or defaulted secret
 - **GIVEN** a profile service environment with a literal `ADMIN_PASSWORD`, or `JWT_SECRET` set to `${DEMO_SPACE_JWT_SECRET:-dev}`
@@ -222,7 +222,7 @@ THE `space-api` service of the pricing profile SHALL be configured with `SPHERE_
 
 `req~lab-deployment-pricing-profile-remote-sphere~1`
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_remote_sphere_is_the_only_sphere`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_local_sphere`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_foreign_host_in_any_url_scheme`; `lab/tests/test_lab_pricing_profile.py::test_api_surface_is_pinned`; `lab/tests/test_lab_pricing_profile.py::test_control_pins_the_api_environment_and_healthcheck`; live: GAP `lab/tests/test_lab_pricing_profile_live.py::test_the_lab_reaches_sphere_over_https`
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_remote_sphere_is_the_only_sphere`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_local_sphere`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_foreign_host_in_any_url_scheme`; `lab/tests/test_lab_pricing_profile.py::test_api_surface_is_pinned`; `lab/tests/test_lab_pricing_profile.py::test_control_pins_the_api_environment_and_healthcheck` (also covers the commands of `space-mongo` and `space-redis`, a `command` on `space-api`, and the mongo and redis healthchecks); live: GAP `lab/tests/test_lab_pricing_profile_live.py::test_the_lab_reaches_sphere_over_https`
 
 #### Scenario: SPHERE address
 - **GIVEN** `space-api` configured with the four SPHERE variables above
