@@ -29,7 +29,7 @@ WHEN a request carries an `Idempotency-Key` already used by the same account, TH
 
 `req~job-execution-idempotency-key~1`
 
-Evidence: `openbinding-gateway/tests/test_idempotency_jobs.py::test_same_key_and_body_replays_the_same_job`; `openbinding-gateway/tests/test_idempotency_jobs.py::test_same_key_with_a_different_body_conflicts`; `openbinding-gateway/tests/test_idempotency_jobs.py::test_a_key_shared_by_two_accounts_is_independent`; `openbinding-gateway/tests/concurrency/test_jobs_idempotency_pg.py`
+Evidence: `openbinding-gateway/tests/test_idempotency_jobs.py`
 
 #### Scenario: Client retry after a timeout
 - **GIVEN** a job created with key `k1`
@@ -46,7 +46,7 @@ IF an account already has `MAX_CONCURRENT_JOBS_PER_USER` jobs queued or running 
 
 `req~job-execution-concurrency-cap~1`
 
-Evidence: `openbinding-gateway/tests/test_concurrency_limit.py::test_creating_a_job_at_the_limit_is_a_429_and_finishing_one_frees_the_slot`; `openbinding-gateway/tests/test_concurrency_limit.py::test_an_idempotent_replay_at_the_limit_returns_the_job_not_a_429`; `openbinding-gateway/tests/test_concurrency_limit.py::test_a_bigger_plan_does_not_raise_the_technical_cap`
+Evidence: `openbinding-gateway/tests/test_concurrency_limit.py`
 
 #### Scenario: Ninth job
 - **GIVEN** an account with 8 running jobs and the default cap
@@ -58,7 +58,7 @@ WHEN several workers try to claim the same queued job, THE gateway SHALL let exa
 
 `req~job-execution-single-claim~1`
 
-Evidence: `openbinding-gateway/tests/test_job_leases.py::test_a_job_is_claimed_by_one_worker_only`; `openbinding-gateway/tests/test_job_leases.py::test_a_failure_without_the_lease_is_not_recorded`; `openbinding-gateway/tests/concurrency/test_job_leases_pg.py`
+Evidence: `openbinding-gateway/tests/test_job_leases.py`; `openbinding-gateway/tests/concurrency/test_job_leases_pg.py`
 
 #### Scenario: Duplicate queue message
 - **GIVEN** a queued job delivered twice by the broker
@@ -70,7 +70,7 @@ WHEN a running job's lease lapses, THE gateway SHALL put it back to `queued` onc
 
 `req~job-execution-lease-recovery~1`
 
-Evidence: `openbinding-gateway/tests/test_job_leases.py::test_a_lost_worker_gets_the_job_requeued_once_and_then_it_fails`; `openbinding-gateway/tests/test_job_reconciler.py::test_a_queued_job_is_failed_with_queue_timeout_after_the_limit`; `openbinding-gateway/src/openbinding_gateway/jobs/reconciler.py`
+Evidence: `openbinding-gateway/tests/test_job_leases.py`; `openbinding-gateway/tests/test_job_reconciler.py`
 
 #### Scenario: Worker killed mid-solve twice
 - **GIVEN** a running job whose worker dies and whose requeued attempt's worker also dies
@@ -82,7 +82,7 @@ WHEN an engine returns a result, THE gateway SHALL keep only the binding of each
 
 `req~job-execution-authoritative-reevaluation~1`
 
-Evidence: `openbinding-gateway/tests/test_v1_platform_contracts.py::test_gateway_rejects_incomplete_decisions_and_replaces_engine_evaluation`; `openbinding-gateway/tests/test_v1_job_guarantees.py::test_gateway_downgrades_termination_claims_not_declared_by_the_mode`; `openbinding-gateway/src/openbinding_gateway/services/execution.py`
+Evidence: `openbinding-gateway/tests/test_v1_platform_contracts.py`; `openbinding-gateway/tests/test_v1_job_guarantees.py`
 
 #### Scenario: Heuristic claims optimality
 - **GIVEN** a `random-search` mode that guarantees only `FEASIBLE`/`UNKNOWN`
@@ -94,7 +94,7 @@ IF BIM re-evaluation of an engine answer fails, THEN THE gateway SHALL mark the 
 
 `req~job-execution-evidence-retention~1`
 
-Evidence: `openbinding-gateway/tests/test_job_evidence.py::test_a_bim_failure_keeps_the_answer_and_fails_the_job_with_a_stable_code`; `openbinding-gateway/tests/test_job_evidence.py::test_the_retry_completes_the_job_without_running_the_engine`; `openbinding-gateway/tests/test_job_evidence.py::test_the_evidence_is_not_exposed_by_a_route`
+Evidence: `openbinding-gateway/tests/test_job_evidence.py`
 
 #### Scenario: BIM service unavailable during evaluation
 - **GIVEN** an engine answer received while the BIM service is failing
@@ -106,7 +106,7 @@ WHEN the owner cancels a job, THE gateway SHALL move a queued job to `cancelled`
 
 `req~job-execution-cancellation~1`
 
-Evidence: `openbinding-gateway/tests/test_cancel_running_job.py::test_without_the_capability_nothing_is_sent_and_the_worker_waits_for_the_engine_as_before`; `openbinding-gateway/tests/test_cancel_running_job.py::test_a_result_that_arrives_late_never_reopens_a_cancelled_job`; `openbinding-gateway/tests/test_concurrency_limit.py::test_cancelling_a_queued_job_frees_its_slot`; `docs/qa/ENGINE_CANCELLATION_E2E.md`
+Evidence: `openbinding-gateway/tests/test_cancel_running_job.py`; `docs/qa/ENGINE_CANCELLATION_E2E.md`
 
 #### Scenario: Cancel a running MiniZinc job
 - **GIVEN** a running job on `minizinc-csp`, which declares cancellation
@@ -114,11 +114,11 @@ Evidence: `openbinding-gateway/tests/test_cancel_running_job.py::test_without_th
 - **THEN** the gateway sends one `DELETE` to the engine and the job becomes `cancelled` after the engine confirms
 
 ### Requirement: Failed jobs show catalog sentences only
-WHEN a job fails, THE gateway SHALL store and show only a stable failure code from the job-failure catalog (e.g. `engine_rejected`, `engine_unreachable`, `engine_timeout`, `bim_evaluation_failed`, `lease_lost`) with its fixed sentence, and SHALL keep the engine's own text, hosts and addresses out of every table and response, logging them with the job id instead.
+WHEN a job fails, THE gateway SHALL store and show only a stable failure code from the job-failure catalog (e.g. `engine_rejected`, `lease_lost`) with its fixed sentence, and SHALL keep the engine's own text, hosts and addresses out of every table and response, logging them with the job id instead.
 
 `req~job-execution-failure-catalog~1`
 
-Evidence: `openbinding-gateway/tests/test_job_error_text.py::test_the_fields_of_a_failed_job_are_the_sentence_the_code_and_the_id`; `openbinding-gateway/tests/test_job_error_text.py::test_an_unreachable_engine_shows_its_sentence_and_not_its_host`; `openbinding-gateway/tests/test_job_error_text.py::test_the_reason_is_in_the_log_with_the_id_of_the_job_and_not_in_the_database`; `openbinding-gateway/src/openbinding_gateway/core/public_errors.py`
+Evidence: `openbinding-gateway/tests/test_job_error_text.py`
 
 #### Scenario: Engine refuses the IR with 422
 - **GIVEN** a running job whose engine answers 422 with a detailed rejection
@@ -130,7 +130,7 @@ IF a caller who is not the job's owner, or whose organization role is below MEMB
 
 `req~job-execution-actor-authorization~1`
 
-Evidence: `openbinding-gateway/tests/test_viewer_read_only.py::test_a_denied_viewer_launch_is_refused_before_compiling_and_leaves_no_job_or_key`; `openbinding-gateway/tests/test_cancel_running_job.py::test_another_account_cannot_cancel_the_job_and_nothing_reaches_the_engine`
+Evidence: `openbinding-gateway/tests/test_viewer_read_only.py`; `openbinding-gateway/tests/test_cancel_running_job.py`
 
 #### Scenario: Viewer launches a job
 - **GIVEN** a VIEWER of the organization that owns a shared snapshot
