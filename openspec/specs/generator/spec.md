@@ -53,7 +53,7 @@ IF a configuration has unknown keys (including `qos_properties`, `templates`, `w
 
 `req~generator-config-validation~2`
 
-Evidence: `openbinding-gateway/tests/test_generator_routes.py::test_invalid_generator_configuration_reports_field`; `openbinding-gateway/tests/test_generator_routes.py::test_corpus_rejects_ignored_base_configuration`
+Evidence: `openbinding-gateway/tests/test_generator_routes.py::test_invalid_generator_configuration_reports_field`
 
 #### Scenario: Weights in a generation request
 - **GIVEN** a configuration with a `weights` member

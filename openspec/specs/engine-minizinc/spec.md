@@ -29,7 +29,7 @@ WHEN an IR uses only task, empty, sequence, parallel, probabilistic XOR, repeat 
 
 `req~engine-minizinc-supported-constructs~2`
 
-Evidence: `schemas/bim/v1/manifests/minizinc-csp.json`; `engines/minizinc-csp/src/conformance.test.ts`; `engines/minizinc-csp/MULTIPLICATIVE_AGGREGATIONS.md`
+Evidence: `schemas/bim/v1/manifests/minizinc-csp.json`; `openbinding-gateway/tests/test_generator_routes.py::test_target_engine_rejects_unsupported_objective_and_aggregation`
 
 #### Scenario: Parallel block with a product aggregation
 - **GIVEN** an IR with a parallel block and a `product` aggregation
@@ -37,11 +37,11 @@ Evidence: `schemas/bim/v1/manifests/minizinc-csp.json`; `engines/minizinc-csp/sr
 - **THEN** the engine accepts it and returns a decision
 
 ### Requirement: Supported constraints and placement
-WHEN an IR adds hard or soft comparison constraints with constant non-negative penalties (optionally joined by `and`) or the complete placement overlay to the declared constructs, THE engine SHALL solve it.
+WHEN an IR adds hard or soft comparison constraints with constant non-negative penalties (optionally joined by `and`), the complete placement overlay, or both to the declared constructs, THE engine SHALL solve it.
 
 `req~engine-minizinc-supported-constraints~1`
 
-Evidence: `engines/minizinc-csp/src/conformance.test.ts`; `openbinding-gateway/tests/test_generator_routes.py::test_target_engine_rejects_unsupported_objective_and_aggregation`
+Evidence: `engines/minizinc-csp/src/conformance.test.ts`; `schemas/bim/v1/manifests/minizinc-csp.json`
 
 #### Scenario: Selected-candidate product with a soft constraint
 - **GIVEN** an IR with a `selection.product` feature and a soft constraint with a constant penalty
@@ -97,7 +97,7 @@ Evidence: `engines/minizinc-csp/src/conformance.test.ts`; `engines/minizinc-csp/
 - **THEN** the decision names `{resource: "catalog-b", id: "s1"}`
 
 ### Requirement: Solver process containment
-WHEN a job is cancelled or exceeds its budget, THE engine SHALL terminate the process group of every phase (flatten, `fzn-gecode`, optional `.ozn` rendering), escalating from SIGTERM to SIGKILL, and reap it before reporting it cancelled.
+WHEN a job is cancelled or exceeds its budget, THE engine SHALL terminate the process group of every phase (flatten, `fzn-gecode`, optional `.ozn` rendering), escalating from SIGTERM to SIGKILL, and reap it before reporting the job cancelled.
 
 `req~engine-minizinc-process-containment~1`
 

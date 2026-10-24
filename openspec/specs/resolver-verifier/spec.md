@@ -13,7 +13,7 @@ reproducibility.
 ## Requirements
 
 ### Requirement: Resolution without leakage
-WHEN a caller resolves a digest, THE gateway SHALL answer 200 with provenance and only the locations the caller may see if one is public or accessible, and otherwise 404, identically for a private element and an unknown digest.
+WHEN a caller resolves a digest, THE gateway SHALL answer 200 with provenance and only the locations the caller may see if any is public or accessible, and otherwise 404, identically for a private element and an unknown digest.
 
 `req~resolver-verifier-no-leakage~1`
 
@@ -61,7 +61,7 @@ Evidence: `openbinding-gateway/tests/test_b1_verifier.py::test_members_see_a_pri
 - **THEN** the registered element is listed
 
 ### Requirement: Hidden elements look unregistered
-WHEN an element is hidden from the caller, THE gateway SHALL answer an inspection exactly as for an unregistered digest (same status, fields, text and query work).
+WHEN an authenticated caller inspects an element hidden from them, THE gateway SHALL answer exactly as for an unregistered digest (same status, fields, text and query work).
 
 `req~resolver-verifier-inspect-indistinguishable~1`
 

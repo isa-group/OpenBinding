@@ -25,7 +25,7 @@ Evidence: `openbinding-gateway/tests/test_b3_public_read.py::test_denied_reads_l
 - **THEN** both answers are 403 `organization_forbidden` with identical bodies
 
 ### Requirement: Public read is GET-only and deny-by-default
-WHERE a project is `public`, THE gateway SHALL let any caller, anonymous included, use only the GET routes in the public-read matrix and SHALL refuse every other route as for a non-member.
+WHERE a project is `public`, THE gateway SHALL let any caller, anonymous included, use only the GET routes in the public-read matrix and SHALL refuse every other route exactly as for a non-member.
 
 `req~collaboration-artifacts-public-read-matrix~1`
 

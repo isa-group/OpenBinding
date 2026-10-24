@@ -32,7 +32,7 @@ nothing needs retagging.
 | (new) verifier requires an account | — | ~230 | — | inspect-auth~1 |
 | Verifier filters by visibility | — | ~290 | inspect-visibility~1 | inspect-visibility~2 |
 | (new) hidden elements look unregistered | — | ~330 | — | inspect-indistinguishable~1 |
-| Configuration validation | ~620 | ~440 | generator-config-validation~1 | config-validation~2 (size limits moved out) |
+| Configuration validation | ~620 | ~441 (one test as Evidence) | generator-config-validation~1 | config-validation~2 (size limits moved out) |
 | (new) configuration size limits | — | ~250 | — | config-size-limits~1 (Evidence: GAP, no test names the limits) |
 | Target engine compatibility hint | ~465 | ~450 | generator-target-engines~1 | same (reworded) |
 
@@ -47,6 +47,12 @@ Evidence dropped to fit (behaviour unchanged, entries still exist in the reposit
 
 Scenarios: all kept. New scenarios were added for the new or split requirements (visitor files, deprecated document,
 no mapping layer, parallel/product, anonymous inspection, member inspection, too many features).
+
+Counts at 33672394 (revisados tras la ronda 1); openspec validate --strict --all: NOT EXECUTED (exencion del
+propietario 24-10-2026). Round 1 corrections: config-validation measured ~546 (not ~440) and now has one Evidence test;
+the `exactly` in public-read-matrix is restored (+8); the supported-constructs and supported-constraints Evidence
+entries are reassigned to their requirements; the three nits are applied (counts move by a few characters, all stay
+under 500).
 
 Lengths worth rechecking with the tool: private-indistinguishable, public-read-rate, exact-composition,
 declared-subset, no-leakage (all hand-counted above 440).
