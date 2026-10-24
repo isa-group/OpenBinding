@@ -53,10 +53,10 @@ THE Compose and lab files SHALL give the JWT signing secret only to the services
 
 `req~lab-deployment-jwt-secret-scope~1`
 
-Evidence: `openbinding-gateway/tests/test_compose_worker_secrets.py::test_dramatiq_services_do_not_get_jwt_secret`
+Evidence: `openbinding-gateway/tests/test_compose_worker_secrets.py::test_dramatiq_services_do_not_get_jwt_secret`; `lab/tests/test_lab_compose.py::test_workers_and_seed_do_not_receive_the_jwt_secret`
 
 #### Scenario: JWT secret on a worker
-- **GIVEN** a change that passes `JWT_SECRET` to a Dramatiq worker service
+- **GIVEN** a change that passes `GATEWAY_JWT_SECRET` to a Dramatiq worker service
 - **WHEN** the unit suite runs
 - **THEN** the worker secrets test fails
 

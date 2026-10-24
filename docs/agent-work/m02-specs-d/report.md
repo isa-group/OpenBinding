@@ -13,7 +13,7 @@ split-off behaviour gets a new id at `~1`. Ids are never reused.
 | Single loopback port | ~360 | ~360 | single-loopback-port~1 | same |
 | Memory budget | ~463 | ~452 (reworded) | memory-budget~1 | same |
 | Secret references | ~537 | ~324 (JWT clause moved out) | secret-references~1 | secret-references~2 |
-| (new) JWT secret only for session signers | — | ~277 | — | jwt-secret-scope~1 |
+| (new) JWT secret only for session signers | — | ~363 (second test added to Evidence) | — | jwt-secret-scope~1 |
 | Unprivileged containers | ~530 | ~377 (pinning moved out) | unprivileged-containers~1 | unprivileged-containers~2 |
 | (new) Pinned images and uv | — | ~215 | — | pinned-images~1 |
 | No local SPACE | ~347 | ~347 | no-local-space~1 | same |
