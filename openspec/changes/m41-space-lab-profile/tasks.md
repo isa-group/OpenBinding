@@ -14,7 +14,7 @@ guessed.
 Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml`, so tags in `lab/tests/` are not traced
 until those paths are added.
 
-Known deviation: `lab/tests/test_lab_pricing_profile.py` has 401 lines, over the ~300-line PR guideline. The rule
+Known deviation: `lab/tests/test_lab_pricing_profile.py` has 581 lines and 23 test functions (several parametrized), over the ~300-line PR guideline. The rule
 functions (one per requirement) and the controls that mutate a conforming sample live in one file so that each rule sits
 next to the proof that it refuses what it must; splitting them would separate a rule from its control.
 

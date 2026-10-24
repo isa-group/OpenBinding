@@ -42,7 +42,7 @@ THE lab SHALL define the SPACE `pricing` profile only in `compose.lab-pricing.js
 
 `req~lab-deployment-pricing-profile-optional~1`
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_optional_profile_file`; `lab/tests/test_lab_pricing_profile.py::test_compose_lab_keeps_no_space_service`; `lab/tests/test_lab_pricing_profile.py::test_control_sample_conforms`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_non_isolated_or_non_optional_profile`; `lab/tests/test_lab_compose.py::test_no_space_services`
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_optional_profile_file`; `lab/tests/test_lab_pricing_profile.py::test_compose_lab_keeps_no_space_service`; `lab/tests/test_lab_pricing_profile.py::test_control_sample_conforms`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_non_optional_profile`; `lab/tests/test_lab_pricing_profile.py::test_control_ignores_the_service_order`; `lab/tests/test_lab_compose.py::test_no_space_services`
 
 The four services are the final state (slice S4). Slice S2 delivers the first three; the rule expects the three-service set until S4 adds `pricing-bootstrap`. The gateway is not wired to this SPACE in M4.1; M4.2/M4.5 fold the services into the main lab manifest or choose another route with a recorded exception to the no-`networks` rule. The command `lab_compose up file=compose.lab-pricing.json` is proposed (factory follow-up F1) and no test covers that exact string.
 
@@ -111,7 +111,7 @@ THE pricing profile SHALL set a whole-unit `mem_limit` on every service, keep th
 
 `req~lab-deployment-pricing-profile-memory-budget~1`
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_memory_budget_matches_the_runbook`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_mongo_limit_over_budget`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_cache_and_heap_changes`
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_memory_budget_matches_the_runbook`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_cache_and_heap_changes` (also covers a limit over budget or removed, and a runbook sum that differs)
 
 The final sum is 1088 MiB: 512 (`space-mongo`) + 96 (`space-redis`) + 384 (`space-api`) + 96 (`pricing-bootstrap`). The S2 manifest has three services and a sum of 992 MiB; slice S4 adds the bootstrap and the 96 MiB. The ceiling stays 1152 MiB.
 
@@ -142,7 +142,7 @@ THE pricing profile SHALL publish no host port and expose none, use no `networks
 
 `req~lab-deployment-pricing-profile-isolated~1`
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_isolated_services`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_non_isolated_or_non_optional_profile`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_keys_outside_the_allow_list`
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_isolated_services`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_non_isolated_profile`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_keys_outside_the_allow_list`
 
 #### Scenario: A published port added
 - **GIVEN** `compose.lab-pricing.json` plus a published port for `space-api`
