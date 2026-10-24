@@ -5,9 +5,10 @@
 
 - In the repository already: the planner `lab/previews/previews.py` with its tests (`lab/tests/test_previews.py`),
   and the live isolation probe `lab/tests/test_preview_isolation.py`.
-- Still pending: the Compose parameterisation of the published port (a separate change) and `labctl preview`.
+- Also in the repository: the lab Compose files are parameterised by `DEMO_LAB_PORT` (default 18100).
+- Still pending: the factory validator `lab_compose` accepting the parameterised file (F1) and `labctl preview` (F2).
 
-Until then, the only lab stack is the develop lab on `127.0.0.1:18100` (`docs/DEMO.md`).
+Until `labctl preview` lands, the only lab stack is the develop lab on `127.0.0.1:18100` (`docs/DEMO.md`).
 
 ## What a preview is
 
@@ -58,8 +59,7 @@ have no public hostname: the homelab Caddy serves only the develop preview.
 ## Isolation check
 
 `lab/tests/test_preview_isolation.py` checks, from preview A, that B's port is refused and that A reaches its own
-`web` (one direction; swap A and B and run again for the other). Until the Compose parameterisation and
-`labctl preview` land, only two stand-in projects can run it: each needs a `gateway` service with `python` on PATH, a
+`web` (one direction; swap A and B and run again for the other). Until `labctl preview` lands, only two stand-in projects can run it: each needs a `gateway` service with `python` on PATH, a
 `web` service whose container port 8080 is published on `127.0.0.1:<port>`, and the default network
 `<project>_default`, both up and healthy. It runs only with `OPENBINDING_LAB_PROBE=1` and needs `OPENBINDING_PROBE_PROJECT_A` and
 `OPENBINDING_PROBE_PROJECT_B` (projects `openbinding-pr-<n>`) with `OPENBINDING_PROBE_PORT_A` and

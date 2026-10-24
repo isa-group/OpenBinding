@@ -171,7 +171,7 @@
         "context": ".",
         "dockerfile": "openbinding-gateway/Dockerfile"
       },
-      "image": "openbinding-lab-gateway:latest",
+      "image": "openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}",
       "command": [
         "sh",
         "-c",
@@ -188,7 +188,7 @@
         "ARTIFACT_ROOT": "/var/lib/openbinding/artifacts",
         "GATEWAY_JWT_SECRET": "${DEMO_JWT_SECRET}",
         "FEDERATION_SECRET_KEY": "${DEMO_FERNET_KEY}",
-        "CORS_ALLOW_ORIGINS": "http://localhost:18100,http://127.0.0.1:18100,${DEMO_PUBLIC_ORIGIN}",
+        "CORS_ALLOW_ORIGINS": "http://localhost:${DEMO_LAB_PORT:-18100},http://127.0.0.1:${DEMO_LAB_PORT:-18100},${DEMO_PUBLIC_ORIGIN}",
         "PUBLIC_BASE_URL": "${DEMO_PUBLIC_ORIGIN:-http://localhost:18100}",
         "FRONTEND_URL": "${DEMO_PUBLIC_ORIGIN:-http://localhost:18100}",
         "FORWARDED_ALLOW_IPS": "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16",
@@ -247,7 +247,7 @@
       }
     },
     "worker": {
-      "image": "openbinding-lab-gateway:latest",
+      "image": "openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}",
       "entrypoint": [],
       "command": [
         "sh",
@@ -327,7 +327,7 @@
       "ports": [
         {
           "target": 8080,
-          "published": 18100,
+          "published": "${DEMO_LAB_PORT:-18100}",
           "host_ip": "127.0.0.1"
         }
       ],
@@ -361,7 +361,7 @@
     },
     "seed": {
       "profiles": ["seed"],
-      "image": "openbinding-lab-gateway:latest",
+      "image": "openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}",
       "command": [
         "sh",
         "-c",
@@ -377,7 +377,7 @@
         "JOB_DISPATCH_MODE": "dramatiq",
         "ARTIFACT_ROOT": "/var/lib/openbinding/artifacts",
         "FEDERATION_SECRET_KEY": "${DEMO_FERNET_KEY}",
-        "CORS_ALLOW_ORIGINS": "http://localhost:18100,http://127.0.0.1:18100,${DEMO_PUBLIC_ORIGIN}",
+        "CORS_ALLOW_ORIGINS": "http://localhost:${DEMO_LAB_PORT:-18100},http://127.0.0.1:${DEMO_LAB_PORT:-18100},${DEMO_PUBLIC_ORIGIN}",
         "PUBLIC_BASE_URL": "${DEMO_PUBLIC_ORIGIN:-http://localhost:18100}",
         "FRONTEND_URL": "${DEMO_PUBLIC_ORIGIN:-http://localhost:18100}",
         "CAS_ENABLED": "false",
