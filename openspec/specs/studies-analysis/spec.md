@@ -17,7 +17,7 @@ WHEN a study run is created, THE gateway SHALL expand the study definition into 
 
 `req~studies-analysis-deterministic-matrix~1`
 
-Evidence: `openbinding-gateway/tests/test_studies_platform.py::test_matrix_expansion_is_sorted_reproducible_and_fingerprinted`; `openbinding-gateway/tests/test_studies_platform.py::test_study_matrix_is_bounded_before_any_jobs_are_created`; `openbinding-gateway/tests/test_studies_platform.py::test_study_run_persists_the_exact_cartesian_matrix`
+Evidence: `openbinding-gateway/tests/test_studies_platform.py`
 
 #### Scenario: Same definition twice
 - **GIVEN** a study definition with 2 case revisions and 3 engine modes
@@ -29,7 +29,7 @@ IF a study definition omits the mode or the optimization of an engine, or repeat
 
 `req~studies-analysis-explicit-engine~1`
 
-Evidence: `openbinding-gateway/tests/test_studies_platform.py::test_study_definition_requires_an_explicit_mode_and_optimization_per_engine`; `openbinding-gateway/tests/test_studies_platform.py::test_study_definition_rejects_duplicate_axes_and_malformed_engine_digests`
+Evidence: `openbinding-gateway/tests/test_studies_platform.py`
 
 #### Scenario: Engine without a mode
 - **GIVEN** a definition that lists `random-search` without `mode`
@@ -41,7 +41,7 @@ WHEN a study cell is launched or retried more than once, THE gateway SHALL retur
 
 `req~studies-analysis-one-job-per-cell~1`
 
-Evidence: `openbinding-gateway/tests/test_study_cell_launch.py::test_launching_the_same_cell_again_returns_the_same_job`; `openbinding-gateway/tests/test_study_run_concurrency.py::test_a_second_retry_of_a_cell_is_answered_with_the_first_ones_job`; `openbinding-gateway/tests/concurrency/test_study_cells_pg.py`
+Evidence: `openbinding-gateway/tests/test_study_cell_launch.py`; `openbinding-gateway/tests/concurrency/test_study_cells_pg.py`; `openbinding-gateway/tests/test_study_run_concurrency.py`
 
 #### Scenario: Double click on retry
 - **GIVEN** a failed cell
@@ -53,7 +53,7 @@ WHEN a run is cancelled, THE gateway SHALL lock the run, then its cells, then th
 
 `req~studies-analysis-run-cancellation~1`
 
-Evidence: `openbinding-gateway/tests/test_study_run_concurrency.py::test_cancelling_a_run_locks_the_run_then_its_cells_then_their_jobs`; `openbinding-gateway/tests/test_study_run_concurrency.py::test_a_cancelled_run_launches_no_cell_when_a_job_finishes`; `openbinding-gateway/tests/concurrency/test_study_cancel_pg.py`
+Evidence: `openbinding-gateway/tests/test_study_run_concurrency.py`; `openbinding-gateway/tests/concurrency/test_study_cancel_pg.py`
 
 #### Scenario: Job finishes after cancellation
 - **GIVEN** a cancelled run with one job still running
@@ -65,7 +65,7 @@ WHEN the neighbourhood of a binding is analysed, THE gateway SHALL evaluate each
 
 `req~studies-analysis-neighbourhood~1`
 
-Evidence: `openbinding-gateway/tests/test_binding_analysis.py::test_partial_and_empty_coverage_never_claims_unchecked_local_optimality`; `openbinding-gateway/tests/test_binding_analysis.py::test_endpoint_requires_owner_and_validates_budget`
+Evidence: `openbinding-gateway/tests/test_binding_analysis.py`
 
 #### Scenario: Budget runs out
 - **GIVEN** a binding with 10,000 one-task alternatives and a 2 s budget
@@ -77,7 +77,7 @@ WHEN an API key starts or cancels Pareto analysis work, THE gateway SHALL requir
 
 `req~studies-analysis-task-permissions-attempts~1`
 
-Evidence: `openbinding-gateway/tests/test_apikey_analysis_scopes.py::test_a_jobs_read_key_cannot_create_analysis_work`; `openbinding-gateway/tests/test_analysis_task_attempts.py::test_the_third_lost_worker_fails_the_task_as_abandoned`
+Evidence: `openbinding-gateway/tests/test_apikey_analysis_scopes.py`; `openbinding-gateway/tests/test_analysis_task_attempts.py`
 
 #### Scenario: Read-only key starts a Pareto task
 - **GIVEN** a key with only `jobs:read`
