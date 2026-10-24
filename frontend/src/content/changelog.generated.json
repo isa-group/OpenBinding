@@ -82,7 +82,7 @@
       "date": "2026-10-24",
       "title": "OpenBinding documentation",
       "changes": [
-        "M03-gate-tooling plan and handoff",
+        "M21-rendering-catalogue plan and handoff",
         "Optional pricing profile for a local SPACE, static tests and narrowed no-local-space test (M4.1, S1+S2) (#36)",
         "PR preview planner and its contract tests (M0.5 S1b+S3) (#34)",
         "Shorten over-length lab-deployment requirements (M0.2) (#35)",

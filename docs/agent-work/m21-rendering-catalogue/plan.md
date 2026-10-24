@@ -1,0 +1,1 @@
+Change m21-rendering-catalogue: M2.1 components + docs, M2.2 hygiene test, one PR (38). Done: all slices, review round 1 fixes, spec/docs aligned. Next: push, round-2 panel (reviewer + test-reviewer), review package, ready.
