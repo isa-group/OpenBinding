@@ -143,33 +143,59 @@ def test_a_shorter_switch_interval_keeps_healthz_fast_under_the_same_cpu_load(ma
     Measured here with the load of the xfail test that follows (4 CPU-bound operations): /healthz median
     5 ms interval 94-118 ms, 1 ms 21-34 ms, 0.5 ms 38 ms, 0.1 ms 3.6-6.4 ms; the work the 4 threads did per second at
     0.1 ms was about 17% below the 5 ms figure in one run (16.4k against 19.9k; noisy, not repeated).
+
+    The bound is relative, not absolute: a shared runner can make every /healthz slow (a median of 44.8 ms at 0.1 ms
+    failed an absolute 30 ms).  The median at 0.1 ms is compared with the median at the default interval measured in
+    the same run, in interleaved rounds, keeping the best median of each side; it has to be less than half.
     """
     original = sys.getswitchinterval()
-    stop = threading.Event()
-    monkeypatch.setattr(operations, "compile_package", lambda data, registered, limits: (busy(stop), {"ir": {}})[1])
-    app = make_app(max_concurrency=4, max_concurrency_per_tenant=0, operation_timeout_seconds=30)
+    default_interval = original
+    short_interval = 0.0001
+    rounds = 3
 
-    async def scenario() -> list[float]:
-        async with async_client(app) as client:
-            tasks = [asyncio.create_task(client.post(COMPILE, json=PACKAGE_BODY)) for _ in range(4)]
-            await asyncio.sleep(0.2)
-            latencies = []
-            for _ in range(15):
-                started = time.perf_counter()
-                await client.get("/healthz")
-                latencies.append(time.perf_counter() - started)
-                await asyncio.sleep(0.02)
+    def median_latency(interval: float) -> float:
+        stop = threading.Event()
+        monkeypatch.setattr(
+            operations, "compile_package", lambda data, registered, limits: (busy(stop), {"ir": {}})[1]
+        )
+        app = make_app(max_concurrency=4, max_concurrency_per_tenant=0, operation_timeout_seconds=30)
+
+        async def scenario() -> list[float]:
+            async with async_client(app) as client:
+                tasks = [asyncio.create_task(client.post(COMPILE, json=PACKAGE_BODY)) for _ in range(4)]
+                await asyncio.sleep(0.2)
+                latencies = []
+                for _ in range(15):
+                    started = time.perf_counter()
+                    await client.get("/healthz")
+                    latencies.append(time.perf_counter() - started)
+                    await asyncio.sleep(0.02)
+                stop.set()
+                await asyncio.gather(*tasks)
+                return latencies
+
+        sys.setswitchinterval(interval)
+        try:
+            return statistics.median(run(scenario()))
+        finally:
             stop.set()
-            await asyncio.gather(*tasks)
-            return latencies
+            sys.setswitchinterval(original)
 
-    sys.setswitchinterval(0.0001)
+    default_medians: list[float] = []
+    short_medians: list[float] = []
     try:
-        latencies = run(scenario())
+        for _ in range(rounds):
+            default_medians.append(median_latency(default_interval))
+            short_medians.append(median_latency(short_interval))
     finally:
-        stop.set()
         sys.setswitchinterval(original)
-    assert statistics.median(latencies) < 0.03, latencies
+    best_default = min(default_medians)
+    best_short = min(short_medians)
+    assert best_short < 0.5 * best_default, (
+        f"/healthz median at {short_interval * 1000:g} ms {[round(m * 1000, 1) for m in short_medians]} ms, "
+        f"at the default {default_interval * 1000:g} ms {[round(m * 1000, 1) for m in default_medians]} ms "
+        f"(best {best_short * 1000:.1f} ms against {best_default * 1000:.1f} ms; it must be below half)"
+    )
 
 
 # --- open defects ----------------------------------------------------------------------------------------

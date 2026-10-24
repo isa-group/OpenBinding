@@ -507,30 +507,54 @@ def test_healthz_stays_responsive_under_cpu_load_with_the_configured_interval(
     make_app, monkeypatch, restore_switch_interval
 ) -> None:
     """The load of ``tests/analysis`` (4 CPU-bound operations): median /healthz 94-118 ms at the default interval of
-    5 ms, a few ms at 0.1 ms.  The bound is the one of the analysis test that sets the interval by hand."""
-    stop = threading.Event()
-    monkeypatch.setattr(operations, "compile_package", lambda data, registered, limits: (busy(stop), {"ir": {}})[1])
-    app = make_app(
-        max_concurrency=4, max_concurrency_per_tenant=0, operation_timeout_seconds=30, switch_interval_seconds=0.0001
-    )
+    5 ms, a few ms at 0.1 ms.  The bound is relative, like the analysis test that sets the interval by hand: the
+    median with the configured interval (0.1 ms) has to be less than half of the median without the setting (the
+    default interval) measured in the same run, in interleaved rounds, keeping the best median of each side.  An
+    absolute bound failed on a shared runner where every request was slow."""
+    original = restore_switch_interval
+    rounds = 3
 
-    async def scenario() -> list[float]:
-        async with app.router.lifespan_context(app):
-            async with async_client(app) as client:
-                tasks = [asyncio.create_task(post(client)) for _ in range(4)]
-                await asyncio.sleep(0.2)
-                latencies = []
-                for _ in range(15):
-                    started = time.perf_counter()
-                    await client.get("/healthz")
-                    latencies.append(time.perf_counter() - started)
-                    await asyncio.sleep(0.02)
-                stop.set()
-                await asyncio.gather(*tasks)
-                return latencies
+    def median_latency(switch_interval: float | None) -> float:
+        stop = threading.Event()
+        monkeypatch.setattr(
+            operations, "compile_package", lambda data, registered, limits: (busy(stop), {"ir": {}})[1]
+        )
+        overrides = {} if switch_interval is None else {"switch_interval_seconds": switch_interval}
+        app = make_app(max_concurrency=4, max_concurrency_per_tenant=0, operation_timeout_seconds=30, **overrides)
 
+        async def scenario() -> list[float]:
+            async with app.router.lifespan_context(app):
+                async with async_client(app) as client:
+                    tasks = [asyncio.create_task(post(client)) for _ in range(4)]
+                    await asyncio.sleep(0.2)
+                    latencies = []
+                    for _ in range(15):
+                        started = time.perf_counter()
+                        await client.get("/healthz")
+                        latencies.append(time.perf_counter() - started)
+                        await asyncio.sleep(0.02)
+                    stop.set()
+                    await asyncio.gather(*tasks)
+                    return latencies
+
+        try:
+            return statistics.median(run(scenario()))
+        finally:
+            stop.set()
+            sys.setswitchinterval(original)
+
+    default_medians: list[float] = []
+    short_medians: list[float] = []
     try:
-        latencies = run(scenario())
+        for _ in range(rounds):
+            default_medians.append(median_latency(None))
+            short_medians.append(median_latency(0.0001))
     finally:
-        stop.set()
-    assert statistics.median(latencies) < 0.03, latencies
+        sys.setswitchinterval(original)
+    best_default = min(default_medians)
+    best_short = min(short_medians)
+    assert best_short < 0.5 * best_default, (
+        f"/healthz median with the configured 0.1 ms {[round(m * 1000, 1) for m in short_medians]} ms, "
+        f"without the setting (default {original * 1000:g} ms) {[round(m * 1000, 1) for m in default_medians]} ms "
+        f"(best {best_short * 1000:.1f} ms against {best_default * 1000:.1f} ms; it must be below half)"
+    )
