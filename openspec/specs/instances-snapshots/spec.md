@@ -17,7 +17,7 @@ WHEN a client uploads a package, THE gateway SHALL accept only a complete `.bim.
 
 `req~instances-snapshots-zip-only~1`
 
-Evidence: `openbinding-gateway/tests/test_instances_service.py::test_an_upload_must_use_a_zip_media_type_before_any_limit_is_read`; `openbinding-gateway/tests/test_v1_platform_contracts.py::test_jobs_reject_json_packages_in_favour_of_snapshots_or_zip`
+Evidence: `openbinding-gateway/tests/test_instances_service.py::test_an_upload_must_use_a_zip_media_type_before_any_limit_is_read`
 
 #### Scenario: JSON instead of a ZIP
 - **GIVEN** a client that posts `instance.json` as `application/json`
@@ -29,7 +29,7 @@ IF an uploaded archive exceeds the package limits (size, entry count, expansion 
 
 `req~instances-snapshots-hostile-archives~1`
 
-Evidence: `openbinding-gateway/tests/test_package_bomb.py::test_a_deflate_bomb_declaring_a_small_size_is_a_422`; `openbinding-gateway/tests/test_package_bomb.py::test_bzip2_and_lzma_entries_are_a_422`; `openbinding-gateway/tests/test_v1_package_security.py`
+Evidence: `openbinding-gateway/tests/test_package_bomb.py`; `openbinding-gateway/tests/test_v1_package_security.py`
 
 #### Scenario: Deflate bomb with a lying header
 - **GIVEN** a ZIP whose entry declares 1 KiB but inflates to 1 GiB
@@ -41,7 +41,7 @@ IF the BIM toolchain refuses a package, THEN THE gateway SHALL answer 422 with a
 
 `req~instances-snapshots-compile-diagnostics~1`
 
-Evidence: `openbinding-gateway/tests/test_b4_problem_schema.py::test_a_bim_package_the_compiler_refuses_is_a_422_problem_with_its_diagnostics`; `openbinding-gateway/tests/test_b8_range_refusal_pointer.py`
+Evidence: `openbinding-gateway/tests/test_b4_problem_schema.py`; `openbinding-gateway/tests/test_b8_range_refusal_pointer.py`
 
 #### Scenario: Unknown candidate reference
 - **GIVEN** a package whose constraint references a candidate that does not exist
@@ -53,7 +53,7 @@ WHEN an account creates a snapshot of a package it already stored with the same 
 
 `req~instances-snapshots-owner-dedup~1`
 
-Evidence: `openbinding-gateway/tests/test_instances_service.py::test_the_same_package_uploaded_twice_by_its_owner_is_one_snapshot`; `openbinding-gateway/tests/test_instances_service.py::test_the_same_package_uploaded_by_two_accounts_is_two_independent_snapshots`; `openbinding-gateway/src/openbinding_gateway/services/snapshots.py`
+Evidence: `openbinding-gateway/tests/test_instances_service.py`; `openbinding-gateway/src/openbinding_gateway/services/snapshots.py`
 
 #### Scenario: Same package, two accounts
 - **GIVEN** alice and bob upload byte-identical packages
@@ -65,7 +65,7 @@ WHEN a caller reads a snapshot, its source, IR or archive, THE gateway SHALL ser
 
 `req~instances-snapshots-visibility~1`
 
-Evidence: `openbinding-gateway/tests/test_instances_service.py::test_another_account_cannot_read_the_snapshot_in_any_form`; `openbinding-gateway/tests/test_instances_service.py::test_validating_a_snapshot_of_another_account_is_not_found`; `openbinding-gateway/tests/test_viewer_read_only.py::test_a_user_of_another_organization_gets_the_same_404_as_for_a_missing_snapshot`
+Evidence: `openbinding-gateway/tests/test_instances_service.py`; `openbinding-gateway/tests/test_viewer_read_only.py`
 
 #### Scenario: Reading another account's IR
 - **GIVEN** a snapshot owned by alice and not shared
@@ -77,7 +77,7 @@ IF a stored snapshot was compiled by a toolchain whose `compilerDigest` differs 
 
 `req~instances-snapshots-toolchain-pin~1`
 
-Evidence: `openbinding-gateway/tests/test_ir_cutover.py::test_a_launch_on_a_snapshot_of_another_toolchain_is_a_stable_422_and_stores_nothing`; `openbinding-gateway/tests/test_ir_cutover.py::test_over_http_a_stale_snapshot_and_an_old_job_answer_422_never_500`; `docs/qa/SNAPSHOT_INVALID_INSTANCE.md`
+Evidence: `openbinding-gateway/tests/test_ir_cutover.py`; `docs/qa/SNAPSHOT_INVALID_INSTANCE.md`
 
 #### Scenario: Snapshot from the previous IR order
 - **GIVEN** a snapshot compiled by bim-core 0.1.x and a gateway running 0.2.0
