@@ -215,6 +215,7 @@ def test_secrets_are_references_never_literals_and_references_have_no_defaults(p
     assert rules.DESTRUCTIVE_KEY not in text and "VITE_API_KEY" not in text
 
 
+# [utest->req~lab-deployment-single-loopback-port~2]
 def test_only_the_gateway_holds_the_jwt_secret_and_one_port_is_published(profile, manifest):
     services = manifest["services"]
     holders = {n for n, s in services.items() if rules.JWT_SECRET in json.dumps(s)}

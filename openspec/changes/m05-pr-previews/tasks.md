@@ -123,8 +123,9 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
 - [x] 2.1 `compose.lab.json`, `compose.lab-process.json`, `compose.lab-process-n2.json`,
   `compose.lab-process-n1-probe.json`, `compose.lab-process-n2-probe.json`: `DEMO_LAB_PORT` in `published`, in the
   three gateway image tags and in the two local CORS lists (design.md §5).
-  The probe profiles (`-n1-probe`, `-n2-probe`) are edited by 2.1 but not covered by the shared static rules
-  (accepted).
+  The probe profiles (`-n1-probe`, `-n2-probe`) are covered transitively: the process-profile rules run on them in
+  `lab/tests/test_lab_process_n1_probe_profile.py` and `test_lab_process_probe_profile.py`, and each equals N1 or N2
+  plus one line.
 - [x] 2.2 `docs/DEMO.md`: a `DEMO_LAB_PORT` row (default 18100, PR previews 18101–18199) and the new image tag.
 - Acceptance: all lab static rules pass, and the develop lab expands to exactly today's port, origins and volumes.
   Checks:
@@ -158,7 +159,7 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
   and the client prints `ECONNREFUSED` (a timeout, another errno or an exec error fails the test). Controls: the
   client connects to A's own `web:8080`; B's port answers from the host at `127.0.0.1:<B port>`; A's `web` resolves
   to A's own container address, which differs from B's.
-  Note: S1a, S2, F1 and F2 are moved to a later change, so the preview docs state the plan truthfully.
+  Note: F1 and F2 are still pending and live outside the repository, so the preview docs state the plan truthfully.
   `docs/qa/E2E_PLAN.md` and `TESTING.md` naming the preview port, and the ARCHITECTURE §10 row, are follow-ups
   outside this change.
 - [ ] 4.2 `docs/previews/README.md` changes from plan to in force. `docs/DEMO.md` gets a "PR previews" section.

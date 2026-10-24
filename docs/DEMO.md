@@ -662,7 +662,7 @@ only, expire after 7 idle days and are deleted only through `labctl destroy`.
 - A single worker serves both queues with two threads; analysis jobs and solve
   jobs can delay each other.
 - `gateway`, `worker` and `seed` share one image, `openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`
-  (`openbinding-lab-gateway:18100` by default; the first `up --build` after this change builds it once),
+  (`openbinding-lab-gateway:18100` by default; a lab that only holds `:latest` builds `:18100` once on its next `up --build`),
   built only by `gateway`. Reason: `up --build` rebuilds only services without a
   profile, and `run --rm --no-deps seed` reuses an existing image without
   rebuilding it, so a `seed` with its own `build` ran code from an earlier build
