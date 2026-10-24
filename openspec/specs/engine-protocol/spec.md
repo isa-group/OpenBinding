@@ -54,10 +54,10 @@ WHERE an engine runs in asynchronous mode, THE engine SHALL issue random unguess
 
 Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineHttpTest.java`; `engines/minizinc-csp/src/job_manager.test.ts`
 
-#### Scenario: Completed job polled twice
-- **GIVEN** a completed job
-- **WHEN** a client calls `GET /internal/v1/jobs/{id}` twice
-- **THEN** both answers report `completed` with the same result
+#### Scenario: Cancelled job whose solver later returns
+- **GIVEN** a cancelled job whose solver later returns a result
+- **WHEN** a client polls it
+- **THEN** the job is not reopened
 
 ### Requirement: Job isolation between tenants
 WHERE an engine runs in asynchronous mode, THE engine SHALL answer an unknown job id and another tenant's job id with an identical 404.
@@ -88,7 +88,7 @@ WHERE an engine declares the cancellation capability, THE engine SHALL answer `D
 
 `req~engine-protocol-cancel-confirmation~1`
 
-Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineJobsTest.java`; `openbinding-gateway/tools/cancel_probe.py`
+Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineJobsTest.java`; `engines/minizinc-csp/src/cancel.test.ts`; `openbinding-gateway/tools/cancel_probe.py`
 
 #### Scenario: Cancel races completion
 - **GIVEN** a running job whose solver finishes at the moment `DELETE` arrives

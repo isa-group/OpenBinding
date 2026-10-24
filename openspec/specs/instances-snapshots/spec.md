@@ -17,7 +17,7 @@ WHEN a client uploads a package, THE gateway SHALL accept only a complete `.bim.
 
 `req~instances-snapshots-zip-only~1`
 
-Evidence: `openbinding-gateway/tests/test_instances_service.py::test_an_upload_must_use_a_zip_media_type_before_any_limit_is_read`
+Evidence: `openbinding-gateway/tests/test_instances_service.py::test_an_upload_must_use_a_zip_media_type_before_any_limit_is_read`; `openbinding-gateway/tests/test_v1_platform_contracts.py::test_jobs_reject_json_packages_in_favour_of_snapshots_or_zip`
 
 #### Scenario: JSON instead of a ZIP
 - **GIVEN** a client that posts `instance.json` as `application/json`

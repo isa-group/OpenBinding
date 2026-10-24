@@ -29,7 +29,7 @@ WHEN a registration names a deployment endpoint, THE gateway SHALL accept it onl
 
 `req~engine-registry-destination-policy~2`
 
-Evidence: `openbinding-gateway/tests/test_engine_registry_service.py::test_one_private_address_among_public_ones_is_enough_to_refuse_the_name`
+Evidence: `openbinding-gateway/tests/test_engine_registry_service.py`
 
 #### Scenario: Name resolving to a private address
 - **GIVEN** an endpoint `https://solver.example` that resolves to one public and one `10.0.0.5` address
@@ -53,7 +53,7 @@ WHEN the same identity is registered again with the same content digest, THE gat
 
 `req~engine-registry-immutable-registration~1`
 
-Evidence: `openbinding-gateway/tests/test_v1_platform_contracts.py::test_registration_lifecycle_targets_one_exact_immutable_revision`
+Evidence: `openbinding-gateway/tests/test_v1_platform_contracts.py::test_registration_lifecycle_targets_one_exact_immutable_revision`; `openbinding-gateway/tests/test_engine_registry_service.py`
 
 #### Scenario: Re-registration with changed manifest
 - **GIVEN** a registration `acme/solver@1.0.0` stored with digest D1
@@ -92,9 +92,9 @@ IF a registration document embeds a secret, THEN THE gateway SHALL refuse it wit
 Evidence: `openbinding-gateway/tests/test_engine_registry_service.py::test_registration_refuses_a_document_that_embeds_a_secret_without_echoing_it`
 
 #### Scenario: Registration with a token inside
-- **GIVEN** a registration document whose manifest embeds a bearer token
+- **GIVEN** a registration document with a secret-like field such as `spec.extensions.apiToken`
 - **WHEN** an engine author registers it
-- **THEN** the gateway refuses it and the answer does not contain the token
+- **THEN** the gateway answers 422 `secret_in_document` without the secret
 
 ### Requirement: Private until approved
 WHILE a registration is not approved for publication, THE gateway SHALL make it visible and usable only to its owner, answering others as if it did not exist.

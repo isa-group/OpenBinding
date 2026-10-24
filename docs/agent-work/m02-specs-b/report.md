@@ -94,6 +94,24 @@ precisely, in every requirement of the five specs where a long `Evidence:` line 
 - engine-protocol: `engines/minizinc-csp/src/conformance.test.ts` from IR-only and refusal-before-work;
   `ManySearchTest` from honest termination.
 
+## Round 1 panel fixes (base SHA 62d2d5e, PR head dc2e263 plus develop)
+
+Counts re-estimated by hand after each change (maximum 500):
+
+| Requirement | Finding | Change | Count now |
+|---|---|---|---|
+| `engine-registry-immutable-registration~1` | R1-REV-001 | Evidence adds `test_engine_registry_service.py` (file level: idempotence and 409) | ~463 |
+| `engine-protocol-async-jobs~2` | R1-REV-002 | scenario replaced by "Cancelled job whose solver later returns" (job_manager.test.ts, EngineJobsTest, EngineHttpTest) | ~386 |
+| `engine-registry-destination-policy~2` | R1-REV-003 | Evidence cites `test_engine_registry_service.py` at file level (covers loopback/link-local) | ~327 |
+| `engine-protocol-cancel-confirmation~1` | R1-REV-004 | Evidence adds `engines/minizinc-csp/src/cancel.test.ts` | ~440 |
+| `engine-registry-embedded-secret~1` | R1-REV-005 | scenario: `spec.extensions.apiToken`, answer 422 `secret_in_document` | ~291 |
+| `instances-snapshots-zip-only~1` | R1-REV-006 | Evidence restores `test_jobs_reject_json_packages_in_favour_of_snapshots_or_zip` | ~489 |
+
+The dropped-evidence list above is superseded for `test_registering_twice_is_idempotent`, the loopback/link-local
+test and the JSON-package test, which are covered again. No other clause without a test was found on re-reading.
+
+`openspec validate --strict --all`: NOT EXECUTED (exencion del propietario 24-10-2026).
+
 ## Not done / follow-up
 
 - Hand-counted lengths must be confirmed with `openspec validate --strict --all` (NOT EXECUTED). The tightest bodies
