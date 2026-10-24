@@ -72,7 +72,7 @@ export const RAW_RENDERING_ALLOW_LIST: RawRenderingOffender[] = [
     lines: [
       { line: 326, text: '<pre aria-label="Report document (JSON)">{JSON.stringify(report.document, null, 2)}</pre>' },
     ],
-    reason: 'Whole report as JSON in <pre>. ROADMAP also lists :77 (the text feeding the editor) and :329 (Copy JSON); the detector does not flag them, they are not rendered there.',
+    reason: 'Whole report as JSON in <pre>. ROADMAP also lists :77 and :329, which the detector does not flag: `sourceText` (:77) is shown in the textarea at :317 through a variable the detector does not see, and :329 is a copy handler. Both go with the screen in M2.4.',
     retiredBy: 'M2.4',
   },
   {
