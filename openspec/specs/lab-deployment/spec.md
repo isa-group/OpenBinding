@@ -25,7 +25,7 @@ Evidence: `lab/tests/test_lab_compose.py::test_single_published_port_on_loopback
 - **THEN** they fail
 
 ### Requirement: Memory budget of the lab
-THE lab profile SHALL set a memory limit on every service, keep the sum within the documented lab ceiling, and cap Java heaps below their container limits.
+THE lab profile SHALL set a memory limit on every service, keep their sum within the documented lab ceiling and cap Java heaps below container limits.
 
 `req~lab-deployment-memory-budget~1`
 
@@ -37,26 +37,50 @@ Evidence: `lab/tests/test_lab_compose.py::test_every_service_has_a_mem_limit`; `
 - **THEN** they fail until the documented budget is updated in the same change
 
 ### Requirement: No literal secrets in deployment files
-THE Compose and lab files SHALL reference secrets only through variables without defaults, never as literals, and SHALL give the JWT signing secret only to the services that sign sessions (not to Dramatiq workers).
+THE Compose and lab files SHALL reference secrets only through variables without defaults, never as literals.
 
-`req~lab-deployment-secret-references~1`
+`req~lab-deployment-secret-references~2`
 
-Evidence: `lab/tests/test_lab_compose.py::test_secret_variables_are_never_literal`; `lab/tests/test_lab_compose.py::test_references_are_demo_or_private_and_never_have_defaults`; `openbinding-gateway/tests/test_compose_worker_secrets.py::test_dramatiq_services_do_not_get_jwt_secret`
+Evidence: `lab/tests/test_lab_compose.py::test_secret_variables_are_never_literal`; `lab/tests/test_lab_compose.py::test_references_are_demo_or_private_and_never_have_defaults`
 
 #### Scenario: Default value for a key
 - **GIVEN** `${SPACE_API_KEY:-dev-key}` in a compose file
 - **WHEN** the static checks run
 - **THEN** they fail
 
+### Requirement: JWT secret only for session signers
+THE Compose and lab files SHALL give the JWT signing secret only to the services that sign sessions, not to Dramatiq workers.
+
+`req~lab-deployment-jwt-secret-scope~1`
+
+Evidence: `openbinding-gateway/tests/test_compose_worker_secrets.py::test_dramatiq_services_do_not_get_jwt_secret`; `lab/tests/test_lab_compose.py::test_workers_and_seed_do_not_receive_the_jwt_secret`
+
+#### Scenario: JWT secret on a worker
+- **GIVEN** a change that passes `GATEWAY_JWT_SECRET` to a Dramatiq worker service
+- **WHEN** the unit suite runs
+- **THEN** the worker secrets test fails
+
 ### Requirement: Unprivileged containers
-THE images and services SHALL run as numeric non-root users with fixed ids, pinned base images and a pinned `uv`, without requesting extra privileges.
+THE images and services SHALL run as numeric non-root users with fixed ids, without requesting extra privileges.
 
-`req~lab-deployment-unprivileged-containers~1`
+`req~lab-deployment-unprivileged-containers~2`
 
-Evidence: `openbinding-gateway/tests/test_container_hardening.py::test_the_image_ends_on_a_numeric_non_root_user`; `openbinding-gateway/tests/test_container_hardening.py::test_no_service_asks_for_root_or_extra_privileges`; `openbinding-gateway/tests/test_container_hardening.py::test_uv_is_pinned_to_a_release_and_nothing_uses_latest`
+Evidence: `openbinding-gateway/tests/test_container_hardening.py::test_the_image_ends_on_a_numeric_non_root_user`; `openbinding-gateway/tests/test_container_hardening.py::test_no_service_asks_for_root_or_extra_privileges`
 
 #### Scenario: Image ends as root
 - **GIVEN** a Dockerfile change that removes the final `USER 10001`
+- **WHEN** the unit suite runs
+- **THEN** the hardening test fails
+
+### Requirement: Pinned images and uv
+THE images SHALL use pinned base images and a pinned `uv`.
+
+`req~lab-deployment-pinned-images~1`
+
+Evidence: `openbinding-gateway/tests/test_container_hardening.py::test_uv_is_pinned_to_a_release_and_nothing_uses_latest`
+
+#### Scenario: Unpinned uv
+- **GIVEN** a Dockerfile change that installs `uv` at `latest`
 - **WHEN** the unit suite runs
 - **THEN** the hardening test fails
 

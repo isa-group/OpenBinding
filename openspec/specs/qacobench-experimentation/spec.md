@@ -19,7 +19,7 @@ WHEN a campaign is restarted without `--fresh`, THE campaign runner SHALL skip e
 
 `req~qacobench-experimentation-resume-identity~1`
 
-Evidence: `experimentation/qacobench/campaign.py`; `experimentation/qacobench/test_qacobench.py::test_gateway_result_and_resume_key_follow_public_contract`
+Evidence: `experimentation/qacobench/campaign.py`; `experimentation/qacobench/test_qacobench.py`
 
 #### Scenario: Interrupted campaign
 - **GIVEN** a `results.jsonl` with 10,000 recorded executions
@@ -43,7 +43,7 @@ WHEN a campaign is prepared, THE harness SHALL record a run manifest with image 
 
 `req~qacobench-experimentation-run-manifest~1`
 
-Evidence: `experimentation/qacobench/capture_run_manifest.py`; `experimentation/qacobench/test_qacobench.py::test_release_registry_and_seed_are_stable`; `experimentation/qacobench/reference/1.1.1/run_manifest.json`
+Evidence: `experimentation/qacobench/capture_run_manifest.py`; `experimentation/qacobench/test_qacobench.py`
 
 #### Scenario: Two hosts
 - **GIVEN** the same tag run on two hosts
@@ -55,7 +55,7 @@ WHEN an engine refuses an instance with 422 for capability reasons, THE campaign
 
 `req~qacobench-experimentation-incompatible-is-data~1`
 
-Evidence: `experimentation/qacobench/test_qacobench.py::test_rejections_keep_the_engine_detail_and_reasons_are_classified`; `experimentation/qacobench/campaign.py`; GAP: the runner recognises an incompatible job by the prefix `engine rejected BindingProblem (422)` of the job error, but since the integration the gateway shows only the catalog sentence of `engine_rejected` for failed engine jobs, so job-level rejections can no longer be told apart from other engine refusals (OPEN QUESTION: dedicated `engine_incompatible` code)
+Evidence: `experimentation/qacobench/test_qacobench.py`; GAP: job-level rejections are no longer recognisable (see TODO)
 
 #### Scenario: MiniZinc refuses a soft constraint
 - **GIVEN** an instance with a soft constraint expression
@@ -67,7 +67,7 @@ IF an engine's `INFEASIBLE` proof is contradicted by a validated binding of anot
 
 `req~qacobench-experimentation-contradiction-refusal~1`
 
-Evidence: `experimentation/qacobench/evaluate_results.py`; `experimentation/qacobench/test_qacobench.py::test_evaluation_reconciles_exact_labels_against_validated_bindings`; `experimentation/qacobench/reference/1.1.1/evaluation/acceptance.json`
+Evidence: `experimentation/qacobench/evaluate_results.py`; `experimentation/qacobench/test_qacobench.py`
 
 #### Scenario: UNSAT contradicted
 - **GIVEN** MiniZinc reports `INFEASIBLE` for an instance and random-search returns a binding the gateway validated as feasible
@@ -79,7 +79,7 @@ THE harness SHALL keep generated suites, raw results (`.artifacts/qacobench/`) a
 
 `req~qacobench-experimentation-data-outside-git~1`
 
-Evidence: `.gitignore`; `docs/adr/0008-datasets-outside-git.md`; `tools/package_zenodo.sh`; `experimentation/qacobench/verify_dataset_digests.py`; `experimentation/qacobench/reference/1.1.1/checksums.json`
+Evidence: `.gitignore`; `docs/adr/0008-datasets-outside-git.md`; `tools/package_zenodo.sh`; `experimentation/qacobench/verify_dataset_digests.py`
 
 #### Scenario: Accidental force-add
 - **GIVEN** a contributor runs `git add -f datasets/07_qfbs`
@@ -91,7 +91,7 @@ WHEN QFBS instances are generated, THE harness SHALL use `design_matrix.json` as
 
 `req~qacobench-experimentation-qfbs-generation~1`
 
-Evidence: `experimentation/qacobench/generate_qfbs.py`; `experimentation/qacobench/design_matrix.json`; `experimentation/qacobench/test_qacobench.py::test_qfbs_design_and_requests_match_the_two_groups`
+Evidence: `experimentation/qacobench/generate_qfbs.py`; `experimentation/qacobench/test_qacobench.py`
 
 #### Scenario: Design changed between runs
 - **GIVEN** a generation manifest written for design v2
@@ -103,7 +103,7 @@ WHEN the ICSOC regression runs against the stack, THE platform SHALL regenerate 
 
 `req~qacobench-experimentation-icsoc-regression~1`
 
-Evidence: `openbinding-gateway/tests/integration/test_icsoc_regression.py`; `README.md`; `experimentation/icsoc/README.md`; GAP: the regression skips unless the ICSOC dataset is materialized from the branch data/icsoc-original-dataset (CI does so when the branch is published)
+Evidence: `openbinding-gateway/tests/integration/test_icsoc_regression.py`; GAP: skipped unless the ICSOC dataset is materialized from branch data/icsoc-original-dataset
 
 #### Scenario: Engine change alters the optimum
 - **GIVEN** a change to the MiniZinc model
@@ -117,6 +117,11 @@ Evidence: `openbinding-gateway/tests/integration/test_icsoc_regression.py`; `REA
 
 ## TODO
 
+- Job-level capability rejections: the runner recognised them by the prefix `engine rejected BindingProblem (422)` of the job
+  error, but the gateway now shows only the catalog sentence of `engine_rejected` for failed engine jobs, so they cannot be told
+  apart from other engine refusals (OPEN QUESTION: dedicated `engine_incompatible` code, see `job-execution`).
+- ICSOC regression: CI materializes the dataset when the branch `data/icsoc-original-dataset` is published; see `README.md` and
+  `experimentation/icsoc/README.md`.
 - Secondary analyses (`secondary/`), `--repeats`, `--concurrency` and paper macros as requirements.
 - Tolerance for reproducing aggregate tables (INTENT O3) — owner to define.
 - Provenance digests recorded after the integration differ from `reference/1.1.1` (the run manifest now hashes bim-core

@@ -28,7 +28,7 @@ THE gateway SHALL give every operation in its OpenAPI document a unique operatio
 
 `req~gateway-api-documented-operations~1`
 
-Evidence: `openbinding-gateway/tests/test_openapi_contract.py::test_operation_identifiers_are_unique`; `openbinding-gateway/tests/test_openapi_contract.py::test_documented_security_matches_the_runtime_dependency_graph`
+Evidence: `openbinding-gateway/tests/test_openapi_contract.py`
 
 #### Scenario: Security declared equals security enforced
 - **GIVEN** an operation that depends on an authenticated user
@@ -40,7 +40,7 @@ WHEN the gateway refuses a request, THE gateway SHALL answer with an `applicatio
 
 `req~gateway-api-problem-document~1`
 
-Evidence: `openbinding-gateway/tests/test_b4_problem_schema.py::test_missing_body_fields_are_one_diagnostic_each_with_a_pointer`; `openbinding-gateway/tests/test_b4_problem_schema.py::test_a_route_refusal_keeps_its_code_and_gains_the_document`; `openbinding-gateway/src/openbinding_gateway/core/public_errors.py`; `docs/ERRORS.md`
+Evidence: `openbinding-gateway/tests/test_b4_problem_schema.py`; `docs/ERRORS.md`
 
 #### Scenario: Request validation error
 - **GIVEN** a JSON body with a missing required field `spec.limits.maxTasks`
@@ -53,7 +53,7 @@ IF a request body exceeds the configured limit for its route (JSON routes and up
 
 `req~gateway-api-body-limit~1`
 
-Evidence: `openbinding-gateway/tests/test_security_hardening.py::test_a_chunked_json_body_is_cut_off_at_the_limit_without_content_length`; `openbinding-gateway/tests/test_security_hardening.py::test_upload_routes_keep_the_larger_ceiling_and_other_routes_the_json_one`; `openbinding-gateway/src/openbinding_gateway/security/bodylimit.py`
+Evidence: `openbinding-gateway/tests/test_security_hardening.py`; `openbinding-gateway/src/openbinding_gateway/security/bodylimit.py`
 
 #### Scenario: Chunked JSON body over the limit
 - **GIVEN** the default JSON ceiling of 16 MiB
@@ -77,7 +77,7 @@ WHILE `APP_ENV` is `prod`, THE gateway SHALL refuse to start with a missing or s
 
 `req~gateway-api-production-guards~1`
 
-Evidence: `openbinding-gateway/tests/test_prod_insecure_flags.py::test_production_refuses_to_federate_over_plain_http`; `openbinding-gateway/tests/test_prod_insecure_flags.py::test_production_refuses_to_send_the_bim_token_over_plain_http`; `openbinding-gateway/src/openbinding_gateway/core/settings.py`
+Evidence: `openbinding-gateway/tests/test_prod_insecure_flags.py`; `openbinding-gateway/src/openbinding_gateway/core/settings.py`
 
 #### Scenario: Plain-HTTP BIM service in production
 - **GIVEN** `APP_ENV=prod`, `BIM_MODE=http` and an `http://` BIM service URL with a token
@@ -101,7 +101,7 @@ WHEN sign-in attempts for one client address and identifier exceed the configure
 
 `req~gateway-api-login-throttle~1`
 
-Evidence: `openbinding-gateway/tests/test_security_hardening.py::test_login_is_limited_per_address_and_identifier_with_a_shared_backend`; `openbinding-gateway/tests/test_security_hardening.py::test_the_forwarded_header_does_not_choose_the_bucket`; `openbinding-gateway/src/openbinding_gateway/core/ratelimit.py`
+Evidence: `openbinding-gateway/tests/test_security_hardening.py`; `openbinding-gateway/src/openbinding_gateway/core/ratelimit.py`
 
 #### Scenario: Spraying identifiers from one address
 - **GIVEN** one address that has used its budget

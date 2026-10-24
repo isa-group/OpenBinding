@@ -17,7 +17,7 @@ THE `binding-core` evaluator SHALL compute features, constraint violations, pena
 
 `req~engines-java-canonical-evaluator~1`
 
-Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/CanonicalEvaluatorConformanceTest.java::objectiveDominanceUsesExactDeclaredValuesWithoutHiddenTolerance`; `engines/binding-core/src/test/java/es/us/isa/openbinding/core/CanonicalEvaluatorConformanceTest.java::selectedCandidateIsCountedOnceAcrossXorAndRepeat`; GAP: no shared test vectors prove parity with `bim-core` (the gateway re-evaluates instead)
+Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/CanonicalEvaluatorConformanceTest.java`; GAP: no shared test vectors prove parity with `bim-core` (the gateway re-evaluates instead)
 
 #### Scenario: Candidate selected in XOR and repeat
 - **GIVEN** a workflow where one candidate is selected in an XOR branch and inside a repeat
@@ -41,7 +41,7 @@ WHILE `ENGINE_JOB_MODE` is not `async`, THE Java engine SHALL answer `POST /inte
 
 `req~engines-java-job-mode~1`
 
-Evidence: `engines/random-search/src/test/java/es/us/isa/qosawarewsbinding/api/RandomSearchCancelTest.java::withoutTheAsyncModeThereIsNoJobEndpointAndTheAnswerIsStillSynchronous`; `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineHttpTest.java::theDefaultModeIsSynchronousAndExposesNoJobs`
+Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineHttpTest.java::theDefaultModeIsSynchronousAndExposesNoJobs`
 
 #### Scenario: Default deployment
 - **GIVEN** a random-search container without `ENGINE_JOB_MODE`
@@ -53,7 +53,7 @@ WHEN an asynchronous job is cancelled, THE Java engine SHALL stop the search at 
 
 `req~engines-java-cooperative-cancel~1`
 
-Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineJobsTest.java::cooperativeSolverStopsAtTheNextCheckpointAndCancelledIsConfirmed`; `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineJobsTest.java::aSolverThatIgnoresCancelIsCancellingNeverCancelledAndItsLateResultIsDiscarded`; `engines/many-heuristic/src/test/java/es/us/isa/qosawarewsbinding/api/ManyHeuristicCancelTest.java::deleteStopsTheSolverThreadAndItsCpu`
+Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineJobsTest.java`
 
 #### Scenario: Stubborn solver
 - **GIVEN** a solver loop that never calls the checkpoint
@@ -65,7 +65,7 @@ WHERE `ENGINE_AUTH_TOKENS` is configured, THE Java engine SHALL require a bearer
 
 `req~engines-java-tenant-tokens~1`
 
-Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineHttpTest.java::tokensGuardTheSynchronousEndpointToo`; `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineHttpTest.java::tenantsOwnTheirJobs`
+Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineHttpTest.java`
 
 #### Scenario: Missing token
 - **GIVEN** `ENGINE_AUTH_TOKENS=gw=secret`
@@ -73,16 +73,28 @@ Evidence: `engines/binding-core/src/test/java/es/us/isa/openbinding/core/EngineH
 - **THEN** the engine refuses it
 
 ### Requirement: Pareto modes return a canonical archive
-WHEN a Pareto mode (`pareto-sampling`, `pareto-genetic`) finishes, THE engine SHALL return the non-dominated bindings it found as solutions and SHALL answer `UNKNOWN` when the feasible archive is empty.
+WHEN a Pareto mode (`pareto-sampling`, `pareto-genetic`) finishes, THE engine SHALL return the non-dominated bindings it found as solutions.
 
-`req~engines-java-pareto-archive~1`
+`req~engines-java-pareto-archive~2`
 
-Evidence: `engines/many-heuristic/src/test/java/es/us/isa/qosawarewsbinding/search/V1ManySearchTest.java::paretoModeReturnsCanonicalArchive`; `engines/multi-heuristic/src/test/java/es/us/isa/qosawarewsbinding/search/V1MultiSearchTest.java::emptyFeasibleArchiveIsUnknown`; `engines/evolutionary-heuristics/src/test/java/es/us/isa/openbinding/evolutionary/EvolutionarySolverTest.java::paretoAlgorithmRequiresAndReturnsParetoSemantics`
+Evidence: `engines/many-heuristic/src/test/java/es/us/isa/qosawarewsbinding/search/V1ManySearchTest.java::paretoModeReturnsCanonicalArchive`; `engines/evolutionary-heuristics/src/test/java/es/us/isa/openbinding/evolutionary/EvolutionarySolverTest.java::paretoAlgorithmRequiresAndReturnsParetoSemantics`
 
 #### Scenario: Two incomparable bindings
 - **GIVEN** a two-objective problem where bindings A and B do not dominate each other
 - **WHEN** the many-heuristic engine finishes
 - **THEN** both A and B are returned as solutions
+
+### Requirement: Empty Pareto archive is unknown
+IF the feasible archive of a Pareto mode is empty, THEN THE engine SHALL answer `UNKNOWN`.
+
+`req~engines-java-pareto-unknown~1`
+
+Evidence: `engines/multi-heuristic/src/test/java/es/us/isa/qosawarewsbinding/search/V1MultiSearchTest.java::emptyFeasibleArchiveIsUnknown`
+
+#### Scenario: No feasible binding
+- **GIVEN** a Pareto mode that finds no feasible binding within its budget
+- **WHEN** it finishes
+- **THEN** the termination is `UNKNOWN`
 
 ## Out of scope
 

@@ -17,7 +17,7 @@ THE frontend SHALL declare every screen exactly once in `src/routes/` with a uni
 
 `req~frontend-workspace-route-registry~1`
 
-Evidence: `frontend/src/routes/routes.test.ts::registers exactly the 82 screens of the prototype`; `frontend/src/routes/routes.test.ts::uses unique ids and unique paths`; `frontend/src/routes/routes.test.ts::places every screen under /app in the application layout`
+Evidence: `frontend/src/routes/routes.test.ts`
 
 #### Scenario: Duplicate path
 - **GIVEN** a developer registers a second screen at `/app/jobs`
@@ -25,11 +25,11 @@ Evidence: `frontend/src/routes/routes.test.ts::registers exactly the 82 screens 
 - **THEN** the registry test fails
 
 ### Requirement: Client-side guard
-WHEN a visitor without a session opens an `/app` screen, THE frontend SHALL redirect to `/login` remembering the path and query string; WHEN a signed-in non-administrator opens an admin screen, THE frontend SHALL redirect to `/app/account`; WHILE the stored session is being checked, THE frontend SHALL NOT redirect.
+WHEN a visitor without a session opens an `/app` screen, THE frontend SHALL redirect to `/login` remembering the path and query string; WHEN a signed-in non-administrator opens an admin screen, THE frontend SHALL redirect to `/app/account`; WHILE the stored session is checked, THE frontend SHALL NOT redirect.
 
 `req~frontend-workspace-client-guard~1`
 
-Evidence: `frontend/src/components/ProtectedRoute.test.tsx::redirects anonymous visitors to sign in and remembers where they were going`; `frontend/src/components/ProtectedRoute.test.tsx::keeps non-administrators out of admin pages`; `frontend/src/components/ProtectedRoute.test.tsx::waits for the stored session instead of bouncing a signed-in user to sign in`; `frontend/src/routes/routes.test.ts::requires an administrator for every admin screen and for nothing else`
+Evidence: `frontend/src/components/ProtectedRoute.test.tsx`; `frontend/src/routes/routes.test.ts`
 
 #### Scenario: Deep link while signed out
 - **GIVEN** no session
@@ -41,7 +41,7 @@ WHEN the gateway answers 503 or the network is down while the session is refresh
 
 `req~frontend-workspace-session-resilience~1`
 
-Evidence: `frontend/src/contexts/AuthContext.test.tsx::keeps the tokens and offers a retry when the gateway answers 503`; `frontend/src/contexts/AuthContext.test.tsx::signs this tab out when another tab removes the session`; `frontend/src/contexts/AuthContext.test.tsx::forgets the workbench drafts of the person when they sign out`
+Evidence: `frontend/src/contexts/AuthContext.test.tsx`
 
 #### Scenario: Gateway restarting
 - **GIVEN** a signed-in person
@@ -53,7 +53,7 @@ WHEN the gateway answers with a problem document, THE frontend SHALL keep its `c
 
 `req~frontend-workspace-problem-rendering~1`
 
-Evidence: `frontend/src/api/problem.test.ts::paints one message per pointer, the first one winning`; `frontend/src/api/problem.test.ts::unescapes JSON Pointer segments`; `frontend/src/api/client.test.ts`
+Evidence: `frontend/src/api/problem.test.ts`; `frontend/src/api/client.test.ts`
 
 #### Scenario: Two diagnostics on one field
 - **GIVEN** a 422 with two diagnostics for `/spec/limits/maxTasks`
@@ -89,7 +89,7 @@ THE live browser suite SHALL sign in synthetic lab users with a password taken o
 
 `req~frontend-workspace-live-screen-checks~1`
 
-Evidence: `frontend/src/test/e2eSpecs.test.ts::takes the synthetic users from the lab and the password from the environment only`; `frontend/src/test/e2eSpecs.test.ts::measures every screen at both sizes`; `frontend/e2e/live/visual-qa.spec.ts`
+Evidence: `frontend/src/test/e2eSpecs.test.ts`; `frontend/e2e/live/visual-qa.spec.ts`
 
 #### Scenario: A screen logs a console error
 - **GIVEN** the lab stack and the live project

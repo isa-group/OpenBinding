@@ -17,7 +17,7 @@ WHEN a visitor registers, THE gateway SHALL create an active account on the cata
 
 `req~auth-roles-entitlements-registration~1`
 
-Evidence: `openbinding-gateway/tests/test_auth_endpoints.py::test_a_new_account_starts_active_on_the_basic_plan`; `openbinding-gateway/tests/test_auth_endpoints.py::test_registration_never_echoes_the_password`; `openbinding-gateway/tests/test_auth_endpoints.py::test_the_conflict_does_not_say_which_identifier_was_taken`
+Evidence: `openbinding-gateway/tests/test_auth_endpoints.py`
 
 #### Scenario: Taken e-mail
 - **GIVEN** an account with e-mail `alice@example.org`
@@ -29,7 +29,7 @@ WHEN a refresh token is presented, THE gateway SHALL issue a new access/refresh 
 
 `req~auth-roles-entitlements-refresh-rotation~1`
 
-Evidence: `openbinding-gateway/tests/test_auth_endpoints.py::test_a_refresh_token_cannot_be_used_twice`; `openbinding-gateway/tests/test_auth_endpoints.py::test_reusing_a_refresh_token_ends_every_session_of_the_user`
+Evidence: `openbinding-gateway/tests/test_auth_endpoints.py`
 
 #### Scenario: Stolen refresh token replayed
 - **GIVEN** a refresh token already exchanged by its legitimate holder
@@ -41,7 +41,7 @@ WHEN an API key is created, THE gateway SHALL return the `obk_`-prefixed secret 
 
 `req~auth-roles-entitlements-api-key-secrecy~1`
 
-Evidence: `openbinding-gateway/tests/test_api_keys.py::test_the_secret_is_returned_once_and_never_again`; `openbinding-gateway/tests/test_api_keys.py::test_the_stored_hash_is_not_the_key`; `openbinding-gateway/tests/test_api_keys.py::test_a_revoked_key_stops_working`; `openbinding-gateway/tests/test_api_keys.py::test_you_cannot_revoke_somebody_elses_key`
+Evidence: `openbinding-gateway/tests/test_api_keys.py`
 
 #### Scenario: Listing keys after creation
 - **GIVEN** a key created a minute ago
@@ -53,7 +53,7 @@ WHEN a request is authenticated with an API key, THE gateway SHALL allow an acti
 
 `req~auth-roles-entitlements-key-and-role~1`
 
-Evidence: `openbinding-gateway/tests/test_viewer_read_only.py::test_a_read_only_key_of_a_member_cannot_launch`; `openbinding-gateway/tests/test_viewer_read_only.py::test_a_key_with_every_write_scope_of_a_viewer_cannot_launch_repeat_or_cancel`; `openbinding-gateway/tests/test_api_key_route_table.py`
+Evidence: `openbinding-gateway/tests/test_viewer_read_only.py`; `openbinding-gateway/tests/test_api_key_route_table.py`
 
 #### Scenario: Executing key of a viewer
 - **GIVEN** a VIEWER whose key has `engines:execute`
@@ -77,7 +77,7 @@ THE gateway SHALL apply an organization role to the organization and its descend
 
 `req~auth-roles-entitlements-org-roles~1`
 
-Evidence: `openbinding-gateway/tests/test_b1_member_roles.py::test_admin_cannot_grant_owner_through_put`; `openbinding-gateway/tests/test_b1_member_roles.py::test_the_last_owner_stays_protected_for_owners`; `openbinding-gateway/tests/test_collaboration_platform.py::test_roles_inherit_downward_and_cross_org_access_is_hidden`
+Evidence: `openbinding-gateway/tests/test_b1_member_roles.py`
 
 #### Scenario: Admin promotes a member to owner
 - **GIVEN** an ADMIN of organization `acme`
@@ -89,7 +89,7 @@ WHILE a platform administrator holds no role in a private organization, THE gate
 
 `req~auth-roles-entitlements-admin-separation~1`
 
-Evidence: `openbinding-gateway/tests/test_admin_security_separation.py::test_admin_cannot_access_private_organization_or_projects`; `openbinding-gateway/tests/test_b1_member_roles.py::test_platform_admin_without_membership_gets_no_access`
+Evidence: `openbinding-gateway/tests/test_admin_security_separation.py`; `openbinding-gateway/tests/test_b1_member_roles.py`
 
 #### Scenario: Admin opens a private project
 - **GIVEN** a platform ADMIN who is not a member of `acme`
@@ -101,7 +101,7 @@ WHEN a Universidad de Sevilla CAS identity signs in, THE gateway SHALL never lin
 
 `req~auth-roles-entitlements-cas-linking~1`
 
-Evidence: `openbinding-gateway/tests/test_cas_platform.py::test_cas_never_auto_links_an_existing_email`; `openbinding-gateway/tests/test_cas_platform.py::test_linking_cas_assigns_research_and_unlink_requires_typed_confirmation`; `openbinding-gateway/tests/test_cas_platform.py::test_cas_xml_entities_and_dtds_are_rejected`
+Evidence: `openbinding-gateway/tests/test_cas_platform.py`
 
 #### Scenario: CAS user with an existing e-mail
 - **GIVEN** a local account `alice@us.es`
@@ -113,7 +113,7 @@ WHEN a decision depends on the caller's plan, THE gateway SHALL read the capabil
 
 `req~auth-roles-entitlements-plan-reads~1`
 
-Evidence: `openbinding-gateway/tests/test_entitlement_service.py::test_a_denied_feature_is_the_stable_403`; `openbinding-gateway/tests/test_entitlement_service.py::test_caps_or_503_is_the_stable_pricing_unavailable_response`; `openbinding-gateway/tests/test_architecture_layers.py::test_only_the_entitlement_service_reads_plan_capabilities`; `openbinding-gateway/tests/test_pricing_gate.py::test_an_outage_is_not_a_refusal`
+Evidence: `openbinding-gateway/tests/test_entitlement_service.py`; `openbinding-gateway/tests/test_pricing_gate.py`; `openbinding-gateway/tests/test_architecture_layers.py`
 
 #### Scenario: SPACE unreachable during a launch
 - **GIVEN** `SPACE_ENABLED=true` and SPACE not answering
@@ -125,7 +125,7 @@ THE platform SHALL NOT meter, charge or count credits or compute units, and SHAL
 
 `req~auth-roles-entitlements-no-metering~1`
 
-Evidence: `openbinding-gateway/tests/test_architecture_layers.py::test_nothing_imports_the_retired_metering_module`; `openbinding-gateway/tests/test_no_local_space.py::test_no_space_services_or_profile`; `openbinding-gateway/tests/test_no_local_pricing.py::test_the_local_operative_pricing_is_gone`
+Evidence: `openbinding-gateway/tests/test_architecture_layers.py`; `openbinding-gateway/tests/test_no_local_space.py`; `openbinding-gateway/tests/test_no_local_pricing.py`
 
 #### Scenario: Reintroducing a metering module
 - **GIVEN** a change that adds `openbinding_gateway/metering.py` and imports it
