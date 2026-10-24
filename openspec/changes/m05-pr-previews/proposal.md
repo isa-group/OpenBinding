@@ -14,11 +14,14 @@ storage. ADR-0019 and ADR-0021 fix the model: Compose projects in the NiPoGi lab
 - The lab Compose files publish `web` at `127.0.0.1:${DEMO_LAB_PORT:-18100}`. The local CORS origins and the gateway
   image tag follow the same variable, so the develop lab is unchanged on 18100 when the variable is unset.
 - A PR preview is one Compose project `openbinding-pr-<number>`, with its own network and volumes, on one port in
-  18101–18199. It is started only on request and built from the tracked lab file at the PR head, with synthetic
-  values and the synthetic seed.
-- A new request on a newer head refreshes the preview in place. 168 idle hours expire it through `labctl destroy`.
-- Starts are refused above the 9216 MiB lab memory cap (`preview_capacity_reached`), when all 99 ports are held
-  (`preview_ports_exhausted`) and when the Compose file is not tracked at the head (`preview_untracked_compose`).
+  18101–18199. It is started only on request for an open PR whose head branch is in this repository, built from the
+  tracked lab file at the PR head, with synthetic secrets generated at its first start and kept until destroy, and
+  the synthetic seed.
+- A new request on a different head refreshes the preview in place. G12 and screenshots run only on a preview of the
+  PR's current head. 168 idle hours expire it through `labctl destroy`, which removes only the images the preview owns.
+- Refusals: `preview_pr_not_eligible` (closed, merged or fork PR), `preview_untracked_compose` (Compose file not
+  tracked at the head), `preview_ports_exhausted` (no free port in 18101–18199), `preview_capacity_reached` (above the
+  9216 MiB lab memory cap) and `preview_head_stale` (G12 or a screenshot on a preview of an old head).
 - `docs/previews/README.md`: an operator runbook, marked as a plan until it is built.
 
 ## Impact
@@ -28,10 +31,15 @@ storage. ADR-0019 and ADR-0021 fix the model: Compose projects in the NiPoGi lab
   `openbinding-gateway/tests/test_container_hardening.py`, a new preview planner under `lab/previews/`, and
   `docs/DEMO.md`. The full list is in design.md, "Implementation files".
 - Factory (outside this repository): the `lab_compose` validator has to accept the interpolated port and image tag.
-  `labctl` needs the `preview` operations, the state record, the expiry sweep and `labctl destroy preview`.
+  `labctl` needs the `preview` operations, the state record, the eligibility and head checks, the expiry sweep,
+  `labctl destroy preview` and the retirement of the unused `openbinding-lab-gateway:latest` image.
 - "The preview manager" in the requirements means `labctl preview` applying the rules of the repository planner.
 - No HTTP API, OpenAPI or database schema change. No production impact.
-- Risk: with the develop lab running, the memory cap allows one running PR preview at a time (design.md §6).
+- Risk: with the develop lab running, the memory cap allows one running PR preview at a time (design.md §6). SPACE
+  stays disabled in previews until the ARCHITECTURE §9.4 `pricing` profile lands: at about 0.7 GiB per stack it would
+  put the develop lab plus one preview at about 9464 MiB, above the 9216 MiB cap.
+- Order: S1b+S3, then S1a+S2 (merged only after the factory's validator change), then the factory's `labctl preview`,
+  then S4 (tasks.md).
 
 ## Out of scope
 
@@ -40,6 +48,6 @@ storage. ADR-0019 and ADR-0021 fix the model: Compose projects in the NiPoGi lab
   preview's network, and screenshots come through `lab_screenshot`.
 - The develop preview (M0.4) and its Caddy site. Retention of work trees, reports and archives (M0.6).
 - Starting or refreshing previews automatically on every push.
-- Previews of PRs whose head branch lives in a fork.
+- Previews of PRs whose head branch lives in a fork: they are refused with `preview_pr_not_eligible`.
 - The factory runtime itself (living spec, "Out of scope"). This change only states what `labctl` must do for
   OpenBinding previews.
