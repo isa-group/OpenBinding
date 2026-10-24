@@ -12,10 +12,10 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
 `[utest->…]` tags of `lab/tests/` and `lab/previews/` are not traced until those paths are added.
 
 ## S1b. Tests first, planner (~220 lines; ships in the S3 PR, never merged alone)
-- [ ] 1.3 `lab/tests/test_previews.py`: the planner tests named in the delta spec's `Evidence:` lines, each tagged
+- [x] 1.3 `lab/tests/test_previews.py`: the planner tests named in the delta spec's `Evidence:` lines, each tagged
   `[utest->req~lab-deployment-preview-…~1]`. They drive the planner contract of design.md §1 through `subprocess`, so
   the file has no import of `lab/previews/` that could fail at collection.
-- [ ] 1.4 One shared helper, `run_planner(*args) -> tuple[int, dict | None]`, runs the planner with `sys.executable`
+- [x] 1.4 One shared helper, `run_planner(*args) -> tuple[int, dict | None]`, runs the planner with `sys.executable`
   and the path `Path(__file__).resolve().parents[2] / "lab" / "previews" / "previews.py"` built from the repository
   root (checks run from `openbinding-gateway/`, so no relative path), followed by `plan …`, and returns the exit code
   and the parsed stdout (`None` when stdout is not JSON; it never raises). Every test asserts on both:
@@ -23,12 +23,12 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
   design.md §1) and `None`. Tests that loop over allocated ports assert the list is non-empty first.
   `test_missing_required_flag_is_a_usage_error` drops each required flag of design.md §1 in turn (for example
   `--now` of `request`) and expects 64; it is tagged `[utest->req~lab-deployment-preview-on-demand~1]`.
-- [ ] 1.5 Planner-layer proxy for deletion, element by element (so `--verbose` in a seed argument does not match
+- [x] 1.5 Planner-layer proxy for deletion, element by element (so `--verbose` in a seed argument does not match
   `-v`): in the `commands` of `request`, `refresh`, `open`, `stop`, `activity` and `expire`, no argv has an element
   equal to `-v`, `--volumes`, `--rmi` or `rmi`, nor the consecutive elements `volume rm` or `image rm`; every
   deletion in `expire` is `["labctl", "destroy", "preview", "<n>"]`. In `destroy-check`, no `image rm` argv has `-f`
   or `--force`.
-- [ ] 1.6 Secret formats with `--seed-rng 7`: `DEMO_PG_PASSWORD` matches `[A-Za-z0-9._-]+`; `DEMO_FERNET_KEY` decodes
+- [x] 1.6 Secret formats with `--seed-rng 7`: `DEMO_PG_PASSWORD` matches `[A-Za-z0-9._-]+`; `DEMO_FERNET_KEY` decodes
   as URL-safe base64 to 32 bytes; `DEMO_BIM_TOKEN` is 32–127 printable ASCII characters without spaces;
   `DEMO_SEED_PASSWORD` has ≥ 10 characters; PR 42 and PR 57 differ; PR 42 twice repeats.
 - Acceptance: red on the base commit by assertion (G3): the expected red output is `AssertionError` only, with no
