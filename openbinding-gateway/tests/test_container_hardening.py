@@ -19,7 +19,7 @@ COMPOSE = REPO_ROOT / "compose.lab.json"
 
 IMAGE_USER = 10001
 ARTIFACT_DIR = "/var/lib/openbinding/artifacts"
-SHARED_IMAGE = "openbinding-lab-gateway:latest"
+SHARED_IMAGE = "openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}"
 MAX_MIB = 4096
 # The sum of every mem_limit of compose.lab.json, seed included (docs/DEMO.md states it): 3456 before e2e (576).
 EXPECTED_MIB = 4032
@@ -27,8 +27,8 @@ S_IWOTH = 0o002
 
 # A reference to a variable the supervisor supplies: nothing else may stand where a secret goes.
 ALLOWED_REFERENCE = re.compile(r"\$\{(?:DEMO|SPACE|SPHERE)_[A-Z0-9_]+\}")
-# The one reference allowed a default, and only this one: the public origin falls back to the local port.
-ALLOWED_DEFAULT_REFERENCE = "DEMO_PUBLIC_ORIGIN:-http://localhost:18100"
+# The only references allowed a default: the public origin and the lab port fall back to the local port.
+ALLOWED_DEFAULT_REFERENCE = {"DEMO_PUBLIC_ORIGIN:-http://localhost:18100", "DEMO_LAB_PORT:-18100"}
 ANY_REFERENCE = re.compile(r"\$\{([^}]*)\}")
 SECRET_NAME = re.compile(r"KEY|SECRET|TOKEN|PASSWORD", re.IGNORECASE)
 SECRET_SHAPES = re.compile(
@@ -270,7 +270,7 @@ def test_compose_holds_no_literal_secret(services: dict) -> None:
     document = json.loads(raw)
     for text in _strings(document):
         for reference in ANY_REFERENCE.findall(text):
-            allowed = reference == ALLOWED_DEFAULT_REFERENCE or ALLOWED_REFERENCE.fullmatch("${" + reference + "}")
+            allowed = reference in ALLOWED_DEFAULT_REFERENCE or ALLOWED_REFERENCE.fullmatch("${" + reference + "}")
             assert allowed, f"unexpected variable ${{{reference}}}"
     assert not SECRET_SHAPES.search(raw)
     for name, service in services.items():

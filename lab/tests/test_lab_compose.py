@@ -11,6 +11,7 @@ Run from ``openbinding-gateway`` with its environment::
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 from pathlib import Path
@@ -40,6 +41,11 @@ LOCK = ROOT / "frontend" / "pnpm-lock.yaml"
 DOCKERFILE_E2E = ROOT / "frontend" / "Dockerfile.e2e"
 PUBLISHED = {"target": 8080, "published": 18100, "host_ip": "127.0.0.1"}
 PORT_RANGE = range(18100, 18200)
+# The published port is a reference with a default; the supervisor supplies DEMO_LAB_PORT per preview.
+LAB_PORT = "DEMO_LAB_PORT"
+LAB_PORT_DEFAULTED = f"${{{LAB_PORT}:-18100}}"
+PUBLISHED_REFERENCE = {"target": 8080, "published": LAB_PORT_DEFAULTED, "host_ip": "127.0.0.1"}
+GATEWAY_IMAGE_PREFIX = "openbinding-lab-gateway:"
 
 # Supplied privately by the supervisor; referenced as ${NAME}, never given a value or a default.
 PRIVATE_VARIABLES = {
@@ -61,14 +67,16 @@ PUBLIC_ORIGIN = "DEMO_PUBLIC_ORIGIN"
 LOCAL_ORIGIN = "http://localhost:18100"
 PUBLIC_ORIGIN_DEFAULTED = f"${{{PUBLIC_ORIGIN}:-{LOCAL_ORIGIN}}}"
 PUBLIC_ORIGIN_BARE = f"${{{PUBLIC_ORIGIN}}}"
-LOCAL_CORS = f"{LOCAL_ORIGIN},http://127.0.0.1:18100"
+LOCAL_CORS = f"{LOCAL_ORIGIN},http://127.0.0.1:18100"  # the CORS list with the default port, expanded
+RAW_CORS = (f"http://localhost:{LAB_PORT_DEFAULTED},http://127.0.0.1:{LAB_PORT_DEFAULTED},"
+            f"{PUBLIC_ORIGIN_BARE}")
 # Variables of the gateway, the worker and the seed that carry the public origin, by service.
 PUBLIC_ORIGIN_VARIABLES = {
     "gateway": {"PUBLIC_BASE_URL": PUBLIC_ORIGIN_DEFAULTED, "FRONTEND_URL": PUBLIC_ORIGIN_DEFAULTED,
-                "CORS_ALLOW_ORIGINS": f"{LOCAL_CORS},{PUBLIC_ORIGIN_BARE}"},
+                "CORS_ALLOW_ORIGINS": RAW_CORS},
     "worker": {"PUBLIC_BASE_URL": PUBLIC_ORIGIN_DEFAULTED},
     "seed": {"PUBLIC_BASE_URL": PUBLIC_ORIGIN_DEFAULTED, "FRONTEND_URL": PUBLIC_ORIGIN_DEFAULTED,
-             "CORS_ALLOW_ORIGINS": f"{LOCAL_CORS},{PUBLIC_ORIGIN_BARE}"},
+             "CORS_ALLOW_ORIGINS": RAW_CORS},
 }
 
 # The gateway is the only service that signs sessions.  Everything else either never verifies a
@@ -138,8 +146,10 @@ def _strings(node):
 
 
 def reference_name(body: str) -> str:
-    """The variable a ``${...}`` body names: DEMO_PUBLIC_ORIGIN's default is dropped, any other default stays."""
-    return PUBLIC_ORIGIN if body == f"{PUBLIC_ORIGIN}:-{LOCAL_ORIGIN}" else body
+    """The variable a ``${...}`` body names: the defaults of DEMO_PUBLIC_ORIGIN and DEMO_LAB_PORT are dropped, any other stays."""
+    if body == f"{PUBLIC_ORIGIN}:-{LOCAL_ORIGIN}":
+        return PUBLIC_ORIGIN
+    return LAB_PORT if body == f"{LAB_PORT}:-18100" else body
 
 
 def _command_text(service: dict) -> str:
@@ -232,15 +242,71 @@ def test_seed_exists_behind_the_seed_profile(services):
 # -- ports ---------------------------------------------------------------------------------------
 
 
-def test_single_published_port_on_loopback(services):
+def _assert_single_loopback_port(services, supplied="18100"):
+    """Only web publishes, on loopback, the port DEMO_LAB_PORT names (default 18100) within 18100-18199."""
     ports = [(name, port) for name, s in services.items() for port in s.get("ports", [])]
-    assert [name for name, _ in ports] == ["web"]
+    assert [name for name, _ in ports] == ["web"], "only web may publish a port"
     for _, port in ports:
         assert isinstance(port, dict), "ports must be structured objects"
         assert set(port) <= {"target", "published", "host_ip"}
         assert port["host_ip"] == "127.0.0.1"
-        assert int(port["published"]) in PORT_RANGE
-    assert ports[0][1] == PUBLISHED
+        published = _expand(str(port["published"]), {LAB_PORT: supplied})
+        assert published.isdigit(), f"published port {published!r} must be a number in 18100-18199"
+        assert int(published) in PORT_RANGE, f"published port {published} is outside 18100-18199"
+        assert published == str(supplied or "18100")
+        assert port["target"] == PUBLISHED["target"]
+
+
+def _rule_failure(services, supplied):
+    try:
+        _assert_single_loopback_port(services, supplied)
+    except AssertionError as error:
+        return str(error)
+    return None
+
+
+# [utest->req~lab-deployment-single-loopback-port~2]
+@pytest.mark.parametrize("supplied", [None, "18101", "18199"])
+def test_single_published_port_on_loopback(services, supplied):
+    assert _rule_failure(services, supplied) is None
+    if supplied:  # the unset case is the base's behaviour; the raw reference is pinned by the next test
+        assert services["web"]["ports"] == [PUBLISHED_REFERENCE]
+
+
+# [utest->req~lab-deployment-single-loopback-port~2]
+@pytest.mark.parametrize("supplied", ["18099", "18200", "abc"])
+def test_published_port_outside_the_range_is_refused(services, supplied):
+    message = _rule_failure(services, supplied)
+    assert message is not None and "18100-18199" in message
+
+
+# [utest->req~lab-deployment-single-loopback-port~2]
+def test_port_rule_refuses_an_extra_published_port(services):
+    extra = copy.deepcopy(services)
+    extra["gateway"]["ports"] = ["8000:8000"]
+    assert _rule_failure(extra, None) is not None
+
+
+# [utest->req~lab-deployment-single-loopback-port~2]
+@pytest.mark.parametrize("port", [None, "18101", "18199"])
+def test_gateway_image_tag_and_local_cors_follow_the_port(services, port):
+    supplied = {LAB_PORT: port, PUBLIC_ORIGIN: "https://demo.example.org"}
+    number = port or "18100"
+    for name in ("gateway", "worker", "seed"):
+        assert _expand(services[name]["image"], supplied) == f"{GATEWAY_IMAGE_PREFIX}{number}", name
+    for name in ("gateway", "seed"):
+        value = _expand(_env(services[name])["CORS_ALLOW_ORIGINS"], supplied)
+        assert _cors_list(value) == [
+            f"http://localhost:{number}", f"http://127.0.0.1:{number}", "https://demo.example.org"], name
+
+
+# [utest->req~lab-deployment-single-loopback-port~2]
+def test_demo_doc_has_the_demo_lab_port_row():
+    doc = DEMO_DOC.read_text(encoding="utf-8")
+    row = next((line for line in doc.splitlines() if line.startswith(f"| `{LAB_PORT}`")), None)
+    assert row is not None, f"docs/DEMO.md has no row for {LAB_PORT}"
+    assert "18100" in row
+    assert re.search(r"18101\s*[-–]\s*18199", row), row
 
 
 def test_no_expose_of_published_ports_on_other_services(services):
@@ -340,7 +406,8 @@ def test_builds_use_only_allowed_keys_and_literal_paths_inside_the_repo(services
 def test_gateway_worker_and_seed_share_one_always_rebuilt_image(services):
     # ``up --build`` rebuilds only profile-less services; ``run --no-deps seed`` reuses an existing
     # image.  So only the gateway builds, and worker and seed use the image it tags.
-    image = "openbinding-lab-gateway:latest"
+    image = f"{GATEWAY_IMAGE_PREFIX}18100"
+    services = {n: {**s, "image": _expand(s.get("image", ""), {})} for n, s in services.items()}
     assert "build" in services["gateway"]
     for name in ("gateway", "worker", "seed"):
         assert services[name]["image"] == image, name
@@ -383,8 +450,11 @@ def test_references_are_demo_or_private_and_never_have_defaults(compose):
 
 
 def test_only_the_public_origin_has_a_default_and_it_is_the_local_origin(compose):
-    defaulted = {body for text in _strings(compose) for body in REFERENCE.findall(text) if ":-" in body or ":" in body}
-    assert defaulted == {f"{PUBLIC_ORIGIN}:-{LOCAL_ORIGIN}"}
+    # DEMO_LAB_PORT is the second reference with a default, and never appears bare.
+    bodies = {body for text in _strings(compose) for body in REFERENCE.findall(text)}
+    assert LAB_PORT not in bodies
+    defaulted = {body for body in bodies if ":-" in body or ":" in body}
+    assert defaulted == {f"{PUBLIC_ORIGIN}:-{LOCAL_ORIGIN}", f"{LAB_PORT}:-18100"}
     assert PUBLIC_ORIGIN_DEFAULTED == "${DEMO_PUBLIC_ORIGIN:-http://localhost:18100}"
 
 
@@ -398,14 +468,15 @@ def test_public_origin_reaches_gateway_worker_and_seed_by_interpolation(services
     assert not {"CORS_ALLOW_ORIGINS", "FRONTEND_URL"} & set(_env(services["worker"]))
 
 
-def _expand(value: str, supplied: str | None) -> str:
-    """Compose's interpolation of the two forms used here: ``${V:-default}`` (unset or empty) and ``${V}``."""
+def _expand(value: str, supplied: dict) -> str:
+    """Compose's interpolation of the two forms used here: ``${V:-default}`` and ``${V}``.
+
+    ``supplied`` maps a variable to its value; absent, None or empty means unset.
+    """
     def replace(match):
         body = match.group(1)
-        if ":-" in body:
-            variable, default = body.split(":-", 1)
-            return supplied or default
-        return supplied or ""
+        variable, _, default = body.partition(":-")
+        return supplied.get(variable) or default
     return REFERENCE.sub(replace, value)
 
 
@@ -419,7 +490,7 @@ def test_unset_or_empty_public_origin_leaves_the_local_lab(services, name):
     env = _env(services[name])
     for supplied in (None, ""):
         for key in PUBLIC_ORIGIN_VARIABLES[name]:
-            value = _expand(env[key], supplied)
+            value = _expand(env[key], {PUBLIC_ORIGIN: supplied})
             if key == "CORS_ALLOW_ORIGINS":
                 assert value == f"{LOCAL_CORS},"  # the trailing empty item is dropped by Settings
                 assert _cors_list(value) == LOCAL_CORS.split(",")
@@ -432,7 +503,7 @@ def test_a_public_origin_replaces_the_urls_and_is_appended_to_the_local_cors_ori
     origin = "https://demo.example.org"
     env = _env(services[name])
     for key in PUBLIC_ORIGIN_VARIABLES[name]:
-        value = _expand(env[key], origin)
+        value = _expand(env[key], {PUBLIC_ORIGIN: origin})
         if key == "CORS_ALLOW_ORIGINS":
             assert _cors_list(value) == [*LOCAL_CORS.split(","), origin]
         else:
@@ -459,7 +530,7 @@ def test_a_trailing_slash_in_the_public_origin_fails_the_cors_list_only(services
     _clear_settings_environment(monkeypatch)
     env = _env(services["gateway"])
     # Lower-case keys, so Settings really receives them (upper-case names are ignored by extra="ignore").
-    expanded = {key.lower(): _expand(env[key], "https://demo.example.org/") for key in PUBLIC_ORIGIN_VARIABLES["gateway"]}
+    expanded = {key.lower(): _expand(env[key], {PUBLIC_ORIGIN: "https://demo.example.org/"}) for key in PUBLIC_ORIGIN_VARIABLES["gateway"]}
     # A URL tolerates one trailing slash; a CORS entry is what the browser sends in Origin, so it has none.
     with pytest.raises(ValidationError, match="CORS_ALLOW_ORIGINS"):
         Settings(_env_file=None, app_env="dev", **expanded)
@@ -475,7 +546,7 @@ def test_the_expanded_public_origins_pass_the_gateway_settings(services, monkeyp
 
     _clear_settings_environment(monkeypatch)
     env = _env(services[name])
-    expanded = {key.lower(): _expand(env[key], supplied) for key in PUBLIC_ORIGIN_VARIABLES[name]}
+    expanded = {key.lower(): _expand(env[key], {PUBLIC_ORIGIN: supplied}) for key in PUBLIC_ORIGIN_VARIABLES[name]}
     configured = Settings(_env_file=None, app_env="dev", **expanded)
     assert configured.public_base_url == expanded["public_base_url"]
 
@@ -637,7 +708,7 @@ def test_gateway_environment(services):
     env = _env(services["gateway"])
     assert env["APP_ENV"] == "dev"
     assert env["CAS_ENABLED"] == "false"
-    assert env["CORS_ALLOW_ORIGINS"] == f"{LOCAL_CORS},{PUBLIC_ORIGIN_BARE}"
+    assert env["CORS_ALLOW_ORIGINS"] == RAW_CORS
     assert env["FEDERATION_SECRET_KEY"] == "${DEMO_FERNET_KEY}"  # the name settings.py reads
     assert env["SPACE_PRICING_VERSION"] == "${DEMO_SPACE_PRICING_VERSION}"
     assert env["SPACE_DEFAULT_PLAN"] == "${DEMO_SPACE_DEFAULT_PLAN}"

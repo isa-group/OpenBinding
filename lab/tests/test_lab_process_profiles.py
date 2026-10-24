@@ -220,7 +220,7 @@ def test_only_the_gateway_holds_the_jwt_secret_and_one_port_is_published(profile
     holders = {n for n, s in services.items() if rules.JWT_SECRET in json.dumps(s)}
     assert holders == rules.JWT_HOLDERS
     ports = [(n, port) for n, s in services.items() for port in s.get("ports", [])]
-    assert ports == [("web", rules.PUBLISHED)]
+    assert ports == [("web", rules.PUBLISHED_REFERENCE)]
 
 
 def test_long_running_services_have_healthchecks_and_depends_on_is_consistent(profile, manifest):
