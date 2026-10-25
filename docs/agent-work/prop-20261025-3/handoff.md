@@ -1,5 +1,5 @@
 # Handoff: prop-20261025-3
-- Status: waiting-review (intake done, nothing implemented) · Updated: 2026-10-25
+- Status: register merged (PR 46); E2/E3 classified by the owner; first-seen dates and the 0.02 s confirmation open · Updated: 2026-10-25
 - Branch / head: task/3b3fc6c20c364d57 / base 2bed6fbf · PR: none
 
 ## Goal
@@ -8,8 +8,9 @@ into a dated register.
 
 ## State (with evidence)
 - The register now exists in `docs/qa/FLAKY_TESTS.md` with entries E1-E7 (PR 46). Still open: the "First seen" dates
-  (to be filled from `git log`), the owner's decision on E2/E3 (`crp-flaky-b8-classification`), and the confirmation
-  of the 0.02 s threshold.
+  (to be filled from `git log`) and the owner's confirmation of the 0.02 s threshold. E2/E3 are classified: the owner
+  chose `runner-measurement` in `crp-flaky-b8-classification` (2026-10-25), so they are runner-CPU measurements, owner
+  = the project owner, review date 2026-11-24, not counted toward O6.
 - The register at base had one undated entry (`docs/qa/FLAKY_TESTS.md:3-34`).
 - There are seven entries to record, E1-E7 (`intake.md` section 2): LibArtifact (fixed), two B8 tests deselected in CI
   (`ci.yml:100-110`), two healthz tests fixed by PR #43 (`f2e18c6f`), the cancel-contract test fixed by PR #42
@@ -35,20 +36,18 @@ into a dated register.
   operations"). The intake proposes `git log` evidence checks instead.
 
 ## Open questions and risks
-- CRP-1: owner and deadline of the deselected B8 tests E2/E3, and whether they count toward O6 (options a-d in
-  `intake.md` section 7, (b) recommended). Waiting on the owner via CRP.
+- CRP-1 (`crp-flaky-b8-classification`): answered 2026-10-25, option `runner-measurement` (see State).
+- Open: the 0.02 s skip threshold of the PR 43 tests still awaits the owner's confirmation.
 - Q1 (E7 one row or six) and Q2 (`project.yaml:102` cites "INTENT O4" for the 7-day threshold, but O4 is
   reproducibility, `INTENT.md:165`). Waiting on the coordinator.
 - Risk: no registered check yields dates. Mitigation: register the evidence checks 1-4 of `intake.md` section 4.
 - Risk: dated rows show E2/E3 older than 7 days at once. That is expected, and CRP-1 settles how they count.
 
 ## Next three steps
-1. The coordinator opens CRP-1, answers Q1/Q2, registers the checks in `intake.md` section 4, and writes the S1
-   contract (owned file `docs/qa/FLAKY_TESTS.md`).
-2. The S1 writer runs checks 1-4, fills the register table and the detail sections for E1-E7 with the cited
-   evidence, and puts the CRP-1 answer (or `pending CRP-1`) in the E2/E3 owner and deadline cells.
-3. Run check 5 (`git diff --check`), then a low-panel review (reviewer) that checks each row against
-   `intake.md` section 2, then a PR with a `how_to_review` (G13 n/a).
+1. Fill the "First seen" cells from `git log` (the cells read `unknown (no record)` today), then age each entry
+   against the 7-day target.
+2. Get the owner's confirmation of the 0.02 s skip threshold of the PR 43 tests, or a different value.
+3. Answer Q1/Q2 if still open; on 2026-11-24 review E2/E3 again.
 
 ## Evidence
 - Tasks: this intake (planner, no checks registered or run). Related: P-20261025-2 (`docs/agent-work/prop-20261025-2/`).
