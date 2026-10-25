@@ -403,7 +403,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const where = main.getByRole('region', { name: 'Where this result comes from' });
       await expect(where.getByRole('link', { name: /^Snapshot snapshot/ })).toHaveAttribute('href', `${ROOT}/snapshots/snapshot-2`);
       await expect(where.getByRole('link', { name: 'Flujo de checkout · revision 2' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/revisions/2`);
-      await expect(where.getByRole('link', { name: 'Add to a report' })).toHaveAttribute('href', `${ROOT}/reports`);
+      await expect(where.getByRole('link', { name: 'Add to a report' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-provenance`, { area: where });
       const downloaded = page.waitForEvent('download');
       await where.getByRole('button', { name: 'Download compiled problem' }).click();
