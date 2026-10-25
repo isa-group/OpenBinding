@@ -166,6 +166,15 @@ describe('route registry', () => {
     expect(resolve('/app/language/extensions')).toBe('lang-extensions');
   });
 
+  // [utest->req~frontend-retire-reports-publications-stay~1]
+  it('still resolves the publications and the verifier addresses through the route definitions', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+    const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id;
+
+    expect(resolve('/app/acme/atlas/publications')).toBe('proj-publications');
+    expect(resolve('/app/verifier')).toBe('verifier');
+  });
+
   it('reads /studies/new as the builder and any other address below /studies as a study', () => {
     const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
     const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id;

@@ -34,6 +34,7 @@ export function entityHref(entity: VerifierEntity): string | null {
     case 'case': return slug ? `${base}/cases/${slug}` : null;
     case 'collection': return slug ? `${base}/collections/${slug}` : null;
     // [impl->req~frontend-retire-reports-no-link~1]
+    // [impl->req~frontend-retire-reports-publications-stay~1]
     case 'report': return `${base}/publications`;
     case 'study_run': return slug ? `${base}/studies/${slug}/runs/${encodeURIComponent(entity.id)}` : null;
     case 'artifact': return `${base}/files`;

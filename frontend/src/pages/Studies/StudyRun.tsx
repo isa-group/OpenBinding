@@ -145,6 +145,7 @@ function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
             {formatDateTime(run.created_at) ?? '—'}{finishedAt ? ` → ${finishedAt}` : ''} · matrix <span title={run.matrix_digest}>{shortDigest(run.matrix_digest)}</span>
           </p>
         </div>
+        {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
         <div className="proj-actions">
           <Action to={`${runPath}/analytics`} variant="primary">Compare results</Action>
           {access.canCreate && isActiveState(run.state) && (

@@ -166,6 +166,7 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
           <h1>Compare results · run #{data.run.run_number}</h1>
           <p>Only what the run recorded. Nothing here is estimated: lower is better for every objective.</p>
         </div>
+        {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
         <div className="proj-actions">
           <Action variant="secondary" onClick={exportCsv}>Export CSV</Action>
         </div>

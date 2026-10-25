@@ -280,6 +280,7 @@ function OverviewBody({ organization, project, canCreate, publicRead, role, role
           </span>
           <p>{project.description || 'No description yet.'}</p>
         </div>
+        {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
         <div className="proj-actions">
           {publicRead ? (
             <Action to={`${root}/cases`} variant="primary">Browse cases</Action>

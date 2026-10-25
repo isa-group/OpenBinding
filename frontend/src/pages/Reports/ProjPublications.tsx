@@ -144,6 +144,7 @@ function PublicationsBody({ organization, project, canAdminister }: { organizati
 }
 
 /** The publications of a project (`proj-publications`, `/app/:org/:project/publications`): the editions made public, how to cite them, and withdrawing one. */
+// [impl->req~frontend-retire-reports-publications-stay~1]
 export function ProjPublications() {
   const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   if (waiting) return <ProjectSkeleton />;
