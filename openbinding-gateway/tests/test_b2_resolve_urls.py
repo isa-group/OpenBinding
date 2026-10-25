@@ -3,6 +3,10 @@
 The frontend's route table (``frontend/src/routes/d*.tsx``) is the source of
 truth, so the contract test below reads it: every link the resolver produces
 must match one of its ``live(id, path, ...)`` definitions.
+
+A path listed in ``RETIRED_ROUTES`` (``frontend/src/routes/retiredRoutes.tsx``)
+is accepted too: a retired screen keeps its old address as a redirect to the
+replacement screen, so a ``web_url`` that uses it still opens a working page.
 """
 
 from __future__ import annotations
@@ -36,20 +40,33 @@ from seed_analysis import analysis_link, report_link  # noqa: E402
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 ROUTES = sorted((REPO_ROOT / "frontend" / "src" / "routes").glob("d[0-9].tsx"))
+RETIRED_ROUTES_FILE = REPO_ROOT / "frontend" / "src" / "routes" / "retiredRoutes.tsx"
 
 
-def frontend_patterns() -> list[re.Pattern]:
-    paths = []
-    for route_file in ROUTES:
-        paths += re.findall(r"live\('[^']+', '([^']+)'", route_file.read_text(encoding="utf-8"))
+def path_patterns(paths: list[str]) -> list[re.Pattern]:
     return [re.compile("^" + re.sub(r":[A-Za-z]+", "[^/]+", path) + "$") for path in paths]
 
 
-def assert_is_a_frontend_screen(url: str) -> None:
+def retired_paths(source: str) -> list[str]:
+    """The ``path`` of every ``{ id: '...', path: '...' ...}`` entry of the RETIRED_ROUTES table."""
+    return re.findall(r"\bid: '[^']+', path: '([^']+)'", source)
+
+
+def frontend_patterns(retired_source: str | None = None) -> list[re.Pattern]:
+    paths = []
+    for route_file in ROUTES:
+        paths += re.findall(r"live\('[^']+', '([^']+)'", route_file.read_text(encoding="utf-8"))
+    if retired_source is None and RETIRED_ROUTES_FILE.exists():
+        retired_source = RETIRED_ROUTES_FILE.read_text(encoding="utf-8")
+    paths += retired_paths(retired_source or "")
+    return path_patterns(paths)
+
+
+def assert_is_a_frontend_screen(url: str, retired_source: str | None = None) -> None:
     if not ROUTES:
         pytest.skip("the frontend route table is not part of this checkout")
     path = url.split("?", 1)[0]
-    assert any(pattern.match(path) for pattern in frontend_patterns()), f"{url} matches no frontend route"
+    assert any(pattern.match(path) for pattern in frontend_patterns(retired_source)), f"{url} matches no frontend route"
 
 
 # -- the helpers -------------------------------------------------------------
@@ -72,6 +89,30 @@ def test_each_helper_builds_the_current_frontend_route():
     for produced, wanted in expected.items():
         assert produced == wanted
         assert_is_a_frontend_screen(produced)
+
+
+def test_a_retired_address_is_accepted_and_an_unknown_one_is_not():
+    table = """
+    export type RetiredRoute = { id: string; path: string; slice: 1 | 2 };
+    export const RETIRED_ROUTES = [
+      { id: 'old-screen', path: '/app/:org/:project/synthetic-retired/:slug', slice: 2, target: () => '/' },
+    ];
+    """
+    assert retired_paths(table) == ["/app/:org/:project/synthetic-retired/:slug"]
+
+    assert_is_a_frontend_screen("/app/lab/routing/synthetic-retired/x?a=1", table)
+    for unknown in ("/app/lab/routing/synthetic-unknown/x", "/app/lab/routing/synthetic-retired/x/extra"):
+        with pytest.raises(AssertionError):
+            assert_is_a_frontend_screen(unknown, table)
+
+
+def test_every_entry_of_the_real_retired_table_is_parsed():
+    if not RETIRED_ROUTES_FILE.exists():
+        pytest.skip("the frontend route table is not part of this checkout")
+    source = RETIRED_ROUTES_FILE.read_text(encoding="utf-8")
+
+    assert retired_paths(source)
+    assert len(retired_paths(source)) == len(re.findall(r"\bid: '", source))
 
 
 def test_segments_are_escaped_so_a_slug_cannot_change_the_route():
