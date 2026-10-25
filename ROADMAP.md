@@ -15,11 +15,11 @@ need the owner), the develop preview at `https://openbinding.home.javiercavlop.c
 
 | Id | Milestone | Depends on | Preview checkpoint | Release | Status |
 |---|---|---|---|---|---|
-| M0 | Foundation: integration landed, gates, previews, storage, Docker Compose only | — | develop preview reachable from the Mac and the iPhone | — | in progress |
-| M1 | Specification v2 (this document set) | — | — | — | done |
-| M2 | Render, never dump; retirements, navigation and vocabulary | M0 | every screen in the QA gallery, desktop and mobile, within the screen budget | R1 = M0–M2 | planned |
+| M0 | Foundation: integration landed, gates, previews, storage, Docker Compose only | — | develop preview reachable from the Mac and the iPhone | — | in progress (M0.3 done; M0.1 unverified; M0.5 in progress) |
+| M1 | Specification v2 (this document set) | — | — | — | done (PR #25, merged 2026-10-23) |
+| M2 | Render, never dump; retirements, navigation and vocabulary | M0 | every screen in the QA gallery, desktop and mobile, within the screen budget | R1 = M0–M2 | in progress (M2.1 and M2.2 merged, PR #38) |
 | M3 | Problem repository | M2 (catalogue) | Explore → problem page → versions → runs | R2 = M3–M4 | planned |
-| M4 | Plans: SPHERE remote, SPACE local then remote | M0; pricing 0.2.0 published | the pricing-change scenario of M4 | R2 | in progress |
+| M4 | Plans: SPHERE remote, SPACE local then remote | M0; pricing 0.2.0 published | the pricing-change scenario of M4 | R2 | in progress (M4.0 done; M4.1 partly, PR #36) |
 | M5 | Language extensibility | M0; bim-toolchain release | placement as an extension; a tier-1 dialect installed | R3 = M5–M6 | planned |
 | M6 | Laboratory, published results and QACOBench inside the platform | M3 | a study reproducing an icws suite, published and verified | R3 | planned |
 | M7 | Engines | M5 (profile support) | engine health and onboarding | R4 | planned |
@@ -44,6 +44,12 @@ Goal: `develop` is green, gated and previewable, and the lab does not fill up.
 | M0.8 | QACOBench after the integration: capability refusals get their own error code `engine_incompatible` (additive, in `docs/ERRORS.md` and the OpenAPI snapshot) instead of `campaign.py` parsing messages; `minizinc-csp` 1.1.1 gets a new frozen baseline and the `CHANGED_MANIFESTS` exception goes; `reference/1.1.1` stays the historical reference and 1.1.2 is released from a green `develop` (CRP for the release itself) | no baseline exceptions left; a `reference/1.1.2` whose provenance digests match the platform; `reference/1.1.1` unchanged |
 | M0.9 | Docker Compose only (ADR-0021): `deploy/kubernetes/`, its CI step and its documentation removed; a `deploy/compose/production` overlay (images pinned by digest, secrets as files, health checks, backups, limits) with its runbook | no Kubernetes file or step left; `docker compose config` passes in CI for development, lab and production |
 
+Slice status (2026-10-24): M0.1 in progress, unverified (PR #24 work is recorded in `docs/agent-work/`, but no
+record of its merge or of the fast-forward of `develop` is in the repository); M0.3 done (PR #37, gate tooling,
+merged 2026-10-24); M0.5 in progress (PR #34 planner and contract tests merged; S4, the isolation probe and the PR
+previews docs, landed in PR #39; S1a and S2 (`DEMO_LAB_PORT`) are in open PR #41, not yet merged); the other
+slices have no recorded progress.
+
 ## M1 — Specification v2
 
 `INTENT.md`, `constitution.md` (Articles 6, 15–19), `docs/ARCHITECTURE.md`, this roadmap, ADR 0014–0021,
@@ -65,6 +71,8 @@ vocabulary of `INTENT.md` §5; names instead of digests.
 | M2.6 | Navigation and project tabs of ARCHITECTURE §5.2, Problem/Run vocabulary, Verify page (resolve and verifier, offender 6), system-states screen development-only | e2e route smoke green; old URLs redirect; allow-list empty; at most 45 routed screens |
 | M2.7 | Names, not digests (INTENT principle 13, ARCHITECTURE §5.4): identity labels in `shared/lib`; digests, fingerprints and UUIDs removed from cards, lists, headers and badges; `CitationPanel` and `VerifyResult` | the hygiene test finds no digest-shaped text or UUID outside the allowed components |
 | M2.8 | QA gallery refreshed and reviewed by ui-qa | desktop and mobile screenshots attached to the release PR |
+
+Slice status (2026-10-24): M2.1 and M2.2 merged (PR #38); the other slices have no recorded progress.
 
 Raw-rendering offenders at 912648c (INTENT O5):
 
@@ -114,6 +122,13 @@ SPACE operates it, and OpenBinding adapts without redeploying. SPACE runs locall
 | M4.4 | Browser: `space-react-client` in token-only mode (React 19 spike first), `FeatureGate`, Pricing and Plan pages with `pricing-renderer` | the custom pricing table is gone; UI gating matches server decisions |
 | M4.5 | Lab and previews run with the local SPACE by default | seed users have contracts; previews show real plans |
 | M4.6 | Switch to `space.score.us.es` once it runs the latest SPACE release (owner decision, configuration only) | previews and production use it; the local profile is off |
+
+Slice status (2026-10-24): M4.0 done (recorded owner confirmation of 2026-10-24, owner request
+own-88f5fc0a772945149100023a6a783368: the SPHERE public manifest
+https://sphere.score.us.es/api/v1/public/pricings/6ab0a323697330667ccce891 lists 0.2.0 as the latest version,
+latestVersionId `6ada6dbd4b2b5b01c587d17f`, createdAt 2026-10-22, contentHash
+`3db4ad99b33f0a591fcc71167bb7410e10a477429d48a0105afd17bf629b182c`, equal to `docs/pricing/openbinding-0.2.0.yml`); M4.1 partly merged (PR #36: optional pricing profile, static tests,
+narrowed no-local-space test); the other slices have no recorded progress.
 
 Acceptance scenario (end to end, in a preview): when a new public version of the OpenBinding pricing appears in
 SPHERE (0.2.0 is the first), the stack's SPACE migrates the contracts within its synchronization cycle (five minutes,

@@ -84,6 +84,86 @@ lab_compose down file=compose.lab-pricing.json
 Pricing bootstrap and service creation are not part of this slice. The services publish no port; they are reachable only
 inside the project.
 
+## Build of space-api from the pinned commit
+
+`lab/space/Dockerfile` builds the SPACE api from `SCORELabUS/space` at the commit
+`ef4dc8949435d998e2aff525226e3fcc85e2f7ba` (the commit of the 1.7.1 release, fetched by commit id only). The `source`
+stage fails the build unless `HEAD` equals that commit; the `build` and runtime stages reproduce the upstream
+`api/docker/release/Dockerfile` (pnpm 10.9.0, frozen lockfile, port 3000). The build context may be `lab/space`: no
+`COPY` reads the host.
+
+Base images, UNVERIFIED. These three digests are unbuilt lookups: they come from a Docker Hub lookup of 24-10-2026
+(medium confidence), no image was built or pulled from them, and they are NOT part of the verified list above until the
+lab builds them. A wrong digest fails the build loudly.
+
+- `node:21.1` (stage `source`), digest `sha256:0052410af98158173b17a26e0e2a46a3932095ac9a0ded660439a8ffae65b1e3`.
+- `node:21.1-slim` (stages `build` and runtime), digest `sha256:cba276a6db06f49c589bcea35c598b5a960880ed5631bd4407a61c414ec7a9b9`.
+- `python:3.12.8-slim-bookworm` (tool image `lab/tools/Dockerfile`), digest `sha256:2199a62885a12290dc9c5be3ca0681d367576ab7bf037da120e564723292a2f0`.
+
+Proposed build commands (not run): `docker build -t openbinding-lab/space-api:1.7.1 lab/space` and, for the tool image,
+`docker build -f lab/tools/Dockerfile lab/tools` (the context is `lab/tools`, whose `.dockerignore` sends only
+`requirements.txt` and `space_lab_bootstrap.py`; the repository root is not used because its `.dockerignore` excludes
+`lab/`).
+
+To confirm after the first build, with `docker inspect` and a `docker run` of the image:
+
+- the image user is `1000:1000` and matches the `user` of `space-api` in the manifest;
+- `node` is present (the compose healthcheck is a `node -e fetch(...)` call; the slim image has no curl);
+- the api listens on port 3000 and answers `GET /api/v1/healthcheck`.
+
+Nothing here was built by the author of this document.
+
+## Bootstrap
+
+`lab/tools/space_lab_bootstrap.py` is a one-shot tool that fills an empty SPACE: the `openbinding` organization, a
+`MANAGEMENT` api key, the `openbinding` service linked to the public SPHERE pricing (read-only for SPHERE), and one
+contract per seed user. It is idempotent by lookup before each create. It reads these variables:
+
+- `SPACE_URL`: base URL of SPACE (`http://space-api:3000` in the profile).
+- `SPACE_ADMIN_USER`: the admin user (`lab-space-admin`).
+- `SPACE_ADMIN_PASSWORD`: filled from `DEMO_SPACE_ADMIN_PASSWORD` by Compose.
+- `SPACE_BOOTSTRAP_PLAN`: the plan of every contract (default `FREE`). It is part of the contract of the tool (design
+  `m41-space-bootstrap` section 4).
+
+`SPACE_URL` must be an `http` or `https` URL with a host and no credentials. The tool reports one JSON line; the items
+are `exists` or `created`, the synchronization is `ready` or `skipped`.
+
+The tool keeps no secret: the password and every api key live in process memory only and are never written, logged or
+printed. ASSUMPTION, pending owner question 3: the `MANAGEMENT` key stays inside SPACE and a re-run reuses the
+organization's existing key. The HTTP sequence comes from the SPACE documentation and is UNVERIFIED against a live
+1.7.1. Its direct HTTP use is the constitution 16.1 exception of ADR 0022.
+
+Recovery: a service created but never synchronized (the run request was lost) is not completed by a later run, which
+only polls the status. SPACE is believed to import the pricing and reach `ready` when the service is created
+(UNVERIFIED). If the status never becomes `ready`, delete the service in SPACE and run the tool again; the follow-up
+decides after the live run (S5) whether the tool sends the run request itself.
+
+## Compose wiring still needed (follow-up for the coordinator)
+
+No compose file is edited by this change. In `compose.lab-pricing.json`:
+
+- add the one-shot `pricing-bootstrap`: `build: {context: lab/tools, dockerfile: Dockerfile}`,
+  `SPACE_URL=http://space-api:3000`, `SPACE_ADMIN_USER=lab-space-admin`,
+  `SPACE_ADMIN_PASSWORD=${DEMO_SPACE_ADMIN_PASSWORD}`, `depends_on: {space-api: {condition: service_healthy}}`,
+  `mem_limit: 96m`, no ports, `restart: "no"`;
+- harden `pricing-bootstrap`: no `HTTP_PROXY`, `HTTPS_PROXY` or `ALL_PROXY`, `read_only: true`, `cap_drop: [ALL]`,
+  `security_opt: [no-new-privileges:true]`, attached only to the project network (it needs `space-api` only). The first
+  live run must confirm that the SDK does not follow redirects off-host and ignores proxy variables;
+- replace the marker image of `space-api` by `build: {context: lab/space, dockerfile: Dockerfile}` with the image name
+  `openbinding-lab/space-api:1.7.1`.
+
+Consequences for the tests (`lab/tests/test_lab_pricing_profile.py`, `openbinding-gateway/tests/test_no_local_space.py`):
+
+- `build` is allowed for `space-api` and `pricing-bootstrap` (pinned-images revision 2, `isolated` allow-list, which
+  also needs `restart`), and the marker rule and the GAP section are retired;
+- the profile has four services and the memory sum becomes 1088 MiB (992 + 96);
+- `${DEMO_SPACE_ADMIN_PASSWORD}` appears twice (`space-api` and `pricing-bootstrap`), where today it must appear once;
+- start-order exempts the one-shot `pricing-bootstrap`;
+- `no-local-space` accepts the built `space-api` image name.
+
+The runbook GAP is closed once the lab has built the image and verified the digests above: they then move to the
+verified list and the checks of the previous section are recorded.
+
 ## Known advisories
 
 Medium-confidence facts from secondary sources, to be confirmed by the owner. `redis` 7.4.2 and `mongo` 7.0.16 are the
@@ -94,6 +174,14 @@ releases fix more advisories (medium confidence, secondary sources).
 - Redis, fixed in 7.4.3 to 7.4.6: CVE-2025-21605, CVE-2025-27151, CVE-2025-32023, CVE-2025-48367, CVE-2025-49844,
   CVE-2025-46817, CVE-2025-46818, CVE-2025-46819.
 - MongoDB, fixed in 7.0.28: CVE-2025-14847.
+
+The new builds also start from old base images: `node:21.1` and `node:21.1-slim` (node 21 is end of life; the image was
+last updated on 2023-11-01) and `python:3.12.8-slim-bookworm`. They are a lab-only risk that the owner must accept
+(medium confidence, secondary sources). The follow-up moves both to maintained tags by verified digest.
+
+Supply chain, deferred: the tool requirements carry no hashes. The follow-up generates `--require-hashes` from
+`openbinding-gateway/uv.lock` and, once the closure is complete, adds `pip --only-binary=:all:` and `--no-deps`; it also
+adds an integrity check for the npm-installed pnpm in the SPACE image.
 
 These ids come from secondary sources (medium confidence). Redis runs without a password and its only peer is
 `space-api`. The profile is lab-only, publishes no port and holds synthetic data. The follow-up bumps both to the latest
