@@ -1,4 +1,5 @@
 # Handoff: prop-20261025-1
+- Superseded by docs/agent-work/ci-develop-push-2/ once that exists (CRP-1 answered: option B, nightly later and push now; CRP-2: high panel kept).
 - Status: waiting-review (intake done; two owner decisions open) · Updated: 2026-10-25
 - Branch / head: task/bb0801c0ace749f8 / base 2bed6fbf · PR: none
 

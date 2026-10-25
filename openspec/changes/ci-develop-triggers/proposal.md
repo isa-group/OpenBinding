@@ -11,18 +11,22 @@ result of its own. G1 and G6 also stay `todo: true` "until a CI run into develop
 
 - The `on:` block of `.github/workflows/ci.yml` gets `push` to `develop` and `workflow_dispatch`.
 - A new top-level `concurrency` block: a newer push to `develop` cancels the older push run only.
-- Nothing else in `ci.yml` changes: jobs, steps, actions, timeouts, permissions and the `pull_request` trigger stay.
+- The `frontend` step `Check generated changelog` gets `if: github.event_name == 'pull_request'`: the changelog is
+  regenerated on the PR branch, so a push run would always be stale.
+- Nothing else in `ci.yml` changes: other jobs, steps, actions, timeouts, permissions and the `pull_request` trigger
+  stay.
 
 ## Impact
 
-- Capability: `gate-tooling` (still the unarchived change `m03-gate-tooling`), 3 ADDED requirements.
+- Capability: `gate-tooling` (still the unarchived change `m03-gate-tooling`), 4 ADDED requirements.
 - Files: `.github/workflows/ci.yml`, `lab/tests/test_ci_triggers.py` (new).
-- Risk: high by path (R10 `.github/**`, `REVIEW.md:23,27`). Small in content: triggers only, no secret, permissions
-  stay `contents: read`.
+- Risk: high by path (R10 `.github/**`, `REVIEW.md:23,27`). Small in content: triggers, concurrency and one step condition,
+  no secret, permissions stay `contents: read`.
 
 ## Out of scope
 
 - The nightly `develop` run: a separate later change, a `nightly.yml` that dispatches `ci.yml` on `develop`, because
   GitHub runs `schedule` from the default branch `main` (design.md).
 - Pinning actions to SHAs; `push` on `main`.
+- G1 `openspec validate --strict` stays report-only in CI.
 - Moving G1/G6 out of `todo` (R11, owner); the factory-side O6 metric.

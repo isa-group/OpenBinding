@@ -30,8 +30,9 @@ Evidence: lab/tests/test_ci_triggers.py::test_push_concurrency_cancels_only_push
 #### Scenario: The concurrency block
 - **GIVEN** `ci.yml`
 - **WHEN** its top-level `concurrency` block is read
-- **THEN** `group` is `ci-${{ github.event_name }}-${{ github.head_ref || github.ref }}`
+- **THEN** `group` is `ci-${{ github.event_name }}-${{ github.event_name == 'push' && github.ref || github.run_id }}`
 - **AND** `cancel-in-progress` is `${{ github.event_name == 'push' }}`
+- **AND** pull-request and manual runs get a group of their own by run id, so they are never queued or cancelled
 
 #### Scenario: Two merges land close together
 - **GIVEN** a push run on `develop` head A is in progress
@@ -44,10 +45,23 @@ WHEN a maintainer starts the CI workflow by hand, THE workflow SHALL run all its
 
 `req~ci-develop-dispatch~1`
 
-Evidence: lab/tests/test_ci_triggers.py::test_ci_can_be_dispatched_manually
+Evidence: lab/tests/test_ci_triggers.py::test_ci_can_be_dispatched_manually (the trigger has no inputs and no job declares its own permissions)
 
 #### Scenario: The dispatch trigger
 - **GIVEN** `ci.yml`
 - **WHEN** its `on:` block is parsed
 - **THEN** it has a `workflow_dispatch` trigger with no `inputs`
 - **AND** no job declares its own `permissions`, so the top-level `contents: read` applies
+
+### Requirement: The changelog check runs on pull requests only
+WHEN CI runs on a push or a manual dispatch, THE frontend job SHALL skip the generated-changelog check and SHALL run it on every pull request.
+
+`req~ci-develop-changelog-pr-only~1`
+
+Evidence: lab/tests/test_ci_triggers.py::test_changelog_check_runs_only_on_pull_requests
+
+#### Scenario: The changelog step condition
+- **GIVEN** `ci.yml`
+- **WHEN** the `frontend` job is read
+- **THEN** the step running `tools/generate_changelog.py --check` has `if: github.event_name == 'pull_request'`
+- **AND** no other step has an `event_name` condition

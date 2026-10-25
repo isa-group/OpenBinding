@@ -7,9 +7,9 @@ on:
     branches: [ develop ]
   workflow_dispatch:
 
-# Only push runs cancel in progress.
+# Only push runs share a group and cancel in progress; PR and manual runs get a group of their own.
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.event_name == 'push' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
 permissions:
@@ -377,7 +377,10 @@ jobs:
         working-directory: frontend
         run: pnpm build
 
+      # The changelog JSON is regenerated on the PR branch by a final chore(changelog) commit, so it can
+      # never contain the squash title that lands on develop; a push run would always be stale.
       - name: Check generated changelog
+        if: github.event_name == 'pull_request'
         run: python3 tools/generate_changelog.py --check
 
       - name: Install Playwright Chromium
