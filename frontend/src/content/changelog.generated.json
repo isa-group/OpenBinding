@@ -5,6 +5,7 @@
       "date": "2026-10-25",
       "title": "OpenBinding platform",
       "changes": [
+        "Make the process probe timeout step independent of runner speed (#50)",
         "Nightly develop CI run via a separate nightly.yml (P-20261025-1 S2) (#49)",
         "Run CI on pushes to develop, add a manual run and push-only concurrency (#47)",
         "Record the owner's classification of E2 and E3 (#48)",
@@ -94,6 +95,7 @@
       "date": "2026-10-25",
       "title": "OpenBinding documentation",
       "changes": [
+        "Make the process probe timeout step independent of runner speed (#50)",
         "Nightly develop CI run via a separate nightly.yml (P-20261025-1 S2) (#49)",
         "Run CI on pushes to develop, add a manual run and push-only concurrency (#47)",
         "Record the owner's classification of E2 and E3 (#48)",
