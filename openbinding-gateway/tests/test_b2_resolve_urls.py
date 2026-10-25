@@ -60,6 +60,7 @@ def retired_paths(source: str) -> list[str]:
 # address the resolver emits must list it here in the same PR.
 KNOWN_REDIRECTING_WEB_URLS = {
     "/app/analysis/workspace": "seed_analysis links; the redirect to /app/jobs keeps the context only partially",
+    "/app/:org/:project/reports/:slug": "retired by M2.4 slice 2; retarget the resolver in M9.6 or earlier",
 }
 
 
@@ -116,6 +117,7 @@ def assert_opens_a_frontend_page(
 def test_each_helper_builds_the_current_frontend_route():
     snapshot = uuid.uuid4()
     artifact = uuid.uuid4()
+    expected_report = resolve_routes.report_url("lab", "routing", "decision-1")
     expected = {
         resolve_routes.case_revision_url("lab", "routing", "baseline", 3):
             "/app/lab/routing/cases/baseline/revisions/3",
@@ -129,7 +131,10 @@ def test_each_helper_builds_the_current_frontend_route():
     }
     for produced, wanted in expected.items():
         assert produced == wanted
-        assert_is_a_frontend_screen(produced)
+        if produced == expected_report:
+            assert_opens_a_frontend_page(produced)
+        else:
+            assert_is_a_frontend_screen(produced)
 
 
 def test_a_retired_address_is_accepted_only_when_listed_and_an_unknown_one_never():
@@ -162,8 +167,8 @@ def test_retiring_the_report_screen_fails_unless_the_address_is_listed():
     live_without_reports = [path for path in live_paths() if _shape(path) != _shape(report)]
     url = resolve_routes.report_url("lab", "routing", "decision-1")
 
-    # Today the report screen is live, so the address needs no entry.
-    assert_is_a_frontend_screen(url)
+    # Today the report address is retired and listed, so it opens a page through the redirect.
+    assert_opens_a_frontend_page(url)
     with pytest.raises(AssertionError):
         assert_is_a_frontend_screen(url, live_without_reports)
     with pytest.raises(AssertionError):
