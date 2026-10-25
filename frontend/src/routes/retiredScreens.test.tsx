@@ -147,7 +147,7 @@ describe('the retired report editor', () => {
     expect(files.sort()).toEqual(['../pages/Reports/ProjPublications.tsx', '../pages/Reports/Verifier.tsx']);
   });
 
-  // [utest->req~frontend-retire-reports-redirect-reports~1]
+  // [utest->req~frontend-retire-reports-redirect~1]
   it('sends the report list and a report to the publications of their project', async () => {
     await endsAt('/app/acme/atlas/reports', '/app/acme/atlas/publications');
     await endsAt('/app/acme/atlas/reports/engines-vs-seeds-informe', '/app/acme/atlas/publications');

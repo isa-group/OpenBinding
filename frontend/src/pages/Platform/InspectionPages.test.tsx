@@ -25,7 +25,7 @@ describe('what the verifier can match', () => {
     expect(entityHref(entity({ ...where, entity_type: 'artifact' }))).toBe('/app/isa-demo/qos-benchmarks/files');
   });
 
-  // [utest->req~frontend-retire-reports-entry-points-removed~1]
+  // [utest->req~frontend-retire-reports-publications-stay~1]
   it('links a report edition to the publications of its project, the retired report page being gone', () => {
     const where = { organization_slug: 'isa-demo', project_slug: 'qos-benchmarks' };
     expect(entityHref(entity({ ...where, entity_type: 'report', slug: 'engines report' }))).toBe('/app/isa-demo/qos-benchmarks/publications');

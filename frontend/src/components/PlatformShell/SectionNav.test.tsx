@@ -146,9 +146,6 @@ describe('ProjectLibraryNav', () => {
   });
 });
 
-/** `publications` takes the place of `reports` in slice 2; the type of the component says `reports` until then, so the tests cast. */
-type TabSection = ProjectSection | 'publications';
-
 describe('ProjectTabs', () => {
   // [utest->req~frontend-retire-reports-navigation~1]
   it('links the project sections', () => {
@@ -189,8 +186,8 @@ describe('ProjectTabs', () => {
     ['files', 'Files'],
     ['package', 'Package'],
     ['settings', 'Settings'],
-  ] as Array<[TabSection, string]>)('marks only %s as the current page', (active, label) => {
-    render(<MemoryRouter><ProjectTabs active={active as ProjectSection} orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
+  ] as Array<[ProjectSection, string]>)('marks only %s as the current page', (active, label) => {
+    render(<MemoryRouter><ProjectTabs active={active} orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
     const current = currentOf(screen.getByRole('navigation', { name: 'Project sections' }));
     expect(current.map((link) => link.textContent)).toEqual([label]);
@@ -232,8 +229,8 @@ describe('ProjectTabs', () => {
       Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
     });
 
-    it.each(['jobs', 'studies', 'publications', 'files', 'settings'] as TabSection[])('brings the current tab (%s) into view', (active) => {
-      render(<MemoryRouter><ProjectTabs active={active as ProjectSection} orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
+    it.each(['jobs', 'studies', 'publications', 'files', 'settings'] as ProjectSection[])('brings the current tab (%s) into view', (active) => {
+      render(<MemoryRouter><ProjectTabs active={active} orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
       expect(scrolled.map((tab) => tab.getAttribute('aria-current'))).toEqual(['page']);
       expect(scrolled[0]).toBe(currentOf(screen.getByRole('navigation', { name: 'Project sections' }))[0]);

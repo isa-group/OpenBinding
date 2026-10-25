@@ -52,7 +52,7 @@ describe('Publications of a project', () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringMatching(/^@misc\{alexrivera2026checkoutcomparison,/));
   });
 
-  // [utest->req~frontend-retire-reports-entry-points-removed~1]
+  // [utest->req~frontend-retire-reports-publications-stay~1]
   it('leads nowhere to the retired report pages: no Open the report, no Reports crumb, tab or action', async () => {
     renderPublications();
 
@@ -61,7 +61,8 @@ describe('Publications of a project', () => {
     expect(screen.queryByRole('link', { name: /^(Open the )?reports$/i })).not.toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
-    expect(within(crumbs).getByText('Publications')).toBeInTheDocument();
+    expect(within(crumbs).getAllByRole('link').map((link) => link.textContent)).toEqual(['Home', 'ISA Demo Group', 'QoS Benchmarks']);
+    expect(within(crumbs).getByText('Publications')).toHaveAttribute('aria-current', 'page');
     const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
     expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
     // Still a publication list: the citation and the public verification stay.
@@ -120,12 +121,13 @@ describe('Publications of a project', () => {
     expect(screen.queryByRole('link', { name: 'Open the report' })).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-retire-reports-entry-points-removed~1]
+  // [utest->req~frontend-retire-reports-publications-stay~1]
   it('says nothing is published yet, with no way on to the retired report list', async () => {
     platform.publications.mockResolvedValue([]);
     renderPublications();
 
     expect(await screen.findByText('Nothing published yet')).toBeInTheDocument();
+    expect(screen.queryByText('Publish a frozen report edition from its page.')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Open the reports' })).not.toBeInTheDocument();
     const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
     expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);

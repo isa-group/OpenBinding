@@ -201,6 +201,10 @@ describe('route registry', () => {
     expect(resolve('/app/acme/new-project')).toBe('proj-create');
     expect(resolve('/app/acme/settings')).toBe('org-settings');
     expect(resolve('/app/acme/library')).toBe('lib-list');
+    expect(resolve('/app/isa-demo/library/reports')).toBe('lib-artifact');
+    // Even with the retired report list after the screens, as AppRoutes mounts it, the screen wins the tie of rank.
+    const withRetired = [...config, { id: 'rep-list', path: '/app/:org/:project/reports' }];
+    expect(matchRoutes(withRetired, '/app/isa-demo/library/reports')?.at(-1)?.route.id).toBe('lib-artifact');
     expect(resolve('/app/acme/atlas/jobs/new')).toBe('job-launch');
   });
 

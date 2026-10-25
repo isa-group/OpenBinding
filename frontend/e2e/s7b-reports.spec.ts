@@ -1,10 +1,9 @@
 import { createHash } from 'node:crypto';
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import type { Publication, Report, VerifierEntity, VerifierVerdict } from '../src/api/platform';
+import type { Publication, VerifierEntity, VerifierVerdict } from '../src/api/platform';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
-import { JOB_DONE, ROWS, archiveOf, detailOf } from '../src/test/fixtures/analysis';
-import { DRAFT, EDITION, FROZEN, LEGACY, publicationOf, reportOf } from '../src/test/fixtures/reports';
+import { EDITION, FROZEN, publicationOf } from '../src/test/fixtures/reports';
 import { usageOf } from '../src/test/fixtures/resources';
 import { RUN_ID, cellsFixture, digestOf, runFixture, studyFixture } from '../src/test/fixtures/studies';
 
@@ -81,16 +80,12 @@ const verdictOf = (status: VerifierVerdict['status'], digest: string, entities: 
 
 // --- what the gateway answers
 
-type Overridable = 'reports' | 'update' | 'freeze' | 'publish' | 'withdraw' | 'remove' | 'publications' | 'report' | 'verify' | 'verifyFile';
+type Overridable = 'withdraw' | 'publications' | 'verify' | 'verifyFile';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
   refuse: Partial<Record<Overridable, Handler>>;
-  sent: {
-    created?: Record<string, unknown>; updated: Array<Record<string, unknown>>;
-    frozen: string[]; published?: Record<string, unknown>; withdrawn: string[]; removed: string[]; drafts: string[]; verify: Array<Record<string, unknown>>; verifyFile: number;
-  };
-  reports: Report[];
+  sent: { withdrawn: string[]; verify: Array<Record<string, unknown>>; verifyFile: number };
   publications: Publication[];
 }
 
@@ -101,19 +96,11 @@ interface MockOptions {
 
 const bodyOf = <T = Record<string, unknown>>(route: Route) => route.request().postDataJSON() as T;
 
-const DECISION_DOCUMENT = {
-  kind: 'binding-decision', version: 'binding-archive/v1', revision: archiveOf().revision, sources: [{ id: JOB_DONE, engine: 'random-search', resultDigest: digestOf('f') }], dimensions: [],
-  query: { sources: [JOB_DONE], rule: 'balanced', weights: { cost: 1, latency: 2 }, revision: archiveOf().revision, compare: [], page: 0 },
-  scope: 'Stored evaluated bindings only; unexplored space remains unknown', selected: [detailOf(ROWS.fastpay)],
-};
-const DECISION = reportOf('decision-choice', 'draft', { title: 'Checkout choice', document: DECISION_DOCUMENT });
-
 /** Everything these screens read and write, answered; anything else on the API origin is an empty 404. */
 async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   const state: State = {
     refuse: {},
-    sent: { updated: [], frozen: [], withdrawn: [], removed: [], drafts: [], verify: [], verifyFile: 0 },
-    reports: [structuredClone(FROZEN), structuredClone(DRAFT), structuredClone(LEGACY), structuredClone(DECISION)],
+    sent: { withdrawn: [], verify: [], verifyFile: 0 },
     publications: [publicationOf(FROZEN)],
   };
   const organizations = [
@@ -191,16 +178,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     }
 
     if (sub === 'publications') {
-      if (method === 'POST') {
-        state.sent.published = bodyOf(route);
-        if (state.refuse.publish) return state.refuse.publish(route);
-        const sent = bodyOf<{ report_id: string; slug: string; citation: Record<string, unknown> }>(route);
-        const target = state.reports.find((item) => item.id === sent.report_id);
-        if (!target || target.state !== 'frozen') return detail(409, 'report_not_frozen', 'Freeze a report before publishing it.')(route);
-        const made = publicationOf(target, { id: `pub-${sent.slug}`, slug: sent.slug, citation: { title: target.title, ...sent.citation } });
-        state.publications.push(made);
-        return json(made, 201)(route);
-      }
       if (method === 'DELETE') {
         state.sent.withdrawn.push(subId);
         if (state.refuse.withdraw) return state.refuse.withdraw(route);
@@ -212,58 +189,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       return json(empty ? [] : state.publications)(route);
     }
 
-    if (sub === 'reports') {
-      if (!subId) {
-        if (method === 'POST') {
-          state.sent.created = bodyOf(route);
-          const sent = bodyOf<{ slug: string; title: string; study_run_id: string | null; document: Record<string, unknown> }>(route);
-          if (state.reports.some((item) => item.slug === sent.slug)) return detail(409, 'slug_conflict', 'That report slug is in use.')(route);
-          const made = reportOf(sent.slug, 'draft', { title: sent.title, study_run_id: sent.study_run_id, document: sent.document, draft_revision: 1 });
-          state.reports.unshift(made);
-          return json(made, 201)(route);
-        }
-        if (state.refuse.reports) return state.refuse.reports(route);
-        return json(empty ? [] : state.reports)(route);
-      }
-      const target = state.reports.find((item) => item.slug === subId);
-      if (!target) return detail(404, 'not_found', 'Report not found.')(route);
-      if (!action) {
-        if (method === 'PATCH') {
-          const sent = bodyOf<{ title?: string; document?: Record<string, unknown>; draft_revision?: number }>(route);
-          state.sent.updated.push(sent);
-          if (state.refuse.update) return state.refuse.update(route);
-          if (target.state === 'frozen') return detail(409, 'report_frozen', 'Frozen reports are immutable and cannot be modified.')(route);
-          if (sent.document && sent.draft_revision !== target.draft_revision) return detail(409, 'draft_conflict', 'Supply the current draft_revision before editing this report.')(route);
-          if (sent.title) target.title = sent.title;
-          if (sent.document) { target.document = sent.document; target.draft_revision = (target.draft_revision ?? 0) + 1; }
-          return json(target)(route);
-        }
-        if (method === 'DELETE') {
-          state.sent.removed.push(subId);
-          if (state.refuse.remove) return state.refuse.remove(route);
-          if (target.state === 'frozen') return detail(409, 'report_history_retained', 'Sealed report history cannot be deleted; archive the library artifact.')(route);
-          state.reports = state.reports.filter((item) => item.slug !== subId);
-          return route.fulfill({ status: 204 });
-        }
-        if (state.refuse.report) return state.refuse.report(route);
-        return json(target)(route);
-      }
-      if (action === 'freeze') {
-        state.sent.frozen.push(subId);
-        if (state.refuse.freeze) return state.refuse.freeze(route);
-        const provenance = (target.document.provenance ?? {}) as Record<string, unknown>;
-        if (!['study', 'datasets', 'software', 'bimVersion', 'engineRevisions', 'parameters'].every((key) => key in provenance)) {
-          return detail(422, 'incomplete_provenance', 'Frozen reports require study, datasets, software, bimVersion, engineRevisions and parameters provenance.')(route);
-        }
-        Object.assign(target, { state: 'frozen', version_id: `version-${target.slug}`, digest: digestOf('f'), draft_revision: null, draft_id: null });
-        return json(target)(route);
-      }
-      if (action === 'drafts') {
-        state.sent.drafts.push(subId);
-        Object.assign(target, { state: 'draft', draft_revision: 1, draft_id: `draft-${target.slug}` });
-        return json(target)(route);
-      }
-    }
     return json([])(route);
   });
   return state;

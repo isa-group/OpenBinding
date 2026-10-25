@@ -37,6 +37,10 @@ vi.mock('../pages/Jobs/JobHistory', async () => {
   const { createElement } = await import('react');
   return { JobHistory: () => createElement('h1', null, 'Job history screen') };
 });
+vi.mock('../pages/Library/LibArtifact', async () => {
+  const { createElement } = await import('react');
+  return { LibArtifact: () => createElement('h1', null, 'Library artifact screen') };
+});
 vi.mock('../pages/Reports/ProjPublications', async () => {
   const { createElement } = await import('react');
   return { ProjPublications: () => createElement('h1', null, 'Publications screen') };
@@ -53,6 +57,7 @@ function Location() {
   return (
     <>
       <output data-testid="location">{`${location.pathname}${location.search}`}</output>
+      <output data-testid="hash">{location.hash}</output>
       <output data-testid="from">{(location.state as { from?: string } | null)?.from ?? ''}</output>
       <button type="button" onClick={() => navigate(-1)}>Back</button>
     </>
@@ -78,9 +83,8 @@ const config = routeDefinitions.map((definition) => ({ id: definition.id, path: 
 
 type Params = Readonly<Partial<Record<string, string>>>;
 
-/** Slice 2 gives `target` the route parameters as a second argument; this calls it either way, so the file compiles before and after. */
 function targetOf(route: RetiredRoute, query: string, params: Params = {}): string {
-  return (route.target as unknown as (query: URLSearchParams, params: Params) => string)(new URLSearchParams(query), params);
+  return route.target(new URLSearchParams(query), params);
 }
 
 /** Realistic values of the parameters of `:org`, `:project` and `:report`, each needing the encoding of a path segment. */
@@ -127,7 +131,7 @@ describe('the table of retired addresses', () => {
     }
   });
 
-  // [utest->req~frontend-retire-reports-redirect-reports~1]
+  // [utest->req~frontend-retire-reports-redirect~1]
   it('holds the report list and the report editor as the entries of slice 2', () => {
     const slice2 = RETIRED_ROUTES.filter((route) => route.slice === 2);
     expect(slice2.map((route) => [route.id, route.path])).toEqual([
@@ -136,7 +140,7 @@ describe('the table of retired addresses', () => {
     ]);
   });
 
-  // [utest->req~frontend-retire-reports-redirect-reports~1]
+  // [utest->req~frontend-retire-reports-redirect~1]
   it.each(RETIRED_ROUTES.filter((route) => route.slice === 2))('sends $path to the publications of the project, whatever the query and the report', (route) => {
     const to = (query: string, params: Params) => targetOf(route, query, params);
 
@@ -145,6 +149,9 @@ describe('the table of retired addresses', () => {
     expect(to('org=other&project=other&report=x&tab=blocks', { org: 'acme', project: 'demo', report: 'engines' })).toBe('/app/acme/demo/publications');
     expect(to('', { org: 'a/b', project: 'p q', report: 'r#1' })).toBe('/app/a%2Fb/p%20q/publications');
     expect(to('', { org: 'isa-demo', project: 'qos-benchmarks', report: 'engines-vs-seeds-informe' })).toBe('/app/isa-demo/qos-benchmarks/publications');
+    expect(to('', {})).toBe('/app');
+    expect(to('', { org: 'a' })).toBe('/app');
+    expect(to('', { org: '', project: 'b' })).toBe('/app');
   });
 });
 
@@ -189,7 +196,7 @@ describe('the redirect of a retired address', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/jobs$/);
   });
 
-  // [utest->req~frontend-retire-reports-redirect-reports~1]
+  // [utest->req~frontend-retire-reports-redirect~1]
   it.each([
     ['/app/acme/demo/reports', '/app/acme/demo/publications'],
     ['/app/acme/demo/reports/engines-vs-seeds-informe', '/app/acme/demo/publications'],
@@ -202,9 +209,19 @@ describe('the redirect of a retired address', () => {
 
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(expected));
     expect(await screen.findByRole('heading', { name: 'Publications screen' })).toBeInTheDocument();
+    expect(screen.getByTestId('hash').textContent).toBe('');
   });
 
-  // [utest->req~frontend-retire-reports-redirect-reports~1]
+  // [utest->req~frontend-retire-reports-redirect~1]
+  it('leaves /app/<org>/library/reports on the library artifact screen, not on the publications', async () => {
+    renderAt(['/app/isa-demo/library/reports']);
+
+    expect(await screen.findByRole('heading', { name: 'Library artifact screen' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/isa-demo\/library\/reports$/);
+    expect(screen.queryByRole('heading', { name: 'Publications screen' })).toBeNull();
+  });
+
+  // [utest->req~frontend-retire-reports-redirect~1]
   it('replaces the history entry, so going back skips the report address', async () => {
     renderAt(['/app/account', '/app/acme/demo/reports/x']);
 
@@ -215,7 +232,7 @@ describe('the redirect of a retired address', () => {
     expect(await screen.findByRole('heading', { name: 'Account screen' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-retire-reports-redirect-reports~1]
+  // [utest->req~frontend-retire-reports-redirect~1]
   it.each(['/app/acme/demo/reports', '/app/acme/demo/reports/x?tab=blocks'])('asks a visitor without a session to sign in before the redirect from %s', async (old) => {
     const signedOut = renderAt([old], null);
 
@@ -229,7 +246,7 @@ describe('the redirect of a retired address', () => {
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/acme/demo/publications'));
   });
 
-  // [utest->req~frontend-retire-reports-redirect-reports~1]
+  // [utest->req~frontend-retire-reports-redirect~1]
   it('renders no report screen', async () => {
     renderAt(['/app/acme/demo/reports/x']);
 

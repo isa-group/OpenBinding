@@ -10,7 +10,7 @@ import type { Refusal } from '../Jobs/jobErrors';
 
 export type { Refusal };
 
-export type StudyAction = 'create' | 'run' | 'cancel' | 'retry' | 'attach' | 'archive' | 'delete' | 'update' | 'report';
+export type StudyAction = 'create' | 'run' | 'cancel' | 'retry' | 'attach' | 'archive' | 'delete' | 'update';
 
 const NOTHING: Record<StudyAction, string> = {
   create: 'Nothing was created.',
@@ -21,7 +21,6 @@ const NOTHING: Record<StudyAction, string> = {
   archive: 'Nothing changed.',
   delete: 'Nothing was deleted.',
   update: 'Nothing changed.',
-  report: 'Nothing was created.',
 };
 
 function detailsOf(caught: unknown): string[] {
