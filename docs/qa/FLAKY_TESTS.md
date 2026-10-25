@@ -16,16 +16,17 @@ date is estimated. An entry with an unknown date cannot be aged until a date is 
 | ID | Test | First seen | Status | PR | Owner | Deadline | Evidence |
 |---|---|---|---|---|---|---|---|
 | E1 | `frontend/src/pages/Library/LibArtifact.test.tsx` · "starts a draft from a sealed version, keeping its content and links" | unknown (no record) | fixed | none recorded | n/a | n/a | `docs/qa/FLAKY_TESTS.md` (section E1 below) |
-| E2 | `bim-toolchain/packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval` | unknown (no record) | deselected in the `bim-toolchain` CI job | none | pending owner decision (crp-flaky-b8-classification) | pending owner decision (crp-flaky-b8-classification) | `.github/workflows/ci.yml:100-110`; `test_analysis_b8_evidence.py:128`; `openspec/changes/m03-gate-tooling/design.md:248` |
-| E3 | `bim-toolchain/packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]` | unknown (no record) | deselected in the `bim-toolchain` CI job | none | pending owner decision (crp-flaky-b8-classification) | pending owner decision (crp-flaky-b8-classification) | `.github/workflows/ci.yml:100-110`; `test_analysis_b8_probe.py:213-214,232,263`; `design.md:248` |
+| E2 | `bim-toolchain/packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval` | unknown (no record) | deselected in the `bim-toolchain` CI job | none | the project owner | 2026-11-24 | `.github/workflows/ci.yml:100-110`; `test_analysis_b8_evidence.py:128`; `openspec/changes/m03-gate-tooling/design.md:248` |
+| E3 | `bim-toolchain/packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]` | unknown (no record) | deselected in the `bim-toolchain` CI job | none | the project owner | 2026-11-24 | `.github/workflows/ci.yml:100-110`; `test_analysis_b8_probe.py:213-214,232,263`; `design.md:248` |
 | E4 | `.../analysis/test_analysis_b8_probe.py::test_a_shorter_switch_interval_keeps_healthz_fast_under_the_same_cpu_load` | unknown (no record) | fixed | #43 (`f2e18c6f`) | n/a | n/a | `test_analysis_b8_probe.py:140,201-202`; `docs/agent-work/flaky-b8-probe/report.md:1-79` |
 | E5 | `bim-toolchain/packages/bim-service/tests/test_execution_in_the_pool.py::test_healthz_stays_responsive_under_cpu_load_with_the_configured_interval` | unknown (no record) | fixed | #43 (`f2e18c6f`) | n/a | n/a | `test_execution_in_the_pool.py:506,561-562`; `flaky-b8-probe/report.md:8-10,32-34` |
 | E6 | `openbinding-gateway/tests/test_engine_cancel_contract.py::test_the_credential_of_another_tenant_cannot_stop_the_job_and_the_404_is_not_retried` | unknown (no record) | fixed | #42 (`716f8d13`) | n/a | n/a | `test_engine_cancel_contract.py:228,244-247`; `docs/agent-work/flaky-engine-cancel/report.md:1-70`; `design.md:249` |
 | E7 | Six `frozen` + `lose_and_sweep` tests in `openbinding-gateway/tests/test_remote_cancel.py` (the "P2 race") | unknown (no record); no CI failure of these tests is recorded | fixed | #45 (`9273978d`) | n/a | n/a | `openbinding-gateway/tests/analysis_b3_b4_b6/_helpers.py:111-117`; `test_remote_cancel.py:701`; `docs/agent-work/prop-20261025-2/report.md:1-26` |
 
-**O6 status.** E2 and E3 (the two tests deselected in the `bim-toolchain` CI job) have no owner and no deadline, so
-`TESTING.md:112` is not met for them. Whether they count toward O6 is pending the owner's decision
-(`crp-flaky-b8-classification`). Until the "First seen" dates are filled from git history, no entry can be aged against
+**O6 status.** E2 and E3 (the two tests deselected in the `bim-toolchain` CI job) are classified as measurements that
+depend on the CI runner's CPU, not as correctness tests. Owner: the project owner. Review date: 2026-11-24 (30 days,
+proposed by the planner and accepted by the owner's choice). They are not counted toward O6. This is the owner's
+decision, option `runner-measurement` of `crp-flaky-b8-classification` (2026-10-25). Until the "First seen" dates are filled from git history, no entry can be aged against
 the 7-day target.
 
 **Verification limits.** This update was written without `git`. Dates, merge commits and PR numbers come only from
@@ -39,8 +40,9 @@ the files cited; the PR numbers and short SHAs of E4-E7 are taken from the intak
 `.github/workflows/ci.yml:100-110` deselects both (`--deselect`; these are the only deselects, as `ci.yml:103` says).
 E2 is a throughput ratio that depends on the runner's CPU (47.6 % against a 50 % bound). E3 is a strict xfail (an open
 defect) that XPASSes on the runner. Both still run in the toolchain's own CI. Removal condition, from
-`design.md:248`: "when the toolchain makes its B8 timing tests robust". Owner and deadline: pending owner decision
-(`crp-flaky-b8-classification`).
+`design.md:248`: "when the toolchain makes its B8 timing tests robust". Classification: runner-CPU measurements, not
+correctness tests, and not counted toward O6 (owner's decision, `crp-flaky-b8-classification`, option
+`runner-measurement`, 2026-10-25). Owner: the project owner. Review date: 2026-11-24.
 
 ### E4, E5 · healthz under CPU load, fixed in PR #43
 
