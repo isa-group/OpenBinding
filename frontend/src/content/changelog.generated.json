@@ -5,6 +5,7 @@
       "date": "2026-10-25",
       "title": "OpenBinding platform",
       "changes": [
+        "Record the owner's classification of E2 and E3 (#48)",
         "Dated flaky-test register (#46)",
         "SPACE image from the pinned v1.7.1 commit and lab bootstrap (M4.1 part 2, exception 16.1) (#40)",
         "Make the lost-worker lease follow the controlled clock (#45)",
@@ -91,6 +92,8 @@
       "date": "2026-10-25",
       "title": "OpenBinding documentation",
       "changes": [
+        "Record the owner's classification of E2 and E3 (#48)",
+        "Ci-develop-push-2 plan and handoff",
         "Dated flaky-test register (#46)",
         "SPACE image from the pinned v1.7.1 commit and lab bootstrap (M4.1 part 2, exception 16.1) (#40)",
         "Make the lost-worker lease follow the controlled clock (#45)",

@@ -1,0 +1,9 @@
+Goal: ci.yml also runs on push to develop and on workflow_dispatch, with concurrency that cancels only push runs. The owner chose push now and the nightly later as a separate nightly.yml (not in this change); the high panel stays.
+
+State: PR #47. Round 1 at head ffaefaa4 was changes-requested (0 blockers, majors: the shared concurrency group queues PR and manual runs; the changelog check is red on every develop push). The test-reviewer approved. Fix task 5421e8eafbfd4341 is integrated (head baf24b5e before this checkpoint commit). The qa_run checks passed: test_ci_triggers, test_ci_gate_tooling and all of lab/tests. openspec validate --strict was not run (no registered check).
+
+Decisions (coordinator, wake 4): (1) option A: `if: github.event_name == 'pull_request'` on the frontend `Check generated changelog` step only, because the changelog JSON is regenerated on the PR branch and can never hold the squash title that lands on develop. This is a deliberate narrowing of the brief; the PR body must say so. (2) Group for non-push events is `ci-${{ github.event_name }}-${{ github.event_name == 'push' && github.ref || github.run_id }}` (approved), cancel-in-progress is unchanged. The OpenSpec change now has 4 requirements (push, push-concurrency, dispatch, changelog-pr-only).
+
+Ruled out: a branch-keyed group (queues PR and manual runs, cancels waiting ones, collides across same-named head branches); a schedule in ci.yml (would test main).
+
+Open: round 2 is the last allowed panel round; after it, escalate on any open major. The CRP-1 owner answer should be recorded in docs/decisions (out of this change's scope, followup). The O6 consumer should skip cancelled develop runs (factory followup). Next: push, update the PR body, run panel round 2 on the pushed head, then set_review_package and lead_ready.
