@@ -8,12 +8,11 @@ export interface NavLinkItem {
 const under = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`);
 const isProjectJobs = (pathname: string) => /^\/app\/[^/]+\/[^/]+\/jobs(\/|$)/.test(pathname);
 
-export type MainSection = 'home' | 'jobs' | 'analysis' | 'explore' | 'tools' | 'admin' | null;
+export type MainSection = 'home' | 'jobs' | 'explore' | 'tools' | 'admin' | null;
 
 export const mainLinks = {
   home: { to: '/app', label: 'Home' },
   jobs: { to: '/app/jobs', label: 'Jobs' },
-  analysis: { to: '/app/analysis', label: 'Analysis' },
   explore: { to: '/explore', label: 'Explore' },
   admin: { to: '/app/admin', label: 'Admin' },
 } as const satisfies Record<string, NavLinkItem>;
@@ -55,7 +54,6 @@ function isWorkspaceHome(pathname: string): boolean {
 export function currentSection(pathname: string): MainSection {
   if (under(pathname, '/app/admin')) return 'admin';
   if (under(pathname, '/app/jobs') || isProjectJobs(pathname)) return 'jobs';
-  if (under(pathname, '/app/analysis')) return 'analysis';
   if (isToolPath(pathname)) return 'tools';
   if (under(pathname, '/explore')) return 'explore';
   if (under(pathname, '/app/account') || under(pathname, '/app/system')) return null;

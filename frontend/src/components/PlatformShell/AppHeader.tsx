@@ -112,7 +112,6 @@ export function AppHeader({ organizations = [], projects = [], organization, pro
           <nav className="app-nav" aria-label="Main">
             <Link to={mainLinks.home.to} viewTransition className="app-nav-link" aria-current={current(section === 'home')}>{mainLinks.home.label}</Link>
             <Link to={mainLinks.jobs.to} viewTransition className="app-nav-link" aria-current={current(section === 'jobs')}>{mainLinks.jobs.label}</Link>
-            <Link to={mainLinks.analysis.to} viewTransition className="app-nav-link" aria-current={current(section === 'analysis')}>{mainLinks.analysis.label}</Link>
             <Link to={mainLinks.explore.to} viewTransition className="app-nav-link" aria-current={current(section === 'explore')}>{mainLinks.explore.label}</Link>
             <div className="app-menu" data-app-menu="tools" onBlur={openMenu === 'tools' ? closeWhenFocusLeaves : undefined}>
               <button
@@ -220,7 +219,6 @@ export function AppHeader({ organizations = [], projects = [], organization, pro
         {contextLabel && <Link to="/app" viewTransition className="app-mobile-context">{contextLabel}</Link>}
         <Link to={mainLinks.home.to} viewTransition aria-current={current(section === 'home')}>{mainLinks.home.label}</Link>
         <Link to={mainLinks.jobs.to} viewTransition aria-current={current(section === 'jobs')}>{mainLinks.jobs.label}</Link>
-        <Link to={mainLinks.analysis.to} viewTransition aria-current={current(section === 'analysis')}>{mainLinks.analysis.label}</Link>
         <Link to={mainLinks.explore.to} viewTransition aria-current={current(section === 'explore')}>{mainLinks.explore.label}</Link>
         {isAdmin && <Link to={mainLinks.admin.to} viewTransition aria-current={current(section === 'admin')}>{mainLinks.admin.label}</Link>}
         <div className="app-mobile-group">

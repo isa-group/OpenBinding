@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { routeDefinitions, routesByDomain } from '../../routes/registry';
-import { currentSection, isToolActive, toolLinks, type MainSection } from './appNavigation';
+import { currentSection, isToolActive, mainLinks, toolLinks, type MainSection } from './appNavigation';
 
 /** The entry of the main navigation each screen of routes/d1..d8 belongs to. Every other screen leaves them all unmarked. */
 const SECTION_OF: Record<string, readonly string[]> = {
   home: ['app-home', 'org-create', 'org-overview', 'org-settings', 'org-members', 'org-audit', 'proj-create', 'proj-overview', 'lib-list', 'lib-artifact', 'lib-draft', 'lib-version'],
   jobs: ['job-launch', 'job-list', 'job-detail', 'job-history'],
-  analysis: ['analysis-sources', 'analysis-workspace'],
   explore: ['pub-explore'],
   tools: ['eng-catalog', 'eng-detail', 'lang-profiles', 'lang-schemas', 'gen-lab', 'verifier', 'eng-register', 'eng-registrations', 'eng-registration-detail', 'lang-extensions'],
   admin: routeDefinitions.filter((definition) => definition.id.startsWith('admin-')).map((definition) => definition.id),
@@ -14,6 +13,14 @@ const SECTION_OF: Record<string, readonly string[]> = {
 
 const expectedSection = (id: string): MainSection => (Object.entries(SECTION_OF).find(([, ids]) => ids.includes(id))?.[0] as MainSection | undefined) ?? null;
 const example = (path: string) => path.replace(':org', 'isa-demo').replace(':project', 'qos').replace(/:[A-Za-z]+/g, 'sample');
+
+describe('mainLinks', () => {
+  // [utest->req~frontend-retire-navigation~1]
+  it('lists Home, Jobs, Explore and Admin, none of them a retired path', () => {
+    expect(Object.values(mainLinks).map((link) => link.to)).toEqual(['/app', '/app/jobs', '/explore', '/app/admin']);
+    for (const link of Object.values(mainLinks)) expect(link.to).not.toMatch(/^\/app\/analysis([/?#]|$)/);
+  });
+});
 
 describe('currentSection', () => {
   it('names only screens that exist', () => {

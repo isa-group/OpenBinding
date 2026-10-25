@@ -32,7 +32,6 @@ export function buildCommands({ organizations = [], projects = [], organization,
   const commands: Command[] = [
     command('Go to', 'Home', 'Organizations and recent activity', '/app'),
     command('Go to', 'Jobs', 'Every job you can see', '/app/jobs'),
-    command('Go to', 'Analysis', 'Compare sources of binding decisions', '/app/analysis'),
     command('Go to', 'Explore', 'Public projects, publications and engines', '/explore'),
     command('Go to', 'Engine catalog', 'Engines by exact identity', '/engines'),
     command('Go to', 'Language: profiles & dialects', 'How instances become binding problems', '/language'),

@@ -299,7 +299,7 @@ describe('One report', () => {
     expect(platform.deleteReport).toHaveBeenLastCalledWith('isa-demo', 'qos-benchmarks', 'draft-placement');
   });
 
-  it('shows a saved binding decision and the way to reopen it in the decision space', async () => {
+  it('shows a saved binding decision without a way back to the decision space', async () => {
     const recorded = {
       kind: 'binding-decision', version: 'binding-archive/v1', revision: 'sha256-rev', sources: [{ id: 'f1a1b2c3-0000', engine: 'random-search', resultDigest: `sha256-${'f'.repeat(64)}` }], dimensions: [],
       query: { sources: ['f1a1b2c3-0000'], rule: 'balanced' }, scope: 'Stored evaluated bindings only; unexplored space remains unknown', selected: [detailOf()],
@@ -310,7 +310,8 @@ describe('One report', () => {
     renderDetail('decision-choice');
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Recorded binding decision' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Reopen decision space' })).toHaveAttribute('href', '/app/analysis/workspace?report=isa-demo%2Fqos-benchmarks%2Fdecision-choice');
+    // [utest->req~frontend-retire-no-link-to-retired~1]
+    expect(screen.queryByRole('link', { name: 'Reopen decision space' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Binding a1a1a1a1a1' })).toBeInTheDocument();
     expect(screen.getByText('random-search · job f1a1b2c3…')).toBeInTheDocument();
   });

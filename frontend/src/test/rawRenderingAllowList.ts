@@ -17,8 +17,8 @@ export type RawRenderingOffender = {
 /** A finding of the detector that ROADMAP M2 does not list. Same shape; nobody has said yet which slice retires it. */
 export type UnlistedFinding = Omit<RawRenderingOffender, 'retiredBy'> & { retiredBy: null };
 
-/** A reviewer lowers this number as entries go. */
-export const MAX_ALLOWED_OFFENDERS = 15;
+/** Equals the number of entries of RAW_RENDERING_ALLOW_LIST; lower it as entries go. */
+export const MAX_ALLOWED_OFFENDERS = 14;
 
 export const UNLISTED_REASON = 'found by the detector, not in ROADMAP M2; to be decided by the owner/coordinator';
 
@@ -70,7 +70,7 @@ export const RAW_RENDERING_ALLOW_LIST: RawRenderingOffender[] = [
     offender: 5,
     file: 'pages/Reports/RepDetail.tsx',
     lines: [
-      { line: 326, text: '<pre aria-label="Report document (JSON)">{JSON.stringify(report.document, null, 2)}</pre>' },
+      { line: 324, text: '<pre aria-label="Report document (JSON)">{JSON.stringify(report.document, null, 2)}</pre>' },
     ],
     reason: 'Whole report as JSON in <pre>. ROADMAP also lists :77 and :329, which the detector does not flag: `sourceText` (:77) is shown in the textarea at :317 through a variable the detector does not see, and :329 is a copy handler. Both go with the screen in M2.4.',
     retiredBy: 'M2.4',
@@ -81,19 +81,6 @@ export const RAW_RENDERING_ALLOW_LIST: RawRenderingOffender[] = [
     lines: [{ line: 178, text: '<pre aria-label="Normalised document">{verdict.canonical_json}</pre>' }],
     reason: 'Canonical JSON shown as the verification result.',
     retiredBy: 'M2.6',
-  },
-  {
-    offender: 7,
-    file: 'pages/Analysis/Inspector.tsx',
-    lines: [
-      {
-        line: 79,
-        text: "<dd>{typeof ref?.resource === 'string' && typeof ref?.id === 'string' ? <>{ref.id} <small>{ref.resource}</small></> : JSON.stringify(ref)}</dd>",
-      },
-      { line: 141, text: '<pre aria-label="Constraints and raw metrics">{JSON.stringify(loaded.evaluation, null, 2)}</pre>' },
-    ],
-    reason: 'Reference stringified as fallback; raw metrics and constraints in <pre>.',
-    retiredBy: 'M2.4',
   },
   {
     offender: 8,
@@ -168,18 +155,6 @@ export const UNLISTED_FINDINGS: UnlistedFinding[] = [
     offender: 16,
     file: 'pages/Workbench/SourcePanel.tsx',
     lines: [{ line: 108, text: '<pre className="wb-diff" aria-label={`Changes to ${path}`}>' }],
-    reason: UNLISTED_REASON,
-    retiredBy: null,
-  },
-  {
-    offender: 17,
-    file: 'pages/Analysis/SavedDecision.tsx',
-    lines: [
-      {
-        line: 34,
-        text: "<div key={task}><dt>{task}</dt><dd>{typeof ref?.resource === 'string' && typeof ref?.id === 'string' ? ref.id : JSON.stringify(ref)}</dd></div>",
-      },
-    ],
     reason: UNLISTED_REASON,
     retiredBy: null,
   },

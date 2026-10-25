@@ -168,7 +168,6 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
         <div className="proj-actions">
           {isActive(state) && !cancelRequested && <Action variant="danger-outline" busy={busy === 'cancel'} onClick={() => void cancel()}>Cancel run</Action>}
           {canRetryState(state) && <Action variant="primary" busy={busy === 'retry'} onClick={() => void retry()}>Retry</Action>}
-          {state === 'completed' && <Action to={`/app/analysis/workspace?job=${encodeURIComponent(jobId)}`} variant="secondary">Analyze</Action>}
           <Action variant="secondary" onClick={() => void copy(`job ${jobId}`, 'ref')}>
             {status('ref') === 'copied' ? 'Copied' : status('ref') === 'failed' ? 'Copy failed' : 'Copy reference'}
           </Action>

@@ -28,7 +28,7 @@ describe('internal links written in the code', () => {
   it('finds the links to check', () => {
     const addresses = staticLinks().map((link) => link.address);
     expect(addresses.length).toBeGreaterThan(50);
-    expect(addresses).toContain('/app/analysis/workspace?job=${encodeURIComponent(jobId)}');
+    expect(addresses).toContain('/app/jobs');
   });
 
   it('resolve to a screen of routes/d1..d8', () => {

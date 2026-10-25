@@ -53,7 +53,8 @@ describe('One run', () => {
     expect(within(header).getByText('Feasible: meets every must-hold rule')).toBeInTheDocument();
     expect(await within(header).findByText(/launched Sep 30, 2026, 09:00 UTC by you · case Flujo de checkout/)).toBeInTheDocument();
     expect(within(header).getByText(/random-search 1\.0\.0 · mode sampling/)).toBeInTheDocument();
-    expect(within(header).getByRole('link', { name: 'Analyze' })).toHaveAttribute('href', '/app/analysis/workspace?job=job-done-3');
+    // [utest->req~frontend-retire-no-link-to-retired~1]
+    expect(within(header).queryByRole('link', { name: 'Analyze' })).not.toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', `${ROOT}/jobs`);
     expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Jobs' })).toHaveAttribute('aria-current', 'page');

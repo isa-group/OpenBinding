@@ -40,9 +40,8 @@ const PROTOTYPE: Record<keyof typeof routesByDomain, Array<[string, string]>> = 
   D6: [
     ['study-list', `${P}/studies`], ['study-builder', `${P}/studies/new`], ['study-detail', `${P}/studies/:study`],
     ['study-run', `${P}/studies/:study/runs/:run`], ['study-cell', `${P}/studies/:study/runs/:run/cells/:cell`],
-    ['study-analytics', `${P}/studies/:study/runs/:run/analytics`], ['analysis-sources', '/app/analysis'],
-    ['analysis-workspace', '/app/analysis/workspace'], ['rep-list', `${P}/reports`], ['rep-detail', `${P}/reports/:report`],
-    ['proj-publications', `${P}/publications`], ['verifier', '/app/verifier'],
+    ['study-analytics', `${P}/studies/:study/runs/:run/analytics`], ['rep-list', `${P}/reports`],
+    ['rep-detail', `${P}/reports/:report`], ['proj-publications', `${P}/publications`], ['verifier', '/app/verifier'],
   ],
   D7: [
     ['eng-register', '/app/engines/new'], ['eng-registrations', '/app/engines/registrations'],
@@ -56,14 +55,25 @@ const PROTOTYPE: Record<keyof typeof routesByDomain, Array<[string, string]>> = 
   ],
 };
 
-const DOMAIN_SIZES = { D1: 18, D2: 7, D3: 10, D4: 18, D5: 4, D6: 12, D7: 4, D8: 9 };
+const DOMAIN_SIZES = { D1: 18, D2: 7, D3: 10, D4: 18, D5: 4, D6: 10, D7: 4, D8: 9 };
 
 const sample = (path: string) => path.replace(/:[A-Za-z]+/g, 'sample');
 
 describe('route registry', () => {
-  it('registers exactly the 82 screens of the prototype', () => {
-    expect(routeDefinitions).toHaveLength(82);
-    expect(Object.values(PROTOTYPE).flat()).toHaveLength(82);
+  // [utest->req~frontend-retire-screen-count~1]
+  it('registers the 82 screens of the prototype minus the retired ones, 80 after slice 1', () => {
+    expect(routeDefinitions).toHaveLength(80);
+    expect(Object.values(PROTOTYPE).flat()).toHaveLength(80);
+  });
+
+  // [utest->req~frontend-retire-screens-not-routed~1]
+  it('declares no screen retired by M2.4', () => {
+    const ids = routeDefinitions.map((definition) => definition.id);
+    const paths = routeDefinitions.map((definition) => definition.path);
+    expect(ids).not.toContain('analysis-sources');
+    expect(ids).not.toContain('analysis-workspace');
+    expect(paths).not.toContain('/app/analysis');
+    expect(paths).not.toContain('/app/analysis/workspace');
   });
 
   it.each(Object.entries(DOMAIN_SIZES))('domain %s has %i screens', (domain, size) => {

@@ -65,7 +65,8 @@ describe('Analytics of a run', () => {
     expect(figure('feasible')).toHaveTextContent('6');
     expect(figure('infeasible')).toHaveTextContent('0');
     expect(figure('median time')).toHaveTextContent('1 min');
-    expect(screen.getByRole('link', { name: 'Weigh trade-offs' })).toHaveAttribute('href', '/app/analysis');
+    // [utest->req~frontend-retire-no-link-to-retired~1]
+    expect(screen.queryByRole('link', { name: 'Weigh trade-offs' })).not.toBeInTheDocument();
 
     expect(screen.getByRole('heading', { name: 'Cost found, per engine' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'evolutionary: 2 values from 0.104 to 0.112, median 0.108' })).toBeInTheDocument();
