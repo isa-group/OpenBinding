@@ -8,6 +8,7 @@ export interface NavLinkItem {
 const under = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`);
 const isProjectJobs = (pathname: string) => /^\/app\/[^/]+\/[^/]+\/jobs(\/|$)/.test(pathname);
 
+// [impl->req~frontend-retire-navigation~1]
 export type MainSection = 'home' | 'jobs' | 'explore' | 'tools' | 'admin' | null;
 
 export const mainLinks = {

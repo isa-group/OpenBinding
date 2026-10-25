@@ -15,6 +15,8 @@ const RepDetail = lazy(() => import('../pages/Reports/RepDetail').then((module) 
 const ProjPublications = lazy(() => import('../pages/Reports/ProjPublications').then((module) => ({ default: module.ProjPublications })));
 const Verifier = lazy(() => import('../pages/Reports/Verifier').then((module) => ({ default: module.Verifier })));
 
+// [impl->req~frontend-retire-screens-not-routed~1]
+// [impl->req~frontend-retire-screen-count~1]
 export const d6Routes: RouteDefinition[] = [
   live('study-list', '/app/:org/:project/studies', <StudyList />),
   live('study-builder', '/app/:org/:project/studies/new', <StudyBuilder />),

@@ -18,6 +18,7 @@ export type RawRenderingOffender = {
 export type UnlistedFinding = Omit<RawRenderingOffender, 'retiredBy'> & { retiredBy: null };
 
 /** Equals the number of entries of RAW_RENDERING_ALLOW_LIST; lower it as entries go. */
+// [impl->req~frontend-retire-allow-list-leaves~1]
 export const MAX_ALLOWED_OFFENDERS = 14;
 
 export const UNLISTED_REASON = 'found by the detector, not in ROADMAP M2; to be decided by the owner/coordinator';

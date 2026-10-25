@@ -369,6 +369,13 @@ describe('the allow-list', () => {
     }
   });
 
+  // [utest->req~frontend-retire-allow-list-leaves~1]
+  it('holds exactly the offenders that remain after slice 1', () => {
+    expect(RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender)).toEqual([1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]);
+    expect(UNLISTED_FINDINGS.map((entry) => entry.offender)).toEqual([16]);
+    expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('pages/Analysis'))).toEqual([]);
+  });
+
   // [utest->req~frontend-rendering-raw-hygiene~1]
   it('retires the offenders in the slices ROADMAP names', () => {
     const slice = (n: number) => RAW_RENDERING_ALLOW_LIST.find((entry) => entry.offender === n)?.retiredBy;

@@ -1,6 +1,6 @@
 // The only place that knows retired addresses (M2.4, ADR-0020). Data only: the redirect component lives in index.tsx.
 
-export type RetiredRoute = { id: string; path: string; target(query: URLSearchParams): string };
+export type RetiredRoute = { id: string; path: string; slice: 1 | 2 | 3 | 4 | 5; target: (query: URLSearchParams) => string };
 
 /** Present with a non-empty value; the first value of a repeated key is used. */
 function carried(query: URLSearchParams, key: string): string | undefined {
@@ -23,7 +23,7 @@ function decisionSpaceTarget(query: URLSearchParams): string {
 }
 
 // [impl->req~frontend-retire-redirect-generic~1]
-export const RETIRED_ROUTES: RetiredRoute[] = [
-  { id: 'analysis-sources', path: '/app/analysis', target: decisionSpaceTarget },
-  { id: 'analysis-workspace', path: '/app/analysis/workspace', target: decisionSpaceTarget },
+export const RETIRED_ROUTES: readonly RetiredRoute[] = [
+  { id: 'analysis-sources', path: '/app/analysis', slice: 1, target: decisionSpaceTarget },
+  { id: 'analysis-workspace', path: '/app/analysis/workspace', slice: 1, target: decisionSpaceTarget },
 ];

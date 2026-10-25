@@ -1,6 +1,6 @@
 # Design: m24-retire-screens
 
-Status: specified; no slice is built. This file describes slice 1 (decision-space workspace) and the parts every slice
+Status: slice 1 built and in review; slices 2–5 are not specified. This file describes slice 1 (decision-space workspace) and the parts every slice
 shares; slices 2–5 add their sections when they are specified. Fixed inputs: ROADMAP M2.4, ADR-0020 decisions 2, 3 and
 5, INTENT D8, the route registry of `frontend/src/routes/` (82 screens, D6 with 12) and the allow-list of the change
 `m21-rendering-catalogue` (15 offenders, two unlisted findings).
@@ -83,7 +83,8 @@ allow-list instead of moving with it.
   findings; `'/app/analysisx'`, `'/v1/analysis/sources'` and `'/app/:org/:project/studies'` are not.
 - The check is a pure exported function `retiredAddresses(sources, retiredPaths)` returning `<file>: <literal>` per
   finding, tested with synthetic sources, then run on the application sources, where it returns an empty list.
-- Known limit: an address built from pieces (`'/app/' + 'analysis'`) is not seen.
+- Known limits: an address built from pieces (`'/app/' + 'analysis'`) is not seen; an apostrophe or `//` in JSX text
+  can hide a later literal on the same line (pinned by a `known limit` test).
 
 ## 7. Requirements and the slice that delivers each
 
@@ -101,8 +102,9 @@ allow-list instead of moving with it.
 | `frontend-retire-gateway-untouched` | shared; slice 1 values |
 
 Tests carry `[utest->req~frontend-retire-<name>~1]`; `retiredRoutes.tsx`, `index.tsx`, `appNavigation.ts` and
-`paletteCommands.ts` carry `[impl->…]` for the requirements they implement. The gateway requirement is covered by the
-gateway's existing tests of `/v1/analysis/*` and by the review of the diff; it has no `[impl->…]` tag.
+`paletteCommands.ts` carry `[impl->…]` for the requirements they implement. The gateway requirement is a constraint on
+the diff: it is checked by the reviewer against the PR's changed paths, the gateway's existing tests of `/v1/analysis/*`
+stay as they are, and it has neither an `[impl->…]` nor a `[utest->…]` tag.
 
 ## 8. Risks
 
@@ -112,9 +114,9 @@ gateway's existing tests of `/v1/analysis/*` and by the review of the diff; it h
   of this change.
 - Slice 1 deletes the whole `pages/Analysis/` folder and its tests, far more than ~300 lines; the lines it adds or
   changes stay near the guideline (constitution 14.1). The deletions are mechanical and reviewed as such.
-- The Playwright specs `s7b-reports.spec.ts`, `analysis-live.spec.ts`, `qa-gallery.spec.ts`, `helpers/galleryRoutes.ts`,
+- The Playwright specs `s7b-reports.spec.ts`, `qa-gallery.spec.ts`, `helpers/galleryRoutes.ts`,
   `visual-shell.spec.ts`, `s6a-jobs.spec.ts` and `s7a-studies.spec.ts` open or expect the retired addresses; they are
-  updated in slice 1, and the gallery drops two screens.
+  updated in slice 1, and the gallery drops two screens. `analysis-live.spec.ts` is deleted.
 - The frontend API client for `/v1/analysis/*` and `frontend/src/analysis/` stay while other code uses them; unused
   parts are removed with the endpoints (M9.6), not here.
 

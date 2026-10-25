@@ -1,7 +1,73 @@
-import { matchRoutes } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { matchRoutes, MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { UserProfile } from '../api/auth';
+import { AuthContext } from '../contexts/auth';
+import { AppRoutes } from './index';
 import { routeDefinitions } from './registry';
 import { RETIRED_ROUTES } from './retiredRoutes';
+
+vi.mock('../api/platform', async () => ({
+  ...await vi.importActual<typeof import('../api/platform')>('../api/platform'),
+  platformApi: {
+    organizations: vi.fn().mockResolvedValue([]),
+    projects: vi.fn().mockResolvedValue([]),
+  },
+}));
+
+vi.mock('../api/client', async () => ({
+  ...await vi.importActual<typeof import('../api/client')>('../api/client'),
+  apiClient: { listNotifications: vi.fn().mockResolvedValue([]) },
+}));
+
+// Only the location and the headings are asserted, so the screens are replaced.
+vi.mock('../pages/Account/Account', async () => {
+  const { createElement } = await import('react');
+  return { Account: () => createElement('h1', null, 'Account screen') };
+});
+vi.mock('../pages/Auth/Login', async () => {
+  const { createElement } = await import('react');
+  return { Login: () => createElement('h1', null, 'Sign in screen') };
+});
+vi.mock('../pages/Organization/OrgOverview', async () => {
+  const { createElement } = await import('react');
+  return { OrgOverview: () => createElement('h1', null, 'Organization page screen') };
+});
+vi.mock('../pages/Jobs/JobHistory', async () => {
+  const { createElement } = await import('react');
+  return { JobHistory: () => createElement('h1', null, 'Job history screen') };
+});
+
+const person: UserProfile = {
+  id: 'user-1', username: 'alice', email: 'alice@example.com', role: 'user', plan: 'FREE',
+  is_active: true, created_at: '2026-01-01T00:00:00Z',
+};
+
+function Location() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <>
+      <output data-testid="location">{`${location.pathname}${location.search}`}</output>
+      <button type="button" onClick={() => navigate(-1)}>Back</button>
+    </>
+  );
+}
+
+function renderAt(entries: string[], user: UserProfile | null = person) {
+  return render(
+    <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
+      <AuthContext.Provider
+        value={{
+          user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: false,
+        }}
+      >
+        <AppRoutes />
+        <Location />
+      </AuthContext.Provider>
+    </MemoryRouter>,
+  );
+}
 
 const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
 
@@ -22,14 +88,58 @@ describe('the table of retired addresses', () => {
   });
 
   // [utest->req~frontend-retire-redirect-generic~1]
-  it('leads every target to a routed screen and is not itself a route', () => {
-    const queries = ['', 'org=a&project=b&study=c', 'org=a&project=b&study=c&run=d'];
+  it('leads every target to the routed screen it names and is not itself a route', () => {
+    const cases: Array<[string, string]> = [
+      ['', 'job-history'],
+      ['org=a&project=b&study=c', 'study-detail'],
+      ['org=a&project=b&study=c&run=d', 'study-run'],
+      ['org=a%20b&project=p%2Fq&study=s%23t&run=r%3Fx', 'study-run'],
+      ['org=a%20b&project=p%2Fq&study=s%23t', 'study-detail'],
+    ];
     for (const route of RETIRED_ROUTES) {
-      for (const query of queries) {
+      for (const [query, screenId] of cases) {
         const target = route.target(new URLSearchParams(query));
-        expect(matchRoutes(config, target), `${route.id} ${query} -> ${target}`).not.toBeNull();
+        const matches = matchRoutes(config, target);
+        expect(matches?.at(-1)?.route.id, `${route.id} ${query} -> ${target}`).toBe(screenId);
       }
+      const encoded = route.target(new URLSearchParams('org=a%20b&project=p%2Fq&study=s%23t&run=r%3Fx'));
+      expect(encoded).toBe('/app/a%20b/p%2Fq/studies/s%23t/runs/r%3Fx');
       expect(routeDefinitions.map((definition) => definition.path)).not.toContain(route.path);
+      expect(route.slice).toBeGreaterThanOrEqual(1);
     }
+  });
+});
+
+describe('the redirect of a retired address', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  // [utest->req~frontend-retire-redirect-generic~1]
+  it('replaces the history entry, so going back skips the retired address', async () => {
+    renderAt(['/app/account', '/app/analysis/workspace?job=job-done-3']);
+
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/jobs$/));
+    expect(await screen.findByRole('heading', { name: 'Job history screen' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/account$/));
+    expect(await screen.findByRole('heading', { name: 'Account screen' })).toBeInTheDocument();
+  });
+
+  // [utest->req~frontend-retire-redirect-generic~1]
+  it('asks a visitor without a session to sign in first', async () => {
+    renderAt(['/app/analysis?org=a&project=b&study=c'], null);
+
+    expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/login/);
+  });
+
+  // [utest->req~frontend-retire-redirect-generic~1]
+  it('renders no retired screen and no organization page', async () => {
+    renderAt(['/app/analysis']);
+
+    expect(await screen.findByRole('heading', { name: 'Job history screen' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^(Analysis|Decision space)$/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Organization page screen' })).toBeNull();
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/jobs$/);
   });
 });

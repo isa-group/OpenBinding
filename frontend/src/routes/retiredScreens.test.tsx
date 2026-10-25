@@ -76,8 +76,6 @@ async function endsAt(path: string, expected: string) {
   view.unmount();
 }
 
-const sources = import.meta.glob<string>(['../**/*.{ts,tsx}', '!../**/*.test.{ts,tsx}'], { query: '?raw', import: 'default', eager: true });
-
 describe('the retired decision-space workspace', () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -103,17 +101,6 @@ describe('the retired decision-space workspace', () => {
 
   it('sends a workspace link that names only a study to that study', async () => {
     await endsAt('/app/analysis/workspace?org=acme&project=atlas&study=s1', '/app/acme/atlas/studies/s1');
-  });
-
-  it('is no longer linked from the code, apart from the table of retired addresses', () => {
-    const literal = /(['"`])((?:(?!\1)[^\n])*\/app\/analysis(?:(?!\1)[^\n])*)\1/g;
-    const found: string[] = [];
-    for (const [file, text] of Object.entries(sources)) {
-      if (file.endsWith('/retiredRoutes.tsx')) continue;
-      const code = text.replace(/\/\*[\s\S]*?\*\/|(^|[^:])\/\/.*$/gm, '$1');
-      for (const match of code.matchAll(literal)) found.push(`${file.replace('../', 'src/')}: ${match[2]}`);
-    }
-    expect(found).toEqual([]);
   });
 
   it('is no longer in the main navigation or the command palette', () => {

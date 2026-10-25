@@ -24,6 +24,7 @@ const glyphOf = (label: string) => label
   .map((word, index) => (index === 0 ? word[0].toUpperCase() : word[0].toLowerCase()))
   .join('') || '·';
 
+// [impl->req~frontend-retire-palette~1]
 /** Everything the palette can reach comes from the screen map and from data the workspace already loaded. */
 export function buildCommands({ organizations = [], projects = [], organization, project, isAdmin }: PaletteContext): Command[] {
   const command = (group: string, label: string, desc: string, href: string, glyph = glyphOf(label)): Command => ({ group, label, desc, href, glyph });

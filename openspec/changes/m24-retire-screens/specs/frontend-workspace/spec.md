@@ -265,11 +265,10 @@ THE screen retirements of M2.4 SHALL leave the gateway's endpoints and their res
 
 `req~frontend-retire-gateway-untouched~1`
 
-Needs: utest
+Evidence: the diff of the PR (no changed path under `openbinding-gateway/`, `engines/` or `docs/openapi.json`) checked by the reviewer; the existing gateway tests of `/v1/analysis/*` under `openbinding-gateway/tests/` (`test_binding_analysis.py`, `test_archive_analysis.py`, `test_apikey_analysis_scopes.py`) keep passing
 
-Evidence: the gateway tests of `/v1/analysis/*` under `openbinding-gateway/tests/` (`test_binding_analysis.py`, `test_archive_analysis.py`, `test_apikey_analysis_scopes.py`); the review of the PR diff
-
-Retiring the endpoints, their `Deprecation` and `Sunset` headers, the `analysis` queue and its worker need an owner CRP
+This requirement has no code and no test of its own in the frontend (no `Needs:` coverage): it is a constraint on the
+diff, checked by the reviewer, and the gateway's own tests are untouched. Retiring the endpoints, their `Deprecation` and `Sunset` headers, the `analysis` queue and its worker need an owner CRP
 (ROADMAP M2.4, M9.6, ADR-0020 decision 5) and are not part of this change. No file under `openbinding-gateway/` and no
 operation of `docs/openapi.json` changes.
 

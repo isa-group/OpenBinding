@@ -15,34 +15,38 @@ Checks each slice registers (frontend directory, frozen install first):
   `openspec validate --strict --all`.
 
 ## S1. Decision-space workspace (this PR; tests first)
-- [ ] 1.1 `frontend/src/routes/retiredRoutes.test.tsx` (new): the scenarios of `redirect-generic` and
+- [x] 1.1 `frontend/src/routes/retiredRoutes.test.tsx` (new): the scenarios of `redirect-generic` and
   `redirect-decision-space` (run, study, run without study, jobs and reports, empty values, encoding, history entry
-  replaced, signed out first, every target routed, no organization page for `/app/analysis`).
-- [ ] 1.2 `frontend/src/routes/retiredRoutes.tsx` (new) and `frontend/src/routes/index.tsx`: the table and its
-  `<Navigate replace>` routes inside the protected application layout (design.md §2).
-- [ ] 1.3 `frontend/src/routes/routes.test.ts`, `frontend/src/routes/d6.tsx`: drop `analysis-sources` and
+  replaced, signed out first, every target routed to the screen it names with encoded segments, no organization page
+  for `/app/analysis`); the rendered ones are in the same file.
+- [x] 1.2 `frontend/src/routes/retiredRoutes.tsx` (new) and `frontend/src/routes/index.tsx`: the table
+  (`readonly RetiredRoute[]` with `slice`) and its `<Navigate replace>` routes inside the protected application layout
+  (design.md §2).
+- [x] 1.3 `frontend/src/routes/routes.test.ts`, `frontend/src/routes/d6.tsx`: drop `analysis-sources` and
   `analysis-workspace`; 80 screens, D6 10; the test title no longer says "of the prototype" (`screens-not-routed`,
   `screen-count`).
-- [ ] 1.4 Delete `frontend/src/pages/Analysis/` with its tests; move `SavedDecision.tsx` to `pages/Reports/` with the
-  `unrecognised reference` fallback (design.md §4); check whether `pages/Platform/AnalysisPage.css` is still imported.
-- [ ] 1.5 `frontend/src/routes/links.test.ts`: the literal scan `retiredAddresses` with its synthetic controls and the
-  run on the sources; drop the expectation of `/app/analysis/workspace?job=…` (`no-link-to-retired`).
-- [ ] 1.6 Remove the links of design.md §3 from `JobDetail.tsx`, `JobList.tsx`, `JobHistory.tsx`,
+- [x] 1.4 Delete `frontend/src/pages/Analysis/` with its tests; move `SavedDecision.tsx` to `pages/Reports/` with the
+  `unrecognised reference` fallback (design.md §4), tested in `pages/Reports/SavedDecision.test.tsx`; check whether
+  `pages/Platform/AnalysisPage.css` is still imported.
+- [x] 1.5 `frontend/src/routes/links.test.ts`: the literal scan `retiredAddresses` with its synthetic controls and the
+  run on the sources, driven by the paths of `RETIRED_ROUTES`; drop the expectation of
+  `/app/analysis/workspace?job=…` (`no-link-to-retired`).
+- [x] 1.6 Remove the links of design.md §3 from `JobDetail.tsx`, `JobList.tsx`, `JobHistory.tsx`,
   `BindingAnalysis.tsx`, `StudyAnalytics.tsx` and `RepDetail.tsx`, and update their tests to assert the links are
   absent.
-- [ ] 1.7 `components/PlatformShell/appNavigation.ts` and its tests, `AppHeader.test.tsx`, `PlatformShell.test.tsx`:
+- [x] 1.7 `components/PlatformShell/appNavigation.ts` and its tests, `AppHeader.test.tsx`, `PlatformShell.test.tsx`:
   no Analysis entry, no `analysis` section (`navigation`).
-- [ ] 1.8 `components/PlatformShell/paletteCommands.ts` and a new `paletteCommands.test.ts`: no Analysis command
-  (`palette`).
-- [ ] 1.9 `frontend/src/test/rawRenderingAllowList.ts` and `rawRenderingHygiene.test.ts`: remove offender 7 and
-  unlisted finding 17; `MAX_ALLOWED_OFFENDERS` 14; `ceilingMismatch` with its controls; offender numbers a strictly
-  increasing subset of 1–15 (`allow-list-leaves`, `allow-list-ceiling`).
-- [ ] 1.10 Playwright: `e2e/s7b-reports.spec.ts`, `e2e/analysis-live.spec.ts`, `e2e/qa-gallery.spec.ts`,
+- [x] 1.8 `components/PlatformShell/paletteCommands.ts` and a new `paletteCommands.test.ts` (organizations, projects
+  and administrator given): no Analysis command (`palette`).
+- [x] 1.9 `frontend/src/test/rawRenderingAllowList.ts` and `rawRenderingHygiene.test.ts`: remove offender 7 and
+  unlisted finding 17; `MAX_ALLOWED_OFFENDERS` 14; `ceilingMismatch` with its controls; offender numbers exactly
+  1–6, 8–15 and unlisted 16 (`allow-list-leaves`, `allow-list-ceiling`).
+- [x] 1.10 Playwright (specs edited; not run in this task): `e2e/s7b-reports.spec.ts`, `e2e/qa-gallery.spec.ts` (`e2e/analysis-live.spec.ts` is deleted),
   `e2e/helpers/galleryRoutes.ts`, `e2e/visual-shell.spec.ts`, `e2e/s6a-jobs.spec.ts` and `e2e/s7a-studies.spec.ts`
   stop opening or expecting the retired addresses; one smoke step opens `/app/analysis?org=…&study=…` and lands on the
   study page.
 - [ ] 1.11 Confirm the diff touches nothing under `openbinding-gateway/`, `engines/` or `docs/openapi.json`
-  (`gateway-untouched`).
+  (`gateway-untouched`; a review check of the PR diff, no test).
 - Acceptance: the frontend suite, eslint and tsc pass; every scenario of the ten requirements has a test or, for
   `gateway-untouched`, the diff check and the gateway's existing tests.
 
