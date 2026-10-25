@@ -5,6 +5,7 @@
       "date": "2026-10-25",
       "title": "OpenBinding platform",
       "changes": [
+        "Make the costly request of the N2 process probe test deterministic (#52)",
         "Make the process probe timeout step independent of runner speed (#50)",
         "Nightly develop CI run via a separate nightly.yml (P-20261025-1 S2) (#49)",
         "Run CI on pushes to develop, add a manual run and push-only concurrency (#47)",
@@ -95,6 +96,8 @@
       "date": "2026-10-25",
       "title": "OpenBinding documentation",
       "changes": [
+        "Make the costly request of the N2 process probe test deterministic (#52)",
+        "M24-retire-screens plan and handoff",
         "Make the process probe timeout step independent of runner speed (#50)",
         "Nightly develop CI run via a separate nightly.yml (P-20261025-1 S2) (#49)",
         "Run CI on pushes to develop, add a manual run and push-only concurrency (#47)",
