@@ -7,7 +7,8 @@ must match one of its ``live(id, path, ...)`` definitions.
 A retired screen (``RETIRED_ROUTES`` in ``frontend/src/routes/retiredRoutes.tsx``)
 is NOT accepted by default, so retiring a screen the resolver points at fails
 here. The addresses that still open a page only through a redirect are listed
-one by one in ``KNOWN_REDIRECTING_WEB_URLS`` and each must be retired.
+one by one in ``KNOWN_REDIRECTING_WEB_URLS`` and each must be retired. A slice that
+retires an address the resolver emits must list it there in the same PR.
 """
 
 from __future__ import annotations
@@ -53,14 +54,12 @@ def retired_paths(source: str) -> list[str]:
     return re.findall(r"\bid: '[^']+', path: '([^']+)'", source)
 
 
-PENDING_SLICE_2 = "retired by M2.4 slice 2; retarget the resolver in M9.6 or earlier"
-
-# Addresses that the resolver or the seed tooling still emit although the screen is retired: they open a page only
+# Addresses that the resolver or the seed tooling emit although the screen is retired: they open a page only
 # through the redirect of RETIRED_ROUTES. Nothing else is accepted by pattern alone; an entry is dropped when the
-# emitter is retargeted. Every entry must be in RETIRED_ROUTES (see ``stale_entries``).
+# emitter is retargeted. Every entry must be in RETIRED_ROUTES (see ``stale_entries``). A slice that retires an
+# address the resolver emits must list it here in the same PR.
 KNOWN_REDIRECTING_WEB_URLS = {
     "/app/analysis/workspace": "seed_analysis links; the redirect to /app/jobs keeps the context only partially",
-    "/app/:org/:project/reports/:slug": PENDING_SLICE_2,
 }
 
 
@@ -77,15 +76,10 @@ def real_retired_paths() -> list[str]:
     return retired_paths(RETIRED_ROUTES_FILE.read_text(encoding="utf-8"))
 
 
-def stale_entries(redirecting: dict[str, str], retired: list[str], live: list[str]) -> list[str]:
-    """Entries that are not retired. Only an entry waiting for its slice may still be a live route."""
+def stale_entries(redirecting: dict[str, str], retired: list[str]) -> list[str]:
+    """Entries that are not in the retired table; there are no exceptions."""
     retired_shapes = {_shape(path) for path in retired}
-    live_shapes = {_shape(path) for path in live}
-    return [
-        address for address, reason in redirecting.items()
-        if _shape(address) not in retired_shapes
-        and not (reason == PENDING_SLICE_2 and _shape(address) in live_shapes)
-    ]
+    return [address for address in redirecting if _shape(address) not in retired_shapes]
 
 
 def _shape(path: str) -> str:
@@ -135,10 +129,7 @@ def test_each_helper_builds_the_current_frontend_route():
     }
     for produced, wanted in expected.items():
         assert produced == wanted
-        if produced == resolve_routes.report_url("lab", "routing", "decision-1"):
-            assert_opens_a_frontend_page(produced)
-        else:
-            assert_is_a_frontend_screen(produced)
+        assert_is_a_frontend_screen(produced)
 
 
 def test_a_retired_address_is_accepted_only_when_listed_and_an_unknown_one_never():
@@ -171,22 +162,28 @@ def test_retiring_the_report_screen_fails_unless_the_address_is_listed():
     live_without_reports = [path for path in live_paths() if _shape(path) != _shape(report)]
     url = resolve_routes.report_url("lab", "routing", "decision-1")
 
+    # Today the report screen is live, so the address needs no entry.
+    assert_is_a_frontend_screen(url)
     with pytest.raises(AssertionError):
         assert_is_a_frontend_screen(url, live_without_reports)
     with pytest.raises(AssertionError):
         assert_opens_a_frontend_page(url, live_without_reports, {})
-    assert_opens_a_frontend_page(url, live_without_reports, {report: PENDING_SLICE_2})
+    listed = {report: "synthetic retirement of the report screen"}
+    assert_opens_a_frontend_page(url, live_without_reports, listed)
+    # The entry is valid only once the address is in the retired table.
+    assert stale_entries(listed, []) == [report]
+    assert stale_entries(listed, [report]) == []
 
 
 def test_every_listed_redirecting_address_is_retired():
     if not ROUTES:
         pytest.skip("the frontend route table is not part of this checkout")
 
-    assert stale_entries(KNOWN_REDIRECTING_WEB_URLS, real_retired_paths(), live_paths()) == []
-    # A stale entry is caught: not retired, and not waiting for its slice.
-    assert stale_entries({"/app/gone": "x"}, ["/app/other"], ["/app/gone"]) == ["/app/gone"]
-    assert stale_entries({"/app/gone": PENDING_SLICE_2}, [], []) == ["/app/gone"]
-    assert stale_entries({"/app/gone": PENDING_SLICE_2}, [], ["/app/gone"]) == []
+    assert stale_entries(KNOWN_REDIRECTING_WEB_URLS, real_retired_paths()) == []
+    # A stale entry is caught: every entry must be retired, whether or not it is still live.
+    assert stale_entries({"/app/gone": "x"}, ["/app/other"]) == ["/app/gone"]
+    assert stale_entries({"/app/gone": "x"}, []) == ["/app/gone"]
+    assert stale_entries({"/app/gone": "x"}, ["/app/gone"]) == []
 
 
 def test_every_entry_of_the_real_retired_table_is_parsed():
