@@ -1,15 +1,14 @@
 import { createHash } from 'node:crypto';
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import type { ArchiveQuery, ArchiveResponse, ArchiveRow, ArchiveSource } from '../src/analysis/archive';
 import type { Publication, Report, VerifierEntity, VerifierVerdict } from '../src/api/platform';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
-import { ID_FASTPAY, ID_PAYCO, JOB_DONE, JOB_OLD, JOB_SECOND, ROWS, SOURCES, archiveOf, detailOf } from '../src/test/fixtures/analysis';
+import { JOB_DONE, ROWS, archiveOf, detailOf } from '../src/test/fixtures/analysis';
 import { DRAFT, EDITION, FROZEN, LEGACY, PROVENANCE, publicationOf, reportOf } from '../src/test/fixtures/reports';
 import { usageOf } from '../src/test/fixtures/resources';
 import { RUN_ID, cellsFixture, digestOf, runFixture, studyFixture } from '../src/test/fixtures/studies';
 
-// S7b · analysis and reports: analysis-sources, analysis-workspace, rep-list, rep-detail, proj-publications and verifier.
+// S7b · reports: the redirect of the retired analysis addresses, rep-list, rep-detail, proj-publications and verifier.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. Every test walks a screen through its states on a desktop and on a phone.
 
@@ -52,52 +51,6 @@ const projectsOf: Record<string, ReturnType<typeof project>[]> = {
   'read-lab': [project(4, 'org-4', 'bench', 'Bench')],
 };
 
-// --- the analysis
-
-const KEY_CHANGED = 'The source archive has changed; reload before making this decision';
-const FRONT_TASK = { id: 'task-1', revision: archiveOf().revision, scope: 'archive', layers: false, error: null, result: null };
-
-/** The two bindings ranked the way the gateway would under the weights and limit of a query: a balanced rule takes the worst weighted loss, a weighted sum their total. */
-function answerFor(query: ArchiveQuery, frontDone: boolean): ArchiveResponse {
-  const weight = { cost: query.weights?.cost ?? 1, latency: query.weights?.latency ?? 1 };
-  const total = weight.cost + weight.latency || 1;
-  const shares = { cost: weight.cost / total, latency: weight.latency / total };
-  const limit = query.requirements?.find((requirement) => requirement.dimension === 'latency')?.value;
-  const rows: ArchiveRow[] = [ROWS.payco, ROWS.fastpay].map((row) => {
-    const eligible = limit === undefined || (row.values?.[1] ?? 0) <= limit;
-    const losses = [(row.normalized?.[0] ?? 0) * shares.cost, (row.normalized?.[1] ?? 0) * shares.latency];
-    const score = query.rule === 'weighted' ? losses[0] + losses[1] : Math.max(...losses);
-    return { ...row, eligible, reasons: eligible ? [] : [`Latency ${row.values?.[1]} ms is above the limit of ${limit} ms.`], score: eligible ? [Number(score.toFixed(3))] : null, rank: null, paretoRank: frontDone ? 1 : null };
-  });
-  const ordered = rows.filter((row) => row.eligible).sort((a, b) => (a.score?.[0] ?? 0) - (b.score?.[0] ?? 0));
-  ordered.forEach((row, index) => { row.rank = index + 1; row.scoreGroup = index + 1; });
-  const table = [...ordered, ...rows.filter((row) => !row.eligible)];
-  return archiveOf({
-    rule: query.rule ?? 'balanced', weights: shares, rows: table, total: table.length, winners: ordered.slice(0, 1), winnerCount: ordered.length ? 1 : 0, next: ordered.slice(1, 2), nextCount: ordered.length > 1 ? 1 : 0,
-    counts: { unique: 2, stored: 2, eligible: ordered.length, infeasible: 0, unknown: 0 },
-    pareto: frontDone
-      ? { state: 'front-complete', scope: 'archive', count: 2, frontCount: 2, meaning: 'Both bindings are non-dominated.', hypervolume: null }
-      : { state: 'uncomputed', scope: 'archive', count: 2, frontCount: null, meaning: 'Pareto not computed.', hypervolume: null },
-    plot: {
-      axes: [0, 1], bounds: [0, 0, 1, 1], count: 2, aggregated: false, bins: [],
-      points: table.map((row) => ({ id: row.id, x: row.normalized?.[0] ?? 0, y: row.normalized?.[1] ?? 0, feasible: true, eligible: row.eligible, paretoRank: row.paretoRank })),
-    },
-    budgets: query.view === 'budgets'
-      ? {
-        available: true, axes: [0, 1], signs: [1, 1], bounds: [0.1, 300, 0.14, 450], selected: [null, null], resolution: 64, aggregated: false, cornerCount: 2, witnessCount: 2,
-        corners: [{ x: 0.118, y: 412, id: ID_PAYCO }, { x: 0.131, y: 327, id: ID_FASTPAY }], tiles: [], excluded: [], skipped: [],
-        meaning: 'Each rung is the best latency some stored binding reaches within that cost.', detail: 'Achieved budgets from 2 stored bindings.',
-      }
-      : null,
-    geometry: query.view === 'preferences' && query.geometry === 'sensitivity'
-      ? {
-        kind: 'sensitivity', state: 'complete', axis: 0, meaning: 'The winner as the priority on cost grows from none to all.',
-        scenarios: [{ t: 0, winners: [ID_FASTPAY], winnerCount: 1, score: [0.1] }, { t: 0.5, winners: [ID_FASTPAY], winnerCount: 1, score: [0.2] }, { t: 0.6, winners: [ID_PAYCO], winnerCount: 1, score: [0.2] }, { t: 1, winners: [ID_PAYCO], winnerCount: 1, score: [0.3] }],
-      }
-      : null,
-  });
-}
-
 // --- the evidence the verifier can find
 
 const FILE_BYTES = 'a,b\n1,2\n';
@@ -128,21 +81,17 @@ const verdictOf = (status: VerifierVerdict['status'], digest: string, entities: 
 
 // --- what the gateway answers
 
-type Overridable = 'sources' | 'query' | 'candidate' | 'save' | 'reports' | 'update' | 'freeze' | 'publish' | 'withdraw' | 'remove' | 'publications' | 'report' | 'verify' | 'verifyFile';
+type Overridable = 'reports' | 'update' | 'freeze' | 'publish' | 'withdraw' | 'remove' | 'publications' | 'report' | 'verify' | 'verifyFile';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
   refuse: Partial<Record<Overridable, Handler>>;
   sent: {
-    queries: ArchiveQuery[]; candidates: ArchiveQuery[]; save?: Record<string, unknown>; created?: Record<string, unknown>; updated: Array<Record<string, unknown>>;
+    created?: Record<string, unknown>; updated: Array<Record<string, unknown>>;
     frozen: string[]; published?: Record<string, unknown>; withdrawn: string[]; removed: string[]; drafts: string[]; verify: Array<Record<string, unknown>>; verifyFile: number;
   };
-  sources: ArchiveSource[];
   reports: Report[];
   publications: Publication[];
-  /** The background front reports this state when asked. */
-  front: 'running' | 'completed' | 'cancelled';
-  frontDone: boolean;
 }
 
 interface MockOptions {
@@ -163,12 +112,9 @@ const DECISION = reportOf('decision-choice', 'draft', { title: 'Checkout choice'
 async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   const state: State = {
     refuse: {},
-    sent: { queries: [], candidates: [], updated: [], frozen: [], withdrawn: [], removed: [], drafts: [], verify: [], verifyFile: 0 },
-    sources: SOURCES,
+    sent: { updated: [], frozen: [], withdrawn: [], removed: [], drafts: [], verify: [], verifyFile: 0 },
     reports: [structuredClone(FROZEN), structuredClone(DRAFT), structuredClone(LEGACY), structuredClone(DECISION)],
     publications: [publicationOf(FROZEN)],
-    front: 'running',
-    frontDone: false,
   };
   const organizations = [
     org('org-isa-demo', 'isa-demo', 'ISA Demo Group', options.role ?? 'OWNER'),
@@ -189,56 +135,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
   await page.route(`${API}/v1/engines`, json({ engines: [] }));
-
-  // --- analysis
-  await page.route(new RegExp(`^${API}/v1/analysis/sources(\\?.*)?$`), (route) => {
-    if (state.refuse.sources) return state.refuse.sources(route);
-    return json({ items: state.sources, nextCursor: null })(route);
-  });
-  await page.route(`${API}/v1/analysis/query`, (route) => {
-    const query = bodyOf<ArchiveQuery>(route);
-    state.sent.queries.push(query);
-    if (state.refuse.query) return state.refuse.query(route);
-    return json(answerFor(query, state.frontDone))(route);
-  });
-  await page.route(`${API}/v1/analysis/candidate`, (route) => {
-    const query = bodyOf<ArchiveQuery>(route);
-    state.sent.candidates.push(query);
-    if (state.refuse.candidate) return state.refuse.candidate(route);
-    const answer = answerFor(query, state.frontDone);
-    const row = answer.rows.find((item) => item.id === query.selected) ?? answer.winners[0] ?? ROWS.payco;
-    const other = answer.rows.find((item) => item.id !== row.id) ?? ROWS.fastpay;
-    return json(detailOf(row, (query.compare?.length ?? 0) > 0 ? {
-      comparison: [{
-        id: other.id, reasons: ['It gives up latency for cost.'], score: other.score, scoreDelta: [0.02],
-        changes: [{ task: 'pago-tarjeta', selected: { resource: 'candidate', id: 'payco-eu' }, alternative: { resource: 'candidate', id: 'fastpay' } }],
-        dimensions: [{ key: 'cost', selected: 0.118, alternative: 0.131, delta: 0.013, improves: false }, { key: 'latency', selected: 412, alternative: 327, delta: -85, improves: true }],
-      }],
-    } : {}))(route);
-  });
-  await page.route(`${API}/v1/analysis/export`, (route) => {
-    const body = bodyOf<{ format: string }>(route);
-    if (body.format === 'receipt') return json(DECISION_DOCUMENT)(route);
-    return route.fulfill({ status: 200, contentType: 'text/csv', body: 'id,cost,latency\n' });
-  });
-  await page.route(`${API}/v1/analysis/reports`, (route) => {
-    state.sent.save = bodyOf(route);
-    if (state.refuse.save) return state.refuse.save(route);
-    const sent = bodyOf<{ slug: string; title: string }>(route);
-    return json(reportOf(sent.slug, 'draft', { title: sent.title, document: DECISION_DOCUMENT }), 201)(route);
-  });
-  await page.route(`${API}/v1/analysis/pareto`, (route) => {
-    state.front = 'running';
-    return json({ ...FRONT_TASK, state: 'running', progress: 0.4 })(route);
-  });
-  await page.route(new RegExp(`^${API}/v1/analysis/pareto/task-1(/cancel)?$`), (route) => {
-    if (route.request().url().endsWith('/cancel')) {
-      state.front = 'cancelled';
-      return json({ ...FRONT_TASK, state: 'cancelled', progress: 0.4 })(route);
-    }
-    if (state.front === 'completed') state.frontDone = true;
-    return json({ ...FRONT_TASK, state: state.front, progress: state.front === 'completed' ? 1 : 0.4, result: state.front === 'completed' ? { complete: true, count: 2, front: [ID_PAYCO, ID_FASTPAY], ranks: null } : null })(route);
-  });
 
   // --- the verifier
   await page.route(`${API}/v1/verifier/inspect`, (route) => {
@@ -418,8 +314,6 @@ const viewports = [
 ] as const;
 
 const ROOT = '/app/isa-demo/qos-benchmarks';
-const WORKSPACE = '/app/analysis/workspace';
-const cells = cellsFixture();
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S7b analysis and reports`, () => {
@@ -427,245 +321,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test.describe.configure({ mode: 'default' });
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('analysis-sources /app/analysis · groups by model, a preselected cell and the way into the decision space', async ({ page }, testInfo) => {
+    test('retired analysis screens · old links land on the jobs list or on the study run', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
+
       await page.goto('/app/analysis');
-      const main = page.locator('#platform-main');
+      await expect(page).toHaveURL(/\/app\/jobs$/);
+      await page.goto('/app/analysis/workspace?job=x');
+      await expect(page).toHaveURL(/\/app\/jobs$/);
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Analysis' })).toBeVisible();
-      await expect(main.getByText(/Compare results you already have under the priorities you choose\. Nothing here runs a solver again\./)).toBeVisible();
-      const checked = main.getByRole('region', { name: 'Model sha256-c3d4…c3d4 · checked by sha256-1a2b…1a2b' });
-      await expect(checked.getByRole('checkbox')).toHaveCount(2);
-      await expect(checked.getByText('Can be combined')).toHaveCount(2);
-      await expect(main.getByRole('region', { name: 'Not finished yet' }).getByRole('checkbox')).toBeDisabled();
-      await expect(main.getByRole('button', { name: 'Open decision space with 0 sources' })).toBeDisabled();
-      await capture(page, testInfo, `sources-${name}-groups`, { height: 1800 });
-
-      await checked.getByRole('checkbox', { name: /random-search · job f1a1b2c3…/ }).check();
-      await checked.getByRole('checkbox', { name: /evolutionary · job f2a1b2c3…/ }).check();
-      await expect(main.getByRole('link', { name: 'Open decision space with 2 sources' })).toHaveAttribute('href', `${WORKSPACE}?job=${JOB_DONE}&job=${JOB_SECOND}`);
-      // A result with no recorded model can't be mixed with them, but it opens alone.
-      const legacy = main.getByRole('region', { name: 'Can’t be combined' });
-      await expect(legacy.getByRole('checkbox')).toBeDisabled();
-      await expect(legacy.getByRole('link', { name: /Open random-search · job f7a1b2c3… alone/ })).toHaveAttribute('href', `${WORKSPACE}?job=${JOB_OLD}`);
-      await legacy.getByRole('button', { name: 'Why?' }).click();
-      await expect(legacy.getByText(/before runs recorded which model and checker they used/)).toBeVisible();
-      await capture(page, testInfo, `sources-${name}-selected`, { height: 1800 });
-
-      // Arriving from a study cell: its stored result is already chosen.
-      await page.goto(`/app/analysis?org=isa-demo&project=qos-benchmarks&study=engines-vs-seeds&run=${RUN_ID}&cell=${cells[2].id}`);
-      await expect(main.getByText(/Preselected from the study: Cell 3 of run/)).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open decision space with 1 source' })).toBeVisible();
-      await capture(page, testInfo, `sources-${name}-from-cell`, { height: 1400 });
-
-      await main.getByRole('link', { name: 'Open decision space with 1 source' }).click();
-      await expect(main.getByRole('heading', { level: 1, name: 'Decision space' })).toBeVisible();
-      await expect(main.getByRole('heading', { level: 2, name: 'Binding a1a1a1a1a1', exact: true })).toBeVisible();
-      expect(critical).toEqual([]);
-    });
-
-    test('analysis-sources /app/analysis · nothing to compare, a key that cannot read jobs, and an old link', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      const main = page.locator('#platform-main');
-
-      state.sources = [];
-      await page.goto('/app/analysis');
-      await expect(main.getByText('Nothing to compare yet')).toBeVisible();
-      await expect(main.getByText('Analysis works on finished runs you own. Run a case first.')).toBeVisible();
-      await main.getByRole('button', { name: 'Start a run' }).click();
-      await expect(main.getByRole('link', { name: /ISA Demo Group \/ QoS Benchmarks/ })).toHaveAttribute('href', `${ROOT}/jobs/new`);
-      await capture(page, testInfo, `sources-${name}-empty`, { height: 1100 });
-
-      state.sources = SOURCES;
-      state.refuse.sources = detail(403, 'api_key_boundary', 'The API key boundary excludes this resource');
-      await page.goto('/app/analysis');
-      await expect(main.getByText('This API key can’t read these results (403 · api_key_boundary)')).toBeVisible();
-      await capture(page, testInfo, `sources-${name}-403`, { height: 900 });
-      state.refuse.sources = undefined;
-      await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('region', { name: /Model sha256-c3d4/ })).toBeVisible();
-      expect(critical).toEqual([]);
-    });
-
-    test('analysis-workspace /app/analysis/workspace · ranking, priorities, limits, inspector and shortlist', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto(`${WORKSPACE}?job=${JOB_DONE}`);
-      const main = page.locator('#platform-main');
-
-      await expect(main.getByRole('heading', { level: 1, name: 'Decision space' })).toBeVisible();
-      await expect(main.getByText('1 source · 2 unique bindings, 2 stored occurrences')).toBeVisible();
-      await expect(main.getByRole('heading', { level: 2, name: 'Binding a1a1a1a1a1', exact: true })).toBeVisible();
-      await expect(main.getByText('Balanced compromise · Preferred under your rule')).toBeVisible();
-      const ranking = main.getByRole('region', { name: /Ranking/ });
-      await expect(ranking.getByRole('listitem')).toHaveCount(2);
-      await expect(ranking.getByText('Cost 0.118 EUR/request · Latency 412 ms')).toBeVisible();
-      await expect(main.getByRole('group', { name: 'Binding objective map' })).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'Inspector · Binding a1a1a1a1a1' })).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'What contributes to this choice' })).toBeVisible();
-      await expect(main.getByText('50%').first()).toBeVisible();
-      await capture(page, testInfo, `workspace-${name}-decision`, { height: 2600 });
-
-      // Less weight on cost: the other binding wins, and the page says how the priority is shared.
-      await main.getByRole('slider', { name: 'Cost priority' }).fill('0.5');
-      await expect(main.getByRole('heading', { level: 2, name: 'Binding b2b2b2b2b2', exact: true })).toBeVisible();
-      await expect(main.getByText('33%', { exact: true })).toBeVisible();
-      expect(state.sent.queries.at(-1)).toMatchObject({ weights: { cost: 0.5 } });
-
-      // A limit that must hold excludes what breaks it, and says why.
-      await main.getByRole('spinbutton', { name: 'Latency requirement' }).fill('400');
-      await expect(ranking.getByText('Excluded', { exact: true })).toBeVisible();
-      await expect(main.getByText('Includes the limit itself. 1 of 2 bindings meet every requirement.')).toBeVisible();
-      await ranking.getByText('Why?').click();
-      await expect(ranking.getByText('Latency 412 ms is above the limit of 400 ms.')).toBeVisible();
-      await capture(page, testInfo, `workspace-${name}-limit`, { height: 2200 });
-      await main.getByRole('button', { name: 'Reset priorities and requirements' }).click();
-      await expect(main.getByRole('heading', { level: 2, name: 'Binding a1a1a1a1a1', exact: true })).toBeVisible();
-
-      // Another binding in the inspector, and a shortlist to compare it with.
-      await ranking.getByRole('button', { name: 'Inspect binding b2b2b2b2b2' }).click();
-      await expect(main.getByRole('heading', { name: 'Inspector · Binding b2b2b2b2b2' })).toBeVisible();
-      await ranking.getByRole('checkbox', { name: 'Compare a1a1a1a1a1' }).check();
-      await expect(main.getByRole('heading', { name: 'Shortlist comparison' })).toBeVisible();
-      await expect(main.getByText('Alternative a1a1a1a1a1')).toBeVisible();
-      await expect(main.getByText('gain', { exact: true })).toBeVisible();
-      await expect(main.getByText('sacrifice', { exact: true })).toBeVisible();
-      expect(state.sent.candidates.at(-1)).toMatchObject({ selected: ID_FASTPAY, compare: [ID_PAYCO] });
-      await capture(page, testInfo, `workspace-${name}-inspector`, { area: main.locator('section[aria-labelledby="an-inspector-title"]') });
-
-      // The raw evaluation exists, behind "View source" only.
-      await expect(main.getByLabel('Constraints and raw metrics')).toBeHidden();
-      await main.getByText('View source').click();
-      await expect(main.getByLabel('Constraints and raw metrics')).toContainText('"feasible": true');
-      expect(critical).toEqual([]);
-    });
-
-    test('analysis-workspace /app/analysis/workspace · budgets, the trade-off front, preferences and evidence', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto(`${WORKSPACE}?job=${JOB_DONE}&view=budgets`);
-      const main = page.locator('#platform-main');
-
-      await expect(main.getByRole('tab', { name: 'Budgets' })).toHaveAttribute('aria-selected', 'true');
-      await expect(main.getByRole('heading', { name: 'If Cost had to stay under…' })).toBeVisible();
-      await expect(main.getByText(/reaches Latency 412 ms/)).toBeVisible();
-      await expect(main.getByText(/reaches Latency 327 ms/)).toBeVisible();
-      await expect(main.getByRole('group', { name: 'Budget attainment map' })).toBeVisible();
-      await capture(page, testInfo, `workspace-${name}-budgets`, { height: 2200 });
-
-      // The front is computed in the background and can be watched.
-      await main.getByRole('tab', { name: 'Trade-off front' }).click();
-      await expect(page).toHaveURL(/view=pareto/);
-      await main.getByRole('button', { name: 'Compute the front' }).click();
-      await expect(main.getByRole('progressbar', { name: 'Progress of the front' })).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Cancel' })).toBeVisible();
-      await capture(page, testInfo, `workspace-${name}-front-running`, { height: 1600 });
-      state.front = 'completed';
-      await expect(main.getByText('2 non-dominated bindings among 2 in this scope.')).toBeVisible({ timeout: 30_000 });
-      await capture(page, testInfo, `workspace-${name}-front-done`, { height: 1600 });
-
-      await main.getByRole('tab', { name: 'Preferences' }).click();
-      await expect(main.getByRole('heading', { name: 'Which choice wins for each balance' })).toBeVisible();
-      await expect(main.getByRole('img', { name: /b2b2b2b2b2 from 0% to 55%; a1a1a1a1a1 from 55% to 100%/ })).toBeVisible();
-      await expect(main.getByText('Binding a1a1a1a1a1 from 55% to 100%')).toBeVisible();
-      await capture(page, testInfo, `workspace-${name}-preferences`, { height: 1800 });
-
-      await main.getByRole('tab', { name: 'Evidence' }).click();
-      await expect(main.getByRole('heading', { name: 'Evidence used' })).toBeVisible();
-      await expect(main.getByText('Stored job result')).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Copy model digest' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Change sources' })).toHaveAttribute('href', `/app/analysis?job=${JOB_DONE}`);
-      await expect(main.getByText('Unexplored space remains unknown.').first()).toBeVisible();
-      await capture(page, testInfo, `workspace-${name}-evidence`, { height: 1800 });
-      expect(critical).toEqual([]);
-    });
-
-    test('analysis-workspace /app/analysis/workspace · stale evidence, a busy evaluator, sources that are not yours, export and save', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto(`${WORKSPACE}?job=${JOB_DONE}`);
-      const main = page.locator('#platform-main');
-      await expect(main.getByRole('heading', { level: 2, name: 'Binding a1a1a1a1a1', exact: true })).toBeVisible();
-
-      // The evidence changed: the last ranking stays, marked as not current, until it is refreshed.
-      state.refuse.query = detail(409, 'archive_changed', KEY_CHANGED);
-      await main.getByRole('slider', { name: 'Cost priority' }).fill('3');
-      await expect(main.getByText('The evidence changed (409 · archive_changed)')).toBeVisible();
-      await expect(main.getByText(/The values below are the last response received, not trusted current evidence/)).toBeVisible();
-      await expect(main.getByRole('heading', { level: 2, name: 'Binding a1a1a1a1a1', exact: true })).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Save as report' })).toBeDisabled();
-      await capture(page, testInfo, `workspace-${name}-stale`, { height: 1500 });
-      state.refuse.query = undefined;
-      await main.getByRole('button', { name: 'Refresh' }).click();
-      await expect(main.getByText('The evidence changed (409 · archive_changed)')).toHaveCount(0);
-
-      state.refuse.query = (route) => route.fulfill({ status: 429, headers: { 'Retry-After': '5' }, json: { detail: { error: 'The evaluator is busy.' } } });
-      await main.getByRole('slider', { name: 'Cost priority' }).fill('2');
-      await expect(main.getByText(/The evaluator is busy \(429/)).toBeVisible();
-      await expect(main.getByRole('heading', { level: 2, name: 'Binding a1a1a1a1a1', exact: true })).toBeVisible();
-      await capture(page, testInfo, `workspace-${name}-429`, { height: 1300 });
-      state.refuse.query = undefined;
-      await main.getByRole('button', { name: 'Try again' }).click();
-      await expect(main.getByText(/The evaluator is busy/)).toHaveCount(0);
-
-      // Export the receipt as a file.
-      const downloaded = page.waitForEvent('download');
-      await main.locator('summary', { hasText: 'Export' }).click();
-      await main.getByRole('button', { name: 'Export receipt' }).click();
-      expect((await downloaded).suggestedFilename()).toBe('binding-decision.json');
-      await expect(main.getByText('Export downloaded.')).toBeVisible();
-
-      // Save it as a draft report of a project the person can write to.
-      await main.getByRole('button', { name: 'Save as report' }).click();
-      const dialog = page.getByRole('dialog', { name: 'Save as report' });
-      await expect(dialog.getByRole('option', { name: 'ISA Demo Group' })).toBeAttached();
-      await expect(dialog.getByRole('option', { name: 'Read Lab' })).toHaveCount(0);
-      await dialog.getByLabel('Project').selectOption('qos-benchmarks');
-      await dialog.getByLabel('Title').fill('Checkout choice 2');
-      await capture(page, testInfo, `workspace-${name}-save`);
-      await dialog.getByRole('button', { name: 'Save draft' }).click();
-      await expect(main.getByText(/Saved as a draft report with this exact receipt/)).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open the draft' })).toHaveAttribute('href', /\/app\/isa-demo\/qos-benchmarks\/reports\/binding-decision-/);
-      expect(state.sent.save).toMatchObject({ organization: 'isa-demo', project: 'qos-benchmarks', title: 'Checkout choice 2', sources: [JOB_DONE] });
-
-      // Sources that aren't the account's read as missing.
-      state.refuse.query = detail(404, 'not_found', 'One or more analysis sources are unavailable');
-      await page.goto(`${WORKSPACE}?job=00000000-0000-4000-8000-0000000000aa`);
-      await expect(main.getByText('These sources aren’t available (404 · not_found)')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Change sources' })).toHaveAttribute('href', '/app/analysis?job=00000000-0000-4000-8000-0000000000aa');
-      await capture(page, testInfo, `workspace-${name}-404`, { height: 900 });
-
-      state.refuse.query = detail(409, 'incompatible_sources', 'The pinned model does not match its stored identity');
-      await page.goto(`${WORKSPACE}?job=${JOB_DONE}&job=${JOB_SECOND}`);
-      await expect(main.getByText('These sources can’t be ranked together (409 · incompatible_sources)')).toBeVisible();
-      await capture(page, testInfo, `workspace-${name}-409`, { height: 900 });
-      expect(critical).toEqual([]);
-    });
-
-    test('analysis-workspace /app/analysis/workspace · a saved decision, a study cell, a whole run and no sources at all', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      const main = page.locator('#platform-main');
-
-      await page.goto(`${WORKSPACE}?report=isa-demo/qos-benchmarks/decision-choice`);
-      await expect(main.getByText('Saved decision snapshot')).toBeVisible();
-      await expect(main.getByText(/saved in Checkout choice/)).toBeVisible();
-      await expect(main.getByRole('heading', { name: /^Binding / }).first()).toBeVisible();
-      expect(state.sent.queries.at(-1)).toMatchObject({ sources: [JOB_DONE], weights: { cost: 1, latency: 2 } });
-      await main.getByText('Saved decision snapshot').click();
-      await expect(main.getByRole('list', { name: /What contributed to binding b2b2b2b2b2/ })).toBeVisible();
-      await capture(page, testInfo, `workspace-${name}-saved`, { height: 2000 });
-
-      await page.goto(`${WORKSPACE}?org=isa-demo&project=qos-benchmarks&study=engines-vs-seeds&run=${RUN_ID}`);
-      await expect(main.getByText(/finished cells? of run/)).toBeVisible();
-      await expect(main.getByRole('heading', { level: 2, name: 'Binding a1a1a1a1a1', exact: true })).toBeVisible();
-
-      await page.goto(WORKSPACE);
-      await expect(main.getByText('No sources chosen')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Choose sources' })).toHaveAttribute('href', '/app/analysis');
-      await capture(page, testInfo, `workspace-${name}-no-sources`, { height: 900 });
+      await page.goto(`/app/analysis?org=isa-demo&project=qos-benchmarks&study=engines-vs-seeds&run=${RUN_ID}`);
+      await expect(page).toHaveURL(new RegExp(`${ROOT}/studies/engines-vs-seeds/runs/${RUN_ID}$`));
+      await capture(page, testInfo, `analysis-${name}-old-link`, { height: 900 });
       expect(critical).toEqual([]);
     });
 
@@ -885,10 +552,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('region', { name: 'Text block 2' }).getByRole('textbox')).toHaveValue('Evolutionary is cheaper but slower.');
       await capture(page, testInfo, `report-${name}-legacy`, { height: 1500 });
 
-      // A saved binding decision: drawn as a decision, with the way to reopen it.
+      // A saved binding decision: drawn as a decision, with no way back into the retired decision space.
       await page.goto(`${ROOT}/reports/decision-choice`);
       await expect(main.getByRole('heading', { level: 2, name: 'Recorded binding decision' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Reopen decision space' })).toHaveAttribute('href', `${WORKSPACE}?report=isa-demo%2Fqos-benchmarks%2Fdecision-choice`);
+      await expect(main.getByRole('link', { name: 'Reopen decision space' })).toHaveCount(0);
       await expect(main.getByRole('heading', { level: 3, name: 'Binding b2b2b2b2b2' })).toBeVisible();
       await capture(page, testInfo, `report-${name}-decision`, { height: 2000 });
 

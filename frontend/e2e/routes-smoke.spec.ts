@@ -86,10 +86,10 @@ function watchCriticalErrors(page: Page) {
 }
 
 test.describe('route registry', () => {
-  test('lists all 82 screens of the prototype', () => {
-    expect(screens).toHaveLength(82);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(82);
-    expect(new Set(screens.map((screen) => screen.path)).size).toBe(82);
+  test('lists all 80 screens of the prototype', () => {
+    expect(screens).toHaveLength(80);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(80);
+    expect(new Set(screens.map((screen) => screen.path)).size).toBe(80);
     expect(screens.filter((screen) => screen.requireAdmin).every((screen) => screen.id.startsWith('admin-'))).toBe(true);
   });
 });

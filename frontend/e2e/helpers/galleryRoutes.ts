@@ -54,7 +54,6 @@ const PARAMS_OF: Record<string, Record<string, string>> = {
 /** The query string that makes a screen show something instead of its starting point. */
 const QUERY_OF: Record<string, string> = {
   'eng-registration-detail': `?namespace=alex.rivera&version=0.3.1&digest=sha256-${'e5f6'.repeat(16)}`,
-  'analysis-workspace': '?job=f1a1b2c3-0000-4000-8000-000000000001&job=f2a1b2c3-0000-4000-8000-000000000002',
   'job-launch': '?case=checkout-flow&revision=2',
   'study-builder': '?case=checkout-flow&revision=2',
   'wb-workbench': '?case=checkout-flow&revision=2',

@@ -88,8 +88,6 @@ const HEADING: Record<string, RegExp> = {
   'study-run': /Run #1/,
   'study-cell': /Cell 2/,
   'study-analytics': /Compare results · run #1/,
-  'analysis-sources': /^Analysis$/,
-  'analysis-workspace': /Decision space/,
   'rep-list': /^Reports$/,
   'rep-detail': /Engine comparison at checkout/,
   'proj-publications': /^Publications$/,
@@ -212,9 +210,9 @@ async function freezeProbeTimes(page: Page) {
 const sessionOf = (screen: GalleryScreen) => (screen.underApp || screen.sessionHeader ? 'admin' : 'none');
 
 test.describe('gallery registry', () => {
-  test('lists all 82 screens of the prototype', () => {
-    expect(screens).toHaveLength(82);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(82);
+  test('lists all 80 screens of the prototype', () => {
+    expect(screens).toHaveLength(80);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(80);
   });
 });
 
