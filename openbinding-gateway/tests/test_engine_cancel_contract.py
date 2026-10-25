@@ -241,6 +241,24 @@ async def test_the_credential_of_another_tenant_cannot_stop_the_job_and_the_404_
     assert await cancel_rows(db_session, job) == {1: ("skipped", 1)}
 
 
+async def test_a_slow_setup_behind_the_frozen_clock_still_gets_its_lost_attempt_cancelled(
+    db_session, owner, engine_factory, credential, frozen
+):
+    """Regression for an intermittent failure: the frozen clock is taken when the fixture starts, and the lease
+    that ``lose_the_worker`` stamped came from the real clock. A setup slower than the one-second margin of that
+    helper left the lease in the frozen clock's future, so the sweep saw a live worker and nothing was cancelled.
+    The lease now follows the frozen clock, so the distance between the two clocks does not matter."""
+    engine = engine_factory()
+    remote_id = engine.start_job()
+    frozen.advance(-5)  # what a slow setup does to the distance between the two clocks
+    _, job = await lost_attempt(db_session, owner, engine, remote_id, cancellation=PER_ATTEMPT_CANCELLATION)
+
+    await cycle(db_session, frozen)
+
+    assert engine.deletes == [remote_id]
+    assert await cancel_rows(db_session, job) == {1: ("sent", 1)}
+
+
 async def test_an_unauthenticated_delete_is_refused_retried_a_bounded_number_of_times_and_stops_nothing(
     db_session, owner, engine_factory, credential, frozen, monkeypatch
 ):

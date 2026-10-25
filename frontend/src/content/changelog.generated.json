@@ -2,9 +2,12 @@
   "platform": [
     {
       "version": "0.1.0",
-      "date": "2026-10-24",
+      "date": "2026-10-25",
       "title": "OpenBinding platform",
       "changes": [
+        "Compare healthz latency with a same-run baseline instead of an absolute bound (#43)",
+        "Mark completed slices in the Status column (#44)",
+        "Stop the engine cancel contract test from depending on setup time (#42)",
         "Isolation probe, PR previews docs and shorter preview evidence (M0.5 S4) (#39)",
         "Gate tooling in CI and acceptance runners (M0.3) (#37)",
         "Rendering catalogue foundations and raw-rendering hygiene test (M2.1, M2.2) (#38)",
@@ -82,10 +85,11 @@
   "documentation": [
     {
       "version": "0.1.0",
-      "date": "2026-10-24",
+      "date": "2026-10-25",
       "title": "OpenBinding documentation",
       "changes": [
-        "M41-space-bootstrap plan and handoff",
+        "Compare healthz latency with a same-run baseline instead of an absolute bound (#43)",
+        "Stop the engine cancel contract test from depending on setup time (#42)",
         "Isolation probe, PR previews docs and shorter preview evidence (M0.5 S4) (#39)",
         "Gate tooling in CI and acceptance runners (M0.3) (#37)",
         "Rendering catalogue foundations and raw-rendering hygiene test (M2.1, M2.2) (#38)",
