@@ -55,6 +55,9 @@ def test_ci_runs_on_push_to_develop():
     pull_request = _mapping(trigger, "pull_request")
     assert pull_request.get("branches") == ["main", "develop"], pull_request.get("branches")
     assert "paths" not in pull_request, "the pull_request trigger has a paths filter"
+    for name, job in _ci()["jobs"].items():
+        assert "if" not in job, f"job {name!r} has a job-level if"
+        assert "permissions" not in job, f"job {name!r} declares its own permissions"
 
 
 # [utest->req~ci-develop-push~1]

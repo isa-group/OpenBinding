@@ -3,6 +3,14 @@ name: Continuous Integration
 on:
   pull_request:
     branches: [ main, develop ]
+  push:
+    branches: [ develop ]
+  workflow_dispatch:
+
+# Only push runs cancel in progress.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 permissions:
   contents: read
