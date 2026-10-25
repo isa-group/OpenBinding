@@ -1,0 +1,1 @@
+Slice 2 done end to end: spec, red tests, implementation, e2e/guide, follow-up. Remaining: push, PR, CI, panel (reviewer + test-reviewer), fixes, ready. Slices 3-5 are for later changes using the same recipe.
