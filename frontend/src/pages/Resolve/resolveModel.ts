@@ -75,7 +75,10 @@ export function locationHref(kind: string, location: ResolveLocation): { href: s
   }
   if (!organization || !project) return null;
   const base = `/app/${organization}/${project}`;
-  const detail: Partial<Record<string, string>> = { report: 'reports', 'case-revision': 'cases', 'collection-revision': 'collections' };
+  // [impl->req~frontend-retire-reports-no-link~1]
+  // The report editor is gone: a report is shown in the publications of its project, whatever its slug.
+  if (kind === 'report') return { href: `${base}/publications`, requiresAccount: true };
+  const detail: Partial<Record<string, string>> = { 'case-revision': 'cases', 'collection-revision': 'collections' };
   const section = detail[kind];
   if (section && slug) return { href: `${base}/${section}/${encodeURIComponent(slug)}`, requiresAccount: true };
   // Resource revisions have no detail screen keyed by this slug yet; the project's list is the closest place.

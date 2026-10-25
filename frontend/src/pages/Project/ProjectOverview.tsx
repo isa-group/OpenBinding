@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Lock, Pencil } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { platformApi } from '../../api/platform';
 import type { Job, Organization, Project } from '../../api/platform';
@@ -16,10 +15,9 @@ import { RoleChip } from '../Organization/parts';
 import { loadCases, loadReports, loadStudies } from './projectData';
 import { classifyAuthError, marker } from './projectErrors';
 import {
-  cellBreakdown, countWord, integrityOf, jobStatus, latestRun, reportStanding, sealedShare,
+  cellBreakdown, countWord, integrityOf, jobStatus, latestRun, sealedShare,
   type CaseContent, type IntegrityItem, type StudyContent,
 } from './projectModel';
-import type { ReportsContent } from './projectData';
 import { ProjectFrame, ProjectGate, ProjectSkeleton, VisibilityChip } from './parts';
 import { useRouteProject } from './useRouteProject';
 import './Project.css';
@@ -193,33 +191,6 @@ function StudiesCard({ root, resource }: { root: string; resource: Resource<Stud
   );
 }
 
-function ReportsCard({ root, resource }: { root: string; resource: Resource<ReportsContent> }) {
-  const content = resource.data;
-  const reports = content?.reports ?? [];
-  return (
-    <Card id="po-reports" title="Reports" allLabel="All reports" allTo={`${root}/reports`} resource={resource} noun="reports">
-      {reports.length === 0 && <p className="org-muted">No reports yet. Reports turn a study run into a document you can freeze and publish.</p>}
-      {reports.slice(0, 4).map((report) => {
-        const standing = reportStanding(report, content?.publications ?? []);
-        const Icon = standing === 'draft' ? Pencil : Lock;
-        return (
-          <div key={report.id} className="proj-report">
-            <span className={`proj-report-tile is-${standing}`} aria-hidden="true"><Icon /></span>
-            <span className="proj-job-body">
-              <Link to={`${root}/reports/${report.slug}`} viewTransition><strong>{report.title}</strong></Link>
-              <small>{standing === 'draft' ? `Draft · revision ${report.draft_revision ?? 1}` : `Frozen · ${shortDigest(report.digest)}`}</small>
-            </span>
-            <span className={`proj-status is-${standing === 'published' ? 'ok' : standing === 'draft' ? 'warn' : 'running'}`}>
-              {standing === 'published' ? 'Published' : standing === 'frozen' ? 'Frozen' : 'Draft'}
-            </span>
-            {standing === 'published' && <Link to={`/resolve/report/${report.digest}`} viewTransition aria-label={`Verify ${report.title}`}>Verify</Link>}
-          </div>
-        );
-      })}
-    </Card>
-  );
-}
-
 function IntegrityStrip({ items }: { items: IntegrityItem[] }) {
   const share = sealedShare(items);
   return (
@@ -286,6 +257,7 @@ function OverviewBody({ organization, project, canCreate, publicRead, role, role
     return { rows, mine: own ? new Set(own.jobs.map((job) => job.id)) : null };
   });
   const studies = useResource(`overview-studies:${org}/${slug}`, () => loadStudies(org, slug, RECENT));
+  // The reports have no card any more; they still count in the sealed-history strip and in the empty-project test.
   const reports = useResource(`overview-reports:${org}/${slug}`, () => loadReports(org, slug));
 
   const loaded = [cases, jobs, studies, reports].every((item) => item.status === 'ready');
@@ -315,7 +287,6 @@ function OverviewBody({ organization, project, canCreate, publicRead, role, role
               <RoleAction allowed={canCreate} to={`${root}/cases`} variant="primary">New case</RoleAction>
               <RoleAction allowed={canCreate} to={`${root}/jobs/new`} variant="secondary">Run</RoleAction>
               <RoleAction allowed={canCreate} to={`${root}/studies/new`} variant="secondary">New study</RoleAction>
-              <RoleAction allowed={canCreate} to={`${root}/reports`} variant="secondary">New report</RoleAction>
             </>
           )}
           <Action to={`${root}/workbench`} variant="secondary">Workbench</Action>
@@ -337,14 +308,13 @@ function OverviewBody({ organization, project, canCreate, publicRead, role, role
           <CasesCard root={root} resource={cases} />
           {!publicRead && <JobsCard root={root} resource={jobs} platformAdmin={isAdmin} />}
           <StudiesCard root={root} resource={studies} />
-          <ReportsCard root={root} resource={reports} />
         </div>
       )}
     </ProjectFrame>
   );
 }
 
-/** A project (`proj-overview`, `/app/:org/:project`): sealed versus draft, cases, jobs, studies and reports, each card on its own. */
+/** A project (`proj-overview`, `/app/:org/:project`): sealed versus draft, cases, jobs and studies, each card on its own. */
 export function ProjectOverview() {
   const { context, orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   const { isAdmin } = useAuth();

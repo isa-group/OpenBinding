@@ -63,7 +63,7 @@ describe('access levels', () => {
       expect(canOpenSection('public_read', section)).toBe(false);
       expect(canOpenSection('VIEWER', section)).toBe(true);
     }
-    for (const section of ['overview', 'cases', 'library', 'studies', 'reports', 'files']) expect(canOpenSection('public_read', section)).toBe(true);
+    for (const section of ['overview', 'cases', 'library', 'studies', 'publications', 'files']) expect(canOpenSection('public_read', section)).toBe(true);
     expect(canOpenSection('ADMIN', 'settings')).toBe(true);
   });
 });

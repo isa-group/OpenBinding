@@ -206,7 +206,6 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
                 {downloads[kind] === 'done' ? 'Downloaded' : downloads[kind]?.startsWith('failed') ? `${label} (failed${downloads[kind]?.slice(6)})` : label}
               </Action>
             ))}
-            <Action to={`${root}/reports`} variant="secondary" size="sm">Add to a report</Action>
           </>
         )}
       />

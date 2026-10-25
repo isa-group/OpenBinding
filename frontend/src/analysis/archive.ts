@@ -103,21 +103,3 @@ export const analysisApi = {
 };
 export const shortId = (id: string) => id.replace(/^sha256[:-]/, '').slice(0, 10);
 export const formatNumber = (value: number | null | undefined) => value == null ? '—' : formatEnglish(value, 5);
-
-/** Reports are editable documents; a saved snapshot is not a trusted API response. */
-export function decisionReceipt(value: unknown): DecisionReceipt | null {
-  const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
-  const numbers = (v: unknown) => Array.isArray(v) && v.every(n => typeof n === 'number' && Number.isFinite(n));
-  if (!object(value) || value.kind !== 'binding-decision' || typeof value.scope !== 'string' || typeof value.revision !== 'string'
-    || !object(value.query) || !Array.isArray(value.query.sources) || !value.query.sources.every(s => typeof s === 'string')
-    || !Array.isArray(value.selected)) return null;
-  const q = value.query;
-  for (const name of ['weights', 'reference']) if (q[name] !== undefined && (!object(q[name]) || !numbers(Object.values(q[name])))) return null;
-  for (const name of ['axes', 'compare']) if (q[name] !== undefined && (!Array.isArray(q[name]) || !q[name].every(v => typeof v === 'string'))) return null;
-  if (q.requirements !== undefined && (!Array.isArray(q.requirements) || !q.requirements.every(r => object(r)
-    && typeof r.dimension === 'string' && typeof r.value === 'number' && Number.isFinite(r.value) && ['raw', 'normalized'].includes(String(r.space))))) return null;
-  if (!value.selected.every(s => object(s) && object(s.row) && typeof s.row.id === 'string' && (s.row.score == null || numbers(s.row.score))
-    && object(s.explanation) && typeof s.explanation.formula === 'string' && Array.isArray(s.explanation.components)
-    && s.explanation.components.every(c => object(c) && typeof c.key === 'string' && (c.value === null || typeof c.value === 'number') && typeof c.weight === 'number'))) return null;
-  return value as unknown as DecisionReceipt;
-}

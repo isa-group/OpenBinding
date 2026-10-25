@@ -57,7 +57,8 @@ export function buildCommands({ organizations = [], projects = [], organization,
       ['Library', 'Versioned artifacts and drafts', '/library'],
       ['Files', 'Files stored in this project', '/files'],
       ['Studies', 'Cases × engines × parameters × seeds', '/studies'],
-      ['Reports', 'Frozen, reproducible evidence', '/reports'],
+      // [impl->req~frontend-retire-reports-navigation~1]
+      ['Publications', 'Published editions and how to cite them', '/publications'],
       ['Project settings', 'Name, visibility and members', '/settings'],
     ];
     for (const [label, desc, suffix] of sections) {
