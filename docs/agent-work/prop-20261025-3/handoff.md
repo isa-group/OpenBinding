@@ -7,7 +7,10 @@ Make INTENT O6's "no flaky test older than 7 days" (`INTENT.md:167`) measurable 
 into a dated register.
 
 ## State (with evidence)
-- The register at base has one undated entry (`docs/qa/FLAKY_TESTS.md:3-34`).
+- The register now exists in `docs/qa/FLAKY_TESTS.md` with entries E1-E7 (PR 46). Still open: the "First seen" dates
+  (to be filled from `git log`), the owner's decision on E2/E3 (`crp-flaky-b8-classification`), and the confirmation
+  of the 0.02 s threshold.
+- The register at base had one undated entry (`docs/qa/FLAKY_TESTS.md:3-34`).
 - There are seven entries to record, E1-E7 (`intake.md` section 2): LibArtifact (fixed), two B8 tests deselected in CI
   (`ci.yml:100-110`), two healthz tests fixed by PR #43 (`f2e18c6f`), the cancel-contract test fixed by PR #42
   (`716f8d13`), and the six remote-cancel tests of the P2 race.

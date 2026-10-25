@@ -23,9 +23,10 @@ date is estimated. An entry with an unknown date cannot be aged until a date is 
 | E6 | `openbinding-gateway/tests/test_engine_cancel_contract.py::test_the_credential_of_another_tenant_cannot_stop_the_job_and_the_404_is_not_retried` | unknown (no record) | fixed | #42 (`716f8d13`) | n/a | n/a | `test_engine_cancel_contract.py:228,244-247`; `docs/agent-work/flaky-engine-cancel/report.md:1-70`; `design.md:249` |
 | E7 | Six `frozen` + `lose_and_sweep` tests in `openbinding-gateway/tests/test_remote_cancel.py` (the "P2 race") | unknown (no record); no CI failure of these tests is recorded | fixed | #45 (`9273978d`) | n/a | n/a | `openbinding-gateway/tests/analysis_b3_b4_b6/_helpers.py:111-117`; `test_remote_cancel.py:701`; `docs/agent-work/prop-20261025-2/report.md:1-26` |
 
-**Count for O6.** Entries with status `open` or `deselected` that count: none. E2 and E3 are not counted until the
-owner decides how they are classified (`crp-flaky-b8-classification`); until then `TESTING.md:112` (owner and deadline
-for every quarantine) is not met for them.
+**O6 status.** E2 and E3 (the two tests deselected in the `bim-toolchain` CI job) have no owner and no deadline, so
+`TESTING.md:112` is not met for them. Whether they count toward O6 is pending the owner's decision
+(`crp-flaky-b8-classification`). Until the "First seen" dates are filled from git history, no entry can be aged against
+the 7-day target.
 
 **Verification limits.** This update was written without `git`. Dates, merge commits and PR numbers come only from
 the files cited; the PR numbers and short SHAs of E4-E7 are taken from the intake of this change
