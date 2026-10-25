@@ -696,7 +696,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-run /app/:org/:project/studies/:study/runs/:run · the cells as a matrix and a table, retry and a report', async ({ page }, testInfo) => {
+    test('study-run /app/:org/:project/studies/:study/runs/:run · the cells as a matrix and a table, retry and no report', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(RUN);
@@ -740,17 +740,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Retry 2 unfinished cells' }).click();
       await expect(main.getByText('2 cells queued again.')).toBeVisible();
 
-      // A draft report pinned to the run.
-      await main.getByRole('button', { name: 'Create a report' }).click();
-      await expect(main.getByText('Draft report created from this run.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open the report' })).toHaveAttribute('href', `${ROOT}/reports/engines-vs-seeds-run-1`);
-      expect(state.sent.report).toMatchObject({ slug: 'engines-vs-seeds-run-1', title: 'Engines × seeds · run #1', study_run_id: RUN_ID });
-      await capture(page, testInfo, `run-${name}-report`, { height: 1300 });
+      // The report editor is retired: no draft report is offered from the run.
+      await expect(main.getByRole('button', { name: 'Create a report' })).toHaveCount(0);
+      await expect(main.getByRole('link', { name: 'Open the report' })).toHaveCount(0);
+      expect(state.sent.report).toBeUndefined();
 
       // A viewer sees it all and changes nothing.
       await page.goto('/app/read-lab/bench/studies/engines-vs-seeds/runs/' + RUN_ID);
       await expect(main.getByRole('heading', { level: 1, name: 'Run #1' })).toBeVisible();
-      for (const label of ['Create a report', 'Cancel run', 'Retry cell 1', 'Retry 2 unfinished cells']) await expect(main.getByRole('button', { name: label })).toHaveCount(0);
+      for (const label of ['Cancel run', 'Retry cell 1', 'Retry 2 unfinished cells']) await expect(main.getByRole('button', { name: label })).toHaveCount(0);
       await capture(page, testInfo, `run-${name}-viewer`, { height: 1300 });
       expect(critical).toEqual([]);
     });

@@ -86,16 +86,16 @@ function watchCriticalErrors(page: Page) {
 }
 
 test.describe('route registry', () => {
-  test('lists all 80 screens of the prototype', () => {
-    expect(screens).toHaveLength(80);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(80);
-    expect(new Set(screens.map((screen) => screen.path)).size).toBe(80);
+  test('lists all 78 screens of the prototype', () => {
+    expect(screens).toHaveLength(78);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(78);
+    expect(new Set(screens.map((screen) => screen.path)).size).toBe(78);
     expect(screens.filter((screen) => screen.requireAdmin).every((screen) => screen.id.startsWith('admin-'))).toBe(true);
   });
 });
 
 // One worker: every page is light (the API is a mock), and eight browsers asking one development server for the same cold
-// modules at once is slower and flakier than one after another (87 pages take about a minute and a half in turn).
+// modules at once is slower and flakier than one after another (78 pages take about a minute and a half in turn).
 test.describe.configure({ mode: 'serial' });
 
 for (const screen of screens) {

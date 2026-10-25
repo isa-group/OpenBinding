@@ -124,7 +124,7 @@ test('on a phone the project tabs scroll sideways and keep the open tab in view'
   const files = tabs.getByRole('link', { name: 'Files', exact: true });
   await expect(files).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
   await expect(files).toBeInViewport();
-  // Jobs, Studies, Reports and Files do not fit beside the other tabs: the row has moved to show the open one.
+  // Jobs, Studies, Publications and Files do not fit beside the other tabs: the row has moved to show the open one.
   await expect.poll(() => tabs.evaluate((row) => row.scrollLeft)).toBeGreaterThan(0);
   expect(await tabs.evaluate((row) => row.scrollWidth > row.clientWidth)).toBe(true);
 });

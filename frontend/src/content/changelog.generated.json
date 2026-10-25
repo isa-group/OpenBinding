@@ -5,6 +5,7 @@
       "date": "2026-10-25",
       "title": "OpenBinding platform",
       "changes": [
+        "Accept retired addresses that redirect as valid web URLs (#54)",
         "Retire the decision-space workspace (M2.4 slice 1, ADR-0020) (#51)",
         "Make the costly request of the N2 process probe test deterministic (#52)",
         "Make the process probe timeout step independent of runner speed (#50)",
@@ -97,6 +98,7 @@
       "date": "2026-10-25",
       "title": "OpenBinding documentation",
       "changes": [
+        "M24-retire-screens-2 plan and handoff",
         "Retire the decision-space workspace (M2.4 slice 1, ADR-0020) (#51)",
         "Make the costly request of the N2 process probe test deterministic (#52)",
         "Make the process probe timeout step independent of runner speed (#50)",

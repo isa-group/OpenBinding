@@ -165,6 +165,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
             </label>
           )}
         </div>
+        {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
         <div className="proj-actions">
           {isActive(state) && !cancelRequested && <Action variant="danger-outline" busy={busy === 'cancel'} onClick={() => void cancel()}>Cancel run</Action>}
           {canRetryState(state) && <Action variant="primary" busy={busy === 'retry'} onClick={() => void retry()}>Retry</Action>}
@@ -206,7 +207,6 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
                 {downloads[kind] === 'done' ? 'Downloaded' : downloads[kind]?.startsWith('failed') ? `${label} (failed${downloads[kind]?.slice(6)})` : label}
               </Action>
             ))}
-            <Action to={`${root}/reports`} variant="secondary" size="sm">Add to a report</Action>
           </>
         )}
       />

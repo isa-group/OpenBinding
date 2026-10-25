@@ -43,7 +43,7 @@ const ORGANIZATION_SCREENS = new Set(['settings', 'library', 'new-project']);
 
 /**
  * The workspace home is where organizations and projects are browsed: `/app`, an organization with its own screens, a project's overview.
- * The sections inside a project (cases, studies, reports, files, …) mark themselves in the project tabs, so the header leaves Home alone there.
+ * The sections inside a project (cases, studies, publications, files, …) mark themselves in the project tabs, so the header leaves Home alone there.
  */
 function isWorkspaceHome(pathname: string): boolean {
   const parts = pathname.split('/').filter(Boolean);

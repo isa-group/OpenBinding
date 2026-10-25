@@ -21,10 +21,9 @@ import { ReportFrame } from './parts';
 import { reportRefusal, type Refusal } from './reportErrors';
 import { citationBibtex, citationFields, citationText } from './reportsModel';
 
-function PublicationCard({ publication, report, root, canWithdraw, onWithdraw }: {
+function PublicationCard({ publication, report, canWithdraw, onWithdraw }: {
   publication: Publication;
   report: Report | undefined;
-  root: string;
   canWithdraw: boolean;
   onWithdraw: (publication: Publication) => void;
 }) {
@@ -53,7 +52,6 @@ function PublicationCard({ publication, report, root, canWithdraw, onWithdraw }:
       {verifyUrl && <CopyField value={verifyUrl} label="public link" truncate />}
       <div className="rp-pub-actions">
         {digest && <Action to={`/resolve/report/${digest}`} variant="secondary">Open public verification</Action>}
-        {report && <Action to={`${root}/reports/${encodeURIComponent(report.slug)}`} variant="secondary">Open the report</Action>}
         {canWithdraw && !publication.withdrawn && <Action variant="danger-outline" onClick={() => onWithdraw(publication)}>Withdraw</Action>}
       </div>
       {!canWithdraw && !publication.withdrawn && <small className="rp-muted">Withdrawing needs ADMIN.</small>}
@@ -64,7 +62,6 @@ function PublicationCard({ publication, report, root, canWithdraw, onWithdraw }:
 function PublicationsBody({ organization, project, canAdminister }: { organization: Organization; project: Project; canAdminister: boolean }) {
   const org = organization.slug;
   const slug = project.slug;
-  const root = `/app/${org}/${slug}`;
   const content = useResource(`publications:${org}/${slug}`, async () => {
     const [publications, reports] = await Promise.all([platformApi.publications(org, slug), platformApi.reports(org, slug).catch(() => [] as Report[])]);
     return { publications, reports };
@@ -93,13 +90,12 @@ function PublicationsBody({ organization, project, canAdminister }: { organizati
   };
 
   return (
-    <ReportFrame organization={organization} project={project} trail={[{ label: 'Reports', to: `${root}/reports` }, { label: 'Publications' }]}>
+    <ReportFrame organization={organization} project={project} trail={[{ label: 'Publications' }]}>
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Publications</h1>
           <p>Report editions made public from {project.name}. Withdrawing hides one from listings but keeps every link and fingerprint working.</p>
         </div>
-        <div className="proj-actions"><Action to={`${root}/reports`} variant="secondary">Reports</Action></div>
       </header>
 
       {done && <Notice tone="success">{done}</Notice>}
@@ -114,8 +110,8 @@ function PublicationsBody({ organization, project, canAdminister }: { organizati
         </Notice>
       )}
       {data && data.publications.length === 0 && (
-        <EmptyState dashed icon={<Globe2 />} title="Nothing published yet" action={<Action to={`${root}/reports`} variant="secondary">Open the reports</Action>}>
-          Nothing published from this project yet. Publish a frozen report edition from its page.
+        <EmptyState dashed icon={<Globe2 />} title="Nothing published yet">
+          Nothing published from this project yet. Published editions are listed here with their citation.
         </EmptyState>
       )}
       {data && data.publications.length > 0 && (
@@ -125,7 +121,6 @@ function PublicationsBody({ organization, project, canAdminister }: { organizati
               key={publication.id}
               publication={publication}
               report={data.reports.find((report) => report.id === publication.report_id)}
-              root={root}
               canWithdraw={canAdminister}
               onWithdraw={(item) => { setRefusal(null); setDone(''); setWithdrawing(item); }}
             />
@@ -149,6 +144,7 @@ function PublicationsBody({ organization, project, canAdminister }: { organizati
 }
 
 /** The publications of a project (`proj-publications`, `/app/:org/:project/publications`): the editions made public, how to cite them, and withdrawing one. */
+// [impl->req~frontend-retire-reports-publications-stay~1]
 export function ProjPublications() {
   const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   if (waiting) return <ProjectSkeleton />;

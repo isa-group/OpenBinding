@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { ProtectedRoute } from '../components/ProtectedRoute';
@@ -9,9 +9,11 @@ import { SessionLayout } from './SessionLayout';
 import type { RouteDefinition } from './types';
 
 // [impl->req~frontend-retire-redirect-generic~1]
+// [impl->req~frontend-retire-reports-redirect~1]
 function RetiredRedirect({ route }: { route: RetiredRoute }) {
   const [query] = useSearchParams();
-  return <Navigate to={route.target(query)} replace />;
+  const params = useParams();
+  return <Navigate to={route.target(query, params)} replace />;
 }
 
 function screenElement(definition: RouteDefinition) {
@@ -44,11 +46,12 @@ export function AppRoutes() {
         ))}
       </Route>
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-        {RETIRED_ROUTES.map((route) => (
-          <Route key={route.id} path={route.path} element={<RetiredRedirect route={route} />} />
-        ))}
         {appScreens.map((definition) => (
           <Route key={definition.id} path={definition.path} element={screenElement(definition)} />
+        ))}
+        {/* After the screens: on a tie of rank a screen wins (/app/<org>/library/reports stays lib-artifact). */}
+        {RETIRED_ROUTES.map((route) => (
+          <Route key={route.id} path={route.path} element={<RetiredRedirect route={route} />} />
         ))}
       </Route>
     </Routes>

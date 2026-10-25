@@ -147,6 +147,7 @@ describe('ProjectLibraryNav', () => {
 });
 
 describe('ProjectTabs', () => {
+  // [utest->req~frontend-retire-reports-navigation~1]
   it('links the project sections', () => {
     render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
@@ -157,20 +158,31 @@ describe('ProjectTabs', () => {
       ['Library', '/app/isa-demo/qos/library'],
       ['Jobs', '/app/isa-demo/qos/jobs'],
       ['Studies', '/app/isa-demo/qos/studies'],
-      ['Reports', '/app/isa-demo/qos/reports'],
+      ['Publications', '/app/isa-demo/qos/publications'],
       ['Files', '/app/isa-demo/qos/files'],
       ['Package', '/app/isa-demo/qos/package'],
       ['Settings', '/app/isa-demo/qos/settings'],
     ]);
   });
 
+  // [utest->req~frontend-retire-reports-navigation~1]
+  it('has no Reports tab and no tab that leads to the retired report address', () => {
+    render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
+
+    const nav = screen.getByRole('navigation', { name: 'Project sections' });
+    expect(within(nav).queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
+    for (const link of within(nav).getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/reports([/?#]|$)/);
+    expect(within(nav).getByRole('link', { name: 'Publications' })).toHaveAttribute('href', '/app/isa-demo/qos/publications');
+  });
+
+  // [utest->req~frontend-retire-reports-navigation~1]
   it.each([
     ['overview', 'Overview'],
     ['cases', 'Cases'],
     ['library', 'Library'],
     ['jobs', 'Jobs'],
     ['studies', 'Studies'],
-    ['reports', 'Reports'],
+    ['publications', 'Publications'],
     ['files', 'Files'],
     ['package', 'Package'],
     ['settings', 'Settings'],
@@ -182,11 +194,13 @@ describe('ProjectTabs', () => {
   });
 
   describe('for someone who reads a public project without being a member', () => {
-    it('drops the tabs only members can open and says the project is read-only', () => {
+    // [utest->req~frontend-retire-reports-navigation~1]
+    it('drops the tabs only members can open and says the project is read-only, and still shows Publications', () => {
       render(<MemoryRouter><ProjectTabs orgSlug="open" projectSlug="qos" access="public_read" /></MemoryRouter>);
 
       const nav = screen.getByRole('navigation', { name: 'Project sections' });
-      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Cases', 'Library', 'Studies', 'Reports', 'Files']);
+      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Cases', 'Library', 'Studies', 'Publications', 'Files']);
+      expect(within(nav).getByRole('link', { name: 'Publications' })).toHaveAttribute('href', '/app/open/qos/publications');
       expect(screen.getByRole('note')).toHaveTextContent('You are viewing a public project (read-only).');
     });
 
@@ -215,7 +229,7 @@ describe('ProjectTabs', () => {
       Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
     });
 
-    it.each(['jobs', 'studies', 'reports', 'files', 'settings'] as ProjectSection[])('brings the current tab (%s) into view', (active) => {
+    it.each(['jobs', 'studies', 'publications', 'files', 'settings'] as ProjectSection[])('brings the current tab (%s) into view', (active) => {
       render(<MemoryRouter><ProjectTabs active={active} orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
       expect(scrolled.map((tab) => tab.getAttribute('aria-current'))).toEqual(['page']);

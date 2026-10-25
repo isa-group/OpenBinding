@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { Organization, Project } from '../../api/platform';
 import { routeDefinitions, routesByDomain } from '../../routes/registry';
-import { currentSection, isToolActive, mainLinks, toolLinks, type MainSection } from './appNavigation';
+import { accountLinks, createItems, currentSection, isToolActive, mainLinks, toolLinks, type MainSection } from './appNavigation';
 
 /** The entry of the main navigation each screen of routes/d1..d8 belongs to. Every other screen leaves them all unmarked. */
 const SECTION_OF: Record<string, readonly string[]> = {
@@ -19,6 +20,20 @@ describe('mainLinks', () => {
   it('lists Home, Jobs, Explore and Admin, none of them a retired path', () => {
     expect(Object.values(mainLinks).map((link) => link.to)).toEqual(['/app', '/app/jobs', '/explore', '/app/admin']);
     for (const link of Object.values(mainLinks)) expect(link.to).not.toMatch(/^\/app\/analysis([/?#]|$)/);
+  });
+
+  // [utest->req~frontend-retire-reports-navigation~1]
+  it('offers no entry of the main, tool, account or New menus that leads to a report address', () => {
+    const organization = { slug: 'isa-demo', name: 'ISA demo' } as Organization;
+    const project = { slug: 'qos', name: 'QoS' } as Project;
+    const addresses = [
+      ...Object.values(mainLinks).map((link) => link.to),
+      ...toolLinks.map((link) => link.to),
+      ...accountLinks.map((link) => link.to),
+      ...createItems(organization, project).flatMap((item) => (item.to ? [item.to] : [])),
+    ];
+    expect(addresses.length).toBeGreaterThan(15);
+    expect(addresses.filter((address) => /\/reports([/?#]|$)/.test(address))).toEqual([]);
   });
 });
 

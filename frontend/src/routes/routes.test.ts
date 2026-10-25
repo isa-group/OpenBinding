@@ -40,8 +40,7 @@ const PROTOTYPE: Record<keyof typeof routesByDomain, Array<[string, string]>> = 
   D6: [
     ['study-list', `${P}/studies`], ['study-builder', `${P}/studies/new`], ['study-detail', `${P}/studies/:study`],
     ['study-run', `${P}/studies/:study/runs/:run`], ['study-cell', `${P}/studies/:study/runs/:run/cells/:cell`],
-    ['study-analytics', `${P}/studies/:study/runs/:run/analytics`], ['rep-list', `${P}/reports`],
-    ['rep-detail', `${P}/reports/:report`], ['proj-publications', `${P}/publications`], ['verifier', '/app/verifier'],
+    ['study-analytics', `${P}/studies/:study/runs/:run/analytics`], ['proj-publications', `${P}/publications`], ['verifier', '/app/verifier'],
   ],
   D7: [
     ['eng-register', '/app/engines/new'], ['eng-registrations', '/app/engines/registrations'],
@@ -55,15 +54,16 @@ const PROTOTYPE: Record<keyof typeof routesByDomain, Array<[string, string]>> = 
   ],
 };
 
-const DOMAIN_SIZES = { D1: 18, D2: 7, D3: 10, D4: 18, D5: 4, D6: 10, D7: 4, D8: 9 };
+const DOMAIN_SIZES = { D1: 18, D2: 7, D3: 10, D4: 18, D5: 4, D6: 8, D7: 4, D8: 9 };
 
 const sample = (path: string) => path.replace(/:[A-Za-z]+/g, 'sample');
 
 describe('route registry', () => {
   // [utest->req~frontend-retire-screen-count~1]
-  it('registers the 82 screens of the prototype minus the retired ones, 80 after slice 1', () => {
-    expect(routeDefinitions).toHaveLength(80);
-    expect(Object.values(PROTOTYPE).flat()).toHaveLength(80);
+  // [utest->req~frontend-retire-reports-screen-count~1]
+  it('registers the 82 screens of the prototype minus the retired ones, 78 after slice 2', () => {
+    expect(routeDefinitions).toHaveLength(78);
+    expect(Object.values(PROTOTYPE).flat()).toHaveLength(78);
   });
 
   // [utest->req~frontend-retire-screens-not-routed~1]
@@ -74,6 +74,24 @@ describe('route registry', () => {
     expect(ids).not.toContain('analysis-workspace');
     expect(paths).not.toContain('/app/analysis');
     expect(paths).not.toContain('/app/analysis/workspace');
+  });
+
+  // [utest->req~frontend-retire-reports-screens-not-routed~1]
+  it('declares neither the report list nor the report editor', () => {
+    const ids = routeDefinitions.map((definition) => definition.id);
+    const paths = routeDefinitions.map((definition) => definition.path);
+    expect(ids).not.toContain('rep-list');
+    expect(ids).not.toContain('rep-detail');
+    expect(paths).not.toContain(`${P}/reports`);
+    expect(paths).not.toContain(`${P}/reports/:report`);
+    expect(paths.filter((path) => /\/reports(\/|$)/.test(path))).toEqual([]);
+  });
+
+  // [utest->req~frontend-retire-reports-screen-count~1]
+  it('keeps the publications and the verifier in domain D6, which holds the studies and nothing about reports', () => {
+    expect(routesByDomain.D6.map((definition) => definition.id)).toEqual([
+      'study-list', 'study-builder', 'study-detail', 'study-run', 'study-cell', 'study-analytics', 'proj-publications', 'verifier',
+    ]);
   });
 
   it.each(Object.entries(DOMAIN_SIZES))('domain %s has %i screens', (domain, size) => {
@@ -148,6 +166,15 @@ describe('route registry', () => {
     expect(resolve('/app/language/extensions')).toBe('lang-extensions');
   });
 
+  // [utest->req~frontend-retire-reports-publications-stay~1]
+  it('still resolves the publications and the verifier addresses through the route definitions', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+    const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id;
+
+    expect(resolve('/app/acme/atlas/publications')).toBe('proj-publications');
+    expect(resolve('/app/verifier')).toBe('verifier');
+  });
+
   it('reads /studies/new as the builder and any other address below /studies as a study', () => {
     const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
     const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id;
@@ -183,7 +210,17 @@ describe('route registry', () => {
     expect(resolve('/app/acme/new-project')).toBe('proj-create');
     expect(resolve('/app/acme/settings')).toBe('org-settings');
     expect(resolve('/app/acme/library')).toBe('lib-list');
+    expect(resolve('/app/isa-demo/library/reports')).toBe('lib-artifact');
+    // Even with the retired report list after the screens, as AppRoutes mounts it, the screen wins the tie of rank.
+    const withRetired = [...config, { id: 'rep-list', path: '/app/:org/:project/reports' }];
+    expect(matchRoutes(withRetired, '/app/isa-demo/library/reports')?.at(-1)?.route.id).toBe('lib-artifact');
     expect(resolve('/app/acme/atlas/jobs/new')).toBe('job-launch');
+  });
+
+  // [utest->req~frontend-retire-reports-screens-not-routed~1]
+  it('answers the retired report addresses by no screen of the registry', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+    for (const path of ['/app/acme/atlas/reports', '/app/acme/atlas/reports/engine-comparison']) expect(matchRoutes(config, path), path).toBeNull();
   });
 
   it('no longer serves the legacy routes that have no equivalent in the prototype', () => {

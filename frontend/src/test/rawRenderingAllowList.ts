@@ -19,7 +19,8 @@ export type UnlistedFinding = Omit<RawRenderingOffender, 'retiredBy'> & { retire
 
 /** Equals the number of entries of RAW_RENDERING_ALLOW_LIST; lower it as entries go. */
 // [impl->req~frontend-retire-allow-list-leaves~1]
-export const MAX_ALLOWED_OFFENDERS = 14;
+// [impl->req~frontend-retire-reports-allow-list~1]
+export const MAX_ALLOWED_OFFENDERS = 13;
 
 export const UNLISTED_REASON = 'found by the detector, not in ROADMAP M2; to be decided by the owner/coordinator';
 
@@ -66,15 +67,6 @@ export const RAW_RENDERING_ALLOW_LIST: RawRenderingOffender[] = [
     ],
     reason: 'A diagnostic item is stringified as the fallback text.',
     retiredBy: 'M2.3',
-  },
-  {
-    offender: 5,
-    file: 'pages/Reports/RepDetail.tsx',
-    lines: [
-      { line: 324, text: '<pre aria-label="Report document (JSON)">{JSON.stringify(report.document, null, 2)}</pre>' },
-    ],
-    reason: 'Whole report as JSON in <pre>. ROADMAP also lists :77 and :329, which the detector does not flag: `sourceText` (:77) is shown in the textarea at :317 through a variable the detector does not see, and :329 is a copy handler. Both go with the screen in M2.4.',
-    retiredBy: 'M2.4',
   },
   {
     offender: 6,

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
-import { platformApi, type BindingSpaceAnalytics, type Report, type StudyCell } from '../../api/platform';
+import { platformApi, type BindingSpaceAnalytics, type StudyCell } from '../../api/platform';
 import { BindingAnalysis } from '../../components/BindingAnalysis/BindingAnalysis';
 import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpaceBadge';
 import { parseBindingSpace, toSuperscript } from '../../components/BindingSpaceBadge/bindingSpace';
@@ -15,21 +15,14 @@ import { shortDigest } from '../../utils/digest';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
-import { RefusalNotice } from '../Jobs/parts';
 import { saveBytes } from '../Project/download';
 import { DistributionPlot, RankingTable, SeedTable, TimeBars, TradeoffPlot } from './AnalyticsCharts';
 import { cellsCsv, engineRows, measureTitle, scatterOf, seedGroups, spreadOf } from './analyticsModel';
 import { StateChip, StudyFrame, StudyGate } from './parts';
-import { createRunReport, reportsOfRun } from './reportActions';
 import { loadRun } from './runData';
 import { StudyScope, type StudyScopeValue } from './StudyScope';
 import { RUNTIME, countStates, engineKeyOf, enginesOf, formatMeasure, formatSeconds, measureLabel, measuresOf, metricsOf, plural, revisionLabel } from './studiesModel';
-import { studyRefusal, type Refusal } from './studyErrors';
 import { useRevisionIndex } from './useRevisionIndex';
-
-type Outcome =
-  | { tone: 'success'; text: string; follow?: { to: string; label: string } }
-  | { tone: 'error'; refusal: Refusal };
 
 function Counter({ value, label, tone }: { value: string; label: string; tone?: 'ok' | 'bad' }) {
   return (
@@ -101,7 +94,7 @@ function CellSolutions({ cells, index }: { cells: readonly StudyCell[]; index: R
 }
 
 function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
-  const { study, organization, project, access, root } = scope;
+  const { study, organization, project, root } = scope;
   const org = organization.slug;
   const slug = project.slug;
   const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
@@ -109,14 +102,11 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
   const { index } = useRevisionIndex(org, slug);
   const analytics = useResource(`analytics:${runId}`, () => platformApi.analytics(org, slug, study.slug, runId));
   const loaded = useResource(`analytics-run:${study.id}/${runId}`, () => loadRun(org, slug, study.slug, runId));
-  const reports = useResource<Report[]>(`analytics-reports:${runId}`, () => platformApi.reports(org, slug).catch(() => []));
   const [engine, setEngine] = useState('');
   const [measureChoice, setMeasureChoice] = useState<string | null>(null);
   const [caseChoice, setCaseChoice] = useState('');
   const [xChoice, setXChoice] = useState<string | null>(null);
   const [yChoice, setYChoice] = useState<string | null>(null);
-  const [outcome, setOutcome] = useState<Outcome | null>(null);
-  const [busy, setBusy] = useState(false);
 
   const run = loaded.data?.run ?? loaded.stale?.run;
   const trail = (last: string) => [{ label: 'Studies', to: `${root}/studies` }, { label: study.name, to: studyPath }, { label: `Run #${run?.run_number ?? '…'}`, to: runPath }, { label: last }];
@@ -155,7 +145,6 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
   const completed = cells.filter((cell) => cell.state === 'completed');
   const rows = engineRows(cells, measure);
   const counts = countStates(allCells);
-  const draft = reportsOfRun(reports.data ?? reports.stale ?? [], data.run)[0];
   const median = spreadOf(summary.runtimes_s)?.median;
 
   const caseIds = [...new Set(completed.map((cell) => cell.binding_case_revision_id))];
@@ -170,20 +159,6 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
     saveBytes(new TextEncoder().encode(text).slice().buffer, `${study.slug}-run-${data.run.run_number}-cells.csv`, 'text/csv');
   };
 
-  const makeReport = async () => {
-    setBusy(true);
-    setOutcome(null);
-    try {
-      const made = await createRunReport(org, slug, study, data.run);
-      setOutcome({ tone: 'success', text: 'Draft report created from this run.', follow: { to: `${root}/reports/${encodeURIComponent(made.slug)}`, label: 'Open the report' } });
-      reports.reload();
-    } catch (caught) {
-      setOutcome({ tone: 'error', refusal: studyRefusal(caught, 'report') });
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <StudyFrame organization={organization} project={project} trail={trail('Compare results')}>
       <header className="proj-title-row">
@@ -191,18 +166,11 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
           <h1>Compare results · run #{data.run.run_number}</h1>
           <p>Only what the run recorded. Nothing here is estimated: lower is better for every objective.</p>
         </div>
+        {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
         <div className="proj-actions">
-          {access.canCreate && (draft
-            ? <Action to={`${root}/reports/${encodeURIComponent(draft.slug)}`} variant="secondary">Open the report</Action>
-            : <Action variant="secondary" busy={busy} onClick={() => void makeReport()}>Create a report</Action>)}
           <Action variant="secondary" onClick={exportCsv}>Export CSV</Action>
         </div>
       </header>
-
-      {outcome?.tone === 'success' && (
-        <Notice tone="success" action={outcome.follow ? <Action to={outcome.follow.to} variant="link" size="sm">{outcome.follow.label}</Action> : undefined}>{outcome.text}</Notice>
-      )}
-      {outcome?.tone === 'error' && <RefusalNotice refusal={outcome.refusal} usageTo />}
 
       <div className="st-counters" aria-label="Counts of the run">
         <Counter value={String(allCells.length)} label="cells" />
