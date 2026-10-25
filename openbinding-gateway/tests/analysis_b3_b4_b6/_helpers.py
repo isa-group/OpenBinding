@@ -20,7 +20,7 @@ from _repo import REPO_ROOT as EXAMPLES_ROOT
 from bim_core.package import load_package
 from openbinding_gateway.db.base import Base
 from openbinding_gateway.db.models import EngineRegistrationRevision, Job, JobState, utcnow
-from openbinding_gateway.jobs import leases
+from openbinding_gateway.jobs import clock, leases
 
 EXAMPLE = EXAMPLES_ROOT / "examples/demo/01_simple_seq"
 
@@ -109,8 +109,12 @@ async def a_job(session, owner, *, state=JobState.QUEUED, registration=None, **e
 
 
 async def lose_the_worker(session, job: Job) -> None:
-    """Make a claimed job look like its worker beat for a while and then died."""
-    lease_until = utcnow() - timedelta(seconds=1)
+    """Make a claimed job look like its worker beat for a while and then died.
+
+    The lease follows the clock the reconciler reads (``jobs.clock.utcnow``, looked up at call time), so a test
+    that controls that clock gets a lease that has lapsed for the sweep whatever the distance to the real time.
+    """
+    lease_until = clock.utcnow() - timedelta(seconds=1)
     job.lease_until = lease_until
     job.claimed_at = lease_until - timedelta(seconds=leases.LEASE_S + 5)
     await session.commit()
