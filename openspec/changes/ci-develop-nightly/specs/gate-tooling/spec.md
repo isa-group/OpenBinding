@@ -5,7 +5,7 @@ WHEN the nightly time is reached, THE nightly workflow SHALL dispatch the CI wor
 
 `req~ci-develop-nightly~1`
 
-Evidence: lab/tests/test_ci_nightly.py::test_nightly_triggers_only_on_a_schedule, ::test_nightly_has_one_off_hour_cron, ::test_nightly_permissions_are_actions_write_only, ::test_nightly_is_one_job_with_one_gh_step_and_no_actions_or_secrets and ::test_nightly_run_line_has_no_expression_and_no_checkout
+Evidence: lab/tests/test_ci_nightly.py (the schedule, cron, permissions and single-step tests)
 
 #### Scenario: The schedule
 - **GIVEN** `.github/workflows/nightly.yml`
@@ -26,7 +26,7 @@ THE nightly workflow SHALL dispatch `ci.yml` on `develop` only, and SHALL NOT tr
 
 `req~ci-develop-nightly-develop-only~1`
 
-Evidence: lab/tests/test_ci_nightly.py::test_nightly_triggers_only_on_a_schedule, ::test_nightly_dispatches_ci_on_develop_only and ::test_ci_can_be_dispatched_and_has_no_schedule
+Evidence: lab/tests/test_ci_nightly.py (the trigger and dispatch-target tests)
 
 #### Scenario: The triggers
 - **GIVEN** `nightly.yml`

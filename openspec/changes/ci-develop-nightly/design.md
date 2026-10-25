@@ -3,6 +3,8 @@
 ## The workflow
 
 ```yaml
+name: Nightly
+
 on:
   schedule:
     - cron: '17 3 * * *'
@@ -41,7 +43,14 @@ jobs:
 - **It starts only after `nightly.yml` reaches `main`.** GitHub runs schedules from the default branch, so the file is
   inert on `develop` until the owner merges a release PR.
 - Scheduled runs can be delayed, especially at the start of each hour, and can be dropped under high load.
-- In a public repository, schedules are disabled after 60 days without repository activity.
+- In a public repository, schedules are disabled after 60 days without repository activity. If GitHub disables the
+  schedule, a maintainer re-enables the workflow in the Actions tab (any push to `develop` or `main` keeps the
+  repository active).
+- The Nightly job is green once the dispatch is accepted, whatever the CI result, so read the dispatched `ci.yml` run
+  for the result.
+- A nightly run is a `workflow_dispatch` run started by `github-actions[bot]`, which is how it is told from a
+  hand-started one.
+- Every later edit of `nightly.yml` on `develop` takes effect only after the next release to `main`.
 - The dispatched run is a `workflow_dispatch` run of `ci.yml`. It is in its own concurrency group by run id
   (`ci-develop-triggers`), so it is never cancelled by a push to `develop` and never queued behind manual runs.
 - A dispatch made with the workflow token creates a run (GitHub documents this exception to the rule that token events

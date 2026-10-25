@@ -73,6 +73,16 @@ def _keys(node) -> set:
     return found
 
 
+def _strings(node) -> list[str]:
+    if isinstance(node, str):
+        return [node]
+    if isinstance(node, dict):
+        return [s for k, v in node.items() for s in _strings(k) + _strings(v)]
+    if isinstance(node, list):
+        return [s for item in node for s in _strings(item)]
+    return []
+
+
 # [utest->req~ci-develop-nightly~1]
 # [utest->req~ci-develop-nightly-develop-only~1]
 def test_nightly_triggers_only_on_a_schedule():
@@ -88,12 +98,7 @@ def test_nightly_has_one_off_hour_cron():
     assert isinstance(schedule, list) and len(schedule) == 1, f"schedule: {schedule!r}"
     assert isinstance(schedule[0], dict) and set(schedule[0]) == {"cron"}, f"schedule entry: {schedule[0]!r}"
     cron = schedule[0]["cron"]
-    assert isinstance(cron, str), f"cron: {cron!r}"
-    fields = cron.split()
     assert cron == "17 3 * * *", f"cron: {cron!r}"
-    assert len(fields) == 5, f"cron needs 5 fields: {cron!r}"
-    assert re.fullmatch(r"\d+", fields[0]), f"the minute is not a single number: {cron!r}"
-    assert int(fields[0]) not in (0, 30), f"the minute {fields[0]} is a busy start time"
 
 
 # [utest->req~ci-develop-nightly~1]
@@ -117,7 +122,18 @@ def test_nightly_is_one_job_with_one_gh_step_and_no_actions_or_secrets():
         "GH_REPO": "${{ github.repository }}",
     }, f"env: {step.get('env')!r}"
     assert "uses" not in _keys(_nightly()), "nightly.yml uses an action (no checkout, no third-party action)"
-    assert "secrets." not in _read(NIGHTLY), "nightly.yml references a secret"
+    assert not [s for s in _strings(_nightly()) if re.search(r"\bsecrets\b", s)], "nightly.yml references a secret"
+
+
+# [utest->req~ci-develop-nightly~1]
+def test_nightly_has_only_the_expected_keys():
+    data = _nightly()
+    assert set(data) in ({"name", True, "permissions", "jobs"}, {"name", "on", "permissions", "jobs"}), (
+        f"top-level keys: {sorted(map(str, data))}"
+    )
+    job = _the_job()
+    assert set(job) == {"runs-on", "timeout-minutes", "permissions", "steps"}, f"job keys: {sorted(job)}"
+    assert set(_the_step()) <= {"name", "run", "env"}, f"step keys: {sorted(_the_step())}"
 
 
 # [utest->req~ci-develop-nightly~1]

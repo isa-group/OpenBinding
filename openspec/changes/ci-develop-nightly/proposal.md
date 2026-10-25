@@ -10,7 +10,8 @@ a separate `nightly.yml` that dispatches `ci.yml` on `develop` (proposal P-20261
 ## What Changes
 
 - A new workflow `.github/workflows/nightly.yml`: trigger `schedule` with one cron entry (`17 3 * * *`, UTC), one job
-  with one step `gh workflow run ci.yml --ref develop`.
+  with one step `gh workflow run ci.yml --ref develop`. The step env is `GH_TOKEN` (the workflow token) and `GH_REPO`
+  (there is no checkout, so `gh` needs the repository named).
 - Permissions: `actions: write` only, at the top level and on the job. No checkout, no third-party action, no secret.
 - A static test, `lab/tests/test_ci_nightly.py` (new).
 
