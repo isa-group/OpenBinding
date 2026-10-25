@@ -189,6 +189,9 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       return json(empty ? [] : state.publications)(route);
     }
 
+    // The publications screen reads the edition's digest from the project's reports (a publication does not carry it).
+    if (sub === 'reports') return json(empty ? [] : [FROZEN])(route);
+
     return json([])(route);
   });
   return state;
