@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import {
-  accessIn, canOpenSection, canRead, canWrite, levelOf, cellBreakdown, countWord, GATEWAY_PACKAGE_LIMIT, importCeiling, integrityOf, jobStatus, latestRun, planLimit, reportStanding,
+  accessIn, canOpenSection, canRead, canWrite, levelOf, cellBreakdown, countWord, GATEWAY_PACKAGE_LIMIT, importCeiling, integrityOf, jobStatus, latestRun, planLimit,
   sealedShare, visibilityEffects,
 } from './projectModel';
 import { createRefusal, deleteRefusal, exportFailure, importRefusal, updateRefusal } from './projectErrors';
@@ -112,14 +112,6 @@ describe('jobs and reports in words', () => {
     expect(jobStatus('failed')).toEqual({ label: 'Failed', tone: 'bad' });
     expect(jobStatus('cancelled')).toEqual({ label: 'Cancelled', tone: 'off' });
     expect(jobStatus('mystery')).toEqual({ label: 'mystery', tone: 'off' });
-  });
-
-  it('tells a draft, a frozen and a published report apart', () => {
-    const frozen = reportOf('a', 'frozen');
-    expect(reportStanding(reportOf('b', 'draft'), [])).toBe('draft');
-    expect(reportStanding(frozen, [])).toBe('frozen');
-    expect(reportStanding(frozen, [{ report_id: frozen.id, withdrawn: false } as never])).toBe('published');
-    expect(reportStanding(frozen, [{ report_id: frozen.id, withdrawn: true } as never])).toBe('frozen');
   });
 
   it('words what a visibility change does', () => {

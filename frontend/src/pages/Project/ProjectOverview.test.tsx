@@ -153,6 +153,24 @@ describe('Project overview', () => {
     expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
   });
 
+  it('treats a failed reports request as no reports: the cards render and the page does not crash', async () => {
+    platform.reports.mockRejectedValue(refusal(503, 'unavailable'));
+    renderOverview();
+
+    for (const name of ['Recent jobs', 'Cases', 'Studies']) expect(await screen.findByRole('region', { name })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows the get-started guide when the reports request fails on an otherwise empty project', async () => {
+    platform.cases.mockResolvedValue([]);
+    platform.projectJobs.mockResolvedValue([]);
+    platform.studies.mockResolvedValue([]);
+    platform.reports.mockRejectedValue(refusal(503, 'unavailable'));
+    renderOverview();
+
+    expect(await screen.findByRole('region', { name: 'Get started' })).toBeInTheDocument();
+  });
+
   describe('a card that fails does not take the others with it', () => {
     it('jobs: says so, keeps the rest, and loads on retry', async () => {
       platform.projectJobs.mockRejectedValueOnce(refusal(503, 'unavailable'));

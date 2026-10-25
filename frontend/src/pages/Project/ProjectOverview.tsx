@@ -12,7 +12,7 @@ import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
 import { roleSource } from '../Organization/orgModel';
 import { RoleChip } from '../Organization/parts';
-import { loadCases, loadReports, loadStudies } from './projectData';
+import { loadCases, loadReports, loadStudies, type ReportsContent } from './projectData';
 import { classifyAuthError, marker } from './projectErrors';
 import {
   cellBreakdown, countWord, integrityOf, jobStatus, latestRun, sealedShare,
@@ -258,7 +258,8 @@ function OverviewBody({ organization, project, canCreate, publicRead, role, role
   });
   const studies = useResource(`overview-studies:${org}/${slug}`, () => loadStudies(org, slug, RECENT));
   // The reports have no card any more; they still count in the sealed-history strip and in the empty-project test.
-  const reports = useResource(`overview-reports:${org}/${slug}`, () => loadReports(org, slug));
+  // A failed read leaves them out as if there were none, rather than hiding the strip and GetStarted.
+  const reports = useResource(`overview-reports:${org}/${slug}`, () => loadReports(org, slug).catch((): ReportsContent => ({ reports: [], publications: [] })));
 
   const loaded = [cases, jobs, studies, reports].every((item) => item.status === 'ready');
   const empty = loaded
