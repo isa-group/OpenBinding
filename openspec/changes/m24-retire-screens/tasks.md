@@ -43,8 +43,8 @@ Checks each slice registers (frontend directory, frozen install first):
   1–6, 8–15 and unlisted 16 (`allow-list-leaves`, `allow-list-ceiling`).
 - [x] 1.10 Playwright (specs edited; not run in this task): `e2e/s7b-reports.spec.ts`, `e2e/qa-gallery.spec.ts` (`e2e/analysis-live.spec.ts` is deleted),
   `e2e/helpers/galleryRoutes.ts`, `e2e/visual-shell.spec.ts`, `e2e/s6a-jobs.spec.ts` and `e2e/s7a-studies.spec.ts`
-  stop opening or expecting the retired addresses; one smoke step opens `/app/analysis?org=…&study=…` and lands on the
-  study page.
+  stop opening or expecting the retired addresses; one smoke step opens the old link `/app/analysis?org=…&project=…&study=…&run=…` and lands on the
+  study run page (`/app/:org/:project/studies/:study/runs/:run`).
 - [ ] 1.11 Confirm the diff touches nothing under `openbinding-gateway/`, `engines/` or `docs/openapi.json`
   (`gateway-untouched`; a review check of the PR diff, no test).
 - Acceptance: the frontend suite, eslint and tsc pass; every scenario of the ten requirements has a test or, for

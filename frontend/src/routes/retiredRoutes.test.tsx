@@ -49,6 +49,7 @@ function Location() {
   return (
     <>
       <output data-testid="location">{`${location.pathname}${location.search}`}</output>
+      <output data-testid="from">{(location.state as { from?: string } | null)?.from ?? ''}</output>
       <button type="button" onClick={() => navigate(-1)}>Back</button>
     </>
   );
@@ -127,10 +128,18 @@ describe('the redirect of a retired address', () => {
 
   // [utest->req~frontend-retire-redirect-generic~1]
   it('asks a visitor without a session to sign in first', async () => {
-    renderAt(['/app/analysis?org=a&project=b&study=c'], null);
+    const old = '/app/analysis?org=isa-demo&project=qos-benchmarks&study=engines-vs-seeds';
+    const signedOut = renderAt([old], null);
 
     expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent(/^\/login/);
+    expect(screen.getByTestId('from').textContent).toBe(old);
+    signedOut.unmount();
+
+    renderAt([old]);
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(
+      '/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds',
+    ));
   });
 
   // [utest->req~frontend-retire-redirect-generic~1]

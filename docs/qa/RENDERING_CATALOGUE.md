@@ -1,8 +1,9 @@
 # Rendering catalogue: foundations (M2.1)
 
 **Status: built and tested (ROADMAP M2.1).** Five components in `frontend/src/components/rendering/` and a hygiene test that
-stops new raw rendering. The 17 files that still dump data (the 15 offenders of ROADMAP M2 plus two unlisted findings)
-are listed below; the 15 are retired in M2.3 to M2.6, the two wait for classification.
+stops new raw rendering. The 15 files that still dump data (14 of the 15 offenders of ROADMAP M2 plus one unlisted finding)
+are listed below; the 14 are retired in M2.3 to M2.6, the one waits for classification. Offender 7 and finding 17
+went with the decision-space workspace (M2.4, slice 1).
 
 ROADMAP M2.1 asks for the components to be documented in the design system. No separate design-system document exists in
 this change, and [ARCHITECTURE §5.3](../ARCHITECTURE.md) is the catalogue table (owned by the coordinator), so this page
@@ -168,24 +169,24 @@ Also not seen: raw rendering built without the literal `<pre` or `JSON.stringify
 `white-space: pre`, or a stringified variable shown elsewhere, as at `RepDetail.tsx:77`, whose `sourceText` reaches
 the textarea at :317).
 
-The allow-list `frontend/src/test/rawRenderingAllowList.ts` holds the 15 offenders of ROADMAP M2 (`RAW_RENDERING_ALLOW_LIST`)
-and `UNLISTED_FINDINGS` for 2 findings not in the roadmap, awaiting classification: `pages/Workbench/SourcePanel.tsx`
-(diff `<pre>`) and `pages/Analysis/SavedDecision.tsx` (stringified reference). Findings and listed lines are matched as a
+The allow-list `frontend/src/test/rawRenderingAllowList.ts` holds the 14 remaining offenders of ROADMAP M2 (`RAW_RENDERING_ALLOW_LIST`)
+and `UNLISTED_FINDINGS` for 1 finding not in the roadmap, awaiting classification: `pages/Workbench/SourcePanel.tsx`
+(diff `<pre>`). Findings and listed lines are matched as a
 multiset per file and trimmed line text: a second identical raw line in a listed file is a new finding, and a listed
 duplicate whose copy was removed is stale. The test fails on a new finding (`unlistedFindings`), on a stale entry
 (`staleEntries`; the list may only shrink) and on a wrong `line` (`wrongLineNumbers`). The three functions are exported
 from the test file and tested with synthetic sources as well as run on the real ones.
 
 To retire an offender, in the slice that owns it: replace the raw block with the catalogue component, delete its entry,
-lower `MAX_ALLOWED_OFFENDERS`, and in the first such slice relax the "numbered 1 to 15" assertion to a subset.
+lower `MAX_ALLOWED_OFFENDERS`, and in the first such slice relax the "numbered 1 to 15" assertion to a subset (done in slice 1: the numbers are 1 to 6 and 8 to 15).
 
 | Slice | Offenders (file under `frontend/src`) |
 |---|---|
 | M2.3 | 1 `components/EngineReportView/EngineReportView.tsx`; 2 `pages/Jobs/JobResult.tsx`; 3 `pages/Workbench/RunPanel.tsx`; 4 `pages/Workbench/CheckResult.tsx` |
-| M2.4 | 5 `pages/Reports/RepDetail.tsx`; 7 `pages/Analysis/Inspector.tsx`; 11 `pages/Library/ContentView.tsx` |
+| M2.4 | 5 `pages/Reports/RepDetail.tsx`; 11 `pages/Library/ContentView.tsx` |
 | M2.5 | 8 `pages/Studies/StudyCell.tsx`; 9 `pages/Studies/StudyDetail.tsx`; 10 `pages/Engines/EngineParts.tsx`; 12 `pages/Organization/OrgAudit.tsx`; 13 `pages/RegisterEngine/EngineForm.tsx`; 14 `pages/Generator/LabAside.tsx`; 15 `pages/Cases/SnapshotDetail.tsx` |
 | M2.6 | 6 `pages/Reports/Verifier.tsx` |
-| none yet | 16 `pages/Workbench/SourcePanel.tsx`; 17 `pages/Analysis/SavedDecision.tsx` |
+| none yet | 16 `pages/Workbench/SourcePanel.tsx` |
 
 ## Not yet
 

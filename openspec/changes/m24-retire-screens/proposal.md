@@ -13,8 +13,8 @@ the registry holds 82 today.
 
 ## What Changes
 
-State: specified; no slice is built. This PR specifies the whole series and delivers the requirements of slice 1 plus
-the rules every slice shares (tasks.md).
+State: slice 1 (decision-space workspace) is built; slices 2 to 5 are follow-ups. This PR specifies the whole series and
+delivers the requirements of slice 1 plus the rules every slice shares (tasks.md).
 
 M2.4 retires its screens in five sequential PRs, one screen group each, in this order:
 1. decision-space workspace (`analysis-sources` at `/app/analysis`, `analysis-workspace` at `/app/analysis/workspace`);
