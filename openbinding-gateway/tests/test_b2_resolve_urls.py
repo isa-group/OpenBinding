@@ -4,9 +4,10 @@ The frontend's route table (``frontend/src/routes/d*.tsx``) is the source of
 truth, so the contract test below reads it: every link the resolver produces
 must match one of its ``live(id, path, ...)`` definitions.
 
-A path listed in ``RETIRED_ROUTES`` (``frontend/src/routes/retiredRoutes.tsx``)
-is accepted too: a retired screen keeps its old address as a redirect to the
-replacement screen, so a ``web_url`` that uses it still opens a working page.
+A retired screen (``RETIRED_ROUTES`` in ``frontend/src/routes/retiredRoutes.tsx``)
+is NOT accepted by default, so retiring a screen the resolver points at fails
+here. The addresses that still open a page only through a redirect are listed
+one by one in ``KNOWN_REDIRECTING_WEB_URLS`` and each must be retired.
 """
 
 from __future__ import annotations
@@ -52,21 +53,67 @@ def retired_paths(source: str) -> list[str]:
     return re.findall(r"\bid: '[^']+', path: '([^']+)'", source)
 
 
-def frontend_patterns(retired_source: str | None = None) -> list[re.Pattern]:
+PENDING_SLICE_2 = "retired by M2.4 slice 2; retarget the resolver in M9.6 or earlier"
+
+# Addresses that the resolver or the seed tooling still emit although the screen is retired: they open a page only
+# through the redirect of RETIRED_ROUTES. Nothing else is accepted by pattern alone; an entry is dropped when the
+# emitter is retargeted. Every entry must be in RETIRED_ROUTES (see ``stale_entries``).
+KNOWN_REDIRECTING_WEB_URLS = {
+    "/app/analysis/workspace": "seed_analysis links; the redirect to /app/jobs keeps the context only partially",
+    "/app/:org/:project/reports/:slug": PENDING_SLICE_2,
+}
+
+
+def live_paths() -> list[str]:
     paths = []
     for route_file in ROUTES:
         paths += re.findall(r"live\('[^']+', '([^']+)'", route_file.read_text(encoding="utf-8"))
-    if retired_source is None and RETIRED_ROUTES_FILE.exists():
-        retired_source = RETIRED_ROUTES_FILE.read_text(encoding="utf-8")
-    paths += retired_paths(retired_source or "")
-    return path_patterns(paths)
+    return paths
 
 
-def assert_is_a_frontend_screen(url: str, retired_source: str | None = None) -> None:
+def real_retired_paths() -> list[str]:
+    if not RETIRED_ROUTES_FILE.exists():
+        return []
+    return retired_paths(RETIRED_ROUTES_FILE.read_text(encoding="utf-8"))
+
+
+def stale_entries(redirecting: dict[str, str], retired: list[str], live: list[str]) -> list[str]:
+    """Entries that are not retired. Only an entry waiting for its slice may still be a live route."""
+    retired_shapes = {_shape(path) for path in retired}
+    live_shapes = {_shape(path) for path in live}
+    return [
+        address for address, reason in redirecting.items()
+        if _shape(address) not in retired_shapes
+        and not (reason == PENDING_SLICE_2 and _shape(address) in live_shapes)
+    ]
+
+
+def _shape(path: str) -> str:
+    """The path with its parameter names erased, so ``:report`` and ``:slug`` compare equal."""
+    return re.sub(r":[A-Za-z]+", ":", path)
+
+
+def _matches(url: str, paths) -> bool:
+    path = url.split("?", 1)[0]
+    return any(pattern.match(path) for pattern in path_patterns(list(paths)))
+
+
+def assert_is_a_frontend_screen(url: str, live: list[str] | None = None) -> None:
+    """The address is a live route; a retired (redirecting) address does not count."""
     if not ROUTES:
         pytest.skip("the frontend route table is not part of this checkout")
-    path = url.split("?", 1)[0]
-    assert any(pattern.match(path) for pattern in frontend_patterns(retired_source)), f"{url} matches no frontend route"
+    assert _matches(url, live_paths() if live is None else live), f"{url} matches no live frontend route"
+
+
+def assert_opens_a_frontend_page(
+    url: str, live: list[str] | None = None, redirecting: dict[str, str] | None = None
+) -> None:
+    """The address is live, or is explicitly listed as a known redirecting address."""
+    if not ROUTES:
+        pytest.skip("the frontend route table is not part of this checkout")
+    live = live_paths() if live is None else live
+    redirecting = KNOWN_REDIRECTING_WEB_URLS if redirecting is None else redirecting
+    assert _matches(url, [*live, *redirecting]), f"{url} is neither a live route nor a listed redirecting address"
 
 
 # -- the helpers -------------------------------------------------------------
@@ -88,10 +135,13 @@ def test_each_helper_builds_the_current_frontend_route():
     }
     for produced, wanted in expected.items():
         assert produced == wanted
-        assert_is_a_frontend_screen(produced)
+        if produced == resolve_routes.report_url("lab", "routing", "decision-1"):
+            assert_opens_a_frontend_page(produced)
+        else:
+            assert_is_a_frontend_screen(produced)
 
 
-def test_a_retired_address_is_accepted_and_an_unknown_one_is_not():
+def test_a_retired_address_is_accepted_only_when_listed_and_an_unknown_one_never():
     table = """
     export type RetiredRoute = { id: string; path: string; slice: 1 | 2 };
     export const RETIRED_ROUTES = [
@@ -100,10 +150,43 @@ def test_a_retired_address_is_accepted_and_an_unknown_one_is_not():
     """
     assert retired_paths(table) == ["/app/:org/:project/synthetic-retired/:slug"]
 
-    assert_is_a_frontend_screen("/app/lab/routing/synthetic-retired/x?a=1", table)
+    retired = retired_paths(table)
+    listed = {retired[0]: "synthetic"}
+
+    # A retired address is not a live screen; only an explicit entry lets it through.
+    with pytest.raises(AssertionError):
+        assert_is_a_frontend_screen("/app/lab/routing/synthetic-retired/x", [])
+    with pytest.raises(AssertionError):
+        assert_opens_a_frontend_page("/app/lab/routing/synthetic-retired/x", [], {})
+    assert_opens_a_frontend_page("/app/lab/routing/synthetic-retired/x?a=1", [], listed)
     for unknown in ("/app/lab/routing/synthetic-unknown/x", "/app/lab/routing/synthetic-retired/x/extra"):
         with pytest.raises(AssertionError):
-            assert_is_a_frontend_screen(unknown, table)
+            assert_opens_a_frontend_page(unknown, [], listed)
+
+
+def test_retiring_the_report_screen_fails_unless_the_address_is_listed():
+    report = "/app/:org/:project/reports/:slug"
+    if not ROUTES:
+        pytest.skip("the frontend route table is not part of this checkout")
+    live_without_reports = [path for path in live_paths() if _shape(path) != _shape(report)]
+    url = resolve_routes.report_url("lab", "routing", "decision-1")
+
+    with pytest.raises(AssertionError):
+        assert_is_a_frontend_screen(url, live_without_reports)
+    with pytest.raises(AssertionError):
+        assert_opens_a_frontend_page(url, live_without_reports, {})
+    assert_opens_a_frontend_page(url, live_without_reports, {report: PENDING_SLICE_2})
+
+
+def test_every_listed_redirecting_address_is_retired():
+    if not ROUTES:
+        pytest.skip("the frontend route table is not part of this checkout")
+
+    assert stale_entries(KNOWN_REDIRECTING_WEB_URLS, real_retired_paths(), live_paths()) == []
+    # A stale entry is caught: not retired, and not waiting for its slice.
+    assert stale_entries({"/app/gone": "x"}, ["/app/other"], ["/app/gone"]) == ["/app/gone"]
+    assert stale_entries({"/app/gone": PENDING_SLICE_2}, [], []) == ["/app/gone"]
+    assert stale_entries({"/app/gone": PENDING_SLICE_2}, [], ["/app/gone"]) == []
 
 
 def test_every_entry_of_the_real_retired_table_is_parsed():
@@ -129,7 +212,12 @@ def test_no_legacy_route_is_left_in_the_resolver():
         assert legacy not in source
 
 
-def test_seed_analysis_links_are_current_screens():
+def test_seed_analysis_links_open_a_page_through_a_redirect_and_keep_context_only_partially():
+    """The analysis links redirect to /app/jobs and lose their query.
+
+    Follow-up: point seed_analysis at a live screen or null, then drop its entries from
+    KNOWN_REDIRECTING_WEB_URLS.
+    """
     jobs = [str(uuid.uuid4()), str(uuid.uuid4())]
 
     sources = analysis_link(jobs)
@@ -139,7 +227,7 @@ def test_seed_analysis_links_are_current_screens():
     assert saved == "/app/analysis/workspace?report=lab%2Frouting%2Fanalysis-tradeoffs-abc"
     assert report_link("lab", "routing", "analysis-tradeoffs-abc") == "/app/lab/routing/reports/analysis-tradeoffs-abc"
     for url in (sources, saved, report_link("lab", "routing", "x")):
-        assert_is_a_frontend_screen(url)
+        assert_opens_a_frontend_page(url)
     assert "/app/analysis?" not in sources and "/app/analysis?" not in saved
 
 
@@ -270,7 +358,7 @@ async def test_a_report_points_at_the_report_screen(api_client, registration, pl
     locations = await resolved_locations(api_client, "report", sealed["version"]["contentDigest"], headers)
 
     assert locations[0]["web_url"] == f"/app/{org}/{proj}/reports/decision-1"
-    assert_is_a_frontend_screen(locations[0]["web_url"])
+    assert_opens_a_frontend_page(locations[0]["web_url"])
 
 
 async def test_a_file_points_at_the_project_files_screen(api_client, registration, platform_gate):
