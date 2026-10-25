@@ -243,6 +243,26 @@ def slow_neighborhood(monkeypatch, seconds: float) -> None:
     monkeypatch.setattr(operations, "neighborhood", slow)
 
 
+def stuck_neighborhood(monkeypatch) -> threading.Event:
+    """The costly request of the probe (``limit`` 128) blocks until the returned event is set (or 60 s) and computes nothing.
+
+    The thread executor cannot cancel a thread, so abandoned ones are blocked rather than competing for the CPU.
+    """
+    from bim_service import operations
+
+    original = operations.neighborhood
+    release = threading.Event()
+
+    def stuck(*args):
+        if args[3] == probe.NEIGHBORHOOD_LIMIT:
+            release.wait(60)
+            return {}
+        return original(*args)
+
+    monkeypatch.setattr(operations, "neighborhood", stuck)
+    return release
+
+
 def probe_arguments(token_file, settings, *extra: str) -> list[str]:
     return [
         "--token-file", str(token_file),
@@ -348,11 +368,14 @@ def test_a_service_that_is_not_there_is_reported_not_raised(tmp_path, capsys) ->
 
 def test_the_timeout_step_sees_the_503_the_healthz_and_the_next_request(tmp_path, monkeypatch, capsys) -> None:
     checkout()
-    slow_neighborhood(monkeypatch, 1.5)
+    release = stuck_neighborhood(monkeypatch)
     overrides = {"max_concurrency": 3, "operation_timeout_seconds": 0.5}
     settings = settings_for(tmp_path, **overrides)
-    with running_service(tmp_path, **overrides) as (url, token_file):
-        code, report, err = run_probe(capsys, url, token_file, settings, "--steps", "none", "--timeout-probe", "--hold", "0.2")
+    try:
+        with running_service(tmp_path, **overrides) as (url, token_file):
+            code, report, err = run_probe(capsys, url, token_file, settings, "--steps", "none", "--timeout-probe", "--hold", "0.2")
+    finally:
+        release.set()
     assert failures(report) == []
     assert code == probe.EXIT_OK
     (step,) = report["steps"]

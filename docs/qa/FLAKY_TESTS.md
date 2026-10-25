@@ -22,6 +22,7 @@ date is estimated. An entry with an unknown date cannot be aged until a date is 
 | E5 | `bim-toolchain/packages/bim-service/tests/test_execution_in_the_pool.py::test_healthz_stays_responsive_under_cpu_load_with_the_configured_interval` | unknown (no record) | fixed | #43 (`f2e18c6f`) | n/a | n/a | `test_execution_in_the_pool.py:506,561-562`; `flaky-b8-probe/report.md:8-10,32-34` |
 | E6 | `openbinding-gateway/tests/test_engine_cancel_contract.py::test_the_credential_of_another_tenant_cannot_stop_the_job_and_the_404_is_not_retried` | unknown (no record) | fixed | #42 (`716f8d13`) | n/a | n/a | `test_engine_cancel_contract.py:228,244-247`; `docs/agent-work/flaky-engine-cancel/report.md:1-70`; `design.md:249` |
 | E7 | Six `frozen` + `lose_and_sweep` tests in `openbinding-gateway/tests/test_remote_cancel.py` (the "P2 race") | unknown (no record); no CI failure of these tests is recorded | fixed | #45 (`9273978d`) | n/a | n/a | `openbinding-gateway/tests/analysis_b3_b4_b6/_helpers.py:111-117`; `test_remote_cancel.py:701`; `docs/agent-work/prop-20261025-2/report.md:1-26` |
+| E8 | `openbinding-gateway/tests/test_process_probe.py::test_the_timeout_step_sees_the_503_the_healthz_and_the_next_request` | 2026-10-25 (first push-triggered CI run on develop, `5cf72550`, job `test`) | fixed in this change, pending the next develop push run | pending PR (fix commit on branch task `d0035241`) | n/a | n/a | section E8 below |
 
 **O6 status.** E2 and E3 (the two tests deselected in the `bim-toolchain` CI job) are classified as measurements that
 depend on the CI runner's CPU, not as correctness tests. Owner: the project owner. Review date: 2026-11-24 (30 days,
@@ -63,6 +64,33 @@ The six tests in `test_remote_cancel.py` that combine `frozen` and `lose_and_swe
 lease did not follow the controlled clock. `lose_the_worker` now reads `clock.utcnow()`
 (`tests/analysis_b3_b4_b6/_helpers.py:111-117`), fixed in PR #45 (`9273978d`), with a regression test at
 `test_remote_cancel.py:701`. No CI failure of these tests is recorded in the repository, so no first-seen date is given.
+
+### E8 · process probe, timeout step
+
+**First seen.** 2026-10-25, the first push-triggered CI run on develop (commit `5cf72550`, job `test`). The replacement
+`validate` got `503 operation_timeout` after 1564 ms against a 0.5 s budget. The test passed on PR runs.
+
+**Classification.** Test-only timing race, no product defect. The thread executor cannot cancel a thread, which is its
+documented behaviour.
+
+**Cause (inferred from code and timings, not reproduced).** After the 503 the abandoned neighborhood threads stay alive.
+When the patched `sleep(1.5)` ends they compute the real operation (parse the IR, up to 128 alternatives) while the
+replacement requests run and, on a slow runner, starve the event loop.
+
+**Fix.** The helper `stuck_neighborhood` in `openbinding-gateway/tests/test_process_probe.py` blocks the abandoned
+threads on a `threading.Event`, released in a `finally` after the probe, so nothing computes. The 0.5 s budget,
+`--hold 0.2` and all assertions are unchanged; no threshold was raised and the test is not skipped. The fix commit is on
+the branch of task `d0035241` (PR: pending PR).
+
+**Verification.** The target test passed 5 of 5 repeated runs in the lab check environment. The lab Python has no
+`os.pidfd_open`, so the two worker-process tests of the file
+(`test_the_probe_runs_its_non_costly_scenarios_against_worker_processes` and
+`test_the_whole_probe_passes_against_worker_processes_with_the_n2_figures`) cannot run there and are verified only by CI.
+
+**Status.** Fixed in this change, pending the next develop push run.
+
+**Not changed.** The cold first `validate` of the demo package is still measured against 0.5 s. No warm-up was added,
+since it did not fail.
 
 ### E1 · `LibArtifact.test.tsx` · "starts a draft from a sealed version, keeping its content and links"
 
