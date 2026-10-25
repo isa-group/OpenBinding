@@ -21,4 +21,22 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => /^\/app\/analysis([/?#]|$)/.test(command.href))).toEqual([]);
     expect(commands.map((command) => command.href)).toContain('/app/isa-demo/qos-benchmarks/studies');
   });
+
+  // [utest->req~frontend-retire-reports-navigation~1]
+  it('offers Publications instead of Reports in a project', () => {
+    const commands = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
+
+    expect(commands.filter((command) => command.label === 'Reports')).toEqual([]);
+    expect(commands.filter((command) => /\/reports([/?#]|$)/.test(command.href))).toEqual([]);
+    const publications = commands.filter((command) => command.label === 'Publications');
+    expect(publications.map((command) => [command.group, command.href])).toEqual([['Project', '/app/isa-demo/qos-benchmarks/publications']]);
+    expect(publications[0]?.desc).toContain('QoS benchmarks');
+  });
+
+  // [utest->req~frontend-retire-reports-navigation~1]
+  it('offers no report command without a project either', () => {
+    const commands = buildCommands({ organizations: [organization], isAdmin: true });
+
+    expect(commands.filter((command) => command.label === 'Reports' || /\/reports([/?#]|$)/.test(command.href))).toEqual([]);
+  });
 });

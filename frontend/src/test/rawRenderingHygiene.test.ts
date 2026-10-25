@@ -353,9 +353,16 @@ describe('the allow-list checks', () => {
 describe('the allow-list', () => {
   // [utest->req~frontend-retire-allow-list-ceiling~1]
   it('reports a ceiling that differs from the entries, naming both numbers', () => {
-    expect(ceilingMismatch(15, new Array(14))).toBe('MAX_ALLOWED_OFFENDERS is 15 but the allow-list has 14 entries');
-    expect(ceilingMismatch(13, new Array(14))).toBe('MAX_ALLOWED_OFFENDERS is 13 but the allow-list has 14 entries');
-    expect(ceilingMismatch(14, new Array(14))).toBeUndefined();
+    expect(ceilingMismatch(14, new Array(13))).toBe('MAX_ALLOWED_OFFENDERS is 14 but the allow-list has 13 entries');
+    expect(ceilingMismatch(12, new Array(13))).toBe('MAX_ALLOWED_OFFENDERS is 12 but the allow-list has 13 entries');
+    expect(ceilingMismatch(13, new Array(13))).toBeUndefined();
+  });
+
+  // [utest->req~frontend-retire-reports-allow-list~1]
+  it('has a ceiling of 13 after slice 2, as many as its entries', () => {
+    expect(MAX_ALLOWED_OFFENDERS).toBe(13);
+    expect(RAW_RENDERING_ALLOW_LIST).toHaveLength(13);
+    expect(ceilingMismatch(MAX_ALLOWED_OFFENDERS, RAW_RENDERING_ALLOW_LIST)).toBeUndefined();
   });
 
   // [utest->req~frontend-retire-allow-list-ceiling~1]
@@ -370,17 +377,25 @@ describe('the allow-list', () => {
   });
 
   // [utest->req~frontend-retire-allow-list-leaves~1]
-  it('holds exactly the offenders that remain after slice 1', () => {
-    expect(RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender)).toEqual([1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]);
+  // [utest->req~frontend-retire-reports-allow-list~1]
+  it('holds exactly the offenders that remain after slice 2', () => {
+    expect(RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender)).toEqual([1, 2, 3, 4, 6, 8, 9, 10, 11, 12, 13, 14, 15]);
     expect(UNLISTED_FINDINGS.map((entry) => entry.offender)).toEqual([16]);
     expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('pages/Analysis'))).toEqual([]);
+  });
+
+  // [utest->req~frontend-retire-reports-allow-list~1]
+  it('has no entry for the report editor, which slice 2 retires', () => {
+    expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file === 'pages/Reports/RepDetail.tsx')).toEqual([]);
+    expect(Object.keys(sources).filter((path) => path.endsWith('/pages/Reports/RepDetail.tsx'))).toEqual([]);
   });
 
   // [utest->req~frontend-rendering-raw-hygiene~1]
   it('retires the offenders in the slices ROADMAP names', () => {
     const slice = (n: number) => RAW_RENDERING_ALLOW_LIST.find((entry) => entry.offender === n)?.retiredBy;
     for (const n of [1, 2, 3, 4]) expect(slice(n), `offender ${n}`).toBe('M2.3');
-    for (const n of [5, 11]) expect(slice(n), `offender ${n}`).toBe('M2.4');
+    expect(slice(5)).toBeUndefined();
+    expect(slice(11)).toBe('M2.4');
     for (const n of [8, 9, 10, 12, 13, 14, 15]) expect(slice(n), `offender ${n}`).toBe('M2.5');
     expect(slice(6)).toBe('M2.6');
   });

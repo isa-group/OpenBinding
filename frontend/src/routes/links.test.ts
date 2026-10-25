@@ -57,22 +57,44 @@ function literalsOf(text: string): string[] {
   return found;
 }
 
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** A `:param` segment as written in a literal: a value of any one segment, or a `${…}` expression. */
+const PARAM_SEGMENT = '(?:\\$\\{[^}]*\\}|[^/?#$]+)';
+/** What may follow a retired path: the end of the literal, `/`, `?`, `#` or `${`. */
+const AFTER_PATH = '(?:$|[/?#]|\\$\\{)';
+
+/** The patterns of a retired path: the whole address and, for a path with `:params`, its tail after an interpolation (`${root}/reports`). */
+function patternsOf(path: string): RegExp[] {
+  const segments = path.split('/').slice(1);
+  const isParam = (segment: string) => segment.startsWith(':');
+  const build = (list: string[], head: string) => new RegExp(`^${head}${list.map((s) => `/${isParam(s) ? PARAM_SEGMENT : escapeRegExp(s)}`).join('')}${AFTER_PATH}`);
+  const patterns = [build(segments, '')];
+  const first = segments.findIndex(isParam);
+  if (first === -1) return patterns;
+  let end = first;
+  while (end < segments.length && isParam(segments[end])) end += 1;
+  if (end < segments.length) patterns.push(build(segments.slice(end), '\\$\\{[^}]*\\}'));
+  return patterns;
+}
+
 // [impl->req~frontend-retire-no-link-to-retired~1]
+// [impl->req~frontend-retire-reports-no-link~1]
 /**
  * `<file>: <literal>` for every string or template literal of the sources that starts with a retired path followed by the end,
- * `/`, `?`, `#` or `${`. The file `routes/retiredRoutes.tsx` (and no other) is exempt. Known limit: an address built from pieces is not seen.
+ * `/`, `?`, `#` or `${`. A `:param` of the path stands for any one segment or `${…}`; for such a path a literal that starts with
+ * an interpolation and goes on with the part after the parameters (`${root}/reports`) counts too, except in the API client (`src/api/`),
+ * whose endpoints are not addresses of the application. The file `routes/retiredRoutes.tsx` (and no other) is exempt.
+ * Known limit: an address built from pieces is not seen.
  */
 export function retiredAddresses(sources: Record<string, string>, retiredPaths: readonly string[]): string[] {
   const hits: string[] = [];
+  const all = retiredPaths.map(patternsOf);
   for (const [file, text] of Object.entries(sources)) {
-    if (file.replace(/^(\.\.\/|src\/)/, '') === 'routes/retiredRoutes.tsx') continue;
+    const name = file.replace(/^(\.\.\/|src\/)/, '');
+    if (name === 'routes/retiredRoutes.tsx') continue;
+    const patterns = name.startsWith('api/') ? all.map(([whole]) => [whole]) : all;
     for (const literal of literalsOf(text)) {
-      const retired = retiredPaths.some((path) => {
-        if (!literal.startsWith(path)) return false;
-        const rest = literal.slice(path.length);
-        return rest === '' || /^[/?#]/.test(rest) || rest.startsWith('${');
-      });
-      if (retired) hits.push(`${file}: ${literal}`);
+      if (patterns.some((list) => list.some((pattern) => pattern.test(literal)))) hits.push(`${file}: ${literal}`);
     }
   }
   return hits;
@@ -117,7 +139,7 @@ describe('internal links written in the code', () => {
   });
 
   it('do not point at the addresses the redesign retired', () => {
-    const retired = /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog)(\/|$)|^\/app\/analysis\?job=|^\/app\/[^/]+\/[^/]+\/(verifier|analytics|artifacts)(\/|$)/;
+    const retired = /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog)(\/|$)|^\/app\/analysis\?job=|^\/app\/[^/]+\/[^/]+\/(verifier|analytics|artifacts|reports)(\/|$)/;
     const old = staticLinks().filter(({ address }) => retired.test(address)).map(({ file, address }) => `${file}: ${address}`);
     expect(old).toEqual([]);
   });
@@ -168,15 +190,93 @@ describe('the scan for retired addresses', () => {
     expect(scan('routes/retiredRoutes.test.tsx', "const a = '/app/analysis';")).toHaveLength(1);
   });
 
+  describe('for retired paths that have :params', () => {
+    const withParams = ['/app/:org/:project/reports', '/app/:org/:project/reports/:report'];
+    const scanParams = (file: string, text: string) => retiredAddresses({ [file]: text }, withParams);
+
+    // [utest->req~frontend-retire-reports-no-link~1]
+    it('finds the whole address, written with values or with ${…} for the parameters', () => {
+      expect(scanParams('pages/X.tsx', 'const a = `/app/${org}/${project}/reports`;')).toEqual(['pages/X.tsx: /app/${org}/${project}/reports']);
+      expect(scanParams('pages/X.tsx', "const a = '/app/acme/demo/reports/x';")).toEqual(['pages/X.tsx: /app/acme/demo/reports/x']);
+      expect(scanParams('pages/X.tsx', 'const a = `/app/${org}/${project}/reports/${slug}`;')).toEqual(['pages/X.tsx: /app/${org}/${project}/reports/${slug}']);
+      expect(scanParams('pages/X.tsx', "const a = '/app/acme/demo/reports';")).toEqual(['pages/X.tsx: /app/acme/demo/reports']);
+    });
+
+    // [utest->req~frontend-retire-reports-no-link~1]
+    it('ends the retired path at the end, /, ?, # or ${', () => {
+      for (const address of ['/app/acme/demo/reports', '/app/acme/demo/reports/', '/app/acme/demo/reports?x=1', '/app/acme/demo/reports#top', '/app/acme/demo/reports${suffix}']) {
+        expect(scanParams('pages/X.tsx', `const a = \`${address}\`;`), address).toHaveLength(1);
+      }
+    });
+
+    // [utest->req~frontend-retire-reports-no-link~1]
+    it('finds the tail written after an interpolation', () => {
+      expect(scanParams('pages/X.tsx', 'const a = `${root}/reports`;')).toEqual(['pages/X.tsx: ${root}/reports']);
+      expect(scanParams('pages/X.tsx', 'const a = `${root}/reports/${slug}`;')).toEqual(['pages/X.tsx: ${root}/reports/${slug}']);
+      expect(scanParams('pages/X.tsx', 'const a = `${root}/reports?x`;')).toEqual(['pages/X.tsx: ${root}/reports?x']);
+      expect(scanParams('pages/X.tsx', 'const a = `${root}/reports#top`;')).toEqual(['pages/X.tsx: ${root}/reports#top']);
+      expect(scanParams('pages/X.tsx', 'to={`${root(org, project)}/reports`}')).toEqual(['pages/X.tsx: ${root(org, project)}/reports']);
+    });
+
+    // [utest->req~frontend-retire-reports-no-link~1]
+    it('does not report look-alikes or the addresses that replace the retired ones', () => {
+      const source = [
+        "const a = '/app/acme/demo/reportsx';",
+        'const b = `${root}/reportsx`;',
+        "const c = '/app/:org/:project/studies';",
+        'const d = `/app/${org}/${project}/publications`;',
+        'const e = `${root}/publications`;',
+        "const f = '/app/acme/reports';",
+        "const g = '/reports';",
+        "// '/app/acme/demo/reports' in a comment",
+      ].join('\n');
+      expect(scanParams('pages/X.tsx', source)).toEqual([]);
+    });
+
+    // [utest->req~frontend-retire-reports-no-link~1]
+    it('leaves the endpoints of the API client alone, and nothing else', () => {
+      const endpoint = 'const a = `${root(org, project)}/reports`;';
+      expect(scanParams('src/api/platform.ts', endpoint)).toEqual([]);
+      expect(scanParams('api/platform.ts', endpoint)).toEqual([]);
+      expect(scanParams('../api/platform.ts', endpoint)).toEqual([]);
+      expect(scanParams('pages/api/platform.ts', endpoint)).toHaveLength(1);
+      expect(scanParams('src/apiary/platform.ts', endpoint)).toHaveLength(1);
+      expect(scanParams('src/pages/Reports/ProjPublications.tsx', endpoint)).toHaveLength(1);
+    });
+
+    // [utest->req~frontend-retire-reports-no-link~1]
+    it('still reports a whole address inside the API client', () => {
+      expect(scanParams('src/api/platform.ts', "const a = '/app/acme/demo/reports';")).toHaveLength(1);
+    });
+
+    // [utest->req~frontend-retire-reports-no-link~1]
+    it('exempts the table of retired addresses, and reports a path without params as before', () => {
+      expect(scanParams('routes/retiredRoutes.tsx', "{ path: '/app/:org/:project/reports' }")).toEqual([]);
+      expect(retiredAddresses({ 'pages/X.tsx': "const a = '/app/analysis'; const b = `${root}/analysis`;" }, ['/app/analysis'])).toEqual(['pages/X.tsx: /app/analysis']);
+    });
+  });
+
+  const application = Object.fromEntries(
+    Object.entries(sources)
+      // Vite names the files of this folder `./x` and the others `../…/x`.
+      .map(([file, text]) => [file.startsWith('./') ? file.replace('./', 'src/routes/') : file.replace('../', 'src/'), text] as const)
+      .filter(([file]) => !file.startsWith('src/test/')),
+  );
+
   // [utest->req~frontend-retire-no-link-to-retired~1]
   it('finds none in the application sources, for the paths of the table', () => {
-    const application = Object.fromEntries(
-      Object.entries(sources)
-        // Vite names the files of this folder `./x` and the others `../…/x`.
-        .map(([file, text]) => [file.startsWith('./') ? file.replace('./', 'src/routes/') : file.replace('../', 'src/'), text] as const)
-        .filter(([file]) => !file.startsWith('src/test/')),
-    );
     expect(Object.keys(application).length).toBeGreaterThan(100);
     expect(retiredAddresses(application, RETIRED_ROUTES.map((route) => route.path))).toEqual([]);
+  });
+
+  // [utest->req~frontend-retire-reports-no-link~1]
+  it('finds none in the application sources, for the report list and the report editor', () => {
+    expect(retiredAddresses(application, ['/app/:org/:project/reports', '/app/:org/:project/reports/:report'])).toEqual([]);
+  });
+
+  // [utest->req~frontend-retire-reports-no-link~1]
+  it('keeps the report endpoints of the API client, which no scan may flag', () => {
+    expect(application['src/api/platform.ts']).toContain('${root(org, project)}/reports');
+    expect(retiredAddresses({ 'src/api/platform.ts': application['src/api/platform.ts'] }, ['/app/:org/:project/reports', '/app/:org/:project/reports/:report'])).toEqual([]);
   });
 });

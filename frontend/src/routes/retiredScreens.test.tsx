@@ -29,6 +29,10 @@ vi.mock('../pages/Jobs/JobHistory', async () => {
   const { createElement } = await import('react');
   return { JobHistory: () => createElement('h1', null, 'Job history screen') };
 });
+vi.mock('../pages/Reports/ProjPublications', async () => {
+  const { createElement } = await import('react');
+  return { ProjPublications: () => createElement('h1', null, 'Publications screen') };
+});
 vi.mock('../pages/Studies/StudyDetail', async () => {
   const { createElement } = await import('react');
   return { StudyDetail: () => createElement('h1', null, 'Study detail screen') };
@@ -83,7 +87,7 @@ describe('the retired decision-space workspace', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('analysis-sources');
     expect(ids).not.toContain('analysis-workspace');
-    expect(routeDefinitions).toHaveLength(80);
+    expect(routeDefinitions).toHaveLength(78);
   });
 
   it('has no screen files left', () => {
@@ -113,6 +117,40 @@ describe('the retired decision-space workspace', () => {
     const inAnalysis = (entry: { file: string }) => entry.file.startsWith('pages/Analysis');
     expect(RAW_RENDERING_ALLOW_LIST.filter(inAnalysis)).toEqual([]);
     expect(UNLISTED_FINDINGS.filter(inAnalysis)).toEqual([]);
-    expect(MAX_ALLOWED_OFFENDERS).toBe(14);
+    expect(MAX_ALLOWED_OFFENDERS).toBe(13);
+  });
+});
+
+// M2.4 slice 2: the report list and the report editor are retired. Their addresses redirect to the publications of the project.
+describe('the retired report editor', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  // [utest->req~frontend-retire-reports-screens-not-routed~1]
+  it('is gone from the route registry, and the publications and the verifier stay', () => {
+    const ids = routeDefinitions.map((definition) => definition.id);
+    expect(ids).not.toContain('rep-list');
+    expect(ids).not.toContain('rep-detail');
+    expect(routeDefinitions.map((definition) => definition.path).filter((path) => /\/reports(\/|$)/.test(path))).toEqual([]);
+    expect(ids).toContain('proj-publications');
+    expect(ids).toContain('verifier');
+  });
+
+  // [utest->req~frontend-retire-reports-screens-not-routed~1]
+  it('has no screen files left', () => {
+    const files = Object.keys(import.meta.glob(['../pages/Reports/RepList.tsx', '../pages/Reports/RepDetail.tsx', '../pages/Reports/SavedDecision.tsx']));
+    expect(files).toEqual([]);
+  });
+
+  // [utest->req~frontend-retire-reports-publications-stay~1]
+  it('keeps the screens of the publications and of the verifier', () => {
+    const files = Object.keys(import.meta.glob(['../pages/Reports/ProjPublications.tsx', '../pages/Reports/Verifier.tsx']));
+    expect(files.sort()).toEqual(['../pages/Reports/ProjPublications.tsx', '../pages/Reports/Verifier.tsx']);
+  });
+
+  // [utest->req~frontend-retire-reports-redirect-reports~1]
+  it('sends the report list and a report to the publications of their project', async () => {
+    await endsAt('/app/acme/atlas/reports', '/app/acme/atlas/publications');
+    await endsAt('/app/acme/atlas/reports/engines-vs-seeds-informe', '/app/acme/atlas/publications');
+    await endsAt('/app/acme/atlas/reports/engines-vs-seeds-informe?x=1', '/app/acme/atlas/publications');
   });
 });
