@@ -1,1 +1,1 @@
-S1 of P-20261025-1 (push to develop, workflow_dispatch, concurrency). Done: test, OpenSpec change and ci.yml edit, all integrated. Left: push, PR into develop, high panel (reviewer, test-reviewer, security-auditor, arch-reviewer) with at most two rounds, then lead_ready. The nightly run (S2) is a later separate change.
+Done: S1 in three tasks plus the round-1 fix task. Left: push, round 2 of the panel (last allowed round), review package, lead_ready. The nightly (S2) is a later separate change.
