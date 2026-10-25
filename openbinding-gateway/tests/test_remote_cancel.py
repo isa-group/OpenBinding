@@ -698,6 +698,24 @@ async def test_a_lost_attempt_waits_while_the_running_one_has_no_id_and_is_skipp
     assert await cancel_rows(db_session, job) == {1: ("skipped", limit)}
 
 
+async def test_the_lease_of_a_lost_worker_follows_a_clock_that_was_moved_back(
+    db_session, owner, engine_http, credentials, frozen
+):
+    """The lease is stamped with the clock the reconciler reads, not with the real one: moving that clock back
+    between the claim and the loss of the worker must not leave the lease in the sweep's future."""
+    deployment = await a_registration(db_session, owner, cancellation=PER_ATTEMPT_CANCELLATION)
+    job = await a_job(db_session, owner, registration=deployment)
+    await claim_and_record(db_session, job, "engine-job-A")
+    frozen.advance(-5)
+
+    await lose_and_sweep(db_session, job)
+
+    assert await cancel_rows(db_session, job) == {1: ("pending", 0)}
+    await cycle(db_session, frozen)
+    assert engine_http.deleted == ["engine-job-A"]
+    assert await cancel_rows(db_session, job) == {1: ("sent", 1)}
+
+
 async def test_a_deferred_cancellation_goes_out_once_the_running_attempt_has_an_id(
     db_session, owner, engine_http, credentials, frozen
 ):
