@@ -50,7 +50,6 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
   const [status, setStatus] = useState<StatusFilter>('');
   const [engine, setEngine] = useState('');
   const [page, setPage] = useState(0);
-  const [selected, setSelected] = useState<string[]>([]);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
 
@@ -78,10 +77,6 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
   // A run is the launcher's: its owner opens it. When the account's own list could not be read the detail screen decides.
   const isOwn = (job: Job) => mine === null || mine.has(job.id);
   const canOpen = (job: Job) => isAdmin || isOwn(job);
-  const selectable = (job: Job) => normalizeStatus(job.status) === 'completed' && mine !== null && mine.has(job.id);
-  const chosen = selected.filter((id) => rows.some((row) => row.id === id));
-
-  const toggle = (id: string) => setSelected((list) => (list.includes(id) ? list.filter((item) => item !== id) : [...list, id]));
 
   const retry = async (job: Job) => {
     setRetrying(job.id);
@@ -97,7 +92,6 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
     }
   };
 
-  const analyseHref = `/app/analysis/workspace?${chosen.map((id) => `job=${encodeURIComponent(id)}`).join('&')}`;
   const loadingFirst = jobs.status === 'loading' && !data;
 
   return (
@@ -108,9 +102,6 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
           <p>Every run in {project.name}. Anyone in the project sees the summary; opening, cancelling or retrying a job is for whoever launched it.</p>
         </div>
         <div className="proj-actions">
-          {chosen.length > 0
-            ? <Action to={analyseHref} variant="secondary">Analyze {chosen.length} selected</Action>
-            : <Action variant="secondary" disabled>Analyze 0 selected</Action>}
           {canLaunch && <Action to={`${root}/jobs/new`} variant="primary"><Play aria-hidden="true" className="job-icon" />New run</Action>}
         </div>
       </header>
@@ -164,7 +155,6 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
             <DataTable label="Jobs of the project" minWidth={860}>
               <thead>
                 <tr>
-                  <th scope="col"><span className="sr-only">Select</span></th>
                   <th scope="col">Status</th>
                   <th scope="col">Engine</th>
                   <th scope="col">Outcome</th>
@@ -180,15 +170,6 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
                   const took = tookOf(job);
                   return (
                     <tr key={job.id}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={chosen.includes(job.id)}
-                          disabled={!selectable(job)}
-                          onChange={() => toggle(job.id)}
-                          aria-label={`Select job ${job.id.slice(0, 8)}`}
-                        />
-                      </td>
                       <td><StatusChip status={state} /></td>
                       <td>
                         <strong className="job-engine">{job.engine_id}</strong>

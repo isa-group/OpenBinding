@@ -65,7 +65,6 @@ test.describe('live · a random-search job and its result', () => {
     await expect(page).toHaveURL(new RegExp(`${PROJECT_PATH}/jobs/[0-9a-f-]+$`));
     await expect(page.getByRole('heading', { level: 1, name: /random-search run/ })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: RESULT })).toBeVisible({ timeout: 180_000 });
-    await expect(page.getByRole('link', { name: 'Analyze', exact: true }).first()).toBeVisible();
     await capture(page, testInfo, 'job-result');
     expect(errors).toEqual([]);
   });

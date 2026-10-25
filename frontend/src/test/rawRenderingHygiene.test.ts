@@ -132,6 +132,12 @@ export function wrongLineNumbers(sources: Record<string, string>, allow: Accepte
   }));
 }
 
+// [impl->req~frontend-retire-allow-list-ceiling~1]
+/** A message when the ceiling is not the number of entries, otherwise nothing. */
+export function ceilingMismatch(max: number, entries: readonly unknown[]): string | undefined {
+  return max === entries.length ? undefined : `MAX_ALLOWED_OFFENDERS is ${max} but the allow-list has ${entries.length} entries`;
+}
+
 describe('the detector of raw rendering', () => {
   // [utest->req~frontend-rendering-raw-hygiene~1]
   it('reports a <pre> tag', () => {
@@ -345,22 +351,36 @@ describe('the allow-list checks', () => {
 });
 
 describe('the allow-list', () => {
-  // [utest->req~frontend-rendering-raw-hygiene~1]
-  it('has exactly the 15 offenders of ROADMAP M2, numbered 1 to 15, and a ceiling that only goes down', () => {
-    expect(MAX_ALLOWED_OFFENDERS).toBe(15);
-    expect(RAW_RENDERING_ALLOW_LIST.length).toBeLessThanOrEqual(MAX_ALLOWED_OFFENDERS);
-    expect(RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender)).toEqual(Array.from({ length: 15 }, (_, i) => i + 1));
+  // [utest->req~frontend-retire-allow-list-ceiling~1]
+  it('reports a ceiling that differs from the entries, naming both numbers', () => {
+    expect(ceilingMismatch(15, new Array(14))).toBe('MAX_ALLOWED_OFFENDERS is 15 but the allow-list has 14 entries');
+    expect(ceilingMismatch(13, new Array(14))).toBe('MAX_ALLOWED_OFFENDERS is 13 but the allow-list has 14 entries');
+    expect(ceilingMismatch(14, new Array(14))).toBeUndefined();
+  });
+
+  // [utest->req~frontend-retire-allow-list-ceiling~1]
+  it('has a ceiling equal to its entries, numbered as a strictly increasing subset of 1 to 15', () => {
+    expect(ceilingMismatch(MAX_ALLOWED_OFFENDERS, RAW_RENDERING_ALLOW_LIST)).toBeUndefined();
+    const numbers = RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender);
+    expect(numbers.every((n, i) => Number.isInteger(n) && n >= 1 && n <= 15 && (i === 0 || n > numbers[i - 1]))).toBe(true);
     for (const entry of RAW_RENDERING_ALLOW_LIST) {
       expect(entry.lines.length, `offender ${entry.offender}`).toBeGreaterThan(0);
       expect(entry.reason.length, `offender ${entry.offender}`).toBeGreaterThan(0);
     }
   });
 
+  // [utest->req~frontend-retire-allow-list-leaves~1]
+  it('holds exactly the offenders that remain after slice 1', () => {
+    expect(RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender)).toEqual([1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]);
+    expect(UNLISTED_FINDINGS.map((entry) => entry.offender)).toEqual([16]);
+    expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('pages/Analysis'))).toEqual([]);
+  });
+
   // [utest->req~frontend-rendering-raw-hygiene~1]
   it('retires the offenders in the slices ROADMAP names', () => {
     const slice = (n: number) => RAW_RENDERING_ALLOW_LIST.find((entry) => entry.offender === n)?.retiredBy;
     for (const n of [1, 2, 3, 4]) expect(slice(n), `offender ${n}`).toBe('M2.3');
-    for (const n of [5, 7, 11]) expect(slice(n), `offender ${n}`).toBe('M2.4');
+    for (const n of [5, 11]) expect(slice(n), `offender ${n}`).toBe('M2.4');
     for (const n of [8, 9, 10, 12, 13, 14, 15]) expect(slice(n), `offender ${n}`).toBe('M2.5');
     expect(slice(6)).toBe('M2.6');
   });

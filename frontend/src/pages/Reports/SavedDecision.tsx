@@ -1,6 +1,6 @@
 import { decisionReceipt, formatNumber as fmt, shortId } from '../../analysis/archive';
 import { Notice } from '../../components/ui/Notice';
-import './Analysis.css';
+import './SavedDecision.css';
 
 /**
  * The decision a report recorded: which binding was chosen, its score and where each loss came from. Reports are editable
@@ -31,7 +31,7 @@ export function SavedDecision({ document: raw }: { document: unknown }) {
           {selected.binding && (
             <dl className="an-assignment">
               {Object.entries(selected.binding).map(([task, ref]) => (
-                <div key={task}><dt>{task}</dt><dd>{typeof ref?.resource === 'string' && typeof ref?.id === 'string' ? ref.id : JSON.stringify(ref)}</dd></div>
+                <div key={task}><dt>{task}</dt><dd>{typeof ref?.resource === 'string' && typeof ref?.id === 'string' ? ref.id : 'unrecognised reference'}</dd></div>
               ))}
             </dl>
           )}

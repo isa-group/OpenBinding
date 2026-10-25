@@ -198,7 +198,6 @@ function HistoryBody() {
                     <span className="job-history-actions">
                       {isActive(state) && <button type="button" className="job-link-button is-danger" disabled={busy} onClick={() => void act(job, 'cancel')}>{busy ? 'Cancelling…' : 'Cancel'}</button>}
                       {canRetryState(state) && <button type="button" className="job-link-button" disabled={busy} onClick={() => void act(job, 'retry')}>{busy ? 'Retrying…' : 'Retry'}</button>}
-                      {state === 'completed' && <Link to={`/app/analysis/workspace?job=${encodeURIComponent(job.id)}`} viewTransition>Analyze</Link>}
                     </span>
                   </li>
                 );

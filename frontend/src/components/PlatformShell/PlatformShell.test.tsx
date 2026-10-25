@@ -147,7 +147,7 @@ describe('PlatformShell (application layout)', () => {
     expect(screen.getByTestId('project')).toHaveTextContent('atlas');
   });
 
-  it.each(['/app/verifier', '/app/engines/registrations', '/app/jobs', '/app/analysis', '/app/language/extensions', '/app/system/states'])(
+  it.each(['/app/verifier', '/app/engines/registrations', '/app/jobs','/app/language/extensions', '/app/system/states'])(
     'does not mistake the fixed screen %s for an organization',
     async (path) => {
       renderShell(user, path);

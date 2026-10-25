@@ -12,7 +12,6 @@ import { shortDigest } from '../../utils/digest';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
-import { SavedDecision } from '../Analysis/SavedDecision';
 import { RefusalNotice } from '../Jobs/parts';
 import { ProjectGate, ProjectSkeleton } from '../Project/parts';
 import { loadReports, loadStudies } from '../Project/projectData';
@@ -23,6 +22,7 @@ import { PublishDialog } from './PublishDialog';
 import { ReportBlocks } from './ReportBlocks';
 import { ReportChips, ReportFrame, ReportGate } from './parts';
 import { reportRefusal, type Refusal } from './reportErrors';
+import { SavedDecision } from './SavedDecision';
 import {
   citationBibtex, citationFields, citationText, evidenceOf, livePublication, publicationsOf, readDocument, sameDocument, withBlocks,
   type Block, type Doc,
@@ -77,7 +77,6 @@ function ReportView({ organization, project, loaded, studies, canEdit, canPublis
   const sourceText = sourceDraft ?? JSON.stringify(doc, null, 2);
   const evidence = evidenceOf(report, doc, studies, root, read.blocks);
   const libraryHref = `/app/${org}/library/${report.artifact_id}${report.version_id ? `/versions/${report.version_id}` : ''}`;
-  const reopen = `/app/analysis/workspace?report=${encodeURIComponent(`${org}/${slug}/${report.slug}`)}`;
 
   const setBlocks = (blocks: Block[]) => setDoc(withBlocks(doc, blocks));
   const fail = (caught: unknown, action: Parameters<typeof reportRefusal>[1]) => setOutcome({ tone: 'error', refusal: reportRefusal(caught, action) });
@@ -232,8 +231,7 @@ function ReportView({ organization, project, loaded, studies, canEdit, canPublis
           {read.shape === 'decision' ? (
             <div className="rp-decision">
               <h2>Recorded binding decision</h2>
-              <p>This snapshot records the rule, priorities and evidence behind a choice. Reopening checks access to the sources and their identities before recalculating.</p>
-              <Action to={reopen} variant="secondary">Reopen decision space</Action>
+              <p>This snapshot records the rule, priorities and evidence behind a choice.</p>
               <SavedDecision document={doc} />
             </div>
           ) : (

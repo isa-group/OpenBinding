@@ -907,7 +907,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const counters = main.getByLabel('Counts of the run');
       await expect(counters).toContainText('8cells');
       await expect(counters).toContainText('1failed');
-      await expect(main.getByRole('link', { name: 'Weigh trade-offs' })).toHaveAttribute('href', '/app/analysis');
+      await expect(main.getByRole('link', { name: 'Weigh trade-offs' })).toHaveCount(0);
       await expect(main.getByRole('img', { name: 'evolutionary: 2 values from 0.104 to 0.112, median 0.108' })).toBeVisible();
       await expect(main.getByRole('img', { name: /evolutionary took 1 min 58 s to 2 min; random-search took 58 s to 1 min/ })).toBeVisible();
       await expect(main.getByRole('img', { name: /3 results plotted by Cost and Latency; 2 are best trade-offs/ })).toBeVisible();

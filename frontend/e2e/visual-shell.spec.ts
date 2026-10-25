@@ -92,10 +92,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const toggle = header.getByRole('button', { name: 'Open menu' });
           await toggle.click();
           const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
-          for (const label of ['Home', 'Jobs', 'Analysis', 'Explore', 'Verifier', 'Engine catalog', 'My engines', 'Language extensions', 'Generator lab', 'Language docs', 'Organization', 'API key', 'Engine']) {
+          for (const label of ['Home', 'Jobs', 'Explore', 'Verifier', 'Engine catalog', 'My engines', 'Language extensions', 'Generator lab', 'Language docs', 'Organization', 'API key', 'Engine']) {
             await expect(menu.getByRole('link', { name: label }).first(), label).toBeVisible();
           }
           await expect(menu.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
+          await expect(menu.getByRole('link', { name: 'Analysis', exact: true })).toHaveCount(0);
           if (persona === 'research') await expect(menu.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveAttribute('src', '/brands/universidad-sevilla.svg');
           await shot('menu-open');
           // Scrolled to the end so the lower groups are on record too.
@@ -115,7 +116,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           // A project screen is not the workspace home: its own tabs say where you are, and Home is not marked.
           await expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current', 'page');
           await expect(nav.getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', '/app/jobs');
-          await expect(nav.getByRole('link', { name: 'Analysis' })).toHaveAttribute('href', '/app/analysis');
+          await expect(nav.getByRole('link', { name: 'Analysis' })).toHaveCount(0);
           await expect(nav.getByRole('link', { name: 'Explore' })).toHaveAttribute('href', '/explore');
           await expect(nav.getByRole('link', { name: 'Admin' })).toHaveCount(0);
           await expect(header.getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' })).toHaveAttribute('href', '/app');

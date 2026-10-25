@@ -1,11 +1,18 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { NotFoundScreen } from './NotFoundScreen';
 import { routeDefinitions } from './registry';
+import { RETIRED_ROUTES, type RetiredRoute } from './retiredRoutes';
 import { SessionLayout } from './SessionLayout';
 import type { RouteDefinition } from './types';
+
+// [impl->req~frontend-retire-redirect-generic~1]
+function RetiredRedirect({ route }: { route: RetiredRoute }) {
+  const [query] = useSearchParams();
+  return <Navigate to={route.target(query)} replace />;
+}
 
 function screenElement(definition: RouteDefinition) {
   let element = definition.element;
@@ -37,6 +44,9 @@ export function AppRoutes() {
         ))}
       </Route>
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+        {RETIRED_ROUTES.map((route) => (
+          <Route key={route.id} path={route.path} element={<RetiredRedirect route={route} />} />
+        ))}
         {appScreens.map((definition) => (
           <Route key={definition.id} path={definition.path} element={screenElement(definition)} />
         ))}

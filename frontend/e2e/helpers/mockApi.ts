@@ -1,6 +1,5 @@
 import JSZip from 'jszip';
 import type { Page, Route } from '@playwright/test';
-import type { ArchiveQuery, ArchiveResponse, ArchiveRow } from '../../src/analysis/archive';
 import type { AdminUserView } from '../../src/api/auth';
 import type { Job } from '../../src/api/platform';
 import { digestOf as caseDigest, irDocument, refOf, revisionDocument, sourceContents } from '../../src/pages/Cases/fixtures';
@@ -11,7 +10,6 @@ import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricing
 import {
   AUDIT, ERROR_EVENTS, ERROR_OVERVIEW, MODERATION, OVERVIEW, USERS, queuesAt, subscriptionOf, usageOf as adminUsageOf, userPage,
 } from '../../src/test/fixtures/admin';
-import { ID_FASTPAY, ROWS, SOURCES, archiveOf, detailOf as candidateOf } from '../../src/test/fixtures/analysis';
 import {
   COMMUNITY_DIALECT, EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, PLACEMENT_DIALECT, QOS_PROFILE, REGISTERED_RESOURCES,
   REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf as registrationReport,
@@ -330,23 +328,6 @@ const ANALYTICS = localize(analyticsFixture({
 
 const REPORTS = localize([FROZEN, DRAFT, LEGACY]);
 const PUBLICATION = localize(publicationOf(FROZEN, { citation: { title: 'Engine comparison at checkout', authors: ['Alex Rivera'], year: 2026, venue: 'ISA Demo Group / QoS Benchmarks' } }));
-
-const ARCHIVE_SOURCES = localize(SOURCES);
-
-/** The two stored bindings, ranked as the archive would under equal priorities. */
-function archiveAnswer(query: ArchiveQuery): ArchiveResponse {
-  // Lower is better: the binding ranked first has the lower score (the shared fixture lists them the other way round).
-  const rows: ArchiveRow[] = [{ ...ROWS.payco, score: [0.265] }, { ...ROWS.fastpay, score: [0.285] }];
-  const chosen = ARCHIVE_SOURCES.filter((source) => (query.sources ?? []).includes(source.id));
-  return archiveOf({
-    sources: chosen.length ? chosen : [ARCHIVE_SOURCES[0]],
-    rows, winners: [rows[0]], next: [rows[1]],
-    plot: {
-      axes: [0, 1], bounds: [0, 0, 1, 1], count: 2, aggregated: false, bins: [],
-      points: rows.map((row) => ({ id: row.id, x: row.normalized?.[0] ?? 0, y: row.normalized?.[1] ?? 0, feasible: true, eligible: true, paretoRank: null })),
-    },
-  });
-}
 
 // -- Public screens
 
@@ -753,11 +734,6 @@ function route(request: Request): Reply | null {
       const detail = jobDetail(second);
       return detail ? ok(localize(detail)) : notFound('Job not found.');
     }
-    case 'analysis':
-      if (second === 'sources') return ok({ items: ARCHIVE_SOURCES, nextCursor: null });
-      if (second === 'query') return ok(archiveAnswer(request.body() as unknown as ArchiveQuery));
-      if (second === 'candidate') return ok(candidateOf((request.body() as unknown as ArchiveQuery).selected === ID_FASTPAY ? ROWS.fastpay : ROWS.payco));
-      return null;
     default: return null;
   }
 }

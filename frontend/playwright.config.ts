@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test';
 /**
  * Two kinds of specs:
  * - `mocked`: every spec outside `e2e/live`, against the Vite dev server with the API answered by the spec itself (or against
- *   a live frontend with `ANALYSIS_LIVE=1`).
+ *   a frontend already running on port 5173 when `ANALYSIS_LIVE=1`; the spec written for that mode was retired with the analysis screens).
  * - `live`: `e2e/live/*.spec.ts`, against a running stack (the lab, by default `http://localhost:18100`) with its synthetic users.
  *   Run it with `PLAYWRIGHT_BASE_URL=http://localhost:18100 LAB_SEED_PASSWORD=<the seed password> pnpm exec playwright test --project=live`;
  *   the password comes from the environment only. Screenshots go to the output directory of the run (`test-results/`).

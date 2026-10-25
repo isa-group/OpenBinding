@@ -3,9 +3,10 @@ import { MemoryRouter } from 'react-router-dom';
 import { expect, it } from 'vitest';
 import { BindingAnalysis } from './BindingAnalysis';
 
-it('opens the authoritative workspace for the persisted source', () => {
+// [utest->req~frontend-retire-no-link-to-retired~1]
+it('links nowhere for the persisted source', () => {
   render(<MemoryRouter><BindingAnalysis result={{ solutions: [{}, {}] }} jobId="job-a" /></MemoryRouter>);
-  expect(screen.getByRole('link', { name: 'Open analysis' })).toHaveAttribute('href', '/app/analysis/workspace?job=job-a');
+  expect(screen.queryByRole('link', { name: 'Open analysis' })).not.toBeInTheDocument();
   expect(screen.getByText(/2 stored results/)).toBeInTheDocument();
 });
 it('keeps unpersisted results inspectable without inventing a source', () => {

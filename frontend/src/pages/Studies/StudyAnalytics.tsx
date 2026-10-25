@@ -192,7 +192,6 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
           <p>Only what the run recorded. Nothing here is estimated: lower is better for every objective.</p>
         </div>
         <div className="proj-actions">
-          <Action to="/app/analysis" variant="secondary">Weigh trade-offs</Action>
           {access.canCreate && (draft
             ? <Action to={`${root}/reports/${encodeURIComponent(draft.slug)}`} variant="secondary">Open the report</Action>
             : <Action variant="secondary" busy={busy} onClick={() => void makeReport()}>Create a report</Action>)}
