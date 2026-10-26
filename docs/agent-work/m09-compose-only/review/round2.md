@@ -1,0 +1,34 @@
+# Round 2 findings, PR #60 (change m09-compose-only, head f3b4e07a)
+
+Disposition of each finding of round 2. Nothing is disputed. `docker compose config` and the runbook commands were not
+run on a host (no Docker in the worker). The shell fragments of the runbook that can run without Docker (the retention
+check, `put_secret`, the undo of the password rotation, the forward rotation block, `drill_down`, the clearing of the
+bootstrap variables) are run by the tests with `sh`, with `sudo` and `$DC` replaced by recorders; the rest is checked by
+reading and by the static tests.
+
+| Id | Disposition | Why |
+|---|---|---|
+| R2-REV-001 | fixed | The undo of the PostgreSQL password rotation is `undo_password_rotation`: it reads `postgres_password.prev`, requires it to be non-empty and `database_url.prev` to exist and to carry that password (so a `.prev` left by an earlier rotation is not moved back), and otherwise prints `refuse:` on stderr and returns 1 without running `ALTER ROLE` or touching a file. The forward rotation runs `ALTER ROLE` only inside `if [ -n "$password" ]`. `put_secret` stops (`rm` of the `.new` file, message, `return 1`) when `cp -p` to `.prev` fails, so a replace that succeeded always left a `.prev` when there was a file to replace. The first-install secret block is marked 'fresh host only' (text and a comment in the block; see R2-SEC-003). No rule refuses an existing `.prev`: the runbook removes it at its defined steps. Tests run all three fragments, each with a mutation (guard removed) that they report |
+| R2-REV-002 | fixed in the runbook, follow-up for the cause | The verification section has '502 after a gateway restart': after a crash or an out-of-memory kill the Docker daemon restarts the gateway, `restart: true` does not apply, and `$DC restart nginx` is needed. The nginx resolver change is follow-up F9 in tasks.md and is listed in 'What stays blocked' |
+| R2-REV-003 | fixed | `drill_down` checks `DRILL_HOST=yes` and then runs `$DC down -v`; the runbook uses it instead of the bare command. A test finds no `down -v` or `down --volumes` outside `drill_down`, runs the function with the host unset or wrong (refuses, nothing removed) and with `DRILL_HOST=yes` (removes), and has mutations: a bare command, a long flag, a command typed by hand, a removed guard, a missing function |
+| R2-REV-004 | fixed | The workers depend on `gateway` with `condition: service_healthy` only (no `restart: true`); `nginx` keeps `restart: true`. The anchor needed no split: the workers share one dependency block. Spec sentence of `production-health-restart~1`, its scenarios (new: 'Workers do not restart with the gateway'), the runbook and the tests (`EXPECTED_RESTART_ON_DEPENDENCY`, mutations for `worker` and `analysis-worker`) follow |
+| R2-TST-001 | fixed | `backup_problems` requires the entrypoint `["sh", "-ec"]` or a script that begins with `set -e`, so a failed `pg_dump` cannot reach the `mv` of the `.partial` file. Mutations `sh -c`, `bash -c` and no entrypoint are reported with 'stops on a failed dump'; a plain shell with `set -e` as first line is accepted. Spec scenario 'Scheduled dump with retention' states it |
+| R2-TST-002 | fixed | The directory, unreadable-file and file-and-value tests set `DATABASE_URL` and run in auto mode (for the `DATABASE_URL` case `DATABASE_URL_FILE` is the case under test, so `DATABASE_URL` stays unset, as in the missing-file test) and assert `alembic_calls == []`; the both-set test asserts it too (spec scenario). Checked by reading against an entrypoint whose migration block stood above the secret loop: for the six other variables the fake `alembic` would be called with `upgrade head` and the three tests fail. For the `DATABASE_URL` case itself a migration above the loop would see an empty `DATABASE_URL` and not run, so these cases cannot show that ordering; `test_entrypoint_database_url_file_is_read_before_the_migration` covers it |
+| R2-TST-003 | fixed | `test_scan_skips_excluded_directories` asserts `SKIP_DIRS` is `node_modules`, `.venv` and `.git`, writes a manifest and a `kustomization.yaml` (top and nested, both suffixes) under each, and requires `_kustomization_files` and `_manifest_files` to skip them |
+| R2-TST-004 | fixed in part | The source stand-in of the unreadable-file test now requires `exit 2` inside the same `if`, before its `fi`. The suite may run as root: the unreadable-file test then skips itself (root reads a mode 0 file) and the stand-in keeps the check and its `exit 2` from being removed; the behaviour for an unreadable file is exercised only as a normal user. Rows for R1-TST-002 and R1-TST-010 are not added to `round1.md`: they were not part of the round-1 fix task, no document of the repository describes them, and `round1.md` is outside the scope of this task; the round-1 table says it lists only the findings that task named |
+| R2-TST-005 | deferred | Not part of this fix task (task order: not now). Needs a decision on its own change |
+| R2-SEC-001 | fixed | First-install step 7 also clears `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_EMAIL` in `site.env` (`sed -i`, run by the tests on a sample file) and unsets them in the shell (an exported variable wins over `--env-file`) before it recreates the gateway; the commands are chained, so a failed edit stops before the recreate. The word 'harmless' is gone |
+| R2-SEC-002 | fixed | The restore drill uses a throwaway SPACE account, or an address that nothing answers (`https://space.invalid` passes the https check), and a placeholder `space_api_key`; the production keys are never copied to the spare host |
+| R2-SEC-003 | fixed | The first-install secret block is marked 'fresh host only' with the reason (a new `postgres_password` that the existing data directory does not have) and a pointer to the rotation steps |
+| R2-SEC-004 | fixed | The pre-flight refuses unless `git describe --exact-match --tags HEAD` succeeds, right after the clean-checkout check |
+| R2-SEC-005 | fixed | The pre-flight refuses a `BACKUP_RETENTION_DAYS` that is empty, not a whole number, zero or has a leading zero (the backup script would read `014` as octal). The tests run the `case` with `sh` for accepted and refused values |
+| R2-SEC-006 | deferred | Not part of this fix task (task order: not now) |
+| R2-SEC-007 | deferred | Not part of this fix task (task order: not now) |
+
+## Follow-ups
+
+- R2-SEC-006, R2-SEC-007 and R2-TST-005: not now, as ordered; the owner or the coordinator plans them.
+- Nginx resolver (R2-REV-002): make `nginx` resolve `gateway` at request time, so a restart by the Docker daemon needs
+  no manual `$DC restart nginx`. Needs the image configuration and a host with Docker. Recorded as F9 in `tasks.md`.
+- Still open from round 1 and unchanged: F7 (non-root users and `cap_drop`), F8 (OFT trace paths), a render check of
+  `compose.yaml` with `docker compose config` on a host with Docker or in CI.
