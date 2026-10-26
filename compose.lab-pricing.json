@@ -37,7 +37,8 @@
       }
     },
     "space-api": {
-      "image": "gap.invalid/space-api:1.7.1",
+      "image": "openbinding-lab/space-api:1.7.1",
+      "build": {"context": "lab/space", "dockerfile": "Dockerfile"},
       "user": "1000:1000",
       "environment": {
         "NODE_OPTIONS": "--max-old-space-size=192",
@@ -69,6 +70,21 @@
         "timeout": "5s",
         "retries": 10,
         "start_period": "30s"
+      }
+    },
+    "pricing-bootstrap": {
+      "image": "openbinding-lab/pricing-bootstrap:1",
+      "build": {"context": "lab/tools", "dockerfile": "Dockerfile"},
+      "user": "1000:1000",
+      "restart": "no",
+      "environment": {
+        "SPACE_URL": "http://space-api:3000",
+        "SPACE_ADMIN_USER": "lab-space-admin",
+        "SPACE_ADMIN_PASSWORD": "${DEMO_SPACE_ADMIN_PASSWORD}"
+      },
+      "mem_limit": "96m",
+      "depends_on": {
+        "space-api": {"condition": "service_healthy"}
       }
     }
   },
