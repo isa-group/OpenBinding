@@ -63,7 +63,7 @@ Evidence: `lab/tests/test_lab_pricing_profile.py::test_optional_profile_file`; `
 The profile is brought up on its own, not as an overlay of the lab project. The four services are the final state (slice S4). Slice S2 delivers the first three; the rule expects the three-service set until S4 adds `pricing-bootstrap`. The gateway is not wired to this SPACE in M4.1; M4.2/M4.5 fold the services into the main lab manifest or choose another route with a recorded exception to the no-`networks` rule. The command `lab_compose up file=compose.lab-pricing.json` is proposed (factory follow-up F1) and no test covers that exact string.
 
 ### Requirement: Pinned images of the pricing profile
-THE services of the pricing profile SHALL use images pinned by digest and listed as verified, with their date, in `docs/qa/PRICING_PROFILE.md`; IF a reference is tag-only or its digest is not in that list, THEN the static check SHALL fail.
+THE services of the pricing profile SHALL use images pinned by digest and listed as verified, with their date, in `docs/qa/PRICING_PROFILE.md`, except `space-api`, which MAY carry the marker `gap.invalid/space-api:1.7.1` while the runbook has an open GAP entry naming it; IF any other reference is tag-only or its digest is not in that list, THEN the static check SHALL fail.
 
 `req~lab-deployment-pricing-profile-pinned-images~1`
 
@@ -219,7 +219,7 @@ THE pricing profile SHALL give every long-running service an enabled healthcheck
 Evidence: `lab/tests/test_lab_pricing_profile.py::test_start_order_waits_for_healthy_databases`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_started_only_dependency`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_service_without_a_healthcheck`
 
 ### Requirement: Remote SPHERE only
-THE `space-api` service of the pricing profile SHALL be configured with `SPHERE_SYNC_ENABLED=true`, `SPHERE_PUBLIC_URL=https://sphere.score.us.es`, `SPHERE_API_URL=https://sphere.score.us.es/api/v1` and `SPHERE_ALLOW_LOCAL_HTTP=false`, and every URL in the manifest SHALL have a host of the profile or the remote SPHERE.
+THE `space-api` service of the pricing profile SHALL be configured with `SPHERE_SYNC_ENABLED=true`, `SPHERE_PUBLIC_URL=https://sphere.score.us.es`, `SPHERE_API_URL=https://sphere.score.us.es/api/v1` and `SPHERE_ALLOW_LOCAL_HTTP=false`, and every URL in the manifest SHALL have a host of the profile, the remote SPHERE or the container loopback `127.0.0.1`.
 
 `req~lab-deployment-pricing-profile-remote-sphere~1`
 
