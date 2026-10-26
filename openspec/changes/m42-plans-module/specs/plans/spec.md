@@ -15,10 +15,11 @@ Needs: impl, utest
 - **AND** `solverHours` and `generatedInstances` are the only limits marked as consumed in SPACE; the other ten are marked as compared with the gateway's own counts
 
 #### Scenario: Every gated operation has one entry
-- **GIVEN** the gated operations: create a problem, store a problem version, create a collection, run on a built-in engine (submission and retry), run on a federated engine, launch a study run, launch a study cell on a built-in or on a federated engine, generate instances with `persist: true`, the solver part of a solver-aware generation, register or activate a federated engine, create a private project or make a project private, create an organization, create an API key, and authenticate a request with an API key
+- **GIVEN** the gated operations: create a problem, store a problem version, create a collection, run on a built-in engine (submission and retry), run on a federated engine, launch a study run, launch a study cell on a built-in or on a federated engine, generate instances with `persist: true`, the solver part of a solver-aware generation, register or activate a federated engine, create a private project or make a project private, create an organization, and create an API key
 - **WHEN** the map is read for each of them
-- **THEN** each has exactly one entry: `repository` for the three repository operations, `runs` for a built-in run and for the solver part of a generation, `federatedEngines` for a federated run and for engine registration, `studies` for a study run and a built-in study cell, `studies` and `federatedEngines` for a federated study cell, `generator` for a generation, `collaboration` for projects and organizations, and `apiAccess` for API keys
+- **THEN** each has exactly one entry: `repository` for the three repository operations, `runs` for a built-in run and for the solver part of a generation, `federatedEngines` for a federated run and for engine registration, `studies` for a study run and a built-in study cell, `studies` and `federatedEngines` for a federated study cell, `generator` for a generation, `collaboration` for projects and organizations, and `apiAccess` for the creation of an API key
 - **AND** a generation without `persist` is not a gated operation
+- **AND** authenticating a request with an existing API key is not a gated operation and has no entry
 
 #### Scenario: Identifiers SPACE knows
 - **GIVEN** `SPACE_SERVICE_NAME=openbinding`
@@ -107,7 +108,7 @@ IF SPACE answers an admission evaluation negatively and without an error while t
 Needs: impl, utest
 
 #### Scenario: Monthly solver hours spent
-- **GIVEN** a FREE account (`solverHours` 5) with 4.95 hours used this month
+- **GIVEN** a FREE account (`solverHours` 5) with 5 hours used this month
 - **WHEN** it submits a run on a built-in engine with a budget of 300 000 ms
 - **THEN** the gateway answers 402 `usage_limit_exceeded` with `quota.limit_id` `solverHours`, `quota.source` `space` and `quota.unit` `hour/month`
 - **AND** no job is created and no engine is contacted
@@ -132,7 +133,7 @@ Needs: impl, utest
 - **AND** the generation starts after the positive answer
 
 #### Scenario: Month's instances spent
-- **GIVEN** a FREE account with 980 instances generated this month
+- **GIVEN** a FREE account (`generatedInstances` 1000) with 1000 instances generated this month
 - **WHEN** it requests a generation of 40 instances with `persist: true`
 - **THEN** the gateway answers 402 `usage_limit_exceeded` with `quota.limit_id` `generatedInstances` and the generator writes nothing
 
@@ -155,7 +156,7 @@ Needs: impl, utest
 - **AND** the 300 / 3600 hours of each stay consumed in SPACE
 
 ### Requirement: Revert of the evaluation when the operation fails
-IF an operation admitted by an evaluation with an expected consumption is not stored, reaches a terminal state before any engine claims its run, or is a generation that fails before writing any instance, THEN the plans module SHALL send one `revert_evaluation` to SPACE for that account and the evaluated feature.
+IF an operation admitted by an evaluation with an expected consumption is not stored, reaches a terminal state before any engine claims its run, or is a generation that fails before writing any instance, within 120 s of the evaluation, THEN the plans module SHALL send one `revert_evaluation` to SPACE for that account and the evaluated feature.
 
 `req~plans-revert-on-failure~1`
 
@@ -184,7 +185,7 @@ Needs: impl, utest
 
 #### Scenario: Generations
 - **GIVEN** an admitted generation of 40 instances with `persist: true`
-- **WHEN** it fails before writing any instance
+- **WHEN** it fails before writing any instance, 30 s after its evaluation
 - **THEN** the plans module sends one `revert_evaluation` for `openbinding-generator`
 - **AND** a generation that fails after writing 10 instances is not reverted
 
@@ -294,7 +295,7 @@ Needs: impl, utest
 - **AND** the gateway does not answer `pricing_misconfigured`
 
 ### Requirement: Concurrent runs of the plan
-IF an account submits a run while it already has `maxConcurrentRuns` runs queued or running, THEN the gateway SHALL refuse it with 429 `concurrency_limit_exceeded`, `Retry-After: 15` and `concurrency.limit` equal to `maxConcurrentRuns`.
+IF an account submits a run while it already has `maxConcurrentRuns` runs queued or running, THEN the gateway SHALL refuse it with 429 `concurrency_limit_exceeded`, `Retry-After: 15` and `concurrency.limit` equal to `maxConcurrentRuns`. A study cell that is due while the account is at `maxConcurrentRuns` SHALL wait, not be refused.
 
 `req~plans-concurrent-runs~1`
 
@@ -353,7 +354,7 @@ Needs: impl, utest
 #### Scenario: Stream without authentication
 - **GIVEN** no session and no API key
 - **WHEN** a client opens `GET /v1/plans/events`
-- **THEN** the gateway answers 401
+- **THEN** the gateway answers 401 with media type `application/problem+json`
 
 ### Requirement: Cache bound while the event connection is down
 WHILE the plans module's event connection to SPACE is down, the plans module SHALL NOT use cached entitlements or pricing tokens read more than 60 s earlier.
@@ -368,7 +369,7 @@ Needs: impl, utest
 - **THEN** the plans module reads the entitlements from SPACE again before the admission
 
 ### Requirement: Fail closed when SPACE is down
-IF SPACE does not answer within `SPACE_TIMEOUT_MS`, answers with an error, or the client raises, THEN the gateway SHALL refuse the gated operation with 503 `pricing_unavailable` and store or start nothing for it.
+IF SPACE does not answer within `SPACE_TIMEOUT_MS`, answers with an error, or the client raises, THEN the gateway SHALL refuse the gated operation with 503 `pricing_unavailable` and store or start nothing for it, the gated operations being exactly those of the entitlement map (`req~plans-entitlement-map~1`).
 
 `req~plans-fail-closed~1`
 
@@ -384,6 +385,19 @@ Needs: impl, utest
 - **WHEN** a visitor reads a public problem and a signed-in user submits a run
 - **THEN** the public read answers 200 and the submission answers 503 `pricing_unavailable`
 - **AND** after SPACE answers again, the next submission is admitted without a gateway restart
+
+#### Scenario: Exactly the gated operations
+- **GIVEN** `SPACE_ENABLED=true` and SPACE not answering
+- **WHEN** each of the 14 gated operations of the entitlement map is requested by an account entitled to it: create a problem, store a problem version, create a collection, run on a built-in engine (submission and retry), run on a federated engine, launch a study run, launch a study cell on a built-in or on a federated engine, generate instances with `persist: true`, the solver part of a solver-aware generation, register or activate a federated engine, create a private project or make a project private, create an organization, and create an API key
+- **THEN** each HTTP request answers 503 `pricing_unavailable` and nothing is stored or started for it
+- **AND** a due study cell, which has no HTTP request of its own, is not launched and stays waiting to be retried
+- **AND** no other operation answers `pricing_unavailable` because SPACE is down, except the plan-administration routes that read or change the contract itself (the caller's pricing token, contract removal, the admin subscription read and change, the CAS research upgrade and downgrade), which this change moves unchanged
+
+#### Scenario: API-key traffic while SPACE is down
+- **GIVEN** `SPACE_ENABLED=true`, SPACE not answering, and a MEMBER with an active API key and a stored run
+- **WHEN** the member reads that run with `GET /v1/jobs/{id}` using the API key, and a visitor reads a public problem
+- **THEN** both answer 200, and the plans module sends no call to SPACE for either
+- **AND** a run submitted with the same API key gets 503 `pricing_unavailable`, because the submission is a gated operation, and no job is created
 
 #### Scenario: Evaluation with an error or without an answer
 - **GIVEN** an admission whose `evaluate` call returns a negative result carrying an `error`, and another whose call times out after `SPACE_TIMEOUT_MS`

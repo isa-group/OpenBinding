@@ -14,7 +14,9 @@ each choice that it would have held.
   the pricing descriptor, plan changes and eligibility), and ADR-0015 §2 gives it the obligations of M4.2. None of the
   living capabilities owns them: `auth-roles-entitlements` is about identity and authority, `job-execution`,
   `studies-analysis`, `generator` and `engine-registry` are the callers. A new capability keeps the 21 requirements in
-  one place, where M4.3 (`GET /v1/plans/pricing`) and M4.4 add theirs.
+  one place. M4.3 does not add to it: `GET /v1/plans/pricing` gets the separate capability `plans-pricing`
+  (`m43-plans-pricing-route`), because that public, keyless route reads SPHERE and has no SPACE dependency, while every
+  requirement of `plans` is about the SPACE-backed gate. M4.4 decides where its own requirements go.
 - `auth-roles-entitlements` (3 MODIFIED). Three living requirements contradict pricing 0.2.0 or ADR-0015:
   - `api-key-quota` ~1 names the limit `apiKeys`; pricing 0.2.0 calls it `maxApiKeys` (~2).
   - `plan-reads` ~1 reads "through the entitlement service" and also carries the 403 and the 503. ~2 keeps one
@@ -49,9 +51,16 @@ Target (ARCHITECTURE §4.2): `openbinding-gateway/src/openbinding_gateway/module
 The move (slice S1) is behaviour-preserving: characterization tests first, then the files move, imports change,
 `space_client/` is deleted (the retired `space_client/fake.py` is not moved) and `docs/openapi.json` stays
 byte-identical (ADR-0017). If `modules/` with its import-linter contracts (ARCHITECTURE §4.3 step 1) does not exist when
-S1 starts, S1 creates only `modules/__init__.py` and `modules/plans/**`. The lab architecture test
-`lab/tests/test_no_direct_space_http.py` allows `openbinding_gateway/plans/**`; the plans module makes no direct HTTP call
-(16.1), so the allow-list is not needed for it, and aligning the path is a followup.
+S1 starts, S1 creates only `modules/__init__.py` and `modules/plans/**`.
+
+The module path is `openbinding-gateway/src/openbinding_gateway/modules/plans/` in this change; `m43-plans-pricing-route`
+uses the same path after its own review fix. The plans module never makes a direct HTTP call to SPACE: every SPACE call goes through
+`space-python-client` (16.1). It will make direct HTTP calls to SPHERE: M4.3 reads the public pricing without a key, GET
+only. The lab architecture test `lab/tests/test_no_direct_space_http.py` allows today
+`openbinding-gateway/src/openbinding_gateway/plans/` in `ALLOWED_PREFIXES`, a path that does not match the module.
+Aligning `ALLOWED_PREFIXES` with `openbinding-gateway/src/openbinding_gateway/modules/plans/` is therefore a
+prerequisite of M4.3 slice S1 and of any slice that adds an HTTP call inside the plans module; no slice of this change
+adds one, so none of S1-S8 depends on it.
 
 ## 3. Entitlement map (pricing 0.2.0)
 
@@ -75,7 +84,15 @@ the gateway's own counts (§7); "ceiling" limits bound one request.
 | create a private project, make a project private | `collaboration` | — | `maxPrivateProjects` |
 | create an organization | `collaboration` | — | — |
 | create an API key | `apiAccess` | — | `maxApiKeys` |
-| authenticate a request with an API key | `apiAccess` | — | — |
+
+These 14 rows are the gated operations, all of them and only them. Authenticating a request with an API key is not a
+gated operation: `apiAccess` gates only the creation of a key (with `maxApiKeys`), so authenticating a request made
+with an existing key, like serving a public read, never reads the plan and never fails because SPACE is down. A request
+made with a key is gated only when its operation is one of the rows above (§11, D15). Not gated but still dependent on
+SPACE, because they read or change the contract itself: the plan-administration routes (`GET /v1/users/me/pricing-token`,
+contract removal, the admin subscription read and change, the CAS research upgrade and downgrade); they move with the
+gate unchanged (proposal, Out of scope) and keep their 503 `pricing_unavailable` when SPACE is down, whatever the
+credential.
 
 Every feature (7) and every limit (12) of pricing 0.2.0 appears; `maxRunMinutes` and `solverHours` are linked to `runs`
 and `studies` only, so a federated run is bounded by neither (the technical solve timeout still applies). In pricing 0.2.0
@@ -188,7 +205,7 @@ resource is stored and committed; (8) dispatch after commit.
 
 - `client.on(event, callback)` for `synchronized`, `pricing_created`, `pricing_actived` (spelled so in the client README;
   the client may also accept `pricing_activated`, UNVERIFIED), `pricing_archived` and `service_disabled`, then
-  `await client.connect()` in the lifespan; `remove_all_listeners()` and close on shutdown. An event whose service is not
+  `await client.connect()` in the lifespan; `remove_all_listeners()` and close on shutdown (names checked offline, §12). An event whose service is not
   `SPACE_SERVICE_NAME` is ignored (payload shape UNVERIFIED).
 - On an event: the plans caches of the service (tokens, caps; Redis cache provider of the client, plus any in-process
   memo) are dropped before the next decision, then `plans.changed` is published in process.
@@ -200,12 +217,22 @@ resource is stored and committed; (8) dispatch after commit.
   `text/event-stream`, `Cache-Control: no-store`, messages `event: plans.changed` with data
   `{"event": "<space event>", "at": "<ISO 8601>"}`, a comment heartbeat every 25 s, closed by the server after 30 minutes
   (the browser reconnects). Delivery within 5 s of the event's arrival. No per-user data.
+- The 401 of `GET /v1/plans/events` is a `Problem` body (ADR-0011) with media type `application/problem+json`, as are
+  the other errors of the `/v1/plans` prefix (`m43-plans-pricing-route` design.md §4.3). The first slice that adds a
+  `/v1/plans` route, S5 here or S1 of M4.3, whichever lands first, adds `/v1/plans` to `_BIM_PATH_PREFIXES` in
+  `main.py` (or the shared predicate M4.3 describes) and the prefix to `docs/ERRORS.md` §"Media type"; the other slice
+  finds it done and only checks it.
+- The contract suite of S8 exercises these subscriptions with the bootstrap's `MANAGEMENT` key
+  (`PLANS_CONTRACT_SPACE_API_KEY`); where that key lives is decided by `docs/design/m45-lab-space.md` §1.4, and the suite
+  runs only where the key is available (§9).
 
 ## 9. Fail closed, open gate, contract suite
 
 - SPACE errors are already mapped to `PricingUnavailable` at one seam (`SpacePricingGate._call`); every gated
-  operation turns it into 503 `pricing_unavailable` before writing. The gateway starts while SPACE is down; ungated
-  routes keep working and the next gated call retries SPACE (no circuit state kept).
+  operation (the 14 rows of §3, and only those) turns it into 503 `pricing_unavailable` before writing. The gateway
+  starts while SPACE is down; public reads, the authentication of API keys and the ungated routes keep working (D15),
+  except the plan-administration routes of §3, which read SPACE themselves; the next gated call retries SPACE (no
+  circuit state kept).
 - `OpenGate` gains `evaluate` (always positive, nothing recorded), `revert` (no-op) and `subscribe` (no-op).
   `open_limits` today declares none of the 0.2.0 ids, and a missing limit reads as 0 (`PlanCaps.limit`), so S7 extends
   it: every limit of the map is `inf`, except `maxRunMinutes` = `ENGINE_SOLVE_TIMEOUT_S / 60` and `maxConcurrentRuns` =
@@ -215,8 +242,13 @@ resource is stored and committed; (8) dispatch after commit.
   when `PLANS_CONTRACT_SPACE_URL` and `PLANS_CONTRACT_SPACE_API_KEY` are set (excluded from the default `pytest` run, so
   16.6 holds). It uses its own test account id (`uuid5(SEED_NAMESPACE, "contract:plans")`), removes its contract at
   the end and reads the usage from the token's `subscriptionContext` (UNVERIFIED claim name).
+- `PLANS_CONTRACT_SPACE_API_KEY` is the bootstrap's `MANAGEMENT`-scoped key: the suite creates and removes contracts,
+  evaluates and reverts, the calls for which the plans module needs a `MANAGEMENT`-scoped key (ARCHITECTURE §9.2). Where that key lives is decided by `docs/design/m45-lab-space.md`
+  §1.4 (owner question 3 of m41-space-bootstrap; recommendation: a read-only volume `lab-pricing-key`), not by this
+  change; the suite runs only where that key is available (a process that can read it), and the registered lab check of
+  S8 is placed accordingly.
 - Prerequisite outside this change: the lab `pricing` profile reachable from where the suite runs, with the bootstrap's
-  `MANAGEMENT` key available to it (owner question 3 of m41-space-bootstrap); the compose wiring of
+  `MANAGEMENT` key available to it (above); the compose wiring of
   `pricing-bootstrap` and of the `space-api` build (m41-space-bootstrap design.md §7). The SPACE-stopped scenario needs a
   gateway wired to the lab SPACE (M4.5); until then it runs with a gateway started by the suite in process.
 
@@ -263,21 +295,40 @@ consistent with ADR-0015, ARCHITECTURE §9 and ROADMAP M4; the lead checks each 
 - D13. Contract suite opt-in by environment, marker `space_contract`, its own synthetic account (§9).
 - D14. Only generations with `persist: true` are gated; a generation that persists nothing stays open to anyone, as the
   living `generator` capability specifies (§3).
+- D15. Authenticating a request with an API key is not gated by the plans module: `apiAccess` gates only the creation
+  of a key, together with `maxApiKeys`. API-key authentication and public reads never depend on SPACE and never fail
+  because SPACE is down; `plans-fail-closed` covers the 14 gated operations of §3 only, and the plan-administration
+  routes listed in §3 keep their own SPACE dependency (§3, §9). To verify
+  against the accepted CRP: if it gates every API-key request on `apiAccess`, that is a revision of
+  `plans-entitlement-map` and `plans-fail-closed`.
 
 ## 12. Risks and open questions
 
 - UNVERIFIED against SPACE 1.7.1 and `space-python-client` 1.0.0 (README of the main branch, medium confidence, lookup of
   2026-10-26; sources: `https://github.com/Alex-GF/space-python-client`, `https://pypi.org/pypi/space-python-client/1.0.0/json`):
-  the signatures `evaluate(user_id, feature_id, expected_consumption=None, details=False, server=False)` and
-  `revert_evaluation(user_id, feature_id, revert_to_latest=True)`, the keys of `expected_consumption`, decimals in
-  `solverHours`, the evaluation result fields, the event names (`pricing_actived`) and payloads, and the
-  `subscriptionContext` claim. The contract suite (S8) proves or corrects them; a correction of a name is a design fix,
-  of a behaviour a revision of the requirement.
-- UNVERIFIED: how SPACE compares an evaluation with its limit. The scenarios assume SPACE refuses when `used +
-  expected` exceeds the limit (4.95 + 0.0833 > 5 h; 980 + 40 > 1000). The pricing expressions use a strict `<` on the
-  usage already recorded (`subscriptionContext['solverHours'] < …`), which would admit those two cases and refuse only
-  once the level is reached; the contract suite settles it, and a different rule is a revision of
-  `plans-usage-exhausted` and `plans-generation-admission` scenarios.
+  the keys of `expected_consumption`, decimals in `solverHours`, the evaluation result fields, the event payloads and
+  the `subscriptionContext` claim. The contract suite (S8) proves or corrects them; a correction of a name is a design
+  fix, of a behaviour a revision of the requirement.
+- Checked offline by `openbinding-gateway/tests/test_space_client_contract.py` against the installed client (names and
+  parameters only), once the parallel fix of that test lands (in this tree it still checks `remove_listener` and binds
+  `evaluate` positionally; until that fix lands these names stay UNVERIFIED): the event name `pricing_actived`, `AsyncSpaceClient.remove_all_listeners`,
+  `evaluate(user_id, feature_id, expected_consumption=...)` and
+  `revert_evaluation(user_id, feature_id, revert_to_latest=True)`. Payload shapes and server behaviour remain
+  UNVERIFIED until the contract suite runs.
+- UNVERIFIED: how SPACE compares an evaluation with its limit. ARCHITECTURE §9.2 does not fix the rule, and the pricing
+  expressions (`subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']`, the same for
+  `generatedInstances`) compare the usage already recorded with a strict `<`, which admits an evaluation while
+  `used < limit` even if `used + expected` exceeds the limit; SPACE may instead refuse when `used + expected` exceeds
+  it. The scenarios of `plans-usage-exhausted` and `plans-generation-admission` therefore use levels already reached
+  (FREE: 5 of 5 `solverHours`, 1000 of 1000 `generatedInstances`), which both readings refuse. The case "used +
+  expected exceeds the limit while used is below it" is left to the contract suite (S8); its result is recorded in
+  `docs/qa/PRICING_PROFILE.md`, and a rule that matters to callers becomes a scenario in a revision of those
+  requirements.
+- `SPACE_PRICING_VERSION` (gateway setting) versus the lab's `DEMO_SPACE_PRICING_VERSION` (the compose files map the
+  second onto the first): M4.2 owns the decision whether the gateway keeps the setting, now that contracts follow the
+  active version (`all_last`, §4) and M4.3's route no longer reads it, and how the lab variable follows. To check with
+  it: a new version activated in SPACE does not break contracts pinned to `0.2.0` (UNVERIFIED, to confirm in the
+  contract suite, S8).
 - `revert_to_latest` and concurrent admissions (§6); a timed-out evaluation that SPACE recorded stays consumed (§6); a
   run that ends with `queue_timeout`, or is cancelled more than 120 s after its evaluation, keeps its budget consumed
   although it never ran (the two-minute revert window of SPACE).

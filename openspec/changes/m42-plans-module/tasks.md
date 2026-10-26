@@ -65,9 +65,13 @@ SPACE or SPHERE (constitution 16.6); they use the recorded pricing `docs/pricing
 ## S5. SPACE event relay
 - [ ] 5.1 Tests with a fake event source: each of the five events drops the cached entitlements of the service and not
   those of another service; `plans.changed` reaches two open streams within 5 s with no account data; 401 without
-  authentication; while the source is disconnected, a cached entry older than 60 s is not used.
+  authentication, with media type `application/problem+json`; while the source is disconnected, a cached entry older
+  than 60 s is not used.
 - [ ] 5.2 `modules/plans/adapters/space/events.py` (subscription in the lifespan, reconnect with backoff) and
   `modules/plans/adapters/http/events.py` (`GET /v1/plans/events`), design.md §8; `docs/openapi.json` regenerated.
+- [ ] 5.3 Unless M4.3 S1 has landed it first: add `/v1/plans` to `_BIM_PATH_PREFIXES` in `src/openbinding_gateway/main.py`
+  (or the shared predicate of `m43-plans-pricing-route` design.md §4.3) and the prefix to `docs/ERRORS.md` §"Media
+  type"; if M4.3 S1 landed first, only the 5.1 test checks it (design.md §8).
 - Requirements: `plans-event-cache-invalidation`, `plans-event-relay`, `plans-cache-bound-without-events`.
 - Depends on: S1. Public API addition: confirm with the lead that the CRP covered it (design.md §11, D11).
 
@@ -84,8 +88,11 @@ SPACE or SPHERE (constitution 16.6); they use the recorded pricing `docs/pricing
 - Depends on: S3.
 
 ## S7. Fail closed and open gate
-- [ ] 7.1 Tests: SPACE not answering → 503 `pricing_unavailable` for a run, a problem and a private project with
-  nothing stored; the gateway starts with SPACE down, serves a public read, and admits after SPACE returns; with
+- [ ] 7.1 Tests: SPACE not answering → 503 `pricing_unavailable` with nothing stored or started for each of the 14
+  gated operations of design.md §3 (a run, a problem and a private project among them), and a due study cell is not
+  launched and stays waiting; the gateway starts with SPACE down, serves a public read and an API-key read of the
+  caller's own run with no SPACE call (API-key authentication is not gated, design.md §3, D15), answers 503 with no job
+  to a run submitted with that API key, and admits after SPACE returns; with
   `SPACE_ENABLED=false` and `APP_ENV=dev` everything gated is admitted with no SPACE call; `APP_ENV=prod` refuses it.
 - [ ] 7.2 Close any path S3-S6 left that writes before the SPACE answer; `OpenGate.evaluate`/`revert`/`subscribe`;
   `open_limits` and `OPEN_FEATURES` extended to every id of the map (design.md §9), so the open gate admits a 26th
@@ -97,17 +104,26 @@ SPACE or SPHERE (constitution 16.6); they use the recorded pricing `docs/pricing
 - [ ] 8.1 `tests/contract/test_plans_space_contract.py` (marker `space_contract`, skipped unless
   `PLANS_CONTRACT_SPACE_URL` and `PLANS_CONTRACT_SPACE_API_KEY` are set): contract and token, consumption and revert,
   `synchronized` event, SPACE stopped → 503 (design.md §9).
-- [ ] 8.2 A registered lab check that runs the suite against the `pricing` profile; the results are recorded in
-  `docs/qa/PRICING_PROFILE.md`, and every UNVERIFIED item of design.md §12 is confirmed or corrected.
+- [ ] 8.2 A registered lab check that runs the suite against the `pricing` profile, placed where the `MANAGEMENT` key
+  (`PLANS_CONTRACT_SPACE_API_KEY`) is available as `docs/design/m45-lab-space.md` §1.4 decides; the results are
+  recorded in `docs/qa/PRICING_PROFILE.md`, and every UNVERIFIED item of design.md §12 is confirmed or corrected,
+  including the evaluation rule when `used + expected` exceeds the limit while `used` is below it.
+- [ ] 8.3 Decide `SPACE_PRICING_VERSION` (gateway setting) versus the lab's `DEMO_SPACE_PRICING_VERSION` (design.md §12;
+  M4.2 owns it), with a suite case showing that a new version activated in SPACE does not break contracts pinned to
+  `0.2.0` (UNVERIFIED until then); record the decision in design.md §12 or a followup of the slice.
 - Requirements: `plans-contract-suite`.
 - Depends on: S3, S5, S6, S7, and outside this change: the compose wiring of `pricing-bootstrap` and of the `space-api`
   build (m41-space-bootstrap design.md §7), and the placement of the `MANAGEMENT` key (owner question 3 of
   m41-space-bootstrap).
 
+## Prerequisites of later slices
+- Before M4.3 slice S1, and before any slice that adds an HTTP call inside the plans module: align `ALLOWED_PREFIXES`
+  of `lab/tests/test_no_direct_space_http.py` with `openbinding-gateway/src/openbinding_gateway/modules/plans/`
+  (design.md §2). No slice of this change adds one.
+
 ## Follow-ups
 - At archive: update the scenario of `req~engine-registry-federated-quota~1` to `maxFederatedEngines` (design.md §1)
   and remove the "Open gate behaviour" TODO of `auth-roles-entitlements`.
-- `lab/tests/test_no_direct_space_http.py`: align the allowed plans path with `openbinding_gateway/modules/plans/**`.
 - `docs/ACCOUNTS_AND_PLANS.md` and `docs/architecture/gateway-as-is.md`: describe the plans module, the map and the
   consumption once S3 lands (doc-steward).
 - `docs/ARCHITECTURE.md` §9.2: the map check per contract instead of at start-up, the event name `pricing_actived`,
