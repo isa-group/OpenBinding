@@ -99,7 +99,8 @@ describe('Case list', () => {
 
     const guide = await screen.findByRole('region', { name: 'No cases yet' });
     expect(within(guide).getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/examples');
-    expect(within(guide).getByRole('link', { name: 'Open the library' })).toHaveAttribute('href', '/app/isa-demo/library');
+    // [utest->req~frontend-retire-library-entry-points-removed~1]
+    expect(within(guide).queryByRole('link', { name: /library/i })).toBeNull();
   });
 
   it('keeps the page and offers a retry when the list fails', async () => {

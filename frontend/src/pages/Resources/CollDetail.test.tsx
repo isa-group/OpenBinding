@@ -70,13 +70,15 @@ describe('Collection detail', () => {
     expect(within(rows[0]).getByText('Case')).toBeInTheDocument();
     expect(within(rows[0]).getByRole('button', { name: 'Copy fingerprint of Flujo de checkout · revision 1' })).toHaveTextContent('sha256-1111…1111');
     expect(within(rows[1]).getByRole('link', { name: 'Flujo de checkout · revision 2' })).toBeInTheDocument();
-    expect(within(rows[2]).getByRole('link', { name: 'Weights · revision 1' })).toHaveAttribute('href', `${root}/resources/weights`);
+    // [utest->req~frontend-retire-library-no-link~1]
+    expect(within(rows[2]).queryByRole('link')).toBeNull();
+    expect(within(rows[2]).getByText('Weights · revision 1')).toBeInTheDocument();
     expect(within(rows[2]).getByText('Resource')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Start a study from this' })).toHaveAttribute('href', `${root}/studies/new?collection=referencias-checkout`);
     expect(platform.collection).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'referencias-checkout');
   });
 
-  it('lists the revisions and sits in the Library tab with a breadcrumb back to the collections', async () => {
+  it('lists the revisions and sits in the Collections tab with a breadcrumb back to the collections', async () => {
     renderDetail();
     await items();
 
@@ -84,7 +86,7 @@ describe('Collection detail', () => {
     expect(screen.getByRole('button', { name: 'Revision 1 · 2 items' })).toHaveAttribute('aria-pressed', 'false');
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'Collections' })).toHaveAttribute('href', `${root}/collections`);
-    expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Library' })).toHaveAttribute('aria-current', 'page');
+    expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Collections' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('reorders the items and saves them as the next revision', async () => {

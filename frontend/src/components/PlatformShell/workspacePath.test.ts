@@ -10,8 +10,12 @@ describe('workspaceSlugs', () => {
 
   it('does not take organization-level sections for projects', () => {
     expect(workspaceSlugs('/app/isa-demo/settings/members')).toEqual({ org: 'isa-demo', project: undefined });
-    expect(workspaceSlugs('/app/isa-demo/library/artifact')).toEqual({ org: 'isa-demo', project: undefined });
     expect(workspaceSlugs('/app/isa-demo/new-project')).toEqual({ org: 'isa-demo', project: undefined });
+  });
+
+  it.each(['library', 'resources'])('keeps %s unusable as an organization slug, though its screens are retired', (segment) => {
+    expect(RESERVED_SLUGS.has(segment)).toBe(true);
+    expect(workspaceSlugs(`/app/${segment}`)).toEqual({});
   });
 
   it('names no workspace for the application root or other sites', () => {

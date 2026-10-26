@@ -250,7 +250,6 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
                 onChange={setPickedMode}
                 hasPrepared
                 ranges={ranges}
-                editHref={`/app/${org}/library`}
                 compareHref="/engines"
                 analysisNote={ready.analysis.state === 'failed'
                   ? <RefusalNotice refusal={ready.analysis.refusal} usageTo />
@@ -263,7 +262,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
                 org={org} source={settings} onSource={setSettings} plans={plans} values={values}
                 onValue={(name, value) => setValues((current) => ({ ...current, [name]: value }))}
                 configuration={configuration} onConfiguration={setConfiguration}
-                libraryHref={`/app/${org}/library`} modeLabel={modeLabel}
+                modeLabel={modeLabel}
               />
             )}
 
@@ -281,7 +280,6 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
                   <RefusalNotice
                     refusal={refusal}
                     usageTo
-                    editTo={`/app/${org}/library`}
                     extra={refusal.kind === 'busy' ? <SlotCountdown key={refusal.retryAfter} seconds={refusal.retryAfter ?? 15} /> : undefined}
                   />
                 )}

@@ -110,7 +110,6 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
         </div>
         <div className="org-hero-actions">
           {canCreate && <Action to={`/app/${slug}/new-project`} variant="primary">New project</Action>}
-          <Action to={`/app/${slug}/library`} variant="secondary">Library</Action>
           <Action to={`/app/${slug}/settings/members`} variant="secondary">Members</Action>
           {canAdminister && <Action to={`/app/${slug}/settings/audit`} variant="secondary">Audit</Action>}
           <Action to={`/app/${slug}/settings`} variant="secondary">Settings</Action>

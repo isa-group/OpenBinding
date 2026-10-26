@@ -20,7 +20,8 @@ export type UnlistedFinding = Omit<RawRenderingOffender, 'retiredBy'> & { retire
 /** Equals the number of entries of RAW_RENDERING_ALLOW_LIST; lower it as entries go. */
 // [impl->req~frontend-retire-allow-list-leaves~1]
 // [impl->req~frontend-retire-reports-allow-list~1]
-export const MAX_ALLOWED_OFFENDERS = 13;
+// [impl->req~frontend-retire-library-allow-list~1]
+export const MAX_ALLOWED_OFFENDERS = 12;
 
 export const UNLISTED_REASON = 'found by the detector, not in ROADMAP M2; to be decided by the owner/coordinator';
 
@@ -90,7 +91,7 @@ export const RAW_RENDERING_ALLOW_LIST: RawRenderingOffender[] = [
   {
     offender: 9,
     file: 'pages/Studies/StudyDetail.tsx',
-    lines: [{ line: 277, text: '<pre aria-label="Study definition source">{JSON.stringify(study.definition, null, 2)}</pre>' }],
+    lines: [{ line: 276, text: '<pre aria-label="Study definition source">{JSON.stringify(study.definition, null, 2)}</pre>' }],
     reason: 'Study definition source in <pre>.',
     retiredBy: 'M2.5',
   },
@@ -100,13 +101,6 @@ export const RAW_RENDERING_ALLOW_LIST: RawRenderingOffender[] = [
     lines: [{ line: 47, text: '<pre tabIndex={0} aria-label={`${label} (JSON)`}><code>{source}</code></pre>' }],
     reason: 'Manifest JSON in <pre> (the text is built at :43).',
     retiredBy: 'M2.5',
-  },
-  {
-    offender: 11,
-    file: 'pages/Library/ContentView.tsx',
-    lines: [{ line: 196, text: '<pre tabIndex={0} aria-label="Source of the content">{sourceOf(content)}</pre>' }],
-    reason: 'Content source as the main view.',
-    retiredBy: 'M2.4',
   },
   {
     offender: 12,

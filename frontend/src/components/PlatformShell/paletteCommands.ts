@@ -54,7 +54,8 @@ export function buildCommands({ organizations = [], projects = [], organization,
   if (root && project) {
     const sections: Array<[string, string, string]> = [
       ['Cases', 'Binding cases and their revisions', '/cases'],
-      ['Library', 'Versioned artifacts and drafts', '/library'],
+      // [impl->req~frontend-retire-library-navigation~1]
+      ['Collections', 'Problems grouped into suites', '/collections'],
       ['Files', 'Files stored in this project', '/files'],
       ['Studies', 'Cases × engines × parameters × seeds', '/studies'],
       // [impl->req~frontend-retire-reports-navigation~1]

@@ -190,8 +190,8 @@ function PlacementCard({ model }: { model: BindingModel }) {
   );
 }
 
-function ResourceCards({ organization, uses, resolved }: {
-  organization: Organization; uses: ResourceUse[]; resolved: Record<string, Loaded<ArtifactVersion>>;
+function ResourceCards({ uses, resolved }: {
+  uses: ResourceUse[]; resolved: Record<string, Loaded<ArtifactVersion>>;
 }) {
   if (uses.length === 0) {
     return <p className="org-muted">This revision doesn’t record its inputs as library versions, so there is nothing to link to. Its compiled form is still exact.</p>;
@@ -203,7 +203,7 @@ function ResourceCards({ organization, uses, resolved }: {
         const version = answer?.status === 'ready' ? answer.value : undefined;
         const failure = answer?.status === 'error' ? classifyAuthError(answer.error) : null;
         const note = !answer ? 'Looking it up…' : failure ? (isMissing(failure) ? `Can’t be reached${marker(failure)}` : `Couldn’t be loaded${marker(failure)}`)
-          : version?.withdrawn ? 'Withdrawn · open in library' : version?.public ? 'Published · open in library' : 'Not published · open in library';
+          : version?.withdrawn ? 'Withdrawn' : version?.public ? 'Published' : 'Not published';
         const body = (
           <>
             <span className="case-resource-role">{roleLabel(use.role)}</span>
@@ -214,9 +214,7 @@ function ResourceCards({ organization, uses, resolved }: {
         );
         return (
           <li key={`${use.role}/${use.alias}`}>
-            {version
-              ? <Link className="case-resource" to={`/app/${organization.slug}/library/${version.artifact_id}/versions/${version.id}`} viewTransition>{body}</Link>
-              : <div className={`case-resource${failure ? ' is-unresolved' : ''}`}>{body}</div>}
+            <div className={`case-resource${failure ? ' is-unresolved' : ''}`}>{body}</div>
           </li>
         );
       })}
@@ -335,7 +333,7 @@ function RevisionBody({ organization, project, content, revision }: {
 
       <section className="org-section" aria-labelledby="rv-resources">
         <h2 id="rv-resources">Resources it’s built from</h2>
-        <ResourceCards organization={organization} uses={uses} resolved={resolved} />
+        <ResourceCards uses={uses} resolved={resolved} />
       </section>
     </CaseFrame>
   );

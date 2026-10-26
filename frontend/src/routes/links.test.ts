@@ -79,6 +79,7 @@ function patternsOf(path: string): RegExp[] {
 
 // [impl->req~frontend-retire-no-link-to-retired~1]
 // [impl->req~frontend-retire-reports-no-link~1]
+// [impl->req~frontend-retire-library-no-link~1]
 /**
  * `<file>: <literal>` for every string or template literal of the sources that starts with a retired path followed by the end,
  * `/`, `?`, `#` or `${`. A `:param` of the path stands for any one segment or `${…}`; for such a path a literal that starts with
@@ -139,7 +140,7 @@ describe('internal links written in the code', () => {
   });
 
   it('do not point at the addresses the redesign retired', () => {
-    const retired = /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog)(\/|$)|^\/app\/analysis\?job=|^\/app\/[^/]+\/[^/]+\/(verifier|analytics|artifacts|reports)(\/|$)/;
+    const retired = /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog)(\/|$)|^\/app\/analysis\?job=|^\/app\/[^/]+\/[^/]+\/(verifier|analytics|artifacts|reports|library|resources)(\/|$)|^\/app\/[^/]+\/library(\/|$)/;
     const old = staticLinks().filter(({ address }) => retired.test(address)).map(({ file, address }) => `${file}: ${address}`);
     expect(old).toEqual([]);
   });
@@ -256,6 +257,41 @@ describe('the scan for retired addresses', () => {
     });
   });
 
+  describe('for the library catalogue and the project resources', () => {
+    const library = [
+      '/app/:org/library', '/app/:org/library/:artifact', '/app/:org/library/:artifact/drafts/:draft',
+      '/app/:org/library/:artifact/versions/:version', '/app/:org/:project/library', '/app/:org/:project/resources',
+      '/app/:org/:project/resources/:resource',
+    ];
+    const scanLibrary = (file: string, text: string) => retiredAddresses({ [file]: text }, library);
+
+    // [utest->req~frontend-retire-library-no-link~1]
+    it('finds the whole address and the tail written after an interpolation', () => {
+      for (const literal of [
+        '`/app/${org}/library`', '`/app/${slug}/library/${artifact}`', '`/app/${slug}/library/${a}/versions/${v}`', "'/app/acme/library/a1/drafts/d1'",
+        '`/app/${org}/${project}/library`', '`/app/${org}/${project}/resources/${slug}`', '`${root}/resources`', '`${root}/library`',
+        '`${root}/resources/${encodeURIComponent(resource.slug)}`', '`${base}/resources`', '`${organizationRoot}/library/${id}`',
+      ]) {
+        expect(scanLibrary('pages/X.tsx', `const a = ${literal};`), literal).toHaveLength(1);
+      }
+    });
+
+    // [utest->req~frontend-retire-library-no-link~1]
+    it('does not report look-alikes, the addresses that replace the retired ones or the endpoints of the API client', () => {
+      const source = [
+        "const a = '/app/acme/libraryx';",
+        'const b = `${root}/collections`;',
+        'const c = `/app/${org}/${project}/files`;',
+        'const d = `/app/${slug}`;',
+        "const e = '/v1/library/artifacts';",
+        "// '/app/acme/library' in a comment",
+      ].join('\n');
+      expect(scanLibrary('pages/X.tsx', source)).toEqual([]);
+      expect(scanLibrary('src/api/library.ts', 'const a = `${root}/library`;')).toEqual([]);
+      expect(scanLibrary('src/api/library.ts', "const a = '/app/acme/library';")).toHaveLength(1);
+    });
+  });
+
   const application = Object.fromEntries(
     Object.entries(sources)
       // Vite names the files of this folder `./x` and the others `../…/x`.
@@ -272,6 +308,13 @@ describe('the scan for retired addresses', () => {
   // [utest->req~frontend-retire-reports-no-link~1]
   it('finds none in the application sources, for the report list and the report editor', () => {
     expect(retiredAddresses(application, ['/app/:org/:project/reports', '/app/:org/:project/reports/:report'])).toEqual([]);
+  });
+
+  // [utest->req~frontend-retire-library-no-link~1]
+  it('finds none in the application sources, for the library catalogue and the project resources', () => {
+    const library = RETIRED_ROUTES.filter((route) => route.slice === 3).map((route) => route.path);
+    expect(library).toHaveLength(7);
+    expect(retiredAddresses(application, library)).toEqual([]);
   });
 
   // [utest->req~frontend-retire-reports-no-link~1]

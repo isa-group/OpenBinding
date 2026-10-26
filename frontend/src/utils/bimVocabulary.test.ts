@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_FILES } from '../pages/Workbench/bimDocuments';
-import { LEGACY_ANNOTATION, migrateContent, migrateDocument, migrateFiles } from './bimVocabulary';
+import { LEGACY_ANNOTATION, migrateDocument, migrateFiles } from './bimVocabulary';
 
 // Documents kept before the editors wrote the vocabulary of the schemas: read in both, written in the real one, nothing dropped.
 
@@ -140,12 +140,5 @@ describe('migrating the files of a package', () => {
     const migrated = migrateFiles(DEFAULT_FILES);
     expect(migrated.value).toBe(DEFAULT_FILES);
     expect(migrated.notes).toEqual([]);
-  });
-
-  it('migrates the content of a library draft, and passes text through', () => {
-    const migrated = migrateContent(doc('CandidateCatalog', { metricBindings: {}, candidates: {} }));
-    expect(migrated.value).toMatchObject({ spec: { featureBindings: {}, candidates: {} } });
-    expect(migrated.notes).toHaveLength(1);
-    expect(migrateContent('<bpmn/>')).toEqual({ value: '<bpmn/>', notes: [] });
   });
 });

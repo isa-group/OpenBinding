@@ -5,7 +5,7 @@ import { accountLinks, createItems, currentSection, isToolActive, mainLinks, too
 
 /** The entry of the main navigation each screen of routes/d1..d8 belongs to. Every other screen leaves them all unmarked. */
 const SECTION_OF: Record<string, readonly string[]> = {
-  home: ['app-home', 'org-create', 'org-overview', 'org-settings', 'org-members', 'org-audit', 'proj-create', 'proj-overview', 'lib-list', 'lib-artifact', 'lib-draft', 'lib-version'],
+  home: ['app-home', 'org-create', 'org-overview', 'org-settings', 'org-members', 'org-audit', 'proj-create', 'proj-overview'],
   jobs: ['job-launch', 'job-list', 'job-detail', 'job-history'],
   explore: ['pub-explore'],
   tools: ['eng-catalog', 'eng-detail', 'lang-profiles', 'lang-schemas', 'gen-lab', 'verifier', 'eng-register', 'eng-registrations', 'eng-registration-detail', 'lang-extensions'],
@@ -35,6 +35,19 @@ describe('mainLinks', () => {
     expect(addresses.length).toBeGreaterThan(15);
     expect(addresses.filter((address) => /\/reports([/?#]|$)/.test(address))).toEqual([]);
   });
+
+  // [utest->req~frontend-retire-library-navigation~1]
+  it('offers no entry of the main, tool, account or New menus that leads to the library catalogue or the resources', () => {
+    const organization = { slug: 'isa-demo', name: 'ISA demo' } as Organization;
+    const project = { slug: 'qos', name: 'QoS' } as Project;
+    const addresses = [
+      ...Object.values(mainLinks).map((link) => link.to),
+      ...toolLinks.map((link) => link.to),
+      ...accountLinks.map((link) => link.to),
+      ...createItems(organization, project).flatMap((item) => (item.to ? [item.to] : [])),
+    ];
+    expect(addresses.filter((address) => /\/(library|resources)([/?#]|$)/.test(address))).toEqual([]);
+  });
 });
 
 describe('currentSection', () => {
@@ -52,7 +65,7 @@ describe('currentSection', () => {
   });
 
   it('leaves Home alone inside a project: its tabs say where it is', () => {
-    for (const section of ['cases', 'cases/checkout', 'library', 'studies', 'studies/new', 'studies/s1/runs/r1', 'reports', 'publications', 'files', 'resources', 'collections', 'package', 'settings', 'workbench']) {
+    for (const section of ['cases', 'cases/checkout', 'studies', 'studies/new', 'studies/s1/runs/r1', 'publications', 'files', 'collections', 'package', 'settings', 'workbench']) {
       expect(currentSection(`/app/isa-demo/qos/${section}`), section).toBeNull();
     }
     expect(currentSection('/app/isa-demo/qos')).toBe('home');
@@ -61,7 +74,7 @@ describe('currentSection', () => {
   it('keeps the jobs of a project under Jobs, and the organization screens under Home', () => {
     expect(currentSection('/app/isa-demo/qos/jobs')).toBe('jobs');
     expect(currentSection('/app/isa-demo/qos/jobs/new')).toBe('jobs');
-    for (const path of ['/app/isa-demo', '/app/isa-demo/settings', '/app/isa-demo/settings/audit', '/app/isa-demo/library/art-1/versions/v1', '/app/isa-demo/new-project']) {
+    for (const path of ['/app/isa-demo', '/app/isa-demo/settings', '/app/isa-demo/settings/audit', '/app/isa-demo/new-project']) {
       expect(currentSection(path), path).toBe('home');
     }
   });

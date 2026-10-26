@@ -85,7 +85,7 @@ function ItemRow({ entry, index, count, editable, fresh, onMove, onRemove, copyK
       <span className="res-position" aria-hidden="true">{index + 1}</span>
       <Chip tone={TYPE_TONE[entry.kind] ?? 'plain'}>{typeName(entry.kind)}</Chip>
       <span className="res-item-label">
-        {entry.href ? <Link to={entry.href} viewTransition>{entry.label}</Link> : entry.label}
+        {entry.href ? <Link to={entry.href} viewTransition>{entry.label}</Link> : <span>{entry.label}</span>}
         <small>{entry.sub}{entry.pin === null && entry.kind === 'resource' ? ' · can’t be re-pinned here' : ''}</small>
       </span>
       <button type="button" className="res-fingerprint" title={entry.digest} onClick={() => void copy(entry.digest, copyKey)} aria-label={`Copy fingerprint of ${entry.label}`}>
@@ -194,7 +194,7 @@ function Body({ organization, project, access, collectionSlug }: { organization:
 
   if (failure && !collection) {
     return (
-      <ResourceFrame organization={organization} project={project} section="library" trail={trail}>
+      <ResourceFrame organization={organization} project={project} section="collections" trail={trail}>
         {isMissing(failure)
           ? (
             <Gate title="Collection not found" action={<Action to={`${root}/collections`} variant="primary">All collections</Action>}>
@@ -211,7 +211,7 @@ function Body({ organization, project, access, collectionSlug }: { organization:
   }
   if (!collection) {
     return (
-      <ResourceFrame organization={organization} project={project} section="library" trail={trail}>
+      <ResourceFrame organization={organization} project={project} section="collections" trail={trail}>
         <div role="status" aria-busy="true" className="case-skeletons"><span className="sr-only">Loading the collection…</span><Skeleton variant="panel" /></div>
       </ResourceFrame>
     );
@@ -264,7 +264,7 @@ function Body({ organization, project, access, collectionSlug }: { organization:
   };
 
   return (
-    <ResourceFrame organization={organization} project={project} section="library" trail={trail}>
+    <ResourceFrame organization={organization} project={project} section="collections" trail={trail}>
       <header className="proj-title-row">
         <div className="proj-title">
           {!renaming && (

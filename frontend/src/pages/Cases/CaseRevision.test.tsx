@@ -148,14 +148,16 @@ describe('Case revision', () => {
     expect(placement).toHaveTextContent('1 demand · 0 network links');
   });
 
-  it('links each resource to its exact version in the library and says whether it is published', async () => {
+  // [utest->req~frontend-retire-library-entry-points-removed~1]
+  it('names each resource by its exact version and says whether it is published, without a link to the library', async () => {
     renderRevision();
 
     const section = await screen.findByRole('region', { name: 'Resources it’s built from' });
-    const catalog = await within(section).findByRole('link', { name: /Candidate catalog.*providers-eu v3/ });
-    expect(catalog).toHaveAttribute('href', '/app/isa-demo/library/artifact-providers-eu/versions/version-artifact-providers-eu-3');
-    expect(catalog).toHaveTextContent('Published · open in library');
-    expect(within(section).getByRole('link', { name: /Goal.*weighted-cost-latency v1/ })).toHaveTextContent('Not published · open in library');
+    await waitFor(() => expect(section).toHaveTextContent('Published'));
+    expect(section).toHaveTextContent('providers-eu v3');
+    expect(section).toHaveTextContent('Not published');
+    expect(section).not.toHaveTextContent('open in library');
+    expect(within(section).queryAllByRole('link')).toEqual([]);
     expect(cases.resolveVersion).toHaveBeenCalledWith(catalog3);
   });
 

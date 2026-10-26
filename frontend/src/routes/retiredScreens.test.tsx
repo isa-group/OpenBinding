@@ -33,6 +33,14 @@ vi.mock('../pages/Reports/ProjPublications', async () => {
   const { createElement } = await import('react');
   return { ProjPublications: () => createElement('h1', null, 'Publications screen') };
 });
+vi.mock('../pages/Organization/OrgOverview', async () => {
+  const { createElement } = await import('react');
+  return { OrgOverview: () => createElement('h1', null, 'Organization page screen') };
+});
+vi.mock('../pages/Resources/CollList', async () => {
+  const { createElement } = await import('react');
+  return { CollList: () => createElement('h1', null, 'Collections screen') };
+});
 vi.mock('../pages/Studies/StudyDetail', async () => {
   const { createElement } = await import('react');
   return { StudyDetail: () => createElement('h1', null, 'Study detail screen') };
@@ -87,7 +95,7 @@ describe('the retired decision-space workspace', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('analysis-sources');
     expect(ids).not.toContain('analysis-workspace');
-    expect(routeDefinitions).toHaveLength(78);
+    expect(routeDefinitions).toHaveLength(71);
   });
 
   it('has no screen files left', () => {
@@ -117,7 +125,7 @@ describe('the retired decision-space workspace', () => {
     const inAnalysis = (entry: { file: string }) => entry.file.startsWith('pages/Analysis');
     expect(RAW_RENDERING_ALLOW_LIST.filter(inAnalysis)).toEqual([]);
     expect(UNLISTED_FINDINGS.filter(inAnalysis)).toEqual([]);
-    expect(MAX_ALLOWED_OFFENDERS).toBe(13);
+    expect(MAX_ALLOWED_OFFENDERS).toBe(12);
   });
 });
 
@@ -152,5 +160,54 @@ describe('the retired report editor', () => {
     await endsAt('/app/acme/atlas/reports', '/app/acme/atlas/publications');
     await endsAt('/app/acme/atlas/reports/engines-vs-seeds-informe', '/app/acme/atlas/publications');
     await endsAt('/app/acme/atlas/reports/engines-vs-seeds-informe?x=1', '/app/acme/atlas/publications');
+  });
+});
+
+// M2.4 slice 3: the library catalogue and the project resources are retired. Their addresses redirect to the organization overview
+// or to the collections of the project.
+describe('the retired library catalogue and project resources', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  // [utest->req~frontend-retire-library-screens-not-routed~1]
+  it('is gone from the route registry, and the files and the collections stay', () => {
+    const ids = routeDefinitions.map((definition) => definition.id);
+    for (const id of ['lib-list', 'lib-artifact', 'lib-draft', 'lib-version', 'proj-library', 'proj-resources', 'proj-resource-detail']) {
+      expect(ids, id).not.toContain(id);
+    }
+    for (const id of ['proj-files', 'coll-list', 'coll-detail']) expect(ids, id).toContain(id);
+    expect(routeDefinitions).toHaveLength(71);
+  });
+
+  // [utest->req~frontend-retire-library-redirect~1]
+  it('sends the library of an organization, an artifact, a draft and a version to the organization overview', async () => {
+    await endsAt('/app/acme/library', '/app/acme');
+    await endsAt('/app/acme/library/a1?tab=x#top', '/app/acme');
+    await endsAt('/app/acme/library/a1/drafts/d1', '/app/acme');
+    await endsAt('/app/acme/library/a1/versions/v1', '/app/acme');
+    await endsAt('/app/a%2Fb/library/a1/versions/v%231', '/app/a%2Fb');
+  });
+
+  // [utest->req~frontend-retire-library-redirect~1]
+  it('sends the project library and the project resources to the collections of the project', async () => {
+    await endsAt('/app/acme/atlas/library', '/app/acme/atlas/collections');
+    await endsAt('/app/acme/atlas/resources', '/app/acme/atlas/collections');
+    await endsAt('/app/acme/atlas/resources/r1?x=1', '/app/acme/atlas/collections');
+    await endsAt('/app/a%2Fb/my%20proj/resources/r%2F1', '/app/a%2Fb/my%20proj/collections');
+  });
+
+  // [utest->req~frontend-retire-library-redirect~1]
+  it('sends /app/<org>/library/reports and /app/<org>/library/library to the organization overview, not to a project', async () => {
+    await endsAt('/app/o/library/reports', '/app/o');
+    await endsAt('/app/o/library/library', '/app/o');
+    await endsAt('/app/o/library/resources', '/app/o');
+  });
+
+  // [utest->req~frontend-retire-library-redirect~1]
+  it('leaves a project called library the screens of its sections, which win the tie with the retired library artifact', async () => {
+    const view = renderAt('/app/acme/library/collections');
+
+    expect(await view.findByRole('heading', { name: 'Collections screen' })).toBeInTheDocument();
+    expect(view.getByTestId('pathname').textContent).toBe('/app/acme/library/collections');
+    view.unmount();
   });
 });

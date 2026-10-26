@@ -33,6 +33,20 @@ describe('buildCommands', () => {
     expect(publications[0]?.desc).toContain('QoS benchmarks');
   });
 
+  // [utest->req~frontend-retire-library-navigation~1]
+  it('offers Collections instead of Library in a project, and no library or resources command anywhere', () => {
+    const inProject = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: true });
+    const without = buildCommands({ organizations: [organization], isAdmin: true });
+
+    expect(inProject.filter((command) => command.label === 'Library')).toEqual([]);
+    const collections = inProject.filter((command) => command.label === 'Collections');
+    expect(collections.map((command) => [command.group, command.href])).toEqual([['Project', '/app/isa-demo/qos-benchmarks/collections']]);
+    expect(collections[0]?.desc).toContain('QoS benchmarks');
+    for (const commands of [inProject, without]) {
+      expect(commands.filter((command) => /\/(library|resources)([/?#]|$)/.test(command.href))).toEqual([]);
+    }
+  });
+
   // [utest->req~frontend-retire-reports-navigation~1]
   it('offers no report command without a project either', () => {
     const commands = buildCommands({ organizations: [organization], isAdmin: true });

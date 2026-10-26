@@ -46,7 +46,9 @@ describe('Organization overview', () => {
     const title = await screen.findByRole('heading', { level: 1, name: 'ISA Demo Group' });
     const hero = within(title.closest('header')!);
     expect(hero.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/isa-demo/new-project');
-    expect(hero.getByRole('link', { name: 'Library' })).toHaveAttribute('href', '/app/isa-demo/library');
+    // [utest->req~frontend-retire-library-entry-points-removed~1]
+    expect(hero.queryByRole('link', { name: 'Library' })).toBeNull();
+    for (const link of hero.getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(library|resources)([/?#]|$)/);
     expect(hero.getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
     expect(hero.getByRole('link', { name: 'Audit' })).toHaveAttribute('href', '/app/isa-demo/settings/audit');
     expect(hero.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/app/isa-demo/settings');

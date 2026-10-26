@@ -257,7 +257,8 @@ describe('One run', () => {
     expect(notice).not.toHaveTextContent('Nothing was started.');
     expect(notice).toHaveTextContent('featureValues interval is not declared (/spec/candidates/providers/candidates/fastpay/features/latency)');
     expect(within(notice).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-    expect(within(notice).getByRole('link', { name: 'Edit the candidate' })).toHaveAttribute('href', '/app/isa-demo/library');
+    // [utest->req~frontend-retire-library-entry-points-removed~1]
+    expect(within(notice).queryByRole('link', { name: 'Edit the candidate' })).toBeNull();
   });
 
   it('says nothing about ranges when a run failed for another reason', async () => {

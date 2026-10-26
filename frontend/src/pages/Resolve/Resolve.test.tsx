@@ -104,6 +104,16 @@ describe('Resolve', () => {
       expect(locations.getByRole('link', { name: 'Open in platform' })).toHaveAttribute('href', '/app/isa-demo/qos/publications');
     });
 
+    // [utest->req~frontend-retire-library-no-link~1]
+    it('links a member to the collections of the project for a resource revision, never to the retired resources', async () => {
+      signIn();
+      platform.resolveElement.mockResolvedValue({ ...element, kind: 'resource-revision' });
+      renderResolve(`/resolve/resource-revision/${DIGEST}`);
+      const locations = within(await screen.findByRole('region', { name: 'Locations' }));
+
+      expect(locations.getByRole('link', { name: 'Open in platform' })).toHaveAttribute('href', '/app/isa-demo/qos/collections');
+    });
+
     it('describes the structure of the content without printing it', async () => {
       renderResolve();
       const content = within(await screen.findByRole('region', { name: 'Content' }));

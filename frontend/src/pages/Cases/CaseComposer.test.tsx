@@ -312,7 +312,8 @@ describe('Case composer', () => {
       const alerts = await screen.findAllByRole('alert');
       expect(alerts[0]).toHaveTextContent('A version can’t be reached (404 · not_found)');
       expect(alerts[0]).toHaveTextContent('checkout-app v3 isn’t visible to you any more, or never was.');
-      expect(within(alerts[0]).getByRole('link', { name: 'Find another in the library' })).toHaveAttribute('href', '/app/isa-demo/library');
+      // [utest->req~frontend-retire-library-entry-points-removed~1]
+      expect(within(alerts[0]).queryByRole('link')).toBeNull();
       expect(screen.getByRole('button', { name: 'Create revision' })).toBeDisabled();
     });
 

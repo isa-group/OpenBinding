@@ -81,8 +81,9 @@ export function locationHref(kind: string, location: ResolveLocation): { href: s
   const detail: Partial<Record<string, string>> = { 'case-revision': 'cases', 'collection-revision': 'collections' };
   const section = detail[kind];
   if (section && slug) return { href: `${base}/${section}/${encodeURIComponent(slug)}`, requiresAccount: true };
-  // Resource revisions have no detail screen keyed by this slug yet; the project's list is the closest place.
-  return { href: kind === 'resource-revision' ? `${base}/resources` : base, requiresAccount: true };
+  // [impl->req~frontend-retire-library-no-link~1]
+  // Resource revisions have no screen since the project resources were retired: the collections of the project are the closest place.
+  return { href: kind === 'resource-revision' ? `${base}/collections` : base, requiresAccount: true };
 }
 
 /** How a media type reads to a person. */

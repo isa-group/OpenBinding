@@ -1,98 +1,74 @@
+// Kept only for frontend/e2e/helpers/mockApi.ts; delete with the mock fixtures (M2.4 slice 3 follow-up).
 import type { ArtifactDraft } from '../../api/library';
 import type { LibraryItem, LibraryVersion } from '../../api/libraryItems';
-import type { JsonObject } from './contentModel';
-
-/** Shared by the tests of the library screens (and the end-to-end spec): items, versions, drafts and contents as the gateway returns them. */
-export const digestOf = (char: string) => `sha256-${char.repeat(64)}`;
+import { templateFor } from './contentModel';
 
 export const OWNER_ORG_ID = 'org-isa-demo';
 
-/** A stable id shaped like the gateway's (a UUID), made from the name, so an address can tell an id from a fixed name. */
-export function idFor(name: string): string {
-  let hash = 7;
-  for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) % 0xffffffffff;
-  return `00000000-0000-4000-8000-${hash.toString(16).padStart(12, '0')}`;
-}
+const DIGEST = (seed: string) => `sha256-${seed.padEnd(64, '0').slice(0, 64)}`;
 
-export function itemOf(name: string, kind: string, display = name, over: Partial<LibraryItem> = {}): LibraryItem {
+export const idFor = (name: string) => `artifact-${name}`;
+
+export function itemOf(name: string, kind: string, displayName: string, overrides: Partial<LibraryItem> = {}): LibraryItem {
   return {
-    id: idFor(name), organization_id: OWNER_ORG_ID, namespace: OWNER_ORG_ID, name, display_name: display, kind, description: '', labels: {}, archived: false,
-    created_at: '2026-03-05T00:00:00Z', ...over,
+    id: idFor(name), organization_id: OWNER_ORG_ID, namespace: 'isa-demo', name, display_name: displayName, kind, description: '', labels: {}, archived: false,
+    created_at: '2026-04-01T09:00:00Z', ...overrides,
   };
 }
 
-export function versionOf(item: LibraryItem, label: string, over: Partial<LibraryVersion> = {}): LibraryVersion {
-  const n = Number(label) || 1;
+export function versionOf(item: LibraryItem, label: string, overrides: Partial<LibraryVersion> = {}): LibraryVersion {
+  const digest = DIGEST(`${item.name.replace(/[^0-9a-f]/g, '')}${label}`);
   return {
-    id: `${item.id}-v${label}`, artifact_id: item.id, ordinal: n,
-    ref: { namespace: item.namespace, name: item.name, version: label, versionDigest: digestOf(String(n + 1)) },
-    contentDigest: digestOf(String(n + 5)),
+    id: `version-${item.id}-${label}`, artifact_id: item.id, ordinal: Number(label) || 1,
+    ref: { namespace: item.namespace, name: item.name, version: label, versionDigest: digest },
+    contentDigest: DIGEST(`c${label}`),
     manifest: { mediaType: 'application/json', contracts: [], dependencies: [], kind: item.kind },
-    based_on_id: null, public: false, withdrawn: false, created_at: '2026-08-20T10:05:00Z', ...over,
+    based_on_id: null, public: false, withdrawn: false, created_at: '2026-04-02T09:00:00Z', ...overrides,
   };
 }
 
-export function draftOf(id: string, revision: number, content: ArtifactDraft['payload']['content'], over: Partial<ArtifactDraft> = {}): ArtifactDraft {
-  return {
-    id, revision, based_on_id: null,
-    payload: { content, media_type: 'application/json', contracts: [], dependencies: [] },
-    ...over,
-  };
+export function draftOf(id: string, revision: number, content: ArtifactDraft['payload']['content'], overrides: Partial<ArtifactDraft> = {}): ArtifactDraft {
+  return { id, revision, payload: { content, media_type: 'application/json', contracts: [], dependencies: [] }, based_on_id: null, ...overrides };
 }
 
-export const catalogContent = (): JsonObject => ({
-  apiVersion: 'qos-binding/v1', kind: 'CandidateCatalog', metadata: { name: 'providers-eu' },
-  spec: {
-    providers: { payco: {}, fastpay: {}, stockly: {} },
-    featureBindings: {
-      latency_ms: { resource: 'application', id: 'latency_ms' },
-      cost_eur: { resource: 'application', id: 'cost_eur' },
-      availability: { resource: 'application', id: 'availability' },
-    },
+const resource = (kind: string, name: string, spec: Record<string, unknown>) => ({ apiVersion: 'qos-binding/v1', kind, metadata: { name }, spec });
+
+const candidate = (provides: string, features: Record<string, unknown>) => ({ provides, provider: { resource: 'catalog', id: 'providers' }, features });
+
+const catalogWith = (stock: Record<string, unknown>) => {
+  return resource('CandidateCatalog', 'providers-eu', {
+    providers: { providers: {} },
+    featureBindings: { latency_ms: { resource: 'application', id: 'latency_ms' }, cost_eur: { resource: 'application', id: 'cost_eur' }, availability: { resource: 'application', id: 'availability' } },
     candidates: {
-      'payco-eu': { provides: 'service/payment', features: { latency_ms: 180, cost_eur: 0.021, availability: 99.95 }, provider: { resource: 'catalog', id: 'payco' } },
-      fastpay: { provides: 'service/payment', features: { latency_ms: 95, cost_eur: 0.034, availability: 99.9 }, provider: { resource: 'catalog', id: 'fastpay' } },
-      'stockly-1': { provides: 'service/stock', features: { latency_ms: 40, cost_eur: 0.002, availability: 99.99 }, provider: { resource: 'catalog', id: 'stockly' } },
+      fastpay: candidate('service/payment', { latency_ms: 95, cost_eur: 0.034, availability: 99.9 }),
+      'payco-eu': candidate('service/payment', { latency_ms: 70, cost_eur: 0.031, availability: 99.95 }),
+      'stockly-1': candidate('service/stock', stock),
     },
-  },
-});
-
-/**
- * The same catalog with every kind of range on its stock provider: a closed one, one with no upper limit and one with no lower limit
- * (what the QA gallery and the range screens show). The number of providers and qualities is that of `catalogContent`.
- */
-export const catalogRangesContent = (): JsonObject => {
-  const content = catalogContent() as { spec: { candidates: Record<string, { features: Record<string, unknown> }> } };
-  content.spec.candidates['stockly-1'].features = { latency_ms: { min: 35, max: 60 }, cost_eur: { min: null, max: 0.004 }, availability: { min: 99.5, max: null } };
-  return content as unknown as JsonObject;
+  });
 };
 
-export const rulesContent = (): JsonObject => ({
-  apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', metadata: { name: 'sla-hard' },
-  spec: {
+/** A catalog of three providers with single values only. */
+export const catalogContent = () => catalogWith({ latency_ms: 45, cost_eur: 0.004, availability: 99.5 });
+
+/** The same catalog with three qualities of `stockly-1` given as ranges. */
+export const catalogRangesContent = () => catalogWith({
+  latency_ms: { min: 35, max: 60 }, cost_eur: { min: null, max: 0.004 }, availability: { min: 99.5, max: null },
+});
+
+export function rulesContent() {
+  return resource('ConstraintSet', 'sla-hard', {
     constraints: {
-      'sla-latency': { assert: 'features.latency_ms <= 600', enforcement: 'hard' },
-      'sla-availability': { assert: 'features.availability >= 99.9', enforcement: 'soft', penalty: 5 },
+      'sla-latency': { assert: 'sum(latency_ms) <= 600', enforcement: 'hard' },
+      'sla-availability': { assert: 'min(availability) >= 99', enforcement: 'hard' },
     },
-  },
-});
+  });
+}
 
-export const goalContent = (): JsonObject => ({
-  apiVersion: 'qos-binding/v1', kind: 'Optimization', metadata: { name: 'weighted' },
-  spec: {
-    penalties: [{ constraint: { resource: 'rules', id: 'sla-availability' }, weight: 5 }],
-    criteria: [
-      { id: 'cost', feature: { resource: 'app', id: 'cost_eur' }, direction: 'minimize', normalize: { min: 0, max: 1, clamp: true } },
-      { id: 'latency', feature: { resource: 'app', id: 'latency_ms' }, direction: 'minimize', normalize: { min: 0, max: 1000, clamp: true } },
-    ],
-  },
-});
+export function goalContent() {
+  return resource('Optimization', 'weighted-cost-latency', {
+    criteria: [{ feature: 'cost_eur', direction: 'minimize', weight: 0.6 }, { feature: 'latency_ms', direction: 'minimize', weight: 0.4 }],
+    penalties: [],
+  });
+}
 
-export const bpmnContent = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1">
-  <bpmn:process id="Process_1">
-    <bpmn:serviceTask id="Task_1" name="Authenticate" />
-    <bpmn:serviceTask id="Task_2" name="Pay" />
-  </bpmn:process>
-</bpmn:definitions>
-`;
+export const bpmnContent = templateFor('BPMN', 'checkout-bpmn').content as string;

@@ -5,7 +5,6 @@ import { platformApi, type Collection, type Organization, type Project } from '.
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
-import { ProjectLibraryNav } from '../../components/ui/SectionNav';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useResource } from '../../utils/useResource';
 import { ReadOnlyNote } from '../Cases/parts';
@@ -57,8 +56,7 @@ function Body({ organization, project, access }: { organization: Organization; p
   const failure = collections.status === 'error' ? classifyAuthError(collections.error) : null;
 
   return (
-    <ResourceFrame organization={organization} project={project} section="library" trail={[{ label: 'Collections' }]}>
-      <ProjectLibraryNav current="collections" orgSlug={slug} projectSlug={project.slug} publicRead={access.publicRead} />
+    <ResourceFrame organization={organization} project={project} section="collections" trail={[{ label: 'Collections' }]}>
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Collections</h1>
