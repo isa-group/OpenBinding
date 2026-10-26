@@ -1,3 +1,5 @@
+This is the measurement BEFORE the fixes.
+
 # Baseline of `openspec validate --strict --all`
 
 Measured on 2026-10-26 through the registered checks 0 and 1 (a script summarises the JSON, so nothing is cut).

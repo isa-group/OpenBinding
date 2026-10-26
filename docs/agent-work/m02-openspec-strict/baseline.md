@@ -1,3 +1,5 @@
+This is the measurement BEFORE the fixes.
+
 # M0.2 baseline: `openspec validate --strict`
 
 Measured through the registered checks (check 0: current living specs; check 1: archive of this change on a scratch

@@ -34,7 +34,7 @@ Evidence: `frontend/src/routes/retiredRoutes.test.tsx` (new); `frontend/src/rout
 
 #### Scenario: The history entry is replaced
 - **GIVEN** the table, the only place that knows retired addresses and whose targets are absolute addresses of routed screens, which every slice extends, behind the client-side guard (living requirement "Client-side guard"), and a retired path that takes precedence over `/app/:org` and `/app/:org/:project`
-- **GIVEN** a signed-in person on `/app/account` who follows a link to `/app/analysis/workspace?job=job-done-3`
+- **AND** a signed-in person on `/app/account` who follows a link to `/app/analysis/workspace?job=job-done-3`
 - **WHEN** the redirect runs and the person goes back once
 - **THEN** the address after the redirect is `/app/jobs`
 - **AND** going back shows `/app/account`, not `/app/analysis/workspace?job=job-done-3`
