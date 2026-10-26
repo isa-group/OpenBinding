@@ -5,6 +5,7 @@
       "date": "2026-10-26",
       "title": "OpenBinding platform",
       "changes": [
+        "Archive gate-tooling changes into the living spec (#62)",
         "Citations contain only recorded facts (#61)",
         "O9 latency probe for POST /v1/jobs and POST /v1/validate (#57)",
         "Retire the report editor (M2.4 slice 2, ADR-0020) (#53)",
@@ -101,6 +102,7 @@
       "date": "2026-10-26",
       "title": "OpenBinding documentation",
       "changes": [
+        "Archive gate-tooling changes into the living spec (#62)",
         "Citations contain only recorded facts (#61)",
         "O9 latency probe for POST /v1/jobs and POST /v1/validate (#57)",
         "Retire the report editor (M2.4 slice 2, ADR-0020) (#53)",
@@ -115,6 +117,7 @@
         "Make the lost-worker lease follow the controlled clock (#45)",
         "Compare healthz latency with a same-run baseline instead of an absolute bound (#43)",
         "Stop the engine cancel contract test from depending on setup time (#42)",
+        "M05-compose-port plan and handoff",
         "Isolation probe, PR previews docs and shorter preview evidence (M0.5 S4) (#39)",
         "Gate tooling in CI and acceptance runners (M0.3) (#37)",
         "Rendering catalogue foundations and raw-rendering hygiene test (M2.1, M2.2) (#38)",
