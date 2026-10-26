@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from _repo import REPO_ROOT
 
 from space_client import AsyncSpaceClient, SpaceClientFactory, SpaceConnectionOptions, SpaceError
 from space_client.modules import contract_module, feature_module
@@ -46,7 +47,7 @@ DECLARED_RANGE = ">=1.0,<2.0"
 LOCKED_VERSION = "1.0.0"
 
 TESTS = Path(__file__).resolve().parent
-DOCS_YAML = TESTS.parent.parent / "docs" / "pricing" / "openbinding-0.2.0.yml"
+DOCS_YAML = REPO_ROOT / "docs" / "pricing" / "openbinding-0.2.0.yml"
 FIXTURES = TESTS / "fixtures" / "pricing"
 YAML_COPY = FIXTURES / "openbinding-0.2.0.yml"
 MANIFEST = FIXTURES / "manifest.json"
@@ -252,6 +253,8 @@ def test_m4_2_events_register_on_the_client(client):
 
 
 def test_pricing_yaml_copy_is_the_docs_file():
+    if not DOCS_YAML.is_file():
+        pytest.skip("docs/pricing is not present in this container")
     assert YAML_COPY.read_bytes() == DOCS_YAML.read_bytes(), (
         f"{YAML_COPY} differs from {DOCS_YAML}: refresh it with "
         f"`cp {DOCS_YAML} {YAML_COPY}` and set contentHash in manifest.json "
