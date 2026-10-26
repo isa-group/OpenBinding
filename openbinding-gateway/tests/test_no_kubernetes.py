@@ -10,10 +10,14 @@ them against temporary trees and prove that each kind of offender is found.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+import pytest
+from _repo import REPO_ROOT
+
+ROOT = REPO_ROOT
 SKIP_DIRS = {"node_modules", ".venv", ".git"}
 # Not deployment manifests: specs and docs describe or quote manifests, GitHub
 # templates and workflows use other schemas.
@@ -33,13 +37,27 @@ def _files(
     skip: set[str], suffixes: set[str] | None = None, root: Path = ROOT
 ) -> list[Path]:
     found = []
-    for path in root.rglob("*"):
-        relative = path.relative_to(root)
-        if skip & set(relative.parts) or not path.is_file():
-            continue
-        if suffixes is None or path.suffix in suffixes:
-            found.append(path)
+    # Unreadable directories are ignored (os.walk default) and skipped ones are not entered.
+    for current, dirs, names in os.walk(root):
+        dirs[:] = [d for d in dirs if d not in skip]
+        for name in names:
+            path = Path(current) / name
+            if suffixes is not None and path.suffix not in suffixes:
+                continue
+            try:
+                is_file = path.is_file()
+            except OSError:
+                continue
+            if is_file:
+                found.append(path)
     return sorted(found)
+
+
+def _read(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
 
 
 def _is_kubernetes_manifest(text: str) -> bool:
@@ -59,7 +77,7 @@ def _manifest_files(root: Path = ROOT) -> list[str]:
     return [
         _rel(p, root)
         for p in _files(MANIFEST_SKIP_DIRS, {".yaml", ".yml"}, root)
-        if _is_kubernetes_manifest(p.read_text(encoding="utf-8", errors="replace"))
+        if _is_kubernetes_manifest(_read(p))
     ]
 
 
@@ -72,7 +90,7 @@ def _workflow_offenders(root: Path = ROOT) -> list[str]:
     return [
         _rel(p, root)
         for p in _workflow_files(root)
-        if WORKFLOW_TOOLS.search(p.read_text(encoding="utf-8", errors="replace"))
+        if WORKFLOW_TOOLS.search(_read(p))
     ]
 
 
@@ -166,6 +184,30 @@ def test_scan_skips_excluded_directories(tmp_path: Path) -> None:
     # Only the manifest scan skips openspec, docs, lab and .github.
     _write(tmp_path, "docs/kustomization.yaml", "resources: []\n")
     assert _kustomization_files(tmp_path) == ["docs/kustomization.yaml"]
+
+
+# [utest->req~lab-deployment-compose-only~1]
+def test_scan_skips_unreadable_entries(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write(tmp_path, "ops/ok.yaml", "services: {}\n")
+    _write(tmp_path, "ops/stray.yaml", "services: {}\n")
+    real_is_file = Path.is_file
+    real_read_text = Path.read_text
+
+    def is_file(self: Path) -> bool:
+        if self.name == "stray.yaml":
+            raise PermissionError(self.name)
+        return real_is_file(self)
+
+    monkeypatch.setattr(Path, "is_file", is_file)
+    assert [p.name for p in _files(SKIP_DIRS, root=tmp_path)] == ["ok.yaml"]
+
+    def read_text(self: Path, *args: object, **kwargs: object) -> str:
+        if self.name == "ok.yaml":
+            raise PermissionError(self.name)
+        return real_read_text(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Path, "read_text", read_text)
+    assert _manifest_files(tmp_path) == []
 
 
 # [utest->req~lab-deployment-compose-only~1]
