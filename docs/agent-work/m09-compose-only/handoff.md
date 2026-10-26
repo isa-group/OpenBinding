@@ -1,13 +1,14 @@
-# Handoff: m09-compose-only (wake 14)
+# Handoff: m09-compose-only (wake 17)
 
 ## State
-- Round-2 fixes (task fedc17ad, 401 tests in targeted checks green) integrated: head 12eab839 plus this checkpoint. Not yet pushed (pushed head f3b4e07a). CI on f3b4e07a: all green except frontend "Check generated changelog" (coordinator regenerates after final push).
-- Round-2 fixes: undo_password_rotation function and empty-value guards (ALTER ROLE never with empty value), put_secret aborts on failed .prev copy, fresh-host-only note, guarded drill_down, workers no longer restart:true with gateway (nginx only), runbook 502-after-gateway-restart section, bootstrap vars cleared in step 7, drill uses throwaway SPACE, pre-flight requires exact release tag and BACKUP_RETENTION_DAYS integer>=1, pg-backup sh -ec test with mutations, entrypoint tests with DATABASE_URL set so alembic_calls==[] can fail, .git skip case. Dispositions: docs/agent-work/m09-compose-only/review/round2.md.
+- Integrated: round-3 fixes (6b39770d: password undo reads the pattern on stdin, argv-secret static test, stale .prev removed before ALTER ROLE, mv loop || exit 1, sudo sed -i, tasks.md aligned, partial-rotation note) and 58c23f0a (site.env owned by the operator user, mode 0600). Head 8dadfa73 plus this checkpoint commit; the pushed head is 529cc33c. Dispositions: review/round3.md.
+- Round-3 panel on 529cc33c: reviewer approve, test-reviewer no blocker/major, security-auditor one major (R3-SEC-001, now fixed).
+- Full gateway suite last passed on the round-1 head; CI test on the final head will rerun it.
 
-## Follow-ups to list in PR
-F7 non-root users/cap_drop; F8 OFT trace paths; F9 nginx resolver for daemon-restarted gateway; non-superuser DB role; trusted proxy / Redis auth; SPACE_URL https validator in Settings; base image digests; docker compose config never run (needs Docker or S5 CI job); local SPACE vs INTENT.md:180; spec *.yml/*.yaml workflow glob; R2-SEC-006/007; R2-TST-005; R1-TST-002/010 undocumented.
+## Follow-ups for PR
+F7, F8, F9 nginx resolver, non-superuser DB role, trusted proxy/Redis auth, SPACE_URL validator, base image digests, docker compose config never run, local SPACE vs INTENT.md:180, R2-SEC-006/007, R2-TST-005, R3-SEC-003 (tag vs ordered tag), R3-SEC-004.
 
 ## Next three steps
-1. Push chore/compose-production-overlay, update PR body (follow-ups, INTENT.md:180 conflict).
-2. Round-3 panel on the pushed head (reviewer, test-reviewer, security-auditor); escalate if a major remains.
-3. Tell the coordinator the head is final (changelog), set_review_package, lead_ready.
+1. Push, then narrow security re-check (R3-SEC-001 lines, argv scan) and test review of the new tests; escalate if a major remains.
+2. Tell the coordinator the head is final (changelog regeneration); wait for CI.
+3. set_review_package, lead_ready.

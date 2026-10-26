@@ -1,1 +1,1 @@
-Done: S0-S4, round-1 and round-2 fixes (fedc17ad integrated, head 12eab839 + checkpoint). Remaining: push, PR body update, targeted round-3 panel (reviewer, test-reviewer, security-auditor on runbook secret changes), tell coordinator head is final for changelog, set_review_package, lead_ready. A remaining major after round 3 goes to escalation.
+Done: S0-S4, fixes of rounds 1-3 integrated (head 8dadfa73 + checkpoint). Remaining: push, narrow security re-check + test-review of round-3 delta, tell coordinator head final, set_review_package, lead_ready.
