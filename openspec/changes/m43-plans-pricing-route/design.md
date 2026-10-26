@@ -27,9 +27,27 @@ module. SPHERE's public API, read on 2026-10-26 by a lookup (sources:
   version, createdAt, contentHash}]}`, newest first; `contentHash` is 64 lowercase hex characters.
 - `GET /api/v1/public/pricings/{pricingId}/versions/{versionId}/yaml`: the Pricing2Yaml text, `application/yaml`.
 
-ROADMAP M4.0 records that the `contentHash` of 0.2.0 (`3db4ad99…182c`) equals the file
-`docs/pricing/openbinding-0.2.0.yml`, so it is taken as the SHA-256 of the YAML bytes (§11, to be confirmed by the
-recorded fixture).
+`contentHash` is taken as the SHA-256 of the YAML bytes SPHERE serves, and the route's `digest` is `sha256-` plus
+the hash of those bytes, checked against `contentHash` at runtime (§2 step 4, D9). Open risk (§11), settled by the
+coordinator: ROADMAP M4.0 (line 133) records the `contentHash` of 0.2.0 as `3db4ad99…182c` and says it equals the file
+`docs/pricing/openbinding-0.2.0.yml`, but that file in this tree hashes to
+`4b9c7203c2771991be54c11bddf1fee5fc385c8cc5fa28b21e6d06b37d5b75b1`. Either `3db4ad99…` is the digest of the bytes
+SPHERE serves (and the repository copy differs from them), or the ROADMAP entry is stale. The scenarios and examples of
+this change use the digest of the recorded fixture YAML, `4b9c7203…5b1` (§9), never `3db4ad99…`.
+
+The test fixtures of this change (§9) are two files under `openbinding-gateway/tests/fixtures/pricing/`, written by a
+parallel fixture task:
+
+- `manifest.json`: the manifest of pricing `6ab0a323697330667ccce891` in exactly the shape above, `{pricingId, name,
+  permanentUrl, latestVersionId, versions: [{versionId, version, createdAt, contentHash}]}`, with `latestVersionId`
+  `6ada6dbd4b2b5b01c587d17f` (version `0.2.0`) and that entry's `contentHash` equal to the SHA-256 of
+  `openbinding-0.2.0.yml` (`4b9c7203…5b1`);
+- `openbinding-0.2.0.yml`: a byte copy of `docs/pricing/openbinding-0.2.0.yml`, standing for the YAML of version
+  `6ada6dbd4b2b5b01c587d17f`.
+
+Both are DERIVED, not recorded live (the fixture task had no network). Slice S1 re-records them from SPHERE without any
+credential (two plain GETs of the public URLs above, no key, no cookie) before any test relies on their shape, and
+updates the scenario values here through a revision if the live shape or hash differs.
 
 ## 2. Behaviour of `GET /v1/plans/pricing`
 
@@ -166,7 +184,7 @@ Examples (they validate against the schemas; `yaml` and `document` shortened):
 {"pricingId": "6ab0a323697330667ccce891",
  "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce891",
  "versionId": "6ada6dbd4b2b5b01c587d17f", "version": "0.2.0", "createdAt": "<createdAt of the recorded manifest>",
- "digest": "sha256-3db4ad99b33f0a591fcc71167bb7410e10a477429d48a0105afd17bf629b182c",
+ "digest": "sha256-4b9c7203c2771991be54c11bddf1fee5fc385c8cc5fa28b21e6d06b37d5b75b1",
  "yamlUrl": "https://sphere.score.us.es/api/v1/public/pricings/6ab0a323697330667ccce891/versions/6ada6dbd4b2b5b01c587d17f/yaml",
  "spaceActiveVersion": "0.2.0",
  "yaml": "syntaxVersion: '3.1'\nsaasName: OpenBinding\nversion: 0.2.0\n…",
@@ -193,7 +211,9 @@ joins the prefixes that answer `Problem`. In `main.py` both decisions read the s
 `{"detail": {...}}` body otherwise). Adding `/v1/plans` to `_BIM_PATH_PREFIXES`, or a shared predicate that both use,
 gives `Problem` for the `429` and `503`; changing the media type alone would not. `_BIM_PATH_PREFIXES` also drives
 the OpenAPI post-processing of `main.py`, which then declares `application/problem+json` for these errors. The M4.2
-routes under `/v1/plans` follow the same rule. `docs/ERRORS.md` §"Media type" gains `/v1/plans` in S1.
+routes under `/v1/plans` follow the same rule. The prefix change (`main.py` predicate and `docs/ERRORS.md`
+§"Media type" gaining `/v1/plans`) is made once, by the first slice that adds a `/v1/plans` route: M4.2 slice S5
+(`GET /v1/plans/events`) or this change's S1, whichever merges first; the other one finds it done and only checks it.
 
 ### 4.4 Deprecated operations (S1, compatible) and their removal (S4, breaking)
 
@@ -264,16 +284,22 @@ hold it); retiring it is a followup.
 
 ## 9. Placement, architecture and tests
 
-- The SPHERE reader lives in the plans module (`openbinding_gateway/plans/`, created by M4.2; S1 creates the package
-  if M4.2 has not merged yet, coordinated with the M4.2 lead). It is the only gateway code that sends HTTP to SPHERE;
-  `lab/tests/test_no_direct_space_http.py` (`req~lab-space-no-direct-http~1` of `m41-space-bootstrap`) already allows
-  `openbinding_gateway/plans/**`. The route module only calls the reader and the plans port.
+- The SPHERE reader lives in the plans module (`openbinding-gateway/src/openbinding_gateway/modules/plans/`, created by
+  M4.2; S1 creates the package if M4.2 has not merged yet, coordinated with the M4.2 lead). It is the only gateway code
+  that sends HTTP to SPHERE. The architecture test `lab/tests/test_no_direct_space_http.py`
+  (`req~lab-space-no-direct-http~1` of `m41-space-bootstrap`) lists in `ALLOWED_PREFIXES` the old path
+  `openbinding-gateway/src/openbinding_gateway/plans/`, not `modules/plans/`; aligning it with `modules/plans/` is a
+  prerequisite of S1, owned by the lab-tests change (M4.2 tasks list the same alignment), and S1 does not start its
+  reader before that alignment has merged. The route module only calls the reader and the plans port.
 - The reader takes an `httpx.AsyncBaseTransport` and a clock as parameters, so tests inject `httpx.MockTransport` and a
   fake clock. httpx is created with `follow_redirects=False`, `trust_env=False` and no default headers.
-- Unit tests read the recorded pricing at `openbinding-gateway/tests/fixtures/pricing/` (written by a parallel slice:
-  the manifest of `6ab0a323697330667ccce891` and the YAML of version `6ada6dbd4b2b5b01c587d17f`; this change neither
-  creates nor names its file names). Tests that need `0.3.0`, a tampered YAML or a broken manifest derive them in memory
-  from the recorded files. SPACE is a fake plans port. No unit test opens a connection to SPACE or SPHERE (ADR-0015
+- Unit tests read the pricing fixture at `openbinding-gateway/tests/fixtures/pricing/` (written by a parallel fixture
+  task, not by this change): `manifest.json` (the manifest of `6ab0a323697330667ccce891`) and `openbinding-0.2.0.yml`
+  (the YAML of version `6ada6dbd4b2b5b01c587d17f`), whose SHA-256 `4b9c7203…5b1` is the manifest `contentHash` (§1).
+  They are derived, not recorded live; S1 re-records them keyless from SPHERE before relying on their shape (§1). The
+  scenarios name them, or call them "the recorded manifest", "the recorded YAML" and together "the recorded SPHERE
+  pricing". Tests that need `0.3.0`, a tampered YAML or a
+  broken manifest derive them in memory from these two files. SPACE is a fake plans port. No unit test opens a connection to SPACE or SPHERE (ADR-0015
   §5, constitution 16.6): a session-wide guard in `openbinding-gateway/tests/conftest.py` refuses, before connecting,
   any socket connection to the SPHERE host (`sphere.score.us.es` and the host of `SPHERE_URL`) and to the host of
   `SPACE_URL`, naming the host (`req~plans-pricing-no-network-in-tests~1`).
@@ -293,7 +319,10 @@ coordinator compares them with the CRP text and opens a revision where they diff
   cannot be checked by a client).
 - D3 `spaceActiveVersion` is part of the descriptor (ARCHITECTURE §9.2 "the version SPACE has activated") and is
   `null` when SPACE cannot be read; SPACE's availability never turns the route into an error. Rejected: `503` when
-  SPACE is down (couples a public page to SPACE); leaving the field out (ARCHITECTURE asks for it).
+  SPACE is down (couples a public page to SPACE); leaving the field out (ARCHITECTURE asks for it). This matches the
+  round-1 revision of M4.2 (`m42-plans-module`), which states that API-key authentication is not gated by plans
+  (not yet in this tree's copy of that change): neither the caller's
+  credential nor SPACE's state decides whether this public route answers.
 - D4 Anonymous access, no API-key permission (a pricing is public, the Pricing page is public, and today's routes are
   public too). Rejected: requiring `pricing:read` from API keys (an anonymous caller would then have more access than
   a key).
@@ -317,9 +346,18 @@ coordinator compares them with the CRP text and opens a revision where they diff
 ## 11. Risks and open questions
 
 - The manifest field names and the YAML path come from one lookup of the live service (medium confidence); the
-  recorded fixture is the reference for tests, and the first preview run confirms them live.
+  fixture is derived from that lookup, not recorded live, so S1 re-records it keyless before relying on it, and the
+  first preview run confirms the shape live.
 - That `contentHash` is the SHA-256 of the raw YAML bytes rests on the ROADMAP record of M4.0; if SPHERE hashes a
   normalised form, every read fails closed with `503` (never a wrong pricing), and D9 needs a revision.
+- Open, for the coordinator: ROADMAP line 133 gives `3db4ad99b33f0a591fcc71167bb7410e10a477429d48a0105afd17bf629b182c`
+  as the hash of 0.2.0 and as the hash of `docs/pricing/openbinding-0.2.0.yml`, but that file in this tree hashes to
+  `4b9c7203c2771991be54c11bddf1fee5fc385c8cc5fa28b21e6d06b37d5b75b1` (§1). Either `3db4ad99…` is the hash of the bytes
+  SPHERE serves (the repository copy then differs from SPHERE's, by line endings or a later edit) or the ROADMAP entry
+  is stale. The route is unaffected (it checks whatever SPHERE serves against SPHERE's own `contentHash`); the
+  scenarios use the fixture digest `4b9c7203…5b1`. Revision trigger: if the keyless re-recording in S1 shows a YAML or
+  `contentHash` other than the fixture's, the fixture is replaced by the recorded bytes and the digest values of
+  `req~plans-pricing-descriptor~1` are revised (a new revision of that requirement, `~2`).
 - SPHERE's own caching headers are unknown; the gateway does not rely on them.
 - `spaceActiveVersion` depends on the M4.2 plans port; until it exists, S2 is blocked and the field is `null`, which
   `req~plans-pricing-space-active-version~1` allows.

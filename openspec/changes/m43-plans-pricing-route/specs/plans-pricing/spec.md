@@ -8,16 +8,16 @@ WHEN a client sends `GET /v1/plans/pricing`, SPHERE serves the latest public ver
 Needs: impl, utest
 
 #### Scenario: Recorded pricing 0.2.0
-- **GIVEN** SPHERE answers with the recorded manifest and YAML of `openbinding-gateway/tests/fixtures/pricing/` for the pricing id `6ab0a323697330667ccce891`, whose `latestVersionId` is `6ada6dbd4b2b5b01c587d17f` (version `0.2.0`)
+- **GIVEN** SPHERE answers the manifest of pricing `6ab0a323697330667ccce891` with `openbinding-gateway/tests/fixtures/pricing/manifest.json`, whose `latestVersionId` is `6ada6dbd4b2b5b01c587d17f` (version `0.2.0`) with `contentHash` `4b9c7203c2771991be54c11bddf1fee5fc385c8cc5fa28b21e6d06b37d5b75b1`, and the YAML of that version with `openbinding-gateway/tests/fixtures/pricing/openbinding-0.2.0.yml`
 - **WHEN** an anonymous client sends `GET /v1/plans/pricing`
 - **THEN** the response status is `200` and its media type is `application/json`
 - **AND** `pricingId` is `6ab0a323697330667ccce891` and `permanentUrl` is `https://sphere.score.us.es/p/6ab0a323697330667ccce891`
-- **AND** `versionId` is `6ada6dbd4b2b5b01c587d17f`, `version` is `0.2.0` and `createdAt` is the `createdAt` of that entry of the recorded manifest, unchanged
-- **AND** `digest` is `sha256-3db4ad99b33f0a591fcc71167bb7410e10a477429d48a0105afd17bf629b182c`
+- **AND** `versionId` is `6ada6dbd4b2b5b01c587d17f`, `version` is `0.2.0` and `createdAt` is the `createdAt` of that entry of `manifest.json`, unchanged
+- **AND** `digest` is `sha256-4b9c7203c2771991be54c11bddf1fee5fc385c8cc5fa28b21e6d06b37d5b75b1`, the `sha256` of the bytes of `openbinding-0.2.0.yml`
 - **AND** `yamlUrl` is `https://sphere.score.us.es/api/v1/public/pricings/6ab0a323697330667ccce891/versions/6ada6dbd4b2b5b01c587d17f/yaml`
 
 #### Scenario: A newer public version appears
-- **GIVEN** a recorded manifest whose `latestVersionId` names a version `0.3.0` listed before `0.2.0`
+- **GIVEN** a manifest derived from `manifest.json` whose `latestVersionId` names a version `0.3.0` listed before `0.2.0`
 - **WHEN** a client sends `GET /v1/plans/pricing` after the gateway's previous SPHERE read is older than 300 seconds
 - **THEN** `version` is `0.3.0` and `versionId` is the `latestVersionId` of that manifest
 
@@ -29,13 +29,13 @@ WHEN the gateway answers `GET /v1/plans/pricing` with `200`, THE gateway SHALL c
 Needs: impl, utest
 
 #### Scenario: YAML text unchanged
-- **GIVEN** the recorded YAML of version `0.2.0`
+- **GIVEN** SPHERE serves `openbinding-gateway/tests/fixtures/pricing/manifest.json` and, for version `0.2.0`, `openbinding-gateway/tests/fixtures/pricing/openbinding-0.2.0.yml`
 - **WHEN** a client reads `yaml` from the `200` response
-- **THEN** its UTF-8 encoding is byte-for-byte equal to the recorded YAML file
-- **AND** the `sha256` of those bytes, as `sha256-<hex>`, equals `digest`
+- **THEN** its UTF-8 encoding is byte-for-byte equal to `openbinding-0.2.0.yml`
+- **AND** the `sha256` of those bytes, as `sha256-<hex>`, equals `digest` (`sha256-4b9c7203c2771991be54c11bddf1fee5fc385c8cc5fa28b21e6d06b37d5b75b1`)
 
 #### Scenario: Document as JSON without a projection
-- **GIVEN** the recorded YAML of version `0.2.0`, whose repository limits are `.inf` for the plans other than `FREE`
+- **GIVEN** SPHERE serves `manifest.json` and `openbinding-0.2.0.yml`, whose repository limits are `.inf` for the plans other than `FREE`
 - **WHEN** a client reads `document` from the `200` response
 - **THEN** `document.version` is `0.2.0`, `document.syntaxVersion` is `3.1` and its keys are the top-level keys of the YAML, with no key added or renamed
 - **AND** every `.inf`, `-.inf` or `.nan` value of the YAML is `null` in `document`
@@ -106,7 +106,7 @@ Needs: impl, utest
 - **THEN** both `200` responses carry exactly `Cache-Control: public, max-age=300`
 
 ### Requirement: Conditional request for the published pricing
-WHEN a `GET /v1/plans/pricing` request carries `If-None-Match` with the current `ETag` of the response, or `*`, THE gateway SHALL answer `304` with no body, the same `ETag` and `Cache-Control: public, max-age=300`.
+WHEN a `GET /v1/plans/pricing` request carries `If-None-Match` whose list of entity tags contains the current `ETag` of the response, or whose value is `*`, and the gateway holds or obtains a verified SPHERE read for it, THE gateway SHALL answer `304` with no body, the same `ETag` and `Cache-Control: public, max-age=300`.
 
 `req~plans-pricing-conditional~1`
 
@@ -114,8 +114,8 @@ Needs: impl, utest
 
 #### Scenario: Validator still current
 - **GIVEN** a client that received `ETag` `E` from `GET /v1/plans/pricing`, and SPHERE and SPACE unchanged
-- **WHEN** it sends `GET /v1/plans/pricing` with `If-None-Match: E`
-- **THEN** the response status is `304`, the body is empty, `ETag` is `E` and `Cache-Control` is `public, max-age=300`
+- **WHEN** it sends `GET /v1/plans/pricing` in turn with `If-None-Match: E`, with `If-None-Match: *`, and with the list `If-None-Match: "sha256-0000000000000000000000000000000000000000000000000000000000000000", E`
+- **THEN** each response status is `304`, the body is empty, `ETag` is `E` and `Cache-Control` is `public, max-age=300`
 
 #### Scenario: Validator outdated
 - **GIVEN** a client that received `ETag` `E` for version `0.2.0`, and SPHERE now lists `0.3.0` as the latest version
@@ -209,7 +209,7 @@ Needs: impl, utest
 - **WHEN** a client sends `GET /v1/plans/pricing`
 - **THEN** the response status is `503` and its media type is `application/problem+json`
 - **AND** the body is `type` `https://openbinding.dev/problems/pricing_unavailable`, `title` `pricing_unavailable`, `status` `503`, `code` `pricing_unavailable`, `detail` `The published pricing is unavailable.` and a non-empty `correlationId`, and no other member
-- **AND** the response carries `Cache-Control: no-store` and no `ETag`
+- **AND** the response carries `Cache-Control: no-store` and no `ETag`, also when the request carries `If-None-Match: *` or an `ETag` received before
 
 #### Scenario: Reason kept out of the response
 - **GIVEN** in turn a SPHERE timeout, a `500` answer whose body names `sphere.score.us.es`, a `404` for the pricing id, and a manifest without `versions`, each case on a fresh reader with no verified read and no failed read held
@@ -311,4 +311,4 @@ Needs: impl, utest
 #### Scenario: Pricing tests on the recorded fixture
 - **GIVEN** the network guard and the tests of the `plans-pricing` requirements
 - **WHEN** the unit suite runs
-- **THEN** they pass with the recorded pricing of `openbinding-gateway/tests/fixtures/pricing/` and the guard records no attempt
+- **THEN** they pass with `manifest.json` and `openbinding-0.2.0.yml` of `openbinding-gateway/tests/fixtures/pricing/` served through an injected transport, and the guard records no attempt

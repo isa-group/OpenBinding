@@ -10,19 +10,29 @@ implementer). Check commands run from the repository root; pytest checks are one
 - Acceptance: `openspec validate m43-plans-pricing-route --strict` passes.
 
 ## S1. Expand: the new route (gateway lead; compatible)
-Depends on: the recorded pricing at `openbinding-gateway/tests/fixtures/pricing/` (parallel slice). Owns:
-`openbinding-gateway/src/openbinding_gateway/plans/` (reader and route; coordinated with M4.2), `main.py` (router, tag
-`Plans`, problem media type of `/v1/plans`), `core/settings.py` (`SPHERE_PRICING_ID`), `security/apikeys.py`,
+Depends on: the fixture files `manifest.json` and `openbinding-0.2.0.yml` at
+`openbinding-gateway/tests/fixtures/pricing/` (parallel fixture task; derived, design.md §1); and, as a prerequisite
+owned by the lab-tests change, `ALLOWED_PREFIXES` of `lab/tests/test_no_direct_space_http.py` aligned from
+`openbinding-gateway/src/openbinding_gateway/plans/` to `openbinding-gateway/src/openbinding_gateway/modules/plans/`
+(design.md §9). Owns:
+`openbinding-gateway/src/openbinding_gateway/modules/plans/` (reader and route; coordinated with M4.2), `main.py`
+(router, tag `Plans`, problem media type of `/v1/plans` if not already done by M4.2 S5), `core/settings.py`
+(`SPHERE_PRICING_ID`), `security/apikeys.py`,
 `routes/pricing.py` (deprecation headers only), `openbinding-gateway/tests/test_plans_pricing*.py`,
 `openbinding-gateway/tests/conftest.py` (network guard), `tests/test_openapi_contract.py`,
-`tests/test_api_key_route_table.py`, `docs/openapi.json`, `docs/ERRORS.md` (media type list).
+`tests/test_api_key_route_table.py`, `docs/openapi.json`, `docs/ERRORS.md` (media type list, if not already done by
+M4.2 S5).
+- [ ] 1.0 Re-record `manifest.json` and `openbinding-0.2.0.yml` from SPHERE's public API without any credential (plain
+  GETs, no key, no cookie) and compare them with the derived files; if the shape, the YAML bytes or `contentHash`
+  differ, replace the fixture with the recorded bytes and ask the specifier for the revision of design.md §11 before 1.1.
 - [ ] 1.1 Tests (test-designer): every scenario of the S1 requirements of design.md §12, tagged
-  `[utest->req~plans-pricing-…~1]`, with `httpx.MockTransport` over the recorded fixture, a fake clock and a fake plans
+  `[utest->req~plans-pricing-…~1]`, with `httpx.MockTransport` over the two fixture files, a fake clock and a fake plans
   port; red before the code.
 - [ ] 1.2 SPHERE public reader in the plans module (design.md §2, §9): no credential, GET only, no redirect, bounds,
   verification, 300 s read, 30 s failure pause, single flight.
 - [ ] 1.3 Route `GET /v1/plans/pricing`: body `PlansPricing`, `ETag`, `Cache-Control`, `304`, public-read rate limit in
-  its own bucket, `503`/`429` as `application/problem+json` (design.md §3-§6).
+  its own bucket, `503`/`429` as `application/problem+json` (design.md §3-§6). Add `/v1/plans` to the problem+json
+  prefixes of `main.py` and of `docs/ERRORS.md` §"Media type", if not already done by M4.2 S5 (design.md §4.3).
 - [ ] 1.4 Deprecation signals on the three old routes (`Deprecation`, `Link`; `deprecated: true` on `getPricingCatalog`
   and `getCurrentPricing`).
 - [ ] 1.5 Regenerate `docs/openapi.json` with `openbinding-gateway/tools/dump_openapi.py`; add
@@ -56,6 +66,10 @@ Preconditions: S3 merged; S1 shipped in a release; the owner's approval of the r
   ("Removed").
 - [ ] 4.5 Specifier: remove `req~plans-pricing-deprecated-routes-signal~1` from `specs/plans-pricing/spec.md` of this
   change (its code and tests are gone; design.md §8), then run G1 again; the change is archived after this slice.
+- [ ] 4.6 Archive gate: a frontend requirement for the unavailable state of the Pricing page (what the page shows when
+  `GET /v1/plans/pricing` answers `503 pricing_unavailable`) exists in `frontend-catalog-pricing`, written by the
+  frontend lead, before this change is archived. The REMOVED `req~frontend-catalog-pricing-read-only-source~1` carried
+  that obligation; without its replacement the archive leaves it uncovered.
 - Acceptance: the S4 tests pass; the architecture test passes with one pinned deviation fewer; no SPHERE key in
   settings; the unit suites open no connection to SPACE or SPHERE.
 
@@ -64,6 +78,12 @@ Preconditions: S3 merged; S1 shipped in a release; the owner's approval of the r
   differ.
 - Frontend lead: revise `req~frontend-catalog-pricing-live-document~2` (its evidence names
   `test_published_pricing.py`, deleted in S4) when migrating in S3.
+- Frontend lead: write the frontend requirement for the Pricing page's unavailable state (task 4.6); it must exist
+  before this change is archived.
+- Lab-tests change: align `ALLOWED_PREFIXES` of `lab/tests/test_no_direct_space_http.py` with
+  `openbinding_gateway/modules/plans/` (prerequisite of S1).
+- Coordinator: settle the digest of 0.2.0, ROADMAP `3db4ad99…` against the repository file's `4b9c7203…`
+  (design.md §1, §11).
 - Retire the `pricing:read` API-key permission once no route uses it (design.md §8).
 - M4.2: decide the fate of `SPACE_PRICING_VERSION`; this route no longer reads it.
 - The other M4.3 removals (release sweeps, local metering, sponsorship capacity checks) are separate changes.

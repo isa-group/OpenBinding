@@ -33,22 +33,31 @@ route that replaces them, and the expand/contract plan that retires them.
 ## Impact
 
 - Capability `plans-pricing` (new): eighteen ADDED requirements (one of them, the deprecation signal of the expand phase, is dropped from the
-  delta in slice S4 before the archive, design.md §8).
+  delta in slice S4 before the archive, design.md §8). It is a capability of its own, apart from M4.2's `plans`
+  (the M4.2 change is being revised in the same review round to record that M4.3 adds `plans-pricing`; until that
+  revision lands its design.md says M4.3 adds to `plans`), because its obligations differ in kind: a public, keyless
+  route that reads only SPHERE's public API and stays available with no SPACE dependency (SPACE's state only fills
+  `spaceActiveVersion`), while `plans` covers authenticated entitlement decisions that depend on SPACE.
 - Capability `frontend-catalog-pricing`: REMOVED `req~frontend-catalog-pricing-read-only-source~1`. It is a gateway
   obligation on the routes this change retires, so it moves to `plans-pricing` with the same change; the frontend
   requirements of that capability stay with the frontend lead (two capabilities, justified here).
 - HTTP API: one new operation and one new schema `PlansPricing` (compatible). The removal of three operations and of
   the schema `PricingCurrentView` is breaking (slice S4, owner approval). `docs/openapi.json` is NOT edited by this
   change; design.md §4 lists the exact additions for the implementation slice.
-- Code areas (later slices): `openbinding-gateway/src/openbinding_gateway/plans/**` (the SPHERE public reader and the
-  route), `main.py` (router, problem media type of `/v1/plans`), `core/settings.py`, `security/apikeys.py`, and in S4
-  the removal of `routes/pricing.py`, `models/pricing.py`, `pricing_catalog.py`, `sphere_client.py` and their tests.
-- Tests use the recorded pricing at `openbinding-gateway/tests/fixtures/pricing/` (written by a parallel slice, not by
-  this change) through an injected transport; no unit test reaches SPACE or SPHERE.
+- Code areas (later slices): `openbinding-gateway/src/openbinding_gateway/modules/plans/**` (the SPHERE public reader
+  and the route), `main.py` (router, problem media type of `/v1/plans` unless M4.2 S5 has added it), `core/settings.py`,
+  `security/apikeys.py`, and in S4 the removal of `routes/pricing.py`, `models/pricing.py`, `pricing_catalog.py`,
+  `sphere_client.py` and their tests. Prerequisite of S1, owned by the lab-tests change:
+  `lab/tests/test_no_direct_space_http.py` `ALLOWED_PREFIXES` still lists `openbinding_gateway/plans/` and must list
+  `openbinding_gateway/modules/plans/` (design.md §9).
+- Tests use two fixture files at `openbinding-gateway/tests/fixtures/pricing/`, `manifest.json` and
+  `openbinding-0.2.0.yml` (written by a parallel fixture task, not by this change; derived, not recorded live, and
+  re-recorded keyless in S1, design.md §1), through an injected transport; no unit test reaches SPACE or SPHERE.
 - Frontend (another lead, read only here): the Pricing page and the engine detail page read `/v1/pricing/catalog` and
   `/v1/pricing/current` today (`frontend/src/api/client.ts`); they move to `/v1/plans/pricing` before S4.
-- Risks: SPHERE's manifest shape and the input of `contentHash` are verified only by a lookup and the recorded fixture
-  (design.md §11); SPACE's active version depends on the M4.2 `plans` module.
+- Risks: SPHERE's manifest shape and the input of `contentHash` are verified only by a lookup and a derived fixture
+  (design.md §11); the ROADMAP digest of 0.2.0 (`3db4ad99…`) differs from the repository file's (`4b9c7203…`), open
+  for the coordinator (design.md §1, §11); SPACE's active version depends on the M4.2 `plans` module.
 
 ## Out of scope
 
@@ -57,4 +66,4 @@ route that replaces them, and the expand/contract plan that retires them.
 - The `plans` module itself, the entitlement map and SPACE evaluation (M4.2).
 - The Pricing and Plan pages with `pricing-renderer` (M4.4) and the frontend migration of the callers.
 - Serving a version other than SPHERE's latest public one, private versions, or any write to SPHERE or SPACE.
-- The OpenAPI snapshot, source files, tests and the recorded fixture (later slices, tasks.md).
+- The OpenAPI snapshot, source files, tests and the pricing fixture files (later slices and the parallel fixture task, tasks.md).
