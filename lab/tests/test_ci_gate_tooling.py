@@ -607,6 +607,47 @@ def test_ui_runner_passes_empty_in_frontend_job():
     assert steps[-1] is runner, "the acceptance runner is not the last step of job frontend"
 
 
+# [utest->req~ci-speed-e2e-shards~1]
+def test_e2e_shard_job_runs_mocked_project_in_three_shards():
+    job = _job("frontend-e2e")
+    assert job.get("needs") in ("changes", ["changes"]), job.get("needs")
+    assert job.get("if") == "needs.changes.outputs.e2e == 'true'"
+    assert job.get("timeout-minutes") == 30
+    assert "continue-on-error" not in job
+    strategy = job.get("strategy")
+    assert isinstance(strategy, dict) and strategy.get("fail-fast") is False, strategy
+    assert strategy.get("matrix") == {"shard": [1, 2, 3]}, strategy.get("matrix")
+
+    run = _step(job, "--project=mocked")
+    assert run["run"].strip() == "pnpm exec playwright test --project=mocked --shard=${{ matrix.shard }}/3"
+    assert run.get("working-directory") == "frontend"
+    assert "continue-on-error" not in run and "if" not in run
+    steps = job["steps"]
+    install = _step(job, "playwright install --with-deps chromium")
+    assert install.get("working-directory") == "frontend"
+    assert "continue-on-error" not in install
+    assert steps.index(install) < steps.index(run)
+    assert steps[-1] is run
+    frozen = _step(job, "pnpm install --frozen-lockfile")
+    assert steps.index(frozen) < steps.index(install)
+    assert steps.index(_step(job, "corepack enable")) < steps.index(frozen)
+    assert any(s.get("uses") == "actions/checkout@v4" for s in steps), "no checkout step"
+    assert _setup(job, "actions/setup-node@v4").get("node-version") == "22"
+    assert job["runs-on"] == "ubuntu-latest"
+    for step in steps:
+        assert "cache" not in (step.get("with") or {}), "browsers or dependencies are cached"
+
+
+# [utest->req~ci-speed-e2e-shards~1]
+def test_frontend_job_no_longer_runs_the_mocked_project():
+    job = _job("frontend")
+    for step in job["steps"]:
+        assert "--project=mocked" not in str(step.get("run", "")), f"frontend still runs mocked: {step.get('name')}"
+    assert job["steps"][-1]["run"].strip() == UI_RUNNER
+    assert "if" not in job
+    assert "frontend-e2e" in _job("ci-required")["needs"]
+
+
 # [utest->req~gate-tooling-acceptance-docs~1]
 def test_acceptance_docs_name_runners_and_writer():
     testing = _read(ROOT / "TESTING.md")

@@ -81,11 +81,12 @@ def test_ci_runs_on_push_to_develop():
 
 
 # [utest->req~ci-develop-push~2]
+# [utest->req~ci-speed-e2e-shards~1]
 def test_job_conditions_read_only_the_change_outputs():
     jobs = _ci()["jobs"]
     gated = {name: AREA_IF.fullmatch(job["if"]).group(1) for name, job in jobs.items()
              if name != "ci-required" and "if" in job}
-    assert gated == {"bim-toolchain": "bim", "engines": "engines", "test": "gateway"}, gated
+    assert gated == {"bim-toolchain": "bim", "engines": "engines", "test": "gateway", "frontend-e2e": "e2e"}, gated
     _check_job_ifs(jobs)
 
 

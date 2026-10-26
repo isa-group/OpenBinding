@@ -44,7 +44,7 @@ jobs:
   # [impl->req~ci-speed-required-aggregate~1]
   # The one check to require in branch protection: a skipped area passes, a failed or cancelled job does not.
   ci-required:
-    needs: [changes, bim-corpus, bim-toolchain, lab, openspec, trace, engines, test, frontend]
+    needs: [changes, bim-corpus, bim-toolchain, lab, openspec, trace, engines, test, frontend, frontend-e2e]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -438,11 +438,45 @@ jobs:
         working-directory: frontend
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run Playground browser tests
-        working-directory: frontend
-        run: pnpm exec playwright test --project=mocked
-
       # Gate G4 runner. It exits 0 while acceptance/ui holds no spec.
       - name: Run the UI acceptance tests
         working-directory: frontend
         run: pnpm exec playwright test --config playwright.acceptance.config.ts --pass-with-no-tests
+
+  # [impl->req~ci-speed-e2e-shards~1]
+  # The mocked Playwright project in three shards, run only when the e2e area changed.
+  frontend-e2e:
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # jsdom 30 (the Vitest environment) requires Node ^22.22.2 || ^24.15.0 || >=26.
+          node-version: '22'
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playground browser tests (shard ${{ matrix.shard }}/3)
+        working-directory: frontend
+        run: pnpm exec playwright test --project=mocked --shard=${{ matrix.shard }}/3
