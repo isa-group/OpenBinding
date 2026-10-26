@@ -167,8 +167,7 @@ Recommendation: contracts come only from the bootstrap; the lab stops using `--s
 remote runs and is relaxed only when `SPACE_URL` is `http://space-api:3000`. The lab sets
 `DEMO_SPACE_DEV_SERVICE=openbinding`, `DEMO_SPACE_PRICING_VERSION=0.2.0`, `DEMO_SPACE_DEFAULT_PLAN=FREE`, and the smoke
 runs `--with-space`, so `plan_usage` runs for the first time. The `0.2.0` is hard-coded here (and in §4); the owner of
-the `SPACE_PRICING_VERSION` decision is M4.2 (openspec/changes/m42-plans-module, design §12; UNVERIFIED that §12 names
-this variable), and `DEMO_SPACE_PRICING_VERSION` must follow it. UNVERIFIED: that contracts pinned to `0.2.0` survive
+the `SPACE_PRICING_VERSION` decision is M4.2 (openspec/changes/m42-plans-module, design §12), and `DEMO_SPACE_PRICING_VERSION` must follow it. UNVERIFIED: that contracts pinned to `0.2.0` survive
 the activation of a later version.
 
 ### 3.5 Recovery
@@ -253,6 +252,6 @@ Order: S0, S1, S2, then S3 and S4 (independent), S5 with them, S6 last. Split S3
 | R2 | Previews can reach each other's `gateway` through `lab-pricing-net` | accept for synthetic lab data; B2 if the owner refuses |
 | R3 | One MANAGEMENT key is mounted in every stack, previews included, which run PR-head code. A preview could, with that key, read and change everything in the shared SPACE: organizations, services, pricing activation and contracts of the develop lab and of other previews, and API keys. It cannot reach SPHERE or production (`SPHERE_API_KEY` empty, lab SPACE only, synthetic data) | the owner decides: accept for lab data, or B2 plus a per-stack key with narrower scope (UNVERIFIED that SPACE 1.7.1 offers one) |
 | R4 | Shared usage counters between develop and previews | accept; give working users `RESEARCH`/`LAB`; per-stack ids only if it bites |
-| R6 | The lab and previews now need outbound HTTPS to `sphere.score.us.es` (ADR-0015) | SPACE keeps its last version when SPHERE is down; the bootstrap fails if the first sync cannot run |
-| R7 | Old base images and Redis/Mongo advisories (runbook "Known advisories") | owner accepts the lab-only risk or bumps |
-| R8 | M4.6 (`space.score.us.es`) retires the pricing project and the key volume | M4.6 changes `SPACE_URL` and the key supply only; remove the `lab-pricing-net` allowance then |
+| R5 | The lab and previews now need outbound HTTPS to `sphere.score.us.es` (ADR-0015) | SPACE keeps its last version when SPHERE is down; the bootstrap fails if the first sync cannot run |
+| R6 | Old base images and Redis/Mongo advisories (runbook "Known advisories") | owner accepts the lab-only risk or bumps |
+| R7 | M4.6 (`space.score.us.es`) retires the pricing project and the key volume | M4.6 changes `SPACE_URL` and the key supply only; remove the `lab-pricing-net` allowance then |
