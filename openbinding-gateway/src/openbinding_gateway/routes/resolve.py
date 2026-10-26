@@ -41,7 +41,6 @@ from ..db.models import (
 from ..artifacts import can_read, version_content
 from ..models.errors import api_error
 from ..models.platform import (
-    ReplicationCitation,
     ResolveAuthorRef,
     ResolveLocation,
     ResolveOrganizationRef,
@@ -49,6 +48,7 @@ from ..models.platform import (
     ResolveProjectRef,
     ResolveResponse,
 )
+from ..services.citations import build_citation
 
 router = APIRouter(prefix="/v1/resolve", tags=["Resolve"])
 
@@ -165,47 +165,12 @@ async def _get_accessible_org_ids(session: AsyncSession, user: Optional[User]) -
     return accessible
 
 
-def _build_citation(
-    title: str,
-    slug: str,
-    digest_val: str,
-    org_slug: Optional[str] = None,
-    proj_slug: Optional[str] = None,
-    authors: Optional[list[str]] = None,
-) -> ReplicationCitation:
-    auth_list = authors or ["OpenBinding Research Group"]
-    year = 2026
-    venue = "OpenBinding Canonical Provenance Registry"
-    doi = f"10.1109/OPENBINDING.{digest_val[7:19].upper()}"
-    base_url = "https://openbinding.score.us.es"
-    if org_slug and proj_slug:
-        url = f"{base_url}/app/{org_slug}/{proj_slug}"
-    else:
-        url = f"{base_url}/verifier?digest={digest_val}"
-
-    bibtex_entry = f"""@misc{{{slug}_{digest_val[7:15]},
-  title = {{{title}}},
-  author = {{{' and '.join(auth_list)}}},
-  year = {{{year}}},
-  howpublished = {{{venue}}},
-  doi = {{{doi}}},
-  url = {{{url}}},
-  note = {{Cryptographic SHA-256 Digest: {digest_val}}}
-}}"""
-    markdown_badge = f"[![OpenBinding Verified](https://img.shields.io/badge/OpenBinding-Verified_Integrity-00E599?style=flat-square&logo=shield)]({url})"
-
-    return ReplicationCitation(
-        title=title,
-        authors=auth_list,
-        year=year,
-        doi=doi,
-        venue=venue,
-        url=url,
-        bibtex=bibtex_entry.strip(),
-        markdown_badge=markdown_badge,
-    )
-
-
+# The citation of every kind comes from services.citations: recorded facts only, linked to the element's public
+# permanent link on FRONTEND_URL. The publication of a library version is read only once the caller may see that
+# exact version, so a hidden digest answers like an unknown one.
+# [impl->req~resolver-verifier-citation-no-invented-metadata~1]
+# [impl->req~resolver-verifier-citation-year~1]
+# [impl->req~resolver-verifier-citation-url~1]
 @router.get(
     "/{kind}/{digest_value}",
     response_model=ResolveResponse,
@@ -269,12 +234,13 @@ async def resolve_element(
             if primary_author
             else None
         )
-        citation = _build_citation(
+        citation = build_citation(
+            frontend_url=settings.frontend_url,
+            kind=kind_slug,
+            created_at=primary_rev.created_at,
             title=f"{primary_case.name} (Rev #{primary_rev.revision})",
             slug=primary_case.slug,
-            digest_val=norm_digest,
-            org_slug=primary_org.slug,
-            proj_slug=primary_proj.slug,
+            digest=norm_digest,
             authors=[primary_author.username] if primary_author else None,
         )
 
@@ -326,12 +292,14 @@ async def resolve_element(
         doc_bytes = content
         author = await session.get(User, primary_rev.created_by_id)
         author_ref = ResolveAuthorRef(id=author.id, username=author.username, email=author.email) if author else None
-        citation = _build_citation(
+        citation = build_citation(
+            frontend_url=settings.frontend_url,
+            kind=kind_slug,
+            created_at=primary_rev.created_at,
             title=f"{primary_res.display_name} (Rev #{primary_rev.ordinal})", slug=primary_res.name,
-            digest_val=norm_digest,
-            org_slug=primary_org.slug,
-            proj_slug=projects[0].slug if projects else None,
+            digest=norm_digest,
             authors=[author.username] if author else None,
+            publication=await session.get(ArtifactPublication, primary_rev.id),
         )
 
         return ResolveResponse(
@@ -380,9 +348,10 @@ async def resolve_element(
                 document=json.loads(content.decode()) if media_type == "application/json" else {"content": content.decode()},
                 content_url=f"/v1/resolve/collection-revision/{norm_digest}/content", locations=locations[offset:offset+limit],
                 pagination=ResolvePagination(total=len(locations), limit=limit, offset=offset, has_more=offset+limit < len(locations)),
-                citation=_build_citation(title=f"{artifact.display_name} (Rev #{version.ordinal})", slug=artifact.name,
-                    digest_val=norm_digest, org_slug=organization.slug, proj_slug=projects[0].slug if projects else None,
-                    authors=[author.username] if author else None))
+                citation=build_citation(frontend_url=settings.frontend_url, kind=kind_slug,
+                    created_at=version.created_at, title=f"{artifact.display_name} (Rev #{version.ordinal})",
+                    slug=artifact.name, digest=norm_digest, authors=[author.username] if author else None,
+                    publication=await session.get(ArtifactPublication, version.id)))
         query = (
             select(CollectionRevision, Collection, Project, Organization, User)
             .join(Collection, Collection.id == CollectionRevision.collection_id)
@@ -419,12 +388,13 @@ async def resolve_element(
             if primary_author
             else None
         )
-        citation = _build_citation(
+        citation = build_citation(
+            frontend_url=settings.frontend_url,
+            kind=kind_slug,
+            created_at=primary_rev.created_at,
             title=f"{primary_col.name} (Rev #{primary_rev.revision})",
             slug=primary_col.slug,
-            digest_val=norm_digest,
-            org_slug=primary_org.slug,
-            proj_slug=primary_proj.slug,
+            digest=norm_digest,
             authors=[primary_author.username] if primary_author else None,
         )
 
@@ -485,13 +455,15 @@ async def resolve_element(
             if primary_author
             else None
         )
-        citation = _build_citation(
+        citation = build_citation(
+            frontend_url=settings.frontend_url,
+            kind=kind_slug,
+            created_at=primary_version.created_at,
             title=primary_rep.title,
             slug=primary_rep.slug,
-            digest_val=norm_digest,
-            org_slug=primary_org.slug,
-            proj_slug=primary_proj.slug,
+            digest=norm_digest,
             authors=[primary_author.username] if primary_author else None,
+            publication=await session.get(ArtifactPublication, primary_version.id),
         )
 
         return ResolveResponse(
@@ -554,12 +526,13 @@ async def resolve_element(
             if primary_author
             else None
         )
-        citation = _build_citation(
+        citation = build_citation(
+            frontend_url=settings.frontend_url,
+            kind=kind_slug,
+            created_at=primary_art.created_at,
             title=f"Binary Blob ({primary_art.media_type})",
             slug=f"artifact-{primary_art.digest[7:19]}",
-            digest_val=norm_digest,
-            org_slug=primary_org.slug,
-            proj_slug=primary_proj.slug,
+            digest=norm_digest,
             authors=[primary_author.username] if primary_author else None,
         )
 
@@ -608,10 +581,13 @@ async def resolve_element(
                 web_url=engine_url(eng.namespace, eng.name, eng.version),
             )
         ]
-        citation = _build_citation(
+        citation = build_citation(
+            frontend_url=settings.frontend_url,
+            kind=kind_slug,
+            created_at=eng.created_at,
             title=f"Solver Engine: {eng.namespace}/{eng.name}@{eng.version}",
             slug=eng.name,
-            digest_val=norm_digest,
+            digest=norm_digest,
             authors=[owner.username] if owner else None,
         )
 
@@ -658,10 +634,13 @@ async def resolve_element(
                 web_url=None,  # no Dialect detail screen
             )
         ]
-        citation = _build_citation(
+        citation = build_citation(
+            frontend_url=settings.frontend_url,
+            kind=kind_slug,
+            created_at=dia.created_at,
             title=f"BIM Dialect: {dia.namespace}/{dia.name}@{dia.version}",
             slug=dia.name,
-            digest_val=norm_digest,
+            digest=norm_digest,
             authors=[owner.username] if owner else None,
         )
 
@@ -706,10 +685,13 @@ async def resolve_element(
                 web_url=None,  # no registered-resource detail screen
             )
         ]
-        citation = _build_citation(
+        citation = build_citation(
+            frontend_url=settings.frontend_url,
+            kind=kind_slug,
+            created_at=reg.created_at,
             title=f"Registered BIM Resource: {reg.namespace}/{reg.name}@{reg.version}",
             slug=reg.name,
-            digest_val=norm_digest,
+            digest=norm_digest,
             authors=[owner.username] if owner else None,
         )
 
@@ -758,10 +740,13 @@ async def resolve_element(
                 web_url=await _snapshot_web_url(session, snap, user, accessible_orgs),
             )
         ]
-        citation = _build_citation(
+        citation = build_citation(
+            frontend_url=settings.frontend_url,
+            kind=kind_slug,
+            created_at=snap.created_at,
             title=f"Instance Snapshot: {snap.name}",
             slug=f"snapshot-{snap.instance_digest[7:19]}",
-            digest_val=norm_digest,
+            digest=norm_digest,
             authors=[owner.username] if owner else None,
         )
 
@@ -813,10 +798,13 @@ async def resolve_element(
                 web_url=await _snapshot_web_url(session, snap, user, accessible_orgs),
             )
         ]
-        citation = _build_citation(
+        citation = build_citation(
+            frontend_url=settings.frontend_url,
+            kind=kind_slug,
+            created_at=ir_snap.created_at,
             title=f"Canonical IR Snapshot ({ir_snap.compiler_version})",
             slug=f"ir-{ir_snap.ir_digest[7:19]}",
-            digest_val=norm_digest,
+            digest=norm_digest,
             authors=[owner.username] if owner else None,
         )
 
