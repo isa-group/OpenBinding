@@ -1,0 +1,14 @@
+{
+  "pricingId": "6ab0a323697330667ccce891",
+  "name": "openbinding",
+  "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce891",
+  "latestVersionId": "6ada6dbd4b2b5b01c587d17f",
+  "versions": [
+    {
+      "versionId": "6ada6dbd4b2b5b01c587d17f",
+      "version": "0.2.0",
+      "createdAt": "2026-10-22",
+      "contentHash": "4b9c7203c2771991be54c11bddf1fee5fc385c8cc5fa28b21e6d06b37d5b75b1"
+    }
+  ]
+}

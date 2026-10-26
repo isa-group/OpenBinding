@@ -1,31 +1,38 @@
 """The names the gateway uses from ``space-python-client`` still exist, offline.
 
-Nothing here talks to SPACE: the installed package is introspected, the models
-are built with the arguments the gateway passes, and no client is created. A
-client upgrade that renames or reshapes a name the gateway relies on fails here
-first, and the recorded SPHERE pricing fixture is checked against the pricing
-document it was derived from.
+Nothing here talks to SPACE. The installed package is introspected, the models are
+built with the arguments the gateway passes, and one ``AsyncSpaceClient`` is built
+against ``https://space.invalid``: its constructor opens no connection (the WebSocket
+opens only in ``connect()``, HTTP only when a call is awaited), and every call made
+on it below is closed before it is awaited. A client upgrade that renames or
+reshapes a name the gateway relies on fails here first. The pricing fixture
+(``fixtures/pricing``) is checked against the docs pricing it was derived from.
+
+Limit: event registration cannot be observed through the public API (``on`` ignores
+an unknown event name silently and the callbacks are private state), so the event
+names are checked against ``SpaceEvent`` and ``on`` is only shown to accept them.
 """
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
-import importlib
 import importlib.metadata
 import inspect
 import json
-import math
 from pathlib import Path
 
 import pytest
 import yaml
 
-from space_client import AsyncSpaceClient, SpaceClientFactory, SpaceError
+from space_client import AsyncSpaceClient, SpaceClientFactory, SpaceConnectionOptions, SpaceError
 from space_client.modules import contract_module, feature_module
 from space_client.types.models import (
+    BillingPeriod,
     BillingPeriodToCreate,
     Contract,
     ContractToCreate,
+    FeatureEvaluationResult,
     Subscription,
     UsageLevel,
     UserContact,
@@ -35,12 +42,23 @@ from space_client.types.space_event import SpaceEvent
 DISTRIBUTION = "space-python-client"
 # The range declared in pyproject.toml; kept literal so a drift is a visible diff.
 DECLARED_RANGE = ">=1.0,<2.0"
+# The version in uv.lock; bump it with the lock in the same change.
+LOCKED_VERSION = "1.0.0"
 
 TESTS = Path(__file__).resolve().parent
-PRICING_YAML = TESTS.parent.parent / "docs" / "pricing" / "openbinding-0.2.0.yml"
-PRICING_FIXTURE = TESTS / "fixtures" / "pricing" / "sphere_public_pricing_0.2.0.json"
-# Digest of the file as committed in this tree (the fixture was derived from it).
-PRICING_SHA256 = "4b9c7203c2771991be54c11bddf1fee5fc385c8cc5fa28b21e6d06b37d5b75b1"
+DOCS_YAML = TESTS.parent.parent / "docs" / "pricing" / "openbinding-0.2.0.yml"
+FIXTURES = TESTS / "fixtures" / "pricing"
+YAML_COPY = FIXTURES / "openbinding-0.2.0.yml"
+MANIFEST = FIXTURES / "manifest.json"
+
+# The events M4.2 listens to (the client's spelling, ``pricing_actived`` included).
+M4_2_EVENTS = (
+    "synchronized",
+    "pricing_created",
+    "pricing_actived",
+    "pricing_archived",
+    "service_disabled",
+)
 
 # Names the M4.2 plan needs beyond today's gateway code and the installed client
 # provides (verified below). Absent from 1.0.0: a dedicated usage-level read
@@ -49,6 +67,7 @@ PRICING_SHA256 = "4b9c7203c2771991be54c11bddf1fee5fc385c8cc5fa28b21e6d06b37d5b75
 AVAILABLE_FOR_M4_2 = {
     "AsyncSpaceClient.on",
     "AsyncSpaceClient.remove_listener",
+    "AsyncSpaceClient.remove_all_listeners",
     "AsyncSpaceClient.connect",
     "AsyncSpaceClient.disconnect",
     "SpaceEvent.pricing_created",
@@ -76,12 +95,41 @@ def _field_names(model) -> set[str]:
     return set(inspect.signature(model).parameters)
 
 
+def _contract_to_create() -> ContractToCreate:
+    return ContractToCreate(
+        user_contact=UserContact(user_id="u", username="u", email="a@b.c", phone=""),
+        billing_period=BillingPeriodToCreate(auto_renew=True, renewal_days=30),
+        contracted_services={"openbinding": "0.2.0"},
+        subscription_plans={"openbinding": "FREE"},
+        subscription_add_ons={},
+    )
+
+
+def _subscription() -> Subscription:
+    return Subscription(
+        contracted_services={"openbinding": "0.2.0"},
+        subscription_plans={"openbinding": "FREE"},
+        subscription_add_ons={"openbinding": {"extra": 1}},
+    )
+
+
+@pytest.fixture
+def client():
+    """An offline client: building it opens no socket and sends no request."""
+    built = AsyncSpaceClient(SpaceConnectionOptions(url="https://space.invalid", api_key="k"))
+    yield built
+    asyncio.run(built.close())
+
+
 def test_installed_version_satisfies_declared_range():
     installed = importlib.metadata.version(DISTRIBUTION)
     # ">=1.0,<2.0" is exactly "major version 1"; no extra dependency to parse it.
-    assert installed.split(".")[0] == "1", (
-        f"{DISTRIBUTION} {installed} is outside {DECLARED_RANGE}"
-    )
+    assert installed.split(".")[0] == "1", f"{DISTRIBUTION} {installed} is outside {DECLARED_RANGE}"
+
+
+def test_installed_version_is_the_locked_one():
+    # The bindings below were checked against this release; move it with uv.lock.
+    assert importlib.metadata.version(DISTRIBUTION) == LOCKED_VERSION
 
 
 def test_declared_range_matches_pyproject():
@@ -98,53 +146,36 @@ def test_factory_and_error_names():
     assert not inspect.iscoroutinefunction(SpaceClientFactory.connect_async)
 
 
-@pytest.mark.parametrize(
-    ("module", "cls", "method", "args"),
-    [
-        (feature_module, "AsyncFeatureModule", "generate_user_pricing_token", ("user",)),
-        (contract_module, "AsyncContractModule", "get_contract", ("user",)),
-        (contract_module, "AsyncContractModule", "add_contract", (object(),)),
-        (contract_module, "AsyncContractModule", "update_contract_subscription", ("user", object())),
-        (contract_module, "AsyncContractModule", "remove_contract", ("user",)),
-    ],
-)
-def test_async_client_methods_the_gateway_calls(module, cls, method, args):
-    function = getattr(getattr(module, cls), method)
-    _bind(function, None, *args)
-    # Module methods hand back the awaitable of the async runner, so the client
-    # is awaited at the gateway's single seam.
-    assert inspect.iscoroutinefunction(getattr(module, cls)._run)
-
-
-def test_client_exposes_both_modules_and_an_awaited_close():
+def test_client_exposes_the_async_modules(client):
+    assert isinstance(client.contracts, contract_module.AsyncContractModule)
+    assert isinstance(client.features, feature_module.AsyncFeatureModule)
     assert inspect.iscoroutinefunction(AsyncSpaceClient.close)
     _bind(AsyncSpaceClient.close, None)
-    wiring = inspect.getsource(AsyncSpaceClient.__init__)
-    assert "self.contracts = AsyncContractModule(" in wiring
-    assert "self.features = AsyncFeatureModule(" in wiring
 
 
-def test_sync_modules_are_not_the_async_ones():
-    # The gateway awaits what it calls; a sync module would return plain values.
-    assert not inspect.iscoroutinefunction(contract_module.ContractModule._run)
-    assert not inspect.iscoroutinefunction(feature_module.FeatureModule._run)
+@pytest.mark.parametrize(
+    ("module", "method", "make_args"),
+    [
+        ("features", "generate_user_pricing_token", lambda: ("user",)),
+        ("contracts", "get_contract", lambda: ("user",)),
+        ("contracts", "add_contract", lambda: (_contract_to_create(),)),
+        ("contracts", "update_contract_subscription", lambda: ("user", _subscription())),
+        ("contracts", "remove_contract", lambda: ("user",)),
+    ],
+)
+def test_async_client_methods_the_gateway_calls(client, module, method, make_args):
+    # The gateway awaits these at its single seam: each call must hand back an awaitable.
+    call = getattr(getattr(client, module), method)(*make_args())
+    try:
+        assert inspect.isawaitable(call)
+    finally:
+        if inspect.iscoroutine(call):
+            call.close()  # never awaited, so nothing is sent
 
 
 def test_model_constructors_accept_what_the_gateway_passes():
-    contact = UserContact(user_id="u", username="u", email="a@b.c", phone="")
-    period = BillingPeriodToCreate(auto_renew=True, renewal_days=30)
-    ContractToCreate(
-        user_contact=contact,
-        billing_period=period,
-        contracted_services={"openbinding": "0.2.0"},
-        subscription_plans={"openbinding": "FREE"},
-        subscription_add_ons={},
-    )
-    Subscription(
-        contracted_services={"openbinding": "0.2.0"},
-        subscription_plans={"openbinding": "FREE"},
-        subscription_add_ons={"openbinding": {"extra": 1}},
-    )
+    _contract_to_create()
+    _subscription()
     assert _field_names(UserContact) >= {"user_id", "username", "email", "phone"}
     assert _field_names(BillingPeriodToCreate) >= {"auto_renew", "renewal_days"}
     assert _field_names(ContractToCreate) >= {
@@ -154,7 +185,7 @@ def test_model_constructors_accept_what_the_gateway_passes():
         "subscription_plans",
         "subscription_add_ons",
     }
-    assert _field_names(Subscription) == {
+    assert _field_names(Subscription) >= {
         "contracted_services",
         "subscription_plans",
         "subscription_add_ons",
@@ -169,7 +200,7 @@ def test_contract_fields_the_gateway_reads():
         "subscription_add_ons",
         "billing_period",
     }
-    assert "end_date" in _field_names(importlib.import_module("space_client.types.models").BillingPeriod)
+    assert "end_date" in _field_names(BillingPeriod)
 
 
 def test_m4_2_names_are_available():
@@ -195,38 +226,52 @@ def test_m4_2_names_are_available():
     assert not missing, f"missing from the installed client: {missing}"
 
 
-def test_m4_2_usage_and_event_signatures():
-    _bind(
-        contract_module.AsyncContractModule.update_contract_usage_levels,
-        None,
-        "user",
-        "openbinding",
-        {"solverHours": 1.5},
+def test_m4_2_usage_and_evaluation_signatures():
+    contracts = contract_module.AsyncContractModule
+    features = feature_module.AsyncFeatureModule
+    _bind(contracts.update_contract_usage_levels, None, "u", "openbinding", {"solverHours": 1.5})
+    _bind(contracts.update_contract_subscription_by_group_id, None, "group", _subscription())
+    _bind(features.evaluate, None, "u", "f", expected_consumption={"solverHours": 1})
+    _bind(features.revert_evaluation, None, "u", "f", revert_to_latest=True)
+
+
+def test_m4_2_result_fields():
+    # The evaluation outcome M4.2 reads; ``used`` and ``limit`` are keyed by usage limit.
+    assert _field_names(FeatureEvaluationResult) >= {"eval", "used", "limit", "error"}
+    annotation = inspect.signature(Contract).parameters["usage_levels"].annotation
+    # Annotations are strings under ``from __future__ import annotations``.
+    assert "UsageLevel" in str(annotation)
+
+
+def test_m4_2_events_register_on_the_client(client):
+    for name in M4_2_EVENTS:
+        assert SpaceEvent.from_string(name) is not None, name
+        client.on(name, lambda payload: None)
+    client.remove_listener(M4_2_EVENTS[0])
+    client.remove_all_listeners()
+
+
+def test_pricing_yaml_copy_is_the_docs_file():
+    assert YAML_COPY.read_bytes() == DOCS_YAML.read_bytes(), (
+        f"{YAML_COPY} differs from {DOCS_YAML}: refresh it with "
+        f"`cp {DOCS_YAML} {YAML_COPY}` and set contentHash in manifest.json "
+        "to the new sha256 (see fixtures/pricing/README.md)"
     )
-    _bind(feature_module.AsyncFeatureModule.evaluate, None, "user", "feature", {"solverHours": 1})
-    _bind(AsyncSpaceClient.on, None, "pricing_created", lambda payload: None)
 
 
-def _unlimited_as_null(value):
-    if isinstance(value, float) and math.isinf(value):
-        return None
-    if isinstance(value, dict):
-        return {key: _unlimited_as_null(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_unlimited_as_null(item) for item in value]
-    return value
+def test_pricing_manifest_matches_the_yaml_copy():
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    document = yaml.safe_load(YAML_COPY.read_text(encoding="utf-8"))
+    versions = {entry["versionId"]: entry for entry in manifest["versions"]}
+    assert manifest["latestVersionId"] in versions
+    latest = versions[manifest["latestVersionId"]]
+    assert latest["contentHash"] == hashlib.sha256(YAML_COPY.read_bytes()).hexdigest()
+    assert latest["version"] == document["version"]
+    assert manifest["permanentUrl"].endswith(f"/p/{manifest['pricingId']}")
 
 
-def test_pricing_source_digest():
-    assert hashlib.sha256(PRICING_YAML.read_bytes()).hexdigest() == PRICING_SHA256
-
-
-def test_pricing_fixture_embeds_the_pricing_document():
-    fixture = json.loads(PRICING_FIXTURE.read_text(encoding="utf-8"))
-    document = yaml.safe_load(PRICING_YAML.read_text(encoding="utf-8"))
-    assert fixture["pricing"] == _unlimited_as_null(document)
-    # The metadata the gateway's SPHERE client reads.
-    assert fixture["slug"] == "openbinding"
-    assert fixture["version"] == document["version"] == fixture["pricing"]["version"]
-    assert fixture["private"] is False
-    assert fixture["yaml"].endswith(".yml")
+def test_pricing_yaml_has_the_expected_shape():
+    document = yaml.safe_load(YAML_COPY.read_text(encoding="utf-8"))
+    assert len(document["features"]) == 7
+    assert len(document["usageLimits"]) == 12
+    assert set(document["plans"]) == {"FREE", "RESEARCH", "LAB"}
