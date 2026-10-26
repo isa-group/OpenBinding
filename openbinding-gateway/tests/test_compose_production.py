@@ -2520,9 +2520,9 @@ def test_runbook_undo_of_the_password_rotation_refuses_without_a_usable_previous
     ("original", "replacement", "label"),
     [
         ('postgres_password.prev") && [ -n "$old" ]', 'postgres_password.prev")', "an empty postgres_password.prev"),
-        (' && sudo grep -qF ":$old@" "$dir/database_url.prev"', "", "no database_url.prev"),
+        (' \\\n      && printf \':%s@\' "$old" | sudo grep -qF -f - "$dir/database_url.prev"', "", "no database_url.prev"),
         (
-            ' && sudo grep -qF ":$old@" "$dir/database_url.prev"',
+            ' \\\n      && printf \':%s@\' "$old" | sudo grep -qF -f - "$dir/database_url.prev"',
             ' && sudo test -f "$dir/database_url.prev"',
             "a database_url.prev with another password",
         ),
@@ -2561,17 +2561,61 @@ def test_runbook_undo_of_the_password_rotation_sets_the_old_password_and_moves_t
     assert not list(secrets.glob("*.prev"))
 
 
+def failing_mv_problems(text: str, tmp_path) -> list[str]:
+    """The undo with a first ``mv`` that fails (a fake ``mv`` refuses postgres_password.prev): it must stop."""
+    secrets = tmp_path / "secrets"
+    secrets.mkdir(parents=True)
+    (secrets / "postgres_password.prev").write_text("oldpw")
+    (secrets / "database_url.prev").write_text(URL_WITH_OLD_PASSWORD)
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    (fake_bin / "mv").write_text('#!/bin/sh\ncase "$*" in *postgres_password.prev*) exit 1 ;; esac\nPATH=/usr/bin:/bin exec mv "$@"\n')
+    (fake_bin / "mv").chmod(0o755)
+    env = {
+        "OPENBINDING_SECRETS_DIR": str(secrets),
+        "DC": fake_dc(tmp_path),
+        "DC_LOG": str(tmp_path / "dc.log"),
+        "PATH": f"{fake_bin}:/usr/bin:/bin",
+    }
+    result = run_shell(undo_script(text) + "undo_password_rotation\n", env)
+    problems = []
+    if result.returncode == 0:
+        problems.append("returns 0 after a failed mv")
+    log = (tmp_path / "dc.log").read_text().splitlines() if (tmp_path / "dc.log").exists() else []
+    if any(line.startswith(("up ", "restart ")) for line in log):
+        problems.append("recreates the services after a failed mv")
+    return problems
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_undo_stops_when_a_mv_fails(tmp_path):
+    assert failing_mv_problems(runbook_text(), tmp_path / "ok") == []
+    assert ' "$1/$f" || exit 1; done' in runbook_text()
+    mutated = runbook_text().replace(' "$1/$f" || exit 1; done', ' "$1/$f"; done', 1)
+    problems = failing_mv_problems(mutated, tmp_path / "mutated")
+    assert "returns 0 after a failed mv" in problems, problems
+
+
 def password_rotation_problems(text: str, tmp_path, generated: str) -> list[str]:
     """Runs the forward rotation block with `openssl` printing ``generated`` (put_secret and $DC are recorders)."""
     out = tmp_path / "out"
     out.mkdir(parents=True)
-    env = {"DC": fake_dc(tmp_path), "DC_LOG": str(tmp_path / "dc.log"), "OUT": str(out)}
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    for name in ("postgres_password.prev", "database_url.prev"):
+        (secrets / name).write_text("stale")
+    env = {"DC": fake_dc(tmp_path), "DC_LOG": str(tmp_path / "dc.log"), "OUT": str(out), "OPENBINDING_SECRETS_DIR": str(secrets)}
     script = (
-        f"openssl() {{ printf '%s' '{generated}'; }}\n"
+        SUDO_SHIM + f"openssl() {{ printf '%s' '{generated}'; }}\n"
         'put_secret() { cat > "$OUT/$1"; }\n' + rotation_block(text, "password=$(openssl rand -hex 24)")
     )
     result = run_shell(script, env)
     problems = []
+    stale = sorted(p.name for p in secrets.iterdir())
+    if generated and stale:
+        problems.append(f"stale .prev files survive the rotation: {stale}")
+    if not generated and len(stale) != 2:
+        problems.append("the .prev files were removed although the password is empty")
     if generated:
         stdin = (tmp_path / "dc.log.stdin").read_text() if (tmp_path / "dc.log.stdin").exists() else ""
         if stdin != f"ALTER ROLE openbinding PASSWORD '{generated}';\n":
@@ -2600,6 +2644,137 @@ def test_runbook_postgres_password_rotation_without_the_empty_check_is_detected(
     assert guard in runbook_text()
     problems = password_rotation_problems(runbook_text().replace(guard, "if true; then", 1), tmp_path / "mutated", "")
     assert "ALTER ROLE ran with an empty password" in problems, problems
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_postgres_password_rotation_removes_stale_previous_files_before_altering_the_role(tmp_path):
+    body = section(runbook_text(), "Rotation")
+    start = body.index("password=$(openssl rand -hex 24)")
+    block = body[start : body.index("```", start)]
+    steps = positions(
+        block,
+        ('if [ -n "$password" ]; then', "postgres_password.prev", "database_url.prev", "ALTER ROLE openbinding", "put_secret postgres_password"),
+        "rotation",
+    )
+    assert steps == sorted(steps), "guard, removal of the stale .prev files, then ALTER ROLE, then the new files"
+    assert "rm -f --" in block
+    mutated = runbook_text().replace(
+        "sudo sh -c 'rm -f -- \"$1/postgres_password.prev\" \"$1/database_url.prev\"' sh \"$OPENBINDING_SECRETS_DIR\" \\\n      && ", "", 1
+    )
+    assert mutated != runbook_text(), "the control is stale"
+    problems = password_rotation_problems(mutated, tmp_path, "abc123")
+    assert any(problem.startswith("stale .prev files survive") for problem in problems), problems
+
+
+BUILTINS = {
+    "printf", "echo", "[", "read", "unset", "local", "set", ":", "return", "exit", "true", "false", "export", "cd",
+}  # fmt: skip
+KEYWORDS = {"if", "then", "elif", "else", "while", "until", "do", "done", "fi", "!", "{", "}", "case", "esac", "for", "in"}
+SECRET_REFERENCE = re.compile(r"\$\{?(?:old|new|password|v)\b")
+
+
+def simple_commands(line: str) -> list[str]:
+    """Splits a shell line at ``| & ;`` outside quotes and drops comments (a rough scanner, enough for the runbook)."""
+    parts, current, quote, i = [], "", "", 0
+    while i < len(line):
+        char = line[i]
+        if quote == "'":
+            quote = "" if char == "'" else quote
+        elif quote == '"':
+            if char == "\\":
+                current += line[i : i + 2]
+                i += 2
+                continue
+            quote = "" if char == '"' else quote
+        elif char in "'\"":
+            quote = char
+        elif char == "#" and (not current or current[-1].isspace()):
+            break
+        elif char in "|&;":
+            parts.append(current)
+            current = ""
+            i += 1
+            continue
+        current += char
+        i += 1
+    return [part.strip() for part in [*parts, current] if part.strip()]
+
+
+def expanded_outside_single_quotes(text: str) -> str:
+    """``text`` without the single-quoted parts (nothing expands there); a quote inside double quotes is a plain character."""
+    kept, quote = "", ""
+    for char in text:
+        if quote == "'":
+            quote = "" if char == "'" else quote
+        elif quote == '"':
+            quote = "" if char == '"' else quote
+            kept += char
+        elif char in "'\"":
+            quote = char
+            kept += char if char == '"' else ""
+        else:
+            kept += char
+    return kept
+
+
+def secret_argument_problems(text: str) -> list[str]:
+    """A secret variable in the argument list of a command that is not a shell builtin (visible in ps and logs)."""
+    problems = []
+    for line in commands(text):
+        for command in simple_commands(line):
+            words = command.split()
+            while words and words[0] in KEYWORDS:
+                words = words[1:]
+            if words and (re.match(r"[A-Za-z_]\w*=", words[0]) or words[0] == "local") and "$(" in command:
+                words = command.split("$(", 1)[1].split()  # the command substitution of an assignment is a command
+            elif not words or re.match(r"[A-Za-z_]\w*=", words[0]):
+                continue
+            if words[0] in BUILTINS:
+                continue
+            if SECRET_REFERENCE.search(expanded_outside_single_quotes(" ".join(words[1:]))):
+                problems.append(command)
+    return problems
+
+
+OLD_UNDO_LINE = '''    old=$(sudo cat "$dir/postgres_password.prev") && [ -n "$old" ] \\
+      && printf ':%s@' "$old" | sudo grep -qF -f - "$dir/database_url.prev" \\
+'''
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_never_passes_a_secret_variable_as_an_argument_of_a_command():
+    assert secret_argument_problems(runbook_text()) == []
+    assert len([line for line in commands(runbook_text()) if SECRET_REFERENCE.search(line)]) >= 6, "the scan sees the secrets"
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_secret_argument_rule_detects_the_old_undo_line():
+    text = runbook_text()
+    assert OLD_UNDO_LINE in text, "the control is stale"
+    reintroduced = text.replace(OLD_UNDO_LINE, '    old=$(sudo cat "$dir/postgres_password.prev") && [ -n "$old" ] && sudo grep -qF ":$old@" "$dir/database_url.prev" \\\n', 1)
+    assert any("grep -qF" in problem for problem in secret_argument_problems(reintroduced))
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+@pytest.mark.parametrize(
+    ("line", "bad"),
+    [
+        ('sudo grep -qF ":$old@" file', True),
+        ('$DC exec postgres psql -c "ALTER ROLE x PASSWORD \'$password\'"', True),
+        ('sudo put_secret x "${new}"', True),
+        ('docker run -e "K=$v" image', True),
+        ('printf \'%s\' "$v" | put_secret space_api_key 10001', False),
+        ('printf \':%s@\' "$old" | sudo grep -qF -f - file', False),
+        ('if [ -n "$new" ] && [ -n "$old" ]; then', False),
+        ('old=$(sudo cat "$dir/x")', False),
+        ('n=$(sudo grep -cF ":$old@" f)', True),
+        ('local x=$(sudo grep -cF ":$old@" f)', True),
+        ('echo "$password" # sudo grep "$password"', False),
+        ("sudo sh -c 'echo $old' sh", False),
+    ],
+)
+def test_runbook_secret_argument_rule_cases(line, bad):
+    assert bool(secret_argument_problems(f"```bash\n{line}\n```\n")) is bad
 
 
 def dc_services(text: str) -> list[str]:
@@ -2682,9 +2857,10 @@ def test_runbook_first_install_empties_the_bootstrap_password_after_the_first_lo
 # [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_first_install_clearing_of_the_bootstrap_variables_works_on_a_site_env(tmp_path):
     body = section(runbook_text(), "First install")
-    start = body.index("sed -i -e 's/^BOOTSTRAP_ADMIN_USERNAME=")
+    start = body.index("sudo sed -i -e 's/^BOOTSTRAP_ADMIN_USERNAME=")
+    assert "`site.env` belongs\n   to root" in body
     end = body.index('"$SITE_ENV"', start) + len('"$SITE_ENV"')
-    sed = textwrap.dedent(body[body.rindex("\n", 0, start) + 1 : end])
+    sed = SUDO_SHIM + textwrap.dedent(body[body.rindex("\n", 0, start) + 1 : end])
     assert body[end:].startswith(" \\\n     && unset BOOTSTRAP_ADMIN_USERNAME BOOTSTRAP_ADMIN_EMAIL \\\n     && $DC up -d --force-recreate gateway")
     site = tmp_path / "site.env"
     site.write_text("PUBLIC_ORIGIN=https://openbinding.example.org\nBOOTSTRAP_ADMIN_USERNAME=root\nBOOTSTRAP_ADMIN_EMAIL=a@example.org\nBACKUP_RETENTION_DAYS=14\n")

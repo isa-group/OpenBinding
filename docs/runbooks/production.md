@@ -262,12 +262,12 @@ On the host, render with the real site values: `$DC config --quiet`.
 7. After the first sign-in, empty the password file and the two bootstrap variables of `site.env`, so that neither the
    initial password nor the initial account stays on the host, and recreate the gateway (the account exists). The
    variables are also unset in the shell, because a variable that is exported there wins over `--env-file`. The
-   commands are chained, so an edit of `site.env` that fails (the user needs write access to its directory) stops
-   before the gateway is recreated:
+   commands are chained, so an edit of `site.env` that fails stops before the gateway is recreated. `site.env` belongs
+   to root, so the edit uses `sudo`:
 
    ```bash
    printf '' | put_secret bootstrap_admin_password 10001 allow-empty
-   sed -i -e 's/^BOOTSTRAP_ADMIN_USERNAME=.*/BOOTSTRAP_ADMIN_USERNAME=/' \
+   sudo sed -i -e 's/^BOOTSTRAP_ADMIN_USERNAME=.*/BOOTSTRAP_ADMIN_USERNAME=/' \
      -e 's/^BOOTSTRAP_ADMIN_EMAIL=.*/BOOTSTRAP_ADMIN_EMAIL=/' "$SITE_ENV" \
      && unset BOOTSTRAP_ADMIN_USERNAME BOOTSTRAP_ADMIN_EMAIL \
      && $DC up -d --force-recreate gateway \
@@ -456,9 +456,9 @@ at rest).
 ```bash
 $DC stop nginx gateway worker analysis-worker pg-backup postgres
 image=$(sed -n 's/^POSTGRES_IMAGE=//p' images.env)          # any pinned image with tar
-for v in pgdata artifacts; do
-  docker run --rm --entrypoint sh -v "openbinding-production_${v}:/data:ro" -v "$OPENBINDING_BACKUP_DIR:/out" \
-    "$image" -c 'umask 077; tar czf "/out/$0" -C /data .' "${v}-$(date +%Y%m%dT%H%M%S).tar.gz"
+for vol in pgdata artifacts; do
+  docker run --rm --entrypoint sh -v "openbinding-production_${vol}:/data:ro" -v "$OPENBINDING_BACKUP_DIR:/out" \
+    "$image" -c 'umask 077; tar czf "/out/$0" -C /data .' "${vol}-$(date +%Y%m%dT%H%M%S).tar.gz"
 done
 $DC up -d
 ```
@@ -643,12 +643,14 @@ sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
   input of a command inside the container, never as an argument, then both files are written and the services
   recreated. `postgres` itself reads the file only when it first initialises the data directory. `ALTER ROLE` never
   runs with an empty value: `PASSWORD ''` would not set an empty password, it would remove the password of the role
-  (PostgreSQL 10 and later). The block fails unless the new password is non-empty:
+  (PostgreSQL 10 and later). The block fails unless the new password is non-empty, and it removes a stale
+  `postgres_password.prev` and `database_url.prev` before it changes the role:
 
   ```bash
   password=$(openssl rand -hex 24)
   if [ -n "$password" ]; then
-    printf "ALTER ROLE openbinding PASSWORD '%s';\n" "$password" \
+    sudo sh -c 'rm -f -- "$1/postgres_password.prev" "$1/database_url.prev"' sh "$OPENBINDING_SECRETS_DIR" \
+      && printf "ALTER ROLE openbinding PASSWORD '%s';\n" "$password" \
       | $DC exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1 \
       && printf '%s' "$password" | put_secret postgres_password 70 \
       && printf '%s' "postgresql+asyncpg://openbinding:${password}@postgres:5432/openbinding" | put_secret database_url 10001 \
@@ -665,17 +667,24 @@ sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
   value read from the `.prev` file on standard input, because the services would otherwise be given a password that the
   server rejects. The function refuses, with a message on standard error and a non-zero status, and leaves the role
   as it is, unless `postgres_password.prev` is non-empty and `database_url.prev` exists and carries that same password
-  (a `.prev` file left by an earlier rotation does not). Then it moves both `.prev` files back and recreates the
-  services:
+  (a `.prev` file left by an earlier rotation does not; the block above removes the old ones before it changes the
+  role, so any `.prev` file comes from the current rotation). The old password reaches `grep` on standard input, never
+  as an argument. Then it moves both `.prev` files back (it stops at the first `mv` that fails) and recreates the
+  services. If the change stopped half way (the role has the new password but `database_url` was not replaced), the
+  undo refuses, because `database_url.prev` does not exist or does not carry the old password: either rewrite
+  `database_url` from `postgres_password`, or set the role back to the value of `postgres_password.prev` and move only
+  that file back; if `postgres_password.prev` does not exist either, set the role back to the value of
+  `postgres_password`:
 
   ```bash
   undo_password_rotation() {
     local old dir="$OPENBINDING_SECRETS_DIR"
-    old=$(sudo cat "$dir/postgres_password.prev") && [ -n "$old" ] && sudo grep -qF ":$old@" "$dir/database_url.prev" \
+    old=$(sudo cat "$dir/postgres_password.prev") && [ -n "$old" ] \
+      && printf ':%s@' "$old" | sudo grep -qF -f - "$dir/database_url.prev" \
       || { echo "refuse: postgres_password.prev is missing or empty, or database_url.prev is missing or has another password; nothing was changed" >&2; return 1; }
     printf "ALTER ROLE openbinding PASSWORD '%s';\n" "$old" \
       | $DC exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1 \
-      && sudo sh -c 'for f in postgres_password database_url; do mv -f -- "$1/$f.prev" "$1/$f"; done' sh "$dir" \
+      && sudo sh -c 'for f in postgres_password database_url; do mv -f -- "$1/$f.prev" "$1/$f" || exit 1; done' sh "$dir" \
       && $DC up -d --force-recreate migrate gateway worker analysis-worker pg-backup \
       && $DC restart nginx
   }

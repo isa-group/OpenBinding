@@ -27,9 +27,10 @@ Order:
 ## S1. Kubernetes leftovers and guard test
 - [ ] 1.1 `openbinding-gateway/tests/test_no_kubernetes.py` (new), tagged `[utest->req~lab-deployment-compose-only~1]`:
   - no `deploy/kubernetes`;
-  - no `kustomization.y*ml` anywhere;
-  - no YAML document with both `apiVersion` and `kind` outside `node_modules` and `.venv`;
-  - no `kubectl` or `kustomize` in `.github/workflows/*.yml`;
+  - no `kustomization.y*ml` anywhere outside `.git`, `node_modules` and `.venv`;
+  - no YAML file with both an `apiVersion:` line and a `kind:` line outside `.git`, `node_modules`, `.venv` and, for
+    manifests only, `openspec`, `docs`, `lab` and `.github`;
+  - no `kubectl` or `kustomize` in `.github/workflows/*.yml` and `*.yaml`;
   - an in-memory control for each rule.
 
   It leaves out `.agentic/project.yaml` (owner, CRP-3).
