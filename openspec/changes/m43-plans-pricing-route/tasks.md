@@ -43,10 +43,12 @@ M4.2 S5).
 - Acceptance: the S1 tests pass; `dump_openapi.py --check` passes; the existing `/v1/pricing*` tests pass unchanged
   apart from the new headers; the OFT trace (G6) has no defect for the S1 requirements; no test opens a connection.
 
-## S2. SPACE active version (gateway lead; after the M4.2 plans port)
-- [ ] 2.1 `spaceActiveVersion` from the plans port (`req~plans-pricing-space-active-version~1`), with its tests.
-- Acceptance: the three scenarios of that requirement pass with a fake plans port. Folded into S1 when M4.2 has
-  merged before S1 starts.
+## S2. SPACE active version (gateway lead; after M4.2's `PlanPort.active_version()`)
+Depends on: `PlanPort.active_version() -> str | None` of `m42-plans-module` (design.md §2 step 5).
+- [ ] 2.1 `spaceActiveVersion` from `PlanPort.active_version()` (`req~plans-pricing-space-active-version~1`), with its
+  tests; no other SPACE read.
+- Acceptance: the three scenarios of that requirement pass with a fake plans port whose `active_version()` returns
+  `0.2.0` or `None`. Folded into S1 when that method has merged before S1 starts.
 
 ## S3. Migrate the clients (frontend lead; another change)
 - [ ] 3.1 Pricing page and engine detail read `GET /v1/plans/pricing` (`document`, `version`, `digest`, `yamlUrl`)
@@ -86,4 +88,9 @@ Preconditions: S3 merged; S1 shipped in a release; the owner's approval of the r
   (design.md §1, §11).
 - Retire the `pricing:read` API-key permission once no route uses it (design.md §8).
 - M4.2: decide the fate of `SPACE_PRICING_VERSION`; this route no longer reads it.
+- M4.2: confirm in its S8 suite which field of SPACE's pricing event payload carries the version that
+  `PlanPort.active_version()` returns (UNVERIFIED, design.md §11).
+- Doc-steward: `docs/ARCHITECTURE.md` §9.2 says the descriptor carries "the version SPACE has activated"; reword it as
+  the version of the last SPACE pricing event the plans module received (`PlanPort.active_version()`), `null` before
+  the first event and while SPACE is unavailable (design.md §2 step 5, §11).
 - The other M4.3 removals (release sweeps, local metering, sponsorship capacity checks) are separate changes.

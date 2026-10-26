@@ -33,11 +33,13 @@ route that replaces them, and the expand/contract plan that retires them.
 ## Impact
 
 - Capability `plans-pricing` (new): eighteen ADDED requirements (one of them, the deprecation signal of the expand phase, is dropped from the
-  delta in slice S4 before the archive, design.md §8). It is a capability of its own, apart from M4.2's `plans`
-  (the M4.2 change is being revised in the same review round to record that M4.3 adds `plans-pricing`; until that
-  revision lands its design.md says M4.3 adds to `plans`), because its obligations differ in kind: a public, keyless
-  route that reads only SPHERE's public API and stays available with no SPACE dependency (SPACE's state only fills
-  `spaceActiveVersion`), while `plans` covers authenticated entitlement decisions that depend on SPACE.
+  delta in slice S4 before the archive, design.md §8). It is a capability of its own, apart from M4.2's `plans`,
+  because its obligations differ in kind: a public, keyless route that reads only SPHERE's public API and stays
+  available with no SPACE dependency (SPACE's state only fills `spaceActiveVersion`), while `plans` covers
+  authenticated entitlement decisions that depend on SPACE.
+- Dependency on M4.2 (`m42-plans-module`): `spaceActiveVersion` is the value of its `PlanPort.active_version()`
+  (the version of the last SPACE pricing event, held in memory; `None` before the first event and while SPACE is
+  unavailable), design.md §2 step 5. Slice S2 waits for that method.
 - Capability `frontend-catalog-pricing`: REMOVED `req~frontend-catalog-pricing-read-only-source~1`. It is a gateway
   obligation on the routes this change retires, so it moves to `plans-pricing` with the same change; the frontend
   requirements of that capability stay with the frontend lead (two capabilities, justified here).
@@ -57,7 +59,8 @@ route that replaces them, and the expand/contract plan that retires them.
   `/v1/pricing/current` today (`frontend/src/api/client.ts`); they move to `/v1/plans/pricing` before S4.
 - Risks: SPHERE's manifest shape and the input of `contentHash` are verified only by a lookup and a derived fixture
   (design.md §11); the ROADMAP digest of 0.2.0 (`3db4ad99…`) differs from the repository file's (`4b9c7203…`), open
-  for the coordinator (design.md §1, §11); SPACE's active version depends on the M4.2 `plans` module.
+  for the coordinator (design.md §1, §11); SPACE's active version depends on `PlanPort.active_version()` of M4.2,
+  whose event payload field is unverified until the M4.2 S8 suite (design.md §11).
 
 ## Out of scope
 

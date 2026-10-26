@@ -64,8 +64,11 @@ updates the scenario values here through a revision if the live shape or hash di
 4. Verification: `sha256(bytes)` hex equals `contentHash`; `yaml.safe_load` gives a mapping whose `version` (as a
    string) equals the entry's `version`. The verified read (manifest entry, bytes, parsed document, time) replaces
    the held one.
-5. SPACE: the active version of the service `SPACE_SERVICE_NAME` (`openbinding`) through the M4.2 plans port, with that
-   module's own timeout and cache. Any failure gives `null`; it never changes the status (§10 D3).
+5. SPACE: `PlanPort.active_version() -> str | None` of the M4.2 plans module (`m42-plans-module`, added there in the
+   round-2 revision). The method sends no request: it returns the version carried by the payload of the last SPACE
+   pricing event the plans module received, held in memory, and `None` before the first event and while SPACE is
+   unavailable. `None` gives `null`; the field never changes the status (§10 D3). The payload field that carries the
+   version is UNVERIFIED until the M4.2 S8 suite runs against a real SPACE (§11).
 6. Body (§3), `ETag`, `Cache-Control`; `304` when `If-None-Match` matches (§5).
 
 Failures of steps 2-4 are logged by `log_internal_failure` (masked, bounded, with the correlation id) and answered with
@@ -88,7 +91,7 @@ No step reads `SPACE_PRICING_VERSION`, `SPHERE_ENABLED`, `SPHERE_API_KEY` or the
 | `createdAt` | string | `createdAt` of that entry, unchanged |
 | `digest` | string, `^sha256-[0-9a-f]{64}$` | `sha256-` + the verified `contentHash`; the same notation as `/v1/pricing/current` and the profile catalogue |
 | `yamlUrl` | string, URI | the public YAML URL of step 3, for a download link |
-| `spaceActiveVersion` | string or `null` | the version SPACE has active (step 5) |
+| `spaceActiveVersion` | string or `null` | `PlanPort.active_version()` (step 5): the version of the last SPACE pricing event; `null` before the first event and while SPACE is unavailable |
 | `yaml` | string | the verified bytes decoded as UTF-8, unchanged: the document as served by SPHERE, for the `pricing-renderer` web component (`yaml` attribute) and for checking `digest` |
 | `document` | object | the same YAML parsed, `.inf`/`-.inf`/`.nan` as `null`, dates as ISO 8601 strings, keys in YAML order and none added: the input of the `pricing-renderer` React component (`pricing` prop, a parsed object) and of today's `pricingModel.ts` |
 
@@ -110,7 +113,7 @@ API without a key, and plan information. Pricings and contracts are administered
   "get": {
     "operationId": "getPlansPricing",
     "summary": "Published pricing",
-    "description": "The latest public version of the OpenBinding pricing in SPHERE: permanent link, SPHERE version id and label, digest, the YAML as SPHERE serves it, the same document as JSON, and the version SPACE has active (null when SPACE cannot be read). Public; the body is the same for every caller.",
+    "description": "The latest public version of the OpenBinding pricing in SPHERE: permanent link, SPHERE version id and label, digest, the YAML as SPHERE serves it, the same document as JSON, and the version SPACE has active as of its last pricing event (null before the first event and while SPACE is unavailable). Public; the body is the same for every caller.",
     "tags": ["Plans"],
     "parameters": [
       {"name": "If-None-Match", "in": "header", "required": false, "schema": {"type": "string"},
@@ -317,12 +320,14 @@ coordinator compares them with the CRP text and opens a revision where they diff
 - D2 Document as served: both `yaml` (exact bytes, verifiable against `digest`) and `document` (JSON, today's
   `/catalog` rule). Rejected: YAML only (the React renderer and `pricingModel.ts` take an object); JSON only (the hash
   cannot be checked by a client).
-- D3 `spaceActiveVersion` is part of the descriptor (ARCHITECTURE §9.2 "the version SPACE has activated") and is
-  `null` when SPACE cannot be read; SPACE's availability never turns the route into an error. Rejected: `503` when
-  SPACE is down (couples a public page to SPACE); leaving the field out (ARCHITECTURE asks for it). This matches the
-  round-1 revision of M4.2 (`m42-plans-module`), which states that API-key authentication is not gated by plans
-  (not yet in this tree's copy of that change): neither the caller's
-  credential nor SPACE's state decides whether this public route answers.
+- D3 `spaceActiveVersion` is part of the descriptor (ARCHITECTURE §9.2 "the version SPACE has activated"). Its only
+  source is `PlanPort.active_version()` of M4.2, which returns the version of the last SPACE pricing event held in
+  memory, and `None` before the first event and while SPACE is unavailable; the field is then `null`, and SPACE's
+  availability never turns the route into an error. Rejected: `503` when SPACE is down (couples a public page to
+  SPACE); a SPACE read per request or per route cache (a second SPACE client outside the port, and a SPACE call on an
+  anonymous route); leaving the field out (ARCHITECTURE asks for it). This matches M4.2 (`m42-plans-module`), which
+  states that API-key authentication is not gated by plans: neither the caller's credential nor SPACE's state decides
+  whether this public route answers.
 - D4 Anonymous access, no API-key permission (a pricing is public, the Pricing page is public, and today's routes are
   public too). Rejected: requiring `pricing:read` from API keys (an anonymous caller would then have more access than
   a key).
@@ -359,8 +364,15 @@ coordinator compares them with the CRP text and opens a revision where they diff
   `contentHash` other than the fixture's, the fixture is replaced by the recorded bytes and the digest values of
   `req~plans-pricing-descriptor~1` are revised (a new revision of that requirement, `~2`).
 - SPHERE's own caching headers are unknown; the gateway does not rely on them.
-- `spaceActiveVersion` depends on the M4.2 plans port; until it exists, S2 is blocked and the field is `null`, which
-  `req~plans-pricing-space-active-version~1` allows.
+- `spaceActiveVersion` depends on `PlanPort.active_version()` of `m42-plans-module`. S1 already reads the field
+  through that port method, so its tests (the anonymous and `ETag` scenarios) use a fake port returning `0.2.0` or
+  `None`; until the method has merged in M4.2, the production wiring of S1 gives a port whose `active_version()`
+  returns `None` (the field is `null`), and S2 (the real adapter's value and the tests of
+  `req~plans-pricing-space-active-version~1`) waits for it. Which field of SPACE's pricing event payload carries the version is
+  UNVERIFIED until the M4.2 S8 suite; if it differs, M4.2 revises its adapter and this change is unaffected (it reads
+  only the method). Because the value comes from events, `spaceActiveVersion` can lag SPACE by the event delivery
+  delay, and after a gateway restart it is `null` until the next pricing event; ARCHITECTURE §9.2 "the version SPACE
+  has activated" is to be read with that meaning (tasks.md, follow-ups).
 - Per-process read cache: with N workers SPHERE sees up to N manifest reads per 300 s; acceptable at the lab's scale.
 - Behind a proxy that hides client addresses, the anonymous rate-limit key is shared; the gateway's existing
   client-address rule applies unchanged.
@@ -372,5 +384,5 @@ coordinator compares them with the CRP text and opens a revision where they diff
 |---|---|
 | `plans-pricing-descriptor`, `plans-pricing-document`, `plans-pricing-anonymous`, `plans-pricing-etag`, `plans-pricing-cache-control`, `plans-pricing-conditional`, `plans-pricing-sphere-read-budget`, `plans-pricing-failure-pause`, `plans-pricing-sphere-public-read`, `plans-pricing-integrity`, `plans-pricing-sphere-unavailable`, `plans-pricing-rate-limit`, `plans-pricing-openapi`, `plans-pricing-no-network-in-tests` | S1 |
 | `plans-pricing-deprecated-routes-signal` | S1; removed from the delta in S4 (§8) |
-| `plans-pricing-space-active-version` | S2 (S1 when the M4.2 plans port has merged) |
+| `plans-pricing-space-active-version` | S2 (S1 when `PlanPort.active_version()` of M4.2 has merged) |
 | `plans-pricing-deprecated-routes-retired`, `plans-pricing-no-sphere-key`, REMOVED `frontend-catalog-pricing-read-only-source` | S4 |

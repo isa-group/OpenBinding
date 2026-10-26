@@ -42,24 +42,24 @@ Needs: impl, utest
 - **AND** every YAML date or timestamp is an ISO 8601 string
 
 ### Requirement: SPACE active version in the descriptor
-WHEN the gateway answers `GET /v1/plans/pricing` with `200`, THE gateway SHALL set `spaceActiveVersion` to the version that SPACE's `openbinding` service has active, or to `null` when SPACE cannot be read, without changing the status.
+WHEN the gateway answers `GET /v1/plans/pricing` with `200`, THE gateway SHALL set `spaceActiveVersion` to the value that `PlanPort.active_version()` of the M4.2 plans module returns at that request, which is `null` before the plans module has received its first SPACE pricing event and while SPACE is unavailable, without changing the status.
 
 `req~plans-pricing-space-active-version~1`
 
 Needs: impl, utest
 
-#### Scenario: SPACE reports the active version
-- **GIVEN** the recorded SPHERE pricing and a fake plans port that reports `0.2.0` as the active version of the service `openbinding`
+#### Scenario: Plans port holds an active version
+- **GIVEN** the recorded SPHERE pricing and a fake plans port whose `active_version()` returns `0.2.0`
 - **WHEN** a client sends `GET /v1/plans/pricing`
 - **THEN** the response status is `200` and `spaceActiveVersion` is `0.2.0`
 
 #### Scenario: SPACE lags behind SPHERE
-- **GIVEN** a recorded manifest whose latest version is `0.3.0` and a fake plans port that reports `0.2.0`
+- **GIVEN** a recorded manifest whose latest version is `0.3.0` and a fake plans port whose `active_version()` returns `0.2.0`
 - **WHEN** a client sends `GET /v1/plans/pricing`
 - **THEN** `version` is `0.3.0` and `spaceActiveVersion` is `0.2.0`
 
-#### Scenario: SPACE is down
-- **GIVEN** the recorded SPHERE pricing and a fake plans port that raises its unavailability error
+#### Scenario: No active version known
+- **GIVEN** the recorded SPHERE pricing and a fake plans port whose `active_version()` returns `None`, as the M4.2 port does before its first pricing event and while SPACE is unavailable
 - **WHEN** a client sends `GET /v1/plans/pricing`
 - **THEN** the response status is `200`, `spaceActiveVersion` is `null` and every other field is as in the recorded pricing scenario
 
@@ -71,7 +71,7 @@ THE gateway SHALL serve `GET /v1/plans/pricing` without authentication and with 
 Needs: impl, utest
 
 #### Scenario: Anonymous and signed-in callers
-- **GIVEN** the recorded SPHERE pricing and a fake plans port that reports `0.2.0`
+- **GIVEN** the recorded SPHERE pricing and a fake plans port whose `active_version()` returns `0.2.0`
 - **WHEN** an anonymous client, a client with a valid account bearer token and a client with a valid API key that holds no `pricing:read` permission each send `GET /v1/plans/pricing`
 - **THEN** each response status is `200`
 - **AND** the three bodies are byte-for-byte equal and carry the same `ETag`
@@ -84,7 +84,7 @@ WHEN the gateway answers `GET /v1/plans/pricing` with `200`, THE gateway SHALL s
 Needs: impl, utest
 
 #### Scenario: Same body, same validator
-- **GIVEN** the recorded SPHERE pricing and a fake plans port that reports `0.2.0`
+- **GIVEN** the recorded SPHERE pricing and a fake plans port whose `active_version()` returns `0.2.0`
 - **WHEN** a client sends `GET /v1/plans/pricing` twice
 - **THEN** both responses carry the same strong `ETag` (a quoted value without the `W/` prefix)
 
@@ -193,7 +193,7 @@ Needs: impl, utest
 - **THEN** the response status is `503`, `code` is `pricing_unavailable`, and the body has no `yaml`, `document` or `version` member
 
 #### Scenario: Oversized or mislabelled YAML
-- **GIVEN** in turn a YAML of 5 MiB plus one byte, a YAML that is a list, a YAML whose `version` is `0.1.5` for the manifest entry `0.2.0`, and a manifest whose `latestVersionId` is not in `versions`, each case on a fresh reader with no verified read and no failed read held
+- **GIVEN** in turn a YAML of 5 MiB plus one byte, a YAML that is a list, and a YAML whose `version` is `0.1.5` for the manifest entry `0.2.0`, each case on a fresh reader with no verified read and no failed read held
 - **WHEN** a client sends `GET /v1/plans/pricing` in each case
 - **THEN** the transport has recorded the request whose answer fails the check, and each response is the `503` `pricing_unavailable` problem
 
@@ -212,7 +212,7 @@ Needs: impl, utest
 - **AND** the response carries `Cache-Control: no-store` and no `ETag`, also when the request carries `If-None-Match: *` or an `ETag` received before
 
 #### Scenario: Reason kept out of the response
-- **GIVEN** in turn a SPHERE timeout, a `500` answer whose body names `sphere.score.us.es`, a `404` for the pricing id, and a manifest without `versions`, each case on a fresh reader with no verified read and no failed read held
+- **GIVEN** in turn a SPHERE timeout, a `500` answer whose body names `sphere.score.us.es`, a `404` for the pricing id, a manifest without `versions`, and a manifest whose `latestVersionId` is not in `versions`, each case on a fresh reader with no verified read and no failed read held
 - **WHEN** a client sends `GET /v1/plans/pricing`
 - **THEN** each response is the same `503` problem, which names no host, URL, upstream status or exception text
 - **AND** the gateway log line of each failure carries the same `correlationId` as the response
