@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Report editor addresses redirect to the publications
-WHEN a person opens an address that matches `/app/:org/:project/reports` or `/app/:org/:project/reports/:report` and that no screen of the route registry matches, THE frontend SHALL replace the current history entry with `/app/<org>/<project>/publications`, where `<org>` and `<project>` are the slugs of the opened address each percent-encoded as one path segment, with no query and no hash.
+WHEN a person opens an address that matches `/app/:org/:project/reports` or `/app/:org/:project/reports/:report` and no screen of the route registry matches, THE frontend SHALL replace the current history entry with `/app/<org>/<project>/publications`.
 
 `req~frontend-retire-reports-redirect~1`
 
@@ -9,14 +9,8 @@ Needs: impl, utest
 
 Evidence: `frontend/src/routes/retiredRoutes.test.tsx`; `frontend/src/routes/retiredRoutes.tsx`; `frontend/src/routes/index.tsx`
 
-Both paths are entries of slice 2 (`slice: 2`) in `frontend/src/routes/retiredRoutes.tsx` and share one rule. The
-`report` slug, every query parameter and the hash are dropped. The redirect sits behind the client-side guard, as for
-slice 1. One address of a routed screen also matches the pattern `/app/:org/:project/reports`: an artifact named
-`reports` in an organization library, `/app/<org>/library/reports` (`lib-artifact`); that screen keeps its address
-(design.md §2).
-
 #### Scenario: The report list
-- **GIVEN** a signed-in person on `/app/account`
+- **GIVEN** a signed-in person on `/app/account`; both paths are entries of slice 2 (`slice: 2`) in `frontend/src/routes/retiredRoutes.tsx` and share one rule; the `report` slug, every query parameter and the hash are dropped; the redirect sits behind the client-side guard, as for slice 1; `<org>` and `<project>` are the slugs of the opened address, each percent-encoded as one path segment
 - **WHEN** the person follows a link to `/app/isa-demo/qos-benchmarks/reports` and then goes back once
 - **THEN** the address after the redirect is `/app/isa-demo/qos-benchmarks/publications`
 - **AND** going back shows `/app/account`, not `/app/isa-demo/qos-benchmarks/reports`
@@ -43,7 +37,7 @@ slice 1. One address of a routed screen also matches the pattern `/app/:org/:pro
 - **THEN** each target is `/app/a/b/publications` and resolves to `proj-publications`
 
 #### Scenario: An artifact named reports keeps its screen
-- **GIVEN** a signed-in person and the organization `isa-demo` whose library holds an artifact `reports`
+- **GIVEN** a signed-in person and the organization `isa-demo` whose library holds an artifact `reports`; this address of a routed screen also matches the pattern `/app/:org/:project/reports` and keeps its address (design.md §2)
 - **WHEN** the person opens `/app/isa-demo/library/reports`
 - **THEN** the address stays `/app/isa-demo/library/reports`
 - **AND** the screen `lib-artifact` is rendered, not `proj-publications`
@@ -73,7 +67,7 @@ The pages of the two screens are deleted with their tests (design.md §1). The i
 - **AND** the D6 list of the registry test reads `study-list`, `study-builder`, `study-detail`, `study-run`, `study-cell`, `study-analytics`, `proj-publications`, `verifier`
 
 ### Requirement: No link leads to a report editor address
-IF a source file under `frontend/src`, other than a test file, a file under `src/test/` and `routes/retiredRoutes.tsx`, holds a string or template literal that starts with a retired path with parameters of the redirect table, or, in a file not under `src/api/`, a template literal in which a `${…}` is directly followed by the static tail of such a path, each parameter standing for one segment or one `${…}` and the match followed by the end of the literal, `/`, `?`, `#` or `${`, THEN the frontend test suite SHALL fail naming the file and the literal.
+IF a non-test source file under `frontend/src` other than `routes/retiredRoutes.tsx` holds a string or template literal that starts with a retired path with parameters of the redirect table, or, outside `src/api/`, one with `${…}` followed by the static tail of such a path, THEN the frontend test suite SHALL fail naming the file and the literal.
 
 `req~frontend-retire-reports-no-link~1`
 
@@ -81,14 +75,9 @@ Needs: impl, utest
 
 Evidence: `frontend/src/routes/links.test.ts`; `frontend/src/pages/Resolve/Resolve.test.tsx`
 
-The static tail of `/app/:org/:project/reports` is `/reports` and that of `/app/:org/:project/reports/:report` is
-`/reports/:report`. The tail form is not applied to files under `src/api/`, whose `/v1/…/reports` paths are gateway
-operations, not screens; the full form is applied to every file. Paths without parameters (slice 1) are scanned as
-before (requirement "No link leads to a retired address"). An address built from pieces (`` `${base}/${section}` `` with
-`section` `'reports'`) is a known limit; the resolver's one is re-pointed and tested by its screen (design.md §3).
-
 #### Scenario: Full addresses are reported
-- **GIVEN** the retired paths `/app/:org/:project/reports` and `/app/:org/:project/reports/:report` and the synthetic source `pages/X.tsx` holding ``const a = `/app/${org}/${project}/reports`;`` and `const b = '/app/acme/demo/reports/x';`
+- **GIVEN** that paths without parameters (slice 1) are scanned as before (requirement "No link leads to a retired address"), each parameter stands for one segment or one `${…}`, the match is followed by the end of the literal, `/`, `?`, `#` or `${`, and the static tail of `/app/:org/:project/reports` is `/reports` and that of `/app/:org/:project/reports/:report` is `/reports/:report`; the tail form is not applied under `src/api/`, whose `/v1/…/reports` paths are gateway operations, while the full form applies to every file; an address built from pieces (`` `${base}/${section}` `` with `section` `'reports'`) is a known limit, and the resolver's one is re-pointed and tested by its screen (design.md §3)
+- **AND** the retired paths `/app/:org/:project/reports` and `/app/:org/:project/reports/:report` and the synthetic source `pages/X.tsx` holding ``const a = `/app/${org}/${project}/reports`;`` and `const b = '/app/acme/demo/reports/x';`
 - **WHEN** the link scan reads it
 - **THEN** it returns exactly ``pages/X.tsx: /app/${org}/${project}/reports`` and `pages/X.tsx: /app/acme/demo/reports/x`
 
@@ -115,21 +104,17 @@ THE project tabs and the command palette SHALL offer no tab and no command whose
 
 Needs: impl, utest
 
-Evidence: `frontend/src/components/PlatformShell/SectionNav.test.tsx`; `frontend/src/components/PlatformShell/paletteCommands.test.ts`; `frontend/src/components/PlatformShell/ProjectTabs.tsx`; `frontend/src/components/PlatformShell/paletteCommands.ts`
-
-The tab `Reports` becomes the tab `Publications` (section `publications`, suffix `/publications`) at the same place;
-the project command `Reports` becomes `Publications` at `<project>/publications`. A visitor of a public project sees
-the `Publications` tab, as it saw `Reports`.
+Evidence: `frontend/src/components/PlatformShell/{SectionNav.test.tsx,paletteCommands.test.ts,ProjectTabs.tsx,paletteCommands.ts}`
 
 #### Scenario: Project tabs of a member
-- **GIVEN** a member of `isa-demo` on `/app/isa-demo/qos-benchmarks/studies`
+- **GIVEN** a member of `isa-demo` on `/app/isa-demo/qos-benchmarks/studies`; the tab and the project command `Reports` become `Publications` at the same place; the tab becomes `Publications` (section `publications`, suffix `/publications`) and the project command becomes `Publications` at `<project>/publications`
 - **WHEN** the project tabs are rendered
 - **THEN** their links read `Overview`, `Cases`, `Library`, `Jobs`, `Studies`, `Publications`, `Files`, `Package`, `Settings`
 - **AND** the link `Publications` has the `href` `/app/isa-demo/qos-benchmarks/publications`
 - **AND** no link of the tabs is named `Reports` or has an `href` that starts with `/app/isa-demo/qos-benchmarks/reports`
 
 #### Scenario: Project tabs of a public visitor
-- **GIVEN** a visitor reading the public project `qos-benchmarks` of `isa-demo` (access `public_read`)
+- **GIVEN** a visitor reading the public project `qos-benchmarks` of `isa-demo` (access `public_read`), who sees the `Publications` tab as it saw `Reports`
 - **WHEN** the project tabs are rendered
 - **THEN** their links read `Overview`, `Cases`, `Library`, `Studies`, `Publications`, `Files`
 
@@ -153,12 +138,10 @@ Needs: impl, utest
 
 Evidence: `frontend/src/test/rawRenderingHygiene.test.ts`; `frontend/src/test/rawRenderingAllowList.ts`
 
-Offender 5 (`pages/Reports/RepDetail.tsx`, the report document as JSON in `<pre>`) is deleted with its screen. The
-ceiling rule of slice 1 (requirement "Allow-list ceiling equals its entries") keeps the ceiling equal to the entries.
-`pages/Reports/SavedDecision.tsx` is no detector finding and was never listed. Offender 11 leaves with slice 3.
+The ceiling rule of slice 1 (requirement "Allow-list ceiling equals its entries") keeps the ceiling equal to the entries.
 
 #### Scenario: Slice 2 entries
-- **GIVEN** the allow-list after slice 2
+- **GIVEN** the allow-list after slice 2, where offender 5 (`pages/Reports/RepDetail.tsx`, the report document as JSON in `<pre>`) is deleted with its screen, `pages/Reports/SavedDecision.tsx` is no detector finding and was never listed, and offender 11 leaves with slice 3
 - **WHEN** the hygiene test reads it
 - **THEN** the offender numbers of `RAW_RENDERING_ALLOW_LIST` read 1, 2, 3, 4, 6, 8, 9, 10, 11, 12, 13, 14, 15
 - **AND** `MAX_ALLOWED_OFFENDERS` is 13 and `ceilingMismatch` returns nothing for it
@@ -200,16 +183,10 @@ THE screens `proj-publications` at `/app/:org/:project/publications` and `verifi
 
 Needs: impl, utest
 
-Evidence: `frontend/src/pages/Reports/ProjPublications.test.tsx`; `frontend/src/pages/Reports/Verifier.test.tsx`; `frontend/src/pages/Platform/InspectionPages.test.tsx`; `frontend/src/routes/routes.test.ts`
-
-The publications list keeps its citation, copy, public link, `Open public verification` and withdraw controls; it
-loses `Open the report`, the `Reports` breadcrumb and action, and the `Open the reports` action of its empty state.
-A verifier match of type `report` opens the project's publications. ADR-0020: "Existing publications keep their
-permanent links as read-only published results"; those links are `/resolve/report/<digest>`, which this slice does not
-touch.
+Evidence: `frontend/src/pages/Reports/{ProjPublications,Verifier}.test.tsx`; `frontend/src/pages/Platform/InspectionPages.test.tsx`; `frontend/src/routes/routes.test.ts`
 
 #### Scenario: Both screens are routed
-- **GIVEN** the route registry after slice 2
+- **GIVEN** the route registry after slice 2; a verifier match of type `report` opens the project's publications; the publications list keeps its citation, copy, public link, `Open public verification` and withdraw controls and loses `Open the report`, the `Reports` breadcrumb and action, and the `Open the reports` action of its empty state; per ADR-0020 "Existing publications keep their permanent links as read-only published results", those links are `/resolve/report/<digest>`, which this slice does not touch
 - **WHEN** `/app/isa-demo/qos-benchmarks/publications` and `/app/verifier` are matched against `routeDefinitions`
 - **THEN** they resolve to `proj-publications` and `verifier`
 
@@ -239,15 +216,10 @@ THE job detail, the study run page, the study analytics page and the project ove
 
 Needs: impl, utest
 
-Evidence: `frontend/src/pages/Jobs/JobDetail.test.tsx`; `frontend/src/pages/Studies/StudyRun.test.tsx`; `frontend/src/pages/Studies/StudyAnalytics.test.tsx`; `frontend/src/pages/Project/ProjectOverview.test.tsx`
-
-The removed controls are `Add to a report` (job detail), `Create a report` and `Open the report` (study run and study
-analytics, the "draft report from this run" feature of `pages/Studies/reportActions.ts`), and the `Reports` card with
-`All reports` and the `New report` action (project overview). The frontend API client keeps its report operations
-(design.md §5).
+Evidence: `frontend/src/pages/{Jobs/JobDetail,Studies/StudyRun,Studies/StudyAnalytics,Project/ProjectOverview}.test.tsx`
 
 #### Scenario: Job detail
-- **GIVEN** a member on the job detail of the completed job `job-done-3` in `isa-demo/qos-benchmarks`
+- **GIVEN** a member on the job detail of the completed job `job-done-3` in `isa-demo/qos-benchmarks`; the frontend API client keeps its report operations (design.md §5); the removed controls are `Add to a report` (job detail), `Create a report` and `Open the report` (study run and study analytics, the "draft report from this run" feature of `pages/Studies/reportActions.ts`), and the `Reports` card with `All reports` and the `New report` action (project overview)
 - **WHEN** the screen is rendered
 - **THEN** no link or button is named `Add to a report`
 
