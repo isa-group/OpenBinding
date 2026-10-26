@@ -31,6 +31,7 @@ from openbinding_gateway import space_client
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db import platform_models
 from openbinding_gateway.db.models import (
+    ArtifactPublication,
     ArtifactVersion,
     BindingCaseRevision,
     BindingIRSnapshot,
@@ -415,6 +416,34 @@ def test_bibtex_text_removes_braces_and_escapes_the_specials(value, expected):
     assert citations().bibtex_text(value) == expected
 
 
+#: Unicode format characters (category Cf): bidi embeddings, overrides and isolates, zero-width characters, BOM.
+FORMAT_CHARACTERS = [
+    *(chr(code) for code in range(0x202A, 0x202F)),
+    *(chr(code) for code in range(0x2066, 0x206A)),
+    *(chr(code) for code in range(0x200B, 0x2010)),
+    "\N{ZERO WIDTH NO-BREAK SPACE}",
+    "\N{SOFT HYPHEN}",
+]
+
+
+# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
+@pytest.mark.parametrize("character", FORMAT_CHARACTERS, ids=lambda character: f"U+{ord(character):04X}")
+def test_bibtex_text_drops_unicode_format_characters(character):
+    assert citations().bibtex_text(f"a{character}b") == "ab"
+
+
+# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
+def test_a_bidi_override_in_a_recorded_value_never_reaches_the_bibtex():
+    venue = "Proc.\N{RIGHT-TO-LEFT OVERRIDE} V\N{POP DIRECTIONAL FORMATTING}\N{ZERO WIDTH SPACE}"
+    citation = build(publication=published({"venue": venue, "authors": ["A\N{RIGHT-TO-LEFT ISOLATE}lice"]}))
+
+    entry = fields(citation)
+    assert entry["howpublished"] == "Proc. V"
+    assert entry["author"] == "{Alice}"
+    assert not any(character in citation.bibtex for character in FORMAT_CHARACTERS)
+    assert citation.venue == venue
+
+
 # [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_publisher_braces_cannot_break_out_of_a_field():
     citation = build(publication=published({"venue": "Proc. }, title = {X"}))
@@ -527,6 +556,27 @@ def test_valid_year_is_an_integer_and_not_a_boolean():
 
 
 # [utest->req~resolver-verifier-citation-year~1]
+@pytest.mark.parametrize("year", [1000, 9999])
+def test_a_four_digit_year_is_kept(year):
+    assert citations().valid_year(year) == year
+
+
+# [utest->req~resolver-verifier-citation-year~1]
+@pytest.mark.parametrize("year", [0, -5, 999, 10000, 10**4000], ids=["0", "-5", "999", "10000", "10**4000"])
+def test_a_year_outside_four_digits_is_not_a_year(year):
+    assert citations().valid_year(year) is None
+
+
+# [utest->req~resolver-verifier-citation-year~1]
+@pytest.mark.parametrize("year", [0, -5, 999, 10000, 10**4000], ids=["0", "-5", "999", "10000", "10**4000"])
+def test_an_out_of_range_recorded_year_falls_through_to_the_publication_date(year):
+    citation = build(publication=published({"year": year}))
+
+    assert citation.year == PUBLISHED.year
+    assert fields(citation)["year"] == str(PUBLISHED.year)
+
+
+# [utest->req~resolver-verifier-citation-year~1]
 def test_the_recorded_year_comes_first():
     publication = published({"year": 2025}, published_at=datetime(2026, 3, 1, tzinfo=timezone.utc))
 
@@ -584,6 +634,13 @@ def test_the_resolvable_kinds_are_the_resolvers():
 
     assert isinstance(kinds, frozenset)
     assert kinds == frozenset(RESOLVABLE)
+
+
+# [utest->req~resolver-verifier-citation-url~1]
+def test_the_resolvable_kinds_are_exactly_the_kinds_the_resolver_accepts():
+    from openbinding_gateway.routes.resolve import VALID_KINDS
+
+    assert set(VALID_KINDS) == set(citations().RESOLVABLE_KINDS)
 
 
 # [utest->req~resolver-verifier-citation-url~1]
@@ -663,7 +720,7 @@ def test_the_gateway_origin_is_never_used(monkeypatch):
 # -- purity ---------------------------------------------------------------------
 
 
-ALLOWED_IMPORTS = {"__future__", "collections", "datetime", "re", "types", "typing", "urllib"}
+ALLOWED_IMPORTS = {"__future__", "collections", "datetime", "re", "types", "typing", "unicodedata", "urllib"}
 ALLOWED_GATEWAY_IMPORTS = {"openbinding_gateway.models.platform"}
 FORBIDDEN_CALLS = {"open", "print", "input", "eval", "exec", "__import__", "compile"}
 
@@ -1226,3 +1283,44 @@ async def test_the_report_citation_year_is_the_cited_versions_not_the_report_row
     assert int(body["created_at"][:4]) == filed.year
     assert body["citation"]["year"] == OLD.year
     assert dict(parse_entry(body["citation"]["bibtex"])[1])["year"] == str(OLD.year)
+
+
+# [utest->req~resolver-verifier-citation-url~1]
+@pytest.mark.parametrize("source", SEEDERS)
+async def test_a_digest_without_its_prefix_links_to_the_normalised_permanent_link(source, world, monkeypatch):
+    # The configured origin ends with "/", and the caller sends the bare hexadecimal digest.
+    monkeypatch.setattr(get_settings(), "frontend_url", f"{ORIGIN}/")
+    seeded = await SEEDERS[source](world, public=True)
+    hexadecimal = seeded.digest.removeprefix("sha256-")
+    assert len(hexadecimal) == 64
+
+    response = await world.client.get(f"/v1/resolve/{seeded.kind}/{hexadecimal}", headers=seeded.headers)
+
+    assert response.status_code == 200, response.text
+    citation = response.json()["citation"]
+    url = f"{ORIGIN}/resolve/{seeded.kind}/sha256-{hexadecimal}"
+    assert citation["url"] == url
+    assert badge_link(citation["markdown_badge"]) == url
+    assert dict(parse_entry(citation["bibtex"])[1])["url"] == url
+    assert "//resolve" not in json.dumps(citation)
+
+
+# [utest->req~resolver-verifier-citation-year~1]
+@pytest.mark.parametrize("kind", LIBRARY_KINDS)
+async def test_a_recorded_publication_without_a_year_is_dated_by_its_publication(kind, world):
+    seeded = await SEEDERS[kind](world, public=True)
+    assert PUBLISHED.year not in {OLD.year, datetime.now(timezone.utc).year}
+    # A publication row is immutable once written, so it is recorded with its date.
+    world.db.add(ArtifactPublication(
+        version_id=uuid.UUID(seeded.version_id), citation={}, published_by_id=uuid.UUID(seeded.user_id),
+        published_at=PUBLISHED,
+    ))
+    await world.db.flush()
+
+    citation = (await resolved(world, seeded, headers={}))["citation"]
+
+    assert citation["year"] == PUBLISHED.year
+    assert dict(parse_entry(citation["bibtex"])[1])["year"] == str(PUBLISHED.year)
+    assert (citation["doi"], citation["venue"]) == (None, None)
+    assert citation["authors"] == [seeded.username]
+    assert_links_to_the_permanent_link(citation, seeded)

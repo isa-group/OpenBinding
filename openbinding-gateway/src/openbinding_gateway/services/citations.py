@@ -9,6 +9,7 @@ link is the element's public permanent link on the frontend's origin.
 from __future__ import annotations
 
 import re
+import unicodedata
 from datetime import date
 from types import MappingProxyType
 from typing import Any, Mapping, Optional, Protocol
@@ -61,6 +62,9 @@ BIBTEX_ESCAPES = MappingProxyType(
 LINE_BREAKS = re.compile(r"[\x00-\x1f\x7f-\x9f\N{LINE SEPARATOR}\N{PARAGRAPH SEPARATOR}]")
 UNSAFE_KEY = re.compile(r"[^A-Za-z0-9_.:-]")
 
+MIN_YEAR = 1000
+MAX_YEAR = 9999
+
 
 class PublicationRecord(Protocol):
     """What the builder reads of an ``ArtifactPublication`` or a report ``Publication``."""
@@ -94,8 +98,13 @@ def valid_authors(value: object) -> Optional[list[str]]:
 
 # [impl->req~resolver-verifier-citation-year~1]
 def valid_year(value: object) -> Optional[int]:
-    """An integer year; ``True`` is an ``int`` to Python but not a year."""
-    return value if isinstance(value, int) and not isinstance(value, bool) else None
+    """A four-digit integer year; ``True`` is an ``int`` to Python but not a year.
+
+    The range also keeps a huge recorded integer out of ``str()``, which refuses integers of more than 4300 digits.
+    """
+    if not isinstance(value, int) or isinstance(value, bool):
+        return None
+    return value if MIN_YEAR <= value <= MAX_YEAR else None
 
 
 def _live(publication: Optional[PublicationRecord]) -> Optional[PublicationRecord]:
@@ -140,8 +149,14 @@ def citation_url(frontend_url: str, kind: Optional[str], digest: str) -> str:
 
 # [impl->req~resolver-verifier-citation-no-invented-metadata~1]
 def bibtex_text(value: str) -> str:
-    """``value`` as the text of a BibTeX field: it can close neither the field nor the entry."""
-    return LINE_BREAKS.sub(" ", value).translate(BIBTEX_ESCAPES)
+    """``value`` as the text of a BibTeX field: it can close neither the field nor the entry.
+
+    Unicode format characters (bidi overrides and isolates, zero-width characters) are dropped, so the text a reader
+    sees is the text the entry holds.
+    """
+    text = LINE_BREAKS.sub(" ", value)
+    text = "".join(char for char in text if unicodedata.category(char) != "Cf")
+    return text.translate(BIBTEX_ESCAPES)
 
 
 # [impl->req~resolver-verifier-citation-no-invented-metadata~1]

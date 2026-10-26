@@ -93,7 +93,7 @@ All `kind` parameters strictly use **kebab-case**:
   "created_at": "2026-03-15T10:00:00Z",
   "author": {
     "id": "usr_99120",
-    "name": "Ada Lovelace",
+    "username": "alovelace",
     "email": "ada@openbinding.org"
   },
   "organization": {
@@ -131,7 +131,7 @@ All `kind` parameters strictly use **kebab-case**:
   },
   "citation": {
     "title": "Production Flow V2",
-    "authors": [],
+    "authors": ["alovelace"],
     "year": 2026,
     "doi": null,
     "venue": null,
@@ -150,10 +150,11 @@ All `kind` parameters strictly use **kebab-case**:
 
 * `doi` and `venue` come only from the recorded publication citation of the
   exact version. A DOI is shown only when it is well-formed; otherwise `doi` is
-  `null`. Without a recorded publication both `doi` and `venue` are `null`.
-* `authors` is `[]` when none is recorded.
-* `doi`, `venue` and `authors` come only from the recorded publication of the
-  exact library version. A withdrawn publication is not cited.
+  `null`. Without a recorded publication both `doi` and `venue` are `null`. A
+  withdrawn publication, or one of another version, is not cited.
+* `authors` is the author list of that recorded publication citation; without
+  one, the username of the element's recorded author or owner (the `author` of
+  the resolver answer); without either, `[]`.
 * `year` comes from the recorded citation; if there is none, from the
   publication date; if there is none, from the creation date of the cited
   version or element (`req~resolver-verifier-citation-year~1`).
@@ -161,10 +162,17 @@ All `kind` parameters strictly use **kebab-case**:
   the public permanent link `/resolve/<kind>/<digest>`
   (`req~resolver-verifier-citation-url~1`).
 
+The badge attests the digest only, not the metadata: the title, authors, year,
+DOI and venue are what the publisher recorded, and the platform does not check
+them.
+
 For `POST /v1/verifier/inspect` and `/inspect-file`:
 
-* `citation` is `null` when no visible element matches the digest: computed,
-  mismatch, not_found, hidden and unknown digests all alike.
+* `citation` is `null` unless the status is `verified` with a visible element
+  matching the digest: computed, mismatch (even when the claimed digest matches
+  a visible element), not_found, hidden and unknown digests all alike.
+* For a digest that identifies a single element of a resolvable kind, the
+  cited `authors` and `year` are the ones the resolver gives for it.
 * Otherwise the first visible match is cited. Its `kind` is `case-revision`,
   `collection-revision`, `report`, `artifact` or `engine`.
 * A snapshot, a study run and a file that belongs to no project have no

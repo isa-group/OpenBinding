@@ -88,6 +88,32 @@ async def _cited_version(
     )
 
 
+#: Where each match records its author or owner: the same user the resolver cites for the same element. A
+#: collection that is a library version records it on that version instead.
+AUTHOR_COLUMNS = {
+    "case": (BindingCaseRevision, BindingCaseRevision.created_by_id),
+    "collection": (CollectionRevision, CollectionRevision.created_by_id),
+    "report": (Report, Report.created_by_id),
+    "artifact": (Blob, Blob.created_by_id),
+    "engine": (EngineRevision, EngineRevision.owner_id),
+    "snapshot": (InstanceSnapshot, InstanceSnapshot.owner_id),
+    "study_run": (StudyRun, StudyRun.created_by_id),
+}
+
+
+async def _recorded_authors(
+    session: AsyncSession, primary: VerifierEntityMatch, version: Optional[ArtifactVersion]
+) -> Optional[list[str]]:
+    """The username of the match's recorded author or owner, or ``None`` when no user is recorded."""
+    if primary.entity_type == "collection" and version is not None:
+        query = select(User.username).where(User.id == version.created_by_id)
+    else:
+        model, column = AUTHOR_COLUMNS[primary.entity_type]
+        query = select(User.username).join(model, column == User.id).where(model.id == uuid.UUID(primary.id))
+    username = await session.scalar(query)
+    return [username] if username is not None else None
+
+
 # Only a match the caller may see is cited, so a hidden digest gets no citation, exactly like an unknown one, and
 # the citation's lookups run only for a visible match: a hidden digest still runs the same queries as an unknown one.
 # [impl->req~resolver-verifier-citation-no-invented-metadata~1]
@@ -108,7 +134,7 @@ async def _citation(
         title=primary.title_or_name,
         slug=primary.slug or primary.entity_type,
         digest=digest_val,
-        authors=None,
+        authors=await _recorded_authors(session, primary, version),
         publication=await session.get(ArtifactPublication, version.id) if version is not None else None,
     )
 
@@ -427,7 +453,8 @@ async def inspect_digest(
         matches = False
         status_val = "not_found"
 
-    citation = await _citation(session, settings, entities, target_digest)
+    # A mismatch cites nothing, even when the claimed digest is registered: the document is not that element.
+    citation = await _citation(session, settings, entities, target_digest) if status_val == "verified" else None
 
     detail_msg = (
         f"Cryptographically verified against {len(entities)} registered entities."

@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Awaitable, Callable, Optional
+from urllib.parse import urlsplit
 
 import pytest
 import pytest_asyncio
@@ -167,18 +169,19 @@ def assert_nothing_foreign(body: dict) -> None:
         assert literal not in text
 
 
-def assert_cites_recorded_facts_only(body: dict, url: str) -> None:
+def assert_cites_recorded_facts_only(body: dict, url: str, authors: list[str]) -> None:
+    """``authors`` is the username of the match's recorded author or owner, or ``[]`` when none is recorded."""
     citation = body["citation"]
     assert citation is not None
     assert citation["doi"] is None
     assert citation["venue"] is None
-    assert citation["authors"] == []
+    assert citation["authors"] == authors
     assert citation["year"] == OLD.year
     assert "doi =" not in citation["bibtex"]
     entry = dict(parse_entry(citation["bibtex"])[1])
     assert "doi" not in entry and "howpublished" not in entry
     assert entry["year"] == str(OLD.year)
-    assert entry["author"] == ""
+    assert entry["author"] == " and ".join("{" + name + "}" for name in authors)
     assert_nothing_foreign(body)
     assert_links_to(citation, url)
 
@@ -205,7 +208,71 @@ async def test_every_match_cites_recorded_facts_and_its_link(name, world):
     assert body["status"] == "verified"
     assert body["entities"][0]["entity_type"] == source.entity_type
     assert int(body["entities"][0]["created_at"][:4]) == OLD.year
-    assert_cites_recorded_facts_only(body, expected_url(source.kind, seeded.digest))
+    # Every seeder records its author or owner, so the citation names that user.
+    assert_cites_recorded_facts_only(body, expected_url(source.kind, seeded.digest), authors=[seeded.username])
+
+
+# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
+@pytest.mark.skipif(
+    bool(os.environ.get("TEST_DATABASE_URL")), reason="an owner that is not recorded needs unenforced foreign keys"
+)
+async def test_without_a_recorded_owner_the_authors_are_empty(world):
+    seeded = await seed_engine(world, public=True, owner=str(uuid.uuid4()))
+
+    body = await inspected(world, seeded.headers, digest=seeded.digest)
+
+    assert body["entities"][0]["entity_type"] == "engine"
+    assert_cites_recorded_facts_only(body, expected_url("engine", seeded.digest), authors=[])
+
+
+#: The matches whose citation links to a permanent link the resolver answers for the same caller.
+RESOLVABLE_SOURCES = [name for name, source in SOURCES.items() if source.kind is not None]
+
+
+# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
+# [utest->req~resolver-verifier-citation-year~1]
+# [utest->req~resolver-verifier-citation-url~1]
+@pytest.mark.parametrize("name", RESOLVABLE_SOURCES)
+async def test_the_verifier_cites_a_digest_as_the_resolver_does(name, world):
+    source = SOURCES[name]
+    seeded = await source.seeder(world, public=True)
+
+    verified = (await inspected(world, seeded.headers, digest=seeded.digest))["citation"]
+    response = await world.client.get(f"/v1/resolve/{source.kind}/{seeded.digest}", headers=seeded.headers)
+    assert response.status_code == 200, response.text
+    resolved = response.json()["citation"]
+
+    assert verified["authors"] == resolved["authors"] == [seeded.username]
+    assert verified["year"] == resolved["year"] == OLD.year
+    assert urlsplit(verified["url"]).path == urlsplit(resolved["url"]).path == f"/resolve/{source.kind}/{seeded.digest}"
+    assert verified["url"] == resolved["url"]
+
+
+# [utest->req~resolver-verifier-citation-url~1]
+@pytest.mark.parametrize("name", SOURCES)
+async def test_the_trailing_slash_of_the_frontend_origin_is_removed(name, world, monkeypatch):
+    # The verifier looks the digest up as sent, so only the configured origin varies here.
+    monkeypatch.setattr(get_settings(), "frontend_url", f"{ORIGIN}/")
+    source = SOURCES[name]
+    seeded = await source.seeder(world, public=True)
+
+    citation = (await inspected(world, seeded.headers, digest=seeded.digest))["citation"]
+
+    assert_links_to(citation, expected_url(source.kind, seeded.digest))
+    assert "//resolve" not in json.dumps(citation) and "//app" not in json.dumps(citation)
+
+
+# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
+async def test_a_mismatch_has_no_citation_even_when_the_claimed_digest_is_visible(world):
+    seeded = await seed_case_revision(world, public=True)
+    document = {"apiVersion": "bim/v1", "kind": "BindingCase", "title": uuid.uuid4().hex}
+    assert canonical_digest(document) != seeded.digest
+
+    body = await inspected(world, seeded.headers, digest=seeded.digest, document=document)
+
+    assert body["status"] == "mismatch" and body["matches"] is False
+    assert [entity["entity_type"] for entity in body["entities"]] == ["case"]
+    assert body["citation"] is None
 
 
 # [utest->req~resolver-verifier-citation-no-invented-metadata~1]
@@ -255,7 +322,7 @@ async def test_a_publication_of_a_sibling_version_is_not_cited(name, world):
     assert_cites((await inspected(world, first.headers, digest=first.digest))["citation"], CITED)
     body = await inspected(world, second.headers, digest=second.digest)
     assert body["entities"][0]["entity_type"] == source.entity_type
-    assert_cites_recorded_facts_only(body, expected_url(source.kind, second.digest))
+    assert_cites_recorded_facts_only(body, expected_url(source.kind, second.digest), authors=[second.username])
     assert "zenodo" not in json.dumps(body)
 
 
@@ -273,7 +340,7 @@ async def test_a_withdrawn_publication_is_not_cited(name, world):
 
     body = await inspected(world, seeded.headers, digest=seeded.digest)
 
-    assert_cites_recorded_facts_only(body, expected_url(source.kind, seeded.digest))
+    assert_cites_recorded_facts_only(body, expected_url(source.kind, seeded.digest), authors=[seeded.username])
     assert "zenodo" not in json.dumps(body)
 
 
@@ -310,7 +377,7 @@ async def test_a_report_citation_is_dated_by_its_version_like_the_resolver_does(
     # The match keeps the report row's date; the citation dates the version the digest identifies.
     assert body["entities"][0]["entity_type"] == "report"
     assert int(body["entities"][0]["created_at"][:4]) == filed.year
-    assert_cites_recorded_facts_only(body, expected_url("report", seeded.digest))
+    assert_cites_recorded_facts_only(body, expected_url("report", seeded.digest), authors=[seeded.username])
 
 
 # [utest->req~resolver-verifier-citation-url~1]
@@ -330,7 +397,7 @@ async def test_a_file_outside_any_project_links_to_the_verifier_screen(world):
     body = await inspected(world, headers, digest=digest)
 
     assert [entity["entity_type"] for entity in body["entities"]] == ["artifact"]
-    assert_cites_recorded_facts_only(body, expected_url(None, digest))
+    assert_cites_recorded_facts_only(body, expected_url(None, digest), authors=[user["username"]])
 
 
 # -- nothing visible, nothing cited ---------------------------------------------------
@@ -417,7 +484,7 @@ async def test_an_uploaded_file_cites_its_visible_match(world):
 
     assert body["status"] == "verified" and body["digest"] == seeded.digest
     assert body["entities"][0]["entity_type"] == "artifact"
-    assert_cites_recorded_facts_only(body, expected_url("artifact", seeded.digest))
+    assert_cites_recorded_facts_only(body, expected_url("artifact", seeded.digest), authors=[seeded.username])
 
 
 # [utest->req~resolver-verifier-citation-no-invented-metadata~1]
