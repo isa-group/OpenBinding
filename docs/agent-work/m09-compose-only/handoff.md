@@ -1,15 +1,13 @@
-# Handoff: m09-compose-only (wake 10)
+# Handoff: m09-compose-only (wake 14)
 
 ## State
-- Change head after integrating 786a226e (round-1 fixes) and 51eaf817 (guard test uses REPO_ROOT, prunes dirs, tolerates OSError): 3298c107, plus this checkpoint commit. PR #60 (pushed head ebdd63a8 before this push).
-- Round-1 fixes: nginx and workers depend_on gateway restart: true; postgres healthcheck on 127.0.0.1; init: true on pg-backup/frontend-assets; entrypoint cat --; runbook: pre-flight (config --images, clean git status), typed secrets via read -rs, verified pre-release dump (pipefail, pg_restore --list), rollback as rollback_restore (new database) then rollback_swap, undoable PostgreSQL password rotation, drill guard, TLS modes, rootful Docker prerequisite; spec: production-network~1, guard exclusions; tests: success-path no-print, metacharacters, backup mutations, image variable map, etc. docs/agent-work/m09-compose-only/review/round1.md lists dispositions.
-- Verification task 42b4dcc9 runs the full gateway suite (deselect test_process_probe).
-- CI on ebdd63a8 had 2 reds: test (my guard test, fixed) and frontend changelog (coordinator regenerates after the final push).
+- Round-2 fixes (task fedc17ad, 401 tests in targeted checks green) integrated: head 12eab839 plus this checkpoint. Not yet pushed (pushed head f3b4e07a). CI on f3b4e07a: all green except frontend "Check generated changelog" (coordinator regenerates after final push).
+- Round-2 fixes: undo_password_rotation function and empty-value guards (ALTER ROLE never with empty value), put_secret aborts on failed .prev copy, fresh-host-only note, guarded drill_down, workers no longer restart:true with gateway (nginx only), runbook 502-after-gateway-restart section, bootstrap vars cleared in step 7, drill uses throwaway SPACE, pre-flight requires exact release tag and BACKUP_RETENTION_DAYS integer>=1, pg-backup sh -ec test with mutations, entrypoint tests with DATABASE_URL set so alembic_calls==[] can fail, .git skip case. Dispositions: docs/agent-work/m09-compose-only/review/round2.md.
 
-## Accepted follow-ups (list in PR)
-F7 non-root users and cap_drop for JVM engines, nginx, frontend-assets (needs Docker to verify); F8 owner extends OFT trace paths; non-superuser DB role; trusted proxy address / Redis auth; SPACE_URL https validator in Settings; base image digests; docker compose config never run (needs Docker or the S5 CI job); local SPACE vs INTENT.md:180; spec states *.yml/*.yaml workflow glob.
+## Follow-ups to list in PR
+F7 non-root users/cap_drop; F8 OFT trace paths; F9 nginx resolver for daemon-restarted gateway; non-superuser DB role; trusted proxy / Redis auth; SPACE_URL https validator in Settings; base image digests; docker compose config never run (needs Docker or S5 CI job); local SPACE vs INTENT.md:180; spec *.yml/*.yaml workflow glob; R2-SEC-006/007; R2-TST-005; R1-TST-002/010 undocumented.
 
 ## Next three steps
-1. When 42b4dcc9 is green: push chore/compose-production-overlay, update PR body.
-2. Round-2 panel on the pushed head; tell the coordinator the head is final (changelog).
-3. set_review_package, lead_ready.
+1. Push chore/compose-production-overlay, update PR body (follow-ups, INTENT.md:180 conflict).
+2. Round-3 panel on the pushed head (reviewer, test-reviewer, security-auditor); escalate if a major remains.
+3. Tell the coordinator the head is final (changelog), set_review_package, lead_ready.
