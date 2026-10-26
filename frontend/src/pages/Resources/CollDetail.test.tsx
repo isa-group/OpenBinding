@@ -207,7 +207,7 @@ describe('Collection detail', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Move Flujo de checkout · revision 1 down' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save as revision 2' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('1 item here was pinned from the library and can’t be re-pinned from this page: library-catalog · revision 3. Remove it to save, or edit this collection in the library.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('1 item here was pinned from the library and can’t be re-pinned from this page: library-catalog · revision 3. Remove it to save.');
     expect(platform.createCollectionRevision).not.toHaveBeenCalled();
   });
 

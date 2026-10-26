@@ -283,6 +283,7 @@ describe('the scan for retired addresses', () => {
         'const b = `${root}/collections`;',
         'const c = `/app/${org}/${project}/files`;',
         'const d = `/app/${slug}`;',
+        'const f = `${root}/resourcesx`;',
         "const e = '/v1/library/artifacts';",
         "// '/app/acme/library' in a comment",
       ].join('\n');

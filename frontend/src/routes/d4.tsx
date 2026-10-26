@@ -2,7 +2,7 @@ import { lazy } from 'react';
 import { live } from './define';
 import type { RouteDefinition } from './types';
 
-// D4 · Authoring, cases & library (11 screens)
+// D4 · Authoring, cases & collections (11 screens)
 
 const CaseList = lazy(() => import('../pages/Cases/CaseList').then((module) => ({ default: module.CaseList })));
 const CaseDetail = lazy(() => import('../pages/Cases/CaseDetail').then((module) => ({ default: module.CaseDetail })));

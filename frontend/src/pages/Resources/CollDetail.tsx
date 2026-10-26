@@ -237,7 +237,7 @@ function Body({ organization, project, access, collectionSlug }: { organization:
     if (!changed || !working || saving) return;
     const blocked = working.filter((entry) => entry.pin === null);
     if (blocked.length > 0) {
-      setProblem(`${plural(blocked.length, 'item')} here ${blocked.length === 1 ? 'was' : 'were'} pinned from the library and can’t be re-pinned from this page: ${blocked.map((entry) => entry.label).join(', ')}. Remove ${blocked.length === 1 ? 'it' : 'them'} to save, or edit this collection in the library.`);
+      setProblem(`${plural(blocked.length, 'item')} here ${blocked.length === 1 ? 'was' : 'were'} pinned from the library and can’t be re-pinned from this page: ${blocked.map((entry) => entry.label).join(', ')}. Remove ${blocked.length === 1 ? 'it' : 'them'} to save.`);
       return;
     }
     setSaving(true);

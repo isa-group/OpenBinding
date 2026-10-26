@@ -382,6 +382,7 @@ describe('the allow-list', () => {
   it('holds exactly the offenders that remain after slice 3', () => {
     expect(RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender)).toEqual([1, 2, 3, 4, 6, 8, 9, 10, 12, 13, 14, 15]);
     expect(UNLISTED_FINDINGS.map((entry) => entry.offender)).toEqual([16]);
+    expect(UNLISTED_FINDINGS.map((entry) => entry.file)).toEqual(['pages/Workbench/SourcePanel.tsx']);
     expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('pages/Analysis'))).toEqual([]);
   });
 

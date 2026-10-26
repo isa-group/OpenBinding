@@ -242,7 +242,7 @@ describe('One run', () => {
     expect(screen.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-5`);
   });
 
-  it('explains a run that failed because the engine takes single values only, and points at Engines and the candidates', async () => {
+  it('explains a run that failed because the engine takes single values only, and points at Engines', async () => {
     jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'failed', {
       result: {
         code: 'unsupported_capability_value',
@@ -259,6 +259,9 @@ describe('One run', () => {
     expect(within(notice).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
     // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(within(notice).queryByRole('link', { name: 'Edit the candidate' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Open the library' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /library/i })).toBeNull();
+    expect(screen.getAllByRole('link', { name: 'Engines' }).length).toBeGreaterThan(0);
   });
 
   it('says nothing about ranges when a run failed for another reason', async () => {

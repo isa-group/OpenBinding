@@ -317,6 +317,26 @@ describe('Case composer', () => {
       expect(screen.getByRole('button', { name: 'Create revision' })).toBeDisabled();
     });
 
+    // [utest->req~frontend-retire-library-entry-points-removed~1]
+    it('leads nowhere near the retired library from the page, the issue on a resource or its row', async () => {
+      renderComposer();
+      await settled();
+      cases.resolveVersion.mockRejectedValue(refusal(404, 'not_found'));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
+
+      const alerts = await screen.findAllByRole('alert');
+      expect(alerts[0]).toHaveTextContent('A version can’t be reached (404 · not_found)');
+      expect(screen.queryByRole('link', { name: /library/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /library/i })).toBeNull();
+      const hrefs = Array.from(document.body.querySelectorAll('a[href]')).map((link) => link.getAttribute('href'));
+      expect(hrefs.filter((href) => href?.includes('/library'))).toEqual([]);
+      expect(screen.queryByText(/open in library|find in library/i)).toBeNull();
+      const row = screen.getByRole('region', { name: 'Application' });
+      expect(within(row).queryByText(/open in library|find in library/i)).toBeNull();
+      expect(within(row).queryByRole('link')).toBeNull();
+    });
+
     it('keeps the choices and explains a dialect the deployment does not have (422)', async () => {
       cases.createRevision.mockRejectedValue(refusal(422, 'contract_mismatch'));
       renderComposer();

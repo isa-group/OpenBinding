@@ -41,6 +41,7 @@ describe('buildCommands', () => {
     expect(inProject.filter((command) => command.label === 'Library')).toEqual([]);
     const collections = inProject.filter((command) => command.label === 'Collections');
     expect(collections.map((command) => [command.group, command.href])).toEqual([['Project', '/app/isa-demo/qos-benchmarks/collections']]);
+    expect(collections[0]?.desc).toMatch(/^Problems grouped into suites/);
     expect(collections[0]?.desc).toContain('QoS benchmarks');
     for (const commands of [inProject, without]) {
       expect(commands.filter((command) => /\/(library|resources)([/?#]|$)/.test(command.href))).toEqual([]);

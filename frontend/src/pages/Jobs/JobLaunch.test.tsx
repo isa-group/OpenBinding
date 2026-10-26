@@ -145,7 +145,7 @@ describe('Start a run', () => {
       diagnostics: [{ ...RANGE_DIAGNOSTIC }], ...over,
     });
 
-    it('turns off the engines that take single values only, with the reason, and links to Engines and to the candidates', async () => {
+    it('turns off the engines that take single values only, with the reason, and links to Engines', async () => {
       casesApi.instanceIr.mockResolvedValue(ranged);
       casesApi.analyseSnapshot.mockResolvedValue(analysis({
         compatibleModes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }, refusedRanges({})],
@@ -163,6 +163,8 @@ describe('Start a run', () => {
       expect(within(notice).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
       // [utest->req~frontend-retire-library-entry-points-removed~1]
       expect(within(notice).queryByRole('link', { name: 'edit the candidates' })).toBeNull();
+      expect(within(notice).queryByRole('link', { name: /library/i })).toBeNull();
+      expect(screen.queryByRole('link', { name: 'Open the library' })).toBeNull();
       expect(casesApi.instanceIr).toHaveBeenCalledWith('snap-2');
     });
 
