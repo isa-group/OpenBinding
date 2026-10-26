@@ -1,1 +1,1 @@
-Done: S0 spec, S2, S5a, S3, S4, S5, S6+S7, S9, round-1 fixes (a636c93f). Remaining: changelog regeneration (last commit), push, round-2 panel (reviewer, arch-reviewer verify findings; test-reviewer; security-auditor), review package, lead_ready.
+Done: all slices, round-1 and round-2 fixes (R2-REV-001 root files to bim area, verified by lab 678 passed). Remaining: push, CI, coordinator note on no round 3, set_review_package, lead_ready. Task cap (30) is reached: no more tasks possible.
