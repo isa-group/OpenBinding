@@ -159,7 +159,7 @@ openbinding-gateway/src/openbinding_gateway/
   for engine transports (built-in, federated) and adapter tiers (§8).
 - Enforcement: the empty packages `openbinding_gateway/app`, `shared` and `modules` exist, with import-linter
   contracts in `openbinding-gateway/importlinter-modules.ini`: `kernel` (`shared` imports no module, composition
-  root or legacy layer), `composition-root` (only the composition root imports `app`), `no-legacy-http` (modules
+  root or legacy layer), `composition-root` (modules and shared do not import `app`), `no-legacy-http` (modules
   do not import `routes` or `main`), `module-layers` (the order above, `exhaustive`), `module-inside`
   (`adapters → application → domain`) and `pure-domain` (no framework, client or adapter in `domain`). Run them
   from `openbinding-gateway` with

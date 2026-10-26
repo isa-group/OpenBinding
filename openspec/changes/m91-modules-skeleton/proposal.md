@@ -17,7 +17,7 @@ only through `application` and a `domain` free of FastAPI, SQLAlchemy and HTTP c
 - Three docstring-only packages in `openbinding-gateway/src/openbinding_gateway/`: `app/` (future composition root),
   `shared/` (kernel) and `modules/` (bounded contexts). No code moves; `docs/openapi.json` stays byte-identical.
 - A second import-linter configuration, `openbinding-gateway/importlinter-modules.ini`, with six contracts for the
-  new packages: the kernel imports no module, only the composition root imports `app`, modules do not import the
+  new packages: the kernel imports no module, modules and shared do not import `app`, modules do not import the
   legacy `routes` or `main`, modules form the layers of ARCHITECTURE §4.2, and inside a module
   `adapters → application → domain` with a framework-free `domain` (design.md §2).
 - A gateway AST test that fails when code outside a module, other than `main` and `app`, imports anything of that

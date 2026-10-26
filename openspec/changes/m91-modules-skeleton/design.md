@@ -47,7 +47,7 @@ forbidden_modules =
     openbinding_gateway.jobs
 
 [importlinter:contract:composition-root]
-name = only the composition root imports app
+name = modules and shared do not import the composition root
 type = forbidden
 source_modules =
     openbinding_gateway.modules
