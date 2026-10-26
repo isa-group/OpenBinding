@@ -376,7 +376,6 @@ const viewports = [
 const ROOT = '/app/isa-demo/qos-benchmarks';
 const API_ROOT = '/v1/organizations/isa-demo/projects/qos-benchmarks';
 const FILES = `${ROOT}/files`;
-const RESOURCES = `${ROOT}/resources`;
 const COLLECTIONS = `${ROOT}/collections`;
 const ARCHIVE = 'ZIP archive · sha256-aaaa…aaaa';
 const CSV_ROW = /CSV · sha256-bbbb…bbbb/;
@@ -384,7 +383,7 @@ const CSV_ROW = /CSV · sha256-bbbb…bbbb/;
 const csvFile = (name: string, content = 'a,b\n1,2\n') => ({ name, mimeType: 'text/csv', buffer: Buffer.from(content) });
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
-  test.describe(`${name} · S5c files, resources and collections`, () => {
+  test.describe(`${name} · S5c files and collections`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
     test('proj-files /app/:org/:project/files', async ({ page }, testInfo) => {
@@ -540,7 +539,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(first.getByText('1 resource version')).toBeVisible();
       await expect(first.getByText('3 items · revision 2')).toBeVisible();
       await expect(cards.getByRole('listitem').nth(1).getByText('No revision yet')).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Library sections' }).getByText('Collections')).toHaveAttribute('aria-current', 'page');
+      await expect(page.getByRole('navigation', { name: 'Library sections' })).toHaveCount(0);
+      await expect(page.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Collections' })).toHaveAttribute('aria-current', 'page');
       await expect(main.getByRole('meter', { name: 'Sponsor’s collections used' })).toHaveAttribute('aria-valuetext', '2 of 50');
       await capture(page, testInfo, `collections-${name}-success`);
 
@@ -632,7 +632,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Referencias checkout' })).toBeVisible();
       await expect(items.getByRole('listitem')).toHaveCount(3);
       await expect(items.getByRole('link', { name: 'Flujo de checkout · revision 1' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/revisions/1`);
-      await expect(items.getByRole('link', { name: 'Weights · revision 1' })).toHaveAttribute('href', `${RESOURCES}/weights`);
+      // A resource pin is plain text: the resource screens are retired, so it leads nowhere.
+      const pin = items.getByRole('listitem').filter({ hasText: 'Weights · revision 1' });
+      await expect(pin).toHaveCount(1);
+      await expect(pin.getByRole('link')).toHaveCount(0);
+      await expect(items.locator('a[href*="/resources"], a[href*="/library"]')).toHaveCount(0);
       await expect(main.getByText('Revision 2 · 3 items · What a reviewer needs to reproduce the published comparison.')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Revision 2 · 3 items' })).toHaveAttribute('aria-pressed', 'true');
       await expect(main.getByRole('link', { name: 'Start a study from this' })).toHaveAttribute('href', `${ROOT}/studies/new?collection=referencias-checkout`);

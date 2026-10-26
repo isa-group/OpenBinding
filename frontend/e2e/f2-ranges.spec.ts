@@ -150,7 +150,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const notice = main.locator('.ui-notice').filter({ hasText: 'This package has range features' });
       await expect(notice).toContainText('The engines marked “Can’t run this” only accept single values.');
       await expect(notice.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-      await expect(notice.getByRole('link', { name: 'edit the candidates' })).toHaveAttribute('href', '/app/isa-demo/library');
+      await expect(notice.getByRole('link', { name: /library|edit the candidates/i })).toHaveCount(0);
       await capture(page, testInfo, `launch-engines-${name}`);
 
       await main.getByRole('button', { name: 'Continue' }).click();
@@ -161,7 +161,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const alert = main.getByRole('alert').filter({ hasText: 'This engine only accepts single values' });
       await expect(alert).toContainText(`featureValues interval is not declared by this mode (${pointer})`);
       await expect(alert.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-      await expect(alert.getByRole('link', { name: 'Edit the candidate' })).toHaveAttribute('href', '/app/isa-demo/library');
+      await expect(alert.getByRole('link', { name: /library|Edit the candidate/i })).toHaveCount(0);
       await capture(page, testInfo, `launch-refused-${name}`);
       expect(critical).toEqual([]);
     });
@@ -207,7 +207,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     expect(critical).toEqual([]);
   });
 
-  test('job-detail · a run the engine refused for ranges says so and leads to the engines and to the candidate', async ({ page }, testInfo) => {
+  test('job-detail · a run the engine refused for ranges says so and leads to the engines', async ({ page }, testInfo) => {
     const critical = watchCriticalErrors(page);
     await installMockApi(page, 'admin');
     const pointer = '/spec/candidates/providers/candidates/authenticate-3/features/latency';
@@ -224,7 +224,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     await expect(alert).toContainText(`featureValues interval is not declared by this mode (${pointer})`);
     await expect(alert).not.toContainText('Nothing was started.');
     await expect(alert.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-    await expect(alert.getByRole('link', { name: 'Edit the candidate' })).toHaveAttribute('href', '/app/isa-demo/library');
+    await expect(alert.getByRole('link', { name: /library|Edit the candidate/i })).toHaveCount(0);
     await capture(page, testInfo, 'job-detail-desktop-range-failure');
     expect(critical).toEqual([]);
   });
