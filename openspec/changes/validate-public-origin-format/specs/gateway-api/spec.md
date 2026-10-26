@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Public origin format
-IF `PUBLIC_BASE_URL` or `FRONTEND_URL` is not a public origin of the form defined in the first scenario, THEN THE gateway SHALL refuse to start, in every `APP_ENV`.
+IF `PUBLIC_BASE_URL` or `FRONTEND_URL` is not a public origin, that is `http` or `https`, `://`, a host, an optional `:port` and an optional single `/`, with no userinfo, path, query or fragment, THEN THE gateway SHALL refuse to start, in every `APP_ENV`.
 
 `req~gateway-api-public-origin-format~1`
 
@@ -61,7 +61,7 @@ Needs: impl, utest
 Evidence: `openbinding-gateway/src/openbinding_gateway/core/settings.py` (`_require_origin`, tagged `[impl->req~gateway-api-public-origin-format~1]`); `openbinding-gateway/tests/test_public_origin.py` (tagged `[utest->req~gateway-api-public-origin-format~1]`)
 
 ### Requirement: CORS origin entry format
-IF an entry of `CORS_ALLOW_ORIGINS` is neither exactly `*` nor a browser origin of the form defined in the first scenario, THEN THE gateway SHALL refuse to start, in every `APP_ENV`.
+IF an entry of `CORS_ALLOW_ORIGINS` is neither exactly `*` nor a browser origin, that is `http` or `https`, `://`, a host and an optional `:port`, with no userinfo, path, query, fragment or trailing `/`, THEN THE gateway SHALL refuse to start, in every `APP_ENV`.
 
 `req~gateway-api-cors-origin-format~1`
 
@@ -118,7 +118,7 @@ Needs: impl, utest
 Evidence: `openbinding-gateway/src/openbinding_gateway/core/settings.py` (`_require_origin`, `well_formed_public_origins`, tagged `[impl->req~gateway-api-cors-origin-format~1]`); `openbinding-gateway/tests/test_public_origin.py` (tagged `[utest->req~gateway-api-cors-origin-format~1]`)
 
 ### Requirement: Origin error names the value with userinfo masked
-WHEN the gateway refuses to start because `PUBLIC_BASE_URL`, `FRONTEND_URL` or an entry of `CORS_ALLOW_ORIGINS` is malformed, THE gateway SHALL report an error that names the variable and the offending value with its userinfo masked, as defined in the first scenario.
+WHEN the gateway refuses to start because `PUBLIC_BASE_URL`, `FRONTEND_URL` or an entry of `CORS_ALLOW_ORIGINS` is malformed, THE gateway SHALL report an error that names the variable and the offending value with the userinfo (the text between `://` and the last `@`) replaced by `***`.
 
 `req~gateway-api-origin-error-masking~1`
 
