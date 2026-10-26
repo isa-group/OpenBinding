@@ -152,15 +152,24 @@ All `kind` parameters strictly use **kebab-case**:
   exact version. A DOI is shown only when it is well-formed; otherwise `doi` is
   `null`. Without a recorded publication both `doi` and `venue` are `null`.
 * `authors` is `[]` when none is recorded.
+* `doi`, `venue` and `authors` come only from the recorded publication of the
+  exact library version. A withdrawn publication is not cited.
 * `year` comes from the recorded citation; if there is none, from the
-  publication date; if there is none, from the sealed or created date
-  (`req~resolver-verifier-citation-year~1`).
+  publication date; if there is none, from the creation date of the cited
+  version or element (`req~resolver-verifier-citation-year~1`).
 * `url` and the badge link are on the configured `FRONTEND_URL` origin and are
-  the public permanent link `/resolve/<kind>/<digest>`. When the element has no
-  resolvable kind they are `/app/verifier?digest=<digest>`
+  the public permanent link `/resolve/<kind>/<digest>`
   (`req~resolver-verifier-citation-url~1`).
-* The verifier returns `citation: null` when no visible item matches the
-  digest; hidden and unknown digests give the same answer.
+
+For `POST /v1/verifier/inspect` and `/inspect-file`:
+
+* `citation` is `null` when no visible element matches the digest: computed,
+  mismatch, not_found, hidden and unknown digests all alike.
+* Otherwise the first visible match is cited. Its `kind` is `case-revision`,
+  `collection-revision`, `report`, `artifact` or `engine`.
+* A snapshot, a study run and a file that belongs to no project have no
+  resolvable link; they use `/app/verifier?digest=<digest>`. A snapshot
+  resolves only for its owner.
 
 #### `locations[].web_url`
 
