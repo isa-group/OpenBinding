@@ -16,6 +16,48 @@ permissions:
   contents: read
 
 jobs:
+  # [impl->req~ci-speed-change-detection~1]
+  # Decides which areas a pull request touches; a push or manual run reports every area as changed.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      e2e: ${{ steps.areas.outputs.e2e }}
+      bim: ${{ steps.areas.outputs.bim }}
+      engines: ${{ steps.areas.outputs.engines }}
+      gateway: ${{ steps.areas.outputs.gateway }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect the changed areas
+        id: areas
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+          EVENT: ${{ github.event_name }}
+        run: python3 tools/ci_changes.py --base "$BASE_SHA" --head "$HEAD_SHA" --event "$EVENT"
+
+  # [impl->req~ci-speed-required-aggregate~1]
+  # The one check to require in branch protection: a skipped area passes, a failed or cancelled job does not.
+  ci-required:
+    needs: [changes, bim-corpus, bim-toolchain, lab, openspec, trace, engines, test, frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check the needed jobs
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: python3 tools/ci_required.py
+
   # Structural checks catch retired syntax, but only compilation proves that
   # every migrated package lowers through the installed BIM Profile and
   # Dialects into a canonical BindingProblem. Keep this job on the full
@@ -79,6 +121,8 @@ jobs:
   # gateway's locked environment, until the toolchain moves to its own repository.
   # These are tests, so no step is report-only.
   bim-toolchain:
+    needs: changes
+    if: needs.changes.outputs.bim == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -230,7 +274,10 @@ jobs:
   # builder that could not solve a single repeat workflow, and a Java unit test
   # that had been failing for months, both went unnoticed.
   engines:
+    needs: changes
+    if: needs.changes.outputs.engines == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -265,7 +312,10 @@ jobs:
           pnpm test
 
   test:
+    needs: changes
+    if: needs.changes.outputs.gateway == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       COMPOSE_PROFILES: dev,federated-example
     
@@ -348,6 +398,7 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

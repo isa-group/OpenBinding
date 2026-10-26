@@ -77,7 +77,8 @@ def _step(job: dict, text: str) -> dict:
 
 def _fails_job(job: dict, step: dict, *, allow_if: bool = False, allow_pipe: bool = False) -> None:
     """Assert that a failure of ``step`` fails the job: nothing masks its exit status or skips it."""
-    assert "continue-on-error" not in job and "if" not in job, "job-level continue-on-error or if"
+    assert "continue-on-error" not in job, "job-level continue-on-error"
+    assert job.get("if") in (None, "needs.changes.outputs.bim == 'true'"), f"job-level if: {job.get('if')!r}"
     assert "defaults" not in job, "job-level defaults (could change the shell)"
     assert any(step is s for s in job["steps"]), "the step is not a step of the job"
     assert "continue-on-error" not in step, f"step-level continue-on-error: {step.get('name')}"
@@ -426,7 +427,9 @@ def test_bim_toolchain_job_runs_package_tests():
     assert isinstance(trigger, dict) and "pull_request" in trigger, f"ci.yml does not trigger on pull_request: {trigger!r}"
     assert "paths" not in (trigger["pull_request"] or {}), "the pull_request trigger has a paths filter"
     job = _job("bim-toolchain")
-    assert "if" not in job
+    assert job.get("if") == "needs.changes.outputs.bim == 'true'", f"if: {job.get('if')!r}"
+    needs = job.get("needs")
+    assert needs == "changes" or needs == ["changes"], f"needs: {needs!r}"
     assert all("continue-on-error" not in s for s in job["steps"])
     ensure = _step(job, "xsd_inventory.py --ensure")
     sync = _step(job, "uv sync --locked --project openbinding-gateway --extra test")
