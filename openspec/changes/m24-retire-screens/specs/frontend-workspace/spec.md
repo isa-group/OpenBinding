@@ -7,15 +7,8 @@ THE route registry SHALL declare no screen whose id or path belongs to a screen 
 
 Needs: impl, utest
 
-Evidence: `frontend/src/routes/routes.test.ts`; `frontend/src/routes/d6.tsx`
-
-The retired screens of slice 1 are `analysis-sources` at `/app/analysis` and `analysis-workspace` at
-`/app/analysis/workspace`, whose pages were in `frontend/src/pages/Analysis/`. Slices 2–5 add the report editor, the
-library catalogue and project resources, the composer and sponsorship. A retired address is still answered, by the
-redirect table (requirement "Old addresses redirect through one table"), never by a screen.
-
 #### Scenario: Slice 1 ids are gone
-- **GIVEN** the route registry after slice 1
+- **GIVEN** the route registry after slice 1, whose retired screens are `analysis-sources` at `/app/analysis` and `analysis-workspace` at `/app/analysis/workspace` (pages in `frontend/src/pages/Analysis/`; slices 2–5 add the report editor, the library catalogue and project resources, the composer and sponsorship)
 - **WHEN** the registry test lists the ids of `routeDefinitions`
 - **THEN** neither `analysis-sources` nor `analysis-workspace` is among them
 
@@ -25,19 +18,17 @@ redirect table (requirement "Old addresses redirect through one table"), never b
 - **THEN** neither `/app/analysis` nor `/app/analysis/workspace` is among them
 - **AND** the D6 list of the registry test reads `study-list`, `study-builder`, `study-detail`, `study-run`, `study-cell`, `study-analytics`, `rep-list`, `rep-detail`, `proj-publications`, `verifier`
 
+Evidence: `frontend/src/routes/routes.test.ts`; `frontend/src/routes/d6.tsx`
+
+A retired address is answered by the redirect table (requirement "Old addresses redirect through one table"), never by
+a screen.
+
 ### Requirement: Old addresses redirect through one table
 WHEN a person opens an address whose path is a retired path of `frontend/src/routes/retiredRoutes.tsx`, THE frontend SHALL replace the current history entry with the target that the table's rule for that path computes from the query, without rendering a retired screen.
 
 `req~frontend-retire-redirect-generic~1`
 
 Needs: impl, utest
-
-Evidence: `frontend/src/routes/retiredRoutes.test.tsx` (new); `frontend/src/routes/AppRoutes.test.tsx`
-
-The table is the only place that knows retired addresses; every slice adds its entries to it. Each target is an
-absolute address of a routed screen. The redirect sits behind the client-side guard
-(living requirement "Client-side guard"), so a visitor without a session signs in first and is then redirected. A
-retired path takes precedence over the dynamic organization and project paths (`/app/:org`, `/app/:org/:project`).
 
 #### Scenario: The history entry is replaced
 - **GIVEN** a signed-in person on `/app/account` who follows a link to `/app/analysis/workspace?job=job-done-3`
@@ -62,18 +53,18 @@ retired path takes precedence over the dynamic organization and project paths (`
 - **THEN** each target resolves to a routed screen
 - **AND** no retired path of the table is the path of a route definition
 
+Evidence: `frontend/src/routes/retiredRoutes.test.tsx` (new); `frontend/src/routes/AppRoutes.test.tsx`
+
+The table is the only place that knows retired addresses; its targets are absolute addresses of routed screens, and
+every slice extends it. It sits behind the client-side guard (living requirement "Client-side guard"), and a retired
+path takes precedence over `/app/:org` and `/app/:org/:project`.
+
 ### Requirement: Decision-space addresses redirect to the study or the job history
-WHEN a person opens `/app/analysis` or `/app/analysis/workspace`, THE frontend SHALL redirect to `/app/<org>/<project>/studies/<study>/runs/<run>` if the query carries `org`, `project`, `study` and `run`, otherwise to `/app/<org>/<project>/studies/<study>` if it carries `org`, `project` and `study`, otherwise to `/app/jobs`, with no query parameter in the target.
+WHEN a person opens `/app/analysis` or `/app/analysis/workspace`, THE frontend SHALL redirect to the study run if the query carries `org`, `project`, `study` and `run`, otherwise to the study if it carries `org`, `project` and `study`, otherwise to `/app/jobs`, with no query in the target.
 
 `req~frontend-retire-redirect-decision-space~1`
 
 Needs: impl, utest
-
-Evidence: `frontend/src/routes/retiredRoutes.test.tsx` (new)
-
-"Carries" means the key is present with a non-empty value; the first value of a repeated key is used. Each value is
-percent-encoded as one path segment. Every other query parameter (`job`, `report`, `cell` and any unknown one) is
-dropped. Both paths follow the same rule.
 
 #### Scenario: A study run
 - **GIVEN** a signed-in person
@@ -105,19 +96,18 @@ dropped. Both paths follow the same rule.
 - **WHEN** the person opens `/app/analysis?org=isa-demo&project=qos-benchmarks&study=seeds%2F2026&study=other`
 - **THEN** the address becomes `/app/isa-demo/qos-benchmarks/studies/seeds%2F2026`
 
+Evidence: `frontend/src/routes/retiredRoutes.test.tsx` (new)
+
+Both paths follow the same rule. The study run is `/app/<org>/<project>/studies/<study>/runs/<run>` and the study
+`/app/<org>/<project>/studies/<study>`. "Carries" means the key is present with a non-empty value; the first value of a
+repeated key is used; every other query parameter (`job`, `report`, `cell`, any unknown one) is dropped.
+
 ### Requirement: No link leads to a retired address
-IF a source file under `frontend/src`, other than a test file, a file under `src/test/` and `routes/retiredRoutes.tsx`, holds a string or template literal that starts with a retired path of the redirect table followed by the end of the literal, `/`, `?`, `#` or `${`, THEN the frontend test suite SHALL fail naming the file and the literal.
+IF a non-test source file under `frontend/src` other than `routes/retiredRoutes.tsx` holds a string or template literal that starts with a retired path of the redirect table, THEN the frontend test suite SHALL fail naming the file and the literal.
 
 `req~frontend-retire-no-link-to-retired~1`
 
 Needs: impl, utest
-
-Evidence: `frontend/src/routes/links.test.ts`
-
-This covers every literal, not only `to`, `href` and `navigate`: an address kept in a variable is a link too. The
-literals of slice 1 removed or re-pointed are those of the job detail, job list, job history, binding analysis card,
-study analytics and report page (design.md §3). An address built from pieces (`'/app/' + 'analysis'`) is a known limit
-(design.md §6).
 
 #### Scenario: A link in a variable is reported
 - **GIVEN** the synthetic source `pages/X.tsx` holding ``const href = `/app/analysis/workspace?job=${id}`;`` and the retired paths `/app/analysis` and `/app/analysis/workspace`
@@ -135,11 +125,23 @@ study analytics and report page (design.md §3). An address built from pieces (`
 - **WHEN** the link scan reads it
 - **THEN** it returns an empty list
 
+#### Scenario: Files under the test folder are exempt
+- **GIVEN** the synthetic source `test/helpers.ts` holding `'/app/analysis'`
+- **WHEN** the link scan reads it
+- **THEN** it returns an empty list
+
 #### Scenario: The application sources hold no retired address
 - **GIVEN** the application sources after slice 1
 - **WHEN** the link scan reads them
 - **THEN** it returns an empty list
 - **AND** the job detail of the completed job `job-done-3`, the job history row of `job-done-1`, the job list with `job-done-3` selected, the binding analysis card of `job-a`, the study analytics page and a report holding a decision render no link named `Analyze`, `Analyze 1 selected`, `Open analysis`, `Weigh trade-offs` or `Reopen decision space`
+
+Evidence: `frontend/src/routes/links.test.ts`
+
+This covers every literal, not only `to`, `href` and `navigate`. The retired path must be followed by the end of the
+literal, `/`, `?`, `#` or `${`. The literals removed or re-pointed in slice 1 are those of the job detail, job list,
+job history, binding analysis card, study analytics and report page (design.md §3). An address built from pieces
+(`'/app/' + 'analysis'`) is a known limit (design.md §6).
 
 ### Requirement: Main navigation without retired screens
 THE main navigation SHALL offer no entry whose address is a retired path of the redirect table, alone or followed by `/`, `?` or `#`.
@@ -148,21 +150,21 @@ THE main navigation SHALL offer no entry whose address is a retired path of the 
 
 Needs: impl, utest
 
-Evidence: `frontend/src/components/PlatformShell/appNavigation.test.ts`; `frontend/src/components/PlatformShell/AppHeader.test.tsx`
-
-For slice 1 the entry `Analysis` (`/app/analysis`) and its section of the current-section rule go; the other entries
-keep their order.
-
 #### Scenario: No Analysis entry
 - **GIVEN** a signed-in person on `/app/jobs`
 - **WHEN** the application header is rendered
 - **THEN** its navigation has no link named `Analysis`
 - **AND** no link of the header has an `href` that starts with `/app/analysis`
+- **AND** the current-section rule has no section for `/app/analysis`
 
 #### Scenario: Main links
 - **GIVEN** the main links of `appNavigation.ts`
 - **WHEN** they are listed
 - **THEN** their addresses are `/app`, `/app/jobs`, `/explore` and `/app/admin`, and none is a retired path
+
+Evidence: `frontend/src/components/PlatformShell/appNavigation.test.ts`; `frontend/src/components/PlatformShell/AppHeader.test.tsx`
+
+For slice 1 the entry `Analysis` (`/app/analysis`) goes; the other entries keep their order.
 
 ### Requirement: Command palette without retired screens
 THE command palette SHALL offer no command whose address is a retired path of the redirect table, alone or followed by `/`, `?` or `#`.
@@ -171,16 +173,16 @@ THE command palette SHALL offer no command whose address is a retired path of th
 
 Needs: impl, utest
 
-Evidence: `frontend/src/components/PlatformShell/paletteCommands.test.ts` (new); `frontend/src/components/PlatformShell/CommandPalette.test.tsx`
-
-For slice 1 the command `Go to › Analysis` goes. Commands built from loaded data (organizations, projects) are checked
-with the same rule.
-
 #### Scenario: No Analysis command
 - **GIVEN** `buildCommands` with an organization `isa-demo`, a project `qos-benchmarks` selected and an administrator
 - **WHEN** the commands are built
 - **THEN** no command is labelled `Analysis`
 - **AND** no command has an `href` that is `/app/analysis` or starts with `/app/analysis/`, `/app/analysis?` or `/app/analysis#`
+- **AND** the commands built from loaded data (organizations, projects) follow the same rule
+
+Evidence: `frontend/src/components/PlatformShell/paletteCommands.test.ts` (new); `frontend/src/components/PlatformShell/CommandPalette.test.tsx`
+
+For slice 1 the command `Go to › Analysis` goes.
 
 ### Requirement: Offenders leave the allow-list with their screens
 THE raw-rendering allow-list SHALL hold no entry for a raw-rendering line that a delivered slice of M2.4 removed with its screens.
@@ -189,16 +191,8 @@ THE raw-rendering allow-list SHALL hold no entry for a raw-rendering line that a
 
 Needs: impl, utest
 
-Evidence: `frontend/src/test/rawRenderingHygiene.test.ts`; `frontend/src/test/rawRenderingAllowList.ts`
-
-For slice 1: offender 7 (`pages/Analysis/Inspector.tsx`, deleted) leaves `RAW_RENDERING_ALLOW_LIST`, and unlisted
-finding 17 (`pages/Analysis/SavedDecision.tsx`, whose decision view moves to the report page without
-`JSON.stringify`, design.md §4) leaves `UNLISTED_FINDINGS`. Offenders 5 and 11 leave with slices 2 and 3. A stale
-entry already fails the hygiene test (requirement "Raw-rendering hygiene with a shrinking allow-list" of the change
-`m21-rendering-catalogue`).
-
 #### Scenario: Slice 1 entries are gone
-- **GIVEN** the allow-list after slice 1
+- **GIVEN** the allow-list after slice 1, where offender 7 (`pages/Analysis/Inspector.tsx`, deleted) leaves `RAW_RENDERING_ALLOW_LIST` and unlisted finding 17 (`pages/Analysis/SavedDecision.tsx`, whose decision view moves to the report page without `JSON.stringify`, design.md §4) leaves `UNLISTED_FINDINGS`
 - **WHEN** the hygiene test reads it
 - **THEN** the offender numbers of `RAW_RENDERING_ALLOW_LIST` read 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15
 - **AND** `UNLISTED_FINDINGS` holds only finding 16, `pages/Workbench/SourcePanel.tsx`
@@ -209,6 +203,11 @@ entry already fails the hygiene test (requirement "Raw-rendering hygiene with a 
 - **WHEN** `unlistedFindings`, `staleEntries` and `wrongLineNumbers` read them
 - **THEN** each returns an empty list
 
+Evidence: `frontend/src/test/rawRenderingHygiene.test.ts`; `frontend/src/test/rawRenderingAllowList.ts`
+
+Offenders 5 and 11 leave with slices 2 and 3. A stale entry already fails the hygiene test (requirement
+"Raw-rendering hygiene with a shrinking allow-list" of the change `m21-rendering-catalogue`).
+
 ### Requirement: Allow-list ceiling equals its entries
 IF `MAX_ALLOWED_OFFENDERS` in `frontend/src/test/rawRenderingAllowList.ts` differs from the number of entries of `RAW_RENDERING_ALLOW_LIST`, THEN the hygiene test SHALL fail naming both numbers.
 
@@ -216,15 +215,12 @@ IF `MAX_ALLOWED_OFFENDERS` in `frontend/src/test/rawRenderingAllowList.ts` diffe
 
 Needs: impl, utest
 
-Evidence: `frontend/src/test/rawRenderingHygiene.test.ts`
-
-The ceiling drops by the number of offenders each slice removes: from 15 to 14 in slice 1. The offender numbers are a
-strictly increasing subset of 1–15. `UNLISTED_FINDINGS` is not counted.
-
 #### Scenario: Slice 1 ceiling
-- **GIVEN** the allow-list after slice 1
+- **GIVEN** the allow-list after slice 1, where the ceiling drops from 15 to 14
 - **WHEN** the hygiene test reads it
 - **THEN** `MAX_ALLOWED_OFFENDERS` is 14 and `RAW_RENDERING_ALLOW_LIST` has 14 entries
+- **AND** the offender numbers are a strictly increasing subset of 1–15
+- **AND** `UNLISTED_FINDINGS` is not counted
 
 #### Scenario: A ceiling left high
 - **GIVEN** a ceiling of 15 and 14 entries
@@ -237,17 +233,16 @@ strictly increasing subset of 1–15. `UNLISTED_FINDINGS` is not counted.
 - **THEN** it returns `MAX_ALLOWED_OFFENDERS is 13 but the allow-list has 14 entries`
 - **AND** for a ceiling of 14 and 14 entries it returns nothing
 
+Evidence: `frontend/src/test/rawRenderingHygiene.test.ts`
+
+The ceiling drops by the number of offenders each slice removes.
+
 ### Requirement: Screen count drops with the retirements
 THE route registry SHALL hold 82 screens minus the screens retired by the delivered slices of M2.4.
 
 `req~frontend-retire-screen-count~1`
 
 Needs: impl, utest
-
-Evidence: `frontend/src/routes/routes.test.ts`
-
-82 is the count before M2.4. After slice 1 (two screens) the registry holds 80, and domain D6 holds 10 instead of 12;
-the other domains keep their counts. The redirect entries of `retiredRoutes.tsx` are not screens and are not counted.
 
 #### Scenario: Slice 1 count
 - **GIVEN** the route registry after slice 1
@@ -260,25 +255,31 @@ the other domains keep their counts. The redirect entries of `retiredRoutes.tsx`
 - **WHEN** the registry test runs
 - **THEN** it fails, counting 81 screens instead of 80
 
+Evidence: `frontend/src/routes/routes.test.ts`
+
+82 is the count before M2.4. After slice 1 (two screens) the registry holds 80, and domain D6 holds 10 instead of 12;
+the other domains keep their counts. The redirect entries of `retiredRoutes.tsx` are not screens and are not counted.
+
 ### Requirement: Gateway untouched by screen retirements
 THE screen retirements of M2.4 SHALL leave the gateway's endpoints and their responses unchanged, with no `Deprecation` or `Sunset` header added.
 
 `req~frontend-retire-gateway-untouched~1`
 
-Evidence: the diff of the PR (no changed path under `openbinding-gateway/`, `engines/` or `docs/openapi.json`) checked by the reviewer; the existing gateway tests of `/v1/analysis/*` under `openbinding-gateway/tests/` (`test_binding_analysis.py`, `test_archive_analysis.py`, `test_apikey_analysis_scopes.py`) keep passing
-
-This requirement has no code and no test of its own in the frontend (no `Needs:` coverage): it is a constraint on the
-diff, checked by the reviewer, and the gateway's own tests are untouched. Retiring the endpoints, their `Deprecation` and `Sunset` headers, the `analysis` queue and its worker need an owner CRP
-(ROADMAP M2.4, M9.6, ADR-0020 decision 5) and are not part of this change. No file under `openbinding-gateway/` and no
-operation of `docs/openapi.json` changes.
-
 #### Scenario: Slice 1 diff
 - **GIVEN** the diff of the slice-1 PR against `develop`
 - **WHEN** its changed paths are listed
 - **THEN** none is under `openbinding-gateway/`, `engines/` or `docs/openapi.json`
+- **AND** no operation of `docs/openapi.json` changes
+- **AND** the gateway's own tests are untouched
 
 #### Scenario: The analysis endpoints still answer
 - **GIVEN** the gateway built from the slice-1 PR head
-- **WHEN** its tests of `/v1/analysis/sources` and the other `/v1/analysis/*` operations run
+- **WHEN** its tests of `/v1/analysis/sources` and the other `/v1/analysis/*` operations (`test_binding_analysis.py`, `test_archive_analysis.py`, `test_apikey_analysis_scopes.py` under `openbinding-gateway/tests/`) run
 - **THEN** they pass as on `develop`
 - **AND** no response of those operations carries a `Deprecation` or `Sunset` header
+
+Evidence: the diff of the PR (no changed path under `openbinding-gateway/`, `engines/` or `docs/openapi.json`) checked by the reviewer; the gateway tests of `/v1/analysis/*` keep passing
+
+No frontend code or test covers this requirement (no `Needs:`); it is a constraint on the diff checked by the
+reviewer. Retiring the endpoints, their `Deprecation` and `Sunset` headers, the `analysis` queue and its worker need an
+owner CRP (ROADMAP M2.4, M9.6, ADR-0020 decision 5) and are not part of this change.
