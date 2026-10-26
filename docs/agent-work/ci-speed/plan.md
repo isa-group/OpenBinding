@@ -1,1 +1,1 @@
-Remaining: changelog regeneration (last commit), push, PR, CI watch, high panel, review package, ready.
+Done: S0 spec, S2, S5a, S3, S4, S5, S6+S7, S9, round-1 fixes (a636c93f). Remaining: changelog regeneration (last commit), push, round-2 panel (reviewer, arch-reviewer verify findings; test-reviewer; security-auditor), review package, lead_ready.
