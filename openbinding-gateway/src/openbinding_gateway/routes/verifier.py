@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from typing import Any
+from typing import Optional
 
 from fastapi import APIRouter, Depends
 from starlette.requests import Request
@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, session_dependency
 from ..artifacts import artifact_boundary_allows
+from ..core.settings import Settings, get_settings
 from ..db.models import (
     Artifact,
     ArtifactPublication,
@@ -42,59 +43,99 @@ from ..models.platform import (
     VerifierInspectRequest,
     VerifierInspectResponse,
 )
+from ..services.citations import build_citation
 from bim_core.canonical import canonical_json, digest
 
 router = APIRouter(prefix="/v1/verifier", tags=["Verifier"])
 
+#: The resolve kind of each match. A snapshot is answered by the resolver to its owner only, while the verifier
+#: answers anyone who sees the match, and a study run has no resolvable kind: both cite the verifier screen.
+RESOLVE_KINDS = {
+    "case": "case-revision",
+    "collection": "collection-revision",
+    "report": "report",
+    "artifact": "artifact",
+    "engine": "engine",
+}
 
-def _build_citation(
-    primary_entity: VerifierEntityMatch | None,
-    digest_val: str,
-    raw_doc: Any | None = None,
-) -> ReplicationCitation:
-    title = "Reproducible Service Binding Blob"
-    slug = "openbinding-artifact"
-    authors = ["OpenBinding Research Group"]
-    year = 2026
-    venue = "OpenBinding Canonical Provenance Registry"
-    doi = f"10.1109/OPENBINDING.{digest_val[7:19].upper()}"
-    url = f"https://openbinding.score.us.es/verifier?digest={digest_val}"
 
-    if primary_entity:
-        if primary_entity.title_or_name:
-            title = primary_entity.title_or_name
-        if primary_entity.slug:
-            slug = primary_entity.slug
-        if primary_entity.organization_slug and primary_entity.project_slug:
-            url = f"https://openbinding.score.us.es/app/{primary_entity.organization_slug}/{primary_entity.project_slug}"
-            if primary_entity.entity_type == "case":
-                url += f"/cases/{primary_entity.slug}"
-            elif primary_entity.entity_type == "collection":
-                url += f"/collections/{primary_entity.slug}"
-            elif primary_entity.entity_type == "report":
-                url += f"/reports/{primary_entity.slug}"
+async def _cited_kind(session: AsyncSession, primary: VerifierEntityMatch) -> Optional[str]:
+    kind = RESOLVE_KINDS.get(primary.entity_type)
+    if kind == "artifact":
+        # The resolver finds a blob through its project; one outside any project has no permanent link.
+        project_id = await session.scalar(select(Blob.project_id).where(Blob.id == uuid.UUID(primary.id)))
+        return kind if project_id is not None else None
+    return kind
 
-    bibtex_entry = f"""@misc{{{slug}_{digest_val[7:15]},
-  title = {{{title}}},
-  author = {{{' and '.join(authors)}}},
-  year = {{{year}}},
-  howpublished = {{{venue}}},
-  doi = {{{doi}}},
-  url = {{{url}}},
-  note = {{Cryptographic SHA-256 Digest: {digest_val}}}
-}}"""
 
-    markdown_badge = f"[![OpenBinding Verified](https://img.shields.io/badge/OpenBinding-Verified_Integrity-00E599?style=flat-square&logo=shield)]({url})"
+async def _cited_version(
+    session: AsyncSession, primary: VerifierEntityMatch, digest_val: str
+) -> Optional[ArtifactVersion]:
+    """The exact library version the match identifies, never a sibling version.
 
-    return ReplicationCitation(
-        title=title,
-        authors=authors,
-        year=year,
-        doi=doi,
-        venue=venue,
-        url=url,
-        bibtex=bibtex_entry.strip(),
-        markdown_badge=markdown_badge,
+    A collection match is that version itself (or a historical revision, which is none); a report match is the
+    report's version with this content digest.
+    """
+    if primary.entity_type == "collection":
+        version = select(ArtifactVersion).where(ArtifactVersion.id == uuid.UUID(primary.id))
+    elif primary.entity_type == "report":
+        version = select(ArtifactVersion).join(Report, Report.artifact_id == ArtifactVersion.artifact_id).where(
+            Report.id == uuid.UUID(primary.id))
+    else:
+        return None
+    return await session.scalar(
+        version.where(ArtifactVersion.content_digest == digest_val).order_by(ArtifactVersion.created_at.desc()).limit(1)
+    )
+
+
+#: Where each match records its author or owner: the same user the resolver cites for the same element. A
+#: collection that is a library version records it on that version instead.
+AUTHOR_COLUMNS = {
+    "case": (BindingCaseRevision, BindingCaseRevision.created_by_id),
+    "collection": (CollectionRevision, CollectionRevision.created_by_id),
+    "report": (Report, Report.created_by_id),
+    "artifact": (Blob, Blob.created_by_id),
+    "engine": (EngineRevision, EngineRevision.owner_id),
+    "snapshot": (InstanceSnapshot, InstanceSnapshot.owner_id),
+    "study_run": (StudyRun, StudyRun.created_by_id),
+}
+
+
+async def _recorded_authors(
+    session: AsyncSession, primary: VerifierEntityMatch, version: Optional[ArtifactVersion]
+) -> Optional[list[str]]:
+    """The username of the match's recorded author or owner, or ``None`` when no user is recorded."""
+    if primary.entity_type == "collection" and version is not None:
+        query = select(User.username).where(User.id == version.created_by_id)
+    else:
+        model, column = AUTHOR_COLUMNS[primary.entity_type]
+        query = select(User.username).join(model, column == User.id).where(model.id == uuid.UUID(primary.id))
+    username = await session.scalar(query)
+    return [username] if username is not None else None
+
+
+# Only a match the caller may see is cited, so a hidden digest gets no citation, exactly like an unknown one, and
+# the citation's lookups run only for a visible match: a hidden digest still runs the same queries as an unknown one.
+# [impl->req~resolver-verifier-citation-no-invented-metadata~1]
+# [impl->req~resolver-verifier-citation-year~1]
+# [impl->req~resolver-verifier-citation-url~1]
+async def _citation(
+    session: AsyncSession, settings: Settings, entities: list[VerifierEntityMatch], digest_val: str
+) -> Optional[ReplicationCitation]:
+    if not entities:
+        return None
+    primary = entities[0]
+    # A library version is dated and published as itself, like the resolver does; a report row has its own date.
+    version = await _cited_version(session, primary, digest_val)
+    return build_citation(
+        frontend_url=settings.frontend_url,
+        kind=await _cited_kind(session, primary),
+        created_at=version.created_at if version is not None else primary.created_at,
+        title=primary.title_or_name,
+        slug=primary.slug or primary.entity_type,
+        digest=digest_val,
+        authors=await _recorded_authors(session, primary, version),
+        publication=await session.get(ArtifactPublication, version.id) if version is not None else None,
     )
 
 
@@ -366,6 +407,7 @@ async def inspect_digest(
     payload: VerifierInspectRequest,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
+    settings: Settings = Depends(get_settings),
 ) -> VerifierInspectResponse:
     """Inspect and audit cryptographic digest integrity, canonical serialization, and replication citations."""
     now = utcnow()
@@ -411,8 +453,8 @@ async def inspect_digest(
         matches = False
         status_val = "not_found"
 
-    primary_entity = entities[0] if entities else None
-    citation = _build_citation(primary_entity, target_digest, payload.document)
+    # A mismatch cites nothing, even when the claimed digest is registered: the document is not that element.
+    citation = await _citation(session, settings, entities, target_digest) if status_val == "verified" else None
 
     detail_msg = (
         f"Cryptographically verified against {len(entities)} registered entities."
@@ -441,6 +483,7 @@ async def inspect_file(
     request: Request,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
+    settings: Settings = Depends(get_settings),
 ) -> VerifierInspectResponse:
     """Inspect and audit cryptographic SHA-256 integrity of an uploaded file package."""
     now = utcnow()
@@ -451,8 +494,7 @@ async def inspect_file(
     entities = await _search_matching_entities(session, digest_val, user)
     status_val = "verified" if entities else "computed"
 
-    primary_entity = entities[0] if entities else None
-    citation = _build_citation(primary_entity, digest_val)
+    citation = await _citation(session, settings, entities, digest_val)
 
     return VerifierInspectResponse(
         status=status_val,
