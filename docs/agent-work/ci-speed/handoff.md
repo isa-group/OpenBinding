@@ -1,7 +1,6 @@
-# Handoff: ci-speed (lead run 3, wake 11)
-- All slices integrated on change/ci-speed (head a3a9643f before this checkpoint commit): S0 spec, S2, S5a, S3, S4, S5, S6+S7, S9 (TESTING.md section 10).
-- S1 lab baseline dropped: lab runs unreliable under load (Playwright idle timeout, 2 test_process_probe and 7 bim-service timing failures seen in the lab, unrelated to this change). Baseline = owner's GitHub figures (intake 1.5); after-measurement comes from CI runs of the PR.
-- Decisions: test and gateway-unit gated on gateway area; git error => all areas; ci-required needs every job; CRPs at recommended options (1a, 2a, 3a, 5a, 7a, 8a, 9a), crp-ob-ci-speed go-with-token.
-- Open: the changelog output frontend/src/content/changelog.generated.json is outside this change's file scope; the PR's 'Check generated changelog' step needs it regenerated on the PR head (CONTRIBUTING.md:37). Escalating for scope or for the coordinator to do it.
-- Next three steps: (1) changelog regeneration as the last commit (python3 tools/generate_changelog.py, then --check); (2) push with owner token, open PR into develop, watch CI (first real run of gateway-unit native, frontend-e2e shards, bim matrix); (3) high panel: reviewer, test-reviewer, security-auditor, arch-reviewer; set_review_package; lead_ready.
-- Risks: native gateway unit suite unverified on GitHub; workflow push needs token; F1-F4 and project.yaml drift stay with the coordinator (R11); AGENTS.md CI lines not updated (outside scope).
+# Handoff: ci-speed (lead run 3, wake 12)
+- All slices integrated on change/ci-speed: S0 spec, S2, S5a, S3, S4, S5, S6+S7, S9. S1 lab baseline dropped (lab unreliable under load); baseline = owner's GitHub figures (intake 1.5), after-measurement from PR CI.
+- Changelog: first regeneration task 9fd46ee5df8e4fbd done but NOT integrated: this checkpoint commit adds a docs commit that the generator lists, so the changelog is regenerated again after this commit (the last commit before push).
+- Decisions: test and gateway-unit gated on gateway area; git error => all areas; ci-required needs every job; CRPs at recommended options; crp-ob-ci-speed go-with-token.
+- Next three steps: (1) rerun changelog task on the new head, integrate, push chore/ci-speed, open PR into develop, watch CI (first run of gateway-unit native shards, frontend-e2e shards, bim matrix; B8 timing flake in bim-toolchain = tell coordinator, no new round); (2) high panel: reviewer, test-reviewer, security-auditor, arch-reviewer; (3) set_review_package, lead_ready.
+- Risks: native gateway unit suite unverified on GitHub; workflow push needs token (report exact refusal); F1-F4 and project.yaml drift stay with coordinator (R11); AGENTS.md CI lines not updated (outside scope).

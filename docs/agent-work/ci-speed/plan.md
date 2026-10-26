@@ -1,1 +1,1 @@
-Slices S0 spec, S2 ci_changes/ci_required, S5a ci_shard, S3 changes+ci-required+timeouts, S4 frontend-e2e 3 shards, S5 gateway-unit 2 native shards, S6 bim-toolchain per package, S7 PR concurrency, S9 TESTING.md: all integrated. S1 (lab baseline) dropped: the baseline is the owner's GitHub figures in intake.md section 1.5. Remaining: changelog regeneration, push, PR, review panel (high), ready.
+Remaining: changelog regeneration (last commit), push, PR, CI watch, high panel, review package, ready.
