@@ -1205,3 +1205,24 @@ async def test_a_hostile_recorded_venue_cannot_break_the_bibtex_entry(kind, worl
     assert dict(entries)["howpublished"] == "Proc. , title = X"
     assert citation["venue"] == HOSTILE_VENUE
     assert_links_to_the_permanent_link(citation, seeded)
+
+
+# [utest->req~resolver-verifier-citation-year~1]
+async def test_the_report_citation_year_is_the_cited_versions_not_the_report_rows(world):
+    seeded = await seed_library_version(world, "report", "Dataset")
+    _, proj = await project_of(world, seeded.headers, "public")
+    filed = datetime(2024, 7, 8, 9, 10, tzinfo=timezone.utc)
+    assert filed.year != OLD.year
+    world.db.add(Report(
+        project_id=(await project_row(world, proj)).id, slug="decision-1", title="Decision", state=ReportState.FROZEN,
+        artifact_id=uuid.UUID(seeded.artifact_id), version_id=uuid.UUID(seeded.version_id),
+        created_by_id=uuid.UUID(seeded.user_id), created_at=filed,
+    ))
+    await world.db.flush()
+
+    body = await resolved(world, seeded)
+
+    # The answer keeps the report's own date; the citation dates the version the digest identifies.
+    assert int(body["created_at"][:4]) == filed.year
+    assert body["citation"]["year"] == OLD.year
+    assert dict(parse_entry(body["citation"]["bibtex"])[1])["year"] == str(OLD.year)

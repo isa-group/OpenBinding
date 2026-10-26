@@ -62,9 +62,9 @@ async def test_verifier_inspect_document_computation(api_client, registration, v
     assert data["digest"] == expected_digest
     assert data["matches"] is True
     assert data["canonical_json"] is not None
-    assert data["citation"] is not None
-    assert "@misc" in data["citation"]["bibtex"]
-    assert "OpenBinding" in data["citation"]["markdown_badge"]
+    # A computed document matches nothing registered, so there is nothing to cite.
+    assert data["entities"] == []
+    assert data["citation"] is None
 
     # 2. Inspect with matching digest -> status is verified
     resp_match = await api_client.post(
@@ -136,7 +136,10 @@ async def test_verifier_inspect_registered_entity(api_client, registration, veri
 
     citation = data["citation"]
     assert "Sequential Case" in citation["title"]
+    assert "@misc" in citation["bibtex"]
     assert case_digest in citation["bibtex"]
+    assert citation["url"].endswith(f"/resolve/case-revision/{case_digest}")
+    assert "OpenBinding" in citation["markdown_badge"]
 
 
 @pytest.mark.asyncio

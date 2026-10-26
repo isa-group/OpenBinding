@@ -458,7 +458,7 @@ async def resolve_element(
         citation = build_citation(
             frontend_url=settings.frontend_url,
             kind=kind_slug,
-            created_at=primary_rep.created_at,
+            created_at=primary_version.created_at,
             title=primary_rep.title,
             slug=primary_rep.slug,
             digest=norm_digest,
