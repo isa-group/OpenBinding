@@ -6,6 +6,10 @@ Each requirement block (statement, id line and Evidence line, up to the first `#
 characters; the target is 400-450 so that a hand count (about 15 characters of error) cannot cross the limit. The
 earlier slices of M0.2 (`docs/agent-work/m02-specs-a` to `-d`) use the same rule.
 
+The limit is not printed by CLI 1.15.0: `openspec validate --strict --specs --json` reported all 16 living specs as
+valid, with no length message (see `docs/agent-work/m02-openspec-strict/baseline.md`). The 500-character figure is
+therefore unconfirmed by the tool; the rule is applied to living specs only, never to deltas.
+
 ## Shortening rules
 
 1. Headers, `req~...~N` ids and revisions stay byte-identical. A rewording never bumps a revision.
