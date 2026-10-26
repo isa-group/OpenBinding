@@ -21,9 +21,7 @@ M0.2 makes `openspec validate --strict` pass for the living specs and for every 
 ## How they were fixed
 
 - The `THE ... SHALL ...` sentence was shortened to one behaviour.
-- In all six changes, details moved into scenarios; Evidence/notes moved after the last scenario in m05, m41,
-  validate-public-origin-format, and, where they fit the limit, in m21, m24 and m24-2 (a sibling task may also move
-  Evidence lines in m24 and m24-2).
+- In all six changes, details moved into scenarios and rules that a scenario assumed in GIVEN were restated as THEN/AND lines. Evidence lines and notes moved after the last scenario of each requirement in all six changes.
 - Detailed rules moved into a first scenario of the same requirement (for validate-public-origin-format: "The public
   origin shape is exact", "The CORS entry shape is exact", "The masked value and the reported error are exact").
 - Requirement names, ids, revisions, `Needs:` lines and trace tags were not changed.
