@@ -1,0 +1,1 @@
+Done: spec delta, S1a builder, S1b resolve, S2 verifier, doc. Remaining: push, PR, panel (reviewer, test-reviewer, security-auditor) on pushed head, fix findings, review package, lead_ready. Coordinator regenerates changelog.
