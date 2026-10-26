@@ -1,6 +1,7 @@
 # Design: m05-pr-previews
 
-Status: plan. Nothing here is built yet. The owner's constraints are fixed inputs: NiPoGi lab, rootless Docker, one
+Status: the planner, the probe, the static rules and the Compose parameterisation (S1b, S3, S4.1, S1a, S2) are built;
+F1, F2 and the 4.2 docs are pending. The owner's constraints are fixed inputs: NiPoGi lab, rootless Docker, one
 Compose project per PR head, loopback ports 18101–18199, tracked Compose files only, private volumes, synthetic data,
 start on demand, 7 idle days, and deletion only through `labctl destroy`.
 

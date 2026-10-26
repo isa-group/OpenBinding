@@ -212,6 +212,8 @@ jobs:
         run: uv sync --locked --project openbinding-gateway --extra test
 
       - name: Run the lab tests
+        env:
+          OPENBINDING_COMPOSE_CONFIG: "1"
         run: openbinding-gateway/.venv/bin/python -m pytest lab/tests -q
 
       # Gate G4 runner. It exits 0 while acceptance/api holds no test. It runs after a failing lab test too.

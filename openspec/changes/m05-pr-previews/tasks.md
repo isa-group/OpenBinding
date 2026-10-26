@@ -1,7 +1,8 @@
 # Tasks: m05-pr-previews
 
-Each slice is ≤ 300 non-test diff lines and writes its tests first. Check commands run from `openbinding-gateway/`.
-Every pytest check is one argv of the form `["uv", "run", "--locked", "--extra", "test", "pytest", "-q", …]`: pytest
+Each slice is ≤ 300 non-test diff lines and writes its tests first. Check commands run from the repository root.
+Every pytest check of S1a and S2 is one argv of the form
+`["uv", "run", "--directory", "openbinding-gateway", "--locked", "--extra", "test", "pytest", "-q", …]`: pytest
 is only in the `test` extra, and each argv is one `qa_run`, so no separate sync step is assumed. Factory
 prerequisites F1 and F2 live outside this repository.
 
@@ -55,7 +56,7 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
   `127.0.0.1:18100`.
 
 ## S1a. Tests first, static rules (~120 lines; ships in the S2 PR, never merged alone)
-- [ ] 1.1 `lab/tests/test_lab_compose.py`. Helpers that break and how they change:
+- [x] 1.1 `lab/tests/test_lab_compose.py`. Helpers that break and how they change:
   - `_expand(value, supplied)` applies one value to every reference; it takes a per-variable mapping instead,
     `_expand(value, {"DEMO_LAB_PORT": …, "DEMO_PUBLIC_ORIGIN": …})`, and its two callers pass one.
   - `reference_name(body)` also drops the `DEMO_LAB_PORT:-18100` default; the allowed-defaults set of
@@ -87,7 +88,7 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
     copy of the manifest with an extra `8000:8000` on the gateway and asserts a message. On the base, the range test
     is red because the literal 18100 differs from the supplied 18099, 18200 or `abc` and that message does not name
     the range. Tag `[utest->req~lab-deployment-single-loopback-port~2]`.
-- [ ] 1.2 `openbinding-gateway/tests/test_container_hardening.py`: `SHARED_IMAGE` becomes
+- [x] 1.2 `openbinding-gateway/tests/test_container_hardening.py`: `SHARED_IMAGE` becomes
   `openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`; `ALLOWED_DEFAULT_REFERENCE` becomes a set with
   `DEMO_LAB_PORT:-18100` added. `lab/tests/test_lab_compose.py` gets the constant
   `PUBLISHED_REFERENCE = {"target": 8080, "published": "${DEMO_LAB_PORT:-18100}", "host_ip": "127.0.0.1"}`, the raw
@@ -96,7 +97,7 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
   `PUBLISHED` stays the dict with the int `published` 18100 for its other uses: the `target` reads, and the expanded
   unset comparison, which checks `int(published) == PUBLISHED["published"]`, `host_ip` and `target` field by field
   instead of comparing dicts (the expanded value is a string).
-- [ ] 1.7 `lab/tests/test_lab_compose_config.py` (new): runs
+- [x] 1.7 `lab/tests/test_lab_compose_config.py` (new): runs
   `docker compose -f compose.lab.json --profile seed config --format json` (without `--profile seed` the rendered file
   has no `seed` service) unset, with `DEMO_LAB_PORT=18101` and with `18199`, and compares `web`'s published port and
   host, the image of gateway, worker and seed, and the gateway's `CORS_ALLOW_ORIGINS` with the expected values. It
@@ -115,20 +116,23 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
   `test_a_public_origin_replaces_the_urls_and_is_appended_to_the_local_cors_origins` and
   `test_compose_holds_no_literal_secret`.
   Checks (red_before):
-  `["uv", "run", "--locked", "--extra", "test", "pytest", "-q", "../lab/tests/test_lab_compose.py", "../lab/tests/test_lab_process_profiles.py", "tests/test_container_hardening.py"]`;
-  `["env", "OPENBINDING_COMPOSE_CONFIG=1", "uv", "run", "--locked", "--extra", "test", "pytest", "-q", "-rs", "../lab/tests/test_lab_compose_config.py"]`.
+  `["uv", "run", "--directory", "openbinding-gateway", "--locked", "--extra", "test", "pytest", "-q", "../lab/tests/test_lab_compose.py", "../lab/tests/test_lab_process_profiles.py", "tests/test_container_hardening.py"]`;
+  `["env", "OPENBINDING_COMPOSE_CONFIG=1", "uv", "run", "--directory", "openbinding-gateway", "--locked", "--extra", "test", "pytest", "-q", "-rs", "../lab/tests/test_lab_compose_config.py"]`.
 
 ## S2. Compose parameterisation (~75 lines + S1a; merged only after F1)
-- [ ] 2.1 `compose.lab.json`, `compose.lab-process.json`, `compose.lab-process-n2.json`,
+- [x] 2.1 `compose.lab.json`, `compose.lab-process.json`, `compose.lab-process-n2.json`,
   `compose.lab-process-n1-probe.json`, `compose.lab-process-n2-probe.json`: `DEMO_LAB_PORT` in `published`, in the
   three gateway image tags and in the two local CORS lists (design.md §5).
-- [ ] 2.2 `docs/DEMO.md`: a `DEMO_LAB_PORT` row (default 18100, PR previews 18101–18199) and the new image tag.
+  The probe profiles (`-n1-probe`, `-n2-probe`) are covered transitively: the process-profile rules run on them in
+  `lab/tests/test_lab_process_n1_probe_profile.py` and `test_lab_process_probe_profile.py`, and each equals N1 or N2
+  plus one line.
+- [x] 2.2 `docs/DEMO.md`: a `DEMO_LAB_PORT` row (default 18100, PR previews 18101–18199) and the new image tag.
 - Acceptance: all lab static rules pass, and the develop lab expands to exactly today's port, origins and volumes.
   Checks:
-  `["uv", "run", "--locked", "--extra", "test", "pytest", "-q", "../lab/tests", "tests/test_container_hardening.py"]`;
-  `["env", "DEMO_LAB_PORT=18101", "docker", "compose", "-f", "../compose.lab.json", "--profile", "seed", "config", "--format", "json"]`;
-  `["docker", "compose", "-f", "../compose.lab.json", "--profile", "seed", "config", "--format", "json"]`;
-  `["env", "OPENBINDING_COMPOSE_CONFIG=1", "uv", "run", "--locked", "--extra", "test", "pytest", "-q", "-rs", "../lab/tests/test_lab_compose_config.py"]`
+  `["uv", "run", "--directory", "openbinding-gateway", "--locked", "--extra", "test", "pytest", "-q", "../lab/tests", "tests/test_container_hardening.py"]`;
+  `["env", "DEMO_LAB_PORT=18101", "docker", "compose", "-f", "compose.lab.json", "--profile", "seed", "config", "--format", "json"]`;
+  `["docker", "compose", "-f", "compose.lab.json", "--profile", "seed", "config", "--format", "json"]`;
+  `["env", "OPENBINDING_COMPOSE_CONFIG=1", "uv", "run", "--directory", "openbinding-gateway", "--locked", "--extra", "test", "pytest", "-q", "-rs", "../lab/tests/test_lab_compose_config.py"]`
   with 0 skipped. The two bare `docker compose … config` checks are MRP evidence only (they prove exit 0 and show the
   rendered file); the assertion on port, image and CORS is the last pytest check. After F1, `lab_compose validate`
   passes.
@@ -155,7 +159,7 @@ Tracing: `lab/` is not in the G6 OFT trace paths of `.agentic/project.yaml` (fac
   and the client prints `ECONNREFUSED` (a timeout, another errno or an exec error fails the test). Controls: the
   client connects to A's own `web:8080`; B's port answers from the host at `127.0.0.1:<B port>`; A's `web` resolves
   to A's own container address, which differs from B's.
-  Note: S1a, S2, F1 and F2 are moved to a later change, so the preview docs state the plan truthfully.
+  Note: F1 and F2 are still pending and live outside the repository, so the preview docs state the plan truthfully.
   `docs/qa/E2E_PLAN.md` and `TESTING.md` naming the preview port, and the ARCHITECTURE §10 row, are follow-ups
   outside this change.
 - [ ] 4.2 `docs/previews/README.md` changes from plan to in force. `docs/DEMO.md` gets a "PR previews" section.
