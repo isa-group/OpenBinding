@@ -164,13 +164,6 @@ export function migrateDocument(document: Json): Migrated<Json> {
   return { value: next, notes };
 }
 
-/** A library draft or version: the content when it is one JSON document, untouched otherwise. */
-export function migrateContent<T>(content: T): Migrated<T> {
-  if (!isRecord(content)) return { value: content, notes: [] };
-  const migrated = migrateDocument(content);
-  return { value: migrated.value as T, notes: migrated.notes };
-}
-
 /** The files of a package: every JSON document migrated, the rest (BPMN, text, JSON that does not parse) as it was. */
 export function migrateFiles(files: Record<string, string>): Migrated<Record<string, string>> {
   const notes: string[] = [];

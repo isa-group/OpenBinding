@@ -8,7 +8,6 @@ export { SLUG_PATTERN, slugFromName } from '../Project/projectModel';
 /** The longest a name and a description may be (`ProjectResourceCreate`, `CollectionCreate` in the contract). */
 export const NAME_MAX = 160;
 export const DESCRIPTION_MAX = 2000;
-export const KIND_MAX = 128;
 
 export function plural(count: number, noun: string, many = `${noun}s`): string {
   return `${count} ${count === 1 ? noun : many}`;
@@ -100,36 +99,4 @@ export function downloadName(blob: Pick<StoredBlob, 'digest' | 'media_type'>, na
 
 export function totalBytes(files: readonly Pick<StoredBlob, 'size_bytes'>[]): number {
   return files.reduce((sum, file) => sum + file.size_bytes, 0);
-}
-
-// --- project resources
-
-/** The kinds the gateway’s project-resources view hides because the library screens own them (`list_project_resources`). */
-const LIBRARY_KINDS = new Set(['Application', 'CandidateCatalog', 'ConstraintSet', 'ExecutionConfiguration', 'AnalysisConfiguration', 'Collection', 'Study', 'Report', 'BindingDecision']);
-
-export function belongsInLibrary(kind: string): boolean {
-  return LIBRARY_KINDS.has(kind);
-}
-
-export const DEFAULT_RESOURCE_KIND = 'bim-resource';
-export const OTHER_RESOURCE_KIND = '__other';
-
-/** The kinds the new-resource dialog offers: the ones this view lists, then a free one. */
-export const RESOURCE_KIND_CHOICES: ReadonlyArray<{ id: string; label: string }> = [
-  { id: DEFAULT_RESOURCE_KIND, label: 'Resource (default)' },
-  { id: 'Optimization', label: 'Goal' },
-  { id: 'Placement', label: 'Placement' },
-  { id: 'RoutingOverlay', label: 'Routing overlay' },
-  { id: 'Dataset', label: 'Dataset' },
-  { id: 'BPMN', label: 'BPMN workflow' },
-];
-
-/** What a reader calls a kind; one nobody named yet reads as it is written. */
-export function resourceKindLabel(kind: string): string {
-  if (kind === DEFAULT_RESOURCE_KIND) return 'Resource';
-  const known: Record<string, string> = {
-    Application: 'Application', CandidateCatalog: 'Candidate catalog', ConstraintSet: 'Rules', Optimization: 'Goal',
-    ExecutionConfiguration: 'Run settings', AnalysisConfiguration: 'Analysis settings',
-  };
-  return known[kind] ?? RESOURCE_KIND_CHOICES.find((choice) => choice.id === kind)?.label ?? kind;
 }

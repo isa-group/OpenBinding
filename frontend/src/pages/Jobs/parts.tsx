@@ -77,10 +77,8 @@ export function OutcomeChip({ termination, long = false }: { termination?: strin
 }
 
 /** A refusal of the gateway, worded: the title, what it means, the lines it attached, and the way forward. */
-export function RefusalNotice({ refusal, action, usageTo, extra, editTo }: {
+export function RefusalNotice({ refusal, action, usageTo, extra }: {
   refusal: Refusal; action?: ReactNode; usageTo?: boolean; extra?: ReactNode;
-  /** Where the candidates can be edited (the library); named by a refusal about ranges. */
-  editTo?: string;
 }) {
   return (
     <Notice tone={refusal.kind === 'plan' || refusal.kind === 'key' || refusal.kind === 'terminal' ? 'warning' : 'error'} title={refusal.title} action={action}>
@@ -91,7 +89,6 @@ export function RefusalNotice({ refusal, action, usageTo, extra, editTo }: {
       {refusal.kind === 'range' && (
         <span className="job-refusal-links">
           <Action to="/engines" variant="link" size="sm">Engines</Action>
-          {editTo && <Action to={editTo} variant="link" size="sm">Edit the candidate</Action>}
         </span>
       )}
       {/* A larger plan helps with an allowance, a size limit of the plan, or a job limit of the plan - not with a limit this

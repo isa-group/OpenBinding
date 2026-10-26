@@ -11,8 +11,8 @@ export const RESERVED_SLUGS = new Set([
   'snapshots', 'library', 'files', 'package', 'publications',
 ]);
 
-/** Second segment of an organization screen that is not a project (`/app/:org/settings`, `/app/:org/library`). */
-const ORGANIZATION_SECTIONS = new Set(['settings', 'library', 'new-project']);
+/** Second segment of an organization screen that is not a project (`/app/:org/settings`, `/app/:org/new-project`). */
+const ORGANIZATION_SECTIONS = new Set(['settings', 'new-project']);
 
 export interface WorkspaceSlugs {
   org?: string;

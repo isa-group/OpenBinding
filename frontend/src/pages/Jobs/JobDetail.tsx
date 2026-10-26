@@ -183,7 +183,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
         <Notice tone="success" action={outcome.follow ? <Action to={outcome.follow} variant="link" size="sm">Follow the new run</Action> : undefined}>{outcome.text}</Notice>
       )}
       {outcome?.tone === 'error' && <RefusalNotice refusal={outcome.refusal} usageTo />}
-      {state === 'failed' && rangeFailure && <RefusalNotice refusal={rangeFailure} editTo={`/app/${org}/library`} />}
+      {state === 'failed' && rangeFailure && <RefusalNotice refusal={rangeFailure} />}
       {live.feed === 'paused' && (
         <Notice tone="warning" action={<Action variant="secondary" size="sm" onClick={live.refresh}>Reconnect</Action>}>
           Live updates stopped arriving. What you see is the last state received.

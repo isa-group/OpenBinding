@@ -3,7 +3,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountNav, type AccountSection } from './AccountNav';
 import { OrgNav, type OrgSection } from './OrgNav';
-import { ProjectLibraryNav, type ProjectLibrarySection } from '../ui/SectionNav';
 import { ProjectTabs, type ProjectSection } from './ProjectTabs';
 
 const currentOf = (nav: HTMLElement) => within(nav).queryAllByRole('link').filter((link) => link.getAttribute('aria-current') === 'page');
@@ -120,34 +119,9 @@ describe('a side navigation that becomes a row that scrolls sideways', () => {
   });
 });
 
-describe('ProjectLibraryNav', () => {
-  it('names the screens around the library of a project, and the current one is not a link', () => {
-    render(<MemoryRouter><ProjectLibraryNav current="library" orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
-
-    const nav = screen.getByRole('navigation', { name: 'Library sections' });
-    expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
-      ['Collections', '/app/isa-demo/qos/collections'],
-      ['Project resources (older view)', '/app/isa-demo/qos/resources'],
-      ['Organization library', '/app/isa-demo/library'],
-      ['Workbench', '/app/isa-demo/qos/workbench'],
-    ]);
-    expect(within(nav).getByText('Library used here')).toHaveAttribute('aria-current', 'page');
-  });
-
-  it.each([
-    ['collections', 'Collections'],
-    ['resources', 'Project resources (older view)'],
-  ] as Array<[ProjectLibrarySection, string]>)('marks %s as the current page', (current, label) => {
-    render(<MemoryRouter><ProjectLibraryNav current={current} orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
-
-    const nav = screen.getByRole('navigation', { name: 'Library sections' });
-    expect(within(nav).getByText(label)).toHaveAttribute('aria-current', 'page');
-    expect(within(nav).getByRole('link', { name: 'Library used here' })).toHaveAttribute('href', '/app/isa-demo/qos/library');
-  });
-});
-
 describe('ProjectTabs', () => {
   // [utest->req~frontend-retire-reports-navigation~1]
+  // [utest->req~frontend-retire-library-navigation~1]
   it('links the project sections', () => {
     render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
@@ -155,7 +129,7 @@ describe('ProjectTabs', () => {
     expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Overview', '/app/isa-demo/qos'],
       ['Cases', '/app/isa-demo/qos/cases'],
-      ['Library', '/app/isa-demo/qos/library'],
+      ['Collections', '/app/isa-demo/qos/collections'],
       ['Jobs', '/app/isa-demo/qos/jobs'],
       ['Studies', '/app/isa-demo/qos/studies'],
       ['Publications', '/app/isa-demo/qos/publications'],
@@ -166,12 +140,14 @@ describe('ProjectTabs', () => {
   });
 
   // [utest->req~frontend-retire-reports-navigation~1]
-  it('has no Reports tab and no tab that leads to the retired report address', () => {
+  // [utest->req~frontend-retire-library-navigation~1]
+  it('has no Reports or Library tab and no tab that leads to a retired address', () => {
     render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
     const nav = screen.getByRole('navigation', { name: 'Project sections' });
     expect(within(nav).queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
-    for (const link of within(nav).getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/reports([/?#]|$)/);
+    expect(within(nav).queryByRole('link', { name: 'Library' })).not.toBeInTheDocument();
+    for (const link of within(nav).getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(reports|library|resources)([/?#]|$)/);
     expect(within(nav).getByRole('link', { name: 'Publications' })).toHaveAttribute('href', '/app/isa-demo/qos/publications');
   });
 
@@ -179,7 +155,7 @@ describe('ProjectTabs', () => {
   it.each([
     ['overview', 'Overview'],
     ['cases', 'Cases'],
-    ['library', 'Library'],
+    ['collections', 'Collections'],
     ['jobs', 'Jobs'],
     ['studies', 'Studies'],
     ['publications', 'Publications'],
@@ -195,11 +171,12 @@ describe('ProjectTabs', () => {
 
   describe('for someone who reads a public project without being a member', () => {
     // [utest->req~frontend-retire-reports-navigation~1]
+    // [utest->req~frontend-retire-library-navigation~1]
     it('drops the tabs only members can open and says the project is read-only, and still shows Publications', () => {
       render(<MemoryRouter><ProjectTabs orgSlug="open" projectSlug="qos" access="public_read" /></MemoryRouter>);
 
       const nav = screen.getByRole('navigation', { name: 'Project sections' });
-      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Cases', 'Library', 'Studies', 'Publications', 'Files']);
+      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Cases', 'Collections', 'Studies', 'Publications', 'Files']);
       expect(within(nav).getByRole('link', { name: 'Publications' })).toHaveAttribute('href', '/app/open/qos/publications');
       expect(screen.getByRole('note')).toHaveTextContent('You are viewing a public project (read-only).');
     });

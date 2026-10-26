@@ -38,11 +38,39 @@ function publicationsTarget(_query: URLSearchParams, params: RetiredParams): str
   return `/app/${encodeURIComponent(org)}/${encodeURIComponent(project)}/publications`;
 }
 
+// [impl->req~frontend-retire-library-redirect~1]
+/** The library catalogue rule (organization level): the organization overview. The artifact, the draft, the version and the query are dropped. */
+function organizationTarget(_query: URLSearchParams, params: RetiredParams): string {
+  const { org } = params;
+  return org ? `/app/${encodeURIComponent(org)}` : '/app';
+}
+
+// [impl->req~frontend-retire-library-redirect~1]
+/** The project library and resources rule: the collections of the project. The resource, the query and the hash are dropped. */
+function collectionsTarget(_query: URLSearchParams, params: RetiredParams): string {
+  const { org, project } = params;
+  if (!org || !project) return '/app';
+  return `/app/${encodeURIComponent(org)}/${encodeURIComponent(project)}/collections`;
+}
+
 // [impl->req~frontend-retire-redirect-generic~1]
 // [impl->req~frontend-retire-reports-redirect~1]
+// [impl->req~frontend-retire-library-redirect~1]
+/**
+ * The library entries come first: on a tie of rank React Router takes the earlier route, and `/app/<org>/library/reports`,
+ * `/app/<org>/library/library` and `/app/<org>/library/resources` match the library artifact as well as the project reports, the
+ * project library and the project resources.
+ */
 export const RETIRED_ROUTES: readonly RetiredRoute[] = [
+  { id: 'lib-list', path: '/app/:org/library', slice: 3, target: organizationTarget },
+  { id: 'lib-artifact', path: '/app/:org/library/:artifact', slice: 3, target: organizationTarget },
+  { id: 'lib-draft', path: '/app/:org/library/:artifact/drafts/:draft', slice: 3, target: organizationTarget },
+  { id: 'lib-version', path: '/app/:org/library/:artifact/versions/:version', slice: 3, target: organizationTarget },
   { id: 'analysis-sources', path: '/app/analysis', slice: 1, target: decisionSpaceTarget },
   { id: 'analysis-workspace', path: '/app/analysis/workspace', slice: 1, target: decisionSpaceTarget },
   { id: 'rep-list', path: '/app/:org/:project/reports', slice: 2, target: publicationsTarget },
   { id: 'rep-detail', path: '/app/:org/:project/reports/:report', slice: 2, target: publicationsTarget },
+  { id: 'proj-library', path: '/app/:org/:project/library', slice: 3, target: collectionsTarget },
+  { id: 'proj-resources', path: '/app/:org/:project/resources', slice: 3, target: collectionsTarget },
+  { id: 'proj-resource-detail', path: '/app/:org/:project/resources/:resource', slice: 3, target: collectionsTarget },
 ];

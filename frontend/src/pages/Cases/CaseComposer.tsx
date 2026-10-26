@@ -85,8 +85,7 @@ async function startFrom(revision: CaseRevision | undefined): Promise<Start> {
 
 const artifactLabel = (artifact: Artifact) => (artifact.display_name && artifact.display_name !== artifact.name ? `${artifact.display_name} · ${artifact.name}` : artifact.name);
 
-function RoleSection({ organization, role, rows, artifacts, versions, drafts, readOnly, onPickArtifact, onPickVersion, onAlias, onRemove, onAdd, invalid }: {
-  organization: Organization;
+function RoleSection({ role, rows, artifacts, versions, drafts, readOnly, onPickArtifact, onPickVersion, onAlias, onRemove, onAdd, invalid }: {
   role: RoleDef;
   rows: Slot[];
   artifacts: Array<{ id: string; label: string }>;
@@ -152,9 +151,6 @@ function RoleSection({ organization, role, rows, artifacts, versions, drafts, re
                   ? <>{slot.origin ? `Version used by revision ${slot.origin} · ` : ''}<code>{shortDigest(slot.ref.versionDigest)}</code></>
                   : 'Nothing chosen'}
               </span>
-              {slot.artifactId
-                ? <Link to={`/app/${organization.slug}/library/${slot.artifactId}`} viewTransition>Open in library</Link>
-                : <Link to={`/app/${organization.slug}/library`} viewTransition>Find in library</Link>}
               {!readOnly && (rows.length > 1 || slot.artifactId) && (
                 <button type="button" className="case-link-button" onClick={() => onRemove(slot)}>Remove</button>
               )}
@@ -380,7 +376,6 @@ function ComposerBody({ organization, project, content, reloadCase, canCreate, r
           {ROLES.map((def) => (
             <RoleSection
               key={def.key}
-              organization={organization}
               role={def}
               rows={slots.filter((slot) => slot.role === def.key)}
               artifacts={artifacts(def.key)}
@@ -455,7 +450,6 @@ function ComposerBody({ organization, project, content, reloadCase, canCreate, r
                 <span>{issue.text}</span>
                 {issue.details && issue.details.length > 0 && <ul>{issue.details.map((detail) => <li key={detail}>{detail}</li>)}</ul>}
                 {issue.action?.kind === 'role' && issue.action.role && <button type="button" className="case-link-button" onClick={() => focusRole(issue.action?.role ?? '')}>{issue.action.label}</button>}
-                {issue.action?.kind === 'library' && <Link to={`/app/${organization.slug}/library`} viewTransition>{issue.action.label}</Link>}
                 {issue.action?.kind === 'dialects' && <Link to="/language" viewTransition>{issue.action.label}</Link>}
                 {issue.action?.kind === 'revisions' && <Link to={base} viewTransition>{issue.action.label}</Link>}
               </div>
