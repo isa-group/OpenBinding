@@ -242,7 +242,7 @@ Evidence: `deploy/compose/production/compose.yaml`; `openbinding-gateway/tests/t
 
 ### Requirement: Production health checks, restart and start order
 `req~lab-deployment-production-health-restart~1`
-The production Compose file SHALL give every service other than the one-shot `migrate` a health check that is not disabled and `restart: unless-stopped`, run `migrate` from the gateway image with `OPENBINDING_MIGRATE=only` and `restart: "no"`, make `gateway` wait for `migrate` to complete, and make `nginx` and the workers depend on `gateway` with `restart: true`.
+The production Compose file SHALL give every service other than the one-shot `migrate` a health check that is not disabled and `restart: unless-stopped`, run `migrate` from the gateway image with `OPENBINDING_MIGRATE=only` and `restart: "no"`, make `gateway` wait for `migrate` to complete, make `nginx` depend on `gateway` with `restart: true`, and make the workers wait for a healthy `gateway` without `restart: true`.
 
 #### Scenario: Conforming services
 - **GIVEN** `compose.yaml` of this change
@@ -254,6 +254,11 @@ The production Compose file SHALL give every service other than the one-shot `mi
 - **GIVEN** a copy of `compose.yaml` whose `nginx` depends on `gateway` without `restart: true`
 - **WHEN** the rule is applied
 - **THEN** it fails and names `nginx`
+
+#### Scenario: Workers do not restart with the gateway
+- **GIVEN** a copy of `compose.yaml` whose `worker` depends on `gateway` with `restart: true`
+- **WHEN** the rule is applied
+- **THEN** it fails and names `worker`
 
 #### Scenario: Missing or disabled health check
 - **GIVEN** a copy of `compose.yaml` whose `redis` has no health check, or a health check with test `["NONE"]` or `disable: true`
@@ -344,6 +349,7 @@ The production deployment SHALL back up its data with a `pg-backup` service in `
 - **GIVEN** `compose.yaml` of this change
 - **WHEN** the unit suite reads the `pg-backup` service
 - **THEN** its command runs `pg_dump -Fc` in a loop that waits at most 86400 seconds between dumps
+- **AND** the script stops on a failed dump (entrypoint `sh -ec`, or a script that begins with `set -e`), so a failed `pg_dump` never reaches the rename of the `.partial` file
 - **AND** it deletes dumps older than `BACKUP_RETENTION_DAYS` days in the directory mounted from `${OPENBINDING_BACKUP_DIR:?`
 - **AND** it mounts the `postgres_password` secret and sets no password in its environment
 

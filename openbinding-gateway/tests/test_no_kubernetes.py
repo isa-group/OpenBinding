@@ -176,9 +176,13 @@ def test_scan_finds_manifest_under_ops_and_src(tmp_path: Path) -> None:
 
 # [utest->req~lab-deployment-compose-only~1]
 def test_scan_skips_excluded_directories(tmp_path: Path) -> None:
-    for skipped in ("node_modules", ".venv", "openspec", "docs", "lab", ".github"):
+    assert {"node_modules", ".venv", ".git"} == SKIP_DIRS
+    for skipped in ("node_modules", ".venv", ".git", "openspec", "docs", "lab", ".github"):
         _write(tmp_path, f"{skipped}/pkg/manifest.yaml", DEPLOYMENT)
-    _write(tmp_path, "node_modules/kustomization.yaml", "resources: []\n")
+    # A Kustomize file under each directory that every scan skips, at the top and nested.
+    for skipped in sorted(SKIP_DIRS):
+        _write(tmp_path, f"{skipped}/kustomization.yaml", "resources: []\n")
+        _write(tmp_path, f"{skipped}/pkg/kustomization.yml", "resources: []\n")
     assert _manifest_files(tmp_path) == []
     assert _kustomization_files(tmp_path) == []
     # Only the manifest scan skips openspec, docs, lab and .github.

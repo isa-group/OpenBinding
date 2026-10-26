@@ -219,10 +219,10 @@ services:
       timeout: 3s
       retries: 3
       start_period: 15s
+    # No `restart: true` on the gateway: the workers have no gateway address, so a restart would only cut running jobs.
     depends_on:
       gateway:
         condition: service_healthy
-        restart: true
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -355,7 +355,8 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    # restart: true re-resolves the gateway address (nginx.conf resolves `gateway` once) when the gateway is recreated.
+    # restart: true re-resolves the gateway address (nginx.conf resolves `gateway` once) when Compose recreates the
+    # gateway. It does not follow a restart by the Docker daemon (crash, OOM): the runbook restarts nginx then.
     depends_on:
       gateway:
         condition: service_healthy

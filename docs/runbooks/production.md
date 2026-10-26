@@ -47,9 +47,12 @@ Every service has `mem_limit`, `cpus`, `no-new-privileges` and rotated `json-fil
 `migrate` has a health check and `restart: unless-stopped`.
 
 `nginx` resolves the address of `gateway` once, when it starts, so it would keep the old address after the gateway is
-recreated. `nginx` and the workers therefore depend on `gateway` with `restart: true` (Compose 2.17 or newer): Compose
-restarts them when it recreates the gateway. A command that recreates only the gateway may not trigger it, so every
-step below that recreates the gateway is followed by `$DC restart nginx`.
+recreated. `nginx` therefore depends on `gateway` with `restart: true` (Compose 2.17 or newer): Compose restarts it
+when it recreates the gateway. A command that recreates only the gateway may not trigger it, so every step below that
+recreates the gateway is followed by `$DC restart nginx`. The workers wait for a healthy `gateway` but do not restart
+with it: they have no gateway address, and a restart would only cut running jobs. `restart: true` does not follow a
+restart by the Docker daemon (a crash or an out-of-memory kill of the gateway): see
+[502 after a gateway restart](#502-after-a-gateway-restart).
 
 ### Images
 
@@ -183,7 +186,14 @@ The path is an example; the real one is `OPENBINDING_SECRETS_DIR` in `site.env`.
   `HISTCONTROL=ignorespace` is set).
 
 `put_secret` refuses an empty value (unless told `allow-empty`), writes the file next to its target with mode 0600 and
-moves it into place only when complete, and keeps the previous file as `<name>.prev` until the change is verified:
+moves it into place only when complete, and keeps the previous file as `<name>.prev` until the change is verified. When
+it cannot keep the previous file it stops before replacing anything, so after a successful replace a `.prev` exists
+whenever there was a file to replace.
+
+**The block after the function is for a fresh host only.** It generates a new value for every secret, including a new
+`postgres_password`, which PostgreSQL reads only when it first initialises an empty data directory. Run on a host that
+already has a database, it would give the services passwords that the database rejects. Never run it again after the
+first install: change a secret with the [rotation](#rotation) steps.
 
 ```bash
 # run after the exports of the site.env section, so that OPENBINDING_SECRETS_DIR is set
@@ -197,10 +207,13 @@ put_secret() {   # put_secret <name> <owner uid> [allow-empty]; the value comes 
     sudo rm -f "$f.new"; echo "refuse: empty value for $1" >&2; return 1
   fi
   sudo chown "$2:$2" "$f.new" && sudo chmod 0400 "$f.new" || { sudo rm -f "$f.new"; return 1; }
-  if sudo test -f "$f"; then sudo cp -p "$f" "$f.prev"; fi
+  if sudo test -f "$f"; then
+    sudo cp -p "$f" "$f.prev" || { sudo rm -f "$f.new"; echo "refuse: cannot keep $1.prev" >&2; return 1; }
+  fi
   sudo mv -f "$f.new" "$f"
 }
 
+# FRESH HOST ONLY: never run the rest of this block on a host that has a database (see the text above)
 password=$(openssl rand -hex 24)
 printf '%s' "$password" | put_secret postgres_password 70
 printf '%s' "postgresql+asyncpg://openbinding:${password}@postgres:5432/openbinding" | put_secret database_url 10001
@@ -234,7 +247,7 @@ On the host, render with the real site values: `$DC config --quiet`.
    [secrets directory](#secrets-directory).
 2. Choose the first administrator. Set `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_EMAIL` in `site.env` and put the
    password in the `bootstrap_admin_password` file. The gateway seeds that account once, when no administrator exists;
-   afterwards the variables are harmless.
+   step 7 clears the three values afterwards, so that no initial account stays described on the host.
 3. Check out the release tag named in the owner's order, so `images.env` is the one of that release.
 4. Run the [pre-flight](#pre-flight).
 5. Pull and start. `migrate` runs once and must exit 0 before `gateway` starts.
@@ -246,13 +259,19 @@ On the host, render with the real site values: `$DC config --quiet`.
    ```
 
 6. Run the [verification](#verification) and sign in as the administrator.
-7. After the first sign-in, empty the password file, so that the initial password does not stay on the host, and
-   recreate the gateway (the account exists; an empty password changes nothing):
+7. After the first sign-in, empty the password file and the two bootstrap variables of `site.env`, so that neither the
+   initial password nor the initial account stays on the host, and recreate the gateway (the account exists). The
+   variables are also unset in the shell, because a variable that is exported there wins over `--env-file`. The
+   commands are chained, so an edit of `site.env` that fails (the user needs write access to its directory) stops
+   before the gateway is recreated:
 
    ```bash
    printf '' | put_secret bootstrap_admin_password 10001 allow-empty
-   $DC up -d --force-recreate gateway
-   $DC restart nginx
+   sed -i -e 's/^BOOTSTRAP_ADMIN_USERNAME=.*/BOOTSTRAP_ADMIN_USERNAME=/' \
+     -e 's/^BOOTSTRAP_ADMIN_EMAIL=.*/BOOTSTRAP_ADMIN_EMAIL=/' "$SITE_ENV" \
+     && unset BOOTSTRAP_ADMIN_USERNAME BOOTSTRAP_ADMIN_EMAIL \
+     && $DC up -d --force-recreate gateway \
+     && $DC restart nginx
    sudo rm -f -- "$OPENBINDING_SECRETS_DIR/bootstrap_admin_password.prev"   # the copy that holds the initial password
    ```
 
@@ -271,16 +290,21 @@ git fetch --tags && git checkout <release tag>
 
 ### Pre-flight
 
-The pre-flight refuses a checkout with local changes, a release whose images are not published and any value that is
-not pinned by digest. It reads value lines only: the comments of `images.env` mention `gap.invalid` on purpose. It also
-checks the images that Compose renders (`config --images`), so an image set anywhere else is caught, and refuses an
-image in `site.env` and a `SPACE_URL` that is not https. It is a shell function, so a refusal does not close your
-session.
+The pre-flight refuses a checkout with local changes or whose `HEAD` is not exactly a release tag, a release whose
+images are not published and any value that is not pinned by digest. It reads value lines only: the comments of
+`images.env` mention `gap.invalid` on purpose. It also checks the images that Compose renders (`config --images`), so an
+image set anywhere else is caught, and refuses an image in `site.env`, a `SPACE_URL` that is not https and a
+`BACKUP_RETENTION_DAYS` that is not a whole number of at least 1 (a leading zero would be read as octal by the backup
+script). It is a shell function, so a refusal does not close your session.
 
 ```bash
 preflight() {
   if [ -n "$(git status --porcelain)" ]; then
     echo "refuse: the checkout has local changes; the checkout must be exactly the release tag" >&2
+    return 1
+  fi
+  if ! git describe --exact-match --tags HEAD > /dev/null 2>&1; then
+    echo "refuse: HEAD is not exactly a release tag; check out the tag of the release" >&2
     return 1
   fi
   if grep -En '^[A-Z0-9_]+=gap\.invalid/' images.env; then
@@ -298,6 +322,9 @@ preflight() {
   case "$SPACE_URL" in
     https://*) ;;
     *) echo "refuse: SPACE_URL must be an https:// URL" >&2; return 1 ;;
+  esac
+  case "${BACKUP_RETENTION_DAYS:-}" in
+    '' | *[!0-9]* | 0*) echo "refuse: BACKUP_RETENTION_DAYS must be a whole number of days, at least 1, without a leading zero" >&2; return 1 ;;
   esac
   local images
   images=$($DC config --images) || return 1
@@ -381,6 +408,23 @@ sure of it.
 4. Run the `openbinding-gateway/tools/smoke_lab.py` checks against the public origin: sign in, list engines, open a
    problem. Record the result in the release pull request.
 
+### 502 after a gateway restart
+
+`nginx` resolves the address of `gateway` once, when it starts. `restart: true` makes Compose restart it when Compose
+recreates the gateway, but not when the Docker daemon restarts the gateway by its restart policy (a crash or an
+out-of-memory kill). The gateway then has a new address, `nginx` still uses the old one, and the public origin answers
+`502 Bad Gateway` while `$DC ps` shows every service healthy. Restart `nginx`:
+
+```bash
+$DC ps gateway                     # when it started: a recent start time points to a restart by the daemon
+$DC restart nginx
+curl -fsS "$PUBLIC_ORIGIN/api/health/ready"
+```
+
+Look for the cause of the gateway restart in `$DC logs --tail 100 gateway` and in `docker inspect --format
+'{{.State.OOMKilled}}' $($DC ps -q gateway)` before closing the incident. Making `nginx` resolve the name on every
+request is a follow-up (F9 in the tasks of the change `m09-compose-only`).
+
 ## Backups
 
 `pg-backup` writes one custom-format dump per day into `OPENBINDING_BACKUP_DIR`, as
@@ -425,13 +469,19 @@ or of a disaster recovery ordered by the owner.
 ## Restore drill
 
 Do this on a **spare host**, never on the production host: the project uses a fixed subnet (`172.29.40.0/24`), fixed
-ports 80 and 443 and one backup directory, and `down -v` deletes volumes. On the spare host use a checkout of the same
-release, its own `site.env` and secrets (the drill needs `postgres_password` and `database_url` to agree), and a copy
-of the newest dump in its `OPENBINDING_BACKUP_DIR`, brought over an encrypted channel.
+ports 80 and 443 and one backup directory, and removing the drill deletes its volumes. On the spare host use a checkout
+of the same release, its own `site.env` and secrets (the drill needs `postgres_password` and `database_url` to agree),
+and a copy of the newest dump in its `OPENBINDING_BACKUP_DIR`, brought over an encrypted channel.
+
+**The drill never uses a production SPACE key.** Its restored gateway and workers run with the restored data. Give the
+spare host a throwaway SPACE account and key, or leave `SPACE_URL` at an address that nothing answers (for example
+`https://space.invalid`, which still passes the https check) and put a placeholder in `space_api_key`; never copy the
+production `space_api_key` or `sphere_api_key` to it.
 
 The drill refuses to run unless `DRILL_HOST=yes` is in the environment of that host (set it in `/etc/environment` of the
 spare host only, never on production), and prints the host name first. It restores with the same flags as the
-[rollback](#rollback), so a restore that would fail in an emergency fails here first.
+[rollback](#rollback), so a restore that would fail in an emergency fails here first. The clean-up is `drill_down`,
+which makes the same check before it removes the volumes; no command that removes volumes is typed by hand.
 
 ```bash
 drill() {
@@ -452,12 +502,20 @@ drill() {
   $DC ps -a
   $DC exec -T gateway curl -fsS http://localhost:8000/health/ready
 }
+
+drill_down() {   # removes the drill project and its volumes; only on the drill host
+  if [ "${DRILL_HOST:-}" != yes ]; then
+    echo "abort: DRILL_HOST=yes is not set on this host; the volumes are not removed" >&2
+    return 1
+  fi
+  $DC down -v
+}
 drill
 ```
 
 Check that the row counts of the main tables match the source, that the gateway is healthy and that a known problem
 opens. Record the date, the dump used, the time it took and the result in the release notes. Remove the drill with
-`$DC down -v`.
+`drill_down`.
 
 ## Rollback
 
@@ -583,32 +641,45 @@ sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
   The SPHERE key is the same with `sphere_api_key` in place of `space_api_key`.
 - **PostgreSQL password (`postgres_password`, `database_url`):** the new password goes to the database through standard
   input of a command inside the container, never as an argument, then both files are written and the services
-  recreated. `postgres` itself reads the file only when it first initialises the data directory.
+  recreated. `postgres` itself reads the file only when it first initialises the data directory. `ALTER ROLE` never
+  runs with an empty value: `PASSWORD ''` would not set an empty password, it would remove the password of the role
+  (PostgreSQL 10 and later). The block fails unless the new password is non-empty:
 
   ```bash
   password=$(openssl rand -hex 24)
-  printf "ALTER ROLE openbinding PASSWORD '%s';\n" "$password" \
-    | $DC exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1 \
-    && printf '%s' "$password" | put_secret postgres_password 70 \
-    && printf '%s' "postgresql+asyncpg://openbinding:${password}@postgres:5432/openbinding" | put_secret database_url 10001 \
-    && $DC up -d --force-recreate migrate gateway worker analysis-worker pg-backup \
-    && $DC restart nginx
+  if [ -n "$password" ]; then
+    printf "ALTER ROLE openbinding PASSWORD '%s';\n" "$password" \
+      | $DC exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1 \
+      && printf '%s' "$password" | put_secret postgres_password 70 \
+      && printf '%s' "postgresql+asyncpg://openbinding:${password}@postgres:5432/openbinding" | put_secret database_url 10001 \
+      && $DC up -d --force-recreate migrate gateway worker analysis-worker pg-backup \
+      && $DC restart nginx
+  else
+    echo "refuse: the new password is empty; the role keeps its password" >&2
+  fi
   unset password
   ```
 
   `psql` inside the container connects over the local socket, which the PostgreSQL image trusts, so no password is
   needed to change one. **To undo a failed change of this password, first set the role back to the old one**, with the
   value read from the `.prev` file on standard input, because the services would otherwise be given a password that the
-  server rejects. Then move both `.prev` files back and recreate the services:
+  server rejects. The function refuses, with a message on standard error and a non-zero status, and leaves the role
+  as it is, unless `postgres_password.prev` is non-empty and `database_url.prev` exists and carries that same password
+  (a `.prev` file left by an earlier rotation does not). Then it moves both `.prev` files back and recreates the
+  services:
 
   ```bash
-  old=$(sudo cat "$OPENBINDING_SECRETS_DIR/postgres_password.prev")
-  printf "ALTER ROLE openbinding PASSWORD '%s';\n" "$old" \
-    | $DC exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1 \
-    && sudo sh -c 'for f in postgres_password database_url; do mv -f -- "$1/$f.prev" "$1/$f"; done' sh "$OPENBINDING_SECRETS_DIR" \
-    && $DC up -d --force-recreate migrate gateway worker analysis-worker pg-backup \
-    && $DC restart nginx
-  unset old
+  undo_password_rotation() {
+    local old dir="$OPENBINDING_SECRETS_DIR"
+    old=$(sudo cat "$dir/postgres_password.prev") && [ -n "$old" ] && sudo grep -qF ":$old@" "$dir/database_url.prev" \
+      || { echo "refuse: postgres_password.prev is missing or empty, or database_url.prev is missing or has another password; nothing was changed" >&2; return 1; }
+    printf "ALTER ROLE openbinding PASSWORD '%s';\n" "$old" \
+      | $DC exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1 \
+      && sudo sh -c 'for f in postgres_password database_url; do mv -f -- "$1/$f.prev" "$1/$f"; done' sh "$dir" \
+      && $DC up -d --force-recreate migrate gateway worker analysis-worker pg-backup \
+      && $DC restart nginx
+  }
+  undo_password_rotation
   ```
 
 ## TLS renewal
@@ -682,6 +753,10 @@ the owner decision. The owner reconciles `INTENT.md`. Until then plans stay bloc
   `user` and `cap_drop` there depends on the writable paths and ports of each image, and cannot be verified without
   Docker, so it is a follow-up (F7 in the tasks of the change `m09-compose-only`), to be rendered and tested on a
   host with Docker.
+- **Nginx resolves the gateway once.** After a restart of the gateway by the Docker daemon, `nginx` must be restarted
+  by hand ([502 after a gateway restart](#502-after-a-gateway-restart)). Resolving the name on every request is a
+  follow-up (F9 in the tasks of the change `m09-compose-only`) that needs the image configuration and a host with
+  Docker to test.
 - **CI compose-config job.** The job that runs `docker compose config` for development, lab and production is written
   but cannot be pushed until a token with Workflows: write exists (CRP-3). Until then, run the
   [render check](#render-check) by hand.

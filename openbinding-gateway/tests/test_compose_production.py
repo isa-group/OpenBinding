@@ -14,6 +14,7 @@ import os
 import re
 import stat
 import subprocess
+import textwrap
 
 import pytest
 import yaml
@@ -352,9 +353,13 @@ def test_entrypoint_empty_value_with_a_file_variable_takes_the_file(entrypoint, 
 # [utest->req~lab-deployment-entrypoint-secret-files~1]
 @pytest.mark.parametrize("name", SECRET_VARIABLES, ids=FILE_IDS)
 def test_entrypoint_file_and_value_together_exit_2(entrypoint, secret_file, name):
-    env = {f"{name}_FILE": secret_file(FILE_SECRET), name: ENV_SECRET, "OPENBINDING_MIGRATE": "skip"}
+    # Auto mode with a database set, so that a conflict which did not stop the start would reach `alembic`.
+    env = {f"{name}_FILE": secret_file(FILE_SECRET), name: ENV_SECRET}
+    if name != "DATABASE_URL":
+        env["DATABASE_URL"] = "postgresql://db/app"
     run = entrypoint(env, "echo", "ran")
     assert run.returncode == 2
+    assert run.alembic_calls == []
     assert "ran" not in run.stdout
     assert f"{name}_FILE" in run.stderr
     assert FILE_SECRET not in run.output
@@ -380,7 +385,12 @@ def test_entrypoint_missing_file_exits_2(entrypoint, tmp_path, name):
 def test_entrypoint_directory_instead_of_file_exits_2(entrypoint, tmp_path, name):
     directory = tmp_path / "a-directory"
     directory.mkdir()
-    run = entrypoint({f"{name}_FILE": str(directory)}, "echo", "ran")
+    # Auto mode with a database set (DATABASE_URL_FILE is the case under test for DATABASE_URL), so that a bad file
+    # which did not stop the start would reach `alembic`.
+    env = {f"{name}_FILE": str(directory)}
+    if name != "DATABASE_URL":
+        env["DATABASE_URL"] = "postgresql://db/app"
+    run = entrypoint(env, "echo", "ran")
     assert run.returncode == 2
     assert f"{name}_FILE" in run.stderr
     assert run.alembic_calls == []
@@ -396,7 +406,10 @@ def test_entrypoint_unreadable_file_exits_2(entrypoint, secret_file, name):
         # A root user reads a file of mode 0, so the check cannot be exercised here; it runs as a normal user.
         # The source test below keeps the check from being deleted unseen when this one is skipped.
         pytest.skip("the test user can read a file with mode 0 (running as root)")
-    run = entrypoint({f"{name}_FILE": path}, "echo", "ran")
+    env = {f"{name}_FILE": path}
+    if name != "DATABASE_URL":
+        env["DATABASE_URL"] = "postgresql://db/app"  # auto mode: a bad file that did not stop the start would migrate
+    run = entrypoint(env, "echo", "ran")
     assert run.returncode == 2
     assert f"{name}_FILE" in run.stderr
     assert run.alembic_calls == []
@@ -412,8 +425,12 @@ def test_entrypoint_source_keeps_the_readability_and_regular_file_checks():
         for line in ENTRYPOINT.read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.strip().startswith("#")
     ]
-    checks = [line for line in code if "[ ! -f" in line and "[ ! -r" in line]
+    checks = [number for number, line in enumerate(code) if "[ ! -f" in line and "[ ! -r" in line]
     assert checks, "the entrypoint no longer checks that the secret file is a readable regular file"
+    # The check refuses the start: `exit 2` is inside the same `if`, before its `fi`.
+    for number in checks:
+        branch = code[number + 1 : code.index("fi", number)]
+        assert "exit 2" in branch, "a file that is not a readable regular file must end the start with exit 2"
     assert any(line.startswith("value=$(cat -- ") for line in code), "the file is read with cat -- (no option parsing)"
 
 
@@ -585,11 +602,10 @@ EXPECTED_DEPENDS_ON = {
     "nginx": {"gateway": HEALTHY, "frontend-assets": HEALTHY},
     "pg-backup": {"postgres": HEALTHY},
 }
-# Services that must be restarted when the gateway is recreated (nginx.conf resolves `gateway` once).
+# Services that must be restarted when the gateway is recreated (nginx.conf resolves `gateway` once). The workers
+# have no gateway address, so they only wait for it to be healthy.
 EXPECTED_RESTART_ON_DEPENDENCY = {
     "nginx": {"gateway"},
-    "worker": {"gateway"},
-    "analysis-worker": {"gateway"},
 }
 LAB_SERVICE = {"analysis-worker": "worker"}
 # Settings.app_env when APP_ENV is not set (openbinding_gateway/core/settings.py).
@@ -1188,7 +1204,14 @@ def test_production_health_restart_and_start_order():
         (edit("services", "pg-backup", "depends_on"), "pg-backup: depends_on"),
         (edit("services", "nginx", "depends_on", "gateway", "restart"), "nginx: depends_on with restart: true"),
         (edit("services", "nginx", "depends_on", "gateway", "restart", value=False), "nginx: depends_on with restart"),
-        (edit("services", "worker", "depends_on", "gateway", "restart"), "worker: depends_on with restart: true"),
+        (
+            edit("services", "worker", "depends_on", "gateway", "restart", value=True),
+            "worker: depends_on with restart: true is ['gateway'], not []",
+        ),
+        (
+            edit("services", "analysis-worker", "depends_on", "gateway", "restart", value=True),
+            "analysis-worker: depends_on with restart: true",
+        ),
         (edit("services", "gateway", "depends_on", "redis", "restart", value=True), "gateway: depends_on with restart"),
     ],
     ids=[
@@ -1211,7 +1234,8 @@ def test_production_health_restart_and_start_order():
         "backup-without-postgres",
         "nginx-does-not-follow-the-gateway",
         "nginx-restart-false",
-        "worker-does-not-follow-the-gateway",
+        "worker-restarts-with-the-gateway",
+        "analysis-worker-restarts-with-the-gateway",
         "gateway-follows-redis",
     ],
 )
@@ -1220,10 +1244,11 @@ def test_production_health_rule_detects(mutation, fragment):
 
 
 # [utest->req~lab-deployment-production-health-restart~1]
-def test_production_nginx_and_workers_restart_with_the_gateway():
+def test_production_only_nginx_restarts_with_the_gateway_and_the_workers_wait_for_it():
     services = production()["services"]
-    for name in ("nginx", "worker", "analysis-worker"):
-        assert services[name]["depends_on"]["gateway"] == {"condition": HEALTHY, "restart": True}, name
+    assert services["nginx"]["depends_on"]["gateway"] == {"condition": HEALTHY, "restart": True}
+    for name in ("worker", "analysis-worker"):
+        assert services[name]["depends_on"]["gateway"] == {"condition": HEALTHY}, name
 
 
 # [utest->req~lab-deployment-production-health-restart~1]
@@ -1356,6 +1381,13 @@ def backup_problems(config: dict) -> list[str]:
     for label, pattern in BACKUP_COMMAND_PARTS.items():
         if not re.search(pattern, script):
             problems.append(f"pg-backup: the command lacks {label}")
+    # A failed pg_dump must end the script before the `mv` of the .partial file: `sh -ec`, or a script that begins
+    # with `set -e` (a plain `sh -c` would go on and publish a truncated dump under the final name).
+    command_text = "\n".join(str(part) for part in _as_list(service.get("command")))
+    if _as_list(service.get("entrypoint")) != ["sh", "-ec"] and not re.match(r"\s*set -e\b", command_text):
+        problems.append(
+            "pg-backup: the script stops on a failed dump only with entrypoint [sh, -ec] or a first line `set -e`"
+        )
     sleeps = [int(n) for n in re.findall(r"\bsleep (\d+)\b", script)]
     if not sleeps or max(sleeps) > 86400:
         problems.append("pg-backup: the loop waits more than 86400 seconds, or does not wait")
@@ -1450,6 +1482,38 @@ def rewrite_backup_script(old: str, new: str, count: int = 1):
 # [utest->req~lab-deployment-production-backups~1]
 def test_production_backup_rule_detects_an_unescaped_dollar_in_the_script():
     assert_caught(backup_problems, rewrite_backup_script("$${stamp}", "${stamp}"), "unescaped $")
+
+
+# [utest->req~lab-deployment-production-backups~1]
+def test_production_backup_stops_on_a_failed_dump():
+    service = production()["services"]["pg-backup"]
+    assert service["entrypoint"] == ["sh", "-ec"]
+    script = service["command"][0]
+    assert script.index("pg_dump") < script.index('mv "openbinding-')
+
+
+# [utest->req~lab-deployment-production-backups~1]
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        edit("services", "pg-backup", "entrypoint", value=["sh", "-c"]),
+        edit("services", "pg-backup", "entrypoint", value=["bash", "-c"]),
+        edit("services", "pg-backup", "entrypoint"),
+    ],
+    ids=["sh-c", "bash-c", "no-entrypoint"],
+)
+def test_production_backup_rule_detects_a_script_that_goes_on_after_a_failed_dump(mutation):
+    assert_caught(backup_problems, mutation, "stops on a failed dump")
+
+
+# [utest->req~lab-deployment-production-backups~1]
+def test_production_backup_rule_accepts_a_plain_shell_when_the_script_begins_with_set_e():
+    config = production()
+    config["services"]["pg-backup"]["entrypoint"] = ["sh", "-c"]
+    config["services"]["pg-backup"]["command"][0] = "set -e\n" + config["services"]["pg-backup"]["command"][0]
+    assert not backup_problems(config)
+    config["services"]["pg-backup"]["command"][0] = config["services"]["pg-backup"]["command"][0].replace("set -e\n", "# set -e\n")
+    assert any("stops on a failed dump" in problem for problem in backup_problems(config))
 
 
 # [utest->req~lab-deployment-production-backups~1]
@@ -1846,6 +1910,8 @@ def preflight_body() -> str:
     ("what", "needle"),
     [
         ("a dirty checkout is refused", 'git status --porcelain'),
+        ("a checkout that is not exactly a tag is refused", "git describe --exact-match --tags HEAD"),
+        ("the retention days are checked", 'case "${BACKUP_RETENTION_DAYS:-}" in'),
         ("the rendered images are listed", "$DC config --images"),
         ("every rendered image has a digest", "grep -Ev '@sha256:[0-9a-f]{64}$'"),
         ("a rendered marker is refused", "grep -F 'gap.invalid'"),
@@ -1857,6 +1923,8 @@ def preflight_body() -> str:
     ],
     ids=[
         "clean-checkout",
+        "exact-tag",
+        "retention-days",
         "config-images",
         "digest-of-rendered",
         "marker-of-rendered",
@@ -1874,8 +1942,52 @@ def test_runbook_preflight_checks(what, needle):
 # [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_preflight_refuses_with_a_non_zero_status_each_time():
     body = preflight_body()
-    assert body.count("refuse:") >= 7
+    assert body.count("refuse:") >= 9
     assert body.count("return 1") >= body.count("refuse:")
+
+
+def retention_check() -> str:
+    """The ``case`` of the pre-flight that checks BACKUP_RETENTION_DAYS, as a shell function that can be run."""
+    match = re.search(r'^  (case "\$\{BACKUP_RETENTION_DAYS:-\}" in\n.*?^  esac)\n', preflight_body(), re.MULTILINE | re.DOTALL)
+    assert match, "the pre-flight no longer checks BACKUP_RETENTION_DAYS with a case"
+    return "check() {\n" + match[1] + "\n}\ncheck\n"
+
+
+def run_shell(script: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["sh", "-c", script], env={"PATH": "/usr/bin:/bin", **env}, capture_output=True, text=True, timeout=30, check=False
+    )
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+@pytest.mark.parametrize("days", ["1", "14", "365"])
+def test_runbook_preflight_accepts_a_whole_number_of_retention_days(days):
+    result = run_shell(retention_check(), {"BACKUP_RETENTION_DAYS": days})
+    assert result.returncode == 0, result.stderr
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+@pytest.mark.parametrize(
+    "days", ["", "0", "00", "014", "08", "-1", "1.5", "abc", "14d", " 14", "14 ", "1e3", "0x10"],
+)
+def test_runbook_preflight_refuses_retention_days_that_are_not_an_integer_of_at_least_one(days):
+    result = run_shell(retention_check(), {"BACKUP_RETENTION_DAYS": days})
+    assert result.returncode == 1
+    assert "refuse: BACKUP_RETENTION_DAYS" in result.stderr
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_preflight_refuses_unset_retention_days():
+    result = run_shell(retention_check(), {})
+    assert result.returncode == 1 and "refuse:" in result.stderr
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_preflight_refuses_a_checkout_that_is_not_exactly_a_tag_before_anything_else():
+    body = preflight_body()
+    steps = positions(body, ("git status --porcelain", "git describe --exact-match --tags HEAD", "refuse: HEAD is not exactly a release tag", "grep -En"), "preflight")
+    assert steps == sorted(steps)
+    assert re.search(r"if ! git describe --exact-match --tags HEAD > /dev/null 2>&1; then\n[^\n]*refuse:[^\n]*\n\s+return 1\n", body)
 
 
 # [utest->req~lab-deployment-production-backups~1]
@@ -2026,6 +2138,81 @@ def test_runbook_restore_drill_refuses_to_run_on_a_host_that_is_not_marked_as_th
     assert "\ndrill\n" in body, "the function is called"
 
 
+def bare_down_problems(text: str) -> list[str]:
+    """Volumes are removed only by ``drill_down``, which checks DRILL_HOST first; no other ``down -v`` stands."""
+    problems = []
+    rest = text
+    match = re.search(r"^drill_down\(\) \{[^\n]*\n(.*?)^\}\n", text, re.MULTILINE | re.DOTALL)
+    if not match:
+        problems.append("drill_down is missing")
+    else:
+        rest = text.replace(match[0], "", 1)
+        guard, removal = match[1].find('DRILL_HOST:-}" != yes'), match[1].find("$DC down -v")
+        if guard < 0 or removal < 0 or guard > removal:
+            problems.append("drill_down does not check DRILL_HOST before it removes the volumes")
+        elif "return 1" not in match[1][guard:removal]:
+            problems.append("drill_down does not return when DRILL_HOST is not yes")
+    if re.search(r"\bdown\b[^\n]*\s(?:--volumes|-[a-z]*v[a-z]*)\b", rest):
+        problems.append("a down -v outside drill_down")
+    return problems
+
+
+# [utest->req~lab-deployment-production-backups~1]
+def test_runbook_drill_removes_volumes_only_through_the_guarded_drill_down():
+    assert bare_down_problems(runbook_text()) == []
+    body = section(runbook_text(), "Restore drill")
+    assert "`drill_down`" in body
+
+
+# [utest->req~lab-deployment-production-backups~1]
+@pytest.mark.parametrize(
+    ("change", "fragment"),
+    [
+        (lambda text: text + "\n```bash\n$DC down -v\n```\n", "a down -v outside drill_down"),
+        (lambda text: text + "\nRemove it with `docker compose down --volumes`.\n", "a down -v outside drill_down"),
+        (lambda text: text.replace("`drill_down`.", "`$DC down -v`."), "a down -v outside drill_down"),
+        (lambda text: text.replace('"${DRILL_HOST:-}" != yes', '"${DRILL_HOST:-}" != no'), "does not check DRILL_HOST"),
+        (lambda text: text.replace("drill_down() {", "drill_up() {"), "drill_down is missing"),
+    ],
+    ids=["bare-command", "long-flag", "typed-by-hand", "no-guard", "no-function"],
+)
+def test_runbook_bare_down_rule_detects(change, fragment):
+    text = runbook_text()
+    mutated = change(text)
+    assert mutated != text, "the control is stale"
+    assert fragment in " | ".join(bare_down_problems(mutated))
+
+
+def drill_down_script(text: str) -> str:
+    match = re.search(r"^drill_down\(\) \{[^\n]*\n(.*?)^\}\n", section(text, "Restore drill"), re.MULTILINE | re.DOTALL)
+    assert match, "drill_down is missing"
+    return "drill_down() {\n" + match[1] + "}\n"
+
+
+# [utest->req~lab-deployment-production-backups~1]
+@pytest.mark.parametrize("host", [None, "", "no", "YES", "yes "], ids=["unset", "empty", "no", "uppercase", "trailing-space"])
+def test_runbook_drill_down_refuses_on_a_host_that_is_not_the_drill_host(host):
+    env = {"DC": "echo REMOVED"} | ({} if host is None else {"DRILL_HOST": host})
+    result = run_shell(drill_down_script(runbook_text()) + "drill_down\n", env)
+    assert result.returncode == 1
+    assert "REMOVED" not in result.stdout and "abort:" in result.stderr
+
+
+# [utest->req~lab-deployment-production-backups~1]
+def test_runbook_drill_down_removes_the_volumes_on_the_drill_host():
+    result = run_shell(drill_down_script(runbook_text()) + "drill_down\n", {"DC": "echo REMOVED", "DRILL_HOST": "yes"})
+    assert result.returncode == 0
+    assert result.stdout == "REMOVED down -v\n"
+
+
+# [utest->req~lab-deployment-production-backups~1]
+def test_runbook_drill_never_uses_a_production_space_key():
+    body = " ".join(section(runbook_text(), "Restore drill").split())
+    assert "**The drill never uses a production SPACE key.**" in body
+    for needle in ("throwaway SPACE account", "https://space.invalid", "never copy the production `space_api_key`"):
+        assert needle in body, needle
+
+
 # [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_renders_with_the_command_of_ci():
     assert RENDER_COMMAND in runbook_text()
@@ -2157,6 +2344,9 @@ def test_runbook_put_secret_writes_a_private_temp_file_and_moves_it_into_place()
     )
     assert steps == sorted(steps), "write, check, own, protect, keep the previous file, then move into place"
     assert "allow-empty" in body and "refuse: empty value" in body
+    assert 'sudo cp -p "$f" "$f.prev" || { sudo rm -f "$f.new"; echo "refuse: cannot keep $1.prev" >&2; return 1; }' in body, (
+        "a previous file that cannot be kept stops put_secret before the replace"
+    )
     assert 'sudo tee "$f"' not in body, "the target is never written in place"
     rotation = section(runbook_text(), "Rotation")
     # The secrets directory is root's (0700): the glob is expanded by a root shell, not by the user's shell.
@@ -2185,11 +2375,231 @@ def test_runbook_postgres_password_rotation_keeps_the_password_out_of_arguments(
     assert not re.search(r"-c\s+[\"']ALTER ROLE", block), "the password is not an argument of psql"
     assert block.rstrip().endswith("unset password")
     # Undoing it: the role is set back to the old password first, only then are the old files moved back.
-    undo_start = body.index('old=$(sudo cat "$OPENBINDING_SECRETS_DIR/postgres_password.prev")')
-    undo = body[undo_start : body.index("```", undo_start)]
+    undo = indented_function_body(body, "undo_password_rotation")
     steps = positions(undo, ("ALTER ROLE openbinding PASSWORD", "mv -f --", "--force-recreate", "$DC restart nginx"), "undo")
     assert steps == sorted(steps)
-    assert not re.search(r"-c\s+[\"']ALTER ROLE", undo) and undo.rstrip().endswith("unset old")
+    assert not re.search(r"-c\s+[\"']ALTER ROLE", undo)
+    assert "\nundo_password_rotation\n" in body or "  undo_password_rotation\n" in body, "the function is called"
+
+
+def indented_function_body(text: str, name: str) -> str:
+    """The body of a shell function that sits in an indented fenced block (a list item), dedented."""
+    match = re.search(rf"^( *){re.escape(name)}\(\) \{{[^\n]*\n(.*?)^\1\}}\n", text, re.MULTILINE | re.DOTALL)
+    assert match, f"the function {name} is missing from the runbook"
+    return textwrap.dedent(match[2])
+
+
+def rotation_block(text: str, start: str) -> str:
+    """The fenced block of the section ``Rotation`` that holds ``start``, dedented."""
+    body = section(text, "Rotation")
+    begin = body.rindex("\n", 0, body.index(start)) + 1
+    return textwrap.dedent(body[begin : body.index("```", begin)])
+
+
+SUDO_SHIM = """sudo() {
+  case "$1" in
+    chown) return 0 ;;
+    cp) [ -z "${FAIL_CP:-}" ] || return 1 ;;
+  esac
+  "$@"
+}
+"""
+
+
+def fake_dc(directory) -> str:
+    """A ``$DC`` that records its arguments in ``$DC_LOG`` and what it reads on standard input for ``exec``."""
+    path = directory / "dc"
+    path.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$DC_LOG"\n[ "$1" != exec ] || cat >> "$DC_LOG.stdin"\n')
+    path.chmod(0o755)
+    return str(path)
+
+
+def put_secret_script(text: str) -> str:
+    return SUDO_SHIM + "put_secret() {\n" + function_body(section(text, "Secrets directory"), "put_secret") + "}\n"
+
+
+def put_secret_problems(text: str, tmp_path) -> list[str]:
+    """Runs the put_secret of the runbook against a directory of temporary files (sudo is a shim)."""
+    problems = []
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    target = secrets / "space_api_key"
+    target.write_text("old")
+    env = {"OPENBINDING_SECRETS_DIR": str(secrets)}
+    result = run_shell(put_secret_script(text) + "printf '%s' new | put_secret space_api_key 10001\n", {**env, "FAIL_CP": "1"})
+    if result.returncode == 0:
+        problems.append("returns 0 although the previous file could not be kept")
+    if target.read_text() != "old":
+        problems.append("replaces the file although the previous file could not be kept")
+    if (secrets / "space_api_key.new").exists():
+        problems.append("leaves a .new file after a failure")
+    result = run_shell(put_secret_script(text) + "printf '%s' new | put_secret space_api_key 10001\n", env)
+    if result.returncode != 0 or target.read_text() != "new":
+        problems.append(f"does not replace the file: {result.stderr}")
+    elif (secrets / "space_api_key.prev").read_text() != "old":
+        problems.append("does not keep the previous file as .prev")
+    elif stat.S_IMODE(target.stat().st_mode) != 0o400:
+        problems.append("the new file is not mode 0400")
+    return problems
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_put_secret_keeps_a_previous_file_or_stops(tmp_path):
+    assert put_secret_problems(runbook_text(), tmp_path) == []
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_put_secret_without_the_abort_on_a_failed_copy_is_detected(tmp_path):
+    abort = ' || { sudo rm -f "$f.new"; echo "refuse: cannot keep $1.prev" >&2; return 1; }'
+    assert abort in runbook_text()
+    problems = put_secret_problems(runbook_text().replace(abort, "", 1), tmp_path)
+    assert any("returns 0" in problem for problem in problems), problems
+    assert any("replaces the file" in problem for problem in problems), problems
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_put_secret_refuses_an_empty_value_and_writes_the_first_file_without_a_previous_one(tmp_path):
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    env = {"OPENBINDING_SECRETS_DIR": str(secrets)}
+    script = put_secret_script(runbook_text())
+    result = run_shell(script + "printf '' | put_secret space_api_key 10001\n", env)
+    assert result.returncode == 1 and "refuse: empty value" in result.stderr
+    assert not list(secrets.iterdir())
+    result = run_shell(script + "printf '' | put_secret sphere_api_key 10001 allow-empty\n", env)
+    assert result.returncode == 0 and (secrets / "sphere_api_key").read_text() == ""
+    assert not (secrets / "sphere_api_key.prev").exists()
+
+
+URL_WITH_OLD_PASSWORD = "postgresql+asyncpg://openbinding:oldpw@postgres:5432/openbinding"
+
+
+def undo_script(text: str) -> str:
+    return SUDO_SHIM + "undo_password_rotation() {\n" + indented_function_body(section(text, "Rotation"), "undo_password_rotation") + "}\n"
+
+
+def undo_problems(text: str, tmp_path) -> list[str]:
+    """The guards of the undo: with a missing or empty .prev nothing runs, and the status is not zero."""
+    problems = []
+    scenarios = {
+        "no postgres_password.prev": {"database_url.prev": URL_WITH_OLD_PASSWORD},
+        "an empty postgres_password.prev": {"postgres_password.prev": "", "database_url.prev": "postgresql://u:@h/db"},
+        "no database_url.prev": {"postgres_password.prev": "oldpw"},
+        "a database_url.prev with another password": {
+            "postgres_password.prev": "oldpw",
+            "database_url.prev": "postgresql+asyncpg://openbinding:pw0@postgres:5432/openbinding",
+        },
+        "no .prev file at all": {},
+    }
+    for number, (label, files) in enumerate(scenarios.items()):
+        case = tmp_path / f"refused-{number}"
+        secrets = case / "secrets"
+        secrets.mkdir(parents=True)
+        for name, content in files.items():
+            (secrets / name).write_text(content)
+        env = {"OPENBINDING_SECRETS_DIR": str(secrets), "DC": fake_dc(case), "DC_LOG": str(case / "dc.log")}
+        result = run_shell(undo_script(text) + "undo_password_rotation\n", env)
+        if result.returncode == 0:
+            problems.append(f"{label}: returns 0")
+        if "refuse:" not in result.stderr:
+            problems.append(f"{label}: no refusal on standard error")
+        if (case / "dc.log").exists():
+            problems.append(f"{label}: ALTER ROLE or a recreate ran")
+        if sorted(p.name for p in secrets.iterdir()) != sorted(files):
+            problems.append(f"{label}: the secret files were touched")
+    return problems
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_undo_of_the_password_rotation_refuses_without_a_usable_previous_file(tmp_path):
+    assert undo_problems(runbook_text(), tmp_path) == []
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+@pytest.mark.parametrize(
+    ("original", "replacement", "label"),
+    [
+        ('postgres_password.prev") && [ -n "$old" ]', 'postgres_password.prev")', "an empty postgres_password.prev"),
+        (' && sudo grep -qF ":$old@" "$dir/database_url.prev"', "", "no database_url.prev"),
+        (
+            ' && sudo grep -qF ":$old@" "$dir/database_url.prev"',
+            ' && sudo test -f "$dir/database_url.prev"',
+            "a database_url.prev with another password",
+        ),
+    ],
+    ids=["non-empty-check", "database-url-check", "database-url-password-check"],
+)
+def test_runbook_undo_without_a_guard_is_detected(tmp_path, original, replacement, label):
+    assert runbook_text().count(original) == 1, "the control is stale or ambiguous"
+    problems = undo_problems(runbook_text().replace(original, replacement), tmp_path)
+    assert any(problem.startswith(label) for problem in problems), problems
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_undo_of_the_password_rotation_sets_the_old_password_and_moves_the_files_back(tmp_path):
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    files = {
+        "postgres_password.prev": "oldpw",
+        "database_url.prev": URL_WITH_OLD_PASSWORD,
+        "postgres_password": "new",
+        "database_url": "newurl",
+    }
+    for name, content in files.items():
+        (secrets / name).write_text(content)
+    env = {"OPENBINDING_SECRETS_DIR": str(secrets), "DC": fake_dc(tmp_path), "DC_LOG": str(tmp_path / "dc.log")}
+    result = run_shell(undo_script(runbook_text()) + "undo_password_rotation\n", env)
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "dc.log").read_text().splitlines() == [
+        "exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1",
+        "up -d --force-recreate migrate gateway worker analysis-worker pg-backup",
+        "restart nginx",
+    ]
+    assert (tmp_path / "dc.log.stdin").read_text() == "ALTER ROLE openbinding PASSWORD 'oldpw';\n"
+    assert (secrets / "postgres_password").read_text() == "oldpw"
+    assert (secrets / "database_url").read_text() == URL_WITH_OLD_PASSWORD
+    assert not list(secrets.glob("*.prev"))
+
+
+def password_rotation_problems(text: str, tmp_path, generated: str) -> list[str]:
+    """Runs the forward rotation block with `openssl` printing ``generated`` (put_secret and $DC are recorders)."""
+    out = tmp_path / "out"
+    out.mkdir(parents=True)
+    env = {"DC": fake_dc(tmp_path), "DC_LOG": str(tmp_path / "dc.log"), "OUT": str(out)}
+    script = (
+        f"openssl() {{ printf '%s' '{generated}'; }}\n"
+        'put_secret() { cat > "$OUT/$1"; }\n' + rotation_block(text, "password=$(openssl rand -hex 24)")
+    )
+    result = run_shell(script, env)
+    problems = []
+    if generated:
+        stdin = (tmp_path / "dc.log.stdin").read_text() if (tmp_path / "dc.log.stdin").exists() else ""
+        if stdin != f"ALTER ROLE openbinding PASSWORD '{generated}';\n":
+            problems.append(f"the role is not given the new password: {stdin!r}")
+        if (out / "postgres_password").read_text() != generated or generated not in (out / "database_url").read_text():
+            problems.append("the files do not carry the new password")
+    else:
+        if (tmp_path / "dc.log").exists():
+            problems.append("ALTER ROLE ran with an empty password")
+        if list(out.iterdir()):
+            problems.append("a secret file was written with an empty password")
+        if "refuse:" not in result.stderr:
+            problems.append("no refusal on standard error")
+    return problems
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_postgres_password_rotation_alters_the_role_only_with_a_non_empty_password(tmp_path):
+    assert password_rotation_problems(runbook_text(), tmp_path / "a", "abc123") == []
+    assert password_rotation_problems(runbook_text(), tmp_path / "b", "") == []
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_postgres_password_rotation_without_the_empty_check_is_detected(tmp_path):
+    guard = 'if [ -n "$password" ]; then'
+    assert guard in runbook_text()
+    problems = password_rotation_problems(runbook_text().replace(guard, "if true; then", 1), tmp_path / "mutated", "")
+    assert "ALTER ROLE ran with an empty password" in problems, problems
 
 
 def dc_services(text: str) -> list[str]:
@@ -2254,6 +2664,10 @@ def test_runbook_first_install_empties_the_bootstrap_password_after_the_first_lo
         block,
         (
             "printf '' | put_secret bootstrap_admin_password 10001 allow-empty",
+            "s/^BOOTSTRAP_ADMIN_USERNAME=.*/BOOTSTRAP_ADMIN_USERNAME=/",
+            "s/^BOOTSTRAP_ADMIN_EMAIL=.*/BOOTSTRAP_ADMIN_EMAIL=/",
+            '"$SITE_ENV"',
+            "unset BOOTSTRAP_ADMIN_USERNAME BOOTSTRAP_ADMIN_EMAIL",
             "$DC up -d --force-recreate gateway",
             "$DC restart nginx",
             'sudo rm -f -- "$OPENBINDING_SECRETS_DIR/bootstrap_admin_password.prev"',
@@ -2262,6 +2676,33 @@ def test_runbook_first_install_empties_the_bootstrap_password_after_the_first_lo
     )
     assert steps == sorted(steps)
     assert body.index("6. Run the [verification]") < start
+    assert "harmless" not in runbook_text()
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_first_install_clearing_of_the_bootstrap_variables_works_on_a_site_env(tmp_path):
+    body = section(runbook_text(), "First install")
+    start = body.index("sed -i -e 's/^BOOTSTRAP_ADMIN_USERNAME=")
+    end = body.index('"$SITE_ENV"', start) + len('"$SITE_ENV"')
+    sed = textwrap.dedent(body[body.rindex("\n", 0, start) + 1 : end])
+    assert body[end:].startswith(" \\\n     && unset BOOTSTRAP_ADMIN_USERNAME BOOTSTRAP_ADMIN_EMAIL \\\n     && $DC up -d --force-recreate gateway")
+    site = tmp_path / "site.env"
+    site.write_text("PUBLIC_ORIGIN=https://openbinding.example.org\nBOOTSTRAP_ADMIN_USERNAME=root\nBOOTSTRAP_ADMIN_EMAIL=a@example.org\nBACKUP_RETENTION_DAYS=14\n")
+    result = run_shell(sed, {"SITE_ENV": str(site)})
+    assert result.returncode == 0, result.stderr
+    assert site.read_text() == (
+        "PUBLIC_ORIGIN=https://openbinding.example.org\nBOOTSTRAP_ADMIN_USERNAME=\nBOOTSTRAP_ADMIN_EMAIL=\nBACKUP_RETENTION_DAYS=14\n"
+    )
+
+
+# [utest->req~lab-deployment-production-runbook~1]
+def test_runbook_first_install_secrets_block_is_for_a_fresh_host_only():
+    body = section(runbook_text(), "Secrets directory")
+    assert "**The block after the function is for a fresh host only.**" in body
+    assert "# FRESH HOST ONLY" in body
+    assert body.index("# FRESH HOST ONLY") < body.index("password=$(openssl rand -hex 24)")
+    assert "Never run it again after the" in body
+    assert "FRESH HOST ONLY" not in section(runbook_text(), "Rotation")
 
 
 # [utest->req~lab-deployment-production-runbook~1]
@@ -2280,3 +2721,22 @@ def test_runbook_follow_up_f7_and_the_trace_follow_up_are_recorded_in_the_tasks(
     tasks = (REPO_ROOT / "openspec" / "changes" / "m09-compose-only" / "tasks.md").read_text(encoding="utf-8")
     assert "F7" in tasks and "cap_drop" in tasks and "R1-SEC-003" in tasks
     assert "F8" in tasks and "OFT trace paths" in tasks
+    assert "F9" in tasks and "R2-REV-002" in tasks and "resolver" in tasks
+
+
+# [utest->req~lab-deployment-production-health-restart~1]
+def test_runbook_says_that_only_nginx_restarts_with_the_gateway_and_that_a_daemon_restart_needs_a_manual_one():
+    text = runbook_text()
+    deployed = " ".join(section(text, "What is deployed").split())
+    assert "`nginx` therefore depends on `gateway` with `restart: true`" in deployed
+    assert "The workers wait for a healthy `gateway` but do not restart with it" in deployed
+    assert "`nginx` and the workers therefore depend" not in deployed
+    assert "#502-after-a-gateway-restart" in deployed
+    body = section(text, "Verification")
+    assert "### 502 after a gateway restart" in body
+    after = " ".join(body[body.index("### 502 after a gateway restart") :].split())
+    for needle in ("crash or an out-of-memory kill", "502 Bad Gateway", "$DC restart nginx", "F9"):
+        assert needle in after, needle
+    assert "#502-after-a-gateway-restart" in section(text, "What stays blocked")
+    # The anchor of the heading is the link target used above.
+    assert "502-after-a-gateway-restart" == re.sub(r"[^a-z0-9]+", "-", "502 after a gateway restart".lower()).strip("-")
