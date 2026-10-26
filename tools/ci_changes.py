@@ -21,13 +21,13 @@ CHANGELOG = "frontend/src/content/changelog.generated.json"
 CI_WORKFLOW = ".github/workflows/ci.yml"
 # The gateway tests read these directories (grep of `REPO_ROOT / "..."`), so a change there runs the gateway area.
 GATEWAY_DIRS = ("lab/", "docs/", ".github/", ".agentic/", "deploy/", "space/", "pricings/", "acceptance/")
-GATEWAY_ROOT_FILES = ("compose*.json", "docker-compose*.yml", "*.dockerignore", ".gitignore", ".env.example", "LICENSE")
+GATEWAY_ROOT_FILES = ("compose*.json", "docker-compose*.yml", "*.dockerignore", ".gitignore", ".env.example")
 # Root Markdown files no test reads; any other root *.md (README.md, INTENT.md, NOTICE.md ...) is read.
 UNREAD_ROOT_MARKDOWN = {"AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md", "REVIEW.md", "ROADMAP.md", "SECURITY.md", "TESTING.md"}
 BIM_ROOT_FILES = ("LICENSE", "THIRD_PARTY_NOTICES.md")
 GATEWAY_VENDOR_BPMN = "openbinding-gateway/src/openbinding_gateway/v1/vendor/omg/bpmn/"
 # A gateway test reads this one file of openspec/, so only it counts there.
-OPENSPEC_READ ="openspec/changes/m09-compose-only/"
+OPENSPEC_READ = "openspec/changes/m09-compose-only/"
 REVISION = re.compile(r"[0-9a-fA-F]{7,64}")
 
 

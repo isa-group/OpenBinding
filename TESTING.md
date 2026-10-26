@@ -116,7 +116,8 @@ The QA gallery (`frontend/e2e/qa-gallery.spec.ts`) writes screenshots to `QA_GAL
 - **Change detection.** The `changes` job runs `tools/ci_changes.py` and outputs four areas: `e2e`, `bim`, `engines`,
   `gateway`. On pull requests the jobs of an unchanged area are skipped. A push to `develop`, a manual dispatch, a
   change to `ci.yml` or `tools/ci_*.py`, a path in no known area or a git error run everything. A pull request with no
-  changed file (empty diff) also runs every area.
+  changed file (empty diff) also runs every area. Root `LICENSE`, `THIRD_PARTY_NOTICES.md`, the vendored BPMN XSD
+  files and any `instance.json` run `bim` and `gateway` (the bim-core tests read them).
 - **Required check.** Require only `ci-required` (`tools/ci_required.py`): a skipped area passes, a failed or cancelled
   job does not. An always-on job (`lab`, `bim-corpus`, `frontend` and the like) that is skipped fails `ci-required`.
 - **Shards.** Playwright project `mocked` runs in three jobs `frontend-e2e`; the UI acceptance runner stays in
