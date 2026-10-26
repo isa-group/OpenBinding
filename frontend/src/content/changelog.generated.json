@@ -102,7 +102,7 @@
       "date": "2026-10-26",
       "title": "OpenBinding documentation",
       "changes": [
-        "M45-lab-pricing-wiring plan and handoff",
+        "Ci-speed plan and handoff",
         "Archive gate-tooling changes into the living spec (#62)",
         "Citations contain only recorded facts (#61)",
         "O9 latency probe for POST /v1/jobs and POST /v1/validate (#57)",
