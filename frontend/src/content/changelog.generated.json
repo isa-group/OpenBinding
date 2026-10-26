@@ -100,8 +100,8 @@
       "date": "2026-10-26",
       "title": "OpenBinding documentation",
       "changes": [
+        "M09-compose-only plan and handoff",
         "O9 latency probe for POST /v1/jobs and POST /v1/validate (#57)",
-        "M91-modules-skeleton plan and handoff",
         "Retire the report editor (M2.4 slice 2, ADR-0020) (#53)",
         "Retire the decision-space workspace (M2.4 slice 1, ADR-0020) (#51)",
         "Make the costly request of the N2 process probe test deterministic (#52)",
