@@ -34,9 +34,11 @@ Rootless Docker keeps the host loopback unreachable from containers (m05-pr-prev
 a port on the host.
 **Recommendation: B.** A cannot fit a preview beside the develop lab (4032 + 4032 + 1088 = 9152 of 9216 MiB needs one
 SPACE) and needs a higher cap that nobody has decided (m05-pr-previews design.md §6). B keeps `compose.lab.json` free of
-SPACE services, so `no-local-space` and `test_compose_lab_keeps_no_space_service` stay true. TVC: ADR-0015 §5 says
-"each stack runs its own pinned SPACE", which reads as A; B departs from it and needs the owner's confirmation and a
-short ADR (revision of ADR-0015 §5, or a new one).
+SPACE services, so `no-local-space` and `test_compose_lab_keeps_no_space_service` stay true. TVC: B departs from three texts that read as A: ADR-0015 §5
+("each stack runs its own pinned SPACE"), constitution.md Article 16.6 ("they run their own pinned SPACE") and
+docs/ARCHITECTURE.md §9.1 table ("the stack's own SPACE 1.7.1"). It needs the owner's confirmation and a short ADR that
+names all three (revision of ADR-0015 §5, or a new one), plus a follow-up edit of §9.1 (and of Article 16.6, which only
+the owner changes).
 
 ### 1.2 The wiring (option B)
 
@@ -63,7 +65,12 @@ Everything else stays forbidden. `test_lab_compose.py` becomes an allow-list tes
 
 ### 1.4 `SPACE_API_KEY` and the MANAGEMENT key (owner question 3)
 
-`modules/plans` needs a `MANAGEMENT`-scoped key (ARCHITECTURE §9.2). The bootstrap keeps it in memory by design
+`openbinding-gateway/src/openbinding_gateway/modules/plans/` needs a `MANAGEMENT`-scoped key (ARCHITECTURE §9.2). A
+second consumer is the contract suite of the change `m42-plans-module` (tasks.md; it runs only when
+`PLANS_CONTRACT_SPACE_URL` and `PLANS_CONTRACT_SPACE_API_KEY` are set): it needs the same key where it runs.
+Recommendation: run it inside a container of the pricing project's network that mounts `lab-pricing-key` read-only and
+sets `PLANS_CONTRACT_SPACE_API_KEY="$(cat /run/space-key/key)"` in its command, so no key reaches the supervisor, the
+repository or a CI variable; a run outside the lab has no key and skips (UNVERIFIED how the suite is launched). The bootstrap keeps it in memory by design
 (m41-space-bootstrap design.md §5: "ASSUMPTION pending question 3: the key stays inside SPACE"), while ARCHITECTURE §9.4
 says "kept in the stack's secret store". The gateway needs the value, so the key cannot stay only inside SPACE.
 
@@ -159,7 +166,10 @@ lab-private SPACE, `openbinding` is the right name and the guard would refuse it
 Recommendation: contracts come only from the bootstrap; the lab stops using `--space-contracts`; the guard stays for
 remote runs and is relaxed only when `SPACE_URL` is `http://space-api:3000`. The lab sets
 `DEMO_SPACE_DEV_SERVICE=openbinding`, `DEMO_SPACE_PRICING_VERSION=0.2.0`, `DEMO_SPACE_DEFAULT_PLAN=FREE`, and the smoke
-runs `--with-space`, so `plan_usage` runs for the first time.
+runs `--with-space`, so `plan_usage` runs for the first time. The `0.2.0` is hard-coded here (and in §4); the owner of
+the `SPACE_PRICING_VERSION` decision is M4.2 (openspec/changes/m42-plans-module, design §12; UNVERIFIED that §12 names
+this variable), and `DEMO_SPACE_PRICING_VERSION` must follow it. UNVERIFIED: that contracts pinned to `0.2.0` survive
+the activation of a later version.
 
 ### 3.5 Recovery
 
@@ -221,7 +231,7 @@ no slice is accepted live; the static slices can merge.
 
 | Slice | Content | Files (owner) |
 |---|---|---|
-| S0 | Owner decisions of §7; the ADR for the exception (§1.3) | `docs/adr/**` (owner accepts) |
+| S0 | Owner decisions of §7; the ADR for the exception (§1.3), naming ADR-0015 §5, constitution 16.6 and ARCHITECTURE §9.1 | `docs/adr/**` (owner accepts) |
 | S1 | Spec revision of `lab-deployment` (§1.3, §1.4, §3.1, §4) and bootstrap requirement revision 2 | `openspec/changes/m45-lab-space/**` (specifier) |
 | S2 | Failing tests first (§6.1) | `lab/tests/**`, `openbinding-gateway/tests/test_no_local_space.py` (test-designer) |
 | S3 | Compose wiring: `compose.lab-pricing.json` (bootstrap, build of `space-api`, network, key volume, `:?`), `compose.lab.json` and process variants (network, key read, `SPACE_ENABLED`), bootstrap tool (`SPACE_BOOTSTRAP_PLANS`, key file, `plan_differs`) | `compose.lab*.json`, `lab/tools/space_lab_bootstrap.py`, `lab/space/**` (implementer) |
@@ -234,13 +244,14 @@ Order: S0, S1, S2, then S3 and S4 (independent), S5 with them, S6 last. Split S3
 
 | # | Risk or decision | Recommended answer |
 |---|---|---|
-| D1 | One shared SPACE (B) against one per stack (A) | B; TVC, because ADR-0015 §5 reads as A |
+| D1 | One shared SPACE (B) against one per stack (A) | B; TVC, because ADR-0015 §5, constitution 16.6 and ARCHITECTURE §9.1 read as A |
 | D2 | Exception to the no-`networks` rule | one allow-list entry, `[default, lab-pricing-net]` on `gateway`/`worker`; ADR before S3 |
 | D3 | Where the MANAGEMENT key lives (question 3) | a read-only key volume written by the bootstrap; first check if SPACE accepts a supplied value; TVC |
 | D4 | Plan per seed user; seed stops creating contracts | §3.1 mapping (TVC); bootstrap only |
 | D5 | Preview start when the pricing project is down; host cap 9216 MiB (INTENT §9) | refuse the start; cap unchanged, a third running stack needs a new decision |
 | R1 | The SPACE HTTP sequence, the 1.7.1 image build and every UNVERIFIED item here (`--wait` with a one-shot, `:?`, `http` SPACE URL, bootstrap image user) | check each in the live run S6 and correct this design before M4.5 is called done |
 | R2 | Previews can reach each other's `gateway` through `lab-pricing-net` | accept for synthetic lab data; B2 if the owner refuses |
+| R3 | One MANAGEMENT key is mounted in every stack, previews included, which run PR-head code. A preview could, with that key, read and change everything in the shared SPACE: organizations, services, pricing activation and contracts of the develop lab and of other previews, and API keys. It cannot reach SPHERE or production (`SPHERE_API_KEY` empty, lab SPACE only, synthetic data) | the owner decides: accept for lab data, or B2 plus a per-stack key with narrower scope (UNVERIFIED that SPACE 1.7.1 offers one) |
 | R4 | Shared usage counters between develop and previews | accept; give working users `RESEARCH`/`LAB`; per-stack ids only if it bites |
 | R6 | The lab and previews now need outbound HTTPS to `sphere.score.us.es` (ADR-0015) | SPACE keeps its last version when SPHERE is down; the bootstrap fails if the first sync cannot run |
 | R7 | Old base images and Redis/Mongo advisories (runbook "Known advisories") | owner accepts the lab-only risk or bumps |
