@@ -22,8 +22,8 @@ only through `application` and a `domain` free of FastAPI, SQLAlchemy and HTTP c
   `adapters → application → domain` with a framework-free `domain` (design.md §2).
 - A gateway AST test that fails when code outside a module, other than `main` and `app`, imports anything of that
   module except its `application` package.
-- `docs/ARCHITECTURE.md` §4.2 "Enforcement" bullet and `docs/architecture/gateway-as-is.md` name the new
-  configuration and tests.
+- `docs/ARCHITECTURE.md` §4.2 "Enforcement" bullet names the new configuration and tests. Updating
+  `docs/architecture/gateway-as-is.md` is a followup outside this change (design.md §6).
 
 ## Impact
 
@@ -31,7 +31,7 @@ only through `application` and a `domain` free of FastAPI, SQLAlchemy and HTTP c
   contract change.
 - Files: three `__init__.py`, `openbinding-gateway/importlinter-modules.ini`,
   `openbinding-gateway/tests/test_modules_skeleton.py`, `openbinding-gateway/tests/test_modules_cross_import.py`,
-  `docs/ARCHITECTURE.md` (§4.2 enforcement bullet only), `docs/architecture/gateway-as-is.md`.
+  `docs/ARCHITECTURE.md` (§4.2 enforcement bullet and §4.3 step 1).
 - Unchanged on purpose: `openbinding-gateway/.importlinter` and its report-only CI step, `.github/**`,
   `tests/test_architecture_layers.py` and its ratchets (`ALLOWED_LEGACY`, `GATE_LIFECYCLE_LEGACY`, `MAX_LINES`).
 - Risk: low to medium. Behaviour-preserving (no runtime code), but every later move of ROADMAP M9.2 and the first

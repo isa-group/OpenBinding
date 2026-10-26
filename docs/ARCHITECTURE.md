@@ -166,7 +166,9 @@ openbinding-gateway/src/openbinding_gateway/
   `uv run --locked --extra test --group lint lint-imports --no-cache --config importlinter-modules.ini`.
   import-linter cannot express "other modules only through `application`" per module pair, so
   `openbinding-gateway/tests/test_modules_cross_import.py` (AST, in the gateway pytest suite) enforces it;
-  `tests/test_modules_skeleton.py` checks the structure of the contract file. The legacy `.importlinter` stays
+  `tests/test_modules_skeleton.py` checks the structure of the contract file and also runs `lint-imports` against
+  planted violations (the teeth test); it is skipped where `lint-imports` is not installed (the CI `test` job syncs
+  only `--extra test`) until the blocking CI step, pending, runs it with the `lint` group. The legacy `.importlinter` stays
   report-only and unchanged, next to the existing `tests/test_architecture_layers.py` ratchets. Pending (owner/CI
   follow-up): running the new contracts as a blocking CI step and as a G9 gate entry; until then they are not
   enforced in CI.
@@ -181,7 +183,8 @@ openbinding-gateway/src/openbinding_gateway/
    digest, so nothing sealed changes. Data follows CRP rules (INTENT §11.5): existing publications keep their
    permanent links as read-only published results; report drafts, decision-space workspaces and sponsorship
    proposals are exported for the owner and dropped.
-1. Create `app/`, `shared/` and `modules/` with import-linter contracts; move nothing. Packages and contracts exist (§4.2); the blocking CI step and G9 entry are pending.
+1. Create `app/`, `shared/` and `modules/` with import-linter contracts; move nothing. Packages and contracts exist
+   (§4.2); the blocking CI step and G9 entry are pending.
 2. New capabilities land directly in modules: `plans` (M4) and the language registry (M5) are the first.
 3. Move existing code one module per `refactor/<id>` change, behind characterization tests, keeping
    `docs/openapi.json` byte-identical. Order: plans → language → engines → execution → laboratory → publishing →

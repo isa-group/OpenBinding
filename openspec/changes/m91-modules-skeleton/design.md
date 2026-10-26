@@ -129,7 +129,10 @@ forbidden_modules =
 `[utest->req~gateway-architecture-module-contracts~1]`. It reads the package directories with `ast` and the two ini
 files with `configparser`, compares the `module-layers` list with the order of ARCHITECTURE §4.2 written in the test,
 and asserts that nothing outside the new packages imports them. The scenarios "Contracts hold on the current tree" and
-"A violation breaks a contract" are proved by S1 checks 2 and 3 (`lint-imports` itself), not by pytest (§1).
+"A violation breaks a contract" are proved by S1 checks 2 and 3 (`lint-imports` itself). In addition,
+`tests/test_modules_skeleton.py` runs `lint-imports` on the tree and on copies with planted violations (the teeth
+test). That test is skipped where `lint-imports` is not installed: the CI `test` job syncs only `--extra test`
+(§1), so it runs there only once the blocking CI step (§6, pending) runs it with the `lint` group.
 The OpenAPI scenario is proved by `tools/dump_openapi.py --check` and the existing snapshot tests
 (`tests/test_b3_openapi.py`, `tests/test_b4_openapi_problem.py`).
 
@@ -196,6 +199,11 @@ import-linter 2.15 accepting `openbinding_gateway.modules.*` wildcards that matc
   `needs: [uv]`). Owner only (`.agentic/**`, R11).
 - CRP-3: constitution Article 6 "Enforced:" line (`constitution.md:78-80`) naming `importlinter-modules.ini` and the
   two tests for 6.5, and narrowing the GAP to the legacy layout. Owner only.
+
+- Follow-up for M4.2: when `main`/`app` first imports a module, `req~gateway-architecture-skeleton~1` ("no module
+  outside the new packages imports them") stops holding; M4.2 MUST MODIFY that requirement (new revision) in its delta.
+- Follow-up: `docs/architecture/gateway-as-is.md` is outside this change's scope and still lacks the new packages and
+  configs; a later doc task updates it.
 
 ## 7. Risks
 

@@ -2,7 +2,7 @@
 
 ### Requirement: Module skeleton packages
 `req~gateway-architecture-skeleton~1`
-The gateway package `openbinding_gateway` SHALL contain the subpackages `app`, `shared` and `modules`, each a single `__init__.py` holding only a docstring, with no existing module moved and `docs/openapi.json` byte-identical.
+The gateway package `openbinding_gateway` SHALL contain the subpackages `app`, `shared` and `modules`, each containing `__init__.py` holding only a docstring, with no existing module moved, no module outside them importing them and `docs/openapi.json` byte-identical.
 
 Needs: impl, utest
 
@@ -69,7 +69,7 @@ Needs: impl, utest
 `req~gateway-architecture-application-only~1`
 IF a gateway file outside `modules/<m>/`, other than `main.py` and the files of `app/`, imports `modules.<m>` or a submodule of it other than `modules.<m>.application`, THEN `tests/test_modules_cross_import.py` SHALL fail, naming the file, the line and the imported module.
 
-Needs: impl, utest
+Needs: utest
 
 #### Scenario: Import of another module's domain
 - **GIVEN** a source file `openbinding_gateway/modules/laboratory/application/runs.py` containing `from openbinding_gateway.modules.execution.domain import run`

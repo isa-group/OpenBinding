@@ -55,10 +55,10 @@ The blocking CI step (intake slice S2) is not part of this change (design.md §6
 
 ## S4. Docs (doc-steward; risk low; ~40 lines; turn budget 20; after S1 and S3)
 
-- Owned: `docs/ARCHITECTURE.md` (§4.2 "Enforcement" bullet only: name `openbinding-gateway/importlinter-modules.ini`,
-  `tests/test_modules_skeleton.py` and `tests/test_modules_cross_import.py`), `docs/architecture/gateway-as-is.md`
-  ("Architecture tests" section: the three packages and the two import-linter configurations, legacy report-only).
-- [ ] 4.1 Both edits; no other section changes.
+- Owned: `docs/ARCHITECTURE.md` (§4.2 "Enforcement" bullet: name `openbinding-gateway/importlinter-modules.ini`,
+  `tests/test_modules_skeleton.py` and `tests/test_modules_cross_import.py`; §4.3 step 1: packages and contracts exist).
+- [ ] 4.1 Both edits; no other section changes. `docs/architecture/gateway-as-is.md` is outside scope and stays a
+  followup (design.md §6).
 - Check: `["bash","-c","cd openbinding-gateway && uv run --locked --extra test pytest -q -p no:cacheprovider ../lab/tests"]`
 
 ## A. Archive (after S4, explicit archive task)
