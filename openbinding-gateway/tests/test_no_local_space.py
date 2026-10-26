@@ -16,10 +16,8 @@ from _repo import REPO_ROOT
 ROOT = REPO_ROOT
 COMPOSE = ROOT / "docker-compose.yml"
 PRICING = ROOT / "compose.lab-pricing.json"
-# GAP, no SPACE image digest is verified, owner request
-# crp-openbinding-m41-space-image-and-16-1 is open. Never guess a digest or registry.
-SPACE_API_GAP_IMAGE = "gap.invalid/space-api:1.7.1"
 PRICING_SPACE_SERVICES = {"space-mongo", "space-redis", "space-api"}
+BUILT_SPACE_API = "openbinding-lab/space-api:1.7.1"
 PINNED_SPACE_API = re.compile(r"[^\s@]+:1\.7\.1@sha256:[0-9a-f]{64}")
 # Assembled from parts so a repository-wide search for the retired key finds no
 # literal here; the key itself must not come back anywhere in the stacks.
@@ -84,7 +82,7 @@ def _sphere_problems(manifest: dict) -> list[str]:
 
 def _space_api_image_problems(manifest: dict) -> list[str]:
     image = str(((manifest.get("services") or {}).get("space-api") or {}).get("image", ""))
-    if image == SPACE_API_GAP_IMAGE or PINNED_SPACE_API.fullmatch(image):
+    if image == BUILT_SPACE_API or PINNED_SPACE_API.fullmatch(image):
         return []
     return [f"space-api image {image!r}"]
 
@@ -106,7 +104,7 @@ def _manifests() -> list[tuple[str, dict, str]]:
     return found
 
 
-# [utest->req~lab-deployment-no-local-space~2]
+# [utest->req~lab-deployment-no-local-space~3]
 def test_other_manifests_have_no_local_space() -> None:
     manifests = _manifests()
     assert manifests
@@ -114,7 +112,7 @@ def test_other_manifests_have_no_local_space() -> None:
         assert not _local_space_problems(parsed, text), label
 
 
-# [utest->req~lab-deployment-no-local-space~2]
+# [utest->req~lab-deployment-no-local-space~3]
 def test_no_manifest_defines_sphere() -> None:
     for label, parsed, _ in _manifests():
         assert not _sphere_problems(parsed), label
@@ -122,11 +120,14 @@ def test_no_manifest_defines_sphere() -> None:
         assert not _sphere_problems(yaml.safe_load(PRICING.read_text(encoding="utf-8")))
 
 
-# [utest->req~lab-deployment-no-local-space~2]
+# [utest->req~lab-deployment-no-local-space~3]
 def test_pricing_profile_defines_exactly_the_space_services() -> None:
     assert PRICING.is_file()
     manifest = yaml.safe_load(PRICING.read_text(encoding="utf-8"))
     assert _space_service_names(manifest) == PRICING_SPACE_SERVICES
+    assert set(manifest["services"]) == {*PRICING_SPACE_SERVICES, "pricing-bootstrap"}
+    bootstrap = manifest["services"]["pricing-bootstrap"]
+    assert not _is_space_service("pricing-bootstrap", bootstrap)
     assert all(v.startswith("lab-pricing-") for v in (manifest.get("volumes") or {}))
     assert not _sphere_problems(manifest)
     assert not _space_api_image_problems(manifest)
@@ -137,7 +138,7 @@ def _sample(**services: dict) -> dict:
     return {"services": services}
 
 
-# [utest->req~lab-deployment-no-local-space~2]
+# [utest->req~lab-deployment-no-local-space~3]
 @pytest.mark.parametrize(
     "manifest",
     [
@@ -153,18 +154,26 @@ def test_negative_control_local_space_is_detected(manifest: dict) -> None:
     assert _local_space_problems(manifest, "")
 
 
-# [utest->req~lab-deployment-no-local-space~2]
+# [utest->req~lab-deployment-no-local-space~3]
 def test_negative_control_extra_space_service_breaks_the_exact_set() -> None:
     names = [*PRICING_SPACE_SERVICES, "space-web"]
     assert _space_service_names(_sample(**{n: {} for n in names})) != PRICING_SPACE_SERVICES
 
 
-# [utest->req~lab-deployment-no-local-space~2]
+# [utest->req~lab-deployment-no-local-space~3]
+def test_negative_control_bootstrap_is_not_a_space_service_unless_renamed() -> None:
+    plain = _sample(**{n: {} for n in PRICING_SPACE_SERVICES}, **{"pricing-bootstrap": {"image": "x:1"}})
+    assert _space_service_names(plain) == PRICING_SPACE_SERVICES
+    renamed = _sample(**{n: {} for n in PRICING_SPACE_SERVICES}, **{"space-bootstrap": {"image": "x:1"}})
+    assert _space_service_names(renamed) != PRICING_SPACE_SERVICES
+
+
+# [utest->req~lab-deployment-no-local-space~3]
 def test_negative_control_destructive_key_is_detected() -> None:
     assert _local_space_problems(_sample(), f"environment: {FORBIDDEN_KEY}")
 
 
-# [utest->req~lab-deployment-no-local-space~2]
+# [utest->req~lab-deployment-no-local-space~3]
 @pytest.mark.parametrize(
     "service", [("sphere-api", {}), ("api", {"image": "registry.example/SPHERE-ui:1"})]
 )
@@ -172,11 +181,14 @@ def test_negative_control_sphere_is_detected(service: tuple[str, dict]) -> None:
     assert _sphere_problems(_sample(**{service[0]: service[1]}))
 
 
-# [utest->req~lab-deployment-no-local-space~2]
+# [utest->req~lab-deployment-no-local-space~3]
 @pytest.mark.parametrize(
     "image",
     [
         "registry.example/space-api:1.7.1",
+        "gap.invalid/space-api:1.7.1",
+        "openbinding-lab/space-api:1.8.0",
+        "openbinding-lab/space-api:latest",
         f"registry.example/space-api:1.8.0@sha256:{'a' * 64}",
         f"registry.example/space-api:1.7.1@sha256:{'a' * 63}",
     ],
@@ -185,14 +197,14 @@ def test_negative_control_space_api_image_is_detected(image: str) -> None:
     assert _space_api_image_problems(_sample(**{"space-api": {"image": image}}))
 
 
-# [utest->req~lab-deployment-no-local-space~2]
-def test_negative_control_space_api_image_accepts_marker_and_digest() -> None:
+# [utest->req~lab-deployment-no-local-space~3]
+def test_negative_control_space_api_image_accepts_built_image_and_digest() -> None:
     digest = f"registry.example/space-api:1.7.1@sha256:{'a' * 64}"
-    for image in (SPACE_API_GAP_IMAGE, digest):
+    for image in (BUILT_SPACE_API, digest):
         assert not _space_api_image_problems(_sample(**{"space-api": {"image": image}}))
 
 
-# [utest->req~lab-deployment-no-local-space~2]
+# [utest->req~lab-deployment-no-local-space~3]
 def test_no_space_services_or_profile() -> None:
     services = _compose()["services"]
     assert not [name for name in services if name.startswith("space")]

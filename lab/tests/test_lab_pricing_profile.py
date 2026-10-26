@@ -1,5 +1,5 @@
 """Static checks of ``compose.lab-pricing.json``, the optional laboratory profile that runs a local SPACE
-(``space-mongo``, ``space-redis``, ``space-api``), and of its runbook ``docs/qa/PRICING_PROFILE.md``, without Docker.
+(``space-mongo``, ``space-redis``, ``space-api``) and seeds it with the one-shot ``pricing-bootstrap``, and of its runbook ``docs/qa/PRICING_PROFILE.md``, without Docker.
 
 The rules are plain functions of a manifest dict (and the runbook's verified image list) that return a failure
 message or None.  The ``control`` tests call them on a conforming in-memory SAMPLE, mutated, so every rule is proven
@@ -29,27 +29,37 @@ _spec.loader.exec_module(rules)
 
 COMPOSE = ROOT / "compose.lab-pricing.json"
 RUNBOOK = ROOT / "docs" / "qa" / "PRICING_PROFILE.md"
-SERVICES = ["space-mongo", "space-redis", "space-api"]
+LONG_RUNNING = ["space-mongo", "space-redis", "space-api"]
+SERVICES = [*LONG_RUNNING, "pricing-bootstrap"]
 VOLUMES = {"lab-pricing-mongo": "/data/db", "lab-pricing-redis": "/data"}
 MAX_MIB = 1152
-LIMITS = {"space-mongo": 512, "space-redis": 96, "space-api": 384}
-# No SPACE image digest is verified yet (owner request crp-openbinding-m41-space-image-and-16-1 is open): until it is
-# answered, space-api carries this marker, which is accepted only for space-api and only while the runbook has a GAP entry.
-SPACE_API_GAP_IMAGE = "gap.invalid/space-api:1.7.1"
-CRP = "crp-openbinding-m41-space-image-and-16-1"
+LIMITS = {"space-mongo": 512, "space-redis": 96, "space-api": 384, "pricing-bootstrap": 96}
+# The two images built from the repository: image name and build, each pair exact, never in the verified list.
+BUILT = {
+    "space-api": ("openbinding-lab/space-api:1.7.1", {"context": "lab/space", "dockerfile": "Dockerfile"}),
+    "pricing-bootstrap": ("openbinding-lab/pricing-bootstrap:1", {"context": "lab/tools", "dockerfile": "Dockerfile"}),
+}
+RETIRED_MARKER = "gap.invalid/space-api:1.7.1"  # the registry-less marker of revision 2, refused everywhere
 DIGESTED = re.compile(r"[a-z0-9][a-z0-9./-]*:[A-Za-z0-9._-]+@sha256:[0-9a-f]{64}")
 SECRET_REFERENCES = {f"${{DEMO_SPACE_{n}}}" for n in ("JWT_SECRET", "JWT_SALT", "ADMIN_PASSWORD", "MONGO_PASSWORD")}
-ALLOWED_SERVICE_KEYS = {"image", "user", "command", "environment", "volumes", "mem_limit", "healthcheck", "depends_on"}
+ALLOWED_SERVICE_KEYS = {"image", "user", "command", "environment", "volumes", "mem_limit", "healthcheck", "depends_on",
+                        "build", "restart"}
 # Each secret variable of the manifest holds its own reference and no other.
 PINNED_REFERENCES = {
     "JWT_SECRET": "JWT_SECRET", "JWT_SALT": "JWT_SALT", "ADMIN_PASSWORD": "ADMIN_PASSWORD",
-    "MONGO_INITDB_ROOT_PASSWORD": "MONGO_PASSWORD",
+    "MONGO_INITDB_ROOT_PASSWORD": "MONGO_PASSWORD", "SPACE_ADMIN_PASSWORD": "ADMIN_PASSWORD",
 }
-PINNED_OWNER = {"MONGO_INITDB_ROOT_PASSWORD": "space-mongo"}  # the others belong to space-api
+PINNED_OWNER = {"MONGO_INITDB_ROOT_PASSWORD": "space-mongo",
+                "SPACE_ADMIN_PASSWORD": "pricing-bootstrap"}  # the others belong to space-api
 MONGO_PASSWORD_REFERENCE = "${DEMO_SPACE_MONGO_PASSWORD}"
-ALLOWED_HOSTS = {*SERVICES, "sphere.score.us.es", "127.0.0.1"}
+ADMIN_PASSWORD_REFERENCE = "${DEMO_SPACE_ADMIN_PASSWORD}"
+ALLOWED_HOSTS = {*LONG_RUNNING, "sphere.score.us.es", "127.0.0.1"}
 URL = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://[^\s'\"`<>]*")
-BOOTSTRAP_MIB = 96  # the deferred pricing-bootstrap service; the final budget is the runbook's sum plus this
+# The whole environment of the one-shot: no proxy route, no SPHERE key, the tool's default plan.
+BOOTSTRAP_ENV = {
+    "SPACE_URL": "http://space-api:3000", "SPACE_ADMIN_USER": "lab-space-admin",
+    "SPACE_ADMIN_PASSWORD": ADMIN_PASSWORD_REFERENCE,
+}
 # The keys and the command are pinned, not the image-dependent values the runbook still lists as unverified.
 API_ENV_KEYS = {"NODE_OPTIONS", "MONGO_URI", "REDIS_URL", "JWT_SECRET", "JWT_SALT", "ADMIN_USER", "ADMIN_PASSWORD",
                 "SERVER_PORT", "SPHERE_SYNC_ENABLED", "SPHERE_PUBLIC_URL", "SPHERE_API_URL", "SPHERE_ALLOW_LOCAL_HTTP"}
@@ -96,7 +106,8 @@ SAMPLE = {
             "healthcheck": {"test": ["CMD", "redis-cli", "ping"]},
         },
         "space-api": {
-            "image": SPACE_API_GAP_IMAGE, "user": "1000:1000", "mem_limit": "384m",
+            "image": BUILT["space-api"][0], "build": dict(BUILT["space-api"][1]),
+            "user": "1000:1000", "mem_limit": "384m",
             "environment": {
                 "NODE_OPTIONS": "--max-old-space-size=192",
                 "MONGO_URI": "mongodb://space:${DEMO_SPACE_MONGO_PASSWORD}@space-mongo:27017/space_db?authSource=admin",
@@ -108,6 +119,12 @@ SAMPLE = {
             "depends_on": {"space-mongo": {"condition": "service_healthy"},
                            "space-redis": {"condition": "service_healthy"}},
             "healthcheck": {"test": list(API_HEALTHCHECK)},
+        },
+        "pricing-bootstrap": {
+            "image": BUILT["pricing-bootstrap"][0], "build": dict(BUILT["pricing-bootstrap"][1]),
+            "user": "1000:1000", "restart": "no", "mem_limit": "96m",
+            "environment": dict(BOOTSTRAP_ENV),
+            "depends_on": {"space-api": {"condition": "service_healthy"}},
         },
     },
     "volumes": {"lab-pricing-mongo": {"labels": {"profile": "pricing"}}, "lab-pricing-redis": {"labels": {"profile": "pricing"}}},
@@ -146,6 +163,11 @@ def rule_isolated(manifest: dict) -> str | None:
                 return f"{name} uses {key}"
         if set(service) - ALLOWED_SERVICE_KEYS:
             return f"{name} uses keys outside the allow-list: {sorted(set(service) - ALLOWED_SERVICE_KEYS)}"
+        if "build" in service and not (
+                isinstance(service["build"], dict) and set(service["build"]) == {"context", "dockerfile"}):
+            return f"{name}: build must be a mapping of exactly context and dockerfile"
+        if "restart" in service and not (name == "pricing-bootstrap" and service["restart"] == "no"):
+            return f"{name}: restart is allowed only as \"no\" on pricing-bootstrap"
         ids = str(service.get("user", "0")).split(":")
         if len(ids) != 2 or not all(i.isdigit() and int(i) > 0 for i in ids):
             return f"{name} must run as a numeric non-root user and a numeric non-zero group"
@@ -157,15 +179,17 @@ def rule_isolated(manifest: dict) -> str | None:
     return None
 
 
-def rule_images(manifest: dict, verified: list[str], gap_open: bool) -> str | None:
+def rule_images(manifest: dict, verified: list[str]) -> str | None:
     for name, service in manifest["services"].items():
         image = service.get("image", "")
-        if name == "space-api" and image == SPACE_API_GAP_IMAGE:
-            if not gap_open:
-                return "the GAP marker needs a GAP entry naming space-api in the runbook"
-            if any(re.match(r"[^:@]*space-api:", v) for v in verified):
-                return "a space-api digest is verified: the GAP marker must be replaced by it"
-            continue
+        if "gap.invalid" in image:
+            return f"{name}: the retired GAP marker {image!r}"
+        if "build" in service:
+            if name not in BUILT:
+                return f"{name}: build is allowed only on {sorted(BUILT)}"
+            if (image, service["build"]) != BUILT[name]:
+                return f"{name}: image and build must be exactly {BUILT[name]}"
+            continue  # a built image has no registry digest to verify
         if not DIGESTED.fullmatch(image):
             return f"{name}: {image!r} is not <repo>:<tag>@sha256:<64 hex>"
         if name == "space-api" and ":1.7.1@" not in image:
@@ -225,7 +249,7 @@ def rule_secrets(manifest: dict, documented: set[str]) -> str | None:
                 rules._command_text(service)):
             return f"{name}: a credential in the command"
     for key, owner in ((k, PINNED_OWNER.get(k, "space-api")) for k in PINNED_REFERENCES):
-        if key not in rules._env(manifest["services"][owner]):
+        if key not in rules._env(manifest["services"].get(owner, {})):
             return f"{owner}:{key} is missing"
     uri = rules._env(manifest["services"]["space-api"]).get("MONGO_URI", "")
     match = re.match(r"mongodb://[^:/@]+:([^@/]*)@", uri)
@@ -236,7 +260,7 @@ def rule_secrets(manifest: dict, documented: set[str]) -> str | None:
     # The pins above place each reference; the counts rule out a copy anywhere else (a URL query, another variable).
     texts = list(rules._strings(manifest))
     for reference in SECRET_REFERENCES:
-        expected = 2 if reference == MONGO_PASSWORD_REFERENCE else 1
+        expected = 2 if reference in (MONGO_PASSWORD_REFERENCE, ADMIN_PASSWORD_REFERENCE) else 1
         if sum(t.count(reference) for t in texts) != expected:
             return f"{reference} must appear {expected} time(s) in the manifest"
     missing = {r[2:-1] for r in SECRET_REFERENCES} - documented
@@ -245,7 +269,7 @@ def rule_secrets(manifest: dict, documented: set[str]) -> str | None:
 
 def rule_start_order(manifest: dict) -> str | None:
     services = manifest["services"]
-    for name in SERVICES:  # the three long-running services; a one-shot bootstrap will follow its own rule
+    for name in LONG_RUNNING:  # the one-shot bootstrap is exempt from the healthcheck rule
         check = services[name].get("healthcheck", {})
         if not check.get("test"):
             return f"{name} has no healthcheck"
@@ -254,6 +278,18 @@ def rule_start_order(manifest: dict) -> str | None:
     ready = {"condition": "service_healthy"}
     if services["space-api"].get("depends_on") != {"space-mongo": ready, "space-redis": ready}:
         return "space-api must wait for space-mongo and space-redis with service_healthy only"
+    if services.get("pricing-bootstrap", {}).get("depends_on") != {"space-api": ready}:
+        return "pricing-bootstrap must wait for space-api alone with service_healthy only"
+    return None
+
+
+def rule_bootstrap_surface(manifest: dict) -> str | None:
+    service = manifest["services"].get("pricing-bootstrap")
+    if service is None:
+        return "pricing-bootstrap is missing"
+    env = rules._env(service)
+    if env != BOOTSTRAP_ENV:
+        return f"pricing-bootstrap environment differs from the pinned one: {sorted(set(env.items()) ^ set(BOOTSTRAP_ENV.items()))}"
     return None
 
 
@@ -323,8 +359,31 @@ def verified_images(text: str) -> list[str]:
     return re.findall(r"^- `([^`\s]+@sha256:[0-9a-f]{64})` - verified \d{4}-\d{2}-\d{2}$", body, re.MULTILINE)
 
 
-def gap_is_open(text: str) -> bool:
-    return any("space-api" in line and CRP in line for line in section(text, "GAP").splitlines() if line.startswith("- "))
+def base_digests() -> set[str]:
+    """The base-image digests of the two Dockerfiles, read from them."""
+    found = set()
+    for path in (ROOT / "lab" / "space" / "Dockerfile", ROOT / "lab" / "tools" / "Dockerfile"):
+        found |= set(re.findall(r"^FROM\s+\S+@sha256:([0-9a-f]{64})", path.read_text(encoding="utf-8"), re.MULTILINE))
+    return found
+
+
+def rule_runbook(text: str, digests: set[str]) -> str | None:
+    if re.search(r"^## GAP\b", text, re.MULTILINE):
+        return "the runbook still has a ## GAP section"
+    verified = verified_images(text)
+    if sorted(verified) != sorted([MONGO_IMAGE, REDIS_IMAGE]):
+        return f"the verified list must be exactly the mongo and redis references: {verified}"
+    for image, build in BUILT.values():
+        # the context counts as a path of its own, not as the tail of the image name (openbinding-lab/space-api)
+        context = re.compile(rf"(?<![\w-]){re.escape(build['context'])}(?![\w-])")
+        if not any(image in line and context.search(line) for line in text.splitlines()):
+            return f"the runbook must name {image} with {build['context']}"
+    for digest in sorted(digests):
+        if not any(digest in line and "UNVERIFIED" in line for line in text.splitlines()):
+            return f"base digest {digest} must be on a line marked UNVERIFIED"
+        if any(digest in v for v in verified) or digest in section(text, "Verified image references"):
+            return f"base digest {digest} is in the verified list"
+    return None
 
 
 def documented_sum(text: str) -> int | None:
@@ -346,54 +405,72 @@ def _runbook() -> str:
 
 
 def test_optional_profile_file():
-    # [utest->req~lab-deployment-pricing-profile-optional~1]
+    # [utest->req~lab-deployment-pricing-profile-optional~2]
     assert COMPOSE.is_file()
     assert rule_optional(_manifest()) is None
 
 
 def test_compose_lab_keeps_no_space_service():
-    # [utest->req~lab-deployment-pricing-profile-optional~1]
+    # [utest->req~lab-deployment-pricing-profile-optional~2]
     names = json.loads((ROOT / "compose.lab.json").read_text(encoding="utf-8"))["services"]
     assert not [n for n in names if n.startswith("space") or "space" in n.split("-")]
     assert rules._total_mib(names) == rules.EXPECTED_MIB
 
 
 def test_pinned_images_match_the_runbook():
-    # [utest->req~lab-deployment-pricing-profile-pinned-images~1]
+    # [utest->req~lab-deployment-pricing-profile-pinned-images~2]
     assert RUNBOOK.is_file()
     text = _runbook()
-    assert verified_images(text), "the runbook lists no verified image"
-    assert rule_images(_manifest(), verified_images(text), gap_is_open(text)) is None
+    assert sorted(verified_images(text)) == sorted([MONGO_IMAGE, REDIS_IMAGE]), "the runbook lists other images"
+    services = _manifest()["services"]
+    assert services["space-mongo"]["image"] == MONGO_IMAGE and services["space-redis"]["image"] == REDIS_IMAGE
+    assert rule_images(_manifest(), verified_images(text)) is None
+
+
+def test_built_images_follow_the_allow_list():
+    # [utest->req~lab-deployment-pricing-profile-pinned-images~2]
+    assert RUNBOOK.is_file()
+    services = _manifest()["services"]
+    for name, (image, build) in BUILT.items():
+        assert name in services, f"{name} is missing"
+        assert (services[name].get("image"), services[name].get("build")) == (image, build), name
+        assert image not in " ".join(verified_images(_runbook())), "a built image is never verified"
+    assert rule_images(_manifest(), verified_images(_runbook())) is None
 
 
 def test_isolated_services():
-    # [utest->req~lab-deployment-pricing-profile-isolated~1]
+    # [utest->req~lab-deployment-pricing-profile-isolated~2]
     assert COMPOSE.is_file()
     assert rule_isolated(_manifest()) is None
 
 
 def test_memory_budget_matches_the_runbook():
-    # [utest->req~lab-deployment-pricing-profile-memory-budget~1]
+    # [utest->req~lab-deployment-pricing-profile-memory-budget~2]
     assert RUNBOOK.is_file()
     text = _runbook()
+    assert documented_sum(text) == 1088, "the runbook must state the sum of 1088 MiB"
     assert rule_memory(_manifest(), documented_sum(text)) is None
-    final = documented_sum(text) + BOOTSTRAP_MIB
-    assert final == 1088 and re.search(rf"\b{final} MiB", text), "the runbook must state the final budget"
-    # Scenario (two lab stacks of 4032 MiB plus the final profile budget) fits the 9216 MiB host.
-    assert 2 * rules.EXPECTED_MIB + final <= 9216
+    # Scenario (two lab stacks of 4032 MiB plus the profile budget) fits the 9216 MiB host.
+    assert 2 * rules.EXPECTED_MIB + 1088 <= 9216
 
 
 def test_secret_references_are_bare_and_documented():
-    # [utest->req~lab-deployment-pricing-profile-secret-references~1]
+    # [utest->req~lab-deployment-pricing-profile-secret-references~2]
     assert RUNBOOK.is_file()
     documented = {v for v in (r[2:-1] for r in SECRET_REFERENCES) if f"`{v}`" in _runbook()}
     assert rule_secrets(_manifest(), documented) is None
 
 
 def test_start_order_waits_for_healthy_databases():
-    # [utest->req~lab-deployment-pricing-profile-start-order~1]
+    # [utest->req~lab-deployment-pricing-profile-start-order~2]
     assert COMPOSE.is_file()
     assert rule_start_order(_manifest()) is None
+
+
+def test_bootstrap_surface_is_pinned():
+    # [utest->req~lab-deployment-pricing-profile-bootstrap-environment~1]
+    assert COMPOSE.is_file()
+    assert rule_bootstrap_surface(_manifest()) is None
 
 
 def test_remote_sphere_is_the_only_sphere():
@@ -402,12 +479,12 @@ def test_remote_sphere_is_the_only_sphere():
     assert rule_remote_sphere(_manifest()) is None
 
 
-def test_runbook_documents_the_gap_and_the_bring_up():
-    # [utest->req~lab-deployment-pricing-profile-pinned-images~1]
+def test_runbook_has_no_gap_and_documents_the_wiring():
+    # [utest->req~lab-deployment-pricing-profile-pinned-images~2]
     assert RUNBOOK.is_file()
-    text = _runbook()
-    if _manifest()["services"]["space-api"]["image"] == SPACE_API_GAP_IMAGE:
-        assert gap_is_open(text), f"## GAP must name space-api and {CRP} while the manifest carries the marker"
+    digests = base_digests()
+    assert len(digests) == 3, "the Dockerfiles hold three base-image digests"
+    assert rule_runbook(_runbook(), digests) is None
 
 
 def test_api_surface_is_pinned():
@@ -423,17 +500,37 @@ def _api(manifest: dict) -> dict:
     return manifest["services"]["space-api"]
 
 
+def _boot(manifest: dict) -> dict:
+    return manifest["services"]["pricing-bootstrap"]
+
+
+DIGESTS = ["11" * 32, "22" * 32, "33" * 32]  # stand-ins for the base-image digests of the Dockerfiles
+
+
+def _good_runbook() -> str:
+    return (
+        f"# Runbook\n\n## Verified image references\n\n- `{MONGO_IMAGE}` - verified 2026-10-24\n"
+        f"- `{REDIS_IMAGE}` - verified 2026-10-24\n\n## Built images\n\n"
+        "- `openbinding-lab/space-api:1.7.1` is built from `lab/space`\n"
+        "- `openbinding-lab/pricing-bootstrap:1` is built from `lab/tools`\n"
+        + "".join(f"- base `sha256:{d}` UNVERIFIED until the first lab build\n" for d in DIGESTS)
+        + "\n## Memory\n\nMemory sum: 1088 MiB\n"
+    )
+
+
 def test_control_sample_conforms():
-    # [utest->req~lab-deployment-pricing-profile-optional~1]
+    # [utest->req~lab-deployment-pricing-profile-optional~2]
     names = {r[2:-1] for r in SECRET_REFERENCES}
     assert rule_optional(sample()) is None and rule_isolated(sample()) is None
-    assert rule_images(sample(), SAMPLE_VERIFIED, True) is None
-    assert rule_memory(sample(), 992) is None and rule_secrets(sample(), names) is None
+    assert rule_images(sample(), SAMPLE_VERIFIED) is None
+    assert rule_memory(sample(), 1088) is None and rule_secrets(sample(), names) is None
     assert rule_start_order(sample()) is None and rule_remote_sphere(sample()) is None
-    assert rule_api_surface(sample()) is None
+    assert rule_api_surface(sample()) is None and rule_bootstrap_surface(sample()) is None
+    assert rule_runbook(_good_runbook(), set(DIGESTS)) is None
     digested = sample()
     _api(digested)["image"] = SYNTHETIC_API_IMAGE
-    assert rule_images(digested, [*SAMPLE_VERIFIED, SYNTHETIC_API_IMAGE], False) is None
+    del _api(digested)["build"]
+    assert rule_images(digested, [*SAMPLE_VERIFIED, SYNTHETIC_API_IMAGE]) is None
 
 
 def _env_of(manifest: dict, service: str = "space-api") -> dict:
@@ -443,18 +540,21 @@ def _env_of(manifest: dict, service: str = "space-api") -> dict:
 def _profiles(m): m["services"]["space-api"]["profiles"] = ["pricing"]
 def _renamed(m): m["name"] = "openbinding-lab"
 def _extra(m): m["services"]["space-web"] = {}
+def _without_bootstrap(m): del m["services"]["pricing-bootstrap"]
+def _bootstrap_renamed(m): m["services"]["space-bootstrap"] = m["services"].pop("pricing-bootstrap")
 
 
-@pytest.mark.parametrize("mutate", [_profiles, _renamed, _extra], ids=lambda f: f.__name__)
+@pytest.mark.parametrize("mutate", [_profiles, _renamed, _extra, _without_bootstrap, _bootstrap_renamed],
+                         ids=lambda f: f.__name__)
 def test_control_refuses_a_non_optional_profile(mutate):
-    # [utest->req~lab-deployment-pricing-profile-optional~1]
+    # [utest->req~lab-deployment-pricing-profile-optional~2]
     manifest = sample()
     mutate(manifest)
     assert rule_optional(manifest)
 
 
 def test_control_ignores_the_service_order():
-    # [utest->req~lab-deployment-pricing-profile-optional~1]
+    # [utest->req~lab-deployment-pricing-profile-optional~2]
     manifest = sample()
     manifest["services"] = dict(reversed(list(manifest["services"].items())))
     assert rule_optional(manifest) is None
@@ -464,11 +564,17 @@ def _port(m): _api(m)["ports"] = ["127.0.0.1:3000:3000"]
 def _bind(m): _api(m)["volumes"] = [{"type": "bind", "source": "data", "target": "/data"}]
 def _root(m): _api(m)["user"] = "0:0"
 def _privileged(m): _api(m)["privileged"] = True
+def _boot_port(m): _boot(m)["ports"] = ["127.0.0.1:8000:8000"]
+def _boot_root(m): _boot(m)["user"] = "0:0"
+def _boot_networks(m): _boot(m)["networks"] = ["default"]
+def _boot_network_mode(m): _boot(m)["network_mode"] = "host"
 
 
-@pytest.mark.parametrize("mutate", [_port, _bind, _root, _privileged], ids=lambda f: f.__name__)
+@pytest.mark.parametrize("mutate", [_port, _bind, _root, _privileged, _boot_port, _boot_root, _boot_networks,
+                                    _boot_network_mode],
+                         ids=lambda f: f.__name__)
 def test_control_refuses_a_non_isolated_profile(mutate):
-    # [utest->req~lab-deployment-pricing-profile-isolated~1]
+    # [utest->req~lab-deployment-pricing-profile-isolated~2]
     manifest = sample()
     mutate(manifest)
     assert rule_isolated(manifest)
@@ -487,7 +593,7 @@ def _gid_missing(m): _api(m)["user"] = "1000"
                          [_driver_opts, _networks, _docker_sock, _gid_zero, _gid_name, _gid_empty, _gid_missing],
                          ids=lambda f: f.__name__)
 def test_control_refuses_bind_networks_socket_and_bad_gid(mutate):
-    # [utest->req~lab-deployment-pricing-profile-isolated~1]
+    # [utest->req~lab-deployment-pricing-profile-isolated~2]
     manifest = sample()
     mutate(manifest)
     assert rule_isolated(manifest)
@@ -495,77 +601,153 @@ def test_control_refuses_bind_networks_socket_and_bad_gid(mutate):
 
 def _security_opt(m): _api(m)["security_opt"] = ["seccomp=unconfined"]
 def _userns(m): _api(m)["userns_mode"] = "host"
-def _build(m): _api(m)["build"] = {"context": "."}
+def _build_args(m): _api(m)["build"]["args"] = {"X": "1"}
+def _build_target(m): _api(m)["build"]["target"] = "build"
+def _build_string(m): _api(m)["build"] = "lab/space"
+def _build_missing_dockerfile(m): del _api(m)["build"]["dockerfile"]
+def _boot_cap_drop(m): _boot(m)["cap_drop"] = ["ALL"]
+def _boot_read_only(m): _boot(m)["read_only"] = True
 
 
-@pytest.mark.parametrize("mutate", [_security_opt, _userns, _build], ids=lambda f: f.__name__)
+@pytest.mark.parametrize("mutate", [_security_opt, _userns, _boot_cap_drop, _boot_read_only],
+                         ids=lambda f: f.__name__)
 def test_control_refuses_keys_outside_the_allow_list(mutate):
-    # [utest->req~lab-deployment-pricing-profile-isolated~1]
+    # [utest->req~lab-deployment-pricing-profile-isolated~2]
     manifest = sample()
     mutate(manifest)
     assert "allow-list" in (rule_isolated(manifest) or "")
 
 
+@pytest.mark.parametrize("mutate", [_build_args, _build_target, _build_string, _build_missing_dockerfile],
+                         ids=lambda f: f.__name__)
+def test_control_refuses_extra_build_keys(mutate):
+    # [utest->req~lab-deployment-pricing-profile-isolated~2]
+    manifest = sample()
+    mutate(manifest)
+    assert "exactly context and dockerfile" in (rule_isolated(manifest) or "")
+
+
+@pytest.mark.parametrize("service, value", [("space-api", "no"), ("space-api", "unless-stopped"),
+                                            ("space-mongo", "no"), ("pricing-bootstrap", "on-failure"),
+                                            ("pricing-bootstrap", "unless-stopped")])
+def test_control_refuses_restart_on_another_service_or_value(service, value):
+    # [utest->req~lab-deployment-pricing-profile-isolated~2]
+    manifest = sample()
+    manifest["services"][service]["restart"] = value
+    assert "restart" in (rule_isolated(manifest) or "")
+
+
+def _built(m, name, **changes):
+    """Replace the image or build of a built service (a None change deletes the key)."""
+    for key, value in changes.items():
+        if value is None:
+            m["services"][name].pop(key, None)
+        else:
+            m["services"][name][key] = value
+
+
+@pytest.mark.parametrize("name, changes", [
+    ("space-api", {"build": {"context": "lab/tools", "dockerfile": "Dockerfile"}}),
+    ("space-api", {"build": {"context": ".", "dockerfile": "Dockerfile"}}),
+    ("pricing-bootstrap", {"build": {"context": "lab/space", "dockerfile": "Dockerfile"}}),
+    ("space-api", {"build": {"context": "lab/space", "dockerfile": "other.Dockerfile"}}),
+    ("space-api", {"build": {"context": "lab/space", "dockerfile": "Dockerfile", "target": "x"}}),
+    ("space-api", {"build": "lab/space"}),
+    ("space-api", {"image": "openbinding-lab/space-api:latest"}),
+    ("space-api", {"image": "openbinding-lab/space-api:1.8.0"}),
+    ("space-api", {"image": None}),
+    ("pricing-bootstrap", {"image": "openbinding-lab/pricing-bootstrap:2"}),
+    ("space-api", {"image": RETIRED_MARKER}),
+    ("space-mongo", {"build": {"context": "lab/space", "dockerfile": "Dockerfile"},
+                     "image": "openbinding-lab/space-api:1.7.1"}),
+    ("space-redis", {"build": {"context": "lab/space", "dockerfile": "Dockerfile"}}),
+])
+def test_control_refuses_wrong_builds(name, changes):
+    # [utest->req~lab-deployment-pricing-profile-pinned-images~2]
+    manifest = sample()
+    _built(manifest, name, **changes)
+    assert rule_images(manifest, SAMPLE_VERIFIED)
+
+
+def test_control_accepts_built_images_outside_the_verified_list():
+    # [utest->req~lab-deployment-pricing-profile-pinned-images~2]
+    assert rule_images(sample(), SAMPLE_VERIFIED) is None
+    listed = _good_runbook().replace("\n## Built images", f"- `openbinding-lab/space-api:1.7.1@sha256:{'44' * 32}` - verified 2026-10-24\n\n## Built images")
+    assert "verified list" in rule_runbook(listed, set(DIGESTS)), "a built image is never verified"
+
+
 def test_control_refuses_unpinned_images():
-    # [utest->req~lab-deployment-pricing-profile-pinned-images~1]
+    # [utest->req~lab-deployment-pricing-profile-pinned-images~2]
     tag_only = sample()
     tag_only["services"]["space-redis"]["image"] = "redis:7.4.2"
-    assert rule_images(tag_only, SAMPLE_VERIFIED, True)
-    assert rule_images(sample(), [MONGO_IMAGE], True), "digest missing from the runbook"
-    marker = sample()
-    marker["services"]["space-mongo"]["image"] = SPACE_API_GAP_IMAGE
-    assert rule_images(marker, SAMPLE_VERIFIED, True)
-    assert rule_images(sample(), SAMPLE_VERIFIED, False), "marker without a GAP entry"
+    assert rule_images(tag_only, SAMPLE_VERIFIED)
+    local_redis = sample()
+    local_redis["services"]["space-redis"]["image"] = "openbinding-lab/space-redis:1"
+    assert rule_images(local_redis, SAMPLE_VERIFIED)
+    missing = sample()
+    missing["services"]["space-redis"]["image"] = REDIS_IMAGE
+    assert rule_images(missing, [MONGO_IMAGE]), "digest missing from the runbook"
     unlisted = sample()
     _api(unlisted)["image"] = SYNTHETIC_API_IMAGE
-    assert rule_images(unlisted, SAMPLE_VERIFIED, False), "space-api digest missing from the runbook"
+    del _api(unlisted)["build"]
+    assert rule_images(unlisted, SAMPLE_VERIFIED), "space-api digest missing from the runbook"
     api_tag = sample()
     _api(api_tag)["image"] = "example.invalid/space-api:1.7.1"
-    assert rule_images(api_tag, SAMPLE_VERIFIED, True)
+    del _api(api_tag)["build"]
+    assert rule_images(api_tag, SAMPLE_VERIFIED)
+    marker = sample()
+    _api(marker)["image"] = RETIRED_MARKER
+    del _api(marker)["build"]
+    assert "GAP marker" in rule_images(marker, [*SAMPLE_VERIFIED, RETIRED_MARKER])
     swapped = sample()
     swapped["services"]["space-mongo"]["image"] = REDIS_IMAGE
-    assert rule_images(swapped, SAMPLE_VERIFIED, True)
+    assert rule_images(swapped, SAMPLE_VERIFIED)
 
 
 def test_control_refuses_an_unverified_space_api_version():
-    # [utest->req~lab-deployment-pricing-profile-pinned-images~1]
+    # [utest->req~lab-deployment-pricing-profile-pinned-images~2]
     other = "example.invalid/space-api:1.8.0@sha256:" + "cd" * 32
     manifest = sample()
     _api(manifest)["image"] = other
-    message = rule_images(manifest, [*SAMPLE_VERIFIED, other], False)
+    del _api(manifest)["build"]
+    message = rule_images(manifest, [*SAMPLE_VERIFIED, other])
     assert message and "1.7.1" in message
-    # a verified space-api digest makes the open GAP marker stale
-    stale = rule_images(sample(), [*SAMPLE_VERIFIED, SYNTHETIC_API_IMAGE], True)
-    assert stale and "GAP marker" in stale
 
 
 def test_control_refuses_cache_and_heap_changes():
-    # [utest->req~lab-deployment-pricing-profile-memory-budget~1]
+    # [utest->req~lab-deployment-pricing-profile-memory-budget~2]
     manifest = sample()
-    manifest["services"]["space-mongo"]["mem_limit"] = "640m"
+    _boot(manifest)["mem_limit"] = "128m"
     assert "expected" in rule_memory(manifest, 1120), "a limit changed with a consistent documented sum"
+    big = sample()
+    big["services"]["space-mongo"]["mem_limit"] = "640m"
+    assert "ceiling" in rule_memory(big, 1216)
     no_limit = sample()
     del _api(no_limit)["mem_limit"]
-    assert "whole m or g" in rule_memory(no_limit, 992)
+    assert "whole m or g" in rule_memory(no_limit, 1088)
+    no_boot_limit = sample()
+    del _boot(no_boot_limit)["mem_limit"]
+    assert "whole m or g" in rule_memory(no_boot_limit, 1088)
+    assert "runbook" in rule_memory(sample(), 992), "a runbook that still documents 992 MiB"
     assert "runbook" in rule_memory(sample(), 1000), "the runbook sum must equal the manifest sum"
     over = sample()
     over["services"]["space-mongo"]["mem_limit"] = "1024m"
-    assert "ceiling" in rule_memory(over, 1504), "above 1152 with the documented sum equal to the manifest sum"
+    assert "ceiling" in rule_memory(over, 1600), "above 1152 with the documented sum equal to the manifest sum"
     for service, old, new in [("space-mongo", "--wiredTigerCacheSizeGB", "--other"),
                               ("space-mongo", "0.25", "0.5"), ("space-redis", "64mb", "80mb")]:
         changed = sample()
         changed["services"][service]["command"] = [
             p.replace(old, new) for p in changed["services"][service]["command"]]
-        assert rule_memory(changed, 992), (service, new)
+        assert rule_memory(changed, 1088), (service, new)
     missing = sample()
     missing["services"]["space-mongo"]["command"] = ["mongod"]
-    assert "missing" in rule_memory(missing, 992)
+    assert "missing" in rule_memory(missing, 1088)
     heap = sample()
     _env_of(heap)["NODE_OPTIONS"] = "--max-old-space-size=256"
-    assert "differs" in rule_memory(heap, 992)
+    assert "differs" in rule_memory(heap, 1088)
     no_heap = sample()
     _env_of(no_heap)["NODE_OPTIONS"] = ""
-    assert "missing" in rule_memory(no_heap, 992)
+    assert "missing" in rule_memory(no_heap, 1088)
 
 
 def _check_secrets(manifest: dict):
@@ -573,7 +755,7 @@ def _check_secrets(manifest: dict):
 
 
 def test_control_refuses_defaulted_or_literal_secrets():
-    # [utest->req~lab-deployment-pricing-profile-secret-references~1]
+    # [utest->req~lab-deployment-pricing-profile-secret-references~2]
     names = {r[2:-1] for r in SECRET_REFERENCES}
     for key, value in [("JWT_SECRET", "${DEMO_SPACE_JWT_SECRET:-dev}"), ("ADMIN_PASSWORD", "changeme"),
                        ("JWT_SALT", "pepper")]:
@@ -585,7 +767,7 @@ def test_control_refuses_defaulted_or_literal_secrets():
 
 
 def test_control_refuses_unbraced_or_swapped_secret_references():
-    # [utest->req~lab-deployment-pricing-profile-secret-references~1]
+    # [utest->req~lab-deployment-pricing-profile-secret-references~2]
     unbraced = sample()
     _env_of(unbraced)["ADMIN_USER"] = "$DEMO_PG_PASSWORD"
     assert "'$'" in _check_secrets(unbraced)
@@ -623,15 +805,90 @@ def test_control_refuses_unbraced_or_swapped_secret_references():
     assert "secret-shaped" in _check_secrets(shaped)
 
 
+def test_control_pins_the_admin_password_to_its_two_places():
+    # [utest->req~lab-deployment-pricing-profile-secret-references~2]
+    assert _check_secrets(sample()) is None, "the reference in both places passes"
+    third = sample()
+    _env_of(third)["ADMIN_USER"] = ADMIN_PASSWORD_REFERENCE
+    assert "must appear 2 time(s)" in _check_secrets(third)
+    in_url = sample()
+    _env_of(in_url, "pricing-bootstrap")["SPACE_URL"] = "http://lab:${DEMO_SPACE_ADMIN_PASSWORD}@space-api:3000"
+    assert "must appear 2 time(s)" in _check_secrets(in_url)
+    missing = sample()
+    del _env_of(missing, "pricing-bootstrap")["SPACE_ADMIN_PASSWORD"]
+    assert "pricing-bootstrap:SPACE_ADMIN_PASSWORD is missing" == _check_secrets(missing)
+    literal = sample()
+    _env_of(literal, "pricing-bootstrap")["SPACE_ADMIN_PASSWORD"] = "changeme"
+    assert _check_secrets(literal)
+    swapped = sample()
+    _env_of(swapped, "pricing-bootstrap")["SPACE_ADMIN_PASSWORD"] = "${DEMO_SPACE_JWT_SECRET}"
+    assert "wrong reference" in _check_secrets(swapped)
+
+
 def test_control_refuses_a_started_only_dependency():
-    # [utest->req~lab-deployment-pricing-profile-start-order~1]
+    # [utest->req~lab-deployment-pricing-profile-start-order~2]
     manifest = sample()
     _api(manifest)["depends_on"]["space-mongo"] = {"condition": "service_started"}
     assert rule_start_order(manifest)
 
 
+def _no_depends(m): del _boot(m)["depends_on"]
+def _boot_started(m): _boot(m)["depends_on"]["space-api"]["condition"] = "service_started"
+def _boot_completed(m): _boot(m)["depends_on"]["space-api"]["condition"] = "service_completed_successfully"
+def _boot_extra(m): _boot(m)["depends_on"]["space-mongo"] = {"condition": "service_healthy"}
+
+
+@pytest.mark.parametrize("mutate", [_no_depends, _boot_started, _boot_completed, _boot_extra],
+                         ids=lambda f: f.__name__)
+def test_control_refuses_a_bootstrap_started_too_early(mutate):
+    # [utest->req~lab-deployment-pricing-profile-start-order~2]
+    manifest = sample()
+    mutate(manifest)
+    assert "pricing-bootstrap must wait" in rule_start_order(manifest)
+
+
+def test_control_exempts_the_one_shot_from_the_healthcheck_rule():
+    # [utest->req~lab-deployment-pricing-profile-start-order~2]
+    assert "healthcheck" not in _boot(sample())
+    assert rule_start_order(sample()) is None
+
+
+def _extra_proxy(m): _env_of(m, "pricing-bootstrap")["HTTPS_PROXY"] = "http://proxy.example:3128"
+def _extra_proxy_lower(m): _env_of(m, "pricing-bootstrap")["https_proxy"] = "http://proxy.example:3128"
+def _extra_http_proxy(m): _env_of(m, "pricing-bootstrap")["HTTP_PROXY"] = "http://proxy.example:3128"
+def _extra_sphere_key(m): _env_of(m, "pricing-bootstrap")["SPHERE_API_KEY"] = "${DEMO_SPHERE_API_KEY}"
+def _extra_plan(m): _env_of(m, "pricing-bootstrap")["SPACE_BOOTSTRAP_PLAN"] = "PRO"
+def _url_changed(m): _env_of(m, "pricing-bootstrap")["SPACE_URL"] = "https://space.score.us.es"
+def _user_changed(m): _env_of(m, "pricing-bootstrap")["SPACE_ADMIN_USER"] = "admin"
+def _user_missing(m): del _env_of(m, "pricing-bootstrap")["SPACE_ADMIN_USER"]
+def _password_missing(m): del _env_of(m, "pricing-bootstrap")["SPACE_ADMIN_PASSWORD"]
+
+
+@pytest.mark.parametrize("mutate", [_extra_proxy, _extra_proxy_lower, _extra_http_proxy, _extra_sphere_key,
+                                    _extra_plan, _url_changed, _user_changed, _user_missing, _password_missing],
+                         ids=lambda f: f.__name__)
+def test_control_refuses_a_changed_bootstrap_surface(mutate):
+    # [utest->req~lab-deployment-pricing-profile-bootstrap-environment~1]
+    manifest = sample()
+    mutate(manifest)
+    assert "pinned" in rule_bootstrap_surface(manifest)
+
+
+def test_control_refuses_a_missing_bootstrap_service():
+    # [utest->req~lab-deployment-pricing-profile-bootstrap-environment~1]
+    manifest = sample()
+    _without_bootstrap(manifest)
+    assert "missing" in rule_bootstrap_surface(manifest)
+
+
+def test_control_allows_the_bootstrap_url_host():
+    # [utest->req~lab-deployment-pricing-profile-remote-sphere~1]
+    assert _env_of(sample(), "pricing-bootstrap")["SPACE_URL"] == "http://space-api:3000"
+    assert rule_remote_sphere(sample()) is None
+
+
 def test_control_refuses_a_service_without_a_healthcheck():
-    # [utest->req~lab-deployment-pricing-profile-start-order~1]
+    # [utest->req~lab-deployment-pricing-profile-start-order~2]
     no_check = sample()
     del no_check["services"]["space-redis"]["healthcheck"]
     assert "space-redis has no healthcheck" == rule_start_order(no_check)
@@ -729,16 +986,37 @@ def test_control_pins_the_api_environment_and_healthcheck():
 
 
 def test_control_runbook_parsers_refuse_malformed_text():
-    # [utest->req~lab-deployment-pricing-profile-pinned-images~1]
-    good = (f"# Runbook\n\n## Verified image references\n\n- `{MONGO_IMAGE}` - verified 2026-10-24\n\n"
-            f"## GAP\n\n- space-api has no digest yet, see {CRP}\n\n## Memory\n\nMemory sum: 992 MiB\n")
-    assert verified_images(good) == [MONGO_IMAGE] and gap_is_open(good) and documented_sum(good) == 992
-    assert not gap_is_open(good.replace("## GAP", "## Notes")), "no ## GAP section"
-    assert not gap_is_open(good.replace(f"see {CRP}", "see the owner")), "space-api without the CRP id"
-    assert not gap_is_open(good.replace(f"see {CRP}", "see the owner")
-                           + f"\n## Notes\n\n- space-api waits for {CRP}\n"), "named only outside ## GAP"
-    assert verified_images(good.replace(MONGO_IMAGE, MONGO_IMAGE[:-1])) == [], "a truncated digest is not 64 hex"
+    # [utest->req~lab-deployment-pricing-profile-pinned-images~2]
+    good = _good_runbook()
+    assert verified_images(good) == [MONGO_IMAGE, REDIS_IMAGE] and documented_sum(good) == 1088
+    truncated = good.replace(MONGO_IMAGE, MONGO_IMAGE[:-1]).replace(REDIS_IMAGE, REDIS_IMAGE[:-1])
+    assert verified_images(truncated) == [], "a truncated digest is not 64 hex"
+    outside = good.replace("## Verified image references", "## Candidates")
+    assert verified_images(outside) == [], "verified lines outside the section"
     assert verified_images(good.replace(" - verified 2026-10-24", " - pending")) == []
     assert verified_images(good.replace(" - verified 2026-10-24", " - verified")) == []
     assert verified_images(good.replace("## Verified image references", "## Candidates")) == []
     assert documented_sum(good.replace("Memory sum:", "Total:")) is None
+
+
+def test_control_runbook_rule_refuses_a_gap_and_a_wrong_wiring():
+    # [utest->req~lab-deployment-pricing-profile-pinned-images~2]
+    digests = set(DIGESTS)
+    good = _good_runbook()
+    assert rule_runbook(good, digests) is None
+    assert "GAP" in rule_runbook(good + "\n## GAP\n\n- space-api has no image\n", digests)
+    extra = good.replace("\n## Built images", f"- `example.invalid/x:1@sha256:{'44' * 32}` - verified 2026-10-24\n\n## Built images")
+    assert "verified list" in rule_runbook(extra, digests)
+    assert "verified list" in rule_runbook(good.replace(f"- `{REDIS_IMAGE}` - verified 2026-10-24\n", ""), digests)
+    assert "space-api:1.7.1" in rule_runbook(good.replace("openbinding-lab/space-api:1.7.1", "space-api"), digests)
+    assert "lab/space" in rule_runbook(good.replace("`lab/space`", "`lab/tools`"), digests)
+    assert "pricing-bootstrap:1" in rule_runbook(good.replace("pricing-bootstrap:1", "pricing-bootstrap"), digests)
+    assert "lab/tools" in rule_runbook(good.replace("`lab/tools`", "`lab/space`"), digests)
+    for digest in DIGESTS:
+        assert "UNVERIFIED" in rule_runbook(good.replace(f"sha256:{digest}` UNVERIFIED", f"sha256:{digest}`"), digests)
+        listed = good.replace("\n## Built images", f"- `x:1@sha256:{digest}` - verified 2026-10-24\n\n## Built images")
+        assert "verified list" in rule_runbook(listed, digests)
+    assert "UNVERIFIED" in rule_runbook(good, {*digests, "55" * 32}), "a base digest the runbook lacks"
+    assert "GAP" in rule_runbook(good + "\n## GAP (closed)\n\n- x\n", digests)
+    inside = good.replace("\n## Built images", f"- base `sha256:{DIGESTS[0]}` UNVERIFIED\n\n## Built images")
+    assert "verified list" in rule_runbook(inside, digests), "an UNVERIFIED line inside the verified section"
