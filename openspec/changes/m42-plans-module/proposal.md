@@ -25,13 +25,14 @@ lists the choices taken from it.
 - The other ten limits of pricing 0.2.0 (`maxProblems`, `maxCollections` and `maxRepositoryStorage` for FREE among
   them) are compared with the gateway's own counts.
 - SPACE events invalidate the plans caches and reach signed-in browsers as `plans.changed` on the new stream
-  `GET /v1/plans/events`.
+  `GET /v1/plans/events` (API keys need `account:read`); the plans port reports the active pricing version that the
+  last activation event carried (`PlanPort.active_version()`, `None` when unknown), for M4.3.
 - SPACE down means 503 `pricing_unavailable` for every gated operation, and a contract suite runs the plans module
   against the lab `pricing` profile.
 
 ## Impact
 
-- Capabilities: `plans` (new, 21 ADDED requirements) and `auth-roles-entitlements` (3 MODIFIED: `api-key-quota` ~2,
+- Capabilities: `plans` (new, 22 ADDED requirements) and `auth-roles-entitlements` (3 MODIFIED: `api-key-quota` ~2,
   `plan-reads` ~2, `no-metering` ~2). Two capabilities because the three living requirements contradict pricing 0.2.0
   and ADR-0015 (`apiKeys` is now `maxApiKeys`; the platform runs a pinned SPACE; SPACE now tracks two usage levels);
   leaving them would make the living specs contradict each other (design.md §1).
@@ -39,7 +40,8 @@ lists the choices taken from it.
   `access/policy.py`, `services/job_submission.py`, `routes/jobs.py`, `routes/studies.py`, `study_jobs.py`, the
   generator routes, the repository, project and API-key routes, `core/settings.py` and `main.py` (lifespan) adapt;
   `domain/usage_counters.py` stops being called at admission (it is deleted in M4.3).
-- HTTP API: one new route, `GET /v1/plans/events` (`text/event-stream`, authenticated); every 402 carries the
+- HTTP API: one new route, `GET /v1/plans/events` (`text/event-stream`, authenticated, API-key permission
+  `account:read`); every 402 carries the
   `quota` object the gateway already sends for federated engines (`limit_id`, `state`, `unit`, `source`, `limit`,
   `used`), now also for API keys and the new count limits; the codes `usage_limit_exceeded`, `quota_exceeded`, `storage_quota_exceeded`,
   `concurrency_limit_exceeded`, `feature_not_entitled`, `pricing_unavailable` and `pricing_misconfigured` already

@@ -65,15 +65,29 @@ SPACE or SPHERE (constitution 16.6); they use the recorded pricing `docs/pricing
 ## S5. SPACE event relay
 - [ ] 5.1 Tests with a fake event source: each of the five events drops the cached entitlements of the service and not
   those of another service; `plans.changed` reaches two open streams within 5 s with no account data; 401 without
-  authentication, with media type `application/problem+json`; while the source is disconnected, a cached entry older
-  than 60 s is not used.
-- [ ] 5.2 `modules/plans/adapters/space/events.py` (subscription in the lifespan, reconnect with backoff) and
-  `modules/plans/adapters/http/events.py` (`GET /v1/plans/events`), design.md §8; `docs/openapi.json` regenerated.
+  authentication, with media type `application/problem+json`; an API key with `account:read` opens the stream and one
+  without it gets 403 `insufficient_api_key_permission`; `required_permissions("/v1/plans/events", "GET")` is
+  `{"account:read"}` while `required_permissions("/v1/plans/pricing", "GET")` and any other `/v1/plans/*` path are not
+  given `account:read` by that branch (exact-path match, not a `/v1/plans` prefix, so the anonymous `/v1/plans/pricing`
+  of M4.3 stays open); while the source is disconnected, a cached entry older than 60 s is not used;
+  `PlanPort.active_version()` is `None` at start-up and after a `synchronized` event, `"0.3.0"` after a
+  `pricing_actived` for the service whose `details` carry `pricingVersion` `"0.3.0"`, unchanged by an event of another
+  service or by `synchronized`, `None` again after a `pricing_actived` without a version, after `pricing_created`,
+  `pricing_archived` or `service_disabled` and from a disconnection until the next `pricing_actived`, with no SPACE
+  call (recording fake); `OpenGate.active_version()` is always `None`.
+- [ ] 5.2 `modules/plans/adapters/space/events.py` (subscription in the lifespan, reconnect with backoff, the held
+  active version) and `modules/plans/adapters/http/events.py` (`GET /v1/plans/events`), design.md §8;
+  `PlanPort.active_version()` in `application/ports.py`, the SPACE adapter and `OpenGate` (always `None`, so a gateway
+  on the open gate answers it before S7); the exact-path `/v1/plans/events` branch
+  with `account:read` in `src/openbinding_gateway/security/apikeys.py` `required_permissions`; `docs/openapi.json`
+  regenerated (its `x-required-api-key-permissions` names `account:read`).
 - [ ] 5.3 Unless M4.3 S1 has landed it first: add `/v1/plans` to `_BIM_PATH_PREFIXES` in `src/openbinding_gateway/main.py`
   (or the shared predicate of `m43-plans-pricing-route` design.md §4.3) and the prefix to `docs/ERRORS.md` §"Media
   type"; if M4.3 S1 landed first, only the 5.1 test checks it (design.md §8).
-- Requirements: `plans-event-cache-invalidation`, `plans-event-relay`, `plans-cache-bound-without-events`.
-- Depends on: S1. Public API addition: confirm with the lead that the CRP covered it (design.md §11, D11).
+- Requirements: `plans-event-cache-invalidation`, `plans-event-relay`, `plans-cache-bound-without-events`,
+  `plans-active-version`.
+- Depends on: S1. Public API addition: confirm with the lead that the CRP covered it (design.md §11, D11). M4.3 S2
+  (`req~plans-pricing-space-active-version~1`) reads `PlanPort.active_version()` and so depends on this slice.
 
 ## S6. Revert on failure
 - [ ] 6.1 Tests: a failing commit after a positive evaluation sends one revert and answers 500; a built-in run cancelled
@@ -94,7 +108,8 @@ SPACE or SPHERE (constitution 16.6); they use the recorded pricing `docs/pricing
   caller's own run with no SPACE call (API-key authentication is not gated, design.md §3, D15), answers 503 with no job
   to a run submitted with that API key, and admits after SPACE returns; with
   `SPACE_ENABLED=false` and `APP_ENV=dev` everything gated is admitted with no SPACE call; `APP_ENV=prod` refuses it.
-- [ ] 7.2 Close any path S3-S6 left that writes before the SPACE answer; `OpenGate.evaluate`/`revert`/`subscribe`;
+- [ ] 7.2 Close any path S3-S6 left that writes before the SPACE answer; `OpenGate.evaluate`/`revert`/`subscribe`
+  (`OpenGate.active_version` lands in S5);
   `open_limits` and `OPEN_FEATURES` extended to every id of the map (design.md §9), so the open gate admits a 26th
   problem.
 - Requirements: `plans-fail-closed`, `plans-open-gate`.
@@ -107,7 +122,12 @@ SPACE or SPHERE (constitution 16.6); they use the recorded pricing `docs/pricing
 - [ ] 8.2 A registered lab check that runs the suite against the `pricing` profile, placed where the `MANAGEMENT` key
   (`PLANS_CONTRACT_SPACE_API_KEY`) is available as `docs/design/m45-lab-space.md` §1.4 decides; the results are
   recorded in `docs/qa/PRICING_PROFILE.md`, and every UNVERIFIED item of design.md §12 is confirmed or corrected,
-  including the evaluation rule when `used + expected` exceeds the limit while `used` is below it.
+  including the evaluation rule when `used + expected` exceeds the limit while `used` is below it, and the field of the
+  `pricing_actived` `details` that carries the version (`pricingVersion`, UNVERIFIED; design.md §8), read from an
+  activation the lab can make without disturbing the bootstrap's contracts or else recorded as still UNVERIFIED, and
+  which events a synchronization that adds a pricing version emits (`pricing_created`, `pricing_actived`, both) and
+  whether they carry the version; if `details` carries no version, `req~plans-active-version~1` is revised (always `None` until a client release offers
+  a read).
 - [ ] 8.3 Decide `SPACE_PRICING_VERSION` (gateway setting) versus the lab's `DEMO_SPACE_PRICING_VERSION` (design.md §12;
   M4.2 owns it), with a suite case showing that a new version activated in SPACE does not break contracts pinned to
   `0.2.0` (UNVERIFIED until then); record the decision in design.md §12 or a followup of the slice.

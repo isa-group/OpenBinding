@@ -356,6 +356,43 @@ Needs: impl, utest
 - **WHEN** a client opens `GET /v1/plans/events`
 - **THEN** the gateway answers 401 with media type `application/problem+json`
 
+#### Scenario: Stream with an API key
+- **GIVEN** a MEMBER's active API key that holds `account:read`, and another of the member's active keys that holds only `jobs:read`
+- **WHEN** a client opens `GET /v1/plans/events` with each key
+- **THEN** the first stream opens with `text/event-stream`
+- **AND** the second request is answered 403 `insufficient_api_key_permission` naming `account:read` as missing
+
+### Requirement: Active pricing version from SPACE events
+The plans module's `PlanPort.active_version()` SHALL return, without calling SPACE, the pricing version carried by the last `pricing_actived` event for the configured service received on the current event connection, and `None` while that connection is down, when no such event has been received on it, when that event carries no version, or when a `pricing_created`, `pricing_archived` or `service_disabled` event for the service arrived after it.
+
+`req~plans-active-version~1`
+
+Needs: impl, utest
+
+#### Scenario: Version from an activation event
+- **GIVEN** `SPACE_SERVICE_NAME=openbinding` and an event connection up since start-up
+- **WHEN** a `pricing_actived` event for `openbinding` whose `details` carry the pricing version `0.3.0` arrives (field name per design.md §8, UNVERIFIED until the contract suite runs)
+- **THEN** `active_version()` returns `"0.3.0"` and no call is sent to SPACE to answer it
+- **AND** after a later `pricing_actived` event for `openbinding` carrying `0.4.0`, it returns `"0.4.0"`
+
+#### Scenario: Before the first activation event
+- **GIVEN** a gateway that has just started, with its event connection up and only a `synchronized` event received
+- **WHEN** `active_version()` is called
+- **THEN** it returns `None`
+
+#### Scenario: Events that do not set the version
+- **GIVEN** `active_version()` returning `"0.3.0"`
+- **WHEN** a `pricing_actived` event for the service `tomatometer` carrying `9.9.9` arrives, and then a `synchronized` event
+- **THEN** `active_version()` still returns `"0.3.0"`
+- **AND** after a `pricing_actived` event for `openbinding` whose `details` carry no version, it returns `None`
+- **AND** after a `pricing_created`, a `pricing_archived` or a `service_disabled` event for `openbinding`, each received while it returns `"0.3.0"`, it returns `None` until the next `pricing_actived` event for `openbinding` with a version
+
+#### Scenario: SPACE unavailable
+- **GIVEN** `active_version()` returning `"0.3.0"`
+- **WHEN** the event connection drops
+- **THEN** `active_version()` returns `None` while the connection is down and after it is re-established, until the next `pricing_actived` event for `openbinding` with a version arrives
+- **AND** with `SPACE_ENABLED=false` and `APP_ENV=dev` (open gate), it always returns `None`
+
 ### Requirement: Cache bound while the event connection is down
 WHILE the plans module's event connection to SPACE is down, the plans module SHALL NOT use cached entitlements or pricing tokens read more than 60 s earlier.
 

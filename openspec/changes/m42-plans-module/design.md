@@ -13,7 +13,7 @@ each choice that it would have held.
 - `plans` (new). ARCHITECTURE §4.1 makes `plans` a bounded context of its own (the SPACE port, the entitlement map,
   the pricing descriptor, plan changes and eligibility), and ADR-0015 §2 gives it the obligations of M4.2. None of the
   living capabilities owns them: `auth-roles-entitlements` is about identity and authority, `job-execution`,
-  `studies-analysis`, `generator` and `engine-registry` are the callers. A new capability keeps the 21 requirements in
+  `studies-analysis`, `generator` and `engine-registry` are the callers. A new capability keeps the 22 requirements in
   one place. M4.3 does not add to it: `GET /v1/plans/pricing` gets the separate capability `plans-pricing`
   (`m43-plans-pricing-route`), because that public, keyless route reads SPHERE and has no SPACE dependency, while every
   requirement of `plans` is about the SPACE-backed gate. M4.4 decides where its own requirements go.
@@ -41,7 +41,7 @@ Target (ARCHITECTURE §4.2): `openbinding-gateway/src/openbinding_gateway/module
 | Part | Holds | Comes from |
 |---|---|---|
 | `domain/entitlements_map.py` | the map of §3, `feature_id`, `PlanCaps`, the limit kinds; pure Python | `space_client/gate.py` (`feature_id`, `PlanCaps`) |
-| `application/ports.py` | `PlanPort` (Protocol): today's `PricingGate` methods plus `evaluate`, `revert` and `subscribe` | `space_client/gate.py` (`PricingGate`, errors) |
+| `application/ports.py` | `PlanPort` (Protocol): today's `PricingGate` methods plus `evaluate`, `revert`, `subscribe` and `active_version() -> str \| None` (§8) | `space_client/gate.py` (`PricingGate`, errors) |
 | `application/__init__.py` | the public API other modules call: `require`, `admit`, `revert_admission`, `count_limit`, `clamp_budget`, `caps` | `services/entitlements.py` (later slice) |
 | `adapters/space/gate.py` | `SpacePlanGate` over `space-python-client` 1.x | `space_client/space.py` |
 | `adapters/space/open_gate.py` | `OpenGate` | `space_client/open.py` |
@@ -213,8 +213,31 @@ resource is stored and committed; (8) dispatch after commit.
   twice is harmless.
 - While the socket is down (not yet connected, dropped, reconnecting with backoff 1 s to 60 s), cached entries older than
   60 s are not used.
-- `GET /v1/plans/events`: authenticated like `GET /v1/jobs/{id}/events` (session or API key; 401 otherwise),
-  `text/event-stream`, `Cache-Control: no-store`, messages `event: plans.changed` with data
+- Active version. `space-python-client` 1.0.0 has no service or pricing read (§4) and the module makes no direct HTTP
+  call to SPACE (§2, 16.1), so `PlanPort.active_version() -> str | None` answers from memory only: the pricing version
+  carried by the last `pricing_actived` event of `SPACE_SERVICE_NAME` that this process received on its current
+  connection. The client passes the server message's `details` object to the callback as is (client source,
+  `_base_client.py`); the version is read from its field `pricingVersion` (name UNVERIFIED: the client defines no shape
+  for `details`; the S8 contract suite confirms or corrects it, a design fix). `synchronized` carries no payload and
+  leaves the value as it is. A SPACE service can hold several active versions (m41-space-bootstrap design.md §4,
+  step 6, "the newest active version"), so a `pricing_created` or `pricing_archived` of the service may change which
+  one is active without a `pricing_actived`; both reset the value. The value is `None`: until the first such event
+  after start-up; after a `pricing_actived` event whose `details` has no non-empty string in that field (the previous
+  value is dropped, never kept or guessed); after `pricing_created`, `pricing_archived` or `service_disabled`, until the
+  next `pricing_actived`;
+  from the moment the connection drops until the first `pricing_actived` after it is re-established (events may have
+  been missed); and always with `OpenGate`. It is synchronous, never calls SPACE, never raises and is per process, like
+  the subscription. A gateway that has just started therefore reports `None` until SPACE activates a version; M4.3's
+  `spaceActiveVersion` is `null` then (its "any failure gives `null`"). If the contract suite shows that `details`
+  carries no version, the method keeps returning `None` until a client release offers a read, and this paragraph and
+  `req~plans-active-version~1` are revised.
+- `GET /v1/plans/events`: authenticated like `GET /v1/jobs/{id}/events` (session or API key; 401 otherwise). An API key
+  needs the permission `account:read`; one without it gets 403 `insufficient_api_key_permission`. `required_permissions`
+  in `security/apikeys.py` classifies the route by the exact path `/v1/plans/events` (`path == "/v1/plans/events"`),
+  never by a `/v1/plans` prefix: a prefix branch would run before the open-path check (`apikeys.py`, the
+  `OPEN_V1_PREFIXES` / `OPEN_V1_GET_PATHS` test at the end of the function) and would close the anonymous
+  `GET /v1/plans/pricing` of M4.3 to keys without that permission. Without a branch the route would fall to
+  `route:unclassified` and be closed to every API key. `text/event-stream`, `Cache-Control: no-store`, messages `event: plans.changed` with data
   `{"event": "<space event>", "at": "<ISO 8601>"}`, a comment heartbeat every 25 s, closed by the server after 30 minutes
   (the browser reconnects). Delivery within 5 s of the event's arrival. No per-user data.
 - The 401 of `GET /v1/plans/events` is a `Problem` body (ADR-0011) with media type `application/problem+json`, as are
@@ -233,7 +256,8 @@ resource is stored and committed; (8) dispatch after commit.
   starts while SPACE is down; public reads, the authentication of API keys and the ungated routes keep working (D15),
   except the plan-administration routes of §3, which read SPACE themselves; the next gated call retries SPACE (no
   circuit state kept).
-- `OpenGate` gains `evaluate` (always positive, nothing recorded), `revert` (no-op) and `subscribe` (no-op).
+- `OpenGate` gains `evaluate` (always positive, nothing recorded), `revert` (no-op), `subscribe` (no-op) and
+  `active_version` (always `None`; it lands in S5 with the port method, the others in S7).
   `open_limits` today declares none of the 0.2.0 ids, and a missing limit reads as 0 (`PlanCaps.limit`), so S7 extends
   it: every limit of the map is `inf`, except `maxRunMinutes` = `ENGINE_SOLVE_TIMEOUT_S / 60` and `maxConcurrentRuns` =
   `MAX_CONCURRENT_JOBS_PER_USER`, and every feature of the map is listed in `OPEN_FEATURES`. Technical caps apply.
@@ -306,15 +330,20 @@ consistent with ADR-0015, ARCHITECTURE §9 and ROADMAP M4; the lead checks each 
 
 - UNVERIFIED against SPACE 1.7.1 and `space-python-client` 1.0.0 (README of the main branch, medium confidence, lookup of
   2026-10-26; sources: `https://github.com/Alex-GF/space-python-client`, `https://pypi.org/pypi/space-python-client/1.0.0/json`):
-  the keys of `expected_consumption`, decimals in `solverHours`, the evaluation result fields, the event payloads and
-  the `subscriptionContext` claim. The contract suite (S8) proves or corrects them; a correction of a name is a design
+  the keys of `expected_consumption`, decimals in `solverHours`, the evaluation result fields, the event payloads
+  (among them the field `pricingVersion` of the `pricing_actived` `details` that `active_version` reads, §8, and which
+  events a synchronization that adds a pricing version emits and whether they carry the version: if it emits no
+  `pricing_actived`, `active_version` stays `None` after it) and the `subscriptionContext` claim. The contract suite (S8) proves or corrects them; a correction of a name is a design
   fix, of a behaviour a revision of the requirement.
 - Checked offline by `openbinding-gateway/tests/test_space_client_contract.py` against the installed client (names and
-  parameters only), once the parallel fix of that test lands (in this tree it still checks `remove_listener` and binds
-  `evaluate` positionally; until that fix lands these names stay UNVERIFIED): the event name `pricing_actived`, `AsyncSpaceClient.remove_all_listeners`,
-  `evaluate(user_id, feature_id, expected_consumption=...)` and
-  `revert_evaluation(user_id, feature_id, revert_to_latest=True)`. Payload shapes and server behaviour remain
-  UNVERIFIED until the contract suite runs.
+  parameters only): the event name `pricing_actived`, `AsyncSpaceClient.remove_listener` and
+  `AsyncSpaceClient.remove_all_listeners`, `evaluate(user_id, feature_id, expected_consumption=...)` and
+  `revert_evaluation(user_id, feature_id, revert_to_latest=True)`, both bound by keyword. Payload shapes and server
+  behaviour remain UNVERIFIED until the contract suite runs.
+- `active_version` (§8) is `None` after every start-up and reconnection until SPACE activates a version, which can be
+  weeks; M4.3 shows `spaceActiveVersion` `null` meanwhile. Accepted rather than reading SPACE over HTTP (16.1) or
+  guessing from a contract's token (a token gives that contract's version, not the service's). To confirm with the
+  lead, with the API-key permission `account:read` of `GET /v1/plans/events` (§8), which no CRP choice names.
 - UNVERIFIED: how SPACE compares an evaluation with its limit. ARCHITECTURE §9.2 does not fix the rule, and the pricing
   expressions (`subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']`, the same for
   `generatedInstances`) compare the usage already recorded with a strict `<`, which admits an evaluation while
@@ -346,7 +375,7 @@ consistent with ADR-0015, ARCHITECTURE §9 and ROADMAP M4; the lead checks each 
 | `plans-entitlement-map`, `plans-map-verified`, `plans-feature-refusal` | S2 map |
 | `plans-solver-hours-admission`, `plans-generation-admission`, `plans-usage-exhausted`, `auth-roles-entitlements-no-metering` ~2 | S3 admission |
 | `plans-repository-limits`, `plans-private-projects-limit`, `plans-request-size-limits`, `plans-run-budget-ceiling`, `plans-concurrent-runs`, `auth-roles-entitlements-api-key-quota` ~2 | S4 counts |
-| `plans-event-cache-invalidation`, `plans-event-relay`, `plans-cache-bound-without-events` | S5 events |
+| `plans-event-cache-invalidation`, `plans-event-relay`, `plans-cache-bound-without-events`, `plans-active-version` | S5 events |
 | `plans-revert-on-failure`, `plans-revert-failed`, `plans-no-refund-after-start` | S6 revert |
 | `plans-fail-closed`, `plans-open-gate` | S7 fail-closed |
 | `plans-contract-suite` | S8 contract tests |
