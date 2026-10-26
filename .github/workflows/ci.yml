@@ -7,15 +7,58 @@ on:
     branches: [ develop ]
   workflow_dispatch:
 
-# Only push runs share a group and cancel in progress; PR and manual runs get a group of their own.
+# A newer push run on the same ref, or pull_request run of the same pull request, cancels the older one;
+# manual runs get a group of their own by run id and are never cancelled.
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.event_name == 'push' && github.ref || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'push' }}
+  group: ci-${{ github.event_name }}-${{ github.event_name == 'push' && github.ref || github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 permissions:
   contents: read
 
 jobs:
+  # [impl->req~ci-speed-change-detection~1]
+  # Decides which areas a pull request touches; a push or manual run reports every area as changed.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      e2e: ${{ steps.areas.outputs.e2e }}
+      bim: ${{ steps.areas.outputs.bim }}
+      engines: ${{ steps.areas.outputs.engines }}
+      gateway: ${{ steps.areas.outputs.gateway }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect the changed areas
+        id: areas
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+          EVENT: ${{ github.event_name }}
+        run: python3 tools/ci_changes.py --base "$BASE_SHA" --head "$HEAD_SHA" --event "$EVENT"
+
+  # [impl->req~ci-speed-required-aggregate~1]
+  # The one check to require in branch protection: a skipped area passes, a failed or cancelled job does not.
+  ci-required:
+    needs: [changes, bim-corpus, bim-toolchain, lab, openspec, trace, engines, gateway-unit, test, frontend, frontend-e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check the needed jobs
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: python3 tools/ci_required.py
+
   # Structural checks catch retired syntax, but only compilation proves that
   # every migrated package lowers through the installed BIM Profile and
   # Dialects into a canonical BindingProblem. Keep this job on the full
@@ -41,6 +84,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      # The guard scans the whole repository, so it runs here, on every pull request, and not in the
+      # area-gated `engines` job.
+      - name: Enforce the BIM v1 repository cutover
+        run: python3 tools/check_bim_guard.py
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
@@ -79,8 +127,14 @@ jobs:
   # gateway's locked environment, until the toolchain moves to its own repository.
   # These are tests, so no step is report-only.
   bim-toolchain:
+    needs: changes
+    if: needs.changes.outputs.bim == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [bim-core, bim-service, bim-client]
 
     steps:
       - name: Checkout code
@@ -105,19 +159,28 @@ jobs:
       - name: Restore the locked gateway environment with test dependencies
         run: uv sync --locked --project openbinding-gateway --extra test
 
-      # Two tests are deselected. Both are timing measurements that depend on the shared runner's
-      # CPU, not correctness tests: one asserts a throughput ratio (47.6% against a 50% bound), the
+      # Two tests of bim-service are deselected. Both are timing measurements that depend on the shared
+      # runner's CPU, not correctness tests: one asserts a throughput ratio (47.6% against a 50% bound), the
       # other is a strict xfail on GIL-switching latency that XPASSes on the runner. The toolchain's
       # own CI keeps running both. Nothing else is deselected:
       # packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval
       # packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]
       - name: Run the bim-toolchain package tests
+        if: matrix.package != 'bim-service'
         working-directory: bim-toolchain
         env:
           PYTHONPATH: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
-        run: ../openbinding-gateway/.venv/bin/python -m pytest -p no:cacheprovider --rootdir=. -rs packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests --deselect packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval --deselect 'packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]'
+        run: ../openbinding-gateway/.venv/bin/python -m pytest -p no:cacheprovider --rootdir=. -rs packages/${{ matrix.package }}/tests
+
+      - name: Run the bim-service tests without the two timing tests
+        if: matrix.package == 'bim-service'
+        working-directory: bim-toolchain
+        env:
+          PYTHONPATH: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
+        run: ../openbinding-gateway/.venv/bin/python -m pytest -p no:cacheprovider --rootdir=. -rs packages/${{ matrix.package }}/tests --deselect packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval --deselect 'packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]'
 
       - name: Check the bim-toolchain goldens
+        if: matrix.package == 'bim-core'
         working-directory: bim-toolchain
         env:
           PYTHONPATH: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
@@ -232,14 +295,14 @@ jobs:
   # builder that could not solve a single repeat workflow, and a Java unit test
   # that had been failing for months, both went unnoticed.
   engines:
+    needs: changes
+    if: needs.changes.outputs.engines == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Enforce the BIM v1 repository cutover
-        run: python3 tools/check_bim_guard.py
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -266,8 +329,66 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm test
 
-  test:
+  # [impl->req~ci-speed-gateway-unit-shards~1]
+  # Runs what `test` ran in the gateway image (pytest in openbinding-gateway, marker
+  # 'not integration'), natively, in two shards.
+  gateway-unit:
+    needs: changes
+    if: needs.changes.outputs.gateway == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download the OMG BPMN XSDs and verify them
+        run: python3 bim-toolchain/tools/xsd_inventory.py --ensure
+
+      # Same step as in job `test`: change both copies together.
+      - name: Materialize the ICSOC source dataset
+        run: |
+          if git ls-remote --exit-code origin refs/heads/data/icsoc-original-dataset >/dev/null; then
+            git fetch --depth=1 origin data/icsoc-original-dataset
+            git archive FETCH_HEAD experimentation/icsoc/original_dataset | tar -x
+          else
+            echo "::warning::data/icsoc-original-dataset not found; ICSOC dataset tests will be skipped"
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.8.14'
+          enable-cache: true
+          cache-dependency-glob: openbinding-gateway/uv.lock
+
+      - name: Restore the locked gateway environment with test dependencies
+        run: uv sync --locked --project openbinding-gateway --extra test
+
+      - name: Run unit tests (shard ${{ matrix.shard }}/2)
+        working-directory: openbinding-gateway
+        env:
+          OPENBINDING_REPO_ROOT: ${{ github.workspace }}
+        run: |
+          list="$(python3 ../tools/ci_shard.py --shard ${{ matrix.shard }}/2 --root openbinding-gateway/tests)"
+          test -n "$list"
+          mapfile -t files <<< "$list"
+          .venv/bin/python -m pytest -p no:cacheprovider "${files[@]#openbinding-gateway/}"
+
+  test:
+    needs: changes
+    if: needs.changes.outputs.gateway == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       COMPOSE_PROFILES: dev,federated-example
     
@@ -305,7 +426,8 @@ jobs:
 
       # The ICSOC source dataset lives on its own branch so that development
       # branches stay small. Materialize it when the branch is published; the
-      # dataset-dependent tests skip themselves otherwise.
+      # dataset-dependent tests skip themselves otherwise. Same step as in job `gateway-unit`: change both
+      # copies together.
       - name: Materialize the ICSOC source dataset
         run: |
           if git ls-remote --exit-code origin refs/heads/data/icsoc-original-dataset >/dev/null; then
@@ -322,11 +444,6 @@ jobs:
         # compose does not start it unless it is named; without it every job
         # stays queued and the integration tests time out.
         run: docker compose up --build -d --wait gateway-dev worker-dev engine-multi-heuristic
-
-      - name: Run unit tests
-        # The tests that need the whole checkout read it from the read-only
-        # /workspace mount; `test` is a wrapper around pytest, so the variable passes through.
-        run: docker compose exec -T -e OPENBINDING_REPO_ROOT=/workspace gateway-dev test
 
       - name: Run ICSOC generator tests
         run: docker compose exec -T gateway-dev env PYTHONPATH=/app:/app/src pytest /app/experimentation/icsoc/generator/tests
@@ -350,6 +467,7 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -389,11 +507,45 @@ jobs:
         working-directory: frontend
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run Playground browser tests
-        working-directory: frontend
-        run: pnpm exec playwright test --project=mocked
-
       # Gate G4 runner. It exits 0 while acceptance/ui holds no spec.
       - name: Run the UI acceptance tests
         working-directory: frontend
         run: pnpm exec playwright test --config playwright.acceptance.config.ts --pass-with-no-tests
+
+  # [impl->req~ci-speed-e2e-shards~1]
+  # The mocked Playwright project in three shards, run only when the e2e area changed.
+  frontend-e2e:
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # jsdom 30 (the Vitest environment) requires Node ^22.22.2 || ^24.15.0 || >=26.
+          node-version: '22'
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playground browser tests (shard ${{ matrix.shard }}/3)
+        working-directory: frontend
+        run: pnpm exec playwright test --project=mocked --shard=${{ matrix.shard }}/3

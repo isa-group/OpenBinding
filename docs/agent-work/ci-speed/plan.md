@@ -1,0 +1,1 @@
+Done: all slices, round-1 and round-2 fixes (R2-REV-001 root files to bim area, verified by lab 678 passed). Remaining: push, CI, coordinator note on no round 3, set_review_package, lead_ready. Task cap (30) is reached: no more tasks possible.

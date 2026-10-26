@@ -48,12 +48,10 @@ export function SourceStep({ choices, value, onChange, workbenchHref }: {
 
 // --- 2 · engine
 
-export function EngineStep({ modes, value, onChange, analysisNote, compareHref, hasPrepared, ranges = false, editHref }: {
+export function EngineStep({ modes, value, onChange, analysisNote, compareHref, hasPrepared, ranges = false }: {
   modes: readonly ModeChoice[]; value: string; onChange: (key: string) => void; analysisNote: ReactNode; compareHref: string; hasPrepared: boolean;
   /** The package has ranges. */
   ranges?: boolean;
-  /** Where the candidates can be edited (the library). */
-  editHref?: string;
 }) {
   return (
     <>
@@ -78,7 +76,7 @@ export function EngineStep({ modes, value, onChange, analysisNote, compareHref, 
           {modes.every((mode) => mode.compat === 'no')
             ? 'No engine mode accepts ranges yet, so the run would be refused (unsupported_capability_value). '
             : 'The engines marked “Can’t run this” only accept single values. '}
-          Pick a mode that declares interval values (see <Link className="ui-notice-link" to={compareHref} viewTransition>Engines</Link>), or give those candidates single values{editHref ? <> (<Link className="ui-notice-link" to={editHref} viewTransition>edit the candidates</Link>)</> : ''}.
+          Pick a mode that declares interval values (see <Link className="ui-notice-link" to={compareHref} viewTransition>Engines</Link>), or give those candidates single values.
         </Notice>
       )}
       <Action to={compareHref} variant="link">Compare engines</Action>
@@ -133,10 +131,10 @@ function OptionsTable({ plans, values, onChange }: { plans: readonly OptionPlan[
   );
 }
 
-export function SettingsStep({ org, source, onSource, plans, values, onValue, configuration, onConfiguration, libraryHref, modeLabel }: {
+export function SettingsStep({ org, source, onSource, plans, values, onValue, configuration, onConfiguration, modeLabel }: {
   org: string; source: SettingsSource; onSource: (next: SettingsSource) => void;
   plans: readonly OptionPlan[]; values: Record<string, string>; onValue: (name: string, value: string) => void;
-  configuration: ArtifactVersion | null; onConfiguration: (version: ArtifactVersion) => void; libraryHref: string; modeLabel: string;
+  configuration: ArtifactVersion | null; onConfiguration: (version: ArtifactVersion) => void; modeLabel: string;
 }) {
   const name = useId();
   return (
@@ -162,8 +160,7 @@ export function SettingsStep({ org, source, onSource, plans, values, onValue, co
           <ArtifactVersionPicker org={org} kind="ExecutionConfiguration" versionId={configuration?.id} onSelect={(_, version) => onConfiguration(version)} />
           <div className="job-note-card">
             <strong>{configuration ? `${configuration.ref.name} · v${configuration.ref.version}` : 'No saved settings chosen'}</strong>
-            <span>Saved run settings from the library. Using them replaces the fields of “Set them here”, and the engine, mode and options come from them; you can’t mix both.</span>
-            <Action to={libraryHref} variant="link" size="sm">Open the library</Action>
+            <span>Saved run settings. Using them replaces the fields of “Set them here”, and the engine, mode and options come from them; you can’t mix both.</span>
           </div>
         </div>
       )}

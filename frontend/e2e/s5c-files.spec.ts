@@ -10,7 +10,7 @@ import {
   blobOf, caseItem, collectionOf, collectionRevisionOf, digestOf, resourceItem, resourceOf, resourceRevisionOf, usageOf,
 } from '../src/test/fixtures/resources';
 
-// S5c · files, resources and collections: proj-files, proj-resources, proj-resource-detail, coll-list and coll-detail.
+// S5c · files and collections: proj-files, coll-list and coll-detail (proj-resources and proj-resource-detail are retired).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by
 // git) so they can be looked at after a run. One test per screen and viewport: the desktop walks the states of the screen, the phone
 // gets its layout and its dialogs.
@@ -376,7 +376,6 @@ const viewports = [
 const ROOT = '/app/isa-demo/qos-benchmarks';
 const API_ROOT = '/v1/organizations/isa-demo/projects/qos-benchmarks';
 const FILES = `${ROOT}/files`;
-const RESOURCES = `${ROOT}/resources`;
 const COLLECTIONS = `${ROOT}/collections`;
 const ARCHIVE = 'ZIP archive · sha256-aaaa…aaaa';
 const CSV_ROW = /CSV · sha256-bbbb…bbbb/;
@@ -384,7 +383,7 @@ const CSV_ROW = /CSV · sha256-bbbb…bbbb/;
 const csvFile = (name: string, content = 'a,b\n1,2\n') => ({ name, mimeType: 'text/csv', buffer: Buffer.from(content) });
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
-  test.describe(`${name} · S5c files, resources and collections`, () => {
+  test.describe(`${name} · S5c files and collections`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
     test('proj-files /app/:org/:project/files', async ({ page }, testInfo) => {
@@ -525,223 +524,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('proj-resources /app/:org/:project/resources', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto(RESOURCES);
-      const main = page.locator('#platform-main');
-      const table = main.getByRole('region', { name: 'Project resources' });
-
-      await expect(main.getByRole('heading', { level: 1, name: 'Project resources' })).toBeVisible();
-      await expect(table.getByRole('row')).toHaveCount(1 + 3);
-      const weightsRow = table.getByRole('row', { name: /Weights/ });
-      await expect(weightsRow.getByRole('link', { name: 'Weights' })).toHaveAttribute('href', `${RESOURCES}/weights`);
-      await expect(weightsRow.getByText('Dataset', { exact: true })).toBeVisible();
-      await expect(weightsRow.getByText('revision 2')).toBeVisible();
-      await expect(table.getByRole('row', { name: /Weighted goal/ }).getByText('Goal', { exact: true })).toBeVisible();
-      await expect(table.getByRole('row', { name: /Notes/ }).getByText('none yet')).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Library' })).toHaveAttribute('aria-current', 'page');
-      await expect(main.getByRole('navigation', { name: 'Library sections' }).getByText('Project resources (older view)')).toHaveAttribute('aria-current', 'page');
-      const note = main.getByRole('note').filter({ hasText: 'Recommended' });
-      await expect(note.getByRole('link', { name: 'Open the library' })).toHaveAttribute('href', '/app/isa-demo/library');
-      await capture(page, testInfo, `resources-${name}-success`);
-
-      // The dialog of a new resource, with the gateway’s 409 and 422.
-      await main.getByRole('button', { name: 'New resource' }).click();
-      const dialog = page.getByRole('dialog', { name: 'New project resource' });
-      await dialog.getByLabel('Name', { exact: true }).fill('Search weights');
-      await expect(dialog.getByLabel('Address')).toHaveValue('search-weights');
-      state.refuse.createResource = detail(409, 'slug_conflict', 'That resource slug is in use.');
-      // Submitted with Enter: on a phone the on-screen keyboard moves the buttons while a field has focus.
-      await dialog.getByLabel('Name', { exact: true }).press('Enter');
-      await expect(dialog.getByRole('alert')).toContainText('That address is already used by another item in this organization (409 · slug_conflict).');
-      await capture(page, testInfo, `resources-${name}-dialog-409`);
-      if (isMobile) {
-        expect(critical).toEqual([]);
-        return;
-      }
-
-      state.refuse.createResource = invalid('String should match pattern');
-      await dialog.getByRole('button', { name: 'Create' }).click();
-      await expect(dialog.getByRole('alert')).toContainText('Use lowercase letters, numbers and hyphens for the address (422 · validation_error)');
-      await capture(page, testInfo, `resources-${name}-dialog-422`);
-
-      // A kind the library owns is sent to the library instead of creating a resource that would never be listed.
-      await dialog.getByLabel('Kind', { exact: true }).selectOption('__other');
-      await dialog.getByLabel('Kind name').fill('CandidateCatalog');
-      await dialog.getByRole('button', { name: 'Create' }).click();
-      await expect(dialog.getByRole('alert')).toContainText('CandidateCatalog items live in the library');
-
-      // Created: the first revision is one click away.
-      state.refuse.createResource = undefined;
-      await dialog.getByLabel('Kind', { exact: true }).selectOption('Dataset');
-      const posted = request(page, 'POST', `${API_ROOT}/resources`);
-      await dialog.getByRole('button', { name: 'Create' }).click();
-      expect((await posted).postDataJSON()).toEqual({ slug: 'search-weights', name: 'Search weights', description: '', kind: 'Dataset' });
-      await expect(main.getByText('Resource “Search weights” created.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Add its first revision' })).toHaveAttribute('href', `${RESOURCES}/search-weights`);
-      await expect(table.getByRole('row')).toHaveCount(1 + 4);
-      await capture(page, testInfo, `resources-${name}-created`);
-
-      // Deleting asks first, and keeps the library versions.
-      await table.getByRole('button', { name: 'Delete Notes' }).click();
-      const remove = page.getByRole('dialog', { name: 'Delete Notes?' });
-      await capture(page, testInfo, `resources-${name}-delete-dialog`);
-      await remove.getByRole('button', { name: 'Delete resource' }).click();
-      await expect(main.getByText('“Notes” deleted from this project. Library versions stay.')).toBeVisible();
-      expect(state.sent.deleteResource).toBe('notes');
-      await expect(table.getByRole('row')).toHaveCount(1 + 3);
-      expect(critical).toEqual([]);
-    });
-
-    test('proj-resources /app/:org/:project/resources · other roles and failures', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      const main = page.locator('#platform-main');
-      const table = main.getByRole('region', { name: 'Project resources' });
-
-      // Nothing yet is normal for a new project.
-      await page.goto('/app/isa-demo/checkout-privado/resources');
-      await expect(main.getByText('No project resources')).toBeVisible();
-      await expect(main.getByText('That’s normal for new projects: use the library instead.')).toBeVisible();
-      await capture(page, testInfo, `resources-${name}-empty`);
-
-      // A VIEWER reads and has nothing that writes.
-      await page.goto('/app/consultora-demo/client-case/resources');
-      await expect(table.getByRole('row')).toHaveCount(1 + 3);
-      await expect(main.getByRole('button', { name: 'New resource' })).toHaveCount(0);
-      await expect(main.getByRole('button', { name: /^Delete / })).toHaveCount(0);
-      await expect(main.getByRole('note').filter({ hasText: 'You’re a VIEWER' })).toBeVisible();
-      await capture(page, testInfo, `resources-${name}-viewer`);
-
-      // A MEMBER creates and cannot delete.
-      await page.goto('/app/member-lab/bench/resources');
-      await expect(main.getByRole('button', { name: 'New resource' })).toBeVisible();
-
-      // The list fails and comes back.
-      state.refuse.resources = unavailable;
-      await page.goto(RESOURCES);
-      await expect(main.getByRole('alert')).toContainText('The resources couldn’t be loaded (503)');
-      await capture(page, testInfo, `resources-${name}-error`);
-      state.refuse.resources = undefined;
-      await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(table.getByRole('row')).toHaveCount(1 + 3);
-
-      // A resource whose revisions cannot be read shows a dash, never a made-up zero.
-      state.refuse.resourceRevisions = detail(409, 'content_integrity', 'Resource content is not valid JSON.');
-      await page.goto(RESOURCES);
-      await expect(table.getByRole('row', { name: /Notes/ }).getByText('—')).toBeVisible();
-
-      await page.goto('/app/isa-demo/ghost/resources');
-      await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
-      expect(critical).toEqual([]);
-    });
-
-    test('proj-resource-detail /app/:org/:project/resources/:resource', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto(`${RESOURCES}/weights`);
-      const main = page.locator('#platform-main');
-
-      await expect(main.getByRole('heading', { level: 1, name: 'Weights' })).toBeVisible();
-      await expect(main.getByText('Dataset', { exact: true })).toBeVisible();
-      await expect(main.getByText('Latency probe results used by the checkout benchmarks.')).toBeVisible();
-      const revisions = main.getByRole('list', { name: 'Revisions' });
-      await expect(revisions.getByRole('listitem')).toHaveCount(2);
-      await expect(revisions.getByRole('listitem').first()).toContainText('Revision 2');
-      await expect(revisions.getByRole('listitem').first()).toContainText('Latest');
-      await expect(main.getByRole('link', { name: 'Open in library' })).toHaveAttribute('href', '/app/isa-demo/library/resource-weights');
-      await expect(main.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Resources' })).toHaveAttribute('href', RESOURCES);
-      await capture(page, testInfo, `resource-${name}-success`);
-
-      // What a revision holds is shown as fields; the source is behind a control.
-      await main.getByRole('button', { name: 'Show what revision 2 holds' }).click();
-      await expect(main.getByText('Latency probes', { exact: true })).toBeVisible();
-      await expect(main.getByText('View source')).toBeVisible();
-      await capture(page, testInfo, `resource-${name}-contents`);
-
-      // A new revision starts from the latest one.
-      await main.getByRole('button', { name: 'New revision' }).click();
-      const form = main.getByRole('form', { name: /New revision/ });
-      await expect(form.getByRole('heading', { name: 'New revision · change what differs from revision 2' })).toBeVisible();
-      await expect(form.getByLabel('title', { exact: true })).toHaveValue('Latency probes');
-      await expect(form.getByRole('button', { name: 'Save revision' })).toBeDisabled();
-      await capture(page, testInfo, `resource-${name}-editor`);
-      if (isMobile) {
-        expect(critical).toEqual([]);
-        return;
-      }
-
-      // The gateway’s 422 keeps the form; a good save seals revision 3.
-      await form.getByLabel('title', { exact: true }).fill('Latency probes v2');
-      state.refuse.saveResourceRevision = invalid('Document is not valid');
-      await form.getByRole('button', { name: 'Save revision' }).click();
-      await expect(form.getByRole('alert')).toContainText('The gateway refused this content (422 · validation_error)');
-      await capture(page, testInfo, `resource-${name}-422`);
-      state.refuse.saveResourceRevision = undefined;
-      const posted = request(page, 'POST', `${API_ROOT}/resources/weights/revisions`);
-      await form.getByRole('button', { name: 'Save revision' }).click();
-      expect((await posted).postDataJSON()).toEqual({ document: { title: 'Latency probes v2', samples: 5 } });
-      await expect(main.getByText('Revision 3 saved and sealed.')).toBeVisible();
-      await expect(revisions.getByRole('listitem')).toHaveCount(3);
-      await expect(main.getByRole('form', { name: /New revision/ })).toHaveCount(0);
-      await capture(page, testInfo, `resource-${name}-saved`);
-
-      // The details are edited in a dialog.
-      await main.getByRole('button', { name: 'Edit details' }).click();
-      const dialog = page.getByRole('dialog', { name: 'Edit resource' });
-      await dialog.getByLabel('Name', { exact: true }).fill('Weights v2');
-      await capture(page, testInfo, `resource-${name}-edit-dialog`);
-      await dialog.getByLabel('Name', { exact: true }).press('Enter');
-      await expect(main.getByText('Details saved.')).toBeVisible();
-      expect(state.sent.updateResource).toEqual({ name: 'Weights v2', description: 'Latency probe results used by the checkout benchmarks.', kind: 'Dataset' });
-      await expect(main.getByRole('heading', { level: 1, name: 'Weights v2' })).toBeVisible();
-      expect(critical).toEqual([]);
-    });
-
-    test('proj-resource-detail /app/:org/:project/resources/:resource · empty, other roles and failures', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      const main = page.locator('#platform-main');
-
-      // A resource with no revision says how to get one, and the first one starts from an empty document.
-      await page.goto(`${RESOURCES}/notes`);
-      await expect(main.getByText('No revisions yet')).toBeVisible();
-      await expect(main.getByText('Add the first revision to give this resource content.')).toBeVisible();
-      await capture(page, testInfo, `resource-${name}-empty`);
-      await main.getByRole('button', { name: 'New revision' }).click();
-      await expect(main.getByRole('heading', { name: 'First revision · fill in what this resource holds' })).toBeVisible();
-      await capture(page, testInfo, `resource-${name}-first-revision`);
-
-      // A VIEWER reads every revision and has nothing that writes.
-      await page.goto('/app/consultora-demo/client-case/resources/weights');
-      await expect(main.getByRole('note')).toContainText('You’re a VIEWER. You can read every revision; adding one needs MEMBER.');
-      await expect(main.getByRole('button', { name: 'New revision' })).toHaveCount(0);
-      await expect(main.getByRole('button', { name: 'Edit details' })).toHaveCount(0);
-      await capture(page, testInfo, `resource-${name}-viewer`);
-
-      // A resource that is not in the project.
-      await page.goto(`${RESOURCES}/ghost`);
-      await expect(main.getByRole('heading', { name: 'Resource not found' })).toBeVisible();
-      await expect(main.getByText('This resource doesn’t exist in QoS Benchmarks (404 · not_found).')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'All resources' })).toHaveAttribute('href', RESOURCES);
-      await capture(page, testInfo, `resource-${name}-404`);
-
-      // The revisions fail and come back; the header stays.
-      state.refuse.resourceRevisions = unavailable;
-      await page.goto(`${RESOURCES}/weights`);
-      await expect(main.getByRole('alert')).toContainText('The revisions couldn’t be loaded (503)');
-      await expect(main.getByRole('heading', { level: 1, name: 'Weights' })).toBeVisible();
-      await capture(page, testInfo, `resource-${name}-error`);
-      state.refuse.resourceRevisions = undefined;
-      await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('list', { name: 'Revisions' }).getByRole('listitem')).toHaveCount(2);
-
-      await page.goto('/app/isa-demo/ghost/resources/weights');
-      await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
-      expect(critical).toEqual([]);
-    });
-
     test('coll-list /app/:org/:project/collections', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
@@ -757,7 +539,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(first.getByText('1 resource version')).toBeVisible();
       await expect(first.getByText('3 items · revision 2')).toBeVisible();
       await expect(cards.getByRole('listitem').nth(1).getByText('No revision yet')).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Library sections' }).getByText('Collections')).toHaveAttribute('aria-current', 'page');
+      await expect(page.getByRole('navigation', { name: 'Library sections' })).toHaveCount(0);
+      await expect(page.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Collections' })).toHaveAttribute('aria-current', 'page');
       await expect(main.getByRole('meter', { name: 'Sponsor’s collections used' })).toHaveAttribute('aria-valuetext', '2 of 50');
       await capture(page, testInfo, `collections-${name}-success`);
 
@@ -849,7 +632,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Referencias checkout' })).toBeVisible();
       await expect(items.getByRole('listitem')).toHaveCount(3);
       await expect(items.getByRole('link', { name: 'Flujo de checkout · revision 1' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/revisions/1`);
-      await expect(items.getByRole('link', { name: 'Weights · revision 1' })).toHaveAttribute('href', `${RESOURCES}/weights`);
+      // A resource pin is plain text: the resource screens are retired, so it leads nowhere.
+      const pin = items.getByRole('listitem').filter({ hasText: 'Weights · revision 1' });
+      await expect(pin).toHaveCount(1);
+      await expect(pin.getByRole('link')).toHaveCount(0);
+      await expect(items.locator('a[href*="/resources"], a[href*="/library"]')).toHaveCount(0);
       await expect(main.getByText('Revision 2 · 3 items · What a reviewer needs to reproduce the published comparison.')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Revision 2 · 3 items' })).toHaveAttribute('aria-pressed', 'true');
       await expect(main.getByRole('link', { name: 'Start a study from this' })).toHaveAttribute('href', `${ROOT}/studies/new?collection=referencias-checkout`);

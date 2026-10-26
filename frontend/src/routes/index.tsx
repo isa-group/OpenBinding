@@ -10,6 +10,7 @@ import type { RouteDefinition } from './types';
 
 // [impl->req~frontend-retire-redirect-generic~1]
 // [impl->req~frontend-retire-reports-redirect~1]
+// [impl->req~frontend-retire-library-redirect~1]
 function RetiredRedirect({ route }: { route: RetiredRoute }) {
   const [query] = useSearchParams();
   const params = useParams();
@@ -49,7 +50,8 @@ export function AppRoutes() {
         {appScreens.map((definition) => (
           <Route key={definition.id} path={definition.path} element={screenElement(definition)} />
         ))}
-        {/* After the screens: on a tie of rank a screen wins (/app/<org>/library/reports stays lib-artifact). */}
+        {/* After the screens: on a tie of rank a screen wins (a project called `library` keeps its sections). Among the retired routes
+            the table order settles the tie: /app/<org>/library/reports is the library artifact `reports`, not a report list. */}
         {RETIRED_ROUTES.map((route) => (
           <Route key={route.id} path={route.path} element={<RetiredRedirect route={route} />} />
         ))}

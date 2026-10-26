@@ -67,14 +67,7 @@ const HEADING: Record<string, RegExp> = {
   'case-compare': /Compare revisions/,
   'wb-workbench': /Workbench/,
   'snap-detail': /Compiled snapshot/,
-  'lib-list': /^Library$/,
-  'lib-artifact': /EU providers/,
-  'lib-draft': /EU providers · draft/,
-  'lib-version': /EU providers · version 3/,
-  'proj-library': /Library used here/,
   'proj-files': /^Files$/,
-  'proj-resources': /Project resources/,
-  'proj-resource-detail': /Latency probes/,
   'coll-list': /^Collections$/,
   'coll-detail': /Checkout references/,
   'gen-lab': /Generator lab/,
@@ -208,9 +201,9 @@ async function freezeProbeTimes(page: Page) {
 const sessionOf = (screen: GalleryScreen) => (screen.underApp || screen.sessionHeader ? 'admin' : 'none');
 
 test.describe('gallery registry', () => {
-  test('lists all 78 screens of the prototype', () => {
-    expect(screens).toHaveLength(78);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(78);
+  test('lists all 71 screens of the prototype', () => {
+    expect(screens).toHaveLength(71);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(71);
   });
 });
 

@@ -17,7 +17,7 @@ need the owner), the develop preview at `https://openbinding.home.javiercavlop.c
 |---|---|---|---|---|---|
 | M0 | Foundation: integration landed, gates, previews, storage, Docker Compose only | — | develop preview reachable from the Mac and the iPhone | — | in progress (M0.3 done; M0.1 unverified; M0.5 in progress; CI also runs on pushes to `develop`, manually and nightly; flaky-test register in `docs/qa/FLAKY_TESTS.md`) |
 | M1 | Specification v2 (this document set) | — | — | — | done (PR #25, merged 2026-10-23) |
-| M2 | Render, never dump; retirements, navigation and vocabulary | M0 | every screen in the QA gallery, desktop and mobile, within the screen budget | R1 = M0–M2 | in progress (M2.1 and M2.2 merged, PR #38; M2.4 in progress, slice 1 merged, PR #51; slice 2 under review) |
+| M2 | Render, never dump; retirements, navigation and vocabulary | M0 | every screen in the QA gallery, desktop and mobile, within the screen budget | R1 = M0–M2 | in progress (M2.1 and M2.2 merged, PR #38; M2.4 in progress, slices 1 and 2 merged, PR #51 and #53; slice 3 under review) |
 | M3 | Problem repository | M2 (catalogue) | Explore → problem page → versions → runs | R2 = M3–M4 | planned |
 | M4 | Plans: SPHERE remote, SPACE local then remote | M0; pricing 0.2.0 published | the pricing-change scenario of M4 | R2 | in progress (M4.0 done; M4.1 partly, PR #36) |
 | M5 | Language extensibility | M0; bim-toolchain release | placement as an extension; a tier-1 dialect installed | R3 = M5–M6 | planned |
@@ -72,9 +72,10 @@ vocabulary of `INTENT.md` §5; names instead of digests.
 | M2.7 | Names, not digests (INTENT principle 13, ARCHITECTURE §5.4): identity labels in `shared/lib`; digests, fingerprints and UUIDs removed from cards, lists, headers and badges; `CitationPanel` and `VerifyResult` | the hygiene test finds no digest-shaped text or UUID outside the allowed components |
 | M2.8 | QA gallery refreshed and reviewed by ui-qa | desktop and mobile screenshots attached to the release PR |
 
-Slice status (2026-10-25): M2.1 and M2.2 merged (PR #38); M2.4 in progress: slice 1 (decision-space workspace) is
-merged (PR #51); slice 2 (report editor) is under review in the pull request of change `m24-retire-screens-2`; the
-remaining slices follow in this order: library catalogue and project resources, composer, sponsorship. The endpoints and their `Deprecation` and
+Slice status (2026-10-26): M2.1 and M2.2 merged (PR #38); M2.4 in progress: slice 1 (decision-space workspace) is
+merged (PR #51); slice 2 (report editor) is merged (PR #53); slice 3 (library catalogue and project resources; offender
+11 gone with its screens) is under review in the pull request of change `m24-retire-screens-3`; the
+remaining slices follow in this order: composer, sponsorship. The endpoints and their `Deprecation` and
 `Sunset` headers are a separate step that needs an owner CRP. The other slices have no recorded progress.
 
 Raw-rendering offenders at 912648c (INTENT O5):

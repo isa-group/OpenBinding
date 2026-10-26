@@ -52,7 +52,7 @@ describe('One study', () => {
     renderDetail();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Engines × seeds' })).toBeInTheDocument();
-    expect(await screen.findByText('Definition version 1 · sealed in the library')).toBeInTheDocument();
+    expect(await screen.findByText('Definition version 1 · sealed')).toBeInTheDocument();
     const grid = await screen.findByRole('region', { name: 'The cells of the matrix' });
     expect(within(grid).getAllByRole('columnheader')).toHaveLength(5);
     expect(within(grid).getByRole('columnheader', { name: 'random-search (sampling) · seed 2' })).toBeInTheDocument();
@@ -63,8 +63,9 @@ describe('One study', () => {
     expect(await screen.findByRole('region', { name: 'Runs' })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Run #1/ })).toHaveAttribute('href', `${STUDY}/runs/00000000-0000-4000-8000-000000000101`);
     expect(screen.getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open the definition in the library' })).toHaveAttribute('href', '/app/isa-demo/library/artifact-engines-vs-seeds');
-    expect(screen.getByText('Only one version exists. A new version appears when the definition draft in the library is sealed.')).toBeInTheDocument();
+    // [utest->req~frontend-retire-library-entry-points-removed~1]
+    expect(screen.queryByRole('link', { name: /library/i })).toBeNull();
+    expect(screen.getByText('Only one version exists. A new version appears when the definition is sealed again.')).toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
     expect(within(tabs).getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');
   });

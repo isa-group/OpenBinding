@@ -61,6 +61,7 @@ def retired_paths(source: str) -> list[str]:
 KNOWN_REDIRECTING_WEB_URLS = {
     "/app/analysis/workspace": "seed_analysis links; the redirect to /app/jobs keeps the context only partially",
     "/app/:org/:project/reports/:slug": "retired by M2.4 slice 2; retarget the resolver in M9.6 or earlier",
+    "/app/:org/library/:artifact/versions/:version": "retired by M2.4 slice 3; retarget the resolver in M9.6 or earlier",
 }
 
 
@@ -118,6 +119,7 @@ def test_each_helper_builds_the_current_frontend_route():
     snapshot = uuid.uuid4()
     artifact = uuid.uuid4()
     expected_report = resolve_routes.report_url("lab", "routing", "decision-1")
+    expected_library_version = resolve_routes.library_version_url("lab", artifact, "2")
     expected = {
         resolve_routes.case_revision_url("lab", "routing", "baseline", 3):
             "/app/lab/routing/cases/baseline/revisions/3",
@@ -131,7 +133,7 @@ def test_each_helper_builds_the_current_frontend_route():
     }
     for produced, wanted in expected.items():
         assert produced == wanted
-        if produced == expected_report:
+        if produced in (expected_report, expected_library_version):
             assert_opens_a_frontend_page(produced)
         else:
             assert_is_a_frontend_screen(produced)
@@ -178,6 +180,24 @@ def test_retiring_the_report_screen_fails_unless_the_address_is_listed():
     # The entry is valid only once the address is in the retired table.
     assert stale_entries(listed, []) == [report]
     assert stale_entries(listed, [report]) == []
+
+
+def test_retiring_the_library_version_screen_fails_unless_the_address_is_listed():
+    version = "/app/:org/library/:artifact/versions/:version"
+    if not ROUTES:
+        pytest.skip("the frontend route table is not part of this checkout")
+    live_without_versions = [path for path in live_paths() if _shape(path) != _shape(version)]
+    url = resolve_routes.library_version_url("lab", uuid.uuid4(), "2")
+
+    assert_opens_a_frontend_page(url)
+    with pytest.raises(AssertionError):
+        assert_is_a_frontend_screen(url, live_without_versions)
+    with pytest.raises(AssertionError):
+        assert_opens_a_frontend_page(url, live_without_versions, {})
+    listed = {version: "synthetic retirement of the library version screen"}
+    assert_opens_a_frontend_page(url, live_without_versions, listed)
+    assert stale_entries(listed, []) == [version]
+    assert stale_entries(listed, [version]) == []
 
 
 def test_every_listed_redirecting_address_is_retired():
@@ -320,7 +340,7 @@ async def test_case_revision_points_at_the_revision_screen(api_client, registrat
     assert_is_a_frontend_screen(locations[0]["web_url"])
 
 
-async def test_resource_and_collection_versions_point_at_the_library_version_screen(
+async def test_resource_and_collection_versions_open_the_organization_overview_through_the_redirect(
     api_client, registration, platform_gate
 ):
     alice, headers = await account(api_client, registration, platform_gate)
@@ -342,7 +362,7 @@ async def test_resource_and_collection_versions_point_at_the_library_version_scr
         assert len(locations) == 1
         expected = f"/app/{org}/library/{sealed['artifact']['id']}/versions/{sealed['version']['ref']['version']}"
         assert locations[0]["web_url"] == expected
-        assert_is_a_frontend_screen(expected)
+        assert_opens_a_frontend_page(expected)
 
 
 async def test_a_report_points_at_the_report_screen(api_client, registration, platform_gate, db_session):

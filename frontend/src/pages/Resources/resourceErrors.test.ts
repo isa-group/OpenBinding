@@ -3,7 +3,7 @@ import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import {
   classifyAuthError, collectionCreateRefusal, collectionDeleteRefusal, collectionRenameRefusal, collectionSaveRefusal, deleteFileRefusal, downloadRefusal,
-  fileReferences, filesListRefusal, isMissing, listReferences, oversizeRefusal, resourceCreateRefusal, resourceDeleteRefusal, resourceRevisionRefusal, resourceUpdateRefusal, uploadRefusal,
+  fileReferences, filesListRefusal, isMissing, listReferences, oversizeRefusal, uploadRefusal,
 } from './resourceErrors';
 
 const http = (status: number, code?: string, text = 'refused', extra: Record<string, unknown> = {}) => Object.assign(new HttpError(status, text), code ? { code } : {}, extra);
@@ -86,32 +86,6 @@ describe('the other things done with a file', () => {
   it('says why the list cannot be read', () => {
     expect(filesListRefusal(classifyAuthError(http(403, 'forbidden'))).text).toBe('This account or API key can’t list this project’s files (403 · forbidden).');
     expect(filesListRefusal(classifyAuthError(http(503, 'unavailable'))).text).toBe('The files couldn’t be loaded (503 · unavailable).');
-  });
-});
-
-describe('resources', () => {
-  it('says the address is taken anywhere in the organization (409)', () => {
-    expect(resourceCreateRefusal(http(409, 'slug_conflict'))).toEqual({ kind: 'address', text: 'That address is already used by another item in this organization (409 · slug_conflict).' });
-  });
-
-  it('names the role, the missing project and the invalid input for a new resource', () => {
-    expect(resourceCreateRefusal(http(422)).kind).toBe('invalid');
-    expect(resourceCreateRefusal(http(403)).text).toBe('You need MEMBER in the organization to create a resource (403). Nothing was created.');
-    expect(resourceCreateRefusal(http(404, 'not_found')).kind).toBe('gone');
-  });
-
-  it('names what editing and deleting need', () => {
-    expect(resourceUpdateRefusal(http(403)).text).toBe('You need MEMBER in the organization to edit a resource (403). Nothing changed.');
-    expect(resourceUpdateRefusal(http(404)).kind).toBe('gone');
-    expect(resourceDeleteRefusal(http(403)).text).toBe('You need ADMIN in the organization to delete a resource (403). Nothing was deleted.');
-    expect(resourceDeleteRefusal(http(409, 'x')).kind).toBe('in-use');
-  });
-
-  it('says what went wrong with a revision', () => {
-    expect(resourceRevisionRefusal(http(422, undefined, 'Unprocessable Entity')).text).toBe('The gateway refused this content (422). Nothing was saved.');
-    expect(resourceRevisionRefusal(http(422, 'bad', 'Document must be an object.')).text).toBe('The gateway refused this content (422 · bad). Nothing was saved. Document must be an object.');
-    expect(resourceRevisionRefusal(http(404, 'not_found')).text).toBe('The resource no longer exists in this project (404 · not_found). Nothing was saved.');
-    expect(resourceRevisionRefusal(http(403)).kind).toBe('forbidden');
   });
 });
 

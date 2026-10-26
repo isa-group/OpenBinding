@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { blobOf, digestOf, usageOf } from '../../test/fixtures/resources';
 import {
-  allowanceOf, belongsInLibrary, downloadName, fileTitle, GATEWAY_BLOB_LIMIT, isZipFile, plural, resourceKindLabel, totalBytes, typeLabel, uploadCeiling,
+  allowanceOf, downloadName, fileTitle, GATEWAY_BLOB_LIMIT, isZipFile, plural, totalBytes, typeLabel, uploadCeiling,
 } from './resourceModel';
 
 describe('allowanceOf', () => {
@@ -80,22 +80,7 @@ describe('files', () => {
   });
 });
 
-describe('resources', () => {
-  it('knows which kinds the library owns', () => {
-    expect(belongsInLibrary('CandidateCatalog')).toBe(true);
-    expect(belongsInLibrary('Study')).toBe(true);
-    expect(belongsInLibrary('Dataset')).toBe(false);
-    expect(belongsInLibrary('bim-resource')).toBe(false);
-  });
-
-  it('names kinds in words and leaves unknown ones as written', () => {
-    expect(resourceKindLabel('bim-resource')).toBe('Resource');
-    expect(resourceKindLabel('Optimization')).toBe('Goal');
-    expect(resourceKindLabel('ConstraintSet')).toBe('Rules');
-    expect(resourceKindLabel('Dataset')).toBe('Dataset');
-    expect(resourceKindLabel('lab-notes')).toBe('lab-notes');
-  });
-
+describe('plural', () => {
   it('counts with the right noun', () => {
     expect(plural(1, 'item')).toBe('1 item');
     expect(plural(0, 'item')).toBe('0 items');

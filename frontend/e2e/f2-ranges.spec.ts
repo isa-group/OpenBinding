@@ -1,14 +1,12 @@
-import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
+import { expect as baseExpect, test, type Page, type TestInfo } from '@playwright/test';
 import { API, PUBLIC_ENGINES, installMockApi } from './helpers/mockApi';
 import { failureBody } from './helpers/problems';
 import { digestOf, irDocument } from '../src/pages/Cases/fixtures';
-import type { JsonObject } from '../src/pages/Library/contentModel';
-import { idFor } from '../src/pages/Library/fixtures';
 import { REGISTRATION, detailOf } from '../src/test/fixtures/jobs';
 
-// F2 · ranges of candidate features, from the library to the engines.
+// F2 · ranges of candidate features, from the cases to the engines.
 // A feature of a candidate is a number or a range { min, max } whose ends are numbers or null (no limit). This walks it through the
-// screens that edit it (the draft of a catalog), read it (a sealed version, a case revision, a comparison) and decide on it
+// screens that read it (a case revision, a comparison) and decide on it
 // (the engine step of a run, a run the engine refused, the workbench, a run that failed for ranges). Snapshot pages are covered by their unit tests. The API origin is the shared mock of the QA gallery with a few answers of
 // its own on top. Unlike the other specs, the pictures are always taken (test-results/, ignored by git): they are the evidence of F2.
 
@@ -19,8 +17,6 @@ const S1 = '00000000-0000-4000-8000-0000000000e0';
 const S2 = '00000000-0000-4000-8000-0000000000e1';
 
 const ROOT = '/app/isa-demo/qos-benchmarks';
-const LIB = '/app/isa-demo/library/providers-eu';
-const DRAFT = `${LIB}/drafts/draft-providers-4`;
 
 function watchCriticalErrors(page: Page) {
   const critical: string[] = [];
@@ -81,98 +77,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · F2 ranges`, () => {
     test.describe.configure({ mode: 'serial' });
     test.use({ viewport, isMobile, deviceScaleFactor });
-
-    test('lib-draft · edit closed, open and unbounded ranges, save, then read the version', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      await installMockApi(page, 'admin');
-      const store: { saved: { revision: number; content: JsonObject } | null } = { saved: null };
-      const catalogId = idFor('providers-eu');
-      await page.route(new RegExp(`/v1/artifacts/${catalogId}/drafts/draft-providers-4$`), async (route: Route) => {
-        if (route.request().method() !== 'PUT') return route.fallback();
-        const body = route.request().postDataJSON() as { revision: number; content: JsonObject };
-        store.saved = body;
-        return route.fulfill({ status: 200, json: { id: 'draft-providers-4', revision: body.revision + 1 } });
-      });
-      // The version a reader opens is the content that was just saved.
-      await page.route(new RegExp(`/v1/artifacts/${catalogId}/versions/[^/]+/content$`), (route) => (
-        store.saved ? route.fulfill({ status: 200, contentType: 'text/plain', body: JSON.stringify(store.saved.content) }) : route.fallback()
-      ));
-      const main = page.locator('#platform-main');
-      const cell = (candidate: string, quality: string) => main.getByRole('group', { name: `${quality} for ${candidate}: value or range` });
-      const field = (candidate: string, quality: string, part: string) => main.getByLabel(`${quality} for ${candidate} ${part}`, { exact: true });
-      const open = (candidate: string, quality: string, side: 'lower' | 'upper') => main.getByLabel(`${quality} for ${candidate}: no ${side} limit`, { exact: true });
-
-      await page.goto(DRAFT);
-      await expect(main.getByRole('heading', { level: 1, name: 'EU providers · draft' })).toBeVisible();
-
-      // The draft opens with ranges already in it: each cell shows the mode it holds, and a column mixes numbers and ranges.
-      await expect(cell('stockly-1', 'latency_ms').getByRole('button', { name: 'Range' })).toHaveAttribute('aria-pressed', 'true');
-      await expect(field('stockly-1', 'latency_ms', 'min')).toHaveValue('35');
-      await expect(field('stockly-1', 'latency_ms', 'max')).toHaveValue('60');
-      await expect(field('stockly-1', 'cost_eur', 'min')).toBeDisabled();
-      await expect(field('stockly-1', 'cost_eur', 'min')).toHaveValue('−∞');
-      await expect(field('stockly-1', 'availability', 'max')).toHaveValue('+∞');
-      await expect(cell('fastpay', 'latency_ms').getByRole('button', { name: 'Value' })).toHaveAttribute('aria-pressed', 'true');
-      await expect(main.getByLabel('latency_ms for fastpay', { exact: true })).toHaveValue('95');
-      await expect(main.getByRole('region', { name: 'Checks' })).toContainText('3 qualities are ranges');
-      await capture(page, testInfo, `draft-${name}-opened`);
-
-      // A closed range, one with no upper limit, one with no lower limit and one with no information.
-      await cell('fastpay', 'latency_ms').getByRole('button', { name: 'Range' }).click();
-      await expect(field('fastpay', 'latency_ms', 'min')).toHaveValue('95');
-      await field('fastpay', 'latency_ms', 'min').fill('80');
-      await field('fastpay', 'latency_ms', 'max').fill('120');
-
-      await cell('fastpay', 'availability').getByRole('button', { name: 'Range' }).click();
-      await open('fastpay', 'availability', 'upper').check();
-      await expect(field('fastpay', 'availability', 'max')).toBeDisabled();
-
-      await cell('payco-eu', 'cost_eur').getByRole('button', { name: 'Range' }).click();
-      await open('payco-eu', 'cost_eur', 'lower').check();
-      await field('payco-eu', 'cost_eur', 'max').fill('0.03');
-
-      await cell('payco-eu', 'latency_ms').getByRole('button', { name: 'Range' }).click();
-      await open('payco-eu', 'latency_ms', 'lower').check();
-      await open('payco-eu', 'latency_ms', 'upper').check();
-      await expect(main.getByRole('region', { name: 'Checks' })).toContainText('7 qualities are ranges');
-      await capture(page, testInfo, `draft-${name}-edited`);
-
-      // Min above max is flagged where it is typed and keeps the draft from being saved or sealed.
-      await field('fastpay', 'latency_ms', 'min').fill('200');
-      await expect(main.getByRole('alert').filter({ hasText: /^Min can’t be greater than max\.$/ })).toBeVisible();
-      await expect(field('fastpay', 'latency_ms', 'min')).toHaveAttribute('aria-invalid', 'true');
-      await expect(field('fastpay', 'latency_ms', 'max')).toHaveAttribute('aria-invalid', 'true');
-      await expect(main.getByRole('button', { name: 'Save draft' })).toBeDisabled();
-      await expect(main.getByRole('button', { name: 'Seal version…' })).toBeDisabled();
-      await expect(main.getByRole('region', { name: 'Checks' })).toContainText('1 range is not valid');
-      await capture(page, testInfo, `draft-${name}-invalid`);
-      await field('fastpay', 'latency_ms', 'min').fill('80');
-      await expect(main.getByRole('button', { name: 'Save draft' })).toBeEnabled();
-
-      const request = page.waitForRequest((candidate) => candidate.method() === 'PUT' && /\/drafts\/draft-providers-4$/.test(candidate.url()));
-      await main.getByRole('button', { name: 'Save draft' }).click();
-      await request;
-      await expect(main.getByText('All changes saved')).toBeVisible();
-
-      const content = store.saved!.content as { spec: { candidates: Record<string, { features: Record<string, unknown> }> } };
-      expect(content.spec.candidates.fastpay.features).toEqual({ latency_ms: { min: 80, max: 120 }, cost_eur: 0.034, availability: { min: 99.9, max: null } });
-      expect(content.spec.candidates['payco-eu'].features).toEqual({ latency_ms: { min: null, max: null }, cost_eur: { min: null, max: 0.03 }, availability: 99.95 });
-      expect(content.spec.candidates['stockly-1'].features).toEqual({ latency_ms: { min: 35, max: 60 }, cost_eur: { min: null, max: 0.004 }, availability: { min: 99.5, max: null } });
-      await capture(page, testInfo, `draft-${name}-saved`);
-
-      // Reading what was saved.
-      await page.goto(`${LIB}/versions/3`);
-      const payment = main.getByRole('table', { name: 'Candidates for service/payment' });
-      await expect(payment.getByRole('row', { name: /fastpay/ })).toContainText('80–120');
-      await expect(payment.getByRole('row', { name: /fastpay/ })).toContainText('≥ 99.9');
-      await expect(payment.getByRole('row', { name: /payco-eu/ })).toContainText('unbounded');
-      await expect(payment.getByRole('row', { name: /payco-eu/ })).toContainText('≤ 0.03');
-      await expect(payment.getByRole('row', { name: /payco-eu/ })).toContainText('99.95');
-      await expect(payment.getByText('≥ 99.9')).toHaveAttribute('title', '[99.9, +∞)');
-      await expect(main.getByRole('table', { name: 'Candidates for service/stock' }).getByRole('row', { name: /stockly-1/ })).toContainText('35–60');
-      await capture(page, testInfo, `version-${name}`);
-      expect(critical).toEqual([]);
-    });
 
     test('case-revision and case-compare · bars for ranges and what changed between two revisions', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
@@ -246,7 +150,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const notice = main.locator('.ui-notice').filter({ hasText: 'This package has range features' });
       await expect(notice).toContainText('The engines marked “Can’t run this” only accept single values.');
       await expect(notice.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-      await expect(notice.getByRole('link', { name: 'edit the candidates' })).toHaveAttribute('href', '/app/isa-demo/library');
+      await expect(notice.getByRole('link', { name: /library|edit the candidates/i })).toHaveCount(0);
       await capture(page, testInfo, `launch-engines-${name}`);
 
       await main.getByRole('button', { name: 'Continue' }).click();
@@ -257,7 +161,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const alert = main.getByRole('alert').filter({ hasText: 'This engine only accepts single values' });
       await expect(alert).toContainText(`featureValues interval is not declared by this mode (${pointer})`);
       await expect(alert.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-      await expect(alert.getByRole('link', { name: 'Edit the candidate' })).toHaveAttribute('href', '/app/isa-demo/library');
+      await expect(alert.getByRole('link', { name: /library|Edit the candidate/i })).toHaveCount(0);
       await capture(page, testInfo, `launch-refused-${name}`);
       expect(critical).toEqual([]);
     });
@@ -303,7 +207,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     expect(critical).toEqual([]);
   });
 
-  test('job-detail · a run the engine refused for ranges says so and leads to the engines and to the candidate', async ({ page }, testInfo) => {
+  test('job-detail · a run the engine refused for ranges says so and leads to the engines', async ({ page }, testInfo) => {
     const critical = watchCriticalErrors(page);
     await installMockApi(page, 'admin');
     const pointer = '/spec/candidates/providers/candidates/authenticate-3/features/latency';
@@ -320,7 +224,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     await expect(alert).toContainText(`featureValues interval is not declared by this mode (${pointer})`);
     await expect(alert).not.toContainText('Nothing was started.');
     await expect(alert.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-    await expect(alert.getByRole('link', { name: 'Edit the candidate' })).toHaveAttribute('href', '/app/isa-demo/library');
+    await expect(alert.getByRole('link', { name: /library|Edit the candidate/i })).toHaveCount(0);
     await capture(page, testInfo, 'job-detail-desktop-range-failure');
     expect(critical).toEqual([]);
   });

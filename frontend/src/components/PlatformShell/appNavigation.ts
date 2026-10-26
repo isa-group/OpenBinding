@@ -39,7 +39,7 @@ const isToolPath = (pathname: string) =>
   || under(pathname, '/app/generator') || under(pathname, '/engines') || under(pathname, '/language');
 
 /** `/app/:org/…` screens that belong to the organization, not to one of its projects. */
-const ORGANIZATION_SCREENS = new Set(['settings', 'library', 'new-project']);
+const ORGANIZATION_SCREENS = new Set(['settings', 'new-project']);
 
 /**
  * The workspace home is where organizations and projects are browsed: `/app`, an organization with its own screens, a project's overview.

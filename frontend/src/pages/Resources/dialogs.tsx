@@ -1,19 +1,16 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import { platformApi } from '../../api/platform';
-import type { Collection, Organization, Project, ProjectResource } from '../../api/platform';
+import type { Collection, Organization, Project } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
-import { SelectField } from '../Organization/parts';
 import { readZipArchive, type ZipFileEntry } from '../../utils/zipExplorer';
 import { formatByteSize } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import type { Pin } from './collectionModel';
-import { collectionCreateRefusal, resourceCreateRefusal, resourceUpdateRefusal } from './resourceErrors';
-import {
-  belongsInLibrary, DEFAULT_RESOURCE_KIND, DESCRIPTION_MAX, KIND_MAX, NAME_MAX, OTHER_RESOURCE_KIND, RESOURCE_KIND_CHOICES, SLUG_PATTERN, slugFromName,
-} from './resourceModel';
+import { collectionCreateRefusal } from './resourceErrors';
+import { DESCRIPTION_MAX, NAME_MAX, SLUG_PATTERN, slugFromName } from './resourceModel';
 import '../Project/Project.css';
 
 function DialogError({ text }: { text: string | undefined }) {
@@ -21,153 +18,6 @@ function DialogError({ text }: { text: string | undefined }) {
     <div aria-live="assertive">
       {text && <div className="org-dialog-error" role="alert"><TriangleAlert aria-hidden="true" />{text}</div>}
     </div>
-  );
-}
-
-// --- a kind: one of the listed ones, or any other written out
-
-interface KindState {
-  choice: string;
-  other: string;
-}
-
-const kindStateOf = (kind: string): KindState => (RESOURCE_KIND_CHOICES.some((item) => item.id === kind) ? { choice: kind, other: '' } : { choice: OTHER_RESOURCE_KIND, other: kind });
-const kindOf = (state: KindState) => (state.choice === OTHER_RESOURCE_KIND ? state.other.trim() : state.choice);
-
-function KindFields({ state, onChange, error }: { state: KindState; onChange: (next: KindState) => void; error?: string }) {
-  return (
-    <>
-      <SelectField label="Kind" value={state.choice} onChange={(choice) => onChange({ ...state, choice })}>
-        {RESOURCE_KIND_CHOICES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-        <option value={OTHER_RESOURCE_KIND}>Another kind…</option>
-      </SelectField>
-      {state.choice === OTHER_RESOURCE_KIND && (
-        <FormField label="Kind name" value={state.other} maxLength={KIND_MAX} onChange={(event) => onChange({ ...state, other: event.target.value })} spellCheck={false} mono error={error} />
-      )}
-    </>
-  );
-}
-
-/** The refusal of a kind that the library screens own: such a resource would be created and then never listed here. */
-function kindProblem(kind: string): string | undefined {
-  if (!kind) return 'Name the kind.';
-  if (belongsInLibrary(kind)) return `${kind} items live in the library, where they have drafts and sealed versions. Create it there.`;
-  return undefined;
-}
-
-// --- resources
-
-export function NewResourceDialog({ organization, project, onClose, onCreated }: {
-  organization: Organization; project: Project; onClose: () => void; onCreated: (created: ProjectResource) => void;
-}) {
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState<string | null>(null);
-  const [description, setDescription] = useState('');
-  const [kind, setKind] = useState<KindState>({ choice: DEFAULT_RESOURCE_KIND, other: '' });
-  const [error, setError] = useState<string>();
-  const [busy, setBusy] = useState(false);
-  const slug = address ?? slugFromName(name);
-  const slugOk = SLUG_PATTERN.test(slug);
-  const problem = kindProblem(kindOf(kind));
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (busy) return;
-    if (!name.trim() || !slugOk) {
-      setError('Give it a name and a valid address: lowercase letters, numbers and hyphens.');
-      return;
-    }
-    if (problem) {
-      setError(problem);
-      return;
-    }
-    setBusy(true);
-    setError(undefined);
-    try {
-      onCreated(await platformApi.createResource(organization.slug, project.slug, { slug, name: name.trim(), description: description.trim(), kind: kindOf(kind) }));
-    } catch (caught) {
-      setError(resourceCreateRefusal(caught).text);
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Modal title="New project resource" size="md" onClose={() => !busy && onClose()}>
-      <form className="org-dialog-form" onSubmit={(event) => void submit(event)} noValidate>
-        <FormField label="Name" value={name} maxLength={NAME_MAX} onChange={(event) => { setName(event.target.value); setError(undefined); }} />
-        <FormField
-          label="Address"
-          value={slug}
-          onChange={(event) => { setAddress(event.target.value); setError(undefined); }}
-          spellCheck={false}
-          mono
-          error={slug && !slugOk ? 'Lowercase letters, numbers and hyphens.' : undefined}
-          hint="Used in the address; can’t be changed later."
-        />
-        <KindFields state={kind} onChange={(next) => { setKind(next); setError(undefined); }} error={kind.choice === OTHER_RESOURCE_KIND && kind.other ? problem : undefined} />
-        <div className="ui-field">
-          <label htmlFor="nr-description">Description <span className="proj-optional">(optional)</span></label>
-          <textarea id="nr-description" className="proj-textarea" rows={2} maxLength={DESCRIPTION_MAX} value={description} onChange={(event) => setDescription(event.target.value)} />
-        </div>
-        <DialogError text={error} />
-        <div className="ui-modal-actions">
-          <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-          <Action type="submit" variant="primary" busy={busy}>Create</Action>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-export function EditResourceDialog({ organization, project, resource, onClose, onSaved }: {
-  organization: Organization; project: Project; resource: ProjectResource; onClose: () => void; onSaved: (saved: ProjectResource) => void;
-}) {
-  const [name, setName] = useState(resource.name);
-  const [description, setDescription] = useState(resource.description);
-  const [kind, setKind] = useState<KindState>(kindStateOf(resource.kind));
-  const [error, setError] = useState<string>();
-  const [busy, setBusy] = useState(false);
-  const chosen = kindOf(kind);
-  // A kind that was already the resource’s own is never refused here, even when it is one the library owns.
-  const problem = chosen === resource.kind ? undefined : kindProblem(chosen);
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (busy) return;
-    if (!name.trim()) {
-      setError('Give it a name.');
-      return;
-    }
-    if (problem) {
-      setError(problem);
-      return;
-    }
-    setBusy(true);
-    setError(undefined);
-    try {
-      onSaved(await platformApi.updateResource(organization.slug, project.slug, resource.slug, { name: name.trim(), description: description.trim(), kind: chosen }));
-    } catch (caught) {
-      setError(resourceUpdateRefusal(caught).text);
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Modal title="Edit resource" size="md" onClose={() => !busy && onClose()}>
-      <form className="org-dialog-form" onSubmit={(event) => void submit(event)} noValidate>
-        <FormField label="Name" value={name} maxLength={NAME_MAX} onChange={(event) => { setName(event.target.value); setError(undefined); }} />
-        <KindFields state={kind} onChange={(next) => { setKind(next); setError(undefined); }} error={kind.choice === OTHER_RESOURCE_KIND && kind.other ? problem : undefined} />
-        <div className="ui-field">
-          <label htmlFor="er-description">Description <span className="proj-optional">(optional)</span></label>
-          <textarea id="er-description" className="proj-textarea" rows={3} maxLength={DESCRIPTION_MAX} value={description} onChange={(event) => setDescription(event.target.value)} />
-        </div>
-        <DialogError text={error} />
-        <div className="ui-modal-actions">
-          <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-          <Action type="submit" variant="primary" busy={busy}>Save</Action>
-        </div>
-      </form>
-    </Modal>
   );
 }
 

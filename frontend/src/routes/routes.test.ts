@@ -28,11 +28,8 @@ const PROTOTYPE: Record<keyof typeof routesByDomain, Array<[string, string]>> = 
   D4: [
     ['case-list', `${P}/cases`], ['case-detail', `${P}/cases/:case`], ['case-composer', `${P}/cases/:case/compose`],
     ['case-revision', `${P}/cases/:case/revisions/:revision`], ['case-compare', `${P}/cases/:case/compare`],
-    ['wb-workbench', `${P}/workbench`], ['snap-detail', `${P}/snapshots/:snapshot`], ['lib-list', '/app/:org/library'],
-    ['lib-artifact', '/app/:org/library/:artifact'], ['lib-draft', '/app/:org/library/:artifact/drafts/:draft'],
-    ['lib-version', '/app/:org/library/:artifact/versions/:version'], ['proj-library', `${P}/library`], ['proj-files', `${P}/files`],
-    ['proj-resources', `${P}/resources`], ['proj-resource-detail', `${P}/resources/:resource`], ['coll-list', `${P}/collections`],
-    ['coll-detail', `${P}/collections/:collection`], ['gen-lab', '/app/generator'],
+    ['wb-workbench', `${P}/workbench`], ['snap-detail', `${P}/snapshots/:snapshot`], ['proj-files', `${P}/files`],
+    ['coll-list', `${P}/collections`], ['coll-detail', `${P}/collections/:collection`], ['gen-lab', '/app/generator'],
   ],
   D5: [
     ['job-launch', `${P}/jobs/new`], ['job-list', `${P}/jobs`], ['job-detail', `${P}/jobs/:job`], ['job-history', '/app/jobs'],
@@ -54,16 +51,32 @@ const PROTOTYPE: Record<keyof typeof routesByDomain, Array<[string, string]>> = 
   ],
 };
 
-const DOMAIN_SIZES = { D1: 18, D2: 7, D3: 10, D4: 18, D5: 4, D6: 8, D7: 4, D8: 9 };
+const DOMAIN_SIZES = { D1: 18, D2: 7, D3: 10, D4: 11, D5: 4, D6: 8, D7: 4, D8: 9 };
 
 const sample = (path: string) => path.replace(/:[A-Za-z]+/g, 'sample');
 
 describe('route registry', () => {
   // [utest->req~frontend-retire-screen-count~1]
   // [utest->req~frontend-retire-reports-screen-count~1]
-  it('registers the 82 screens of the prototype minus the retired ones, 78 after slice 2', () => {
-    expect(routeDefinitions).toHaveLength(78);
-    expect(Object.values(PROTOTYPE).flat()).toHaveLength(78);
+  // [utest->req~frontend-retire-library-screen-count~1]
+  it('registers the 82 screens of the prototype minus the retired ones, 71 after slice 3', () => {
+    expect(routeDefinitions).toHaveLength(71);
+    expect(Object.values(PROTOTYPE).flat()).toHaveLength(71);
+  });
+
+  // [utest->req~frontend-retire-library-screens-not-routed~1]
+  it('declares none of the library catalogue and project resources screens, and keeps the files and collections', () => {
+    const ids = routeDefinitions.map((definition) => definition.id);
+    const paths = routeDefinitions.map((definition) => definition.path);
+    for (const id of ['lib-list', 'lib-artifact', 'lib-draft', 'lib-version', 'proj-library', 'proj-resources', 'proj-resource-detail']) {
+      expect(ids, id).not.toContain(id);
+    }
+    expect(paths.filter((path) => /\/(library|resources)(\/|$)/.test(path))).toEqual([]);
+    for (const id of ['proj-files', 'coll-list', 'coll-detail', 'case-list', 'wb-workbench', 'snap-detail', 'gen-lab']) expect(ids, id).toContain(id);
+    expect(routesByDomain.D4.map((definition) => definition.id)).toEqual([
+      'case-list', 'case-detail', 'case-composer', 'case-revision', 'case-compare', 'wb-workbench', 'snap-detail', 'proj-files',
+      'coll-list', 'coll-detail', 'gen-lab',
+    ]);
   });
 
   // [utest->req~frontend-retire-screens-not-routed~1]
@@ -209,12 +222,19 @@ describe('route registry', () => {
     expect(resolve('/app/account/usage')).toBe('acct-usage');
     expect(resolve('/app/acme/new-project')).toBe('proj-create');
     expect(resolve('/app/acme/settings')).toBe('org-settings');
-    expect(resolve('/app/acme/library')).toBe('lib-list');
-    expect(resolve('/app/isa-demo/library/reports')).toBe('lib-artifact');
-    // Even with the retired report list after the screens, as AppRoutes mounts it, the screen wins the tie of rank.
-    const withRetired = [...config, { id: 'rep-list', path: '/app/:org/:project/reports' }];
-    expect(matchRoutes(withRetired, '/app/isa-demo/library/reports')?.at(-1)?.route.id).toBe('lib-artifact');
     expect(resolve('/app/acme/atlas/jobs/new')).toBe('job-launch');
+  });
+
+  // [utest->req~frontend-retire-library-screens-not-routed~1]
+  it('answers the retired library addresses by no screen of the registry', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+    const retired = [
+      '/app/acme/library/a1', '/app/acme/library/a1/drafts/d1', '/app/acme/library/a1/versions/v1',
+      '/app/acme/atlas/library', '/app/acme/atlas/resources', '/app/acme/atlas/resources/r1',
+    ];
+    for (const path of retired) expect(matchRoutes(config, path), path).toBeNull();
+    // Without its screen `/app/acme/library` reads as a project named `library`, which the redirect table answers first.
+    expect(matchRoutes(config, '/app/acme/library')?.at(-1)?.route.id).toBe('proj-overview');
   });
 
   // [utest->req~frontend-retire-reports-screens-not-routed~1]

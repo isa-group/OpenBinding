@@ -135,50 +135,6 @@ export function downloadRefusal(caught: unknown, name: string): Refusal {
   return { kind: 'other', text: generalFailure(failure, 'nothing was downloaded') };
 }
 
-// --- project resources
-
-export function resourcesListRefusal(failure: AuthFailure): Refusal {
-  if (failure.status === 403) {
-    return { kind: 'forbidden', text: `This account or API key can’t read this project’s resources${marker(failure)}.` };
-  }
-  return { kind: 'other', text: `The resources couldn’t be loaded${marker(failure)}.` };
-}
-
-/** Creating a resource: the address is shared with every item of the organization, so a 409 is common. */
-export function resourceCreateRefusal(caught: unknown): Refusal {
-  const failure = classifyAuthError(caught);
-  if (failure.status === 409) return { kind: 'address', text: `That address is already used by another item in this organization${marker(failure)}.` };
-  if (failure.kind === 'invalid') return { kind: 'invalid', text: `Use lowercase letters, numbers and hyphens for the address${marker(failure)}, and give it a name.` };
-  if (failure.status === 403) return { kind: 'forbidden', text: `You need MEMBER in the organization to create a resource${marker(failure)}. Nothing was created.` };
-  if (failure.kind === 'not-found') return { kind: 'gone', text: `The project no longer exists, or you’re not in its organization${marker(failure)}. Nothing was created.` };
-  return { kind: 'other', text: generalFailure(failure, 'nothing was created') };
-}
-
-export function resourceUpdateRefusal(caught: unknown): Refusal {
-  const failure = classifyAuthError(caught);
-  if (failure.kind === 'invalid') return { kind: 'invalid', text: `The gateway refused those details${marker(failure)}. A name has 1 to 160 characters and a kind up to 128. Nothing changed.` };
-  if (failure.status === 403) return { kind: 'forbidden', text: `You need MEMBER in the organization to edit a resource${marker(failure)}. Nothing changed.` };
-  if (failure.kind === 'not-found') return { kind: 'gone', text: `The resource no longer exists${marker(failure)}. Nothing changed.` };
-  return { kind: 'other', text: generalFailure(failure, 'nothing changed') };
-}
-
-export function resourceDeleteRefusal(caught: unknown): Refusal {
-  const failure = classifyAuthError(caught);
-  if (failure.status === 409) return { kind: 'in-use', text: `Something sealed refers to this resource, so it can’t be deleted${marker(failure)}.` };
-  if (failure.status === 403) return { kind: 'forbidden', text: `You need ADMIN in the organization to delete a resource${marker(failure)}. Nothing was deleted.` };
-  if (failure.kind === 'not-found') return { kind: 'gone', text: `The resource no longer exists${marker(failure)}.` };
-  return { kind: 'other', text: generalFailure(failure, 'nothing was deleted') };
-}
-
-/** Saving a new revision of a resource: a 422 is a document the gateway can’t store. */
-export function resourceRevisionRefusal(caught: unknown): Refusal {
-  const failure = classifyAuthError(caught);
-  if (failure.kind === 'invalid') return { kind: 'invalid', text: `The gateway refused this content${marker(failure)}. Nothing was saved.${gatewayNote(failure)}` };
-  if (failure.status === 403) return { kind: 'forbidden', text: `You need MEMBER in the organization to add a revision${marker(failure)}. Nothing was saved.` };
-  if (failure.kind === 'not-found') return { kind: 'gone', text: `The resource no longer exists in this project${marker(failure)}. Nothing was saved.` };
-  return { kind: 'other', text: generalFailure(failure, 'nothing was saved') };
-}
-
 // --- collections
 
 export function collectionsListRefusal(failure: AuthFailure): Refusal {

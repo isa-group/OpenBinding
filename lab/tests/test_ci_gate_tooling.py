@@ -77,7 +77,8 @@ def _step(job: dict, text: str) -> dict:
 
 def _fails_job(job: dict, step: dict, *, allow_if: bool = False, allow_pipe: bool = False) -> None:
     """Assert that a failure of ``step`` fails the job: nothing masks its exit status or skips it."""
-    assert "continue-on-error" not in job and "if" not in job, "job-level continue-on-error or if"
+    assert "continue-on-error" not in job, "job-level continue-on-error"
+    assert job.get("if") in (None, "needs.changes.outputs.bim == 'true'"), f"job-level if: {job.get('if')!r}"
     assert "defaults" not in job, "job-level defaults (could change the shell)"
     assert any(step is s for s in job["steps"]), "the step is not a step of the job"
     assert "continue-on-error" not in step, f"step-level continue-on-error: {step.get('name')}"
@@ -420,41 +421,106 @@ TOOLCHAIN_DESELECTED = [
 ]
 
 
+TOOLCHAIN_PACKAGES = ["bim-core", "bim-service", "bim-client"]
+MATRIX_IF = re.compile(r"matrix\.package (==|!=) '(bim-core|bim-service|bim-client)'")
+
+
+def _runs_for(job: dict, package: str) -> list[dict]:
+    """The steps of ``job`` that run for the matrix value ``package``; a step ``if`` is only a matrix.package test."""
+    steps = []
+    for step in job["steps"]:
+        condition = step.get("if")
+        if condition is not None:
+            match = MATRIX_IF.fullmatch(str(condition))
+            assert match, f"step {step.get('name')!r} has an if that is not a matrix.package test: {condition!r}"
+            if (match.group(2) == package) != (match.group(1) == "=="):
+                continue
+        steps.append(step)
+    return steps
+
+
+def _resolved_commands(job: dict, package: str, text: str) -> list[tuple[dict, list[str]]]:
+    """The (step, argv) of every step running ``text`` for ``package``, with ``matrix.package`` substituted."""
+    found = []
+    for step in _runs_for(job, package):
+        run = _active(str(step.get("run", "")))
+        if text in run:
+            found.append((step, shlex.split(run.replace("${{ matrix.package }}", package))))
+    return found
+
+
 # [utest->req~gate-tooling-bim-toolchain-tests~1]
+# [utest->req~gate-tooling-bim-toolchain-tests~2]
 def test_bim_toolchain_job_runs_package_tests():
     trigger = _ci().get(True)
     assert isinstance(trigger, dict) and "pull_request" in trigger, f"ci.yml does not trigger on pull_request: {trigger!r}"
     assert "paths" not in (trigger["pull_request"] or {}), "the pull_request trigger has a paths filter"
     job = _job("bim-toolchain")
-    assert "if" not in job
+    assert job.get("if") == "needs.changes.outputs.bim == 'true'", f"if: {job.get('if')!r}"
+    needs = job.get("needs")
+    assert needs == "changes" or needs == ["changes"], f"needs: {needs!r}"
+    assert "bim-toolchain" in _ci()["jobs"]["ci-required"]["needs"]
     assert all("continue-on-error" not in s for s in job["steps"])
-    ensure = _step(job, "xsd_inventory.py --ensure")
-    sync = _step(job, "uv sync --locked --project openbinding-gateway --extra test")
-    pytest_step = _step(job, f"{TOOLCHAIN_PYTHON} -m pytest")
-    assert pytest_step.get("working-directory") == "bim-toolchain"
-    assert (pytest_step.get("env") or {}).get("PYTHONPATH") == TOOLCHAIN_PYTHONPATH
-    arguments = shlex.split(pytest_step["run"])
-    deselects = [i for i, a in enumerate(arguments) if a == "--deselect" or a.startswith("--deselect=")]
-    assert len(deselects) == len(TOOLCHAIN_DESELECTED), f"expected exactly the two --deselect options: {arguments}"
-    assert all(arguments[i] == "--deselect" for i in deselects), arguments
-    assert [arguments[i + 1] for i in deselects] == TOOLCHAIN_DESELECTED, arguments
-    values = {i + 1 for i in deselects}
-    directories = [a for i, a in enumerate(arguments) if a.startswith("packages/") and i not in values]
-    assert directories == TOOLCHAIN_TESTS, arguments
-    steps = job["steps"]
-    assert steps.index(ensure) < steps.index(sync) < steps.index(pytest_step)
-    for step in (ensure, sync, pytest_step):
-        _fails_job(job, step)
+    for package in TOOLCHAIN_PACKAGES:
+        ensure = _step(job, "xsd_inventory.py --ensure")
+        sync = _step(job, "uv sync --locked --project openbinding-gateway --extra test")
+        (pytest_step, arguments), = _resolved_commands(job, package, f"{TOOLCHAIN_PYTHON} -m pytest")
+        assert pytest_step.get("working-directory") == "bim-toolchain"
+        assert (pytest_step.get("env") or {}).get("PYTHONPATH") == TOOLCHAIN_PYTHONPATH
+        deselects = [i for i, a in enumerate(arguments) if a == "--deselect" or a.startswith("--deselect=")]
+        values = {i + 1 for i in deselects}
+        assert all(arguments[i] == "--deselect" for i in deselects), arguments
+        directories = [a for i, a in enumerate(arguments) if a.startswith("packages/") and i not in values]
+        assert directories == [f"packages/{package}/tests"], arguments
+        if package == "bim-service":
+            assert len(deselects) == len(TOOLCHAIN_DESELECTED), f"expected exactly the two --deselect options: {arguments}"
+            assert [arguments[i + 1] for i in deselects] == TOOLCHAIN_DESELECTED, arguments
+        else:
+            assert not deselects, f"{package} deselects tests: {arguments}"
+        steps = job["steps"]
+        assert steps.index(ensure) < steps.index(sync) < steps.index(pytest_step)
+        for step in (ensure, sync):
+            _fails_job(job, step)
+        _fails_job(job, pytest_step, allow_if=True)
+
+
+# [utest->req~gate-tooling-bim-toolchain-tests~2]
+def test_bim_toolchain_matrix_is_the_three_packages():
+    job = _job("bim-toolchain")
+    strategy = job.get("strategy")
+    assert isinstance(strategy, dict), f"strategy: {strategy!r}"
+    assert strategy.get("fail-fast") is False, strategy
+    assert strategy.get("matrix") == {"package": TOOLCHAIN_PACKAGES}, strategy
+    assert all("matrix.package" not in str(s.get("run", "")) or "packages/${{ matrix.package }}/tests" in s["run"]
+               for s in job["steps"])
+
+
+# [utest->req~gate-tooling-bim-toolchain-tests~2]
+def test_bim_toolchain_deselects_only_in_bim_service():
+    job = _job("bim-toolchain")
+    for package in TOOLCHAIN_PACKAGES:
+        count = sum(
+            len([a for a in argv if a.startswith("--deselect")])
+            for _, argv in _resolved_commands(job, package, "--deselect")
+        )
+        assert count == (len(TOOLCHAIN_DESELECTED) if package == "bim-service" else 0), (package, count)
+    assert "--deselect" not in "".join(str(s.get("run", "")) for s in job["steps"] if "if" not in s)
 
 
 # [utest->req~gate-tooling-bim-toolchain-goldens~1]
+# [utest->req~gate-tooling-bim-toolchain-tests~2]
 def test_bim_toolchain_job_checks_goldens():
     job = _job("bim-toolchain")
     goldens = _step(job, f"{TOOLCHAIN_PYTHON} tools/baseline_core.py --check")
     assert goldens.get("working-directory") == "bim-toolchain"
     assert (goldens.get("env") or {}).get("PYTHONPATH") == TOOLCHAIN_PYTHONPATH
-    _fails_job(job, goldens)
+    _fails_job(job, goldens, allow_if=True)
     assert all("continue-on-error" not in s for s in job["steps"])
+    running = [
+        package for package in TOOLCHAIN_PACKAGES
+        if _resolved_commands(job, package, "tools/baseline_core.py --check")
+    ]
+    assert running == ["bim-core"], f"the goldens run for {running}"
 
 
 def _lockfile_dev_dependencies() -> str:
@@ -602,6 +668,114 @@ def test_ui_runner_passes_empty_in_frontend_job():
     steps = job["steps"]
     assert steps.index(_step(job, "playwright install")) < steps.index(runner)
     assert steps[-1] is runner, "the acceptance runner is not the last step of job frontend"
+
+
+# [utest->req~ci-speed-e2e-shards~1]
+def test_e2e_shard_job_runs_mocked_project_in_three_shards():
+    job = _job("frontend-e2e")
+    assert job.get("needs") in ("changes", ["changes"]), job.get("needs")
+    assert job.get("if") == "needs.changes.outputs.e2e == 'true'"
+    assert job.get("timeout-minutes") == 30
+    assert "continue-on-error" not in job
+    strategy = job.get("strategy")
+    assert isinstance(strategy, dict) and strategy.get("fail-fast") is False, strategy
+    assert strategy.get("matrix") == {"shard": [1, 2, 3]}, strategy.get("matrix")
+
+    run = _step(job, "--project=mocked")
+    assert run["run"].strip() == "pnpm exec playwright test --project=mocked --shard=${{ matrix.shard }}/3"
+    assert run.get("working-directory") == "frontend"
+    assert "continue-on-error" not in run and "if" not in run
+    steps = job["steps"]
+    install = _step(job, "playwright install --with-deps chromium")
+    assert install.get("working-directory") == "frontend"
+    assert "continue-on-error" not in install
+    assert steps.index(install) < steps.index(run)
+    assert steps[-1] is run
+    frozen = _step(job, "pnpm install --frozen-lockfile")
+    assert steps.index(frozen) < steps.index(install)
+    assert steps.index(_step(job, "corepack enable")) < steps.index(frozen)
+    assert any(s.get("uses") == "actions/checkout@v4" for s in steps), "no checkout step"
+    assert _setup(job, "actions/setup-node@v4").get("node-version") == "22"
+    assert job["runs-on"] == "ubuntu-latest"
+    for step in steps:
+        assert "cache" not in (step.get("with") or {}), "browsers or dependencies are cached"
+
+
+# [utest->req~ci-speed-e2e-shards~1]
+def test_frontend_job_no_longer_runs_the_mocked_project():
+    job = _job("frontend")
+    for step in job["steps"]:
+        assert "--project=mocked" not in str(step.get("run", "")), f"frontend still runs mocked: {step.get('name')}"
+    assert job["steps"][-1]["run"].strip() == UI_RUNNER
+    assert "if" not in job
+    assert "frontend-e2e" in _job("ci-required")["needs"]
+
+
+# [utest->req~ci-speed-gateway-unit-shards~1]
+def test_gateway_unit_job_runs_the_unit_suite_natively_in_two_shards():
+    job = _job("gateway-unit")
+    assert job.get("needs") in ("changes", ["changes"]), job.get("needs")
+    assert job.get("if") == "needs.changes.outputs.gateway == 'true'"
+    assert job["runs-on"] == "ubuntu-latest"
+    assert job.get("timeout-minutes") == 30
+    strategy = job.get("strategy")
+    assert isinstance(strategy, dict) and strategy.get("fail-fast") is False, strategy
+    assert strategy.get("matrix") == {"shard": [1, 2]}, strategy.get("matrix")
+    steps = job["steps"]
+    assert any(s.get("uses") == "actions/checkout@v4" for s in steps), "no checkout step"
+    assert _setup(job, "actions/setup-python@v5").get("python-version") == "3.11"
+    uv = _setup(job, "astral-sh/setup-uv@v6")
+    assert uv.get("version") == "0.8.14" and uv.get("enable-cache") is True
+    assert uv.get("cache-dependency-glob") == "openbinding-gateway/uv.lock"
+    sync = _step(job, "uv sync")
+    assert sync["run"].strip() == "uv sync --locked --project openbinding-gateway --extra test"
+
+    pytest_step = steps[-1]
+    assert pytest_step.get("name") == "Run unit tests (shard ${{ matrix.shard }}/2)"
+    assert pytest_step.get("working-directory") == "openbinding-gateway"
+    assert pytest_step.get("env") == {"OPENBINDING_REPO_ROOT": "${{ github.workspace }}"}
+    assert pytest_step["run"].strip() == (
+        'list="$(python3 ../tools/ci_shard.py --shard ${{ matrix.shard }}/2 --root openbinding-gateway/tests)"\n'
+        'test -n "$list"\n'
+        'mapfile -t files <<< "$list"\n'
+        '.venv/bin/python -m pytest -p no:cacheprovider "${files[@]#openbinding-gateway/}"'
+    )
+    assert "if" not in pytest_step and "shell" not in pytest_step
+    xsd = _step(job, "xsd_inventory.py --ensure")
+    icsoc = _step(job, "data/icsoc-original-dataset")
+    for before in (xsd, icsoc, sync):
+        assert steps.index(before) < steps.index(pytest_step)
+    for step in steps:
+        assert "continue-on-error" not in step, step.get("name")
+    assert "continue-on-error" not in job
+    assert "docker" not in yaml.safe_dump(job)
+    assert "gateway-unit" in _job("ci-required")["needs"]
+
+
+# [utest->req~ci-develop-push~2]
+def test_bim_guard_runs_in_a_job_without_a_job_level_if():
+    # The guard scans the whole repository, so an area-gated job would let a pull request skip it.
+    jobs = _ci()["jobs"]
+    running = [name for name, job in jobs.items()
+               if any("tools/check_bim_guard.py" in _active(str(s.get("run", ""))) for s in job.get("steps", []))]
+    assert running == ["bim-corpus"], running
+    job = _job("bim-corpus")
+    assert "if" not in job and "needs" not in job, (job.get("if"), job.get("needs"))
+    guard = _step(job, "tools/check_bim_guard.py")
+    assert guard["run"].strip() == "python3 tools/check_bim_guard.py"
+    _fails_job(job, guard)
+    steps = job["steps"]
+    assert any(s.get("uses") == "actions/setup-python@v5" for s in steps[:steps.index(guard)]), "no Python before the guard"
+
+
+# [utest->req~ci-speed-gateway-unit-shards~1]
+def test_test_job_no_longer_runs_the_unit_tests_but_keeps_the_rest():
+    job = _job("test")
+    names = [s.get("name") for s in job["steps"]]
+    assert "Run unit tests" not in names
+    for kept in ("Build and start services", "Run ICSOC generator tests", "Check the OpenAPI snapshot is current",
+                 "Run integration tests", "Show service logs on failure", "Shutdown services"):
+        assert kept in names, f"job test lost the step {kept!r}"
 
 
 # [utest->req~gate-tooling-acceptance-docs~1]

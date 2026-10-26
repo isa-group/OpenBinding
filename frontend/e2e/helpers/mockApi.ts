@@ -4,8 +4,6 @@ import type { AdminUserView } from '../../src/api/auth';
 import type { Job } from '../../src/api/platform';
 import { digestOf as caseDigest, irDocument, refOf, revisionDocument, sourceContents } from '../../src/pages/Cases/fixtures';
 import { LESSONS } from '../../src/pages/Examples/lessons';
-import { templateFor } from '../../src/pages/Library/contentModel';
-import { bpmnContent, catalogContent, catalogRangesContent, draftOf, goalContent, itemOf, rulesContent, versionOf } from '../../src/pages/Library/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
 import {
   AUDIT, ERROR_EVENTS, ERROR_OVERVIEW, MODERATION, OVERVIEW, USERS, queuesAt, subscriptionOf, usageOf as adminUsageOf, userPage,
@@ -23,6 +21,9 @@ import {
   RANDOM_SEARCH, REVISION_2, VERSION_ID, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
 } from '../../src/test/fixtures/studies';
 import { EXAMPLE } from './galleryRoutes';
+import {
+  applicationTemplate, bpmnContent, catalogContent, catalogRangesContent, draftOf, goalContent, itemOf, rulesContent, versionOf,
+} from './libraryFixtures';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
 // with a project that has cases, runs, studies, reports and a library behind it, and everything the public screens read.
@@ -229,7 +230,7 @@ const CONTENT: Record<string, unknown> = {
 const DRAFTS: Record<string, ReturnType<typeof draftOf>[]> = {
   [catalog.id]: [draftOf('draft-providers-4', 4, catalogRangesContent(), { based_on_id: catalogV3.id })],
   [rules.id]: [draftOf('draft-sla-2', 2, rulesContent())],
-  [app.id]: [draftOf('draft-app-1', 1, templateFor('Application', 'checkout-app').content as Record<string, unknown>)],
+  [app.id]: [draftOf('draft-app-1', 1, applicationTemplate())],
 };
 
 // -- Cases, revisions and snapshots
