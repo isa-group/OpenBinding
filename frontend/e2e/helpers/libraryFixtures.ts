@@ -1,17 +1,14 @@
-// Kept only for frontend/e2e/helpers/mockApi.ts; delete with the mock fixtures (M2.4 slice 3 follow-up).
-import type { ArtifactDraft } from '../../api/library';
-import type { LibraryItem, LibraryVersion } from '../../api/libraryItems';
-import { templateFor } from './contentModel';
+// Library artifacts the gallery mock serves to the screens that still read them (cases, studies).
+import type { ArtifactDraft } from '../../src/api/library';
+import type { LibraryItem, LibraryVersion } from '../../src/api/libraryItems';
 
-export const OWNER_ORG_ID = 'org-isa-demo';
+const OWNER_ORG_ID = 'org-isa-demo';
 
 const DIGEST = (seed: string) => `sha256-${seed.padEnd(64, '0').slice(0, 64)}`;
 
-export const idFor = (name: string) => `artifact-${name}`;
-
 export function itemOf(name: string, kind: string, displayName: string, overrides: Partial<LibraryItem> = {}): LibraryItem {
   return {
-    id: idFor(name), organization_id: OWNER_ORG_ID, namespace: 'isa-demo', name, display_name: displayName, kind, description: '', labels: {}, archived: false,
+    id: `artifact-${name}`, organization_id: OWNER_ORG_ID, namespace: 'isa-demo', name, display_name: displayName, kind, description: '', labels: {}, archived: false,
     created_at: '2026-04-01T09:00:00Z', ...overrides,
   };
 }
@@ -71,4 +68,11 @@ export function goalContent() {
   });
 }
 
-export const bpmnContent = templateFor('BPMN', 'checkout-bpmn').content as string;
+/** The empty application a new draft starts from. */
+export const applicationTemplate = () => resource('Application', 'checkout-app', { tasks: {}, features: {}, workflow: {} });
+
+export const bpmnContent = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1" targetNamespace="http://openbinding/bpmn">
+  <bpmn:process id="Process_1" isExecutable="false" />
+</bpmn:definitions>
+`;

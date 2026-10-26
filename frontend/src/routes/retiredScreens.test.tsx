@@ -178,6 +178,15 @@ describe('the retired library catalogue and project resources', () => {
     expect(routeDefinitions).toHaveLength(71);
   });
 
+  // [utest->req~frontend-retire-library-screens-not-routed~1]
+  it('has no screen files left', () => {
+    const files = Object.keys(import.meta.glob([
+      '../pages/Library/LibList.tsx', '../pages/Library/LibArtifact.tsx', '../pages/Library/LibDraft.tsx', '../pages/Library/LibVersion.tsx',
+      '../pages/Library/ProjLibrary.tsx', '../pages/Resources/ProjResources.tsx', '../pages/Resources/ProjResourceDetail.tsx',
+    ]));
+    expect(files).toEqual([]);
+  });
+
   // [utest->req~frontend-retire-library-redirect~1]
   it('sends the library of an organization, an artifact, a draft and a version to the organization overview', async () => {
     await endsAt('/app/acme/library', '/app/acme');

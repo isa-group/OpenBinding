@@ -55,44 +55,6 @@
 .res-zip-list code { overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 0.75rem; }
 .res-zip-list span { flex: none; color: var(--tp-steel); font-size: 0.75rem; }
 
-/* Resources */
-.res-kind-note { color: var(--tp-slate); font-size: 0.8125rem; }
-.res-name-link { font-weight: 600; overflow-wrap: anywhere; }
-.res-slug { display: block; color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.6875rem; overflow-wrap: anywhere; }
-.res-note-grow { min-width: 220px; flex: 1; }
-.proj-note.res-recommend { flex-wrap: wrap; align-items: center; }
-
-.res-revisions { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
-
-.res-revision {
-  display: flex;
-  flex-direction: column;
-  gap: var(--tp-spacing-xs);
-  padding: 12px 14px;
-  border: 1px solid var(--tp-hairline);
-  border-radius: 12px;
-  background: var(--tp-canvas);
-}
-
-.res-revision-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.res-revision-head strong { font-weight: 600; }
-.res-revision-head small { color: var(--tp-steel); font-size: 0.75rem; }
-.res-revision-head .case-digest { margin-left: auto; }
-.res-revision-body { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); padding-top: var(--tp-spacing-xs); border-top: 1px solid var(--tp-hairline-soft); }
-
-.res-editor {
-  display: flex;
-  flex-direction: column;
-  gap: var(--tp-spacing-sm);
-  padding: var(--tp-spacing-md);
-  border: 1px solid var(--tp-severity-info-border);
-  border-radius: var(--tp-radius-xl);
-  background: var(--tp-surface-cream);
-}
-
-.res-editor > header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--tp-spacing-xs); }
-.res-editor h2 { margin: 0; font-family: var(--font-body); font-size: 1rem; font-weight: 600; letter-spacing: normal; }
-
 /* Collections */
 .res-collections { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: var(--tp-spacing-sm); margin: 0; padding: 0; list-style: none; }
 
@@ -206,7 +168,6 @@
 
 @media (max-width: 767px) {
   .res-row-actions { justify-content: flex-start; }
-  .res-revision-head .case-digest { margin-left: 0; }
   .res-item-label { min-width: 0; flex-basis: 100%; }
 }
 
