@@ -93,7 +93,7 @@ All `kind` parameters strictly use **kebab-case**:
   "created_at": "2026-03-15T10:00:00Z",
   "author": {
     "id": "usr_99120",
-    "name": "Ada Lovelace",
+    "username": "alovelace",
     "email": "ada@openbinding.org"
   },
   "organization": {
@@ -129,12 +129,55 @@ All `kind` parameters strictly use **kebab-case**:
     "offset": 0,
     "has_more": false
   },
-  "citations": {
-    "uri": "https://doi.org/10.5281/zenodo.openbinding.case-revision.sha256-a1b2c3d4...",
-    "bibtex": "@article{openbinding_case-revision_sha256-a1b2c3d4...,\n  title={Production Flow V2},\n  author={Ada Lovelace},\n  year={2026}\n}"
+  "citation": {
+    "title": "Production Flow V2",
+    "authors": ["alovelace"],
+    "year": 2026,
+    "doi": null,
+    "venue": null,
+    "url": "https://<frontend origin>/resolve/case-revision/sha256-a1b2c3d4...",
+    "bibtex": "...",
+    "markdown_badge": "..."
   }
 }
 ```
+
+#### `citation`
+
+`citation` is an object with `title`, `authors`, `year`, `doi`, `venue`, `url`,
+`bibtex` and `markdown_badge`. It never contains invented metadata
+(`req~resolver-verifier-citation-no-invented-metadata~1`):
+
+* `doi` and `venue` come only from the recorded publication citation of the
+  exact version. A DOI is shown only when it is well-formed; otherwise `doi` is
+  `null`. Without a recorded publication both `doi` and `venue` are `null`. A
+  withdrawn publication, or one of another version, is not cited.
+* `authors` is the author list of that recorded publication citation; without
+  one, the username of the element's recorded author or owner (the `author` of
+  the resolver answer); without either, `[]`.
+* `year` comes from the recorded citation; if there is none, from the
+  publication date; if there is none, from the creation date of the cited
+  version or element (`req~resolver-verifier-citation-year~1`).
+* `url` and the badge link are on the configured `FRONTEND_URL` origin and are
+  the public permanent link `/resolve/<kind>/<digest>`
+  (`req~resolver-verifier-citation-url~1`).
+
+The badge attests the digest only, not the metadata: the title, authors, year,
+DOI and venue are what the publisher recorded, and the platform does not check
+them.
+
+For `POST /v1/verifier/inspect` and `/inspect-file`:
+
+* `citation` is `null` unless the status is `verified` with a visible element
+  matching the digest: computed, mismatch (even when the claimed digest matches
+  a visible element), not_found, hidden and unknown digests all alike.
+* For a digest that identifies a single element of a resolvable kind, the
+  cited `authors` and `year` are the ones the resolver gives for it.
+* Otherwise the first visible match is cited. Its `kind` is `case-revision`,
+  `collection-revision`, `report`, `artifact` or `engine`.
+* A snapshot, a study run and a file that belongs to no project have no
+  resolvable link; they use `/app/verifier?digest=<digest>`. A snapshot
+  resolves only for its owner.
 
 #### `locations[].web_url`
 
