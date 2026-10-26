@@ -97,7 +97,7 @@ The QA gallery (`frontend/e2e/qa-gallery.spec.ts`) writes screenshots to `QA_GAL
 
 ## 8. Known red checks at 912648c (NOT a pass)
 
-- `python3 tools/check_bim_guard.py` (CI job `engines`): 95 errors — expects 82 packages and finds 134, places
+- `python3 tools/check_bim_guard.py` (CI job `bim-corpus`): 95 errors — expects 82 packages and finds 134, places
   `RoutingOverlay`/`Placement` in the `application` role while the installed Profile declares them in `candidateCatalog`,
   and flags retired markers (the old jobs API route in the frontend, the former language name and the old project
   file name).
@@ -119,10 +119,14 @@ The QA gallery (`frontend/e2e/qa-gallery.spec.ts`) writes screenshots to `QA_GAL
 - **Required check.** Require only `ci-required` (`tools/ci_required.py`): a skipped area passes, a failed or cancelled
   job does not.
 - **Shards.** Playwright project `mocked` runs in three jobs `frontend-e2e`; the UI acceptance runner stays in
-  `frontend`. Gateway unit tests run natively in two jobs `gateway-unit`, balanced by `tools/ci_shard.py`; `test` keeps
+  `frontend`. Gateway unit tests run natively in two jobs `gateway-unit`, balanced by file size in `tools/ci_shard.py`; `test` keeps
   the Docker integration, ICSOC and OpenAPI snapshot steps. `bim-toolchain` runs one job per package (`bim-core`,
   `bim-service`, `bim-client`); the goldens run in the `bim-core` job.
-- **Concurrency.** A new push to a pull request cancels its older run; manual runs are never cancelled.
+- **Concurrency.** A new push to a pull request cancels its older run; a newer push to `develop` cancels the older
+  `develop` push run; manual runs are never cancelled.
 - **Full run by hand.** Actions > Continuous Integration > Run workflow (`workflow_dispatch`).
-- **One shard locally.** `python3 tools/ci_shard.py --shard 1/2` lists the gateway files of shard 1; Playwright:
+- **One shard locally.** Gateway unit tests, shard 1 of 2, as `ci.yml` runs it (the shard script prints paths from the
+  repository root, pytest runs in `openbinding-gateway`, so the prefix is stripped):
+  `cd openbinding-gateway; files=$(python3 ../tools/ci_shard.py --shard 1/2 --root openbinding-gateway/tests); .venv/bin/python -m pytest -p no:cacheprovider ${files//openbinding-gateway\//}`
+  (use `uv run --locked --extra test pytest` in place of `.venv/bin/python -m pytest` without the venv). Playwright:
   `cd frontend && pnpm exec playwright test --project=mocked --shard=1/3`.

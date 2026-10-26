@@ -95,7 +95,7 @@ Evidence (planned, slice S6): lab/tests/test_ci_gate_tooling.py::test_bim_toolch
 ## ADDED Requirements
 
 ### Requirement: Change detection by area
-WHEN CI runs, THE `changes` job SHALL expose, from `tools/ci_changes.py`, the outputs `e2e`, `bim`, `engines` and `gateway`, each `true` or `false`, with every output `true` on a `push` or `workflow_dispatch` event, on an unknown changed path, on a change to `.github/workflows/ci.yml` or `tools/ci_*.py`, and on a git error.
+WHEN CI runs, THE `changes` job SHALL expose, from `tools/ci_changes.py`, the outputs `e2e`, `bim`, `engines` and `gateway`, each `true` or `false`, with every output `true` on a `push` or `workflow_dispatch` event, on an unknown changed path, on a change to `.github/workflows/ci.yml` or `tools/ci_*.py`, on a git error, and on a diff that lists no path.
 
 `req~ci-speed-change-detection~1`
 
@@ -121,6 +121,11 @@ Evidence (planned, slice S2 and S3): lab/tests/test_ci_changes.py
 - **WHEN** `tools/ci_changes.py` runs
 - **THEN** every output is `true`
 
+#### Scenario: Empty diff
+- **GIVEN** a `pull_request` whose base and head are the same commit, so `git diff` succeeds and lists no path
+- **WHEN** `tools/ci_changes.py` runs
+- **THEN** every output is `true`
+
 #### Scenario: Changelog-only pull request
 - **GIVEN** a `pull_request` whose only changed file is `frontend/src/content/changelog.generated.json`
 - **WHEN** `tools/ci_changes.py` runs
@@ -132,7 +137,7 @@ Evidence (planned, slice S2 and S3): lab/tests/test_ci_changes.py
 - **THEN** it checks out with `fetch-depth: 0`, runs `tools/ci_changes.py`, and declares the job outputs `e2e`, `bim`, `engines` and `gateway` from that step
 
 ### Requirement: One required aggregate check
-WHEN every other job of a CI run has finished, THE `ci-required` job SHALL fail IF any needed job ended `failure` or `cancelled`, job `changes` did not succeed, or a job ended `skipped` while the area output that gates it was `true`.
+WHEN every other job of a CI run has finished, THE `ci-required` job SHALL fail IF any needed job ended `failure` or `cancelled`, job `changes` did not succeed, or a job ended `skipped` while the area output that gates it was not `false`, or while no area output gates it.
 
 `req~ci-speed-required-aggregate~1`
 
@@ -162,6 +167,11 @@ Evidence (planned, slice S2 and S3): lab/tests/test_ci_changes.py (aggregator ca
 - **GIVEN** `NEEDS` where `changes` succeeded with `gateway=true` and `gateway-unit` is `skipped`
 - **WHEN** `tools/ci_required.py` runs
 - **THEN** it exits non-zero and names `gateway-unit`
+
+#### Scenario: An always-on job is skipped
+- **GIVEN** `NEEDS` where every area output is `false` and `lab`, a job that no area gates, is `skipped`
+- **WHEN** `tools/ci_required.py` runs
+- **THEN** it exits non-zero and names `lab`
 
 ### Requirement: Mocked Playwright tests in three shards
 WHEN CI runs and the `e2e` area output of job `changes` is `true`, THE `frontend-e2e` job SHALL run the `mocked` Playwright project as three shard jobs with `--shard=1/3`, `--shard=2/3` and `--shard=3/3` and `fail-fast` `false`, while job `frontend` no longer runs the `mocked` project and keeps the UI acceptance runner as its last step.

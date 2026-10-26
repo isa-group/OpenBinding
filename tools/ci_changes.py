@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Decide which CI areas a pull request touches, from the file list of `git diff` (no network).
 
-Every doubt runs the area: an event other than pull_request, an unreadable diff, a path no rule knows, or a
+Every doubt runs the area: an event other than pull_request, an unreadable or empty diff, a path no rule knows, or a
 change to the CI definition itself sets all areas to true. [impl->req~ci-speed-change-detection~1]
 """
 
@@ -44,7 +44,8 @@ def classify(path: str) -> frozenset[str] | None:
         return frozenset({"engines", "bim", "gateway"})
     if path.startswith(("bim-toolchain/", "schemas/", "examples/", "datasets/", "experimentation/")):
         return frozenset({"bim", "gateway"})
-    if path in ("openbinding-gateway/pyproject.toml", "openbinding-gateway/uv.lock"):
+    # The bim-core tests read openbinding-gateway/tests/golden/bim_baseline/*, so those goldens also run the bim area.
+    if path in ("openbinding-gateway/pyproject.toml", "openbinding-gateway/uv.lock") or path.startswith("openbinding-gateway/tests/golden/"):
         return frozenset({"bim", "gateway"})
     if path.startswith("tools/"):
         return frozenset({"bim", "gateway"}) if "bim" in path.rsplit("/", 1)[-1] else GATEWAY
@@ -61,6 +62,9 @@ def classify(path: str) -> frozenset[str] | None:
 def changed_paths(paths: list[str]) -> dict[str, bool]:
     """Map the changed paths to one boolean per area; every doubt sets all of them."""
     everything = dict.fromkeys(AREAS, True)
+    if not paths:
+        # A pull request that changes no file (base == head) is a doubt, not a docs-only change.
+        return everything
     areas: set[str] = set()
     for path in paths:
         if path == CI_WORKFLOW or fnmatch.fnmatchcase(path, "tools/ci_*.py"):
@@ -70,6 +74,7 @@ def changed_paths(paths: list[str]) -> dict[str, bool]:
             return everything
         areas |= found
         # test_no_kubernetes walks the whole repository for kustomizations and manifests, even in ignored paths.
+        # A new repo-wide walk in the gateway tests must be justified here and in test_ci_changes.py (WALKING_TESTS).
         name = path.rsplit("/", 1)[-1]
         if name.startswith("kustomization.") or (name.endswith((".yml", ".yaml")) and path.startswith(("acceptance/ui/", "frontend/e2e/"))):
             areas.add("gateway")

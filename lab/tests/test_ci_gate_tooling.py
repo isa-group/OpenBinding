@@ -735,9 +735,10 @@ def test_gateway_unit_job_runs_the_unit_suite_natively_in_two_shards():
     assert pytest_step.get("working-directory") == "openbinding-gateway"
     assert pytest_step.get("env") == {"OPENBINDING_REPO_ROOT": "${{ github.workspace }}"}
     assert pytest_step["run"].strip() == (
-        'files="$(python3 ../tools/ci_shard.py --shard ${{ matrix.shard }}/2 --root openbinding-gateway/tests)"\n'
-        "test -n \"$files\"\n"
-        ".venv/bin/python -m pytest -p no:cacheprovider ${files//openbinding-gateway\\//}"
+        'list="$(python3 ../tools/ci_shard.py --shard ${{ matrix.shard }}/2 --root openbinding-gateway/tests)"\n'
+        'test -n "$list"\n'
+        'mapfile -t files <<< "$list"\n'
+        '.venv/bin/python -m pytest -p no:cacheprovider "${files[@]#openbinding-gateway/}"'
     )
     assert "if" not in pytest_step and "shell" not in pytest_step
     xsd = _step(job, "xsd_inventory.py --ensure")
@@ -749,6 +750,22 @@ def test_gateway_unit_job_runs_the_unit_suite_natively_in_two_shards():
     assert "continue-on-error" not in job
     assert "docker" not in yaml.safe_dump(job)
     assert "gateway-unit" in _job("ci-required")["needs"]
+
+
+# [utest->req~ci-develop-push~2]
+def test_bim_guard_runs_in_a_job_without_a_job_level_if():
+    # The guard scans the whole repository, so an area-gated job would let a pull request skip it.
+    jobs = _ci()["jobs"]
+    running = [name for name, job in jobs.items()
+               if any("tools/check_bim_guard.py" in _active(str(s.get("run", ""))) for s in job.get("steps", []))]
+    assert running == ["bim-corpus"], running
+    job = _job("bim-corpus")
+    assert "if" not in job and "needs" not in job, (job.get("if"), job.get("needs"))
+    guard = _step(job, "tools/check_bim_guard.py")
+    assert guard["run"].strip() == "python3 tools/check_bim_guard.py"
+    _fails_job(job, guard)
+    steps = job["steps"]
+    assert any(s.get("uses") == "actions/setup-python@v5" for s in steps[:steps.index(guard)]), "no Python before the guard"
 
 
 # [utest->req~ci-speed-gateway-unit-shards~1]

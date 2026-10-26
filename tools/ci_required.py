@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The one required CI check: fail when a needed job failed or was skipped although its area has changes.
+"""The one required CI check: fail when a needed job failed, or was skipped although its area has changes or no area gates it.
 
 Reads the environment variable NEEDS, the JSON of `toJSON(needs)`: {job: {result, outputs}}.
 [impl->req~ci-speed-required-aggregate~1]
@@ -11,7 +11,7 @@ import json
 import os
 import sys
 
-# Job name -> the area output of the `changes` job that decides whether it runs.
+# Job name -> the area output of the `changes` job that decides whether it runs. Any other job is always on.
 JOB_AREA = {
     "bim-toolchain": "bim",
     "engines": "engines",
@@ -40,7 +40,9 @@ def problems(needs: object) -> list[str]:
             continue
         if result not in ("success", "skipped"):
             found.append(f"job {name} {result}")
-        elif result == "skipped" and area is not None and areas.get(area) != "false":
+        elif result == "skipped" and area is None:
+            found.append(f"job {name} was skipped but no area gates it")
+        elif result == "skipped" and areas.get(area) != "false":
             found.append(f"job {name} was skipped but area {area} is {areas.get(area, 'missing')!r}, not 'false'")
     return found
 

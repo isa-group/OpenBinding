@@ -13,11 +13,11 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 def collect(root):
-    """Return (printed path, weight in bytes) for every test_*.py under root."""
+    """Return (printed path, weight in bytes) for every test_*.py and *_test.py under root (pytest's python_files)."""
     base = root if root.is_absolute() else REPO / root
     return {
         f"{root.as_posix()}/{p.relative_to(base).as_posix()}": p.stat().st_size
-        for p in base.rglob("test_*.py")
+        for p in (*base.rglob("test_*.py"), *base.rglob("*_test.py"))
         if p.is_file() and "__pycache__" not in p.parts
     }
 
@@ -46,7 +46,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--shard", required=True)
     ap.add_argument("--root", default="openbinding-gateway/tests")
-    ap.add_argument("--weights", help="JSON file mapping printed path -> seconds")
+    ap.add_argument("--weights", help="JSON file mapping printed path -> measured seconds; list every collected path, a path left out keeps its size in bytes")
     args = ap.parse_args(argv)
     try:
         i, n = parse_shard(args.shard)

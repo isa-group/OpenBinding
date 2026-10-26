@@ -18,6 +18,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 TOOLS = ROOT / "tools"
@@ -90,6 +91,9 @@ def test_engines_and_bim_paths(changes):
     assert _only(changes.changed_paths(["openbinding-gateway/uv.lock"]), "bim", "gateway")
     assert _only(changes.changed_paths(["openbinding-gateway/src/openbinding_gateway/app.py"]), "gateway")
     assert _only(changes.changed_paths(["tools/check_bim_guard.py"]), "engines", "bim", "gateway")
+    # The bim-core tests read these goldens, so they run the bim area; the rest of openbinding-gateway/tests does not.
+    assert _only(changes.changed_paths(["openbinding-gateway/tests/golden/bim_baseline/corpus.json"]), "bim", "gateway")
+    assert _only(changes.changed_paths(["openbinding-gateway/tests/test_app.py"]), "gateway")
 
 
 # [utest->req~ci-speed-change-detection~1]
@@ -170,6 +174,15 @@ def test_git_error_or_bad_base_runs_everything(changes, repo, capsys, base):
 
 
 # [utest->req~ci-speed-change-detection~1]
+def test_empty_diff_runs_everything(changes, repo, capsys):
+    # base == head lists no path; that is a doubt (fail closed), not a docs-only pull request.
+    head = _commit(repo, {"README.md": "a"})
+    assert changes.changed_paths([]) == _all(True)
+    assert changes.main(["--base", head, "--head", head, "--event", "pull_request"]) == 0
+    assert capsys.readouterr().out.split() == [f"{area}=true" for area in AREAS]
+
+
+# [utest->req~ci-speed-change-detection~1]
 def test_outside_a_repository_runs_everything(changes, tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
@@ -195,13 +208,17 @@ def test_whole_repository_walks_see_ignored_paths(changes):
     assert changes.changed_paths(["frontend/e2e/deploy.yaml"])["gateway"] is True
 
 
-_CHAIN = re.compile(r'(?:REPO_ROOT|parents\[\d+\])((?:\s*/\s*"[^"]+")+)')
+# Any NAME ending in ROOT or REPO (REPO_ROOT, GATEWAY_ROOT, ROOT, REPO, _SCHEMAS_ROOT ...) followed by literal segments.
+_ROOT_NAME = r"\b\w*(?:ROOT|REPO)\b"
+_CHAIN = re.compile(rf'(?:{_ROOT_NAME}|parents\[\d+\])((?:\s*/\s*"[^"]+")+)')
+_JOIN = re.compile(rf'os\.path\.join\(\s*{_ROOT_NAME}((?:\s*,\s*"[^"]+")+)')
 
 
 def _gateway_reads() -> set[str]:
     reads: set[str] = set()
     for source in GATEWAY_TESTS.rglob("*.py"):
-        for match in _CHAIN.finditer(source.read_text(encoding="utf-8")):
+        text = source.read_text(encoding="utf-8")
+        for match in (*_CHAIN.finditer(text), *_JOIN.finditer(text)):
             parts = re.findall(r'"([^"]+)"', match.group(1))
             reads.add("/".join(part.strip("/") for part in parts))
     return reads
@@ -212,9 +229,46 @@ def test_every_path_the_gateway_tests_read_is_in_the_gateway_area(changes):
     reads = _gateway_reads()
     assert len(reads) > 20, "the regex found too few REPO_ROOT / ... reads"
     assert "openspec/changes/m09-compose-only/tasks.md" in reads
+    # alias chains and os.path.join are read as well
+    assert {"engines/minizinc-csp/src/index.ts", "space/prepare.sh", "schemas/general/schema.json"} <= reads
     for read in sorted(reads):
         for probe in (read, f"{read}/probe.txt"):
             assert changes.changed_paths([probe])["gateway"] is True, probe
+
+
+_WALK = re.compile(r"os\.walk\(|\.(?:rglob|glob|iglob)\(|\biglob\(")
+_REPO_NAME = re.compile(r"\b(?:REPO_ROOT|ROOT|REPO)\b")
+# Gateway tests that walk or glob a directory and name the repository root, with the paths they reach. The walk of
+# test_no_kubernetes is the only repository-wide one and has its own rule in tools/ci_changes.py; the others stay in
+# directories the area rules classify. A new entry needs its paths justified next to those rules.
+WALKING_TESTS = {
+    "integration/test_engine_representation_regression.py": "schemas/bim/v1/manifests, examples/federation",
+    "test_b2_resolve_urls.py": "frontend/src/routes",
+    "test_b5_corpus.py": "engine manifests",
+    "test_b5_open_ranges.py": "engine manifests, examples/federation",
+    "test_b8_range_refusal_pointer.py": "engine manifests",
+    "test_bim_consumer_contract.py": "bim-toolchain/contracts/consumers",
+    "test_bim_schema_parity.py": "schemas/bim/v1",
+    "test_compose_production.py": "a temporary secrets directory, not the repository",
+    "test_docker_context.py": "the sources of the Dockerfile COPY lines",
+    "test_no_file_relative_repo_paths.py": "the tests directory itself",
+    "test_no_kubernetes.py": "the whole repository: the kustomization rule of ci_changes.changed_paths",
+    "test_no_local_pricing.py": "space/, pricings/, experimentation/",
+    "test_no_local_space.py": "compose*.json at the root, deploy/",
+    "test_remote_cancel.py": "the gateway sources",
+    "test_v1_platform_contracts.py": "engine manifests",
+}
+
+
+def test_every_repository_walk_of_the_gateway_tests_is_justified():
+    walking = {
+        source.relative_to(GATEWAY_TESTS).as_posix()
+        for source in GATEWAY_TESTS.rglob("*.py")
+        if _WALK.search(text := source.read_text(encoding="utf-8")) and _REPO_NAME.search(text)
+    }
+    assert "test_no_kubernetes.py" in walking, "the walk detection found nothing"
+    unlisted = sorted(walking - set(WALKING_TESTS))
+    assert not unlisted, f"new walk or glob next to the repository root in {unlisted}: classify the paths it reaches in tools/ci_changes.py and list the test in WALKING_TESTS"
 
 
 def _needs(**jobs: str) -> str:
@@ -270,6 +324,25 @@ def test_required_fails_on_skipped_job_whose_area_is_true(required, monkeypatch,
     document["changes"]["outputs"][area] = "true"
     code, text = _run(required, json.dumps(document), monkeypatch, capsys)
     assert code == 1 and job in text
+
+
+# [utest->req~ci-speed-required-aggregate~1]
+@pytest.mark.parametrize("job", ["lab", "bim-corpus", "frontend", "a-new-job"])
+def test_required_fails_on_skipped_job_that_no_area_gates(required, monkeypatch, capsys, job):
+    # An always-on or unmapped job is never skipped legitimately, whatever the area outputs say.
+    code, text = _run(required, _needs(**{job: "skipped"}), monkeypatch, capsys)
+    assert code == 1 and job in text
+
+
+# [utest->req~ci-speed-required-aggregate~1]
+def test_job_area_map_is_the_one_of_the_workflow_conditions(required):
+    jobs = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))["jobs"]
+    gated = {}
+    for name, job in jobs.items():
+        match = re.fullmatch(r"needs\.changes\.outputs\.(\w+) == 'true'", str(job.get("if", "")))
+        if match:
+            gated[name] = match.group(1)
+    assert gated and required.JOB_AREA == gated, (required.JOB_AREA, gated)
 
 
 # [utest->req~ci-speed-required-aggregate~1]
