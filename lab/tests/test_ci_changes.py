@@ -97,6 +97,20 @@ def test_engines_and_bim_paths(changes):
 
 
 # [utest->req~ci-speed-change-detection~1]
+def test_files_the_bim_core_tests_compare_with_the_repository_run_the_bim_area(changes):
+    # test_boundary.py compares the root LICENSE and THIRD_PARTY_NOTICES.md with the bim-toolchain copies.
+    assert _only(changes.changed_paths(["LICENSE"]), "bim", "gateway")
+    assert _only(changes.changed_paths(["THIRD_PARTY_NOTICES.md"]), "bim", "gateway")
+    # ... and the vendored OMG BPMN XSD files with the gateway originals.
+    vendored = "openbinding-gateway/src/openbinding_gateway/v1/vendor/omg/bpmn/2.0.2/BPMN20.xsd"
+    assert _only(changes.changed_paths([vendored]), "bim", "gateway")
+    # The corpus tests discover every directory with an instance.json in the repository.
+    assert _only(changes.changed_paths(["pricings/new/instance.json"]), "bim", "gateway")
+    assert _only(changes.changed_paths(["docs/agent-work/x/instance.json"]), "bim", "gateway")
+    assert _only(changes.changed_paths(["README.md"]), "gateway")
+
+
+# [utest->req~ci-speed-change-detection~1]
 def test_unknown_path_runs_everything(changes):
     assert changes.changed_paths(["weird/file.xyz"]) == _all(True)
     assert changes.changed_paths([CHANGELOG, "weird/file.xyz"]) == _all(True)

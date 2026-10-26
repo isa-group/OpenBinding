@@ -27,7 +27,10 @@ Starting areas (S2 proves them with tests over intake section 1.3):
   `CONTRIBUTING.md:36-38`) and `frontend/**/*.md`.
 - `bim`: `bim-toolchain/**`, `examples/**`, `schemas/**`, `datasets/**`, `experimentation/**`, engine fixtures under
   `engines/**`, `tools/*bim*`, `openbinding-gateway/pyproject.toml`, `openbinding-gateway/uv.lock`,
-  `openbinding-gateway/tests/golden/**` (the bim-core tests read `golden/bim_baseline`).
+  `openbinding-gateway/tests/golden/**` (the bim-core tests read `golden/bim_baseline`), the root files `LICENSE` and
+  `THIRD_PARTY_NOTICES.md` (the bim-core boundary test compares them with the bim-toolchain copies), the vendored
+  OMG BPMN XSD files under `openbinding-gateway/src/openbinding_gateway/v1/vendor/omg/bpmn/` and any `instance.json`
+  (the corpus tests discover every package of the repository).
 - `engines`: `engines/**`, `schemas/bim/**`, `tools/check_bim_guard.py` (the guard itself runs in `bim-corpus`, which
   is always on because it scans the whole repository; its path in this list is harmless).
 - `gateway`: everything except `docs/agent-work/**`, `openspec/**`, root `*.md` that no test reads,
