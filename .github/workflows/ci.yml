@@ -7,10 +7,11 @@ on:
     branches: [ develop ]
   workflow_dispatch:
 
-# Only push runs share a group and cancel in progress; PR and manual runs get a group of their own.
+# A newer push run on the same ref, or pull_request run of the same pull request, cancels the older one;
+# manual runs get a group of their own by run id and are never cancelled.
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.event_name == 'push' && github.ref || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'push' }}
+  group: ci-${{ github.event_name }}-${{ github.event_name == 'push' && github.ref || github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 permissions:
   contents: read
@@ -125,6 +126,10 @@ jobs:
     if: needs.changes.outputs.bim == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [bim-core, bim-service, bim-client]
 
     steps:
       - name: Checkout code
@@ -149,19 +154,28 @@ jobs:
       - name: Restore the locked gateway environment with test dependencies
         run: uv sync --locked --project openbinding-gateway --extra test
 
-      # Two tests are deselected. Both are timing measurements that depend on the shared runner's
-      # CPU, not correctness tests: one asserts a throughput ratio (47.6% against a 50% bound), the
+      # Two tests of bim-service are deselected. Both are timing measurements that depend on the shared
+      # runner's CPU, not correctness tests: one asserts a throughput ratio (47.6% against a 50% bound), the
       # other is a strict xfail on GIL-switching latency that XPASSes on the runner. The toolchain's
       # own CI keeps running both. Nothing else is deselected:
       # packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval
       # packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]
       - name: Run the bim-toolchain package tests
+        if: matrix.package != 'bim-service'
         working-directory: bim-toolchain
         env:
           PYTHONPATH: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
-        run: ../openbinding-gateway/.venv/bin/python -m pytest -p no:cacheprovider --rootdir=. -rs packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests --deselect packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval --deselect 'packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]'
+        run: ../openbinding-gateway/.venv/bin/python -m pytest -p no:cacheprovider --rootdir=. -rs packages/${{ matrix.package }}/tests
+
+      - name: Run the bim-service tests without the two timing tests
+        if: matrix.package == 'bim-service'
+        working-directory: bim-toolchain
+        env:
+          PYTHONPATH: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
+        run: ../openbinding-gateway/.venv/bin/python -m pytest -p no:cacheprovider --rootdir=. -rs packages/${{ matrix.package }}/tests --deselect packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval --deselect 'packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]'
 
       - name: Check the bim-toolchain goldens
+        if: matrix.package == 'bim-core'
         working-directory: bim-toolchain
         env:
           PYTHONPATH: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src

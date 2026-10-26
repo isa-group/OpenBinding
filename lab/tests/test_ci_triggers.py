@@ -99,18 +99,35 @@ def test_triggers_leave_permissions_and_pull_request_unchanged():
     assert "on:\n  pull_request:\n    branches: [ main, develop ]\n" in text, "the pull_request block changed"
 
 
+def _concurrency_group(event: str, ref: str = "refs/heads/develop", pr: int | None = None, run_id: int = 1) -> str:
+    """Evaluate the ``group`` expression of ``ci.yml`` for one event (the expression is pinned literally below)."""
+    if event == "push":
+        key = ref
+    else:
+        key = pr or run_id  # `a && b || c || d`: a pull_request number when there is one, else the run id
+    return f"ci-{event}-{key}"
+
+
 # [utest->req~ci-develop-push-concurrency~1]
-def test_push_concurrency_cancels_only_push_runs():
+# [utest->req~ci-develop-push-concurrency~2]
+def test_concurrency_cancels_push_and_pull_request_runs_and_never_manual_ones():
     data = _ci()
     concurrency = data.get("concurrency")
     assert isinstance(concurrency, dict), f"ci.yml has no concurrency mapping: {concurrency!r}"
     assert set(concurrency) == {"group", "cancel-in-progress"}, sorted(concurrency)
     assert concurrency["group"] == (
-        "ci-${{ github.event_name }}-${{ github.event_name == 'push' && github.ref || github.run_id }}"
+        "ci-${{ github.event_name }}-${{ github.event_name == 'push' && github.ref || "
+        "github.event.pull_request.number || github.run_id }}"
     )
-    assert concurrency["cancel-in-progress"] == "${{ github.event_name == 'push' }}"
+    assert concurrency["cancel-in-progress"] == "${{ github.event_name != 'workflow_dispatch' }}"
     for name, job in data["jobs"].items():
         assert "concurrency" not in job, f"job {name!r} defines its own concurrency"
+    # scenarios, by evaluating the expression
+    assert _concurrency_group("push", run_id=1) == _concurrency_group("push", run_id=2) == "ci-push-refs/heads/develop"
+    assert _concurrency_group("pull_request", pr=61, run_id=1) == _concurrency_group("pull_request", pr=61, run_id=2)
+    assert _concurrency_group("pull_request", pr=61) != _concurrency_group("pull_request", pr=62)
+    assert _concurrency_group("workflow_dispatch", run_id=1) != _concurrency_group("workflow_dispatch", run_id=2)
+    assert _concurrency_group("workflow_dispatch", run_id=1) != _concurrency_group("push")
 
 
 # [utest->req~ci-develop-dispatch~1]
