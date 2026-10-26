@@ -5,6 +5,7 @@
       "date": "2026-10-25",
       "title": "OpenBinding platform",
       "changes": [
+        "Retire the report editor (M2.4 slice 2, ADR-0020) (#53)",
         "Accept retired addresses that redirect as valid web URLs (#54)",
         "Retire the decision-space workspace (M2.4 slice 1, ADR-0020) (#51)",
         "Make the costly request of the N2 process probe test deterministic (#52)",
@@ -95,10 +96,11 @@
   "documentation": [
     {
       "version": "0.1.0",
-      "date": "2026-10-25",
+      "date": "2026-10-26",
       "title": "OpenBinding documentation",
       "changes": [
-        "M24-retire-screens-2 plan and handoff",
+        "M24-retire-screens-3 plan and handoff",
+        "Retire the report editor (M2.4 slice 2, ADR-0020) (#53)",
         "Retire the decision-space workspace (M2.4 slice 1, ADR-0020) (#51)",
         "Make the costly request of the N2 process probe test deterministic (#52)",
         "Make the process probe timeout step independent of runner speed (#50)",
