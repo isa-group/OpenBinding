@@ -26,6 +26,14 @@ was built or run live; live evidence is a later slice.
   `v1.7.1` (never the tag), by owner decision of 24-10-2026; `mongo` and `redis` are pulled by digest.
 - UNVERIFIED for the built image: the `space-api` user `1000:1000` (the node user) and the statement that the slim image
   has no curl, hence a `node -e fetch` healthcheck. The `mongo` and `redis` official images run as `999:999`.
+- UNVERIFIED, the first live run must confirm that `space-python-client` 1.0.0 (used by `pricing-bootstrap` for contracts
+  and the MANAGEMENT key; it has its own HTTP client, unlike the tool's `httpx` client, which sets
+  `follow_redirects=False` and `trust_env=False`) follows no redirect off-host and reads no proxy variable.
+- UNVERIFIED, the first live run must confirm that the container environment of `pricing-bootstrap` holds no
+  `HTTP_PROXY`, `HTTPS_PROXY` or `ALL_PROXY` injected outside the manifest (for example by the Docker CLI config
+  `proxies`), checked with
+  `docker compose -f compose.lab-pricing.json run --rm --entrypoint env pricing-bootstrap`. The environment pinned in the
+  manifest covers only the variables written in it.
 
 Facts taken from the SPACE v1.7.1 source (medium confidence, lookup, not a running image):
 

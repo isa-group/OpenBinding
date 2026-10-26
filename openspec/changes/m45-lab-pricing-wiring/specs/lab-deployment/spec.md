@@ -38,7 +38,7 @@ Needs: impl, utest
 - **THEN** it passes for both
 - **AND** it fails for `registry.example/space-api:1.7.1` (tag only), `openbinding-lab/space-api:1.8.0`, a 63-digit digest and the retired marker `gap.invalid/space-api:1.7.1`
 
-Evidence: `openbinding-gateway/tests/test_no_local_space.py::test_other_manifests_have_no_local_space`; `openbinding-gateway/tests/test_no_local_space.py::test_no_manifest_defines_sphere`; `openbinding-gateway/tests/test_no_local_space.py::test_pricing_profile_defines_exactly_the_space_services`; `openbinding-gateway/tests/test_no_local_space.py::test_negative_control_local_space_is_detected`; `openbinding-gateway/tests/test_no_local_space.py::test_negative_control_extra_space_service_breaks_the_exact_set`; `openbinding-gateway/tests/test_no_local_space.py::test_negative_control_destructive_key_is_detected`; `openbinding-gateway/tests/test_no_local_space.py::test_negative_control_sphere_is_detected`; `openbinding-gateway/tests/test_no_local_space.py::test_negative_control_space_api_image_is_detected`; `openbinding-gateway/tests/test_no_local_space.py::test_negative_control_space_api_image_accepts_built_image_and_digest`; `openbinding-gateway/tests/test_no_local_space.py::test_no_space_services_or_profile`
+Evidence: `openbinding-gateway/tests/test_no_local_space.py::test_other_manifests_have_no_local_space`; `openbinding-gateway/tests/test_no_local_space.py::test_no_manifest_defines_sphere`; `openbinding-gateway/tests/test_no_local_space.py::test_pricing_profile_defines_exactly_the_space_services`; `openbinding-gateway/tests/test_no_local_space.py::test_negative_control_local_space_is_detected`; `openbinding-gateway/tests/test_no_local_space.py::test_negative_control_extra_space_service_breaks_the_exact_set`; `openbinding-gateway/tests/test_no_local_space.py::test_negative_control_bootstrap_is_not_a_space_service_unless_renamed`; `openbinding-gateway/tests/test_no_local_space.py::test_negative_control_destructive_key_is_detected`; `openbinding-gateway/tests/test_no_local_space.py::test_negative_control_sphere_is_detected`; `openbinding-gateway/tests/test_no_local_space.py::test_negative_control_space_api_image_is_detected`; `openbinding-gateway/tests/test_no_local_space.py::test_negative_control_space_api_image_accepts_built_image_and_digest`; `openbinding-gateway/tests/test_no_local_space.py::test_no_space_services_or_profile`
 
 Every other manifest means `docker-compose.yml`, `compose.lab.json` and the other `compose.lab*.json` profiles, `compose.pgtest.json` and `deploy/**`. Remote services are configured by environment. The volumes of the pricing profile are named `lab-pricing-*` (checked by `test_pricing_profile_defines_exactly_the_space_services`; their exact set is `req~lab-deployment-pricing-profile-isolated~2`). `pricing-bootstrap` is not a SPACE service: its name has no `space` element and its image does not name `space-api`. The marker `gap.invalid/space-api:1.7.1` of revision 2 is no longer accepted.
 
@@ -141,7 +141,7 @@ Needs: impl, utest
 - **WHEN** the runbook parser reads them
 - **THEN** it returns no verified reference
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_pinned_images_match_the_runbook`; `lab/tests/test_lab_pricing_profile.py::test_built_images_follow_the_allow_list`; `lab/tests/test_lab_pricing_profile.py::test_runbook_has_no_gap_and_documents_the_wiring`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_unpinned_images`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_an_unverified_space_api_version`; `lab/tests/test_lab_pricing_profile.py::test_control_runbook_parsers_refuse_malformed_text`
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_pinned_images_match_the_runbook`; `lab/tests/test_lab_pricing_profile.py::test_built_images_follow_the_allow_list`; `lab/tests/test_lab_pricing_profile.py::test_runbook_has_no_gap_and_documents_the_wiring`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_unpinned_images`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_wrong_builds`; `lab/tests/test_lab_pricing_profile.py::test_control_accepts_built_images_outside_the_verified_list`; `lab/tests/test_lab_pricing_profile.py::test_control_runbook_rule_refuses_a_gap_and_a_wrong_wiring`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_an_unverified_space_api_version`; `lab/tests/test_lab_pricing_profile.py::test_control_runbook_parsers_refuse_malformed_text`
 
 The verified list holds only `mongo:7.0.16` `sha256:c630c59342c1493d50345136df2af14a76b9e827dd5316bfabee07a0880a5f3a` and `redis:7.4.2` `sha256:fbdbaea47b9ae4ecc2082ecdb4e1cea81e32176ffb1dcf643d422ad07427e5d9`, verified on 2026-10-24 against Docker Hub. Built images have no registry digest and are never on that list. `lab/space/Dockerfile` builds SPACE from the commit `ef4dc8949435d998e2aff525226e3fcc85e2f7ba` of tag `v1.7.1` (owner answer to `crp-openbinding-m41-space-image-and-16-1`, 24-10-2026; `req~lab-space-image-pinned-commit~1` of change `m41-space-bootstrap`). The three base-image digests of `lab/space/Dockerfile` and `lab/tools/Dockerfile` stay UNVERIFIED in the runbook until the first lab build.
 
@@ -212,7 +212,7 @@ Needs: impl, utest
 - **WHEN** the static checks run
 - **THEN** they fail, because the gid must be numeric and non-zero, the only volumes are the named `lab-pricing-mongo` and `lab-pricing-redis` declared with labels only, and no top-level `networks` is declared
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_isolated_services`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_non_isolated_profile`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_keys_outside_the_allow_list`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_bind_networks_socket_and_bad_gid`
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_isolated_services`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_non_isolated_profile`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_keys_outside_the_allow_list`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_bind_networks_socket_and_bad_gid`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_extra_build_keys`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_restart_on_another_service_or_value`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_volume_and_user_variants`
 
 The manifest carries no `cap_drop`, `read_only` or `security_opt`: the lab supervisor drops every capability for all lab projects, and `compose.lab.json` does not state it either. Which services may carry `build`, and with which values, is `req~lab-deployment-pricing-profile-pinned-images~2`.
 
@@ -252,7 +252,7 @@ Needs: impl, utest
 - **WHEN** the static checks run
 - **THEN** they fail
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_secret_references_are_bare_and_documented`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_defaulted_or_literal_secrets`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_unbraced_or_swapped_secret_references` (also covers `MONGO_URI` pinned to its full literal)
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_secret_references_are_bare_and_documented`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_defaulted_or_literal_secrets`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_unbraced_or_swapped_secret_references` (also covers `MONGO_URI` pinned to its full literal); `lab/tests/test_lab_pricing_profile.py::test_control_pins_the_admin_password_to_its_two_places`
 
 `${DEMO_SPACE_JWT_SECRET}` and `${DEMO_SPACE_JWT_SALT}` appear once (`space-api`), `${DEMO_SPACE_MONGO_PASSWORD}` twice (`space-mongo` and the `MONGO_URI` of `space-api`), as in revision 1.
 
@@ -282,13 +282,13 @@ Needs: impl, utest
 - **WHEN** the static checks run
 - **THEN** they fail
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_start_order_waits_for_healthy_databases`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_started_only_dependency`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_service_without_a_healthcheck`
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_start_order_waits_for_healthy_databases`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_started_only_dependency`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_service_without_a_healthcheck`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_bootstrap_started_too_early`; `lab/tests/test_lab_pricing_profile.py::test_control_exempts_the_one_shot_from_the_healthcheck_rule`
 
 ## ADDED Requirements
 
 ### Requirement: Pinned environment of the bootstrap service
 `req~lab-deployment-pricing-profile-bootstrap-environment~1`
-THE `pricing-bootstrap` service of the pricing profile SHALL have exactly the environment `SPACE_URL=http://space-api:3000`, `SPACE_ADMIN_USER=lab-space-admin` and `SPACE_ADMIN_PASSWORD=${DEMO_SPACE_ADMIN_PASSWORD}`, and no other key.
+THE `pricing-bootstrap` service of the pricing profile SHALL have exactly the environment `SPACE_URL=http://space-api:3000`, `SPACE_ADMIN_USER=lab-space-admin` and `SPACE_ADMIN_PASSWORD=${DEMO_SPACE_ADMIN_PASSWORD}`, and no other key, and its service keys SHALL be exactly `image`, `build`, `user`, `restart`, `environment`, `mem_limit` and `depends_on`.
 
 Needs: impl, utest
 
@@ -307,6 +307,11 @@ Needs: impl, utest
 - **WHEN** the static checks run
 - **THEN** they fail
 
-Evidence: `lab/tests/test_lab_pricing_profile.py::test_bootstrap_surface_is_pinned`
+#### Scenario: Bootstrap with a healthcheck, a volume or a command
+- **GIVEN** `pricing-bootstrap` with an added `healthcheck`, a `volumes` entry (for example the `lab-pricing-mongo` mount) or a `command`
+- **WHEN** the static checks run
+- **THEN** they fail, because its service keys are exactly the seven above
+
+Evidence: `lab/tests/test_lab_pricing_profile.py::test_bootstrap_surface_is_pinned`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_changed_bootstrap_surface`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_a_missing_bootstrap_service`; `lab/tests/test_lab_pricing_profile.py::test_control_refuses_extra_bootstrap_keys`
 
 No other key excludes the proxy variables `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` and `NO_PROXY` (any case), `SPHERE_API_KEY` and `SPACE_BOOTSTRAP_PLAN` (the tool default `FREE` applies; per-user plans are an open point of design.md §3). The bootstrap tool itself is specified by change `m41-space-bootstrap`.

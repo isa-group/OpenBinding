@@ -51,6 +51,8 @@ PINNED_REFERENCES = {
 }
 PINNED_OWNER = {"MONGO_INITDB_ROOT_PASSWORD": "space-mongo",
                 "SPACE_ADMIN_PASSWORD": "pricing-bootstrap"}  # the others belong to space-api
+DESTRUCTIVE_KEY = "SPACE_" + "DESTRUCTIVE_API_KEY"  # assembled so a repository-wide search does not find it here
+BOOTSTRAP_KEYS = {"image", "build", "user", "restart", "environment", "mem_limit", "depends_on"}
 MONGO_PASSWORD_REFERENCE = "${DEMO_SPACE_MONGO_PASSWORD}"
 ADMIN_PASSWORD_REFERENCE = "${DEMO_SPACE_ADMIN_PASSWORD}"
 ALLOWED_HOSTS = {*LONG_RUNNING, "sphere.score.us.es", "127.0.0.1"}
@@ -157,6 +159,8 @@ def rule_isolated(manifest: dict) -> str | None:
         return "volumes must be the two named ones, with labels only"
     if any(".sock" in s for s in rules._strings(manifest)):
         return "a socket is mounted"
+    if DESTRUCTIVE_KEY in json.dumps(manifest):
+        return "the destructive key is named"
     for name, service in manifest["services"].items():
         for key in ("ports", "expose", "networks", "network_mode", "tmpfs", *rules.FORBIDDEN_SERVICE_KEYS):
             if key in service:
@@ -287,6 +291,8 @@ def rule_bootstrap_surface(manifest: dict) -> str | None:
     service = manifest["services"].get("pricing-bootstrap")
     if service is None:
         return "pricing-bootstrap is missing"
+    if set(service) != BOOTSTRAP_KEYS:
+        return f"pricing-bootstrap service keys differ from the pinned ones: {sorted(set(service) ^ BOOTSTRAP_KEYS)}"
     env = rules._env(service)
     if env != BOOTSTRAP_ENV:
         return f"pricing-bootstrap environment differs from the pinned one: {sorted(set(env.items()) ^ set(BOOTSTRAP_ENV.items()))}"
@@ -825,6 +831,24 @@ def test_control_pins_the_admin_password_to_its_two_places():
     assert "wrong reference" in _check_secrets(swapped)
 
 
+def _extra_volume(m): m["volumes"]["lab-pricing-extra"] = {"labels": {"profile": "pricing"}}
+def _missing_volume(m): del m["volumes"]["lab-pricing-redis"]
+def _wrong_target(m): _api(m)["volumes"] = [{"type": "volume", "source": "lab-pricing-mongo", "target": "/etc"}]
+def _no_user(m): del _api(m)["user"]
+def _user_gid_only(m): _api(m)["user"] = "0:1000"
+def _destructive_value(m): _env_of(m)["ADMIN_USER"] = DESTRUCTIVE_KEY
+
+
+@pytest.mark.parametrize("mutate", [_extra_volume, _missing_volume, _wrong_target, _no_user, _user_gid_only,
+                                    _destructive_value],
+                         ids=lambda f: f.__name__)
+def test_control_refuses_volume_and_user_variants(mutate):
+    # [utest->req~lab-deployment-pricing-profile-isolated~2]
+    manifest = sample()
+    mutate(manifest)
+    assert rule_isolated(manifest)
+
+
 def test_control_refuses_a_started_only_dependency():
     # [utest->req~lab-deployment-pricing-profile-start-order~2]
     manifest = sample()
@@ -872,6 +896,19 @@ def test_control_refuses_a_changed_bootstrap_surface(mutate):
     manifest = sample()
     mutate(manifest)
     assert "pinned" in rule_bootstrap_surface(manifest)
+
+
+def _boot_healthcheck(m): _boot(m)["healthcheck"] = {"test": ["CMD", "true"]}
+def _boot_volumes(m): _boot(m)["volumes"] = [{"type": "volume", "source": "lab-pricing-mongo", "target": "/data/db"}]
+def _boot_command(m): _boot(m)["command"] = ["sh", "-c", "true"]
+
+
+@pytest.mark.parametrize("mutate", [_boot_healthcheck, _boot_volumes, _boot_command], ids=lambda f: f.__name__)
+def test_control_refuses_extra_bootstrap_keys(mutate):
+    # [utest->req~lab-deployment-pricing-profile-bootstrap-environment~1]
+    manifest = sample()
+    mutate(manifest)
+    assert "service keys" in rule_bootstrap_surface(manifest)
 
 
 def test_control_refuses_a_missing_bootstrap_service():

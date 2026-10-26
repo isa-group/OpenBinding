@@ -49,6 +49,7 @@ image without `space-api`), so the exact SPACE set stays three.
 | F1 | `lab_compose file=compose.lab-pricing.json`, and the validator accepting `build` and `restart` | factory follow-up; until it lands no slice is accepted live |
 | F2 | `--running` accounting of the pricing project (1088 MiB) in preview admission | factory follow-up |
 | R1 | First live build: image users (`1000:1000` in both Dockerfiles), the three base digests, the `space-api` healthcheck (`node -e fetch`) | first lab build; then the base digests may move to the verified list |
+| R2 | `space-python-client` 1.0.0 follows no off-host redirect and reads no proxy variable; the `pricing-bootstrap` container holds no `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY` injected outside the manifest (Docker CLI config `proxies`) | first live run, UNVERIFIED (runbook); the manifest env pin covers only variables written in the manifest |
 | R6 | Old base images (`node:21.1` end of life, `python:3.12.8`) and redis/mongo advisories | owner accepts the lab-only risk or bumps by verified digest |
 
 ## 4. Files outside this change that stay untouched
