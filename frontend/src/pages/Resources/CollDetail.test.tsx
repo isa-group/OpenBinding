@@ -70,8 +70,9 @@ describe('Collection detail', () => {
     expect(within(rows[0]).getByText('Case')).toBeInTheDocument();
     expect(within(rows[0]).getByRole('button', { name: 'Copy fingerprint of Flujo de checkout · revision 1' })).toHaveTextContent('sha256-1111…1111');
     expect(within(rows[1]).getByRole('link', { name: 'Flujo de checkout · revision 2' })).toBeInTheDocument();
-    // [utest->req~frontend-retire-library-no-link~1]
+    // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(within(rows[2]).queryByRole('link')).toBeNull();
+    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(library|resources)([/?#]|$)/);
     expect(within(rows[2]).getByText('Weights · revision 1')).toBeInTheDocument();
     expect(within(rows[2]).getByText('Resource')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Start a study from this' })).toHaveAttribute('href', `${root}/studies/new?collection=referencias-checkout`);
@@ -87,6 +88,7 @@ describe('Collection detail', () => {
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'Collections' })).toHaveAttribute('href', `${root}/collections`);
     expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Collections' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('navigation', { name: 'Library sections' })).toBeNull();
   });
 
   it('reorders the items and saves them as the next revision', async () => {

@@ -156,9 +156,22 @@ describe('Case revision', () => {
     await waitFor(() => expect(section).toHaveTextContent('Published'));
     expect(section).toHaveTextContent('providers-eu v3');
     expect(section).toHaveTextContent('Not published');
-    expect(section).not.toHaveTextContent('open in library');
+    expect(section.textContent).not.toMatch(/open in library/i);
     expect(within(section).queryAllByRole('link')).toEqual([]);
     expect(cases.resolveVersion).toHaveBeenCalledWith(catalog3);
+  });
+
+  // [utest->req~frontend-retire-library-entry-points-removed~1]
+  it('says a withdrawn resource is withdrawn, still without a link to the library', async () => {
+    cases.resolveVersion.mockImplementation(async (ref: ReturnType<typeof refOf>) => versionOf(ref, `artifact-${ref.name}`, { withdrawn: ref.name === 'providers-eu' }));
+    renderRevision();
+
+    const section = await screen.findByRole('region', { name: 'Resources it’s built from' });
+    await waitFor(() => expect(section).toHaveTextContent('Withdrawn'));
+    const card = within(section).getAllByRole('listitem').find((item) => item.textContent?.includes('providers-eu v3'));
+    expect(card?.textContent).toContain('Withdrawn');
+    expect(within(section).queryAllByRole('link')).toEqual([]);
+    expect(section.textContent).not.toMatch(/open in library/i);
   });
 
   it('copies the exact reference', async () => {

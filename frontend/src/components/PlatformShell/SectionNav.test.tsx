@@ -171,6 +171,7 @@ describe('ProjectTabs', () => {
 
   describe('for someone who reads a public project without being a member', () => {
     // [utest->req~frontend-retire-reports-navigation~1]
+    // [utest->req~frontend-retire-library-navigation~1]
     it('drops the tabs only members can open and says the project is read-only, and still shows Publications', () => {
       render(<MemoryRouter><ProjectTabs orgSlug="open" projectSlug="qos" access="public_read" /></MemoryRouter>);
 

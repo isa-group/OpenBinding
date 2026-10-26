@@ -295,15 +295,20 @@ describe('the redirect of a retired address', () => {
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/account$/));
     first.unmount();
 
-    const old = '/app/acme/demo/resources/r1';
-    const signedOut = renderAt([old], null);
-    expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(/^\/login/);
-    expect(screen.getByTestId('from').textContent).toBe(old);
-    signedOut.unmount();
+    for (const [old, target] of [
+      ['/app/acme/demo/resources/r1', '/app/acme/demo/collections'],
+      ['/app/isa-demo/library/checkout-engines/drafts/d-1', '/app/isa-demo'],
+    ]) {
+      const signedOut = renderAt([old], null);
+      expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
+      expect(screen.getByTestId('location')).toHaveTextContent(/^\/login/);
+      expect(screen.getByTestId('from').textContent).toBe(old);
+      signedOut.unmount();
 
-    renderAt([old]);
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/acme/demo/collections'));
+      const signedIn = renderAt([old]);
+      await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(target));
+      signedIn.unmount();
+    }
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]
