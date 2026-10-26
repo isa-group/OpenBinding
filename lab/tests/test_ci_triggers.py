@@ -86,7 +86,7 @@ def test_job_conditions_read_only_the_change_outputs():
     jobs = _ci()["jobs"]
     gated = {name: AREA_IF.fullmatch(job["if"]).group(1) for name, job in jobs.items()
              if name != "ci-required" and "if" in job}
-    assert gated == {"bim-toolchain": "bim", "engines": "engines", "test": "gateway", "frontend-e2e": "e2e"}, gated
+    assert gated == {"bim-toolchain": "bim", "engines": "engines", "gateway-unit": "gateway", "test": "gateway", "frontend-e2e": "e2e"}, gated
     _check_job_ifs(jobs)
 
 

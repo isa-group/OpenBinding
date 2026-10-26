@@ -44,7 +44,7 @@ jobs:
   # [impl->req~ci-speed-required-aggregate~1]
   # The one check to require in branch protection: a skipped area passes, a failed or cancelled job does not.
   ci-required:
-    needs: [changes, bim-corpus, bim-toolchain, lab, openspec, trace, engines, test, frontend, frontend-e2e]
+    needs: [changes, bim-corpus, bim-toolchain, lab, openspec, trace, engines, gateway-unit, test, frontend, frontend-e2e]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -311,6 +311,59 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm test
 
+  # [impl->req~ci-speed-gateway-unit-shards~1]
+  # Runs what `test` ran in the gateway image (pytest in openbinding-gateway, marker
+  # 'not integration'), natively, in two shards.
+  gateway-unit:
+    needs: changes
+    if: needs.changes.outputs.gateway == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download the OMG BPMN XSDs and verify them
+        run: python3 bim-toolchain/tools/xsd_inventory.py --ensure
+
+      - name: Materialize the ICSOC source dataset
+        run: |
+          if git ls-remote --exit-code origin refs/heads/data/icsoc-original-dataset >/dev/null; then
+            git fetch --depth=1 origin data/icsoc-original-dataset
+            git archive FETCH_HEAD experimentation/icsoc/original_dataset | tar -x
+          else
+            echo "::warning::data/icsoc-original-dataset not found; ICSOC dataset tests will be skipped"
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.8.14'
+          enable-cache: true
+          cache-dependency-glob: openbinding-gateway/uv.lock
+
+      - name: Restore the locked gateway environment with test dependencies
+        run: uv sync --locked --project openbinding-gateway --extra test
+
+      - name: Run unit tests (shard ${{ matrix.shard }}/2)
+        working-directory: openbinding-gateway
+        env:
+          OPENBINDING_REPO_ROOT: ${{ github.workspace }}
+        run: |
+          files="$(python3 ../tools/ci_shard.py --shard ${{ matrix.shard }}/2 --root openbinding-gateway/tests)"
+          test -n "$files"
+          .venv/bin/python -m pytest -p no:cacheprovider ${files//openbinding-gateway\//}
+
   test:
     needs: changes
     if: needs.changes.outputs.gateway == 'true'
@@ -370,11 +423,6 @@ jobs:
         # compose does not start it unless it is named; without it every job
         # stays queued and the integration tests time out.
         run: docker compose up --build -d --wait gateway-dev worker-dev engine-multi-heuristic
-
-      - name: Run unit tests
-        # The tests that need the whole checkout read it from the read-only
-        # /workspace mount; `test` is a wrapper around pytest, so the variable passes through.
-        run: docker compose exec -T -e OPENBINDING_REPO_ROOT=/workspace gateway-dev test
 
       - name: Run ICSOC generator tests
         run: docker compose exec -T gateway-dev env PYTHONPATH=/app:/app/src pytest /app/experimentation/icsoc/generator/tests

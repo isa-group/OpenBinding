@@ -648,6 +648,56 @@ def test_frontend_job_no_longer_runs_the_mocked_project():
     assert "frontend-e2e" in _job("ci-required")["needs"]
 
 
+# [utest->req~ci-speed-gateway-unit-shards~1]
+def test_gateway_unit_job_runs_the_unit_suite_natively_in_two_shards():
+    job = _job("gateway-unit")
+    assert job.get("needs") in ("changes", ["changes"]), job.get("needs")
+    assert job.get("if") == "needs.changes.outputs.gateway == 'true'"
+    assert job["runs-on"] == "ubuntu-latest"
+    assert job.get("timeout-minutes") == 30
+    strategy = job.get("strategy")
+    assert isinstance(strategy, dict) and strategy.get("fail-fast") is False, strategy
+    assert strategy.get("matrix") == {"shard": [1, 2]}, strategy.get("matrix")
+    steps = job["steps"]
+    assert any(s.get("uses") == "actions/checkout@v4" for s in steps), "no checkout step"
+    assert _setup(job, "actions/setup-python@v5").get("python-version") == "3.11"
+    uv = _setup(job, "astral-sh/setup-uv@v6")
+    assert uv.get("version") == "0.8.14" and uv.get("enable-cache") is True
+    assert uv.get("cache-dependency-glob") == "openbinding-gateway/uv.lock"
+    sync = _step(job, "uv sync")
+    assert sync["run"].strip() == "uv sync --locked --project openbinding-gateway --extra test"
+
+    pytest_step = steps[-1]
+    assert pytest_step.get("name") == "Run unit tests (shard ${{ matrix.shard }}/2)"
+    assert pytest_step.get("working-directory") == "openbinding-gateway"
+    assert pytest_step.get("env") == {"OPENBINDING_REPO_ROOT": "${{ github.workspace }}"}
+    assert pytest_step["run"].strip() == (
+        'files="$(python3 ../tools/ci_shard.py --shard ${{ matrix.shard }}/2 --root openbinding-gateway/tests)"\n'
+        "test -n \"$files\"\n"
+        ".venv/bin/python -m pytest -p no:cacheprovider ${files//openbinding-gateway\\//}"
+    )
+    assert "if" not in pytest_step and "shell" not in pytest_step
+    xsd = _step(job, "xsd_inventory.py --ensure")
+    icsoc = _step(job, "data/icsoc-original-dataset")
+    for before in (xsd, icsoc, sync):
+        assert steps.index(before) < steps.index(pytest_step)
+    for step in steps:
+        assert "continue-on-error" not in step, step.get("name")
+    assert "continue-on-error" not in job
+    assert "docker" not in yaml.safe_dump(job)
+    assert "gateway-unit" in _job("ci-required")["needs"]
+
+
+# [utest->req~ci-speed-gateway-unit-shards~1]
+def test_test_job_no_longer_runs_the_unit_tests_but_keeps_the_rest():
+    job = _job("test")
+    names = [s.get("name") for s in job["steps"]]
+    assert "Run unit tests" not in names
+    for kept in ("Build and start services", "Run ICSOC generator tests", "Check the OpenAPI snapshot is current",
+                 "Run integration tests", "Show service logs on failure", "Shutdown services"):
+        assert kept in names, f"job test lost the step {kept!r}"
+
+
 # [utest->req~gate-tooling-acceptance-docs~1]
 def test_acceptance_docs_name_runners_and_writer():
     testing = _read(ROOT / "TESTING.md")
