@@ -116,8 +116,14 @@ locally and they are administered in their native UIs:
 
 ```bash
 docker compose --profile dev up -d --build     # development
-docker compose --profile prod up -d --build    # production images behind nginx
+docker compose --profile prod up -d --build    # production-like local build behind nginx
 ```
+
+The `prod` profile builds the images from the checkout and pins nothing: it is a
+production-like local build, not a deployment. Production uses the digest-pinned
+definition in `deploy/compose/production/` and is operated with
+[`docs/runbooks/production.md`](docs/runbooks/production.md); only the owner
+orders a production deployment.
 
 `docker-compose.yml` defines the profiles `dev`, `prod`, `db-tools` (Adminer),
 `federated-example` and `benchmark`. `dev` and `prod` start PostgreSQL, Redis,
