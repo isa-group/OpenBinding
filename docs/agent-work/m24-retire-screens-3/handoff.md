@@ -1,0 +1,1 @@
+All four tasks integrated (frontend/src eeece375, e2e+gateway test+ROADMAP 4ad63993, OpenSpec 4d4eba5f, cleanup f797a4ef with stub deletion via rm checks). Next: checkpoint commit, push to feat/m24-retire-library-resources, open PR into develop, follow CI (gateway test_b2_resolve_urls and openspec validate never ran in lab), then panel (reviewer + test-reviewer), ready.
