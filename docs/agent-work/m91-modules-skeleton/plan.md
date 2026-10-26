@@ -1,0 +1,1 @@
+S0 integrated (head c26e2212). S1 and S3 built but blocked only on pre-existing ruff findings (23, other test files); redo each with ruff scoped to its own files. Retry guard needs a diagnosis task first (437b1fa6 explorer). Then S1/S3 redo (replaces), S4 docs, push, PR, panel.
