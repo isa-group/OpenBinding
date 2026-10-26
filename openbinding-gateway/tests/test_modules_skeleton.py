@@ -60,9 +60,9 @@ def _is_new(name: str) -> bool:
     return any(name == f"{PACKAGE}.{p}" or name.startswith(f"{PACKAGE}.{p}.") for p in NEW_PACKAGES)
 
 
-def _imported_modules(path: Path) -> list[str]:
-    """Every module a file imports, absolute and relative, at any nesting level."""
-    parts = list(path.relative_to(SOURCE.parent).with_suffix("").parts)
+def _imported_modules(path: Path, root: Path) -> list[str]:
+    """Every module a file imports, absolute and relative, at any nesting level; ``root`` is the package dir."""
+    parts = list(path.relative_to(root.parent).with_suffix("").parts)
     package = parts[:-1]
     found: list[str] = []
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
@@ -83,9 +83,23 @@ def _imported_modules(path: Path) -> list[str]:
     return found
 
 
+def _offenders(root: Path) -> list[str]:
+    """Files outside the new packages that import them, as ``relative path: module``."""
+    offenders = []
+    for path in sorted(root.rglob("*.py")):
+        if path.relative_to(root).parts[0] in NEW_PACKAGES:
+            continue
+        relative = path.relative_to(root).as_posix()
+        offenders.extend(f"{relative}: {m}" for m in _imported_modules(path, root) if _is_new(m))
+    return offenders
+
+
 def test_new_packages_exist_with_docstring_only_init() -> None:
     for name in NEW_PACKAGES:
-        init = SOURCE / name / "__init__.py"
+        directory = SOURCE / name
+        entries = sorted(p.name for p in directory.iterdir() if p.name != "__pycache__")
+        assert entries == ["__init__.py"], f"{directory} must hold exactly __init__.py, found {entries}"
+        init = directory / "__init__.py"
         assert init.is_file(), f"{init} is missing"
         body = ast.parse(init.read_text(encoding="utf-8")).body
         assert len(body) == 1, f"{init} must hold only a docstring"
@@ -105,17 +119,41 @@ def test_composition_root_keeps_its_entry_point() -> None:
     main = importlib.import_module(f"{PACKAGE}.main")
     new_app = importlib.import_module(f"{PACKAGE}.app")
     assert isinstance(main.app, FastAPI)
-    assert new_app is not main.app
     assert Path(new_app.__file__).parent.name == "app"
 
 
 def test_nothing_outside_the_new_packages_imports_them() -> None:
-    offenders = []
-    for path in sorted(SOURCE.rglob("*.py")):
-        if path.relative_to(SOURCE).parts[0] in NEW_PACKAGES:
-            continue
-        offenders.extend(f"{path.relative_to(SOURCE)}: {m}" for m in _imported_modules(path) if _is_new(m))
+    offenders = _offenders(SOURCE)
     assert not offenders, offenders
+
+
+def test_import_resolver_finds_every_import_form(tmp_path: Path) -> None:
+    root = tmp_path / PACKAGE
+    (root / "sub").mkdir(parents=True)
+    files = {
+        "absolute.py": "from openbinding_gateway import app\n",
+        "rel1.py": "from . import shared\n",
+        "alias.py": "import openbinding_gateway.app as x\n",
+        "nested.py": "def f():\n    if True:\n        from openbinding_gateway.modules import plans\n",
+        "conditional.py": "try:\n    import openbinding_gateway.shared\nexcept ImportError:\n    pass\n",
+        "clean.py": "import os\nfrom . import core\nfrom .. import modules\n",
+        "sub/rel2.py": "from .. import modules\n",
+        "sub/local.py": "from . import shared\n",
+        "sub/rel2_from.py": "from ..app import factory\n",
+    }
+    for name, source in files.items():
+        (root / name).write_text(source, encoding="utf-8")
+    assert _offenders(root) == [
+        "absolute.py: openbinding_gateway.app",
+        "alias.py: openbinding_gateway.app",
+        "conditional.py: openbinding_gateway.shared",
+        "nested.py: openbinding_gateway.modules",
+        "nested.py: openbinding_gateway.modules.plans",
+        "rel1.py: openbinding_gateway.shared",
+        "sub/rel2.py: openbinding_gateway.modules",
+        "sub/rel2_from.py: openbinding_gateway.app",
+        "sub/rel2_from.py: openbinding_gateway.app.factory",
+    ]
 
 
 def test_modules_ini_header_and_contract_set() -> None:
@@ -189,7 +227,10 @@ _PLANTED = {
 def test_every_contract_breaks_on_a_planted_violation(tmp_path: Path) -> None:
     lint_imports = Path(sys.executable).parent / "lint-imports"
     if not lint_imports.is_file():
-        pytest.skip("lint-imports is not installed (lint dependency group)")
+        pytest.skip(
+            "lint-imports is not installed (lint dependency group); CI syncs only --extra test, "
+            "so the blocking CI step S2 must run this test with --group lint"
+        )
     assert set(_PLANTED) == CONTRACTS
     copy = tmp_path / PACKAGE
     shutil.copytree(SOURCE, copy, ignore=shutil.ignore_patterns("__pycache__"))
@@ -198,17 +239,22 @@ def test_every_contract_breaks_on_a_planted_violation(tmp_path: Path) -> None:
             package = copy / "modules" / module / layer
             package.mkdir(parents=True, exist_ok=True)
             (package / "__init__.py").write_text("", encoding="utf-8")
+
+    def run() -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [str(lint_imports), "--no-cache", "--config", str(MODULES_INI)],
+            cwd=tmp_path,
+            env={**os.environ, "PYTHONPATH": str(tmp_path)},
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    clean = run()
+    assert "Contracts: 6 kept, 0 broken" in clean.stdout + clean.stderr, clean.stdout + clean.stderr
     for relative, source in _PLANTED.values():
         (copy / relative).write_text(source, encoding="utf-8")
-    env = {**os.environ, "PYTHONPATH": str(tmp_path)}
-    result = subprocess.run(
-        [str(lint_imports), "--no-cache", "--config", str(MODULES_INI)],
-        cwd=tmp_path,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = run()
     output = result.stdout + result.stderr
     assert re.search(r"Contracts: 0 kept, 6 broken", output), output
     for title in re.findall(r"^name = (.+)$", MODULES_INI.read_text(encoding="utf-8"), re.MULTILINE):
