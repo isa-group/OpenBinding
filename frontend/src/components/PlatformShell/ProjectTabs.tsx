@@ -5,7 +5,7 @@ import type { ProjectAccessKind } from '../../api/platform';
 import { canOpenSection, levelOf } from '../../utils/accessLevel';
 import './SectionNav.css';
 
-export type ProjectSection = 'overview' | 'cases' | 'library' | 'jobs' | 'studies' | 'reports' | 'files' | 'package' | 'settings';
+export type ProjectSection = 'overview' | 'cases' | 'library' | 'jobs' | 'studies' | 'publications' | 'files' | 'package' | 'settings';
 
 interface ProjectTabsProps {
   active?: ProjectSection;
@@ -15,13 +15,14 @@ interface ProjectTabsProps {
   access?: ProjectAccessKind;
 }
 
+// [impl->req~frontend-retire-reports-navigation~1]
 const tabs: ReadonlyArray<{ key: ProjectSection; label: string; suffix: string }> = [
   { key: 'overview', label: 'Overview', suffix: '' },
   { key: 'cases', label: 'Cases', suffix: '/cases' },
   { key: 'library', label: 'Library', suffix: '/library' },
   { key: 'jobs', label: 'Jobs', suffix: '/jobs' },
   { key: 'studies', label: 'Studies', suffix: '/studies' },
-  { key: 'reports', label: 'Reports', suffix: '/reports' },
+  { key: 'publications', label: 'Publications', suffix: '/publications' },
   { key: 'files', label: 'Files', suffix: '/files' },
 ];
 

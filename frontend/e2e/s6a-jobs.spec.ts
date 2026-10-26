@@ -382,7 +382,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'random-search run' })).toBeVisible();
       await expect(main.getByText('Feasible: meets every must-hold rule')).toBeVisible();
       await expect(main.getByText(/launched Sep 30, 2026, 09:00 UTC by you · case Flujo de checkout/)).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Analyze' })).toHaveAttribute('href', '/app/analysis/workspace?job=job-feasible-1');
+      await expect(main.getByRole('link', { name: 'Analyze' })).toHaveCount(0);
       await expect(main.getByRole('region', { name: 'Timeline' }).getByText('Finished · not live')).toBeVisible();
       const settings = main.getByRole('region', { name: 'Settings asked and used' });
       await expect(settings.getByRole('row', { name: /Time budget/ })).toContainText('600 s');
@@ -403,7 +403,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const where = main.getByRole('region', { name: 'Where this result comes from' });
       await expect(where.getByRole('link', { name: /^Snapshot snapshot/ })).toHaveAttribute('href', `${ROOT}/snapshots/snapshot-2`);
       await expect(where.getByRole('link', { name: 'Flujo de checkout · revision 2' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/revisions/2`);
-      await expect(where.getByRole('link', { name: 'Add to a report' })).toHaveAttribute('href', `${ROOT}/reports`);
+      await expect(where.getByRole('link', { name: 'Add to a report' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-provenance`, { area: where });
       const downloaded = page.waitForEvent('download');
       await where.getByRole('button', { name: 'Download compiled problem' }).click();
@@ -679,7 +679,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(retention.getByText('PRO', { exact: true })).toBeVisible();
       await expect(list.getByRole('button', { name: 'Cancel' })).toHaveCount(3);
       await expect(list.getByRole('button', { name: 'Retry' })).toHaveCount(2);
-      await expect(list.getByRole('link', { name: 'Analyze' })).toHaveCount(3);
+      await expect(list.getByRole('link', { name: 'Analyze' })).toHaveCount(0);
       await capture(page, testInfo, `history-${name}-list`);
 
       await main.getByRole('button', { name: 'Completed (3)' }).click();

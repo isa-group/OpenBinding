@@ -53,7 +53,8 @@ describe('One run', () => {
     expect(within(header).getByText('Feasible: meets every must-hold rule')).toBeInTheDocument();
     expect(await within(header).findByText(/launched Sep 30, 2026, 09:00 UTC by you · case Flujo de checkout/)).toBeInTheDocument();
     expect(within(header).getByText(/random-search 1\.0\.0 · mode sampling/)).toBeInTheDocument();
-    expect(within(header).getByRole('link', { name: 'Analyze' })).toHaveAttribute('href', '/app/analysis/workspace?job=job-done-3');
+    // [utest->req~frontend-retire-no-link-to-retired~1]
+    expect(within(header).queryByRole('link', { name: 'Analyze' })).not.toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', `${ROOT}/jobs`);
     expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Jobs' })).toHaveAttribute('aria-current', 'page');
@@ -105,7 +106,19 @@ describe('One run', () => {
     expect(within(where).getByText('bim.builtin/random-search 1.0.0 · mode sampling', { exact: false })).toBeInTheDocument();
     expect(within(where).getByText('bim-reference-evaluator/v1')).toBeInTheDocument();
     expect(within(where).getByText('60 s per run')).toBeInTheDocument();
-    expect(within(where).getByRole('link', { name: 'Add to a report' })).toHaveAttribute('href', `${ROOT}/reports`);
+  });
+
+  // [utest->req~frontend-retire-reports-entry-points-removed~1]
+  it('offers no way to add the result to a report', async () => {
+    renderJob();
+
+    const where = (await screen.findByRole('heading', { name: 'Where this result comes from' })).closest('section') as HTMLElement;
+    expect(within(where).getByRole('button', { name: 'Download compiled problem' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Add to a report' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Add to a report')).not.toBeInTheDocument();
+    const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
+    expect(hrefs.length).toBeGreaterThan(3);
+    expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
   });
 
   it('downloads the compiled problem, the instance and the result', async () => {

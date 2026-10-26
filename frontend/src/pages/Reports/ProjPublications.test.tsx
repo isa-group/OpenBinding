@@ -42,13 +42,32 @@ describe('Publications of a project', () => {
     expect(screen.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`/resolve/report/${EDITION}$`))).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open public verification' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
-    expect(screen.getByRole('link', { name: 'Open the report' })).toHaveAttribute('href', `${ROOT}/reports/engine-comparison`);
+    // [utest->req~frontend-retire-reports-publications-stay~1]
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
-    expect(within(tabs).getByRole('link', { name: 'Reports' })).toHaveAttribute('aria-current', 'page');
+    expect(within(tabs).getByRole('link', { name: 'Publications' })).toHaveAttribute('aria-current', 'page');
+    expect(within(tabs).getByRole('link', { name: 'Publications' })).toHaveAttribute('href', `${ROOT}/publications`);
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy for reference manager' }));
     expect(await screen.findByRole('button', { name: 'Copied for reference manager' })).toBeInTheDocument();
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringMatching(/^@misc\{alexrivera2026checkoutcomparison,/));
+  });
+
+  // [utest->req~frontend-retire-reports-publications-stay~1]
+  it('leads nowhere to the retired report pages: no Open the report, no Reports crumb, tab or action', async () => {
+    renderPublications();
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open the report' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^(Open the )?reports$/i })).not.toBeInTheDocument();
+    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(crumbs).queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
+    expect(within(crumbs).getAllByRole('link').map((link) => link.textContent)).toEqual(['Home', 'ISA Demo Group', 'QoS Benchmarks']);
+    expect(within(crumbs).getByText('Publications')).toHaveAttribute('aria-current', 'page');
+    const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
+    expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
+    // Still a publication list: the citation and the public verification stay.
+    expect(screen.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open public verification' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
   });
 
   it('withdraws a publication after confirming, and then marks it as still reachable by link', async () => {
@@ -99,16 +118,19 @@ describe('Publications of a project', () => {
 
     expect(await screen.findByText('checkout-comparison · published Sep 25, 2026')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Open public verification' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open the report' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open the report' })).not.toBeInTheDocument();
   });
 
-  it('says nothing is published yet, and where to publish from', async () => {
+  // [utest->req~frontend-retire-reports-publications-stay~1]
+  it('says nothing is published yet, with no way on to the retired report list', async () => {
     platform.publications.mockResolvedValue([]);
     renderPublications();
 
     expect(await screen.findByText('Nothing published yet')).toBeInTheDocument();
-    expect(screen.getByText('Nothing published from this project yet. Publish a frozen report edition from its page.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open the reports' })).toHaveAttribute('href', `${ROOT}/reports`);
+    expect(screen.queryByText('Publish a frozen report edition from its page.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open the reports' })).not.toBeInTheDocument();
+    const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
+    expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
   });
 
   it('keeps a failure apart from an empty list: 404, 403 and 503 with Retry', async () => {

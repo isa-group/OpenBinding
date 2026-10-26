@@ -174,24 +174,26 @@ describe('One run of a study', () => {
     expect(screen.getByText(/Its results can’t change now\. Start a new run instead\./)).toBeInTheDocument();
   });
 
-  it('creates a draft report pinned to the run, or opens the one that exists', async () => {
-    platform.createReport.mockRejectedValueOnce(refusal(409, 'slug_conflict')).mockResolvedValueOnce(draftOf({ slug: 'engines-vs-seeds-run-1-2' }));
+  // [utest->req~frontend-retire-reports-entry-points-removed~1]
+  it('offers no report action, whether or not a draft report of the run exists, and reads no report', async () => {
+    const action = /create (a |draft )?report|open the report/i;
     const view = renderRun();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Create a report' }));
-
-    expect(await screen.findByText('Draft report created from this run.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open the report' })).toHaveAttribute('href', `${ROOT}/reports/engines-vs-seeds-run-1-2`);
-    expect(platform.createReport).toHaveBeenNthCalledWith(1, 'isa-demo', 'qos-benchmarks', {
-      slug: 'engines-vs-seeds-run-1', title: 'Engines × seeds · run #1', study_run_id: RUN_ID, document: { summary: '', findings: [], provenance: {} },
-    });
-    expect(platform.createReport).toHaveBeenNthCalledWith(2, 'isa-demo', 'qos-benchmarks', expect.objectContaining({ slug: 'engines-vs-seeds-run-1-2' }));
+    await screen.findByRole('heading', { level: 1, name: 'Run #1' });
+    expect(screen.getByRole('link', { name: 'Compare results' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: action })).not.toBeInTheDocument();
     view.unmount();
 
     platform.reports.mockResolvedValue([draftOf()]);
     renderRun();
-    expect(await screen.findByRole('link', { name: 'Open the report' })).toHaveAttribute('href', `${ROOT}/reports/engines-vs-seeds-run-1`);
-    expect(screen.queryByRole('button', { name: 'Create a report' })).not.toBeInTheDocument();
+    await screen.findByRole('heading', { level: 1, name: 'Run #1' });
+    expect(screen.queryByRole('link', { name: action })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
+    const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
+    expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
+    await waitFor(() => expect(platform.studyCells).toHaveBeenCalled());
+    expect(platform.reports).not.toHaveBeenCalled();
   });
 
   it('shows a viewer everything and offers nothing to change', async () => {
@@ -200,7 +202,7 @@ describe('One run of a study', () => {
     await screen.findByRole('heading', { level: 1, name: 'Run #1' });
     expect(screen.getByRole('link', { name: 'Compare results' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /^Open cell/ })).toHaveLength(8);
-    for (const name of ['Create a report', 'Cancel run', 'Retry cell 1', 'Retry 2 unfinished cells']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    for (const name of ['Cancel run', 'Retry cell 1', 'Retry 2 unfinished cells']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
   });
 
   it('answers a run that is not the study’s with a neutral 404', async () => {

@@ -85,7 +85,8 @@ describe('Verifier', () => {
     const matches = screen.getByRole('region', { name: 'Matches' });
     expect(within(matches).getByText('Report edition')).toBeInTheDocument();
     expect(within(matches).getByText('Comparativa de engines en checkout')).toBeInTheDocument();
-    expect(within(matches).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/reports/engines-vs-seeds-informe');
+    // [utest->req~frontend-retire-reports-publications-stay~1]
+    expect(within(matches).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/publications');
     expect(within(matches).getByRole('link', { name: 'Public record' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
 
     // Written from the record, not from the gateway's citation, whose DOI and venue are made up.

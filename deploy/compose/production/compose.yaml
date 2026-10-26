@@ -1,0 +1,446 @@
+# OpenBinding production (ADR-0021 decision 3). A standalone Compose project, not an overlay.
+#
+#   docker compose -f deploy/compose/production/compose.yaml \
+#     --env-file deploy/compose/production/images.env --env-file <site.env> up -d
+#
+# Images come from images.env (pinned by digest), site values from site.env (ci.env holds placeholders for CI),
+# secrets are files under OPENBINDING_SECRETS_DIR. The procedure is docs/runbooks/production.md; where the two
+# disagree, this file wins. The mem_limit and cpus values are starting values, tuned after the first measured week.
+name: openbinding-production
+
+# [impl->req~lab-deployment-production-limits-logs~1]
+# [impl->req~lab-deployment-production-pinned-images~1] (every image is ${..._IMAGE:?} from images.env)
+# [impl->req~lab-deployment-compose-only~1]
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+# The one network of the project. The gateway believes X-Forwarded-For only from this subnet (nginx is on it).
+x-subnet: &subnet 172.29.40.0/24
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:?set POSTGRES_IMAGE in images.env}
+    user: "70:70"
+    environment:
+      POSTGRES_DB: openbinding
+      POSTGRES_USER: openbinding
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Over TCP: while the image initialises the data directory, a temporary server answers on the socket only.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U openbinding -d openbinding"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 2.0
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    networks:
+      - openbinding
+
+  redis:
+    image: ${REDIS_IMAGE:?set REDIS_IMAGE in images.env}
+    user: "999:1000"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    networks:
+      - openbinding
+
+  # One-shot: applies the database migrations of the gateway image and exits. The gateway waits for it.
+  # [impl->req~lab-deployment-production-health-restart~1]
+  migrate:
+    image: ${GATEWAY_IMAGE:?set GATEWAY_IMAGE in images.env}
+    environment:
+      OPENBINDING_MIGRATE: only
+      SCHEMAS_DIR: /app/schemas
+      PYTHONPATH: /app/src
+      DATABASE_URL_FILE: /run/secrets/database_url
+    secrets:
+      - database_url
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    mem_limit: 512m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    networks:
+      - openbinding
+
+  gateway:
+    image: ${GATEWAY_IMAGE:?set GATEWAY_IMAGE in images.env}
+    environment:
+      OPENBINDING_MIGRATE: skip
+      APP_ENV: prod
+      SCHEMAS_DIR: /app/schemas
+      PYTHONPATH: /app/src
+      CORS_ALLOW_ORIGINS: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN in site.env}
+      PUBLIC_BASE_URL: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN in site.env}
+      FRONTEND_URL: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN in site.env}
+      DATABASE_URL_FILE: /run/secrets/database_url
+      GATEWAY_JWT_SECRET_FILE: /run/secrets/gateway_jwt_secret
+      # The network of the project, where nginx is: without it the login throttling counts every client as the proxy.
+      FORWARDED_ALLOW_IPS: *subnet
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD_FILE: /run/secrets/bootstrap_admin_password
+      # Production refuses SPACE_ENABLED=false (APP_ENV=prod). SPACE is remote only; there is no local SPACE.
+      SPACE_ENABLED: "true"
+      SPACE_URL: ${SPACE_URL:?set SPACE_URL in site.env}
+      SPACE_API_KEY_FILE: /run/secrets/space_api_key
+      SPACE_TIMEOUT_MS: ${SPACE_TIMEOUT_MS:-5000}
+      SPACE_PRICING_VERSION: ${SPACE_PRICING_VERSION:-0.1.0}
+      SPACE_DEFAULT_PLAN: ${SPACE_DEFAULT_PLAN:-}
+      REDIS_URL: redis://redis:6379/0
+      JOB_DISPATCH_MODE: dramatiq
+      ARTIFACT_ROOT: /var/lib/openbinding/artifacts
+      SPHERE_ENABLED: ${SPHERE_ENABLED:-false}
+      # A placeholder: SPHERE is off by default; set SPHERE_URL in site.env together with SPHERE_ENABLED=true.
+      SPHERE_URL: ${SPHERE_URL:-https://sphere.example.org}
+      SPHERE_API_KEY_FILE: /run/secrets/sphere_api_key
+      SPHERE_ORGANIZATION_ID: ${SPHERE_ORGANIZATION_ID:-}
+      CAS_ENABLED: ${CAS_ENABLED:-false}
+      CAS_ENVIRONMENT: ${CAS_ENVIRONMENT:-production}
+      CAS_STORE_BACKEND: redis
+      # Comma-separated Fernet keys for stored engine credentials: the first encrypts, all decrypt (rotation).
+      SECRETS_FERNET_KEYS_FILE: /run/secrets/secrets_fernet_keys
+      FEDERATION_REQUIRE_HTTPS: "true"
+      ENGINE_MINIZINC_URL: http://engine-minizinc:3000
+      ENGINE_RANDOM_SEARCH_URL: http://engine-random-search:8080
+      ENGINE_MANY_HEURISTIC_URL: http://engine-many-heuristic:8080
+      ENGINE_EVOLUTIONARY_HEURISTICS_URL: http://engine-evolutionary-heuristics:8080
+      BIM_MODE: inproc
+    secrets:
+      - database_url
+      - gateway_jwt_secret
+      - space_api_key
+      - sphere_api_key
+      - secrets_fernet_keys
+      - bootstrap_admin_password
+    volumes:
+      - artifacts:/var/lib/openbinding/artifacts
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      engine-minizinc:
+        condition: service_healthy
+      engine-random-search:
+        condition: service_healthy
+      engine-many-heuristic:
+        condition: service_healthy
+      engine-evolutionary-heuristics:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 2.0
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    networks:
+      - openbinding
+
+  worker: &solve-worker
+    image: ${GATEWAY_IMAGE:?set GATEWAY_IMAGE in images.env}
+    # The image entrypoint reads the *_FILE secrets; OPENBINDING_MIGRATE=skip leaves the migration to `migrate`.
+    entrypoint: ["/usr/local/bin/docker-entrypoint.sh"]
+    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "4", "--queues", "default"]
+    environment:
+      OPENBINDING_MIGRATE: skip
+      SCHEMAS_DIR: /app/schemas
+      DATABASE_URL_FILE: /run/secrets/database_url
+      REDIS_URL: redis://redis:6379/0
+      JOB_DISPATCH_MODE: dramatiq
+      # Same gate as the gateway: SPACE decides plans and contracts.
+      SPACE_ENABLED: "true"
+      SPACE_URL: ${SPACE_URL:?set SPACE_URL in site.env}
+      SPACE_API_KEY_FILE: /run/secrets/space_api_key
+      SPACE_TIMEOUT_MS: ${SPACE_TIMEOUT_MS:-5000}
+      SPACE_PRICING_VERSION: ${SPACE_PRICING_VERSION:-0.1.0}
+      SPACE_DEFAULT_PLAN: ${SPACE_DEFAULT_PLAN:-}
+      SECRETS_FERNET_KEYS_FILE: /run/secrets/secrets_fernet_keys
+      FEDERATION_REQUIRE_HTTPS: "true"
+      ENGINE_MINIZINC_URL: http://engine-minizinc:3000
+      ENGINE_RANDOM_SEARCH_URL: http://engine-random-search:8080
+      ENGINE_MANY_HEURISTIC_URL: http://engine-many-heuristic:8080
+      ENGINE_EVOLUTIONARY_HEURISTICS_URL: http://engine-evolutionary-heuristics:8080
+      # The worker re-evaluates every engine answer through BIM: same choice as the gateway.
+      BIM_MODE: inproc
+      ARTIFACT_ROOT: /var/lib/openbinding/artifacts
+      PUBLIC_BASE_URL: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN in site.env}
+      SPHERE_ENABLED: ${SPHERE_ENABLED:-false}
+      SPHERE_URL: ${SPHERE_URL:-https://sphere.example.org}
+      SPHERE_API_KEY_FILE: /run/secrets/sphere_api_key
+      SPHERE_ORGANIZATION_ID: ${SPHERE_ORGANIZATION_ID:-}
+    secrets:
+      - database_url
+      - space_api_key
+      - sphere_api_key
+      - secrets_fernet_keys
+    volumes:
+      - artifacts:/var/lib/openbinding/artifacts
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    # No `restart: true` on the gateway: the workers have no gateway address, so a restart would only cut running jobs.
+    depends_on:
+      gateway:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 768m
+    cpus: 2.0
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    networks:
+      - openbinding
+
+  analysis-worker:
+    <<: *solve-worker
+    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "1", "--queues", "analysis"]
+    mem_limit: 640m
+    cpus: 1.0
+
+  engine-minizinc:
+    image: ${ENGINE_MINIZINC_IMAGE:?set ENGINE_MINIZINC_IMAGE in images.env}
+    environment:
+      NODE_OPTIONS: --max-old-space-size=192
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+    mem_limit: 384m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    networks:
+      - openbinding
+
+  engine-random-search:
+    image: ${ENGINE_RANDOM_SEARCH_IMAGE:?set ENGINE_RANDOM_SEARCH_IMAGE in images.env}
+    environment:
+      JAVA_TOOL_OPTIONS: -Xmx384m -XX:MaxMetaspaceSize=128m
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+    mem_limit: 640m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    networks:
+      - openbinding
+
+  engine-many-heuristic:
+    image: ${ENGINE_MANY_HEURISTIC_IMAGE:?set ENGINE_MANY_HEURISTIC_IMAGE in images.env}
+    environment:
+      JAVA_TOOL_OPTIONS: -Xmx384m -XX:MaxMetaspaceSize=128m
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+    mem_limit: 640m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    networks:
+      - openbinding
+
+  engine-evolutionary-heuristics:
+    image: ${ENGINE_EVOLUTIONARY_HEURISTICS_IMAGE:?set ENGINE_EVOLUTIONARY_HEURISTICS_IMAGE in images.env}
+    environment:
+      JAVA_TOOL_OPTIONS: -Xmx384m -XX:MaxMetaspaceSize=128m
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+    mem_limit: 640m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    networks:
+      - openbinding
+
+  # Copies the built frontend into the frontend_dist volume that nginx serves (the frontend-prod pattern).
+  frontend-assets:
+    image: ${FRONTEND_ASSETS_IMAGE:?set FRONTEND_ASSETS_IMAGE in images.env}
+    init: true
+    volumes:
+      - frontend_dist:/out
+    command: ["sh", "-c", "rm -rf /out/* && cp -a /dist/. /out/ && tail -f /dev/null"]
+    healthcheck:
+      test: ["CMD", "test", "-f", "/out/index.html"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.25
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    networks:
+      - openbinding
+
+  # The only service that publishes ports. Its server names come from nginx/production/nginx.conf in the image.
+  nginx:
+    image: ${NGINX_IMAGE:?set NGINX_IMAGE in images.env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - frontend_dist:/usr/share/nginx/html:ro
+      # The examples of the checkout (the compose file is three levels below the repository root).
+      - ../../../examples:/opt/openbinding/examples:ro
+      - ${NGINX_SSL_DIR:?set NGINX_SSL_DIR in site.env}:/etc/nginx/ssl:ro
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # restart: true re-resolves the gateway address (nginx.conf resolves `gateway` once) when Compose recreates the
+    # gateway. It does not follow a restart by the Docker daemon (crash, OOM): the runbook restarts nginx then.
+    depends_on:
+      gateway:
+        condition: service_healthy
+        restart: true
+      frontend-assets:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    networks:
+      - openbinding
+
+  # Daily pg_dump -Fc into OPENBINDING_BACKUP_DIR (owned by uid 70). A dump is written as .partial and renamed when
+  # complete; stale .partial files are removed at the start of each round. Dumps older than BACKUP_RETENTION_DAYS go.
+  # Every shell dollar is doubled so that Compose leaves it alone.
+  # [impl->req~lab-deployment-production-backups~1]
+  pg-backup:
+    image: ${POSTGRES_IMAGE:?set POSTGRES_IMAGE in images.env}
+    init: true
+    user: "70:70"
+    entrypoint: ["sh", "-ec"]
+    command:
+      - |
+        umask 077
+        cd /backups
+        while true; do
+          find . -maxdepth 1 -name 'openbinding-*.dump.partial' -delete
+          stamp=$$(date -u +%Y%m%dT%H%M%SZ)
+          PGPASSWORD="$$(cat /run/secrets/postgres_password)" pg_dump -h postgres -U openbinding -Fc -f "openbinding-$${stamp}.dump.partial" openbinding
+          mv "openbinding-$${stamp}.dump.partial" "openbinding-$${stamp}.dump"
+          find . -maxdepth 1 -name 'openbinding-*.dump' -mmin +$$(( ${BACKUP_RETENTION_DAYS:?set BACKUP_RETENTION_DAYS in site.env} * 1440 )) -delete
+          sleep 86400
+        done
+    secrets:
+      - postgres_password
+    volumes:
+      - ${OPENBINDING_BACKUP_DIR:?set OPENBINDING_BACKUP_DIR in site.env}:/backups
+    healthcheck:
+      # A complete dump in the last 26 hours.
+      test: ["CMD-SHELL", "find /backups -maxdepth 1 -name 'openbinding-*.dump' -mmin -1560 | grep -q ."]
+      interval: 30m
+      timeout: 10s
+      retries: 1
+      start_period: 30m
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    networks:
+      - openbinding
+
+# [impl->req~lab-deployment-production-secret-files~1]
+secrets:
+  postgres_password:
+    file: ${OPENBINDING_SECRETS_DIR:?set OPENBINDING_SECRETS_DIR in site.env}/postgres_password
+  database_url:
+    file: ${OPENBINDING_SECRETS_DIR:?set OPENBINDING_SECRETS_DIR in site.env}/database_url
+  gateway_jwt_secret:
+    file: ${OPENBINDING_SECRETS_DIR:?set OPENBINDING_SECRETS_DIR in site.env}/gateway_jwt_secret
+  space_api_key:
+    file: ${OPENBINDING_SECRETS_DIR:?set OPENBINDING_SECRETS_DIR in site.env}/space_api_key
+  sphere_api_key:
+    file: ${OPENBINDING_SECRETS_DIR:?set OPENBINDING_SECRETS_DIR in site.env}/sphere_api_key
+  secrets_fernet_keys:
+    file: ${OPENBINDING_SECRETS_DIR:?set OPENBINDING_SECRETS_DIR in site.env}/secrets_fernet_keys
+  bootstrap_admin_password:
+    file: ${OPENBINDING_SECRETS_DIR:?set OPENBINDING_SECRETS_DIR in site.env}/bootstrap_admin_password
+
+volumes:
+  pgdata:
+  redisdata:
+  artifacts:
+  frontend_dist:
+
+networks:
+  openbinding:
+    ipam:
+      config:
+        - subnet: *subnet

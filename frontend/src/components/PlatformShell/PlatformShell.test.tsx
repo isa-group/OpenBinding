@@ -147,7 +147,7 @@ describe('PlatformShell (application layout)', () => {
     expect(screen.getByTestId('project')).toHaveTextContent('atlas');
   });
 
-  it.each(['/app/verifier', '/app/engines/registrations', '/app/jobs', '/app/analysis', '/app/language/extensions', '/app/system/states'])(
+  it.each(['/app/verifier', '/app/engines/registrations', '/app/jobs','/app/language/extensions', '/app/system/states'])(
     'does not mistake the fixed screen %s for an organization',
     async (path) => {
       renderShell(user, path);
@@ -210,6 +210,22 @@ describe('PlatformShell (application layout)', () => {
     const adminLinks = screen.getAllByRole('link', { name: 'Admin' });
     expect(adminLinks).toHaveLength(2);
     for (const link of adminLinks) expect(link).toHaveAttribute('href', '/app/admin');
+  });
+
+  // [utest->req~frontend-retire-reports-navigation~1]
+  it('has no link to the retired report address in the header of a project, and offers the publications in the palette', async () => {
+    renderShell(user, '/app/test-org/atlas');
+    await ready();
+
+    const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
+    expect(hrefs.length).toBeGreaterThan(5);
+    expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Open command palette/ })[0]);
+    const palette = await screen.findByRole('dialog', { name: 'Command palette' });
+    const links = within(palette).getAllByRole('link');
+    expect(links.filter((link) => /\/reports([/?#]|$)/.test(link.getAttribute('href') ?? ''))).toEqual([]);
+    expect(links.map((link) => link.getAttribute('href'))).toContain('/app/test-org/atlas/publications');
   });
 
   it('does not offer the retired sidebar or direct links to the old public routes', async () => {

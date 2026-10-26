@@ -24,6 +24,7 @@ const glyphOf = (label: string) => label
   .map((word, index) => (index === 0 ? word[0].toUpperCase() : word[0].toLowerCase()))
   .join('') || '·';
 
+// [impl->req~frontend-retire-palette~1]
 /** Everything the palette can reach comes from the screen map and from data the workspace already loaded. */
 export function buildCommands({ organizations = [], projects = [], organization, project, isAdmin }: PaletteContext): Command[] {
   const command = (group: string, label: string, desc: string, href: string, glyph = glyphOf(label)): Command => ({ group, label, desc, href, glyph });
@@ -32,7 +33,6 @@ export function buildCommands({ organizations = [], projects = [], organization,
   const commands: Command[] = [
     command('Go to', 'Home', 'Organizations and recent activity', '/app'),
     command('Go to', 'Jobs', 'Every job you can see', '/app/jobs'),
-    command('Go to', 'Analysis', 'Compare sources of binding decisions', '/app/analysis'),
     command('Go to', 'Explore', 'Public projects, publications and engines', '/explore'),
     command('Go to', 'Engine catalog', 'Engines by exact identity', '/engines'),
     command('Go to', 'Language: profiles & dialects', 'How instances become binding problems', '/language'),
@@ -57,7 +57,8 @@ export function buildCommands({ organizations = [], projects = [], organization,
       ['Library', 'Versioned artifacts and drafts', '/library'],
       ['Files', 'Files stored in this project', '/files'],
       ['Studies', 'Cases × engines × parameters × seeds', '/studies'],
-      ['Reports', 'Frozen, reproducible evidence', '/reports'],
+      // [impl->req~frontend-retire-reports-navigation~1]
+      ['Publications', 'Published editions and how to cite them', '/publications'],
       ['Project settings', 'Name, visibility and members', '/settings'],
     ];
     for (const [label, desc, suffix] of sections) {

@@ -33,7 +33,7 @@ web client. QACOBench is the experiment harness built on the public API.
 | `experimentation/` | `qacobench/` (campaign harness), `icsoc/`, `icws/` (historical experiments) | Python, Docker Compose |
 | `examples/` | BIM v1 packages (part of the 82-package corpus) | BIM |
 | `datasets/` | dataset recovery scripts and source READMEs (data itself lives in Zenodo) | Python |
-| `docker-compose.yml`, `compose.*.json`, `nginx/`, `lab/tests/` | Docker Compose for every environment (ADR-0021), lab profiles and their static checks; `deploy/kubernetes/` is being removed (`ROADMAP.md` M0.9) | Compose |
+| `docker-compose.yml`, `compose.*.json`, `nginx/`, `lab/tests/` | Docker Compose for every environment (ADR-0021), lab profiles and their static checks; `deploy/kubernetes/` was removed (ADR-0021); production lives in `deploy/compose/production/` | Compose |
 | `tools/` | repo-level checks (corpus, BIM guard, changelog, diagrams) | Python, shell |
 | `openspec/` | project context, living specs, changes | OpenSpec |
 | `docs/` | architecture, contracts, QA records (`docs/qa/`), ADRs (`docs/adr/`), agent work (`docs/agent-work/<id>/`) | Markdown |

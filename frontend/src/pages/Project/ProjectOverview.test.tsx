@@ -70,7 +70,8 @@ describe('Project overview', () => {
     expect(within(band).getByRole('link', { name: 'New case' })).toHaveAttribute('href', `${root}/cases`);
     expect(within(band).getByRole('link', { name: 'Run' })).toHaveAttribute('href', `${root}/jobs/new`);
     expect(within(band).getByRole('link', { name: 'New study' })).toHaveAttribute('href', `${root}/studies/new`);
-    expect(within(band).getByRole('link', { name: 'New report' })).toHaveAttribute('href', `${root}/reports`);
+    // [utest->req~frontend-retire-reports-entry-points-removed~1]
+    expect(within(band).queryByText('New report')).not.toBeInTheDocument();
     expect(within(band).getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', `${root}/workbench`);
     expect(within(band).getByRole('link', { name: 'Export package' })).toHaveAttribute('href', `${root}/package`);
     const crumbs = within(band).getByRole('navigation', { name: 'Breadcrumb' });
@@ -136,14 +137,38 @@ describe('Project overview', () => {
     expect(within(card).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8' })).toBeInTheDocument();
   });
 
-  it('marks a published report and links to verify it', async () => {
+  // [utest->req~frontend-retire-reports-entry-points-removed~1]
+  it('has no Reports card, no All reports link and no link to the retired report addresses, and keeps the other cards', async () => {
     renderOverview();
 
-    const card = await screen.findByRole('region', { name: 'Reports' });
-    expect(await within(card).findByText('Published')).toBeInTheDocument();
-    expect(within(card).getByText('Draft · revision 3')).toBeInTheDocument();
-    expect(within(card).getByRole('link', { name: 'Verify Engine comparison' })).toHaveAttribute('href', `/resolve/report/sha256-${'e'.repeat(64)}`);
-    expect(within(card).getByRole('link', { name: 'Engine comparison' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/reports/comparativa');
+    expect(await screen.findByRole('region', { name: 'Recent jobs' })).toBeInTheDocument();
+    for (const name of ['Cases', 'Studies']) expect(await screen.findByRole('region', { name })).toBeInTheDocument();
+    await screen.findByText('Run #1 · partial');
+    expect(screen.queryByRole('region', { name: 'Reports' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'All reports' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'New report' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Engine comparison')).not.toBeInTheDocument();
+    expect(screen.queryByText(/No reports yet/)).not.toBeInTheDocument();
+    const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
+    expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
+  });
+
+  it('treats a failed reports request as no reports: the cards render and the page does not crash', async () => {
+    platform.reports.mockRejectedValue(refusal(503, 'unavailable'));
+    renderOverview();
+
+    for (const name of ['Recent jobs', 'Cases', 'Studies']) expect(await screen.findByRole('region', { name })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows the get-started guide when the reports request fails on an otherwise empty project', async () => {
+    platform.cases.mockResolvedValue([]);
+    platform.projectJobs.mockResolvedValue([]);
+    platform.studies.mockResolvedValue([]);
+    platform.reports.mockRejectedValue(refusal(503, 'unavailable'));
+    renderOverview();
+
+    expect(await screen.findByRole('region', { name: 'Get started' })).toBeInTheDocument();
   });
 
   describe('a card that fails does not take the others with it', () => {
@@ -154,7 +179,7 @@ describe('Project overview', () => {
       const card = await screen.findByRole('region', { name: 'Recent jobs' });
       expect(await within(card).findByRole('alert')).toHaveTextContent('Jobs couldn’t be loaded (503 · unavailable). The rest of the page is unaffected.');
       expect(await screen.findByRole('link', { name: /Flujo de checkout/ })).toBeInTheDocument();
-      expect(screen.getByRole('region', { name: 'Reports' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Studies' })).toBeInTheDocument();
 
       fireEvent.click(within(card).getByRole('button', { name: 'Retry' }));
       expect(await within(card).findByRole('list', { name: 'Recent jobs' })).toBeInTheDocument();
@@ -236,18 +261,20 @@ describe('Project overview', () => {
       }
       expect(within(band).getByRole('link', { name: 'Browse cases' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/cases');
       const tabs = within(screen.getByRole('navigation', { name: 'Project sections' }));
-      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Cases', 'Library', 'Studies', 'Reports', 'Files']);
+      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Cases', 'Library', 'Studies', 'Publications', 'Files']);
+      expect(tabs.getByRole('link', { name: 'Publications' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/publications');
+      expect(tabs.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Jobs' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Package' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
     });
 
-    it('reads cases, studies and reports, and never asks for the jobs, which the gateway refuses to visitors', async () => {
+    it('reads cases and studies, and never asks for the jobs, which the gateway refuses to visitors', async () => {
       renderVisitor();
 
       expect(await screen.findByRole('link', { name: /Flujo de checkout/ })).toBeInTheDocument();
       expect(screen.getByRole('region', { name: 'Studies' })).toBeInTheDocument();
-      expect(screen.getByRole('region', { name: 'Reports' })).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Reports' })).not.toBeInTheDocument();
       expect(screen.queryByRole('region', { name: 'Recent jobs' })).not.toBeInTheDocument();
       expect(platform.projectJobs).not.toHaveBeenCalled();
       expect(api.listOwnJobs).not.toHaveBeenCalled();

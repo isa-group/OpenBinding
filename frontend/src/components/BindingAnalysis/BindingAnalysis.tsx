@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { record } from '../../analysis/model';
 import { formatNumber } from '../../utils/format';
 import './BindingAnalysis.css';
@@ -10,7 +9,6 @@ export function BindingAnalysis({ result, jobId }: { result: unknown; jobId?: st
   return <section className="binding-analysis" aria-label="Binding analysis">
     <header><div><h3>Binding decision workspace</h3>
       <p>{formatNumber(count)} stored result{count === 1 ? '' : 's'} · recommendations, budgets, Pareto fronts, and explanations.</p></div>
-      {jobId && <Link className="hash-badge" to={`/app/analysis/workspace?job=${encodeURIComponent(jobId)}`}>Open analysis</Link>}
     </header>
     {!jobId && <p>Persist a solver job to compare its canonical evidence. The raw result remains available here.</p>}
   </section>;

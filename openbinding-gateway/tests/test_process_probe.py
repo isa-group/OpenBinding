@@ -5,15 +5,18 @@ is checked without a service.  The scenarios are run against a real ``bim_servic
 loopback port in this process: the probe speaks HTTP with raw ``Content-Length`` and chunked bodies, which an ASGI
 transport cannot carry.  The service runs with the thread executor, where its costly operation is replaced by a sleep
 (the same public route and limits; only the duration is made deterministic), and once with the process executor for
-the scenarios that do not need a costly operation.
+the scenarios that do not need a costly operation.  The whole probe runs against worker processes whose costly operation
+lasts as long as the size of the request says, not as long as the runner takes to compute it (see ``slow_workers``).
 """
 
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import importlib.util
 import json
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -243,6 +246,66 @@ def slow_neighborhood(monkeypatch, seconds: float) -> None:
     monkeypatch.setattr(operations, "neighborhood", slow)
 
 
+def stuck_neighborhood(monkeypatch) -> threading.Event:
+    """The costly request of the probe (``limit`` 128) blocks until the returned event is set (or 60 s) and computes nothing.
+
+    The thread executor cannot cancel a thread, so abandoned ones are blocked rather than competing for the CPU.
+    """
+    from bim_service import operations
+
+    original = operations.neighborhood
+    release = threading.Event()
+
+    def stuck(*args):
+        if args[3] == probe.NEIGHBORHOOD_LIMIT:
+            release.wait(60)
+            return {}
+        return original(*args)
+
+    monkeypatch.setattr(operations, "neighborhood", stuck)
+    return release
+
+
+#: Seconds the costly request of the probe keeps a worker of ``slow_workers`` busy, per task of its binding.
+SLOW_SECONDS_PER_TASK = 0.005
+SLOW_MODULE = "probe_costly_neighborhood"
+SLOW_MODULE_SOURCE = '''\
+"""Preloaded by the worker processes of a test: the costly ``/neighborhood`` of the probe lasts as long as its size says."""
+
+import time
+
+from bim_service import operations
+
+original = operations.neighborhood
+
+
+def neighborhood(ir, binding, task, limit, seconds, execution):
+    if limit != {limit}:
+        return original(ir, binding, task, limit, seconds, execution)
+    end = time.monotonic() + len(binding) * {per_task}
+    answer = original(ir, binding, task, 1, seconds, execution)
+    while time.monotonic() < end:  # busy, as the real operation is, for a duration that no runner can stretch
+        pass
+    return answer
+
+
+operations.neighborhood = neighborhood
+'''
+
+
+def slow_workers(tmp_path, monkeypatch) -> tuple[str, ...]:
+    """``worker_preload`` that makes the costly request of the probe (``limit`` 128) last ``len(binding) * 5 ms`` in a worker.
+
+    The same public route, limits and answer shape; only the duration is deterministic: the worker spins until a deadline
+    counted from the start of the operation, so a slow runner cannot make the request last longer or shorter than its
+    size says.  A request of ``limit`` other than 128 is the real operation.
+    """
+    source = SLOW_MODULE_SOURCE.format(limit=probe.NEIGHBORHOOD_LIMIT, per_task=SLOW_SECONDS_PER_TASK)
+    (tmp_path / f"{SLOW_MODULE}.py").write_text(source, encoding="utf-8")
+    monkeypatch.syspath_prepend(str(tmp_path))  # the pool puts the directory of a preloaded module on the PYTHONPATH of its workers
+    return (SLOW_MODULE,)
+
+
 def probe_arguments(token_file, settings, *extra: str) -> list[str]:
     return [
         "--token-file", str(token_file),
@@ -348,11 +411,14 @@ def test_a_service_that_is_not_there_is_reported_not_raised(tmp_path, capsys) ->
 
 def test_the_timeout_step_sees_the_503_the_healthz_and_the_next_request(tmp_path, monkeypatch, capsys) -> None:
     checkout()
-    slow_neighborhood(monkeypatch, 1.5)
+    release = stuck_neighborhood(monkeypatch)
     overrides = {"max_concurrency": 3, "operation_timeout_seconds": 0.5}
     settings = settings_for(tmp_path, **overrides)
-    with running_service(tmp_path, **overrides) as (url, token_file):
-        code, report, err = run_probe(capsys, url, token_file, settings, "--steps", "none", "--timeout-probe", "--hold", "0.2")
+    try:
+        with running_service(tmp_path, **overrides) as (url, token_file):
+            code, report, err = run_probe(capsys, url, token_file, settings, "--steps", "none", "--timeout-probe", "--hold", "0.2")
+    finally:
+        release.set()
     assert failures(report) == []
     assert code == probe.EXIT_OK
     (step,) = report["steps"]
@@ -396,13 +462,78 @@ def test_the_probe_runs_its_non_costly_scenarios_against_worker_processes(tmp_pa
     assert any(check["name"] == "limits.service.executor" and check["observed"] == "process" for check in capabilities["checks"])
 
 
-def test_the_whole_probe_passes_against_worker_processes_with_the_n2_figures(tmp_path, capsys) -> None:
+def test_the_workers_of_the_costly_request_keep_it_busy_for_as_long_as_its_size_says(tmp_path, monkeypatch) -> None:
+    """``slow_workers`` in a real worker process (started as the pool starts it, without the pidfd the pool also needs)."""
+    checkout()
+    from bim_service import _worker, workers
+
+    settings = settings_for(tmp_path, executor="process", worker_preload=slow_workers(tmp_path, monkeypatch))
+    config = {
+        "max_body_bytes": settings.max_body_bytes,
+        "max_registered_resources": settings.max_registered_resources,
+        "max_bindings": settings.max_bindings,
+        "neighborhood_max_seconds": settings.neighborhood_max_seconds,
+        "limits": dataclasses.asdict(settings.limits),
+        "operation_timeout_seconds": settings.operation_timeout_seconds,
+        "allowance": settings.worker_allowance_bytes,
+        "int_max_str_digits": sys.get_int_max_str_digits(),
+        "recursionlimit": sys.getrecursionlimit(),
+        "preload": list(settings.worker_preload),
+    }
+    assert str(tmp_path.resolve()) in workers.child_environment(settings.worker_preload)["PYTHONPATH"].split(":")
+    sequence = iter(range(1, 100))
+    parent, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
+    process = subprocess.Popen(
+        workers.child_argv(child.fileno()),
+        pass_fds=(child.fileno(),),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=workers.child_environment(settings.worker_preload),
+        cwd="/",
+    )
+    child.close()
+
+    def ask(limit: int, tasks: int) -> tuple[dict, float]:
+        body = json.dumps({**json.loads(probe.costly_body(tasks, 1.0)), "limit": limit}).encode()
+        header = {"seq": next(sequence), "op": "neighborhood", "contentType": "application/json"}
+        started = time.monotonic()
+        _worker.send_frame(parent, _worker.REQUEST, header, body)
+        reply = _worker.read_frame(parent, _worker.RESPONSE, _worker.MAX_HEADER, 64 * MIB)
+        elapsed = time.monotonic() - started
+        assert reply is not None and reply[0]["status"] == 200 and reply[0]["outcome"] == "ok"
+        return json.loads(reply[1]), elapsed
+
+    try:
+        parent.settimeout(120)
+        _worker.send_frame(parent, _worker.CONFIG, config)
+        ready = _worker.read_frame(parent, _worker.READY, _worker.MAX_HEADER, 0)
+        assert ready is not None, "the worker did not start with the preloaded module"
+        tasks = 40
+        costly, elapsed = ask(probe.NEIGHBORHOOD_LIMIT, tasks)
+        assert elapsed >= tasks * SLOW_SECONDS_PER_TASK
+        assert costly["coverage"]["limit"] == 1 and costly["kind"] == "canonical-one-task-counterfactuals"  # the patched operation answered
+        real, _ = ask(8, tasks)
+        assert real["coverage"]["limit"] == 8  # any other request is the real operation
+    finally:
+        parent.close()
+        try:
+            process.wait(30)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+
+
+def test_the_whole_probe_passes_against_worker_processes_with_the_n2_figures(tmp_path, monkeypatch, capsys) -> None:
     """The profile of the demo (N2 figures, 3 s time budget of the probe manifest), the defaults of the probe, real workers.
 
     Run with ``--summary``, the way it is meant to be run in the lab: the compact line must fit the tail of a runner.
+    The costly request lasts as long as its size says (``slow_workers``): the saturation, the load and the request over
+    the budget do not depend on how fast the runner computes, only on the service.
     """
     checkout()
     overrides = {
+        "worker_preload": slow_workers(tmp_path, monkeypatch),
         "executor": "process",
         "max_body_bytes": 2 * MIB,
         "max_concurrency": 2,

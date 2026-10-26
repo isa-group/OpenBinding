@@ -8,12 +8,12 @@ export interface NavLinkItem {
 const under = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`);
 const isProjectJobs = (pathname: string) => /^\/app\/[^/]+\/[^/]+\/jobs(\/|$)/.test(pathname);
 
-export type MainSection = 'home' | 'jobs' | 'analysis' | 'explore' | 'tools' | 'admin' | null;
+// [impl->req~frontend-retire-navigation~1]
+export type MainSection = 'home' | 'jobs' | 'explore' | 'tools' | 'admin' | null;
 
 export const mainLinks = {
   home: { to: '/app', label: 'Home' },
   jobs: { to: '/app/jobs', label: 'Jobs' },
-  analysis: { to: '/app/analysis', label: 'Analysis' },
   explore: { to: '/explore', label: 'Explore' },
   admin: { to: '/app/admin', label: 'Admin' },
 } as const satisfies Record<string, NavLinkItem>;
@@ -43,7 +43,7 @@ const ORGANIZATION_SCREENS = new Set(['settings', 'library', 'new-project']);
 
 /**
  * The workspace home is where organizations and projects are browsed: `/app`, an organization with its own screens, a project's overview.
- * The sections inside a project (cases, studies, reports, files, …) mark themselves in the project tabs, so the header leaves Home alone there.
+ * The sections inside a project (cases, studies, publications, files, …) mark themselves in the project tabs, so the header leaves Home alone there.
  */
 function isWorkspaceHome(pathname: string): boolean {
   const parts = pathname.split('/').filter(Boolean);
@@ -55,7 +55,6 @@ function isWorkspaceHome(pathname: string): boolean {
 export function currentSection(pathname: string): MainSection {
   if (under(pathname, '/app/admin')) return 'admin';
   if (under(pathname, '/app/jobs') || isProjectJobs(pathname)) return 'jobs';
-  if (under(pathname, '/app/analysis')) return 'analysis';
   if (isToolPath(pathname)) return 'tools';
   if (under(pathname, '/explore')) return 'explore';
   if (under(pathname, '/app/account') || under(pathname, '/app/system')) return null;

@@ -128,16 +128,14 @@ describe('Jobs of a project', () => {
     expect(await screen.findByText(/All your job slots are busy \(429/)).toBeInTheDocument();
   });
 
-  it('selects completed runs of its own to analyze together', async () => {
+  // [utest->req~frontend-retire-no-link-to-retired~1]
+  it('offers no selection and no Analyze action', async () => {
     renderList();
 
     await screen.findByRole('region', { name: 'Jobs of the project' });
-    expect(screen.getByRole('button', { name: 'Analyze 0 selected' })).toBeDisabled();
-    expect(screen.getByRole('checkbox', { name: 'Select job job-done' })).toBeEnabled();
-    expect(screen.getByRole('checkbox', { name: 'Select job job-thei' })).toBeDisabled();
-    expect(screen.getByRole('checkbox', { name: 'Select job job-runn' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select job job-done' }));
-    expect(screen.getByRole('link', { name: 'Analyze 1 selected' })).toHaveAttribute('href', '/app/analysis/workspace?job=job-done-3');
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Analyze/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Analyze/ })).not.toBeInTheDocument();
   });
 
   it('offers a new run to members and not to a viewer', async () => {

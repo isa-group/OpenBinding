@@ -74,14 +74,15 @@ async def inspect_file(api_client, ctx, who: str, content: bytes):
 
 
 def normalized(body: dict, digest: str) -> str:
-    """The response with everything derived from the digest abstracted away."""
+    """The response without its clock, with the digest it reports abstracted away."""
     text = json.dumps({key: value for key, value in body.items() if key != "verified_at"}, sort_keys=True)
-    return text.replace(digest, "<digest>").replace(digest[7:19].upper(), "<doi>").replace(digest[7:15], "<short>")
+    return text.replace(digest, "<digest>")
 
 
 def unregistered_like(response, digest: str, unknown_response, unknown_digest: str) -> None:
     assert response.status_code == unknown_response.status_code == 200
     assert response.json()["entities"] == []
+    assert response.json()["citation"] is None
     assert normalized(response.json(), digest) == normalized(unknown_response.json(), unknown_digest)
     for leak in (SECRET, CASE_TITLE, PROJECT):
         assert leak not in response.text

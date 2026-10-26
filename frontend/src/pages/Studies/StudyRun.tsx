@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { platformApi, type Report, type StudyCell } from '../../api/platform';
+import { platformApi, type StudyCell } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -11,7 +11,6 @@ import { classifyAuthError, marker } from '../Account/accountErrors';
 import { RefusalNotice } from '../Jobs/parts';
 import { CellTable, RunHeatmap } from './CellViews';
 import { CellBar, StateChip, StudyFrame, StudyGate } from './parts';
-import { createRunReport, reportsOfRun } from './reportActions';
 import { StudyScope, type StudyScopeValue } from './StudyScope';
 import { loadRun } from './runData';
 import { MAX_GRID_CELLS, RUNTIME, breakdownText, countStates, isActiveState, isRetryable, measureLabel, measuresOf, metricsOf, plural } from './studiesModel';
@@ -20,7 +19,7 @@ import { POLL_MS, usePolling } from './usePolling';
 import { useRevisionIndex } from './useRevisionIndex';
 
 type Outcome =
-  | { tone: 'success'; text: string; follow?: { to: string; label: string } }
+  | { tone: 'success'; text: string }
   | { tone: 'error'; refusal: Refusal };
 
 function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
@@ -31,11 +30,10 @@ function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
   const runPath = `${studyPath}/runs/${runId}`;
   const { index } = useRevisionIndex(org, slug);
   const resource = useResource(`run:${study.id}/${runId}`, () => loadRun(org, slug, study.slug, runId));
-  const reports = useResource<Report[]>(`run-reports:${runId}`, () => platformApi.reports(org, slug).catch(() => []));
   const [auto, setAuto] = useState(true);
   const [measureChoice, setMeasureChoice] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
-  const [busy, setBusy] = useState<'cancel' | 'report' | 'retry-all' | null>(null);
+  const [busy, setBusy] = useState<'cancel' | 'retry-all' | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
 
   const data = resource.data ?? resource.stale;
@@ -83,7 +81,6 @@ function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
   const measure = measureChoice && measures.includes(measureChoice) ? measureChoice : measures[0] ?? RUNTIME;
   const counts = countStates(cells);
   const retryable = cells.filter((cell) => isRetryable(cell.state));
-  const draft = reportsOfRun(reports.data ?? reports.stale ?? [], run)[0];
   const feasible = cells.filter((cell) => cell.state === 'completed' && metricsOf(cell).feasible === true).length;
   const finishedAt = formatDateTime(run.finished_at);
 
@@ -136,20 +133,6 @@ function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
     }
   };
 
-  const makeReport = async () => {
-    setBusy('report');
-    setOutcome(null);
-    try {
-      const made = await createRunReport(org, slug, study, run);
-      setOutcome({ tone: 'success', text: 'Draft report created from this run.', follow: { to: `${root}/reports/${encodeURIComponent(made.slug)}`, label: 'Open the report' } });
-      reports.reload();
-    } catch (caught) {
-      setOutcome({ tone: 'error', refusal: studyRefusal(caught, 'report') });
-    } finally {
-      setBusy(null);
-    }
-  };
-
   return (
     <StudyFrame organization={organization} project={project} trail={[{ label: 'Studies', to: `${root}/studies` }, { label: study.name, to: studyPath }, { label: `Run #${run.run_number}` }]}>
       <header className="proj-title-row">
@@ -162,11 +145,9 @@ function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
             {formatDateTime(run.created_at) ?? '—'}{finishedAt ? ` → ${finishedAt}` : ''} · matrix <span title={run.matrix_digest}>{shortDigest(run.matrix_digest)}</span>
           </p>
         </div>
+        {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
         <div className="proj-actions">
           <Action to={`${runPath}/analytics`} variant="primary">Compare results</Action>
-          {access.canCreate && (draft
-            ? <Action to={`${root}/reports/${encodeURIComponent(draft.slug)}`} variant="secondary">Open the report</Action>
-            : <Action variant="secondary" busy={busy === 'report'} disabled={busy !== null} onClick={() => void makeReport()}>Create a report</Action>)}
           {access.canCreate && isActiveState(run.state) && (
             <Action variant="danger-outline" busy={busy === 'cancel'} disabled={busy !== null} onClick={() => void cancel()}>Cancel run</Action>
           )}
@@ -174,7 +155,7 @@ function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
       </header>
 
       {outcome?.tone === 'success' && (
-        <Notice tone="success" action={outcome.follow ? <Action to={outcome.follow.to} variant="link" size="sm">{outcome.follow.label}</Action> : undefined}>{outcome.text}</Notice>
+        <Notice tone="success">{outcome.text}</Notice>
       )}
       {outcome?.tone === 'error' && <RefusalNotice refusal={outcome.refusal} usageTo />}
       {resource.status === 'error' && data && (

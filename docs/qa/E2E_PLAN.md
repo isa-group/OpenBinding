@@ -80,9 +80,8 @@ Steps 1 to 5 cannot be skipped. Step 10 only runs with `--with-space`.
 
 - **Anything in a browser.** No rendering, no JavaScript errors, no routing in the SPA beyond "the proxy
   serves the index". The Playwright specs in `frontend/e2e` (`s1a`..`s9b`, `routes-smoke`, `responsive`,
-  `visual-*`, `qa-gallery`, `analysis-live`, `pricing`) need a browser; most of them run against the Vite dev
-  server with mocked API (`helpers/mockApi.ts`), and `analysis-live.spec.ts` with `ANALYSIS_LIVE=1` against
-  a live frontend. They stay for an execution with a browser and the SSH tunnel to `127.0.0.1:18100`. The
+  `visual-*`, `qa-gallery`, `pricing`) need a browser; they run against the Vite dev
+  server with mocked API (`helpers/mockApi.ts`). They stay for an execution with a browser and the SSH tunnel to `127.0.0.1:18100`. The
   specs written for the lab are described [below](#browser-specs-of-the-live-project-written-not-executed);
   they are **not executed**.
 - **Mobile and desktop visual checks** (390 x 844 and 1440 x 900 in `docs/DEMO.md`) and the **screenshot

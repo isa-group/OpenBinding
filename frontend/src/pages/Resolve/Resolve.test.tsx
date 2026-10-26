@@ -95,12 +95,13 @@ describe('Resolve', () => {
       expect(locations.queryByRole('link', { name: 'Open in platform' })).not.toBeInTheDocument();
     });
 
-    it('links a member to the report in the platform, on a route that exists', async () => {
+    // [utest->req~frontend-retire-reports-no-link~1]
+    it('links a member to the publications of the project of the report, on a route that exists', async () => {
       signIn();
       renderResolve();
       const locations = within(await screen.findByRole('region', { name: 'Locations' }));
 
-      expect(locations.getByRole('link', { name: 'Open in platform' })).toHaveAttribute('href', '/app/isa-demo/qos/reports/report-1');
+      expect(locations.getByRole('link', { name: 'Open in platform' })).toHaveAttribute('href', '/app/isa-demo/qos/publications');
     });
 
     it('describes the structure of the content without printing it', async () => {

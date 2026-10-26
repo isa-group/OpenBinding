@@ -1,5 +1,5 @@
 import type { PricingCatalog, UsageView } from '../../api/auth';
-import type { BindingCase, CaseRevision, Organization, OrganizationRole, ProjectAccessKind, Publication, Report, Study, StudyCell, StudyRun, Visibility } from '../../api/platform';
+import type { BindingCase, CaseRevision, Organization, OrganizationRole, ProjectAccessKind, Report, Study, StudyCell, StudyRun, Visibility } from '../../api/platform';
 import { canWrite, levelOf, type AccessLevel } from './accessLevel';
 
 export { atLeast, SLUG_PATTERN, slugFromName } from '../Organization/orgModel';
@@ -142,16 +142,6 @@ export function jobStatus(status: string, termination?: string | null): { label:
     return { label: 'Completed', tone: 'ok' };
   }
   return { label: status, tone: 'off' };
-}
-
-// --- reports
-
-export type ReportStanding = 'published' | 'frozen' | 'draft';
-
-export function reportStanding(report: Report, publications: readonly Publication[]): ReportStanding {
-  if (report.state === 'draft') return 'draft';
-  const published = publications.some((item) => item.report_id === report.id && !item.withdrawn);
-  return published ? 'published' : 'frozen';
 }
 
 // --- the import ceiling

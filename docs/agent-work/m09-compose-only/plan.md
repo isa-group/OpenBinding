@@ -1,0 +1,1 @@
+Done: S0-S4, fixes of rounds 1-3 integrated (head 8dadfa73 + checkpoint). Remaining: push, narrow security re-check + test-review of round-3 delta, tell coordinator head final, set_review_package, lead_ready.

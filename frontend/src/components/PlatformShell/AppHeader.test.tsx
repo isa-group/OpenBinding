@@ -87,8 +87,17 @@ describe('AppHeader', () => {
     const nav = within(mainNav());
     expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/app');
     expect(nav.getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', '/app/jobs');
-    expect(nav.getByRole('link', { name: 'Analysis' })).toHaveAttribute('href', '/app/analysis');
     expect(nav.getByRole('link', { name: 'Explore' })).toHaveAttribute('href', '/explore');
+  });
+
+  // [utest->req~frontend-retire-navigation~1]
+  it('offers no Analysis entry and no link to a retired address', () => {
+    renderHeader();
+
+    expect(within(mainNav()).queryByRole('link', { name: 'Analysis' })).not.toBeInTheDocument();
+    expect(within(mobileNav()).queryByRole('link', { name: 'Analysis' })).not.toBeInTheDocument();
+    const retired = screen.getAllByRole('link').filter((link) => (link.getAttribute('href') ?? '').startsWith('/app/analysis'));
+    expect(retired).toEqual([]);
   });
 
   it('shows the organization and project as a context chip that leads to /app', () => {
@@ -116,7 +125,6 @@ describe('AppHeader', () => {
     ['D3', '/app/isa-demo/settings/members', 'Home'],
     ['D4', '/app/isa-demo/qos/cases', null],
     ['D5', '/app/isa-demo/qos/jobs/job-1', 'Jobs'],
-    ['D6 analysis', '/app/analysis/workspace', 'Analysis'],
     ['D6 studies', '/app/isa-demo/qos/studies/engines-vs-seeds', null],
     ['D7', '/app/engines/registrations', 'Tools'],
     ['D8', '/app/admin/audit', 'Admin'],

@@ -65,7 +65,8 @@ describe('Analytics of a run', () => {
     expect(figure('feasible')).toHaveTextContent('6');
     expect(figure('infeasible')).toHaveTextContent('0');
     expect(figure('median time')).toHaveTextContent('1 min');
-    expect(screen.getByRole('link', { name: 'Weigh trade-offs' })).toHaveAttribute('href', '/app/analysis');
+    // [utest->req~frontend-retire-no-link-to-retired~1]
+    expect(screen.queryByRole('link', { name: 'Weigh trade-offs' })).not.toBeInTheDocument();
 
     expect(screen.getByRole('heading', { name: 'Cost found, per engine' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'evolutionary: 2 values from 0.104 to 0.112, median 0.108' })).toBeInTheDocument();
@@ -155,19 +156,26 @@ describe('Analytics of a run', () => {
     expect(new TextDecoder().decode(bytes).split('\n')[0]).toBe('cell,case_revision,engine,engine_version,mode,setting,seed,state,feasible,cost,latency,runtime_seconds,job_id,fingerprint');
   });
 
-  it('creates a draft report from the run, or opens the one that exists', async () => {
-    platform.createReport.mockResolvedValue(reportOf('engines-vs-seeds-run-1', 'draft', { study_run_id: RUN_ID }));
+  // [utest->req~frontend-retire-reports-entry-points-removed~1]
+  it('offers no report action, whether or not a draft report of the run exists, and reads no report', async () => {
+    const action = /create (a |draft )?report|open the report/i;
     const view = renderAnalytics();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Create a report' }));
-    expect(await screen.findByText('Draft report created from this run.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open the report' })).toHaveAttribute('href', `${ROOT}/reports/engines-vs-seeds-run-1`);
+    await screen.findByRole('heading', { level: 1, name: 'Compare results · run #1' });
+    expect(screen.getByRole('button', { name: 'Export CSV' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: action })).not.toBeInTheDocument();
     view.unmount();
 
     platform.reports.mockResolvedValue([reportOf('engines-vs-seeds-run-1', 'draft', { study_run_id: RUN_ID })]);
     renderAnalytics();
-    expect(await screen.findByRole('link', { name: 'Open the report' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Create a report' })).not.toBeInTheDocument();
+    await screen.findByRole('heading', { level: 1, name: 'Compare results · run #1' });
+    expect(screen.queryByRole('link', { name: action })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
+    const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
+    expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
+    await waitFor(() => expect(platform.analytics).toHaveBeenCalled());
+    expect(platform.reports).not.toHaveBeenCalled();
   });
 
   it('loads the solutions of one cell only when asked', async () => {
@@ -208,11 +216,10 @@ describe('Analytics of a run', () => {
     expect(await screen.findByText('A trade-off needs two objectives, and this run recorded one.')).toBeInTheDocument();
   });
 
-  it('lets a viewer read everything without creating a report', async () => {
+  it('lets a viewer read everything and export', async () => {
     renderAnalytics({ slug: 'read-lab' });
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Compare results · run #1' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Create a report' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Export CSV' })).toBeInTheDocument();
   });
 

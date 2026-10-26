@@ -112,12 +112,13 @@ describe('My jobs', () => {
     expect(screen.getByText('No runs match these filters')).toBeInTheDocument();
   });
 
-  it('offers cancel, retry and analyze only where they apply', async () => {
+  // [utest->req~frontend-retire-no-link-to-retired~1]
+  it('offers cancel and retry only where they apply, and no link to analyze', async () => {
     renderHistory();
 
     const list = await screen.findByRole('list', { name: 'Your jobs' });
     const rows = within(list).getAllByRole('listitem');
-    expect(within(rows[0]).getByRole('link', { name: 'Analyze' })).toHaveAttribute('href', '/app/analysis/workspace?job=job-done-1');
+    expect(within(rows[0]).queryByRole('link', { name: 'Analyze' })).not.toBeInTheDocument();
     expect(within(rows[1]).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     expect(within(rows[2]).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
     expect(within(rows[3]).getByRole('button', { name: 'Retry' })).toBeInTheDocument();

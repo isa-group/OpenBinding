@@ -1,0 +1,1 @@
+Done: spec, S1, S2, doc, round-1 fixes integrated (head 240307bc). Remaining: push, round-2 panel (reviewer, test-reviewer, security-auditor because the verifier now does author lookups), ready. Coordinator regenerates changelog.

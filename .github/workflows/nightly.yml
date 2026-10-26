@@ -1,0 +1,32 @@
+# Nightly CI run of develop.
+#
+# GitHub runs a schedule from the copy of this file on the default branch (main), so the nightly only fires once
+# this file is on main: it starts after the owner merges a release PR. Until then the file does nothing.
+#
+# The job dispatches ci.yml on the ref develop. The dispatched run is a workflow_dispatch run of develop's own
+# ci.yml on develop's code, so no checkout is needed here. Without a checkout gh finds no git remote, so GH_REPO
+# names the repository.
+#
+# actions: write is the permission that lets the workflow token start a workflow run. It grants no access to
+# repository contents. There is no third-party action and no secret; the token is the one GitHub issues to the run.
+name: Nightly
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+
+permissions:
+  actions: write
+
+jobs:
+  dispatch-ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch CI on develop
+        run: gh workflow run ci.yml --ref develop
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
