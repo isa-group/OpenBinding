@@ -91,6 +91,9 @@ Preconditions: S3 merged; S1 shipped in a release; the owner's approval of the r
 - M4.2: confirm in its S8 suite which field of SPACE's pricing event payload carries the version that
   `PlanPort.active_version()` returns (UNVERIFIED, design.md §11).
 - Doc-steward: `docs/ARCHITECTURE.md` §9.2 says the descriptor carries "the version SPACE has activated"; reword it as
-  the version of the last SPACE pricing event the plans module received (`PlanPort.active_version()`), `null` before
-  the first event and while SPACE is unavailable (design.md §2 step 5, §11).
+  the version carried by the last `pricing_actived` event for the service that the plans module received on its
+  current event connection (`PlanPort.active_version()`), `null` in the cases of `req~plans-active-version~1` of
+  M4.2: until the first such event after start-up or after a reconnection, while the connection is down, after an
+  activation event with no version, after `pricing_created`, `pricing_archived` or `service_disabled` until the next
+  `pricing_actived`, and always on the open gate (design.md §2 step 5, §11).
 - The other M4.3 removals (release sweeps, local metering, sponsorship capacity checks) are separate changes.

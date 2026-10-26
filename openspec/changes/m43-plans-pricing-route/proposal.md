@@ -38,8 +38,8 @@ route that replaces them, and the expand/contract plan that retires them.
   available with no SPACE dependency (SPACE's state only fills `spaceActiveVersion`), while `plans` covers
   authenticated entitlement decisions that depend on SPACE.
 - Dependency on M4.2 (`m42-plans-module`): `spaceActiveVersion` is the value of its `PlanPort.active_version()`
-  (the version of the last SPACE pricing event, held in memory; `None` before the first event and while SPACE is
-  unavailable), design.md §2 step 5. Slice S2 waits for that method.
+  (the version of the last `pricing_actived` event for the service on the current event connection, held in memory;
+  `None` in the cases of its `req~plans-active-version~1`), design.md §2 step 5. Slice S2 waits for that method.
 - Capability `frontend-catalog-pricing`: REMOVED `req~frontend-catalog-pricing-read-only-source~1`. It is a gateway
   obligation on the routes this change retires, so it moves to `plans-pricing` with the same change; the frontend
   requirements of that capability stay with the frontend lead (two capabilities, justified here).

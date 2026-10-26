@@ -42,7 +42,7 @@ Needs: impl, utest
 - **AND** every YAML date or timestamp is an ISO 8601 string
 
 ### Requirement: SPACE active version in the descriptor
-WHEN the gateway answers `GET /v1/plans/pricing` with `200`, THE gateway SHALL set `spaceActiveVersion` to the value that `PlanPort.active_version()` of the M4.2 plans module returns at that request, which is `null` before the plans module has received its first SPACE pricing event and while SPACE is unavailable, without changing the status.
+WHEN the gateway answers `GET /v1/plans/pricing` with `200`, THE gateway SHALL set `spaceActiveVersion` to the value that `PlanPort.active_version()` of the M4.2 plans module returns at that request, which is `null` in every case where that method returns `None` under `req~plans-active-version~1` of M4.2, without changing the status.
 
 `req~plans-pricing-space-active-version~1`
 
@@ -59,7 +59,7 @@ Needs: impl, utest
 - **THEN** `version` is `0.3.0` and `spaceActiveVersion` is `0.2.0`
 
 #### Scenario: No active version known
-- **GIVEN** the recorded SPHERE pricing and a fake plans port whose `active_version()` returns `None`, as the M4.2 port does before its first pricing event and while SPACE is unavailable
+- **GIVEN** the recorded SPHERE pricing and a fake plans port whose `active_version()` returns `None`, as the M4.2 port does in the cases of `req~plans-active-version~1` (for example after start-up until the first `pricing_actived` event for the service, or while its event connection is down)
 - **WHEN** a client sends `GET /v1/plans/pricing`
 - **THEN** the response status is `200`, `spaceActiveVersion` is `null` and every other field is as in the recorded pricing scenario
 

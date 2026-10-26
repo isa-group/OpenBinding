@@ -65,10 +65,13 @@ updates the scenario values here through a revision if the live shape or hash di
    string) equals the entry's `version`. The verified read (manifest entry, bytes, parsed document, time) replaces
    the held one.
 5. SPACE: `PlanPort.active_version() -> str | None` of the M4.2 plans module (`m42-plans-module`, added there in the
-   round-2 revision). The method sends no request: it returns the version carried by the payload of the last SPACE
-   pricing event the plans module received, held in memory, and `None` before the first event and while SPACE is
-   unavailable. `None` gives `null`; the field never changes the status (§10 D3). The payload field that carries the
-   version is UNVERIFIED until the M4.2 S8 suite runs against a real SPACE (§11).
+   round-2 revision, `req~plans-active-version~1`, its design.md §8). The method sends no request: it returns the
+   version carried by the last `pricing_actived` event for the configured service received on the current event
+   connection, held in memory. It returns `None` until the first such event after start-up; after a `pricing_actived`
+   event with no version; after a `pricing_created`, `pricing_archived` or `service_disabled` event for the service,
+   until the next `pricing_actived`; from a connection drop until the next `pricing_actived` after reconnection; and
+   always on the open gate. `None` gives `null`; the field never changes the status (§10 D3). The payload field that
+   carries the version is UNVERIFIED until the M4.2 S8 suite runs against a real SPACE (§11).
 6. Body (§3), `ETag`, `Cache-Control`; `304` when `If-None-Match` matches (§5).
 
 Failures of steps 2-4 are logged by `log_internal_failure` (masked, bounded, with the correlation id) and answered with
@@ -91,7 +94,7 @@ No step reads `SPACE_PRICING_VERSION`, `SPHERE_ENABLED`, `SPHERE_API_KEY` or the
 | `createdAt` | string | `createdAt` of that entry, unchanged |
 | `digest` | string, `^sha256-[0-9a-f]{64}$` | `sha256-` + the verified `contentHash`; the same notation as `/v1/pricing/current` and the profile catalogue |
 | `yamlUrl` | string, URI | the public YAML URL of step 3, for a download link |
-| `spaceActiveVersion` | string or `null` | `PlanPort.active_version()` (step 5): the version of the last SPACE pricing event; `null` before the first event and while SPACE is unavailable |
+| `spaceActiveVersion` | string or `null` | `PlanPort.active_version()` (step 5): the version of the last `pricing_actived` event for the service on the current event connection; `null` whenever the method returns `None` (the cases of step 5, `req~plans-active-version~1` of M4.2) |
 | `yaml` | string | the verified bytes decoded as UTF-8, unchanged: the document as served by SPHERE, for the `pricing-renderer` web component (`yaml` attribute) and for checking `digest` |
 | `document` | object | the same YAML parsed, `.inf`/`-.inf`/`.nan` as `null`, dates as ISO 8601 strings, keys in YAML order and none added: the input of the `pricing-renderer` React component (`pricing` prop, a parsed object) and of today's `pricingModel.ts` |
 
@@ -113,7 +116,7 @@ API without a key, and plan information. Pricings and contracts are administered
   "get": {
     "operationId": "getPlansPricing",
     "summary": "Published pricing",
-    "description": "The latest public version of the OpenBinding pricing in SPHERE: permanent link, SPHERE version id and label, digest, the YAML as SPHERE serves it, the same document as JSON, and the version SPACE has active as of its last pricing event (null before the first event and while SPACE is unavailable). Public; the body is the same for every caller.",
+    "description": "The latest public version of the OpenBinding pricing in SPHERE: permanent link, SPHERE version id and label, digest, the YAML as SPHERE serves it, the same document as JSON, and spaceActiveVersion, the pricing version of the last activation event for the service that the gateway received from SPACE on its current event connection. spaceActiveVersion is null until the first activation event after the gateway starts or after its event connection to SPACE is re-established, while that connection is down, after an activation event that carries no version, after a pricing is created or archived or the service is disabled in SPACE until the next activation event, and always when the gateway runs without SPACE. Public; the body is the same for every caller.",
     "tags": ["Plans"],
     "parameters": [
       {"name": "If-None-Match", "in": "header", "required": false, "schema": {"type": "string"},
@@ -321,9 +324,9 @@ coordinator compares them with the CRP text and opens a revision where they diff
   `/catalog` rule). Rejected: YAML only (the React renderer and `pricingModel.ts` take an object); JSON only (the hash
   cannot be checked by a client).
 - D3 `spaceActiveVersion` is part of the descriptor (ARCHITECTURE §9.2 "the version SPACE has activated"). Its only
-  source is `PlanPort.active_version()` of M4.2, which returns the version of the last SPACE pricing event held in
-  memory, and `None` before the first event and while SPACE is unavailable; the field is then `null`, and SPACE's
-  availability never turns the route into an error. Rejected: `503` when SPACE is down (couples a public page to
+  source is `PlanPort.active_version()` of M4.2 (`req~plans-active-version~1`), which returns the version of the
+  last `pricing_actived` event for the service on the current event connection, held in memory, and `None` in the
+  cases listed in §2 step 5; the field is then `null`, and SPACE's availability never turns the route into an error. Rejected: `503` when SPACE is down (couples a public page to
   SPACE); a SPACE read per request or per route cache (a second SPACE client outside the port, and a SPACE call on an
   anonymous route); leaving the field out (ARCHITECTURE asks for it). This matches M4.2 (`m42-plans-module`), which
   states that API-key authentication is not gated by plans: neither the caller's credential nor SPACE's state decides
@@ -371,8 +374,9 @@ coordinator compares them with the CRP text and opens a revision where they diff
   `req~plans-pricing-space-active-version~1`) waits for it. Which field of SPACE's pricing event payload carries the version is
   UNVERIFIED until the M4.2 S8 suite; if it differs, M4.2 revises its adapter and this change is unaffected (it reads
   only the method). Because the value comes from events, `spaceActiveVersion` can lag SPACE by the event delivery
-  delay, and after a gateway restart it is `null` until the next pricing event; ARCHITECTURE §9.2 "the version SPACE
-  has activated" is to be read with that meaning (tasks.md, follow-ups).
+  delay, and it is `null` in every case of `req~plans-active-version~1` (§2 step 5), for example after a gateway
+  restart or a reconnection until the next `pricing_actived` event even when SPACE has a version active; ARCHITECTURE
+  §9.2 "the version SPACE has activated" is to be read with that meaning (tasks.md, follow-ups).
 - Per-process read cache: with N workers SPHERE sees up to N manifest reads per 300 s; acceptable at the lab's scale.
 - Behind a proxy that hides client addresses, the anonymous rate-limit key is shared; the gateway's existing
   client-address rule applies unchanged.
