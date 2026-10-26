@@ -5,7 +5,6 @@
       "date": "2026-10-26",
       "title": "OpenBinding platform",
       "changes": [
-        "Archive gate-tooling changes into the living spec (#62)",
         "Citations contain only recorded facts (#61)",
         "O9 latency probe for POST /v1/jobs and POST /v1/validate (#57)",
         "Retire the report editor (M2.4 slice 2, ADR-0020) (#53)",
@@ -102,8 +101,6 @@
       "date": "2026-10-26",
       "title": "OpenBinding documentation",
       "changes": [
-        "Ci-speed plan and handoff",
-        "Archive gate-tooling changes into the living spec (#62)",
         "Citations contain only recorded facts (#61)",
         "O9 latency probe for POST /v1/jobs and POST /v1/validate (#57)",
         "Retire the report editor (M2.4 slice 2, ADR-0020) (#53)",
