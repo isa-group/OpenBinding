@@ -2858,7 +2858,8 @@ def test_runbook_first_install_empties_the_bootstrap_password_after_the_first_lo
 def test_runbook_first_install_clearing_of_the_bootstrap_variables_works_on_a_site_env(tmp_path):
     body = section(runbook_text(), "First install")
     start = body.index("sudo sed -i -e 's/^BOOTSTRAP_ADMIN_USERNAME=")
-    assert "`site.env` belongs\n   to root" in body
+    assert "belongs" not in body and "write access" not in body
+    assert "owned by the operator user" in section(runbook_text(), "site.env")
     end = body.index('"$SITE_ENV"', start) + len('"$SITE_ENV"')
     sed = SUDO_SHIM + textwrap.dedent(body[body.rindex("\n", 0, start) + 1 : end])
     assert body[end:].startswith(" \\\n     && unset BOOTSTRAP_ADMIN_USERNAME BOOTSTRAP_ADMIN_EMAIL \\\n     && $DC up -d --force-recreate gateway")

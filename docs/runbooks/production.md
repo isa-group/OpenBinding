@@ -93,7 +93,8 @@ docker compose version --short
 
 ## site.env
 
-`site.env` holds the per-host variables. It stays on the host and **never goes into Git**. `ci.env` in the repository
+`site.env` holds the per-host variables. It is owned by the operator user that runs the commands of this runbook
+(mode 0600), so they read and edit it without `sudo`. It stays on the host and **never goes into Git**. `ci.env` in the repository
 holds placeholders only, so that CI can render the file. Write it first: the next sections use it.
 
 ```bash
@@ -262,8 +263,7 @@ On the host, render with the real site values: `$DC config --quiet`.
 7. After the first sign-in, empty the password file and the two bootstrap variables of `site.env`, so that neither the
    initial password nor the initial account stays on the host, and recreate the gateway (the account exists). The
    variables are also unset in the shell, because a variable that is exported there wins over `--env-file`. The
-   commands are chained, so an edit of `site.env` that fails stops before the gateway is recreated. `site.env` belongs
-   to root, so the edit uses `sudo`:
+   commands are chained, so an edit of `site.env` that fails stops before the gateway is recreated:
 
    ```bash
    printf '' | put_secret bootstrap_admin_password 10001 allow-empty

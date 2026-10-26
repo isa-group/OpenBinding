@@ -11,4 +11,6 @@
 | R3-SEC-003 | not now | Follow-up | Listed in the PR follow-ups. |
 | R3-SEC-004 | not now | Follow-up | Listed in the PR follow-ups. |
 
+Follow-up closed (R3-REV-004): `site.env` is owned by the operator user (mode 0600), as the other sections already assume, so step 7 no longer says it belongs to root; it keeps `sudo sed -i` because `sed -i` writes a temporary file in the directory, which the operator may not own (GNU sed keeps the owner and mode); the test checks the new text and still runs the chain.
+
 Docker is not available here: the runbook blocks run with shims for `sudo`, `$DC` and `mv`; `docker compose config` was not run.
