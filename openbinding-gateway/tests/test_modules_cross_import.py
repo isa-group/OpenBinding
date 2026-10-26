@@ -142,6 +142,13 @@ def test_adapters_application_internals_and_package_root_are_flagged() -> None:
 
 
 # [utest->req~gateway-architecture-application-only~1]
+def test_a_bare_import_of_a_sibling_modules_internals_is_flagged() -> None:
+    source = f"import {MODULES}.repository\n"
+
+    assert _check(source, "modules/publishing/application/cite.py") == [(1, f"{MODULES}.repository")]
+
+
+# [utest->req~gateway-architecture-application-only~1]
 def test_another_modules_application_is_allowed() -> None:
     source = "\n".join(
         [
@@ -305,7 +312,7 @@ def test_conditional_and_class_body_imports_are_flagged() -> None:
 
 # [utest->req~gateway-architecture-application-only~1]
 def test_the_package_wide_rule_passes_on_the_real_tree() -> None:
-    assert any(SOURCE.rglob("*.py")), "the gateway package has no modules to check"
+    assert any(SOURCE.rglob("*.py")), "the gateway package has no Python files to check"
     offenders = violations_in_tree(SOURCE)
 
     assert not offenders, "Modules are reached through modules.<m>.application only:\n" + "\n".join(offenders)

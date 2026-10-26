@@ -168,8 +168,8 @@ openbinding-gateway/src/openbinding_gateway/
   `openbinding-gateway/tests/test_modules_cross_import.py` (AST, in the gateway pytest suite) enforces it;
   `tests/test_modules_skeleton.py` checks the structure of the contract file and also runs `lint-imports` against
   planted violations (the teeth test); it is skipped where `lint-imports` is not installed (the CI `test` job syncs
-  only `--extra test`) until the blocking CI step, pending, runs it with the `lint` group. The legacy `.importlinter` stays
-  report-only and unchanged, next to the existing `tests/test_architecture_layers.py` ratchets. Pending (owner/CI
+  only `--extra test`) until the blocking CI step, pending, runs it with the `lint` group.
+  The legacy `.importlinter` stays report-only and unchanged, next to the existing `tests/test_architecture_layers.py` ratchets. Pending (owner/CI
   follow-up): running the new contracts as a blocking CI step and as a G9 gate entry; until then they are not
   enforced in CI.
 

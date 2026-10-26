@@ -130,6 +130,7 @@ def test_nothing_outside_the_new_packages_imports_them() -> None:
 def test_import_resolver_finds_every_import_form(tmp_path: Path) -> None:
     root = tmp_path / PACKAGE
     (root / "sub").mkdir(parents=True)
+    (root / "app").mkdir()
     files = {
         "absolute.py": "from openbinding_gateway import app\n",
         "rel1.py": "from . import shared\n",
@@ -140,6 +141,7 @@ def test_import_resolver_finds_every_import_form(tmp_path: Path) -> None:
         "sub/rel2.py": "from .. import modules\n",
         "sub/local.py": "from . import shared\n",
         "sub/rel2_from.py": "from ..app import factory\n",
+        "app/inner.py": "from openbinding_gateway import shared\n",
     }
     for name, source in files.items():
         (root / name).write_text(source, encoding="utf-8")
