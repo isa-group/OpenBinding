@@ -20,8 +20,9 @@ Seven screens of domain D4 (`frontend/src/routes/d4.tsx`) go:
 | `proj-resource-detail` | `/app/:org/:project/resources/:resource` | `pages/Resources/ProjResourceDetail.tsx` |
 
 The files of `pages/Library/` and `pages/Resources/` that nothing imports after the deletion go with their tests,
-including `ContentView.tsx` (offender 11); `utils/bimVocabulary.ts` loses `migrateContent`. `pages/Library/fixtures.ts`
-stays while `e2e/helpers/mockApi.ts` imports it (tasks.md follow-ups). `ProjFiles`, `CollList` and `CollDetail` stay.
+including `ContentView.tsx` (offender 11); `utils/bimVocabulary.ts` loses `migrateContent`. `pages/Library/contentModel.ts`,
+`pages/Library/fixtures.ts` and the stub files are deleted too; the data `e2e/helpers/mockApi.ts` needs now lives in
+`frontend/e2e/helpers/libraryFixtures.ts`. `ProjFiles`, `CollList` and `CollDetail` stay.
 
 ## 2. Decisions
 
@@ -49,6 +50,7 @@ stays while `e2e/helpers/mockApi.ts` imports it (tasks.md follow-ups). `ProjFile
 | `pages/Organization/OrgOverview.tsx` | action `Library` | removed |
 | `pages/AppHome/AppHome.tsx` | "a shared library" | worded without the library |
 | `pages/Resources/CollDetail.tsx` | resource pins link to the library; `section="library"` | pins without link; `section="collections"` |
+| `pages/Studies/StudyDetail.tsx` | link `Open the definition in the library`; note `Definition version N · sealed … in the library` | removed; note `Definition version N · sealed` |
 | `pages/Resolve/resolveModel.ts` | resource revision `<base>/library…` | `<base>/collections` |
 
 ## 4. Link scan

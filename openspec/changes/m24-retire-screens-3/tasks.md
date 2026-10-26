@@ -50,8 +50,8 @@ Outside `frontend/src`:
   `["openspec", "archive", "m24-retire-screens-3", "--yes"]`, then `["openspec", "validate", "--all", "--strict"]`.
 
 ## Follow-ups outside this change
-- Delete the leftover stub files of `pages/Library/` and `pages/Resources/` and the temporary Library fixtures
-  (`pages/Library/fixtures.ts`) once `e2e/helpers/mockApi.ts` no longer imports them.
+- [x] Delete the leftover stub files of `pages/Library/` and `pages/Resources/` and the temporary Library fixtures
+  (`pages/Library/fixtures.ts`, `contentModel.ts`): done; the data lives in `e2e/helpers/libraryFixtures.ts`.
 - Reconcile at the archive the slice-1/2 scenarios slice 3 changes: "An artifact named reports keeps its screen", the
   tab lists with `Library`, 78 screens and D4 18, offender 11 and ceiling 13, and
   `req~frontend-retire-gateway-untouched~1` (one gateway test file changes) (design.md §6).

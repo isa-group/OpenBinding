@@ -200,7 +200,7 @@ Evidence: `frontend/src/routes/routes.test.ts`
 - **THEN** it fails, counting 72 screens instead of 71
 
 ### Requirement: No entry point into the library or the project resources
-THE case composer, the case list, the case revision page, the job launch, the job detail, the organization overview and the collections screens SHALL offer no control that opens the organization library, the project library or a project resource.
+THE case composer, the case list, the case revision page, the job launch, the job detail, the organization overview, the study detail and the collections screens SHALL offer no control that opens the organization library, the project library or a project resource.
 
 `req~frontend-retire-library-entry-points-removed~1`
 
@@ -210,7 +210,8 @@ Evidence: `frontend/src/pages/Cases/CaseComposer.test.tsx`; `frontend/src/pages/
 
 The removed controls are `Open in library`, `Find in library` and the issue action `library` (composer), `Open the
 library` (case list, job launch, job detail), `Edit the candidate` and `edit the candidates` (job launch and detail),
-the library links of the organization overview, and the links of resource cards (case revision) and resource pins
+the library links of the organization overview, `Open the definition in the library` (study detail, whose note reads
+`Definition version N · sealed`), and the links of resource cards (case revision) and resource pins
 (collections). The frontend API client keeps its library operations (design.md §5). Test file names follow the
 existing page tests (tasks.md 3.6).
 
@@ -228,6 +229,12 @@ existing page tests (tasks.md 3.6).
 - **GIVEN** a member launching a run of a package with range features, and the job detail of a run refused for ranges
 - **WHEN** both screens are rendered
 - **THEN** the `Engines` link stays, and no link is named `Edit the candidate`, `edit the candidates` or `Open the library`
+
+#### Scenario: Study detail
+- **GIVEN** a member on a study whose current definition version is 1
+- **WHEN** the screen is rendered
+- **THEN** no link is named `Open the definition in the library`
+- **AND** the note reads `Definition version 1 · sealed`
 
 #### Scenario: Organization overview and collections
 - **GIVEN** a member on `/app/isa-demo` and on `/app/isa-demo/qos-benchmarks/collections/checkout`, whose revision pins the resource `latency-table`
