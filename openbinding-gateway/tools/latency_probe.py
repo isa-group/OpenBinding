@@ -2,14 +2,21 @@
 """Lab latency probe for INTENT O9: p95 of ``POST /v1/jobs`` (accept) and ``POST /v1/validate`` on corpus packages.
 
 It talks only HTTP (httpx) to the ``web`` service as a seeded synthetic user, one client, one request at a time. Only
-the request itself is timed; the answers that are not the expected success are counted as errors and never enter the
-percentiles. ``POST /v1/jobs`` is timed in both accept variants (a snapshot id in JSON, and a multipart ZIP upload).
-Every accepted job is cancelled and drained to a terminal state before the next accept (the lab allows 3 concurrent
-jobs per account); that part is not timed. The probe never prints the password or a token.
+the request itself is timed (for the ZIP variant that includes the multipart encoding; the Idempotency-Key is built
+before the clock starts); the answers that are not the expected success are counted as errors and never enter the
+percentiles. ``POST /v1/jobs`` is timed in the accept variants selected with ``--variants`` (default both: a snapshot id
+in JSON, and a multipart ZIP upload). The gateway currently refuses every ZIP accept (``422 optimization_required``,
+the multipart form fields are ignored); a row whose every answer is that refusal is reported as ``blockedByGateway``
+and does not count for the verdict. Every accepted job is cancelled and drained to a terminal state before the next
+accept (the lab allows 3 concurrent jobs per account); that part is not timed. The probe never prints the password or
+a token.
 
-Output: ONE JSON document on stdout (``--markdown`` prints the same table as Markdown).
-Exit code: 0 every route meets its target, 1 a target is missed (a measurement, not a defect of the tool) or a job
-could not be drained, 2 configuration error, 3 blocked by SPACE (``503 pricing_unavailable``; not a miss).
+Output: ONE JSON document on stdout (``--markdown`` prints the same table as Markdown), also when the run fails: the
+rows measured so far and ``error`` are in it.
+Exit code: 0 at least one row is not blocked and every row that is not blocked meets its target, 1 a target is missed
+(a measurement, not a defect of the tool) or the run failed after the packages were loaded (a job that could not be
+drained, an unexpected answer), 2 configuration error or failure before any package was loaded, 3 blocked by SPACE
+(``503 pricing_unavailable``; not a miss).
 
 Environment:
     DEMO_SEED_PASSWORD   required; the password the seed gave every synthetic user.
@@ -17,7 +24,7 @@ Environment:
 
 Usage:
     python tools/latency_probe.py [--base-url URL] [--user lab-member] [--samples 40] [--warmup 3]
-                                  [--examples top3|all|a,b] [--markdown]
+                                  [--examples top3|all|a,b] [--variants snapshot,zip] [--markdown]
 """
 
 from __future__ import annotations
@@ -49,6 +56,8 @@ JOB_BODY = {
     "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}, "options": {"iterations": 10, "seed": 1},
 }
 TOP = 3
+VARIANTS = ("snapshot", "zip")
+ZIP_REFUSAL = "422 optimization_required"
 DRAIN_ATTEMPTS, DRAIN_POLL_S = 120, 0.5
 
 
@@ -68,6 +77,7 @@ class Config:
     samples: int = 40
     warmup: int = 3
     examples: str = "top3"
+    variants: tuple[str, ...] = VARIANTS
     jobs_target_ms: float = 500.0
     validate_target_ms: float = 2000.0
 
@@ -98,6 +108,7 @@ class Probe:
         self.secrets = [config.password]
         self.headers: dict[str, str] = {}
         self.packages_cache: dict[str, bytes] = {}
+        self.skipped: list[dict[str, Any]] = []
 
     def scrub(self, text: object) -> str:
         value = str(text)
@@ -135,21 +146,33 @@ class Probe:
             return None
 
     def packages(self) -> dict[str, bytes]:
-        """The chosen corpus examples (path -> ZIP bytes): the three largest, all, or the named ones."""
+        """The chosen corpus examples (path -> ZIP bytes): the three largest, all, or the named ones.
+
+        Of ``top3``/``all`` an example the gateway does not serve is skipped and listed in ``self.skipped``; a named
+        example that fails is an error.
+        """
         choice = self.config.examples
-        if choice in {"top3", "all"}:
+        listed = choice in {"top3", "all"}
+        if listed:
             listing = self.call("GET", "/v1/examples")
             names = listing.json().get("examples") if listing.status_code == 200 else None
             if not isinstance(names, list) or not names:
                 raise ProbeError(f"GET /v1/examples answered {listing.status_code}")
         else:
             names = [name.strip() for name in choice.split(",") if name.strip()]
+            if not names:
+                raise ProbeError("no example selected")
         found: dict[str, bytes] = {}
         for name in names:
             response = self.call("GET", f"/v1/examples/{name}")
             if response.status_code != 200 or not response.content:
-                raise ProbeError(f"example {name}: {response.status_code}")
+                if not listed:
+                    raise ProbeError(f"example {name}: {response.status_code}")
+                self.skipped.append({"path": str(name), "status": response.status_code})
+                continue
             found[str(name)] = response.content
+        if not found:
+            raise ProbeError("no example could be fetched")
         ranked = sorted(found, key=lambda path: (-len(found[path]), path))
         return {path: found[path] for path in (ranked[:TOP] if choice == "top3" else ranked)}
 
@@ -164,14 +187,22 @@ class Probe:
         raise ProbeError(f"job {job_id} did not end after {DRAIN_ATTEMPTS} polls")
 
     def measure(
-        self, request: Callable[[], httpx.Response], expected: int, after: Callable[[httpx.Response], None] | None = None
+        self,
+        prepare: Callable[[], Callable[[], httpx.Response]],
+        expected: int,
+        after: Callable[[httpx.Response], None] | None = None,
     ) -> tuple[list[float], dict[str, int]]:
-        """Durations in ms of the answers with the expected status, and the other answers by status (warmup excluded)."""
+        """Durations in ms of the answers with the expected status, and the other answers by status (warmup excluded).
+
+        ``prepare`` runs before the clock starts and returns the sender; the clock covers only the sender, so whatever
+        ``prepare`` builds (the Idempotency-Key) is not timed and the request encoding (the multipart body) is.
+        """
         timings: list[float] = []
         errors: dict[str, int] = {}
         for index in range(self.config.warmup + self.config.samples):
+            send = prepare()
             started = self.clock()
-            response = request()
+            response = send()
             elapsed_ms = (self.clock() - started) * 1000
             if response.status_code == 503 and code_of(response) == PRICING_UNAVAILABLE:
                 raise Blocked(f"503 {PRICING_UNAVAILABLE}")
@@ -198,39 +229,47 @@ class Probe:
     ) -> dict[str, Any]:
         timings, errors = outcome
         p95 = percentile(timings, 0.95)
-        return {
+        blocked = not timings and set(errors) == {ZIP_REFUSAL}
+        row: dict[str, Any] = {
             "route": route, "variant": variant, "package": package, "samples": len(timings),
             "errors": sum(errors.values()), "errorAnswers": errors,
             "p50Ms": round(percentile(timings, 0.50), 3), "p95Ms": round(p95, 3), "maxMs": round(max(timings, default=0.0), 3),
-            "targetMs": target, "meetsTarget": bool(timings) and p95 <= target,
+            "targetMs": target, "meetsTarget": bool(timings) and not errors and p95 <= target,
+            "blockedByGateway": blocked,
         }
+        if blocked:
+            row["blockedReason"] = ZIP_REFUSAL
+        return row
 
-    def run(self) -> list[dict[str, Any]]:
-        rows: list[dict[str, Any]] = []
+    def job_sender(self, **request: Any) -> Callable[[], Callable[[], httpx.Response]]:
+        """``prepare`` of an accept: a fresh Idempotency-Key per request, built outside the timed window."""
+
+        def prepare() -> Callable[[], httpx.Response]:
+            headers = {"Idempotency-Key": f"lat-{uuid.uuid4().hex}"}
+            return lambda: self.call("POST", "/v1/jobs", headers=headers, **request)
+
+        return prepare
+
+    def run(self, rows: list[dict[str, Any]]) -> None:
+        """Measure every selected route and package, appending each row to ``rows`` as soon as it is done."""
+        jobs, check = "POST /v1/jobs", "POST /v1/validate"
+
+        def accept(response: httpx.Response) -> None:
+            job_id = response.json().get("id")
+            if isinstance(job_id, str):
+                self.drain(job_id)
+
         for path, archive in self.packages_cache.items():
-            snapshot = self.snapshot_id(archive)
+            if "snapshot" in self.config.variants:
+                prepare = self.job_sender(json={"snapshot": self.snapshot_id(archive), **JOB_BODY})
+                rows.append(self.row(jobs, "snapshot", path, self.config.jobs_target_ms, self.measure(prepare, 202, accept)))
+            if "zip" in self.config.variants:
+                prepare = self.job_sender(files={"file": (f"{path.rsplit('/', 1)[-1]}.bim.zip", archive, BIM_ZIP)})
+                rows.append(self.row(jobs, "zip", path, self.config.jobs_target_ms, self.measure(prepare, 202, accept)))
+            def prepare_validate(archive: bytes = archive) -> Callable[[], httpx.Response]:
+                return lambda: self.call("POST", "/v1/validate", headers={"Content-Type": BIM_ZIP}, content=archive)
 
-            def accept(response: httpx.Response) -> None:
-                job_id = response.json().get("id")
-                if isinstance(job_id, str):
-                    self.drain(job_id)
-
-            def by_snapshot(snapshot: str = snapshot) -> httpx.Response:
-                return self.call("POST", "/v1/jobs", headers={"Idempotency-Key": f"lat-{uuid.uuid4().hex}"},
-                                 json={"snapshot": snapshot, **JOB_BODY})
-
-            def by_zip(path: str = path, archive: bytes = archive) -> httpx.Response:
-                return self.call("POST", "/v1/jobs", headers={"Idempotency-Key": f"lat-{uuid.uuid4().hex}"},
-                                 files={"file": (f"{path.rsplit('/', 1)[-1]}.bim.zip", archive, BIM_ZIP)})
-
-            def validate(archive: bytes = archive) -> httpx.Response:
-                return self.call("POST", "/v1/validate", headers={"Content-Type": BIM_ZIP}, content=archive)
-
-            jobs, check = "POST /v1/jobs", "POST /v1/validate"
-            rows.append(self.row(jobs, "snapshot", path, self.config.jobs_target_ms, self.measure(by_snapshot, 202, accept)))
-            rows.append(self.row(jobs, "zip", path, self.config.jobs_target_ms, self.measure(by_zip, 202, accept)))
-            rows.append(self.row(check, "package", path, self.config.validate_target_ms, self.measure(validate, 200)))
-        return rows
+            rows.append(self.row(check, "package", path, self.config.validate_target_ms, self.measure(prepare_validate, 200)))
 
 
 def run_probe(
@@ -240,16 +279,20 @@ def run_probe(
     clock: Callable[[], float] = time.perf_counter,
     sleep: Callable[[float], None] = time.sleep,
 ) -> tuple[dict[str, Any], int]:
-    """The report and the exit code of one run. ``clock`` is read twice per timed request and nowhere else."""
+    """The report and the exit code of one run. ``clock`` is read twice per timed request and nowhere else.
+
+    Whatever fails, the rows measured before it stay in ``report['routes']``.
+    """
     probe = Probe(config, client, clock, sleep)
     report: dict[str, Any] = {
         "tool": "latency_probe", "ok": False, "measuredAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "baseUrl": config.base_url, "gatewayVersion": None,
         "config": {
             "user": config.user, "samples": config.samples, "warmup": config.warmup, "examples": config.examples,
+            "variants": list(config.variants),
             "jobsTargetMs": config.jobs_target_ms, "validateTargetMs": config.validate_target_ms,
         },
-        "packages": [], "routes": [],
+        "packages": [], "skippedExamples": probe.skipped, "routes": [],
     }
     code = EXIT_MISS
     try:
@@ -257,12 +300,13 @@ def run_probe(
         report["gatewayVersion"] = probe.gateway_version()
         probe.packages_cache = probe.packages()
         report["packages"] = [{"path": path, "bytes": len(data)} for path, data in probe.packages_cache.items()]
-        report["routes"] = probe.run()
-        report["ok"] = all(row["meetsTarget"] for row in report["routes"])
+        probe.run(report["routes"])
+        counted = [row for row in report["routes"] if not row["blockedByGateway"]]
+        report["ok"] = bool(counted) and all(row["meetsTarget"] for row in counted)
         code = EXIT_OK if report["ok"] else EXIT_MISS
     except Blocked as error:
         report["blocked"], code = probe.scrub(error), EXIT_BLOCKED
-    except (ProbeError, httpx.HTTPError) as error:
+    except (ProbeError, httpx.HTTPError, ValueError, AttributeError, KeyError) as error:
         report["error"] = probe.scrub(f"{type(error).__name__}: {error}")
         code = EXIT_CONFIG if not report["packages"] else EXIT_MISS
     return report, code
@@ -274,14 +318,19 @@ def markdown(report: Mapping[str, Any]) -> str:
         f"Base URL `{report['baseUrl']}`, gateway {report['gatewayVersion'] or 'unknown'}, "
         f"{report['config']['samples']} samples after {report['config']['warmup']} warmup, one client, sequential.", "",
         "Packages: " + (", ".join(f"`{p['path']}` ({p['bytes']} B)" for p in report["packages"]) or "none"), "",
+    ]
+    if report["skippedExamples"]:
+        lines += ["Skipped examples: " + ", ".join(f"`{s['path']}` ({s['status']})" for s in report["skippedExamples"]), ""]
+    lines += [
         "| route | variant | package | samples | errors | p50 ms | p95 ms | max ms | target ms | meets |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for row in report["routes"]:
         errors = f" ({', '.join(f'{label} x{count}' for label, count in row['errorAnswers'].items())})" if row["errors"] else ""
+        meets = f"blocked by gateway ({row['blockedReason']})" if row["blockedByGateway"] else "yes" if row["meetsTarget"] else "NO"
         lines.append(
             f"| {row['route']} | {row['variant']} | {row['package']} | {row['samples']} | {row['errors']}{errors} | {row['p50Ms']} "
-            f"| {row['p95Ms']} | {row['maxMs']} | {row['targetMs']} | {'yes' if row['meetsTarget'] else 'NO'} |"
+            f"| {row['p95Ms']} | {row['maxMs']} | {row['targetMs']} | {meets} |"
         )
     for key in ("blocked", "error"):
         if key in report:
@@ -296,6 +345,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--samples", type=int, default=40, help="timed requests per route and package")
     parser.add_argument("--warmup", type=int, default=3, help="untimed requests before the samples")
     parser.add_argument("--examples", default="top3", help="top3 (the 3 largest packages), all, or comma-separated example paths")
+    parser.add_argument("--variants", default=",".join(VARIANTS), help="accept variants to time: snapshot and/or zip")
     parser.add_argument("--jobs-target-ms", type=float, default=500.0, help="p95 target of POST /v1/jobs")
     parser.add_argument("--validate-target-ms", type=float, default=2000.0, help="p95 target of POST /v1/validate")
     parser.add_argument("--markdown", action="store_true", help="print a Markdown report instead of JSON")
@@ -317,9 +367,13 @@ def main(
     if not password or args.samples < 1 or args.warmup < 0:
         print(json.dumps({"tool": "latency_probe", "ok": False, "error": "DEMO_SEED_PASSWORD and samples >= 1 are required"}))
         return EXIT_CONFIG
+    chosen = {name.strip() for name in args.variants.split(",")}
+    if not chosen or not chosen <= set(VARIANTS):
+        print(json.dumps({"tool": "latency_probe", "ok": False, "error": "--variants takes snapshot and/or zip"}))
+        return EXIT_CONFIG
     config = Config(
         base_url=base_url, user=args.user, password=password, samples=args.samples, warmup=args.warmup,
-        examples=args.examples, jobs_target_ms=args.jobs_target_ms, validate_target_ms=args.validate_target_ms,
+        examples=args.examples, variants=tuple(name for name in VARIANTS if name in chosen), jobs_target_ms=args.jobs_target_ms, validate_target_ms=args.validate_target_ms,
     )
     with httpx.Client(base_url=base_url, transport=transport, follow_redirects=False) as client:
         report, code = run_probe(config, client, clock=clock, sleep=sleep)
