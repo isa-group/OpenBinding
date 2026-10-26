@@ -112,8 +112,14 @@ Order:
   - remove the `kustomize` gate (`.agentic/project.yaml:82`);
   - add the lab and production `compose config` checks (`:81`);
   - update the evidence line of ADR-0021 (`:54`).
-- [ ] F3 Owner: answer CRP-1 (SPACE in production), CRP-2 (standalone file or override), CRP-4 (image registry and
-  publish workflow) and Q3 (host facts).
+- [ ] F3 Owner: answer CRP-2 (standalone file or override), CRP-4 (image registry and publish workflow) and Q3 (host
+  facts). CRP-1 is answered: `local-space` (see F6).
+- [ ] F6 Local SPACE in production (owner decision `local-space`). This change ships remote SPACE only. A follow-up
+  change adds `space-api`, `space-mongo` and `space-redis` to `deploy/compose/production/compose.yaml` with
+  digest-pinned images, secret files, health checks, limits and backups of the SPACE volumes, and amends
+  `req~lab-deployment-no-local-space` and `openbinding-gateway/tests/test_no_local_space.py`. The SPACE API image has no
+  verified digest or registry. The owner reconciles `INTENT.md:180` (hosting SPACE in production is listed as a
+  non-goal). See the runbook section `Local SPACE (owner decision local-space)`.
 - [ ] F4 After CRP-2: remove or rename the `prod` profile of `docker-compose.yml`.
 - [ ] F5 `bim-toolchain/docs/SERVICE.md:742,751-752`: drop the Kubernetes notes.
 

@@ -90,7 +90,7 @@ key read after `SECRETS_FERNET_KEYS`, so production has no secret file for it. T
 | Workers and the entrypoint | workers opt into the entrypoint with `skip`, to get `_FILE` support | a second script for workers: two copies of the secret logic |
 | Images of this repository | `gap.invalid/…@sha256:0…` markers until a registry exists (CRP-4) | tag-only references, or digests of local builds: neither is pinned to a published artifact |
 | Production layout | standalone `compose.yaml` (assumption CRP-2, §4) | `docker-compose.yml --profile prod` plus an override (§4) |
-| SPACE in production | remote only (`SPACE_URL`, key as a secret file); no SPACE or SPHERE service (assumption CRP-1, §4) | a local SPACE: needs an INTENT change and an exception in `test_no_local_space.py` |
+| SPACE in production | remote only (`SPACE_URL`, key as a secret file); no SPACE or SPHERE service. The owner chose `local-space` for later; a follow-up change adds it (CRP-1, §4) | a local SPACE now: needs an INTENT change and an exception in `test_no_local_space.py`, which another change is rewriting |
 | Test location | `openbinding-gateway/tests/test_no_kubernetes.py` and `openbinding-gateway/tests/test_compose_production.py` (the S0 contract fixes these paths). S2 creates `test_compose_production.py` with the entrypoint subprocess tests. S3 then extends it with the Compose static tests, and S4 with the runbook tests, in that order; the lead serializes the file (tasks.md, Order) | `lab/tests/…`, as the intake proposed: `lab/` is not among the OFT trace paths (`openspec/changes/m41-space-lab-profile/tasks.md`), so tags there would not be traced |
 | Runbook location | `docs/runbooks/production.md` (the S0 contract fixes this path) | `deploy/compose/production/RUNBOOK.md`, as the intake proposed. ADR-0021 says "a runbook next to its overlay"; the README and `compose.yaml` header point to it |
 | Feature flag | none | nothing deploys the production file without the owner's order, and the entrypoint changes act only when the new variables are set |
@@ -98,14 +98,21 @@ key read after `SECRETS_FERNET_KEYS`, so production has no secret file for it. T
 
 ## 4. Assumptions pending the owner
 
-- **CRP-1, SPACE in production.** This design assumes remote SPACE only.
+- **CRP-1, SPACE in production.** The owner decided `local-space`: production eventually runs its own SPACE
+  (`space-api`, `space-mongo`, `space-redis`, like `compose.lab-pricing.json`). This change still ships remote SPACE
+  only, because `openbinding-gateway/tests/test_no_local_space.py` is being rewritten by another change.
   - The gateway gets `SPACE_URL` from the site environment and `SPACE_API_KEY` from the `space_api_key` secret file.
   - The production file has no SPACE or SPHERE service, network or volume. `req~lab-deployment-no-local-space~1` and
     its revision in `m41-space-lab-profile` already scan `deploy/**`.
-  - `INTENT.md:180` lists hosting SPHERE or SPACE in production as a non-goal. `docs/ARCHITECTURE.md:494` says the
-    local profile runs until `space.score.us.es` serves the latest release. The owner settles that contradiction.
-  - If the owner chooses a local SPACE, a new revision of `no-local-space` and of
-    `production-secret-files` is needed.
+  - A follow-up change must add `space-api`, `space-mongo` and `space-redis` with digest-pinned images, secret files,
+    health checks, limits and backups of the SPACE volumes, and amend `req~lab-deployment-no-local-space` and
+    `test_no_local_space.py`. It also needs a new revision of `production-secret-files`.
+  - The SPACE API image has no verified digest or registry (the `gap.invalid/space-api:1.7.1` marker of the lab
+    pricing profile).
+  - `INTENT.md:180` lists hosting SPHERE or SPACE in production as a non-goal and conflicts with the owner decision.
+    `docs/ARCHITECTURE.md:494` says the local profile runs until `space.score.us.es` serves the latest release. The
+    owner reconciles `INTENT.md`; until then plans stay blocked on remote SPACE.
+  - The runbook records this in its section `Local SPACE (owner decision local-space)`.
 - **CRP-2, the meaning of "overlay".** This design assumes a standalone `deploy/compose/production/compose.yaml`, like
   the lab files (intake F15), not an override of `docker-compose.yml --profile prod`. An override would:
   - inherit `${GATEWAY_JWT_SECRET:?}` (`docker-compose.yml:51`), so the secret would have to be in the environment;
@@ -204,4 +211,5 @@ requirement `compose-config-in-ci` with the job.
 
 ## 10. Open questions
 
-- CRP-1, CRP-2, CRP-4 and Q3 (§4); CRP-3 for the workflow token and the R11 edits (§7, §8).
+- CRP-2, CRP-4 and Q3 (§4); CRP-3 for the workflow token and the R11 edits (§7, §8). CRP-1 is answered (`local-space`,
+  shipped later by a follow-up change, §4).
