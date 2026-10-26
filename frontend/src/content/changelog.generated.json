@@ -100,7 +100,7 @@
       "date": "2026-10-26",
       "title": "OpenBinding documentation",
       "changes": [
-        "M09-compose-only plan and handoff",
+        "Prop-20261026-1 plan and handoff",
         "O9 latency probe for POST /v1/jobs and POST /v1/validate (#57)",
         "Retire the report editor (M2.4 slice 2, ADR-0020) (#53)",
         "Retire the decision-space workspace (M2.4 slice 1, ADR-0020) (#51)",
