@@ -81,7 +81,7 @@ recorded in `.agentic/project.yaml`.
 The QA gallery (`frontend/e2e/qa-gallery.spec.ts`) writes screenshots to `QA_GALLERY_DIR` (default
 `frontend/node_modules/.cache/qa-gallery/screenshots/`); screenshots are never committed.
 
-- Mocked browser suite: `cd frontend && pnpm test:e2e` (CI).
+- Mocked browser suite: `cd frontend && pnpm test:e2e` (CI: three shard jobs `frontend-e2e`, see section 10).
 - Live suite against the lab: `PLAYWRIGHT_BASE_URL=http://localhost:18100 LAB_SEED_PASSWORD=<synthetic> pnpm exec playwright test --project=live`.
 - API smoke against the lab: `openbinding-gateway/tools/smoke_lab.py` (via the lab seed container).
 - Real engines: `docker compose exec -T gateway-dev test tests/integration -m integration`.
@@ -110,3 +110,19 @@ The QA gallery (`frontend/e2e/qa-gallery.spec.ts`) writes screenshots to `QA_GAL
 - No new skips or xfails; SQLite-only coverage of locking code must be declared as such.
 - Report only executed results, with SHA; otherwise `NOT EXECUTED`.
 - Flaky tests are quarantined only through `docs/qa/FLAKY_TESTS.md` with an owner and a deadline.
+
+## 10. CI (`.github/workflows/ci.yml`)
+
+- **Change detection.** The `changes` job runs `tools/ci_changes.py` and outputs four areas: `e2e`, `bim`, `engines`,
+  `gateway`. On pull requests the jobs of an unchanged area are skipped. A push to `develop`, a manual dispatch, a
+  change to `ci.yml` or `tools/ci_*.py`, a path in no known area or a git error run everything.
+- **Required check.** Require only `ci-required` (`tools/ci_required.py`): a skipped area passes, a failed or cancelled
+  job does not.
+- **Shards.** Playwright project `mocked` runs in three jobs `frontend-e2e`; the UI acceptance runner stays in
+  `frontend`. Gateway unit tests run natively in two jobs `gateway-unit`, balanced by `tools/ci_shard.py`; `test` keeps
+  the Docker integration, ICSOC and OpenAPI snapshot steps. `bim-toolchain` runs one job per package (`bim-core`,
+  `bim-service`, `bim-client`); the goldens run in the `bim-core` job.
+- **Concurrency.** A new push to a pull request cancels its older run; manual runs are never cancelled.
+- **Full run by hand.** Actions > Continuous Integration > Run workflow (`workflow_dispatch`).
+- **One shard locally.** `python3 tools/ci_shard.py --shard 1/2` lists the gateway files of shard 1; Playwright:
+  `cd frontend && pnpm exec playwright test --project=mocked --shard=1/3`.
