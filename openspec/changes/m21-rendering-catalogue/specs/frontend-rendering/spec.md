@@ -1,18 +1,19 @@
 ## ADDED Requirements
 
 ### Requirement: Read-only source view
-THE `SourceView` component SHALL show a source read-only in a region named by its `label` (a string as given, an object as two-space JSON) in a focusable block, with a `Copy <label>` button whose outcome a status region announces, and a `Download <label>` button only when `filename` is given.
+THE `SourceView` component SHALL show a source read-only in a region named by its `label`, in a focusable block, with a Copy button whose outcome a status region announces, and a Download button only when `filename` is given.
 
 `req~frontend-rendering-source-view~1`
 
 Evidence: `frontend/src/components/rendering/SourceView.test.tsx`
 
-`SourceView` is one of the two components where `<pre>` and `JSON.stringify` are allowed (constitution 15.2). It is used only in a secondary, labelled Source tab or panel, never as the default view; that use is checked by the hygiene requirement below and by ui-qa, not by this component. The `language` prop is informative only (`data-language` on the region); `maxHeight` sets the CSS `max-height` of the `<pre>`. Download goes through the shared `saveText` helper of design.md §2.
+It is one of the two components where `<pre>` and `JSON.stringify` are allowed (constitution 15.2).
 
 #### Scenario: String source
 - **GIVEN** `<SourceView source={'line one\nline two'} label="BIM source" />`
 - **WHEN** it is rendered
 - **THEN** a region named `BIM source` contains a `<pre>` whose `<code>` text is `line one\nline two`, line breaks kept
+- **AND** the component is used only in a secondary, labelled Source tab or panel, never as the default view; the hygiene requirement below and ui-qa check that use, not this component
 
 #### Scenario: Object source
 - **GIVEN** `<SourceView source={{ a: 1, nested: { b: [true] } }} label="Problem" />`
@@ -28,6 +29,7 @@ Evidence: `frontend/src/components/rendering/SourceView.test.tsx`
 - **GIVEN** `<SourceView source="x" label="Problem" language="json" />`
 - **WHEN** it is rendered
 - **THEN** the region named `Problem` has `data-language="json"`
+- **AND** the prop is informative only
 
 #### Scenario: Copy
 - **GIVEN** `<SourceView source={{ k: 'v' }} label="Problem" />` and a clipboard that accepts writes
@@ -49,7 +51,7 @@ Evidence: `frontend/src/components/rendering/SourceView.test.tsx`
 #### Scenario: Download of a text source
 - **GIVEN** `<SourceView source="plain" label="Problem" filename="problem.txt" />`
 - **WHEN** the button named `Download Problem` is pressed
-- **THEN** a `text/plain` blob holding `plain` is saved through one click on a temporary anchor
+- **THEN** a `text/plain` blob holding `plain` is saved through the shared `saveText` helper of design.md §2, with one click on a temporary anchor
 - **AND** no `a[download]` element stays in the document
 - **AND** the object URL is not revoked during the click, and is revoked after the pending `setTimeout` 0 runs
 
@@ -75,13 +77,13 @@ Evidence: `frontend/src/components/rendering/SourceView.test.tsx`
 - **THEN** it contains no hex colour
 
 ### Requirement: Collapsed, searchable log panel
-THE `LogPanel` component SHALL show a log in a disclosure, closed unless `defaultOpen`, whose summary reads `<title> (<n> lines)`, with a search box that filters the lines case-insensitively, one status region reading `<shown> of <n> lines`, a Copy button for the whole log, a Download button only when `filename` is given, and only `No log` for an empty log.
+THE `LogPanel` component SHALL show a log in a disclosure, closed unless `defaultOpen`, with a case-insensitive search box, a status region reading `<shown> of <n> lines`, a Copy button, and a Download button only when `filename` is given.
 
 `req~frontend-rendering-log-panel~1`
 
 Evidence: `frontend/src/components/rendering/LogPanel.test.tsx`
 
-`LogPanel` is the second component where `<pre>` is allowed (constitution 15.3). The title defaults to `Log`; the summary and the status region both use `line` when the log has one line (`1 of 1 line`). Each shown line keeps its original line number. The buttons are named `Copy <title>` and `Download <title>`; the `<pre>` is named by the title. Download goes through the shared `saveText` helper of design.md §2.
+It is the second component where `<pre>` is allowed (constitution 15.3).
 
 #### Scenario: Collapsed by default, open on request
 - **GIVEN** `<LogPanel log={LOG} />` and `<LogPanel log={LOG} defaultOpen />`, with `LOG` = `start job\nsolver Alpha ready\nERROR boom\nsolver beta done`
@@ -92,11 +94,12 @@ Evidence: `frontend/src/components/rendering/LogPanel.test.tsx`
 - **GIVEN** `<LogPanel log={LOG} />`, `<LogPanel log="only" title="Solver output" />` and `<LogPanel log="" />`
 - **WHEN** each is rendered
 - **THEN** the summaries read `Log (4 lines)`, `Solver output (1 line)` and `Log (0 lines)`
+- **AND** the summary reads `<title> (<n> lines)`, the title defaults to `Log`, and `line` is singular for one line
 
 #### Scenario: Empty log
 - **GIVEN** `<LogPanel log="" defaultOpen />`
 - **WHEN** it is rendered
-- **THEN** it shows the text `No log`
+- **THEN** it shows the text `No log`, and only that
 
 #### Scenario: Numbered lines in a named pre
 - **GIVEN** `<LogPanel log={LOG} title="Run log" defaultOpen />`
@@ -126,12 +129,13 @@ Evidence: `frontend/src/components/rendering/LogPanel.test.tsx`
 - **WHEN** the Copy button is pressed
 - **THEN** the clipboard receives the whole `LOG`, not only the filtered lines
 - **AND** the status region announces that the log was copied
+- **AND** the buttons are named `Copy <title>` and `Download <title>`, and the `<pre>` is named by the title
 
 #### Scenario: Download only with a file name
 - **GIVEN** `<LogPanel log={LOG} defaultOpen />` and `<LogPanel log={LOG} defaultOpen filename="run.log" />`
 - **WHEN** each is rendered, and on the second `error` is typed into the search input and Download is pressed
 - **THEN** the first offers no Download button
-- **AND** the second saves the whole `LOG` as a `text/plain` blob named `run.log`
+- **AND** the second saves the whole `LOG` as a `text/plain` blob named `run.log`, through the shared `saveText` helper of design.md §2
 - **AND** its object URL is not revoked during the click, and is revoked after the pending `setTimeout` 0 runs
 
 #### Scenario: Keyboard reach
@@ -145,16 +149,16 @@ Evidence: `frontend/src/components/rendering/LogPanel.test.tsx`
 - **THEN** it declares `overflow: auto` and contains no hex colour
 
 ### Requirement: Grouped diagnostics list
-THE `DiagnosticsList` component SHALL show a status region with the counts (`3 errors, 1 warning, 1 info`) or `No diagnostics`, and the diagnostics sorted error, warning, info, grouped under a heading per resource (`General` for none) and by pointer inside it, each with its severity as a text badge, code, message, and pointer and hint when given.
+THE `DiagnosticsList` component SHALL show a status region with the counts or `No diagnostics`, and the diagnostics sorted by severity and grouped by resource and pointer, each with its severity as a text badge, code, message, and pointer and hint when given.
 
 `req~frontend-rendering-diagnostics-list~1`
 
 Evidence: `frontend/src/components/rendering/DiagnosticsList.test.tsx`
 
-Constitution 15.3: diagnostics are "grouped by resource and pointer". Severity is never conveyed by colour alone (constitution 11.1): the lowercase words `error`, `warning` and `info` are the badge text. The sort is stable; groups follow the first appearance of their resource after the sort. Inside a resource, items with the same pointer stay together, pointer groups follow their first appearance after the sort, and items without a pointer form one group of their own; all items of a resource stay in one list. Each group is a section named by its heading (`headingLevel`, default 3). `info` is never pluralised (`2 info`). Fixture `DIAGS`: `I1` info in `b.yaml`; `E1` error in `b.yaml` with pointer `/a/0` and hint `Fix it`; `W1` warning in `a.yaml`; `E2` error with no resource; `E3` error in `a.yaml`.
+Constitution 15.3: diagnostics are "grouped by resource and pointer".
 
 #### Scenario: Summary count
-- **GIVEN** `DIAGS`, then only `E1` and `W1`, then `W1` twice
+- **GIVEN** fixture `DIAGS`: `I1` info in `b.yaml`; `E1` error in `b.yaml` with pointer `/a/0` and hint `Fix it`; `W1` warning in `a.yaml`; `E2` error with no resource; `E3` error in `a.yaml`; then only `E1` and `W1`, then `W1` twice
 - **WHEN** each list is rendered
 - **THEN** the status region reads `3 errors, 1 warning, 1 info`, then `1 error, 1 warning`, then `2 warnings` with no `error` or `info`
 
@@ -167,6 +171,7 @@ Constitution 15.3: diagnostics are "grouped by resource and pointer". Severity i
 - **GIVEN** `DIAGS`
 - **WHEN** the list is rendered
 - **THEN** the item codes read `E1`, `I1`, `E2`, `E3`, `W1` and the headings read `b.yaml`, `General`, `a.yaml`
+- **AND** the order is error, warning, info; the sort is stable and groups follow the first appearance of their resource after the sort
 
 #### Scenario: Same pointer kept together inside a resource
 - **GIVEN** in resource `r`: `P1a` warning at `/p1`, `P2` error at `/p2`, `P1b` info at `/p1`
@@ -177,6 +182,7 @@ Constitution 15.3: diagnostics are "grouped by resource and pointer". Severity i
 - **GIVEN** in resource `r`, in this order: `N1` info with no pointer, `A1` warning at `/a`, `B1` error at `/b`, `N2` error with no pointer, `B2` info at `/b`, `A2` warning at `/a`
 - **WHEN** the list is rendered
 - **THEN** the item codes read `B1`, `B2`, `N2`, `N1`, `A1`, `A2`
+- **AND** pointer groups follow their first appearance after the sort, and items without a pointer form one group of their own
 
 #### Scenario: Info is never pluralised
 - **GIVEN** `I1` twice
@@ -189,6 +195,7 @@ Constitution 15.3: diagnostics are "grouped by resource and pointer". Severity i
 - **THEN** the `E1` item has a badge `error` of variant `error`, `E1` in `<code>`, `Broken thing`, the label `Pointer` with `/a/0` in `<code>`, and `Hint: Fix it`
 - **AND** the `W1` item has a badge `warning` of variant `warning` and neither `Pointer` nor `Hint`
 - **AND** an info diagnostic shows a badge `info` of variant `info`
+- **AND** severity is never conveyed by colour alone (constitution 11.1): the lowercase words `error`, `warning` and `info` are the badge text
 
 #### Scenario: Empty list
 - **GIVEN** `<DiagnosticsList diagnostics={[]} />`
@@ -198,7 +205,8 @@ Constitution 15.3: diagnostics are "grouped by resource and pointer". Severity i
 #### Scenario: Heading level
 - **GIVEN** `DIAGS` without `headingLevel`, then with `headingLevel` 2, 4 and 5
 - **WHEN** each is rendered
-- **THEN** there are three headings at level 3, then three at the given level
+- **THEN** there are three headings at level 3 (the default), then three at the given level
+- **AND** each group is a section named by its heading
 
 #### Scenario: Sections named by their heading
 - **GIVEN** `DIAGS`
@@ -216,25 +224,24 @@ Constitution 15.3: diagnostics are "grouped by resource and pointer". Severity i
 - **THEN** it contains no hex colour
 
 ### Requirement: Verdict badge
-THE `VerdictBadge` component SHALL show the verdict as badge text, give `OPTIMAL`, `FEASIBLE`, `UNSAT`, `TIMEOUT` and `INCOMPATIBLE` the variant of design.md §2 and its description as visually hidden text `, <description>` right after the verdict, list non-empty reasons in a list named `Reasons`, and show any other value in a `default` badge without description.
+THE `VerdictBadge` component SHALL show the verdict as badge text with the variant and the visually hidden description of design.md §2 for each known verdict, list non-empty reasons in a list named `Reasons`, and show any other value in a `default` badge without description.
 
 `req~frontend-rendering-verdict-badge~1`
 
 Evidence: `frontend/src/components/rendering/VerdictBadge.test.tsx`
-
-The badge never depends on colour alone: the verdict word is always its text. The description is plain text in an `.sr-only` element inside the same inline wrapper as the badge, so it is read in the flow as `OPTIMAL, proven best combination`; no `aria-describedby` is used. The outer element is a `<div>`, so the reasons list is never inside a `<span>`.
 
 #### Scenario: Known verdicts
 - **GIVEN** each row of: `OPTIMAL` / `success` / `proven best combination`; `FEASIBLE` / `info` / `a valid combination, not proven best`; `UNSAT` / `error` / `no combination satisfies the rules`; `TIMEOUT` / `warning` / `stopped at the time budget`; `INCOMPATIBLE` / `default` / `the engine cannot solve this problem`
 - **WHEN** `<VerdictBadge verdict={verdict} />` is rendered
 - **THEN** the verdict text has the classes `badge` and `badge-<variant>`
 - **AND** the wrapper of the badge has the text `<verdict>, <description>` and no `aria-describedby`
-- **AND** the wrapper contains an `.sr-only` element whose text is `, <description>`
+- **AND** the wrapper contains an `.sr-only` element whose text is `, <description>` right after the verdict, inside the same inline wrapper as the badge, so it is read in the flow as `OPTIMAL, proven best combination`
+- **AND** the badge never depends on colour alone: the verdict word is always its text
 
 #### Scenario: Outer element
 - **GIVEN** `<VerdictBadge verdict="UNSAT" reasons={['x']} />`
 - **WHEN** it is rendered
-- **THEN** its outermost element is a `<div>`
+- **THEN** its outermost element is a `<div>`, so the reasons list is never inside a `<span>`
 
 #### Scenario: Unknown verdict
 - **GIVEN** `<VerdictBadge verdict="WEIRD" />`
@@ -263,13 +270,11 @@ The badge never depends on colour alone: the verdict word is always its text. Th
 - **THEN** it contains no hex colour
 
 ### Requirement: Metric cards
-THE `MetricCards` component SHALL show non-empty metrics as a list named by `label` (default `Key figures`) with one card per metric holding its label, its value (numbers in en-US with at most three decimals; `null` as a dash read as `no value`), its unit for a non-null value, and its trend and hint as text, and render nothing for no metrics.
+THE `MetricCards` component SHALL show non-empty metrics as a list named by `label` (default `Key figures`), one card per metric with its label, value, unit for a non-null value, trend and hint as text, and render nothing for no metrics.
 
 `req~frontend-rendering-metric-cards~1`
 
 Evidence: `frontend/src/components/rendering/MetricCards.test.tsx`
-
-Each card is a `<li>` with a `<dl>`: the label in `<dt>`, the value and unit in `<dd>`. The trend is its `label` as visible text with a decorative `aria-hidden` arrow (`↑`, `↓`, `→`); the hint is a `<small>`. The React key is `id`, or the label plus the position without one, so repeated labels need no `id`.
 
 #### Scenario: Labelled list
 - **GIVEN** `<MetricCards metrics={[{ label: 'Cost', value: 3 }]} />`, then the same with `label="Run totals"`
@@ -280,11 +285,12 @@ Each card is a `<li>` with a `<dl>`: the label in `<dt>`, the value and unit in 
 - **GIVEN** the metrics `{ label: 'Cost', value: 7 }` and `{ label: 'Latency', value: 9, unit: 'ms' }`
 - **WHEN** they are rendered
 - **THEN** there are two items; the first has a `<dl>` with `<dt>` `Cost` and `<dd>` `7`, the second has `<dd>` `9 ms`, and there is no `<pre>`
+- **AND** each card is a `<li>` with a `<dl>`: the label in `<dt>`, the value and unit in `<dd>`
 
 #### Scenario: Number format
 - **GIVEN** the metrics `{ label: 'Zero', value: 0 }` and `{ label: 'Big', value: 1234.5678 }`
 - **WHEN** they are rendered
-- **THEN** their values read exactly `0` and `1,234.568`
+- **THEN** their values read exactly `0` and `1,234.568` (numbers in en-US with at most three decimals)
 
 #### Scenario: String value
 - **GIVEN** a metric `{ label: 'Engine', value: 'cp-sat 9.1' }`
@@ -294,12 +300,12 @@ Each card is a `<li>` with a `<dl>`: the label in `<dt>`, the value and unit in 
 #### Scenario: Missing value
 - **GIVEN** a metric `{ label: 'Gap', value: null }`
 - **WHEN** it is rendered
-- **THEN** its value shows `—` in an `aria-hidden="true"` element and `no value` in an `.sr-only` element
+- **THEN** its value shows `—` in an `aria-hidden="true"` element and `no value` in an `.sr-only` element (`null` is a dash read as `no value`)
 
 #### Scenario: Trend as text
 - **GIVEN** trends `up` / `+5% vs last run`, `down` / `-2%` and `flat` / `no change`
 - **WHEN** they are rendered
-- **THEN** each label is visible text and the arrows `↑`, `↓` and `→` are `aria-hidden="true"`
+- **THEN** each label is visible text and the arrows `↑`, `↓` and `→` are decorative and `aria-hidden="true"`
 
 #### Scenario: Hint
 - **GIVEN** the metrics `{ label: 'A', value: 1, hint: 'lower is better' }` and `{ label: 'B', value: 2 }`
@@ -314,12 +320,13 @@ Each card is a `<li>` with a `<dl>`: the label in `<dt>`, the value and unit in 
 #### Scenario: Same label, different ids
 - **GIVEN** the metrics `{ id: 'x', label: 'Cost', value: 1 }` and `{ id: 'y', label: 'Cost', value: 2 }`
 - **WHEN** they are rendered
-- **THEN** there are two items
+- **THEN** there are two items; the React key is `id`
 
 #### Scenario: Same label without ids
 - **GIVEN** the metrics `{ label: 'Cost', value: 1 }` and `{ label: 'Cost', value: 2 }`
 - **WHEN** they are rendered
 - **THEN** there are two items and nothing is written to `console.error` (no duplicate-key warning)
+- **AND** the React key is the label plus the position, so repeated labels need no `id`
 
 #### Scenario: No metrics
 - **GIVEN** `<MetricCards metrics={[]} />`
@@ -332,13 +339,13 @@ Each card is a `<li>` with a `<dl>`: the label in `<dt>`, the value and unit in 
 - **THEN** it contains no hex colour
 
 ### Requirement: Raw-rendering hygiene with a shrinking allow-list
-IF a source under `frontend/src` other than `SourceView.tsx` and `LogPanel.tsx` has a line with a `<pre` tag or a rendered `JSON.stringify` that `frontend/src/test/rawRenderingAllowList.ts` does not list by file and trimmed text, counting repeats, or a listed line no longer matches a finding or its line number, THEN the frontend test suite SHALL fail.
+IF a source under `frontend/src` other than `SourceView.tsx` and `LogPanel.tsx` has a `<pre` tag or a rendered `JSON.stringify` line that `frontend/src/test/rawRenderingAllowList.ts` does not list, or a listed line no longer matches, THEN the frontend test suite SHALL fail.
 
 `req~frontend-rendering-raw-hygiene~1`
 
 Evidence: `frontend/src/test/rawRenderingHygiene.test.ts`
 
-The scanned sources are the `.ts` and `.tsx` files under `frontend/src`, without `*.test.*`, `src/test/**` and test kits; the exempt files are exactly `components/rendering/SourceView.tsx` and `components/rendering/LogPanel.tsx`. Paths in the allow-list are relative to `frontend/src`. "Counting repeats": findings and listed lines are matched as multisets per (file, trimmed text), so a second identical raw line in a listed file is unlisted, and a listed duplicate whose copy was removed is stale. The detector is line based; its remaining known limits are listed in design.md §4 and pinned by tests named `known limit: …`. The allow-list holds the 15 offenders of ROADMAP M2 (at 912648c) and only shrinks: M2.3–M2.6 remove entries until it is empty. Detector hits that ROADMAP does not list are kept in `UNLISTED_FINDINGS` of the same file for the coordinator to classify. Digest-shaped text and UUIDs (ARCHITECTURE §5.4) are M2.7, not this requirement.
+The detector's known limits are in design.md §4.
 
 #### Scenario: The detector reports a pre tag
 - **GIVEN** the in-memory lines `<pre>{text}</pre>`, `  <pre className="x" aria-label="Log">` and `<pre tabIndex={0}><code>{source}</code></pre>`
@@ -377,6 +384,7 @@ The scanned sources are the `.ts` and `.tsx` files under `frontend/src`, without
 - **WHEN** the detector reads each
 - **THEN** it reports nothing for any of them
 - **AND** for `<pre>{JSON.stringify(x)}</pre>` it reports exactly one finding, of kind `pre`
+- **AND** the detector is line based, and the tests pinning these limits are named `known limit: …`
 
 #### Scenario: Line number and trimmed text
 - **GIVEN** the text `const a = 1;\n    <pre>{a}</pre>`
@@ -388,11 +396,14 @@ The scanned sources are the `.ts` and `.tsx` files under `frontend/src`, without
 - **WHEN** the scan reads them
 - **THEN** it reports nothing for the first two and one finding for each of the other three
 - **AND** both exempt files exist in the sources
+- **AND** the exempt files are exactly `components/rendering/SourceView.tsx` and `components/rendering/LogPanel.tsx`
 
 #### Scenario: The sources are read
 - **GIVEN** the application sources
 - **WHEN** the hygiene test collects them
 - **THEN** it reads more than 100 files and none under `src/test/`
+- **AND** the scanned sources are the `.ts` and `.tsx` files under `frontend/src`, without `*.test.*`, `src/test/**` and test kits
+- **AND** paths in the allow-list are relative to `frontend/src`
 
 #### Scenario: The application sources pass the three checks
 - **GIVEN** the application sources and `RAW_RENDERING_ALLOW_LIST` plus `UNLISTED_FINDINGS`
@@ -425,12 +436,14 @@ The scanned sources are the `.ts` and `.tsx` files under `frontend/src`, without
 - **GIVEN** the synthetic source `pages/Dup.tsx` with `<pre>{a}</pre>` at lines 1 and 3, and one entry for line 1
 - **WHEN** the checks read them
 - **THEN** `unlistedFindings` returns the finding at `pages/Dup.tsx:3` and `staleEntries` returns an empty list
+- **AND** findings and listed lines are matched as multisets per (file, trimmed text), so a second identical raw line in a listed file is unlisted
 
 #### Scenario: A removed duplicate is stale
 - **GIVEN** the synthetic source `pages/Dup.tsx` with `<pre>{a}</pre>` at line 1 only, and entries for lines 1 and 3 with that text
 - **WHEN** the checks read them
 - **THEN** `unlistedFindings` returns an empty list and `staleEntries` returns the entry `pages/Dup.tsx:3`
 - **AND** two identical lines listed twice pass all three checks
+- **AND** a listed duplicate whose copy was removed is stale
 
 #### Scenario: Matching is by file
 - **GIVEN** the synthetic source `pages/B.tsx` with `<pre>{a}</pre>`, and an entry for `pages/A.tsx` with the same text
@@ -442,11 +455,15 @@ The scanned sources are the `.ts` and `.tsx` files under `frontend/src`, without
 - **WHEN** the hygiene test reads it
 - **THEN** `MAX_ALLOWED_OFFENDERS` is 15, the list has at most that many entries, and their offender numbers in order are exactly 1 to 15
 - **AND** every entry has at least one line and a non-empty reason
+- **AND** the list holds the 15 offenders of ROADMAP M2 (at 912648c) and only shrinks
+- **AND** detector hits that ROADMAP does not list are kept in `UNLISTED_FINDINGS` of the same file for the coordinator to classify
+- **AND** digest-shaped text and UUIDs (ARCHITECTURE §5.4) are M2.7, not this requirement
 
 #### Scenario: Retiring slices
 - **GIVEN** the allow-list of this change
 - **WHEN** the hygiene test reads `retiredBy`
 - **THEN** offenders 1–4 say `M2.3`, offenders 5, 7 and 11 say `M2.4`, offenders 8–10 and 12–15 say `M2.5`, and offender 6 says `M2.6`
+- **AND** M2.3–M2.6 remove entries until the list is empty
 
 #### Scenario: Unlisted findings
 - **GIVEN** `UNLISTED_FINDINGS`
