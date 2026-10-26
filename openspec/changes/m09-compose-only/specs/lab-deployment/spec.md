@@ -11,7 +11,7 @@ rendering requirement with a guard that no Kubernetes or Kustomize manifest or C
 
 ### Requirement: Database migrations at start
 `req~lab-deployment-migrate-on-start~2`
-WHEN the gateway image entrypoint starts, the entrypoint SHALL act on `OPENBINDING_MIGRATE`, running as the unprivileged image user: with `auto` or the variable unset or empty, it applies `alembic upgrade head` if `DATABASE_URL` is non-empty and then runs the command; with `skip`, it runs the command without migrating; with `only`, it applies `alembic upgrade head` and exits with status 0 without running the command; with `only` and an empty `DATABASE_URL`, or with any other value, it exits with status 2 and a message on stderr that names `OPENBINDING_MIGRATE`, without migrating or running the command.
+WHEN the gateway image entrypoint starts, the entrypoint SHALL act on `OPENBINDING_MIGRATE`, running as the unprivileged image user: with `auto` or the variable unset or empty, it applies `alembic upgrade head` if `DATABASE_URL` is non-empty and then runs the command; with `skip`, it runs the command without migrating; with `only`, it applies `alembic upgrade head` and exits with the status of the migration (0 on success) without running the command; with `only` and an empty `DATABASE_URL`, or with any other value, it exits with status 2 and a message on stderr that names `OPENBINDING_MIGRATE`, without migrating or running the command.
 
 Needs: impl, utest
 
@@ -40,6 +40,16 @@ Evidence: `openbinding-gateway/docker-entrypoint.sh`; `openbinding-gateway/tests
 - **THEN** `alembic upgrade head` is called once
 - **AND** the command does not run and the exit status is 0
 
+#### Scenario: Failed migration
+- **GIVEN** `DATABASE_URL` non-empty, mode `auto` or `only`, and an `alembic upgrade head` that exits with status 3
+- **WHEN** the entrypoint starts
+- **THEN** the exit status is 3 and the command does not run
+
+#### Scenario: Empty mode
+- **GIVEN** `OPENBINDING_MIGRATE` set to an empty string, with and without a non-empty `DATABASE_URL`
+- **WHEN** the entrypoint runs the command `env`
+- **THEN** it behaves as `auto`
+
 #### Scenario: Only mode without a database
 - **GIVEN** `OPENBINDING_MIGRATE=only` and an empty `DATABASE_URL`
 - **WHEN** the entrypoint starts
@@ -55,16 +65,18 @@ Evidence: `openbinding-gateway/docker-entrypoint.sh`; `openbinding-gateway/tests
 
 ### Requirement: Docker Compose is the only deployment tool
 `req~lab-deployment-compose-only~1`
-The repository SHALL contain no `deploy/kubernetes` directory, no `kustomization.yaml` or `kustomization.yml` file, no YAML document that declares both `apiVersion` and `kind` (outside `node_modules` and `.venv` directories), and no `kubectl` or `kustomize` invocation in `.github/workflows/*.yml`.
-
-Needs: impl, utest
-
-Evidence: `openbinding-gateway/tests/test_no_kubernetes.py`
+The repository SHALL contain no `deploy/kubernetes` directory, no Kustomize file (`kustomization.yaml` or `kustomization.yml`), no Kubernetes manifest (a YAML file with a line that starts `apiVersion:` and one that starts `kind:`) and no `kubectl` or `kustomize` word in `.github/workflows/*.yml` or `*.yaml`, except in the directories that the scenario "Directories left out of the scan" lists.
 
 #### Scenario: Current tree
 - **GIVEN** the repository at the head of this change
 - **WHEN** the unit suite runs
 - **THEN** the guard test passes
+
+#### Scenario: Directories left out of the scan
+- **GIVEN** the guard test of this requirement
+- **WHEN** it looks for Kustomize files and Kubernetes manifests
+- **THEN** it skips `node_modules` and `.venv`, which hold third-party packages that ship example manifests, and `.git`, which holds repository internals
+- **AND** for manifests only, it also skips `openspec` and `docs`, which describe and quote manifests, `lab`, which holds laboratory tooling and its tests and is not a deployment tree, and `.github`, whose files use other schemas and whose workflows are scanned for `kubectl` and `kustomize` by a separate rule
 
 #### Scenario: A Kustomize file comes back
 - **GIVEN** a change that adds `deploy/kubernetes/kustomization.yaml`
@@ -81,9 +93,13 @@ Evidence: `openbinding-gateway/tests/test_no_kubernetes.py`
 - **WHEN** the unit suite runs
 - **THEN** the guard test fails and names the workflow file
 
+Needs: impl, utest
+
+Evidence: `openbinding-gateway/tests/test_no_kubernetes.py`
+
 ### Requirement: Secrets from files in the gateway entrypoint
 `req~lab-deployment-entrypoint-secret-files~1`
-WHERE `<NAME>_FILE` is set for NAME in `DATABASE_URL`, `GATEWAY_JWT_SECRET`, `SPACE_API_KEY`, `SPHERE_API_KEY`, `SECRETS_FERNET_KEYS`, `FEDERATION_SECRET_KEY` or `BOOTSTRAP_ADMIN_PASSWORD`, the gateway entrypoint SHALL export the file content, trailing newlines removed, as NAME before migrating, or exit 2 naming only `<NAME>_FILE`, never the value, if NAME is also set or the file is not a readable regular file.
+WHERE `<NAME>_FILE` is non-empty for NAME in `DATABASE_URL`, `GATEWAY_JWT_SECRET`, `SPACE_API_KEY`, `SPHERE_API_KEY`, `SECRETS_FERNET_KEYS`, `FEDERATION_SECRET_KEY` or `BOOTSTRAP_ADMIN_PASSWORD`, the gateway entrypoint SHALL export the file content, trailing newlines removed, as NAME before migrating, or exit 2 naming only `<NAME>_FILE`, never the value, if NAME is also non-empty or the file is not a readable regular file.
 
 #### Scenario: Secret read from a file
 - **GIVEN** `GATEWAY_JWT_SECRET` unset and `GATEWAY_JWT_SECRET_FILE` pointing to a readable file containing `s3cr3t-value-0123456789abcdef0123\n`
@@ -95,6 +111,21 @@ WHERE `<NAME>_FILE` is set for NAME in `DATABASE_URL`, `GATEWAY_JWT_SECRET`, `SP
 - **WHEN** the entrypoint starts
 - **THEN** `alembic upgrade head` is called with `DATABASE_URL` set to that value
 - **AND** the exit status is 0
+
+#### Scenario: Awkward values
+- **GIVEN** a secret file whose content has shell metacharacters (dollar, backquote, quotes, backslash, asterisk, equals and percent signs), is `-n`, or has leading and trailing spaces, with or without a trailing newline
+- **WHEN** the entrypoint runs `sh -c 'printf "%s|" "$NAME"'`
+- **THEN** the command prints the content without the trailing newline, followed by `|`
+
+#### Scenario: Empty value and a file
+- **GIVEN** `NAME` set to an empty string and `NAME_FILE` pointing to a readable file
+- **WHEN** the entrypoint starts
+- **THEN** the file wins: the command sees the file content as `NAME`
+
+#### Scenario: Empty file variable
+- **GIVEN** `NAME_FILE` set to an empty string and `NAME` set to a value
+- **WHEN** the entrypoint starts
+- **THEN** the command sees the value unchanged
 
 #### Scenario: Value and file both set
 - **GIVEN** `SPACE_API_KEY=abc` and `SPACE_API_KEY_FILE` pointing to a readable file
@@ -112,9 +143,10 @@ WHERE `<NAME>_FILE` is set for NAME in `DATABASE_URL`, `GATEWAY_JWT_SECRET`, `SP
 - **THEN** the exit status is 2 and stderr names `BOOTSTRAP_ADMIN_PASSWORD_FILE`
 
 #### Scenario: Secret never printed
-- **GIVEN** each failure above, and a successful start, with a secret file containing `do-not-print-7f3a`
+- **GIVEN** each failure above, and a successful start for each of the seven variables, with a secret file containing `do-not-print-7f3a`
 - **WHEN** the entrypoint runs a command that prints nothing
 - **THEN** neither stdout nor stderr contains `do-not-print-7f3a`
+- **AND** on a successful start stderr is empty
 
 #### Scenario: No file variable set
 - **GIVEN** no `<NAME>_FILE` variable set
@@ -144,6 +176,16 @@ The production Compose file SHALL take every service image, with no `build` key,
 - **GIVEN** a copy of `compose.yaml` whose `redis` service has `image: redis:7.4-alpine`, or whose `gateway` service has a `build` key
 - **WHEN** the image rule is applied
 - **THEN** it fails and names the service
+
+#### Scenario: Placeholder digest
+- **GIVEN** a copy of `images.env` whose `POSTGRES_IMAGE` digest is one character repeated 64 times, other than the marker of an image of this repository
+- **WHEN** the image rule is applied
+- **THEN** it fails and names `POSTGRES_IMAGE`
+
+#### Scenario: Image variable of another service
+- **GIVEN** a copy of `compose.yaml` whose `engine-minizinc` service takes its image from `${ENGINE_RANDOM_SEARCH_IMAGE:?...}`
+- **WHEN** the image rule is applied
+- **THEN** it fails and names `engine-minizinc`
 
 #### Scenario: Marker for an image of this repository
 - **GIVEN** `GATEWAY_IMAGE=gap.invalid/openbinding-gateway:0.0.0@sha256:0000000000000000000000000000000000000000000000000000000000000000`
@@ -183,6 +225,11 @@ Evidence: `deploy/compose/production/compose.yaml`; `openbinding-gateway/tests/t
 - **WHEN** the secret rule is applied
 - **THEN** it fails
 
+#### Scenario: Secret under a name that does not look secret
+- **GIVEN** a copy of `compose.yaml` whose `gateway` has `SPACE_URL=https://user:pw@space.example.org`, or a variable that is not secret-named with a literal token of 40 characters as its value
+- **WHEN** the secret rule is applied
+- **THEN** it fails, names the service and the variable, and gives a message of its own for each case
+
 #### Scenario: Secret file outside the secrets directory
 - **GIVEN** a copy of `compose.yaml` whose `database_url` secret has `file: ./secrets/database_url`
 - **WHEN** the secret rule is applied
@@ -195,17 +242,18 @@ Evidence: `deploy/compose/production/compose.yaml`; `openbinding-gateway/tests/t
 
 ### Requirement: Production health checks, restart and start order
 `req~lab-deployment-production-health-restart~1`
-The production Compose file SHALL give every service other than the one-shot `migrate` a health check that is not disabled and `restart: unless-stopped`, give `migrate` the gateway image, `OPENBINDING_MIGRATE=only` and `restart: "no"`, and make `gateway` depend on `migrate` with `condition: service_completed_successfully`.
-
-Needs: impl, utest
-
-Evidence: `deploy/compose/production/compose.yaml`; `openbinding-gateway/tests/test_compose_production.py`
+The production Compose file SHALL give every service other than the one-shot `migrate` a health check that is not disabled and `restart: unless-stopped`, run `migrate` from the gateway image with `OPENBINDING_MIGRATE=only` and `restart: "no"`, make `gateway` wait for `migrate` to complete, and make `nginx` and the workers depend on `gateway` with `restart: true`.
 
 #### Scenario: Conforming services
 - **GIVEN** `compose.yaml` of this change
 - **WHEN** the unit suite runs
 - **THEN** `postgres`, `redis`, `gateway`, `worker`, `analysis-worker`, the four engines, `frontend-assets`, `nginx` and `pg-backup` each have a health check and `restart: unless-stopped`
 - **AND** `gateway` waits for `migrate` with `service_completed_successfully`
+
+#### Scenario: Nginx follows the gateway
+- **GIVEN** a copy of `compose.yaml` whose `nginx` depends on `gateway` without `restart: true`
+- **WHEN** the rule is applied
+- **THEN** it fails and names `nginx`
 
 #### Scenario: Missing or disabled health check
 - **GIVEN** a copy of `compose.yaml` whose `redis` has no health check, or a health check with test `["NONE"]` or `disable: true`
@@ -221,6 +269,49 @@ Evidence: `deploy/compose/production/compose.yaml`; `openbinding-gateway/tests/t
 - **GIVEN** a copy of `compose.yaml` whose `gateway` depends on `migrate` with `service_started`, or whose `migrate` sets `OPENBINDING_MIGRATE=auto`
 - **WHEN** the rule is applied
 - **THEN** it fails
+
+Needs: impl, utest
+
+Evidence: `deploy/compose/production/compose.yaml`; `openbinding-gateway/tests/test_compose_production.py`
+
+### Requirement: Production network and exposure
+`req~lab-deployment-production-network~1`
+The production Compose file SHALL define exactly the services of the production deployment and no SPACE or SPHERE service, network or volume, publish ports only on `nginx`, put every service on one network with one fixed subnet that `FORWARDED_ALLOW_IPS` of `gateway` equals, and mount `examples/` of the checkout read-only in `nginx`. Its files SHALL name no real host.
+
+#### Scenario: Exact service set
+- **GIVEN** `compose.yaml` of this change
+- **WHEN** the unit suite runs
+- **THEN** its name is `openbinding-production` and its services are `postgres`, `redis`, `migrate`, `gateway`, `worker`, `analysis-worker`, the four engines, `frontend-assets`, `nginx` and `pg-backup`
+- **AND** a copy with an extra or a missing service, or with a `build`, `profiles`, `extends`, `env_file` or `include` key, fails the project rule
+
+#### Scenario: Only nginx publishes ports
+- **GIVEN** a copy of `compose.yaml` whose `gateway` publishes `8000:8000`, or whose `nginx` lacks port 443
+- **WHEN** the network rule is applied
+- **THEN** it fails and names the service
+
+#### Scenario: Fixed subnet and forwarded addresses
+- **GIVEN** a copy of `compose.yaml` whose `FORWARDED_ALLOW_IPS` differs from the subnet of the network, or whose network has no fixed subnet
+- **WHEN** the network rule is applied
+- **THEN** it fails
+
+#### Scenario: No local SPACE or SPHERE
+- **GIVEN** a copy of `compose.yaml` with a service, network or volume whose name contains `space` or `sphere`
+- **WHEN** the network rule is applied
+- **THEN** it fails and names it
+
+#### Scenario: Examples mounted
+- **GIVEN** `compose.yaml` of this change
+- **WHEN** the unit suite runs
+- **THEN** `nginx` mounts `../../../examples` read-only, which resolves to `examples/` of the repository
+
+#### Scenario: No real host name
+- **GIVEN** `compose.yaml`, `images.env` and `ci.env`
+- **WHEN** the unit suite runs
+- **THEN** none contains a `us.es` host name
+
+Needs: impl, utest
+
+Evidence: `deploy/compose/production/compose.yaml`; `openbinding-gateway/tests/test_compose_production.py`
 
 ### Requirement: Production resource limits and log rotation
 `req~lab-deployment-production-limits-logs~1`

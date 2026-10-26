@@ -6,8 +6,8 @@ Compose ([ADR-0021](../adr/0021-docker-compose-only.md)).
 **Status: written against `deploy/compose/production/compose.yaml`, `images.env` and `ci.env`, and never run on a
 production host.** Where this runbook and `compose.yaml` disagree, `compose.yaml` wins and this runbook is the defect.
 Docker was not available where the definition was written, so `docker compose config` still has to be run by a person
-or by CI (see [Render check](#render-check)). The image registry, the SPACE decision and the host facts are open (see
-[What stays blocked](#what-stays-blocked)).
+or by CI (see [Render check](#render-check)), and none of the commands below has been executed. The image registry, the
+SPACE decision, the non-root hardening and the host facts are open (see [What stays blocked](#what-stays-blocked)).
 
 ## Who may order a deployment
 
@@ -46,12 +46,18 @@ them. Image variables, also required: the nine `*_IMAGE` names of the table.
 Every service has `mem_limit`, `cpus`, `no-new-privileges` and rotated `json-file` logs; every service except
 `migrate` has a health check and `restart: unless-stopped`.
 
+`nginx` resolves the address of `gateway` once, when it starts, so it would keep the old address after the gateway is
+recreated. `nginx` and the workers therefore depend on `gateway` with `restart: true` (Compose 2.17 or newer): Compose
+restarts them when it recreates the gateway. A command that recreates only the gateway may not trigger it, so every
+step below that recreates the gateway is followed by `$DC restart nginx`.
+
 ### Images
 
 `images.env` pins every image as `name:tag@sha256:digest`. The two third-party images carry their published digest. An
 image built from this repository has the marker `gap.invalid/<name>:0.0.0@sha256:` followed by 64 zeros until a
 registry exists; the release pull request replaces the markers with the published digests. A deployment never runs
-with a marker: the [pre-flight](#pre-flight) refuses it.
+with a marker: the [pre-flight](#pre-flight) refuses it. `site.env` never defines an image: the pre-flight refuses a
+`*_IMAGE` variable there, and checks the images that Compose renders.
 
 ## Host prerequisites
 
@@ -59,13 +65,18 @@ Starting values, **pending owner facts** (ROADMAP M0.9, question Q3). Replace th
 
 | Item | Starting value | Status |
 |---|---|---|
-| Docker Engine and Compose plugin | Compose v2.24.4 or newer (several `--env-file` options) | pending owner fact (host versions unknown) |
+| Docker Engine and Compose plugin | **rootful Docker Engine** (no `userns-remap`, not rootless); Compose v2.24.4 or newer (several `--env-file` options; `depends_on` `restart` needs 2.17) | pending owner fact (host versions unknown) |
+| Git | any recent version, to check out release tags | pending owner fact |
 | CPU | 4 cores | pending owner fact |
 | RAM | 8 GiB | pending owner fact |
 | Disk | 100 GiB, backups and snapshots on a different volume | pending owner fact |
 | Backup retention | 14 days (`BACKUP_RETENTION_DAYS`) | pending owner fact |
 | Off-host backup target | none chosen | pending owner fact |
 | TLS certificates | issuer not chosen | pending owner fact |
+
+The uids used below (70 and 10001) are host uids only on a rootful Docker Engine without user-namespace remapping.
+With `userns-remap` or rootless Docker the owners of the secret files and of the backup directory are shifted and these
+steps would give the services unreadable files.
 
 The `mem_limit` and `cpus` values in `compose.yaml` are **starting values** above those of the laboratory
 (`compose.lab.json`). They sum to about 7 GiB (6.5 GiB while the one-shot `migrate` is not running), so a smaller host
@@ -99,8 +110,19 @@ BOOTSTRAP_ADMIN_EMAIL=
 # SPHERE_ORGANIZATION_ID=
 ```
 
-`NGINX_SSL_DIR` holds `fullchain.pem` and `privkey.pem`. Create the backup directory for the backup service, which runs
-as uid 70:
+`SPACE_URL` **must be an `https://` URL**: the gateway sends the SPACE API key to it. The [pre-flight](#pre-flight)
+refuses anything else. `site.env` never defines an `*_IMAGE` variable.
+
+`NGINX_SSL_DIR` holds `fullchain.pem` and `privkey.pem`. The directory is root's (mode 0750) and the private key is
+readable by root only (the `nginx` master process reads it as root):
+
+```bash
+sudo install -d -m 0750 -o root -g root "$NGINX_SSL_DIR"
+sudo install -m 0644 -o root -g root fullchain.pem "$NGINX_SSL_DIR/fullchain.pem"
+sudo install -m 0600 -o root -g root privkey.pem "$NGINX_SSL_DIR/privkey.pem"
+```
+
+Create the backup directory for the backup service, which runs as uid 70:
 
 ```bash
 sudo install -d -m 0750 -o 70 -g 70 "$OPENBINDING_BACKUP_DIR"
@@ -111,8 +133,9 @@ the commands read its variables, and `--env-file` alone does not export them to 
 
 ```bash
 cd deploy/compose/production          # of the release checkout
-set -a; . /srv/openbinding/site.env; set +a
-DC="docker compose -f compose.yaml --env-file images.env --env-file /srv/openbinding/site.env"
+SITE_ENV=/srv/openbinding/site.env
+set -a; . "$SITE_ENV"; set +a
+DC="docker compose -f compose.yaml --env-file images.env --env-file $SITE_ENV"
 ```
 
 `nginx` takes its server names from `nginx/production/nginx.conf` inside the image, not from `PUBLIC_ORIGIN`.
@@ -127,7 +150,8 @@ the image entrypoint (and `POSTGRES_PASSWORD_FILE` for PostgreSQL).
 
 Compose bind-mounts each file with the owner and mode it has on the host, so the owner must be the uid the service runs
 as: **uid 70** (the `postgres` user of the PostgreSQL image) for `postgres_password`, **uid 10001** (the gateway image
-user) for every other file.
+user) for every other file. These are host uids on a rootful Docker Engine only (see
+[Host prerequisites](#host-prerequisites)).
 
 ```text
 /srv/openbinding/secrets/            (directory mode 0700, root)
@@ -153,15 +177,28 @@ The path is an example; the real one is `OPENBINDING_SECRETS_DIR` in `site.env`.
   file must exist in every case, because Compose does not start a service whose secret file is missing.
 - The SPACE and SPHERE keys have `MANAGEMENT` scope: treat them as high-risk and never reuse a development key
   (`README.md`, "Development scope").
+- **A secret value is never typed into a command line**, because the shell history and the process list would keep it.
+  Values that a person provides are read from the terminal with `IFS= read -rs v` and piped to `put_secret`.
+  `set +o history` keeps those commands out of the history of the shell (or start each with a space when
+  `HISTCONTROL=ignorespace` is set).
+
+`put_secret` refuses an empty value (unless told `allow-empty`), writes the file next to its target with mode 0600 and
+moves it into place only when complete, and keeps the previous file as `<name>.prev` until the change is verified:
 
 ```bash
 # run after the exports of the site.env section, so that OPENBINDING_SECRETS_DIR is set
 sudo install -d -m 0700 "${OPENBINDING_SECRETS_DIR:?}"
 
-put_secret() {   # put_secret <name> <owner uid>; the value comes on standard input
+put_secret() {   # put_secret <name> <owner uid> [allow-empty]; the value comes on standard input
   : "${OPENBINDING_SECRETS_DIR:?}"
-  f="$OPENBINDING_SECRETS_DIR/$1"
-  sudo tee "$f" > /dev/null && sudo chown "$2:$2" "$f" && sudo chmod 0400 "$f"
+  local f="$OPENBINDING_SECRETS_DIR/$1"
+  (umask 077; sudo tee "$f.new" > /dev/null) || return 1
+  if [ "${3:-}" != allow-empty ] && ! sudo test -s "$f.new"; then
+    sudo rm -f "$f.new"; echo "refuse: empty value for $1" >&2; return 1
+  fi
+  sudo chown "$2:$2" "$f.new" && sudo chmod 0400 "$f.new" || { sudo rm -f "$f.new"; return 1; }
+  if sudo test -f "$f"; then sudo cp -p "$f" "$f.prev"; fi
+  sudo mv -f "$f.new" "$f"
 }
 
 password=$(openssl rand -hex 24)
@@ -169,11 +206,14 @@ printf '%s' "$password" | put_secret postgres_password 70
 printf '%s' "postgresql+asyncpg://openbinding:${password}@postgres:5432/openbinding" | put_secret database_url 10001
 printf '%s' "$(openssl rand -hex 32)" | put_secret gateway_jwt_secret 10001
 printf '%s' "$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '\n')" | put_secret secrets_fernet_keys 10001
-# the key issued by the remote SPACE service (and, if enabled, by SPHERE); an empty file when SPHERE is off:
-printf '%s' '<space key>' | put_secret space_api_key 10001
-printf '' | put_secret sphere_api_key 10001
-printf '%s' '<password of the first administrator>' | put_secret bootstrap_admin_password 10001
 unset password
+
+set +o history          # keep what follows out of the shell history
+# the key issued by the remote SPACE service (and, if enabled, by SPHERE); an empty file when SPHERE is off:
+printf 'SPACE key: ' >&2; IFS= read -rs v; echo >&2; printf '%s' "$v" | put_secret space_api_key 10001; unset v
+printf '' | put_secret sphere_api_key 10001 allow-empty
+printf 'First administrator password: ' >&2; IFS= read -rs v; echo >&2; printf '%s' "$v" | put_secret bootstrap_admin_password 10001; unset v
+set -o history
 sudo ls -ln "$OPENBINDING_SECRETS_DIR"
 ```
 
@@ -190,8 +230,8 @@ On the host, render with the real site values: `$DC config --quiet`.
 
 ## First install
 
-1. Prepare the host: [`site.env`](#siteenv) with the backup directory, then the
-   [secrets directory](#secrets-directory), and the TLS directory.
+1. Prepare the host: [`site.env`](#siteenv) with the TLS and backup directories, then the
+   [secrets directory](#secrets-directory).
 2. Choose the first administrator. Set `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_EMAIL` in `site.env` and put the
    password in the `bootstrap_admin_password` file. The gateway seeds that account once, when no administrator exists;
    afterwards the variables are harmless.
@@ -206,27 +246,43 @@ On the host, render with the real site values: `$DC config --quiet`.
    ```
 
 6. Run the [verification](#verification) and sign in as the administrator.
+7. After the first sign-in, empty the password file, so that the initial password does not stay on the host, and
+   recreate the gateway (the account exists; an empty password changes nothing):
+
+   ```bash
+   printf '' | put_secret bootstrap_admin_password 10001 allow-empty
+   $DC up -d --force-recreate gateway
+   $DC restart nginx
+   sudo rm -f -- "$OPENBINDING_SECRETS_DIR/bootstrap_admin_password.prev"   # the copy that holds the initial password
+   ```
 
 ## Deploying a release
 
-The release pull request carries the `images.env` of the release. Deploying is: save the current `images.env`, check
-out the tag, run the pre-flight, pull the images, start.
+The release pull request carries the `images.env` of the release. Deploying is: note the release now running, check
+out the tag, run the pre-flight, dump the database when needed, pull the images, start. The whole tree of the checkout
+is the release (`compose.yaml`, `images.env` and this runbook), so a rollback checks out the previous tag.
 
 ```bash
 # in deploy/compose/production, with the exports and $DC of the site.env section
 sudo install -d -o "$USER" /srv/openbinding/releases
-cp images.env "/srv/openbinding/releases/images.env.$(date +%Y%m%dT%H%M%S)"   # the images now running, for rollback
+git describe --tags --always | tee "/srv/openbinding/releases/previous-$(date +%Y%m%dT%H%M%S)"   # the release now running
 git fetch --tags && git checkout <release tag>
 ```
 
 ### Pre-flight
 
-The pre-flight refuses a release whose images are not published and any value that is not pinned by digest. It reads
-value lines only: the comments of `images.env` mention `gap.invalid` on purpose. It is a shell function, so a refusal
-does not close your session.
+The pre-flight refuses a checkout with local changes, a release whose images are not published and any value that is
+not pinned by digest. It reads value lines only: the comments of `images.env` mention `gap.invalid` on purpose. It also
+checks the images that Compose renders (`config --images`), so an image set anywhere else is caught, and refuses an
+image in `site.env` and a `SPACE_URL` that is not https. It is a shell function, so a refusal does not close your
+session.
 
 ```bash
 preflight() {
+  if [ -n "$(git status --porcelain)" ]; then
+    echo "refuse: the checkout has local changes; the checkout must be exactly the release tag" >&2
+    return 1
+  fi
   if grep -En '^[A-Z0-9_]+=gap\.invalid/' images.env; then
     echo "refuse: images.env still has unpublished images (gap.invalid)" >&2
     return 1
@@ -235,20 +291,55 @@ preflight() {
     echo "refuse: images.env has a line that is not NAME_IMAGE=name:tag@sha256:<64 hex>" >&2
     return 1
   fi
-  sudo ls -ln "$OPENBINDING_SECRETS_DIR" && $DC config --quiet
+  if grep -En '^[[:space:]]*(export[[:space:]]+)?[A-Za-z0-9_]*_IMAGE=' "$SITE_ENV"; then
+    echo "refuse: site.env defines an image; images come from images.env only" >&2
+    return 1
+  fi
+  case "$SPACE_URL" in
+    https://*) ;;
+    *) echo "refuse: SPACE_URL must be an https:// URL" >&2; return 1 ;;
+  esac
+  local images
+  images=$($DC config --images) || return 1
+  if printf '%s\n' "$images" | grep -Ev '@sha256:[0-9a-f]{64}$'; then
+    echo "refuse: a rendered image is not pinned by digest" >&2
+    return 1
+  fi
+  if printf '%s\n' "$images" | grep -F 'gap.invalid'; then
+    echo "refuse: a rendered image is an unpublished marker (gap.invalid)" >&2
+    return 1
+  fi
+  sudo ls -lnd "$OPENBINDING_SECRETS_DIR" "$NGINX_SSL_DIR" \
+    && sudo ls -ln "$OPENBINDING_SECRETS_DIR" "$NGINX_SSL_DIR" \
+    && $DC config --quiet
 }
 preflight && echo "pre-flight passed"
 ```
+
+Read the `ls -ln` output: the secrets directory is mode 0700 root with the files of the
+[layout](#secrets-directory), and `NGINX_SSL_DIR` is mode 0750 root with `privkey.pem` at 0600 root.
 
 ### Pull and start
 
 Take a database dump first when the release added a migration, that is when
 `git diff --stat <previous tag> <release tag> -- openbinding-gateway/alembic/versions` is not empty: a rollback then
-needs it. A manual dump has a name outside the retention pattern, so delete it by hand once the release is accepted.
+needs it. The dump is created with mode 0600, a failed `pg_dump` is detected (`pipefail`), and the dump is checked with
+`pg_restore --list` before anything is deployed. **When `predump` returns non-zero, do not deploy.** A manual dump has a
+name outside the retention pattern, so delete it by hand once the release is accepted.
 
 ```bash
-$DC exec -T postgres sh -c 'PGPASSWORD="$(cat /run/secrets/postgres_password)" pg_dump -U openbinding -Fc openbinding' \
-  | sudo tee "$OPENBINDING_BACKUP_DIR/pre-release-$(date +%Y%m%dT%H%M%S).dump" > /dev/null
+predump() {
+  local dump="$OPENBINDING_BACKUP_DIR/pre-release-$(date +%Y%m%dT%H%M%S).dump"
+  (
+    set -o pipefail; umask 077
+    $DC exec -T postgres sh -c 'PGPASSWORD="$(cat /run/secrets/postgres_password)" pg_dump -U openbinding -Fc openbinding' \
+      | sudo tee "$dump" > /dev/null
+  ) || { echo "refuse: pg_dump failed; do not deploy" >&2; return 1; }
+  sudo cat "$dump" | $DC exec -T postgres pg_restore --list > /dev/null \
+    || { echo "refuse: pg_restore cannot read $dump; do not deploy" >&2; return 1; }
+  echo "dump verified: $dump"
+}
+predump
 ```
 
 Then pull and start:
@@ -256,10 +347,12 @@ Then pull and start:
 ```bash
 $DC pull
 $DC up -d
+$DC restart nginx
 ```
 
 Compose recreates only the services whose image or configuration changed; `migrate` runs again and applies the new
-revisions before `gateway` starts.
+revisions before `gateway` starts. `nginx` is restarted with the gateway (`restart: true`); the explicit restart makes
+sure of it.
 
 ## Verification
 
@@ -291,9 +384,9 @@ revisions before `gateway` starts.
 ## Backups
 
 `pg-backup` writes one custom-format dump per day into `OPENBINDING_BACKUP_DIR`, as
-`openbinding-<UTC time>.dump`. It writes a `.partial` file and renames it when the dump is complete, removes stale
-`.partial` files at the start of each round, and deletes dumps older than `BACKUP_RETENTION_DAYS` days. Its health check
-is unhealthy when no dump is younger than 26 hours.
+`openbinding-<UTC time>.dump`, with mode 0600. It writes a `.partial` file and renames it when the dump is complete,
+removes stale `.partial` files at the start of each round, and deletes dumps older than `BACKUP_RETENTION_DAYS` days.
+Its health check is unhealthy when no dump is younger than 26 hours.
 
 ```bash
 $DC logs --tail 20 pg-backup
@@ -303,46 +396,63 @@ sudo ls -lh "$OPENBINDING_BACKUP_DIR" | tail
 - **Schedule:** daily, by the loop inside `pg-backup`, starting when the service starts. The manual dump before a
   release with a migration is in [Pull and start](#pull-and-start).
 - **Retention:** `BACKUP_RETENTION_DAYS` days on the host. This is not a backup strategy by itself.
-- **Off-host copy:** copy the directory to another machine at least daily, for example with `rsync` over SSH or an
-  object store client. The target is a pending owner fact. Without it, a lost disk loses the backups too.
+- **Off-host copy:** copy the directory to another machine at least daily. The copy must be **encrypted in transit and
+  at rest**: for example `rsync` over SSH to a host with an encrypted disk, or encrypt each file before it leaves the
+  host. A dump holds every user's data and the stored engine credentials. The target is a pending owner fact. Without
+  it, a lost disk loses the backups too.
 - Check one dump per week with `pg_restore --list <dump>` and do the [restore drill](#restore-drill) every quarter.
 
 ## Volume snapshots
 
 `pgdata` and `artifacts` are named volumes. Take the snapshot with the writers stopped, so the files are consistent.
 Stop `pg-backup` together with `postgres`: it would otherwise restart against a stopped database and fail its round.
+The archives are created with `umask 077` (mode 0600), and are copied off-host like the dumps (encrypted in transit and
+at rest).
 
 ```bash
 $DC stop nginx gateway worker analysis-worker pg-backup postgres
 image=$(sed -n 's/^POSTGRES_IMAGE=//p' images.env)          # any pinned image with tar
 for v in pgdata artifacts; do
-  docker run --rm --entrypoint tar -v "openbinding-production_${v}:/data:ro" -v "$OPENBINDING_BACKUP_DIR:/out" \
-    "$image" czf "/out/${v}-$(date +%Y%m%dT%H%M%S).tar.gz" -C /data .
+  docker run --rm --entrypoint sh -v "openbinding-production_${v}:/data:ro" -v "$OPENBINDING_BACKUP_DIR:/out" \
+    "$image" -c 'umask 077; tar czf "/out/$0" -C /data .' "${v}-$(date +%Y%m%dT%H%M%S).tar.gz"
 done
 $DC up -d
 ```
 
-Copy the archives off-host like the dumps. A snapshot is restored into a fresh volume with the reverse `tar xzf`, as
-part of the [restore drill](#restore-drill) or of a disaster recovery ordered by the owner.
+A snapshot is restored into a fresh volume with the reverse `tar xzf`, as part of the [restore drill](#restore-drill)
+or of a disaster recovery ordered by the owner.
 
 ## Restore drill
 
 Do this on a **spare host**, never on the production host: the project uses a fixed subnet (`172.29.40.0/24`), fixed
 ports 80 and 443 and one backup directory, and `down -v` deletes volumes. On the spare host use a checkout of the same
 release, its own `site.env` and secrets (the drill needs `postgres_password` and `database_url` to agree), and a copy
-of the newest dump in its `OPENBINDING_BACKUP_DIR`.
+of the newest dump in its `OPENBINDING_BACKUP_DIR`, brought over an encrypted channel.
+
+The drill refuses to run unless `DRILL_HOST=yes` is in the environment of that host (set it in `/etc/environment` of the
+spare host only, never on production), and prints the host name first. It restores with the same flags as the
+[rollback](#rollback), so a restore that would fail in an emergency fails here first.
 
 ```bash
-# 1. only postgres
-$DC up -d postgres
-# 2. restore the newest dump
-newest=$(sudo sh -c 'ls -1t "$1"/openbinding-*.dump | head -n 1' sh "$OPENBINDING_BACKUP_DIR")
-sudo cat "$newest" | $DC exec -T postgres sh -c 'PGPASSWORD="$(cat /run/secrets/postgres_password)" \
-  pg_restore -U openbinding -d openbinding --clean --if-exists --no-owner'
-# 3. start the rest: migrate brings the schema to the release, then check
-$DC up -d
-$DC ps -a
-$DC exec -T gateway curl -fsS http://localhost:8000/health/ready
+drill() {
+  echo "host: $(hostname)"
+  if [ "${DRILL_HOST:-}" != yes ]; then
+    echo "abort: DRILL_HOST=yes is not set on this host; this is not a drill host" >&2
+    return 1
+  fi
+  # 1. only postgres, up and healthy
+  $DC up -d --wait postgres || return 1
+  # 2. restore the newest dump
+  local newest
+  newest=$(sudo sh -c 'ls -1t "$1"/openbinding-*.dump | head -n 1' sh "$OPENBINDING_BACKUP_DIR") || return 1
+  sudo cat "$newest" | $DC exec -T postgres sh -c 'PGPASSWORD="$(cat /run/secrets/postgres_password)" \
+    pg_restore -U openbinding -d openbinding --no-owner --exit-on-error' || return 1
+  # 3. start the rest: migrate brings the schema to the release, then check
+  $DC up -d
+  $DC ps -a
+  $DC exec -T gateway curl -fsS http://localhost:8000/health/ready
+}
+drill
 ```
 
 Check that the row counts of the main tables match the source, that the gateway is healthy and that a known problem
@@ -353,32 +463,67 @@ opens. Record the date, the dump used, the time it took and the result in the re
 
 First decide whether the release added a migration: `git diff --stat <previous tag> <release tag> --
 openbinding-gateway/alembic/versions`. An older `migrate` cannot find a revision that only the newer release has, so
-the order differs.
+the order differs. The previous tag is in `/srv/openbinding/releases/previous-*` (written when the release was
+deployed). The rollback checks out that whole tag, never a single copied file: `compose.yaml`, `images.env` and the
+runbook are those of the previous release.
 
 **The release added a migration.** Restoring images is not enough, and starting the older images against the newer
 schema fails. You must restore the database first, from the dump taken before the deployment, and only then bring back
 the old images. Data written after that dump is lost; tell the owner before doing this.
 
-The restore goes into a new, empty database: `pg_restore --clean` would not drop the tables that only the new schema
-has, and would leave a half-restored database. Every client must be stopped first, or `DROP DATABASE` is refused, and
-the restore stops at its first error.
+The live database is not touched until the dump has been checked and restored elsewhere:
+
+1. Check the chosen dump (`pg_restore --list`). If it fails, stop: nothing has changed.
+2. Restore it into a **new** database, `openbinding_rollback`, stopping at the first error. If it fails, drop
+   `openbinding_rollback` and stop: the live database is still the running one.
+3. Only after that succeeded (`rollback_swap` is called only when `rollback_restore` returned 0), check out the whole
+   previous release, run the pre-flight (the function of [Pre-flight](#pre-flight), defined in the same shell) and pull
+   its images, all while the running release is untouched. Then stop every client, rename the live database to
+   `openbinding_failed_<timestamp>` and the restored one to `openbinding` in one transaction, and bring back the old
+   release. If a step of `rollback_swap` fails, it checks out the release that was running again (so `$DC` names the
+   running release, never the older one against the newer schema) and starts its services if it had stopped them; the
+   live database is unchanged until the single-transaction rename has run.
 
 ```bash
-$DC stop nginx gateway worker analysis-worker pg-backup
-$DC exec -T postgres psql -U openbinding -d postgres -c 'DROP DATABASE openbinding' -c 'CREATE DATABASE openbinding'
-sudo cat "$OPENBINDING_BACKUP_DIR/<dump before the release>.dump" | $DC exec -T postgres sh -c \
-  'PGPASSWORD="$(cat /run/secrets/postgres_password)" pg_restore -U openbinding -d openbinding --no-owner --exit-on-error'
-cp /srv/openbinding/releases/images.env.<timestamp> images.env       # or: git checkout <previous tag> -- images.env
-$DC pull
-$DC up -d
+rollback_restore() {   # steps 1 and 2; the live database is not touched
+  local dump="$1"
+  sudo cat "$dump" | $DC exec -T postgres pg_restore --list > /dev/null \
+    || { echo "STOP: pg_restore cannot read $dump" >&2; return 1; }
+  $DC exec -T postgres psql -U openbinding -d postgres -c 'DROP DATABASE IF EXISTS openbinding_rollback' -c 'CREATE DATABASE openbinding_rollback' \
+    || return 1
+  sudo cat "$dump" | $DC exec -T postgres sh -c \
+    'PGPASSWORD="$(cat /run/secrets/postgres_password)" pg_restore -U openbinding -d openbinding_rollback --no-owner --exit-on-error' \
+    || { echo "STOP: the restore failed; drop openbinding_rollback" >&2; return 1; }
+}
+
+rollback_swap() {   # step 3; $1 is the previous tag
+  local running
+  running=$(git rev-parse HEAD) || return 1          # the release that is running now
+  # the whole tree of the previous release, checked and pulled while the running release is untouched:
+  if ! { git checkout "$1" && preflight && $DC pull; }; then
+    git checkout "$running"; return 1
+  fi
+  # the clients stop, then the two renames run in one transaction:
+  if ! { $DC stop nginx gateway worker analysis-worker pg-backup \
+    && printf 'ALTER DATABASE openbinding RENAME TO openbinding_failed_%s;\nALTER DATABASE openbinding_rollback RENAME TO openbinding;\n' \
+      "$(date +%Y%m%d%H%M%S)" | $DC exec -T postgres psql -U openbinding -d postgres -1 -v ON_ERROR_STOP=1 -f -; }; then
+    git checkout "$running" && $DC up -d && $DC restart nginx   # the live database was not renamed: start the running release again
+    return 1
+  fi
+  $DC up -d && $DC restart nginx
+}
+
+rollback_restore "$OPENBINDING_BACKUP_DIR/<dump before the release>.dump" && rollback_swap <previous tag>
 ```
 
-**The release did not add a migration.** Return to the previous images; the database stays as it is.
+`openbinding_failed_<timestamp>` holds the data of the failed release, which is personal data. Keep it only until the
+owner has accepted the rollback, then drop it by hand (`DROP DATABASE openbinding_failed_<timestamp>`, with
+`$DC exec -T postgres psql -U openbinding -d postgres`).
+
+**The release did not add a migration.** Return to the previous release; the database stays as it is.
 
 ```bash
-cp /srv/openbinding/releases/images.env.<timestamp> images.env       # or: git checkout <previous tag> -- images.env
-$DC pull
-$DC up -d
+git checkout <previous tag> && preflight && $DC pull && $DC up -d && $DC restart nginx
 ```
 
 Then run the [verification](#verification) and write the cause in the release pull request. Migrations should follow
@@ -388,7 +533,15 @@ expand then contract, so that the first case is rare (see the release rules).
 
 The files are owned by uid 70 or 10001, so every command uses `sudo` (`put_secret` of the
 [secrets directory](#secrets-directory) does). Keep mode 0400, then recreate the services that read the file
-(`$DC up -d --force-recreate <service>`): Compose does not detect a changed secret file.
+(`$DC up -d --force-recreate <service>`): Compose does not detect a changed secret file. After recreating the gateway,
+restart `nginx`, which resolves the gateway address once. `put_secret` keeps the previous file as `<name>.prev`; when the
+[verification](#verification) passes, delete the previous files, and if it fails move the `.prev` file back and
+recreate again (the PostgreSQL password has a step of its own, below). The directory is root's (mode 0700), so the
+glob is expanded by a root shell:
+
+```bash
+sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
+```
 
 - **JWT secret (`gateway_jwt_secret`):** replacing it invalidates every issued token, so **everyone is logged out**.
   Plan it outside working hours.
@@ -396,30 +549,77 @@ The files are owned by uid 70 or 10001, so every command uses `sudo` (`put_secre
   ```bash
   printf '%s' "$(openssl rand -hex 32)" | put_secret gateway_jwt_secret 10001
   $DC up -d --force-recreate gateway
+  $DC restart nginx
   ```
 
-- **Fernet keys (`secrets_fernet_keys`):** prepend a new key and keep the old ones, so stored values still decrypt:
+- **Fernet keys (`secrets_fernet_keys`):** prepend a new key and keep the old ones, so stored values still decrypt. It
+  fails unless both the new and the old value are non-empty:
 
   ```bash
   new=$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '\n')
   old=$(sudo cat "$OPENBINDING_SECRETS_DIR/secrets_fernet_keys")
-  printf '%s,%s' "$new" "$old" | put_secret secrets_fernet_keys 10001
-  $DC up -d --force-recreate gateway worker analysis-worker
+  if [ -n "$new" ] && [ -n "$old" ]; then
+    printf '%s,%s' "$new" "$old" | put_secret secrets_fernet_keys 10001 \
+      && $DC up -d --force-recreate gateway worker analysis-worker \
+      && $DC restart nginx
+  else
+    echo "refuse: the new or the old Fernet key is empty" >&2
+  fi
+  unset new old
   ```
 
   Remove an old key only after every stored value has been re-encrypted.
 - **SPACE and SPHERE keys (`space_api_key`, `sphere_api_key`):** create the new key in the remote service, write the
-  file with `put_secret`, recreate `gateway worker analysis-worker`, then revoke the old key.
-- **PostgreSQL password (`postgres_password`, `database_url`):** change it in the database (`ALTER ROLE`), then write
-  both files with `put_secret` (owners 70 and 10001) and recreate `migrate gateway worker analysis-worker pg-backup`.
-  `postgres` itself reads the file only when it first initialises the data directory.
+  file, recreate, then revoke the old key:
+
+  ```bash
+  set +o history
+  printf 'new SPACE key: ' >&2; IFS= read -rs v; echo >&2; printf '%s' "$v" | put_secret space_api_key 10001; unset v
+  set -o history
+  $DC up -d --force-recreate gateway worker analysis-worker
+  $DC restart nginx
+  ```
+
+  The SPHERE key is the same with `sphere_api_key` in place of `space_api_key`.
+- **PostgreSQL password (`postgres_password`, `database_url`):** the new password goes to the database through standard
+  input of a command inside the container, never as an argument, then both files are written and the services
+  recreated. `postgres` itself reads the file only when it first initialises the data directory.
+
+  ```bash
+  password=$(openssl rand -hex 24)
+  printf "ALTER ROLE openbinding PASSWORD '%s';\n" "$password" \
+    | $DC exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1 \
+    && printf '%s' "$password" | put_secret postgres_password 70 \
+    && printf '%s' "postgresql+asyncpg://openbinding:${password}@postgres:5432/openbinding" | put_secret database_url 10001 \
+    && $DC up -d --force-recreate migrate gateway worker analysis-worker pg-backup \
+    && $DC restart nginx
+  unset password
+  ```
+
+  `psql` inside the container connects over the local socket, which the PostgreSQL image trusts, so no password is
+  needed to change one. **To undo a failed change of this password, first set the role back to the old one**, with the
+  value read from the `.prev` file on standard input, because the services would otherwise be given a password that the
+  server rejects. Then move both `.prev` files back and recreate the services:
+
+  ```bash
+  old=$(sudo cat "$OPENBINDING_SECRETS_DIR/postgres_password.prev")
+  printf "ALTER ROLE openbinding PASSWORD '%s';\n" "$old" \
+    | $DC exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1 \
+    && sudo sh -c 'for f in postgres_password database_url; do mv -f -- "$1/$f.prev" "$1/$f"; done' sh "$OPENBINDING_SECRETS_DIR" \
+    && $DC up -d --force-recreate migrate gateway worker analysis-worker pg-backup \
+    && $DC restart nginx
+  unset old
+  ```
 
 ## TLS renewal
 
-`nginx` reads the certificate and key from `NGINX_SSL_DIR`. Renew with the issuer's client, write the new files in
-place and reload without downtime:
+`nginx` reads the certificate and key from `NGINX_SSL_DIR`. Renew with the issuer's client and write the new files in
+place with the same owners and modes (the directory 0750 root, `privkey.pem` 0600 root), then reload without
+downtime:
 
 ```bash
+sudo install -m 0600 -o root -g root <new privkey.pem> "$NGINX_SSL_DIR/privkey.pem"
+sudo install -m 0644 -o root -g root <new fullchain.pem> "$NGINX_SSL_DIR/fullchain.pem"
 $DC exec nginx nginx -t
 $DC exec nginx nginx -s reload
 echo | openssl s_client -connect "${PUBLIC_ORIGIN#https://}:443" -servername "${PUBLIC_ORIGIN#https://}" 2>/dev/null \
@@ -477,9 +677,14 @@ the owner decision. The owner reconciles `INTENT.md`. Until then plans stay bloc
 - **Production SPACE.** Production uses a remote SPACE through `SPACE_URL`; which one is the owner's decision. The
   owner chose a local SPACE for production, which this definition does not ship: see
   [Local SPACE (owner decision local-space)](#local-space-owner-decision-local-space). Plans stay blocked until then.
+- **Non-root users and dropped capabilities.** The Java engines, `nginx` and `frontend-assets` run as the user of their
+  image (root in several of them) with the default capabilities; `compose.yaml` sets only `no-new-privileges`. Setting a
+  `user` and `cap_drop` there depends on the writable paths and ports of each image, and cannot be verified without
+  Docker, so it is a follow-up (F7 in the tasks of the change `m09-compose-only`), to be rendered and tested on a
+  host with Docker.
 - **CI compose-config job.** The job that runs `docker compose config` for development, lab and production is written
   but cannot be pushed until a token with Workflows: write exists (CRP-3). Until then, run the
   [render check](#render-check) by hand.
-- **Not yet rendered.** No worker has a Docker binary, so `compose.yaml` was checked by static tests only. Run the
-  render check once on a machine with Docker before the first install.
+- **Not yet rendered.** No worker has a Docker binary, so `compose.yaml` was checked by static tests only, and the
+  commands of this runbook were never run. Run the render check once on a machine with Docker before the first install.
 - **Host facts.** CPU, RAM, disk, Compose version, retention, off-host target and TLS issuer (Q3) are pending.

@@ -20,7 +20,8 @@ Order:
 - [x] 0.1 `proposal.md`, `design.md` (§1 interface contract, decisions, risks, owner assumptions), `tasks.md`.
 - [x] 0.2 Delta `specs/lab-deployment/spec.md`: REMOVED `kustomize-render~1`; MODIFIED `migrate-on-start` ~1 → ~2;
   ADDED `compose-only~1`, `entrypoint-secret-files~1`, `production-pinned-images~1`, `production-secret-files~1`,
-  `production-health-restart~1`, `production-limits-logs~1`, `production-backups~1`, `production-runbook~1`.
+  `production-health-restart~1`, `production-network~1`, `production-limits-logs~1`, `production-backups~1`,
+  `production-runbook~1`.
 - Checks (`cwd: .`): `["openspec", "validate", "m09-compose-only", "--strict"]` (G1); `["git", "diff", "--check"]`.
 
 ## S1. Kubernetes leftovers and guard test
@@ -61,7 +62,8 @@ Order:
 - [ ] 3.1 Tests first, on a base that includes S2: S3 extends `openbinding-gateway/tests/test_compose_production.py`
   with the static cases, one rule per requirement, applied to the real files and to mutated in-memory copies. They are tagged
   `[utest->req~lab-deployment-production-pinned-images~1]`, `…-production-secret-files~1`,
-  `…-production-health-restart~1`, `…-production-limits-logs~1` and `…-production-backups~1`. The test body asserts
+  `…-production-health-restart~1`, `…-production-network~1`, `…-production-limits-logs~1` and
+  `…-production-backups~1`. The test body asserts
   `deploy/compose/production/compose.yaml` is a file (it does not fail in a fixture).
 - [ ] 3.2 `deploy/compose/production/compose.yaml`: standalone, `name: openbinding-production`, with the services of
   design.md §2, top-level file secrets, `x-logging`, limits, health checks, `migrate` before `gateway`, and
@@ -122,6 +124,14 @@ Order:
   non-goal). See the runbook section `Local SPACE (owner decision local-space)`.
 - [ ] F4 After CRP-2: remove or rename the `prod` profile of `docker-compose.yml`.
 - [ ] F5 `bim-toolchain/docs/SERVICE.md:742,751-752`: drop the Kubernetes notes.
+- [ ] F7 Non-root user and `cap_drop` for the Java engines, `nginx` and `frontend-assets` (round-1 finding
+  R1-SEC-003, accepted for now). Today they run as the user of their image with the default capabilities, and
+  `compose.yaml` sets only `no-new-privileges`. A `user` and `cap_drop: [ALL]` depend on the writable paths and ports
+  of each image and cannot be verified without Docker, so a follow-up change renders and tests them on a host with
+  Docker. Recorded in the runbook section "What stays blocked".
+- [ ] F8 Owner: extend the OFT trace paths so that the `[impl->…]` tags in `docker-entrypoint.sh` and
+  `deploy/compose/production/compose.yaml`, and the `[utest->…]` tags in `openbinding-gateway/tests/`, are traced
+  (the project configuration is owner-only).
 
 ## A. Archive (explicit archive task, after S1-S4)
 - [ ] `["openspec", "archive", "m09-compose-only", "--yes"]`, then the Purpose, TODO and Out-of-scope edits of

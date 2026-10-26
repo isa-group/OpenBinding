@@ -8,6 +8,9 @@
 # disagree, this file wins. The mem_limit and cpus values are starting values, tuned after the first measured week.
 name: openbinding-production
 
+# [impl->req~lab-deployment-production-limits-logs~1]
+# [impl->req~lab-deployment-production-pinned-images~1] (every image is ${..._IMAGE:?} from images.env)
+# [impl->req~lab-deployment-compose-only~1]
 x-logging: &logging
   driver: json-file
   options:
@@ -30,7 +33,8 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U openbinding -d openbinding"]
+      # Over TCP: while the image initialises the data directory, a temporary server answers on the socket only.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U openbinding -d openbinding"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -66,6 +70,7 @@ services:
       - openbinding
 
   # One-shot: applies the database migrations of the gateway image and exits. The gateway waits for it.
+  # [impl->req~lab-deployment-production-health-restart~1]
   migrate:
     image: ${GATEWAY_IMAGE:?set GATEWAY_IMAGE in images.env}
     environment:
@@ -217,6 +222,7 @@ services:
     depends_on:
       gateway:
         condition: service_healthy
+        restart: true
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -313,6 +319,7 @@ services:
   # Copies the built frontend into the frontend_dist volume that nginx serves (the frontend-prod pattern).
   frontend-assets:
     image: ${FRONTEND_ASSETS_IMAGE:?set FRONTEND_ASSETS_IMAGE in images.env}
+    init: true
     volumes:
       - frontend_dist:/out
     command: ["sh", "-c", "rm -rf /out/* && cp -a /dist/. /out/ && tail -f /dev/null"]
@@ -348,9 +355,11 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    # restart: true re-resolves the gateway address (nginx.conf resolves `gateway` once) when the gateway is recreated.
     depends_on:
       gateway:
         condition: service_healthy
+        restart: true
       frontend-assets:
         condition: service_healthy
     restart: unless-stopped
@@ -365,8 +374,10 @@ services:
   # Daily pg_dump -Fc into OPENBINDING_BACKUP_DIR (owned by uid 70). A dump is written as .partial and renamed when
   # complete; stale .partial files are removed at the start of each round. Dumps older than BACKUP_RETENTION_DAYS go.
   # Every shell dollar is doubled so that Compose leaves it alone.
+  # [impl->req~lab-deployment-production-backups~1]
   pg-backup:
     image: ${POSTGRES_IMAGE:?set POSTGRES_IMAGE in images.env}
+    init: true
     user: "70:70"
     entrypoint: ["sh", "-ec"]
     command:
@@ -404,6 +415,7 @@ services:
     networks:
       - openbinding
 
+# [impl->req~lab-deployment-production-secret-files~1]
 secrets:
   postgres_password:
     file: ${OPENBINDING_SECRETS_DIR:?set OPENBINDING_SECRETS_DIR in site.env}/postgres_password

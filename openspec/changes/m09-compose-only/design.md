@@ -132,7 +132,7 @@ key read after `SECRETS_FERNET_KEYS`, so production has no secret file for it. T
 |---|---|---|
 | An entrypoint regression breaks every gateway start (development, lab, previews, QACOBench) | high | `auto` default unchanged; subprocess tests with a fake `alembic` in `PATH`; the existing hardening and lab tests stay green; a lab smoke after merge (the lab sets no new variable) |
 | A secret value leaks into logs through the entrypoint | high | no `set -x`; messages name only the variable; a test asserts the value is absent from stdout and stderr in each path |
-| A wrong third-party digest | medium | digests come from a lookup with sources, never guessed; `docker compose config` does not pull, so the runbook pre-flight pulls by digest before the first install |
+| A wrong third-party digest | medium | digests come from a lookup with sources, never guessed; `docker compose config` does not pull, so the first `docker compose pull`, after the runbook pre-flight, fetches by digest |
 | Compose features with unconfirmed versions (`--profile "*"`, repeated `--env-file`, F22) | medium | S3 runs `docker compose config` locally through a registered check; the fallbacks are in the intake |
 | The production file drifts from `docker-compose.yml` `prod` | medium | the environment keys follow the `prod` services; removing the `prod` profile is a followup after CRP-2 |
 | The `kustomize` factory gate fails on the missing path (`.agentic/project.yaml:82`) | low | the owner removes it (§7) |
@@ -149,6 +149,7 @@ key read after `SECRETS_FERNET_KEYS`, so production has no secret file for it. T
 | `production-pinned-images~1` | S3 |
 | `production-secret-files~1` | S3 (relies on S2) |
 | `production-health-restart~1` | S3 (relies on S2) |
+| `production-network~1` | S3 |
 | `production-limits-logs~1` | S3 |
 | `production-backups~1` | S3 service; S4 snapshot procedure |
 | `production-runbook~1` | S4 (on a base that includes S3) |
