@@ -29,7 +29,9 @@ and `authors` is `[]` when no author is recorded.
 
 - `doi` and `venue` come only from the recorded, not withdrawn, publication citation of the exact version, and `doi`
   only when it is a well-formed DOI; otherwise both are `null` and the BibTeX entry leaves those fields out.
-- `authors` holds only recorded author or owner usernames, or is `[]`; publisher-written values are escaped in BibTeX.
+- `authors` holds the recorded citation's authors, else the recorded author or owner username, else `[]`; user- and
+  publisher-written values cannot break out of a BibTeX field
+  (braces removed, other special characters escaped).
 - `year` is the year of the recorded citation, else of the publication date, else of the element's sealed or created
   date; never a constant.
 - `url` and the badge link use the configured `FRONTEND_URL` origin and the public permanent link
