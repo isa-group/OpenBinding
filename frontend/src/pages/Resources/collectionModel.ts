@@ -15,7 +15,8 @@ export interface Pin {
   /** What kind of revision it is, for the picker (`Case revision`, `Resource revision`). */
   sub: string;
   digest: string;
-  href: string;
+  /** Where the target opens; a resource revision has no screen of its own since the project resources were retired. */
+  href?: string;
   item: CollectionItem;
   /** Of a resource: its address and the number of the revision, which is how the gateway names it when it lists a collection. */
   slug?: string;
@@ -66,7 +67,6 @@ export function buildPins(cases: readonly CaseContent[], resources: readonly Res
         label: `${resource.name} · revision ${revision.revision}`,
         sub: 'Resource revision',
         digest: revision.digest,
-        href: `${root}/resources/${encodeURIComponent(resource.slug)}`,
         item: { target_kind: 'resource', target_digest: revision.digest, target_ref: { resourceRevisionId: revision.id } },
         slug: resource.slug,
         ordinal: revision.revision,

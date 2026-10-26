@@ -52,9 +52,10 @@ describe('Collections', () => {
     expect(within(cards[0]).getByText('3 items · revision 1')).toBeInTheDocument();
     expect(within(cards[1]).getByText('No revision yet')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Collections' })).toBeInTheDocument();
-    const sections = screen.getByRole('navigation', { name: 'Library sections' });
-    expect(within(sections).getByText('Collections')).toHaveAttribute('aria-current', 'page');
-    expect(within(sections).getByRole('link', { name: 'Library used here' })).toHaveAttribute('href', `${root}/library`);
+    // [utest->req~frontend-retire-library-entry-points-removed~1]
+    expect(screen.queryByRole('navigation', { name: 'Library sections' })).toBeNull();
+    expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Collections' })).toHaveAttribute('aria-current', 'page');
+    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href') ?? '').not.toMatch(/\/(library|resources)([/?#]|$)/);
   });
 
   it('shows the sponsor’s allowance of collections against the ones in this project', async () => {

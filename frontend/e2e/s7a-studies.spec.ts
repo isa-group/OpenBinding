@@ -596,13 +596,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('#platform-main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Engines × seeds' })).toBeVisible();
-      await expect(main.getByText('Definition version 1 · sealed in the library')).toBeVisible();
+      await expect(main.getByText('Definition version 1 · sealed', { exact: true })).toBeVisible();
       const grid = main.getByRole('region', { name: 'The cells of the matrix' });
       await expect(grid.getByRole('columnheader')).toHaveCount(5);
       await expect(grid.getByText('cell 7')).toBeVisible();
       await expect(main.getByText(/2 case revisions × 2 engines × 1 setting × 2 seeds = 8 cells\. Settings: 1 · engine defaults\./)).toBeVisible();
       await expect(main.getByRole('link', { name: /Run #1/ })).toHaveAttribute('href', RUN);
-      await expect(main.getByRole('link', { name: 'Open the definition in the library' })).toHaveAttribute('href', '/app/isa-demo/library/artifact-engines-vs-seeds');
+      await expect(main.getByRole('link', { name: 'Open the definition in the library' })).toHaveCount(0);
       await expect(main.getByLabel('Study definition source')).toBeHidden();
       await capture(page, testInfo, `detail-${name}-top`);
       await main.getByText('View source').click();

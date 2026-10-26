@@ -37,9 +37,9 @@ vi.mock('../pages/Jobs/JobHistory', async () => {
   const { createElement } = await import('react');
   return { JobHistory: () => createElement('h1', null, 'Job history screen') };
 });
-vi.mock('../pages/Library/LibArtifact', async () => {
+vi.mock('../pages/Resources/CollList', async () => {
   const { createElement } = await import('react');
-  return { LibArtifact: () => createElement('h1', null, 'Library artifact screen') };
+  return { CollList: () => createElement('h1', null, 'Collections screen') };
 });
 vi.mock('../pages/Reports/ProjPublications', async () => {
   const { createElement } = await import('react');
@@ -87,8 +87,10 @@ function targetOf(route: RetiredRoute, query: string, params: Params = {}): stri
   return route.target(new URLSearchParams(query), params);
 }
 
-/** Realistic values of the parameters of `:org`, `:project` and `:report`, each needing the encoding of a path segment. */
-const PARAMS: Params = { org: 'a b', project: 'p/q', report: 'r#1' };
+/** Realistic values of the parameters of the retired paths, each needing the encoding of a path segment. */
+const PARAMS: Params = { org: 'a b', project: 'p/q', report: 'r#1', artifact: 'c', draft: 'd', version: 'e', resource: 'f' };
+/** The sample of the table: one plain value per parameter. */
+const SAMPLE: Params = { org: 'a', project: 'b', report: 'c', artifact: 'c', draft: 'd', version: 'e', resource: 'f' };
 
 describe('the table of retired addresses', () => {
   // [utest->req~frontend-retire-redirect-decision-space~1]
@@ -108,7 +110,8 @@ describe('the table of retired addresses', () => {
 
   // [utest->req~frontend-retire-redirect-generic~1]
   it('leads every target to the routed screen it names and is not itself a route', () => {
-    // The screen each query leads to for the decision-space entries (slice 1); the report entries (slice 2) always lead to the publications.
+    // The screen each query leads to for the decision-space entries (slice 1); the report entries (slice 2) always lead to the publications,
+    // the library entries (slice 3) to the organization overview or the collections.
     const cases: Array<[string, string]> = [
       ['', 'job-history'],
       ['org=a&project=b&study=c', 'study-detail'],
@@ -117,17 +120,57 @@ describe('the table of retired addresses', () => {
       ['org=a%20b&project=p%2Fq&study=s%23t', 'study-detail'],
     ];
     const encodedQuery = 'org=a%20b&project=p%2Fq&study=s%23t&run=r%3Fx';
+    const fixedScreen: Record<number, (route: RetiredRoute) => string> = {
+      2: () => 'proj-publications',
+      3: (route) => (route.id.startsWith('lib-') ? 'org-overview' : 'coll-list'),
+    };
+    const fixedTarget: Record<number, (route: RetiredRoute) => string> = {
+      2: () => '/app/a%20b/p%2Fq/publications',
+      3: (route) => (route.id.startsWith('lib-') ? '/app/a%20b' : '/app/a%20b/p%2Fq/collections'),
+    };
     for (const route of RETIRED_ROUTES) {
       for (const [query, slice1Screen] of cases) {
-        const target = targetOf(route, query, PARAMS);
+        const target = targetOf(route, query, route.slice === 1 ? {} : SAMPLE);
         const matches = matchRoutes(config, target);
-        const screenId = route.slice === 2 ? 'proj-publications' : slice1Screen;
+        const screenId = fixedScreen[route.slice]?.(route) ?? slice1Screen;
         expect(matches?.at(-1)?.route.id, `${route.id} ${query} -> ${target}`).toBe(screenId);
       }
       const encoded = targetOf(route, encodedQuery, PARAMS);
-      expect(encoded).toBe(route.slice === 2 ? '/app/a%20b/p%2Fq/publications' : '/app/a%20b/p%2Fq/studies/s%23t/runs/r%3Fx');
+      expect(encoded).toBe(fixedTarget[route.slice]?.(route) ?? '/app/a%20b/p%2Fq/studies/s%23t/runs/r%3Fx');
       expect(routeDefinitions.map((definition) => definition.path)).not.toContain(route.path);
       expect(route.slice).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  // [utest->req~frontend-retire-library-redirect~1]
+  it('holds the library catalogue and the project resources as the entries of slice 3, the library artifact before the project routes it ties with', () => {
+    const slice3 = RETIRED_ROUTES.filter((route) => route.slice === 3);
+    expect(slice3.map((route) => [route.id, route.path])).toEqual([
+      ['lib-list', '/app/:org/library'],
+      ['lib-artifact', '/app/:org/library/:artifact'],
+      ['lib-draft', '/app/:org/library/:artifact/drafts/:draft'],
+      ['lib-version', '/app/:org/library/:artifact/versions/:version'],
+      ['proj-library', '/app/:org/:project/library'],
+      ['proj-resources', '/app/:org/:project/resources'],
+      ['proj-resource-detail', '/app/:org/:project/resources/:resource'],
+    ]);
+    const order = (id: string) => RETIRED_ROUTES.findIndex((route) => route.id === id);
+    for (const later of ['rep-list', 'proj-library', 'proj-resources']) expect(order('lib-artifact'), later).toBeLessThan(order(later));
+  });
+
+  // [utest->req~frontend-retire-library-redirect~1]
+  it.each(RETIRED_ROUTES.filter((route) => route.slice === 3))('sends $path to the organization overview or the collections, whatever the rest', (route) => {
+    const to = (query: string, params: Params) => targetOf(route, query, params);
+    const organization = route.id.startsWith('lib-');
+
+    expect(to('', { org: 'acme', project: 'demo', artifact: 'x', draft: 'y', version: 'z', resource: 'r' })).toBe(organization ? '/app/acme' : '/app/acme/demo/collections');
+    expect(to('org=other&project=other&tab=x', { org: 'acme', project: 'demo' })).toBe(organization ? '/app/acme' : '/app/acme/demo/collections');
+    expect(to('', { org: 'a/b', project: 'p q' })).toBe(organization ? '/app/a%2Fb' : '/app/a%2Fb/p%20q/collections');
+    expect(to('', {})).toBe('/app');
+    expect(to('', { project: 'demo' })).toBe('/app');
+    if (!organization) {
+      expect(to('', { org: 'a' })).toBe('/app');
+      expect(to('', { org: '', project: 'b' })).toBe('/app');
     }
   });
 
@@ -212,13 +255,60 @@ describe('the redirect of a retired address', () => {
     expect(screen.getByTestId('hash').textContent).toBe('');
   });
 
-  // [utest->req~frontend-retire-reports-redirect~1]
-  it('leaves /app/<org>/library/reports on the library artifact screen, not on the publications', async () => {
-    renderAt(['/app/isa-demo/library/reports']);
+  // [utest->req~frontend-retire-library-redirect~1]
+  it.each([
+    '/app/isa-demo/library/reports',
+    '/app/isa-demo/library/library',
+    '/app/isa-demo/library/resources',
+  ])('sends %s to the organization overview, not to the publications or the collections of a project called library', async (old) => {
+    renderAt([old]);
 
-    expect(await screen.findByRole('heading', { name: 'Library artifact screen' })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/isa-demo\/library\/reports$/);
+    expect(await screen.findByRole('heading', { name: 'Organization page screen' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/isa-demo$/);
     expect(screen.queryByRole('heading', { name: 'Publications screen' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Collections screen' })).toBeNull();
+  });
+
+  // [utest->req~frontend-retire-library-redirect~1]
+  it.each([
+    ['/app/acme/library', '/app/acme', 'Organization page screen'],
+    ['/app/acme/library/a1/drafts/d1?x=1#top', '/app/acme', 'Organization page screen'],
+    ['/app/acme/library/a1/versions/v1', '/app/acme', 'Organization page screen'],
+    ['/app/a%2Fb/library/a1', '/app/a%2Fb', 'Organization page screen'],
+    ['/app/acme/demo/library', '/app/acme/demo/collections', 'Collections screen'],
+    ['/app/acme/demo/resources', '/app/acme/demo/collections', 'Collections screen'],
+    ['/app/acme/demo/resources/r1?x=1#top', '/app/acme/demo/collections', 'Collections screen'],
+    ['/app/a%2Fb/my%20proj/resources/r%2F1', '/app/a%2Fb/my%20proj/collections', 'Collections screen'],
+  ])('sends the library address %s to %s, without a query or a hash', async (old, expected, heading) => {
+    renderAt([old]);
+
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(expected));
+    expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
+    expect(screen.getByTestId('hash').textContent).toBe('');
+  });
+
+  // [utest->req~frontend-retire-library-redirect~1]
+  it('replaces the history entry and asks a visitor without a session to sign in before the library redirect', async () => {
+    const first = renderAt(['/app/account', '/app/acme/library/a1']);
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/acme$/));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/account$/));
+    first.unmount();
+
+    for (const [old, target] of [
+      ['/app/acme/demo/resources/r1', '/app/acme/demo/collections'],
+      ['/app/isa-demo/library/checkout-engines/drafts/d-1', '/app/isa-demo'],
+    ]) {
+      const signedOut = renderAt([old], null);
+      expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
+      expect(screen.getByTestId('location')).toHaveTextContent(/^\/login/);
+      expect(screen.getByTestId('from').textContent).toBe(old);
+      signedOut.unmount();
+
+      const signedIn = renderAt([old]);
+      await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(target));
+      signedIn.unmount();
+    }
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]

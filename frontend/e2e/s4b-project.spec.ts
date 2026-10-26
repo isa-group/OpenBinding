@@ -434,7 +434,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Open bench' })).toBeVisible();
       await expect(main.getByText('You are viewing a public project (read-only).')).toBeVisible();
       const publicTabs = main.getByRole('navigation', { name: 'Project sections' });
-      await expect(publicTabs.getByRole('link')).toHaveText(['Overview', 'Cases', 'Library', 'Studies', 'Publications', 'Files']);
+      await expect(publicTabs.getByRole('link')).toHaveText(['Overview', 'Cases', 'Collections', 'Studies', 'Publications', 'Files']);
       await expect(band.getByRole('link', { name: 'Browse cases' })).toHaveAttribute('href', '/app/open-lab/open-bench/cases');
       for (const hidden of ['New case', 'Run', 'New study', 'New report', 'Export package']) await expect(band.getByText(hidden, { exact: true })).toHaveCount(0);
       await expect(main.getByRole('region', { name: 'Recent jobs' })).toHaveCount(0);

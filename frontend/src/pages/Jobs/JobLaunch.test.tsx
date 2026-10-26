@@ -145,7 +145,7 @@ describe('Start a run', () => {
       diagnostics: [{ ...RANGE_DIAGNOSTIC }], ...over,
     });
 
-    it('turns off the engines that take single values only, with the reason, and links to Engines and to the candidates', async () => {
+    it('turns off the engines that take single values only, with the reason, and links to Engines', async () => {
       casesApi.instanceIr.mockResolvedValue(ranged);
       casesApi.analyseSnapshot.mockResolvedValue(analysis({
         compatibleModes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }, refusedRanges({})],
@@ -161,7 +161,10 @@ describe('Start a run', () => {
       const notice = screen.getByText('This package has range features').closest('.ui-notice') as HTMLElement;
       expect(notice).toHaveTextContent('The engines marked “Can’t run this” only accept single values.');
       expect(within(notice).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-      expect(within(notice).getByRole('link', { name: 'edit the candidates' })).toHaveAttribute('href', '/app/isa-demo/library');
+      // [utest->req~frontend-retire-library-entry-points-removed~1]
+      expect(within(notice).queryByRole('link', { name: 'edit the candidates' })).toBeNull();
+      expect(within(notice).queryByRole('link', { name: /library/i })).toBeNull();
+      expect(screen.queryByRole('link', { name: 'Open the library' })).toBeNull();
       expect(casesApi.instanceIr).toHaveBeenCalledWith('snap-2');
     });
 
@@ -213,7 +216,8 @@ describe('Start a run', () => {
       const alert = (await screen.findByText(/^This engine only accepts single values/)).closest('.ui-notice') as HTMLElement;
       expect(alert).toHaveTextContent('mode does not support requested featureValues values (candidates.json#/spec/candidates/a/features/latency)');
       expect(within(alert).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-      expect(within(alert).getByRole('link', { name: 'Edit the candidate' })).toHaveAttribute('href', '/app/isa-demo/library');
+      // [utest->req~frontend-retire-library-entry-points-removed~1]
+      expect(within(alert).queryByRole('link', { name: 'Edit the candidate' })).toBeNull();
     });
 
     it('explains the same refusal when the gateway could not tell which value, pointing at the compiled problem instead', async () => {
@@ -352,7 +356,8 @@ describe('Start a run', () => {
     expect(screen.queryByRole('region', { name: 'Settings against your plan' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Pick sealed settings' }));
     expect(screen.getByText('rs-60s · v1')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open the library' })).toHaveAttribute('href', '/app/isa-demo/library');
+    // [utest->req~frontend-retire-library-entry-points-removed~1]
+    expect(screen.queryByRole('link', { name: 'Open the library' })).toBeNull();
     await next();
     expect(await screen.findByText('Saved: rs-60s v1')).toBeInTheDocument();
     expect(screen.getByText('From the saved settings')).toBeInTheDocument();

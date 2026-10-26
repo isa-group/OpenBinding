@@ -119,7 +119,7 @@ function RunsCard({ scope, runs }: { scope: StudyScopeValue; runs: Resource<Runs
 function VersionsCard({ scope, versions, onPick, busy }: {
   scope: StudyScopeValue; versions: Resource<ArtifactVersion[] | null>; onPick: (id: string) => void; busy: boolean;
 }) {
-  const { study, organization, access } = scope;
+  const { study, access } = scope;
   const list = versions.data ?? versions.stale ?? [];
   const usable = list.filter((version) => !version.withdrawn);
   const locked = !access.canCreate || study.archived || busy;
@@ -136,11 +136,10 @@ function VersionsCard({ scope, versions, onPick, busy }: {
       </label>
       <span className="st-caption">
         {usable.length <= 1
-          ? 'Only one version exists. A new version appears when the definition draft in the library is sealed.'
+          ? 'Only one version exists. A new version appears when the definition is sealed again.'
           : `${usable.length} versions are sealed. A new run uses the one chosen here.`}
         {!access.canCreate && ' Changing it needs MEMBER.'}
       </span>
-      <Link to={`/app/${organization.slug}/library/${study.definition_artifact_id}`} viewTransition>Open the definition in the library</Link>
     </section>
   );
 }
@@ -235,7 +234,7 @@ function DetailBody({ scope }: { scope: StudyScopeValue }) {
             <h1>{study.name}</h1>
             {study.archived && <Chip>Archived</Chip>}
           </div>
-          <p>{current ? `Definition version ${current.ordinal}` : 'Definition version'} · sealed in the library</p>
+          <p>{current ? `Definition version ${current.ordinal}` : 'Definition version'} · sealed</p>
           {study.description && <p>{study.description}</p>}
         </div>
         <div className="proj-actions">

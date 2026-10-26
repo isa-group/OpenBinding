@@ -390,7 +390,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto('/app/isa-demo/checkout-privado/cases');
       const guide = main.getByRole('region', { name: 'No cases yet' });
       await expect(guide.getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/examples');
-      await expect(guide.getByRole('link', { name: 'Open the library' })).toHaveAttribute('href', '/app/isa-demo/library');
+      await expect(guide.getByRole('link', { name: 'Open the library' })).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-empty`);
 
       // The list fails and comes back.
@@ -603,8 +603,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('region', { name: 'Goal' }).getByText('lower is better').first()).toBeVisible();
       await expect(main.getByText(/not declared in this revision \(no pools, network or events\)/)).toBeVisible();
       const resources = main.getByRole('region', { name: 'Resources it’s built from' });
-      await expect(resources.getByRole('link', { name: /Candidate catalog.*providers-eu v3/ })).toHaveAttribute('href', '/app/isa-demo/library/art-cat/versions/version-art-cat-3');
-      await expect(resources.getByRole('link', { name: /Candidate catalog.*providers-eu v3/ })).toContainText('Published · open in library');
+      const catalogCard = resources.getByRole('listitem').filter({ hasText: /Candidate catalog.*providers-eu v3/ });
+      await expect(catalogCard).toContainText('Published');
+      await expect(catalogCard).not.toContainText(/open in library/i);
+      await expect(resources.getByRole('link')).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'Compare' })).toHaveAttribute('href', `${CASE}/compare?from=1&to=2`);
       await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/snapshots/${S2}`);
       await capture(page, testInfo, `revision-${name}-success`);

@@ -285,7 +285,7 @@ export function AppHome() {
           <div className="home-first-body">
             <h2 id="home-first-title">Create your first organization</h2>
             <span>
-              Organizations hold projects, members and a shared library. You can nest them: a lab inside a group inherits the group’s roles.
+              Organizations hold projects and members. You can nest them: a lab inside a group inherits the group’s roles.
               Projects, inside an organization, hold your cases, studies and reports.
               {' '}You’ll sponsor it: it counts against your plan’s organization limit{typeof limit === 'number' ? ` (${limit} on ${usage.data?.plan})` : ''}.
             </span>

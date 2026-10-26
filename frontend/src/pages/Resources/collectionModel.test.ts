@@ -28,11 +28,14 @@ describe('buildPins', () => {
     });
   });
 
-  it('pins a resource by its revision id and content fingerprint, and remembers how the gateway will name it', () => {
+  // [utest->req~frontend-retire-library-no-link~1]
+  it('pins a resource by its revision id and content fingerprint, and remembers how the gateway will name it, with no address of its own', () => {
     expect(pins[3]).toMatchObject({
-      kind: 'resource', key: `resource:${w1.digest}`, slug: 'weights', ordinal: 1, href: `${root}/resources/weights`,
+      kind: 'resource', key: `resource:${w1.digest}`, slug: 'weights', ordinal: 1,
       item: { target_kind: 'resource', target_digest: w1.digest, target_ref: { resourceRevisionId: w1.id } },
     });
+    expect(pins[3].href).toBeUndefined();
+    expect(pins.map((pin) => pin.href ?? '').filter((href) => /\/resources(\/|$)/.test(href))).toEqual([]);
   });
 });
 

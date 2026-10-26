@@ -50,7 +50,7 @@ export function isMissing(failure: AuthFailure | null): boolean {
 
 // --- composing a revision
 
-export type IssueAction = 'library' | 'dialects' | 'revisions' | 'role';
+export type IssueAction = 'dialects' | 'revisions' | 'role';
 
 export interface Issue {
   /** Where the problem comes from: the screen's own checks or the gateway's answer. */
@@ -108,14 +108,13 @@ export function composeRefusal(caught: unknown): Issue {
     return { source: 'gateway', title: `The composition was refused${marker(failure)}`, text: `The gateway could not build a valid problem from these parts.${gateway}`, details: diagnosticsOf(caught) };
   }
   if (failure.kind === 'not-found') {
-    return { source: 'gateway', title: `A version can’t be reached${marker(failure)}`, text: `One of the picked versions isn’t visible to you any more, or never was. Nothing was created.`, action: { kind: 'library', label: 'Find another in the library' } };
+    return { source: 'gateway', title: `A version can’t be reached${marker(failure)}`, text: `One of the picked versions isn’t visible to you any more, or never was. Nothing was created.` };
   }
   if (failure.kind === 'conflict') {
     return {
       source: 'gateway',
       title: `A version failed its integrity check${marker(failure)}`,
       text: `The stored content of a picked version doesn’t match its seal, or isn’t available right now.${gateway} Nothing was created; your choices are kept.`,
-      action: { kind: 'library', label: 'Open the library' },
     };
   }
   if (failure.status === 403) {
@@ -136,7 +135,6 @@ export function resolveRefusal(caught: unknown, label: string): Issue {
       source: 'gateway',
       title: `A version can’t be reached${marker(failure)}`,
       text: `${label} isn’t visible to you any more, or never was.`,
-      action: { kind: 'library', label: 'Find another in the library' },
     };
   }
   if (failure.status === 403) {

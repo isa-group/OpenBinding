@@ -126,10 +126,9 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
           <h2 id="case-guide-title">No cases yet</h2>
           {publicRead ? <p>This project hasn’t shared any case yet.</p> : (
             <>
-              <p>Start from a ready example, or compose one from your organization’s library: pick a workflow, a candidate catalog, constraints and a goal.</p>
+              <p>Start from a ready example, or compose one: pick a workflow, a candidate catalog, constraints and a goal.</p>
               <div className="proj-actions">
                 <Action to="/examples" variant="primary">Import an example</Action>
-                <Action to={`/app/${organization.slug}/library`} variant="secondary">Open the library</Action>
               </div>
             </>
           )}

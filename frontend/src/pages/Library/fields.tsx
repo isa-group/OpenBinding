@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { parseNumber } from './contentModel';
+import { parseFiniteNumber as parseNumber } from '../../utils/featureRange';
 
 interface NumberFieldProps {
   value: number | null;
@@ -49,91 +49,6 @@ export function NumberField({ value, onChange, label, id, disabled, required, cl
         setTyped({ text, value: parsed });
         onChange(parsed);
       }}
-    />
-  );
-}
-
-interface CommitFieldProps {
-  value: string;
-  /** Called with a trimmed, non-empty, unused name when the field is left (or Enter is pressed). */
-  onCommit: (value: string) => void;
-  label: string;
-  disabled?: boolean;
-  /** Names already in use by other rows. */
-  taken?: string[];
-}
-
-/** A name that is only applied when it is complete and free: renaming a row mid-word would otherwise rebuild it on every key. */
-export function CommitField({ value, onCommit, label, disabled, taken = [] }: CommitFieldProps) {
-  const [typed, setTyped] = useState<{ text: string; of: string } | null>(null);
-  const [error, setError] = useState('');
-  const shown = typed && typed.of === value ? typed.text : value;
-
-  const commit = () => {
-    if (shown === value) {
-      setTyped(null);
-      setError('');
-      return;
-    }
-    const next = shown.trim();
-    if (!next) {
-      setError('A name is needed.');
-      return;
-    }
-    if (taken.includes(next)) {
-      setError(`“${next}” is already used.`);
-      return;
-    }
-    setTyped(null);
-    setError('');
-    onCommit(next);
-  };
-
-  return (
-    <>
-      <input
-        className="lib-input is-mono"
-        type="text"
-        autoComplete="off"
-        spellCheck={false}
-        aria-label={label}
-        aria-invalid={error ? true : undefined}
-        value={shown}
-        disabled={disabled}
-        onChange={(event) => { setTyped({ text: event.target.value, of: value }); setError(''); }}
-        onBlur={commit}
-        onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit(); } }}
-      />
-      {error && <span className="lib-cell-error" role="alert">{error}</span>}
-    </>
-  );
-}
-
-interface TextFieldProps {
-  value: string;
-  onChange: (value: string) => void;
-  label: string;
-  id?: string;
-  disabled?: boolean;
-  mono?: boolean;
-  placeholder?: string;
-  className?: string;
-}
-
-/** A line of text whose accessible name is its label even when no label is drawn (table cells). */
-export function TextField({ value, onChange, label, id, disabled, mono, placeholder, className = '' }: TextFieldProps) {
-  return (
-    <input
-      id={id}
-      className={`lib-input${mono ? ' is-mono' : ''} ${className}`.trim()}
-      type="text"
-      autoComplete="off"
-      spellCheck={false}
-      aria-label={id ? undefined : label}
-      value={value}
-      placeholder={placeholder}
-      disabled={disabled}
-      onChange={(event) => onChange(event.target.value)}
     />
   );
 }
