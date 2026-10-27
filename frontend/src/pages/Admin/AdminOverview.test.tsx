@@ -132,10 +132,25 @@ describe('admin-overview · how the platform is doing', () => {
     expect(within(tools).getByRole('link', { name: /^Queues/ })).toHaveAttribute('href', '/app/admin/queues');
     expect(within(tools).getByRole('link', { name: /^Moderation/ })).toHaveAttribute('href', '/app/admin/moderation');
     expect(within(tools).getByRole('link', { name: /^Maintenance/ })).toHaveAttribute('href', '/app/admin/maintenance');
-    const sponsorship = within(tools).getByRole('button', { name: 'Open' });
-    expect(sponsorship).toBeDisabled();
-    fireEvent.change(within(tools).getByLabelText('Organization slug or id'), { target: { value: 'isa-demo' } });
-    expect(sponsorship).toBeEnabled();
+  });
+
+  // [utest->req~frontend-retire-sponsorship-entry-points-removed~1]
+  it('holds exactly the seven tools, with no sponsorship form, and a lede that names no sponsorship', async () => {
+    renderAdmin(<AdminOverview />);
+    await screen.findByText('Tools');
+    const tools = screen.getByRole('heading', { name: 'Tools' }).closest('section')!;
+    expect(within(tools).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
+      '/app/admin/users', '/app/admin/users', '/app/admin/audit', '/app/admin/errors', '/app/admin/queues', '/app/admin/moderation', '/app/admin/maintenance',
+    ]);
+    for (const name of [/^Accounts/, /^Account agreement/, /^Audit log/, /^Errors/, /^Queues/, /^Moderation/, /^Maintenance/]) {
+      expect(within(tools).getByRole('link', { name })).toBeInTheDocument();
+    }
+    expect(tools.querySelector('form')).toBeNull();
+    expect(within(tools).queryByLabelText('Organization slug or id')).not.toBeInTheDocument();
+    expect(within(tools).queryByRole('button', { name: 'Open' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sponsorship transfer/)).not.toBeInTheDocument();
+    expect(screen.getByText('How the platform is doing, and where to act. Contract, pricing and maintenance changes are recorded in the audit log.')).toBeInTheDocument();
+    expect(screen.queryByText(/sponsorship/i)).not.toBeInTheDocument();
   });
 
   it('lets one block fail without taking the rest of the page with it, and retries just that block', async () => {

@@ -2,9 +2,10 @@
   "platform": [
     {
       "version": "0.1.0",
-      "date": "2026-10-26",
+      "date": "2026-10-27",
       "title": "OpenBinding platform",
       "changes": [
+        "Retire the composer screen (M2.4 slice 4, ADR-0020) (#65)",
         "DEMO_LAB_PORT parametrization of the lab compose files (M0.5 S1a+S2) (#41)",
         "Faster PR CI with change detection, shards and a required aggregate (#64)",
         "Retire the library catalogue and project resources screens (M2.4 slice 3, ADR-0020) (#55)",
@@ -105,7 +106,8 @@
       "date": "2026-10-27",
       "title": "OpenBinding documentation",
       "changes": [
-        "M24-retire-composer plan and handoff",
+        "M24-retire-sponsorship plan and handoff",
+        "Retire the composer screen (M2.4 slice 4, ADR-0020) (#65)",
         "DEMO_LAB_PORT parametrization of the lab compose files (M0.5 S1a+S2) (#41)",
         "Faster PR CI with change detection, shards and a required aggregate (#64)",
         "Retire the library catalogue and project resources screens (M2.4 slice 3, ADR-0020) (#55)",

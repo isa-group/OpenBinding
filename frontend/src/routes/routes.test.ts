@@ -47,11 +47,10 @@ const PROTOTYPE: Record<keyof typeof routesByDomain, Array<[string, string]>> = 
     ['admin-overview', '/app/admin'], ['admin-users', '/app/admin/users'], ['admin-user-detail', '/app/admin/users/:user'],
     ['admin-audit', '/app/admin/audit'], ['admin-errors', '/app/admin/errors'], ['admin-queues', '/app/admin/queues'],
     ['admin-moderation', '/app/admin/moderation'], ['admin-maintenance', '/app/admin/maintenance'],
-    ['admin-sponsor', '/app/admin/organizations/:org/sponsor'],
   ],
 };
 
-const DOMAIN_SIZES = { D1: 18, D2: 7, D3: 10, D4: 10, D5: 4, D6: 8, D7: 4, D8: 9 };
+const DOMAIN_SIZES = { D1: 18, D2: 7, D3: 10, D4: 10, D5: 4, D6: 8, D7: 4, D8: 8 };
 
 const sample = (path: string) => path.replace(/:[A-Za-z]+/g, 'sample');
 
@@ -60,9 +59,21 @@ describe('route registry', () => {
   // [utest->req~frontend-retire-reports-screen-count~1]
   // [utest->req~frontend-retire-library-screen-count~1]
   // [utest->req~frontend-retire-composer-screen-count~1]
-  it('registers the 82 screens of the prototype minus the retired ones, 70 after slice 4', () => {
-    expect(routeDefinitions).toHaveLength(70);
-    expect(Object.values(PROTOTYPE).flat()).toHaveLength(70);
+  // [utest->req~frontend-retire-sponsorship-screen-count~1]
+  it('registers the 82 screens of the prototype minus the retired ones, 69 after slice 5', () => {
+    expect(routeDefinitions).toHaveLength(69);
+    expect(Object.values(PROTOTYPE).flat()).toHaveLength(69);
+  });
+
+  // [utest->req~frontend-retire-sponsorship-screen-not-routed~1]
+  it('declares no sponsorship screen, and keeps the eight administration screens', () => {
+    const ids = routeDefinitions.map((definition) => definition.id);
+    const paths = routeDefinitions.map((definition) => definition.path);
+    expect(ids).not.toContain('admin-sponsor');
+    expect(paths.filter((path) => path.endsWith('/sponsor') || path.startsWith('/app/admin/organizations'))).toEqual([]);
+    expect(routesByDomain.D8.map((definition) => definition.id)).toEqual([
+      'admin-overview', 'admin-users', 'admin-user-detail', 'admin-audit', 'admin-errors', 'admin-queues', 'admin-moderation', 'admin-maintenance',
+    ]);
   });
 
   // [utest->req~frontend-retire-composer-screen-not-routed~1]
@@ -151,9 +162,10 @@ describe('route registry', () => {
     }
   });
 
+  // [utest->req~frontend-retire-sponsorship-screen-not-routed~1]
   it('requires an administrator for every admin screen and for nothing else', () => {
     const admin = routeDefinitions.filter((definition) => definition.id.startsWith('admin-'));
-    expect(admin).toHaveLength(9);
+    expect(admin).toHaveLength(8);
     for (const definition of admin) {
       expect(definition.requireAdmin, definition.id).toBe(true);
       expect(definition.path, definition.id).toMatch(/^\/app\/admin(\/|$)/);
@@ -177,7 +189,6 @@ describe('route registry', () => {
     expect(resolve('/app/admin/audit')).toBe('admin-audit');
     expect(resolve('/app/admin/errors')).toBe('admin-errors');
     expect(resolve('/app/admin/queues')).toBe('admin-queues');
-    expect(resolve('/app/admin/organizations/isa-demo/sponsor')).toBe('admin-sponsor');
     expect(resolve('/app/admin/moderation')).toBe('admin-moderation');
     expect(resolve('/app/admin/maintenance')).toBe('admin-maintenance');
   });

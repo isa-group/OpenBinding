@@ -1,5 +1,5 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import type { AdminModerationOverview } from '../../api/auth';
 import { apiClient } from '../../api/client';
@@ -61,29 +61,6 @@ function pendingOf(moderation: AdminModerationOverview | undefined) {
   };
 }
 
-function SponsorshipTool() {
-  const navigate = useNavigate();
-  const [organization, setOrganization] = useState('');
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    const value = organization.trim();
-    if (value) void navigate(`/app/admin/organizations/${encodeURIComponent(value)}/sponsor`);
-  };
-  return (
-    <form className="adm-tool is-form" onSubmit={submit}>
-      <span className="adm-tool-title">Sponsorship transfer</span>
-      <span>Move an organization’s billing sponsor after a quota check.</span>
-      <span className="adm-tool-row">
-        <label>
-          <span className="sr-only">Organization slug or id</span>
-          <input value={organization} onChange={(event) => setOrganization(event.target.value)} placeholder="Organization slug or id" autoComplete="off" spellCheck={false} />
-        </label>
-        <Action type="submit" size="sm" variant="secondary" disabled={!organization.trim()}>Open</Action>
-      </span>
-    </form>
-  );
-}
-
 function OverviewScreen() {
   const overview = useResource('admin-overview', () => apiClient.adminOverview());
   const queues = useResource('admin-overview-queues', async () => ({ status: await apiClient.adminQueues(), at: Date.now() }));
@@ -132,7 +109,7 @@ function OverviewScreen() {
       section="overview"
       trail={[{ label: 'Administration' }]}
       title="Administration"
-      lede="How the platform is doing, and where to act. Contract, pricing, sponsorship and maintenance changes are recorded in the audit log."
+      lede="How the platform is doing, and where to act. Contract, pricing and maintenance changes are recorded in the audit log."
       actions={<Action variant="secondary" onClick={reloadAll} busy={refreshing}><RefreshCw aria-hidden="true" />Refresh</Action>}
     >
       <div className="adm-blocks">
@@ -225,7 +202,6 @@ function OverviewScreen() {
               <span>{description}</span>
             </Link>
           ))}
-          <SponsorshipTool />
         </div>
       </section>
 
@@ -233,7 +209,8 @@ function OverviewScreen() {
   );
 }
 
-/** admin-overview: how the platform is doing, a way into every administration screen, and the tools that don’t have one yet. */
+// [impl->req~frontend-retire-sponsorship-entry-points-removed~1]
+/** admin-overview: how the platform is doing, and a way into every administration screen. */
 export function AdminOverview() {
   return <AdminOnly><OverviewScreen /></AdminOnly>;
 }

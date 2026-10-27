@@ -2,7 +2,9 @@ import { lazy } from 'react';
 import { live } from './define';
 import type { RouteDefinition } from './types';
 
-// D8 · Administration (9 screens). Every one of them is admin-only. Pricing is administered in the SPACE and SPHERE consoles.
+// [impl->req~frontend-retire-sponsorship-screen-not-routed~1]
+// [impl->req~frontend-retire-sponsorship-screen-count~1]
+// D8 · Administration (8 screens). Every one of them is admin-only. Pricing is administered in the SPACE and SPHERE consoles.
 
 const AdminOverview = lazy(() => import('../pages/Admin/AdminOverview').then((module) => ({ default: module.AdminOverview })));
 const AdminUsers = lazy(() => import('../pages/Admin/AdminUsers').then((module) => ({ default: module.AdminUsers })));
@@ -12,7 +14,6 @@ const AdminErrors = lazy(() => import('../pages/Admin/AdminErrors').then((module
 const AdminQueues = lazy(() => import('../pages/Admin/AdminQueues').then((module) => ({ default: module.AdminQueues })));
 const AdminModeration = lazy(() => import('../pages/Admin/AdminModeration').then((module) => ({ default: module.AdminModeration })));
 const AdminMaintenance = lazy(() => import('../pages/Admin/AdminMaintenance').then((module) => ({ default: module.AdminMaintenance })));
-const AdminSponsor = lazy(() => import('../pages/Admin/AdminSponsor').then((module) => ({ default: module.AdminSponsor })));
 
 export const d8Routes: RouteDefinition[] = [
   live('admin-overview', '/app/admin', <AdminOverview />, { requireAdmin: true }),
@@ -23,5 +24,4 @@ export const d8Routes: RouteDefinition[] = [
   live('admin-queues', '/app/admin/queues', <AdminQueues />, { requireAdmin: true }),
   live('admin-moderation', '/app/admin/moderation', <AdminModeration />, { requireAdmin: true }),
   live('admin-maintenance', '/app/admin/maintenance', <AdminMaintenance />, { requireAdmin: true }),
-  live('admin-sponsor', '/app/admin/organizations/:org/sponsor', <AdminSponsor />, { requireAdmin: true }),
 ];

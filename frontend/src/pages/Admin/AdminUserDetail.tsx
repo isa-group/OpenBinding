@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { KeyRound, UserX } from 'lucide-react';
 import { apiClient, HttpError } from '../../api/client';
 import { Action } from '../../components/ui/Action';
@@ -100,35 +100,6 @@ function KeysCard({ userId, username, count }: { userId: string; username: strin
   );
 }
 
-function OrganizationsCard() {
-  const navigate = useNavigate();
-  const [organization, setOrganization] = useState('');
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    const value = organization.trim();
-    if (value) void navigate(`/app/admin/organizations/${encodeURIComponent(value)}/sponsor`);
-  };
-  return (
-    <section className="adm-card" aria-labelledby="adm-orgs-title">
-      <div className="adm-card-head">
-        <h2 id="adm-orgs-title">Organizations</h2>
-        <span className="adm-muted">Not listed by the gateway</span>
-      </div>
-      <p className="adm-muted">
-        The gateway has no list of the organizations an account belongs to or sponsors that an administrator can read. If you know the
-        organization, you can open its billing sponsorship, where an account can be set as sponsor.
-      </p>
-      <form className="adm-inline-form" onSubmit={submit}>
-        <label className="adm-field">
-          <span className="adm-label">Organization slug or id</span>
-          <input value={organization} onChange={(event) => setOrganization(event.target.value)} placeholder="isa-demo" autoComplete="off" spellCheck={false} />
-        </label>
-        <Action type="submit" variant="secondary" disabled={!organization.trim()}>Open sponsorship</Action>
-      </form>
-    </section>
-  );
-}
-
 function DetailScreen({ param }: { param: string }) {
   const [message, setMessage] = useState<Message | null>(null);
   const account = useResource(`admin-account:${param}`, () => loadAccount(param));
@@ -211,13 +182,13 @@ function DetailScreen({ param }: { param: string }) {
         <UsageCard userId={user.id} catalog={catalog} version={`${subscription.plan}:${JSON.stringify(subscription.add_ons)}`} />
         <div className="adm-stack">
           <KeysCard userId={user.id} username={user.username} count={user.api_key_count} />
-          <OrganizationsCard />
         </div>
       </div>
     </AdminFrame>
   );
 }
 
+// [impl->req~frontend-retire-sponsorship-entry-points-removed~1]
 /** admin-user-detail: one account’s identity, agreement, usage and the administrative actions on it. */
 export function AdminUserDetail() {
   const { user } = useParams();

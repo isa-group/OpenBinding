@@ -61,14 +61,22 @@ function workbenchTarget(_query: URLSearchParams, params: RetiredParams): string
   return `/app/${encodeURIComponent(org)}/${encodeURIComponent(project)}/workbench?case=${encodeURIComponent(slug)}`;
 }
 
+// [impl->req~frontend-retire-sponsorship-redirect~1]
+/** The sponsorship rule: the administration overview. The organization, the query and the hash are dropped. */
+function administrationTarget(): string {
+  return '/app/admin';
+}
+
 // [impl->req~frontend-retire-redirect-generic~1]
 // [impl->req~frontend-retire-reports-redirect~1]
 // [impl->req~frontend-retire-library-redirect~1]
 // [impl->req~frontend-retire-composer-redirect~1]
+// [impl->req~frontend-retire-sponsorship-redirect~1]
 /**
  * The library entries come first: on a tie of rank React Router takes the earlier route, and `/app/<org>/library/reports`,
  * `/app/<org>/library/library` and `/app/<org>/library/resources` match the library artifact as well as the project reports, the
- * project library and the project resources. The composer (slice 4) goes last: it ties with lib-draft and lib-version, which win.
+ * project library and the project resources. The composer (slice 4) goes after them: it ties with lib-draft and lib-version, which win.
+ * The sponsorship screen (slice 5) goes last: it outranks every route that matches the same addresses.
  */
 export const RETIRED_ROUTES: readonly RetiredRoute[] = [
   { id: 'lib-list', path: '/app/:org/library', slice: 3, target: organizationTarget },
@@ -83,4 +91,5 @@ export const RETIRED_ROUTES: readonly RetiredRoute[] = [
   { id: 'proj-resources', path: '/app/:org/:project/resources', slice: 3, target: collectionsTarget },
   { id: 'proj-resource-detail', path: '/app/:org/:project/resources/:resource', slice: 3, target: collectionsTarget },
   { id: 'case-composer', path: '/app/:org/:project/cases/:case/compose', slice: 4, target: workbenchTarget },
+  { id: 'admin-sponsor', path: '/app/admin/organizations/:org/sponsor', slice: 5, target: administrationTarget },
 ];
