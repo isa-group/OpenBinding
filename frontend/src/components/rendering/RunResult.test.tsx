@@ -171,8 +171,9 @@ describe('RunResult', () => {
 
     // [utest->req~frontend-rendering-run-result-canonical-shape~1]
     it('falls back to metrics', () => {
-      const { features: _features, ...rest } = S1;
-      show({ result: resultWith({ solutions: [{ ...rest, metrics: { latency: 300 } }] }) });
+      const rest: Record<string, unknown> = { ...S1, metrics: { latency: 300 } };
+      delete rest.features;
+      show({ result: resultWith({ solutions: [rest] }) });
 
       expect(within(qualityList()).getAllByRole('listitem')[0]).toHaveTextContent(/latency.*300.*ms/);
       expect(within(boundRow('max-latency')).getByText('300 ms')).toBeInTheDocument();
