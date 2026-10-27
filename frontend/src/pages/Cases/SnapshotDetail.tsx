@@ -3,12 +3,13 @@ import { Link, useParams } from 'react-router-dom';
 import { casesApi, type SnapshotAnalysis, type SnapshotPins } from '../../api/cases';
 import { platformApi } from '../../api/platform';
 import type { Organization, Project, Snapshot } from '../../api/platform';
-import { CodeEditor } from '../../components/CodeEditor/CodeEditor';
 import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
+import { SourceView } from '../../components/rendering/SourceView';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
 import { shortDigest } from '../../utils/digest';
@@ -35,6 +36,8 @@ const FINGERPRINTS: ReadonlyArray<{ key: 'instance' | 'package' | 'compiled'; la
   { key: 'package', label: 'Package', what: 'The .bim.zip as uploaded' },
   { key: 'compiled', label: 'Compiled form', what: 'What engines read' },
 ];
+
+const SNAPSHOT_TABS = [{ id: 'overview', label: 'Overview' }, { id: 'source', label: 'Source' }] as const;
 
 /** The case revision that points at this snapshot, if the project has one. */
 async function findOrigin(org: string, project: string, snapshotId: string) {
@@ -71,27 +74,27 @@ function Pins({ pins }: { pins: SnapshotPins }) {
   );
 }
 
+/** The Source tab: the compiled form, or the files of the package (the archive is read only when that view opens). */
+// [impl->req~frontend-snapshot-source-tab~1]
 function SourceViewer({ snapshot, snapshotId }: { snapshot: Snapshot; snapshotId: string }) {
   const [tab, setTab] = useState<'ir' | 'files'>('ir');
   const [file, setFile] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
-  const archive = useResource<ZipArchive | null>(`archive:${snapshotId}:${open && tab === 'files' ? 'on' : 'off'}`, async () => (
-    open && tab === 'files' ? readZipArchive(await platformApi.snapshotArchive(snapshotId)) : null
+  const archive = useResource<ZipArchive | null>(`archive:${snapshotId}:${tab === 'files' ? 'on' : 'off'}`, async () => (
+    tab === 'files' ? readZipArchive(await platformApi.snapshotArchive(snapshotId)) : null
   ));
   const entries = (archive.data ?? archive.stale)?.entries.filter((entry) => !entry.dir) ?? [];
   const chosen = entries.find((entry) => entry.path === file) ?? entries[0];
   const text = useResource<string>(`archive-file:${snapshotId}:${chosen?.path ?? ''}`, async () => (chosen ? chosen.readText() : ''));
 
   return (
-    <details className="snap-source" onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary>View source</summary>
+    <section className="snap-source" aria-label="Source">
       <div className="snap-source-body">
         <div className="snap-tabs" role="group" aria-label="Source to view">
           <button type="button" aria-pressed={tab === 'ir'} onClick={() => setTab('ir')} disabled={!snapshot.ir}>Compiled form (JSON)</button>
           <button type="button" aria-pressed={tab === 'files'} onClick={() => setTab('files')}>Files in the package</button>
         </div>
         {tab === 'ir' && snapshot.ir && (
-          <CodeEditor value={JSON.stringify(snapshot.ir.document, null, 2)} onChange={() => {}} readOnly language="json" minHeight="220px" maxHeight="480px" ariaLabel="Compiled form (JSON)" />
+          <SourceView source={snapshot.ir.document as object} label="Compiled form (JSON)" language="json" filename={`snapshot-${snapshotId}-compiled.json`} maxHeight="30rem" />
         )}
         {tab === 'ir' && !snapshot.ir && <p className="org-muted">No compiled form is stored for this snapshot.</p>}
         {tab === 'files' && archive.status === 'loading' && <Skeleton variant="tile" />}
@@ -111,11 +114,11 @@ function SourceViewer({ snapshot, snapshotId }: { snapshot: Snapshot; snapshotId
                 </li>
               ))}
             </ul>
-            <CodeEditor value={text.data ?? text.stale ?? ''} onChange={() => {}} readOnly language={chosen?.path.endsWith('.json') ? 'json' : 'text'} minHeight="220px" maxHeight="480px" ariaLabel={`Preview of ${chosen?.name ?? 'file'}`} />
+            <SourceView source={text.data ?? text.stale ?? ''} label={chosen?.path ?? 'file'} language={chosen?.path.endsWith('.json') ? 'json' : 'text'} filename={chosen?.name} maxHeight="30rem" />
           </div>
         )}
       </div>
-    </details>
+    </section>
   );
 }
 
@@ -211,6 +214,7 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
     (caught: unknown): Analysis => ({ state: 'failed', failure: classifyAuthError(caught) }),
   ));
   const [downloads, setDownloads] = useState<Partial<Record<DownloadKind, Download>>>({});
+  const [view, setView] = useState<'overview' | 'source'>('overview');
 
   const trail = [{ label: 'Workbench', to: `${root}/workbench` }, { label: `Snapshot ${snapshotId.slice(0, 4)}…${snapshotId.slice(-2)}` }];
   const failure = snapshot.status === 'error' ? classifyAuthError(snapshot.error) : null;
@@ -290,6 +294,11 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
         </div>
       </header>
 
+      <TabBar items={SNAPSHOT_TABS} value={view} onChange={(id) => setView(id as 'overview' | 'source')} ariaLabel="Snapshot views" prefix="snap-view" />
+      <TabPanel prefix="snap-view" active={view}>
+      {view === 'source' && <SourceViewer snapshot={data} snapshotId={snapshotId} />}
+      {view === 'overview' && (
+      <>
       <section className="org-section" aria-labelledby="sd-fingerprints">
         <h2 id="sd-fingerprints">Fingerprints</h2>
         <div className="snap-digests">
@@ -343,8 +352,9 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
           })}
         </div>
       </section>
-
-      <SourceViewer snapshot={data} snapshotId={snapshotId} />
+      </>
+      )}
+      </TabPanel>
     </CaseFrame>
   );
 }

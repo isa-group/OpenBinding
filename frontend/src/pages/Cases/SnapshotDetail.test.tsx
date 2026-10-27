@@ -15,9 +15,9 @@ const download = vi.hoisted(() => ({ saveBytes: vi.fn() }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/cases', () => ({ casesApi: cases }));
 vi.mock('../Project/download', () => download);
-vi.mock('../../components/CodeEditor/CodeEditor', () => ({
-  CodeEditor: ({ value, ariaLabel }: { value: string; ariaLabel?: string }) => <pre aria-label={ariaLabel}>{value}</pre>,
-}));
+const rendering = vi.hoisted(() => ({ saveText: vi.fn() }));
+const { saveText } = rendering;
+vi.mock('../../components/rendering/download', () => rendering);
 
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
@@ -231,33 +231,54 @@ describe('Snapshot detail', () => {
     });
   });
 
-  describe('view source', () => {
-    function openSource() {
-      const details = screen.getByText('View source').closest('details') as HTMLDetailsElement;
-      details.open = true;
-      fireEvent(details, new Event('toggle'));
-      return details;
-    }
+  describe('source tab', () => {
+    const openSourceTab = async () => {
+      await screen.findByRole('heading', { level: 1, name: 'Compiled snapshot' });
+      fireEvent.click(screen.getByRole('tab', { name: 'Source' }));
+    };
 
-    it('shows the compiled form as JSON behind a control, not on the page', async () => {
+    // [utest->req~frontend-snapshot-source-tab~1]
+    it('opens on the overview, with the source in its own tab and the archive untouched', async () => {
       renderSnapshot();
       await screen.findByRole('heading', { level: 1, name: 'Compiled snapshot' });
 
-      expect(screen.getByLabelText('Compiled form (JSON)')).toHaveTextContent('"kind": "BindingProblem"');
-      expect(screen.getByText('View source').closest('details')).not.toHaveAttribute('open');
+      expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('tab', { name: 'Source' })).toHaveAttribute('aria-selected', 'false');
+      expect(screen.getByRole('heading', { name: 'Fingerprints' })).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Compiled form (JSON)' })).not.toBeInTheDocument();
+      expect(screen.queryByText('View source')).not.toBeInTheDocument();
+      expect(platform.snapshotArchive).not.toHaveBeenCalled();
     });
 
-    it('browses the files of the package and reads one', async () => {
+    // [utest->req~frontend-snapshot-source-tab~1]
+    it('shows the compiled form as a source view with a download, without requesting the archive', async () => {
+      renderSnapshot();
+      await openSourceTab();
+
+      const view = screen.getByRole('region', { name: 'Compiled form (JSON)' });
+      expect(view).toHaveTextContent('"kind": "BindingProblem"');
+      expect(screen.queryByRole('heading', { name: 'Fingerprints' })).not.toBeInTheDocument();
+      fireEvent.click(within(view).getByRole('button', { name: 'Download Compiled form (JSON)' }));
+      expect(saveText).toHaveBeenCalledWith(expect.stringContaining('"kind": "BindingProblem"'), `snapshot-${id}-compiled.json`, 'application/json');
+      expect(platform.snapshotArchive).not.toHaveBeenCalled();
+    });
+
+    // [utest->req~frontend-snapshot-source-tab~1]
+    it('browses the files of the package, loading the archive only when that view opens', async () => {
       platform.snapshotArchive.mockResolvedValue(await zipBuffer());
       renderSnapshot();
-      await screen.findByRole('heading', { level: 1, name: 'Compiled snapshot' });
+      await openSourceTab();
+      expect(platform.snapshotArchive).not.toHaveBeenCalled();
 
-      const details = openSource();
-      fireEvent.click(within(details).getByRole('button', { name: 'Files in the package' }));
-      const list = await within(details).findByRole('list', { name: 'Files in the package' });
+      fireEvent.click(screen.getByRole('button', { name: 'Files in the package' }));
+      const list = await screen.findByRole('list', { name: 'Files in the package' });
+      expect(platform.snapshotArchive).toHaveBeenCalledTimes(1);
       expect(within(list).getAllByRole('button').map((button) => button.querySelector('code')?.textContent).sort()).toEqual(['application.json', 'instance.json']);
       fireEvent.click(within(list).getByRole('button', { name: /instance\.json/ }));
-      await waitFor(() => expect(within(details).getByLabelText('Preview of instance.json')).toHaveTextContent('{"kind":"Instance"}'));
+      const view = await screen.findByRole('region', { name: 'instance.json' });
+      await waitFor(() => expect(view).toHaveTextContent('{"kind":"Instance"}'));
+      fireEvent.click(within(view).getByRole('button', { name: 'Download instance.json' }));
+      expect(saveText).toHaveBeenCalledWith('{"kind":"Instance"}', 'instance.json', 'text/plain');
     });
   });
 
