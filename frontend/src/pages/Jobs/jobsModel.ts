@@ -224,36 +224,6 @@ export function timelineOf(status: string, times: { created?: string | null; fin
 
 // --- results
 
-export interface BindingRow {
-  task: string;
-  resource: string;
-  candidate: string;
-}
-
-export function bindingRows(solution: JobSolution | undefined): BindingRow[] {
-  const binding = solution?.decision?.binding;
-  if (!isRecord(binding)) return [];
-  return Object.entries(binding).map(([task, target]) => ({
-    task,
-    resource: isRecord(target) ? text(target.resource) ?? '' : '',
-    candidate: isRecord(target) ? text(target.id) ?? '' : String(target),
-  }));
-}
-
-export function metricEntries(solution: JobSolution | undefined): Array<[string, number]> {
-  const metrics = solution?.metrics;
-  if (!isRecord(metrics)) return [];
-  return Object.entries(metrics).filter((entry): entry is [string, number] => typeof entry[1] === 'number');
-}
-
-export function scoreText(solution: JobSolution | undefined): string | null {
-  const score = solution?.objectives?.score;
-  const fmt = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 4 });
-  if (typeof score === 'number') return fmt(score);
-  if (Array.isArray(score)) return `[${score.map(fmt).join(', ')}]`;
-  return null;
-}
-
 export function violationsOf(solution: JobSolution | undefined): Array<Record<string, unknown>> {
   const found = solution?.violations;
   return Array.isArray(found) ? found.filter(isRecord) : [];

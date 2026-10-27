@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bindingRows, canRetryState, formatOption, formatTook, isActive, metricEntries, normalizeStatus, optionRows, outcomeOf,
-  readPins, scoreText, secondsBetween, statusCounts, timelineOf, tookPercent,
+  canRetryState, formatOption, formatTook, isActive, normalizeStatus, optionRows, outcomeOf,
+  readPins, secondsBetween, statusCounts, timelineOf, tookPercent,
 } from './jobsModel';
 
 describe('states', () => {
@@ -92,20 +92,5 @@ describe('timeline', () => {
   it('shows where a live run stands', () => {
     expect(timelineOf('queued', {}).map((step) => step.state)).toEqual(['current', 'waiting', 'waiting']);
     expect(timelineOf('running', {}).map((step) => step.state)).toEqual(['done', 'current', 'waiting']);
-  });
-});
-
-describe('results', () => {
-  const solution = {
-    decision: { kind: 'binding', binding: { pay: { resource: 'catalog', id: 'payco-eu' } } },
-    metrics: { cost: 0.118, label: 'x' as unknown as number },
-    objectives: { score: [1.5, 2] },
-  };
-
-  it('reads the binding, the metrics and the score of a solution', () => {
-    expect(bindingRows(solution)).toEqual([{ task: 'pay', resource: 'catalog', candidate: 'payco-eu' }]);
-    expect(metricEntries(solution)).toEqual([['cost', 0.118]]);
-    expect(scoreText(solution)).toBe('[1.5, 2]');
-    expect(bindingRows(undefined)).toEqual([]);
   });
 });

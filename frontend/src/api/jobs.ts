@@ -10,7 +10,8 @@ export type JobState = 'queued' | 'running' | 'completed' | 'failed' | 'cancelle
 export interface JobSolution {
   decision?: { kind?: string; binding?: Record<string, { resource?: string; id?: string }> } & Record<string, unknown>;
   metrics?: Record<string, number>;
-  objectives?: { mode?: string; components?: Array<Record<string, unknown>>; penalty?: number; score?: number | number[] } & Record<string, unknown>;
+  features?: Record<string, unknown>;
+  objectives?: { type?: string; scalarization?: string; components?: Array<Record<string, unknown>>; penalty?: number; score?: number | number[] } & Record<string, unknown>;
   penalties?: number[];
   violations?: Array<Record<string, unknown>>;
   [key: string]: unknown;

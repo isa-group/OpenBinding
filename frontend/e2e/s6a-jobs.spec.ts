@@ -1,7 +1,7 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import type { BindingCase, CaseRevision, Job } from '../src/api/platform';
-import { ENGINE, INSTANCE, NEIGHBORHOOD, REGISTRATION, REPORT, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
+import { ENGINE, INSTANCE, NEIGHBORHOOD, PROBLEM, REGISTRATION, REPORT, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 
@@ -203,7 +203,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       return (state.refuse.retry ?? json(jobOf('job-new-9', 'evolutionary', 'queued', null, '2026-10-09T09:00:00Z', null, { ...mine, retry_of_id: id }), 202))(route);
     }
     if (action === 'instance') return json(INSTANCE)(route);
-    if (action === 'ir') return json({ kind: 'BindingProblem' })(route);
+    if (action === 'ir') return json(PROBLEM)(route);
     if (action === 'report') return json({ ...REPORT, id })(route);
     if (action === 'analysis' && sub === 'neighborhood') return (state.refuse.neighborhood ?? json({ ...NEIGHBORHOOD, jobId: id }))(route);
     if (state.refuse.detail) return state.refuse.detail(route);
@@ -390,13 +390,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `detail-${name}-top`, { height: 1700 });
 
       // The authoritative result: figures and a table of providers; the raw JSON only behind View source.
-      const best = main.getByRole('region', { name: 'Best combination found' });
-      await expect(best.getByRole('list', { name: 'Quality of this combination' }).getByRole('listitem')).toHaveCount(4);
+      const best = main.getByRole('region', { name: 'Run result' });
+      await expect(best.getByRole('list', { name: 'Quality of this combination' }).getByRole('listitem')).toHaveCount(2);
       await expect(best.getByRole('region', { name: 'Chosen providers' }).getByRole('row')).toHaveCount(4);
-      await expect(main.getByLabel('Solution 1 source')).toBeHidden();
+      const solutionSource = main.getByRole('region', { name: 'Solution 1 source' });
+      await expect(solutionSource).toBeHidden();
       await capture(page, testInfo, `detail-${name}-result`, { area: best });
-      await best.getByText('View source').click();
-      await expect(main.getByLabel('Solution 1 source')).toContainText('"authz-eu"');
+      await best.getByText('View source').first().click();
+      await expect(solutionSource).toContainText('"c1"');
       await capture(page, testInfo, `detail-${name}-result-source`, { area: best });
 
       // What it ran on.
@@ -409,15 +410,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await where.getByRole('button', { name: 'Download compiled problem' }).click();
       expect((await downloaded).suggestedFilename()).toBe('job-job-feas-compiled-problem.json');
 
-      // Single swaps and the engine's own report, on request.
+      // Single swaps on request; the engine's own report is loaded with the run and shown as the claimed and evaluated values.
       const swaps = main.getByRole('region', { name: 'What if one task used another provider?' });
       await swaps.getByRole('button', { name: 'Check single swaps' }).click();
       await expect(swaps.getByRole('list', { name: 'Single-task swaps' })).toContainText('catalog · fastpay');
       await expect(swaps.getByText('Better', { exact: true })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-swaps`, { area: swaps });
-      const report = main.getByRole('region', { name: 'The engine’s own report' });
-      await report.getByRole('button', { name: 'Compare with the engine' }).click();
-      await expect(report.getByText('Yes, they agree.')).toBeVisible();
+      const report = best.getByRole('region', { name: 'Claimed and evaluated values' });
+      await expect(report).toBeVisible();
       await capture(page, testInfo, `detail-${name}-report`, { area: report });
       expect(critical).toEqual([]);
     });
@@ -437,7 +437,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The next reading says it ended; the page notices on its own, without being asked to reload.
       state.liveDone = true;
       await expect(main.getByText('Finished · not live')).toBeVisible({ timeout: 30_000 });
-      await expect(main.getByRole('heading', { name: 'Best combination found' })).toBeVisible();
+      await expect(main.getByRole('region', { name: 'Run result' })).toBeVisible();
       await expect(main.getByRole('button', { name: 'Cancel run' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-finished-live`, { height: 1400 });
       expect(critical).toEqual([]);
@@ -482,7 +482,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const why = main.getByRole('region', { name: 'Why no combination works' });
       await expect(why).toContainText('Total latency is 742 ms');
       await expect(why.getByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/revisions/2`);
-      await expect(main.getByRole('heading', { name: 'Best combination found' })).toHaveCount(0);
+      await expect(main.getByRole('heading', { name: 'What if one task used another provider?' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-infeasible`, { height: 1700 });
       expect(critical).toEqual([]);
     });

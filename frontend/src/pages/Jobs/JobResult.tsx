@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { jobsApi, type JobDetail, type JobReport, type JobSolution } from '../../api/jobs';
+import { RunResult } from '../../components/rendering/RunResult';
+import { SourceView } from '../../components/rendering/SourceView';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { classifyAuthError, marker } from '../Account/accountErrors';
-import { bindingRows, metricEntries, normalizeStatus, numberText, scoreText, violationsOf } from './jobsModel';
+import { normalizeStatus, numberText, violationsOf } from './jobsModel';
+import { useRunProblem } from './useRunProblem';
 import type { Neighborhood } from '../../analysis/neighborhood';
 
 export interface Origin {
@@ -24,15 +27,6 @@ const providerText = (value: unknown): string => {
   return [value.resource, value.id].filter((part) => typeof part === 'string' && part).join(' · ') || '—';
 };
 
-function SourceView({ label, value }: { label: string; value: unknown }) {
-  return (
-    <details className="job-source">
-      <summary>View source</summary>
-      <pre aria-label={label}>{JSON.stringify(value, null, 2)}</pre>
-    </details>
-  );
-}
-
 /** Why no combination works: the rules the best attempt still breaks, when the result names them. */
 function Infeasible({ solution, root, origin }: { solution: JobSolution | undefined; root: string; origin: Origin | null }) {
   const broken = violationsOf(solution);
@@ -43,7 +37,7 @@ function Infeasible({ solution, root, origin }: { solution: JobSolution | undefi
       {broken.length > 0 && (
         <ul className="job-violations" aria-label="Rules the best attempt breaks">
           {broken.map((violation, index) => {
-            const label = [violation.constraint, violation.constraint_id, violation.id, violation.code].find((part) => typeof part === 'string') as string | undefined;
+            const label = [isRecord(violation.constraint) ? violation.constraint.id : violation.constraint, violation.constraint_id, violation.id, violation.code].find((part) => typeof part === 'string') as string | undefined;
             const message = typeof violation.message === 'string' ? violation.message : null;
             return <li key={`${label ?? 'rule'}-${index}`}><strong>{label ?? 'A rule'}</strong>{message ? ` · ${message}` : ''}</li>;
           })}
@@ -54,105 +48,6 @@ function Infeasible({ solution, root, origin }: { solution: JobSolution | undefi
           <Link to={`${root}/workbench?case=${encodeURIComponent(origin.caseSlug)}`} viewTransition>Try faster providers</Link>
           <Link to={`${root}/cases/${encodeURIComponent(origin.caseSlug)}/revisions/${origin.revision}`} viewTransition>See the rules</Link>
         </span>
-      )}
-    </section>
-  );
-}
-
-function Solutions({ solutions }: { solutions: JobSolution[] }) {
-  const [chosen, setChosen] = useState(0);
-  const index = Math.min(chosen, solutions.length - 1);
-  const solution = solutions[index];
-  const rows = bindingRows(solution);
-  const metrics = metricEntries(solution);
-  const score = scoreText(solution);
-  const penalty = typeof solution.objectives?.penalty === 'number' ? solution.objectives.penalty : null;
-  return (
-    <section className="job-solutions" aria-labelledby="job-best">
-      <div className="job-card-head">
-        <h2 id="job-best">{solutions.length > 1 ? `Solution ${index + 1} of ${solutions.length}` : 'Best combination found'}</h2>
-        {solutions.length > 1 && (
-          <label className="job-select">
-            <span>Show</span>
-            <select aria-label="Show solution" value={index} onChange={(event) => setChosen(Number(event.target.value))}>
-              {solutions.map((_, position) => <option key={position} value={position}>Solution {position + 1}</option>)}
-            </select>
-          </label>
-        )}
-      </div>
-      <ul className="job-figures" aria-label="Quality of this combination">
-        {score !== null && <li><span>Objective</span><b>{score}</b><small>{solution.objectives?.mode ? `${solution.objectives.mode} · lower is better` : 'as the model scores it'}</small></li>}
-        {metrics.map(([name, amount]) => <li key={name}><span>{name}</span><b>{numberText(amount)}</b></li>)}
-        {penalty !== null && <li><span>Nice-to-have rules</span><b>{numberText(penalty)}</b><small>penalty</small></li>}
-      </ul>
-      {rows.length > 0 ? (
-        <div className="job-binding" role="region" aria-label="Chosen providers" tabIndex={0}>
-          <table>
-            <thead><tr><th scope="col">Task</th><th scope="col">Chosen provider</th></tr></thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.task}>
-                  <td><code>{row.task}</code></td>
-                  <td><Chip tone="accent">{row.candidate}</Chip>{row.resource && <small className="org-muted"> {row.resource}</small>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : <p className="org-muted">This solution carries no binding assignment.</p>}
-      <SourceView label={`Solution ${index + 1} source`} value={solution} />
-    </section>
-  );
-}
-
-/** What the engine said about its own answer, beside what OpenBinding computed. */
-function EngineReport({ jobId }: { jobId: string }) {
-  const [report, setReport] = useState<JobReport | null>(null);
-  const [state, setState] = useState<'idle' | 'busy' | 'failed'>('idle');
-  const [problem, setProblem] = useState('');
-
-  const load = async () => {
-    setState('busy');
-    setProblem('');
-    try {
-      setReport(await jobsApi.report(jobId));
-      setState('idle');
-    } catch (caught) {
-      const failure = classifyAuthError(caught);
-      setProblem(failure.kind === 'not-found'
-        ? `The report isn’t available any more${marker(failure)}.`
-        : `The engine’s own report couldn’t be read${marker(failure)}.`);
-      setState('failed');
-    }
-  };
-
-  const remote = report?.remote ?? {};
-  const remoteSolutions = Array.isArray(remote.solutions) ? remote.solutions.length : null;
-  const remoteTermination = typeof remote.termination === 'string' ? remote.termination : null;
-  const divergence = isRecord(remote.divergence) ? remote.divergence : null;
-
-  return (
-    <section className="job-card" aria-labelledby="job-engine-report">
-      <div className="job-card-head">
-        <h2 id="job-engine-report">The engine’s own report</h2>
-        {!report && <Action variant="secondary" size="sm" busy={state === 'busy'} onClick={() => void load()}>Compare with the engine</Action>}
-      </div>
-      {!report && state !== 'failed' && <p className="org-muted">The numbers above are OpenBinding’s re-check. Compare them with what the engine said about itself.</p>}
-      {state === 'failed' && <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={() => void load()}>Try again</Action>}>{problem}</Notice>}
-      {report && (
-        <>
-          <dl className="job-facts">
-            <div><dt>OpenBinding’s re-check</dt><dd>{report.gatewayEvaluation.termination ?? 'No conclusion'} · {report.gatewayEvaluation.solutions.length} solution{report.gatewayEvaluation.solutions.length === 1 ? '' : 's'}</dd></div>
-            <div><dt>The engine said</dt><dd>{remoteTermination ?? (Object.keys(remote).length ? 'No termination stated' : 'Nothing')}{remoteSolutions !== null ? ` · ${remoteSolutions} solution${remoteSolutions === 1 ? '' : 's'}` : ''}</dd></div>
-            {divergence && (
-              <div>
-                <dt>Do they agree?</dt>
-                <dd>{divergence.agrees === true ? 'Yes, they agree.' : 'They differ.'}{Array.isArray(divergence.notes) && divergence.notes.length > 0 ? ` ${divergence.notes.join(' ')}` : ''}</dd>
-              </div>
-            )}
-          </dl>
-          <SourceView label="The engine’s report source" value={report.remote} />
-        </>
       )}
     </section>
   );
@@ -234,7 +129,10 @@ function NeighborhoodPanel({ jobId }: { jobId: string }) {
             Checked {result.coverage.evaluated} of {result.coverage.total} possible swaps (up to {result.coverage.limit}) without running the engine again.
             {result.coverage.complete ? '' : ' Coverage is incomplete.'} This isn’t a full robustness analysis.
           </p>
-          <SourceView label="Swaps source" value={result} />
+          <details className="job-source">
+            <summary>View source</summary>
+            <SourceView source={result} label="Swaps source" />
+          </details>
         </>
       )}
       {!result && state !== 'failed' && <p className="org-muted">Up to 128 single-task swaps are checked without running the engine again.</p>}
@@ -254,6 +152,19 @@ export function ResultSection({ detail, jobId, root, origin }: ResultSectionProp
   const state = normalizeStatus(detail.status);
   const result = detail.result ?? null;
   const solutions = Array.isArray(result?.solutions) ? result.solutions.filter(isRecord) as JobSolution[] : [];
+  const completed = state !== 'queued' && state !== 'running' && state !== 'cancelled' && state !== 'failed';
+  const { problem, constraints } = useRunProblem(jobId, completed);
+  const [report, setReport] = useState<JobReport | null>(null);
+
+  useEffect(() => {
+    if (!completed) return undefined;
+    let cancelled = false;
+    jobsApi.report(jobId).then(
+      (loaded) => { if (!cancelled) setReport(loaded); },
+      () => { if (!cancelled) setReport(null); },
+    );
+    return () => { cancelled = true; };
+  }, [jobId, completed]);
 
   if (state === 'queued' || state === 'running') {
     return <div className="job-empty">No result yet. It appears here when the run finishes.</div>;
@@ -269,23 +180,19 @@ export function ResultSection({ detail, jobId, root, origin }: ResultSectionProp
   }
   const infeasible = result?.termination === 'INFEASIBLE';
   return (
-    <>
-      {infeasible && <Infeasible solution={solutions[0]} root={root} origin={origin} />}
-      {!infeasible && solutions.length === 0 && <div className="job-empty">This run finished without producing a binding.</div>}
+    <RunResult
+      result={detail.result ?? {}}
+      problem={problem}
+      constraints={constraints}
+      report={report}
+      notice={infeasible ? <Infeasible solution={solutions[0]} root={root} origin={origin} /> : undefined}
+    >
       {solutions.length > 0 && !infeasible && (
         <>
-          <Solutions solutions={solutions} />
           <p className="org-muted job-footnote">Numbers are OpenBinding’s own re-check of the engine’s answer.</p>
+          <NeighborhoodPanel jobId={jobId} />
         </>
       )}
-      {solutions.length > 0 && !infeasible && <NeighborhoodPanel jobId={jobId} />}
-      <EngineReport jobId={jobId} />
-      {typeof result?.logs === 'string' && result.logs && (
-        <details className="job-source">
-          <summary>Engine log</summary>
-          <pre aria-label="Engine log">{result.logs}</pre>
-        </details>
-      )}
-    </>
+    </RunResult>
   );
 }
