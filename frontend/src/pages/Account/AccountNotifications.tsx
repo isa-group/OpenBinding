@@ -63,6 +63,8 @@ function Detail({ item, onMarkRead, busy }: { item: Notification; onMarkRead: ()
 /** Notifications (`acct-notifications`, `/app/account/notifications`): the inbox, with delivery preferences underneath. */
 export function AccountNotifications() {
   const { user } = useAuth();
+  // The inbox only: there are no sponsor requests to show since M9.6.
+  // [impl->req~frontend-workspace-no-sponsor-requests~1]
   const inbox = useResource(`notifications:${user?.id ?? ''}`, () => apiClient.listNotifications());
   const prefs = useResource(`notification-prefs:${user?.id ?? ''}`, () => apiClient.getNotificationPreferences());
   const [filter, setFilter] = useState('all');

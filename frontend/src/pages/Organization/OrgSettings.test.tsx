@@ -123,6 +123,7 @@ describe('Organization settings', () => {
     });
   });
 
+  // [utest->req~frontend-workspace-org-sponsor-self-only~1]
   describe('who sponsors it', () => {
     const sponsoredByNora = org('isa-demo', { name: 'ISA Demo Group', billing_sponsor_user_id: 'user-nora' });
 

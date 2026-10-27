@@ -80,7 +80,7 @@ The retired-data selection table (design.md §6.1):
 - **WHEN** `alembic upgrade head` runs with the manifest
 - **THEN** the primary keys in each exported file are exactly the primary keys of the rows of that source that no longer exist after the upgrade
 
-Evidence: `openbinding-gateway/tests/test_export_retired_data.py`; `openbinding-gateway/tests/test_m96_migration.py`
+Evidence: `openbinding-gateway/tests/test_export_retired_data.py`; `openbinding-gateway/tests/test_drop_retired_data_migration.py`
 
 ### Requirement: Export manifest
 `req~data-retirement-export-manifest~1`
@@ -147,7 +147,7 @@ Needs: impl, utest
 - **WHEN** `alembic upgrade head` runs with each
 - **THEN** both runs exit non-zero, and no row or table has changed
 
-Evidence: `openbinding-gateway/tests/test_m96_migration.py`
+Evidence: `openbinding-gateway/tests/test_drop_retired_data_migration.py`; `openbinding-gateway/tests/concurrency/test_m96_migration_pg.py`
 
 ### Requirement: Migration needs no export for empty data
 `req~data-retirement-guard-empty~1`
@@ -165,7 +165,7 @@ Needs: impl, utest
 - **WHEN** `alembic upgrade head` runs
 - **THEN** it succeeds
 
-Evidence: `openbinding-gateway/tests/test_m96_migration.py`
+Evidence: `openbinding-gateway/tests/test_drop_retired_data_migration.py`
 
 ### Requirement: Migration removes exactly the retired data
 `req~data-retirement-removed-set~1`
@@ -186,7 +186,7 @@ Needs: impl, utest
 - **THEN** it exits non-zero
 - **AND** every table and row is as it was at `b6c7d8e9f0a1`
 
-Evidence: `openbinding-gateway/tests/test_m96_migration.py`; `openbinding-gateway/tests/concurrency/test_m96_migration_pg.py`
+Evidence: `openbinding-gateway/tests/test_drop_retired_data_migration.py`; `openbinding-gateway/tests/concurrency/test_m96_migration_pg.py`
 
 ### Requirement: Migration keeps everything else
 `req~data-retirement-kept-set~1`
@@ -213,7 +213,7 @@ Needs: impl, utest
 - **AND** the library list after the upgrade equals the list before it without the deleted `Report` artifact of `d1`
 - **AND** the report list after the upgrade equals the list before it without the deleted draft report `d1`
 
-Evidence: `openbinding-gateway/tests/test_m96_migration.py`
+Evidence: `openbinding-gateway/tests/test_drop_retired_data_migration.py`; `openbinding-gateway/tests/test_m96_kept_data.py`; `openbinding-gateway/tests/concurrency/test_m96_migration_pg.py`
 
 ### Requirement: Sealed problem versions compile to the same IR
 `req~data-retirement-sealed-ir-unchanged~1`
@@ -227,7 +227,7 @@ Needs: utest
 - **THEN** each IR digest equals the one recorded before the upgrade
 - **AND** `GET /v1/resolve/case-revision/{digest}` answers 200 with `verified: true` for each, before and after
 
-Evidence: `openbinding-gateway/tests/test_m96_migration.py`
+Evidence: `openbinding-gateway/tests/test_m96_kept_data.py`
 
 The ROADMAP M9.6 acceptance names "every sealed problem version compiles to the same IR". No code that compiles a case is changed by this change, and this test pins that.
 
@@ -253,7 +253,7 @@ Needs: utest
 - **WHEN** the database is upgraded
 - **THEN** a project member's `GET /v1/resolve/report/{version 1 digest}` answers 200 as before
 
-Evidence: `openbinding-gateway/tests/test_m96_migration.py`
+Evidence: `openbinding-gateway/tests/test_m96_kept_data.py`
 
 `/p/{id}` and `/c/{id}` are not implemented (ROADMAP M3.5), so this requirement names the `/v1/resolve` links.
 
@@ -269,4 +269,4 @@ Needs: impl, utest
 - **THEN** both tables exist with 0 rows, and the schema of both equals the schema at `b6c7d8e9f0a1`, the partial unique index `uq_sponsor_proposal_pending` included
 - **AND** report `d1` does not exist
 
-Evidence: `openbinding-gateway/tests/test_m96_migration.py`
+Evidence: `openbinding-gateway/tests/test_drop_retired_data_migration.py`; `openbinding-gateway/tests/concurrency/test_m96_migration_pg.py`

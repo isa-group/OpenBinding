@@ -42,9 +42,8 @@ Checks to register. The argv is listed; `cwd` is the repository root unless note
 ## S1. Export tool (data-retirement), first
 
 Owned:
-- `openbinding-gateway/src/openbinding_gateway/retired_data.py` (new: the six selections of design.md §6.1 as
-  SQLAlchemy Core queries over reflected tables, and the manifest reader and writer);
-- `openbinding-gateway/tools/export_retired_data.py` (new);
+- `openbinding-gateway/tools/export_retired_data.py` (new: the six selections of design.md §6.1 as SQL text, the
+  reflection of the source tables, and the manifest writer; the migration keeps its own frozen copy of the SQL, D7);
 - `openbinding-gateway/tests/test_export_retired_data.py` (new).
 
 No other file changes. The tool is usable on its own while every route still exists.
@@ -53,7 +52,7 @@ No other file changes. The tool is usable on its own while every route still exi
   S8), `-export-manifest` and `-export-refusals`. They build the schema with `alembic upgrade b6c7d8e9f0a1`, seed with
   SQLAlchemy Core inserts by table name and run on SQLite. They never import the ORM classes that S5 and S6 delete
   (`AnalysisTask`, `SponsorProposal`), so they stay green after those slices. They are red on the base (no tool).
-- [x] 1.2 The selection module, then the tool (design.md §6.2, D7): reflection, one read-only transaction, the
+- [x] 1.2 The selections, then the tool (design.md §6.2, D7): reflection, one read-only transaction, the
   ordering, value encoding and exit codes.
 - [ ] 1.3 Checks 4, 3, 8, 9, 2.
 
@@ -86,7 +85,7 @@ Owned:
 
 - [x] 3.1 Tests first: `-org-sponsor-self-only` and `-no-sponsor-requests`. They are red on the base.
 - [x] 3.2 Organization settings:
-  - the "New sponsor" choice offers only "Me (<username>)", or no control when the caller already sponsors;
+  - the only sponsor control is the button "Make me the sponsor", and there is none when the caller already sponsors;
   - the "Sponsor requests" section, the request card and the replace flow go;
   - the explanatory text says that only you can make yourself the sponsor.
 - [x] 3.3 The notifications screen drops `SponsorRequestsForYou`. The dropdown stops fetching sponsor requests, and its
@@ -96,7 +95,7 @@ Owned:
 
 ## S4. Frontend client bindings (frontend-workspace)
 
-Owned: `frontend/src/api/client.ts`, `api/auth.ts`, `api/platform.ts`, `api/libraryItems.ts`, `api/library.ts`,
+Owned: `frontend/src/api/client.ts`, `api/auth.ts`, `api/platform.ts`, `api/libraryItems.ts` (deleted), `api/library.ts`,
 `frontend/src/analysis/archive.ts` (deleted), the tests of those modules, `frontend/src/test/fixtures/analysis.ts`,
 and `frontend/src/api/removedOperations.test.ts` (new). Depends on S3.
 
@@ -138,13 +137,13 @@ Deployment files go in the same slice, because the worker and its services go to
 
 Depends on S2 and S4.
 
-- [ ] 5.1 Tests first: `-default-queue-only`, `-reconciler-without-retired-sweeps` (the analysis part) and
-  `-no-analysis-worker`. They are red on the base.
-- [ ] 5.2 Remove the code and the services (design.md §5). The rows 1 to 8 of
+- [x] 5.1 Tests first: `-default-queue-only`, `-reconciler-without-retired-sweeps` (the analysis part) and
+  `-no-analysis-worker`. They are red on the base. The no-analysis-worker check covers every `compose.lab*.json` too.
+- [x] 5.2 Remove the code and the services (design.md §5). The rows 1 to 8 of
   `req~gateway-api-removed-operations-not-routed~1` now answer 404. Their assertions join `test_removed_operations.py`
-  in S7.
-- [ ] 5.3 `test_binding_analysis.py` passes unedited (`req~studies-analysis-neighbourhood~1`).
-- [ ] 5.4 Checks 4, 3, 6 (regenerate `docs/openapi.json`), 7, 8, 9, 11, 12, 2. Review panel: reviewer and
+  in S7. The five lab profiles run `--queues default`.
+- [x] 5.3 `test_binding_analysis.py` passes unedited (`req~studies-analysis-neighbourhood~1`).
+- [x] 5.4 Checks 4, 3, 6 (regenerate `docs/openapi.json`), 7, 8, 9, 11, 12, 2. Review panel: reviewer and
   arch-reviewer (worker and deployment).
 
 ## S6. Sponsorship proposals and the admin transfer (auth-roles-entitlements)
@@ -202,7 +201,7 @@ The test setup takes this slice past ~300 changed lines, so it is split:
 
 Depends on S4, S5 and S6.
 
-- [ ] 7.1 Tests first:
+- [x] 7.1 Tests first:
   - `-removed-operations-not-routed`, `-removed-operations-not-documented`, `-kept-retired-area-operations`,
     `-removed-operations-page`;
   - `collaboration-artifacts` `-resources-read-only` and `-library-read-only`;
@@ -210,41 +209,47 @@ Depends on S4, S5 and S6.
     publication creator.
 
   The rest are red on the base.
-- [ ] 7.2 Remove the routes, regenerate `docs/openapi.json`, and rewrite `docs/API_DEPRECATIONS.md`.
-- [ ] 7.3 Checks 4, 3, 6, 7, 8, 9, 12, 2. G13:
+- [x] 7.2 Remove the routes, regenerate `docs/openapi.json`, and rewrite `docs/API_DEPRECATIONS.md`.
+- [x] 7.3 Checks 4, 3, 6, 7, 8, 9, 12, 2. Review panel: reviewer, test-reviewer and arch-reviewer.
+- [ ] 7.4 G13, on the preview of the pull request:
   - `curl -si "$PREVIEW/v1/analysis/sources"` shows 404 and no `Deprecation`;
   - `curl -si -X POST "$PREVIEW/v1/organizations/isa-demo/library"` shows 405 with `Allow: GET`;
   - `curl -si "$PREVIEW/v1/organizations/isa-demo/projects/p1/resources"` answers as before.
 
-  Review panel: reviewer, test-reviewer and arch-reviewer.
-
 ## S8. The migration (data-retirement), last
 
 Owned:
-- `openbinding-gateway/alembic/versions/<rev>_m96_drop_retired_data.py` (new, `down_revision = "b6c7d8e9f0a1"`);
-- `openbinding-gateway/tests/test_m96_migration.py` (new);
-- `openbinding-gateway/tests/concurrency/test_m96_migration_pg.py` (new);
+- `openbinding-gateway/alembic/versions/e7f8a9b0c1d2_drop_retired_data.py` (new, `down_revision = "b6c7d8e9f0a1"`);
+- `openbinding-gateway/tests/test_drop_retired_data_migration.py` (new: the guard, one refusal per source, the exact
+  drop with every kept table, the `_delete` row-count check and the downgrade, on SQLite);
+- `openbinding-gateway/tests/test_m96_kept_data.py` (new: sealed case revisions, publications and kept readers answer
+  the same before and after the upgrade);
+- `openbinding-gateway/tests/concurrency/test_m96_migration_pg.py` (new: the drop, a delete that fails midway and the
+  downgrade schema, on PostgreSQL);
 - `openbinding-gateway/tests/test_remote_cancel.py` and `test_b3_migration.py`, if they pin the head;
-- `docs/qa/PROCESS_DEPLOYMENT.md` (the runbook of design.md §6.4).
+- `docs/runbooks/retired-data-export.md` (the runbook of design.md §6.4).
 
 Depends on S1 and S5 to S7: no code maps the dropped tables any more.
 
-- [ ] 8.1 Tests first:
+- [x] 8.1 Tests first:
   - `-guard`, `-guard-empty`, `-removed-set`, `-kept-set`, `-downgrade`;
   - "Export equals removal" of `-export-selection`;
   - `-sealed-ir-unchanged` and `-publications-answer`.
 
   Each test seeds a database at `b6c7d8e9f0a1` with the base schema (`alembic upgrade b6c7d8e9f0a1`) and runs the S1
   tool. They are red on the base (no revision).
-- [ ] 8.2 The revision:
-  - the guard (design.md §6.3), reusing `retired_data.py`;
+- [x] 8.2 The revision:
+  - the guard (design.md §6.3), with its own frozen copy of the selections (D7);
   - the deletes in the order of §6.1, then the drops;
   - one transaction;
   - the downgrade (§6.5).
-- [ ] 8.3 Write the runbook, and run it on the lab database before the preview: export, keep the directory, set
+- [x] 8.3 Write the runbook (`docs/runbooks/retired-data-export.md`).
+- [ ] 8.3b Run the runbook on the lab database before the preview: export, keep the directory, set
   `OPENBINDING_M96_EXPORT_MANIFEST`.
-- [ ] 8.4 Checks 4, 5, 3, 8, 9, 12, 2. Review panel: reviewer, test-reviewer and security-auditor (irreversible data
-  change). The MRP shows the export manifest of the lab database.
+- [x] 8.4 Checks 4, 3, 8, 2 on SQLite. Review panel: reviewer, test-reviewer and security-auditor (irreversible data
+  change).
+- [ ] 8.5 Check 5 (`tests/concurrency/test_m96_migration_pg.py` on PostgreSQL, the `compose.pgtest.json` harness), and
+  the MRP shows the export manifest of the lab database.
 
 ## S9. Roadmap status (doc-steward), after S8 merges
 

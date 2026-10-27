@@ -16,7 +16,7 @@ Needs: impl, utest
 - **WHEN** an OWNER calls `GET /v1/organizations/isa-demo/projects/p1/resources` and `GET /v1/organizations/isa-demo/projects/p1/resources/r1/revisions`
 - **THEN** the answers are 200, listing `r1` and its two revisions
 
-Evidence: `openbinding-gateway/tests/test_removed_operations.py`; `openbinding-gateway/tests/test_m96_migration.py`
+Evidence: `openbinding-gateway/tests/test_removed_operations.py`; `openbinding-gateway/tests/test_m96_kept_data.py`
 
 The writes of project resources were retired with the library catalogue (ADR-0020 decision 2). Problem versions and collections replace them.
 

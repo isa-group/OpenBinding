@@ -10,7 +10,7 @@ Needs: impl, utest
 - **GIVEN** every `.ts` and `.tsx` file under `frontend/src` except `*.test.ts`, `*.test.tsx` and `frontend/src/test/**`
 - **WHEN** the test searches them for the bindings `analysisApi`, `platformApi.report`, `platformApi.createReport`, `platformApi.freezeReport`, `platformApi.createReportDraft`, `platformApi.updateReport`, `platformApi.deleteReport`, `platformApi.publishReport`, `platformApi.createResource`, `platformApi.createResourceRevision`, `platformApi.resource`, `platformApi.updateResource`, `platformApi.deleteResource`, `libraryItemsApi.create`, `libraryItemsApi.item`, `libraryItemsApi.rename`, `libraryItemsApi.drafts`, `libraryItemsApi.createDraft`, `libraryItemsApi.saveDraft`, `libraryItemsApi.seal`, `libraryItemsApi.publish`, `libraryItemsApi.withdraw`, `libraryItemsApi.associate`, `libraryItemsApi.projectItems`, `libraryItemsApi.dissociate`, `libraryApi.drafts`, `adminTransferSponsor`, `listMySponsorProposals`, `listOrganizationSponsorProposals`, `acceptSponsorProposal`, `declineSponsorProposal` and `cancelSponsorProposal`, each followed by a word boundary, and for the path fragments `/v1/analysis/`, `sponsor-proposals` and `/v1/admin/organizations/` followed by `/sponsor`
 - **THEN** it finds none
-- **AND** the imported objects `platformApi`, `libraryItemsApi`, `libraryApi` and `apiClient` have none of the named members, and `frontend/src/analysis/archive.ts` does not exist
+- **AND** the imported objects `platformApi`, `libraryApi` and `apiClient` have none of the named members, and neither `frontend/src/analysis/archive.ts` nor `frontend/src/api/libraryItems.ts` (the module that defined `libraryItemsApi`) exists
 - **AND** the kept bindings `platformApi.reports`, `platformApi.resources`, `platformApi.resourceRevisions`, `libraryItemsApi.list`, `libraryItemsApi.versions`, `libraryItemsApi.content`, `libraryItemsApi.resolve`, `libraryApi.list`, `libraryApi.versions` and `libraryApi.content` are not reported
 
 #### Scenario: A binding comes back
@@ -34,13 +34,13 @@ Needs: impl, utest
 #### Scenario: OWNER who is not the sponsor
 - **GIVEN** bob, an OWNER of `acme`, which alice sponsors, and the platform accounts carol and dave
 - **WHEN** bob opens the settings of `acme`
-- **THEN** the "New sponsor" choices are "Keep alice" and "Me (bob)" only
+- **THEN** the screen names alice as the current sponsor and offers one sponsor change control, the button "Make me the sponsor", with no choice of another account
 - **AND** the screen shows no "Sponsor requests" section and no text saying that naming someone else sends them a request
 - **AND** the frontend sends no request whose path contains `sponsor-proposals`
 
 #### Scenario: Taking over
 - **GIVEN** the same screen
-- **WHEN** bob chooses "Me (bob)" and confirms
+- **WHEN** bob presses "Make me the sponsor"
 - **THEN** the frontend sends `PATCH /v1/organizations/acme` with `{"billing_sponsor_user_id": "<bob's id>"}` and no other field
 - **AND** after a 200 answer the screen names bob as the current sponsor
 

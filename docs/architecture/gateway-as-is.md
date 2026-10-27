@@ -26,7 +26,7 @@ routes/  ──►  services/  ──►  repositories/ , integrations  ──�
 | `core/` | `settings.py` (every environment variable in one place) and `logging.py` | `core/` |
 | `access/`, `security/` | Plan policy (`access/policy.py`: clamping, ceilings and quota rules, applied through `services/entitlements.py`), contract bookkeeping (`access/contracts.py`), public-read matrix; hashing of passwords, tokens and API keys | respective files |
 | `jobs/` | The job lifecycle: `leases.py`, `reconciler.py`, `limits.py`, `lifecycle.py` ([IDEMPOTENCY.md](../IDEMPOTENCY.md)) | `jobs/*.py` |
-| `integrations/bim.py`, `v1/`, `generator/` | The BIM port (`BimPort`, settings, error translation), the remaining `v1/` platform code (archive, remote Engine transport) and the instance generator (see [the BIM boundary](#the-bim--platform-boundary)) | `integrations/`, `v1/`, `generator/` |
+| `integrations/bim.py`, `v1/`, `generator/` | The BIM port (`BimPort`, settings, error translation), the remaining `v1/` platform code (remote Engine transport) and the instance generator (see [the BIM boundary](#the-bim--platform-boundary)) | `integrations/`, `v1/`, `generator/` |
 
 Not every module follows the layer table yet: several top-level modules
 (`artifacts.py`, `reports.py`, `studies.py`, `study_jobs.py`,

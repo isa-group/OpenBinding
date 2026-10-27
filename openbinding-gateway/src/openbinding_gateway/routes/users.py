@@ -644,7 +644,12 @@ async def delete_own_account(
     for organization in sponsored:
         next_owner = await get_org_owner(organization.id)
         if next_owner is None:
-            raise api_error(status.HTTP_409_CONFLICT, "sponsor_transfer_required", "Transfer sponsorship before deleting this account.")
+            raise api_error(
+                status.HTTP_409_CONFLICT,
+                "sponsor_transfer_required",
+                "Make another member an OWNER of the organization so the sponsorship can move to them, "
+                "or delete the organization, before deleting this account.",
+            )
         organization.billing_sponsor_user_id = next_owner
 
     # Reassign collaborative resources strictly to the corresponding organization's OWNER.

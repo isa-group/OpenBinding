@@ -252,7 +252,7 @@
       "command": [
         "sh",
         "-c",
-        "umask 077; printf '%s\\n' \"$$DEMO_BIM_TOKEN\" > /run/bim/token && exec dramatiq openbinding_gateway.worker --processes 1 --threads 2 --queues default analysis"
+        "umask 077; printf '%s\\n' \"$$DEMO_BIM_TOKEN\" > /run/bim/token && exec dramatiq openbinding_gateway.worker --processes 1 --threads 2 --queues default"
       ],
       "environment": {
         "APP_ENV": "dev",

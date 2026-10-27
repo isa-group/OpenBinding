@@ -59,6 +59,7 @@ describe('Notifications', () => {
     api.markAllNotificationsRead.mockResolvedValue([]);
   });
 
+  // [utest->req~frontend-workspace-no-sponsor-requests~1]
   it('lists the notices, says how many are unread and marks them', async () => {
     renderNotifications();
 
@@ -67,6 +68,9 @@ describe('Notifications', () => {
     expect(screen.getByRole('link', { name: 'Notifications', current: 'page' })).toBeInTheDocument();
     expect(await screen.findAllByRole('img', { name: 'Unread' })).toHaveLength(2);
     expect(screen.getByRole('list', { name: 'Notifications' }).children).toHaveLength(3);
+    // No sponsor requests since M9.6: the client mock has no such call, and the screen has no such section.
+    expect(screen.queryByRole('heading', { name: /Sponsor requests/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/sponsor request/i)).not.toBeInTheDocument();
     expect(screen.getByText('Notifications are kept for 7 days.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Mark all read' })).toBeEnabled();
   });

@@ -74,7 +74,7 @@ Diagnostic jobs contain explicit generated assignments evaluated by the canonica
 
 ## Feature-to-scenario coverage
 
-The generated [scenario manifest](../../openbinding-gateway/tools/analysis-manifest.json) contains actual job IDs, archive revisions, analysis URLs, draft Report URLs, observed timings and background task identities. IDs are local deployment artifacts and will differ after a fresh population.
+The generated scenario manifest (`openbinding-gateway/tools/analysis-manifest.json`, no longer generated since M9.6) contained actual job IDs, archive revisions, analysis URLs, draft Report URLs, observed timings and background task identities. IDs are local deployment artifacts and will differ after a fresh population.
 
 | Feature / edge case | Persisted scenario or independent check |
 |---|---|

@@ -70,6 +70,7 @@ function SettingsBody({ organization }: { organization: Organization }) {
   const previewPath = targetOrg ? pathOf(targetOrg, context.organizations) : [];
 
   // --- who sponsors it: a user may only name themselves
+  // [impl->req~frontend-workspace-org-sponsor-self-only~1]
   const canTakeSponsorship = Boolean(me && organization.billing_sponsor_user_id !== me.id);
 
   const flash = (text: string) => {

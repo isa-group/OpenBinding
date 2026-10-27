@@ -180,6 +180,7 @@ def _delete(bind, table, column, values, expected):
 
 
 # [impl->req~data-retirement-removed-set~1]
+# [impl->req~data-retirement-kept-set~1]
 def upgrade():
     bind = op.get_bind()
     selected = _guard(bind)

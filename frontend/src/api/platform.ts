@@ -394,6 +394,8 @@ const root = (org: string, project?: string) =>
   `/v1/organizations/${encodeURIComponent(org)}${project ? `/projects/${encodeURIComponent(project)}` : ''}`;
 
 // The mutations of an organization throw on a 422 (a refused submission) instead of handing its body back as if it were the result.
+// The report editor, the resource writes and the sponsor proposals are not bound since M9.6.
+// [impl->req~frontend-workspace-no-removed-operation-binding~1]
 export const platformApi = {
   organizations: () => apiClient.request<Organization[]>('/v1/organizations'),
   /** One organization by slug or id. 403 for an account that is not in it, platform administrators included. */

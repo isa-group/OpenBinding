@@ -30,8 +30,9 @@ links keep working).
 ## Steps
 
 1. **Stop every writer** of the old release: gateway, workers, analysis worker, reconciler. Nothing may create or
-   change a row between the export and the upgrade (the guard compares counts, hashes and primary keys; a database that
-   changed and happens to match would pass the counts check only, so do not leave writers running).
+   change a row between the export and the upgrade. The guard compares counts, hashes and primary keys, so a row added
+   to or removed from a selection is refused; but a selected row whose other columns change after the export keeps its
+   key and would pass, with its earlier values in the export. So do not leave writers running.
 2. **Run the export from the new image**, against the same database, into a directory **outside the checkout** (it
    holds the only copy of the dropped rows, so keep it out of `git status` and out of anything that is cleaned). The
    directory must exist, be writable by uid 10001 (the image user) and be new or empty. Set

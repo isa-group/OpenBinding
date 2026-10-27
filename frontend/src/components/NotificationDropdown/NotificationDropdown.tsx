@@ -39,6 +39,8 @@ export function NotificationDropdown() {
 
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // The badge counts unread notifications only (no sponsor requests since M9.6).
+  // [impl->req~frontend-workspace-no-sponsor-requests~1]
   const reload = useCallback(async () => {
     try {
       const data = await apiClient.listNotifications(false);

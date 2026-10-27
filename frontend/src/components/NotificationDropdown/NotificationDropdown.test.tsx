@@ -187,6 +187,7 @@ describe('NotificationDropdown', () => {
     expect(screen.getByText('Lifetime: 7 days')).toBeInTheDocument();
   });
 
+  // [utest->req~frontend-workspace-no-sponsor-requests~1]
   it('counts only notifications: it asks the gateway for nothing about sponsorship', async () => {
     api.listNotifications.mockResolvedValue([mockReadNotification]);
 

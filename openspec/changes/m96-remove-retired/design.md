@@ -127,8 +127,11 @@ From m24-sunset design §2.3, plus the B8 to B12 bindings:
 
 Kept members of the same objects serve kept operations:
 - `platformApi.reports`, `.resources`, `.resourceRevisions`;
-- `libraryItemsApi.list`, `.versions`, `.content`, `.resolve`;
 - `libraryApi.list`, `.versions`, `.content`.
+
+The module `api/libraryItems.ts` went as a whole: the screens read the library through `libraryApi`, so its read
+members `libraryItemsApi.list`, `.versions`, `.content` and `.resolve` are gone too (the binding scan still does not
+report those names).
 
 ## 3. Decisions
 
@@ -166,9 +169,12 @@ Kept members of the same objects serve kept operations:
   guard kept operations, so no key row is migrated.
 - **D7 The export tool reads by table name, not through ORM models.** It runs from the new image, whose ORM no longer
   maps `AnalysisTask` or `SponsorProposal`, against a database still at `b6c7d8e9f0a1`. It uses SQLAlchemy Core
-  reflection of the six source tables, in one read-only transaction, so the six files are one consistent snapshot. It
-  shares its selection functions with the migration (one module under `openbinding_gateway/`, imported by both), so the
-  exported rows and the removed rows are the same by construction. The test also compares them (§6.1).
+  reflection of the six source tables, in one read-only transaction, so the six files are one consistent snapshot. The
+  six selections are raw SQL text, duplicated as frozen copies in `tools/export_retired_data.py` and in the migration
+  `alembic/versions/e7f8a9b0c1d2_drop_retired_data.py`, with the same primary-key columns, format and head. A migration
+  must not import application code that keeps changing: a later edit of a shared module would silently change what an
+  old revision deletes. `tests/test_drop_retired_data_migration.py` compares the two copies, and a second test exports,
+  upgrades and compares the exported keys with the removed ones (§6.1).
 - **D8 Narrower report delete than the brief's wording.** The brief says to delete "reports with state 'draft' that
   have NO publication". In the code a report returns to `draft` with its sealed `version_id` kept
   (`reports.py:40-53`, `new_report_draft`), and `GET /v1/resolve/report/{digest}` finds a version only through a
@@ -311,16 +317,18 @@ manifest. Otherwise it reads the path in `OPENBINDING_M96_EXPORT_MANIFEST` and p
 - the file exists and parses as the format of §6.2;
 - `alembic_head` is `b6c7d8e9f0a1`;
 - every one of the six sources is present, with `rows` equal to the current count;
-- the SHA-256 of each named file, resolved against the manifest's directory, equals `sha256`.
+- the SHA-256 of each named file, resolved against the manifest's directory, equals `sha256`;
+- the set of primary keys read from each file equals the set of primary keys the selection returns now.
 
 Otherwise it raises before any statement that changes data. The message names:
 - the first failing check, and the source when there is one;
 - the variable `OPENBINDING_M96_EXPORT_MANIFEST`;
 - the command `python tools/export_retired_data.py --out DIR`.
 
-`alembic upgrade head` then exits non-zero. The guard checks counts and hashes, not the identity of each row. A
-database that changed between export and upgrade with equal counts would pass. The runbook (§6.4) runs the export
-with the gateway stopped, right before the upgrade.
+`alembic upgrade head` then exits non-zero. Because the primary-key sets are compared, a database where other rows
+fall in a selection than at export time is refused even with equal counts. What remains: a selected row whose other
+columns were edited after the export (same key) passes, and its export holds the earlier values. The runbook (§6.4)
+runs the export with the gateway stopped, right before the upgrade, so nothing edits them in between.
 
 ### 6.4 Runbook (lab, preview, any database with rows)
 
@@ -373,8 +381,8 @@ rows. Restoring from the export is a manual step outside this change.
 
 | Risk | Mitigation |
 |---|---|
-| Rows dropped without a copy | Guard of §6.3; tests of every refusal; runbook §6.4 |
-| Export and drop disagree on rows | One shared selection module (D7); a test exports, upgrades, and compares the exported ids with the removed ids |
+| Rows dropped without a copy | Guard of §6.3 (counts, hashes and primary-key sets); tests of every refusal, one per source; runbook §6.4 |
+| Export and drop disagree on rows | The same SQL in the tool and the migration, compared by a test (D7); a test exports, upgrades, and compares the exported ids with the removed ids |
 | A permanent link of a sealed version breaks | D8; a test resolves every sealed report and case version before and after the upgrade |
 | A sealed problem version compiles differently | No code that compiles a case is touched. A test compiles every sealed case revision before and after the upgrade and compares IR digests |
 | A kept screen calls a removed operation | Frontend binding scan; TypeScript build with the bindings deleted; the kept members are listed in §2.3 |
@@ -406,3 +414,21 @@ Deleted with `m24-sunset` (never archived), 14 requirements:
 
 - Q1 [NEEDS CLARIFICATION: Should package import (`/package`) keep importing draft reports (it creates a `Report` artifact, an unsealed draft and a `draft` report, `routes/artifacts.py:1222-1226`) after M9.6, or refuse them with 422 now that no route can edit a draft report?] This change keeps package import unchanged, as the brief says. Draft reports created by a later import are not removed by this revision, which runs once.
 - Q2 [NEEDS CLARIFICATION: Should the caller-only sponsor rule also cover `POST /v1/organizations`, where a platform administrator may name another person as sponsor (`routes/organizations.py:203`), and account deletion, which makes the next OWNER the sponsor without asking (`routes/users.py:641-648`)?] This change leaves both as they are.
+
+## 11. Known follow-ups (not in this change)
+
+- (a) ADR-0020 decision 5 (`docs/adr/0020-smaller-platform.md:45-47`) still requires a minor release with
+  `Deprecation` and `Sunset` headers before endpoints go, and `ROADMAP.md` still describes that release in the M2.4 row
+  (`:69`, `:78-79`) and in the M9.6 row ("after the Sunset of M2.4", `:190`). The owner skipped that period (§1). An
+  owner-area follow-up in `docs/adr/` must amend ADR-0020 decision 5, or mark it deprecated by a new ADR, before the
+  release pull request; the ROADMAP rows are corrected with it.
+- (b) `publish_version` and `withdraw_version` (`routes/library.py`) and `publish_report` (`routes/studies.py`) are no
+  longer routed but stay in route modules, because `tools/seed_dev.py` publishes its demonstration report through them
+  (and `withdraw_version` serves the kept `DELETE .../publications/{publication}`). They move to a `services/` module.
+- (c) `reports.new_report_draft` has no caller in `src` any more (only `tools/seed_dev.py` and the test seed helpers
+  use it), and the tables `project_resources` and `project_resource_revisions` are frozen: no route writes them, B6
+  and B7 read resources from the artifact store, and only the package export (`routes/artifacts.py:408`), the admin
+  data listing and the deletion paths still read them. Their fate is decided together with Q1 (package import still
+  creates draft reports).
+- (d) An organization whose only OWNER is also its sponsor and is deactivated has no recovery path: the administrator
+  sponsor transfer (row 35) is gone and nobody else can make themselves the sponsor. This joins Q2.
