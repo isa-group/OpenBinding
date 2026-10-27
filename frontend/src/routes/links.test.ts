@@ -80,6 +80,7 @@ function patternsOf(path: string): RegExp[] {
 // [impl->req~frontend-retire-no-link-to-retired~1]
 // [impl->req~frontend-retire-reports-no-link~1]
 // [impl->req~frontend-retire-library-no-link~1]
+// [impl->req~frontend-retire-composer-no-link~1]
 /**
  * `<file>: <literal>` for every string or template literal of the sources that starts with a retired path followed by the end,
  * `/`, `?`, `#` or `${`. A `:param` of the path stands for any one segment or `${…}`; for such a path a literal that starts with
@@ -314,6 +315,9 @@ describe('the scan for retired addresses', () => {
         'const c = `${root}/cases/${slug}/revisions/${n}`;',
         'const d = `${root}/workbench?case=${encodeURIComponent(slug)}`;',
         "const e = '/app/acme/demo/cases/flujo/compare';",
+        "const f = '/app/acme/demo/cases/x/composex';",
+        'const g = `${root}/cases/${slug}/compare`;',
+        'const h = `${root}/cases/${slug}`;',
         "// '/app/acme/demo/cases/flujo/compose' in a comment",
       ].join('\n');
       expect(scanComposer('pages/X.tsx', source)).toEqual([]);

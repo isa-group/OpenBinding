@@ -111,6 +111,7 @@ describe('Case detail', () => {
     const note = await screen.findByText(/Revision 1 has no compiled snapshot/);
     expect(note).toHaveTextContent(/Save a new revision from the workbench to get one\.$/);
     expect(note.textContent).not.toMatch(/composer/i);
+    expect(document.body.textContent).not.toMatch(/composer/i);
     expect(platform.snapshot).not.toHaveBeenCalled();
     expect(screen.getByText('1 revision')).toBeInTheDocument();
   });
@@ -128,12 +129,16 @@ describe('Case detail', () => {
       expect(screen.getByRole('link', { name: 'Open in Workbench' })).toHaveAttribute('href', `${base}/workbench?case=flujo-checkout&revision=${r2.id}`);
       expect(screen.getByRole('button', { name: 'Edit description' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Delete case' })).not.toBeInTheDocument();
+      for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose$/);
     });
 
+    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
     it('lets a VIEWER read and compare, and nothing else', async () => {
       renderDetail(viewer);
 
       await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
+      expect(screen.queryByRole('link', { name: /Compose the first revision/ })).not.toBeInTheDocument();
+      for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose$/);
       expect(screen.getByRole('note')).toHaveTextContent('You can read and compare revisions. New revisions need MEMBER; deleting needs ADMIN.');
       expect(screen.queryByRole('link', { name: 'New revision' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Edit description' })).not.toBeInTheDocument();
@@ -199,6 +204,7 @@ describe('Case detail', () => {
       const guide = await screen.findByRole('region', { name: 'No revisions yet' });
       expect(within(guide).getByRole('link', { name: 'Compose the first revision' })).toHaveAttribute('href', '/app/member-lab/qos-benchmarks/workbench?case=flujo-checkout');
       expect(screen.queryByRole('region', { name: 'Revisions' })).not.toBeInTheDocument();
+      for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose$/);
     });
 
     // [utest->req~frontend-retire-composer-entry-points-repointed~1]
@@ -207,6 +213,8 @@ describe('Case detail', () => {
 
       const guide = await screen.findByRole('region', { name: 'No revisions yet' });
       expect(within(guide).queryByRole('link')).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /New revision|Compose the first revision/ })).not.toBeInTheDocument();
+      for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose$|\/workbench\?case=/);
     });
 
     it('lets an ADMIN delete it, and goes back to the list', async () => {

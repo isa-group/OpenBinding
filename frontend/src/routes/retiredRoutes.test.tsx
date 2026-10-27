@@ -356,6 +356,29 @@ describe('the redirect of a retired address', () => {
   });
 
   // [utest->req~frontend-retire-composer-redirect~1]
+  it.each([
+    '/app/isa-demo/library/cases/drafts/compose',
+    '/app/isa-demo/library/cases/versions/compose',
+  ])('sends %s to the organization overview, the earlier library entry winning over the composer', async (old) => {
+    renderAt([old]);
+
+    expect(await screen.findByRole('heading', { name: 'Organization page screen' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/isa-demo$/);
+    expect(screen.queryByRole('heading', { name: 'Workbench screen' })).toBeNull();
+  });
+
+  // [utest->req~frontend-retire-composer-redirect~1]
+  it.each([
+    ['/app/isa-demo/qos/cases/x/compare', 'case-compare'],
+    ['/app/isa-demo/qos/cases/x/revisions/2', 'case-revision'],
+  ])('leaves %s to its screen %s, with no tie with the composer', (address, id) => {
+    const composer = RETIRED_ROUTES.find((route) => route.id === 'case-composer');
+    expect(composer).toBeDefined();
+    expect(matchRoutes(config, address)?.at(-1)?.route.id).toBe(id);
+    expect(matchRoutes([{ path: composer?.path ?? '/never' }], address)).toBeNull();
+  });
+
+  // [utest->req~frontend-retire-composer-redirect~1]
   it('replaces the history entry and asks a visitor without a session to sign in before the composer redirect', async () => {
     const first = renderAt(['/app/account', '/app/acme/demo/cases/flujo/compose']);
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/acme\/demo\/workbench\?case=flujo$/));
