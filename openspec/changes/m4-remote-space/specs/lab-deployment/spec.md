@@ -52,7 +52,7 @@ Every manifest is checked, with no exemption: `docker-compose.yml`, `compose.lab
 `req~lab-deployment-remote-bootstrap-profile~1`
 The file `compose.lab-pricing.json` SHALL define the standalone project `openbinding-lab-pricing` with exactly one service, `pricing-bootstrap`, whose keys are exactly `image` `openbinding-lab/pricing-bootstrap:1`, `build` `{context: lab/tools, dockerfile: Dockerfile}`, `user` `1000:1000`, `restart` `"no"`, `mem_limit` `96m` and `environment` `SPACE_URL=https://space.score.us.es` and `SPACE_API_KEY=${DEMO_SPACE_MANAGEMENT_KEY}`.
 
-Needs: impl, utest
+Needs: utest
 
 #### Scenario: The manifest
 - **GIVEN** `compose.lab-pricing.json`
@@ -136,6 +136,9 @@ Needs: impl, utest
 - **GIVEN** `SPACE_URL` set to `http://space.score.us.es`, `http://space-api:3000`, `https://user:pw@space.score.us.es`, `https:///api`, `https://space.score.us.es:bad` or `ftp://space.score.us.es`
 - **WHEN** `Config.from_environ` reads it
 - **THEN** it raises `BootstrapError` stating that `SPACE_URL` must be an https URL with a host and no credentials, and no request is sent
+- **AND** the same holds for a value with a path (`https://space.score.us.es/api`), a query, a fragment, whitespace, a control character or a backslash
+- **AND** the message is exactly `configuration: SPACE_URL must be an https URL with a host, no credentials, no path, query or fragment`
+- **AND** a trailing `/` is dropped, so `https://space.score.us.es/` is taken as `https://space.score.us.es`
 
 #### Scenario: Service missing on the remote SPACE
 - **GIVEN** a simulated SPACE whose `GET /api/v1/services` lists no service named `openbinding`
@@ -150,6 +153,17 @@ Needs: impl, utest
 - **THEN** it creates, through `space-python-client`, one contract on version `1.10.0` with plan `PRO` and no add-on for each of `lab-admin`, `lab-owner`, `lab-orgadmin`, `lab-member`, `lab-viewer` and `lab-outsider`
 - **AND** each user id is `uuid5(SEED_NAMESPACE, "user:<username>")` with the namespace of `openbinding-gateway/tools/seed_lab.py`, and each email is `<username>@example.org`
 - **AND** each created contract is read back and must show that version and plan, else the bootstrap aborts with `contracts: <username> not confirmed`
+
+#### Scenario: Version shape and release ordering
+- **GIVEN** active pricing versions among which some are not version-shaped (`9.0.0/../x`, `9.1 `, `v9`, `9..0`, `9.7.0-`, a digit run over nine digits)
+- **WHEN** the bootstrap picks the version for the contracts
+- **THEN** the strings that are not version-shaped are ignored, since they end up in a contract and a route, and `+build` metadata is ignored in the ordering
+- **AND** given `2.0.0` and `2.0.0-rc.1` the contracts go to `2.0.0`, because a release ranks above its pre-release
+
+#### Scenario: Summary entry of the service list
+- **GIVEN** an existing `openbinding` service whose entry in `GET /api/v1/services` has neither `source` nor `sphere`
+- **WHEN** the bootstrap runs
+- **THEN** it reads `GET /api/v1/services/openbinding` (read-only) and compares the source, link and policy of that document
 
 #### Scenario: First run report
 - **GIVEN** the simulated SPACE of the two scenarios above, without contracts
@@ -214,6 +228,17 @@ Needs: impl, utest
 - **GIVEN** the process environment with `HTTPS_PROXY=http://proxy.example:3128` and `ALL_PROXY=http://proxy.example:3128`
 - **WHEN** the bootstrap runs against the simulated SPACE
 - **THEN** no request goes through `proxy.example`, and the HTTP client of the tool is built with `trust_env=False` and `follow_redirects=False`
+
+#### Scenario: Response body bounded
+- **GIVEN** a simulated SPACE that answers a request with a 2xx body over 1 MiB (1048576 bytes)
+- **WHEN** the bootstrap runs
+- **THEN** the body is refused while it is read, before any decoding, with `<item>: <method> <route> returned a body over 1 MiB`, and no contract is created
+- **AND** a body of exactly 1 MiB is still read
+
+#### Scenario: SDK proxy scrub
+- **GIVEN** a process environment with proxy variables in any case (`HTTPS_PROXY`, `Https_Proxy`, `ALL_PROXY`, `ftp_proxy`, `no_proxy`) and the CA variables `REQUESTS_CA_BUNDLE`, `SSL_CERT_FILE`, `SSL_CERT_DIR`
+- **WHEN** the tool runs through `main`, and before the contracts client of `space-python-client` is built
+- **THEN** every variable whose lower-case name ends with `_proxy` has been removed from the process environment, even when the configuration is refused, and the CA variables are kept
 
 #### Scenario: No SPHERE key
 - **GIVEN** the source of the tool and a run with `SPHERE_API_KEY` set in the environment

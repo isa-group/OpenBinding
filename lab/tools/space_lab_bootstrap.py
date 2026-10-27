@@ -45,9 +45,7 @@ FAILED_STATUSES = ("failed", "blocked", "degraded")
 API = "/api/v1"
 SDK_TIMEOUT_MS = 30000
 MAX_BODY_BYTES = 1024 * 1024
-VERSION_PATTERN = re.compile(r"[0-9]+(\.[0-9]+)*([-+][0-9A-Za-z.-]+)?")
-# Variables the HTTP clients read to pick a proxy.  The CA variables are not listed: they only pick trust anchors.
-PROXY_VARIABLES = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy")
+VERSION_PATTERN = re.compile(r"[0-9]{1,9}(\.[0-9]{1,9})*([-+][0-9A-Za-z.-]{1,64})?")
 
 
 def synthetic_user_id(username: str) -> str:
@@ -104,7 +102,9 @@ def _normalised_url(url: str) -> str | None:
 def _scrub_proxy_environment() -> None:
     """Remove the proxy variables from the process environment.  The contracts client of ``space-python-client``
     builds its own HTTP client, which reads them; the key must not travel through a proxy."""
-    for name in PROXY_VARIABLES:
+    # Every name ending in ``_proxy`` in any case: the HTTP clients read the proxy variables.  The CA variables stay
+    # (they only pick trust anchors).
+    for name in [n for n in os.environ if n.lower().endswith("_proxy")]:
         os.environ.pop(name, None)
 
 
@@ -181,8 +181,11 @@ def _confirmed(contract: Any, version: str, plan: str) -> bool:
             and services.get(SERVICE_NAME) == version and plans.get(SERVICE_NAME) == plan)
 
 
-def _version_key(version: str) -> tuple[int, ...]:
-    return tuple(int(part) for part in re.findall(r"\d+", version))
+def _version_key(version: str) -> tuple[tuple[int, ...], int]:
+    """Numeric core first; a release ranks above its pre-release (``-...``); ``+build`` is ignored."""
+    core = re.split(r"[-+]", version, maxsplit=1)[0]
+    pre_release = "-" in version.split("+", 1)[0]
+    return tuple(int(part) for part in core.split(".")), 0 if pre_release else 1
 
 
 def _active_versions(body: Any) -> list[str]:

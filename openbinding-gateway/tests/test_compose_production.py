@@ -1748,7 +1748,6 @@ RENDER_COMMAND = (
     "--env-file deploy/compose/production/ci.env config --quiet"
 )
 REMOTE_SPACE_HEADING = "Remote SPACE"
-REMOTE_SPACE_ANCHOR = "#remote-space"
 REMOTE_SPACE_URL = "https://space.score.us.es"  # the only real host name the runbook may carry
 # Facts the runbook must state, found by review: (what, text that must appear).
 RUNBOOK_FACTS = [
@@ -2262,6 +2261,9 @@ def test_runbook_remote_space_section_and_compose_has_no_space_service():
     blocked = section(text, "What stays blocked")
     assert not re.search(r"(?i)\bSPACE\b", blocked), "an item of 'What stays blocked' waits for a SPACE"
     assert "<!-- [impl->req~lab-deployment-runbook-remote-space~1] -->" in section(text, REMOTE_SPACE_HEADING)
+    body = " ".join(section(text, REMOTE_SPACE_HEADING).split())
+    assert not re.search(r"(?i)\bdefault", body), "SPACE_URL has no default: compose requires it in site.env"
+    assert "`SPACE_URL` (required, set in `site.env`" in body
     assert "SPACE decision" not in text.split("## Who may order a deployment")[0]
     config = production()
     for kind in ("services", "networks", "volumes"):
@@ -2860,6 +2862,7 @@ def test_runbook_tls_directory_and_key_modes():
 
 
 # [utest->req~lab-deployment-production-runbook~1]
+# [utest->req~lab-deployment-runbook-remote-space~1]
 def test_runbook_site_env_states_that_space_url_is_https_and_the_checks_agree():
     site = section(runbook_text(), "site.env")
     assert "`SPACE_URL` **must be an `https://` URL**" in site

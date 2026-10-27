@@ -644,7 +644,8 @@ def test_an_invalid_space_url_is_refused(tool, url):
         tool.Config.from_environ({"SPACE_URL": url, "SPACE_API_KEY": API_KEY})
     assert url not in str(raised.value) and "user:pw" not in _error_text(raised.value)
     assert API_KEY not in _error_text(raised.value)
-    assert str(raised.value).startswith("configuration: SPACE_URL")
+    assert str(raised.value) == ("configuration: SPACE_URL must be an https URL with a host, no credentials, "
+                                 "no path, query or fragment")
 
 
 @pytest.mark.parametrize("url, expected", [
@@ -991,6 +992,21 @@ def test_pricing_versions_that_do_not_look_like_versions_are_ignored(tool):
     assert {m.contracted_services["openbinding"] for m in contracts.added} == {"1.0.0"}
 
 
+def test_a_release_ranks_above_its_pre_release(tool):
+    # [utest->req~lab-space-remote-bootstrap~1]
+    for pricings in ([{"version": "2.0.0"}, {"version": "2.0.0-rc.1"}], [{"version": "2.0.0-rc.1"}, {"version": "2.0.0"}],
+                     [{"version": "2.0.0-rc.1"}, {"version": "2.0.0+build.7"}, {"version": "1.9.9"}]):
+        fake, contracts = FakeSpace(pricings=pricings), FakeContracts()
+        run(tool, fake, contracts)
+        assert {m.contracted_services["openbinding"] for m in contracts.added} <= {"2.0.0", "2.0.0+build.7"}
+        assert contracts.added
+
+
+def test_a_version_with_an_enormous_digit_run_is_ignored(tool):
+    # [utest->req~lab-space-remote-bootstrap-secrets~1]
+    assert tool._valid_versions(["1.0.0", "9" * 5000, "1." + "9" * 5000]) == ["1.0.0"]
+
+
 def test_without_a_valid_pricing_version_it_aborts(tool):
     # [utest->req~lab-space-remote-bootstrap-secrets~1]
     _assert_aborted(tool, FakeSpace(pricings=[{"version": "../x"}, {"version": "9.1\n"}]), FakeContracts(), "no active pricing")
@@ -1032,6 +1048,20 @@ def test_the_sdk_client_is_created_without_proxy_variables(tool, monkeypatch):
     assert _visible_proxies() == list(PROXY_VARIABLES)
     asyncio.run(tool.bootstrap(make_config(tool), transport=fake.transport(), sleep=Sleeps()))
     assert seen == [[]], f"the SDK client was built with proxy variables in the environment: {seen}"
+    _assert_trust_variables_kept()
+
+
+def test_every_variable_ending_in_proxy_is_removed_whatever_its_case(tool, monkeypatch):
+    # [utest->req~lab-space-remote-bootstrap-secrets~1]
+    odd = ("Https_Proxy", "FTP_PROXY", "socks_proxy", "Grpc_Proxy")
+    for name in odd:
+        monkeypatch.setenv(name, "http://proxy.invalid:3128")
+    monkeypatch.setenv("PROXY_HOME", "kept")
+    _set_proxies(monkeypatch)
+    tool._scrub_proxy_environment()
+    assert [name for name in odd if name in os.environ] == []
+    assert _visible_proxies() == []
+    assert os.environ["PROXY_HOME"] == "kept"
     _assert_trust_variables_kept()
 
 

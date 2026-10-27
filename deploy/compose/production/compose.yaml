@@ -8,6 +8,7 @@
 # disagree, this file wins. The mem_limit and cpus values are starting values, tuned after the first measured week.
 name: openbinding-production
 
+# [impl->req~lab-deployment-no-local-space~4] (no SPACE or SPHERE service, network or volume: SPACE is remote)
 # [impl->req~lab-deployment-production-limits-logs~1]
 # [impl->req~lab-deployment-production-pinned-images~1] (every image is ${..._IMAGE:?} from images.env)
 # [impl->req~lab-deployment-compose-only~1]

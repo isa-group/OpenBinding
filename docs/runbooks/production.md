@@ -736,7 +736,7 @@ docker system df
 <!-- [impl->req~lab-deployment-runbook-remote-space~1] -->
 
 Production and the laboratory use the remote SPACE, `https://space.score.us.es`. The gateway and the workers reach it
-through `SPACE_URL` (default `https://space.score.us.es`) and the secret file `space_api_key`. The key never goes into
+through `SPACE_URL` (required, set in `site.env`; the value is `https://space.score.us.es`) and the secret file `space_api_key`. The key never goes into
 the repository, an image, the logs or the browser. `SPACE_ENABLED` switches the integration, and `APP_ENV=prod` refuses
 the open gate (`SPACE_ENABLED=false`). Plans stay blocked only until the key and the URL are supplied.
 
