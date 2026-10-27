@@ -1,0 +1,16 @@
+.rendering-objective { display: grid; gap: 0.75rem; min-width: 0; }
+
+.rendering-objective__summary {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+.rendering-objective__summary dt { color: var(--color-text-secondary); font-size: 0.75rem; }
+.rendering-objective__summary dd { margin: 0; color: var(--color-text-primary); font-weight: 600; overflow-wrap: anywhere; }
+
+.rendering-objective__scores { margin: 0; padding-left: 1.25rem; font-weight: 400; }
+
+.rendering-objective .is-number { text-align: right; }
+.rendering-objective tfoot th { text-align: right; }
+.rendering-objective tfoot { border-top: 1px solid var(--color-border); }
