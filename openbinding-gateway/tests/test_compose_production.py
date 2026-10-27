@@ -2219,21 +2219,50 @@ def test_runbook_renders_with_the_command_of_ci():
     assert RENDER_COMMAND in runbook_text()
 
 
+REMOTE_SPACE_NEEDLES = (
+    REMOTE_SPACE_URL,
+    "SPACE_URL",
+    "`space_api_key`",
+    "tests/test_no_local_space.py",
+    "runs no local SPACE",
+)
+
+
+def remote_space_problems(text: str) -> list[str]:
+    """What the section 'Remote SPACE' lacks: the URL, the variable, the key file, the guard test, no local SPACE."""
+    if f"## {REMOTE_SPACE_HEADING}" not in text:
+        return ["the section is missing"]
+    body = " ".join(section(text, REMOTE_SPACE_HEADING).split())
+    problems = [f"missing: {needle}" for needle in REMOTE_SPACE_NEEDLES if needle not in body]
+    if "http://space.score.us.es" in body:
+        problems.append("a plain http URL")
+    return problems
+
+
+# [utest->req~lab-deployment-runbook-remote-space~1]
+def test_remote_space_rule_refuses_incomplete_sections():
+    good = "## Remote SPACE\n\n" + " ".join(REMOTE_SPACE_NEEDLES) + "\n"
+    assert remote_space_problems(good) == []
+    assert remote_space_problems(good.replace("`space_api_key`", "the key"))
+    assert remote_space_problems(good.replace("tests/test_no_local_space.py", "a test"))
+    assert remote_space_problems(good.replace("runs no local SPACE", "runs a SPACE"))
+    assert remote_space_problems(good + "http://space.score.us.es\n")
+    assert remote_space_problems("## Other\n\ntext\n")
+
+
 # [utest->req~lab-deployment-runbook-remote-space~1]
 def test_runbook_remote_space_section_and_compose_has_no_space_service():
     text = runbook_text()
-    assert f"## {REMOTE_SPACE_HEADING}" in text
-    body = " ".join(section(text, REMOTE_SPACE_HEADING).split())
-    for needle in (REMOTE_SPACE_URL, "SPACE_URL", "`space_api_key`"):
-        assert needle in body, needle
-    assert not re.search(r"(?i)local[ -]space", text)
+    assert not remote_space_problems(text)
+    outside = text.replace(section(text, REMOTE_SPACE_HEADING), "")  # that section says there is no local SPACE
+    assert not re.search(r"(?i)local[ -]space", outside)
     for name in ("space-mongo", "space-redis", "space-api"):
         assert name not in text, name
     assert "gap.invalid/space-api" not in text
     blocked = section(text, "What stays blocked")
-    item = re.search(r"^- \*\*Production SPACE\.\*\*.*?(?=^- \*\*|\Z)", blocked, re.MULTILINE | re.DOTALL)
-    assert item, "the 'Production SPACE' item is missing"
-    assert REMOTE_SPACE_ANCHOR in item[0]
+    assert not re.search(r"(?i)\bSPACE\b", blocked), "an item of 'What stays blocked' waits for a SPACE"
+    assert "<!-- [impl->req~lab-deployment-runbook-remote-space~1] -->" in section(text, REMOTE_SPACE_HEADING)
+    assert "SPACE decision" not in text.split("## Who may order a deployment")[0]
     config = production()
     for kind in ("services", "networks", "volumes"):
         assert not [name for name in config[kind] if "space" in name.lower() or "sphere" in name.lower()], kind
@@ -2834,7 +2863,7 @@ def test_runbook_tls_directory_and_key_modes():
 def test_runbook_site_env_states_that_space_url_is_https_and_the_checks_agree():
     site = section(runbook_text(), "site.env")
     assert "`SPACE_URL` **must be an `https://` URL**" in site
-    assert "SPACE_URL=https://" in site
+    assert f"\nSPACE_URL={REMOTE_SPACE_URL}\n" in site
     assert "SPACE_URL=https://" in CI_ENV.read_text(encoding="utf-8")
 
 
