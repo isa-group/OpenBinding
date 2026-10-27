@@ -268,6 +268,7 @@ async def test_inline_mode_has_nothing_to_republish(db_session, owner, monkeypat
 
 ROOT = GATEWAY_ROOT
 PREVIOUS_REVISION = "e1f2a3b4c5d6"
+THIS_REVISION = "f2a3b4c5d6e7"
 
 
 def alembic(database: Path, *arguments: str) -> None:
@@ -299,7 +300,8 @@ def test_the_migration_adds_the_publication_and_attempt_columns_and_keeps_the_jo
     assert not {"publish_attempts", "next_publish_at"} & set(columns(database, "jobs"))
     assert "attempts" not in columns(database, "analysis_tasks")
 
-    alembic(database, "upgrade", "head")
+    # Pinned by id: the head (e7f8a9b0c1d2, M9.6) drops analysis_tasks.
+    alembic(database, "upgrade", THIS_REVISION)
     jobs = columns(database, "jobs")
     assert jobs["publish_attempts"][3] == 1 and jobs["publish_attempts"][4].strip("'\"") == "0"  # NOT NULL, 0
     assert jobs["next_publish_at"][3] == 0  # nullable

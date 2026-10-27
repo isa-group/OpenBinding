@@ -191,7 +191,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/admin/moderation", "get"),
         ("/v1/admin/overview", "get"),
         ("/v1/admin/queues", "get"),
-        ("/v1/admin/organizations/{organization_id}/sponsor", "post"),
         ("/v1/admin/errors/overview", "get"),
         ("/v1/admin/errors", "get"),
         ("/v1/engine-registrations/{name}/approve", "post"),

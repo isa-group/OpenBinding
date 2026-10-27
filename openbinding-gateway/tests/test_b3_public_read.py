@@ -504,7 +504,6 @@ async def test_members_only_endpoints_stay_closed_around_a_public_project(ctx):
     closed_for_visitors = [
         f"/v1/organizations/{c.slug}/members",
         f"/v1/organizations/{c.slug}/audit",
-        f"/v1/organizations/{c.slug}/sponsor-proposals",
         f"/v1/organizations/{c.slug}/library",
         f"{c.url}/jobs",
         f"{c.url}/package",

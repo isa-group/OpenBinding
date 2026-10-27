@@ -423,12 +423,6 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if method == "GET"
             else {ApiKeyPermission.ORGANIZATIONS_WRITE.value}
         )
-    if path.startswith("/v1/sponsor-proposals"):
-        return frozenset(
-            {ApiKeyPermission.ORGANIZATIONS_READ.value}
-            if method == "GET"
-            else {ApiKeyPermission.ORGANIZATIONS_WRITE.value}
-        )
     if path.startswith("/v1/invitations"):
         return frozenset({ApiKeyPermission.ORGANIZATIONS_WRITE.value})
     if path.startswith("/v1/notifications"):

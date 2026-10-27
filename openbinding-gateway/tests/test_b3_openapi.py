@@ -1,4 +1,4 @@
-"""B3: the OpenAPI document describes proposals and public reads, and the snapshot agrees.
+"""B3: the OpenAPI document has no sponsor proposals (removed in M9.6), and the snapshot agrees.
 
 ``tools/dump_openapi.py --check`` only says "out of date". The semantic comparison
 below names the first differing paths, which is what a reviewer needs.
@@ -47,29 +47,21 @@ def test_the_snapshot_is_semantically_current(document):
     assert not found, "snapshot differs from the code:\n" + "\n".join(found)
 
 
-def test_sponsor_proposals_are_in_the_contract(document):
+def test_sponsor_proposals_are_not_in_the_contract(document):
     paths = document["paths"]
-    expected = {
-        ("/v1/sponsor-proposals/{proposal_id}", "get"),
-        ("/v1/sponsor-proposals/{proposal_id}/accept", "post"),
-        ("/v1/sponsor-proposals/{proposal_id}/decline", "post"),
-        ("/v1/sponsor-proposals/{proposal_id}/cancel", "post"),
-        ("/v1/users/me/sponsor-proposals", "get"),
-        ("/v1/organizations/{org}/sponsor-proposals", "get"),
-    }
-    for path, method in expected:
-        operation = paths[path][method]
-        assert operation["operationId"] and operation["security"]
-        assert operation["x-required-api-key-permissions"]
-    patch = paths["/v1/organizations/{org}"]["patch"]["responses"]
-    admin = paths["/v1/admin/organizations/{organization_id}/sponsor"]["post"]["responses"]
-    for responses in (patch, admin):
-        assert "202" in responses and "409" in responses
-        assert responses["202"]["content"]["application/json"]["schema"] == {
-            "$ref": "#/components/schemas/SponsorProposalView"
-        }
-    view = document["components"]["schemas"]["SponsorProposalView"]["properties"]
-    assert set(view["status"]["enum"]) == {"pending", "accepted", "declined", "cancelled", "expired"}
-    assert {"expires_at", "decided_at", "decided_by_user_id", "proposed_by_user_id"} <= set(view)
+    for path in (
+        "/v1/sponsor-proposals/{proposal_id}",
+        "/v1/sponsor-proposals/{proposal_id}/accept",
+        "/v1/sponsor-proposals/{proposal_id}/decline",
+        "/v1/sponsor-proposals/{proposal_id}/cancel",
+        "/v1/users/me/sponsor-proposals",
+        "/v1/organizations/{org}/sponsor-proposals",
+        "/v1/admin/organizations/{organization_id}/sponsor",
+    ):
+        assert path not in paths, path
+    responses = paths["/v1/organizations/{org}"]["patch"]["responses"]
+    assert "202" not in responses and "409" not in responses
+    assert "402" in responses and "sponsor_must_be_caller" in responses["422"]["description"]
+    assert "SponsorProposalView" not in document["components"]["schemas"]
     body = document["components"]["schemas"]["OrganizationUpdate"]["properties"]
-    assert body["replace_pending_proposal"]["default"] is False
+    assert "replace_pending_proposal" not in body

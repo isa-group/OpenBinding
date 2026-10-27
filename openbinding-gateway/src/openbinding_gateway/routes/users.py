@@ -783,7 +783,6 @@ async def delete_own_account(
             await remove_contract(user.id)
     except PricingUnavailable as exc:
         raise pricing_unavailable_error(exc, where="contract removal") from exc
-    from .. import sponsor_proposals
-    await sponsor_proposals.cancel_for_user(session, user.id, "user_deleted", user.id)
+    # [impl->req~auth-roles-entitlements-account-lifecycle-without-proposals~1]
     await session.delete(user)
     await session.flush()

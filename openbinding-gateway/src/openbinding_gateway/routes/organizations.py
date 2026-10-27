@@ -9,8 +9,6 @@ import uuid
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Query, status
-from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -82,9 +80,8 @@ from ..models.platform import (
     ProjectResourceRevisionCreate,
     ProjectResourceRevisionView,
     ProjectResourceView,
-    SponsorProposalView,
 )
-from .. import sponsor_proposals
+from .. import sponsorship
 from ..access import public_read
 from ..repositories import jobs as job_repository
 from ..repositories import organizations as organization_repository
@@ -239,20 +236,12 @@ async def get_organization(
     response_model=OrganizationView,
     operation_id="updateOrganization",
     responses={
-        202: {
-            "model": SponsorProposalView,
-            "description": (
-                "`billing_sponsor_user_id` named somebody other than the caller: the sponsor is "
-                "unchanged and a pending proposal (the body) awaits that person's acceptance. "
-                "The other fields of the request were applied."
-            ),
-        },
         402: {"model": ErrorResponse, "description": "Naming oneself: the caller's plan cannot take the subtree (`sponsor_quota_exceeded`)."},
-        409: {
-            "model": ErrorResponse,
+        422: {
             "description": (
-                "A sponsorship proposal is already pending (`sponsor_proposal_pending`, with its "
-                "`proposal_id`); cancel it, or, if you made it, send `replace_pending_proposal: true`."
+                "`billing_sponsor_user_id` named somebody other than the caller and the current "
+                "sponsor (`sponsor_must_be_caller`): nothing in the request was applied. Also "
+                "`ambiguous_parent` and request validation errors."
             ),
         },
     },
@@ -265,6 +254,22 @@ async def update_organization(
 ) -> OrganizationView:
     organization = await _required_org(session, org)
     await require_role(session, organization, user, OrganizationRole.ADMIN)
+    # [impl->req~auth-roles-entitlements-sponsor-caller-only~1]
+    # Nobody can make another person pay: only the caller can become the
+    # sponsor.  Checked before anything is applied, and before the named
+    # account is looked up, so the answer says nothing about that account.
+    sponsor_named = (
+        payload.billing_sponsor_user_id is not None
+        and payload.billing_sponsor_user_id != organization.billing_sponsor_user_id
+    )
+    if sponsor_named:
+        await require_role(session, organization, user, OrganizationRole.OWNER)
+        if payload.billing_sponsor_user_id != user.id:
+            raise api_error(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "sponsor_must_be_caller",
+                "Only you can make yourself the billing sponsor of this organization.",
+            )
     if payload.name is not None:
         organization.name = payload.name
     if payload.move_to_root and payload.parent_id is not None:
@@ -279,31 +284,17 @@ async def update_organization(
             await require_role(session, new_parent, user, OrganizationRole.ADMIN)
         organization.parent_id = new_parent_id
     sponsor_change: dict[str, str] = {}
-    proposal = None
-    if payload.billing_sponsor_user_id is not None and payload.billing_sponsor_user_id != organization.billing_sponsor_user_id:
-        await require_role(session, organization, user, OrganizationRole.OWNER)
-        sponsor = await session.get(User, payload.billing_sponsor_user_id)
-        if sponsor is None or not sponsor.is_active:
-            raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_sponsor", "Sponsor must be active.")
-        if sponsor.id == user.id:
-            # Taking the sponsorship yourself needs nobody's consent but your own
-            # contract's limits.  A pending proposal for somebody else is moot.
-            previous = await sponsor_proposals.transfer_sponsorship(session, organization, sponsor)
-            sponsor_change = {
-                "previous_sponsor_user_id": str(previous),
-                "new_sponsor_user_id": str(sponsor.id),
-            }
-            await sponsor_proposals.supersede_pending(session, organization, user)
-        else:
-            proposal = await sponsor_proposals.create_proposal(
-                session, organization, sponsor, user, replace=payload.replace_pending_proposal
-            )
+    if sponsor_named:
+        # [impl->req~auth-roles-entitlements-sponsor-self-transfer~1]
+        # Taking the sponsorship yourself needs nobody's consent but your own
+        # contract's limits (402 ``sponsor_quota_exceeded``).
+        previous = await sponsorship.transfer_sponsorship(session, organization, user)
+        sponsor_change = {
+            "previous_sponsor_user_id": str(previous),
+            "new_sponsor_user_id": str(user.id),
+        }
     _audit(session, user, "organization.updated", organization, organization.id, **sponsor_change)
     await session.flush()
-    if proposal is not None:
-        # The sponsor is unchanged: the answer is the pending proposal.
-        [view] = await sponsor_proposals.views(session, [proposal])
-        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content=jsonable_encoder(view))
     return await _org_view(session, organization, user)
 
 

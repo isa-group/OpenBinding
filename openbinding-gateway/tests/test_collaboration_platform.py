@@ -121,17 +121,17 @@ async def test_sponsor_transfer_validates_and_moves_the_whole_tree_atomically(
     platform_gate.plans[owner_id] = LARGER_PLAN
     root, child = await tree(api_client, headers)
 
-    # Since B3 the owner only *proposes*; the limits are checked when the
-    # proposed person accepts, and a refusal leaves the proposal pending.
-    proposed = await api_client.patch(
-        f"/v1/organizations/{root['slug']}",
+    # Only the caller can become the sponsor (M9.6): the new sponsor is an OWNER
+    # who takes the sponsorship, and their plan's limits are checked first.
+    promoted = await api_client.put(
+        f"/v1/organizations/{root['slug']}/members/{sponsor['id']}",
         headers=headers,
-        json={"billing_sponsor_user_id": sponsor["id"]},
+        json={"user_id": sponsor["id"], "role": "OWNER"},
     )
-    assert proposed.status_code == 202, proposed.text
-    proposal_id = proposed.json()["id"]
-    refused = await api_client.post(
-        f"/v1/sponsor-proposals/{proposal_id}/accept", headers=sponsor_headers
+    assert promoted.status_code == 200, promoted.text
+    take = {"billing_sponsor_user_id": sponsor["id"]}
+    refused = await api_client.patch(
+        f"/v1/organizations/{root['slug']}", headers=sponsor_headers, json=take
     )
     assert refused.status_code == 402
     assert refused.json()["detail"]["code"] == "sponsor_quota_exceeded"
@@ -144,14 +144,9 @@ async def test_sponsor_transfer_validates_and_moves_the_whole_tree_atomically(
     ).scalars().all()
     assert {row.billing_sponsor_user_id for row in rows} == {owner_id}
 
-    still_pending = await api_client.get(
-        f"/v1/sponsor-proposals/{proposal_id}", headers=headers
-    )
-    assert still_pending.json()["status"] == "pending"
-
     platform_gate.plans[sponsor_id] = LARGER_PLAN
-    moved = await api_client.post(
-        f"/v1/sponsor-proposals/{proposal_id}/accept", headers=sponsor_headers
+    moved = await api_client.patch(
+        f"/v1/organizations/{root['slug']}", headers=sponsor_headers, json=take
     )
     db_session.expire_all()
     rows = (
@@ -165,13 +160,12 @@ async def test_sponsor_transfer_validates_and_moves_the_whole_tree_atomically(
     assert moved.status_code == 200, moved.text
     assert {row.billing_sponsor_user_id for row in rows} == {sponsor_id}
 
-    for organization in (root, child):
-        added = await api_client.put(
-            f"/v1/organizations/{organization['slug']}/members/{sponsor['id']}",
-            headers=headers,
-            json={"user_id": sponsor["id"], "role": "MEMBER"},
-        )
-        assert added.status_code == 200, added.text
+    added = await api_client.put(
+        f"/v1/organizations/{child['slug']}/members/{sponsor['id']}",
+        headers=headers,
+        json={"user_id": sponsor["id"], "role": "MEMBER"},
+    )
+    assert added.status_code == 200, added.text
     usage = await sponsor_usage(db_session, sponsor_id)
     assert usage["organizations"] == 2
     assert usage["members"] == 2
