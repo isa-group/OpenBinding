@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import fnmatch
+
 import pytest
 import yaml
 
@@ -61,7 +63,10 @@ def _queues(service: dict) -> list[str]:
 
 
 # Every lab compose file (base and overlays), found from the repository root; JSON is YAML.
-LAB_COMPOSE_FILES = tuple(sorted(path.name for path in REPO_ROOT.glob("compose.lab*.json")))
+# The root compose*.json files are already classified as gateway root files in tools/ci_changes.py
+# (GATEWAY_ROOT_FILES), so a change to any of them selects this test.
+LAB_COMPOSE_FILES = tuple(sorted(
+    path.name for path in REPO_ROOT.iterdir() if fnmatch.fnmatch(path.name, "compose.lab*.json")))
 
 
 # [utest->req~lab-deployment-no-analysis-worker~1]
