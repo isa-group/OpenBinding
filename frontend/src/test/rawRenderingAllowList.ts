@@ -21,22 +21,11 @@ export type UnlistedFinding = Omit<RawRenderingOffender, 'retiredBy'> & { retire
 // [impl->req~frontend-retire-allow-list-leaves~1]
 // [impl->req~frontend-retire-reports-allow-list~1]
 // [impl->req~frontend-retire-library-allow-list~1]
-export const MAX_ALLOWED_OFFENDERS = 12;
+export const MAX_ALLOWED_OFFENDERS = 10;
 
 export const UNLISTED_REASON = 'found by the detector, not in ROADMAP M2; to be decided by the owner/coordinator';
 
 export const RAW_RENDERING_ALLOW_LIST: RawRenderingOffender[] = [
-  {
-    offender: 1,
-    file: 'components/EngineReportView/EngineReportView.tsx',
-    lines: [
-      { line: 182, text: '<pre className="engine-claimed">{JSON.stringify(report.solutions, null, 2)}</pre>' },
-      { line: 187, text: '<pre className="engine-claimed">{JSON.stringify(report.provenance, null, 2)}</pre>' },
-      { line: 198, text: '<pre className="engine-claimed">{JSON.stringify(report.raw, null, 2)}</pre>' },
-    ],
-    reason: 'Solutions, provenance and raw report dumped in <pre>.',
-    retiredBy: 'M2.3',
-  },
   {
     offender: 2,
     file: 'pages/Jobs/JobResult.tsx',
@@ -58,15 +47,6 @@ export const RAW_RENDERING_ALLOW_LIST: RawRenderingOffender[] = [
       },
     ],
     reason: 'Decision and solution JSON in <pre>.',
-    retiredBy: 'M2.3',
-  },
-  {
-    offender: 4,
-    file: 'pages/Workbench/CheckResult.tsx',
-    lines: [
-      { line: 58, text: "<code>{item.code || 'diagnostic'}</code> {item.message || item.detail || JSON.stringify(item)}" },
-    ],
-    reason: 'A diagnostic item is stringified as the fallback text.',
     retiredBy: 'M2.3',
   },
   {
