@@ -144,7 +144,7 @@ function GlanceSection({ root, caseSlug, latestNumber, state, reload }: {
       <h2 id="cd-glance">Latest revision at a glance</h2>
       {state.status === 'loading' && <div role="status" aria-busy="true"><span className="sr-only">Reading the latest revision…</span><Skeleton variant="panel" /></div>}
       {data?.state === 'none' && (
-        <p className="org-muted">Revision {latestNumber} has no compiled snapshot, so there is no workflow to draw. Create a new revision in the workbench to get one.</p>
+        <p className="org-muted">Revision {latestNumber} has no compiled snapshot, so there is no workflow to draw. Save a new revision from the workbench to get one.</p>
       )}
       {data?.state === 'failed' && (
         <Notice tone="warning" action={<Action variant="secondary" size="sm" onClick={reload}>Retry</Action>}>
@@ -168,6 +168,7 @@ function GlanceSection({ root, caseSlug, latestNumber, state, reload }: {
   );
 }
 
+// [impl->req~frontend-retire-composer-entry-points-repointed~1]
 function DetailBody({ organization, project, content, canCreate, canAdminister, role }: {
   organization: Organization; project: Project; content: RouteCaseContent; canCreate: boolean; canAdminister: boolean; role: Organization['effective_role'];
 }) {

@@ -123,9 +123,21 @@ describe('Case compare', () => {
   });
 
   // [utest->req~frontend-retire-composer-entry-points-repointed~1]
-  it('asks for a second revision when the case has only one', async () => {
+  it('asks a viewer for a second revision without offering a new one', async () => {
     platform.revisions.mockResolvedValue([r1]);
     renderCompare();
+
+    expect(await screen.findByRole('heading', { name: 'Comparing needs two revisions' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'New revision' })).toBeNull();
+    expect(screen.getAllByRole('link').filter((a) => a.getAttribute('href')?.includes('/workbench?case='))).toEqual([]);
+  });
+
+  // [utest->req~frontend-retire-composer-entry-points-repointed~1]
+  it('asks a member for a second revision when the case has only one', async () => {
+    platform.revisions.mockResolvedValue([r1]);
+    renderProjectScreen(<CaseCompare />, {
+      path: '/app/:org/:project/cases/:case/compare', url: `${root}/cases/flujo-checkout/compare`, organizations: [org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' })],
+    });
 
     expect(await screen.findByRole('heading', { name: 'Comparing needs two revisions' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${root}/workbench?case=flujo-checkout`);

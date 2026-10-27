@@ -103,11 +103,14 @@ describe('Case detail', () => {
     expect(await within(glance).findByRole('img', { name: /^Workflow: authenticate/ })).toBeInTheDocument();
   });
 
+  // [utest->req~frontend-retire-composer-entry-points-repointed~1]
   it('says so when the latest revision has no compiled snapshot', async () => {
     platform.revisions.mockResolvedValue([r1]);
     renderDetail();
 
-    expect(await screen.findByText(/Revision 1 has no compiled snapshot/)).toBeInTheDocument();
+    const note = await screen.findByText(/Revision 1 has no compiled snapshot/);
+    expect(note).toHaveTextContent(/Save a new revision from the workbench to get one\.$/);
+    expect(note.textContent).not.toMatch(/composer/i);
     expect(platform.snapshot).not.toHaveBeenCalled();
     expect(screen.getByText('1 revision')).toBeInTheDocument();
   });

@@ -19,6 +19,7 @@ import { caseSortKey, newestFirst, plural } from './casesModel';
 import { DeleteCaseDialog, NewCaseDialog } from './dialogs';
 import { CaseFrame, ReadOnlyNote } from './parts';
 
+// [impl->req~frontend-retire-composer-entry-points-repointed~1]
 function CaseRow({ root, entry, canCreate, canAdminister, publicRead, onDelete }: {
   root: string; entry: CaseContent; canCreate: boolean; canAdminister: boolean; publicRead: boolean; onDelete: () => void;
 }) {
@@ -126,7 +127,7 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
           <h2 id="case-guide-title">No cases yet</h2>
           {publicRead ? <p>This project hasn’t shared any case yet.</p> : (
             <>
-              <p>Start from a ready example, or open the workbench and build one.</p>
+              <p>Start from a ready example, or create a case and save its first revision from the workbench.</p>
               <div className="proj-actions">
                 <Action to="/examples" variant="primary">Import an example</Action>
               </div>

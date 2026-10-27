@@ -480,7 +480,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('case-revision/app/:org/:project/cases/:case/revisions/:revision', async ({ page }, testInfo) => {
+    test('case-revision /app/:org/:project/cases/:case/revisions/:revision', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${CASE}/revisions/2`);

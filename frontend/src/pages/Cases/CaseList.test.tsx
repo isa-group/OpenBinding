@@ -99,6 +99,9 @@ describe('Case list', () => {
     renderList();
 
     const guide = await screen.findByRole('region', { name: 'No cases yet' });
+    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
+    expect(guide).toHaveTextContent('Start from a ready example, or create a case and save its first revision from the workbench.');
+    expect(guide.textContent).not.toMatch(/composer|compose one/);
     expect(within(guide).getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/examples');
     // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(within(guide).queryByRole('link', { name: /library/i })).toBeNull();

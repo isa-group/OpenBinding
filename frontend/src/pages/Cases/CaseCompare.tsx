@@ -19,7 +19,8 @@ const numberOf = (value: string | null): number | null => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 };
 
-function CompareBody({ organization, project, content }: { organization: Organization; project: Project; content: RouteCaseContent }) {
+// [impl->req~frontend-retire-composer-entry-points-repointed~1]
+function CompareBody({ organization, project, content, canCreate }: { organization: Organization; project: Project; content: RouteCaseContent; canCreate: boolean }) {
   const { item, revisions } = content;
   const [params, setParams] = useSearchParams();
   const { copy, status } = useCopy();
@@ -95,7 +96,7 @@ function CompareBody({ organization, project, content }: { organization: Organiz
         <div className="case-guide">
           <h2>Comparing needs two revisions</h2>
           <p>{item.name} has {revisions.length === 0 ? 'no sealed revision' : 'one sealed revision'} so far. Seal another one to see what changed.</p>
-          <div className="proj-actions"><Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">New revision</Action><Action to={base} variant="secondary">Back to the case</Action></div>
+          <div className="proj-actions">{canCreate && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">New revision</Action>}<Action to={base} variant="secondary">Back to the case</Action></div>
         </div>
       )}
       {revisions.length >= 2 && missingSide && (
@@ -214,5 +215,5 @@ export function CaseCompare() {
       </CaseFrame>
     );
   }
-  return <CompareBody organization={organization} project={project} content={loaded} />;
+  return <CompareBody organization={organization} project={project} content={loaded} canCreate={route.access.canCreate} />;
 }
