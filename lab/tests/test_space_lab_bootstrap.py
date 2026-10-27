@@ -23,6 +23,7 @@ import fnmatch
 import importlib.util
 import json
 import logging
+import os
 import re
 import sys
 import tomllib
@@ -50,6 +51,8 @@ SEED_NAMESPACE = uuid.UUID("6f1d3a52-8c0e-4b7a-9d21-0f5e7c3a9b10")
 SPACE_URL = "https://space.score.us.es"
 API_KEY = "mgmt-key-sample-001-ZZ99"
 SPHERE_SAMPLE_KEY = "sphere-sample-key"
+SECRET_SAMPLE = "sk-" + "A" * 20  # built at run time: a secret scanner must not flag the file
+PROXY_VARIABLES = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy")
 UV_LOCK = ROOT / "openbinding-gateway" / "uv.lock"
 IN_PROGRESS = ("queued", "checking", "applying")
 NO_AUTH_ROUTES = ("/users/authenticate", "/organizations", "api-keys")
@@ -253,7 +256,7 @@ def _read(path: Path) -> str:
 
 
 def test_tool_dockerfile_pins_digest_and_requirements():
-    # [utest->req~lab-space-remote-bootstrap~1]
+    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     assert rule_tool_dockerfile(_read(TOOL_DOCKERFILE)) is None
     assert rule_requirements(_read(REQUIREMENTS)) is None
 
@@ -276,7 +279,7 @@ TOOL_MUTATIONS = {
     "secret ARG": _swap("WORKDIR /app", "ARG SPACE_API_KEY\nWORKDIR /app"),
     "root user": _swap("USER 1000:1000", "USER root"),
     "user by name": _swap("USER 1000:1000", "USER app"),
-    "secret-shaped literal": _swap("WORKDIR /app", "ENV GREETING=sk-AAAAAAAAAAAAAAAAAAAA\nWORKDIR /app"),
+    "secret-shaped literal": _swap("WORKDIR /app", f"ENV GREETING={SECRET_SAMPLE}\nWORKDIR /app"),
     "tool not copied": _swap("COPY space_lab_bootstrap.py ./space_lab_bootstrap.py\n", ""),
     "requirements not copied": _swap("COPY requirements.txt ./requirements.txt\n", ""),
     "source relative to the repository root": _swap("COPY space_lab_bootstrap.py", "COPY lab/tools/space_lab_bootstrap.py"),
@@ -296,7 +299,7 @@ REQUIREMENT_MUTATIONS = {
 
 
 def test_control_dockerfile_rules_refuse_violations():
-    # [utest->req~lab-space-remote-bootstrap~1]
+    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     assert rule_tool_dockerfile(SAMPLE_TOOL) is None and rule_requirements(SAMPLE_REQUIREMENTS) is None
     for label, mutate in TOOL_MUTATIONS.items():
         mutated = mutate(SAMPLE_TOOL)
@@ -307,7 +310,7 @@ def test_control_dockerfile_rules_refuse_violations():
         assert mutated != SAMPLE_REQUIREMENTS, label
         assert rule_requirements(mutated), f"requirements: {label} was not refused"
     # comments may mention anything: only instructions count
-    assert rule_tool_dockerfile("# the key is SPACE_API_KEY=sk-AAAAAAAAAAAAAAAAAAAA\n" + SAMPLE_TOOL) is None
+    assert rule_tool_dockerfile(f"# the key is SPACE_API_KEY={SECRET_SAMPLE}\n" + SAMPLE_TOOL) is None
 
 
 def _from_tool(text: str) -> str | None:
@@ -326,7 +329,7 @@ ALONE_CONTROLS = [
 
 
 def test_control_each_dockerfile_rule_refuses_its_mutations_alone():
-    # [utest->req~lab-space-remote-bootstrap~1]
+    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     for rule, labels in ALONE_CONTROLS:
         assert rule(SAMPLE_TOOL) is None, f"{rule.__name__}: the conforming sample must pass"
         for label in labels:
@@ -342,7 +345,7 @@ SAMPLE_IGNORE = ["*", "!requirements.txt", "!space_lab_bootstrap.py"]
 
 
 def test_every_host_copy_survives_the_ignore_rules_of_its_context():
-    # [utest->req~lab-space-remote-bootstrap~1]
+    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     ignore = TOOL_CONTEXT / ".dockerignore"
     assert ignore.is_file(), f"{ignore.relative_to(ROOT)} does not exist"
     text = _read(TOOL_DOCKERFILE)
@@ -354,7 +357,7 @@ def test_every_host_copy_survives_the_ignore_rules_of_its_context():
 
 
 def test_control_the_context_matcher_refuses_excluded_copies():
-    # [utest->req~lab-space-remote-bootstrap~1]
+    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     assert rule_context_copies(SAMPLE_TOOL, SAMPLE_IGNORE) is None
     assert host_copy_sources(SAMPLE_TOOL) == ["requirements.txt", "space_lab_bootstrap.py"]
     assert rule_context_copies(SAMPLE_TOOL, ["*"]), "everything excluded must be refused"
@@ -383,8 +386,9 @@ class FakeSpace:
     def __init__(self, *, host="space.score.us.es", port=None, key=API_KEY, pricings=None,
                  sync_script=("queued", "checking", "applying", "ready"), created_name="openbinding",
                  echo_on_error=False, fail_service_post=False, sync_shape="nested", redirect_services=None,
-                 reject_key=False):
+                 reject_key=False, summaries=False):
         self.host, self.port, self.key = host, port, key
+        self.summaries = summaries
         self.services: dict[str, dict] = {}
         self.sync_status: dict[str, str] = {}
         self.sync_script = list(sync_script)
@@ -455,6 +459,8 @@ class FakeSpace:
         if path == "/api/v1/services" and method == "GET":
             if self.redirect_services:
                 return httpx.Response(302, headers={"location": self.redirect_services})
+            if self.summaries:  # the list carries summaries; source and sphere only on the item route
+                return httpx.Response(200, json=[{"name": s["name"], "status": "active"} for s in self.services.values()])
             return httpx.Response(200, json=json.loads(json.dumps(list(self.services.values()))))
         if path == "/api/v1/services" and method == "POST":
             if self.fail_service_post:
@@ -626,7 +632,12 @@ def test_a_missing_api_key_is_refused(tool, environ):
 
 @pytest.mark.parametrize("url", ["http://space.score.us.es", "http://space-api:3000", "ftp://x",
                                  "https://user:pw@space.score.us.es", "https://", "https:///path", "space.score.us.es",
-                                 "https://:443", "https://host:abc", "https://host:99999"])
+                                 "https://:443", "https://host:abc", "https://host:99999",
+                                 "https://space.score.us.es?x=1", "https://space.score.us.es#a",
+                                 "https://space.score.us.es\\@evil.example", "https://space.score.us.es/\n",
+                                 "https://space.score.us.es/api", "https://space.score.us.es/ ",
+                                 "https://space.score.us.es\t", "https://space.score.us.es/\x00",
+                                 "https://space.score.us.es?", "https://space.score.us.es/#"])
 def test_an_invalid_space_url_is_refused(tool, url):
     # [utest->req~lab-space-remote-bootstrap~1]
     with pytest.raises(tool.BootstrapError) as raised:
@@ -636,10 +647,14 @@ def test_an_invalid_space_url_is_refused(tool, url):
     assert str(raised.value).startswith("configuration: SPACE_URL")
 
 
-@pytest.mark.parametrize("url", ["https://space.score.us.es", "https://space.example.org", "https://other-space.example:8443/"])
-def test_a_valid_space_url_is_accepted(tool, url):
+@pytest.mark.parametrize("url, expected", [
+    ("https://space.score.us.es", "https://space.score.us.es"),
+    ("https://space.example.org", "https://space.example.org"),
+    ("https://other-space.example:8443/", "https://other-space.example:8443"),
+])
+def test_a_valid_space_url_is_accepted_and_normalised(tool, url, expected):
     # [utest->req~lab-space-remote-bootstrap~1]
-    assert tool.Config.from_environ({"SPACE_URL": url, "SPACE_API_KEY": API_KEY}).space_url == url
+    assert tool.Config.from_environ({"SPACE_URL": url, "SPACE_API_KEY": API_KEY}).space_url == expected
 
 
 def test_the_constants_and_the_synthetic_users_follow_the_seed(tool):
@@ -899,6 +914,149 @@ def test_a_top_level_status_and_a_flat_service_are_accepted(tool):
     fake.add_service(flat=True)
     report = run(tool, fake, contracts)
     assert report["service"] == "exists" and report["synchronization"] == "skipped" and fake.changes() == []
+
+
+def test_a_summary_entry_is_completed_from_the_item_route(tool):
+    # [utest->req~lab-space-remote-bootstrap~1]
+    fake, contracts = FakeSpace(summaries=True), FakeContracts()
+    fake.add_service()
+    report = run(tool, fake, contracts)
+    assert report["service"] == "exists" and report["synchronization"] == "skipped"
+    assert fake.count("GET", "/api/v1/services/openbinding", exact=True) == 1, "the item route was not read"
+    assert fake.changes() == [] and len(contracts.added) == 6
+
+
+@pytest.mark.parametrize("override", [{"source": "local"}, {"permanentUrl": "https://sphere.score.us.es/p/other"},
+                                      {"policy": "all_first"}])
+def test_a_summary_entry_with_other_settings_aborts_unchanged(tool, override):
+    # [utest->req~lab-space-remote-bootstrap~1]
+    fake, contracts = FakeSpace(summaries=True), FakeContracts()
+    before = dict(fake.add_service(**override))
+    _assert_aborted(tool, fake, contracts, "service")
+    assert fake.services["openbinding"] == before and fake.changes() == []
+
+
+def test_a_full_list_entry_needs_no_item_read(tool):
+    # [utest->req~lab-space-remote-bootstrap~1]
+    fake, contracts = FakeSpace(), FakeContracts()
+    fake.add_service()
+    run(tool, fake, contracts)
+    assert fake.count("GET", "/api/v1/services/openbinding", exact=True) == 0
+
+
+# -- bounds on what the SPACE answers ---------------------------------------------------------------------------------
+
+
+def test_a_response_body_over_one_mebibyte_is_refused_before_decoding(tool, monkeypatch):
+    # [utest->req~lab-space-remote-bootstrap-secrets~1]
+    big = b'["' + b"A" * (1024 * 1024) + b'"]'
+    monkeypatch.setattr(tool.json, "loads", lambda *a, **kw: pytest.fail("the body was decoded"))
+    monkeypatch.setattr(httpx.Response, "json", lambda self, **kw: pytest.fail("the body was decoded"))
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, content=big,
+                                                                    headers={"content-type": "application/json"}))
+    contracts = FakeContracts()
+    with pytest.raises(tool.BootstrapError) as raised:
+        asyncio.run(tool.bootstrap(make_config(tool), transport=transport, contracts=contracts, sleep=Sleeps()))
+    assert str(raised.value) == "service: GET /services returned a body over 1 MiB"
+    assert contracts.added == []
+
+
+def test_a_body_of_exactly_one_mebibyte_is_still_read(tool):
+    # [utest->req~lab-space-remote-bootstrap-secrets~1]
+    fake, contracts = FakeSpace(), FakeContracts()
+    fake.add_service()
+    inner = fake._handle
+
+    def padded(request: httpx.Request) -> httpx.Response:
+        response = inner(request)
+        if request.url.path == "/api/v1/services" and request.method == "GET":
+            body = response.content
+            return httpx.Response(200, content=body + b" " * (1024 * 1024 - len(body)))
+        return response
+
+    report = asyncio.run(tool.bootstrap(make_config(tool), transport=httpx.MockTransport(padded), contracts=contracts,
+                                        sleep=Sleeps()))
+    assert report["service"] == "exists"
+
+
+def test_pricing_versions_that_do_not_look_like_versions_are_ignored(tool):
+    # [utest->req~lab-space-remote-bootstrap-secrets~1]
+    invalid = ["9.0.0/../x", "9.1 ", "9.2.0\n", "v9", "9.3.0?x=1", "9.4.0#a", "9..0", "9.5.", "", "9.6\\0", "9.7.0-"]
+    pricings = [{"version": "1.0.0"}, {"version": "1.1.0+build.5"}, *({"version": v} for v in invalid)]
+    fake, contracts = FakeSpace(pricings=pricings), FakeContracts()
+    run(tool, fake, contracts)
+    assert {m.contracted_services["openbinding"] for m in contracts.added} == {"1.1.0+build.5"}
+    fake, contracts = FakeSpace(pricings={"activePricings": {"9.0.0/../x": {}, "1.0.0": {}, "9.1\n": {}}}), FakeContracts()
+    run(tool, fake, contracts)
+    assert {m.contracted_services["openbinding"] for m in contracts.added} == {"1.0.0"}
+
+
+def test_without_a_valid_pricing_version_it_aborts(tool):
+    # [utest->req~lab-space-remote-bootstrap-secrets~1]
+    _assert_aborted(tool, FakeSpace(pricings=[{"version": "../x"}, {"version": "9.1\n"}]), FakeContracts(), "no active pricing")
+    _assert_aborted(tool, FakeSpace(pricings={"activePricings": {"latest": {}}}), FakeContracts(), "no active pricing")
+
+
+# -- proxy variables never reach a client that carries the key --------------------------------------------------------
+
+
+def _visible_proxies() -> list[str]:
+    return [name for name in PROXY_VARIABLES if name in os.environ]
+
+
+def _set_proxies(monkeypatch) -> None:
+    for name in PROXY_VARIABLES:
+        monkeypatch.setenv(name, "http://proxy.invalid:3128")
+    for name in ("REQUESTS_CA_BUNDLE", "SSL_CERT_FILE", "SSL_CERT_DIR"):
+        monkeypatch.setenv(name, "/etc/ssl/sample")
+
+
+def _assert_trust_variables_kept() -> None:
+    assert [os.environ.get(n) for n in ("REQUESTS_CA_BUNDLE", "SSL_CERT_FILE", "SSL_CERT_DIR")] == ["/etc/ssl/sample"] * 3
+
+
+def test_the_sdk_client_is_created_without_proxy_variables(tool, monkeypatch):
+    # [utest->req~lab-space-remote-bootstrap-secrets~1]
+    fake, contracts = FakeSpace(), FakeContracts()
+    seen: list[list[str]] = []
+
+    async def close():
+        return None
+
+    def connect_async(url, api_key, timeout=None):
+        seen.append(_visible_proxies())
+        return SimpleNamespace(contracts=contracts, close=close)
+
+    monkeypatch.setattr(tool.SpaceClientFactory, "connect_async", staticmethod(connect_async))
+    _set_proxies(monkeypatch)
+    assert _visible_proxies() == list(PROXY_VARIABLES)
+    asyncio.run(tool.bootstrap(make_config(tool), transport=fake.transport(), sleep=Sleeps()))
+    assert seen == [[]], f"the SDK client was built with proxy variables in the environment: {seen}"
+    _assert_trust_variables_kept()
+
+
+def test_main_removes_the_proxy_variables_before_any_client_is_built(tool, monkeypatch, capsys):
+    # [utest->req~lab-space-remote-bootstrap-secrets~1]
+    seen: list[list[str]] = []
+
+    async def stub(config, **kwargs):
+        seen.append(_visible_proxies())
+        return {"service": "exists"}
+
+    monkeypatch.setattr(tool, "bootstrap", stub)
+    _set_proxies(monkeypatch)
+    assert tool.main([], {"SPACE_URL": SPACE_URL, "SPACE_API_KEY": API_KEY}) == 0
+    assert seen == [[]] and _visible_proxies() == [], "main left a proxy variable in the process environment"
+    _assert_trust_variables_kept()
+    assert capsys.readouterr().out == '{"service": "exists"}\n'
+
+
+def test_main_removes_the_proxy_variables_even_when_the_configuration_is_refused(tool, monkeypatch, capsys):
+    # [utest->req~lab-space-remote-bootstrap-secrets~1]
+    _set_proxies(monkeypatch)
+    assert tool.main([], {}) == 1
+    assert _visible_proxies() == []
+    capsys.readouterr()
 
 
 # -- contracts through the client -------------------------------------------------------------------------------------

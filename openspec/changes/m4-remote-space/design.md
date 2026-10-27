@@ -44,9 +44,12 @@ unchanged; 4032 + 4032 + 96 = 8160 MiB.
 |---|---|---|
 | `req~lab-deployment-no-local-space~4` | MODIFIED (living spec `~1`) | `openbinding-gateway/tests/test_no_local_space.py` |
 | `req~lab-deployment-remote-bootstrap-profile~1` | ADDED | `lab/tests/test_lab_pricing_profile.py` (tool image rules: `lab/tests/test_space_lab_bootstrap.py`) |
-| `req~lab-space-remote-bootstrap~1` | ADDED | `lab/tests/test_space_lab_bootstrap.py` |
-| `req~lab-space-remote-bootstrap-secrets~1` | ADDED | `lab/tests/test_space_lab_bootstrap.py`, `lab/tests/test_no_direct_space_http.py` |
+| `req~lab-space-remote-bootstrap~1` | ADDED | `lab/tests/test_space_lab_bootstrap.py`; code tags in `lab/tools/space_lab_bootstrap.py` |
+| `req~lab-space-remote-bootstrap-secrets~1` | ADDED | `lab/tests/test_space_lab_bootstrap.py`, `lab/tests/test_no_direct_space_http.py`; code tags in `lab/tools/space_lab_bootstrap.py` |
 | `req~lab-deployment-runbook-remote-space~1` | ADDED | `openbinding-gateway/tests/test_compose_production.py` |
+
+`compose.lab-pricing.json` is JSON and carries no comments, so it has no `[impl->...]` tag: the tests of
+`lab/tests/test_lab_pricing_profile.py` cover it as the artifact of `req~lab-deployment-remote-bootstrap-profile~1`.
 
 ## 4. Removed: superseded and retired ids
 
@@ -86,7 +89,7 @@ replaced, by the test of `req~lab-deployment-runbook-remote-space~1`).
 | R3 | The routes, body shapes and the authority of a MANAGEMENT key to create services are UNVERIFIED against `space.score.us.es` | the first live run is evidence; any difference is a new revision of `req~lab-space-remote-bootstrap~1` |
 | R4 | The key is high-risk (MANAGEMENT scope) | bare reference only; never printed, logged, raised or written; https only, no redirect, no proxy; rotation per the production runbook "Rotation" section, by the owner |
 | R5 | The lab needs outbound HTTPS to `space.score.us.es:443` | already needed for `sphere.score.us.es`; the first live run confirms it |
-| R6 | `space-python-client` 1.0.0 may follow redirects or read proxy variables in its own HTTP client | UNVERIFIED; checked on the first live run (as in `docs/qa/PRICING_PROFILE.md` today) |
+| R6 | `space-python-client` 1.0.0 may follow redirects or read proxy variables in its own HTTP client | UNVERIFIED; checked on the first live run (as in `docs/qa/PRICING_PROFILE.md` today). The tool now removes the proxy variables from its own process before it builds the client (`main`, and again in `_connect`), so a proxy cannot carry the key whatever the client does |
 | R7 | Archiving one of the superseded changes after this one would bring the local profile back into the living spec | archive plan in §7 O3 |
 | R8 | Contracts stay on the remote SPACE after a lab teardown | accepted: synthetic data, re-used by the next run |
 
@@ -95,6 +98,10 @@ replaced, by the test of `req~lab-deployment-runbook-remote-space~1`).
 - The remote SPACE version and that `POST /api/v1/services` with a MANAGEMENT key creates a service from a SPHERE link.
 - The synchronization routes and the `configuration.status` field.
 - The pricing list shape (`activePricings` map or list).
+- `GET /api/v1/services` list entries carry `source` and `sphere`. When an entry lacks both (a summary), the tool reads
+  `GET /api/v1/services/openbinding` (read-only) before comparing the settings; the live run tells which case holds.
+- Whether `space-python-client` follows redirects or reads proxy variables (UNVERIFIED; the tool scrubs the proxy
+  variables itself before it builds the client, redirects remain the client's behaviour).
 - `docker compose -f compose.lab-pricing.json run --rm --entrypoint env pricing-bootstrap` shows no proxy variable
   injected outside the manifest.
 
