@@ -1,0 +1,5 @@
+Goal: M2.4 slice 4, retire the composer screen (brief: redirect, no link to retired screen, route count drops, ~300 added lines, no Deprecation/Sunset or endpoint removal).
+State: head 05af2733 on change/m24-retire-composer. Spec (openspec/changes/m24-retire-composer, 5 reqs) aligned with the code; implementation, tests and e2e edits in; vitest 2415 pass, tsc -b pass, eslint 0 errors (run by task b4b0b404). Playwright not run (not runnable in lab). G1 (openspec validate) first runs in CI.
+Decisions: redirect target workbench?case=<slug>; tie with slice-3 lib-draft/lib-version documented (library entries win); viewer keeps pre-existing Open in Workbench link; Try faster providers not role-gated (unchanged behaviour); CaseCompare New revision now gated by canCreate.
+Next: 1) push, open PR into develop, follow CI; 2) panel reviewer + test-reviewer on pushed head; 3) set_review_package, lead_ready.
+Risks: diff line count not measured (watch PR stats vs ~300); docs how-to-test copy says steps unverified (no preview results).
