@@ -29,7 +29,7 @@ Needs: impl, utest
 - **THEN** they hold no 202 response and no description naming `sponsor_proposal_pending`
 - **AND** the 422 response describes `sponsor_must_be_caller`
 
-Evidence: `openbinding-gateway/tests/test_sponsor_caller_only.py`
+Evidence: `openbinding-gateway/tests/test_org_sponsor_caller_only.py`
 
 Nobody can make another person pay. Administrators assign RESEARCH or LAB in SPACE (ADR-0020 decision 3).
 
@@ -60,7 +60,7 @@ Needs: impl, utest
 - **WHEN** bob sends `PATCH /v1/organizations/acme` with `{"name": "Acme Lab", "billing_sponsor_user_id": "<alice's id>"}`
 - **THEN** the gateway answers 200, the name is `Acme Lab` and alice stays sponsor
 
-Evidence: `openbinding-gateway/tests/test_sponsor_caller_only.py`
+Evidence: `openbinding-gateway/tests/test_org_sponsor_caller_only.py`
 
 ### Requirement: Account lifecycle without sponsorship proposals
 `req~auth-roles-entitlements-account-lifecycle-without-proposals~1`
@@ -78,4 +78,4 @@ Needs: impl, utest
 - **WHEN** frank deletes his account
 - **THEN** the gateway answers as it did before this change for an account without sponsorships (204), and frank's account no longer exists
 
-Evidence: `openbinding-gateway/tests/test_sponsor_caller_only.py`
+Evidence: `openbinding-gateway/tests/test_org_sponsor_caller_only.py`

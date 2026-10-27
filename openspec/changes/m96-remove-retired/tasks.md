@@ -49,11 +49,11 @@ Owned:
 
 No other file changes. The tool is usable on its own while every route still exists.
 
-- [ ] 1.1 Tests first: `-export-files`, `-export-selection` (every scenario except "Export equals removal", which is
+- [x] 1.1 Tests first: `-export-files`, `-export-selection` (every scenario except "Export equals removal", which is
   S8), `-export-manifest` and `-export-refusals`. They build the schema with `alembic upgrade b6c7d8e9f0a1`, seed with
   SQLAlchemy Core inserts by table name and run on SQLite. They never import the ORM classes that S5 and S6 delete
   (`AnalysisTask`, `SponsorProposal`), so they stay green after those slices. They are red on the base (no tool).
-- [ ] 1.2 The selection module, then the tool (design.md §6.2, D7): reflection, one read-only transaction, the
+- [x] 1.2 The selection module, then the tool (design.md §6.2, D7): reflection, one read-only transaction, the
   ordering, value encoding and exit codes.
 - [ ] 1.3 Checks 4, 3, 8, 9, 2.
 
@@ -71,8 +71,9 @@ Owned:
 - docs: `docs/openapi.json` (regenerated); `docs/API_DEPRECATIONS.md` (only the header statements go; the full
   rewrite is S7).
 
-- [ ] 2.1 Tests first: `-no-retirement-headers` and `-cors-exposed-headers`. They are red on the base.
-- [ ] 2.2 Remove the mechanism. `getPricingDocument` keeps `deprecated: true` (`routes/pricing.py:61`).
+- [x] 2.1 Tests first: `-no-retirement-headers` and `-cors-exposed-headers`. They are red on the base.
+  (`tests/test_deprecation_removed.py`, with `tests/test_b2_cors.py`.)
+- [x] 2.2 Remove the mechanism. `getPricingDocument` keeps `deprecated: true` (`routes/pricing.py:61`).
 - [ ] 2.3 Checks 4, 3, 6, 7, 8, 9, 12, 2.
 
 ## S3. Sponsorship screens (frontend-workspace), before the gateway removes B8 to B12
@@ -83,12 +84,12 @@ Owned:
   `AccountNotifications.css` (and their tests);
 - `frontend/src/components/NotificationDropdown/*`.
 
-- [ ] 3.1 Tests first: `-org-sponsor-self-only` and `-no-sponsor-requests`. They are red on the base.
-- [ ] 3.2 Organization settings:
+- [x] 3.1 Tests first: `-org-sponsor-self-only` and `-no-sponsor-requests`. They are red on the base.
+- [x] 3.2 Organization settings:
   - the "New sponsor" choice offers only "Me (<username>)", or no control when the caller already sponsors;
   - the "Sponsor requests" section, the request card and the replace flow go;
   - the explanatory text says that only you can make yourself the sponsor.
-- [ ] 3.3 The notifications screen drops `SponsorRequestsForYou`. The dropdown stops fetching sponsor requests, and its
+- [x] 3.3 The notifications screen drops `SponsorRequestsForYou`. The dropdown stops fetching sponsor requests, and its
   badge and accessible name count only unread notifications.
 - [ ] 3.4 Check 10 and the Playwright specs that cover these screens (baseline updates reviewed per
   factory:playwright-visual). Check 2.
@@ -99,8 +100,8 @@ Owned: `frontend/src/api/client.ts`, `api/auth.ts`, `api/platform.ts`, `api/libr
 `frontend/src/analysis/archive.ts` (deleted), the tests of those modules, `frontend/src/test/fixtures/analysis.ts`,
 and `frontend/src/api/removedOperations.test.ts` (new). Depends on S3.
 
-- [ ] 4.1 Test first: `-no-removed-operation-binding`. It is red on the base, where the bindings exist.
-- [ ] 4.2 Delete the bindings and types of design.md §2.3. `platformApi.updateOrganization` loses
+- [x] 4.1 Test first: `-no-removed-operation-binding`. It is red on the base, where the bindings exist.
+- [x] 4.2 Delete the bindings and types of design.md §2.3. `platformApi.updateOrganization` loses
   `replace_pending_proposal` and its `SponsorProposal` result type. The doc comment in `client.ts` says that naming
   anyone but yourself is refused with `sponsor_must_be_caller`.
 - [ ] 4.3 Check 10, then check 2.
@@ -166,14 +167,15 @@ Owned, gateway:
 Tests:
 - deleted: `test_b3_sponsor_proposals.py`;
 - edited: `test_admin_security_separation.py`, `test_b2_admin_audit.py`, `test_job_reconciler.py`;
-- new: `test_sponsor_caller_only.py`.
+- new: `test_org_sponsor_caller_only.py` and `test_sponsor_proposals_removed.py` (the removal of the proposal routes).
+  S2 adds `test_deprecation_removed.py` and S7 completes `test_removed_operations.py`.
 
 Depends on S3, S4 and S5.
 
-- [ ] 6.1 Tests first: `-sponsor-caller-only`, `-sponsor-self-transfer`, `-account-lifecycle-without-proposals`, and
+- [x] 6.1 Tests first: `-sponsor-caller-only`, `-sponsor-self-transfer`, `-account-lifecycle-without-proposals`, and
   the proposal part of `-reconciler-without-retired-sweeps`. They are red on the base, except "Naming the current
   sponsor", "Plan too small" and "ADMIN names themselves", which are negative controls.
-- [ ] 6.2 Implement design.md §4 and D9.
+- [x] 6.2 Implement design.md §4 and D9.
 - [ ] 6.3 Checks 4, 3, 6, 7, 8, 9, 12, 2. Review panel: reviewer and security-auditor (an authorization rule changes).
 
 ## S7. Library, report editor and project resources (gateway-api and collaboration-artifacts)

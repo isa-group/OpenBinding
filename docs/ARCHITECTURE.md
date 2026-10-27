@@ -124,9 +124,9 @@ its MongoDB and Redis) joins the stack through the `pricing` profile (§9.4).
 | `language` | profiles, dialects, adapters, schemas, examples, compilation, the extension lifecycle | `BimPort`, `AdapterServicePort` | `integrations/bim*.py`, `services/discovery.py`, dialect/resource/profile routes, `v1/archive.py` |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
 | `execution` | runs: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py`, job routes |
-| `laboratory` | studies, study runs, cells, protocol metrics, trade-offs across engines, the generator | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py`, `generator/*`; the decision-space workspace (`analysis_jobs.py`, analysis routes) retires |
+| `laboratory` | studies, study runs, cells, protocol metrics, trade-offs across engines, the generator | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py`, `generator/*`; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
 | `publishing` | published results (a frozen study run or collection version), citations, Zenodo-ready export, permanent-link resolution, Verify | application APIs of `repository` and `laboratory` | publication parts of `reports.py` and its routes, `routes/resolve.py`, `routes/verifier.py`; reports and editions retire |
-| `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`; local metering (`domain/usage_counters.py`) and sponsorship (`sponsor_proposals.py`) retire |
+| `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`; local metering (`domain/usage_counters.py`) retires; sponsor proposals (`sponsor_proposals.py`) were removed by M9.6, and only the caller can become billing sponsor |
 | `administration` | users, queues and engine health, storage and retention, audit, moderation of public content | application APIs of the other modules | `routes/admin.py`, `telemetry.py` |
 | `shared` (kernel) | settings, logging, problem+json errors, pagination, digests, clock, ids, mail | — | `core/*`, `mailer.py`, `security/bodylimit.py` |
 
@@ -177,12 +177,14 @@ openbinding-gateway/src/openbinding_gateway/
 
 0. Retire first (ADR-0020). The decision-space workspace, the report editor, the library as a catalogue (organization
    library, project resources, project library), the composer and sponsorship lose their screens, then their
-   endpoints (`Deprecation` and `Sunset` headers for one minor release, CRP), then their code, so nothing retired is
-   ever moved. The versioned-artifact store itself stays as the repository's internal storage of sealed parts:
+   endpoints, then their code, so nothing retired is ever moved. Done by M9.6 (2026-10-27): the owner skipped the
+   `Deprecation`/`Sunset` period because nothing ran in production, and the 41 operations are removed
+   ([`API_DEPRECATIONS.md`](API_DEPRECATIONS.md)). The versioned-artifact store itself stays as the repository's internal storage of sealed parts:
    problems are edited and versioned as a whole, and sealed problem versions keep referencing their parts by exact
    digest, so nothing sealed changes. Data follows CRP rules (INTENT §11.5): existing publications keep their
    permanent links as read-only published results; report drafts, decision-space workspaces and sponsorship
-   proposals are exported for the owner and dropped.
+   proposals are exported for the owner and dropped (the export tool and the guarded migration are in M9.6; see
+   [`runbooks/retired-data-export.md`](runbooks/retired-data-export.md)).
 1. Create `app/`, `shared/` and `modules/` with import-linter contracts; move nothing. Packages and contracts exist
    (§4.2); the blocking CI step and G9 entry are pending.
 2. New capabilities land directly in modules: `plans` (M4) and the language registry (M5) are the first.
@@ -575,7 +577,7 @@ not carried over.
 | Drafts | PostgreSQL | until deleted; owner notified after 180 idle days |
 | Runs and results | PostgreSQL + blob store | permanent while part of a study run or a published result; otherwise 365 days |
 | Raw engine logs | blob store | 90 days unless the run belongs to a published result |
-| Data of retired features (report drafts, decision-space workspaces, sponsorship proposals) | export for the owner | dropped after the export, by a CRP migration (§4.3) |
+| Data of retired features (report drafts, decision-space workspaces, sponsorship proposals) | export for the owner | dropped after the export, by a guarded migration that refuses to drop non-empty tables without an export manifest (M9.6, §4.3) |
 | Uploads not referenced by any version | blob store | 30 days |
 | Notifications | PostgreSQL | 180 days |
 | Audit events | PostgreSQL | permanent |

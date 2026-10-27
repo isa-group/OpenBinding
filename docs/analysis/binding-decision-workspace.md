@@ -1,7 +1,10 @@
 # Binding decision workspace
 
-> Historical. The decision-space workspace retires (ADR-0020); only the trade-off set of multi-objective
-> runs survives, in the run and study pages (`docs/ARCHITECTURE.md` §5.2).
+> Historical. The decision-space workspace was retired (ADR-0020) and **removed by M9.6** (2026-10-27): the
+> `/v1/analysis` routes, the analysis queue and worker, `tools/verify_analysis.py`, `tools/seed_analysis.py` and the
+> tests named below no longer exist (see [`API_DEPRECATIONS.md`](../API_DEPRECATIONS.md)). Only the trade-off set of
+> multi-objective runs survives, in the run and study pages (`docs/ARCHITECTURE.md` §5.2). The text below records the
+> workspace as it was.
 
 The integrated `/app/analysis` workspace compares stored evidence, makes a recommendation under explicit priorities, and saves a reproducible draft decision. It never launches a solver or evaluates new bindings. Playground, project Jobs, Account execution history and project Analytics expose the same **Open analysis** action.
 
