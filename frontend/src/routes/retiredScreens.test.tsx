@@ -45,6 +45,14 @@ vi.mock('../pages/Resources/CollList', async () => {
   const { createElement } = await import('react');
   return { CollList: () => createElement('h1', null, 'Collections screen') };
 });
+vi.mock('../pages/Admin/AdminOverview', async () => {
+  const { createElement } = await import('react');
+  return { AdminOverview: () => createElement('h1', null, 'Administration screen') };
+});
+vi.mock('../pages/Account/Account', async () => {
+  const { createElement } = await import('react');
+  return { Account: () => createElement('h1', null, 'Account screen') };
+});
 vi.mock('../pages/Studies/StudyDetail', async () => {
   const { createElement } = await import('react');
   return { StudyDetail: () => createElement('h1', null, 'Study detail screen') };
@@ -69,12 +77,12 @@ function Location() {
   );
 }
 
-function renderAt(path: string) {
+function renderAt(path: string, isAdmin = false) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <AuthContext.Provider
         value={{
-          user: person, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: false,
+          user: isAdmin ? { ...person, role: 'admin' } : person, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin,
         }}
       >
         <AppRoutes />
@@ -85,8 +93,8 @@ function renderAt(path: string) {
 }
 
 /** Where the visitor ends up, once the redirects have settled. */
-async function endsAt(path: string, expected: string) {
-  const view = renderAt(path);
+async function endsAt(path: string, expected: string, isAdmin = false) {
+  const view = renderAt(path, isAdmin);
   await waitFor(() => expect(view.getByTestId('pathname').textContent).toBe(expected));
   expect(view.getByTestId('search').textContent).toBe('');
   view.unmount();
@@ -99,7 +107,7 @@ describe('the retired decision-space workspace', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('analysis-sources');
     expect(ids).not.toContain('analysis-workspace');
-    expect(routeDefinitions).toHaveLength(70);
+    expect(routeDefinitions).toHaveLength(69);
   });
 
   it('has no screen files left', () => {
@@ -179,7 +187,7 @@ describe('the retired library catalogue and project resources', () => {
       expect(ids, id).not.toContain(id);
     }
     for (const id of ['proj-files', 'coll-list', 'coll-detail']) expect(ids, id).toContain(id);
-    expect(routeDefinitions).toHaveLength(70);
+    expect(routeDefinitions).toHaveLength(69);
   });
 
   // [utest->req~frontend-retire-library-screens-not-routed~1]
@@ -235,7 +243,7 @@ describe('the retired composer', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('case-composer');
     for (const id of ['case-list', 'case-detail', 'case-revision', 'case-compare', 'wb-workbench']) expect(ids, id).toContain(id);
-    expect(routeDefinitions).toHaveLength(70);
+    expect(routeDefinitions).toHaveLength(69);
   });
 
   // [utest->req~frontend-retire-composer-screen-not-routed~1]
@@ -251,5 +259,36 @@ describe('the retired composer', () => {
     expect(view.getByTestId('pathname').textContent).toBe('/app/acme/atlas/workbench');
     expect(view.getByTestId('search').textContent).toBe('?case=flujo');
     view.unmount();
+  });
+});
+
+// M2.4 slice 5: the sponsorship screen is retired. Its address redirects to the administration overview.
+describe('the retired sponsorship screen', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  // [utest->req~frontend-retire-sponsorship-screen-not-routed~1]
+  // [utest->req~frontend-retire-sponsorship-screen-count~1]
+  it('is gone from the route registry, and the other administration screens stay', () => {
+    const ids = routeDefinitions.map((definition) => definition.id);
+    expect(ids).not.toContain('admin-sponsor');
+    for (const id of ['admin-overview', 'admin-users', 'admin-user-detail', 'admin-audit']) expect(ids, id).toContain(id);
+    expect(routeDefinitions).toHaveLength(69);
+    expect(MAX_ALLOWED_OFFENDERS).toBe(12);
+  });
+
+  // [utest->req~frontend-retire-sponsorship-screen-not-routed~1]
+  it('has no screen file left', () => {
+    expect(Object.keys(import.meta.glob('../pages/Admin/AdminSponsor*'))).toEqual([]);
+  });
+
+  // [utest->req~frontend-retire-sponsorship-redirect~1]
+  it('sends an administrator to the administration overview, whatever the organization, the query and the hash', async () => {
+    await endsAt('/app/admin/organizations/isa-demo/sponsor?tab=requests#limits', '/app/admin', true);
+    await endsAt('/app/admin/organizations/isa%20demo/sponsor', '/app/admin', true);
+  });
+
+  // [utest->req~frontend-retire-sponsorship-redirect~1]
+  it('sends a person without the administrator role on to the account', async () => {
+    await endsAt('/app/admin/organizations/isa-demo/sponsor', '/app/account');
   });
 });

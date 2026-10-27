@@ -1,4 +1,4 @@
-/* The administration screens: overview, accounts, account, audit, errors, queues and sponsorship. */
+/* The administration screens: overview, accounts, account, audit, errors and queues. */
 
 .adm-page {
   display: flex;
@@ -127,7 +127,6 @@
 .adm-card p { margin: 0; }
 .adm-card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-spacing-xs); }
 .adm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: var(--tp-spacing-md); align-items: start; }
-.adm-two { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); gap: var(--tp-spacing-md); align-items: start; }
 .adm-stack { display: flex; flex-direction: column; gap: var(--tp-spacing-md); min-width: 0; }
 .adm-skeleton { display: flex; flex-direction: column; gap: var(--tp-spacing-xs); }
 .adm-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-sm); }
@@ -170,7 +169,6 @@
   background: var(--tp-input-bg);
 }
 
-.adm-card .adm-search { flex: none; }
 .adm-search svg { flex: none; width: 16px; height: 16px; color: var(--tp-steel); }
 .adm-search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: inherit; font-size: 0.875rem; }
 .adm-search:focus-within { outline: 2px solid var(--tp-link); outline-offset: 2px; }
@@ -384,15 +382,6 @@
 .adm-job-age { display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; color: var(--tp-slate); }
 .adm-job-age .is-late { color: var(--color-error); font-weight: 600; }
 
-/* Sponsorship */
-
-.adm-org { display: flex; flex-direction: column; gap: 2px; }
-.adm-org > strong { font-size: 0.9375rem; }
-.adm-tree { display: flex; flex-direction: column; gap: 6px; padding-top: var(--tp-spacing-xs); border-top: 1px solid var(--tp-hairline-soft); }
-.adm-tree ul { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; }
-.adm-tree li span { color: var(--tp-muted); }
-.adm-candidates { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
-
 /* Overview */
 
 .adm-blocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--tp-spacing-sm); }
@@ -443,10 +432,6 @@
 .adm-recent code { font-family: var(--font-mono); font-size: 0.75rem; overflow-wrap: anywhere; }
 .adm-recent small { color: var(--tp-steel); font-size: 0.6875rem; }
 
-@media (min-width: 900px) {
-  .adm-tool.is-form { grid-column: span 2; }
-}
-
 .adm-numbers { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .adm-numbers > div { display: flex; flex-direction: column; padding: 12px 14px; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-lg); background: var(--tp-surface); }
 .adm-numbers strong { font-family: var(--font-display); font-size: 1.5rem; font-weight: 400; }
@@ -471,9 +456,6 @@
 
 a.adm-tool:hover { border-color: var(--tp-primary); text-decoration: none; }
 .adm-tool-title { color: var(--tp-link); font-size: 0.9375rem; font-weight: 600; }
-.adm-tool-row { display: flex; gap: 6px; }
-.adm-tool-row label { flex: 1; min-width: 0; }
-.adm-tool-row input { width: 100%; height: 32px; box-sizing: border-box; padding: 0 10px; border: 1px solid var(--tp-input-border); border-radius: var(--tp-radius-md); font: inherit; font-size: 0.8125rem; }
 
 .adm-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 0; }
 .adm-tiles > div { padding: 10px 12px; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-md); background: var(--tp-surface); }
@@ -608,7 +590,7 @@ tr.adm-expanded > td { background: var(--tp-surface); }
 .adm-obs-detail { display: flex; flex-direction: column; gap: var(--tp-spacing-xs); }
 
 @media (max-width: 900px) {
-  .adm-two, .adm-split { grid-template-columns: minmax(0, 1fr); }
+  .adm-split { grid-template-columns: minmax(0, 1fr); }
   .adm-aside { position: static; }
 }
 

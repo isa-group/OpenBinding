@@ -250,14 +250,16 @@ describe('admin-user-detail · one account', () => {
     expect(await screen.findByText('No such API key (404)')).toBeInTheDocument();
   });
 
-  it('is honest about the organizations the gateway does not list, and offers the sponsorship screen', async () => {
+  // [utest->req~frontend-retire-sponsorship-entry-points-removed~1]
+  it('offers no Organizations card and no way to the sponsorship screen, and keeps the key form', async () => {
     open();
     await ready();
-    expect(screen.getByText(/has no list of the organizations an account belongs to or sponsors/)).toBeInTheDocument();
-    const open_ = screen.getByRole('button', { name: 'Open sponsorship' });
-    expect(open_).toBeDisabled();
-    fireEvent.change(screen.getByLabelText('Organization slug or id'), { target: { value: 'isa-demo' } });
-    expect(open_).toBeEnabled();
+    expect(screen.queryByRole('heading', { name: 'Organizations' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Organization slug or id')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open sponsorship' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/billing sponsorship/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Key id')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Revoke key' })).toBeInTheDocument();
   });
 
   it('refreshes the pricing token when an administrator changes their own agreement', async () => {

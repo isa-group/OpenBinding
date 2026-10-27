@@ -45,6 +45,10 @@ vi.mock('../pages/Workbench/Workbench', async () => {
   const { createElement } = await import('react');
   return { Workbench: () => createElement('h1', null, 'Workbench screen') };
 });
+vi.mock('../pages/Admin/AdminOverview', async () => {
+  const { createElement } = await import('react');
+  return { AdminOverview: () => createElement('h1', null, 'Administration screen') };
+});
 vi.mock('../pages/Reports/ProjPublications', async () => {
   const { createElement } = await import('react');
   return { ProjPublications: () => createElement('h1', null, 'Publications screen') };
@@ -68,12 +72,14 @@ function Location() {
   );
 }
 
-function renderAt(entries: string[], user: UserProfile | null = person) {
+const administrator: UserProfile = { ...person, id: 'user-2', username: 'root', role: 'admin' };
+
+function renderAt(entries: string[], user: UserProfile | null = person, isAdmin = false) {
   return render(
     <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
       <AuthContext.Provider
         value={{
-          user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: false,
+          user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin,
         }}
       >
         <AppRoutes />
@@ -128,11 +134,13 @@ describe('the table of retired addresses', () => {
       2: () => 'proj-publications',
       3: (route) => (route.id.startsWith('lib-') ? 'org-overview' : 'coll-list'),
       4: () => 'wb-workbench',
+      5: () => 'admin-overview',
     };
     const fixedTarget: Record<number, (route: RetiredRoute) => string> = {
       2: () => '/app/a%20b/p%2Fq/publications',
       3: (route) => (route.id.startsWith('lib-') ? '/app/a%20b' : '/app/a%20b/p%2Fq/collections'),
       4: () => '/app/a%20b/p%2Fq/workbench?case=c%3Fx',
+      5: () => '/app/admin',
     };
     for (const route of RETIRED_ROUTES) {
       for (const [query, slice1Screen] of cases) {
@@ -202,6 +210,17 @@ describe('the table of retired addresses', () => {
     expect(to('', { project: 'demo', case: 'flujo' })).toBe('/app');
     expect(to('', { org: '', project: 'demo', case: 'flujo' })).toBe('/app');
     expect(to('', {})).toBe('/app');
+  });
+
+  // [utest->req~frontend-retire-sponsorship-redirect~1]
+  it('holds the sponsorship screen as the only entry of slice 5, after the entry of slice 4, and leads it to /app/admin', () => {
+    const slice5 = RETIRED_ROUTES.filter((route) => route.slice === 5);
+    expect(slice5.map((route) => [route.id, route.path])).toEqual([['admin-sponsor', '/app/admin/organizations/:org/sponsor']]);
+    const order = (id: string) => RETIRED_ROUTES.findIndex((route) => route.id === id);
+    expect(order('case-composer')).toBeLessThan(order('admin-sponsor'));
+    const target = targetOf(slice5[0], 'tab=requests', { org: 'a' });
+    expect(target).toBe('/app/admin');
+    expect(matchRoutes(config, target)?.at(-1)?.route.id).toBe('admin-overview');
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]
@@ -396,6 +415,64 @@ describe('the redirect of a retired address', () => {
 
     renderAt([old]);
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/isa%20demo/qos/workbench?case=flujo'));
+  });
+
+  // [utest->req~frontend-retire-sponsorship-redirect~1]
+  it.each([
+    '/app/admin/organizations/isa-demo/sponsor',
+    '/app/admin/organizations/isa-demo/sponsor?tab=requests#limits',
+    '/app/admin/organizations/00000000-0000-4000-8000-000000000950/sponsor',
+    '/app/admin/organizations/isa%20demo/sponsor',
+    '/app/admin/organizations/cases/sponsor',
+    '/app/admin/organizations/reports/sponsor',
+  ])('sends the sponsorship address %s to /app/admin for an administrator, without a query or a hash', async (old) => {
+    renderAt([old], administrator, true);
+
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/admin'));
+    expect(await screen.findByRole('heading', { name: 'Administration screen' })).toBeInTheDocument();
+    expect(screen.getByTestId('hash').textContent).toBe('');
+  });
+
+  // [utest->req~frontend-retire-sponsorship-redirect~1]
+  it('replaces the history entry, so going back skips the sponsorship address', async () => {
+    const user = '/app/admin/users/00000000-0000-4000-8000-000000000002';
+    renderAt([user, '/app/admin/organizations/isa-demo/sponsor'], administrator, true);
+
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/admin$/));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(user));
+  });
+
+  // [utest->req~frontend-retire-sponsorship-redirect~1]
+  it('asks a visitor without a session to sign in before the sponsorship redirect', async () => {
+    const old = '/app/admin/organizations/isa-demo/sponsor';
+    const signedOut = renderAt([old], null);
+    expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/login/);
+    expect(screen.getByTestId('from').textContent).toBe(old);
+    signedOut.unmount();
+
+    renderAt([old], administrator, true);
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/admin'));
+  });
+
+  // [utest->req~frontend-retire-sponsorship-redirect~1]
+  it('ends a person without the administrator role at /app/account, with no administration screen', async () => {
+    renderAt(['/app/admin/organizations/isa-demo/sponsor']);
+
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/account'));
+    expect(await screen.findByRole('heading', { name: 'Account screen' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Administration screen' })).toBeNull();
+  });
+
+  // [utest->req~frontend-retire-sponsorship-redirect~1]
+  it.each([
+    ['/app/admin', 'admin-overview'],
+    ['/app/admin/users/00000000-0000-4000-8000-000000000002', 'admin-user-detail'],
+    ['/app/organizations/new', 'org-create'],
+  ])('leaves %s to its screen %s', (address, id) => {
+    expect(matchRoutes(config, address)?.at(-1)?.route.id).toBe(id);
+    expect(matchRoutes([{ path: '/app/admin/organizations/:org/sponsor' }], address)).toBeNull();
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]

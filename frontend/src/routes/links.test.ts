@@ -81,6 +81,7 @@ function patternsOf(path: string): RegExp[] {
 // [impl->req~frontend-retire-reports-no-link~1]
 // [impl->req~frontend-retire-library-no-link~1]
 // [impl->req~frontend-retire-composer-no-link~1]
+// [impl->req~frontend-retire-sponsorship-no-link~1]
 /**
  * `<file>: <literal>` for every string or template literal of the sources that starts with a retired path followed by the end,
  * `/`, `?`, `#` or `${`. A `:param` of the path stands for any one segment or `${…}`; for such a path a literal that starts with
@@ -331,6 +332,36 @@ describe('the scan for retired addresses', () => {
     });
   });
 
+  describe('for the sponsorship screen', () => {
+    const scanSponsorship = (file: string, text: string) => retiredAddresses({ [file]: text }, ['/app/admin/organizations/:org/sponsor']);
+
+    // [utest->req~frontend-retire-sponsorship-no-link~1]
+    it('finds the whole address and the tail written after an interpolation', () => {
+      const source = [
+        'const a = `/app/admin/organizations/${encodeURIComponent(value)}/sponsor`;',
+        "const b = '/app/admin/organizations/isa-demo/sponsor?tab=requests';",
+        'const c = `${base}/sponsor`;',
+      ].join('\n');
+      expect(scanSponsorship('pages/X.tsx', source)).toEqual([
+        'pages/X.tsx: /app/admin/organizations/${encodeURIComponent(value)}/sponsor',
+        'pages/X.tsx: /app/admin/organizations/isa-demo/sponsor?tab=requests',
+        'pages/X.tsx: ${base}/sponsor',
+      ]);
+    });
+
+    // [utest->req~frontend-retire-sponsorship-no-link~1]
+    it('does not report look-alikes, the gateway endpoint or the replacements', () => {
+      const source = [
+        "const a = '/app/admin/organizations/isa-demo/sponsors';",
+        'const b = `${base}/sponsor-proposals`;',
+        'const c = `/v1/admin/organizations/${id}/sponsor`;',
+        "const d = '/app/admin';",
+        "const e = '/app/admin/users/u1';",
+      ].join('\n');
+      expect(scanSponsorship('pages/Z.tsx', source)).toEqual([]);
+    });
+  });
+
   const application = Object.fromEntries(
     Object.entries(sources)
       // Vite names the files of this folder `./x` and the others `../…/x`.
@@ -361,6 +392,13 @@ describe('the scan for retired addresses', () => {
     const composer = RETIRED_ROUTES.filter((route) => route.slice === 4).map((route) => route.path);
     expect(composer).toHaveLength(1);
     expect(retiredAddresses(application, composer)).toEqual([]);
+  });
+
+  // [utest->req~frontend-retire-sponsorship-no-link~1]
+  it('finds none in the application sources, for the sponsorship screen', () => {
+    const sponsorship = RETIRED_ROUTES.filter((route) => route.slice === 5).map((route) => route.path);
+    expect(sponsorship).toEqual(['/app/admin/organizations/:org/sponsor']);
+    expect(retiredAddresses(application, sponsorship)).toEqual([]);
   });
 
   // [utest->req~frontend-retire-reports-no-link~1]
