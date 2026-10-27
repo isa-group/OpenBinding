@@ -1,5 +1,6 @@
-Goal: M2.4 slice 4, retire the composer screen (brief: redirect, no link to retired screen, route count drops, ~300 added lines, no Deprecation/Sunset or endpoint removal).
-State: head 05af2733 on change/m24-retire-composer. Spec (openspec/changes/m24-retire-composer, 5 reqs) aligned with the code; implementation, tests and e2e edits in; vitest 2415 pass, tsc -b pass, eslint 0 errors (run by task b4b0b404). Playwright not run (not runnable in lab). G1 (openspec validate) first runs in CI.
-Decisions: redirect target workbench?case=<slug>; tie with slice-3 lib-draft/lib-version documented (library entries win); viewer keeps pre-existing Open in Workbench link; Try faster providers not role-gated (unchanged behaviour); CaseCompare New revision now gated by canCreate.
-Next: 1) push, open PR into develop, follow CI; 2) panel reviewer + test-reviewer on pushed head; 3) set_review_package, lead_ready.
-Risks: diff line count not measured (watch PR stats vs ~300); docs how-to-test copy says steps unverified (no preview results).
+Goal: M2.4 slice 4, retire composer. PR #65 open, remote head 3efbc864; local head 3590b1a1 (fix tasks 56f5698f and 2741cff5 integrated).
+State: panel round 1: reviewer approve (4 minor, 2 nit); test-reviewer 1 major (viewer Open in Workbench href) -> fixed in 56f5698f (tests, comments, new caseErrors.test.ts, 2419 vitest pass, tsc, eslint 0 errors). Spec/how-to-test wording fixes in 2741cff5.
+CI on 3efbc864: only red is frontend 'Check generated changelog' (stale frontend/src/content/changelog.generated.json).
+Decisions: caseErrors.test.ts rewritten from current source (base unreadable); acceptable, covers remaining exports.
+Next: 1) this checkpoint commit; 2) task to regenerate changelog (python3 tools/generate_changelog.py, then --check) as final commit, integrate; 3) push, CI, round-2 panel (reviewer + test-reviewer), set_review_package, lead_ready.
+Risks: changelog must be last commit (any later subject changes the log); e2e results unverified.
