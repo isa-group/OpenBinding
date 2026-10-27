@@ -14,7 +14,6 @@ retires an address the resolver emits must list it there in the same PR.
 from __future__ import annotations
 
 import re
-import sys
 import uuid
 from pathlib import Path
 
@@ -34,11 +33,7 @@ from openbinding_gateway.db.platform_models import Report, ReportState
 from openbinding_gateway.routes import resolve as resolve_routes
 from bim_core.package import load_package
 from _pricing import fake_pricing_gate, largest_plan
-from _paths import GATEWAY_ROOT
 from _repo import REPO_ROOT
-
-sys.path.insert(0, str(GATEWAY_ROOT / "tools"))
-from seed_analysis import analysis_link, report_link  # noqa: E402
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 ROUTES = sorted((REPO_ROOT / "frontend" / "src" / "routes").glob("d[0-9].tsx"))
@@ -59,7 +54,6 @@ def retired_paths(source: str) -> list[str]:
 # emitter is retargeted. Every entry must be in RETIRED_ROUTES (see ``stale_entries``). A slice that retires an
 # address the resolver emits must list it here in the same PR.
 KNOWN_REDIRECTING_WEB_URLS = {
-    "/app/analysis/workspace": "seed_analysis links; the redirect to /app/jobs keeps the context only partially",
     "/app/:org/:project/reports/:slug": "retired by M2.4 slice 2; retarget the resolver in M9.6 or earlier",
     "/app/:org/library/:artifact/versions/:version": "retired by M2.4 slice 3; retarget the resolver in M9.6 or earlier",
 }
@@ -232,25 +226,6 @@ def test_no_legacy_route_is_left_in_the_resolver():
 
     for legacy in ('"/dialects"', '/records"', "/app/snapshots/", "library?artifact=", '"/app/engines"', "/resources/{reg"):
         assert legacy not in source
-
-
-def test_seed_analysis_links_open_a_page_through_a_redirect_and_keep_context_only_partially():
-    """The analysis links redirect to /app/jobs and lose their query.
-
-    Follow-up: point seed_analysis at a live screen or null, then drop its entries from
-    KNOWN_REDIRECTING_WEB_URLS.
-    """
-    jobs = [str(uuid.uuid4()), str(uuid.uuid4())]
-
-    sources = analysis_link(jobs)
-    saved = analysis_link(jobs, ("lab", "routing", "analysis-tradeoffs-abc"))
-
-    assert sources == f"/app/analysis/workspace?job={jobs[0]}&job={jobs[1]}"
-    assert saved == "/app/analysis/workspace?report=lab%2Frouting%2Fanalysis-tradeoffs-abc"
-    assert report_link("lab", "routing", "analysis-tradeoffs-abc") == "/app/lab/routing/reports/analysis-tradeoffs-abc"
-    for url in (sources, saved, report_link("lab", "routing", "x")):
-        assert_opens_a_frontend_page(url)
-    assert "/app/analysis?" not in sources and "/app/analysis?" not in saved
 
 
 # -- every kind, through the endpoint -----------------------------------------

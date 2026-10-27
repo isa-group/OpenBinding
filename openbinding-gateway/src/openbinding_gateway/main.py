@@ -51,7 +51,6 @@ from .models.problem import (
     validation_diagnostics,
 )
 from .routes.admin import router as admin_router
-from .routes.analysis import router as analysis_router
 from .routes.artifacts import router as artifacts_router
 from .routes.resolve import router as resolve_router
 from .routes.auth import router as auth_router
@@ -70,7 +69,6 @@ from .routes.generator import router as generator_router
 from .security.apikeys import (
     ALL_PERMISSIONS,
     ENGINE_LIMITED_PERMISSIONS,
-    analysis_work_permissions,
     required_permissions,
 )
 from .security.bodylimit import BodyLimitMiddleware
@@ -362,7 +360,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )(readiness)
 
     app.include_router(v1_router)
-    app.include_router(analysis_router)
     app.include_router(auth_router)
     app.include_router(cas_router)
     app.include_router(users_router)
@@ -1016,7 +1013,7 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             responses.setdefault(
                 "503", refusal("Account authentication is not configured on this deployment.")
             )
-            permissions = sorted(required_permissions(path, method) | analysis_work_permissions(path, method))
+            permissions = sorted(required_permissions(path, method))
             operation["x-required-api-key-permissions"] = permissions
             if public_read.eligible(method, path):
                 # Also reachable read-only, without credentials or membership,

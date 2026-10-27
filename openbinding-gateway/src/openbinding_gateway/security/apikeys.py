@@ -264,6 +264,7 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "library": {"artifact", "artifacts"},
             "blobs": {"artifact", "artifacts", "blob", "blobs"},
             "jobs": {"job", "jobs"},
+            # GET /v1/jobs/{job_id}/analysis/neighborhood: a job-scoped key reads it.
             "analysis": {"job", "jobs", "analysis"},
             "instances": {"instance", "instances"},
             "engines": {"engine", "engines"},
@@ -459,12 +460,6 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if method == "GET"
             else {ApiKeyPermission.INSTANCES_WRITE.value}
         )
-    if path.startswith("/v1/analysis"):
-        # Reading stored evidence needs ``jobs:read``. The routes that create,
-        # dispatch or cancel work add ``analysis_work_permissions`` on top, which
-        # the route enforces itself (routes/analysis.py).
-        return frozenset({ApiKeyPermission.JOBS_READ.value, ApiKeyPermission.REPORTS_WRITE.value}
-                         if path == "/v1/analysis/reports" else {ApiKeyPermission.JOBS_READ.value})
     if path.startswith("/v1/jobs"):
         return frozenset(
             {ApiKeyPermission.JOBS_READ.value}
@@ -480,22 +475,6 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
     if path.startswith(OPEN_V1_PREFIXES) or (method == "GET" and _is_open_v1_read(path)):
         return frozenset()
     return frozenset({UNCLASSIFIED_ROUTE_PERMISSION})
-
-
-def analysis_work_permissions(path: str, method: str) -> frozenset[str]:
-    """Permissions an analysis route needs beyond ``required_permissions``.
-
-    ``POST /v1/analysis/pareto`` creates and dispatches an ``AnalysisTask`` and
-    ``POST /v1/analysis/pareto/{task_id}/cancel`` stops one: that is work, not a
-    read, so they need the permission ``POST /v1/jobs`` needs
-    (``engines:execute``). ``query``, ``candidate``, ``export``, ``sources`` and
-    the ``GET`` of a task only read stored evidence and stay on ``jobs:read``.
-    Sessions do not pass through key permissions at all.
-    """
-
-    if method.upper() == "POST" and (path == "/v1/analysis/pareto" or path.startswith("/v1/analysis/pareto/")):
-        return frozenset({ApiKeyPermission.ENGINES_EXECUTE.value})
-    return frozenset()
 
 
 def _is_open_v1_read(path: str) -> bool:

@@ -7,6 +7,8 @@ silently open to every API key.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from fastapi import Depends
 from fastapi.routing import APIRoute
@@ -14,11 +16,13 @@ from fastapi.routing import APIRoute
 from _b1_helpers import make_account, make_key, gate  # noqa: F401,F811
 from openbinding_gateway.access.dependencies import get_current_user
 from openbinding_gateway.main import app
+from openbinding_gateway.security import apikeys
 from openbinding_gateway.security.apikeys import (
     ALL_PERMISSIONS,
     OPEN_V1_GET_PATHS,
     OPEN_V1_PREFIXES,
     UNCLASSIFIED_ROUTE_PERMISSION,
+    allows_request,
     required_permissions,
 )
 
@@ -69,6 +73,25 @@ def test_explore_is_not_in_the_open_allowlist():
     assert required_permissions("/v1/explore/projects", "GET") == frozenset({"projects:read"})
     assert required_permissions("/v1/explore/publications", "GET")
     assert required_permissions("/v1/explore/engines", "GET")
+
+
+def test_the_analysis_workspace_is_gone_and_the_neighbourhood_stays_a_job_read():
+    neighbourhood = "/v1/jobs/{job_id}/analysis/neighborhood"
+
+    assert not [route for route in ROUTES if route[1].startswith("/v1/analysis")]
+    assert ("GET", neighbourhood) in ROUTES
+    assert required_permissions(neighbourhood, "GET") == frozenset({"jobs:read"})
+    # A retired /v1/analysis path is unrouted, so it is no longer classified either.
+    assert required_permissions("/v1/analysis/pareto", "POST") == frozenset({UNCLASSIFIED_ROUTE_PERMISSION})
+    assert not hasattr(apikeys, "analysis_work_permissions")
+    # Existing keys may hold these; both still guard kept operations (design D6).
+    assert {"reports:write", "engines:execute"} <= set(ALL_PERMISSIONS)
+    # The "analysis" alias lets a job-scoped key read the neighbourhood (design D5).
+    jobs_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["job"]}})
+    projects_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["project"]}})
+    request = {"method": "GET", "path_params": {"job_id": "j1"}, "path": neighbourhood}
+    assert allows_request(jobs_only, **request)
+    assert not allows_request(projects_only, **request)
 
 
 def test_unknown_paths_are_denied_under_v1_and_untouched_elsewhere():

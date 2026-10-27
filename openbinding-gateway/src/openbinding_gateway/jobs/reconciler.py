@@ -366,11 +366,6 @@ async def _reconcile_cycle(factory) -> None:
                 await session.rollback()
             except Exception:
                 logger.warning("Could not roll back after purging engine evidence", exc_info=True)
-    # Analysis recovery commits before dispatch; isolate it from the sweep's transaction.
-    from ..analysis_jobs import redeliver_analysis
-
-    async with factory() as analysis_session:
-        await redeliver_analysis(analysis_session)
     if failed:
         logger.info("Failed %d abandoned job(s)", failed)
     if redelivered:

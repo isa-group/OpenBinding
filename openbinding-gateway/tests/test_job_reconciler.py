@@ -24,7 +24,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from _pricing import pricing_catalog
-from openbinding_gateway import analysis_jobs, job_dispatch, space_client, study_jobs, telemetry
+from openbinding_gateway import job_dispatch, space_client, study_jobs, telemetry
 from openbinding_gateway.access import contracts
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db import base as db_base
@@ -467,17 +467,19 @@ def one_pass(db_session, monkeypatch):
     monkeypatch.setattr(db_base, "is_configured", lambda: True)
     monkeypatch.setattr(db_base, "session_factory", lambda: factory)
     monkeypatch.setattr(job_dispatch, "redeliver_queued_jobs", redeliver)
-    monkeypatch.setattr(analysis_jobs, "redeliver_analysis", zero)
     monkeypatch.setattr(telemetry, "purge_old_error_events", zero)
     return passes
 
 
-async def test_a_cycle_needs_no_sponsor_proposals(one_pass, db_session, owner, logs):
+async def test_a_cycle_needs_no_analysis_tasks_or_sponsor_proposals(one_pass, db_session, owner, logs):
     # [utest->req~job-execution-reconciler-without-retired-sweeps~1]
     from openbinding_gateway.db.base import Base
 
+    assert "analysis_tasks" not in Base.metadata.tables
     assert "sponsor_proposals" not in Base.metadata.tables
-    assert "sweep_expired" not in inspect.getsource(reconciler)
+    source = inspect.getsource(reconciler)
+    assert "sweep_expired" not in source
+    assert "redeliver_analysis" not in source and "analysis_jobs" not in source
     # Queued within its budget: the cycle leaves it for redelivery.
     job = await a_job(db_session, owner, state=JobState.QUEUED, budget_s=300.0, age_s=10.0)
 

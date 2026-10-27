@@ -126,7 +126,6 @@ from openbinding_gateway.services.snapshots import compile_resolved, persist_sna
 from openbinding_gateway.studies import expand_study
 from openbinding_gateway.study_jobs import StudyLaunchError, launch_study_cell
 from bim_core.canonical import digest
-from seed_analysis import prepare_analysis_workspace
 
 logger = logging.getLogger("seed_dev")
 
@@ -1431,7 +1430,6 @@ def print_summary_banner(users: dict[str, User]) -> None:
     print("        ├── Resources: standard-candidate-catalog (2 revs), sla-latency-constraints, balanced-cost-latency-weights")
     print("        ├── Collection: standard-benchmarks")
     print("        ├── Studies: exact-vs-heuristic (Real Runs & Jobs), parallel-scaling-study")
-    print("        ├── Analysis: binding-analysis-gallery (canonical diagnostic archives and draft decisions; not solver benchmarks)")
     print("        ├── Artifacts: benchmark datasets, execution traces, reproducibility package")
     print("        ├── Report: qos-placement-2026-report (Frozen)")
     print("        └── Publication: qos-placement-paper (Visible in /explore)")
@@ -1461,16 +1459,9 @@ def print_summary_banner(users: dict[str, User]) -> None:
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Seed OpenBinding database with development data.")
     parser.add_argument("--reset", action="store_true", help="Rebuild all local OpenBinding development tables before seeding (never SPHERE or SPACE).")
-    parser.add_argument("--analysis-only", action="store_true", help="Add the analysis gallery to existing development users/projects without running engines or reseeding other data.")
-    parser.add_argument("--analysis-full", action="store_true", help="Opt in to live jobs and 1,000/10,000/100,000 unique-binding analysis archives.")
-    parser.add_argument("--analysis-manifest", type=Path, default=Path("tools/analysis-manifest.json"), help="Write source, report, task and verification coverage links.")
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging.")
     parser.add_argument("--force-prod", action="store_true", help="Bypass production environment safety guard.")
     args = parser.parse_args()
-    if args.analysis_only and args.analysis_full:
-        parser.error("--analysis-only and --analysis-full are mutually exclusive")
-    if args.analysis_only and args.reset:
-        parser.error("--analysis-only cannot be combined with --reset")
 
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(level=log_level, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -1495,16 +1486,6 @@ async def main() -> int:
 
     try:
         async with db_base.session_factory()() as session:
-            if args.analysis_only:
-                user = (await session.execute(select(User).where(User.username == "alice"))).scalars().first()
-                org = (await session.execute(select(Organization).where(Organization.slug == "score-ai"))).scalars().first()
-                project = None if org is None else (await session.execute(select(Project).where(Project.organization_id == org.id, Project.slug == "qos-placement"))).scalars().first()
-                if user is None or org is None or project is None:
-                    raise ValueError("Run the normal development seeder once before --analysis-only")
-                await prepare_analysis_workspace(session, org, project, user, examples_dir, manifest_path=args.analysis_manifest)
-                await session.commit()
-                logger.info("Analysis gallery ready: /app/analysis (sign in as alice)")
-                return 0
             if args.reset:
                 await clean_existing_data(session)
 
@@ -1534,12 +1515,10 @@ async def main() -> int:
             await ensure_project_resources(session, project_map, user_map)
 
             # 6. Standalone solve jobs
-            live_jobs = await ensure_standalone_jobs(session, org_map["score-ai"], qos_project, user_map["alice"], snapshots=snapshots, all_states=True)
+            await ensure_standalone_jobs(session, org_map["score-ai"], qos_project, user_map["alice"], snapshots=snapshots, all_states=True)
 
             # 7. Studies & Real Job Executions
             executed_studies = await execute_real_studies(session, org_map["score-ai"], qos_project, user_map["alice"], case_map)
-
-            await prepare_analysis_workspace(session, org_map["score-ai"], qos_project, user_map["alice"], examples_dir, full=args.analysis_full, manifest_path=args.analysis_manifest, live_jobs=live_jobs, study_runs=executed_studies)
 
             # 8. Reports & Publications
             await ensure_reports_and_publications(session, qos_project, user_map["alice"], executed_studies)
