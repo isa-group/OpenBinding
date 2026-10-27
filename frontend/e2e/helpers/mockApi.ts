@@ -22,7 +22,7 @@ import {
 } from '../../src/test/fixtures/studies';
 import { EXAMPLE } from './galleryRoutes';
 import {
-  applicationTemplate, bpmnContent, catalogContent, catalogRangesContent, draftOf, goalContent, itemOf, rulesContent, versionOf,
+  bpmnContent, catalogContent, catalogRangesContent, goalContent, itemOf, rulesContent, versionOf,
 } from './libraryFixtures';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
@@ -226,11 +226,6 @@ const VERSIONS: Record<string, ReturnType<typeof versionOf>[]> = {
 };
 const CONTENT: Record<string, unknown> = {
   [catalog.id]: catalogRangesContent(), [rules.id]: rulesContent(), [goal.id]: goalContent(), [app.id]: sourceContents.application, [external.id]: catalogContent(), [workflow.id]: bpmnContent,
-};
-const DRAFTS: Record<string, ReturnType<typeof draftOf>[]> = {
-  [catalog.id]: [draftOf('draft-providers-4', 4, catalogRangesContent(), { based_on_id: catalogV3.id })],
-  [rules.id]: [draftOf('draft-sla-2', 2, rulesContent())],
-  [app.id]: [draftOf('draft-app-1', 1, applicationTemplate())],
 };
 
 // -- Cases, revisions and snapshots
@@ -439,7 +434,7 @@ interface Request {
 }
 
 function projectRoutes(request: Request, orgSlug: string, projectSlug: string): Reply {
-  const { method, parts, query } = request;
+  const { parts, query } = request;
   const [, , , , , sub, subId, action, actionId, tail, tailId] = parts;
   const current = (PROJECTS[orgSlug] ?? []).find((item) => item.slug === projectSlug);
   if (!current) return notFound('Project not found.');
@@ -482,8 +477,7 @@ function projectRoutes(request: Request, orgSlug: string, projectSlug: string): 
     case 'reports': {
       if (!filled) return ok([]);
       if (!subId) return ok(REPORTS);
-      const found = REPORTS.find((item) => item.slug === subId);
-      return found ? ok(found) : notFound('Report not found.');
+      return notFound('Not mocked.');
     }
     case 'publications':
       return ok(filled ? [PUBLICATION] : []);
@@ -499,7 +493,7 @@ function projectRoutes(request: Request, orgSlug: string, projectSlug: string): 
       if (!subId) return ok(resources);
       const found = resources.find((item) => item.slug === subId);
       if (!found) return notFound('Resource not found.');
-      if (action !== 'revisions') return ok(found);
+      if (action !== 'revisions') return notFound('Not mocked.');
       return ok(localize(subId === 'notes' ? [] : [
         resourceRevisionOf(found, 2, { title: 'Latency probes', samples: 5 }),
         resourceRevisionOf(found, 1, { title: 'Latency probes', samples: 3 }),
@@ -521,9 +515,6 @@ function projectRoutes(request: Request, orgSlug: string, projectSlug: string): 
         collectionRevisionOf(references, 2, items('c1', 'c2', 'w1')), collectionRevisionOf(references, 1, items('c1', 'w1')),
       ]));
     }
-    case 'library':
-      if (!subId) return ok(filled ? [catalog, rules, goal, app] : []);
-      return method === 'DELETE' ? { status: 204 } : ok({ project_id: current.id, artifact_id: subId });
     case 'package':
       return { status: 200, bytes: request.archive, type: 'application/zip' };
     default:
@@ -541,8 +532,6 @@ function organizationRoutes(request: Request): Reply {
   switch (section) {
     case 'members': return ok(MEMBERS[found.slug] ?? []);
     case 'audit': return ok({ events: ORG_AUDIT, total: ORG_AUDIT.length, offset: 0, limit: 50 });
-    // No sponsor request is open in the gallery: the sponsor is who it always was.
-    case 'sponsor-proposals': return ok([]);
     case 'library': {
       const own = found.slug === 'isa-demo' ? LIBRARY : [];
       return ok(query.get('include_public') === 'true' ? [...own, external] : own);
@@ -572,8 +561,6 @@ function artifactRoutes(request: Request): Reply {
   }
   const item = [...LIBRARY, external].find((candidate) => candidate.id === id || candidate.name === id);
   if (!item) return notFound('Artifact not found.');
-  if (!sub) return ok(item);
-  if (sub === 'drafts') return ok(DRAFTS[item.id] ?? []);
   if (sub === 'versions') {
     const versions = VERSIONS[item.id] ?? [];
     if (!subId) return ok(versions);
@@ -581,8 +568,6 @@ function artifactRoutes(request: Request): Reply {
       const content = CONTENT[item.id];
       return { status: 200, type: 'text/plain', text: typeof content === 'string' ? content : JSON.stringify(content) };
     }
-    const found = versions.find((candidate) => candidate.id === subId || candidate.ref.version === subId);
-    return found ? ok(found) : notFound('Artifact version not found.');
   }
   return notFound('Not mocked.');
 }
@@ -597,7 +582,6 @@ function userRoutes(request: Request): Reply {
     case 'jobs': return ok({ jobs: OWN_JOBS.map(summaryOf), total: OWN_JOBS.length, retention_days: 180 });
     case 'api-keys': return subId ? { status: 204 } : ok({ api_keys: API_KEYS });
     case 'identities': return ok([{ id: 'i1', provider: 'us-cas', subject: 'arivera1', verifiedAt: '2026-09-01T00:00:00Z' }]);
-    case 'sponsor-proposals': return ok([]);
     default: return method === 'GET' ? notFound() : { status: 204 };
   }
 }
@@ -659,7 +643,7 @@ function adminRoutes(request: Request): Reply {
 }
 
 /** The first path segments the gateway only answers to a session. */
-const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'jobs', 'engines', 'engine-registrations', 'artifacts', 'snapshots', 'instances', 'analysis', 'verifier']);
+const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'jobs', 'engines', 'engine-registrations', 'artifacts', 'snapshots', 'instances', 'verifier']);
 
 function route(request: Request): Reply | null {
   const { method, parts } = request;

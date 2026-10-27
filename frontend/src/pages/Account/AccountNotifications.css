@@ -1,14 +1,5 @@
 .notif-icon { width: 1rem; height: 1rem; }
 
-/* Sponsor requests addressed to the account: nobody pays for an organization without accepting here. */
-.notif-sponsor { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); padding: var(--tp-spacing-md); border: 1px solid var(--tp-severity-warning-border); border-radius: var(--tp-radius-lg); background: var(--tp-severity-warning-bg); }
-.notif-sponsor header { display: flex; flex-direction: column; gap: 2px; }
-.notif-sponsor h2 { margin: 0; font-family: var(--font-body); font-size: 1rem; font-weight: 600; }
-.notif-sponsor header p { margin: 0; color: var(--tp-slate); font-size: 0.8125rem; }
-.notif-sponsor-list { display: flex; flex-direction: column; gap: var(--tp-spacing-xs); margin: 0; padding: 0; list-style: none; }
-.notif-sponsor-list > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-spacing-sm); padding: var(--tp-spacing-sm); border-radius: var(--tp-radius-md); background: var(--tp-canvas); }
-.notif-sponsor-main { display: flex; min-width: 14rem; flex: 1; flex-direction: column; gap: 2px; font-size: 0.875rem; }
-.notif-sponsor-actions { display: flex; gap: var(--tp-spacing-xs); }
 .notif-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs) var(--tp-spacing-md); }
 
 .notif-list {

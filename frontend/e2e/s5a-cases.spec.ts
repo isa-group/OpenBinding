@@ -241,7 +241,6 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     const id = new URL(route.request().url()).pathname.split('/')[3];
     return json(versionsOf(id))(route);
   });
-  await page.route(new RegExp(`^${API}/v1/artifacts/[^/]+/drafts(\\?.*)?$`), json([]));
   await page.route(new RegExp(`^${API}/v1/artifacts/[^/]+/versions/[^/]+/content(\\?.*)?$`), (route) => {
     const id = new URL(route.request().url()).pathname.split('/')[3];
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CONTENT_OF[id]) });

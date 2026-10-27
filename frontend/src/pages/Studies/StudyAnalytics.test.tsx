@@ -6,7 +6,7 @@ import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellsFixtur
 import { StudyAnalytics } from './StudyAnalytics';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), publicProjects: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), analytics: vi.fn(), reports: vi.fn(), createReport: vi.fn(),
+  project: vi.fn(), publicProjects: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), analytics: vi.fn(), reports: vi.fn(),
   cases: vi.fn(), revisions: vi.fn(),
 }));
 const client = vi.hoisted(() => ({ getJobStatus: vi.fn() }));

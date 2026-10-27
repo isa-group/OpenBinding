@@ -16,7 +16,7 @@ const event = (n: number, action: string, detail: Record<string, unknown>, over:
 const RECENT: AdminAuditPage = {
   events: [
     event(1, 'organization.sponsor.proposed', { proposal_id: 'prop-1', proposed_user_id: PRIYA.id, proposed_by_user_id: ALEX.id, expires_at: '2026-10-24T09:00:00Z' },
-      { organizationId: ORG.id, organizationSlug: 'isa-demo', targetType: 'SponsorProposal', targetId: 'prop-1' }),
+      { organizationId: ORG.id, organizationSlug: 'isa-demo', targetType: 'Organization', targetId: ORG.id }),
     event(2, 'admin.user.updated', { username: 'sam.okafor', changes: { role: { from: 'user', to: 'admin' }, is_active: { from: true, to: false } } }),
     event(3, 'admin.api_key.revoked', { user_id: SAM.id, key: { id: 'key-1', name: 'ci pipeline', prefix: 'obk_ab12' } }, { targetType: 'ApiKey', targetId: 'key-1' }),
     event(4, 'admin.usage.resynced', { username: 'sam.okafor', plan: 'BASIC', before: { concurrent_jobs_recorded: 2 }, after: { concurrent_jobs_recorded: 1 }, slots_in_flight: 1, corrected_by: -1 }),
@@ -53,7 +53,7 @@ describe('admin-audit · the platform audit log', () => {
     const timeline = screen.getByRole('list', { name: 'Events, newest first' });
     expect(within(timeline).getAllByRole('listitem')).toHaveLength(3);
     expect(api.adminAudit).toHaveBeenCalledWith({ action: undefined, offset: 0, limit: 100 });
-    expect(screen.getByText(/Events recorded inside an organization, such as a sponsor request, appear here too with the organization named/)).toBeInTheDocument();
+    expect(screen.getByText(/Events recorded inside an organization, such as a change of sponsor, appear here too with the organization named/)).toBeInTheDocument();
     expect(screen.queryByText(/are in that organization’s own audit log/)).not.toBeInTheDocument();
   });
 

@@ -15,7 +15,6 @@ import { useResource } from '../../utils/useResource';
 import { classifyAuthError, fallbackMessage } from './accountErrors';
 import { AccountLayout, LoadFailure, PermissionNotice } from './AccountLayout';
 import { contractChange, groupOf, NOTIFICATION_FILTERS, NOTIFICATIONS_UPDATED, unreadCount, type NotificationGroup } from './notificationsModel';
-import { SponsorRequestsForYou } from './SponsorRequestsForYou';
 import './AccountNotifications.css';
 
 const ICONS: Record<NotificationGroup, typeof Bell> = { contract: FileText, job: CircleCheck, invite: Mail, other: Bell };
@@ -151,8 +150,6 @@ export function AccountNotifications() {
         </Action>
       )}
     >
-      <SponsorRequestsForYou />
-
       <div className="notif-filters">
         <FilterPills options={NOTIFICATION_FILTERS} value={filter} onChange={setFilter} ariaLabel="Filter notifications" />
         <label className="acct-check">
