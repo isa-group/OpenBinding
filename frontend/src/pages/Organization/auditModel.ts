@@ -71,6 +71,41 @@ export function describeEvent(event: OrganizationAuditEvent): string {
   }
 }
 
+/** A detail value ready to draw: text, a list or nested labelled rows. */
+export type DetailValue =
+  | { kind: 'text'; text: string }
+  | { kind: 'list'; items: DetailValue[] }
+  | { kind: 'fields'; rows: DetailRow[] };
+
+export interface DetailRow {
+  label: string;
+  value: DetailValue;
+}
+
+/** `max_projects` and `maxProjects` both read “Max projects”. */
+function sentenceCase(key: string): string {
+  const words = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_\-.\s]+/g, ' ').trim().toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+function detailValue(value: unknown): DetailValue {
+  if (value === null || value === undefined) return { kind: 'text', text: 'none' };
+  if (typeof value === 'string') return { kind: 'text', text: value };
+  if (typeof value === 'boolean') return { kind: 'text', text: value ? 'Yes' : 'No' };
+  if (typeof value === 'number') return { kind: 'text', text: value.toLocaleString('en-US') };
+  if (Array.isArray(value)) return { kind: 'list', items: value.map(detailValue) };
+  if (typeof value === 'object') return { kind: 'fields', rows: detailRows(value as Record<string, unknown>) };
+  return { kind: 'text', text: String(value) };
+}
+
+/** The detail of an event as typed rows, so the page draws it without ever stringifying a value. */
+// [impl->req~frontend-audit-detail-rendered~1]
+export function detailRows(detail: Record<string, unknown> | null | undefined, skip: readonly string[] = []): DetailRow[] {
+  return Object.entries(detail ?? {})
+    .filter(([key]) => !skip.includes(key))
+    .map(([key, value]) => ({ label: sentenceCase(key), value: detailValue(value) }));
+}
+
 function cell(value: string): string {
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }

@@ -10,7 +10,7 @@ import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { AUDIT_KINDS, KNOWN_ACTIONS, actionLabel, changesOf, describeEvent, kindOf, toCsv } from './auditModel';
+import { AUDIT_KINDS, KNOWN_ACTIONS, actionLabel, changesOf, describeEvent, detailRows, kindOf, toCsv, type DetailValue } from './auditModel';
 import { atLeast, personName } from './orgModel';
 import { classifyAuthError, generalFailure, isForbidden, marker } from './orgErrors';
 import { NeutralGate, PageSkeleton, SelectField } from './parts';
@@ -43,6 +43,18 @@ function download(contents: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+function DetailView({ value }: { value: DetailValue }) {
+  if (value.kind === 'text') return <>{value.text}</>;
+  if (value.kind === 'list') {
+    return value.items.length === 0
+      ? <>none</>
+      : <ul className="org-tl-changes">{value.items.map((item, position) => <li key={position}><DetailView value={item} /></li>)}</ul>;
+  }
+  return value.rows.length === 0
+    ? <>none</>
+    : <dl className="org-tl-nested">{value.rows.map((row) => <div key={row.label}><dt>{row.label}</dt><dd><DetailView value={row.value} /></dd></div>)}</dl>;
+}
+
 function EventCard({ event, who, nameOf, open, onToggle }: {
   event: OrganizationAuditEvent;
   who: string;
@@ -54,7 +66,7 @@ function EventCard({ event, who, nameOf, open, onToggle }: {
   const kind = AUDIT_KINDS[kindOf(event.action)];
   const detailId = `audit-${event.id}`;
   const batch = changesOf(event);
-  const extra = Object.entries(event.detail ?? {}).filter(([key]) => key !== 'changes');
+  const extra = detailRows(event.detail, ['changes']);
   const copied = status(event.id);
 
   return (
@@ -83,9 +95,9 @@ function EventCard({ event, who, nameOf, open, onToggle }: {
                   </dd>
                 </>
               )}
-              {extra.map(([key, value]) => (
-                <div key={key} className="org-tl-fact">
-                  <dt>{key}</dt><dd>{typeof value === 'string' ? value : JSON.stringify(value)}</dd>
+              {extra.map((row) => (
+                <div key={row.label} className="org-tl-fact">
+                  <dt>{row.label}</dt><dd><DetailView value={row.value} /></dd>
                 </div>
               ))}
               <dt>Event</dt><dd><code>{event.id}</code></dd>

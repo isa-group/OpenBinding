@@ -6,7 +6,9 @@ import { Action } from '../../components/ui/Action';
 import { CopyField } from '../../components/ui/CopyField';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
+import { SourceView } from '../../components/rendering/SourceView';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
@@ -23,6 +25,8 @@ import {
 import { studyRefusal, type Refusal } from './studyErrors';
 import { POLL_MS, usePolling } from './usePolling';
 import { useRevisionIndex } from './useRevisionIndex';
+
+const TABS = [{ id: 'result', label: 'Result' }, { id: 'source', label: 'Source' }];
 
 type Outcome =
   | { tone: 'success'; text: string }
@@ -153,6 +157,7 @@ function CellBody({ scope, runId, cellId }: { scope: StudyScopeValue; runId: str
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [attaching, setAttaching] = useState(false);
+  const [tab, setTab] = useState<'result' | 'source'>('result');
 
   const cell = one.data ?? one.stale;
   const all = siblings.data ?? siblings.stale;
@@ -248,6 +253,17 @@ function CellBody({ scope, runId, cellId }: { scope: StudyScopeValue; runId: str
       {outcome?.tone === 'error' && <RefusalNotice refusal={outcome.refusal} usageTo />}
       {!access.canCreate && <p className="org-muted">Read-only: retrying and attaching a result need MEMBER in {organization.name}.</p>}
 
+      <TabBar items={TABS} value={tab} onChange={(id) => setTab(id as 'result' | 'source')} ariaLabel="Cell views" prefix="st-cell-view" />
+      <TabPanel prefix="st-cell-view" active={tab}>
+      {tab === 'source' ? (
+        // [impl->req~frontend-studies-source-tab~1]
+        <SourceView
+          source={{ state: cell.state, job_id: cell.job_id, engine: cell.engine_ref, parameters: cell.parameters, seed: cell.seed, metrics: cell.metrics }}
+          label="Cell metrics source"
+          filename={`${cell.id}.cell.json`}
+        />
+      ) : (
+      <>
       <section className="st-card" aria-labelledby="st-inputs-title">
         <h2 id="st-inputs-title">Frozen inputs</h2>
         <div className="job-facts-grid">
@@ -290,11 +306,9 @@ function CellBody({ scope, runId, cellId }: { scope: StudyScopeValue; runId: str
         {' · '}<Link to={`${runPath}/analytics`} viewTransition>Compare results</Link>
         {' · '}<Link to={runPath} viewTransition>Back to the run</Link>
       </p>
-
-      <details className="st-source">
-        <summary>View source</summary>
-        <pre aria-label="Cell metrics source">{JSON.stringify({ state: cell.state, job_id: cell.job_id, engine: cell.engine_ref, parameters: cell.parameters, seed: cell.seed, metrics: cell.metrics }, null, 2)}</pre>
-      </details>
+      </>
+      )}
+      </TabPanel>
 
       {attaching && (
         <AttachDialog

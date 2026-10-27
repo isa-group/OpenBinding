@@ -573,6 +573,9 @@
 .org-tl-body code { font-family: var(--font-mono); font-size: 0.75rem; }
 .org-tl-fact { display: contents; }
 .org-tl-changes { margin: 0; padding-left: 16px; }
+.org-tl-nested { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 0; }
+.org-tl-nested > div { display: contents; }
+.org-tl-nested dd { margin: 0; }
 .org-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-spacing-xs); color: var(--tp-steel); font-size: 0.75rem; }
 .org-pager-buttons { display: inline-flex; gap: 4px; }
 

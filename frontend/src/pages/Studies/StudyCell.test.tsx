@@ -256,14 +256,19 @@ describe('One cell of a run', () => {
     expect(screen.queryByRole('region', { name: 'Result' })).not.toBeInTheDocument();
   });
 
-  it('marks a result that meets no rule as infeasible and keeps the raw metrics behind View source', async () => {
+  // [utest->req~frontend-studies-source-tab~1]
+  it('marks a result that meets no rule as infeasible and keeps the raw metrics in the Source tab', async () => {
     const infeasible = { ...cells[2], metrics: { ...cells[2].metrics, feasible: false, termination: 'INFEASIBLE' } };
     platform.studyCell.mockResolvedValue(infeasible);
     renderCell(2);
 
     expect(await screen.findByText('Infeasible')).toBeInTheDocument();
-    const source = screen.getByText('View source').closest('details') as HTMLDetailsElement;
-    expect(source.open).toBe(false);
-    expect(screen.getByLabelText('Cell metrics source')).toHaveTextContent('"INFEASIBLE"');
+    expect(screen.getByRole('tab', { name: 'Result' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('region', { name: 'Cell metrics source' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Source' }));
+    expect(screen.getByRole('region', { name: 'Cell metrics source' })).toHaveTextContent('"INFEASIBLE"');
+    expect(screen.getByRole('button', { name: 'Download Cell metrics source' })).toBeInTheDocument();
+    expect(screen.queryByText('Infeasible')).not.toBeInTheDocument();
   });
 });

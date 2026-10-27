@@ -69,6 +69,33 @@ describe('Audit log', () => {
     expect(screen.getByText('Not recorded', { selector: 'dd' })).toBeInTheDocument();
   });
 
+  // [utest->req~frontend-audit-detail-rendered~1]
+  it('shows nested object and array details as readable text, never as JSON', async () => {
+    const rich: OrganizationAuditEvent = {
+      ...auditFixture[2],
+      id: 'ev-rich',
+      action: 'organization.updated',
+      detail: { limits: { max_projects: 1500, is_public: true }, tags: ['alpha', 'beta'], note: null, retry_count: 3 },
+    };
+    platform.organizationAudit.mockResolvedValue(page([rich]));
+    renderAudit();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Organization updated/ }));
+    const open = card(/Organization updated/);
+    const details = document.getElementById(open.getAttribute('aria-controls')!)!;
+    expect(within(details).getByText('Limits')).toBeInTheDocument();
+    expect(within(details).getByText('Max projects')).toBeInTheDocument();
+    expect(within(details).getByText('1,500')).toBeInTheDocument();
+    expect(within(details).getByText('Is public')).toBeInTheDocument();
+    expect(within(details).getByText('Yes')).toBeInTheDocument();
+    expect(within(details).getByText('Retry count')).toBeInTheDocument();
+    expect(within(details).getByText('none')).toBeInTheDocument();
+    const tags = within(details).getAllByRole('listitem').map((item) => item.textContent);
+    expect(tags).toEqual(expect.arrayContaining(['alpha', 'beta']));
+    expect(details.textContent).not.toContain('{"');
+    expect(details.textContent).not.toContain('["');
+  });
+
   it('copies the reference of an event', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });

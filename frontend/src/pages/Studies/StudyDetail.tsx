@@ -8,7 +8,9 @@ import { Chip } from '../../components/ui/Chip';
 import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
+import { SourceView } from '../../components/rendering/SourceView';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
@@ -26,6 +28,8 @@ interface RunsData {
   runs: StudyRun[];
   cells: Record<string, StudyCell[]>;
 }
+
+const TABS = [{ id: 'overview', label: 'Overview' }, { id: 'source', label: 'Source' }];
 
 type Outcome =
   | { tone: 'success'; text: string; follow?: { to: string; label: string } }
@@ -164,6 +168,7 @@ function DetailBody({ scope }: { scope: StudyScopeValue }) {
   const [busy, setBusy] = useState<'run' | 'archive' | 'version' | 'delete' | null>(null);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [tab, setTab] = useState<'overview' | 'source'>('overview');
 
   const current = (versions.data ?? versions.stale ?? []).find((version) => version.id === study.definition_version_id);
   const settle = (next: Outcome | null) => { setOutcome(next); setBusy(null); };
@@ -264,17 +269,22 @@ function DetailBody({ scope }: { scope: StudyScopeValue }) {
         </p>
       )}
 
-      <DefinitionMatrix study={study} org={org} project={slug} />
+      <TabBar items={TABS} value={tab} onChange={(id) => setTab(id as 'overview' | 'source')} ariaLabel="Study views" prefix="st-view" />
+      <TabPanel prefix="st-view" active={tab}>
+        {tab === 'overview' ? (
+          <>
+            <DefinitionMatrix study={study} org={org} project={slug} />
 
-      <div className="st-two">
-        <RunsCard scope={scope} runs={runs} />
-        {!access.publicRead && <VersionsCard scope={scope} versions={versions} onPick={(id) => void pickVersion(id)} busy={busy === 'version'} />}
-      </div>
-
-      <details className="st-source">
-        <summary>View source</summary>
-        <pre aria-label="Study definition source">{JSON.stringify(study.definition, null, 2)}</pre>
-      </details>
+            <div className="st-two">
+              <RunsCard scope={scope} runs={runs} />
+              {!access.publicRead && <VersionsCard scope={scope} versions={versions} onPick={(id) => void pickVersion(id)} busy={busy === 'version'} />}
+            </div>
+          </>
+        ) : (
+          // [impl->req~frontend-studies-source-tab~1]
+          <SourceView source={study.definition} label="Study definition source" filename={`${study.slug}.definition.json`} />
+        )}
+      </TabPanel>
 
       {editing && <EditDialog study={study} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); settle({ tone: 'success', text: 'Details saved.' }); reloadStudy(); }} org={org} project={slug} />}
       {deleting && (

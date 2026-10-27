@@ -603,11 +603,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText(/2 case revisions × 2 engines × 1 setting × 2 seeds = 8 cells\. Settings: 1 · engine defaults\./)).toBeVisible();
       await expect(main.getByRole('link', { name: /Run #1/ })).toHaveAttribute('href', RUN);
       await expect(main.getByRole('link', { name: 'Open the definition in the library' })).toHaveCount(0);
-      await expect(main.getByLabel('Study definition source')).toBeHidden();
+      await expect(main.getByRole('region', { name: 'Study definition source' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-top`);
-      await main.getByText('View source').click();
-      await expect(main.getByLabel('Study definition source')).toContainText('"case_revision_ids"');
-      await capture(page, testInfo, `detail-${name}-source`, { area: main.locator('details.st-source') });
+      await main.getByRole('tab', { name: 'Source' }).click();
+      const definitionSource = main.getByRole('region', { name: 'Study definition source' });
+      await expect(definitionSource).toContainText('"case_revision_ids"');
+      await expect(definitionSource.getByRole('button', { name: 'Download Study definition source' })).toBeVisible();
+      await capture(page, testInfo, `detail-${name}-source`, { area: definitionSource });
+      await main.getByRole('tab', { name: 'Overview' }).click();
 
       // A run is accepted and can be followed.
       await main.getByRole('button', { name: 'Run study' }).click();
@@ -824,11 +827,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('combobox', { name: 'Compare by' }).selectOption('latency');
       await expect(main.getByRole('list', { name: 'Latency of each engine on this input' })).toBeVisible();
 
-      // The metrics as the gateway recorded them, only behind View source.
-      await expect(main.getByLabel('Cell metrics source')).toBeHidden();
-      await main.getByText('View source').click();
-      await expect(main.getByLabel('Cell metrics source')).toContainText('"runtimeSeconds"');
-      await capture(page, testInfo, `cell-${name}-source`, { area: main.locator('details.st-source') });
+      // The metrics as the gateway recorded them, only in the Source tab.
+      await expect(main.getByRole('region', { name: 'Cell metrics source' })).toHaveCount(0);
+      await main.getByRole('tab', { name: 'Source' }).click();
+      const metricsSource = main.getByRole('region', { name: 'Cell metrics source' });
+      await expect(metricsSource).toContainText('"runtimeSeconds"');
+      await capture(page, testInfo, `cell-${name}-source`, { area: metricsSource });
+      await main.getByRole('tab', { name: 'Result' }).click();
 
       await main.getByRole('combobox', { name: 'Other cell' }).selectOption(cells[4].id);
       await expect(main.getByRole('heading', { level: 1, name: 'Cell 4' })).toBeVisible();
