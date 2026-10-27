@@ -129,6 +129,7 @@ describe('Case compare', () => {
 
     expect(await screen.findByRole('heading', { name: 'Comparing needs two revisions' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'New revision' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Back to the case' })).toHaveAttribute('href', `${root}/cases/flujo-checkout`);
     expect(screen.getAllByRole('link').filter((a) => a.getAttribute('href')?.includes('/workbench?case='))).toEqual([]);
   });
 

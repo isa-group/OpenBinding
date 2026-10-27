@@ -56,7 +56,7 @@ describe('Case list', () => {
     expect(second.queryByRole('link', { name: 'Run latest' })).not.toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
     expect(within(tabs).getByRole('link', { name: 'Cases' })).toHaveAttribute('aria-current', 'page');
-    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose$/);
+    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
   });
 
   it('lists the cases of a public project read-only for someone who is not a member: nothing to run, create or delete', async () => {
@@ -125,7 +125,7 @@ describe('Case list', () => {
     await screen.findByRole('list', { name: 'Cases' });
     expect(screen.queryByRole('link', { name: /New revision|Compose its first revision/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Workbench' })).not.toBeInTheDocument();
-    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/compose$|\/workbench\?case=/);
+    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/compose([?#]|$)|\/workbench\?case=/);
     expect(screen.getByRole('note')).toHaveTextContent('You’re a VIEWER. You can open and compare cases here; creating and editing need MEMBER.');
     expect(screen.queryByRole('button', { name: 'New case' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'New revision' })).not.toBeInTheDocument();
@@ -165,7 +165,7 @@ describe('Case list', () => {
       const toast = (await screen.findByText(/created\. Compose its first revision when you’re ready\./)).closest('[role="status"]') as HTMLElement;
       expect(toast).toHaveTextContent('Case “Análisis de latencia” created. Compose its first revision when you’re ready.');
       expect(within(toast).getByRole('link', { name: 'Compose its first revision' })).toHaveAttribute('href', `${root}/workbench?case=analisis-de-latencia`);
-      for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose$/);
+      for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       await waitFor(() => expect(platform.cases).toHaveBeenCalledTimes(2));
     });

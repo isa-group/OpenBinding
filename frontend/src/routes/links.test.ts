@@ -299,12 +299,16 @@ describe('the scan for retired addresses', () => {
 
     // [utest->req~frontend-retire-composer-no-link~1]
     it('finds the whole address and the tail written after an interpolation', () => {
-      for (const literal of [
-        '`/app/${org}/${project}/cases/${slug}/compose`', "'/app/acme/demo/cases/flujo/compose'", '`${root}/cases/${slug}/compose`',
-        '`${root}/cases/${encodeURIComponent(item.slug)}/compose?x=1`',
-      ]) {
-        expect(scanComposer('pages/X.tsx', `const a = ${literal};`), literal).toHaveLength(1);
-      }
+      const source = [
+        'const a = `/app/${org}/${project}/cases/${slug}/compose`;',
+        "const b = '/app/acme/demo/cases/c1/compose?from=2';",
+        'const c = `${root}/cases/${encodeURIComponent(item.slug)}/compose`;',
+      ].join('\n');
+      expect(scanComposer('pages/X.tsx', source)).toEqual([
+        'pages/X.tsx: /app/${org}/${project}/cases/${slug}/compose',
+        'pages/X.tsx: /app/acme/demo/cases/c1/compose?from=2',
+        'pages/X.tsx: ${root}/cases/${encodeURIComponent(item.slug)}/compose',
+      ]);
     });
 
     // [utest->req~frontend-retire-composer-no-link~1]
@@ -316,6 +320,8 @@ describe('the scan for retired addresses', () => {
         'const d = `${root}/workbench?case=${encodeURIComponent(slug)}`;',
         "const e = '/app/acme/demo/cases/flujo/compare';",
         "const f = '/app/acme/demo/cases/x/composex';",
+        "const i = '/app/acme/demo/cases/x/composer';",
+        'const j = `${root}/cases/${slug}/composer`;',
         'const g = `${root}/cases/${slug}/compare`;',
         'const h = `${root}/cases/${slug}`;',
         "// '/app/acme/demo/cases/flujo/compose' in a comment",

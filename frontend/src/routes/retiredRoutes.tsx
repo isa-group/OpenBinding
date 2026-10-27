@@ -68,7 +68,7 @@ function workbenchTarget(_query: URLSearchParams, params: RetiredParams): string
 /**
  * The library entries come first: on a tie of rank React Router takes the earlier route, and `/app/<org>/library/reports`,
  * `/app/<org>/library/library` and `/app/<org>/library/resources` match the library artifact as well as the project reports, the
- * project library and the project resources. The composer (slice 4) goes last: it ties with no other entry.
+ * project library and the project resources. The composer (slice 4) goes last: it ties with lib-draft and lib-version, which win.
  */
 export const RETIRED_ROUTES: readonly RetiredRoute[] = [
   { id: 'lib-list', path: '/app/:org/library', slice: 3, target: organizationTarget },
