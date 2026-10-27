@@ -39,11 +39,22 @@ def test_dramatiq_services_do_not_get_jwt_secret(relative: str) -> None:
         assert SECRET not in _env_names(service), f"{relative}:{name} defines {SECRET}"
 
 
-def test_analysis_workers_inherit_dramatiq_without_secret() -> None:
+def test_worker_and_worker_dev_run_dramatiq_without_the_jwt_secret() -> None:
     services = _load("docker-compose.yml")["services"]
-    for name in ("worker", "worker-dev", "analysis-worker", "analysis-worker-dev"):
+    for name in ("worker", "worker-dev"):
         assert name in services
         assert "dramatiq" in _command_text(services[name])
+        assert SECRET not in _env_names(services[name]), f"{name} defines {SECRET}"
+
+
+# [utest->req~lab-deployment-no-analysis-worker~1]
+@pytest.mark.parametrize("relative", ("docker-compose.yml", "deploy/compose/production/compose.yaml"))
+def test_no_worker_serves_the_analysis_queue(relative: str) -> None:
+    services = _load(relative)["services"]
+    assert not [name for name in services if "analysis" in name]
+    for name, service in services.items():
+        if "dramatiq" in _command_text(service):
+            assert "analysis" not in _command_text(service), f"{relative}:{name} serves the analysis queue"
 
 
 @pytest.mark.parametrize("name", ["gateway", "gateway-dev"])

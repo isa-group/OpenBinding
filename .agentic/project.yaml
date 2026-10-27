@@ -105,7 +105,7 @@ thresholds:
 risk_areas:                          # mirrors REVIEW.md section 1; GW = openbinding-gateway/src/openbinding_gateway
   R1_auth_roles:
     level: high
-    globs: ["openbinding-gateway/src/openbinding_gateway/routes/{auth,cas,users,admin,organizations,sponsor_proposals}.py", "openbinding-gateway/src/openbinding_gateway/access/**", "openbinding-gateway/src/openbinding_gateway/security/**", "openbinding-gateway/src/openbinding_gateway/{collaboration,cas}.py", "frontend/src/contexts/**", "frontend/src/components/ProtectedRoute.tsx", "frontend/src/routes/**"]
+    globs: ["openbinding-gateway/src/openbinding_gateway/routes/{auth,cas,users,admin,organizations}.py", "openbinding-gateway/src/openbinding_gateway/access/**", "openbinding-gateway/src/openbinding_gateway/security/**", "openbinding-gateway/src/openbinding_gateway/{collaboration,cas}.py", "frontend/src/contexts/**", "frontend/src/components/ProtectedRoute.tsx", "frontend/src/routes/**"]
   R2_plans_pricing:
     level: high
     globs: ["openbinding-gateway/src/openbinding_gateway/services/entitlements.py", "openbinding-gateway/src/openbinding_gateway/domain/{entitlements,usage_counters}.py", "openbinding-gateway/src/openbinding_gateway/access/policy.py", "openbinding-gateway/src/openbinding_gateway/space_client/**", "openbinding-gateway/src/openbinding_gateway/{sphere_client,pricing_catalog}.py", "openbinding-gateway/src/openbinding_gateway/routes/pricing.py", "frontend/src/pages/Pricing/**", "frontend/src/content/plans.ts", "pricings/**"]
@@ -117,7 +117,7 @@ risk_areas:                          # mirrors REVIEW.md section 1; GW = openbin
     globs: ["engines/**", "openbinding-gateway/src/openbinding_gateway/services/{execution,engines}.py", "openbinding-gateway/src/openbinding_gateway/v1/remote.py", "schemas/bim/v1/manifests/**", "bim-toolchain/packages/bim-core/src/bim_core/{evaluator,reevaluate,compat,protocol,compiler,expressions}.py"]
   R5_jobs_concurrency:
     level: high
-    globs: ["openbinding-gateway/src/openbinding_gateway/jobs/**", "openbinding-gateway/src/openbinding_gateway/{job_dispatch,worker,study_jobs,analysis_jobs}.py", "openbinding-gateway/src/openbinding_gateway/services/job_submission.py", "openbinding-gateway/src/openbinding_gateway/domain/idempotency.py"]
+    globs: ["openbinding-gateway/src/openbinding_gateway/jobs/**", "openbinding-gateway/src/openbinding_gateway/{job_dispatch,worker,study_jobs}.py", "openbinding-gateway/src/openbinding_gateway/services/job_submission.py", "openbinding-gateway/src/openbinding_gateway/domain/idempotency.py"]
   R6_persistence_migrations:
     level: high
     globs: ["openbinding-gateway/alembic/**", "openbinding-gateway/src/openbinding_gateway/db/**", "openbinding-gateway/src/openbinding_gateway/repositories/**"]
