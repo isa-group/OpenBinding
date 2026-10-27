@@ -275,11 +275,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Pareto front' }).click();
       await main.locator('summary', { hasText: 'Other capabilities' }).click();
       await expect(main.getByRole('radiogroup', { name: 'Workflow nodes' })).toBeVisible();
-      await expect(main.getByLabel('View source (JSON)')).toBeHidden();
+      await expect(main.getByRole('region', { name: 'Engine manifest source' })).toBeHidden();
       await capture(page, testInfo, `register-${name}-1-capabilities`, { height: tall(3600) });
 
       await main.getByText('View source').click();
-      await expect(main.getByLabel('View source (JSON)')).toContainText('"featureValues"');
+      await expect(main.getByRole('region', { name: 'Engine manifest source' })).toContainText('"featureValues"');
       await main.getByRole('button', { name: 'Create engine revision' }).click();
       await expect(main.getByText('✓ Engine revision created · private')).toBeVisible();
       expect(state.sent.engine).toMatchObject({
@@ -564,12 +564,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(mode.getByRole('region', { name: 'Feature values of mode tabu' })).toContainText('Ranges, min–max · accepted');
       await expect(mode.getByRole('region', { name: 'Options of mode tabu' })).toContainText('1 – 3,600,000');
       await expect(main.getByRole('region', { name: 'Other revisions of this registration' }).getByRole('link', { name: 'Open edge-solver 0.2.0' })).toBeVisible();
-      await expect(main.getByLabel('View source (JSON)')).toBeHidden();
+      await expect(main.getByRole('region', { name: 'Engine manifest source' })).toBeHidden();
       await capture(page, testInfo, `detail-${name}-top`, { height: tall(2200) });
       await capture(page, testInfo, `detail-${name}-full`);
 
-      await main.getByText('View source').click();
-      await expect(main.getByLabel('View source (JSON)')).toContainText('"kind": "Engine"');
+      await main.getByRole('tab', { name: 'Source' }).click();
+      await expect(main.getByRole('region', { name: 'Engine manifest source' })).toContainText('"kind": "Engine"');
       expect(critical).toEqual([]);
     });
 
@@ -682,7 +682,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await community.getByRole('button', { name: 'Details of edge-annotations' }).click();
       await expect(community.getByRole('region', { name: 'Resource types of edge-annotations' })).toContainText('BPMN (XML) · root definitions');
       await expect(community.getByText('/spec/annotations', { exact: true })).toBeVisible();
-      await expect(community.getByLabel('View source (JSON)')).toBeHidden();
+      await expect(community.getByRole('region', { name: 'edge-annotations dialect source' })).toBeHidden();
       await capture(page, testInfo, `language-${name}-dialect-details`, { height: tall(2000) });
 
       await main.getByRole('group', { name: 'Provenance' }).getByRole('button', { name: 'Built in' }).click();

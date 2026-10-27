@@ -117,7 +117,7 @@ function DialectCard({ row, open, onToggle }: { row: DialectRow; open: boolean; 
             <div><dt>Version</dt><dd className="is-mono">{row.adapter.version}</dd></div>
           </dl>
           <CopyField value={row.adapter.binaryDigest} label={`${row.adapter.id} binary fingerprint`} truncate />
-          <ViewSource value={row.document} />
+          <ViewSource value={row.document} sourceLabel={`${row.name} dialect source`} filename={`${row.name}.dialect.json`} />
         </div>
       )}
     </article>

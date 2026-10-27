@@ -308,6 +308,27 @@ describe('eng-register · the registration wizard', () => {
     expect(manifest.spec.modes[0].capabilities.featureValues).toEqual({ selector: 'only', values: ['scalar', 'interval'] });
   });
 
+  // [utest->req~frontend-registration-fixed-option-rendered~1]
+  it('shows an option fixed by the manifest as words, never as JSON text', async () => {
+    renderPage();
+    fireEvent.change(await screen.findByLabelText('Engine manifest JSON'), { target: { value: JSON.stringify(ENGINE_DOCUMENT) } });
+    fireEvent.click(screen.getByRole('button', { name: 'Load into the form' }));
+    const fixed = await screen.findByRole('group', { name: 'Option 3 fixed in the manifest' });
+    expect(within(fixed).getByText('always tabu')).toBeInTheDocument();
+    expect(within(fixed).getByText('default')).toBeInTheDocument();
+    expect(fixed.textContent).not.toContain('{"');
+  });
+
+  // [utest->req~frontend-engines-source-view~1]
+  it('keeps the manifest being built in a catalogue source view behind View source', async () => {
+    renderPage();
+    const summary = await screen.findByText('View source');
+    const source = screen.getByRole('region', { name: 'Engine manifest source', hidden: true });
+    expect(summary.closest('details')).toContainElement(source);
+    expect(source).toHaveTextContent('"kind": "Engine"');
+    expect(screen.queryByLabelText('View source (JSON)')).not.toBeInTheDocument();
+  });
+
   it('refuses text that is not an engine manifest', async () => {
     renderPage();
     fireEvent.change(await screen.findByLabelText('Engine manifest JSON'), { target: { value: '{"spec":{}}' } });

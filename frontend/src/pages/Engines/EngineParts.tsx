@@ -1,7 +1,9 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Check, Minus, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SourceView } from '../../components/rendering/SourceView';
 import { DataTable } from '../../components/ui/DataTable';
+import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { formatDateTime } from '../../utils/format';
 import { dimensionLabel, readManifest, valueLabel, type CapabilityRow, type ModeView } from './manifestModel';
 import type { Allowance, ChipTone, Probe } from './registrationModel';
@@ -39,14 +41,29 @@ export function StatusChip({ tone = 'plain', children }: { tone?: ChipTone; chil
 }
 
 /** JSON or YAML as written, folded away: the readable views are the way in, this is for people who want the bytes. */
-export function ViewSource({ value, label = 'View source' }: { value: unknown; label?: string }) {
-  const source = useMemo(() => JSON.stringify(value, null, 2) ?? '', [value]);
+// [impl->req~frontend-engines-source-view~1]
+export function ViewSource({ value, label = 'View source', sourceLabel, filename }: {
+  value: unknown;
+  /** The disclosure’s summary. */
+  label?: string;
+  /** What the document is, as the source view names it; defaults to the summary. */
+  sourceLabel?: string;
+  /** Offers a Download button that saves the document under this name. */
+  filename?: string;
+}) {
+  const name = sourceLabel ?? (label === 'View source' ? 'Source document' : label);
   return (
     <details className="eng-source">
       <summary>{label}</summary>
-      <pre tabIndex={0} aria-label={`${label} (JSON)`}><code>{source}</code></pre>
+      <SourceView source={sourceOf(value)} label={name} language="json" filename={filename} maxHeight="22rem" />
     </details>
   );
+}
+
+/** SourceView takes a string or an object: a primitive is shown as written, a missing value as empty. */
+function sourceOf(value: unknown): string | object {
+  if (typeof value === 'object' && value !== null) return value;
+  return value === undefined ? '' : String(value);
 }
 
 function seconds(durationMs: number): string {
@@ -266,24 +283,30 @@ function ModePanel({ mode }: { mode: ModeView }) {
   );
 }
 
-/** An Engine manifest as fields, chips and tables. The document itself is behind “View source”. */
+const MANIFEST_VIEWS = [{ id: 'manifest', label: 'Manifest' }, { id: 'source', label: 'Source' }] as const;
+
+/** An Engine manifest as fields, chips and tables on the Manifest tab; the document itself on the Source tab. */
+// [impl->req~frontend-engines-manifest-source-tab~1]
 export function ManifestPanel({ document }: { document: unknown }) {
   const view = useMemo(() => readManifest(document), [document]);
-  if (!view) {
-    return (
-      <div className="eng-manifest">
-        <p className="eng-muted">The engine manifest couldn’t be read as a bim/v1 Engine.</p>
-        <ViewSource value={document} />
-      </div>
-    );
-  }
+  const [tab, setTab] = useState<string>('manifest');
   return (
     <div className="eng-manifest">
-      {view.description && <p className="eng-lede">{view.description}</p>}
-      {view.modes.length === 0 && <p className="eng-muted">This manifest declares no modes.</p>}
-      {view.modes.map((mode) => <ModePanel key={mode.id} mode={mode} />)}
-      {view.extras.length > 0 && <small className="eng-muted">The document also carries {view.extras.join(', ')}; they appear in the source.</small>}
-      <ViewSource value={document} />
+      <TabBar items={MANIFEST_VIEWS} value={tab} onChange={setTab} ariaLabel="Engine manifest views" prefix="eng-manifest-view" />
+      <TabPanel prefix="eng-manifest-view" active={tab}>
+        {tab === 'source' ? (
+          <SourceView source={sourceOf(document)} label="Engine manifest source" language="json" filename="engine.json" maxHeight="32rem" />
+        ) : !view ? (
+          <p className="eng-muted">The engine manifest couldn’t be read as a bim/v1 Engine. Its document is on the Source tab.</p>
+        ) : (
+          <>
+            {view.description && <p className="eng-lede">{view.description}</p>}
+            {view.modes.length === 0 && <p className="eng-muted">This manifest declares no modes.</p>}
+            {view.modes.map((mode) => <ModePanel key={mode.id} mode={mode} />)}
+            {view.extras.length > 0 && <small className="eng-muted">The document also carries {view.extras.join(', ')}; they appear on the Source tab.</small>}
+          </>
+        )}
+      </TabPanel>
     </div>
   );
 }

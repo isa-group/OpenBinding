@@ -33,7 +33,7 @@
 
 .eng-source { border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); }
 .eng-source > summary { padding: 8px 14px; color: var(--tp-link); font-size: 0.8125rem; font-weight: 500; cursor: pointer; }
-.eng-source > pre { max-height: 360px; margin: 0; padding: 12px 14px; overflow: auto; border-top: 1px solid var(--tp-hairline-soft); background: var(--tp-surface); font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.5; }
+.eng-source > .rendering-source { margin: 0 14px 12px; }
 
 /* The conformance probe */
 

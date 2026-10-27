@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ENGINE_DOCUMENT } from '../../test/fixtures/engines';
-import { dimensionLabel, readManifest, valueLabel } from './manifestModel';
+import { describeFixedOption, dimensionLabel, readManifest, valueLabel } from './manifestModel';
 
 describe('reading an engine manifest', () => {
   const view = readManifest(ENGINE_DOCUMENT);
@@ -37,6 +37,31 @@ describe('reading an engine manifest', () => {
       { name: 'algorithm', type: 'fixed', range: '—', default: 'tabu', required: false, fixed: 'always tabu' },
     ]);
     expect(mode?.limits).toEqual([['maxIterations', 100000], ['maxTimeBudgetMs', 3600000]]);
+  });
+
+  // [utest->req~frontend-registration-fixed-option-rendered~1]
+  it('describes a fixed option as words: const, enum and any other keyword as keyword/value pairs', () => {
+    expect(describeFixedOption({ const: 'tabu', default: 'tabu' })).toEqual({ summary: 'always tabu', pairs: [{ keyword: 'default', value: 'tabu' }] });
+    expect(describeFixedOption({ enum: ['a', 'b', 3] })).toEqual({ summary: 'one of a, b, 3', pairs: [] });
+    const other = describeFixedOption({ type: 'array', items: { type: 'string' }, pattern: '^x', uniqueItems: true, examples: ['p', 'q'] });
+    expect(other.summary).toBeNull();
+    expect(other.pairs).toEqual([
+      { keyword: 'type', value: 'array' },
+      { keyword: 'items', value: '1 field' },
+      // (an object keeps no JSON text: only how many fields it has)
+      { keyword: 'pattern', value: '^x' },
+      { keyword: 'uniqueItems', value: 'true' },
+      { keyword: 'examples', value: 'p, q' },
+    ]);
+    expect(describeFixedOption({ const: null }).summary).toBe('always null');
+    expect(describeFixedOption({ const: { a: 1, b: 2 } }).summary).toBe('always 2 fields');
+    expect(describeFixedOption('nonsense')).toEqual({ summary: null, pairs: [] });
+    const text = JSON.stringify([describeFixedOption({ const: 'x' }).summary, ...other.pairs.map((pair) => pair.value)]);
+    expect(text).not.toContain('{"');
+  });
+
+  it('agrees with the options table about what a fixed option says', () => {
+    expect(mode?.options.find((option) => option.name === 'algorithm')?.fixed).toBe(describeFixedOption({ const: 'tabu' }).summary);
   });
 
   it('reads a mode that declares only scalar values, and one that does not declare them at all', () => {

@@ -131,9 +131,43 @@ describe('eng-registration-detail', () => {
     expect(within(mode).getByRole('region', { name: 'Options of mode tabu' })).toHaveTextContent('1 – 3,600,000');
     expect(within(mode).getByText('pareto-front')).toBeInTheDocument();
 
-    const source = screen.getAllByLabelText('View source (JSON)')[0];
-    expect(source).not.toBeVisible();
+    // The document is not on the page until the Source tab is asked for.
+    expect(screen.queryByRole('region', { name: 'Engine manifest source' })).not.toBeInTheDocument();
+  });
+
+  // [utest->req~frontend-engines-manifest-source-tab~1]
+  it('offers the manifest document on a Source tab beside the readable Manifest tab', async () => {
+    open(EDGE_SOLVER);
+    await screen.findByRole('heading', { level: 1, name: 'edge-solver' });
+    const manifestTab = screen.getByRole('tab', { name: 'Manifest' });
+    const sourceTab = screen.getByRole('tab', { name: 'Source' });
+    expect(manifestTab).toHaveAttribute('aria-selected', 'true');
+    expect(sourceTab).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('region', { name: 'Mode tabu' })).toBeInTheDocument();
+    expect(screen.queryByText('View source')).not.toBeInTheDocument();
+
+    fireEvent.click(sourceTab);
+    expect(sourceTab).toHaveAttribute('aria-selected', 'true');
+    const source = screen.getByRole('region', { name: 'Engine manifest source' });
     expect(source).toHaveTextContent('"kind": "Engine"');
+    expect(within(source).getByRole('button', { name: 'Copy Engine manifest source' })).toBeInTheDocument();
+    expect(within(source).getByRole('button', { name: 'Download Engine manifest source' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Mode tabu' })).not.toBeInTheDocument();
+
+    fireEvent.click(manifestTab);
+    expect(screen.getByRole('region', { name: 'Mode tabu' })).toBeInTheDocument();
+  });
+
+  // [utest->req~frontend-engines-manifest-source-tab~1]
+  it('keeps the document on the Source tab when the manifest cannot be read as an Engine', async () => {
+    api.getEngineRegistrationReport.mockImplementation(async (ref: EngineRegistrationRevision) => (
+      { ...reportOf(stateOf(ref)), engine: { unexpected: 'shape' } }
+    ));
+    open(EDGE_SOLVER);
+    await screen.findByRole('heading', { level: 1, name: 'edge-solver' });
+    expect(await screen.findByText(/couldn’t be read as a bim\/v1 Engine/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Source' }));
+    expect(screen.getByRole('region', { name: 'Engine manifest source' })).toHaveTextContent('"unexpected": "shape"');
   });
 
   it('lists the other revisions under the same name, each one a link to its own page', async () => {

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
 import { StatusChip } from '../Engines/EngineParts';
-import { dimensionLabel, valueLabel } from '../Engines/manifestModel';
+import { describeFixedOption, dimensionLabel, valueLabel } from '../Engines/manifestModel';
 import {
   ALL_TERMINATIONS, SCALARIZATIONS, issueAt, newMode, newOption, vocabularyFor,
   type Choice, type Dimension, type EngineDraft, type Issue, type ModeDraft, type OptionDraft, type OptionType, type Selector, type Vocabulary,
@@ -154,6 +154,23 @@ const OPTION_TYPES: ReadonlyArray<Option<OptionType>> = [
   { id: 'boolean', label: 'Yes / no' },
 ];
 
+/** An option the manifest fixes: its rule in words, other schema keywords as a keyword/value list. */
+// [impl->req~frontend-registration-fixed-option-rendered~1]
+function FixedOption({ option, index }: { option: OptionDraft; index: number }) {
+  const { summary, pairs } = describeFixedOption(option.rest);
+  return (
+    <div className="rg-fixed" role="group" aria-label={`Option ${index + 1} fixed in the manifest`}>
+      <span>Fixed in the manifest</span>
+      {summary && <strong>{summary}</strong>}
+      {pairs.length > 0 && (
+        <dl className="rg-fixed-pairs">
+          {pairs.map((pair) => <div key={pair.keyword}><dt>{pair.keyword}</dt><dd>{pair.value}</dd></div>)}
+        </dl>
+      )}
+    </div>
+  );
+}
+
 function OptionRow({ option, index, disabled, issues, at, onChange, onRemove }: {
   option: OptionDraft;
   index: number;
@@ -174,10 +191,7 @@ function OptionRow({ option, index, disabled, issues, at, onChange, onRemove }: 
         {field('name') && <small className="rg-error">{field('name')}</small>}
       </label>
       {option.type === 'fixed' ? (
-        <div className="rg-fixed">
-          <span>Fixed in the manifest</span>
-          <code>{JSON.stringify(option.rest)}</code>
-        </div>
+        <FixedOption option={option} index={index} />
       ) : (
         <>
           <label>

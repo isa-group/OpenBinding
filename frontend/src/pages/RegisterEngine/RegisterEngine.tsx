@@ -375,7 +375,7 @@ function Wizard({ username, setup, allowance, allowanceLoading, onAllowanceChang
           {!engine && <ImportManifest vocabularies={vocabularies} onLoad={setEngineDraft} />}
           {setup.vocabularies[0].source === 'built-in' && <Notice tone="info">The gateway’s profile list couldn’t be read, so the form uses the standard qos-binding/v1 vocabulary. The gateway still checks the manifest.</Notice>}
           <EngineForm draft={engineDraft} onChange={setEngineDraft} vocabularies={vocabularies} issues={engineIssues} locked={Boolean(engine)} namespace={username} />
-          <ViewSource value={manifest} />
+          <ViewSource value={manifest} sourceLabel="Engine manifest source" filename="engine.json" />
           <div className="rg-actions">
             {!engine ? (
               <>
