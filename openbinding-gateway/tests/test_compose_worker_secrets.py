@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import fnmatch
+
 import pytest
 import yaml
 
@@ -39,11 +41,66 @@ def test_dramatiq_services_do_not_get_jwt_secret(relative: str) -> None:
         assert SECRET not in _env_names(service), f"{relative}:{name} defines {SECRET}"
 
 
-def test_analysis_workers_inherit_dramatiq_without_secret() -> None:
+def test_worker_and_worker_dev_run_dramatiq_without_the_jwt_secret() -> None:
     services = _load("docker-compose.yml")["services"]
-    for name in ("worker", "worker-dev", "analysis-worker", "analysis-worker-dev"):
+    for name in ("worker", "worker-dev"):
         assert name in services
         assert "dramatiq" in _command_text(services[name])
+        assert SECRET not in _env_names(services[name]), f"{name} defines {SECRET}"
+
+
+def _queues(service: dict) -> list[str]:
+    """The queue names after ``--queues`` in a dramatiq command (empty when the command names none)."""
+    words = _command_text(service).replace('"', " ").split()
+    if "--queues" not in words:
+        return []
+    queues = []
+    for word in words[words.index("--queues") + 1:]:
+        if word.startswith("-") or word in {"&&", ";", "|", "||"}:
+            break
+        queues.append(word)
+    return queues
+
+
+# Every lab compose file (base and overlays), found from the repository root; JSON is YAML.
+# The root compose*.json files are already classified as gateway root files in tools/ci_changes.py
+# (GATEWAY_ROOT_FILES), so a change to any of them selects this test.
+LAB_COMPOSE_FILES = tuple(sorted(
+    path.name for path in REPO_ROOT.iterdir() if fnmatch.fnmatch(path.name, "compose.lab*.json")))
+
+
+# [utest->req~lab-deployment-no-analysis-worker~1]
+@pytest.mark.parametrize(
+    "relative", ("docker-compose.yml", "deploy/compose/production/compose.yaml", *LAB_COMPOSE_FILES))
+def test_no_worker_serves_the_analysis_queue(relative: str) -> None:
+    services = _load(relative).get("services") or {}
+    assert not [name for name in services if "analysis" in name]
+    for name, service in services.items():
+        if "dramatiq" in _command_text(service):
+            assert "analysis" not in _command_text(service), f"{relative}:{name} serves the analysis queue"
+            assert "analysis" not in _queues(service), f"{relative}:{name} serves the analysis queue"
+
+
+# [utest->req~lab-deployment-no-analysis-worker~1]
+def test_the_lab_worker_serves_the_default_queue_only() -> None:
+    services = _load("compose.lab.json")["services"]
+    assert "compose.lab.json" in LAB_COMPOSE_FILES
+    command = _command_text(services["worker"])
+    assert "dramatiq openbinding_gateway.worker" in command
+    assert _queues(services["worker"]) == ["default"], command
+    for relative in LAB_COMPOSE_FILES:
+        for name, service in (_load(relative).get("services") or {}).items():
+            if "dramatiq" in _command_text(service):
+                assert _queues(service) == ["default"], f"{relative}:{name}"
+
+
+def test_the_queue_reader_sees_an_analysis_worker() -> None:
+    """The check above would catch a reintroduced analysis consumer."""
+    assert _queues({"command": "exec dramatiq openbinding_gateway.worker --queues default analysis"}) == [
+        "default", "analysis"]
+    assert _queues({"command": ["dramatiq", "openbinding_gateway.worker", "--queues", "analysis", "--threads", "2"]}) \
+        == ["analysis"]
+    assert _queues({"command": "dramatiq openbinding_gateway.worker --queues default && echo done"}) == ["default"]
 
 
 @pytest.mark.parametrize("name", ["gateway", "gateway-dev"])

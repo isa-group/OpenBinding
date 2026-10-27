@@ -50,7 +50,7 @@ kept under `extra`.
 | `message` | always | human-readable |
 | `pointer` | when a field is at fault | RFC 6901 JSON Pointer (`/spec/limits/maxTasks`, `/features/0`; keys are escaped with `~0`/`~1`). Into the request body for validation errors; into `resource` for compiler findings; into the YAML for pricing. |
 | `in` | request validation | `body`, `query`, `path`, `header` or `cookie` |
-| `parameter` | `in` ≠ `body` | the query/path/header/cookie parameter (`limit`, `proposal_id`) |
+| `parameter` | `in` ≠ `body` | the query/path/header/cookie parameter (`limit`, `cursor`) |
 | `resource` | compiler findings | the package file the finding is about |
 | `span` | when known | position in the source text: `{"offset": 12}` for malformed JSON; `{"line", "column"}` for documents |
 | `hint` / `fix` | when known | what to do / a concrete replacement (`"This field is required."`, the JSON parser's reason) |
@@ -113,6 +113,19 @@ keep `application/json`. The body is identical; only the media type differs, and
 the OpenAPI document declares the right one per path. Nothing was changed here
 on purpose: switching the platform routes would be harmless to a JSON client but
 is not needed.
+
+## Sponsorship
+
+`PATCH /v1/organizations/{org}` with `billing_sponsor_user_id`:
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `sponsor_must_be_caller` | 422 | an OWNER named somebody other than themselves (and other than the current sponsor) as billing sponsor. Only the caller can become sponsor; the check runs before the person is looked up, so existence and activity are not revealed, and nothing in the request is applied |
+
+The sponsor-proposal codes (`sponsor_proposal_pending`, `sponsor_proposal_expired`,
+`sponsor_proposal_not_pending`, `sponsor_proposal_forbidden`) no longer exist:
+M9.6 removed the proposal routes. A request that still sends
+`replace_pending_proposal` is refused with `validation_error`.
 
 ## The other statuses
 

@@ -127,7 +127,7 @@ orders a production deployment.
 
 `docker-compose.yml` defines the profiles `dev`, `prod`, `db-tools` (Adminer),
 `federated-example` and `benchmark`. `dev` and `prod` start PostgreSQL, Redis,
-the gateway, the analysis worker, the four bundled Engines, the frontend and
+the gateway, the job worker, the four bundled Engines, the frontend and
 nginx. With `APP_ENV=prod` the gateway refuses to start unless
 `CORS_ALLOW_ORIGINS` names exact origins. Whether the stack, SPACE and SPHERE
 work together end to end against the real remote services has not been
@@ -176,17 +176,9 @@ To populate the database with a complete set of development entities (users, hie
 # Or clean previously seeded entities and repopulate from scratch
 ./tools/seed_dev.sh --reset
 
-# Add/update only the interactive binding-analysis examples (existing dev data)
-./tools/seed_dev.sh --analysis-only
-
-# Full binding decision validation with live jobs and up to 100,000 unique bindings
-./tools/seed_dev.sh --analysis-full
-
 # Directly through Docker Compose
 docker compose exec -T gateway-dev python tools/seed_dev.py --reset
 ```
-
-The integrated [binding decision workspace](docs/analysis/binding-decision-workspace.md) documents the evidence contract, geometric views, limits, scenario coverage and reproducible API/browser checks. Population writes `openbinding-gateway/tools/analysis-manifest.json` with analysis and draft Report links.
 
 All test accounts (`alice`, `bob`, `carol`, `david`, `elena`, `frank`) use password: `devpass123`.
 The administrator (`admin`) uses `devpass123`.

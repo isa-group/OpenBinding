@@ -42,7 +42,8 @@ DEV_CORS_ORIGINS = (
 #: countdown (``Retry-After``) never appears. Only headers the API really sets
 #: or uses are listed: ``Retry-After`` (429/503), ``ETag`` (content-addressed
 #: downloads), ``Location`` (redirects), ``Content-Disposition`` and ``Digest``
-#: (archive downloads) and ``Idempotency-Key`` (job submission).
+#: (archive downloads), and ``Idempotency-Key`` (job submission).
+# [impl->req~gateway-api-cors-exposed-headers~1]
 CORS_EXPOSED_HEADERS = (
     "Retry-After",
     "ETag",
@@ -356,9 +357,6 @@ class Settings(BaseSettings):
     sphere_timeout_s: float = 10.0
 
     # -- Collaboration ----------------------------------------------------
-    #: Days a billing-sponsor proposal waits for the proposed person's answer
-    #: before it expires (``SPONSOR_PROPOSAL_TTL_DAYS``).
-    sponsor_proposal_ttl_days: int = Field(default=14, ge=1, le=365)
     #: Reads of public projects by people who are not members are limited per
     #: caller (the account, or the client address when anonymous) and per
     #: minute; they are never charged to the project's sponsor

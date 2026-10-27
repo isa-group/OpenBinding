@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from pathlib import Path
 
 import jsonschema
 import pytest
@@ -133,9 +132,7 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/auth/cas/exchange", "post"),
         ("/v1/profiles", "get"),
         ("/v1/dialects", "get"),
-        ("/v1/artifacts/{artifact_id}", "get"),
         ("/v1/artifacts/{artifact_id}/versions", "get"),
-        ("/v1/artifacts/{artifact_id}/versions/{version_id}", "get"),
         ("/v1/artifacts/{artifact_id}/versions/{version_id}/content", "get"),
         ("/v1/artifacts/resolve", "post"),
         ("/v1/resources", "get"),
@@ -191,7 +188,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/admin/moderation", "get"),
         ("/v1/admin/overview", "get"),
         ("/v1/admin/queues", "get"),
-        ("/v1/admin/organizations/{organization_id}/sponsor", "post"),
         ("/v1/admin/errors/overview", "get"),
         ("/v1/admin/errors", "get"),
         ("/v1/engine-registrations/{name}/approve", "post"),

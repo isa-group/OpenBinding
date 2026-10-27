@@ -24,7 +24,7 @@ need the owner), the develop preview at `https://openbinding.home.javiercavlop.c
 | M6 | Laboratory, published results and QACOBench inside the platform | M3 | a study reproducing an icws suite, published and verified | R3 | planned |
 | M7 | Engines | M5 (profile support) | engine health and onboarding | R4 | planned |
 | M8 | Collaboration and administration completion | M2, M4 | overviews on real data | R4 | planned |
-| M9 | Architecture migration (continuous) | — | none (behaviour-preserving) | with each release | planned |
+| M9 | Architecture migration (continuous) | — | none (behaviour-preserving) | with each release | in progress (M9.6 done in change m96-remove-retired) |
 
 M2, M4 and the first steps of M9 can run in parallel; M3 starts when the M2 rendering components exist.
 
@@ -188,6 +188,8 @@ Goal: profiles that extend profiles, installable dialects, one language API and 
 | M9.4 | Repository layout of ARCHITECTURE §13 | CI, Dockerfiles and links updated in the same change |
 | M9.5 | BIM toolchain extracted to `isa-group/bim-toolchain` and consumed as a pinned release (ADR-0004) | consumer contracts green on both sides |
 | M9.6 | Retired endpoints, code and data (ADR-0020, after the Sunset of M2.4): endpoints removed (CRP); the `analysis` queue and worker removed; report drafts, decision-space workspaces and sponsorship proposals exported and dropped (CRP) | `docs/openapi.json` shrinks; every sealed problem version compiles to the same IR; existing publications still answer at their permanent links |
+
+Slice status (2026-10-27): M9.6 done in change `m96-remove-retired`. The owner skipped the Deprecation/Sunset period because nothing ran in production, so the 41 retired operations, the analysis queue and worker, the sponsor proposals and the deprecation middleware are removed, and docs/openapi.json shrinks accordingly; the retired data (report drafts, decision-space workspaces, sponsorship proposals) is exported with the export tool and dropped by a guarded migration.
 
 ## Releases
 

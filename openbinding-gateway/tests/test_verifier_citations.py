@@ -58,6 +58,7 @@ from test_citations import (
     sibling,
     snapshot_of,
     visibility,
+    withdraw,
 )
 
 INSPECT = "/v1/verifier/inspect"
@@ -92,7 +93,7 @@ async def seed_instance_snapshot(world, public: bool) -> Seeded:
 async def seed_study_run(world, public: bool) -> Seeded:
     user, headers = await member(world)
     org, proj = await project_of(world, headers, visibility(public))
-    definition = await seal(world.client, headers, org, "Dataset", {"value": uuid.uuid4().hex})
+    definition = await seal(world.client, headers, org, "Dataset", {"value": uuid.uuid4().hex}, db=world.db)
     study = Study(
         project_id=(await project_row(world, proj)).id, slug="study-a", name="Study A",
         definition_version_id=uuid.UUID(definition["version"]["id"]), created_by_id=uuid.UUID(user["id"]),
@@ -333,10 +334,7 @@ async def test_a_withdrawn_publication_is_not_cited(name, world):
     source = SOURCES[name]
     seeded = await source.seeder(world, public=True)
     await publish(world, seeded, CITED)
-    withdrawn = await world.client.post(
-        f"/v1/artifacts/{seeded.artifact_id}/versions/{seeded.version_id}/withdraw", headers=seeded.headers
-    )
-    assert withdrawn.status_code == 200, withdrawn.text
+    await withdraw(world, seeded)
 
     body = await inspected(world, seeded.headers, digest=seeded.digest)
 

@@ -1,0 +1,5 @@
+## REMOVED Requirements
+
+### Requirement: Analysis work permissions and attempts
+**Reason**: M9.6 removes the Pareto analysis tasks, their routes (`POST /v1/analysis/pareto`, `GET /v1/analysis/pareto/{task_id}`, `POST /v1/analysis/pareto/{task_id}/cancel`), the `analysis` queue, its worker and the `analysis_tasks` table (owner decision of 2026-10-27, ADR-0020 decision 2). No API key can start, cancel or read analysis work, and no task is requeued or failed as `analysis_abandoned`. The id `req~studies-analysis-task-permissions-attempts~1` is retired with it.
+**Migration**: The rows of `analysis_tasks` are exported to `analysis_tasks.jsonl` by `tools/export_retired_data.py` before the table is dropped (`req~data-retirement-export-files~1`). The trade-off set of a multi-objective run moves to the run and study pages (ADR-0020 decision 3). The neighbourhood of a binding stays at `GET /v1/jobs/{job_id}/analysis/neighborhood`, with `jobs:read` for API keys (`req~studies-analysis-neighbourhood~1`, unchanged). The tests `test_apikey_analysis_scopes.py` and `test_analysis_task_attempts.py` are deleted with the code.

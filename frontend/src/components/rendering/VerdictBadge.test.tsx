@@ -12,6 +12,11 @@ const CASES = [
   ['INCOMPATIBLE', 'default', 'the engine cannot solve this problem'],
 ] as const;
 
+const TERMINATIONS = [
+  ['INFEASIBLE', 'error', 'no combination meets the rules'],
+  ['UNKNOWN', 'default', 'no conclusion'],
+] as const;
+
 describe('VerdictBadge', () => {
   // [utest->req~frontend-rendering-verdict-badge~1]
   it.each(CASES)('shows %s as text in the %s badge variant', (verdict, variant) => {
@@ -78,6 +83,69 @@ describe('VerdictBadge', () => {
     const badge = screen.getByText('UNSAT');
     expect(badge.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(container.querySelector('pre')).toBeNull();
+  });
+
+  // [utest->req~frontend-rendering-verdict-terminations~1]
+  it.each(TERMINATIONS)('reads %s as a known verdict in the %s variant with its description', (verdict, variant, description) => {
+    const { container } = render(<VerdictBadge verdict={verdict} />);
+
+    const badge = screen.getByText(verdict);
+    expect(badge).toHaveClass('badge', `badge-${variant}`);
+    const wrapper = badge.parentElement as HTMLElement;
+    expect(wrapper).not.toHaveAttribute('aria-describedby');
+    expect(wrapper.textContent).toBe(`${verdict}, ${description}`);
+    const hidden = container.querySelector('.sr-only') as HTMLElement;
+    expect(hidden.textContent).toBe(`, ${description}`);
+    expect(wrapper).toContainElement(hidden);
+  });
+
+  // [utest->req~frontend-rendering-verdict-terminations~1]
+  it('gives every API termination one distinct, non-empty description', () => {
+    const descriptions = ['OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'UNKNOWN'].map((verdict) => {
+      const { container, unmount } = render(<VerdictBadge verdict={verdict} />);
+      const hidden = container.querySelectorAll('.sr-only');
+      expect(hidden).toHaveLength(1);
+      const text = (hidden[0].textContent as string).replace(/^, /, '');
+      unmount();
+      return text;
+    });
+
+    descriptions.forEach((text) => expect(text).not.toBe(''));
+    expect(new Set(descriptions).size).toBe(4);
+  });
+
+  // [utest->req~frontend-rendering-verdict-terminations~1]
+  it('tells INFEASIBLE apart from UNSAT while both are errors', () => {
+    const { unmount } = render(<VerdictBadge verdict="INFEASIBLE" />);
+    expect(screen.getByText('INFEASIBLE')).toHaveClass('badge-error');
+    expect(screen.getByText('INFEASIBLE').parentElement?.textContent).toBe('INFEASIBLE, no combination meets the rules');
+    unmount();
+
+    render(<VerdictBadge verdict="UNSAT" />);
+    expect(screen.getByText('UNSAT')).toHaveClass('badge-error');
+    expect(screen.getByText('UNSAT').parentElement?.textContent).toBe('UNSAT, no combination satisfies the rules');
+  });
+
+  // [utest->req~frontend-rendering-verdict-terminations~1]
+  it('lists the reasons of an INFEASIBLE verdict after the badge', () => {
+    const reason = 'Hard rule latency ≤ 600 ms fails for every candidate';
+    const { container } = render(<VerdictBadge verdict="INFEASIBLE" reasons={[reason]} />);
+
+    const list = screen.getByRole('list', { name: 'Reasons' });
+    expect([...list.querySelectorAll('li')].map((li) => li.textContent)).toEqual([reason]);
+    expect(screen.getByText('INFEASIBLE').compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect((container.firstElementChild as HTMLElement).tagName).toBe('DIV');
+    expect(container.querySelector('pre')).toBeNull();
+  });
+
+  // [utest->req~frontend-rendering-verdict-terminations~1]
+  it.each(['infeasible', 'Unknown', 'toString'])('keeps the spelling %s as an unknown value', (verdict) => {
+    const { container } = render(<VerdictBadge verdict={verdict} />);
+
+    const badge = screen.getByText(verdict);
+    expect(badge).toHaveClass('badge-default');
+    expect(badge.parentElement?.textContent).toBe(verdict);
+    expect(container.querySelector('.sr-only')).toBeNull();
   });
 
   // [utest->req~frontend-rendering-verdict-badge~1]

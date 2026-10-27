@@ -307,18 +307,19 @@ async def test_roles_and_credentials_decide_who_may_attach(api_client, db_sessio
 async def test_a_run_sealed_into_a_report_still_refuses_results(api_client, db_session, world):
     cell = world.cells[0]
     twin = await clone_job(db_session, world.jobs[0])
-    report = await api_client.post(f"{BASE}/reports", headers=world.headers, json={
-        "slug": "run-evidence", "title": "Run evidence", "study_run_id": world.run["id"],
-        "document": {"provenance": {
+    # The report editor is removed since M9.6: the report is sealed by the internal report services.
+    import _m96_seed as seed
+    report = await seed.report(
+        db_session, await seed.project_by_slugs(db_session, "lab", "routing"), world.owner["id"],
+        slug="run-evidence", title="Run evidence", study_run_id=uuid.UUID(world.run["id"]), freeze=True,
+        document={"provenance": {
             "study": {"runId": world.run["id"], "matrixDigest": world.run["matrix_digest"]},
             "datasets": [{"reference": world.revision["id"], "digest": world.revision["digest"]}],
             "software": [{"name": "test-evaluator", "version": "1", "digest": "sha256-" + "a" * 64}],
             "bimVersion": "bim/v1", "engineRevisions": [world.engine], "parameters": {},
         }},
-    })
-    assert report.status_code == 201, report.text
-    frozen = await api_client.post(f"{BASE}/reports/run-evidence/freeze", headers=world.headers)
-    assert frozen.status_code == 200, frozen.text
+    )
+    assert report.version_id is not None
 
     response = await attach(api_client, world, cell, twin)
 

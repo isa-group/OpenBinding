@@ -361,11 +361,11 @@ async def test_account_deletion_reassigns_to_tenant_owner_not_admin(
 
 
 @pytest.mark.asyncio
-async def test_admin_transfer_organization_sponsor(
+async def test_admin_cannot_transfer_an_organization_sponsor(
     api_client, registration, gate, db_session
 ):
     sponsor1, sponsor1_headers = await create_account(api_client, registration, db_session)
-    sponsor2, sponsor2_headers = await create_account(api_client, registration, db_session)
+    sponsor2, _ = await create_account(api_client, registration, db_session)
     admin, admin_headers = await create_account(
         api_client, registration, db_session, admin=True
     )
@@ -384,44 +384,16 @@ async def test_admin_transfer_organization_sponsor(
     assert org_res.status_code == 201
     org_id = org_res.json()["id"]
 
-    # Admin proposes a sponsor via /v1/admin/organizations/{id}/sponsor without being member:
-    # nothing changes until the proposed person accepts (B3).
-    transfer_res = await api_client.post(
-        f"/v1/admin/organizations/{org_id}/sponsor",
-        headers=admin_headers,
-        json={"billing_sponsor_user_id": str(s2_id)},
-    )
-    assert transfer_res.status_code == 202, transfer_res.text
-    proposal = transfer_res.json()
-    assert proposal["status"] == "pending"
-    assert proposal["proposed_user_id"] == str(s2_id)
-    org = await db_session.get(Organization, uuid.UUID(org_id))
-    assert org.billing_sponsor_user_id == s1_id
+    # The administrator transfer route is gone (M9.6): nobody can make another person pay.
+    for body in ({"billing_sponsor_user_id": str(s2_id)}, {"billing_sponsor_user_id": admin["id"]}):
+        transfer_res = await api_client.post(
+            f"/v1/admin/organizations/{org_id}/sponsor", headers=admin_headers, json=body
+        )
+        assert transfer_res.status_code == 404, transfer_res.text
 
-    # Not even a platform administrator can accept on somebody else's behalf.
-    by_admin = await api_client.post(
-        f"/v1/sponsor-proposals/{proposal['id']}/accept", headers=admin_headers
-    )
-    assert by_admin.status_code == 403
-    assert by_admin.json()["detail"]["code"] == "sponsor_proposal_forbidden"
-
-    accepted = await api_client.post(
-        f"/v1/sponsor-proposals/{proposal['id']}/accept", headers=sponsor2_headers
-    )
-    assert accepted.status_code == 200, accepted.text
-
-    # Database reflected
     db_session.expire_all()
     org = await db_session.get(Organization, uuid.UUID(org_id))
-    assert org.billing_sponsor_user_id == s2_id
-
-    # Non-admin cannot call admin sponsor transfer endpoint
-    refused = await api_client.post(
-        f"/v1/admin/organizations/{org_id}/sponsor",
-        headers=sponsor1_headers,
-        json={"billing_sponsor_user_id": str(s1_id)},
-    )
-    assert refused.status_code == 403
+    assert org.billing_sponsor_user_id == s1_id
 
 
 @pytest.mark.asyncio
@@ -674,101 +646,17 @@ async def test_tenant_owner_transfers_sponsor_via_patch_while_admin_role_enforce
     assert refused_transfer.status_code == 403
     assert refused_transfer.json()["detail"]["code"] == "organization_forbidden"
 
-    # Org OWNER proposes a sponsor via PATCH without platform admin role: the sponsor
-    # is unchanged until that person accepts (B3).
-    proposed = await api_client.patch(
+    # Org OWNER without platform admin role cannot name somebody else either: only the
+    # caller can become the sponsor (M9.6), and the sponsor is unchanged.
+    refused_other = await api_client.patch(
         f"/v1/organizations/{org_slug}",
         headers=owner_headers,
         json={"billing_sponsor_user_id": str(sponsor2_id)},
     )
-    assert proposed.status_code == 202
-    assert proposed.json()["status"] == "pending"
+    assert refused_other.status_code == 422
+    assert refused_other.json()["code"] == "sponsor_must_be_caller"
     still_owner = await api_client.get(f"/v1/organizations/{org_slug}", headers=owner_headers)
     assert still_owner.json()["billing_sponsor_user_id"] == str(owner_id)
-
-    accepted = await api_client.post(
-        f"/v1/sponsor-proposals/{proposed.json()['id']}/accept", headers=sponsor2_headers
-    )
-    assert accepted.status_code == 200
-    moved = await api_client.get(f"/v1/organizations/{org_slug}", headers=owner_headers)
-    assert moved.json()["billing_sponsor_user_id"] == str(sponsor2_id)
-
-
-@pytest.mark.asyncio
-async def test_admin_sponsor_transfer_endpoint_enforces_api_key_write_permission(
-    api_client, registration, gate, db_session
-):
-    admin, admin_headers = await create_account(
-        api_client, registration, db_session, admin=True
-    )
-    user, user_headers = await create_account(api_client, registration, db_session)
-    sponsor, sponsor_headers = await create_account(api_client, registration, db_session)
-
-    user_id = uuid.UUID(user["id"])
-    sponsor_id = uuid.UUID(sponsor["id"])
-    admin_id = uuid.UUID(admin["id"])
-    gate.plans[user_id] = largest_plan()
-    gate.plans[sponsor_id] = largest_plan()
-    gate.plans[admin_id] = largest_plan()
-
-    org_res = await api_client.post(
-        "/v1/organizations",
-        headers=user_headers,
-        json={"slug": f"api-org-{uuid.uuid4().hex[:8]}", "name": "API Org"},
-    )
-    assert org_res.status_code == 201
-    org_id = org_res.json()["id"]
-
-    # Admin mints read-only admin key (admin:accounts:read only)
-    ro_key_res = await api_client.post(
-        "/v1/users/me/api-keys",
-        headers=admin_headers,
-        json={
-            "name": "RO Key",
-            "permissions": ["admin:accounts:read"],
-            "engine_access": {"all": True, "engines": []},
-            "boundary": {},
-        },
-    )
-    assert ro_key_res.status_code == 201
-    ro_key = ro_key_res.json()["secret"]
-
-    # Read-only admin key is refused on POST /v1/admin/organizations/{id}/sponsor
-    refused = await api_client.post(
-        f"/v1/admin/organizations/{org_id}/sponsor",
-        headers={"X-API-Key": ro_key},
-        json={"billing_sponsor_user_id": str(sponsor_id)},
-    )
-    assert refused.status_code == 403
-
-    # Admin mints write admin key (admin:accounts:write)
-    rw_key_res = await api_client.post(
-        "/v1/users/me/api-keys",
-        headers=admin_headers,
-        json={
-            "name": "RW Key",
-            "permissions": ["admin:accounts:write"],
-            "engine_access": {"all": True, "engines": []},
-            "boundary": {},
-        },
-    )
-    assert rw_key_res.status_code == 201
-    rw_key = rw_key_res.json()["secret"]
-
-    # Write admin key succeeds
-    success = await api_client.post(
-        f"/v1/admin/organizations/{org_id}/sponsor",
-        headers={"X-API-Key": rw_key},
-        json={"billing_sponsor_user_id": str(sponsor_id)},
-    )
-    assert success.status_code == 202, success.text
-    assert success.json()["status"] == "pending"
-    accepted = await api_client.post(
-        f"/v1/sponsor-proposals/{success.json()['id']}/accept", headers=sponsor_headers
-    )
-    assert accepted.status_code == 200, accepted.text
-    moved = await api_client.get(f"/v1/organizations/{org_res.json()['slug']}", headers=user_headers)
-    assert moved.json()["billing_sponsor_user_id"] == str(sponsor_id)
 
 
 @pytest.mark.asyncio

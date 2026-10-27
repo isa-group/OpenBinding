@@ -1,0 +1,12 @@
+.rendering-binding td.rendering-binding__value {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.rendering-binding code {
+  margin-inline-start: var(--space-2, 0.5rem);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.rendering-binding code:first-child { margin-inline-start: 0; }

@@ -235,48 +235,6 @@ export interface AdminAuditPage {
   limit: number;
 }
 
-/** What `POST /v1/admin/organizations/{id}/sponsor` answers: the organization, now with its new sponsor. */
-export interface AdminSponsorTransferResult {
-  id: string;
-  slug: string;
-  name: string;
-  parent_id: string | null;
-  billing_sponsor_user_id: string;
-  effective_role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' | null;
-  created_at: string;
-}
-
-export type SponsorProposalStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired';
-
-/**
- * A request that somebody become the billing sponsor of an organization (`SponsorProposalView`). Nobody can make another person
- * pay: naming them creates this, and the sponsor changes only when they accept. Every status but `pending` is final.
- */
-export interface SponsorProposal {
-  id: string;
-  organization_id: string;
-  organization_slug: string;
-  organization_name: string;
-  proposed_user_id: string | null;
-  proposed_username: string | null;
-  proposed_by_user_id: string | null;
-  proposed_by_username: string | null;
-  status: SponsorProposalStatus;
-  created_at: string;
-  expires_at: string;
-  decided_at: string | null;
-  decided_by_user_id: string | null;
-  /** Why the system closed it (`expired`, `replaced`, `sponsor_changed`, `user_deactivated`…). */
-  decision_reason: string | null;
-}
-
-/** The answer to naming a sponsor is a proposal (202) when somebody else was named, and the organization (200) when the caller named themselves. */
-export function isSponsorProposal(value: unknown): value is SponsorProposal {
-  if (typeof value !== 'object' || value === null) return false;
-  const body = value as Record<string, unknown>;
-  return typeof body.id === 'string' && typeof body.status === 'string' && typeof body.expires_at === 'string' && typeof body.organization_slug === 'string';
-}
-
 /**
  * `GET /v1/admin/moderation`: how many revisions sit in each publication state, per kind. The contract only says
  * “an object”; the gateway answers `{ engines, dialects, registrations }`, each a map of status → count.

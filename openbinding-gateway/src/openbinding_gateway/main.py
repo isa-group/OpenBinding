@@ -51,7 +51,6 @@ from .models.problem import (
     validation_diagnostics,
 )
 from .routes.admin import router as admin_router
-from .routes.analysis import router as analysis_router
 from .routes.artifacts import router as artifacts_router
 from .routes.resolve import router as resolve_router
 from .routes.auth import router as auth_router
@@ -64,18 +63,12 @@ from .routes.pricing import public_router as pricing_router
 from .routes.studies import public_router as public_studies_router
 from .routes.studies import router as studies_router
 from .routes.users import router as users_router
-from .routes.sponsor_proposals import (
-    me_router as sponsor_me_router,
-    organization_router as sponsor_organization_router,
-    router as sponsor_proposals_router,
-)
 from .routes.v1 import router as v1_router
 from .routes.verifier import router as verifier_router
 from .routes.generator import router as generator_router
 from .security.apikeys import (
     ALL_PERMISSIONS,
     ENGINE_LIMITED_PERMISSIONS,
-    analysis_work_permissions,
     required_permissions,
 )
 from .security.bodylimit import BodyLimitMiddleware
@@ -344,8 +337,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_exception_handler(HTTPException, http_error)
     app.add_exception_handler(Exception, unhandled_error)
 
-    # Added first, so it is the innermost: a 413 still leaves through the CORS and
-    # telemetry layers, and nothing inside it reads a body it has not counted.
+    # [impl->req~gateway-api-no-retirement-headers~1] (no layer adds Deprecation or Sunset)
+    # Added first, so it is the innermost: a 413 still leaves through the CORS and telemetry
+    # layers, and nothing inside it reads a body it has not counted.
     app.add_middleware(BodyLimitMiddleware)
     # Next, so telemetry and CORS see the 5xx documents with their correlationId.
     app.add_middleware(CorrelationIdMiddleware)
@@ -366,7 +360,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )(readiness)
 
     app.include_router(v1_router)
-    app.include_router(analysis_router)
     app.include_router(auth_router)
     app.include_router(cas_router)
     app.include_router(users_router)
@@ -374,9 +367,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin_router)
     app.include_router(pricing_router)
     app.include_router(organizations_router)
-    app.include_router(sponsor_organization_router)
-    app.include_router(sponsor_me_router)
-    app.include_router(sponsor_proposals_router)
     app.include_router(invitation_router)
     app.include_router(studies_router)
     app.include_router(public_studies_router)
@@ -1023,7 +1013,7 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             responses.setdefault(
                 "503", refusal("Account authentication is not configured on this deployment.")
             )
-            permissions = sorted(required_permissions(path, method) | analysis_work_permissions(path, method))
+            permissions = sorted(required_permissions(path, method))
             operation["x-required-api-key-permissions"] = permissions
             if public_read.eligible(method, path):
                 # Also reachable read-only, without credentials or membership,

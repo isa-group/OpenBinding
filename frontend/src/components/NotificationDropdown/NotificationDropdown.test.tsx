@@ -8,12 +8,13 @@ const api = vi.hoisted(() => ({
   listNotifications: vi.fn(),
   markNotificationRead: vi.fn(),
   markAllNotificationsRead: vi.fn(),
-  listMySponsorProposals: vi.fn(),
 }));
+/** Every member of the client the component reads, so a test can tell which calls it makes. */
+const touched = vi.hoisted(() => new Set<string>());
 
 vi.mock('../../api/client', async () => ({
   ...await vi.importActual<typeof import('../../api/client')>('../../api/client'),
-  apiClient: api,
+  apiClient: new Proxy(api, { get: (target, key) => { touched.add(String(key)); return Reflect.get(target, key); } }),
 }));
 
 const mockUnreadNotification: Notification = {
@@ -39,7 +40,7 @@ const mockReadNotification: Notification = {
 describe('NotificationDropdown', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    api.listMySponsorProposals.mockResolvedValue([]);
+    touched.clear();
   });
 
   it('renders standard bell icon and no badge when there are no unread notifications', async () => {
@@ -186,47 +187,15 @@ describe('NotificationDropdown', () => {
     expect(screen.getByText('Lifetime: 7 days')).toBeInTheDocument();
   });
 
-  describe('sponsor requests waiting for the account', () => {
-    const waiting = (n: number) => Array.from({ length: n }, (_, index) => ({ id: `prop-${index}`, status: 'pending' }));
+  // [utest->req~frontend-workspace-no-sponsor-requests~1]
+  it('counts only notifications: it asks the gateway for nothing about sponsorship', async () => {
+    api.listNotifications.mockResolvedValue([mockReadNotification]);
 
-    it('shows the count on the bell even when no notice is unread, and says so for assistive technology', async () => {
-      api.listNotifications.mockResolvedValue([mockReadNotification]);
-      api.listMySponsorProposals.mockResolvedValue(waiting(2));
+    render(<MemoryRouter><NotificationDropdown /></MemoryRouter>);
 
-      render(<MemoryRouter><NotificationDropdown /></MemoryRouter>);
-
-      const trigger = await screen.findByRole('button', { name: 'Notifications, 2 sponsor requests waiting for you' });
-      expect(trigger.querySelector('.notification-badge')).toHaveTextContent('2');
-      expect(api.listMySponsorProposals).toHaveBeenCalledWith('pending');
-    });
-
-    it('does not count a request twice when its notice is unread too', async () => {
-      api.listNotifications.mockResolvedValue([mockUnreadNotification]);
-      api.listMySponsorProposals.mockResolvedValue(waiting(1));
-
-      render(<MemoryRouter><NotificationDropdown /></MemoryRouter>);
-
-      const trigger = await screen.findByRole('button', { name: '1 unread notifications, 1 sponsor request waiting for you' });
-      expect(trigger.querySelector('.notification-badge')).toHaveTextContent('1');
-    });
-
-    it('leads from the panel to the place where it is answered', async () => {
-      api.listNotifications.mockResolvedValue([]);
-      api.listMySponsorProposals.mockResolvedValue(waiting(1));
-
-      render(<MemoryRouter><NotificationDropdown /></MemoryRouter>);
-
-      fireEvent.click(await screen.findByRole('button', { name: 'Notifications, 1 sponsor request waiting for you' }));
-      expect(screen.getByRole('link', { name: /1 sponsor request waiting for you/ })).toHaveAttribute('href', '/app/account/notifications');
-    });
-
-    it('keeps the bell working when the requests can not be read', async () => {
-      api.listNotifications.mockResolvedValue([mockUnreadNotification]);
-      api.listMySponsorProposals.mockRejectedValue(new Error('down'));
-
-      render(<MemoryRouter><NotificationDropdown /></MemoryRouter>);
-
-      expect(await screen.findByRole('button', { name: '1 unread notifications' })).toBeInTheDocument();
-    });
+    await waitFor(() => expect(api.listNotifications).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications' }));
+    expect(screen.queryByText(/sponsor/i)).toBeNull();
+    expect([...touched].filter((name) => /sponsor/i.test(name))).toEqual([]);
   });
 });

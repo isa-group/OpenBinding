@@ -174,7 +174,7 @@ services:
     networks:
       - openbinding
 
-  worker: &solve-worker
+  worker:
     image: ${GATEWAY_IMAGE:?set GATEWAY_IMAGE in images.env}
     # The image entrypoint reads the *_FILE secrets; OPENBINDING_MIGRATE=skip leaves the migration to `migrate`.
     entrypoint: ["/usr/local/bin/docker-entrypoint.sh"]
@@ -233,12 +233,6 @@ services:
     logging: *logging
     networks:
       - openbinding
-
-  analysis-worker:
-    <<: *solve-worker
-    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "1", "--queues", "analysis"]
-    mem_limit: 640m
-    cpus: 1.0
 
   engine-minizinc:
     image: ${ENGINE_MINIZINC_IMAGE:?set ENGINE_MINIZINC_IMAGE in images.env}

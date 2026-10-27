@@ -17,42 +17,12 @@ class ArtifactRef(BaseModel):
     versionDigest: str = Field(pattern=DIGEST)
 
 
-class ArtifactCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    name: str = Field(pattern=NAME)
-    display_name: str = Field(min_length=1, max_length=160)
-    kind: str = Field(min_length=1, max_length=128)
-    description: str = Field(default="", max_length=4000)
-
-
-class ArtifactUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    display_name: str | None = Field(default=None, min_length=1, max_length=160)
-    description: str | None = Field(default=None, max_length=4000)
-    labels: dict[str, str] | None = None
-    archived: bool | None = None
-
-
 class DraftContent(BaseModel):
     model_config = ConfigDict(extra="forbid")
     content: dict[str, Any] | str
     media_type: str = Field(default="application/json", max_length=160)
     contracts: list[dict[str, str]] = Field(default_factory=list, max_length=32)
     dependencies: list[ArtifactRef] = Field(default_factory=list, max_length=256)
-
-
-class DraftCreate(DraftContent):
-    based_on_id: UUID | None = None
-
-
-class DraftUpdate(DraftContent):
-    revision: int = Field(gt=0)
-
-
-class SealDraft(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    revision: int = Field(gt=0)
-    version: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class PublishVersion(BaseModel):
@@ -122,18 +92,6 @@ class ArtifactVersionView(BaseModel):
     created_at: datetime
     public: bool
     withdrawn: bool
-
-
-class ArtifactDraftView(BaseModel):
-    id: UUID
-    revision: int
-    payload: DraftContent
-    based_on_id: UUID | None
-
-
-class DraftRevisionView(BaseModel):
-    id: UUID
-    revision: int
 
 
 class CaseRevisionRef(BaseModel):

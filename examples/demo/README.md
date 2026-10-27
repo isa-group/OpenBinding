@@ -101,4 +101,4 @@ federated `multi-heuristic` after following the
 - `18_analysis_constraints`: adds maximized quality, a hard cost bound and a soft latency penalty.
 - `19_analysis_journey`: weighted version for scalar-objective solver replay and priority sensitivity.
 
-Run a compatible engine from Playground, or use `./tools/seed_dev.sh --analysis-only` after the initial development seed to retain all evaluated alternatives in the **Binding Analysis Gallery**. The gallery also includes collinear, single-point, empty and 1,296-binding cases. See [the analysis guide](../../docs/analysis/binding-analysis-upgrade.md#development-gallery-and-how-to-try-it).
+Run a compatible engine from Playground to solve them. The `--analysis-only` seeder option and the **Binding Analysis Gallery** it filled were removed by M9.6; [the analysis guide](../../docs/analysis/binding-analysis-upgrade.md#development-gallery-and-how-to-try-it) keeps them as history.

@@ -26,12 +26,15 @@ routes/  ──►  services/  ──►  repositories/ , integrations  ──�
 | `core/` | `settings.py` (every environment variable in one place) and `logging.py` | `core/` |
 | `access/`, `security/` | Plan policy (`access/policy.py`: clamping, ceilings and quota rules, applied through `services/entitlements.py`), contract bookkeeping (`access/contracts.py`), public-read matrix; hashing of passwords, tokens and API keys | respective files |
 | `jobs/` | The job lifecycle: `leases.py`, `reconciler.py`, `limits.py`, `lifecycle.py` ([IDEMPOTENCY.md](../IDEMPOTENCY.md)) | `jobs/*.py` |
-| `integrations/bim.py`, `v1/`, `generator/` | The BIM port (`BimPort`, settings, error translation), the remaining `v1/` platform code (archive, remote Engine transport) and the instance generator (see [the BIM boundary](#the-bim--platform-boundary)) | `integrations/`, `v1/`, `generator/` |
+| `integrations/bim.py`, `v1/`, `generator/` | The BIM port (`BimPort`, settings, error translation), the remaining `v1/` platform code (remote Engine transport) and the instance generator (see [the BIM boundary](#the-bim--platform-boundary)) | `integrations/`, `v1/`, `generator/` |
 
 Not every module follows the layer table yet: several top-level modules
-(`artifacts.py`, `reports.py`, `studies.py`, `study_jobs.py`, `analysis_jobs.py`,
-`collaboration.py`, `sponsor_proposals.py`, `telemetry.py`)
+(`artifacts.py`, `reports.py`, `studies.py`, `study_jobs.py`,
+`collaboration.py`, `telemetry.py`)
 mix use-case logic and persistence outside `services/` and `repositories/`.
+(`analysis_jobs.py` and `sponsor_proposals.py` were in this list when this page
+was written; M9.6 removed both, and the sections below that name them describe
+the gateway before that.)
 
 ## Composition layer (`create_app`)
 
@@ -118,7 +121,7 @@ service existed: `routes/jobs.py:107`, `routes/artifacts.py:173` and `:199`,
 `routes/v1.py:2222` and `:2543` (the second one is now in
 `services/job_submission.py`), `routes/users.py:63`, `routes/studies.py:637`,
 `collaboration.py:282`. `study_jobs.py`, `studies.py`, `analysis_jobs.py` and
-`sponsor_proposals.py` never read the gate; they reach it through
+`sponsor_proposals.py` (the last two removed by M9.6) never read the gate; they reach it through
 `collaboration.enforce_sponsor_usage` and the job-creation path. Now the only
 `.caps(` call is `services/entitlements.py:63`.
 
@@ -326,9 +329,9 @@ Known exceptions to "downwards only", from reading the imports:
 - `domain/entitlements.py` refers to `space_client.PlanCaps` for typing only
   (`TYPE_CHECKING`).
 - `jobs/lifecycle.py` and `jobs/reconciler.py` import `..study_jobs`,
-  `..job_dispatch`, `..sponsor_proposals`, `..telemetry` and
-  `..analysis_jobs` lazily, inside functions, because those modules still live
-  at the top level.
+  `..job_dispatch` and `..telemetry` lazily, inside functions, because those
+  modules still live at the top level. (`..sponsor_proposals` and
+  `..analysis_jobs` were imported the same way until M9.6 removed them.)
 - `services/engines.py`, `services/engine_registry.py`, `services/snapshots.py`,
   `services/instances.py`, `services/discovery.py`, `services/job_submission.py`
   and `services/entitlements.py` import FastAPI's `HTTPException` (the last one only for its HTTP-raising
@@ -345,7 +348,7 @@ mechanically checkable, using `ast` so that imports inside functions count:
   (`test_services_domain_and_jobs_do_not_import_routes`);
 - no module outside `routes/` and those three layers may start importing
   `routes`: the existing offenders are frozen in `ALLOWED_LEGACY`
-  (`analysis_jobs`, `artifacts`, `reports`, `study_jobs`;
+  (`artifacts`, `reports`, `study_jobs`; `analysis_jobs` was removed by M9.6;
   `main` is exempt as the composition root), the list may only shrink
   (`test_no_new_module_imports_routes`, `test_allowed_legacy_has_no_stale_entries`);
 - `services/job_submission.py` imports `routes` nowhere and uses `fastapi` only for
