@@ -116,7 +116,11 @@ Evidence: `frontend/src/pages/Cases/CaseList.test.tsx`; `frontend/src/pages/Case
 The controls are `New revision` (case list, case detail, case comparison), `Compose its first revision` (case list
 notice after creating a case), `Compose the first revision` (case detail) and `Try faster providers` (job result of an
 infeasible run with a known case). `<case>` is the case slug, percent-encoded. A person who cannot create revisions
-(`canCreate` false, a VIEWER) gets none of the case controls, as today. The texts that named the composer are reworded
+(`canCreate` false, a VIEWER) gets none of the case controls, as today. The case comparison offers `New revision`
+only in its guide `Comparing needs two revisions`, shown while the case has fewer than two revisions. `Try faster
+providers` is not gated by `canCreate`: the job result shows it to every reader of an infeasible run with a known case,
+as today. The read-only `Open in Workbench` of the case detail (`<root>/workbench?case=<slug>&revision=<id>`, shown to
+every reader) is unchanged. The texts that named the composer are reworded
 (design.md §3). The job result is rendered by the job detail, whose test covers it.
 
 #### Scenario: Case list of a member
@@ -145,19 +149,25 @@ infeasible run with a known case). `<case>` is the case slug, percent-encoded. A
 #### Scenario: Revision without a snapshot
 - **GIVEN** a member on a case whose latest revision has no compiled snapshot
 - **WHEN** the screen is rendered
-- **THEN** the note ends `Save a new revision from the workbench to get one.`
+- **THEN** the note reads `Revision N has no compiled snapshot, so there is no workflow to draw. Save a new revision from the workbench to get one.`, `N` being the number of that revision
 - **AND** no text contains `composer`
 
 #### Scenario: A viewer gets no way to a new revision
-- **GIVEN** a VIEWER of `isa-demo` on the case list, on the case `flujo-checkout` with and without revisions, and on its comparison
+- **GIVEN** a VIEWER of `isa-demo` on the case list, on the case `flujo-checkout` with and without revisions, and on its comparison with one revision
 - **WHEN** the screens are rendered
 - **THEN** no link is named `New revision`, `Compose its first revision` or `Compose the first revision`
-- **AND** no link has an `href` that contains `/workbench?case=`
+- **AND** on the case `flujo-checkout` with revisions, the link `Open in Workbench` still has the `href` `/app/isa-demo/qos-benchmarks/workbench?case=flujo-checkout&revision=<id>`, `<id>` being the id of the latest revision
 
-#### Scenario: Case comparison
-- **GIVEN** a member on `/app/isa-demo/qos-benchmarks/cases/flujo-checkout/compare` comparing revisions 1 and 2
+#### Scenario: Case comparison with one revision
+- **GIVEN** a member on `/app/isa-demo/qos-benchmarks/cases/flujo-checkout/compare` while `flujo-checkout` has one revision
 - **WHEN** the screen is rendered
-- **THEN** the link `New revision` has the `href` `/app/isa-demo/qos-benchmarks/workbench?case=flujo-checkout`
+- **THEN** the guide `Comparing needs two revisions` has the link `New revision` with the `href` `/app/isa-demo/qos-benchmarks/workbench?case=flujo-checkout`
+
+#### Scenario: Case comparison of a viewer
+- **GIVEN** a VIEWER of `isa-demo` on `/app/isa-demo/qos-benchmarks/cases/flujo-checkout/compare` while `flujo-checkout` has one revision
+- **WHEN** the screen is rendered
+- **THEN** the guide `Comparing needs two revisions` has no link `New revision`
+- **AND** its link `Back to the case` is still shown
 
 #### Scenario: Job result of an infeasible run
 - **GIVEN** a member on the job detail of an infeasible run of revision 3 of the case `flujo` in `isa-demo/qos-benchmarks`

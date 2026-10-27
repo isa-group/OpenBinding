@@ -32,11 +32,15 @@ address.
 - Case list of a project without cases: the empty state reads "Start from a ready example, or create a case and save its
   first revision from the workbench." (no composer).
 - Case detail: `New revision`; on a case without revisions, `Compose the first revision`. On a revision without a
-  snapshot the note ends "Save a new revision from the workbench to get one."
-- Case comparison: `New revision`.
+  snapshot the note reads "Revision N has no compiled snapshot, so there is no workflow to draw. Save a new revision
+  from the workbench to get one."
+- Case comparison of a case with one revision: the guide "Comparing needs two revisions" offers `New revision`. With
+  two or more revisions the comparison offers no `New revision`.
 - Job detail of an infeasible run started from a case: `Try faster providers` opens the workbench; `See the rules`
   still opens the case revision.
-- As a viewer: none of the case controls above is shown.
+- As a viewer: no `New revision`, `Compose its first revision` or `Compose the first revision` (the comparison guide
+  keeps only `Back to the case`). `Open in Workbench` on the case detail is unchanged
+  (`...workbench?case=<slug>&revision=<id>`), and `Try faster providers` is shown as for a member (not gated by role).
 
 **3. Route count**
 - The QA gallery and the route smoke list 70 screens; `case-composer` is not among them. D4 lists `case-list`,

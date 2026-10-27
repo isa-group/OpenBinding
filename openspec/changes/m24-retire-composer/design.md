@@ -48,12 +48,14 @@ change the workbench.
 | `pages/Cases/CaseList.tsx` empty state | "Start from a ready example, or compose one: pick a workflow, a candidate catalog, constraints and a goal." | "Start from a ready example, or create a case and save its first revision from the workbench." |
 | `pages/Cases/CaseDetail.tsx` header action (`canCreate`) | `New revision`, `<root>/cases/<slug>/compose` | `New revision`, `<root>/workbench?case=<slug>` |
 | `pages/Cases/CaseDetail.tsx` guide of a case without revisions (`canCreate`) | `Compose the first revision`, `<root>/cases/<slug>/compose` | `Compose the first revision`, `<root>/workbench?case=<slug>` |
-| `pages/Cases/CaseDetail.tsx` revision without snapshot | "Create a new revision from the composer to get one." | "Save a new revision from the workbench to get one." |
-| `pages/Cases/CaseCompare.tsx` actions | `New revision`, `${base}/compose` | `New revision`, `<root>/workbench?case=<slug>` |
+| `pages/Cases/CaseDetail.tsx` revision without snapshot | "Revision N has no compiled snapshot, so there is no workflow to draw. Create a new revision from the composer to get one." | "Revision N has no compiled snapshot, so there is no workflow to draw. Save a new revision from the workbench to get one." |
+| `pages/Cases/CaseCompare.tsx` guide `Comparing needs two revisions`, shown while the case has fewer than two revisions (`canCreate`) | `New revision`, `${base}/compose` | `New revision`, `<root>/workbench?case=<slug>` |
 | `pages/Jobs/JobResult.tsx` infeasible result with an origin case | `Try faster providers`, `<root>/cases/<slug>/compose` | `Try faster providers`, `<root>/workbench?case=<slug>` |
 
 A VIEWER sees none of the case controls today (`canCreate` false) and sees none after; the job result shows its link
-under the same condition as today (a known origin case).
+under the same condition as today (a known origin case), not gated by `canCreate`, so a VIEWER of an infeasible run
+sees `Try faster providers`. The read-only `Open in Workbench` of `CaseDetail.tsx`
+(`<root>/workbench?case=<slug>&revision=<id>`, shown to every reader) predates this change and is unchanged.
 
 ## 4. Link scan
 

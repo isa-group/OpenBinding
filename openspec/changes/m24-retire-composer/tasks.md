@@ -22,7 +22,7 @@ Tests first:
   slice-4 entry.
 - [ ] 4.4 Page tests (`composer-entry-points-repointed`): `pages/Cases/CaseList.test.tsx` (row action, notice, empty
   state, viewer), `CaseDetail.test.tsx` (header action, first-revision guide, revision without snapshot, viewer),
-  `CaseCompare.test.tsx` (`New revision`, viewer; also `composer-no-link`), `pages/Jobs/JobDetail.test.tsx`
+  `CaseCompare.test.tsx` (`New revision` of the one-revision guide, viewer; also `composer-no-link`), `pages/Jobs/JobDetail.test.tsx`
   (`Try faster providers`, `See the rules`).
 
 Source:
