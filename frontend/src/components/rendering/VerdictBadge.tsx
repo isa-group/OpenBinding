@@ -2,7 +2,7 @@ import { Badge } from '../ui/Badge';
 import './VerdictBadge.css';
 
 interface VerdictBadgeProps {
-  verdict: 'OPTIMAL' | 'FEASIBLE' | 'UNSAT' | 'TIMEOUT' | 'INCOMPATIBLE' | (string & {});
+  verdict: 'OPTIMAL' | 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN' | 'UNSAT' | 'TIMEOUT' | 'INCOMPATIBLE' | (string & {});
   reasons?: string[];
   size?: 'sm' | 'md';
 }
@@ -10,6 +10,8 @@ interface VerdictBadgeProps {
 const KNOWN: Record<string, { variant: 'success' | 'info' | 'error' | 'warning' | 'default'; description: string }> = {
   OPTIMAL: { variant: 'success', description: 'proven best combination' },
   FEASIBLE: { variant: 'info', description: 'a valid combination, not proven best' },
+  INFEASIBLE: { variant: 'error', description: 'no combination meets the rules' },
+  UNKNOWN: { variant: 'default', description: 'no conclusion' },
   UNSAT: { variant: 'error', description: 'no combination satisfies the rules' },
   TIMEOUT: { variant: 'warning', description: 'stopped at the time budget' },
   INCOMPATIBLE: { variant: 'default', description: 'the engine cannot solve this problem' },
@@ -17,6 +19,7 @@ const KNOWN: Record<string, { variant: 'success' | 'info' | 'error' | 'warning' 
 
 /** The outcome of a solve as text in a badge, with a plain-language description for assistive technology. */
 // [impl->req~frontend-rendering-verdict-badge~1]
+// [impl->req~frontend-rendering-verdict-terminations~1]
 export function VerdictBadge({ verdict, reasons = [], size = 'sm' }: VerdictBadgeProps) {
   const known = Object.hasOwn(KNOWN, verdict) ? KNOWN[verdict] : undefined;
 
