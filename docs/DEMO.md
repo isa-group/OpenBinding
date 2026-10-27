@@ -84,7 +84,7 @@ A static check also exists (`lab/tests/test_lab_compose.py`).
 | `engine-minizinc` | `engines/minizinc-csp/Dockerfile` | 192 MiB | Node, `--max-old-space-size=96` |
 | `bim-service` | `bim-toolchain`, `packages/bim-service/Dockerfile` | 256 MiB | port 8080, `/healthz`, tokens file in a tmpfs |
 | `gateway` | `openbinding-gateway/Dockerfile`, tagged `openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}` (the only build of this image) | 640 MiB | `alembic upgrade head` through the image entrypoint, then uvicorn with `--proxy-headers` |
-| `worker` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 448 MiB | dramatiq, one process, 2 threads, queues `default` and `analysis` |
+| `worker` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 448 MiB | dramatiq, one process, 2 threads, queue `default` only |
 | `web` | `frontend/Dockerfile`, target `lab` (config `frontend/nginx.lab.conf` baked in) | 96 MiB | nginx: production build of the frontend, `/api/` to the gateway without the prefix; **the only published port** |
 | `seed` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 384 MiB | `profiles: ["seed"]`; not started by `up` |
 | `e2e` | `frontend/Dockerfile.e2e` (`mcr.microsoft.com/playwright:v1.62.1-jammy`, the version `pnpm-lock.yaml` resolves for `@playwright/test`) | 576 MiB | `user: pwuser`, volume `lab-e2e` on `/results`; runs the live specs when `DEMO_E2E=1`, then stays alive; healthy when `/results/done` exists |
@@ -172,8 +172,8 @@ that limits a compromised process. Consequences for the lab:
   environment). They have been run since by the supervisor's `lab_compose`: the stack was up for the smoke (9/9) and for
   Playwright (30/0/0) at `b2780381`. A separate check of the ownership of `lab-artifacts-2` is not recorded in this document.
 
-Compared with `docker-compose.yml`: a single `worker` consumes both queues
-(the stack runs a second one for `analysis` with one thread); the
+Compared with `docker-compose.yml`: a single `worker` consumes the `default`
+queue only (as in the stack); the
 `engine-multi-heuristic` example, adminer, qacobench and the dev profile are
 left out; there is no TLS and no examples alias (the frontend reads examples
 through `/v1/examples`).
@@ -332,9 +332,7 @@ bind-mounted `tools/` can be unreadable for that uid (`python: can't open file
 a tool changes you must rebuild with `up` before running `seed`, because the
 seed runs the code of the image, not of the checkout; and the tools are
 read-only to the unprivileged user, so a tool cannot write beside itself
-(`seed_dev.py` writes `tools/analysis-manifest.json` by default; pass
-`--analysis-manifest /tmp/analysis-manifest.json` when you use the analysis
-options).
+(for example, it cannot write a manifest into `tools/`).
 
 `seed_dev.py` creates its users directly in the database; it does not call the
 API. For that reason `seed` does not get `GATEWAY_JWT_SECRET`: a tool that logs
@@ -659,8 +657,8 @@ only, expire after 7 idle days and are deleted only through `labctl destroy`.
 - `engine-minizinc` at 192 MiB runs Node plus MiniZinc and its solver as child
   processes; a large model may not fit. Raising it means lowering something
   else to stay under 4096 MiB (the current total, 4032 MiB, leaves 64 MiB).
-- A single worker serves both queues with two threads; analysis jobs and solve
-  jobs can delay each other.
+- A single worker serves the `default` queue with two threads; concurrent jobs
+  can delay each other.
 - `gateway`, `worker` and `seed` share one image, `openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`
   (`openbinding-lab-gateway:18100` by default; a lab that only holds `:latest` builds `:18100` once on its next `up --build`),
   built only by `gateway`. Reason: `up --build` rebuilds only services without a

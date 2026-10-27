@@ -74,7 +74,7 @@ function AuditScreen() {
       section="audit"
       trail={[{ label: 'Administration', to: '/app/admin' }, { label: 'Audit log' }]}
       title="Audit log"
-      lede="Who changed contracts, pricing, accounts and platform maintenance, and when. Events recorded inside an organization, such as a sponsor request, appear here too with the organization named."
+      lede="Who changed contracts, pricing, accounts and platform maintenance, and when. Events recorded inside an organization, such as a change of sponsor, appear here too with the organization named."
     >
       <form className="adm-toolbar" role="search" onSubmit={(event) => { event.preventDefault(); submit(); }}>
         <FilterPills ariaLabel="Kind of event" options={AUDIT_FAMILIES.map((item) => ({ id: item.id, label: item.label }))} value={family} onChange={(id) => setFamily(id as AuditFamily | '')} />

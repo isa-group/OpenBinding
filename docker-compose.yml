@@ -214,7 +214,7 @@ services:
       engine-evolutionary-heuristics:
         condition: service_healthy
 
-  worker: &solve-worker
+  worker:
     build:
       context: .
       dockerfile: openbinding-gateway/Dockerfile
@@ -267,11 +267,7 @@ services:
       retries: 3
       start_period: 10s
 
-  analysis-worker:
-    <<: *solve-worker
-    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "1", "--queues", "analysis"]
-
-  worker-dev: &solve-worker-dev
+  worker-dev:
     build:
       context: .
       dockerfile: openbinding-gateway/Dockerfile
@@ -326,10 +322,6 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
-
-  analysis-worker-dev:
-    <<: *solve-worker-dev
-    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "1", "--queues", "analysis"]
 
   adminer:
     image: adminer:5

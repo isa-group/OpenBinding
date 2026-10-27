@@ -1,6 +1,8 @@
-// Library artifacts the gallery mock serves to the screens that still read them (cases, studies).
-import type { ArtifactDraft } from '../../src/api/library';
-import type { LibraryItem, LibraryVersion } from '../../src/api/libraryItems';
+// Library artifacts the gallery mock serves to the screens that still read them (cases, studies): the list, the versions and their content.
+import type { Artifact, ArtifactVersion } from '../../src/api/library';
+
+type LibraryItem = Artifact & { created_at: string };
+type LibraryVersion = ArtifactVersion & { created_at: string; manifest: ArtifactVersion['manifest'] & { kind?: string } };
 
 const OWNER_ORG_ID = 'org-isa-demo';
 
@@ -22,10 +24,6 @@ export function versionOf(item: LibraryItem, label: string, overrides: Partial<L
     manifest: { mediaType: 'application/json', contracts: [], dependencies: [], kind: item.kind },
     based_on_id: null, public: false, withdrawn: false, created_at: '2026-04-02T09:00:00Z', ...overrides,
   };
-}
-
-export function draftOf(id: string, revision: number, content: ArtifactDraft['payload']['content'], overrides: Partial<ArtifactDraft> = {}): ArtifactDraft {
-  return { id, revision, payload: { content, media_type: 'application/json', contracts: [], dependencies: [] }, based_on_id: null, ...overrides };
 }
 
 const resource = (kind: string, name: string, spec: Record<string, unknown>) => ({ apiVersion: 'qos-binding/v1', kind, metadata: { name }, spec });
@@ -67,9 +65,6 @@ export function goalContent() {
     penalties: [],
   });
 }
-
-/** The empty application a new draft starts from. */
-export const applicationTemplate = () => resource('Application', 'checkout-app', { tasks: {}, features: {}, workflow: {} });
 
 export const bpmnContent = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1" targetNamespace="http://openbinding/bpmn">

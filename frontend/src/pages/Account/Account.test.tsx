@@ -273,6 +273,17 @@ describe('Profile & security', () => {
       expect(screen.getByRole('dialog', { name: 'Confirm deletion' })).toBeInTheDocument();
     });
 
+    it('tells a sponsor with no other owner to make one, or to delete the organization (no transfer is offered)', async () => {
+      api.deleteOwnAccount.mockRejectedValue(refusal(409, 'sponsor_transfer_required'));
+      const dialog = within(await openDeletion());
+      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), { target: { value: 'alice' } });
+      fireEvent.click(dialog.getByRole('button', { name: 'Delete account' }));
+
+      const alert = await dialog.findByRole('alert');
+      expect(alert).toHaveTextContent('Make another member an owner so the sponsorship can move to them, or delete the organization, first.');
+      expect(alert).not.toHaveTextContent('Transfer sponsorship');
+    });
+
     it('reports a wrong password (401) on the password field and keeps the dialog open', async () => {
       api.deleteOwnAccount.mockRejectedValue(refusal(401, 'invalid_credentials'));
       const dialog = within(await openDeletion());

@@ -20,7 +20,6 @@ PROTECTED_LAYERS = ("services", "domain", "jobs")
 #: never grow it.  ``main`` is the composition root and is exempt.
 ALLOWED_LEGACY = frozenset(
     {
-        "analysis_jobs",
         "artifacts",
         "reports",
         "study_jobs",

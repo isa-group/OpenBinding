@@ -38,41 +38,10 @@ class OrganizationUpdate(BaseModel):
     billing_sponsor_user_id: Optional[uuid.UUID] = Field(
         default=None,
         description=(
-            "Propose this person as billing sponsor. Naming oneself changes the sponsor at once; "
-            "naming somebody else creates a pending proposal (202) that only that person can accept."
+            "Make yourself the billing sponsor of the organization and its subtree (OWNER only); "
+            "the change is immediate when your plan can take them. Naming the current sponsor "
+            "changes nothing; naming anybody else is refused with 422 `sponsor_must_be_caller`."
         ),
-    )
-    replace_pending_proposal: bool = Field(
-        default=False,
-        description=(
-            "Replace the organization's pending sponsor proposal. Honoured only when the caller "
-            "made that proposal; otherwise a pending proposal answers 409 `sponsor_proposal_pending`."
-        ),
-    )
-
-
-SponsorProposalState = Literal["pending", "accepted", "declined", "cancelled", "expired"]
-
-
-class SponsorProposalView(BaseModel):
-    """A request that somebody become the billing sponsor of an organization."""
-
-    id: uuid.UUID
-    organization_id: uuid.UUID
-    organization_slug: str
-    organization_name: str
-    proposed_user_id: Optional[uuid.UUID] = None
-    proposed_username: Optional[str] = None
-    proposed_by_user_id: Optional[uuid.UUID] = None
-    proposed_by_username: Optional[str] = None
-    status: SponsorProposalState
-    created_at: datetime
-    expires_at: datetime
-    decided_at: Optional[datetime] = None
-    decided_by_user_id: Optional[uuid.UUID] = None
-    decision_reason: Optional[str] = Field(
-        default=None,
-        description="Why the system closed it (`expired`, `replaced`, `sponsor_changed`, `user_deactivated`...).",
     )
 
 
@@ -213,31 +182,17 @@ class CaseRevisionView(BaseModel):
     created_at: datetime
 
 
-class ProjectResourceCreate(BaseModel):
+class ProjectResourceView(BaseModel):
+    # Project resources are read-only since M9.6; the fields and their schema are those of the former create body.
     model_config = ConfigDict(extra="forbid")
     slug: str = Field(..., pattern=SLUG)
     name: str = Field(..., min_length=1, max_length=160)
     description: str = Field(default="", max_length=2000)
     kind: str = Field(default="bim-resource", min_length=1, max_length=128)
-
-
-class ProjectResourceUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
-    description: Optional[str] = Field(default=None, max_length=2000)
-    kind: Optional[str] = Field(default=None, min_length=1, max_length=128)
-
-
-class ProjectResourceView(ProjectResourceCreate):
     id: uuid.UUID
     project_id: uuid.UUID
     created_by_id: uuid.UUID
     created_at: datetime
-
-
-class ProjectResourceRevisionCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    document: dict[str, Any]
 
 
 class ProjectResourceRevisionView(BaseModel):
@@ -409,21 +364,6 @@ class StudyCellView(BaseModel):
     job_id: Optional[uuid.UUID]
     state: str
     metrics: dict[str, Any]
-
-
-class ReportCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    slug: str = Field(..., pattern=SLUG)
-    title: str = Field(..., min_length=1, max_length=240)
-    study_run_id: Optional[uuid.UUID] = None
-    document: dict[str, Any]
-
-
-class ReportUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    draft_revision: Optional[int] = Field(default=None, gt=0)
-    title: Optional[str] = Field(default=None, min_length=1, max_length=240)
-    document: Optional[dict[str, Any]] = None
 
 
 class ReportView(BaseModel):

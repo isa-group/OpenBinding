@@ -9,8 +9,6 @@ import uuid
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Query, status
-from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -77,21 +75,15 @@ from ..models.platform import (
     ProjectCreate,
     ProjectUpdate,
     ProjectView,
-    ProjectResourceCreate,
-    ProjectResourceUpdate,
-    ProjectResourceRevisionCreate,
     ProjectResourceRevisionView,
     ProjectResourceView,
-    SponsorProposalView,
 )
-from .. import sponsor_proposals
+from .. import sponsorship
 from ..access import public_read
 from ..repositories import jobs as job_repository
 from ..repositories import organizations as organization_repository
 from ..access.dependencies import get_current_user, session_dependency
-from bim_core.canonical import digest
-from ..artifacts import store_blob, version_content
-from bim_core.canonical import canonical_json
+from ..artifacts import version_content
 import json
 
 router = APIRouter(prefix="/v1/organizations", tags=["Organizations"])
@@ -239,20 +231,12 @@ async def get_organization(
     response_model=OrganizationView,
     operation_id="updateOrganization",
     responses={
-        202: {
-            "model": SponsorProposalView,
-            "description": (
-                "`billing_sponsor_user_id` named somebody other than the caller: the sponsor is "
-                "unchanged and a pending proposal (the body) awaits that person's acceptance. "
-                "The other fields of the request were applied."
-            ),
-        },
         402: {"model": ErrorResponse, "description": "Naming oneself: the caller's plan cannot take the subtree (`sponsor_quota_exceeded`)."},
-        409: {
-            "model": ErrorResponse,
+        422: {
             "description": (
-                "A sponsorship proposal is already pending (`sponsor_proposal_pending`, with its "
-                "`proposal_id`); cancel it, or, if you made it, send `replace_pending_proposal: true`."
+                "`billing_sponsor_user_id` named somebody other than the caller and the current "
+                "sponsor (`sponsor_must_be_caller`): nothing in the request was applied. Also "
+                "`ambiguous_parent` and request validation errors."
             ),
         },
     },
@@ -265,6 +249,22 @@ async def update_organization(
 ) -> OrganizationView:
     organization = await _required_org(session, org)
     await require_role(session, organization, user, OrganizationRole.ADMIN)
+    # [impl->req~auth-roles-entitlements-sponsor-caller-only~1]
+    # Nobody can make another person pay: only the caller can become the
+    # sponsor.  Checked before anything is applied, and before the named
+    # account is looked up, so the answer says nothing about that account.
+    sponsor_named = (
+        payload.billing_sponsor_user_id is not None
+        and payload.billing_sponsor_user_id != organization.billing_sponsor_user_id
+    )
+    if sponsor_named:
+        await require_role(session, organization, user, OrganizationRole.OWNER)
+        if payload.billing_sponsor_user_id != user.id:
+            raise api_error(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "sponsor_must_be_caller",
+                "Only you can make yourself the billing sponsor of this organization.",
+            )
     if payload.name is not None:
         organization.name = payload.name
     if payload.move_to_root and payload.parent_id is not None:
@@ -279,31 +279,17 @@ async def update_organization(
             await require_role(session, new_parent, user, OrganizationRole.ADMIN)
         organization.parent_id = new_parent_id
     sponsor_change: dict[str, str] = {}
-    proposal = None
-    if payload.billing_sponsor_user_id is not None and payload.billing_sponsor_user_id != organization.billing_sponsor_user_id:
-        await require_role(session, organization, user, OrganizationRole.OWNER)
-        sponsor = await session.get(User, payload.billing_sponsor_user_id)
-        if sponsor is None or not sponsor.is_active:
-            raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_sponsor", "Sponsor must be active.")
-        if sponsor.id == user.id:
-            # Taking the sponsorship yourself needs nobody's consent but your own
-            # contract's limits.  A pending proposal for somebody else is moot.
-            previous = await sponsor_proposals.transfer_sponsorship(session, organization, sponsor)
-            sponsor_change = {
-                "previous_sponsor_user_id": str(previous),
-                "new_sponsor_user_id": str(sponsor.id),
-            }
-            await sponsor_proposals.supersede_pending(session, organization, user)
-        else:
-            proposal = await sponsor_proposals.create_proposal(
-                session, organization, sponsor, user, replace=payload.replace_pending_proposal
-            )
+    if sponsor_named:
+        # [impl->req~auth-roles-entitlements-sponsor-self-transfer~1]
+        # Taking the sponsorship yourself needs nobody's consent but your own
+        # contract's limits (402 ``sponsor_quota_exceeded``).
+        previous = await sponsorship.transfer_sponsorship(session, organization, user)
+        sponsor_change = {
+            "previous_sponsor_user_id": str(previous),
+            "new_sponsor_user_id": str(user.id),
+        }
     _audit(session, user, "organization.updated", organization, organization.id, **sponsor_change)
     await session.flush()
-    if proposal is not None:
-        # The sponsor is unchanged: the answer is the pending proposal.
-        [view] = await sponsor_proposals.views(session, [proposal])
-        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content=jsonable_encoder(view))
     return await _org_view(session, organization, user)
 
 
@@ -1166,38 +1152,10 @@ async def _legacy_artifact(session: AsyncSession, project_id: uuid.UUID, referen
     return row
 
 
-@router.post(
-    "/{org}/projects/{project}/resources",
-    response_model=ProjectResourceView,
-    status_code=201,
-    operation_id="createProjectResource",
-)
-async def create_project_resource(
-    org: str,
-    project: str,
-    payload: ProjectResourceCreate,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> ProjectResourceView:
-    organization = await _required_org(session, org)
-    found_project = await require_project(
-        session, organization, project, user, OrganizationRole.MEMBER
-    )
-    duplicate = await session.scalar(select(Artifact.id).where(
-        Artifact.organization_id == organization.id, Artifact.name == payload.slug))
-    if duplicate:
-        raise api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That resource slug is in use.")
-    resource = Artifact(organization_id=organization.id, namespace=str(organization.id),
-        name=payload.slug, display_name=payload.name, description=payload.description,
-        kind=payload.kind, created_by_id=user.id)
-    session.add(resource)
-    await session.flush()
-    session.add(ProjectArtifact(project_id=found_project.id, artifact_id=resource.id))
-    await session.flush()
-    _audit(session, user, "project_resource.created", resource, organization.id)
-    return _legacy_resource_view(resource, found_project.id)
-
-
+# Project resources are read-only since M9.6: only the two lists are routed (design.md §2.1 rows 29 to 34).
+# [impl->req~collaboration-artifacts-resources-read-only~1]
+# [impl->req~gateway-api-removed-operations-not-routed~1]
+# [impl->req~gateway-api-removed-operations-not-documented~1]
 async def _project_resource(
     session: AsyncSession, project_id: uuid.UUID | Project, reference: str
 ) -> Artifact:
@@ -1231,165 +1189,6 @@ async def list_project_resource_revisions(
         .where(ArtifactVersion.artifact_id == found_resource.id)
         .order_by(ArtifactVersion.ordinal))).all()
     return [await _legacy_resource_revision_view(session, found_resource, row, found_project.id) for row in rows]
-
-
-@router.get(
-    "/{org}/projects/{project}/resources/{resource}/revisions/{revision}",
-    response_model=ProjectResourceRevisionView,
-    operation_id="getProjectResourceRevision",
-)
-async def get_project_resource_revision(
-    org: str,
-    project: str,
-    resource: str,
-    revision: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> ProjectResourceRevisionView:
-    organization = await _required_org(session, org)
-    found_project = await require_project(
-        session, organization, project, user, OrganizationRole.VIEWER
-    )
-    found_resource = await _project_resource(session, found_project, resource)
-
-    rev_row = None
-    if revision.isdigit():
-        rev_row = await session.scalar(select(ArtifactVersion).where(
-            ArtifactVersion.artifact_id == found_resource.id,
-            ArtifactVersion.ordinal == int(revision)))
-    if rev_row is None:
-        try:
-            parsed_uuid = uuid.UUID(revision)
-            rev_row = await session.scalar(select(ArtifactVersion).where(
-                ArtifactVersion.artifact_id == found_resource.id,
-                ArtifactVersion.id == parsed_uuid))
-        except ValueError:
-            pass
-    if rev_row is None and revision.startswith("sha256-"):
-        rev_row = await session.scalar(select(ArtifactVersion).where(
-            ArtifactVersion.artifact_id == found_resource.id,
-            ArtifactVersion.content_digest == revision))
-
-    if rev_row is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project resource revision not found.")
-    return await _legacy_resource_revision_view(session, found_resource, rev_row, found_project.id)
-
-
-@router.post(
-    "/{org}/projects/{project}/resources/{resource}/revisions",
-    response_model=ProjectResourceRevisionView,
-    status_code=201,
-    operation_id="createProjectResourceRevision",
-)
-async def create_project_resource_revision(
-    org: str,
-    project: str,
-    resource: str,
-    payload: ProjectResourceRevisionCreate,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> ProjectResourceRevisionView:
-    organization = await _required_org(session, org)
-    found_project = await require_project(
-        session, organization, project, user, OrganizationRole.MEMBER
-    )
-    found_resource = await _project_resource(session, found_project.id, resource)
-    document_digest = digest(payload.document)
-    existing = await session.scalar(select(ArtifactVersion).where(
-        ArtifactVersion.artifact_id == found_resource.id,
-        ArtifactVersion.content_digest == document_digest))
-    if existing is not None:
-        return await _legacy_resource_revision_view(session, found_resource, existing, found_project.id)
-    await session.execute(
-        select(Artifact.id)
-        .where(Artifact.id == found_resource.id)
-        .with_for_update()
-    )
-    latest = await session.scalar(select(func.max(ArtifactVersion.ordinal)).where(ArtifactVersion.artifact_id == found_resource.id))
-    content = canonical_json(payload.document)
-    blob = await store_blob(session, found_resource, user, content, "application/json")
-    ordinal = int(latest or 0) + 1
-    manifest = {"apiVersion": "openbinding/artifact/v1", "kind": found_resource.kind,
-        "identity": {"namespace": found_resource.namespace, "name": found_resource.name, "version": str(ordinal)},
-        "contentDigest": document_digest, "mediaType": "application/json", "contracts": [], "dependencies": []}
-    revision = ArtifactVersion(artifact_id=found_resource.id, ordinal=ordinal, version=str(ordinal),
-        blob_id=blob.id, content_digest=document_digest, version_digest=digest(manifest),
-        manifest=manifest, created_by_id=user.id)
-    session.add(revision)
-    await session.flush()
-    _audit(
-        session,
-        user,
-        "project_resource.revision.created",
-        revision,
-        organization.id,
-        digest=document_digest,
-    )
-    return await _legacy_resource_revision_view(session, found_resource, revision, found_project.id)
-
-
-@router.get(
-    "/{org}/projects/{project}/resources/{resource}",
-    response_model=ProjectResourceView,
-    operation_id="getProjectResource",
-)
-async def get_project_resource(
-    org: str,
-    project: str,
-    resource: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> ProjectResourceView:
-    organization = await _required_org(session, org)
-    found_project = await require_project(
-        session, organization, project, user, OrganizationRole.VIEWER
-    )
-    found_resource = await _project_resource(session, found_project, resource)
-    return _legacy_resource_view(found_resource, found_project.id)
-
-
-@router.patch(
-    "/{org}/projects/{project}/resources/{resource}",
-    response_model=ProjectResourceView,
-    operation_id="updateProjectResource",
-)
-async def update_project_resource(
-    org: str, project: str, resource: str, payload: ProjectResourceUpdate,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> ProjectResourceView:
-    organization = await _required_org(session, org)
-    found_project = await require_project(session, organization, project, user, OrganizationRole.MEMBER)
-    found_resource = await _project_resource(session, found_project.id, resource)
-    if payload.name is not None:
-        found_resource.display_name = payload.name
-    if payload.description is not None:
-        found_resource.description = payload.description
-    if payload.kind is not None:
-        found_resource.kind = payload.kind
-    await session.flush()
-    _audit(session, user, "project_resource.updated", found_resource, organization.id)
-    return _legacy_resource_view(found_resource, found_project.id)
-
-
-@router.delete(
-    "/{org}/projects/{project}/resources/{resource}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    operation_id="deleteProjectResource",
-)
-async def delete_project_resource(
-    org: str, project: str, resource: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> None:
-    organization = await _required_org(session, org)
-    found_project = await require_project(session, organization, project, user, OrganizationRole.ADMIN)
-    found_resource = await _project_resource(session, found_project.id, resource)
-    _audit(session, user, "project_resource.deleted", found_resource, organization.id)
-    await session.execute(delete(ProjectArtifact).where(
-        ProjectArtifact.project_id == found_project.id,
-        ProjectArtifact.artifact_id == found_resource.id))
-    await session.flush()
 
 
 @router.get(

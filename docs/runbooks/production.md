@@ -27,7 +27,6 @@ it does not extend `docker-compose.yml`, builds nothing and has no profiles.
 | `migrate` | `GATEWAY_IMAGE` | `database_url` | one-shot (`OPENBINDING_MIGRATE=only`), exits when the schema is current |
 | `gateway` | `GATEWAY_IMAGE` | `database_url`, `gateway_jwt_secret`, `space_api_key`, `sphere_api_key`, `secrets_fernet_keys`, `bootstrap_admin_password` | starts after `migrate` completed; the only service with the JWT secret |
 | `worker` | `GATEWAY_IMAGE` | `database_url`, `space_api_key`, `sphere_api_key`, `secrets_fernet_keys` | queue `default`, 4 threads |
-| `analysis-worker` | `GATEWAY_IMAGE` | same as `worker` | queue `analysis`, 1 thread |
 | `engine-minizinc` | `ENGINE_MINIZINC_IMAGE` | none | |
 | `engine-random-search` | `ENGINE_RANDOM_SEARCH_IMAGE` | none | |
 | `engine-many-heuristic` | `ENGINE_MANY_HEURISTIC_IMAGE` | none | |
@@ -454,7 +453,7 @@ The archives are created with `umask 077` (mode 0600), and are copied off-host l
 at rest).
 
 ```bash
-$DC stop nginx gateway worker analysis-worker pg-backup postgres
+$DC stop nginx gateway worker pg-backup postgres
 image=$(sed -n 's/^POSTGRES_IMAGE=//p' images.env)          # any pinned image with tar
 for vol in pgdata artifacts; do
   docker run --rm --entrypoint sh -v "openbinding-production_${vol}:/data:ro" -v "$OPENBINDING_BACKUP_DIR:/out" \
@@ -562,7 +561,7 @@ rollback_swap() {   # step 3; $1 is the previous tag
     git checkout "$running"; return 1
   fi
   # the clients stop, then the two renames run in one transaction:
-  if ! { $DC stop nginx gateway worker analysis-worker pg-backup \
+  if ! { $DC stop nginx gateway worker pg-backup \
     && printf 'ALTER DATABASE openbinding RENAME TO openbinding_failed_%s;\nALTER DATABASE openbinding_rollback RENAME TO openbinding;\n' \
       "$(date +%Y%m%d%H%M%S)" | $DC exec -T postgres psql -U openbinding -d postgres -1 -v ON_ERROR_STOP=1 -f -; }; then
     git checkout "$running" && $DC up -d && $DC restart nginx   # the live database was not renamed: start the running release again
@@ -618,7 +617,7 @@ sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
   old=$(sudo cat "$OPENBINDING_SECRETS_DIR/secrets_fernet_keys")
   if [ -n "$new" ] && [ -n "$old" ]; then
     printf '%s,%s' "$new" "$old" | put_secret secrets_fernet_keys 10001 \
-      && $DC up -d --force-recreate gateway worker analysis-worker \
+      && $DC up -d --force-recreate gateway worker \
       && $DC restart nginx
   else
     echo "refuse: the new or the old Fernet key is empty" >&2
@@ -634,7 +633,7 @@ sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
   set +o history
   printf 'new SPACE key: ' >&2; IFS= read -rs v; echo >&2; printf '%s' "$v" | put_secret space_api_key 10001; unset v
   set -o history
-  $DC up -d --force-recreate gateway worker analysis-worker
+  $DC up -d --force-recreate gateway worker
   $DC restart nginx
   ```
 
@@ -654,7 +653,7 @@ sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
       | $DC exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1 \
       && printf '%s' "$password" | put_secret postgres_password 70 \
       && printf '%s' "postgresql+asyncpg://openbinding:${password}@postgres:5432/openbinding" | put_secret database_url 10001 \
-      && $DC up -d --force-recreate migrate gateway worker analysis-worker pg-backup \
+      && $DC up -d --force-recreate migrate gateway worker pg-backup \
       && $DC restart nginx
   else
     echo "refuse: the new password is empty; the role keeps its password" >&2
@@ -685,7 +684,7 @@ sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
     printf "ALTER ROLE openbinding PASSWORD '%s';\n" "$old" \
       | $DC exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1 \
       && sudo sh -c 'for f in postgres_password database_url; do mv -f -- "$1/$f.prev" "$1/$f" || exit 1; done' sh "$dir" \
-      && $DC up -d --force-recreate migrate gateway worker analysis-worker pg-backup \
+      && $DC up -d --force-recreate migrate gateway worker pg-backup \
       && $DC restart nginx
   }
   undo_password_rotation

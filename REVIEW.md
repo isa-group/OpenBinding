@@ -11,11 +11,11 @@ spec delta and the MRP draft. Paths below are relative to the repository root;
 
 | Id | Area | Globs | Default risk |
 |---|---|---|---|
-| R1 | Auth, roles, API keys, visibility | `GW/routes/{auth,cas,users,admin,organizations,sponsor_proposals}.py`, `GW/access/**`, `GW/security/**`, `GW/collaboration.py`, `GW/cas.py`, `frontend/src/contexts/**`, `frontend/src/components/ProtectedRoute.tsx`, `frontend/src/routes/**` | high |
+| R1 | Auth, roles, API keys, visibility | `GW/routes/{auth,cas,users,admin,organizations}.py`, `GW/access/**`, `GW/security/**`, `GW/collaboration.py`, `GW/cas.py`, `frontend/src/contexts/**`, `frontend/src/components/ProtectedRoute.tsx`, `frontend/src/routes/**` | high |
 | R2 | Plans, entitlements, pricing display | `GW/services/entitlements.py`, `GW/domain/{entitlements,usage_counters}.py`, `GW/access/policy.py`, `GW/space_client/**`, `GW/sphere_client.py`, `GW/pricing_catalog.py`, `GW/routes/pricing.py`, `frontend/src/pages/Pricing/**`, `frontend/src/content/plans.ts`, `pricings/**` | high |
 | R3 | Public API and schemas | `docs/openapi.json`, `GW/models/**`, `GW/routes/**`, `GW/core/public_errors.py`, `schemas/**`, `bim-toolchain/contracts/**` | high if breaking, else medium |
 | R4 | Engine numeric semantics | `engines/**`, `GW/services/{execution,engines}.py`, `GW/v1/remote.py`, `schemas/bim/v1/manifests/**`, `bim-toolchain/packages/bim-core/src/bim_core/{evaluator,reevaluate,compat,protocol,compiler,expressions}.py` | high |
-| R5 | Jobs, concurrency, idempotency | `GW/jobs/**`, `GW/job_dispatch.py`, `GW/worker.py`, `GW/services/job_submission.py`, `GW/domain/idempotency.py`, `GW/study_jobs.py`, `GW/analysis_jobs.py` | high |
+| R5 | Jobs, concurrency, idempotency | `GW/jobs/**`, `GW/job_dispatch.py`, `GW/worker.py`, `GW/services/job_submission.py`, `GW/domain/idempotency.py`, `GW/study_jobs.py` | high |
 | R6 | Persistence and migrations | `openbinding-gateway/alembic/**`, `GW/db/**`, `GW/repositories/**` | high |
 | R7 | BIM boundary | `bim-toolchain/**`, `GW/integrations/**`, `openbinding-gateway/pyproject.toml`, `openbinding-gateway/uv.lock`, `openbinding-gateway/tests/test_bim_*` | high |
 | R8 | Experiment reproducibility and data | `experimentation/**`, `datasets/**`, `examples/**`, `tools/check_bim_corpus.py`, `tools/package_zenodo.sh`, `engines/minizinc-csp/Dockerfile`, `engines/bim-generator/**`, `GW/generator/**` | medium (high for reference results or solver versions) |

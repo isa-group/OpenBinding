@@ -165,22 +165,6 @@
   padding: 0;
 }
 
-/* Sponsor requests that wait for this account's answer. */
-.notification-requests {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 0.5rem var(--space-4);
-  background: var(--tp-severity-warning-bg);
-  border-bottom: 1px solid var(--tp-severity-warning-border);
-  color: var(--tp-ink);
-  font-size: 0.8125rem;
-  text-decoration: none;
-}
-
-.notification-requests span { color: var(--tp-link); font-weight: 500; }
-.notification-requests:hover { text-decoration: none; background: var(--tp-surface); }
-
 .notification-tabs {
   display: flex;
   align-items: center;

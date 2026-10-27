@@ -42,7 +42,8 @@ async def _auth_headers(api_client, registration, platform_gate, username: str =
 
 
 @pytest.mark.asyncio
-async def test_case_and_resource_patch_and_delete(api_client, registration, platform_gate):
+async def test_case_patch_and_delete(api_client, registration, platform_gate):
+    # The resource writes this test also covered are removed since M9.6 (test_removed_operations.py).
     headers = await _auth_headers(api_client, registration, platform_gate, username=f"user-{uuid.uuid4().hex[:6]}")
     org_slug = f"org-{uuid.uuid4().hex[:6]}"
     proj_slug = "test-proj"
@@ -87,32 +88,6 @@ async def test_case_and_resource_patch_and_delete(api_client, registration, plat
     list_c = await api_client.get(f"/v1/organizations/{org_slug}/projects/{proj_slug}/cases", headers=headers)
     assert list_c.status_code == 200
     assert len(list_c.json()) == 0
-
-    # Resource CRUD
-    r_resp = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/resources",
-        headers=headers,
-        json={"slug": "res-a", "name": "Resource Alpha", "description": "Desc", "kind": "catalog"},
-    )
-    assert r_resp.status_code == 201
-
-    patch_r = await api_client.patch(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/resources/res-a",
-        headers=headers,
-        json={"name": "Resource Alpha Updated", "description": "New Resource Desc"},
-    )
-    assert patch_r.status_code == 200
-    assert patch_r.json()["name"] == "Resource Alpha Updated"
-
-    del_r = await api_client.delete(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/resources/res-a",
-        headers=headers,
-    )
-    assert del_r.status_code == 204
-
-    list_r = await api_client.get(f"/v1/organizations/{org_slug}/projects/{proj_slug}/resources", headers=headers)
-    assert list_r.status_code == 200
-    assert len(list_r.json()) == 0
 
 
 @pytest.mark.asyncio
@@ -198,8 +173,14 @@ async def test_collection_and_study_patch_and_delete(api_client, registration, p
 
 
 @pytest.mark.asyncio
-async def test_report_draft_mutation_frozen_immutability_and_delete(api_client, registration, platform_gate):
+async def test_report_publication_withdrawal_keeps_every_edition(api_client, registration, platform_gate, db_session):
+    # The report editor and the report publication route are removed since M9.6 (design.md §2.1 rows 9 to 15):
+    # the reports, their editions and publications are seeded through the internal services, and the kept
+    # operations (publication list and withdrawal, permanent links) are exercised over HTTP.
+    import _m96_seed as seed
+
     headers = await _auth_headers(api_client, registration, platform_gate, username=f"user-{uuid.uuid4().hex[:6]}")
+    user_id = (await api_client.get("/v1/users/me", headers=headers)).json()["id"]
     org_slug = f"org-{uuid.uuid4().hex[:6]}"
     proj_slug = "test-proj"
 
@@ -238,55 +219,11 @@ async def test_report_draft_mutation_frozen_immutability_and_delete(api_client, 
         },
     }
 
-    # Create draft report
-    rep_resp = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/reports",
-        headers=headers,
-        json={"slug": "rep-a", "title": "Draft Report Alpha", "document": valid_document},
-    )
-    assert rep_resp.status_code == 201
-    assert rep_resp.json()["state"] == "draft"
-
-    get_rep = await api_client.get(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/reports/rep-a",
-        headers=headers,
-    )
-    assert get_rep.status_code == 200
-    assert get_rep.json()["slug"] == "rep-a"
-
-    # PATCH draft report -> allowed
-    patch_resp = await api_client.patch(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/reports/rep-a",
-        headers=headers,
-        json={"title": "Updated Draft Report Alpha"},
-    )
-    assert patch_resp.status_code == 200
-    assert patch_resp.json()["title"] == "Updated Draft Report Alpha"
-
-    # Freeze report -> becomes frozen
-    freeze_resp = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/reports/rep-a/freeze",
-        headers=headers,
-    )
-    assert freeze_resp.status_code == 200, freeze_resp.text
-    assert freeze_resp.json()["state"] == "frozen"
-
-    # PATCH frozen report -> 409 Conflict
-    patch_frozen = await api_client.patch(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/reports/rep-a",
-        headers=headers,
-        json={"title": "Illegal edit on frozen report"},
-    )
-    assert patch_frozen.status_code == 409
-    assert "immutable" in patch_frozen.text.lower()
-
-    # Publish report -> creates publication
-    pub_resp = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/publications",
-        headers=headers,
-        json={"report_id": rep_resp.json()["id"], "slug": "pub-a", "citation": {"authors": ["Alice"]}},
-    )
-    assert pub_resp.status_code == 201
+    project = await seed.project_by_slugs(db_session, org_slug, proj_slug)
+    report = await seed.report(db_session, project, user_id, slug="rep-a", title="Draft Report Alpha",
+                               document=valid_document, freeze=True)
+    first_version, first_digest, first_document = str(report.version_id), report.digest, report.document
+    await seed.report_publication(db_session, report, user_id, slug="pub-a", citation={"authors": ["Alice"]})
 
     # DELETE publication -> 204
     del_pub = await api_client.delete(
@@ -295,31 +232,14 @@ async def test_report_draft_mutation_frozen_immutability_and_delete(api_client, 
     )
     assert del_pub.status_code == 204
 
-    # DELETE report -> 204
-    del_rep = await api_client.delete(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/reports/rep-a",
-        headers=headers,
-    )
-    assert del_rep.status_code == 409
-    first_version = freeze_resp.json()['version_id']
-    first_digest = freeze_resp.json()['digest']
-    first_document = freeze_resp.json()['document']
-    new_draft = await api_client.post(f"/v1/organizations/{org_slug}/projects/{proj_slug}/reports/rep-a/drafts", headers=headers)
-    assert new_draft.status_code == 200, new_draft.text
     corrected = {**first_document, 'correction': 'Updated interpretation, same retained evidence.'}
-    edited = await api_client.patch(f"/v1/organizations/{org_slug}/projects/{proj_slug}/reports/rep-a", headers=headers,
-        json={'document': corrected, 'draft_revision': new_draft.json()['draft_revision']})
-    assert edited.status_code == 200, edited.text
-    stale = await api_client.patch(f"/v1/organizations/{org_slug}/projects/{proj_slug}/reports/rep-a", headers=headers,
-        json={'document': first_document, 'draft_revision': new_draft.json()['draft_revision']})
-    assert stale.status_code == 409
-    second_version = await api_client.post(f"/v1/organizations/{org_slug}/projects/{proj_slug}/reports/rep-a/freeze", headers=headers)
-    assert second_version.status_code == 200, second_version.text
-    assert second_version.json()['version_id'] != first_version
-    assert second_version.json()['artifact_id'] == freeze_resp.json()['artifact_id']
-    published_second = await api_client.post(f"/v1/organizations/{org_slug}/projects/{proj_slug}/publications", headers=headers,
-        json={'report_id': rep_resp.json()['id'], 'slug': 'report-edition-two', 'version_id': second_version.json()['version_id']})
-    assert published_second.status_code == 201, published_second.text
+    second_version = await seed.new_edition(db_session, report, user_id, corrected)
+    assert str(second_version.id) != first_version
+    assert second_version.artifact_id == report.artifact_id
+    await seed.report_publication(db_session, report, user_id, slug="report-edition-two")
+    listed = await api_client.get(f"/v1/organizations/{org_slug}/projects/{proj_slug}/reports", headers=headers)
+    assert [(row["slug"], row["state"], row["version_id"]) for row in listed.json()] == [
+        ("rep-a", "frozen", str(second_version.id))]
 
     historical = await api_client.get(f'/v1/resolve/report/{first_digest}/content')
     assert historical.status_code == 200, historical.text

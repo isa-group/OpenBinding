@@ -31,6 +31,7 @@ from openbinding_gateway import space_client
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db import platform_models
 from openbinding_gateway.db.models import (
+    Artifact,
     ArtifactPublication,
     ArtifactVersion,
     BindingCaseRevision,
@@ -46,6 +47,7 @@ from openbinding_gateway.db.models import (
 )
 from openbinding_gateway.db.platform_models import Report, ReportState
 from _pricing import fake_pricing_gate
+import _m96_seed as seed
 from test_architecture_layers import gateway_imports, module_level_mutables, routes_imports
 from test_b2_resolve_urls import account, assert_is_a_frontend_screen, seal
 
@@ -909,7 +911,7 @@ async def seed_library_version(world, kind: str, artifact_kind: str) -> Seeded:
     user, headers = await member(world)
     org, _ = await project_of(world, headers, "public")
     content = {"apiVersion": COLLECTION_API, "members": []} if artifact_kind == "Collection" else {"value": 1}
-    sealed = await sealed_in_the_past(seal(world.client, headers, org, artifact_kind, content))
+    sealed = await sealed_in_the_past(seal(world.client, headers, org, artifact_kind, content, db=world.db))
     await assert_sealed_in_the_past(world, sealed["version"]["id"])
     return Seeded(
         kind, sealed["version"]["contentDigest"], headers, user["username"], user["id"], org, artifact_kind,
@@ -1058,33 +1060,31 @@ async def resolved(world, seeded: Seeded, headers: dict | None = None) -> dict:
 
 
 async def publish(world, seeded: Seeded, citation: dict) -> None:
-    response = await world.client.post(
-        f"/v1/artifacts/{seeded.artifact_id}/versions/{seeded.version_id}/publish",
-        headers=seeded.headers,
-        json={"citation": citation},
-    )
-    assert response.status_code == 200, response.text
+    """The publication record of the version. The publish route is removed since M9.6, so it is seeded."""
+    version = await world.db.get(ArtifactVersion, uuid.UUID(seeded.version_id))
+    await seed.publish(world.db, version, seeded.user_id, citation)
+
+
+async def withdraw(world, seeded: Seeded) -> None:
+    """Withdraw the version's publication, as the removed withdraw route did."""
+    publication = await world.db.get(ArtifactPublication, uuid.UUID(seeded.version_id))
+    publication.withdrawn = True
+    await world.db.flush()
 
 
 async def sibling(world, seeded: Seeded) -> Seeded:
     """A second version of the same artifact, sealed at ``OLD``, with other content and so another digest."""
+    dependencies = []
     if seeded.artifact_kind == "Collection":
-        dataset = await seal(world.client, seeded.headers, seeded.org, "Dataset", {"value": "member"})
-        draft = {
-            "content": {"apiVersion": COLLECTION_API, "members": [dataset["version"]["ref"]]},
-            "dependencies": [dataset["version"]["ref"]],
-        }
+        dataset = await seal(world.client, seeded.headers, seeded.org, "Dataset", {"value": "member"}, db=world.db)
+        content = {"apiVersion": COLLECTION_API, "members": [dataset["version"]["ref"]]}
+        dependencies = [dataset["version"]["ref"]]
     else:
-        draft = {"content": {"value": 2}}
-    base = f"/v1/artifacts/{seeded.artifact_id}"
-    draft = await world.client.post(f"{base}/drafts", headers=seeded.headers, json=draft)
-    assert draft.status_code == 201, draft.text
-    sealed = await sealed_in_the_past(world.client.post(
-        f"{base}/drafts/{draft.json()['id']}/seal", headers=seeded.headers, json={"revision": 1}
-    ))
-    assert sealed.status_code == 201, sealed.text
-    await assert_sealed_in_the_past(world, sealed.json()["id"])
-    other = replace(seeded, digest=sealed.json()["contentDigest"], version_id=sealed.json()["id"])
+        content = {"value": 2}
+    artifact = await world.db.get(Artifact, uuid.UUID(seeded.artifact_id))
+    sealed = await sealed_in_the_past(seed.seal(world.db, artifact, seeded.user_id, content, dependencies=dependencies))
+    await assert_sealed_in_the_past(world, str(sealed.id))
+    other = replace(seeded, digest=sealed.content_digest, version_id=str(sealed.id))
     assert other.digest != seeded.digest
     return other
 
@@ -1204,10 +1204,7 @@ async def test_a_publication_of_a_sibling_version_is_not_cited(kind, world):
 async def test_a_withdrawn_publication_is_not_cited_by_the_endpoint(kind, world):
     seeded = await SEEDERS[kind](world, public=True)
     await publish(world, seeded, CITED)
-    withdrawn = await world.client.post(
-        f"/v1/artifacts/{seeded.artifact_id}/versions/{seeded.version_id}/withdraw", headers=seeded.headers
-    )
-    assert withdrawn.status_code == 200, withdrawn.text
+    await withdraw(world, seeded)
 
     body = await resolved(world, seeded)
 

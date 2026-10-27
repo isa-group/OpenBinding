@@ -95,31 +95,6 @@ describe('authentication requests', () => {
     await expect(client.exchangeCasCode('y'.repeat(32))).resolves.toBeNull();
   });
 
-  it('names a sponsor with the replace flag only when asked to replace, and reads the requests of the account', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 'prop-1', status: 'pending' }, 202));
-    await client.adminTransferSponsor('org-1', 'user-1');
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ billing_sponsor_user_id: 'user-1' });
-
-    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 'prop-2', status: 'pending' }, 202));
-    await client.adminTransferSponsor('org-1', 'user-1', true);
-    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({ billing_sponsor_user_id: 'user-1', replace_pending_proposal: true });
-
-    fetchMock.mockResolvedValueOnce(jsonResponse([]));
-    await client.listMySponsorProposals('pending');
-    expect(fetchMock.mock.calls[2][0]).toBe('https://gateway.example/v1/users/me/sponsor-proposals?status=pending');
-
-    fetchMock.mockResolvedValueOnce(jsonResponse([]));
-    await client.listOrganizationSponsorProposals('isa-demo');
-    expect(fetchMock.mock.calls[3][0]).toBe('https://gateway.example/v1/organizations/isa-demo/sponsor-proposals');
-
-    for (const [index, answer] of (['accept', 'decline', 'cancel'] as const).entries()) {
-      fetchMock.mockResolvedValueOnce(jsonResponse({ id: 'prop-1', status: 'accepted' }));
-      await client[`${answer}SponsorProposal` as const]('prop-1');
-      expect(fetchMock.mock.calls[4 + index][0]).toBe(`https://gateway.example/v1/sponsor-proposals/prop-1/${answer}`);
-      expect(fetchMock.mock.calls[4 + index][1]?.method).toBe('POST');
-    }
-  });
-
   it('remembers that a CAS link leaves the app, and builds the start URL for either mode', async () => {
     expect(client.casStartUrl()).toBe('https://gateway.example/v1/auth/cas/start?mode=login');
     expect(client.casStartUrl('link')).toBe('https://gateway.example/v1/auth/cas/start?mode=link');
