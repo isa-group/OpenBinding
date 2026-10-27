@@ -1,0 +1,25 @@
+.evaluation-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-wrap: anywhere;
+  color: var(--color-text-primary);
+}
+
+.evaluation-diff p { margin: 0; }
+
+.evaluation-diff__hint,
+.evaluation-diff__more { color: var(--color-text-secondary); font-size: 0.8125rem; }
+
+.evaluation-diff__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem 0.5rem 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+}
+
+.evaluation-diff__list code { color: var(--color-text-secondary); font-size: 0.75rem; }
