@@ -62,7 +62,6 @@ const HEADING: Record<string, RegExp> = {
   'proj-package': /Portable package/,
   'case-list': /^Cases$/,
   'case-detail': /Checkout flow/,
-  'case-composer': /New revision of Checkout flow/,
   'case-revision': /Checkout flow · revision 2/,
   'case-compare': /Compare revisions/,
   'wb-workbench': /Workbench/,
@@ -201,9 +200,9 @@ async function freezeProbeTimes(page: Page) {
 const sessionOf = (screen: GalleryScreen) => (screen.underApp || screen.sessionHeader ? 'admin' : 'none');
 
 test.describe('gallery registry', () => {
-  test('lists all 71 screens of the prototype', () => {
-    expect(screens).toHaveLength(71);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(71);
+  test('lists all 70 screens of the prototype', () => {
+    expect(screens).toHaveLength(70);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(70);
   });
 });
 

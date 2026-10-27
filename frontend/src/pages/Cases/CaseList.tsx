@@ -42,7 +42,7 @@ function CaseRow({ root, entry, canCreate, canAdminister, publicRead, onDelete }
       </Link>
       <span className="case-row-actions">
         {latest && !publicRead && <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}&revision=${latest.revision}`} variant="secondary" size="sm">Run latest</Action>}
-        {canCreate && <Action to={`${root}/cases/${item.slug}/compose`} variant="secondary" size="sm">New revision</Action>}
+        {canCreate && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="secondary" size="sm">New revision</Action>}
         {canAdminister && <Action variant="danger-outline" size="sm" onClick={onDelete} aria-label={`Delete ${item.name}`}>Delete</Action>}
       </span>
     </li>
@@ -126,7 +126,7 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
           <h2 id="case-guide-title">No cases yet</h2>
           {publicRead ? <p>This project hasn’t shared any case yet.</p> : (
             <>
-              <p>Start from a ready example, or compose one: pick a workflow, a candidate catalog, constraints and a goal.</p>
+              <p>Start from a ready example, or open the workbench and build one.</p>
               <div className="proj-actions">
                 <Action to="/examples" variant="primary">Import an example</Action>
               </div>
@@ -153,7 +153,7 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
           onClose={() => setCreating(false)}
           onCreated={(created) => {
             setCreating(false);
-            setToast({ text: `Case “${created.name}” created. Compose its first revision when you’re ready.`, compose: `${root}/cases/${created.slug}/compose` });
+            setToast({ text: `Case “${created.name}” created. Compose its first revision when you’re ready.`, compose: `${root}/workbench?case=${encodeURIComponent(created.slug)}` });
             cases.reload();
           }}
         />

@@ -113,12 +113,13 @@ describe('Case detail', () => {
   });
 
   describe('roles', () => {
-    it('gives a MEMBER the composer, the comparison, a run and the workbench, but not deleting', async () => {
+    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
+    it('gives a MEMBER a new revision in the workbench, the comparison, a run and the workbench, but not deleting', async () => {
       renderDetail(member);
 
       await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
       const base = '/app/member-lab/qos-benchmarks';
-      expect(screen.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${base}/cases/flujo-checkout/compose`);
+      expect(screen.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${base}/workbench?case=flujo-checkout`);
       expect(screen.getByRole('link', { name: 'Compare revisions' })).toHaveAttribute('href', `${base}/cases/flujo-checkout/compare`);
       expect(screen.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', `${base}/jobs/new?case=flujo-checkout&revision=2`);
       expect(screen.getByRole('link', { name: 'Open in Workbench' })).toHaveAttribute('href', `${base}/workbench?case=flujo-checkout&revision=${r2.id}`);
@@ -188,15 +189,17 @@ describe('Case detail', () => {
   describe('a case without revisions', () => {
     beforeEach(() => platform.revisions.mockResolvedValue([]));
 
-    it('points a MEMBER to the composer instead of the timeline', async () => {
+    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
+    it('points a MEMBER to the workbench instead of the timeline', async () => {
       renderDetail(member);
 
       const guide = await screen.findByRole('region', { name: 'No revisions yet' });
-      expect(within(guide).getByRole('link', { name: 'Compose the first revision' })).toHaveAttribute('href', '/app/member-lab/qos-benchmarks/cases/flujo-checkout/compose');
+      expect(within(guide).getByRole('link', { name: 'Compose the first revision' })).toHaveAttribute('href', '/app/member-lab/qos-benchmarks/workbench?case=flujo-checkout');
       expect(screen.queryByRole('region', { name: 'Revisions' })).not.toBeInTheDocument();
     });
 
-    it('does not offer a VIEWER the composer', async () => {
+    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
+    it('does not offer a VIEWER a way to create the first revision', async () => {
       renderDetail(viewer);
 
       const guide = await screen.findByRole('region', { name: 'No revisions yet' });

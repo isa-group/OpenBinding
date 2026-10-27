@@ -34,6 +34,7 @@ describe('Case list', () => {
     platform.revisions.mockImplementation(async (_org: string, _project: string, slug: string) => (slug === 'flujo-checkout' ? [revisionOf(checkout, 1), revisionOf(checkout, 2)] : []));
   });
 
+  // [utest->req~frontend-retire-composer-entry-points-repointed~1]
   it('lists the cases with their revisions, what is ready to run and where each one leads', async () => {
     renderList();
 
@@ -47,7 +48,7 @@ describe('Case list', () => {
     expect(first.getByText(/latest r2 · /)).toBeInTheDocument();
     expect(first.getByText('Payments with parallel stock and shipping.')).toBeInTheDocument();
     expect(first.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', `${root}/jobs/new?case=flujo-checkout&revision=2`);
-    expect(first.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/compose`);
+    expect(first.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${root}/workbench?case=flujo-checkout`);
     const second = within(rows[1]);
     expect(second.getByText('No revision yet')).toBeInTheDocument();
     expect(second.getByText('0 revisions')).toBeInTheDocument();
@@ -142,6 +143,7 @@ describe('Case list', () => {
       return screen.findByRole('dialog', { name: 'New case' });
     }
 
+    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
     it('suggests the address from the name and creates the case', async () => {
       cases.createCase.mockResolvedValue(caseOf('analisis-de-latencia', 'Análisis de latencia'));
       const dialog = await openDialog();
@@ -154,7 +156,7 @@ describe('Case list', () => {
       await waitFor(() => expect(cases.createCase).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', { slug: 'analisis-de-latencia', name: 'Análisis de latencia', description: 'Edge pools' }));
       const toast = (await screen.findByText(/created\. Compose its first revision when you’re ready\./)).closest('[role="status"]') as HTMLElement;
       expect(toast).toHaveTextContent('Case “Análisis de latencia” created. Compose its first revision when you’re ready.');
-      expect(within(toast).getByRole('link', { name: 'Compose its first revision' })).toHaveAttribute('href', `${root}/cases/analisis-de-latencia/compose`);
+      expect(within(toast).getByRole('link', { name: 'Compose its first revision' })).toHaveAttribute('href', `${root}/workbench?case=analisis-de-latencia`);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       await waitFor(() => expect(platform.cases).toHaveBeenCalledTimes(2));
     });

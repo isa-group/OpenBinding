@@ -122,11 +122,13 @@ describe('Case compare', () => {
     expect(screen.getByLabelText('From')).toBeInTheDocument();
   });
 
+  // [utest->req~frontend-retire-composer-entry-points-repointed~1]
   it('asks for a second revision when the case has only one', async () => {
     platform.revisions.mockResolvedValue([r1]);
     renderCompare();
 
     expect(await screen.findByRole('heading', { name: 'Comparing needs two revisions' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${root}/workbench?case=flujo-checkout`);
     expect(screen.getByRole('link', { name: 'Back to the case' })).toHaveAttribute('href', `${root}/cases/flujo-checkout`);
   });
 

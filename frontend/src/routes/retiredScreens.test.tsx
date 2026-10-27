@@ -37,6 +37,10 @@ vi.mock('../pages/Organization/OrgOverview', async () => {
   const { createElement } = await import('react');
   return { OrgOverview: () => createElement('h1', null, 'Organization page screen') };
 });
+vi.mock('../pages/Workbench/Workbench', async () => {
+  const { createElement } = await import('react');
+  return { Workbench: () => createElement('h1', null, 'Workbench screen') };
+});
 vi.mock('../pages/Resources/CollList', async () => {
   const { createElement } = await import('react');
   return { CollList: () => createElement('h1', null, 'Collections screen') };
@@ -95,7 +99,7 @@ describe('the retired decision-space workspace', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('analysis-sources');
     expect(ids).not.toContain('analysis-workspace');
-    expect(routeDefinitions).toHaveLength(71);
+    expect(routeDefinitions).toHaveLength(70);
   });
 
   it('has no screen files left', () => {
@@ -175,7 +179,7 @@ describe('the retired library catalogue and project resources', () => {
       expect(ids, id).not.toContain(id);
     }
     for (const id of ['proj-files', 'coll-list', 'coll-detail']) expect(ids, id).toContain(id);
-    expect(routeDefinitions).toHaveLength(71);
+    expect(routeDefinitions).toHaveLength(70);
   });
 
   // [utest->req~frontend-retire-library-screens-not-routed~1]
@@ -217,6 +221,35 @@ describe('the retired library catalogue and project resources', () => {
 
     expect(await view.findByRole('heading', { name: 'Collections screen' })).toBeInTheDocument();
     expect(view.getByTestId('pathname').textContent).toBe('/app/acme/library/collections');
+    view.unmount();
+  });
+});
+
+// M2.4 slice 4: the composer is retired. Its address redirects to the workbench of the project, with the case.
+describe('the retired composer', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  // [utest->req~frontend-retire-composer-screen-not-routed~1]
+  // [utest->req~frontend-retire-composer-screen-count~1]
+  it('is gone from the route registry, and the case screens and the workbench stay', () => {
+    const ids = routeDefinitions.map((definition) => definition.id);
+    expect(ids).not.toContain('case-composer');
+    for (const id of ['case-list', 'case-detail', 'case-revision', 'case-compare', 'wb-workbench']) expect(ids, id).toContain(id);
+    expect(routeDefinitions).toHaveLength(70);
+  });
+
+  // [utest->req~frontend-retire-composer-screen-not-routed~1]
+  it('has no screen file left', () => {
+    expect(Object.keys(import.meta.glob('../pages/Cases/CaseComposer*'))).toEqual([]);
+  });
+
+  // [utest->req~frontend-retire-composer-redirect~1]
+  it('sends the composer to the workbench of the project with the case', async () => {
+    const view = renderAt('/app/acme/atlas/cases/flujo/compose?case=other#top');
+
+    expect(await view.findByRole('heading', { name: 'Workbench screen' })).toBeInTheDocument();
+    expect(view.getByTestId('pathname').textContent).toBe('/app/acme/atlas/workbench');
+    expect(view.getByTestId('search').textContent).toBe('?case=flujo');
     view.unmount();
   });
 });

@@ -95,7 +95,7 @@ function CompareBody({ organization, project, content }: { organization: Organiz
         <div className="case-guide">
           <h2>Comparing needs two revisions</h2>
           <p>{item.name} has {revisions.length === 0 ? 'no sealed revision' : 'one sealed revision'} so far. Seal another one to see what changed.</p>
-          <div className="proj-actions"><Action to={`${base}/compose`} variant="primary">New revision</Action><Action to={base} variant="secondary">Back to the case</Action></div>
+          <div className="proj-actions"><Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">New revision</Action><Action to={base} variant="secondary">Back to the case</Action></div>
         </div>
       )}
       {revisions.length >= 2 && missingSide && (

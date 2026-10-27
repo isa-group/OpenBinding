@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readBindingProblem } from './bindingModel';
 import {
-  aliasFrom, changesBetween, describeChange, diffRevisions, diffSummary, exactReference, newestFirst, refLabel, resourceUses, sizeChange, type RevisionView,
+  changesBetween, describeChange, diffRevisions, diffSummary, exactReference, newestFirst, refLabel, resourceUses, sizeChange, type RevisionView,
 } from './casesModel';
 import { irDocument, refOf, revisionDocument } from './fixtures';
 
@@ -30,8 +30,6 @@ describe('labels', () => {
     expect(refLabel(catalog3)).toBe('providers-eu v3');
     expect(refLabel({ name: 'x', version: 'beta' })).toBe('x beta');
     expect(exactReference('checkout-flow', { revision: 2, digest: 'sha256-ab' })).toBe('checkout-flow@2 sha256-ab');
-    expect(aliasFrom('Proveedores UE')).toBe('Proveedores-UE');
-    expect(aliasFrom('---')).toBe('part');
   });
 
   it('orders revisions newest first without touching the original', () => {

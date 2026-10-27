@@ -46,15 +46,6 @@ export function roleLabel(role: string): string {
   return ROLE_LABELS[role] ?? role;
 }
 
-/** The pattern a local name (alias) must match. */
-export const ALIAS_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
-
-/** `providers-eu` from `Providers EU`: a local name a person didn't have to think about. */
-export function aliasFrom(name: string): string {
-  const cleaned = name.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[^A-Za-z0-9]+/, '').slice(0, 128);
-  return cleaned || 'part';
-}
-
 // --- the library versions a revision is built from
 
 export interface ResourceUse {
