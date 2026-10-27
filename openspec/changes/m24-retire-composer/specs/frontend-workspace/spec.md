@@ -39,7 +39,7 @@ with it and, being earlier, win: `/app/<org>/library/cases/drafts/compose` and
 #### Scenario: Neighbouring case screens keep their addresses
 - **GIVEN** a signed-in member of `isa-demo`
 - **WHEN** the person opens `/app/isa-demo/qos-benchmarks/cases/checkout-flow/compare` and `/app/isa-demo/qos-benchmarks/cases/checkout-flow/revisions/2`
-- **THEN** both addresses stay and render the screens `case-compare` and `case-revision`
+- **THEN** both addresses stay and resolve to the screens `case-compare` and `case-revision`
 
 #### Scenario: Ties with the library entries
 - **GIVEN** a signed-in person and the organization `isa-demo`
@@ -105,7 +105,7 @@ with `base` holding `/cases/<slug>`, which the scan cannot see, so its own test 
 - **AND** the slice-4 entries of `RETIRED_ROUTES` are exactly one, with the path `/app/:org/:project/cases/:case/compose`
 
 ### Requirement: Ways to a new revision lead to the workbench
-THE case list, the case detail, the case comparison and the job result SHALL offer the workbench `/app/<org>/<project>/workbench?case=<case>`, and not the composer, as the way to make a new revision of a case, through the controls that opened the composer, under their current names and to the same people.
+THE case list, the case detail, the case comparison and the job result SHALL offer the workbench `/app/<org>/<project>/workbench?case=<case>`, and not the composer, as the way to make a new revision of a case, through the controls that opened the composer, under their current names, and only to people who can create revisions where the case list and detail already gate them, so the comparison guide's `New revision`, shown to every reader before, is no longer shown to a person who cannot create revisions.
 
 `req~frontend-retire-composer-entry-points-repointed~1`
 
@@ -117,7 +117,9 @@ The controls are `New revision` (case list, case detail, case comparison), `Comp
 notice after creating a case), `Compose the first revision` (case detail) and `Try faster providers` (job result of an
 infeasible run with a known case). `<case>` is the case slug, percent-encoded. A person who cannot create revisions
 (`canCreate` false, a VIEWER) gets none of the case controls, as today. The case comparison offers `New revision`
-only in its guide `Comparing needs two revisions`, shown while the case has fewer than two revisions. `Try faster
+only in its guide `Comparing needs two revisions`, shown while the case has fewer than two revisions, and now only
+when `canCreate` is true: before this change every reader saw it there, a change of audience decided because the case
+list and detail already gate it and a viewer cannot save a revision (design.md §2). `Try faster
 providers` is not gated by `canCreate`: the job result shows it to every reader of an infeasible run with a known case,
 as today. The read-only `Open in Workbench` of the case detail (`<root>/workbench?case=<slug>&revision=<id>`, shown to
 every reader) is unchanged. The texts that named the composer are reworded
@@ -170,10 +172,10 @@ every reader) is unchanged. The texts that named the composer are reworded
 - **AND** its link `Back to the case` is still shown
 
 #### Scenario: Job result of an infeasible run
-- **GIVEN** a member on the job detail of an infeasible run of revision 3 of the case `flujo` in `isa-demo/qos-benchmarks`
+- **GIVEN** a member on the job detail of an infeasible run of revision 2 of the case `flujo` in `isa-demo/qos-benchmarks`
 - **WHEN** the screen is rendered
 - **THEN** the link `Try faster providers` has the `href` `/app/isa-demo/qos-benchmarks/workbench?case=flujo`
-- **AND** the link `See the rules` still has the `href` `/app/isa-demo/qos-benchmarks/cases/flujo/revisions/3`
+- **AND** the link `See the rules` still has the `href` `/app/isa-demo/qos-benchmarks/cases/flujo/revisions/2`
 
 ### Requirement: Screen count after the composer
 THE route registry SHALL hold 70 screens, with 10 in domain D4.

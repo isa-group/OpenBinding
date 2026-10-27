@@ -50,5 +50,7 @@ address.
 **4. Automated checks (repository root, at the PR head)**
 - `pnpm --dir frontend exec vitest run src/routes src/test src/pages/Cases src/pages/Jobs`. Expect all pass: 70
   screens (D4 = 10), `case-composer` absent, redirect and link-scan tests, the repointed controls, allow-list ceiling 12.
-- `pnpm --dir frontend exec playwright test e2e/s5a-cases.spec.ts e2e/routes-smoke.spec.ts e2e/qa-gallery.spec.ts`.
-  Expect the gallery to list 70 screens and the composer smoke to land on the workbench.
+- `pnpm --dir frontend exec playwright test e2e/s5a-cases.spec.ts e2e/s5b-library.spec.ts e2e/routes-smoke.spec.ts e2e/qa-gallery.spec.ts`.
+  Expect the gallery to list 70 screens and the composer smoke (`e2e/s5b-library.spec.ts`) to land on the workbench.
+- `e2e/live/03-case-simple-seq.spec.ts` is not part of that command: it belongs to the live suite, which runs only in
+  the lab (the `e2e` service of `compose.lab.json`, `frontend/e2e/live/run.sh`, `playwright.live.config.ts`).

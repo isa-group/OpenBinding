@@ -35,7 +35,7 @@ Source:
 - [ ] 4.9 `api/library.ts`: only its doc comment may drop the mention of the case composer; no function changes.
 
 Outside `frontend/src`:
-- [ ] 4.10 Playwright: `e2e/s5a-cases.spec.ts` drops the `case-composer` test (its header comment too) and repoints the
+- [ ] 4.10 Playwright: `e2e/s5b-library.spec.ts` holds the composer redirect smoke (`retired composer address`); `e2e/s5a-cases.spec.ts` drops the `case-composer` test (its header comment too) and repoints the
   `New revision`, `Compose its first revision` and `Compose the first revision` assertions to
   `<root>/workbench?case=<slug>`, with one redirect smoke from `${CASE}/compose`; `e2e/qa-gallery.spec.ts` (without the
   `case-composer` expectation) and `e2e/routes-smoke.spec.ts` at 70 screens (`e2e/helpers/galleryRoutes.ts` names no

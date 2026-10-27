@@ -21,7 +21,9 @@ Slice 4 retires the case composer:
   workbench already saves a valid package as a revision of that case.
 - The controls that opened the composer keep their names and open the workbench instead: `New revision` (case list,
   case detail, case comparison), `Compose its first revision` (case list notice), `Compose the first revision` (case
-  detail), `Try faster providers` (job result). Whoever sees them today still sees them, and no one else.
+  detail), `Try faster providers` (job result). Whoever sees them today still sees them, with one change of
+  audience: the comparison guide's `New revision`, shown to every reader before, is now shown only to people who can
+  create revisions (`canCreate`), because the case list and detail already gate it and a viewer cannot save a revision.
 - The texts that name the composer are reworded (case detail, case list empty state).
 - No allow-list change: the composer is not an offender; `MAX_ALLOWED_OFFENDERS` stays 12.
 
