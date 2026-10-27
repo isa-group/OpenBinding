@@ -94,7 +94,6 @@ const HEADING: Record<string, RegExp> = {
   'admin-queues': /Queues/,
   'admin-moderation': /Moderation/,
   'admin-maintenance': /Maintenance/,
-  'admin-sponsor': /Transfer sponsorship/,
 };
 
 const VIEWPORTS = [
@@ -200,9 +199,9 @@ async function freezeProbeTimes(page: Page) {
 const sessionOf = (screen: GalleryScreen) => (screen.underApp || screen.sessionHeader ? 'admin' : 'none');
 
 test.describe('gallery registry', () => {
-  test('lists all 70 screens of the prototype', () => {
-    expect(screens).toHaveLength(70);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(70);
+  test('lists all 69 screens of the prototype', () => {
+    expect(screens).toHaveLength(69);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(69);
   });
 });
 
