@@ -332,9 +332,7 @@ bind-mounted `tools/` can be unreadable for that uid (`python: can't open file
 a tool changes you must rebuild with `up` before running `seed`, because the
 seed runs the code of the image, not of the checkout; and the tools are
 read-only to the unprivileged user, so a tool cannot write beside itself
-(`seed_dev.py` writes `tools/analysis-manifest.json` by default; pass
-`--analysis-manifest /tmp/analysis-manifest.json` when you use the analysis
-options).
+(for example, it cannot write a manifest into `tools/`).
 
 `seed_dev.py` creates its users directly in the database; it does not call the
 API. For that reason `seed` does not get `GATEWAY_JWT_SECRET`: a tool that logs

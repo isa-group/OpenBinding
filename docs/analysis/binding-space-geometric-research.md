@@ -1,5 +1,7 @@
 # Geometric exploration of binding feasibility and preferences
 
+> Removed by M9.6 (2026-10-27); kept as history.
+>
 > Historical. The decision-space workspace retires (ADR-0020); only the trade-off set of multi-objective
 > runs survives, in the run and study pages (`docs/ARCHITECTURE.md` §5.2).
 
