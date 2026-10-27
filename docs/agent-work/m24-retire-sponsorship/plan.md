@@ -1,0 +1,1 @@
+Slice 5 of M2.4: retire admin-sponsor (/app/admin/organizations/:org/sponsor) -> redirect /app/admin. Done: spec (openspec/changes/m24-retire-sponsorship), src + unit tests, e2e/ROADMAP/how-to-test, changelog. Remaining: push, PR, CI, review panel (reviewer + test-reviewer), ready. If a docs commit makes the changelog stale, regenerate it as the last commit.
