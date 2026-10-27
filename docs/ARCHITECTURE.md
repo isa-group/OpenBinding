@@ -462,7 +462,8 @@ version is never retired. Approval in production is an owner decision (constitut
 | `POST /v1/language/adapter-services` and `.../{name}/{activate,deactivate}` | register tier 2 deployments |
 
 The current `/v1/profiles`, `/v1/dialects`, `/v1/resources`, `/v1/schemas/{kind}`, `/v1/catalog`, `/v1/examples`
-and `/v1/validate` stay as aliases with `Deprecation` and `Sunset` headers for one minor release (CRP).
+and `/v1/validate` stay as aliases without `Deprecation` or `Sunset` headers (the deprecation middleware was removed
+in M9.6); only `GET /v1/pricing` is still marked deprecated.
 
 ### 8.6 Developer kit
 
