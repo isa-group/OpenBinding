@@ -1747,8 +1747,9 @@ RENDER_COMMAND = (
     "--env-file deploy/compose/production/images.env "
     "--env-file deploy/compose/production/ci.env config --quiet"
 )
-LOCAL_SPACE_HEADING = "Local SPACE (owner decision local-space)"
-LOCAL_SPACE_ANCHOR = "#local-space-owner-decision-local-space"
+REMOTE_SPACE_HEADING = "Remote SPACE"
+REMOTE_SPACE_ANCHOR = "#remote-space"
+REMOTE_SPACE_URL = "https://space.score.us.es"  # the only real host name the runbook may carry
 # Facts the runbook must state, found by review: (what, text that must appear).
 RUNBOOK_FACTS = [
     ("the pre-flight greps value lines only, not comments", "'^[A-Z0-9_]+=gap\\.invalid/'"),
@@ -1822,7 +1823,7 @@ def runbook_problems(config: dict, text: str, compose_text: str) -> list[str]:
             problems.append(f"{kind} {name} is not named")
     if RENDER_COMMAND not in text:
         problems.append("the render command is missing")
-    if "us.es" in text:
+    if "us.es" in text.replace(REMOTE_SPACE_URL, ""):
         problems.append("a real host name (us.es)")
     return problems
 
@@ -2218,14 +2219,21 @@ def test_runbook_renders_with_the_command_of_ci():
     assert RENDER_COMMAND in runbook_text()
 
 
-# [utest->req~lab-deployment-production-runbook~1]
-def test_runbook_local_space_decision_is_recorded_and_compose_has_no_space_service():
+# [utest->req~lab-deployment-runbook-remote-space~1]
+def test_runbook_remote_space_section_and_compose_has_no_space_service():
     text = runbook_text()
-    assert f"## {LOCAL_SPACE_HEADING}" in text
-    body = section(text, LOCAL_SPACE_HEADING)
-    for needle in ("INTENT.md", "SPACE_URL", "space-api", "space-mongo", "space-redis", "test_no_local_space.py"):
+    assert f"## {REMOTE_SPACE_HEADING}" in text
+    body = " ".join(section(text, REMOTE_SPACE_HEADING).split())
+    for needle in (REMOTE_SPACE_URL, "SPACE_URL", "`space_api_key`"):
         assert needle in body, needle
-    assert LOCAL_SPACE_ANCHOR in section(text, "What stays blocked")
+    assert not re.search(r"(?i)local[ -]space", text)
+    for name in ("space-mongo", "space-redis", "space-api"):
+        assert name not in text, name
+    assert "gap.invalid/space-api" not in text
+    blocked = section(text, "What stays blocked")
+    item = re.search(r"^- \*\*Production SPACE\.\*\*.*?(?=^- \*\*|\Z)", blocked, re.MULTILINE | re.DOTALL)
+    assert item, "the 'Production SPACE' item is missing"
+    assert REMOTE_SPACE_ANCHOR in item[0]
     config = production()
     for kind in ("services", "networks", "volumes"):
         assert not [name for name in config[kind] if "space" in name.lower() or "sphere" in name.lower()], kind

@@ -731,32 +731,24 @@ docker inspect --format '{{.HostConfig.LogConfig}}' $($DC ps -q gateway)
 docker system df
 ```
 
-## Local SPACE (owner decision local-space)
+## Remote SPACE
 
-The owner decided that production eventually runs its own SPACE (`space-api`, `space-mongo`, `space-redis`, like the
-laboratory pricing profile `compose.lab-pricing.json`). **This definition ships remote SPACE only**: the gateway and
-the workers reach SPACE through `SPACE_URL` and the `space_api_key` file, and `compose.yaml` has no SPACE or SPHERE
-service, network or volume. The reason is that `openbinding-gateway/tests/test_no_local_space.py` (requirement
-`req~lab-deployment-no-local-space`) forbids them under `deploy/**`, and another change is rewriting that test.
+Production and the laboratory use the remote SPACE, `https://space.score.us.es`. The gateway and the workers reach it
+through `SPACE_URL` (default `https://space.score.us.es`) and the secret file `space_api_key`. The key never goes into
+the repository, an image, the logs or the browser. `SPACE_ENABLED` switches the integration, and `APP_ENV=prod` refuses
+the open gate (`SPACE_ENABLED=false`).
 
-The follow-up change has to:
-
-- add `space-api`, `space-mongo` and `space-redis` with digest-pinned images, secret files, health checks and limits;
-- back up the SPACE volumes, like `pgdata` and `artifacts`;
-- amend `req~lab-deployment-no-local-space` and `openbinding-gateway/tests/test_no_local_space.py`.
-
-Open points: the SPACE API image has no verified digest or registry (the laboratory profile uses the marker
-`gap.invalid/space-api:1.7.1`), and `INTENT.md:180` lists hosting SPACE in production as a non-goal, which conflicts with
-the owner decision. The owner reconciles `INTENT.md`. Until then plans stay blocked on a remote SPACE.
+This stack deploys and backs up no SPACE: `compose.yaml` has no SPACE or SPHERE service, network or volume, so there is
+nothing of SPACE to restore. The owner decision of the change `m4-remote-space` replaces the earlier decision to host a
+SPACE in production.
 
 ## What stays blocked
 
 - **Image registry and publish workflow.** No workflow builds and pushes images, so every image built from this
   repository is still a `gap.invalid/...@sha256:000...` marker in `images.env`, and the pre-flight refuses it. Needs
   the owner's registry choice and a token that can write workflows (CRP-4).
-- **Production SPACE.** Production uses a remote SPACE through `SPACE_URL`; which one is the owner's decision. The
-  owner chose a local SPACE for production, which this definition does not ship: see
-  [Local SPACE (owner decision local-space)](#local-space-owner-decision-local-space). Plans stay blocked until then.
+- **Production SPACE.** Production uses the [remote SPACE](#remote-space). Plans stay blocked only until the key and
+  the URL are supplied.
 - **Non-root users and dropped capabilities.** The Java engines, `nginx` and `frontend-assets` run as the user of their
   image (root in several of them) with the default capabilities; `compose.yaml` sets only `no-new-privileges`. Setting a
   `user` and `cap_drop` there depends on the writable paths and ports of each image, and cannot be verified without
