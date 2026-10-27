@@ -270,6 +270,7 @@ WALKING_TESTS = {
     "test_no_local_pricing.py": "space/, pricings/, experimentation/",
     "test_no_local_space.py": "compose*.json at the root, deploy/",
     "test_remote_cancel.py": "the gateway sources",
+    "test_retired_operations_deprecation.py": "frontend/src",
     "test_v1_platform_contracts.py": "engine manifests",
 }
 

@@ -46,7 +46,7 @@ flowchart LR
     G[Gateway API]
   end
   SPH[(SPHERE<br/>sphere.score.us.es)]
-  SPA[(SPACE 1.7.1<br/>local now, space.score.us.es later)]
+  SPA[(SPACE<br/>space.score.us.es)]
   CAS[(Universidad de Sevilla CAS)]
   FED[(Federated engines)]
   ADS[(Adapter services)]
@@ -65,9 +65,8 @@ flowchart LR
 SPHERE and SPACE are separate deployments of the group. The OpenBinding pricing is written and versioned in SPHERE
 at `sphere.score.us.es`, under the permanent link `https://sphere.score.us.es/p/6ab0a323697330667ccce891`, and
 every environment reads it there through SPHERE's public API. SPACE follows that permanent link and operates
-subscriptions. Until `space.score.us.es` runs the latest SPACE release (1.7.1 today), each stack that needs plans
-runs its own SPACE of that release, linked to the same permanent link; moving to `space.score.us.es` is a change of
-configuration (§9.4, INTENT D5). OpenBinding never writes to SPHERE and never re-implements SPACE (§9).
+subscriptions. OpenBinding uses the remote SPACE at `https://space.score.us.es` in every environment; no SPACE runs
+inside any stack (§9.4, INTENT D5). OpenBinding never writes to SPHERE and never re-implements SPACE (§9).
 
 ## 3. Containers
 
@@ -94,7 +93,7 @@ flowchart TB
   API & WRK -- BimPort --> BIM
   WRK -- bim-engine/v1 --> MZ & JV
   WRK -- bim-engine/v1 --> FED[(Federated engines)]
-  API -- PlanPort --> SPA[(SPACE)]
+  API -- PlanPort --> SPA[(Remote SPACE<br/>space.score.us.es)]
   API -- public API --> SPH[(SPHERE)]
 ```
 
@@ -109,8 +108,8 @@ flowchart TB
 | bim-service | the BIM toolchain over HTTP when the gateway runs `BIM_MODE=http` | `isa-group/bim-toolchain` |
 | Engines | solvers behind `bim-engine/v1`; built-in ones run beside the gateway, federated ones anywhere | Node/TypeScript (MiniZinc), Java |
 
-Every container is a Docker Compose service (§12). Until `space.score.us.es` is used, a local SPACE (`space-api`,
-its MongoDB and Redis) joins the stack through the `pricing` profile (§9.4).
+Every container is a Docker Compose service (§12), except SPACE, which is remote (`space.score.us.es`). The lab only
+has the one-shot `pricing-bootstrap`, a separate compose project that prepares the remote SPACE (§9.4).
 
 ## 4. Backend: a modular monolith
 
@@ -478,7 +477,7 @@ flowchart LR
     PR[OpenBinding pricing<br/>Pricing2Yaml 3.1, versions]
     PL[public permanent-link API<br/>/p/6ab0a323697330667ccce891]
   end
-  subgraph SPAS["SPACE 1.7.1 · local now, space.score.us.es later"]
+  subgraph SPAS["Remote SPACE · space.score.us.es"]
     SV[service openbinding<br/>source sphere, policy all_last]
     CT[(contracts)]
     EV[feature evaluation<br/>solver hours, generated instances,<br/>pricing tokens]
@@ -504,8 +503,8 @@ flowchart LR
 | Environment | SPHERE | SPACE |
 |---|---|---|
 | Unit tests and CI | a recorded copy of the pricing in `tests/fixtures`; no network | a fake `PlanPort` or `OpenGate` |
-| Lab, PR previews, develop preview | `sphere.score.us.es`, read only | the stack's own SPACE 1.7.1 (`pricing` profile), linked to the permanent link |
-| Production | `sphere.score.us.es` | the same local profile until `space.score.us.es` runs the latest release, then `space.score.us.es` |
+| Lab, PR previews, develop preview | `sphere.score.us.es`, read only | `space.score.us.es` |
+| Production | `sphere.score.us.es` | `space.score.us.es` |
 
 ### 9.2 Gateway side
 
@@ -546,25 +545,23 @@ flowchart LR
 - `space-react-client` 0.3.3 declares React ^18.3.1; OpenBinding runs React 19. A spike validates it in token-only
   mode; if it fails, the fix is proposed upstream to `Alex-GF/space-react-client` rather than forked.
 
-### 9.4 A local SPACE linked to the remote SPHERE
+### 9.4 The remote SPACE linked to the remote SPHERE
 
-The stack gains an optional `pricing` profile with SPACE 1.7.1 (`ghcr.io/scorelabus/space-api:1.7.1`, pinned by
-digest, with its MongoDB and Redis; the SPACE web client only when an administrator needs it) and a one-shot
-`pricing-bootstrap` that:
+No SPACE and no SPHERE run in any stack. OpenBinding uses the remote SPACE at `https://space.score.us.es`, which
+follows the SPHERE permanent link. The lab has one optional compose project, `compose.lab-pricing.json`, with a
+one-shot `pricing-bootstrap` (`mem_limit` 96 MiB, no database, no volume, no published port; see
+[qa/PRICING_PROFILE.md](qa/PRICING_PROFILE.md)). It takes a MANAGEMENT key of the remote SPACE from
+`DEMO_SPACE_MANAGEMENT_KEY`, supplied by the lab supervisor from a root-only secret file outside the repository, and
+in two steps:
 
-1. creates the SPACE organization of the stack and a MANAGEMENT key, kept in the stack's secret store;
-2. creates the `openbinding` service from the SPHERE permanent link (`source: sphere`, `policy: all_last`) and runs a
-   first synchronization;
-3. creates contracts for the synthetic users of the seed.
+1. creates the `openbinding` service from the SPHERE permanent link (`source: sphere`, `policy: all_last`) if it is
+   missing;
+2. creates the contracts of the synthetic users of the seed.
 
-SPACE runs with `SPHERE_PUBLIC_URL=https://sphere.score.us.es` and `SPHERE_SYNC_ENABLED=true`: its worker checks the
-link on a staggered five-minute schedule, so a new public version of the pricing migrates the contracts without any
-change in OpenBinding. SPHERE is not run locally; the stack needs outbound HTTPS to `sphere.score.us.es` only.
-Estimated memory ≈ 0.7 GiB, measured before the profile is on by default.
-
-When `space.score.us.es` runs the latest release, the owner switches by configuration (SPACE URL and key); the plans
-module, the entitlement map and the browser code do not change. Contracts held by a local SPACE are synthetic and are
-not carried over.
+The synthetic contracts live in a SPACE shared with other projects of the group. The remote SPACE keeps synchronizing
+with the permanent link, so a new public version of the pricing migrates the contracts without any change in
+OpenBinding. The stack needs outbound HTTPS to `space.score.us.es` and `sphere.score.us.es` only. The version of the
+remote SPACE and its routes are unverified until the first live run of the one-shot.
 
 ## 10. Storage and retention
 
@@ -645,7 +642,7 @@ Each move is one `refactor/<id>` change that updates CI, Dockerfiles, documentat
 |---|---|
 | [0001](adr/0001-record-architecture-decisions.md)–[0013](adr/0013-committed-openapi-snapshot.md) | baseline decisions (BIM as canonical language behind a port, engines as services, durable jobs, pinned MiniZinc, datasets outside Git, frontend stack, problem+json, layered gateway, OpenAPI snapshot) |
 | [0014](adr/0014-render-never-dump.md) | render, never dump |
-| [0015](adr/0015-plans-through-space-and-sphere-clients.md) | plans through SPACE and SPHERE with their real clients (supersedes 0010); SPHERE at `sphere.score.us.es`, a local SPACE until `space.score.us.es` runs the latest release |
+| [0015](adr/0015-plans-through-space-and-sphere-clients.md) | plans through SPACE and SPHERE with their real clients (supersedes 0010); SPHERE at `sphere.score.us.es`, the remote SPACE at `space.score.us.es` |
 | [0016](adr/0016-extensible-language-profiles-and-dialects.md) | profiles that extend profiles, adapter tiers, language API |
 | [0017](adr/0017-modular-monolith-and-feature-sliced-frontend.md) | modular monolith and feature-sliced frontend (evolves 0012) |
 | [0018](adr/0018-problem-centred-vocabulary.md) | problem-centred vocabulary in the UI, API `v1` unchanged |
