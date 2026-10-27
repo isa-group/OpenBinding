@@ -34,6 +34,7 @@ describe('Case list', () => {
     platform.revisions.mockImplementation(async (_org: string, _project: string, slug: string) => (slug === 'flujo-checkout' ? [revisionOf(checkout, 1), revisionOf(checkout, 2)] : []));
   });
 
+  // [utest->req~frontend-retire-composer-entry-points-repointed~1]
   it('lists the cases with their revisions, what is ready to run and where each one leads', async () => {
     renderList();
 
@@ -47,7 +48,7 @@ describe('Case list', () => {
     expect(first.getByText(/latest r2 · /)).toBeInTheDocument();
     expect(first.getByText('Payments with parallel stock and shipping.')).toBeInTheDocument();
     expect(first.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', `${root}/jobs/new?case=flujo-checkout&revision=2`);
-    expect(first.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/compose`);
+    expect(first.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${root}/workbench?case=flujo-checkout`);
     const second = within(rows[1]);
     expect(second.getByText('No revision yet')).toBeInTheDocument();
     expect(second.getByText('0 revisions')).toBeInTheDocument();
@@ -55,6 +56,7 @@ describe('Case list', () => {
     expect(second.queryByRole('link', { name: 'Run latest' })).not.toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
     expect(within(tabs).getByRole('link', { name: 'Cases' })).toHaveAttribute('aria-current', 'page');
+    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
   });
 
   it('lists the cases of a public project read-only for someone who is not a member: nothing to run, create or delete', async () => {
@@ -98,6 +100,9 @@ describe('Case list', () => {
     renderList();
 
     const guide = await screen.findByRole('region', { name: 'No cases yet' });
+    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
+    expect(guide).toHaveTextContent('Start from a ready example, or create a case and save its first revision from the workbench.');
+    expect(guide.textContent).not.toMatch(/composer|compose one/);
     expect(within(guide).getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/examples');
     // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(within(guide).queryByRole('link', { name: /library/i })).toBeNull();
@@ -113,10 +118,14 @@ describe('Case list', () => {
     expect(await screen.findByRole('list', { name: 'Cases' })).toBeInTheDocument();
   });
 
+  // [utest->req~frontend-retire-composer-entry-points-repointed~1]
   it('lets a VIEWER read and compare but not create, edit or delete', async () => {
     renderList(viewing);
 
     await screen.findByRole('list', { name: 'Cases' });
+    expect(screen.queryByRole('link', { name: /New revision|Compose its first revision/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Workbench' })).not.toBeInTheDocument();
+    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/compose([?#]|$)|\/workbench\?case=/);
     expect(screen.getByRole('note')).toHaveTextContent('You’re a VIEWER. You can open and compare cases here; creating and editing need MEMBER.');
     expect(screen.queryByRole('button', { name: 'New case' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'New revision' })).not.toBeInTheDocument();
@@ -142,6 +151,7 @@ describe('Case list', () => {
       return screen.findByRole('dialog', { name: 'New case' });
     }
 
+    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
     it('suggests the address from the name and creates the case', async () => {
       cases.createCase.mockResolvedValue(caseOf('analisis-de-latencia', 'Análisis de latencia'));
       const dialog = await openDialog();
@@ -154,7 +164,8 @@ describe('Case list', () => {
       await waitFor(() => expect(cases.createCase).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', { slug: 'analisis-de-latencia', name: 'Análisis de latencia', description: 'Edge pools' }));
       const toast = (await screen.findByText(/created\. Compose its first revision when you’re ready\./)).closest('[role="status"]') as HTMLElement;
       expect(toast).toHaveTextContent('Case “Análisis de latencia” created. Compose its first revision when you’re ready.');
-      expect(within(toast).getByRole('link', { name: 'Compose its first revision' })).toHaveAttribute('href', `${root}/cases/analisis-de-latencia/compose`);
+      expect(within(toast).getByRole('link', { name: 'Compose its first revision' })).toHaveAttribute('href', `${root}/workbench?case=analisis-de-latencia`);
+      for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       await waitFor(() => expect(platform.cases).toHaveBeenCalledTimes(2));
     });

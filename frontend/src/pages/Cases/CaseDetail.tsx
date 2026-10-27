@@ -144,7 +144,7 @@ function GlanceSection({ root, caseSlug, latestNumber, state, reload }: {
       <h2 id="cd-glance">Latest revision at a glance</h2>
       {state.status === 'loading' && <div role="status" aria-busy="true"><span className="sr-only">Reading the latest revision…</span><Skeleton variant="panel" /></div>}
       {data?.state === 'none' && (
-        <p className="org-muted">Revision {latestNumber} has no compiled snapshot, so there is no workflow to draw. Create a new revision from the composer to get one.</p>
+        <p className="org-muted">Revision {latestNumber} has no compiled snapshot, so there is no workflow to draw. Save a new revision from the workbench to get one.</p>
       )}
       {data?.state === 'failed' && (
         <Notice tone="warning" action={<Action variant="secondary" size="sm" onClick={reload}>Retry</Action>}>
@@ -168,6 +168,7 @@ function GlanceSection({ root, caseSlug, latestNumber, state, reload }: {
   );
 }
 
+// [impl->req~frontend-retire-composer-entry-points-repointed~1]
 function DetailBody({ organization, project, content, canCreate, canAdminister, role }: {
   organization: Organization; project: Project; content: RouteCaseContent; canCreate: boolean; canAdminister: boolean; role: Organization['effective_role'];
 }) {
@@ -189,7 +190,7 @@ function DetailBody({ organization, project, content, canCreate, canAdminister, 
           <Description organization={organization} project={project} item={item} canEdit={canCreate} onSaved={() => setToast('Description saved.')} />
         </div>
         <div className="proj-actions">
-          {canCreate && <Action to={`${root}/cases/${item.slug}/compose`} variant="primary">New revision</Action>}
+          {canCreate && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">New revision</Action>}
           {revisions.length >= 2
             ? <Action to={`${root}/cases/${item.slug}/compare`} variant="secondary">Compare revisions</Action>
             : <span className="ui-action is-secondary is-md" aria-disabled="true" title="Comparing needs two revisions">Compare revisions</span>}
@@ -208,7 +209,7 @@ function DetailBody({ organization, project, content, canCreate, canAdminister, 
         <section className="case-guide" aria-labelledby="cd-empty">
           <h2 id="cd-empty">No revisions yet</h2>
           <p>A revision pins exact versions of an application, candidate catalog, rules and goal. Compose the first one to be able to run this case.</p>
-          {canCreate && <div className="proj-actions"><Action to={`${root}/cases/${item.slug}/compose`} variant="primary">Compose the first revision</Action></div>}
+          {canCreate && <div className="proj-actions"><Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">Compose the first revision</Action></div>}
         </section>
       ) : (
         <>

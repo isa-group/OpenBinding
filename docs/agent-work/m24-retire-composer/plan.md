@@ -1,0 +1,1 @@
+M2.4 slice 4: retire case-composer. Redirect /app/:org/:project/cases/:case/compose -> /app/<org>/<project>/workbench?case=<case>; registry 71 -> 70 (D4 10); controls that opened the composer open the workbench; composer page, CSS and orphan helpers deleted; allow-list unchanged (12); no endpoint or header change.

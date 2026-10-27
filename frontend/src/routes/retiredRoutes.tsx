@@ -53,13 +53,22 @@ function collectionsTarget(_query: URLSearchParams, params: RetiredParams): stri
   return `/app/${encodeURIComponent(org)}/${encodeURIComponent(project)}/collections`;
 }
 
+// [impl->req~frontend-retire-composer-redirect~1]
+/** The composer rule: the workbench of the project, with the case. The opened query and the hash are dropped. */
+function workbenchTarget(_query: URLSearchParams, params: RetiredParams): string {
+  const { org, project, case: slug } = params;
+  if (!org || !project || !slug) return '/app';
+  return `/app/${encodeURIComponent(org)}/${encodeURIComponent(project)}/workbench?case=${encodeURIComponent(slug)}`;
+}
+
 // [impl->req~frontend-retire-redirect-generic~1]
 // [impl->req~frontend-retire-reports-redirect~1]
 // [impl->req~frontend-retire-library-redirect~1]
+// [impl->req~frontend-retire-composer-redirect~1]
 /**
  * The library entries come first: on a tie of rank React Router takes the earlier route, and `/app/<org>/library/reports`,
  * `/app/<org>/library/library` and `/app/<org>/library/resources` match the library artifact as well as the project reports, the
- * project library and the project resources.
+ * project library and the project resources. The composer (slice 4) goes last: it ties with lib-draft and lib-version, which win.
  */
 export const RETIRED_ROUTES: readonly RetiredRoute[] = [
   { id: 'lib-list', path: '/app/:org/library', slice: 3, target: organizationTarget },
@@ -73,4 +82,5 @@ export const RETIRED_ROUTES: readonly RetiredRoute[] = [
   { id: 'proj-library', path: '/app/:org/:project/library', slice: 3, target: collectionsTarget },
   { id: 'proj-resources', path: '/app/:org/:project/resources', slice: 3, target: collectionsTarget },
   { id: 'proj-resource-detail', path: '/app/:org/:project/resources/:resource', slice: 3, target: collectionsTarget },
+  { id: 'case-composer', path: '/app/:org/:project/cases/:case/compose', slice: 4, target: workbenchTarget },
 ];

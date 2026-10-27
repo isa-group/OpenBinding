@@ -80,6 +80,7 @@ function patternsOf(path: string): RegExp[] {
 // [impl->req~frontend-retire-no-link-to-retired~1]
 // [impl->req~frontend-retire-reports-no-link~1]
 // [impl->req~frontend-retire-library-no-link~1]
+// [impl->req~frontend-retire-composer-no-link~1]
 /**
  * `<file>: <literal>` for every string or template literal of the sources that starts with a retired path followed by the end,
  * `/`, `?`, `#` or `${`. A `:param` of the path stands for any one segment or `${…}`; for such a path a literal that starts with
@@ -140,7 +141,7 @@ describe('internal links written in the code', () => {
   });
 
   it('do not point at the addresses the redesign retired', () => {
-    const retired = /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog)(\/|$)|^\/app\/analysis\?job=|^\/app\/[^/]+\/[^/]+\/(verifier|analytics|artifacts|reports|library|resources)(\/|$)|^\/app\/[^/]+\/library(\/|$)/;
+    const retired = /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog)(\/|$)|^\/app\/analysis\?job=|^\/app\/[^/]+\/[^/]+\/(verifier|analytics|artifacts|reports|library|resources)(\/|$)|^\/app\/[^/]+\/library(\/|$)|^\/app\/[^/]+\/[^/]+\/cases\/[^/]+\/compose(\/|$)/;
     const old = staticLinks().filter(({ address }) => retired.test(address)).map(({ file, address }) => `${file}: ${address}`);
     expect(old).toEqual([]);
   });
@@ -293,6 +294,43 @@ describe('the scan for retired addresses', () => {
     });
   });
 
+  describe('for the composer', () => {
+    const scanComposer = (file: string, text: string) => retiredAddresses({ [file]: text }, ['/app/:org/:project/cases/:case/compose']);
+
+    // [utest->req~frontend-retire-composer-no-link~1]
+    it('finds the whole address and the tail written after an interpolation', () => {
+      const source = [
+        'const a = `/app/${org}/${project}/cases/${slug}/compose`;',
+        "const b = '/app/acme/demo/cases/c1/compose?from=2';",
+        'const c = `${root}/cases/${encodeURIComponent(item.slug)}/compose`;',
+      ].join('\n');
+      expect(scanComposer('pages/X.tsx', source)).toEqual([
+        'pages/X.tsx: /app/${org}/${project}/cases/${slug}/compose',
+        'pages/X.tsx: /app/acme/demo/cases/c1/compose?from=2',
+        'pages/X.tsx: ${root}/cases/${encodeURIComponent(item.slug)}/compose',
+      ]);
+    });
+
+    // [utest->req~frontend-retire-composer-no-link~1]
+    it('does not report look-alikes, the address that replaces the composer or the redirect target', () => {
+      const source = [
+        'const a = `/app/${org}/${project}/cases/${slug}/composex`;',
+        'const b = `${root}/cases/${slug}/composex`;',
+        'const c = `${root}/cases/${slug}/revisions/${n}`;',
+        'const d = `${root}/workbench?case=${encodeURIComponent(slug)}`;',
+        "const e = '/app/acme/demo/cases/flujo/compare';",
+        "const f = '/app/acme/demo/cases/x/composex';",
+        "const i = '/app/acme/demo/cases/x/composer';",
+        'const j = `${root}/cases/${slug}/composer`;',
+        'const g = `${root}/cases/${slug}/compare`;',
+        'const h = `${root}/cases/${slug}`;',
+        "// '/app/acme/demo/cases/flujo/compose' in a comment",
+      ].join('\n');
+      expect(scanComposer('pages/X.tsx', source)).toEqual([]);
+      expect(scanComposer('routes/retiredRoutes.tsx', "{ path: '/app/:org/:project/cases/:case/compose' }")).toEqual([]);
+    });
+  });
+
   const application = Object.fromEntries(
     Object.entries(sources)
       // Vite names the files of this folder `./x` and the others `../…/x`.
@@ -316,6 +354,13 @@ describe('the scan for retired addresses', () => {
     const library = RETIRED_ROUTES.filter((route) => route.slice === 3).map((route) => route.path);
     expect(library).toHaveLength(7);
     expect(retiredAddresses(application, library)).toEqual([]);
+  });
+
+  // [utest->req~frontend-retire-composer-no-link~1]
+  it('finds none in the application sources, for the composer', () => {
+    const composer = RETIRED_ROUTES.filter((route) => route.slice === 4).map((route) => route.path);
+    expect(composer).toHaveLength(1);
+    expect(retiredAddresses(application, composer)).toEqual([]);
   });
 
   // [utest->req~frontend-retire-reports-no-link~1]

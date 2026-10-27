@@ -4,7 +4,7 @@ import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, irDocument, refOf, revisionDocument, sourceContents } from '../src/pages/Cases/fixtures';
 
-// S5a · authoring and cases, part 1: case-list, case-detail, case-composer, case-revision, case-compare, snap-detail.
+// S5a · authoring and cases, part 1: case-list, case-detail, case-revision, case-compare, snap-detail.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 // One test per screen and viewport: the desktop walks the states of the screen, the phone gets its layout and its dialogs.
@@ -353,7 +353,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await dialog.getByRole('button', { name: 'Create case' }).click();
       expect((await posted).postDataJSON()).toEqual({ slug: 'analisis-de-latencia', name: 'Análisis de latencia', description: '' });
       await expect(main.getByText('Case “Análisis de latencia” created. Compose its first revision when you’re ready.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Compose its first revision' })).toHaveAttribute('href', `${ROOT}/cases/analisis-de-latencia/compose`);
+      await expect(main.getByRole('link', { name: 'Compose its first revision' })).toHaveAttribute('href', `${ROOT}/workbench?case=analisis-de-latencia`);
       await expect(list.getByRole('listitem')).toHaveCount(3);
       await capture(page, testInfo, `list-${name}-created`);
 
@@ -423,15 +423,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const glance = main.getByRole('region', { name: 'Latest revision at a glance' });
       await expect(glance.getByRole('img', { name: /^Workflow: authenticate, then inventory and shipping in parallel/ })).toBeVisible();
       await expect(glance.getByRole('list', { name: 'Latest revision figures' }).getByRole('listitem')).toHaveCount(4);
-      await expect(main.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${CASE}/compose`);
+      await expect(main.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${ROOT}/workbench?case=flujo-checkout`);
       await expect(main.getByRole('link', { name: 'Compare revisions' })).toHaveAttribute('href', `${CASE}/compare`);
       await expect(main.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', `${ROOT}/jobs/new?case=flujo-checkout&revision=2`);
       await capture(page, testInfo, `detail-${name}-success`);
 
-      // A case without revisions points to the composer.
+      // A case without revisions points to the workbench.
       await page.goto(`${ROOT}/cases/borrador`);
       const guide = main.getByRole('region', { name: 'No revisions yet' });
-      await expect(guide.getByRole('link', { name: 'Compose the first revision' })).toHaveAttribute('href', `${ROOT}/cases/borrador/compose`);
+      await expect(guide.getByRole('link', { name: 'Compose the first revision' })).toHaveAttribute('href', `${ROOT}/workbench?case=borrador`);
       await capture(page, testInfo, `detail-${name}-empty`);
       if (isMobile) {
         expect(critical).toEqual([]);
@@ -465,7 +465,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(page).toHaveURL(`${ROOT}/cases`);
       await expect(main.getByText('Case “Borrador” deleted.')).toBeVisible();
 
-      // A VIEWER reads: no composer, no editing.
+      // A VIEWER reads: no new revision, no editing.
       await page.goto('/app/consultora-demo/client-case/cases/flujo-checkout');
       await expect(main.getByRole('note')).toContainText('You can read and compare revisions. New revisions need MEMBER; deleting needs ADMIN.');
       await expect(main.getByRole('link', { name: 'New revision' })).toHaveCount(0);
@@ -477,110 +477,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { name: 'No case with this address in QoS Benchmarks (404)' })).toBeVisible();
       await expect(main.getByRole('link', { name: 'All cases' })).toHaveAttribute('href', `${ROOT}/cases`);
       await capture(page, testInfo, `detail-${name}-404`);
-      expect(critical).toEqual([]);
-    });
-
-    test('case-composer /app/:org/:project/cases/:case/compose', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto(`${CASE}/compose`);
-      const main = page.locator('#platform-main');
-
-      await expect(main.getByRole('heading', { level: 1, name: 'New revision of Flujo de checkout' })).toBeVisible();
-      await expect(main.getByLabel('Goal: version')).toHaveValue('version-art-goal-1');
-      await expect(main.getByLabel('Candidate catalog: version')).toHaveValue('version-art-cat-3');
-      const meter = main.getByRole('meter', { name: 'Possible combinations against your plan' });
-      await expect(meter).toHaveAttribute('aria-valuemax', '20');
-      await expect(async () => expect(Number(await meter.getAttribute('aria-valuenow'))).toBeGreaterThan(0.5)).toPass();
-      const preview = main.getByRole('region', { name: 'Preview' });
-      await expect(preview.getByText('4 (3 get a provider)')).toBeVisible();
-      await expect(preview.getByText('1 must, 1 should')).toBeVisible();
-      await capture(page, testInfo, `composer-${name}-filled`);
-
-      // Validate looks every version up again, then Create seals the revision with the exact versions.
-      await main.getByRole('button', { name: 'Validate' }).click();
-      await expect(main.getByText('Everything fits together. Ready to create.')).toBeVisible();
-      await capture(page, testInfo, `composer-${name}-checked`);
-      const posted = request(page, 'POST', '/v1/organizations/isa-demo/projects/qos-benchmarks/cases/flujo-checkout/revisions');
-      await main.getByRole('button', { name: 'Create revision' }).click();
-      const body = (await posted).postDataJSON() as { document: { kind: string; spec: { profile: string } }; resources: Array<{ role: string; alias: string; artifact: { name: string; version: string } }> };
-      expect(body.document.kind).toBe('Instance');
-      expect(body.document.spec.profile).toBe('qos-binding/v1');
-      expect(body.resources.map((use) => `${use.role}/${use.alias}=${use.artifact.name}@${use.artifact.version}`)).toEqual([
-        'application/checkout=checkout-app@3', 'candidateCatalog/providers=providers-eu@3', 'constraintSet/sla=sla-hard@1', 'optimization/goal=weighted-cost-latency@1',
-      ]);
-      await expect(main.getByText('Revision 3 created and sealed')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open it' })).toHaveAttribute('href', `${CASE}/revisions/3`);
-      await capture(page, testInfo, `composer-${name}-created`);
-      if (isMobile) {
-        expect(critical).toEqual([]);
-        return;
-      }
-
-      // The gateway's refusals, one by one: the choices stay, the way to fix each is offered.
-      await page.goto(`${CASE}/compose`);
-      await expect(main.getByLabel('Goal: version')).toHaveValue('version-art-goal-1');
-      await main.getByRole('button', { name: 'Validate' }).click();
-      await expect(main.getByText('Everything fits together. Ready to create.')).toBeVisible();
-      const create = main.getByRole('button', { name: 'Create revision' });
-      state.refuse.revision = detail(422, 'contract_mismatch', 'The composition must select the exact contracts of every resource version.');
-      await create.click();
-      const issue = main.getByRole('alert');
-      await expect(issue).toContainText('A dialect isn’t installed (422 · contract_mismatch)');
-      await expect(issue.getByRole('link', { name: 'See installed dialects' })).toHaveAttribute('href', '/language');
-      await capture(page, testInfo, `composer-${name}-422-dialect`);
-
-      state.refuse.revision = detail(422, 'invalid_resource', 'Invalid resource.');
-      await create.click();
-      await expect(main.getByRole('alert')).toContainText('The composition was refused (422 · invalid_resource)');
-      state.refuse.revision = detail(404, 'not_found', 'Artifact version not found.');
-      await create.click();
-      await expect(main.getByRole('alert')).toContainText('A version can’t be reached (404 · not_found)');
-      await capture(page, testInfo, `composer-${name}-404`);
-      state.refuse.revision = detail(409, 'version_integrity', 'Stored version manifest does not match its digest.');
-      await create.click();
-      await expect(main.getByRole('alert')).toContainText('A version failed its integrity check (409 · version_integrity)');
-      state.refuse.revision = detail(403, 'forbidden', 'The API key does not include this permission.');
-      await create.click();
-      await expect(main.getByRole('alert')).toContainText('This credential can’t create revisions here (403 · forbidden)');
-      await capture(page, testInfo, `composer-${name}-403-key`);
-      state.refuse.revision = undefined;
-
-      // A version that can't be looked up while checking.
-      state.refuse.resolve = detail(404, 'not_found', 'Artifact version not found.');
-      await main.getByRole('button', { name: 'Validate' }).click();
-      await expect(main.getByRole('alert').first()).toContainText('A version can’t be reached (404 · not_found)');
-      state.refuse.resolve = undefined;
-
-      // Cleared, the required parts are flagged and Create stays off.
-      await main.getByRole('button', { name: 'Clear' }).click();
-      await main.getByRole('button', { name: 'Validate' }).click();
-      await expect(main.getByRole('alert')).toHaveCount(3);
-      await expect(main.getByText('Application is missing')).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Create revision' })).toBeDisabled();
-      await capture(page, testInfo, `composer-${name}-missing`);
-
-      // A problem bigger than the plan allows: allowed to create, and told it won't run.
-      state.ceiling = 0.5;
-      await page.goto(`${CASE}/compose`);
-      await expect(main.getByText('Above your plan’s ceiling: you can create the revision, but running it will be refused (402).')).toBeVisible();
-      await main.getByRole('button', { name: 'Validate' }).click();
-      await expect(main.getByText(/Valid, but too big to run on your plan \(402 instance complexity\)/)).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Create revision' })).toBeEnabled();
-      await capture(page, testInfo, `composer-${name}-over-plan`);
-      state.ceiling = 20;
-
-      // A VIEWER can look at the composition and nothing else.
-      await page.goto('/app/consultora-demo/client-case/cases/flujo-checkout/compose');
-      await expect(main.getByRole('note')).toContainText('You’re a VIEWER. You can look at the composition, but creating revisions needs MEMBER.');
-      await expect(main.getByLabel('Application: library item')).toBeDisabled();
-      await expect(main.getByRole('button', { name: 'Validate' })).toBeDisabled();
-      await expect(main.getByRole('button', { name: 'Create revision' })).toBeDisabled();
-      await capture(page, testInfo, `composer-${name}-viewer`);
-
-      // A case that isn't there.
-      await page.goto(`${ROOT}/cases/ghost/compose`);
-      await expect(main.getByRole('heading', { name: 'No case with this address in QoS Benchmarks (404)' })).toBeVisible();
       expect(critical).toEqual([]);
     });
 

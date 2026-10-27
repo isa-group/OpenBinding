@@ -19,3 +19,12 @@ test.describe('retired library addresses', () => {
     await expect(page).toHaveURL(/\/app\/isa-demo\/qos-benchmarks\/collections\/?$/);
   });
 });
+
+// M2.4 slice 4: the composer is retired too. Its address opens the workbench with the case.
+test.describe('retired composer address', () => {
+  test('/app/:org/:project/cases/:case/compose redirects to the workbench with the case', async ({ page }) => {
+    await installMockApi(page, 'admin');
+    await page.goto('/app/isa-demo/qos-benchmarks/cases/flujo-checkout/compose?from=1#top');
+    await expect(page).toHaveURL(/\/app\/isa-demo\/qos-benchmarks\/workbench\?case=flujo-checkout$/);
+  });
+});

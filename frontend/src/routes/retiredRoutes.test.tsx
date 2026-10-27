@@ -41,6 +41,10 @@ vi.mock('../pages/Resources/CollList', async () => {
   const { createElement } = await import('react');
   return { CollList: () => createElement('h1', null, 'Collections screen') };
 });
+vi.mock('../pages/Workbench/Workbench', async () => {
+  const { createElement } = await import('react');
+  return { Workbench: () => createElement('h1', null, 'Workbench screen') };
+});
 vi.mock('../pages/Reports/ProjPublications', async () => {
   const { createElement } = await import('react');
   return { ProjPublications: () => createElement('h1', null, 'Publications screen') };
@@ -88,9 +92,9 @@ function targetOf(route: RetiredRoute, query: string, params: Params = {}): stri
 }
 
 /** Realistic values of the parameters of the retired paths, each needing the encoding of a path segment. */
-const PARAMS: Params = { org: 'a b', project: 'p/q', report: 'r#1', artifact: 'c', draft: 'd', version: 'e', resource: 'f' };
+const PARAMS: Params = { org: 'a b', project: 'p/q', report: 'r#1', artifact: 'c', draft: 'd', version: 'e', resource: 'f', case: 'c?x' };
 /** The sample of the table: one plain value per parameter. */
-const SAMPLE: Params = { org: 'a', project: 'b', report: 'c', artifact: 'c', draft: 'd', version: 'e', resource: 'f' };
+const SAMPLE: Params = { org: 'a', project: 'b', report: 'c', artifact: 'c', draft: 'd', version: 'e', resource: 'f', case: 'g' };
 
 describe('the table of retired addresses', () => {
   // [utest->req~frontend-retire-redirect-decision-space~1]
@@ -123,10 +127,12 @@ describe('the table of retired addresses', () => {
     const fixedScreen: Record<number, (route: RetiredRoute) => string> = {
       2: () => 'proj-publications',
       3: (route) => (route.id.startsWith('lib-') ? 'org-overview' : 'coll-list'),
+      4: () => 'wb-workbench',
     };
     const fixedTarget: Record<number, (route: RetiredRoute) => string> = {
       2: () => '/app/a%20b/p%2Fq/publications',
       3: (route) => (route.id.startsWith('lib-') ? '/app/a%20b' : '/app/a%20b/p%2Fq/collections'),
+      4: () => '/app/a%20b/p%2Fq/workbench?case=c%3Fx',
     };
     for (const route of RETIRED_ROUTES) {
       for (const [query, slice1Screen] of cases) {
@@ -172,6 +178,30 @@ describe('the table of retired addresses', () => {
       expect(to('', { org: 'a' })).toBe('/app');
       expect(to('', { org: '', project: 'b' })).toBe('/app');
     }
+  });
+
+  // [utest->req~frontend-retire-composer-redirect~1]
+  it('holds the composer as the only entry of slice 4, after the entries of slice 3', () => {
+    const slice4 = RETIRED_ROUTES.filter((route) => route.slice === 4);
+    expect(slice4.map((route) => [route.id, route.path])).toEqual([['case-composer', '/app/:org/:project/cases/:case/compose']]);
+    const order = (id: string) => RETIRED_ROUTES.findIndex((route) => route.id === id);
+    for (const earlier of RETIRED_ROUTES.filter((route) => route.slice === 3)) expect(order(earlier.id), earlier.id).toBeLessThan(order('case-composer'));
+  });
+
+  // [utest->req~frontend-retire-composer-redirect~1]
+  it('sends the composer to the workbench with the case, whatever the query, and to /app when a parameter is missing', () => {
+    const route = RETIRED_ROUTES.find((entry) => entry.id === 'case-composer');
+    if (!route) throw new Error('case-composer is not in the table');
+    const to = (query: string, params: Params) => targetOf(route, query, params);
+
+    expect(to('', { org: 'acme', project: 'demo', case: 'flujo' })).toBe('/app/acme/demo/workbench?case=flujo');
+    expect(to('case=other&x=1', { org: 'acme', project: 'demo', case: 'flujo' })).toBe('/app/acme/demo/workbench?case=flujo');
+    expect(to('', { org: 'isa demo', project: 'p/q', case: 'a#b' })).toBe('/app/isa%20demo/p%2Fq/workbench?case=a%23b');
+    expect(to('', { org: 'acme', project: 'demo' })).toBe('/app');
+    expect(to('', { org: 'acme', case: 'flujo' })).toBe('/app');
+    expect(to('', { project: 'demo', case: 'flujo' })).toBe('/app');
+    expect(to('', { org: '', project: 'demo', case: 'flujo' })).toBe('/app');
+    expect(to('', {})).toBe('/app');
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]
@@ -309,6 +339,63 @@ describe('the redirect of a retired address', () => {
       await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(target));
       signedIn.unmount();
     }
+  });
+
+  // [utest->req~frontend-retire-composer-redirect~1]
+  it.each([
+    ['/app/acme/demo/cases/flujo/compose', '/app/acme/demo/workbench?case=flujo'],
+    ['/app/acme/demo/cases/flujo/compose?case=other&x=1#top', '/app/acme/demo/workbench?case=flujo'],
+    ['/app/isa%20demo/qos/cases/flujo-checkout/compose', '/app/isa%20demo/qos/workbench?case=flujo-checkout'],
+    ['/app/a%2Fb/my%20proj/cases/c%231/compose', '/app/a%2Fb/my%20proj/workbench?case=c%231'],
+  ])('sends the composer address %s to %s, without the opened query or hash', async (old, expected) => {
+    renderAt([old]);
+
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(expected));
+    expect(await screen.findByRole('heading', { name: 'Workbench screen' })).toBeInTheDocument();
+    expect(screen.getByTestId('hash').textContent).toBe('');
+  });
+
+  // [utest->req~frontend-retire-composer-redirect~1]
+  it.each([
+    '/app/isa-demo/library/cases/drafts/compose',
+    '/app/isa-demo/library/cases/versions/compose',
+  ])('sends %s to the organization overview, the earlier library entry winning over the composer', async (old) => {
+    renderAt([old]);
+
+    expect(await screen.findByRole('heading', { name: 'Organization page screen' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/isa-demo$/);
+    expect(screen.queryByRole('heading', { name: 'Workbench screen' })).toBeNull();
+  });
+
+  // [utest->req~frontend-retire-composer-redirect~1]
+  it.each([
+    ['/app/isa-demo/qos/cases/x/compare', 'case-compare'],
+    ['/app/isa-demo/qos/cases/x/revisions/2', 'case-revision'],
+  ])('leaves %s to its screen %s, with no tie with the composer', (address, id) => {
+    const composer = RETIRED_ROUTES.find((route) => route.id === 'case-composer');
+    expect(composer).toBeDefined();
+    expect(matchRoutes(config, address)?.at(-1)?.route.id).toBe(id);
+    expect(matchRoutes([{ path: composer?.path ?? '/never' }], address)).toBeNull();
+  });
+
+  // [utest->req~frontend-retire-composer-redirect~1]
+  it('replaces the history entry and asks a visitor without a session to sign in before the composer redirect', async () => {
+    const first = renderAt(['/app/account', '/app/acme/demo/cases/flujo/compose']);
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/acme\/demo\/workbench\?case=flujo$/));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/account$/));
+    first.unmount();
+
+    const old = '/app/isa%20demo/qos/cases/flujo/compose?x=1';
+    const signedOut = renderAt([old], null);
+    expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/login/);
+    expect(screen.getByTestId('from').textContent).toBe(old);
+    expect(screen.queryByRole('heading', { name: 'Workbench screen' })).toBeNull();
+    signedOut.unmount();
+
+    renderAt([old]);
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/isa%20demo/qos/workbench?case=flujo'));
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]

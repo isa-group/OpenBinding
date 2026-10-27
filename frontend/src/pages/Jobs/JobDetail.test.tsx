@@ -295,6 +295,7 @@ describe('One run', () => {
     expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument();
   });
 
+  // [utest->req~frontend-retire-composer-entry-points-repointed~1]
   it('explains an infeasible result and points back to the rules', async () => {
     jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'completed', {
       result: { termination: 'INFEASIBLE', solutions: [{ violations: [{ constraint: 'sla-latencia', message: 'Total latency is 742 ms; at most 600 ms is allowed.' }] }] },
@@ -305,7 +306,7 @@ describe('One run', () => {
     expect(within(why).getByText(/sla-latencia/)).toBeInTheDocument();
     expect(within(why).getByText(/Total latency is 742 ms/)).toBeInTheDocument();
     expect(await within(why).findByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/cases/flujo/revisions/2`);
-    expect(within(why).getByRole('link', { name: 'Try faster providers' })).toHaveAttribute('href', `${ROOT}/cases/flujo/compose`);
+    expect(within(why).getByRole('link', { name: 'Try faster providers' })).toHaveAttribute('href', `${ROOT}/workbench?case=flujo`);
     expect(screen.queryByRole('heading', { name: 'Best combination found' })).not.toBeInTheDocument();
   });
 

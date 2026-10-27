@@ -26,7 +26,7 @@ const PROTOTYPE: Record<keyof typeof routesByDomain, Array<[string, string]>> = 
     ['proj-overview', P], ['proj-settings', `${P}/settings`], ['proj-package', `${P}/package`],
   ],
   D4: [
-    ['case-list', `${P}/cases`], ['case-detail', `${P}/cases/:case`], ['case-composer', `${P}/cases/:case/compose`],
+    ['case-list', `${P}/cases`], ['case-detail', `${P}/cases/:case`],
     ['case-revision', `${P}/cases/:case/revisions/:revision`], ['case-compare', `${P}/cases/:case/compare`],
     ['wb-workbench', `${P}/workbench`], ['snap-detail', `${P}/snapshots/:snapshot`], ['proj-files', `${P}/files`],
     ['coll-list', `${P}/collections`], ['coll-detail', `${P}/collections/:collection`], ['gen-lab', '/app/generator'],
@@ -51,7 +51,7 @@ const PROTOTYPE: Record<keyof typeof routesByDomain, Array<[string, string]>> = 
   ],
 };
 
-const DOMAIN_SIZES = { D1: 18, D2: 7, D3: 10, D4: 11, D5: 4, D6: 8, D7: 4, D8: 9 };
+const DOMAIN_SIZES = { D1: 18, D2: 7, D3: 10, D4: 10, D5: 4, D6: 8, D7: 4, D8: 9 };
 
 const sample = (path: string) => path.replace(/:[A-Za-z]+/g, 'sample');
 
@@ -59,9 +59,25 @@ describe('route registry', () => {
   // [utest->req~frontend-retire-screen-count~1]
   // [utest->req~frontend-retire-reports-screen-count~1]
   // [utest->req~frontend-retire-library-screen-count~1]
-  it('registers the 82 screens of the prototype minus the retired ones, 71 after slice 3', () => {
-    expect(routeDefinitions).toHaveLength(71);
-    expect(Object.values(PROTOTYPE).flat()).toHaveLength(71);
+  // [utest->req~frontend-retire-composer-screen-count~1]
+  it('registers the 82 screens of the prototype minus the retired ones, 70 after slice 4', () => {
+    expect(routeDefinitions).toHaveLength(70);
+    expect(Object.values(PROTOTYPE).flat()).toHaveLength(70);
+  });
+
+  // [utest->req~frontend-retire-composer-screen-not-routed~1]
+  // [utest->req~frontend-retire-composer-screen-count~1]
+  it('declares no composer screen, and keeps the case screens and the workbench', () => {
+    const ids = routeDefinitions.map((definition) => definition.id);
+    const paths = routeDefinitions.map((definition) => definition.path);
+    expect(ids).not.toContain('case-composer');
+    expect(paths.filter((path) => /\/compose(\/|$)/.test(path))).toEqual([]);
+    for (const id of ['case-list', 'case-detail', 'case-revision', 'case-compare', 'wb-workbench']) expect(ids, id).toContain(id);
+    expect(routesByDomain.D4.map((definition) => definition.id)).toEqual([
+      'case-list', 'case-detail', 'case-revision', 'case-compare', 'wb-workbench', 'snap-detail', 'proj-files', 'coll-list', 'coll-detail', 'gen-lab',
+    ]);
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+    expect(matchRoutes(config, '/app/acme/atlas/cases/flujo/compose')).toBeNull();
   });
 
   // [utest->req~frontend-retire-library-screens-not-routed~1]
@@ -73,10 +89,6 @@ describe('route registry', () => {
     }
     expect(paths.filter((path) => /\/(library|resources)(\/|$)/.test(path))).toEqual([]);
     for (const id of ['proj-files', 'coll-list', 'coll-detail', 'case-list', 'wb-workbench', 'snap-detail', 'gen-lab']) expect(ids, id).toContain(id);
-    expect(routesByDomain.D4.map((definition) => definition.id)).toEqual([
-      'case-list', 'case-detail', 'case-composer', 'case-revision', 'case-compare', 'wb-workbench', 'snap-detail', 'proj-files',
-      'coll-list', 'coll-detail', 'gen-lab',
-    ]);
   });
 
   // [utest->req~frontend-retire-screens-not-routed~1]

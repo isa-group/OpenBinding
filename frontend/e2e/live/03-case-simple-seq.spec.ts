@@ -25,13 +25,13 @@ test.describe('live · the case simple-seq', () => {
     expect(errors).toEqual([]);
   });
 
-  test('a member opens the same case and can compose a revision', async ({ page }, testInfo) => {
+  test('a member opens the same case and can start a revision in the workbench', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'member');
     await page.goto(`${PROJECT_PATH}/cases/${CASE}`);
 
     await expect(page.locator('code.case-slug')).toHaveText(CASE);
-    await expect(page.getByRole('link', { name: 'New revision' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${PROJECT_PATH}/workbench?case=${CASE}`);
     // Deleting needs ADMIN: a member has no such control.
     await expect(page.getByRole('button', { name: 'Delete case' })).toHaveCount(0);
     await capture(page, testInfo, 'case-simple-seq-member');

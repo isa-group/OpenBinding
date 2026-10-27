@@ -50,8 +50,8 @@ function Infeasible({ solution, root, origin }: { solution: JobSolution | undefi
         </ul>
       )}
       {origin && (
-        <span className="job-links">
-          <Link to={`${root}/cases/${encodeURIComponent(origin.caseSlug)}/compose`} viewTransition>Try faster providers</Link>
+        <span className="job-links">{/* [impl->req~frontend-retire-composer-entry-points-repointed~1] */}
+          <Link to={`${root}/workbench?case=${encodeURIComponent(origin.caseSlug)}`} viewTransition>Try faster providers</Link>
           <Link to={`${root}/cases/${encodeURIComponent(origin.caseSlug)}/revisions/${origin.revision}`} viewTransition>See the rules</Link>
         </span>
       )}
