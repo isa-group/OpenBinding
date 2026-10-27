@@ -42,7 +42,8 @@ DEV_CORS_ORIGINS = (
 #: countdown (``Retry-After``) never appears. Only headers the API really sets
 #: or uses are listed: ``Retry-After`` (429/503), ``ETag`` (content-addressed
 #: downloads), ``Location`` (redirects), ``Content-Disposition`` and ``Digest``
-#: (archive downloads) and ``Idempotency-Key`` (job submission).
+#: (archive downloads), ``Idempotency-Key`` (job submission), and ``Deprecation``
+#: and ``Sunset`` (retired operations, ``core/deprecation.py``).
 CORS_EXPOSED_HEADERS = (
     "Retry-After",
     "ETag",
@@ -50,6 +51,8 @@ CORS_EXPOSED_HEADERS = (
     "Content-Disposition",
     "Digest",
     "Idempotency-Key",
+    "Deprecation",
+    "Sunset",
 )
 
 

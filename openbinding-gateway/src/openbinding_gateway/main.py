@@ -28,6 +28,7 @@ from . import space_client
 from .access import public_read
 from .jobs import reconciler as job_reconciler
 from .access.dependencies import session_dependency
+from .core.deprecation import RetiredOperationsMiddleware, annotate_retired_operations
 from .core.settings import Settings, get_settings
 from .core.logging import configure_logging
 from .db import base as db_base
@@ -344,8 +345,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_exception_handler(HTTPException, http_error)
     app.add_exception_handler(Exception, unhandled_error)
 
-    # Added first, so it is the innermost: a 413 still leaves through the CORS and
-    # telemetry layers, and nothing inside it reads a body it has not counted.
+    # Added first, so it is the innermost: ``scope["route"]`` is set when a response starts, and CORS
+    # preflights never reach it.
+    app.add_middleware(RetiredOperationsMiddleware)
+    # Next, so a 413 still leaves through the CORS and telemetry layers, and nothing
+    # inside it reads a body it has not counted.
     app.add_middleware(BodyLimitMiddleware)
     # Next, so telemetry and CORS see the 5xx documents with their correlationId.
     app.add_middleware(CorrelationIdMiddleware)
@@ -1473,6 +1477,7 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
                 }
     schemas.pop("HTTPValidationError", None)
     schemas.pop("ValidationError", None)
+    annotate_retired_operations(document)
     app.openapi_schema = document
     return document
 

@@ -1,5 +1,14 @@
 {
   "components": {
+    "headers": {
+      "Deprecation": {
+        "description": "The operation is deprecated (RFC 9745). The value is the deprecation date as a structured-field date: `@1792627200` is 2026-10-22T00:00:00Z.",
+        "example": "@1792627200",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
     "schemas": {
       "AccountDeleteRequest": {
         "properties": {
@@ -12849,6 +12858,7 @@
     },
     "/v1/admin/organizations/{organization_id}/sponsor": {
       "post": {
+        "deprecated": true,
         "description": "Propose a sponsor; it changes only when that person accepts, unless the administrator names themselves.",
         "operationId": "adminTransferOrganizationSponsor",
         "parameters": [
@@ -12882,7 +12892,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "202": {
             "content": {
@@ -12892,7 +12907,12 @@
                 }
               }
             },
-            "description": "Somebody other than the administrator was named: the sponsor is unchanged and a pending proposal (the body) awaits that person's acceptance."
+            "description": "Somebody other than the administrator was named: the sponsor is unchanged and a pending proposal (the body) awaits that person's acceptance.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -12902,7 +12922,12 @@
                 }
               }
             },
-            "description": "No usable credential was supplied."
+            "description": "No usable credential was supplied.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "402": {
             "content": {
@@ -12912,7 +12937,12 @@
                 }
               }
             },
-            "description": "Naming oneself: the administrator's plan cannot take the subtree."
+            "description": "Naming oneself: the administrator's plan cannot take the subtree.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -12922,7 +12952,12 @@
                 }
               }
             },
-            "description": "The credential is valid but not allowed to do this."
+            "description": "The credential is valid but not allowed to do this.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "404": {
             "content": {
@@ -12932,7 +12967,12 @@
                 }
               }
             },
-            "description": "No such resource, or none this caller may see."
+            "description": "No such resource, or none this caller may see.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "409": {
             "content": {
@@ -12942,7 +12982,12 @@
                 }
               }
             },
-            "description": "`sponsor_proposal_pending` (a proposal is already pending; its `proposal_id` is returned) or `already_sponsor`."
+            "description": "`sponsor_proposal_pending` (a proposal is already pending; its `proposal_id` is returned) or `already_sponsor`.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -12952,7 +12997,12 @@
                 }
               }
             },
-            "description": "The sponsor account is not acceptable."
+            "description": "The sponsor account is not acceptable.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -12962,7 +13012,12 @@
                 }
               }
             },
-            "description": "A service the gateway depends on is not reachable."
+            "description": "A service the gateway depends on is not reachable.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -13821,6 +13876,7 @@
     },
     "/v1/analysis/candidate": {
       "post": {
+        "deprecated": true,
         "operationId": "get_candidate_v1_analysis_candidate_post",
         "requestBody": {
           "content": {
@@ -13841,7 +13897,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -13851,7 +13912,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -13861,7 +13927,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -13871,7 +13942,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -13881,7 +13957,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -13904,6 +13985,7 @@
     },
     "/v1/analysis/export": {
       "post": {
+        "deprecated": true,
         "operationId": "export_analysis_v1_analysis_export_post",
         "requestBody": {
           "content": {
@@ -13930,7 +14012,12 @@
                 }
               }
             },
-            "description": "Analysis receipt, archive rows, or CSV selected by format."
+            "description": "Analysis receipt, archive rows, or CSV selected by format.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -13940,7 +14027,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -13950,7 +14042,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -13960,7 +14057,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -13970,7 +14072,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -13993,6 +14100,7 @@
     },
     "/v1/analysis/pareto": {
       "post": {
+        "deprecated": true,
         "operationId": "start_pareto_v1_analysis_pareto_post",
         "requestBody": {
           "content": {
@@ -14013,7 +14121,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -14023,7 +14136,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -14033,7 +14151,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -14043,7 +14166,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -14053,7 +14181,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -14077,6 +14210,7 @@
     },
     "/v1/analysis/pareto/{task_id}": {
       "get": {
+        "deprecated": true,
         "operationId": "get_pareto_v1_analysis_pareto__task_id__get",
         "parameters": [
           {
@@ -14099,7 +14233,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -14109,7 +14248,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -14119,7 +14263,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -14129,7 +14278,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -14139,7 +14293,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -14162,6 +14321,7 @@
     },
     "/v1/analysis/pareto/{task_id}/cancel": {
       "post": {
+        "deprecated": true,
         "operationId": "cancel_pareto_v1_analysis_pareto__task_id__cancel_post",
         "parameters": [
           {
@@ -14184,7 +14344,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -14194,7 +14359,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -14204,7 +14374,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -14214,7 +14389,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -14224,7 +14404,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -14248,6 +14433,7 @@
     },
     "/v1/analysis/query": {
       "post": {
+        "deprecated": true,
         "operationId": "query_analysis_v1_analysis_query_post",
         "requestBody": {
           "content": {
@@ -14268,7 +14454,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -14278,7 +14469,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -14288,7 +14484,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -14298,7 +14499,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -14308,7 +14514,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -14331,6 +14542,7 @@
     },
     "/v1/analysis/reports": {
       "post": {
+        "deprecated": true,
         "operationId": "save_report_v1_analysis_reports_post",
         "requestBody": {
           "content": {
@@ -14351,7 +14563,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -14361,7 +14578,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -14371,7 +14593,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -14381,7 +14608,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -14391,7 +14623,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -14415,6 +14652,7 @@
     },
     "/v1/analysis/sources": {
       "get": {
+        "deprecated": true,
         "operationId": "sources_v1_analysis_sources_get",
         "parameters": [
           {
@@ -14466,7 +14704,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -14476,7 +14719,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -14486,7 +14734,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -14496,7 +14749,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -14506,7 +14764,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -14570,6 +14833,7 @@
     },
     "/v1/artifacts/{artifact_id}": {
       "get": {
+        "deprecated": true,
         "operationId": "get_artifact_v1_artifacts__artifact_id__get",
         "parameters": [
           {
@@ -14592,7 +14856,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -14602,7 +14871,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "summary": "Get Artifact",
@@ -14611,6 +14885,7 @@
         ]
       },
       "patch": {
+        "deprecated": true,
         "operationId": "edit_artifact_v1_artifacts__artifact_id__patch",
         "parameters": [
           {
@@ -14643,7 +14918,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -14653,7 +14933,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -14663,7 +14948,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -14673,7 +14963,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -14683,7 +14978,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -14705,6 +15005,7 @@
     },
     "/v1/artifacts/{artifact_id}/drafts": {
       "get": {
+        "deprecated": true,
         "operationId": "list_drafts_v1_artifacts__artifact_id__drafts_get",
         "parameters": [
           {
@@ -14731,7 +15032,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -14741,7 +15047,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -14751,7 +15062,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -14761,7 +15077,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -14771,7 +15092,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -14791,6 +15117,7 @@
         ]
       },
       "post": {
+        "deprecated": true,
         "operationId": "create_draft_v1_artifacts__artifact_id__drafts_post",
         "parameters": [
           {
@@ -14823,7 +15150,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -14833,7 +15165,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -14843,7 +15180,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -14853,7 +15195,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -14863,7 +15210,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -14885,6 +15237,7 @@
     },
     "/v1/artifacts/{artifact_id}/drafts/{draft_id}": {
       "put": {
+        "deprecated": true,
         "operationId": "edit_draft_v1_artifacts__artifact_id__drafts__draft_id__put",
         "parameters": [
           {
@@ -14927,7 +15280,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -14937,7 +15295,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -14947,7 +15310,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -14957,7 +15325,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -14967,7 +15340,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -14989,6 +15367,7 @@
     },
     "/v1/artifacts/{artifact_id}/drafts/{draft_id}/seal": {
       "post": {
+        "deprecated": true,
         "operationId": "release_draft_v1_artifacts__artifact_id__drafts__draft_id__seal_post",
         "parameters": [
           {
@@ -15031,7 +15410,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -15041,7 +15425,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -15051,7 +15440,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -15061,7 +15455,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -15071,7 +15470,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -15140,6 +15544,7 @@
     },
     "/v1/artifacts/{artifact_id}/versions/{version_id}": {
       "get": {
+        "deprecated": true,
         "operationId": "get_version_v1_artifacts__artifact_id__versions__version_id__get",
         "parameters": [
           {
@@ -15172,7 +15577,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -15182,7 +15592,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "summary": "Get Version",
@@ -15247,6 +15662,7 @@
     },
     "/v1/artifacts/{artifact_id}/versions/{version_id}/publish": {
       "post": {
+        "deprecated": true,
         "operationId": "publish_version_v1_artifacts__artifact_id__versions__version_id__publish_post",
         "parameters": [
           {
@@ -15289,7 +15705,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -15299,7 +15720,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -15309,7 +15735,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -15319,7 +15750,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -15329,7 +15765,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -15351,6 +15792,7 @@
     },
     "/v1/artifacts/{artifact_id}/versions/{version_id}/withdraw": {
       "post": {
+        "deprecated": true,
         "operationId": "withdraw_version_v1_artifacts__artifact_id__versions__version_id__withdraw_post",
         "parameters": [
           {
@@ -15383,7 +15825,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -15393,7 +15840,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -15403,7 +15855,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -15413,7 +15870,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -15423,7 +15885,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -21323,6 +21790,7 @@
         ]
       },
       "post": {
+        "deprecated": true,
         "operationId": "create_artifact_v1_organizations__org__library_post",
         "parameters": [
           {
@@ -21354,7 +21822,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -21364,7 +21837,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -21374,7 +21852,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -21384,7 +21867,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -21394,7 +21882,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -24420,6 +24913,7 @@
     },
     "/v1/organizations/{org}/projects/{project}/library": {
       "get": {
+        "deprecated": true,
         "operationId": "project_artifacts_v1_organizations__org__projects__project__library_get",
         "parameters": [
           {
@@ -24454,7 +24948,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -24464,7 +24963,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -24474,7 +24978,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -24484,7 +24993,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -24494,7 +25008,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -24517,6 +25036,7 @@
     },
     "/v1/organizations/{org}/projects/{project}/library/{artifact_id}": {
       "delete": {
+        "deprecated": true,
         "operationId": "dissociate_artifact_v1_organizations__org__projects__project__library__artifact_id__delete",
         "parameters": [
           {
@@ -24550,7 +25070,12 @@
         ],
         "responses": {
           "204": {
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -24560,7 +25085,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -24570,7 +25100,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -24580,7 +25115,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -24590,7 +25130,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -24610,6 +25155,7 @@
         ]
       },
       "put": {
+        "deprecated": true,
         "operationId": "associate_artifact_v1_organizations__org__projects__project__library__artifact_id__put",
         "parameters": [
           {
@@ -24652,7 +25198,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -24662,7 +25213,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -24672,7 +25228,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -24682,7 +25243,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -24692,7 +25258,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -25020,6 +25591,7 @@
         ]
       },
       "post": {
+        "deprecated": true,
         "operationId": "publishReport",
         "parameters": [
           {
@@ -25060,7 +25632,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -25070,7 +25647,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -25080,7 +25662,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -25090,7 +25677,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -25100,7 +25692,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -25311,6 +25908,7 @@
         ]
       },
       "post": {
+        "deprecated": true,
         "operationId": "createReport",
         "parameters": [
           {
@@ -25351,7 +25949,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -25361,7 +25964,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -25371,7 +25979,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -25381,7 +25994,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -25391,7 +26009,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -25413,6 +26036,7 @@
     },
     "/v1/organizations/{org}/projects/{project}/reports/{report}": {
       "delete": {
+        "deprecated": true,
         "operationId": "deleteReport",
         "parameters": [
           {
@@ -25445,7 +26069,12 @@
         ],
         "responses": {
           "204": {
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -25455,7 +26084,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -25465,7 +26099,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -25475,7 +26114,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -25485,7 +26129,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -25505,6 +26154,7 @@
         ]
       },
       "get": {
+        "deprecated": true,
         "operationId": "getReport",
         "parameters": [
           {
@@ -25544,7 +26194,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -25554,7 +26209,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -25564,7 +26224,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -25574,7 +26239,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -25584,7 +26254,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -25605,6 +26280,7 @@
         ]
       },
       "patch": {
+        "deprecated": true,
         "operationId": "updateReport",
         "parameters": [
           {
@@ -25654,7 +26330,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -25664,7 +26345,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -25674,7 +26360,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -25684,7 +26375,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -25694,7 +26390,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -25716,6 +26417,7 @@
     },
     "/v1/organizations/{org}/projects/{project}/reports/{report}/drafts": {
       "post": {
+        "deprecated": true,
         "operationId": "createReportDraft",
         "parameters": [
           {
@@ -25755,7 +26457,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -25765,7 +26472,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -25775,7 +26487,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -25785,7 +26502,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -25795,7 +26517,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -25817,6 +26544,7 @@
     },
     "/v1/organizations/{org}/projects/{project}/reports/{report}/freeze": {
       "post": {
+        "deprecated": true,
         "operationId": "freezeReport",
         "parameters": [
           {
@@ -25856,7 +26584,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -25866,7 +26599,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -25876,7 +26614,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -25886,7 +26629,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -25896,7 +26644,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -26013,6 +26766,7 @@
         ]
       },
       "post": {
+        "deprecated": true,
         "operationId": "createProjectResource",
         "parameters": [
           {
@@ -26053,7 +26807,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -26063,7 +26822,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -26073,7 +26837,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -26083,7 +26852,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -26093,7 +26867,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -26115,6 +26894,7 @@
     },
     "/v1/organizations/{org}/projects/{project}/resources/{resource}": {
       "delete": {
+        "deprecated": true,
         "operationId": "deleteProjectResource",
         "parameters": [
           {
@@ -26147,7 +26927,12 @@
         ],
         "responses": {
           "204": {
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -26157,7 +26942,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -26167,7 +26957,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -26177,7 +26972,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -26187,7 +26987,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -26207,6 +27012,7 @@
         ]
       },
       "get": {
+        "deprecated": true,
         "operationId": "getProjectResource",
         "parameters": [
           {
@@ -26246,7 +27052,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -26256,7 +27067,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -26266,7 +27082,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -26276,7 +27097,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -26286,7 +27112,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -26307,6 +27138,7 @@
         ]
       },
       "patch": {
+        "deprecated": true,
         "operationId": "updateProjectResource",
         "parameters": [
           {
@@ -26356,7 +27188,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -26366,7 +27203,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -26376,7 +27218,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -26386,7 +27233,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -26396,7 +27248,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -26522,6 +27379,7 @@
         ]
       },
       "post": {
+        "deprecated": true,
         "operationId": "createProjectResourceRevision",
         "parameters": [
           {
@@ -26571,7 +27429,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -26581,7 +27444,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -26591,7 +27459,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -26601,7 +27474,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -26611,7 +27489,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -26633,6 +27516,7 @@
     },
     "/v1/organizations/{org}/projects/{project}/resources/{resource}/revisions/{revision}": {
       "get": {
+        "deprecated": true,
         "operationId": "getProjectResourceRevision",
         "parameters": [
           {
@@ -26681,7 +27565,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -26691,7 +27580,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -26701,7 +27595,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -26711,7 +27610,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -26721,7 +27625,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
@@ -29134,6 +30043,7 @@
     },
     "/v1/sponsor-proposals/{proposal_id}": {
       "get": {
+        "deprecated": true,
         "operationId": "getSponsorProposal",
         "parameters": [
           {
@@ -29156,7 +30066,12 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "401": {
             "content": {
@@ -29166,7 +30081,12 @@
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "Missing or invalid account credential.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "403": {
             "content": {
@@ -29176,7 +30096,12 @@
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "404": {
             "content": {
@@ -29186,7 +30111,12 @@
                 }
               }
             },
-            "description": "No such resource, or none this caller may see."
+            "description": "No such resource, or none this caller may see.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "422": {
             "content": {
@@ -29196,7 +30126,12 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The request does not satisfy the contract; `diagnostics` says where.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           },
           "503": {
             "content": {
@@ -29206,7 +30141,12 @@
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "Account authentication is not configured on this deployment.",
+            "headers": {
+              "Deprecation": {
+                "$ref": "#/components/headers/Deprecation"
+              }
+            }
           }
         },
         "security": [
