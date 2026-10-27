@@ -94,6 +94,35 @@ def test_the_analysis_workspace_is_gone_and_the_neighbourhood_stays_a_job_read()
     assert not allows_request(projects_only, **request)
 
 
+def test_the_library_report_and_resource_writes_are_gone_and_the_kept_reads_keep_their_permissions():
+    # [utest->req~gateway-api-removed-operations-not-routed~1]
+    project = "/v1/organizations/{org}/projects/{project}"
+    retired = {
+        ("POST", "/v1/organizations/{org}/library"),
+        ("PATCH", "/v1/artifacts/{artifact_id}"),
+        ("POST", "/v1/artifacts/{artifact_id}/drafts"),
+        ("POST", "/v1/artifacts/{artifact_id}/versions/{version_id}/publish"),
+        ("PUT", f"{project}/library/{{artifact_id}}"),
+        ("POST", f"{project}/reports"),
+        ("POST", f"{project}/publications"),
+        ("POST", f"{project}/resources"),
+        ("PATCH", f"{project}/resources/{{resource}}"),
+    }
+    assert not retired & set(ROUTES)
+    # The kept operations of the same areas stay classified as before (design D6: reports:write still guards K3).
+    kept = {
+        ("GET", "/v1/organizations/{org}/library"): {"artifacts:read"},
+        ("GET", "/v1/artifacts/{artifact_id}/versions"): {"artifacts:read"},
+        ("POST", "/v1/artifacts/resolve"): {"artifacts:read"},
+        ("GET", f"{project}/reports"): {"reports:read"},
+        ("DELETE", f"{project}/publications/{{publication}}"): {"reports:write"},
+        ("GET", f"{project}/resources/{{resource}}/revisions"): {"projects:read"},
+    }
+    for (method, path), permissions in kept.items():
+        assert (method, path) in ROUTES
+        assert required_permissions(path, method) == frozenset(permissions), (method, path)
+
+
 def test_unknown_paths_are_denied_under_v1_and_untouched_elsewhere():
     assert required_permissions("/v1/brand-new", "GET") == frozenset({UNCLASSIFIED_ROUTE_PERMISSION})
     assert required_permissions("/v1/resources/x/y", "GET") == frozenset({UNCLASSIFIED_ROUTE_PERMISSION})

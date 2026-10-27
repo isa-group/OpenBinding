@@ -155,11 +155,8 @@ async def test_case_composition_closes_exact_resources_without_copying_authority
         sealed = await seal_draft(db_session, identity, draft, 1, '1', user)
         links = (await db_session.scalars(select(ArtifactCaseReference).where(ArtifactCaseReference.version_id == sealed.id))).all()
         assert [(link.position, link.case_revision_id) for link in links] == [(0, revision.id)]
-        from openbinding_gateway.routes.library import publish_version
-        from openbinding_gateway.models.artifacts import PublishVersion
-        with pytest.raises(HTTPException) as publication_error:
-            await publish_version(identity.id, sealed.id, PublishVersion(), user, db_session)
-        assert publication_error.value.status_code == 422
+        # No operation publishes a version since M9.6 (design.md §7), so the publication refusal of a
+        # private case reference is no longer reachable here.
         with pytest.raises(DBAPIError):
             async with db_session.begin_nested():
                 await db_session.execute(update(ArtifactCaseReference).where(ArtifactCaseReference.version_id == sealed.id).values(position=9))
@@ -175,14 +172,15 @@ async def test_case_composition_closes_exact_resources_without_copying_authority
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('operation', ['seal_same_draft', 'seal_conflicting_label', 'edit_same_revision'])
+@pytest.mark.parametrize('operation', ['seal_same_draft', 'seal_conflicting_label'])
 async def test_postgresql_concurrent_editorial_operations(db_session, operation):
-    """Independent committed connections, rather than sequential calls in one transaction."""
+    """Independent committed connections, rather than sequential calls in one transaction.
+
+    The draft edit route is removed since M9.6; the internal seal stays.
+    """
     import asyncio
     from sqlalchemy import select
     from sqlalchemy.ext.asyncio import async_sessionmaker
-    from openbinding_gateway.models.artifacts import DraftUpdate
-    from openbinding_gateway.routes.library import edit_draft
 
     if db_session.bind.dialect.name != 'postgresql':
         pytest.skip('Row-lock concurrency requires PostgreSQL.')
@@ -213,12 +211,7 @@ async def test_postgresql_concurrent_editorial_operations(db_session, operation)
             draft = await session.get(ArtifactDraft, draft_id)
             await barrier.wait()
             try:
-                if operation == 'edit_same_revision':
-                    result = await edit_draft(artifact_id, draft_id,
-                        DraftUpdate(content={'winner': index}, revision=1), caller, session)
-                    result = result['revision']
-                else:
-                    result = (await seal_draft(session, identity, draft, 1, 'release', caller)).id
+                result = (await seal_draft(session, identity, draft, 1, 'release', caller)).id
                 await session.commit()
                 return 200, result
             except HTTPException as exc:
@@ -233,6 +226,4 @@ async def test_postgresql_concurrent_editorial_operations(db_session, operation)
         assert sorted(code for code, _ in outcomes) == [200, 409]
     db_session.expire_all()
     versions = (await db_session.scalars(select(ArtifactVersion).where(ArtifactVersion.artifact_id == artifact_id))).all()
-    assert len(versions) == (0 if operation == 'edit_same_revision' else 1)
-    if operation == 'edit_same_revision':
-        assert (await db_session.get(ArtifactDraft, identities[0])).revision == 2
+    assert len(versions) == 1

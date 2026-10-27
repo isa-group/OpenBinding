@@ -401,15 +401,19 @@ async def test_jobs_pin_reusable_execution_configuration_without_mutating_it(
     organization = await api_client.post('/v1/organizations', headers=headers,
         json={'slug': 'configured-jobs', 'name': 'Configured jobs'})
     assert organization.status_code == 201, organization.text
-    identity = await api_client.post('/v1/organizations/configured-jobs/library', headers=headers,
-        json={'name': 'search-settings', 'display_name': 'Search settings', 'kind': 'ExecutionConfiguration'})
-    artifact_id = identity.json()['id']
+    # The library write routes are removed since M9.6: the configuration is sealed by the internal service.
+    import _m96_seed as seed
+    from openbinding_gateway.artifacts import version_view
+    from openbinding_gateway.models.artifacts import ArtifactVersionView
+
+    user_id = (await api_client.get('/v1/users/me', headers=headers)).json()['id']
+    identity = await seed.library_artifact(db_session, organization.json()['id'], user_id, name='search-settings',
+                                           display_name='Search settings', kind='ExecutionConfiguration')
+    artifact_id = str(identity.id)
     engine = engine_ref(routes._manifest('random-search'))
     content = {'engine': engine, 'mode': 'seeded', 'options': {'iterations': 100, 'seed': 7}}
-    draft = await api_client.post(f'/v1/artifacts/{artifact_id}/drafts', headers=headers, json={'content': content})
-    sealed = await api_client.post(f"/v1/artifacts/{artifact_id}/drafts/{draft.json()['id']}/seal", headers=headers, json={'revision': 1})
-    assert sealed.status_code == 201, sealed.text
-    config = sealed.json()
+    sealed = await seed.seal(db_session, identity, user_id, content)
+    config = ArtifactVersionView.model_validate(version_view(identity, sealed)).model_dump(mode='json')
     snapshot = await api_client.post('/v1/instances', headers=_zip_headers(headers), content=load_package(EXAMPLE).to_zip())
     request = {'snapshot': snapshot.json()['id'], 'configuration': config['ref']}
     _assert_component('JobRequest', request)
@@ -423,15 +427,13 @@ async def test_jobs_pin_reusable_execution_configuration_without_mutating_it(
     assert job.provenance['requestedOptions'] == content['options']
     assert job.provenance['options'] == job.options
     pinned = job.configuration_version_id
-    draft2 = await api_client.post(f'/v1/artifacts/{artifact_id}/drafts', headers=headers,
-        json={'content': {**content, 'options': {'iterations': 200, 'seed': 9}}, 'based_on_id': config['id']})
-    sealed2 = await api_client.post(f"/v1/artifacts/{artifact_id}/drafts/{draft2.json()['id']}/seal", headers=headers, json={'revision': 1})
-    assert sealed2.status_code == 201, sealed2.text
+    sealed2 = await seed.seal(db_session, identity, user_id, {**content, 'options': {'iterations': 200, 'seed': 9}},
+                              based_on_id=sealed.id)
     repeated = await api_client.post('/v1/jobs', headers={**headers, 'Idempotency-Key': 'configuration-v1'}, json=request)
     assert repeated.json()['id'] == str(job.id)
     assert (await db_session.get(ArtifactVersion, pinned)).version_digest == config['ref']['versionDigest']
     with pytest.raises(DBAPIError):
         async with db_session.begin_nested():
-            await db_session.execute(update(Job).where(Job.id == job.id).values(configuration_version_id=uuid.UUID(sealed2.json()['id'])))
+            await db_session.execute(update(Job).where(Job.id == job.id).values(configuration_version_id=sealed2.id))
     still_original = await api_client.get(f"/v1/artifacts/{artifact_id}/versions/{config['id']}/content", headers=headers)
     assert still_original.json() == content

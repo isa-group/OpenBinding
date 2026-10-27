@@ -52,8 +52,6 @@ from ..models.platform import (
     CollectionView,
     PublicationCreate,
     PublicationView,
-    ReportCreate,
-    ReportUpdate,
     ReportView,
     StudyCellResult,
     StudyCellView,
@@ -1199,169 +1197,16 @@ async def list_reports(
     return [_report_view(row) for row in rows]
 
 
-@router.get("/reports/{report}", response_model=ReportView, operation_id="getReport")
-async def get_report(
-    org: str, project: str, report: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> ReportView:
-    _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    try:
-        parsed = uuid.UUID(report)
-    except ValueError:
-        parsed = None
-    query = select(Report).where(
-        Report.project_id == found_project.id,
-        Report.id == parsed if parsed else Report.slug == report,
-    )
-    if public_read.is_public_read(session):
-        # A draft, or a frozen report nobody published, is indistinguishable from none.
-        query = query.where(_published_report(found_project.id))
-    value = (await session.execute(query)).scalars().first()
-    if value is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Report not found.")
-    return _report_view(value)
+# The report editor (get one, create, freeze, new draft, edit, delete) and the publication of a report are not
+# routed since M9.6 (design.md §2.1 rows 9 to 15). Reports are sealed by the internal services (reports.py).
+# [impl->req~gateway-api-removed-operations-not-routed~1]
+# [impl->req~gateway-api-removed-operations-not-documented~1]
 
 
-@router.post("/reports", response_model=ReportView, status_code=201, operation_id="createReport")
-async def create_report(
-    org: str, project: str, payload: ReportCreate,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> ReportView:
-    organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
-    if payload.study_run_id is not None:
-        linked_project_id = await session.scalar(
-            select(Study.project_id)
-            .join(StudyRun, StudyRun.study_id == Study.id)
-            .where(StudyRun.id == payload.study_run_id)
-        )
-        if linked_project_id != found_project.id:
-            raise api_error(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "foreign_study_run",
-                "A report may only reference a study run from the same project.",
-            )
-    duplicate = await session.scalar(
-        select(func.count(Report.id)).where(
-            Report.project_id == found_project.id, Report.slug == payload.slug
-        )
-    )
-    if duplicate:
-        raise api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That report slug is in use.")
-    from ..reports import create_report_context
-    value = await create_report_context(session, found_project, user, slug=payload.slug,
-        title=payload.title, document=payload.document, study_run_id=payload.study_run_id)
-    _audit(session, user, "report.created", value, organization.id)
-    return _report_view(value)
-
-
-@router.post("/reports/{report}/freeze", response_model=ReportView, operation_id="freezeReport")
-async def freeze_report(
-    org: str, project: str, report: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> ReportView:
-    organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
-    try:
-        parsed = uuid.UUID(report)
-    except ValueError:
-        parsed = None
-    value = (await session.execute(select(Report).where(
-        Report.project_id == found_project.id,
-        Report.id == parsed if parsed else Report.slug == report,
-    ))).scalars().first()
-    if value is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Report not found.")
-    from ..reports import seal_report
-    await seal_report(session, value, user)
-    _audit(session, user, "report.frozen", value, organization.id, digest=value.digest)
-    return _report_view(value)
-
-
-@router.post("/reports/{report}/drafts", response_model=ReportView, operation_id="createReportDraft")
-async def create_report_draft(org: str, project: str, report: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function")) -> ReportView:
-    _, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
-    try:
-        identity = uuid.UUID(report)
-    except ValueError:
-        identity = None
-    value = await session.scalar(select(Report).where(Report.project_id == found_project.id,
-        Report.id == identity if identity else Report.slug == report))
-    if value is None:
-        raise api_error(404, 'not_found', 'Report not found.')
-    from ..reports import new_report_draft
-    await new_report_draft(session, value, user)
-    return _report_view(value)
-
-
-@router.patch("/reports/{report}", response_model=ReportView, operation_id="updateReport")
-async def update_report(
-    org: str, project: str, report: str, payload: ReportUpdate,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> ReportView:
-    organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
-    try:
-        parsed = uuid.UUID(report)
-    except ValueError:
-        parsed = None
-    value = (await session.execute(select(Report).where(
-        Report.project_id == found_project.id,
-        Report.id == parsed if parsed else Report.slug == report,
-    ))).scalars().first()
-    if value is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Report not found.")
-    from ..db.models import Artifact
-    await session.execute(select(Artifact.id).where(Artifact.id == value.artifact_id).with_for_update())
-    await session.refresh(value)
-    if value.state is ReportState.FROZEN:
-        raise api_error(status.HTTP_409_CONFLICT, "report_frozen", "Frozen reports are immutable and cannot be modified.")
-    if payload.title is not None:
-        value.title = payload.title
-    if payload.document is not None:
-        await session.refresh(value.draft, with_for_update=True)
-        if value.draft.sealed_version_id or payload.draft_revision is None or payload.draft_revision != value.draft.revision:
-            raise api_error(409, 'draft_conflict', 'Supply the current draft_revision before editing this report.')
-        value.draft.payload = {**value.draft.payload, 'content': payload.document}
-        value.draft.revision += 1
-    await session.flush()
-    _audit(session, user, "report.updated", value, organization.id)
-    return _report_view(value)
-
-
-@router.delete("/reports/{report}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteReport")
-async def delete_report(
-    org: str, project: str, report: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> None:
-    organization, found_project = await _context(session, org, project, user, OrganizationRole.ADMIN)
-    try:
-        parsed = uuid.UUID(report)
-    except ValueError:
-        parsed = None
-    value = (await session.execute(select(Report).where(
-        Report.project_id == found_project.id,
-        Report.id == parsed if parsed else Report.slug == report,
-    ))).scalars().first()
-    if value is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Report not found.")
-    from ..db.models import ArtifactVersion
-    if await session.scalar(select(ArtifactVersion.id).where(ArtifactVersion.artifact_id == value.artifact_id).limit(1)):
-        raise api_error(409, 'report_history_retained', 'Sealed report history cannot be deleted; archive the library artifact.')
-    _audit(session, user, "report.deleted", value, organization.id)
-    await session.delete(value)
-    await session.flush()
-
-
-@router.post("/publications", response_model=PublicationView, status_code=201, operation_id="publishReport")
+# Not routed (row 15): the development seeder (tools/seed_dev.py) still publishes its demonstration report
+# through this function.
 async def publish_report(
-    org: str, project: str, payload: PublicationCreate,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
+    org: str, project: str, payload: PublicationCreate, user: User, session: AsyncSession,
 ) -> PublicationView:
     organization, found_project = await _context(session, org, project, user, OrganizationRole.ADMIN)
     report = await session.get(Report, payload.report_id)

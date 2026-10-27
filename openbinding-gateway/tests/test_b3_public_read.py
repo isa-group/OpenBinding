@@ -26,6 +26,7 @@ from _b1_helpers import (  # noqa: F401
     random_digest,
 )
 from _repo import REPO_ROOT
+import _m96_seed as seed
 from openbinding_gateway.access import public_read
 from openbinding_gateway.access.public_read import (
     PROJECT,
@@ -124,15 +125,11 @@ async def ctx(api_client, registration, db_session, gate):  # noqa: F811
     revision = await add_case_revision(db_session, c, digest=random_digest())
     case = await db_session.get(BindingCase, revision.binding_case_id)
     c.case, c.revision_digest = case.slug, revision.digest
-    resource = await api_client.post(
-        f"{c.url}/resources", headers=owner_h,
-        json={"slug": "providers", "name": "Providers", "kind": "qos-offerings"},
+    # Project resources are read-only since M9.6: the resource is seeded as its former write routes stored it.
+    await seed.project_resource(
+        db_session, c.project_id, c.user_id, slug="providers", name="Providers", kind="qos-offerings",
+        documents=[{"apiVersion": "openbinding.dev/qos-binding/v1", "providers": ["alpha"]}],
     )
-    assert resource.status_code == 201, resource.text
-    assert (await api_client.post(
-        f"{c.url}/resources/providers/revisions", headers=owner_h,
-        json={"document": {"apiVersion": "openbinding.dev/qos-binding/v1", "providers": ["alpha"]}},
-    )).status_code == 201
     assert (await api_client.post(
         f"{c.url}/collections", headers=owner_h, json={"slug": "coll", "name": "Collection"},
     )).status_code == 201
@@ -169,15 +166,16 @@ async def ctx(api_client, registration, db_session, gate):  # noqa: F811
     await report("frozen-public", ReportState.FROZEN, publication="live")
     await report("frozen-withdrawn", ReportState.FROZEN, publication="gone")
 
-    published, published_version = await add_version(
-        db_session, c, kind="Dataset", content_digest=random_digest(), project_id=c.project_id
-    )
-    db_session.add(ArtifactPublication(version_id=published_version.id, published_by_id=c.user_id, citation={}))
-    hidden, _ = await add_version(
-        db_session, c, kind="Dataset", content_digest=random_digest(), project_id=c.project_id
-    )
-    await db_session.flush()
+    # Two sealed library versions of the project, one published, sealed by the internal artifact service.
+    artifacts = []
+    for name in ("published-dataset", "hidden-dataset"):
+        artifact = await seed.library_artifact(db_session, c.org_id, c.user_id, name=name, kind="Dataset")
+        db_session.add(ProjectArtifact(project_id=c.project_id, artifact_id=artifact.id))
+        artifacts.append((artifact, await seed.seal(db_session, artifact, c.user_id, {"rows": [name]})))
+    (published, published_version), (hidden, _) = artifacts
+    await seed.publish(db_session, published_version, c.user_id)
     c.published_artifact, c.hidden_artifact = published.name, hidden.name
+    c.published_id, c.hidden_id = published.id, hidden.id
     return c
 
 
@@ -194,7 +192,8 @@ VISITORS = ("anonymous", "outsider", "api_key")
 def test_the_route_table_has_the_project_surface():
     methods = {method for method, _ in ROUTES}
     assert len(ROUTES) > 40
-    assert {"GET", "POST", "PUT", "PATCH", "DELETE"} <= methods
+    # M9.6 removed the project library association, the only PUT under a project.
+    assert {"GET", "POST", "PATCH", "DELETE"} <= methods
 
 
 def test_every_get_route_is_classified_exactly_once():
@@ -337,17 +336,15 @@ async def test_the_allowed_reads_return_the_project_data(ctx):
         revisions = await get(c, who, f"{c.url}/cases/{c.case}/revisions")
         revision = await get(c, who, f"{c.url}/cases/{c.case}/revisions/1")
         resources = await get(c, who, f"{c.url}/resources")
-        resource = await get(c, who, f"{c.url}/resources/providers")
         resource_revisions = await get(c, who, f"{c.url}/resources/providers/revisions")
-        resource_revision = await get(c, who, f"{c.url}/resources/providers/revisions/1")
         collections = await get(c, who, f"{c.url}/collections")
         collection = await get(c, who, f"{c.url}/collections/coll")
         collection_revisions = await get(c, who, f"{c.url}/collections/coll/revisions")
         studies = await get(c, who, f"{c.url}/studies")
         missing_run = await get(c, who, f"{c.url}/studies/nope/runs")
 
-        for response in (cases, case, revisions, revision, resources, resource, resource_revisions,
-                         resource_revision, collections, collection, collection_revisions, studies):
+        for response in (cases, case, revisions, revision, resources, resource_revisions,
+                         collections, collection, collection_revisions, studies):
             assert response.status_code == 200, (who, str(response.url), response.text)
         assert [item["slug"] for item in cases.json()] == [c.case]
         assert revisions.json()[0]["digest"] == c.revision_digest
@@ -362,19 +359,14 @@ async def test_the_allowed_reads_return_the_project_data(ctx):
 async def test_reports_are_only_the_frozen_ones_with_a_live_publication(ctx):
     c = ctx
     for who in VISITORS:
+        # The list is the only report read left since M9.6 (GET of one report is removed, design.md §2.1 row 9).
         listed = await get(c, who, f"{c.url}/reports")
         assert [item["slug"] for item in listed.json()] == ["frozen-public"], who
         assert listed.json()[0]["state"] == "frozen"
-        assert (await get(c, who, f"{c.url}/reports/frozen-public")).status_code == 200
-        hidden = [await get(c, who, f"{c.url}/reports/{slug}") for slug in
-                  ("the-draft", "frozen-private", "frozen-withdrawn", "no-such-report")]
-        assert {response.status_code for response in hidden} == {404}
-        assert len({str(response.json()) for response in hidden}) == 1  # indistinguishable from a missing one
     # Members keep seeing everything, drafts included.
     for who in ("viewer", "member", "owner"):
         slugs = {item["slug"] for item in (await get(c, who, f"{c.url}/reports")).json()}
         assert slugs == {"the-draft", "frozen-private", "frozen-public", "frozen-withdrawn"}
-        assert (await get(c, who, f"{c.url}/reports/the-draft")).status_code == 200
 
 
 async def test_publications_exclude_the_withdrawn_for_visitors_only(ctx):
@@ -404,20 +396,25 @@ async def test_files_are_listed_and_downloaded_only_when_public(ctx):
 
 
 async def test_the_library_shows_only_published_artifacts_to_visitors(ctx):
+    # The project library list is removed since M9.6 (design.md §2.1 row 27); a visitor reads the library
+    # through the kept version reads (B3, B4), and members through the organization library (B2).
     c = ctx
     for who in VISITORS:
-        names = {item["name"] for item in (await get(c, who, f"{c.url}/library")).json()}
-        assert names == {c.published_artifact}, who
+        shown = await get(c, who, f"/v1/artifacts/{c.published_id}/versions")
+        assert shown.status_code == 200 and [item["public"] for item in shown.json()] == [True], (who, shown.text)
+        assert (await get(c, who, f"/v1/artifacts/{c.hidden_id}/versions")).status_code == 404, who
     for who in ("viewer", "member", "owner"):
-        names = {item["name"] for item in (await get(c, who, f"{c.url}/library")).json()}
+        names = {item["name"] for item in (await get(c, who, f"/v1/organizations/{c.slug}/library")).json()}
         assert {c.published_artifact, c.hidden_artifact} <= names
+        assert (await get(c, who, f"/v1/artifacts/{c.hidden_id}/versions")).status_code == 200, who
 
 
 async def test_a_foreign_artifact_that_is_not_published_does_not_show_through(ctx):
     c = ctx
     # Carol owns another organization whose artifact the project associated while it was
-    # published. Once it is withdrawn, neither the library nor the resources show it to
-    # visitors, and carol's membership of that organization does not make her one here.
+    # published. Once it is withdrawn, the resources do not show it to visitors, and carol's
+    # membership of that organization does not make her one here. (The project library list and
+    # the read of one resource are removed since M9.6, design.md §2.1 rows 27 and 32.)
     other = await make_org(c.client, c.callers["outsider"])
     foreign = SimpleNamespace(org_id=uuid.UUID(other["id"]), user_id=uuid.UUID(c.carol["id"]))
     artifact, version = await add_version(c.db, foreign, kind="Dataset", content_digest=random_digest())
@@ -426,15 +423,12 @@ async def test_a_foreign_artifact_that_is_not_published_does_not_show_through(ct
     await c.db.flush()
 
     for who in ("anonymous", "outsider"):
-        assert artifact.name in {i["name"] for i in (await get(c, who, f"{c.url}/library")).json()}
         assert artifact.name in {i["slug"] for i in (await get(c, who, f"{c.url}/resources")).json()}
 
     publication.withdrawn = True
     await c.db.flush()
     for who in ("anonymous", "outsider", "api_key"):
-        assert artifact.name not in {i["name"] for i in (await get(c, who, f"{c.url}/library")).json()}
         assert artifact.name not in {i["slug"] for i in (await get(c, who, f"{c.url}/resources")).json()}
-        assert (await get(c, who, f"{c.url}/resources/{artifact.name}")).status_code == 404
         assert (await get(c, who, f"{c.url}/resources/{artifact.name}/revisions")).status_code == 404
 
 
@@ -451,17 +445,15 @@ async def counts(c) -> dict[str, int]:
 
 # method, path suffix, JSON body (None: a raw body), exact refusal wanted (False: any non-success)
 WRITES = [
+    # The resource, report and report-publication writes are removed since M9.6 (test_removed_operations.py).
     ("POST", "/cases", {"slug": "intruder", "name": "Intruder"}, True),
-    ("POST", "/resources", {"slug": "intruder", "name": "Intruder", "kind": "qos-offerings"}, True),
     ("POST", "/collections", {"slug": "intruder", "name": "Intruder"}, True),
-    ("POST", "/reports", {"slug": "intruder", "title": "Intruder", "document": {}}, True),
     ("PATCH", "", {"name": "Hijacked", "visibility": "private"}, True),
     ("PATCH", "/cases/{case}", {"name": "Hijacked"}, True),
     ("DELETE", "", None, True),
     ("DELETE", "/cases/{case}", None, True),
     ("DELETE", "/blobs/{public_blob}", None, True),
     ("DELETE", "/publications/live", None, True),
-    ("DELETE", "/reports/frozen-public", None, True),
     ("POST", "/studies/nothing/runs", None, True),
     ("POST", "/blobs", None, False),
     ("POST", "/package", None, False),

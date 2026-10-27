@@ -11,6 +11,7 @@ from openbinding_gateway import space_client
 from openbinding_gateway.collaboration import sponsor_usage
 from openbinding_gateway.db.models import Organization
 from _pricing import fake_pricing_gate, largest_plan
+import _m96_seed as seed
 
 LARGER_PLAN = largest_plan()
 
@@ -171,47 +172,6 @@ async def test_sponsor_transfer_validates_and_moves_the_whole_tree_atomically(
     assert usage["members"] == 2
 
 
-async def test_project_resources_have_immutable_deduplicated_revisions(
-    api_client, registration, platform_gate
-) -> None:
-    owner, headers = await account(api_client, registration)
-    organization = await api_client.post(
-        "/v1/organizations",
-        headers=headers,
-        json={"slug": f"resources-{uuid.uuid4().hex[:8]}", "name": "Resource lab"},
-    )
-    project = await api_client.post(
-        f"/v1/organizations/{organization.json()['slug']}/projects",
-        headers=headers,
-        json={"slug": "binding-data", "name": "Binding data", "visibility": "private"},
-    )
-    assert project.status_code == 201, project.text
-    created = await api_client.post(
-        f"/v1/organizations/{organization.json()['slug']}/projects/binding-data/resources",
-        headers=headers,
-        json={"slug": "providers", "name": "Provider catalogue", "kind": "qos-offerings"},
-    )
-    assert created.status_code == 201, created.text
-    endpoint = (
-        f"/v1/organizations/{organization.json()['slug']}/projects/binding-data/"
-        "resources/providers/revisions"
-    )
-    document = {"apiVersion": "openbinding.dev/qos-binding/v1", "providers": ["alpha"]}
-    first = await api_client.post(endpoint, headers=headers, json={"document": document})
-    duplicate = await api_client.post(endpoint, headers=headers, json={"document": document})
-    second = await api_client.post(
-        endpoint,
-        headers=headers,
-        json={"document": {**document, "providers": ["alpha", "beta"]}},
-    )
-    listed = await api_client.get(endpoint, headers=headers)
-
-    assert first.status_code == duplicate.status_code == second.status_code == 201
-    assert duplicate.json()["id"] == first.json()["id"]
-    assert [row["revision"] for row in listed.json()] == [1, 2]
-    assert first.json()["digest"].startswith("sha256-")
-
-
 async def test_delete_project_and_organization_lifecycle(
     api_client, registration, platform_gate
 ) -> None:
@@ -325,34 +285,20 @@ async def test_sealed_reports_protect_project_and_organization_history(
     )
     assert case_res.status_code == 201
 
-    # 5. Create report in project
-    rep_res = await api_client.post(
-        f"/v1/organizations/{child_slug}/projects/nested-proj/reports",
-        headers=owner_headers,
-        json={
-            "slug": "report-1",
-            "title": "Initial Report",
-            "document": {"summary": "Execution report"},
-        },
-    )
-    assert rep_res.status_code == 201
-    report_data = rep_res.json()
-
-    # Seal real library content through the same path used by the application.
+    # 5. Seal and publish a report in the project. The report editor and its publication route are removed
+    # since M9.6, so the report is sealed by the internal services (reports.create_report_context and
+    # reports.seal_report) and published with the rows the removed route wrote.
     document = {'provenance': {
         'study': {'reference': 'urn:test:editorial-study', 'digest': 'sha256-' + 'a' * 64},
         'datasets': [{'reference': 'urn:test:external-dataset', 'digest': 'sha256-' + 'b' * 64}],
         'software': [{'name': 'test', 'version': '1', 'digest': 'sha256-' + 'c' * 64}],
         'bimVersion': 'bim/v1', 'engineRevisions': ['sha256-' + 'd' * 64], 'parameters': {},
     }}
-    edited = await api_client.patch(f"/v1/organizations/{child_slug}/projects/nested-proj/reports/report-1",
-        headers=owner_headers, json={'document': document, 'draft_revision': report_data['draft_revision']})
-    assert edited.status_code == 200, edited.text
-    sealed = await api_client.post(f"/v1/organizations/{child_slug}/projects/nested-proj/reports/report-1/freeze", headers=owner_headers)
-    assert sealed.status_code == 200, sealed.text
-    published = await api_client.post(f"/v1/organizations/{child_slug}/projects/nested-proj/publications", headers=owner_headers,
-        json={'report_id': report_data['id'], 'version_id': sealed.json()['version_id'], 'slug': 'pub-1'})
-    assert published.status_code == 201, published.text
+    nested = await seed.project_by_slugs(db_session, child_slug, "nested-proj")
+    report = await seed.report(db_session, nested, owner["id"], slug="report-1", title="Initial Report",
+                               document=document, freeze=True)
+    assert report.version_id is not None
+    await seed.report_publication(db_session, report, owner["id"], slug="pub-1")
 
     # 7. A project containing publication history cannot be deleted.
     del_proj = await api_client.delete(
