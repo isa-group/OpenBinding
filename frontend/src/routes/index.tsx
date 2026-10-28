@@ -2,8 +2,10 @@ import { Navigate, Route, Routes, useParams, useSearchParams } from 'react-route
 import { AppLayout } from '../layouts/AppLayout';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { ProtectedRoute } from '../components/ProtectedRoute';
+import { layoutFor } from './define';
+import type { MovedRoute } from './moved';
 import { NotFoundScreen } from './NotFoundScreen';
-import { routeDefinitions } from './registry';
+import { movedRoutes, routeDefinitions } from './registry';
 import { RETIRED_ROUTES, type RetiredRoute } from './retiredRoutes';
 import { SessionLayout } from './SessionLayout';
 import type { RouteDefinition } from './types';
@@ -14,6 +16,13 @@ import type { RouteDefinition } from './types';
 // [impl->req~frontend-retire-composer-redirect~1]
 // [impl->req~frontend-retire-sponsorship-redirect~1]
 function RetiredRedirect({ route }: { route: RetiredRoute }) {
+  const [query] = useSearchParams();
+  const params = useParams();
+  return <Navigate to={route.target(query, params)} replace />;
+}
+
+// [impl->req~frontend-nav-redirects~1]
+function MovedRedirect({ route }: { route: MovedRoute }) {
   const [query] = useSearchParams();
   const params = useParams();
   return <Navigate to={route.target(query, params)} replace />;
@@ -34,12 +43,22 @@ const publicScreens = routeDefinitions.filter((definition) => definition.layout 
 const sessionScreens = routeDefinitions.filter((definition) => definition.layout === 'public' && definition.sessionHeader);
 const appScreens = routeDefinitions.filter((definition) => definition.layout === 'app');
 
-export function AppRoutes() {
+interface AppRoutesProps {
+  /** The moved addresses to serve; the registry's by default. A test passes its own table. */
+  moved?: readonly MovedRoute[];
+}
+
+export function AppRoutes({ moved = movedRoutes }: AppRoutesProps = {}) {
+  const movedUnderApp = moved.filter((route) => layoutFor(route.path) === 'app');
+  const movedPublic = moved.filter((route) => layoutFor(route.path) === 'public');
   return (
     <Routes>
       <Route element={<PublicLayout />}>
         {publicScreens.map((definition) => (
           <Route key={definition.id} path={definition.path} element={screenElement(definition)} />
+        ))}
+        {movedPublic.map((route) => (
+          <Route key={route.id} path={route.path} element={<MovedRedirect route={route} />} />
         ))}
         <Route path="*" element={<NotFoundScreen />} />
       </Route>
@@ -56,6 +75,9 @@ export function AppRoutes() {
             the table order settles the tie: /app/<org>/library/reports is the library artifact `reports`, not a report list. */}
         {RETIRED_ROUTES.map((route) => (
           <Route key={route.id} path={route.path} element={<RetiredRedirect route={route} />} />
+        ))}
+        {movedUnderApp.map((route) => (
+          <Route key={route.id} path={route.path} element={<MovedRedirect route={route} />} />
         ))}
       </Route>
     </Routes>

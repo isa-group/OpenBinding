@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Organization, Project } from '../../api/platform';
-import { routeDefinitions, routesByDomain } from '../../routes/registry';
+import { routeDefinitions, routesByArea } from '../../routes/registry';
 import { accountLinks, createItems, currentSection, isToolActive, mainLinks, toolLinks, type MainSection } from './appNavigation';
 
-/** The entry of the main navigation each screen of routes/d1..d8 belongs to. Every other screen leaves them all unmarked. */
+/** The entry of the main navigation each screen of the registry (routes/areas) belongs to. Every other screen leaves them all unmarked. */
 const SECTION_OF: Record<string, readonly string[]> = {
   home: ['app-home', 'org-create', 'org-overview', 'org-settings', 'org-members', 'org-audit', 'proj-create', 'proj-overview'],
   jobs: ['job-launch', 'job-list', 'job-detail', 'job-history'],
@@ -56,8 +56,8 @@ describe('currentSection', () => {
     for (const listed of Object.values(SECTION_OF)) for (const id of listed) expect(ids.has(id), id).toBe(true);
   });
 
-  it.each(Object.keys(routesByDomain))('marks the entry of every screen of domain %s', (domain) => {
-    const screens = routesByDomain[domain as keyof typeof routesByDomain];
+  it.each(Object.keys(routesByArea))('marks the entry of every screen of area %s', (area) => {
+    const screens = routesByArea[area as keyof typeof routesByArea];
     expect(screens.length).toBeGreaterThan(0);
     for (const screen of screens) {
       expect(currentSection(example(screen.path)), `${screen.id} ${screen.path}`).toBe(expectedSection(screen.id));

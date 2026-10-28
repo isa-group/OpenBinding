@@ -1,38 +1,42 @@
-import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { countLiveCalls, readAreaSources, readMovedAddresses } from './helpers/galleryRoutes';
 
-// Visits every screen of the route registry (src/routes/d1.tsx .. d8.tsx) with example parameter values.
+// Visits every screen of the route registry (src/routes/areas/*.tsx) with example parameter values, and every moved address
+// (`moved('id', '/from', '/to'…` lines of the same files) to see that it ends on its new address.
 // There is no backend: the API origin is answered by page.route(), signed in only for /app screens.
 
 const API = 'http://localhost:8000';
-const DOMAIN_FILES = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8'];
 
 interface Screen {
   id: string;
   path: string;
   requireAdmin: boolean;
-  domain: string;
+  area: string;
 }
 
-/** Reads `live('id', '/path', …)` lines from the domain files. */
+/** Reads `live('id', '/path', …)` lines from the area files. */
 function readRegistry(): Screen[] {
-  return DOMAIN_FILES.flatMap((domain) => {
-    const source = readFileSync(new URL(`../src/routes/${domain}.tsx`, import.meta.url), 'utf8');
-    return [...source.matchAll(/^\s*live\('([a-z0-9-]+)',\s*'(\/[^']*)'(.*)$/gm)].map((match) => ({
-      id: match[1],
-      path: match[2],
-      requireAdmin: match[3].includes('requireAdmin: true'),
-      domain: domain.toUpperCase(),
-    }));
-  });
+  return readAreaSources().flatMap(({ area, source }) => [...source.matchAll(/^\s*live\('([a-z0-9-]+)',\s*'(\/[^']*)'(.*)$/gm)].map((match) => ({
+    id: match[1],
+    path: match[2],
+    requireAdmin: match[3].includes('requireAdmin: true'),
+    area,
+  })));
 }
 
 const screens = readRegistry();
+const movedAddresses = readMovedAddresses();
 
 const exampleUrl = (path: string) => path
   .replace(':org', 'isa-demo')
   .replace(':project', 'qos')
   .replace(/:[A-Za-z]+/g, 'sample');
+
+/** Example values for a moved address: the organization and the project the mock knows, every other parameter its own name. */
+const namedUrl = (path: string) => path
+  .replace(':org', 'isa-demo')
+  .replace(':project', 'qos')
+  .replace(/:([A-Za-z]+)/g, '$1');
 
 const account = (role: 'user' | 'admin') => ({
   id: 'smoke-user-id',
@@ -86,20 +90,21 @@ function watchCriticalErrors(page: Page) {
 }
 
 test.describe('route registry', () => {
-  test('lists all 69 screens of the prototype', () => {
-    expect(screens).toHaveLength(69);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(69);
-    expect(new Set(screens.map((screen) => screen.path)).size).toBe(69);
+  test('lists every screen of the area files, each with its own id and path', () => {
+    expect(screens.length).toBeGreaterThan(0);
+    expect(screens).toHaveLength(countLiveCalls());
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(screens.length);
+    expect(new Set(screens.map((screen) => screen.path)).size).toBe(screens.length);
     expect(screens.filter((screen) => screen.requireAdmin).every((screen) => screen.id.startsWith('admin-'))).toBe(true);
   });
 });
 
 // One worker: every page is light (the API is a mock), and eight browsers asking one development server for the same cold
-// modules at once is slower and flakier than one after another (69 pages take about a minute and a half in turn).
+// modules at once is slower and flakier than one after another (the pages take a minute or two in turn).
 test.describe.configure({ mode: 'serial' });
 
 for (const screen of screens) {
-  test(`${screen.domain} ${screen.id} ${screen.path} loads`, async ({ page }) => {
+  test(`${screen.area} ${screen.id} ${screen.path} loads`, async ({ page }) => {
     test.setTimeout(90_000);
     const underApp = screen.path === '/app' || screen.path.startsWith('/app/');
     const critical = watchCriticalErrors(page);
@@ -120,5 +125,27 @@ for (const screen of screens) {
     // A signed-in session is never bounced to the sign-in page, and nothing blew up.
     if (underApp) expect(new URL(page.url()).pathname).not.toBe('/login');
     expect(critical, `${screen.path} should not raise critical console errors`).toEqual([]);
+  });
+}
+
+for (const address of movedAddresses) {
+  test(`${address.area} moved ${address.id} ${address.from} -> ${address.to}`, async ({ page }) => {
+    test.setTimeout(90_000);
+    const isApp = (path: string) => path === '/app' || path.startsWith('/app/');
+    const admin = /^\/app\/admin(\/|$)/.test(address.to);
+    await mockApi(page, isApp(address.from) || isApp(address.to) ? (admin ? 'admin' : 'user') : null);
+
+    const start = namedUrl(address.from);
+    await page.goto(start, { waitUntil: 'domcontentloaded' });
+
+    if (address.customTarget) {
+      // The target is computed: only the old address has to be left behind.
+      await expect.poll(() => new URL(page.url()).pathname, { timeout: 30_000 }).not.toBe(new URL(start, 'http://localhost').pathname);
+      return;
+    }
+    // The old address is replaced by the new one, each parameter keeping its own value.
+    const expected = new URL(namedUrl(address.to), 'http://localhost');
+    await expect.poll(() => new URL(page.url()).pathname, { timeout: 30_000 }).toBe(expected.pathname);
+    if (expected.search) expect(new URL(page.url()).search).toContain(expected.search);
   });
 }

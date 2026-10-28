@@ -1,6 +1,7 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { routeDefinitions } from './registry';
+import type { MovedRoute } from './moved';
+import { movedRoutes, routeDefinitions } from './registry';
 import { RETIRED_ROUTES } from './retiredRoutes';
 
 /** The text of every string and template literal of a source, comments skipped. A template keeps its `${…}` as written. */
@@ -89,18 +90,32 @@ function patternsOf(path: string): RegExp[] {
  * whose endpoints are not addresses of the application. The file `routes/retiredRoutes.tsx` (and no other) is exempt.
  * Known limit: an address built from pieces is not seen.
  */
-export function retiredAddresses(sources: Record<string, string>, retiredPaths: readonly string[]): string[] {
+export function retiredAddresses(
+  sources: Record<string, string>,
+  retiredPaths: readonly string[],
+  declares: (name: string) => boolean = (name) => name === 'routes/retiredRoutes.tsx',
+): string[] {
   const hits: string[] = [];
   const all = retiredPaths.map(patternsOf);
   for (const [file, text] of Object.entries(sources)) {
     const name = file.replace(/^(\.\.\/|src\/)/, '');
-    if (name === 'routes/retiredRoutes.tsx') continue;
+    if (declares(name)) continue;
     const patterns = name.startsWith('api/') ? all.map(([whole]) => [whole]) : all;
     for (const literal of literalsOf(text)) {
       if (patterns.some((list) => list.some((pattern) => pattern.test(literal)))) hits.push(`${file}: ${literal}`);
     }
   }
   return hits;
+}
+
+// [impl->req~frontend-nav-redirects~1]
+/**
+ * Like `retiredAddresses`, for the old addresses of the moved routes (`moved.ts`): the code must link to the new address. An entry marked
+ * `permanent: true` is left out, and so are the files that declare moved routes (the area files and `routes/moved.ts`).
+ */
+export function movedAddresses(sources: Record<string, string>, table: ReadonlyArray<Pick<MovedRoute, 'path' | 'permanent'>>): string[] {
+  const paths = table.filter((route) => !route.permanent).map((route) => route.path);
+  return retiredAddresses(sources, paths, (name) => name === 'routes/moved.ts' || name.startsWith('routes/areas/'));
 }
 
 /** Every source file that is not a test, as text. */
@@ -112,7 +127,11 @@ const sources = import.meta.glob<string>(['../**/*.{ts,tsx}', '!../**/*.test.{ts
  */
 const LINK = /(?:\bto|\bhref|\bfrom)\s*(?:=\s*\{?|:\s*)(['"`])(\/[^'"`]*)\1|\bnavigate\(\s*(['"`])(\/[^'"`]*)\3/g;
 
-const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+/** The screens, and the old addresses that stay valid on purpose (`permanent`): a link may lead to either. */
+const config = [
+  ...routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path })),
+  ...movedRoutes.filter((route) => route.permanent).map((route) => ({ id: route.id, path: route.path })),
+];
 
 /** The route an address leads to, with the query, the hash and any `${…}` filled in by an example value. */
 const pathOf = (address: string) => address.replace(/\$\{[^}]*\}/g, 'sample').split(/[?#]/)[0];
@@ -132,7 +151,7 @@ describe('internal links written in the code', () => {
     expect(addresses).toContain('/app/jobs');
   });
 
-  it('resolve to a screen of routes/d1..d8', () => {
+  it('resolve to a screen of routes/areas, or to a permanent moved address', () => {
     // Where one `${…}` stands for more than one segment: the engine slug of a resolved location is `namespace/name`.
     const composed = new Set(['/engines/${slug}/${location.version_or_revision}']);
     const lost = staticLinks()
@@ -398,6 +417,42 @@ describe('the scan for retired addresses', () => {
     const sponsorship = RETIRED_ROUTES.filter((route) => route.slice === 5).map((route) => route.path);
     expect(sponsorship).toEqual(['/app/admin/organizations/:org/sponsor']);
     expect(retiredAddresses(application, sponsorship)).toEqual([]);
+  });
+
+  describe('for the moved addresses', () => {
+    const table = [
+      { path: '/app/:org/:project/files' },
+      { path: '/app/:org/:project/package', permanent: true },
+      { path: '/old', permanent: false },
+    ];
+    const scanMoved = (file: string, text: string) => movedAddresses({ [file]: text }, table);
+
+    // [utest->req~frontend-nav-redirects~1]
+    it('finds a link to an old address, written with values or with ${…} for the parameters', () => {
+      expect(scanMoved('pages/X.tsx', 'const a = `/app/${org}/${project}/files`;')).toEqual(['pages/X.tsx: /app/${org}/${project}/files']);
+      expect(scanMoved('pages/X.tsx', "const a = '/app/acme/atlas/files?x=1';")).toEqual(['pages/X.tsx: /app/acme/atlas/files?x=1']);
+      expect(scanMoved('pages/X.tsx', "const a = '/old/page';")).toEqual(['pages/X.tsx: /old/page']);
+    });
+
+    // [utest->req~frontend-nav-redirects~1]
+    it('lets an entry marked permanent be linked, and does not report look-alikes', () => {
+      expect(scanMoved('pages/X.tsx', 'const a = `/app/${org}/${project}/package`;')).toEqual([]);
+      expect(scanMoved('pages/X.tsx', "const a = '/app/acme/atlas/filesx'; const b = '/older';")).toEqual([]);
+    });
+
+    // [utest->req~frontend-nav-redirects~1]
+    it('exempts the files that declare moved routes and no other', () => {
+      const declaration = "moved('m', '/app/:org/:project/files', '/app/:org/:project');";
+      expect(scanMoved('routes/areas/project.tsx', declaration)).toEqual([]);
+      expect(scanMoved('routes/moved.ts', declaration)).toEqual([]);
+      expect(scanMoved('pages/areas/project.tsx', declaration)).toHaveLength(1);
+      expect(scanMoved('routes/index.tsx', declaration)).toHaveLength(1);
+    });
+  });
+
+  // [utest->req~frontend-nav-redirects~1]
+  it('finds none in the application sources, for the moved addresses that are not permanent', () => {
+    expect(movedAddresses(application, movedRoutes)).toEqual([]);
   });
 
   // [utest->req~frontend-retire-reports-no-link~1]

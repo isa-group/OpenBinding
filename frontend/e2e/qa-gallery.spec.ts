@@ -1,11 +1,11 @@
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
-import { readGalleryScreens, type GalleryScreen } from './helpers/galleryRoutes';
+import { countLiveCalls, readGalleryScreens, type GalleryScreen } from './helpers/galleryRoutes';
 import { installMockApi } from './helpers/mockApi';
 import { measurePage, prepareCapture, waitUntilSettled, type PageMeasure } from './helpers/pageChecks';
 
-// QA gallery: one picture of the first screenful of every screen of the registry (src/routes/d1.tsx .. d8.tsx), on a desktop and on a
+// QA gallery: one picture of the first screenful of every screen of the registry (src/routes/areas/*.tsx), on a desktop and on a
 // phone, saved to <QA_GALLERY_DIR>/<desktop|mobile>/<screen-id>.png for a person to review. QA_GALLERY_DIR defaults to
 // frontend/node_modules/.cache/qa-gallery/screenshots/: the pictures are review material, not part of the repository.
 //
@@ -199,9 +199,10 @@ async function freezeProbeTimes(page: Page) {
 const sessionOf = (screen: GalleryScreen) => (screen.underApp || screen.sessionHeader ? 'admin' : 'none');
 
 test.describe('gallery registry', () => {
-  test('lists all 69 screens of the prototype', () => {
-    expect(screens).toHaveLength(69);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(69);
+  test('lists every screen of the area files', () => {
+    expect(screens.length).toBeGreaterThan(0);
+    expect(screens).toHaveLength(countLiveCalls());
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(screens.length);
   });
 });
 
