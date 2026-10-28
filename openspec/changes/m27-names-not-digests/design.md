@@ -1,6 +1,7 @@
 # Design: m27-names-not-digests
 
-Status: specified, not built. Fixed inputs:
+Status: built. The spec follows the code. This document describes the code and tests listed in §6, and every
+requirement and scenario of the delta describes what they do. Fixed inputs:
 - ROADMAP M2.7;
 - INTENT principle 13;
 - constitution 15.5 and 11.1;
@@ -8,31 +9,36 @@ Status: specified, not built. Fixed inputs:
   rows) and §5.4;
 - the coordinator's split of M2.7 into this change and a second, call-site change after M2.6 merges.
 
-The base commit for every count below is `1c31b9d4`.
-
 ## 1. Scope and ownership
 
 | In this change | Owner afterwards |
 |---|---|
-| `frontend/src/shared/lib/identity.ts` (new) | screens, through the second M2.7 change |
-| `containsIdentifier` in `frontend/src/utils/digest.ts` (one new export) | the three modules below |
-| `frontend/src/components/CitationPanel/**` (new) | problem, collection and published-result pages (second change) |
-| `frontend/src/components/VerifyResult/**` (new) | the Verify page (M2.6 builds the page; the second change mounts the component) |
+| `frontend/src/shared/lib/identity.ts` and `identity.test.ts` (new) | screens, through the second M2.7 change |
+| `frontend/src/components/CitationPanel/**` (new: `CitationPanel.tsx`, `CitationPanel.css`, `citationModel.ts`, `index.ts`, `CitationPanel.test.tsx`) | problem, collection and published-result pages (second change) |
+| `frontend/src/components/VerifyResult/**` (new: `VerifyResult.tsx`, `VerifyResult.css`, `verifyModel.ts`, `index.ts`, `VerifyResult.test.tsx`) | the Verify page (M2.6 builds the page; the second change mounts the component) |
 | `frontend/src/test/digestHygiene.test.ts` (new) | every change; the second change empties its pending list |
+| root `.gitignore`, one line: `!/frontend/src/shared/lib/` (line 18) | repository |
 
-Nothing here edits a page, `shortDigest`, `digestPrefix`, `utils/citation.ts`, `rawRenderingAllowList.ts` or
-`rawRenderingHygiene.test.ts`. The new components contain no `<pre>` and render no `JSON.stringify` output, so the
-raw-rendering hygiene test needs no entry for them.
+The `.gitignore` line is needed because the root file carries the Python template rule `lib/` (line 17), which would
+ignore every directory named `lib`, `frontend/src/shared/lib/` included. The exception re-includes only that
+directory.
 
-Placement: the coordinator fixed the component paths at `components/CitationPanel` and `components/VerifyResult`, not
-`components/rendering/**`. The two are the only components allowed to show a digest, and a directory of their own
-lets the hygiene test exempt them by path prefix.
+Nothing here edits a page, `utils/digest.ts` (`shortDigest`, `digestPrefix`, `DIGEST_PATTERN`), `utils/citation.ts`,
+the shared `components/ui/CopyField` and `useCopy`, `rawRenderingAllowList.ts` or `rawRenderingHygiene.test.ts`. The
+new components contain no `<pre>` and render no `JSON.stringify` output on screen. No page imports them yet: the only
+file outside the two directories that names them is the hygiene test.
+
+Placement: the components live at `components/CitationPanel` and `components/VerifyResult`, each with an `index.ts`.
+They are the only components allowed to show a digest, and a directory of their own lets the hygiene test exempt them
+by path prefix.
 
 ## 2. Identity labels
 
 ### 2.1 Functions
 
-All six are pure. They read no clock, no locale and no time zone, and each returns a non-empty string.
+All six are exported, pure, read no clock, locale or time zone, and return a non-empty string. The input types
+`ProblemVersionInput`, `CollectionVersionInput`, `RunInput`, `StudyRunInput`, `PublishedResultInput` and
+`EngineInput` are exported too. Every field is optional and may be `null`.
 
 | Function | Input | Full label |
 |---|---|---|
@@ -43,12 +49,16 @@ All six are pure. They read no clock, no locale and no time zone, and each retur
 | `publishedResultLabel` | `{ title?, publishedAt? }` | `Engines versus the ICWS suite · published 22 Oct 2026` |
 | `engineLabel` | `{ name?, version?, mode? }` | `minizinc-csp 1.1.1 · mode exact` |
 
-Every field is optional and may be `null`. The inputs have no id, digest or fingerprint field, so a caller cannot
-pass one by name. §2.3 covers a value that is shaped like one.
+Types: names, titles, studies, engine versions and modes are strings; problem and collection versions and run and
+study-run numbers are `number | string`; `problemCount` is a number; dates are `string | number | Date`. The inputs
+have no id, digest or fingerprint field, so a caller cannot pass one by name. §2.4 covers a value shaped like one.
+
+The helpers `problemVersionParts`, `problemHead`, `text`, `positiveInteger`, `version`, `count`, `date`, `words`,
+`join` and `containsIdentifier` are private to the module.
 
 Considered: returning parts (`{ name, version, date }`) so that pages could put the name in `<code>`. Rejected: the
 labels are plain text in cards, headers and options. One string keeps call sites trivial, and a later revision can
-add a parts variant. The backticks in ARCHITECTURE §5.4 are Markdown, not output.
+add a parts variant.
 
 ### 2.2 Shape and degradation
 
@@ -67,344 +77,369 @@ Every other segment is dropped when all its fields are missing.
 The run label writes the engine as `minizinc-csp 1.1.1 exact`, without the word `mode`. The engine label writes
 `mode exact`. Both forms are as ARCHITECTURE §5.4 gives them.
 
+### 2.3 Missing values, versions and counts
+
 A field is missing when it is any of these:
 - `undefined` or `null`;
-- a string that is empty after trimming;
-- a version or a run or study-run number that is not a positive integer;
-- a problem count that is not a non-negative integer;
-- a date that `Date` cannot parse;
-- a text with an identifier in it (§2.3).
+- a text that is empty after trimming, or that contains an identifier (§2.4);
+- a problem or collection version, or a run or study-run number, that is not a positive integer;
+- a problem count that is not a non-negative integer number;
+- a date that is `''` or that `Date` cannot parse.
 
-Strings are trimmed. Engine versions and modes are strings shown as given (`1.0.0+builtin.a`). Counts use en-US
-grouping (`1,200 problems`). Version and run numbers use none (`run 1014`).
+Versions and run numbers accept a positive integer, or a string of digits with an optional leading `v` in any case
+(`'3'`, `'v3'`). A version is written `v<n>` once (`'v3'` gives `v3`, not `vv3`); `2.5`, `0` and `-1` are missing.
+Run and version numbers use no grouping (`run 1014`). Counts use en-US grouping (`1,200 problems`). Text fields are
+trimmed. Engine versions and modes are text, shown as given (`1.0.0+builtin.a`).
 
-### 2.3 Identifier-shaped values
+### 2.4 Identifier-shaped values
 
-A text field whose value contains `sha256-` (any case), a run of exactly 40 or exactly 64 hexadecimal characters not
-touching `[0-9A-Za-z_]`, or a UUID (`8-4-4-4-12` hexadecimal, any case) counts as missing, as a whole. This covers:
-- API fallbacks that put an id where a name should be (`title_or_name ?? id`);
-- today's short forms (`sha256-e5f6…0718` contains `sha256-`);
-- git SHAs (40 hex).
+A text field (name, title, study, engine name, engine version, engine mode) counts as missing, as a whole, when its
+trimmed value contains any of:
+- `sha256-` in any case;
+- a run of 40 or more hexadecimal characters in any case, with no lookarounds, so `build<64 hex>` and `x_<40 hex>`
+  are caught; a run of 39 is not;
+- a UUID (`8-4-4-4-12` hexadecimal, any case).
 
-### 2.4 The shared predicate
+This covers API fallbacks that put an id where a name should be (`title_or_name ?? id`), today's short forms
+(`sha256-e5f6…0718` contains `sha256-`), git SHAs (40 hex) and full digests.
 
-`containsIdentifier(text: string): boolean` is added to `frontend/src/utils/digest.ts`, next to `DIGEST_PATTERN`. The
-patterns live there because `utils/digest.ts` is an allowed path of the hygiene test (§5.2), while
-`shared/lib/identity.ts` is not and must pass the detector. If identity.ts held the patterns, it would be a finding.
-Building the pattern from pieces (`'sha' + '256-'`) to slip past the detector is not acceptable.
+The predicate `containsIdentifier` is private to `identity.ts`; nothing else in this change uses it, and
+`utils/digest.ts` is unchanged. `identity.ts` passes the hygiene detector of §5.3 because its regular-expression
+sources contain no `sha256-` followed by eight hexadecimal characters, no literal 40- or 64-character hexadecimal run
+and no literal UUID.
 
-`CitationPanel` and `VerifyResult` use the same predicate (§3.4, §4.3). The hygiene detector (§5.3) keeps its own
-line-based patterns. The B and D tests both run the sample table of §2.5, so the two definitions agree.
-
-### 2.5 Dates and the sample table
+### 2.5 Dates
 
 Dates are formatted in UTC as `<day> <Mon> <year>`. The day has no leading zero, and the month comes from the fixed
-table `Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec`. `Intl` `en-GB` is not used, because current ICU data writes
-September as `Sept`. The existing `utils/format.ts` `formatDate` (`Aug 20, 2026`) is not changed. Its callers stay
-as they are, and the second change decides whether the rest of the UI follows the §5.4 form (open question 3).
+table `Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec`. `Intl` is not used, because current ICU data writes
+September as `Sept` in `en-GB`. A string date-time without an offset (`YYYY-MM-DDTHH:MM`, optionally with seconds and
+fractions) gets `Z` appended before parsing, so it is read as UTC rather than local time; a date-only string is read
+as UTC by `Date` already. The existing `utils/format.ts` `formatDate` (`Aug 20, 2026`) is not changed (open
+question 3).
 
-Sample table for the exhaustive scenario. Each field is drawn from these seven values:
-1. a valid value;
-2. missing (`undefined`);
-3. `sha256-` + 64 × `a`;
-4. `sha256-e5f6…0718`;
-5. 40 × `e`;
-6. 64 × `0`;
-7. `3f2b9c1e-8a4d-4f6b-9c2e-1a2b3c4d5e6f`.
+### 2.6 The sample table
 
-These seven values are for text fields. Numeric fields take the valid value, missing, `0` and `-1`, and date fields
-take a valid ISO date, missing and `'soon'`. The test enumerates every combination. `runLabel` is the largest, with
-four text, two numeric and one date field: 7⁴ × 4² × 3 = 115,248 calls of a pure function, well within a unit test.
+The exhaustive test draws each field from these values:
+- text: `'valid'`, missing, `sha256-` + 64 × `a`, `sha256-e5f6…0718`, 40 × `e`, 64 × `0`,
+  `3f2b9c1e-8a4d-4f6b-9c2e-1a2b3c4d5e6f`;
+- numbers: `3`, missing, `0`, `-1`;
+- dates: `'2026-08-20T09:30:00Z'`, missing, `'soon'`.
+
+`runLabel` alone takes 7⁴ × 4² × 3 = 115,248 combinations; the test asserts more than 115,000 calls in all, and that
+no result is empty or matches `/sha256-/i`, `/[0-9a-f]{40}/i` or a UUID. It replaces a property-testing library,
+because this change adds no dependency.
 
 ## 3. CitationPanel
 
-### 3.1 Props
+### 3.1 Props and exports
 
 ```ts
-type CitationKind = 'problem version' | 'collection version' | 'published result';
-interface CitationPanelProps {
-  kind: CitationKind;
+interface CitationInput {            // citationModel.ts
   title: string;
-  /** Display names, in order. */
-  authors?: string[];
+  kindLabel: string;                 // the reader's word for the kind: 'problem', 'collection', ...
+  url: string;                       // the permanent link, by slug or permanent id
   year?: number | null;
-  /** Problem and collection versions. */
-  version?: number | null;
-  /** A permanent link built from permanent ids or slugs (ARCHITECTURE §5.4). */
-  permanentUrl: string;
-  /** The one digest: `sha256-` + 64 hexadecimal characters. */
-  digest: string;
-  headingLevel?: 2 | 3 | 4; // default 2
+  author?: string | null;            // one display string
+  version?: string | null;
+  cslType?: 'dataset' | 'document';  // default 'dataset'
+}
+interface CitationPanelProps extends CitationInput {
+  digest?: string | null;            // the one place the digest is shown; omitted when the record has none
 }
 ```
 
-The spec fixtures are:
-- `D`: `sha256-` followed by `e5f6` sixteen times;
-- `CITE`: `{ kind: 'problem version', title: 'checkout-flow', version: 3, authors: ['F. J. Cavero López', 'A. Ruiz-Cortés'], year: 2026, permanentUrl: 'https://openbinding.example/isa/qos/problems/checkout-flow/v3', digest: D }`.
+`index.ts` exports `CitationPanel`, `CitationPanelProps`, `buildPanelCitation`, `escapeBibtex`, `BuiltCitation` and
+`CitationInput`.
+
+The test fixtures are:
+- `DIGEST`: `sha256-` followed by `ab12` sixteen times;
+- `BASE`: `{ title: 'Travel booking', kindLabel: 'problem', url: 'https://openbinding.example/p/travel', year: 2026, author: 'ISA Group', version: '1.2.0' }`.
 
 ### 3.2 Layout
 
-The panel is a `<section>` named by its heading `Cite this <kind>`. It has four rows, then a status region:
+The panel is a `<section>` labelled by its `<h2>` `Cite and link` (fixed text and level). It holds up to three fields:
 
-1. `Permanent link`: the URL as a link (its name and `href` are the URL) and `Copy permanent link`.
-2. `Cite as`: the citation text and `Copy citation`.
-3. `Reference manager`: `Copy BibTeX`, `Download BibTeX`, `Copy CSL-JSON` and `Download CSL-JSON`. BibTeX and CSL-JSON
-   are not rendered as text. That keeps the panel light, and the digest in their `note` is not shown a second time.
-4. `Digest`: the full digest in `<code>` and `Copy digest`. This is the only copy button whose name contains `digest`.
-5. One status region (`role="status"`) for all copies. It reads `<thing> copied`, or `Could not copy the <thing>` when
-   the clipboard refuses. The things are `Permanent link`, `Citation`, `BibTeX`, `CSL-JSON` and `Digest`. Copies go
-   through `components/ui/useCopy`, and downloads through `components/rendering/download.ts` `saveText`.
+1. `Permanent link`: the shared `CopyField` (`components/ui/CopyField`) with the URL in `<code>` and a button named
+   `Copy permanent link`. The URL is text, not an anchor. CopyField has its own status (`permanent link copied` /
+   `Could not copy the permanent link`).
+2. `Cite as`: the citation text in a `<p>`, then three buttons `Copy citation`, `Copy BibTeX` and `Copy CSL-JSON`
+   (through `components/ui/useCopy`). For two seconds after a successful copy, the pressed button's text, and so its
+   accessible name, reads `Citation copied`, `BibTeX copied` or `CSL-JSON copied`. One visually hidden `role="status"`
+   reads `Citation copied` after any of the three, or `Could not copy the citation` when the clipboard refuses.
+3. `Digest`, only when `digest` is a non-empty string: a `CopyField` with the value in `<code>` and the button
+   `Copy digest`, with its own status (`digest copied` / `Could not copy the digest`).
 
-The digest is shown in full. A shortened form would bring `shortDigest` back, and a digest is copied or compared,
-not read. The CSS breaks it with `overflow-wrap: anywhere` so it fits 390 px, and the stylesheet uses design tokens
-only.
+BibTeX and CSL-JSON are copied, not rendered and not downloaded: the panel has no Download buttons.
 
-### 3.3 Formats
-
-Cite key: the last word of the first author, then the year (if any), then the first word of the title.
-- Each part is folded with NFD, lower case and only `[a-z0-9]` kept.
-- No author gives `openbinding`, and no usable title gives `untitled`.
-- `CITE` gives `lopez2026checkoutflow`.
-- The key never contains the digest. The key in `utils/citation.ts` carries 8 hexadecimal characters and is not
-  reused.
+### 3.3 Formats (`buildPanelCitation`)
 
 | Format | Content |
 |---|---|
-| Text | `<authors joined by ", " or OpenBinding> (<year or n.d.>). <title>[ (version <v>)]. OpenBinding <kind>. <permanentUrl>` |
-| BibTeX | `@misc{<key>,` then `title`, `author` (names joined by ` and `, or `OpenBinding`), `year` (if any), `version` (if any), `howpublished = {OpenBinding <kind>}`, `url`, `note = {SHA-256 digest <digest>}` (only with a full digest), aligned as in the spec scenario. The values are escaped with the existing BibTeX rules (`\ { } & % $ # _ ^ ~`). Saved as `<key>.bib`, `application/x-bibtex` |
-| CSL-JSON | `JSON.stringify([item], null, 2)`. `item` holds `id` (key), `type: 'dataset'`, `title`, `author` (`[{ literal }]`, omitted without authors), `issued` (`date-parts`, omitted without a year), `version` (string, if any), `genre` (the kind), `publisher: 'OpenBinding'`, `URL` and `note` (only with a full digest). Saved as `<key>.csl.json`, `application/vnd.citationstyles.csl+json` |
+| Text | `<author or OpenBinding> (<year or n.d.>). <title>[ (version <v>)]. OpenBinding <kindLabel>.` The URL is not part of the text. |
+| BibTeX | `@misc{<key>,` then `title`, `author` (`OpenBinding` without one), `year` (if any), `version` (if any), `howpublished = {OpenBinding <kindLabel>}` and `url`, names padded to 12 characters (`  title        = {…}`), joined by `,\n`, closed by `\n}`. Title, author, version and kind are escaped by `escapeBibtex`: `\` → `\textbackslash{}`, `^` → `\textasciicircum{}`, `~` → `\textasciitilde{}`, and `{ } & % $ # _` get a backslash. The URL is not escaped. |
+| CSL-JSON | `JSON.stringify([item], null, 2)` with `item` = `id` (the key), `type` (`cslType`, default `dataset`), `title`, `author` (`[{ literal }]`, `OpenBinding` without one), `publisher: 'OpenBinding'`, `genre` (the kind label), `URL`, then `issued` (`date-parts`, only with a year) and `version` (only with a version). |
 
-The formats come from a pure module `components/CitationPanel/citationFormats.ts`, tested on its own. It lives
-inside the exempt directory because it writes the digest into `note`.
+Cite key: the author lower-cased with every character outside `[a-z0-9]` removed (`openbinding` when none is left or
+there is no author), then the year if any, then the first word of the lower-cased title after removing characters
+outside `[a-z0-9 ]` (`record` when none). `BASE` gives `isagroup2026travel`. No format carries the digest: the panel
+shows it once, in its own field.
 
-### 3.4 Keeping the digest single
+### 3.4 Keeping the digest single, as built
 
-The panel's text content contains the full digest exactly once and no other identifier-shaped text:
-- a `digest` that is not a full digest (`DIGEST_PATTERN`) shows `No digest recorded`, with no copy button and no
-  `note`;
-- a title or an author for which `containsIdentifier` is true is treated as missing. The title becomes
-  `Untitled <kind>` and the author drops out of the list;
-- a `permanentUrl` for which `containsIdentifier` is true (today's `/resolve/<kind>/<digest>`) is not a permanent link
-  in the sense of §5.4. The panel shows the notice `This item has no permanent link yet` instead of the link, the
-  citation text and the reference-manager actions, and keeps the digest row.
+The digest appears in the panel only in the `Digest` field, because none of the three citation formats includes it.
+The panel does not check the shape of `digest` (any non-empty string is shown), and it does not inspect `url`,
+`title` or `author` for identifiers. A caller that passes a `/resolve/<kind>/<digest>` URL, or an id as a title,
+puts that identifier on screen. Hence the second change must pass slug or id links and names (§8, question 1).
 
-Considered:
-- showing the digest-bearing URL anyway, which puts the digest on screen twice;
-- masking the URL in the visible text only, so that the shown citation and the copied one differ.
+### 3.5 Stylesheet
 
-Both rejected. The cost of the chosen rule is that no page can mount the panel until it has a slug or id link
-(open question 1).
+`CitationPanel.css` uses tokens and no hexadecimal colour (`var(--tp-spacing-md, 1rem)`,
+`var(--color-text-secondary)`), with literal `rem` sizes for type and gaps. The citation text has
+`overflow-wrap: anywhere`. The link and the digest wrap through the shared `CopyField.css`
+(`.ui-copy-field code { overflow-wrap: anywhere }`), which this change does not edit. The test checks only the
+absence of hexadecimal colours.
 
 ## 4. VerifyResult
 
-### 4.1 Props
+### 4.1 Props and exports
 
 ```ts
-type VerifyInput = 'link' | 'digest' | 'file';
-type VerifyVerdict = 'verified' | 'computed' | 'mismatch' | 'not_found';
+interface VerifyResultVerdict {
+  status: VerifierStatus;            // 'verified' | 'computed' | 'mismatch' | 'not_found' (api/platform)
+  digest: string;                    // the fingerprint the server worked with
+  detail?: string | null;
+  entities?: VerifierEntity[];       // what the fingerprint resolves to (api/platform)
+}
 interface VerifyResultProps {
-  input: VerifyInput;
-  verdict: VerifyVerdict;
-  /** What the input resolves to, as an identity label (§2), with a link when the viewer may open it. */
-  resolvesTo: { label: string; href?: string } | null;
-  /** The input's digest: the one given, or the one computed from the file or the linked content. */
-  inputDigest: string | null;
-  /** The other side: the digest OpenBinding recorded, or the one the person expected. */
-  otherDigest: string | null;
-  /** Default `recorded`. */
-  against?: 'recorded' | 'expected';
+  verdict: VerifyResultVerdict;
+  computed?: string | null;          // the fingerprint the browser computed from a document or file
+  given?: string | null;             // the fingerprint the person typed
+  kindLabels?: Record<string, string>;                                // entity_type → reader's word
+  hrefOf?: (entity: VerifierEntity) => string | null | undefined;    // plain link address
+  renderLink?: (entity: VerifierEntity, label: string) => ReactNode; // a router link; wins over hrefOf
+  citation?: ReactNode;              // slot for the host's citation panel
 }
 ```
 
-The spec fixtures are:
-- `D1` and `D2`: two different full digests;
-- `PV`: `{ label: 'checkout-flow v3 · sealed 20 Aug 2026', href: '/app/isa/qos/problems/checkout-flow/v3' }`.
+`index.ts` exports `VerifyResult`, `VerifyResultProps`, `VerifyResultVerdict`, `VERDICTS` and `entityName`.
+`verifyModel.ts` also holds `sidesOf`, `disagrees` and `kindLabelOf`. The component renders. It does not fetch,
+compute or compare: the page maps the gateway's verifier answer (`VerifierVerdict`) onto the props.
 
-The component renders. It does not fetch, compute or compare. The page (M2.6, then the second change) maps the
-gateway's verifier and resolver answers onto these props, and `verdict` is the gateway's word.
+The test fixtures are:
+- `D1` = `sha256-` + `a1` × 32;
+- `D2` = `sha256-` + `b2` × 32;
+- `ID` = `3f2b8c1e-0000-4000-8000-123456789abc`;
+- `entity(extra)` = `{ entity_type: 'study_run', id: ID, title_or_name: 'Travel run', ...extra }`.
 
-### 4.2 Labels and wording
+### 4.2 Regions and wording
 
-| `verdict` | Title | Text |
-|---|---|---|
-| `verified` | `Verified` | `The digest matches what OpenBinding recorded.` |
-| `computed` | `Computed, not on record` | `The digest was computed, but OpenBinding has no record with it.` |
-| `mismatch` | `Doesn’t match` | `The two digests differ: the content was changed.` |
-| `not_found` | `Nothing found` | `OpenBinding has no record with this digest that you can see.` |
+The root is a `<div class="verify-result">` holding, in order, these parts:
 
-The four statuses come from today's `pages/Reports/Verifier.tsx`. The words "fingerprint" become "digest", the
-glossary term (INTENT §5). The title and text sit in a `role="status"` element. The glyph is `aria-hidden="true"`,
-and tone classes use tokens only, so meaning never rests on colour (constitution 11.1).
+1. **Verdict**: a `<section aria-label="Verdict" aria-live="polite">` with a glyph (`aria-hidden="true"`, a lucide
+   icon per status), the title in `<strong>`, the text in `<span>` and, when given, `detail` in `<small>`. The tone
+   class is `is-ok`, `is-info`, `is-bad` or `is-plain`. The meaning is in the words, never only in the colour
+   (constitution 11.1).
 
-| Side | Label | Copy button | Without a full digest |
-|---|---|---|---|
-| input, `digest` | `Digest you gave` | `Copy your digest` | `Not computed` |
-| input, `file` | `Computed from your file` | `Copy your digest` | `Not computed` |
-| input, `link` | `Computed from the linked content` | `Copy your digest` | `Not computed` |
-| other, `recorded` | `Recorded by OpenBinding` | `Copy the recorded digest` | `Nothing recorded` |
-| other, `expected` | `Digest you expected` | `Copy the expected digest` | `Nothing recorded` |
+   | `status` | Title | Text |
+   |---|---|---|
+   | `verified` | `Verified` | `The fingerprint is what OpenBinding recorded.` |
+   | `computed` | `Computed, not on record` | `We computed its fingerprint, but OpenBinding hasn’t recorded anything with it. That’s normal for drafts or local files.` |
+   | `mismatch` | `Doesn’t match` | `The content you gave hashes differently from the fingerprint you expected. It was changed somewhere along the way.` |
+   | `not_found` | `Nothing found` | `OpenBinding has no element recorded with this fingerprint that you can see. Someone else’s private item reads exactly like one that was never registered, so this doesn’t say which it is.` |
 
-`Resolves to <label>`, a link when `href` is given, or `Resolves to nothing on record` when `resolvesTo` is `null`.
-Copy outcomes go to one status region: `Your digest copied` / `Could not copy your digest`, and
-`Recorded digest copied` / `Expected digest copied` / `Could not copy the recorded digest` / `Could not copy the
-expected digest`.
+2. **Disagreement**: when `computed` is given, `status` is not `mismatch` and `computed` differs from
+   `verdict.digest`, a warning `Notice` (role `status`) titled `Your browser and the server disagree`: "They computed
+   different fingerprints for the same input. Don’t rely on either until that is explained."
 
-### 4.3 Keeping the digests to one per side
+3. **Two sides** (`sidesOf`):
 
-A side shows its value only when it is a full digest (`DIGEST_PATTERN`). Anything else shows the "without" text of
-§4.2, which covers a short form like `sha256-e5f6…0718`. A `resolvesTo.label` for which `containsIdentifier` is true
-reads `Resolves to a record`, and keeps its `href`. The region therefore holds at most two digest values, one per
-side, and no other identifier-shaped text. The digest `<code>` uses `overflow-wrap: anywhere`.
+   | Side | When | Label | Value |
+   |---|---|---|---|
+   | left | `computed` given | `Computed in your browser` | `computed` |
+   | left | otherwise | `Fingerprint you gave` | `given`, else `verdict.digest` |
+   | right | `status` is `mismatch` | `Fingerprint you expected` | `verdict.digest` |
+   | right | otherwise | `Recorded by OpenBinding` | `verdict.digest` when `entities` is non-empty, else none |
 
-Not here: the matches list, the citation card and the normalised-document source of today's Verifier. They stay on
-the page. The page can render `CitationPanel` beside `VerifyResult` once it has a permanent link.
+   A side with a value shows a `CopyField` whose button is named `Copy <label in lower case>` (`Copy recorded by
+   openbinding`, `Copy fingerprint you gave`, …), with its own status `<label in lower case> copied` / `Could not
+   copy the <label in lower case>`. A side without a value reads `nothing recorded` and has no button. So the
+   result shows at most two fingerprint values, one per side, and as many copy buttons. Values are shown as given;
+   their shape is not checked.
+
+4. **Matches**: when `entities` is non-empty, a `<section>` labelled by its `<h2>` `Matches`, with one item per
+   entity: a `Chip` with the kind (`kindLabels[entity_type]`, or `entity_type` with `_` read as a space), then the
+   name (`title_or_name` trimmed, else `slug` trimmed, else `unnamed element`) as `renderLink(entity, name)`, else an
+   `<a href>` from `hrefOf`, else `<strong>`. `organization_slug / project_slug` follows in `<small>` when both are
+   present. The entity `id` is never rendered.
+
+5. **Citation**: the `citation` node, as given.
+
+The wording keeps "fingerprint", the word of today's `pages/Reports/Verifier.tsx`, so the page reads the same when it
+switches to the component (open question 4).
+
+### 4.3 Stylesheet
+
+`VerifyResult.css` uses tokens and no hexadecimal colour: the tones use `var(--color-success)` and
+`var(--color-error)`, and labels use `var(--color-text-secondary)`. The sides sit in a grid of
+`minmax(16rem, 1fr)` columns. The values wrap through the shared `CopyField.css` (`overflow-wrap: anywhere`). The
+test checks only the absence of hexadecimal colours.
 
 ## 5. Digest hygiene test
 
+Everything in this section is in `frontend/src/test/digestHygiene.test.ts`; nothing is exported from it.
+
 ### 5.1 Scanned set
 
-The scan uses the same collection as `rawRenderingHygiene.test.ts`:
-- every `.ts` and `.tsx` under `frontend/src`, through `import.meta.glob(..., { query: '?raw' })`;
-- without `*.test.*`, `src/test/**` and test kits (`[Tt]estKit.tsx?`, `[Tt]estUtils.tsx?`).
+- `.ts`, `.tsx` and `.css` files under `frontend/src`. The `.ts` and `.tsx` files come through
+  `import.meta.glob(['/src/**/*.{ts,tsx,css}', '!/src/**/*.test.*'], { query: '?raw', eager: true })`. The stylesheets
+  are read from disk with `readdirSync`, because Vitest hands a `?raw` stylesheet over empty.
+- Without `*.test.*`, `/src/test/setup.ts`, `testKit.ts(x)` and `testUtils.ts(x)` / `TestUtils.ts(x)`.
+- Paths are the Vite keys, `/src/...`.
 
-Paths are relative to `frontend/src`.
+The test asserts that more than 100 files are read, and more than 50 are checked (outside the allowed set and the
+pending list).
 
-### 5.2 Allowed paths
+### 5.2 Allowed set
+
+One regular expression, unanchored at the start:
+`/\/src\/(components\/CitationPanel\/|components\/VerifyResult\/|components\/rendering\/(SourceView|LogPanel)|utils\/(digest|uuid|canonicalDigest|citation)|api\/|test\/)|[Ff]ixtures?\.ts$/`.
 
 | Path | Why |
 |---|---|
-| `components/CitationPanel/` (prefix, with the slash) | the one copyable digest (§5.4) |
-| `components/VerifyResult/` | one digest per side (§5.4) |
-| `components/rendering/SourceView.tsx`, `components/rendering/LogPanel.tsx` | files and logs as they are (§5.4) |
-| `utils/digest.ts`, `utils/uuid.ts`, `utils/canonicalDigest.ts` | the digest and UUID utilities |
-| `api/` | the API layer keeps every digest |
-| a path with a `fixtures/` segment, or a file name ending in `fixture.ts(x)`, `Fixture.ts(x)`, `fixtures.ts(x)` or `Fixtures.ts(x)` | fixtures. At `1c31b9d4` they are imported only by tests: `pages/Cases/fixtures.ts`, `pages/Pricing/pricingFixture.ts`, `pages/Project/packageFixture.ts` |
+| `/src/components/CitationPanel/`, `/src/components/VerifyResult/` | the one copyable digest, and one per side (§5.4 of ARCHITECTURE) |
+| `/src/components/rendering/SourceView…`, `/src/components/rendering/LogPanel…` (prefix) | files and logs as they are |
+| `/src/utils/digest…`, `/src/utils/uuid…`, `/src/utils/canonicalDigest…` (prefix) | the digest and UUID utilities, including `shortDigest` and `digestPrefix` |
+| `/src/utils/citation…` (prefix) | today's citation helper, which writes the digest into its citation text for the pages that the second change moves onto `CitationPanel`; the test treats it as a digest utility, not as a pending file (open question 2) |
+| `/src/api/` | the API layer keeps every digest |
+| `/src/test/` | test support |
+| a file name ending in `fixture.ts`, `fixtures.ts`, `Fixture.ts` or `Fixtures.ts` | fixtures, imported only by tests (`pages/Cases/fixtures.ts`, `pages/Pricing/pricingFixture.ts`, `pages/Project/packageFixture.ts`); `.tsx` fixtures and `fixtures/` directories are not covered |
 
-`utils/citation.ts` is not a digest utility. It writes the digest into the citation text, so it is pending.
+### 5.3 Detectors
 
-### 5.3 Detector
+The test greps each line of each checked file (comment lines included; there is no comment skipping) with three
+patterns. A finding is reported as `<path>:<line>  <trimmed line>`.
 
-The detector is line based, like `findRawRendering`, and exported from the test file as `findDigestText(text)`. It
-skips comment lines: a trimmed line that starts with `//`, `/*` or `*`, or that is wholly `{/* … */}`. Each remaining
-line gives at most one finding, of the first kind that matches, in this order:
-
-| Kind | Pattern (case-insensitive) |
+| Detector | Pattern |
 |---|---|
-| `digest` | `sha256-` |
-| `uuid` | `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}` |
-| `hex` | `(?<![0-9A-Za-z_])([0-9a-f]{64}\|[0-9a-f]{40})(?![0-9A-Za-z_])` |
-| `helper` | `\b(shortDigest\|digestPrefix)\b` |
+| digest literal | `sha256-` followed by 8 or more hexadecimal characters, or a run of exactly 40 or exactly 64 hexadecimal characters not touching another hexadecimal character: `/sha256-[0-9a-fA-F]{8,}\|(?<![0-9a-fA-F])(?:[0-9a-fA-F]{40}\|[0-9a-fA-F]{64})(?![0-9a-fA-F])/` |
+| UUID | `8-4-4-4-12` hexadecimal, any case, not touching another hexadecimal character |
+| helper | `\b(?:shortDigest\|digestPrefix)\b`: imports, aliases, re-exports and calls, whole words only |
 
-`helper` matches any non-comment line that names either function: import specifiers on their own lines, `as` aliases,
-re-exports and calls. That is a superset of "imports". Per-line detection needs no import parser, and the pending
-check works per file either way.
+The detector tests pin: a full digest, a bare 64-hex run, a 40-hex git SHA and a UUID are caught; an ordinary word, a
+12-hex string, the prose `sha256- followed by` and a 65-hex run are not; `digestPrefixes` is not a helper.
 
-Known limits, pinned by tests named `known limit: …`:
-- a trailing comment on a code line is read as code (reported);
-- a block comment whose inner lines do not start with `*` is read as code (reported);
-- a digest assembled from pieces is not reported;
-- an identifier that reaches the screen from data at runtime is not reported. ui-qa (G12) covers that in the second
-  change.
+Known limits, as built:
+- `sha256-` followed by fewer than 8 hexadecimal characters is not caught: `sha256-…`, `sha256-${…}` and today's
+  short form `sha256-e5f6…0718`;
+- a 40- or 64-hex run glued to letters outside `a-f` (`x_<hex>`) is caught; one glued to more hexadecimal
+  characters is not;
+- a comment line is read as code, so a digest written in a comment fails the suite;
+- an identifier that reaches the screen from data at runtime is not caught (ui-qa covers that in the second change);
+- a file on the pending list is not checked at all, so a new offence inside a pending file is not caught.
 
-### 5.4 Checks and messages
+### 5.4 Pending list semantics
 
-- `unlistedFindings(sources, pending)` returns one line per finding in a file that is neither allowed nor pending:
-  `<file>:<line>  <trimmed text>  — show a name (shared/lib/identity.ts), or the digest in CitationPanel or VerifyResult, instead of adding the file to the pending list`.
-- `stalePendingFiles(sources, pending)` returns one line per pending file with no finding, including a file that is no
-  longer in the sources:
-  `<file>  — no digest-shaped text or digest helper left: remove it from the pending list`.
-- `PENDING_FILES` (a sorted `readonly string[]`) and `MAX_PENDING_FILES = 45` are exported from the test file. The
-  coordinator asked for the list to live in the test, so there is no second module. The assertions:
-  - `PENDING_FILES.length <= MAX_PENDING_FILES`;
-  - no duplicates;
-  - no allowed path;
-  - the list equals the 45 paths below, an exact-list assertion that the second change rewrites as it removes
-    entries.
+`PENDING_CLEANUP` (a `readonly string[]` of `/src/...` paths) holds the pages and components that still offend.
+Pending files are left out of the check as a whole. The test asserts:
+- the list is sorted and has no duplicates;
+- every entry is a key of the scanned glob, so a path that no longer exists fails the suite and must be removed;
+- no entry matches the allowed set.
 
-### 5.5 The pending list at `1c31b9d4`
+The test does not assert a ceiling (there is no `MAX_PENDING_FILES`), an exact list or a count, and an entry that no
+longer offends does not fail the suite, because parallel changes may clean some files. "Entries are only removed,
+never added" is the rule written in the test's header comment, and review enforces it.
 
-Each file is marked with the reason it is listed: H (names `shortDigest`/`digestPrefix`) or T (digest-shaped text or
-a UUID only).
+### 5.5 The pending list as built
 
-| # | File (under `frontend/src`) | | # | File | |
-|---|---|---|---|---|---|
-| 1 | `components/Artifacts/ArtifactVersionPicker.tsx` | H | 24 | `pages/Profiles/Profiles.tsx` | H |
-| 2 | `pages/Account/AccountKeyNew.tsx` | H | 25 | `pages/Project/ProjectOverview.tsx` | H |
-| 3 | `pages/Account/keysModel.ts` | H | 26 | `pages/Project/ProjectPackage.tsx` | H |
-| 4 | `pages/Admin/AdminEngineReview.tsx` | H | 27 | `pages/Project/packageModel.ts` | H |
-| 5 | `pages/Admin/AdminModeration.tsx` | T | 28 | `pages/Public/PublicPages.tsx` | H |
-| 6 | `pages/Admin/AdminUserDetail.tsx` | T (UUID placeholder) | 29 | `pages/Public/exploreModel.ts` | H |
-| 7 | `pages/Cases/CaseDetail.tsx` | H | 30 | `pages/RegisterEngine/DeploymentForm.tsx` | H, T |
-| 8 | `pages/Cases/CaseList.tsx` | H | 31 | `pages/RegisterEngine/RegisterEngine.tsx` | H |
-| 9 | `pages/Cases/CaseRevision.tsx` | H | 32 | `pages/Reports/ProjPublications.tsx` | H |
-| 10 | `pages/Cases/SnapshotDetail.tsx` | H | 33 | `pages/Reports/Verifier.tsx` | T |
-| 11 | `pages/Cases/casesModel.ts` | H | 34 | `pages/Resolve/Resolve.tsx` | H, T |
-| 12 | `pages/EngineDetail/EngineDetail.tsx` | H | 35 | `pages/Resources/CollDetail.tsx` | H |
-| 13 | `pages/Engines/EngRegistrationDetail.tsx` | H | 36 | `pages/Resources/ProjFiles.tsx` | H |
-| 14 | `pages/Engines/EngRegistrations.tsx` | H | 37 | `pages/Resources/collectionModel.ts` | H |
-| 15 | `pages/Engines/Engines.tsx` | H | 38 | `pages/Resources/resourceModel.ts` | H |
-| 16 | `pages/Engines/LangExtensions.tsx` | H | 39 | `pages/Studies/BuilderFields.tsx` | H |
-| 17 | `pages/Engines/MyDeployments.tsx` | H | 40 | `pages/Studies/StudyAnalytics.tsx` | H |
-| 18 | `pages/Engines/enginesModel.ts` | H | 41 | `pages/Studies/StudyRun.tsx` | H |
-| 19 | `pages/Examples/Examples.tsx` | T | 42 | `pages/Workbench/CheckResult.tsx` | H |
-| 20 | `pages/Generator/LabAside.tsx` | H | 43 | `pages/Workbench/WorkbenchResult.tsx` | H |
-| 21 | `pages/Jobs/JobFacts.tsx` | H | 44 | `pages/Workbench/resourceForms.tsx` | T |
-| 22 | `pages/Jobs/launchModel.ts` | H | 45 | `utils/citation.ts` | H, T |
-| 23 | `pages/Pricing/Pricing.tsx` | H | | | |
+40 files, grouped as in the test (paths under `frontend/src`):
 
-How the list was found: every file of §5.1 matched against the four patterns of §5.3, at `1c31b9d4`.
-- 40 files name the helpers: every non-test importer of `utils/digest.ts`'s `shortDigest`/`digestPrefix`.
-- 5 more files have only digest-shaped text or a UUID.
-- Fixtures, test kits, tests and the allowed paths are left out.
-- The comment-only mention in `pages/Jobs/launchModel.ts:151` is skipped. The file is listed for its import.
+| # | File | | # | File |
+|---|---|---|---|---|
+| 1 | `components/Artifacts/ArtifactVersionPicker.tsx` | | 21 | `pages/Pricing/Pricing.tsx` |
+| 2 | `pages/Account/AccountKeyNew.tsx` | | 22 | `pages/Profiles/Profiles.tsx` |
+| 3 | `pages/Account/keysModel.ts` | | 23 | `pages/Project/ProjectOverview.tsx` |
+| 4 | `pages/Admin/AdminEngineReview.tsx` | | 24 | `pages/Project/ProjectPackage.tsx` |
+| 5 | `pages/Admin/AdminUserDetail.tsx` | | 25 | `pages/Project/packageModel.ts` |
+| 6 | `pages/Cases/CaseDetail.tsx` | | 26 | `pages/Public/PublicPages.tsx` |
+| 7 | `pages/Cases/CaseList.tsx` | | 27 | `pages/Public/exploreModel.ts` |
+| 8 | `pages/Cases/CaseRevision.tsx` | | 28 | `pages/RegisterEngine/DeploymentForm.tsx` |
+| 9 | `pages/Cases/SnapshotDetail.tsx` | | 29 | `pages/RegisterEngine/RegisterEngine.tsx` |
+| 10 | `pages/Cases/casesModel.ts` | | 30 | `pages/Reports/ProjPublications.tsx` |
+| 11 | `pages/EngineDetail/EngineDetail.tsx` | | 31 | `pages/Resolve/Resolve.tsx` |
+| 12 | `pages/Engines/EngRegistrationDetail.tsx` | | 32 | `pages/Resources/CollDetail.tsx` |
+| 13 | `pages/Engines/EngRegistrations.tsx` | | 33 | `pages/Resources/ProjFiles.tsx` |
+| 14 | `pages/Engines/Engines.tsx` | | 34 | `pages/Resources/collectionModel.ts` |
+| 15 | `pages/Engines/LangExtensions.tsx` | | 35 | `pages/Resources/resourceModel.ts` |
+| 16 | `pages/Engines/MyDeployments.tsx` | | 36 | `pages/Studies/BuilderFields.tsx` |
+| 17 | `pages/Engines/enginesModel.ts` | | 37 | `pages/Studies/StudyAnalytics.tsx` |
+| 18 | `pages/Generator/LabAside.tsx` | | 38 | `pages/Studies/StudyRun.tsx` |
+| 19 | `pages/Jobs/JobFacts.tsx` | | 39 | `pages/Workbench/CheckResult.tsx` |
+| 20 | `pages/Jobs/launchModel.ts` | | 40 | `pages/Workbench/WorkbenchResult.tsx` |
 
-Group D re-derives the list on its base. If the base has moved, the list may only lose entries, or follow a rename
-made by a merged change. A new offender in a merged change is not added here. It goes to the coordinator (§7).
+Files that the first draft of this design listed and the test does not:
+- `pages/Reports/Verifier.tsx`, `pages/Admin/AdminModeration.tsx`, `pages/Examples/Examples.tsx` and
+  `pages/Workbench/resourceForms.tsx`. Their only digest-like text is `sha256-` followed by `…`, a space or a template
+  `${…}` (a message, a placeholder, a computed value). The digest-literal detector needs eight hexadecimal characters
+  after `sha256-`, and none of them names a helper, so they pass unlisted.
+- `utils/citation.ts`, which is in the allowed set (§5.2).
 
 ## 6. Requirements, tests and tags
 
-| Requirement | Tests | `[impl->…]` |
+| Requirement | Tests (`[utest->…]`) | Code (`[impl->…]`) |
 |---|---|---|
-| `identity-labels` | `shared/lib/identity.test.ts` (new); `utils/digest.test.ts` (`containsIdentifier`, on the §2.5 table) | `shared/lib/identity.ts`, `utils/digest.ts` (`containsIdentifier`) |
-| `citation-panel` | `components/CitationPanel/CitationPanel.test.tsx`, `components/CitationPanel/citationFormats.test.ts` (new) | `CitationPanel.tsx`, `citationFormats.ts` |
-| `verify-result` | `components/VerifyResult/VerifyResult.test.tsx` (new) | `VerifyResult.tsx` |
-| `digest-hygiene` | `test/digestHygiene.test.ts` (the detector and checks are in the test file, as in M2.2) | `test/digestHygiene.test.ts` (`PENDING_FILES`, `findDigestText`) |
+| `identity-labels` | `shared/lib/identity.test.ts`, every case | `shared/lib/identity.ts` (file header) |
+| `citation-panel` | `components/CitationPanel/CitationPanel.test.tsx`, every case (the component and `buildPanelCitation`) | `CitationPanel.tsx` (`CitationPanel`), `citationModel.ts` (`buildPanelCitation`) |
+| `verify-result` | `components/VerifyResult/VerifyResult.test.tsx`, every case | `VerifyResult.tsx` (`VerifyResult`) |
+| `digest-hygiene` | `test/digestHygiene.test.ts` (file header) | none: no `[impl->req~digest-hygiene~1]` tag exists. The detectors and the pending list live in the test file, as in M2.2 |
 
-Tests carry `[utest->req~<name>~1]`. CSS scenarios read the stylesheet as raw text (the M2.1 "tokens only" pattern).
+The requirement keeps `Needs: impl, utest`. The missing `impl` tag for `digest-hygiene` is reported to the
+coordinator: the trace (G6) shows it as uncovered until a code task adds the tag or the requirement's `Needs` is
+changed. Stylesheet scenarios read the CSS as raw text from disk (the M2.1 "tokens only" pattern).
 
 ## 7. Risks
 
-- **Merge order with M2.6.** M2.6 is rebuilding the Verify page (`pages/Resolve/Resolve.tsx`, `pages/Reports/Verifier.tsx`,
-  pending entries 33 and 34) and may move or delete those files.
-  - If M2.6 merges first, group D rebases and follows the renames. Deleted files leave the list, which lowers
-    `MAX_PENDING_FILES`.
-  - If M2.6 adds a new file with a digest helper or digest text, that file is unlisted. Growing the ceiling is not
-    this change's call: the lead asks the coordinator, and the options are that M2.6 drops it or that the
-    coordinator accepts one more pending entry.
-  - If this change merges first, M2.6 must keep the test green. That means no new helper call or digest text, and
-    removing an entry when it deletes a listed file.
-- **Static detection.** UUIDs and digests rendered from data are not caught. The second change adds ui-qa
-  screenshots (G12) and DOM assertions per screen.
-- **No mounted screen.** ui-qa reviews the components' DOM structure, focus order and stylesheet from tests and code.
-  Screenshots at 1440×900 and 390×844 wait for the second change, which mounts the components.
-- **A strict permanent-link rule** (§3.4). No page can show a citation until it has a slug or id link. Today every
-  link is `/resolve/<kind>/<digest>`.
-- **Size.** About 260 diff lines with tests for B, 290 for C1, 220 for C2 and 280 for D: four slices under the ~300
-  line guideline (constitution 14.1).
+- **Merge order with M2.6.** M2.6 is rebuilding the Verify page (`pages/Resolve/Resolve.tsx` is pending entry 31;
+  `pages/Reports/Verifier.tsx` passes unlisted).
+  - If M2.6 deletes or renames a listed file, the "names a file that exists" assertion fails until the entry is
+    removed or follows the rename.
+  - If M2.6 adds a file with a helper call or a digest literal, that file fails the suite. Adding it to the list is
+    not this change's call: the lead asks the coordinator.
+  - If this change merges first, M2.6 must keep the test green.
+- **Weak spots of the detector** (§5.3): short forms, runtime data and new offences inside pending files are not
+  caught; there is no ceiling assertion. The second change empties the list and adds ui-qa screenshots (G12) and DOM
+  assertions per screen.
+- **Unguarded inputs.** `CitationPanel` shows `url`, `title`, `author` and `digest` as given, and `VerifyResult` shows
+  side values and entity names as given. A caller can still put an identifier on screen; the second change passes
+  slug links and names.
+- **No mounted screen.** ui-qa reviews the components' DOM, focus order and stylesheets from tests and code.
+  Screenshots at 1440×900 and 390×844 wait for the second change.
 
-## 8. Open questions
+## 8. Open questions and follow-ups for the second change
 
 1. Coordinator: permanent links. ARCHITECTURE §5.4 says "URLs use permanent ids or slugs", but every link today is
-   `/resolve/<kind>/<digest>`. This change makes `CitationPanel` refuse such a link (§3.4). The second change needs a
-   slug or id permanent link for problem versions, collection versions and published results, which may need a
-   gateway route and therefore a CRP. Alternatively the coordinator accepts the resolve URL, and §3.4 changes in a
-   `~2` revision.
-2. Coordinator: whether `shortDigest`/`digestPrefix` survive the second change, for export manifests and file names,
-   or are deleted. The hygiene `helper` rule then follows.
-3. Coordinator, for the second change: whether the rest of the UI moves from `Aug 20, 2026` (`utils/format.ts`) to the
-   §5.4 form `20 Aug 2026`, so one screen does not show both forms.
+   `/resolve/<kind>/<digest>`. The first draft made `CitationPanel` refuse such a link (`This item has no permanent link
+   yet`); that is not built. The second change needs slug or id links for problem versions, collection versions and
+   published results (possibly a gateway route, so a CRP), or the panel gains the refusal in a `~2` revision.
+2. Coordinator: whether `shortDigest`/`digestPrefix` and `utils/citation.ts` survive the second change, or are
+   deleted. The allowed set and the helper detector then follow.
+3. Coordinator: whether the rest of the UI moves from `Aug 20, 2026` (`utils/format.ts`) to the §5.4 form
+   `20 Aug 2026`, so one screen does not show both forms.
+4. Coordinator: `VerifyResult` says "fingerprint" while the glossary term is "digest" (INTENT §5). Rewording is a
+   change of the component's text and of its scenarios.
+5. Not built, drafted earlier, candidates for the second change:
+   - `CitationPanel`: Download BibTeX and CSL-JSON buttons through `saveText`; the URL in the citation text; the
+     digest in the BibTeX and CSL-JSON `note`; a fixed `kind` and an author list; the heading `Cite this <kind>` with
+     a configurable level; showing `No digest recorded` for a value that is not a full digest; treating an
+     identifier-shaped title or author as missing; refusing a digest-bearing link (question 1); a cite key with
+     accent folding (`López` → `lopez`; today `lpez`).
+   - `VerifyResult`: a region named `Verification result`, a `resolvesTo` identity label, `against: 'expected'`, a
+     full-digest check per side (`Not computed`), a guard on identifier-shaped entity names, and copy outcomes in one
+     shared status region.
+   - Hygiene: comment skipping, a `MAX_PENDING_FILES` ceiling and an exact-list assertion, a stale-entry check, and
+     exported `findDigestText` / `unlistedFindings` / `stalePendingFiles` helpers with fix-it messages.
+   - An `[impl->req~digest-hygiene~1]` tag (§6).
 
 ## 9. Rollback
 
-Reverting the PR removes the new files and `containsIdentifier`. No screen uses them, so nothing else changes. No
-data, API or stored state is touched.
+Reverting the PR removes the new files and the `.gitignore` exception. No screen uses them, so nothing else changes.
+No data, API or stored state is touched.

@@ -18,64 +18,73 @@ characters) or a UUID rendered anywhere else".
 The coordinator splits M2.7 into two changes. This first change builds the parts that the screens will use and the
 test that holds the line. A second change, after M2.6 merges, moves the screens onto them.
 
-At the base commit `1c31b9d4`, 40 shipped files outside the helpers import `shortDigest` or `digestPrefix`, and 5 more
-have digest-shaped text or a UUID in their source (design.md §5).
+The change was specified in parallel with the code. It now describes the code as built: the spec follows the code
+(design.md §6 lists the files and tests).
 
 ## What Changes
 
-- Identity labels: `frontend/src/shared/lib/identity.ts` gets six pure functions, one per row of ARCHITECTURE §5.4
+- Identity labels: `frontend/src/shared/lib/identity.ts` exports six pure functions, one per row of ARCHITECTURE §5.4
   (problem version, collection version, run, study run, published result, engine). They return
   `checkout-flow v3 · sealed 20 Aug 2026`, `QACOBench icws v2 · 12 problems`,
   `run 14 of checkout-flow v3 · minizinc-csp 1.1.1 exact · 21 Oct 2026`, `engines-vs-suite run 3 · 21 Oct 2026`,
-  `<title> · published 22 Oct 2026` and `minizinc-csp 1.1.1 · mode exact`. A missing field drops out of the label. It
-  is never replaced by an identifier, and a value shaped like a digest or a UUID counts as missing.
-- `CitationPanel` (`frontend/src/components/CitationPanel`): the permanent link, the citation text, Copy and Download
-  for BibTeX and CSL-JSON, and the one digest, shown once in full with one `Copy digest` button.
-- `VerifyResult` (`frontend/src/components/VerifyResult`): the verdict (`verified`, `computed`, `mismatch`,
-  `not_found`) as text, what the link, digest or file resolves to (as an identity label), and two sides, each with
-  one full digest and its own copy button.
-- Hygiene test `frontend/src/test/digestHygiene.test.ts`: the suite fails on `sha256-`, on a run of exactly 40 or 64
-  hexadecimal characters, on a UUID, or on the name `shortDigest` or `digestPrefix`, in a non-comment line of a
-  shipped source outside the allowed paths. Its fixed pending list of 45 files may only shrink.
-- No screen changes in this change. The new components are not mounted on any page yet.
+  `<title> · published 22 Oct 2026` and `minizinc-csp 1.1.1 · mode exact`. A missing part drops out of the label and
+  is never replaced by an identifier. A text that contains `sha256-`, a run of 40 or more hexadecimal characters or a
+  UUID counts as missing. Dates are UTC, and a date-time without an offset is read as UTC.
+- `CitationPanel` (`frontend/src/components/CitationPanel`): a region `Cite and link` with the permanent link as a
+  copyable value, the citation text with `Copy citation`, `Copy BibTeX` and `Copy CSL-JSON`, and, when given, the one
+  digest with `Copy digest`. No citation format carries the digest. `buildPanelCitation` and `escapeBibtex` are
+  exported for reuse.
+- `VerifyResult` (`frontend/src/components/VerifyResult`): the verifier's verdict (`verified`, `computed`,
+  `mismatch`, `not_found`) as words in a region `Verdict`, a warning when the browser and the server disagree, two
+  sides with one copyable fingerprint each (or `nothing recorded`), the matches by name and kind (never by id), and a
+  slot for a citation panel.
+- Hygiene test `frontend/src/test/digestHygiene.test.ts`: the suite fails on a digest literal (`sha256-` with 8 or
+  more hexadecimal characters, or a bare 40- or 64-hexadecimal run), a UUID, or the name `shortDigest` or
+  `digestPrefix` in a shipped `.ts`, `.tsx` or `.css` file outside the allowed set and the pending clean-up list. The
+  list holds 40 files, sorted, existing and outside the allowed set.
+- No screen changes. The new components are not mounted on any page yet.
 
 ## Impact
 
 - Capability: `frontend-rendering`. Four ADDED requirements, all `~1`: `identity-labels`, `citation-panel`,
   `verify-result` and `digest-hygiene` (ids as the coordinator set them).
 - Code, frontend only:
-  - new files `frontend/src/shared/lib/identity.ts` and its test (the first file under `shared/`, ARCHITECTURE §5.1);
-  - `frontend/src/components/CitationPanel/**` and `frontend/src/components/VerifyResult/**`, new;
-  - `frontend/src/test/digestHygiene.test.ts`, new;
-  - one addition to `frontend/src/utils/digest.ts`: `containsIdentifier(text)`, the runtime check shared by the three
-    modules (design.md §2.4).
-- Untouched: `shortDigest`, `digestPrefix`, `utils/citation.ts`, every page, and the raw-rendering allow-list and its
-  hygiene test.
+  - new `frontend/src/shared/lib/identity.ts` and its test (the first files under `shared/`, ARCHITECTURE §5.1);
+  - new `frontend/src/components/CitationPanel/**` and `frontend/src/components/VerifyResult/**`;
+  - new `frontend/src/test/digestHygiene.test.ts`;
+  - one line in the root `.gitignore`, `!/frontend/src/shared/lib/`, because the template rule `lib/` would ignore the
+    new directory.
+- Untouched: `utils/digest.ts` (`shortDigest`, `digestPrefix`), `utils/citation.ts`, `components/ui/CopyField` and
+  `useCopy`, every page, and the raw-rendering allow-list and its hygiene test.
 - No HTTP API, OpenAPI, gateway, worker, engine or database change. The API keeps every digest (ARCHITECTURE §5.4).
-  No `package.json` or lockfile change, so no property-testing library: the exhaustive sample table of design.md §2.5
+  No `package.json` or lockfile change, so no property-testing library: the exhaustive sample table of design.md §2.6
   replaces one. No feature flag: nothing is mounted.
 - Tests: Vitest only. No Playwright spec changes, because no route or screen changes.
-- Order: B (labels and `containsIdentifier`), then C1 (`CitationPanel`) and C2 (`VerifyResult`) in parallel, then D
-  (hygiene test). See tasks.md.
+- Traceability: `[impl->…]` and `[utest->…]` tags exist for three requirements. `digest-hygiene` has only a
+  `[utest->…]` tag (design.md §6).
 - Risks (design.md §7):
-  - the pending list overlaps files that M2.6 is editing (the Verify page, `Resolve.tsx` and `Verifier.tsx`), so
-    merge order matters;
-  - the detector is static and line based, so a UUID rendered from API data at runtime is not caught;
+  - the pending list holds `pages/Resolve/Resolve.tsx`, which M2.6 is editing, so merge order matters;
+  - the detector is static and line based. Short forms (`sha256-…`), identifiers from runtime data and new offences
+    inside pending files are not caught, and no ceiling holds the list size;
+  - the components show their inputs as given, so callers must pass names and slug links;
   - ui-qa has no mounted screen to capture until the second change.
 
 ## Out of scope
 
-- The call-site clean-up: the 45 pending files under `pages/**`, `components/**` and `utils/citation.ts` that call
+- The call-site clean-up: the 40 pending files under `pages/**` and `components/**` that call
   `shortDigest`/`digestPrefix` or carry digest-shaped text. That is the second M2.7 change, after M2.6 merges, and it
   empties the pending list. It also retires or keeps `shortDigest`/`digestPrefix` and `utils/citation.ts`.
 - Wiring the Verify page to `VerifyResult`, and the problem, collection and published-result pages to
-  `CitationPanel`. M2.6 owns the Verify page now, and the second M2.7 change does the wiring.
+  `CitationPanel`. M2.6 owns the Verify page now, and the second change does the wiring.
 - Permanent links built from permanent ids or slugs (ARCHITECTURE §5.4: "URLs use permanent ids or slugs"). The
-  `/resolve/<kind>/<digest>` links stay as they are. `CitationPanel` refuses to show one of them as a permanent link
-  (design.md §3.4).
+  `/resolve/<kind>/<digest>` links stay as they are, and `CitationPanel` does not refuse them; the second change
+  decides (design.md §8, question 1).
+- Behaviour drafted earlier but not built (Download buttons, a digest `note` in the citation formats, identifier
+  guards in the components, comment skipping and a ceiling in the hygiene test): design.md §8, item 5.
 - Export manifests (the third place §5.4 allows a digest).
-- The living requirement of `frontend-catalog-pricing` that engine cards show the digest (`openspec/specs/frontend-catalog-pricing/spec.md`, "exact identity (namespace, name, version, digest)"):
-  the second change MODIFIES it when it changes the engine cards.
+- The living requirement of `frontend-catalog-pricing` that engine cards show the digest
+  (`openspec/specs/frontend-catalog-pricing/spec.md`, "exact identity (namespace, name, version, digest)"): the second
+  change MODIFIES it when it changes the engine cards.
 - Editing INTENT, the constitution (15.5's "Enforced: GAP" line names `frontend/src/hygiene.test.ts`), ARCHITECTURE
   or ROADMAP. Those are follow-ups for their owners.
 - Archiving this change into `openspec/specs/frontend-rendering/`. That is a separate, explicit archive task.
