@@ -2,7 +2,7 @@
 
 ## Why
 
-Two people who edit the same organization, project, case, collection, study, profile, notification preferences or
+Two people who edit the same organization, project, case, study, profile, notification preferences or
 engine credential at the same time silently overwrite each other today: the last `PATCH`/`PUT` wins and the first
 writer is never told. INTENT pillar "groups that work together on them" (INTENT §1, §2 enablers) needs edits that
 cannot be lost without notice. The owner approved the design of this change (revision = the row's `updated_at`,
@@ -14,7 +14,7 @@ does not re-open.
 - Every covered resource has a revision: the `updated_at` of its row, normalized to UTC with microsecond precision.
   No column is added.
 - The single-resource `GET` and the `PATCH`/`PUT` success responses of the covered operations carry a strong, opaque
-  `ETag` derived from that revision; every successful covered write stores a new revision.
+  `ETag` derived from that revision; every covered write that sends `If-Match` stores a new revision; one that does not send it changes the revision only when a column changes.
 - A covered write may send `If-Match` (`*` or a list of strong entity tags). A match applies the request as today; no
   match answers `412 precondition_failed` with the current `ETag` and changes nothing; a malformed header answers
   `400 invalid_if_match`.
@@ -37,10 +37,10 @@ does not re-open.
 - CORS: none needed. `ETag` is already in `CORS_EXPOSED_HEADERS` (`core/settings.py:47`) and requests may carry any
   header (`allow_headers=["*"]`, `main.py:351`).
 - Data: no migration. `updated_at` exists on `organizations`, `projects`, `binding_cases`, `studies`, `users` and
-  `v1_engine_credentials`. The collection is the open question below.
-- Open question (one `[NEEDS CLARIFICATION]`, in spec and design.md §3): `updateCollection` edits an `artifacts` row
-  (`routes/studies.py:105-115`), and `artifacts` has no `updated_at` (`db/artifact_models.py:18-31`, migration
-  `b3c4d5e6f7a8`). The owner's design adds no column, so the collection cannot get a revision without a decision.
+  `v1_engine_credentials`. The collection has none and is not covered (below).
+- Decision (design.md §3): `updateCollection` edits an `artifacts` row (`routes/studies.py:105-115`), and `artifacts`
+  has no `updated_at` (`db/artifact_models.py:18-31`, migration `b3c4d5e6f7a8`). The owner chose to add no column
+  here, so collections are not covered; a later change owns the `artifacts.updated_at` migration.
 - Risks: design.md §7.
 
 ## Out of scope
@@ -51,6 +51,8 @@ does not re-open.
   LIKE fix merges.
 - **`PUT /v1/organizations/{org}/members/{member_id}`** (`routes/organizations.py:601`): the membership row has no
   `updated_at`, so it has no revision under this design. Not covered; recorded as a follow-up.
+- **`updateCollection` / `getCollection`** (and the other artifact `PATCH`es): the `artifacts` row has no
+  `updated_at`. A later change adds the column by migration and covers them all (design.md §3).
 - **Mandatory `If-Match`** (`428 Precondition Required` when absent): a possible later change.
 - `If-None-Match`, `If-Unmodified-Since`, conditional `GET`/`304`, and `ETag` on list responses (`listStudies`,
   `listProjects`, ...).

@@ -134,7 +134,6 @@ These operations take an optional `If-Match` header:
 - `PATCH /v1/organizations/{org}`
 - `PATCH …/projects/{project}`
 - `PATCH …/cases/{case}`
-- `PATCH …/collections/{collection}`
 - `PATCH …/studies/{study}`
 - `PATCH /v1/users/me`
 - `PUT /v1/notifications/preferences`
@@ -152,8 +151,10 @@ winning.
 
 Weak tags (`W/"…"`) are well-formed but never match, because `If-Match` uses strong comparison (RFC 9110 §13.1.1).
 `*` matches whenever the resource exists. Authentication (`401`), not-found (`404`) and permission (`403`) refusals
+(for an organization update, also the OWNER check when naming a sponsor and the authorisation on a new parent)
 come first, so a caller who may not read the resource never sees its `ETag`. `412` comes before the refusals that
-depend on stored state (`402`, `409` and `422` such as `sponsor_must_be_caller` or `already_registered`). A request
+depend on stored state or on the stored tree (`402`, `409` and `422` such as `sponsor_must_be_caller`,
+`ambiguous_parent` or `already_registered`). A request
 body the framework refuses is still `422 validation_error`.
 
 Both codes keep the shape of their route family (below): platform routes answer

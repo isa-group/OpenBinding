@@ -22,7 +22,7 @@ Needs: impl, utest
 - **WHEN** the owner sends `PUT /v1/organizations/isa-demo/members/{member_id}` with `If-Match: "0"`
 - **THEN** the gateway processes it as before this change, without a precondition check and without an `ETag` response header
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_organizations.py`; `openbinding-gateway/tests/test_optimistic_concurrency_studies.py`; `openbinding-gateway/tests/test_optimistic_concurrency_accounts.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_organizations.py`; `openbinding-gateway/tests/test_optimistic_studies.py`; `openbinding-gateway/tests/test_optimistic_accounts.py`; `openbinding-gateway/tests/test_optimistic_credential.py`
 
 The covered-operations table:
 
@@ -31,39 +31,44 @@ The covered-operations table:
 | 1 | `PATCH /v1/organizations/{org}` (`updateOrganization`) | `GET /v1/organizations/{org}` (`getOrganization`) | `organizations` |
 | 2 | `PATCH /v1/organizations/{org}/projects/{project}` (`updateProject`) | `GET /v1/organizations/{org}/projects/{project}` (`getProject`) | `projects` |
 | 3 | `PATCH /v1/organizations/{org}/projects/{project}/cases/{case}` (`updateBindingCase`) | `GET /v1/organizations/{org}/projects/{project}/cases/{case}` (`getBindingCase`) | `binding_cases` |
-| 4 | `PATCH /v1/organizations/{org}/projects/{project}/collections/{collection}` (`updateCollection`) | `GET /v1/organizations/{org}/projects/{project}/collections/{collection}` (`getCollection`) | [NEEDS CLARIFICATION: the collection is an `artifacts` row, which has no `updated_at`; add `artifacts.updated_at` by migration in this change, or move `updateCollection` to a follow-up change?] |
-| 5 | `PATCH /v1/organizations/{org}/projects/{project}/studies/{study}` (`updateStudy`) | none | `studies` |
-| 6 | `PATCH /v1/users/me` (`updateOwnProfile`) | `GET /v1/users/me` (`getOwnProfile`) | `users` (the caller) |
-| 7 | `PUT /v1/notifications/preferences` (`updateNotificationPreferences`) | `GET /v1/notifications/preferences` (`getNotificationPreferences`) | `users` (the caller) |
-| 8 | `PUT /v1/engine-registrations/{name}/credential` | none | `v1_engine_credentials` of the registration |
+| 4 | `PATCH /v1/organizations/{org}/projects/{project}/studies/{study}` (`updateStudy`) | none | `studies` |
+| 5 | `PATCH /v1/users/me` (`updateOwnProfile`) | `GET /v1/users/me` (`getOwnProfile`) | `users` (the caller) |
+| 6 | `PUT /v1/notifications/preferences` (`updateNotificationPreferences`) | `GET /v1/notifications/preferences` (`getNotificationPreferences`) | `users` (the caller) |
+| 7 | `PUT /v1/engine-registrations/{name}/credential` | none | `v1_engine_credentials` of the registration |
 
-`PATCH /v1/admin/users/{user_id}` and `PUT /v1/organizations/{org}/members/{member_id}` are not covered (proposal.md, Out of scope).
+`PATCH /v1/admin/users/{user_id}`, `PUT /v1/organizations/{org}/members/{member_id}` and `updateCollection`/`getCollection` are not covered (proposal.md, Out of scope). The collection is an `artifacts` row without `updated_at`; a later change owns that migration and covers all artifact `PATCH`es (design.md §3).
 
 ### Requirement: Strong opaque entity tag
-THE gateway SHALL derive the `ETag` of a covered resource from its revision alone, as a strong entity tag (a double-quoted string without the `W/` prefix) that is identical for equal revisions and different for different revisions.
+THE gateway SHALL derive the `ETag` of a covered resource from its table, its row id and its revision, as a strong entity tag (a double-quoted string without the `W/` prefix) that is identical for equal revisions of the same row and different for different revisions or different rows.
 
 `req~gateway-api-optimistic-concurrency-etag-format~1`
 
 Needs: impl, utest
 
 #### Scenario: Format
-- **GIVEN** a revision 2026-10-22T00:00:00.000001Z
+- **GIVEN** a row with revision 2026-10-22T00:00:00.000001Z
 - **WHEN** the gateway derives its entity tag
-- **THEN** the tag starts and ends with `"`, does not start with `W/`, and contains no `"` inside
+- **THEN** the tag is a quoted string of 32 hexadecimal digits, does not start with `W/`, and contains no `"` inside
 
 #### Scenario: Microsecond precision
-- **GIVEN** two revisions 2026-10-22T00:00:00.000001Z and 2026-10-22T00:00:00.000002Z
+- **GIVEN** one row at revisions 2026-10-22T00:00:00.000001Z and 2026-10-22T00:00:00.000002Z, and the same row twice at the first revision
+- **WHEN** the gateway derives the entity tags
+- **THEN** the two tags of the equal revisions are equal
+- **AND** the tags of the two different revisions differ
+
+#### Scenario: Different rows
+- **GIVEN** two rows (of one table or of two tables) with the same revision
 - **WHEN** the gateway derives their entity tags
 - **THEN** the two tags differ
 
 #### Scenario: Time zone normalized
-- **GIVEN** the revision 2026-10-22T02:00:00.000000+02:00 and the revision 2026-10-22T00:00:00.000000Z
+- **GIVEN** a naive revision 2026-10-22T00:00:00.000000 and the aware equivalents 2026-10-22T02:00:00.000000+02:00 and 2026-10-22T00:00:00.000000Z, all of one row
 - **WHEN** the gateway derives their entity tags
-- **THEN** the two tags are equal
+- **THEN** the three tags are equal
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_revision.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_revision.py`
 
-The encoding inside the quotes is opaque to clients (design.md D2). Clients compare tags only by equality and send them back unchanged.
+The tag is opaque to clients (design.md D2): it reveals neither the timestamp nor the id. Clients compare tags only by equality and send them back unchanged.
 
 ### Requirement: Entity tag on single-resource reads
 WHEN a single-resource read of the covered-operations table answers 200, THE gateway SHALL include the header `ETag` with the entity tag of the resource's current revision.
@@ -84,7 +89,7 @@ Needs: impl, utest
 - **THEN** the gateway answers 403 or 404 as before this change
 - **AND** the response carries no `ETag` header
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_organizations.py`; `openbinding-gateway/tests/test_optimistic_concurrency_studies.py`; `openbinding-gateway/tests/test_optimistic_concurrency_accounts.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_organizations.py`; `openbinding-gateway/tests/test_optimistic_accounts.py`
 
 ### Requirement: Entity tag on successful writes
 WHEN a covered write operation answers 200, THE gateway SHALL include the header `ETag` with the entity tag of the revision that the request stored.
@@ -105,20 +110,32 @@ Needs: impl, utest
 - **THEN** the gateway answers 200 with the registration summary
 - **AND** the response carries an `ETag` header that is a strong entity tag
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_organizations.py`; `openbinding-gateway/tests/test_optimistic_concurrency_accounts.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_organizations.py`; `openbinding-gateway/tests/test_optimistic_studies.py`; `openbinding-gateway/tests/test_optimistic_accounts.py`; `openbinding-gateway/tests/test_optimistic_credential.py`
 
 ### Requirement: Every successful write stores a new revision
-WHEN a covered write operation answers 200, THE gateway SHALL have stored a revision of the resource that differs from the revision the resource had before the request.
+WHEN a covered write operation carries an `If-Match` header and answers 200, THE gateway SHALL have stored a revision of the resource that differs from the revision the resource had before the request, even if the request changed no field. WHEN it carries no `If-Match` header, THE gateway SHALL change the revision only if the request changed a stored column.
 
 `req~gateway-api-optimistic-concurrency-revision-bump~1`
 
 Needs: impl, utest
 
-#### Scenario: Write that changes no field
+#### Scenario: Guarded write that changes no field
 - **GIVEN** study `s1` of project `p1` in `isa-demo` with `ETag` A, and a MEMBER of `isa-demo`
 - **WHEN** the member sends `PATCH /v1/organizations/isa-demo/projects/p1/studies/s1` with `{}` and `If-Match: A`
 - **THEN** the gateway answers 200
 - **AND** the response `ETag` differs from A
+
+#### Scenario: Unguarded write that changes a field
+- **GIVEN** project `p1` with `ETag` A and an ADMIN of `isa-demo`
+- **WHEN** the admin sends `PATCH /v1/organizations/isa-demo/projects/p1` with `{"name": "Renamed"}` and no `If-Match`
+- **THEN** the gateway answers 200
+- **AND** the response `ETag` differs from A
+
+#### Scenario: Unguarded write that changes nothing
+- **GIVEN** case `c1` with `ETag` A and a MEMBER of `isa-demo`
+- **WHEN** the member sends `PATCH /v1/organizations/isa-demo/projects/p1/cases/c1` with `{}` and no `If-Match`
+- **THEN** the gateway answers 200
+- **AND** the response `ETag` is A
 
 #### Scenario: Empty profile update is not a write
 - **GIVEN** a signed-in user whose `GET /v1/users/me` carries `ETag` A
@@ -126,9 +143,9 @@ Needs: impl, utest
 - **THEN** the gateway answers 200 with the profile, as before this change
 - **AND** the response `ETag` is A
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_studies.py`; `openbinding-gateway/tests/test_optimistic_concurrency_accounts.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_revision.py`; `openbinding-gateway/tests/test_optimistic_organizations.py`; `openbinding-gateway/tests/test_optimistic_studies.py`; `openbinding-gateway/tests/test_optimistic_accounts.py`
 
-A `PATCH /v1/users/me` without `email` and without `new_password` writes nothing today (`routes/users.py:149-150`) and stays a read (design.md D6).
+When `If-Match` is present the guard stores `updated_at = max(now, previous + 1 µs)` with `UPDATE … WHERE id = :id AND updated_at = :read_value` in the edit transaction (design.md D4), so a guarded 200 always carries a new tag. Without `If-Match` nothing is claimed and `updated_at` moves only when a column changes. A `PATCH /v1/users/me` without `email` and without `new_password` writes nothing and stays a read (design.md D6).
 
 ### Requirement: No precondition without If-Match
 WHEN a covered write operation receives a request without an `If-Match` header, THE gateway SHALL process it with the status codes, bodies, stored changes and audit events it produced before this change.
@@ -148,7 +165,7 @@ Needs: impl, utest
 - **WHEN** the gateway suite runs
 - **THEN** the existing tests of the covered operations pass without being edited by the diff
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_organizations.py`; the gateway suite (G5)
+Evidence: `openbinding-gateway/tests/test_optimistic_organizations.py`; the gateway suite (G5)
 
 Clients that omit `If-Match` keep today's last-writer-wins behaviour and get no lost-update protection. A later change may make the header mandatory with `428 Precondition Required` (proposal.md, Out of scope).
 
@@ -165,7 +182,12 @@ Needs: impl, utest
 - **THEN** the gateway answers 200
 - **AND** the stored description is `x`
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_revision.py`; `openbinding-gateway/tests/test_optimistic_concurrency_organizations.py`
+#### Scenario: Wildcard and a concurrent bump
+- **GIVEN** case `c1` read by the member, then edited by another writer before the member's claim
+- **WHEN** the member sends the same request with `If-Match: *`
+- **THEN** the gateway answers 200, because the claim of `*` does not compare `updated_at` and only a vanished row fails it
+
+Evidence: `openbinding-gateway/tests/test_optimistic_revision.py`; `openbinding-gateway/tests/test_optimistic_organizations.py`; `openbinding-gateway/tests/test_optimistic_accounts.py`
 
 RFC 9110 §13.1.1: `*` matches any current representation of the target resource.
 
@@ -187,7 +209,7 @@ Needs: impl, utest
 - **WHEN** an ADMIN sends `PATCH /v1/organizations/isa-demo` with `If-Match: "stale" ,A ` (spaces around the comma and after the last tag)
 - **THEN** the precondition is met
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_revision.py`; `openbinding-gateway/tests/test_optimistic_concurrency_organizations.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_revision.py`; `openbinding-gateway/tests/test_optimistic_organizations.py`
 
 ### Requirement: Weak tags never match
 IF an `If-Match` entity tag of a request to a covered write operation is a weak tag (prefix `W/`), THEN THE gateway SHALL treat that tag as not matching, whatever its opaque value.
@@ -197,12 +219,12 @@ IF an `If-Match` entity tag of a request to a covered write operation is a weak 
 Needs: impl, utest
 
 #### Scenario: Weak form of the current tag
-- **GIVEN** project `p1` with `ETag` `"1792627200000000"` and an ADMIN of `isa-demo`
-- **WHEN** the admin sends `PATCH /v1/organizations/isa-demo/projects/p1` with `{"name": "x"}` and `If-Match: W/"1792627200000000"`
+- **GIVEN** project `p1` with `ETag` `"0123456789abcdef0123456789abcdef"` and an ADMIN of `isa-demo`
+- **WHEN** the admin sends `PATCH /v1/organizations/isa-demo/projects/p1` with `{"name": "x"}` and `If-Match: W/"0123456789abcdef0123456789abcdef"`
 - **THEN** the gateway answers 412 with `code` `precondition_failed`
 - **AND** the stored name is unchanged
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_revision.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_revision.py`; `openbinding-gateway/tests/test_optimistic_organizations.py`
 
 RFC 9110 §13.1.1: `If-Match` uses the strong comparison function.
 
@@ -230,7 +252,7 @@ Needs: impl, utest
 - **WHEN** the member sends the same request with `If-Match: , A,`
 - **THEN** the precondition is met and the gateway answers 200
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_revision.py`; `openbinding-gateway/tests/test_optimistic_concurrency_organizations.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_revision.py`; `openbinding-gateway/tests/test_optimistic_organizations.py`
 
 Empty list elements are ignored (RFC 9110 §5.6.1.2). A header that holds no entity tag at all (an empty value, or only commas) is refused as malformed rather than read as an empty list (design.md D3).
 
@@ -253,7 +275,7 @@ Needs: impl, utest
 - **THEN** the gateway answers 412 with media type `application/problem+json`
 - **AND** the body has `status` 412, `code` `precondition_failed` and `title` `precondition_failed`
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_organizations.py`; `openbinding-gateway/tests/test_optimistic_concurrency_studies.py`; `openbinding-gateway/tests/test_optimistic_concurrency_accounts.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_organizations.py`; `openbinding-gateway/tests/test_optimistic_studies.py`; `openbinding-gateway/tests/test_optimistic_accounts.py`; `openbinding-gateway/tests/test_optimistic_credential.py`
 
 Each covered write has its own stale-tag test: 412, the current `ETag` in the header, the stored resource unchanged (tasks.md).
 
@@ -270,7 +292,7 @@ Needs: impl, utest
 - **THEN** the gateway answers 412
 - **AND** the response `ETag` is B
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_studies.py`; `openbinding-gateway/tests/test_optimistic_concurrency_organizations.py`; `openbinding-gateway/tests/test_optimistic_concurrency_accounts.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_studies.py`; `openbinding-gateway/tests/test_optimistic_organizations.py`; `openbinding-gateway/tests/test_optimistic_accounts.py`; `openbinding-gateway/tests/test_optimistic_credential.py`
 
 ### Requirement: Nothing changes on a failed precondition
 IF the gateway answers 412 `precondition_failed` to a request to a covered write operation, THEN THE gateway SHALL leave the stored resource, its revision, the audit log and every other stored state exactly as they were before the request.
@@ -297,7 +319,7 @@ Needs: impl, utest
 - **THEN** the gateway answers 412
 - **AND** signing in with the old email still works and with the new email does not
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_organizations.py`; `openbinding-gateway/tests/test_optimistic_concurrency_accounts.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_organizations.py`; `openbinding-gateway/tests/test_optimistic_accounts.py`; `openbinding-gateway/tests/test_optimistic_credential.py`
 
 ### Requirement: Resource without a current revision
 IF a request to a covered write operation carries an `If-Match` header and the resource it edits has no current revision, THEN THE gateway SHALL answer 412 with error code `precondition_failed` and without an `ETag` header.
@@ -317,12 +339,12 @@ Needs: impl, utest
 - **WHEN** the caller sends the same request without `If-Match`
 - **THEN** the gateway answers 200 as before this change, and the response carries an `ETag`
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_accounts.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_credential.py`
 
 RFC 9110 §13.1.1: `If-Match: *` is false when the target resource has no current representation.
 
 ### Requirement: Access checks before the precondition
-IF a request to a covered write operation would be refused with 401 (authentication), 404 (the target resource or its parents not found or not visible) or 403 (authorization on the target resource), THEN THE gateway SHALL answer that refusal whatever the request's `If-Match` header holds, malformed or not.
+IF a request to a covered write operation would be refused with 401 (authentication), 404 (the target resource or its parents not found or not visible) or 403 (authorization on the target resource, including the OWNER check and the authorization on a new parent of `updateOrganization`), THEN THE gateway SHALL answer that refusal whatever the request's `If-Match` header holds, malformed or not.
 
 `req~gateway-api-optimistic-concurrency-order-access~1`
 
@@ -344,7 +366,17 @@ Needs: impl, utest
 - **WHEN** a client sends `PUT /v1/notifications/preferences` with `If-Match: "x"`
 - **THEN** the gateway answers 401
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_organizations.py`; `openbinding-gateway/tests/test_optimistic_concurrency_accounts.py`
+#### Scenario: Admin who is not the owner names a sponsor
+- **GIVEN** organization `isa-demo` with a stale `ETag` A and an ADMIN who is not an OWNER
+- **WHEN** the admin sends `PATCH /v1/organizations/isa-demo` with a `billing_sponsor_user_id` other than the stored one and `If-Match: A`
+- **THEN** the gateway answers 403, not 412
+
+#### Scenario: New parent not authorized or not found
+- **GIVEN** organization `isa-demo` with a stale `ETag` A, its ADMIN, and a `parent_id` that does not exist or on which the admin has no ADMIN role
+- **WHEN** the admin sends `PATCH /v1/organizations/isa-demo` with that `parent_id` and `If-Match: A`
+- **THEN** the gateway answers 404 for the unknown parent and 403 for the unauthorized one, not 412
+
+Evidence: `openbinding-gateway/tests/test_optimistic_organizations.py`; `openbinding-gateway/tests/test_optimistic_studies.py`; `openbinding-gateway/tests/test_optimistic_accounts.py`
 
 A caller that may not read or edit the resource never learns its `ETag` from a 412. The per-route order is in design.md D5.
 
@@ -359,6 +391,11 @@ Needs: impl, utest
 - **GIVEN** organization `isa-demo` with a stale `ETag` A and its OWNER
 - **WHEN** the owner sends `PATCH /v1/organizations/isa-demo` with `billing_sponsor_user_id` of another user and `If-Match: A`
 - **THEN** the gateway answers 412, not 422 `sponsor_must_be_caller`
+
+#### Scenario: Stale tag and an ambiguous or cyclic parent
+- **GIVEN** organization `isa-demo` with a stale `ETag` A, its ADMIN, and a request that both names `parent_id` and sets `move_to_root`, or moves the organization under its own descendant
+- **WHEN** the admin sends that `PATCH` with `If-Match: A`
+- **THEN** the gateway answers 412, not 422 `ambiguous_parent` or the acyclic-move refusal
 
 #### Scenario: Stale tag and an email in use
 - **GIVEN** a user with a stale `ETag` A and another account using `taken@example.org`
@@ -375,7 +412,7 @@ Needs: impl, utest
 - **WHEN** a MEMBER sends `PATCH /v1/organizations/isa-demo/projects/p1/cases/c1` with `{"name": 5}` and `If-Match: A`
 - **THEN** the gateway answers 422 `validation_error`, because the request body is validated before the handler runs
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_organizations.py`; `openbinding-gateway/tests/test_optimistic_concurrency_accounts.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_organizations.py`; `openbinding-gateway/tests/test_optimistic_studies.py`; `openbinding-gateway/tests/test_optimistic_accounts.py`; `openbinding-gateway/tests/test_optimistic_credential.py`
 
 ### Requirement: Atomic precondition and write
 WHEN two requests to the same covered write operation carry `If-Match` with the same current `ETag` and are processed concurrently, THE gateway SHALL apply exactly one of them and answer the other with 412 `precondition_failed`.
@@ -390,13 +427,13 @@ Needs: impl, utest
 - **THEN** one answers 200 and the other answers 412
 - **AND** the stored resource holds the fields of the 200 request only
 
-#### Scenario: Two writers on a route
-- **GIVEN** project `p1` with `ETag` A and two ADMINs of `isa-demo`
-- **WHEN** both send `PATCH /v1/organizations/isa-demo/projects/p1` concurrently with different names and `If-Match: A`
-- **THEN** exactly one answer is 200 and the other is 412
-- **AND** the stored name is the one of the 200 request
+#### Scenario: A writer that commits between the read and the claim
+- **GIVEN** project `p1` with `ETag` A and an ADMIN whose request has read the row
+- **WHEN** another writer commits an edit before the ADMIN's claim runs
+- **THEN** the ADMIN's `UPDATE … WHERE id = :id AND updated_at = :read_value` matches no row
+- **AND** the gateway answers 412 with the new `ETag` and applies nothing
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_revision.py`
+Evidence: `openbinding-gateway/tests/test_optimistic_organizations.py`; `openbinding-gateway/tests/test_optimistic_studies.py`; `openbinding-gateway/tests/test_optimistic_accounts.py`; `openbinding-gateway/tests/test_optimistic_credential.py`
 
 ### Requirement: Conditional requests declared in OpenAPI
 THE gateway's OpenAPI document SHALL declare, on every covered write operation, an optional `If-Match` header parameter, a 400 response and a 412 response, each 412 response and each 200 response with an `ETag` response header, and an `ETag` response header on the 200 response of every single-resource read of the covered-operations table.
@@ -421,4 +458,4 @@ Needs: impl, utest
 - **WHEN** `python tools/dump_openapi.py --check` runs
 - **THEN** it passes
 
-Evidence: `openbinding-gateway/tests/test_optimistic_concurrency_revision.py`; `openbinding-gateway/tools/dump_openapi.py`; `docs/openapi.json`
+Evidence: `openbinding-gateway/tests/test_optimistic_organizations.py`; `openbinding-gateway/tests/test_optimistic_studies.py`; `openbinding-gateway/tests/test_optimistic_accounts.py`; `openbinding-gateway/tests/test_optimistic_credential.py`; `openbinding-gateway/tools/dump_openapi.py`; `docs/openapi.json`
