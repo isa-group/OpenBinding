@@ -7,7 +7,8 @@ import { movedRoutes, routeDefinitions } from './registry';
 
 const P = '/app/:org/:project';
 
-const sample = (path: string) => path.replace(/:[A-Za-z]+/g, 'sample');
+/** An address the path leads to: an optional segment (`:section?`) dropped with its slash, every other parameter filled. */
+const sample = (path: string) => path.replace(/\/:[A-Za-z]+\?/g, '').replace(/:[A-Za-z]+/g, 'sample') || '/';
 
 describe('route registry', () => {
   // [utest->req~frontend-retire-library-screens-not-routed~1]
@@ -97,8 +98,11 @@ describe('route registry', () => {
       '/app/acme/atlas/library', '/app/acme/atlas/resources', '/app/acme/atlas/resources/r1',
     ];
     for (const path of retired) expect(matchRoutes(config, path), path).toBeNull();
-    // Without its screen `/app/acme/library` reads as a project named `library`, which the redirect table answers first.
-    expect(matchRoutes(config, '/app/acme/library')?.at(-1)?.route.id).toBe('proj-overview');
+    // Without its screen `/app/acme/library` reads as a project named `library`, which the redirect table answers first. It is the
+    // screen of any project, the one `/app/acme/atlas` shows.
+    const id = matchRoutes(config, '/app/acme/library')?.at(-1)?.route.id;
+    expect(id).toBeDefined();
+    expect(id).toBe(matchRoutes(config, '/app/acme/atlas')?.at(-1)?.route.id);
   });
 
   // [utest->req~frontend-retire-reports-screens-not-routed~1]

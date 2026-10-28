@@ -24,4 +24,19 @@ describe('area account', () => {
     expect(matchRoutes(config, '/app/account/usage')?.at(-1)?.route.id).toBe('acct-usage');
     expect(matchRoutes(config, '/app/account/keys/new')?.at(-1)?.route.id).toBe('acct-key-new');
   });
+
+  describe('address resolution', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+
+    // [utest->req~frontend-nav-route-areas~1]
+    it.each([
+      ['/app/account', 'acct-profile'],
+      ['/app/account/usage', 'acct-usage'],
+      ['/app/account/keys', 'acct-keys'],
+      ['/app/account/keys/new', 'acct-key-new'],
+      ['/app/account/keys/other', null],
+    ])('%s -> %s', (path, id) => {
+      expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
+    });
+  });
 });

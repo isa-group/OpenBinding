@@ -75,7 +75,7 @@ Needs: impl, utest
 - **THEN** the clipboard holds `<origin>/resolve/report/D`
 
 ### Requirement: Verify without an account
-WHILE no person is signed in, THE Verify page SHALL resolve links and digests only through `GET /v1/resolve/{kind}/{digest}` and show, in place of the document and file checks, the text `Log in to check a document or a file` with a link to `/login` that returns to the Verify page.
+WHILE no person is signed in, THE Verify page SHALL resolve links and digests only through `GET /v1/resolve/{kind}/{digest}` and show, in place of the document and file checks, the text `Log in to check a document or a file` with a link to `/login`.
 
 `req~frontend-nav-verify-signed-out~1`
 
@@ -93,7 +93,7 @@ Needs: impl, utest
 - **GIVEN** no session, on `/verify`
 - **WHEN** the visitor chooses the mode `Document`
 - **THEN** the text `Log in to check a document or a file` is shown with a link to `/login`
-- **AND** following the link and signing in returns to `/verify`
+- **AND** the link leads to `/login` and promises no return to `/verify`: after signing in the person lands on `/app`
 - **AND** no document field and no request to `/v1/verifier/inspect` exist
 
 #### Scenario: A digest without a kind while signed out

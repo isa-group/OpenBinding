@@ -25,4 +25,16 @@ describe('area verify', () => {
     const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
     expect(matchRoutes(config, '/app/verifier')?.at(-1)?.route.id).toBe('verifier');
   });
+
+  describe('address resolution', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+
+    // [utest->req~frontend-nav-route-areas~1]
+    it.each([
+      ['/resolve/report/sha256-abc', 'pub-resolve'],
+      ['/app/verifier', 'verifier'],
+    ])('%s -> %s', (path, id) => {
+      expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
+    });
+  });
 });

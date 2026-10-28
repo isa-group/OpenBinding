@@ -30,4 +30,18 @@ describe('area engines', () => {
   it('keeps the fixed /app/engines screen from being read as an organization or project', () => {
     expect(resolve('/app/engines/new')).toBe('eng-register');
   });
+
+  describe('address resolution', () => {
+    // [utest->req~frontend-nav-route-areas~1]
+    it.each([
+      ['/engines/bim.builtin/random-search/1.0.0', 'eng-detail'],
+      ['/engines/new', null],
+      ['/app/engines/new', 'eng-register'],
+      ['/app/engines/registrations', 'eng-registrations'],
+      ['/app/engines/registrations/edge', 'eng-registration-detail'],
+      ['/app/engines/registrations/settings', 'eng-registration-detail'],
+    ])('%s -> %s', (path, id) => {
+      expect(resolve(path) ?? null).toBe(id);
+    });
+  });
 });

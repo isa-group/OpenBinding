@@ -30,4 +30,20 @@ describe('area studies', () => {
     expect(resolve('/app/acme/atlas/studies/engines-vs-seeds/runs/r1/cells/c1')).toBe('study-cell');
     expect(resolve('/app/acme/atlas/studies/engines-vs-seeds/runs/r1/analytics')).toBe('study-analytics');
   });
+
+  describe('address resolution', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+
+    // [utest->req~frontend-nav-route-areas~1]
+    it.each([
+      ['/app/acme/atlas/studies', 'study-list'],
+      ['/app/acme/atlas/studies/new', 'study-builder'],
+      ['/app/acme/atlas/studies/s1', 'study-detail'],
+      ['/app/acme/atlas/studies/s1/runs/r1', 'study-run'],
+      ['/app/acme/atlas/studies/s1/runs/r1/cells/c1', 'study-cell'],
+      ['/app/acme/atlas/studies/s1/runs/r1/analytics', 'study-analytics'],
+    ])('%s -> %s', (path, id) => {
+      expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
+    });
+  });
 });

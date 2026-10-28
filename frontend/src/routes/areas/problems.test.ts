@@ -40,4 +40,21 @@ describe('area problems', () => {
   it('has the workbench at the address of the prototype', () => {
     expect(routeDefinitions.find((definition) => definition.id === 'wb-workbench')?.path).toBe('/app/:org/:project/workbench');
   });
+
+  describe('address resolution', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+
+    // [utest->req~frontend-nav-route-areas~1]
+    it.each([
+      ['/app/acme/atlas/workbench', 'wb-workbench'],
+      ['/app/acme/atlas/cases', 'case-list'],
+      ['/app/acme/atlas/cases/c1', 'case-detail'],
+      ['/app/acme/atlas/cases/compare', 'case-detail'],
+      ['/app/acme/atlas/cases/c1/compare', 'case-compare'],
+      ['/app/acme/atlas/cases/c1/revisions/2', 'case-revision'],
+      ['/app/acme/atlas/snapshots/s1', 'snap-detail'],
+    ])('%s -> %s', (path, id) => {
+      expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
+    });
+  });
 });

@@ -32,4 +32,19 @@ describe('area runs', () => {
     expect(matchRoutes(config, '/app/acme/atlas/jobs/new')?.at(-1)?.route.id).toBe('job-launch');
     expect(matchRoutes(config, '/app/jobs')?.at(-1)?.route.id).toBe('job-history');
   });
+
+  describe('address resolution', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+
+    // [utest->req~frontend-nav-route-areas~1]
+    it.each([
+      ['/app/jobs', 'job-history'],
+      ['/app/generator', 'gen-lab'],
+      ['/app/acme/atlas/jobs', 'job-list'],
+      ['/app/acme/atlas/jobs/new', 'job-launch'],
+      ['/app/acme/atlas/jobs/j1', 'job-detail'],
+    ])('%s -> %s', (path, id) => {
+      expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
+    });
+  });
 });

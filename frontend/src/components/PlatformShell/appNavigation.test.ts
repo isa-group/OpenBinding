@@ -1,25 +1,62 @@
+import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import type { Organization, Project } from '../../api/platform';
-import { routeDefinitions, routesByArea } from '../../routes/registry';
+import { movedRoutes, routeDefinitions, routesByArea, type AreaName } from '../../routes/registry';
+import type { RouteDefinition } from '../../routes/types';
 import { accountLinks, createItems, currentSection, isToolActive, mainLinks, toolLinks, type MainSection } from './appNavigation';
 
-/** The entry of the main navigation each screen of the registry (routes/areas) belongs to. Every other screen leaves them all unmarked. */
-const SECTION_OF: Record<string, readonly string[]> = {
-  home: ['app-home', 'org-create', 'org-overview', 'org-settings', 'org-members', 'org-audit', 'proj-create', 'proj-overview'],
-  jobs: ['job-launch', 'job-list', 'job-detail', 'job-history'],
-  explore: ['pub-explore'],
-  tools: ['eng-catalog', 'eng-detail', 'lang-profiles', 'gen-lab', 'verifier', 'eng-register', 'eng-registrations', 'eng-registration-detail'],
-  admin: routeDefinitions.filter((definition) => definition.id.startsWith('admin-')).map((definition) => definition.id),
-};
+// The expectations come from the registry (routes/areas) and from the navigation data under test (mainLinks, toolLinks, accountLinks), not
+// from the id of any screen: a change that merges, moves or removes the screens of one area leaves them alone.
 
-const expectedSection = (id: string): MainSection => (Object.entries(SECTION_OF).find(([, ids]) => ids.includes(id))?.[0] as MainSection | undefined) ?? null;
-const example = (path: string) => path.replace(':org', 'isa-demo').replace(':project', 'qos').replace(/:[A-Za-z]+/g, 'sample');
+const under = (path: string, root: string) => path === root || path.startsWith(`${root}/`);
+/** The part of an address that names a place of its own: `/app/<place>` under the application, the first segment elsewhere. */
+const rootOf = (to: string) => to.split('/').slice(0, to.startsWith('/app/') ? 3 : 2).join('/');
+
+/** An address the path leads to: an optional segment dropped, the example organization and project, any other parameter filled. */
+const example = (path: string) => path
+  .replace(/\/:[A-Za-z]+\?/g, '')
+  .replace(':org', 'isa-demo')
+  .replace(':project', 'qos')
+  .replace(/:[A-Za-z]+/g, 'sample') || '/';
+
+const toolRoots = toolLinks.map((link) => rootOf(link.to));
+/** The segment that names the jobs below a project: the last segment of the Jobs entry's address. */
+const jobsSegment = mainLinks.jobs.to.split('/').at(-1);
+const isProjectJobs = (address: string) => new RegExp(`^/app/[^/]+/[^/]+/${jobsSegment}(/|$)`).test(address);
+
+const areaOf = Object.fromEntries(
+  Object.entries(routesByArea).flatMap(([area, screens]) => screens.map((screen) => [screen.id, area as AreaName] as const)),
+);
+
+/** The entry of the main navigation a screen of the registry belongs to. Every other screen leaves them all unmarked. */
+function expectedSection(definition: RouteDefinition): MainSection {
+  const address = example(definition.path);
+  if (definition.requireAdmin) return 'admin';
+  if (under(address, mainLinks.jobs.to) || isProjectJobs(address)) return 'jobs';
+  if (toolRoots.some((root) => under(address, root))) return 'tools';
+  if (under(address, mainLinks.explore.to)) return 'explore';
+  const area = areaOf[definition.id];
+  // The workspace home is where organizations and projects are browsed: the screens of an organization, and a project's overview. The
+  // sections inside a project mark themselves in the project tabs.
+  if (area === 'organizations') return 'home';
+  if (area === 'project') return address.split('/').filter(Boolean).length <= 3 ? 'home' : null;
+  return null;
+}
+
+/** The screens, and the old addresses that stay valid on purpose (`permanent`): a link of the navigation may lead to either. */
+const routed = [
+  ...routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path })),
+  ...movedRoutes.filter((route) => route.permanent).map((route) => ({ id: route.id, path: route.path })),
+];
 
 describe('mainLinks', () => {
   // [utest->req~frontend-retire-navigation~1]
-  it('lists Home, Jobs, Explore and Admin, none of them a retired path', () => {
-    expect(Object.values(mainLinks).map((link) => link.to)).toEqual(['/app', '/app/jobs', '/explore', '/app/admin']);
-    for (const link of Object.values(mainLinks)) expect(link.to).not.toMatch(/^\/app\/analysis([/?#]|$)/);
+  it('lists Home, Jobs, Explore and Admin, each leading to a routed address and none to a retired path', () => {
+    expect(Object.keys(mainLinks)).toEqual(['home', 'jobs', 'explore', 'admin']);
+    for (const link of Object.values(mainLinks)) {
+      expect(link.to).not.toMatch(/^\/app\/analysis([/?#]|$)/);
+      expect(matchRoutes(routed, link.to), link.to).not.toBeNull();
+    }
   });
 
   // [utest->req~frontend-retire-reports-navigation~1]
@@ -48,50 +85,54 @@ describe('mainLinks', () => {
     ];
     expect(addresses.filter((address) => /\/(library|resources)([/?#]|$)/.test(address))).toEqual([]);
   });
+
+  it('leads every entry of the tool and account menus to a routed address', () => {
+    for (const link of [...toolLinks, ...accountLinks]) expect(matchRoutes(routed, link.to), `${link.label} ${link.to}`).not.toBeNull();
+  });
 });
 
 describe('currentSection', () => {
-  it('names only screens that exist', () => {
-    const ids = new Set(routeDefinitions.map((definition) => definition.id));
-    for (const listed of Object.values(SECTION_OF)) for (const id of listed) expect(ids.has(id), id).toBe(true);
+  it('marks the entry of each main link at its own address', () => {
+    for (const [section, link] of Object.entries(mainLinks)) expect(currentSection(link.to), link.to).toBe(section);
+  });
+
+  it('marks the tools entry at the address of each tool', () => {
+    for (const link of toolLinks) expect(currentSection(link.to), link.to).toBe('tools');
   });
 
   it.each(Object.keys(routesByArea))('marks the entry of every screen of area %s', (area) => {
-    const screens = routesByArea[area as keyof typeof routesByArea];
-    expect(screens.length).toBeGreaterThan(0);
-    for (const screen of screens) {
-      expect(currentSection(example(screen.path)), `${screen.id} ${screen.path}`).toBe(expectedSection(screen.id));
+    for (const screen of routesByArea[area as AreaName]) {
+      expect(currentSection(example(screen.path)), `${screen.id} ${screen.path}`).toBe(expectedSection(screen));
     }
   });
 
   it('leaves Home alone inside a project: its tabs say where it is', () => {
-    for (const section of ['cases', 'cases/checkout', 'studies', 'studies/new', 'studies/s1/runs/r1', 'publications', 'files', 'collections', 'package', 'settings', 'workbench']) {
-      expect(currentSection(`/app/isa-demo/qos/${section}`), section).toBeNull();
-    }
+    const inside = routeDefinitions.filter((definition) => /^\/app\/:org\/:project\/[^/]/.test(definition.path) && !isProjectJobs(example(definition.path)));
+    expect(inside.length).toBeGreaterThan(0);
+    for (const definition of inside) expect(currentSection(example(definition.path)), definition.path).toBeNull();
     expect(currentSection('/app/isa-demo/qos')).toBe('home');
   });
 
-  it('keeps the jobs of a project under Jobs, and the organization screens under Home', () => {
-    expect(currentSection('/app/isa-demo/qos/jobs')).toBe('jobs');
-    expect(currentSection('/app/isa-demo/qos/jobs/new')).toBe('jobs');
-    for (const path of ['/app/isa-demo', '/app/isa-demo/settings', '/app/isa-demo/settings/audit', '/app/isa-demo/new-project']) {
-      expect(currentSection(path), path).toBe('home');
-    }
+  it('keeps the jobs of a project under Jobs', () => {
+    expect(currentSection(`/app/isa-demo/qos/${jobsSegment}`)).toBe('jobs');
+    expect(currentSection(`/app/isa-demo/qos/${jobsSegment}/new`)).toBe('jobs');
   });
 });
 
 describe('isToolActive', () => {
-  it('marks the tool whose address the page is under, and no other', () => {
-    const marked = (pathname: string) => toolLinks.filter((link) => isToolActive(pathname, link)).map((link) => link.label);
+  const marked = (pathname: string) => toolLinks.filter((link) => isToolActive(pathname, link)).map((link) => link.label);
 
-    expect(marked('/app/verifier')).toEqual(['Verifier']);
-    expect(marked('/engines/isa/solver/1.0.0')).toEqual(['Engine catalog']);
-    expect(marked('/app/engines/registrations/edge-solver')).toEqual(['My engines']);
-    expect(marked('/app/engines/new')).toEqual(['My engines']);
-    expect(marked('/language/extensions')).toEqual(['Language extensions']);
-    expect(marked('/language')).toEqual(['Language docs']);
-    expect(marked('/app/generator')).toEqual(['Generator lab']);
-    expect(marked('/language/schemas/application')).toEqual(['Language docs']);
-    expect(marked('/app/isa-demo/qos/studies')).toEqual([]);
+  it('marks the tool whose address the page is under, and no other', () => {
+    for (const link of toolLinks) {
+      expect(marked(link.to), link.to).toEqual([link.label]);
+      expect(marked(`${link.to}/something/else`), `${link.to}/something/else`).toEqual([link.label]);
+    }
+    expect(marked('/app/isa-demo/qos')).toEqual([]);
+  });
+
+  it('marks a tool for every screen of the registry that sits under the tools entry', () => {
+    const screens = routeDefinitions.filter((definition) => expectedSection(definition) === 'tools');
+    expect(screens.length).toBeGreaterThan(0);
+    for (const screen of screens) expect(marked(example(screen.path)).length, `${screen.id} ${screen.path}`).toBe(1);
   });
 });

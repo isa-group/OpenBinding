@@ -25,4 +25,21 @@ describe('area organizations', () => {
     expect(resolve('/app/organizations/new')).toBe('org-create');
     expect(resolve('/app/acme/settings')).toBe('org-settings');
   });
+
+  describe('address resolution', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+
+    // [utest->req~frontend-nav-route-areas~1]
+    it.each([
+      ['/app', 'app-home'],
+      ['/app/organizations/new', 'org-create'],
+      ['/app/acme', 'org-overview'],
+      ['/app/acme/settings', 'org-settings'],
+      ['/app/acme/settings/members', 'org-members'],
+      ['/app/acme/settings/audit', 'org-audit'],
+      ['/app/settings/settings', 'org-settings'],
+    ])('%s -> %s', (path, id) => {
+      expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
+    });
+  });
 });

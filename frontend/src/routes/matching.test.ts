@@ -1,86 +1,82 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { routeDefinitions } from './registry';
+import { routeDefinitions, routesByArea, type AreaName } from './registry';
 
 // [utest->req~frontend-nav-route-areas~1]
-// Characterization of the screen each address resolves to. Addresses where a fixed segment meets a `:param` segment are the ones a
-// reordering of the registry could change; the registry order decides ties of rank.
+// Resolution across the areas. Addresses where a fixed segment meets a `:param` segment are the ones a reordering of the registry could
+// change, and the registry order decides ties of rank. This file names no screen: it asserts the AREA of the screen an address
+// resolves to, and what the address of each screen of an area resolves to is checked in that area's own test (areas/<area>.test.ts),
+// so a change to the screens of one area edits only that area's files.
 const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+const areaOfScreen = new Map(Object.entries(routesByArea).flatMap(([area, screens]) => screens.map((screen) => [screen.id, area as AreaName] as const)));
+
 const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id ?? null;
+/** The area of the screen an address resolves to, `null` when it resolves to none. */
+const areaAt = (path: string) => {
+  const id = resolve(path);
+  return id === null ? null : areaOfScreen.get(id) ?? null;
+};
+
+/** An address the path leads to: an optional segment dropped, the organization and project of the examples, any other parameter filled. */
+const example = (path: string) => path
+  .replace(/\/:[A-Za-z]+\?/g, '')
+  .replace(':org', 'acme')
+  .replace(':project', 'atlas')
+  .replace(/:[A-Za-z]+/g, 'sample') || '/';
 
 describe('address resolution across the registry', () => {
-  it.each([
-    ['/', 'pub-home'],
-    ['/engines/bim.builtin/random-search/1.0.0', 'eng-detail'],
-    ['/engines/new', null],
-    ['/language', 'lang-profiles'],
-    ['/language/schemas/Instance', 'lang-profiles'],
-    ['/language/extensions', 'lang-profiles'],
-    ['/resolve/report/sha256-abc', 'pub-resolve'],
-    ['/password-reset/complete', 'auth-reset-complete'],
-    ['/app', 'app-home'],
-    ['/app/jobs', 'job-history'],
-    ['/app/jobs/new', 'proj-overview'],
-    ['/app/generator', 'gen-lab'],
-    ['/app/verifier', 'verifier'],
-    ['/app/system/states', 'sys-states'],
-    ['/app/organizations/new', 'org-create'],
-    ['/app/organizations/acme', 'proj-overview'],
-    ['/app/account', 'acct-profile'],
-    ['/app/account/usage', 'acct-usage'],
-    ['/app/account/keys', 'acct-keys'],
-    ['/app/account/keys/new', 'acct-key-new'],
-    ['/app/account/keys/other', null],
-    ['/app/account/anything', 'proj-overview'],
-    ['/app/engines/new', 'eng-register'],
-    ['/app/engines/registrations', 'eng-registrations'],
-    ['/app/engines/registrations/edge', 'eng-registration-detail'],
-    ['/app/engines/registrations/settings', 'eng-registration-detail'],
-    ['/app/engines/other', 'proj-overview'],
-    ['/app/language/other', 'proj-overview'],
-    ['/app/admin', 'admin-overview'],
-    ['/app/admin/users', 'admin-users'],
-    ['/app/admin/users/new', 'admin-user-detail'],
-    ['/app/admin/users/settings', 'admin-user-detail'],
-    ['/app/admin/audit', 'admin-audit'],
-    ['/app/admin/other', 'proj-overview'],
-    ['/app/acme', 'org-overview'],
-    ['/app/acme/settings', 'org-settings'],
-    ['/app/acme/settings/members', 'org-members'],
-    ['/app/acme/settings/audit', 'org-audit'],
-    ['/app/acme/new-project', 'proj-create'],
-    ['/app/settings/settings', 'org-settings'],
-    ['/app/new-project/new-project', 'proj-create'],
-    ['/app/acme/atlas', 'proj-overview'],
-    ['/app/acme/atlas/settings', 'proj-settings'],
-    ['/app/acme/atlas/package', 'proj-package'],
-    ['/app/acme/atlas/files', 'proj-files'],
-    ['/app/acme/atlas/publications', 'proj-publications'],
-    ['/app/acme/atlas/workbench', 'wb-workbench'],
-    ['/app/acme/atlas/cases', 'case-list'],
-    ['/app/acme/atlas/cases/c1', 'case-detail'],
-    ['/app/acme/atlas/cases/compare', 'case-detail'],
-    ['/app/acme/atlas/cases/c1/compare', 'case-compare'],
-    ['/app/acme/atlas/cases/c1/revisions/2', 'case-revision'],
-    ['/app/acme/atlas/snapshots/s1', 'snap-detail'],
-    ['/app/acme/atlas/collections', 'coll-list'],
-    ['/app/acme/atlas/collections/k1', 'coll-detail'],
-    ['/app/acme/atlas/jobs', 'job-list'],
-    ['/app/acme/atlas/jobs/new', 'job-launch'],
-    ['/app/acme/atlas/jobs/j1', 'job-detail'],
-    ['/app/acme/atlas/studies', 'study-list'],
-    ['/app/acme/atlas/studies/new', 'study-builder'],
-    ['/app/acme/atlas/studies/s1', 'study-detail'],
-    ['/app/acme/atlas/studies/s1/runs/r1', 'study-run'],
-    ['/app/acme/atlas/studies/s1/runs/r1/cells/c1', 'study-cell'],
-    ['/app/acme/atlas/studies/s1/runs/r1/analytics', 'study-analytics'],
-    ['/app/acme/atlas/other', null],
-  ])('%s -> %s', (path, id) => {
-    expect(resolve(path)).toBe(id);
+  it('knows the area of every screen', () => {
+    expect(areaOfScreen.size).toBe(routeDefinitions.length);
   });
 
-  // /app/language/extensions is a moved address (areas/language.tsx), not a screen: the registry gives it no screen of its own.
-  it('gives /app/language/extensions no screen of its own', () => {
-    expect(routeDefinitions.some((definition) => definition.path === '/app/language/extensions')).toBe(false);
+  it.each(Object.keys(routesByArea) as AreaName[])('serves the address of every screen of area %s by a screen of the same area', (area) => {
+    for (const screen of routesByArea[area]) {
+      expect(areaAt(example(screen.path)), `${screen.id} ${screen.path}`).toBe(area);
+    }
+  });
+
+  // A fixed segment under /app (`/app/jobs`, `/app/account`, …) is the first segment of a screen of some area. An address one level below
+  // it that no screen of that area claims is read as an organization and a project: the screen of the plain `/app/:org/:project` address,
+  // or a screen of the area itself when the area takes any section there.
+  const fixedSegments = [...new Set(routeDefinitions.flatMap((definition) => {
+    const [, root, first] = definition.path.split('/');
+    return root === 'app' && first && !first.startsWith(':') ? [first] : [];
+  }))];
+
+  it('finds fixed segments under /app', () => {
+    expect(fixedSegments.length).toBeGreaterThan(3);
+  });
+
+  it.each(fixedSegments)('reads an unknown address below /app/%s as an organization and a project, or as a screen of its own area', (segment) => {
+    const owners = new Set(routeDefinitions.filter((definition) => definition.path.split('/')[2] === segment).map((definition) => areaOfScreen.get(definition.id)));
+    const fallback = areaAt('/app/zz-organization/zz-project');
+    expect(fallback).not.toBeNull();
+    const area = areaAt(`/app/${segment}/zz-unknown`);
+    expect(area === null ? 'no screen' : [fallback, ...owners].includes(area), `/app/${segment}/zz-unknown -> ${area}`).toBe(true);
+  });
+
+  it.each([
+    ['/', 'public'],
+    ['/app', 'organizations'],
+    ['/app/acme', 'organizations'],
+    // The fixed `settings` segment wins over a project called `settings`.
+    ['/app/acme/settings', 'organizations'],
+    ['/app/settings/settings', 'organizations'],
+    // A project called `new-project` is the project area either way.
+    ['/app/acme/new-project', 'project'],
+    ['/app/new-project/new-project', 'project'],
+    ['/app/acme/atlas', 'project'],
+  ] as const)('%s -> the area %s', (path, area) => {
+    expect(areaAt(path)).toBe(area);
+  });
+
+  it.each([
+    // Engines are only addressed by namespace, name and version.
+    '/engines/new',
+    // Below a project, only the sections of the screens are routed.
+    '/app/acme/atlas/zz-no-such-section',
+    '/app/acme/atlas/zz-no-such-section/zz',
+  ])('resolves %s to no screen', (path) => {
+    expect(resolve(path)).toBeNull();
   });
 });

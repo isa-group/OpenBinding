@@ -156,6 +156,8 @@ open sections of a project named `settings`, a project that the organization set
 - The canonical JSON goes into `<details>` with the summary `Canonical JSON`, around
   `<SourceView source={canonical_json} label="Canonical JSON" language="json" />`.
 - The copy action keeps the `/resolve/<kind>/<digest>` form.
+- The `Log in` link leads to `/login` and nothing more. Returning to the Verify page after sign-in needs
+  `utils/authFlow.ts`, which is outside this change, so the visitor lands on `/app`. The follow-up is in tasks.md.
 - `verifierOptions` and its tests move along with the page.
 
 ## 6. Vocabulary passes

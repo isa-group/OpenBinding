@@ -40,4 +40,19 @@ describe('area project', () => {
   it('keeps the fixed project screen from being read as an organization or project', () => {
     expect(resolve('/app/acme/new-project')).toBe('proj-create');
   });
+
+  describe('address resolution', () => {
+    // [utest->req~frontend-nav-route-areas~1]
+    it.each([
+      ['/app/acme/new-project', 'proj-create'],
+      ['/app/new-project/new-project', 'proj-create'],
+      ['/app/acme/atlas', 'proj-overview'],
+      ['/app/acme/atlas/settings', 'proj-settings'],
+      ['/app/acme/atlas/package', 'proj-package'],
+      ['/app/acme/atlas/files', 'proj-files'],
+      ['/app/acme/atlas/publications', 'proj-publications'],
+    ])('%s -> %s', (path, id) => {
+      expect(resolve(path) ?? null).toBe(id);
+    });
+  });
 });

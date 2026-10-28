@@ -3,6 +3,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import type { Organization, Project } from '../../api/platform';
 import { CommandPalette, OPEN_COMMAND_PALETTE_EVENT } from './CommandPalette';
+import { buildCommands } from './paletteCommands';
 
 const organization: Organization = {
   id: 'org-1', name: 'ISA Demo Group', slug: 'isa-demo', parent_id: null,
@@ -16,6 +17,11 @@ const project: Project = {
 function Location() {
   return <output data-testid="location">{useLocation().pathname}</output>;
 }
+
+// What the palette offers comes from the commands under test, not from names written here: a change to the screens a command leads to
+// edits paletteCommands.ts and leaves these tests alone.
+const commandsOf = (isAdmin: boolean) => buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin });
+const pathOf = (href: string) => new URL(href, 'http://localhost').pathname;
 
 function renderPalette(isAdmin = false) {
   return render(
@@ -59,18 +65,24 @@ describe('CommandPalette', () => {
   });
 
   it('filters by label, description and group', () => {
+    const commands = commandsOf(false);
+    const tools = commands.filter((command) => command.group === 'Tools');
+    expect(tools.length).toBeGreaterThan(1);
+    const [first] = tools;
     renderPalette();
     openWithShortcut();
-    expect(resultLabels()).toContain('Explore');
+    expect(resultLabels()).toEqual(commands.map((command) => command.label));
 
-    fireEvent.change(search(), { target: { value: 'verif' } });
-    expect(resultLabels()).toEqual(['Verifier']);
+    fireEvent.change(search(), { target: { value: first.label.toLowerCase() } });
+    expect(resultLabels()).toContain(first.label);
+    expect(resultLabels().length).toBeLessThan(commands.length);
 
-    fireEvent.change(search(), { target: { value: 'digest' } });
-    expect(resultLabels()).toEqual(['Verifier']);
+    fireEvent.change(search(), { target: { value: first.desc } });
+    expect(resultLabels()).toEqual([first.label]);
 
-    fireEvent.change(search(), { target: { value: 'tools' } });
-    expect(resultLabels()).toEqual(['Verifier', 'My engines', 'Language extensions', 'Generator lab']);
+    fireEvent.change(search(), { target: { value: first.group.toLowerCase() } });
+    expect(resultLabels()).toEqual(expect.arrayContaining(tools.map((command) => command.label)));
+    expect(resultLabels().length).toBeLessThan(commands.length);
   });
 
   it('says that search is local when nothing matches', () => {
@@ -97,14 +109,18 @@ describe('CommandPalette', () => {
   });
 
   it('only offers administration commands to administrators', () => {
+    const everyoneLabels = commandsOf(false).map((command) => command.label);
+    const adminOnly = commandsOf(true).map((command) => command.label).filter((label) => !everyoneLabels.includes(label));
+    expect(adminOnly.length).toBeGreaterThan(0);
+
     const { unmount } = renderPalette(false);
     openWithShortcut();
-    expect(resultLabels()).not.toContain('Administration');
+    for (const label of adminOnly) expect(resultLabels()).not.toContain(label);
     unmount();
 
     renderPalette(true);
     openWithShortcut();
-    expect(resultLabels()).toContain('Administration');
+    for (const label of adminOnly) expect(resultLabels()).toContain(label);
   });
 
   it('closes with Escape and gives focus back to the control that was focused', () => {
@@ -127,21 +143,26 @@ describe('CommandPalette', () => {
   });
 
   it('opens the first result with Enter', () => {
+    const [first] = commandsOf(false).filter((command) => command.group === 'Tools');
     renderPalette();
     openWithShortcut();
-    fireEvent.change(search(), { target: { value: 'verifier' } });
+    fireEvent.change(search(), { target: { value: first.desc } });
     fireEvent.keyDown(search(), { key: 'Enter' });
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/app/verifier');
+    expect(screen.getByTestId('location').textContent).toBe(pathOf(first.href));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('navigates and closes when a result is chosen', () => {
+    const chosen = commandsOf(false).filter((command) => command.group === 'Account').at(-1);
+    if (!chosen) throw new Error('the palette has no account command');
     renderPalette();
     openWithShortcut();
-    fireEvent.click(within(dialog()).getByRole('link', { name: /^Plan & permissions/ }));
+    const link = within(dialog()).getAllByRole('link').find((candidate) => candidate.getAttribute('href') === chosen.href);
+    if (!link) throw new Error(`the palette does not list ${chosen.href}`);
+    fireEvent.click(link);
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/app/account/usage');
+    expect(screen.getByTestId('location').textContent).toBe(pathOf(chosen.href));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 

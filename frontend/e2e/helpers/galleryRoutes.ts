@@ -25,6 +25,15 @@ export function readAreaSources(): Array<{ area: string; source: string }> {
     .map((area) => ({ area, source: readFileSync(new URL(`${area}.tsx`, directory), 'utf8') }));
 }
 
+/**
+ * The route pattern without its optional segments (`:section?`), each dropped with its slash, so an example address visits the base
+ * address of a screen that takes sections (`/language/:section?/:item?` is visited at `/language`). Fill the other parameters afterwards.
+ * A `?` that starts a query (`/app/:org?create=project`) is not an optional marker: the marker ends the segment.
+ */
+export function dropOptionalSegments(path: string): string {
+  return path.replace(/\/:[A-Za-z][A-Za-z0-9]*\?(?=\/|$)/g, '') || '/';
+}
+
 /** Every `live(` call the area files make: the screens that `readGalleryScreens` has to find. */
 export function countLiveCalls(): number {
   return readAreaSources().reduce((total, { source }) => total + (source.match(/^\s*live\(/gm)?.length ?? 0), 0);
@@ -86,7 +95,6 @@ export const EXAMPLE = {
 
 /** Parameters whose example value differs from the generic one on one screen. */
 const PARAMS_OF: Record<string, Record<string, string>> = {
-  'lang-schemas': { kind: 'Instance' },
   'eng-detail': { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0' },
   'eng-registration-detail': { name: 'edge-solver' },
 };
@@ -108,7 +116,7 @@ export function readGalleryScreens(): GalleryScreen[] {
     return [...source.matchAll(/^\s*live\('([a-z0-9-]+)',\s*'(\/[^']*)'(.*)$/gm)].map((match) => {
       const [, id, path, rest] = match;
       const params: Record<string, string> = { ...EXAMPLE, ...PARAMS_OF[id] };
-      const address = path.replace(/:([A-Za-z]+)/g, (_whole, name: string) => params[name] ?? 'sample');
+      const address = dropOptionalSegments(path).replace(/:([A-Za-z]+)/g, (_whole, name: string) => params[name] ?? 'sample');
       return {
         id,
         path,

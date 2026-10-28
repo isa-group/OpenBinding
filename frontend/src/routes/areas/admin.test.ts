@@ -46,4 +46,19 @@ describe('area admin', () => {
     expect(resolve('/app/admin/moderation')).toBe('admin-moderation');
     expect(resolve('/app/admin/maintenance')).toBe('admin-maintenance');
   });
+
+  describe('address resolution', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+
+    // [utest->req~frontend-nav-route-areas~1]
+    it.each([
+      ['/app/admin', 'admin-overview'],
+      ['/app/admin/users', 'admin-users'],
+      ['/app/admin/users/new', 'admin-user-detail'],
+      ['/app/admin/users/settings', 'admin-user-detail'],
+      ['/app/admin/audit', 'admin-audit'],
+    ])('%s -> %s', (path, id) => {
+      expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
+    });
+  });
 });

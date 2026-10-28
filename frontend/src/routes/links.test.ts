@@ -4,15 +4,24 @@ import type { MovedRoute } from './moved';
 import { movedRoutes, routeDefinitions } from './registry';
 import { RETIRED_ROUTES } from './retiredRoutes';
 
-/** The text of every string and template literal of a source, comments skipped. A template keeps its `${…}` as written. */
-function literalsOf(text: string): string[] {
-  const found: string[] = [];
+/** The text of a string or template literal, and where it starts in the source. */
+interface Literal {
+  text: string;
+  at: number;
+}
+
+/** The line (from 1) of an offset in a source. */
+const lineOf = (text: string, at: number) => text.slice(0, at).split('\n').length;
+
+/** Every string and template literal of a source, comments skipped. A template keeps its `${…}` as written. */
+function literalsOf(text: string): Literal[] {
+  const found: Literal[] = [];
   let i = 0;
   const quoted = (quote: string) => {
     let j = i + 1;
     while (j < text.length && text[j] !== quote && text[j] !== '\n') j += text[j] === '\\' ? 2 : 1;
     if (text[j] === quote) {
-      found.push(text.slice(i + 1, j));
+      found.push({ text: text.slice(i + 1, j), at: i + 1 });
       i = j + 1;
     } else {
       i += 1; // an apostrophe in JSX text or a regular expression, not a literal
@@ -27,7 +36,7 @@ function literalsOf(text: string): string[] {
         code(true);
       } else i += 1;
     }
-    found.push(text.slice(start, i));
+    found.push({ text: text.slice(start, i), at: start });
     i += 1;
   };
   function code(insideTemplate: boolean) {
@@ -95,27 +104,51 @@ export function retiredAddresses(
   retiredPaths: readonly string[],
   declares: (name: string) => boolean = (name) => name === 'routes/retiredRoutes.tsx',
 ): string[] {
-  const hits: string[] = [];
+  return addressHits(sources, retiredPaths, declares).map(({ file, literal }) => `${file}: ${literal}`);
+}
+
+/** A literal of a source that starts with an address the scan looks for. */
+export interface AddressHit {
+  file: string;
+  line: number;
+  literal: string;
+}
+
+/** What `retiredAddresses` reports, with the line of each literal. */
+export function addressHits(
+  sources: Record<string, string>,
+  retiredPaths: readonly string[],
+  declares: (name: string) => boolean = (name) => name === 'routes/retiredRoutes.tsx',
+): AddressHit[] {
+  const hits: AddressHit[] = [];
   const all = retiredPaths.map(patternsOf);
   for (const [file, text] of Object.entries(sources)) {
     const name = file.replace(/^(\.\.\/|src\/)/, '');
     if (declares(name)) continue;
     const patterns = name.startsWith('api/') ? all.map(([whole]) => [whole]) : all;
     for (const literal of literalsOf(text)) {
-      if (patterns.some((list) => list.some((pattern) => pattern.test(literal)))) hits.push(`${file}: ${literal}`);
+      if (patterns.some((list) => list.some((pattern) => pattern.test(literal.text)))) hits.push({ file, line: lineOf(text, literal.at), literal: literal.text });
     }
   }
   return hits;
 }
+
+type MovedTable = ReadonlyArray<Pick<MovedRoute, 'path' | 'permanent'>>;
+const declaresMoved = (name: string) => name === 'routes/moved.ts' || name.startsWith('routes/areas/');
 
 // [impl->req~frontend-nav-redirects~1]
 /**
  * Like `retiredAddresses`, for the old addresses of the moved routes (`moved.ts`): the code must link to the new address. An entry marked
  * `permanent: true` is left out, and so are the files that declare moved routes (the area files and `routes/moved.ts`).
  */
-export function movedAddresses(sources: Record<string, string>, table: ReadonlyArray<Pick<MovedRoute, 'path' | 'permanent'>>): string[] {
+export function movedAddresses(sources: Record<string, string>, table: MovedTable): string[] {
+  return movedAddressHits(sources, table).map(({ file, literal }) => `${file}: ${literal}`);
+}
+
+/** What `movedAddresses` reports, with the line of each literal. */
+export function movedAddressHits(sources: Record<string, string>, table: MovedTable): AddressHit[] {
   const paths = table.filter((route) => !route.permanent).map((route) => route.path);
-  return retiredAddresses(sources, paths, (name) => name === 'routes/moved.ts' || name.startsWith('routes/areas/'));
+  return addressHits(sources, paths, declaresMoved);
 }
 
 /** Every source file that is not a test, as text. */
@@ -136,19 +169,28 @@ const config = [
 /** The route an address leads to, with the query, the hash and any `${…}` filled in by an example value. */
 const pathOf = (address: string) => address.replace(/\$\{[^}]*\}/g, 'sample').split(/[?#]/)[0];
 
+/** The static links of a source text, each with its address and its line. */
+function linksOf(file: string, text: string) {
+  return [...text.matchAll(LINK)].map((match) => ({ file, line: lineOf(text, match.index ?? 0), address: match[2] ?? match[4] }));
+}
+
 function staticLinks() {
-  const found: Array<{ file: string; address: string }> = [];
-  for (const [file, text] of Object.entries(sources)) {
-    for (const match of text.matchAll(LINK)) found.push({ file: file.replace('../', 'src/'), address: match[2] ?? match[4] });
-  }
-  return found;
+  return Object.entries(sources).flatMap(([file, text]) => linksOf(file.replace('../', 'src/'), text));
 }
 
 describe('internal links written in the code', () => {
   it('finds the links to check', () => {
-    const addresses = staticLinks().map((link) => link.address);
-    expect(addresses.length).toBeGreaterThan(50);
-    expect(addresses).toContain('/app/jobs');
+    expect(staticLinks().length).toBeGreaterThan(50);
+  });
+
+  it('reads each way of writing a link, with its line', () => {
+    const text = ['<Link to="/a/b">', 'x({ to: `/c/${id}`, href: \'/d\' });', 'navigate("/e");'].join('\n');
+    expect(linksOf('src/X.tsx', text)).toEqual([
+      { file: 'src/X.tsx', line: 1, address: '/a/b' },
+      { file: 'src/X.tsx', line: 2, address: '/c/${id}' },
+      { file: 'src/X.tsx', line: 2, address: '/d' },
+      { file: 'src/X.tsx', line: 3, address: '/e' },
+    ]);
   });
 
   it('resolve to a screen of routes/areas, or to a permanent moved address', () => {
@@ -156,13 +198,13 @@ describe('internal links written in the code', () => {
     const composed = new Set(['/engines/${slug}/${location.version_or_revision}']);
     const lost = staticLinks()
       .filter(({ address }) => !composed.has(address) && !matchRoutes(config, pathOf(address)))
-      .map(({ file, address }) => `${file}: ${address}`);
-    expect(lost).toEqual([]);
+      .map(({ file, line, address }) => `${file}:${line}: ${address}`);
+    expect(lost, 'links to an address that no screen and no permanent moved address answers').toEqual([]);
   });
 
   it('do not point at the addresses the redesign retired', () => {
     const retired = /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog)(\/|$)|^\/app\/analysis\?job=|^\/app\/[^/]+\/[^/]+\/(verifier|analytics|artifacts|reports|library|resources)(\/|$)|^\/app\/[^/]+\/library(\/|$)|^\/app\/[^/]+\/[^/]+\/cases\/[^/]+\/compose(\/|$)/;
-    const old = staticLinks().filter(({ address }) => retired.test(address)).map(({ file, address }) => `${file}: ${address}`);
+    const old = staticLinks().filter(({ address }) => retired.test(address)).map(({ file, line, address }) => `${file}:${line}: ${address}`);
     expect(old).toEqual([]);
   });
 });
@@ -450,9 +492,25 @@ describe('the scan for retired addresses', () => {
     });
   });
 
+  describe('the report for a moved address', () => {
+    const table = [{ path: '/app/:org/:project/files' }, { path: '/app/:org/:project/package', permanent: true }];
+
+    // [utest->req~frontend-nav-redirects~1]
+    it('names the file and the line of each link to an address that moved', () => {
+      const source = ['const a = 1;', "const b = '/app/acme/atlas/files';", '', 'const c = `', '  ${root}', '`;', 'const d = `/app/${org}/${project}/files?x`;'].join('\n');
+      expect(movedAddressHits({ 'pages/X.tsx': source, 'pages/Y.tsx': "x('/app/a/b/package');" }, table)).toEqual([
+        { file: 'pages/X.tsx', line: 2, literal: '/app/acme/atlas/files' },
+        { file: 'pages/X.tsx', line: 7, literal: '/app/${org}/${project}/files?x' },
+      ]);
+    });
+  });
+
   // [utest->req~frontend-nav-redirects~1]
   it('finds none in the application sources, for the moved addresses that are not permanent', () => {
-    expect(movedAddresses(application, movedRoutes)).toEqual([]);
+    // Failing here means a source links to an address that moved. Rewrite that line to the new address; only an entry that has to
+    // stay valid for outside links (a published citation, an e-mail) is marked `permanent`.
+    const found = movedAddressHits(application, movedRoutes).map(({ file, line, literal }) => `${file}:${line}: ${literal}`);
+    expect(found, 'links to a moved address that is not permanent: point them at the new address').toEqual([]);
   });
 
   // [utest->req~frontend-retire-reports-no-link~1]

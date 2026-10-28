@@ -85,7 +85,7 @@ Tasks:
   - the three modes;
   - signed-out requests only to `/v1/resolve/`;
   - the kind selector;
-  - the `Log in` text;
+  - the `Log in` text, with a link to `/login` and no return to `/verify`;
   - the canonical JSON in a collapsed `SourceView`;
   - the ten kinds redirected, signed in and signed out;
   - `/app/verifier?digest=` redirected without `/login`;
@@ -347,4 +347,6 @@ Tasks:
 
 - The gateway emits the new frontend addresses: `/verify/...`, `/password-reset?token=`, and `…/problems/<case>?version=`
   in `web_url`. The permanent entries stay even after that.
+- Returning to `/verify` after sign-in: `utils/authFlow.ts` has to keep the Verify address across the login. The Verify
+  page's `Log in` link goes to `/login` until then, and the visitor lands on `/app`.
 - `ROADMAP.md`: the M2.6 slice status (never its `Status: PROPOSED` lines).

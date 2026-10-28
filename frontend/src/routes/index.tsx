@@ -1,8 +1,7 @@
-import { Navigate, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { ProtectedRoute } from '../components/ProtectedRoute';
-import { layoutFor } from './define';
 import type { MovedRoute } from './moved';
 import { NotFoundScreen } from './NotFoundScreen';
 import { movedRoutes, routeDefinitions } from './registry';
@@ -25,7 +24,11 @@ function RetiredRedirect({ route }: { route: RetiredRoute }) {
 function MovedRedirect({ route }: { route: MovedRoute }) {
   const [query] = useSearchParams();
   const params = useParams();
-  return <Navigate to={route.target(query, params)} replace />;
+  const { hash } = useLocation();
+  const target = route.target(query, params);
+  // The hash of the old address goes on to the new one, unless the entry drops what the old address carried (`keepQuery: false`) or its
+  // own target already names a hash.
+  return <Navigate to={target.includes('#') || route.keepQuery === false ? target : `${target}${hash}`} replace />;
 }
 
 function screenElement(definition: RouteDefinition) {
@@ -49,16 +52,11 @@ interface AppRoutesProps {
 }
 
 export function AppRoutes({ moved = movedRoutes }: AppRoutesProps = {}) {
-  const movedUnderApp = moved.filter((route) => layoutFor(route.path) === 'app');
-  const movedPublic = moved.filter((route) => layoutFor(route.path) === 'public');
   return (
     <Routes>
       <Route element={<PublicLayout />}>
         {publicScreens.map((definition) => (
           <Route key={definition.id} path={definition.path} element={screenElement(definition)} />
-        ))}
-        {movedPublic.map((route) => (
-          <Route key={route.id} path={route.path} element={<MovedRedirect route={route} />} />
         ))}
         <Route path="*" element={<NotFoundScreen />} />
       </Route>
@@ -76,10 +74,13 @@ export function AppRoutes({ moved = movedRoutes }: AppRoutesProps = {}) {
         {RETIRED_ROUTES.map((route) => (
           <Route key={route.id} path={route.path} element={<RetiredRedirect route={route} />} />
         ))}
-        {movedUnderApp.map((route) => (
-          <Route key={route.id} path={route.path} element={<MovedRedirect route={route} />} />
-        ))}
       </Route>
+      {/* The moved addresses come last, outside the sign-in guard: the redirect only navigates, so a signed-out visitor of an old address
+          whose target is public (a published verification link) never sees /login, and the target's own guard still applies. On a tie of
+          rank the screens above win, since a route that comes earlier in the tree ranks first; a static moved path beats a :param screen. */}
+      {moved.map((route) => (
+        <Route key={route.id} path={route.path} element={<MovedRedirect route={route} />} />
+      ))}
     </Routes>
   );
 }

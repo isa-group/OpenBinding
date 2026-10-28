@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { countLiveCalls, readAreaSources, readMovedAddresses } from './helpers/galleryRoutes';
+import { countLiveCalls, dropOptionalSegments, readAreaSources, readMovedAddresses } from './helpers/galleryRoutes';
 
 // Visits every screen of the route registry (src/routes/areas/*.tsx) with example parameter values, and every moved address
 // (`moved('id', '/from', '/to'…` lines of the same files) to see that it ends on its new address.
@@ -27,13 +27,14 @@ function readRegistry(): Screen[] {
 const screens = readRegistry();
 const movedAddresses = readMovedAddresses();
 
-const exampleUrl = (path: string) => path
+/** The base address of a pattern: an optional segment (`:section?`) is dropped with its slash before the parameters are filled. */
+const exampleUrl = (path: string) => dropOptionalSegments(path)
   .replace(':org', 'isa-demo')
   .replace(':project', 'qos')
   .replace(/:[A-Za-z]+/g, 'sample');
 
 /** Example values for a moved address: the organization and the project the mock knows, every other parameter its own name. */
-const namedUrl = (path: string) => path
+const namedUrl = (path: string) => dropOptionalSegments(path)
   .replace(':org', 'isa-demo')
   .replace(':project', 'qos')
   .replace(/:([A-Za-z]+)/g, '$1');
