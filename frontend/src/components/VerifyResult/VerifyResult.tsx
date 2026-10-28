@@ -39,18 +39,18 @@ export function VerifyResult({ verdict, computed, given, kindLabels, hrefOf, ren
   const words = VERDICTS[verdict.status];
   const Icon = ICONS[verdict.status];
   const entities = verdict.entities ?? [];
-  const { left, right } = sidesOf(verdict.status, verdict.digest, entities.length > 0, computed, given);
+  const sides = sidesOf(verdict.status, verdict.digest, entities.length > 0, computed, given);
 
   return (
     <div className="verify-result">
-      <section className={`verify-result__verdict is-${words.tone}`} aria-label="Verdict" aria-live="polite">
+      <div className={`verify-result__verdict is-${words.tone}`} role="status" aria-label="Verdict">
         <span className="verify-result__glyph" aria-hidden="true"><Icon size={26} /></span>
         <div>
           <strong>{words.title}</strong>
           <span>{words.text}</span>
           {verdict.detail && <small>{verdict.detail}</small>}
         </div>
-      </section>
+      </div>
 
       {disagrees(verdict.status, verdict.digest, computed) && (
         <Notice tone="warning" title="Your browser and the server disagree">
@@ -59,10 +59,10 @@ export function VerifyResult({ verdict, computed, given, kindLabels, hrefOf, ren
       )}
 
       <div className="verify-result__sides">
-        {[left, right].map((side) => (
+        {sides.map((side) => (
           <div key={side.label} className="verify-result__side">
             <span className="verify-result__label">{side.label}</span>
-            {side.value === null ? <span className="verify-result__none">nothing recorded</span> : <CopyField value={side.value} label={side.label.toLowerCase()} />}
+            {side.value === null ? <span className="verify-result__none">{side.note}</span> : <CopyField value={side.value} label={side.copyLabel} />}
           </div>
         ))}
       </div>

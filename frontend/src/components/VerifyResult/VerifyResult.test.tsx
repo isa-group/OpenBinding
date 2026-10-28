@@ -4,7 +4,6 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VerifierEntity } from '../../api/platform';
 import { VerifyResult } from './VerifyResult';
-import { VERDICTS } from './verifyModel';
 
 const D1 = `sha256-${'a1'.repeat(32)}`;
 const D2 = `sha256-${'b2'.repeat(32)}`;
@@ -19,25 +18,70 @@ beforeEach(() => {
 
 describe('VerifyResult', () => {
   // [utest->req~verify-result~1]
-  it.each(['verified', 'computed', 'mismatch', 'not_found'] as const)('shows the %s verdict with its wording', (status) => {
+  it.each([
+    ['verified', 'Verified', 'The fingerprint is what OpenBinding recorded.'],
+    ['computed', 'Computed, not on record', 'We computed its fingerprint, but OpenBinding hasn’t recorded anything with it. That’s normal for drafts or local files.'],
+    ['mismatch', 'Doesn’t match', 'The content you gave hashes differently from the fingerprint you expected. It was changed somewhere along the way.'],
+    ['not_found', 'Nothing found', 'OpenBinding has no element recorded with this fingerprint that you can see. Someone else’s private item reads exactly like one that was never registered, so this doesn’t say which it is.'],
+  ] as const)('shows the %s verdict titled %s', (status, title, text) => {
     render(<VerifyResult verdict={{ status, digest: D1, detail: 'because' }} />);
 
-    const region = screen.getByRole('region', { name: 'Verdict' });
-    expect(within(region).getByText(VERDICTS[status].title)).toBeInTheDocument();
-    expect(within(region).getByText(VERDICTS[status].text)).toBeInTheDocument();
+    const region = screen.getByRole('status', { name: 'Verdict' });
+    expect(within(region).getByText(title)).toBeInTheDocument();
+    expect(within(region).getByText(text)).toBeInTheDocument();
     expect(within(region).getByText('because')).toBeInTheDocument();
   });
 
   // [utest->req~verify-result~1]
-  it('shows the given and recorded sides of a verified fingerprint, one copy button each', async () => {
-    render(<VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity()] }} given={D1} />);
+  it('shows a verified fingerprint once, with one copy button, and says the other side matches', async () => {
+    const { container } = render(<VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity()] }} given={D1} />);
 
-    expect(screen.getByText('Fingerprint you gave')).toBeInTheDocument();
-    expect(screen.getByText('Recorded by OpenBinding')).toBeInTheDocument();
-    expect(screen.getAllByText(D1)).toHaveLength(2);
-    expect(screen.getAllByRole('button', { name: /^Copy / })).toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', { name: 'Copy recorded by openbinding' }));
+    expect(screen.getByText('Fingerprint you gave').nextElementSibling).toHaveTextContent('Matches the recorded fingerprint');
+    expect(screen.getByText('Recorded by OpenBinding').nextElementSibling).toHaveTextContent(D1);
+    expect(container.textContent?.split(D1).length).toBe(2);
+    expect(screen.getAllByRole('button', { name: /^Copy / })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy recorded fingerprint' }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(D1));
+  });
+
+  // [utest->req~verify-result~1]
+  it('shows only the recorded side when nothing was given or computed', () => {
+    const { container } = render(<VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity()] }} />);
+
+    expect(screen.queryByText('Fingerprint you gave')).not.toBeInTheDocument();
+    expect(screen.queryByText('Computed in your browser')).not.toBeInTheDocument();
+    expect(container.textContent?.split(D1).length).toBe(2);
+    expect(screen.getAllByRole('button', { name: /^Copy / })).toHaveLength(1);
+  });
+
+  // [utest->req~verify-result~1]
+  it('shows a matching computed fingerprint once and keeps product names in labels', () => {
+    const { container } = render(<VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity()] }} computed={D1} />);
+
+    expect(screen.getByText('Computed in your browser').nextElementSibling).toHaveTextContent('Matches the recorded fingerprint');
+    expect(container.textContent?.split(D1).length).toBe(2);
+    expect(screen.getByText('Recorded by OpenBinding')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy recorded fingerprint' })).toBeInTheDocument();
+  });
+
+  // [utest->req~verify-result~1]
+  it('shows a given fingerprint that matches the expected one once', () => {
+    const { container } = render(<VerifyResult verdict={{ status: 'mismatch', digest: D1 }} given={D1} />);
+
+    expect(screen.getByText('Fingerprint you gave').nextElementSibling).toHaveTextContent('Matches the expected fingerprint');
+    expect(container.textContent?.split(D1).length).toBe(2);
+    expect(screen.getAllByRole('button', { name: /^Copy / })).toHaveLength(1);
+  });
+
+  // [utest->req~verify-result~1]
+  it('shows two different given and recorded digests, one copy button each', () => {
+    render(<VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity()] }} given={D2} />);
+
+    expect(screen.getByRole('button', { name: 'Copy fingerprint you gave' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy recorded fingerprint' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^Copy / })).toHaveLength(2);
+    expect(screen.getByText('Fingerprint you gave').nextElementSibling).toHaveTextContent(D2);
+    expect(screen.getByText('Recorded by OpenBinding').nextElementSibling).toHaveTextContent(D1);
   });
 
   // [utest->req~verify-result~1]
@@ -114,7 +158,13 @@ describe('VerifyResult', () => {
 
   // [utest->req~verify-result~1]
   it('has no hard-coded hex colour in its stylesheet', () => {
-    const css = readFileSync(join(process.cwd(), 'src/components/VerifyResult/VerifyResult.css'), 'utf8');
+    const css = readFileSync(join(import.meta.dirname, 'VerifyResult.css'), 'utf8');
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+  });
+
+  // [utest->req~verify-result~1]
+  it('lets long match names wrap instead of overflowing', () => {
+    const css = readFileSync(join(import.meta.dirname, 'VerifyResult.css'), 'utf8');
+    expect(css).toMatch(/\.verify-result__matches li > \*\s*\{[^}]*overflow-wrap:\s*anywhere[^}]*min-width:\s*0/);
   });
 });

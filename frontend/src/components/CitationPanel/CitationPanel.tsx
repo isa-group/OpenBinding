@@ -9,12 +9,21 @@ export interface CitationPanelProps extends CitationInput {
   digest?: string | null;
 }
 
+const COPIES = [
+  { key: 'text', name: 'citation text', copied: 'Citation text copied' },
+  { key: 'bibtex', name: 'BibTeX', copied: 'BibTeX copied' },
+  { key: 'csl', name: 'CSL-JSON', copied: 'CSL-JSON copied' },
+] as const;
+
 /** Permanent link, citation (text, BibTeX, CSL-JSON) and the one copyable digest of a problem, collection or published result. */
 // [impl->req~citation-panel~1]
 export function CitationPanel({ digest, ...source }: CitationPanelProps) {
   const headingId = useId();
   const { copy, status } = useCopy();
   const citation = buildPanelCitation(source);
+  // useCopy keeps only the latest outcome, so at most one key reports.
+  const pressed = COPIES.find(({ key }) => status(key) !== 'idle');
+  const outcome = pressed ? (status(pressed.key) === 'copied' ? pressed.copied : `Could not copy the ${pressed.name}`) : '';
 
   return (
     <section className="citation-panel" aria-labelledby={headingId}>
@@ -40,8 +49,7 @@ export function CitationPanel({ digest, ...source }: CitationPanelProps) {
           </button>
         </div>
         <span className="sr-only" role="status">
-          {(['text', 'bibtex', 'csl'] as const).some((key) => status(key) === 'copied') ? 'Citation copied' : ''}
-          {(['text', 'bibtex', 'csl'] as const).some((key) => status(key) === 'failed') ? 'Could not copy the citation' : ''}
+          {outcome}
         </span>
       </div>
 

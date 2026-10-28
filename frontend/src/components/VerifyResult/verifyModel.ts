@@ -11,8 +11,12 @@ export const VERDICTS: Record<VerifierStatus, { title: string; text: string; ton
 
 export interface Side {
   label: string;
-  /** `null` when nothing is recorded: there is no digest to show or copy. */
+  /** What the copy button copies, for its accessible name: `computed fingerprint` → "Copy computed fingerprint". */
+  copyLabel: string;
+  /** `null` when this side shows no digest: nothing is recorded, or it matches the other side. */
   value: string | null;
+  /** Shown instead of a digest when `value` is `null`. */
+  note?: string;
 }
 
 /** The reader's name for an element: never its identifier. */
@@ -30,14 +34,24 @@ export function sidesOf(
   recorded: boolean,
   computed: string | null | undefined,
   given: string | null | undefined,
-): { left: Side; right: Side } {
-  const left: Side = computed
-    ? { label: 'Computed in your browser', value: computed }
-    : { label: 'Fingerprint you gave', value: given ?? digest };
-  const right: Side = status === 'mismatch'
-    ? { label: 'Fingerprint you expected', value: digest }
-    : { label: 'Recorded by OpenBinding', value: recorded ? digest : null };
-  return { left, right };
+): Side[] {
+  const expected = status === 'mismatch';
+  const right: Side = expected
+    ? { label: 'Fingerprint you expected', copyLabel: 'expected fingerprint', value: digest }
+    : recorded
+      ? { label: 'Recorded by OpenBinding', copyLabel: 'recorded fingerprint', value: digest }
+      : { label: 'Recorded by OpenBinding', copyLabel: 'recorded fingerprint', value: null, note: 'nothing recorded' };
+  const left: Side | null = computed
+    ? { label: 'Computed in your browser', copyLabel: 'computed fingerprint', value: computed }
+    : given
+      ? { label: 'Fingerprint you gave', copyLabel: 'fingerprint you gave', value: given }
+      : null;
+  if (!left) return [right];
+  // One copyable value: when both sides hold the same digest, only the recorded/expected side shows it.
+  if (right.value !== null && left.value === right.value) {
+    return [{ ...left, value: null, note: expected ? 'Matches the expected fingerprint' : 'Matches the recorded fingerprint' }, right];
+  }
+  return [left, right];
 }
 
 /** The browser and the server fingerprinted the same input differently (a mismatch is a different situation). */

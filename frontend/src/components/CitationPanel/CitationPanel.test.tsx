@@ -56,12 +56,28 @@ describe('CitationPanel', () => {
     render(<CitationPanel {...BASE} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy BibTeX' }));
-    await waitFor(() => expect(screen.getAllByRole('status').some((node) => node.textContent === 'Citation copied')).toBe(true));
+    await waitFor(() => expect(screen.getAllByRole('status').some((node) => node.textContent === 'BibTeX copied')).toBe(true));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy CSL-JSON' }));
+    await waitFor(() => expect(screen.getAllByRole('status').some((node) => node.textContent === 'CSL-JSON copied')).toBe(true));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy citation' }));
+    await waitFor(() => expect(screen.getAllByRole('status').some((node) => node.textContent === 'Citation text copied')).toBe(true));
+  });
+
+  // [utest->req~citation-panel~1]
+  it('announces only the latest outcome, a failure replacing an earlier success', async () => {
+    render(<CitationPanel {...BASE} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy BibTeX' }));
+    await waitFor(() => expect(screen.getAllByRole('status').some((node) => node.textContent === 'BibTeX copied')).toBe(true));
+    writeText.mockRejectedValueOnce(new Error('denied'));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy citation' }));
+    await waitFor(() => expect(screen.getAllByRole('status').some((node) => node.textContent === 'Could not copy the citation text')).toBe(true));
+    expect(screen.queryByText(/BibTeX copied/)).not.toBeInTheDocument();
   });
 
   // [utest->req~citation-panel~1]
   it('has no hard-coded hex colour in its stylesheet', () => {
-    const css = readFileSync(join(process.cwd(), 'src/components/CitationPanel/CitationPanel.css'), 'utf8');
+    const css = readFileSync(join(import.meta.dirname, 'CitationPanel.css'), 'utf8');
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
 });
