@@ -268,16 +268,19 @@ describe('raw rendering in the application sources', () => {
   });
 
   // [utest->req~frontend-rendering-raw-hygiene~1]
+  // [utest->req~frontend-m25-leave-allow-list~1]
   it('has no raw rendering outside the allow-list', () => {
     expect(unlistedFindings(sources, accepted)).toEqual([]);
   });
 
   // [utest->req~frontend-rendering-raw-hygiene~1]
+  // [utest->req~frontend-m25-leave-allow-list~1]
   it('has no stale allow-list entry: the list may only shrink', () => {
     expect(staleEntries(sources, accepted)).toEqual([]);
   });
 
   // [utest->req~frontend-rendering-raw-hygiene~1]
+  // [utest->req~frontend-m25-leave-allow-list~1]
   it('keeps the line numbers of the allow-list correct', () => {
     expect(wrongLineNumbers(sources, accepted)).toEqual([]);
   });
@@ -359,6 +362,7 @@ describe('the allow-list', () => {
   });
 
   // [utest->req~frontend-rendering-run-result-allow-list~1]
+  // [utest->req~frontend-m25-leave-allow-list~1]
   it('has a ceiling of 1 after M2.5, as many as its entries', () => {
     expect(MAX_ALLOWED_OFFENDERS).toBe(1);
     expect(RAW_RENDERING_ALLOW_LIST).toHaveLength(1);
@@ -380,6 +384,7 @@ describe('the allow-list', () => {
   // [utest->req~frontend-retire-reports-allow-list~1]
   // [utest->req~frontend-retire-library-allow-list~1]
   // [utest->req~frontend-rendering-run-result-allow-list~1]
+  // [utest->req~frontend-m25-leave-allow-list~1]
   it('holds exactly the offenders that remain after M2.5', () => {
     expect(RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender)).toEqual([6]);
     expect(UNLISTED_FINDINGS.map((entry) => entry.offender)).toEqual([16]);
@@ -400,6 +405,7 @@ describe('the allow-list', () => {
 
   // [utest->req~frontend-rendering-raw-hygiene~1]
   // [utest->req~frontend-rendering-run-result-allow-list~1]
+  // [utest->req~frontend-m25-leave-allow-list~1]
   it('retires the offenders in the slices ROADMAP names', () => {
     const slice = (n: number) => RAW_RENDERING_ALLOW_LIST.find((entry) => entry.offender === n)?.retiredBy;
     expect(slice(2)).toBeUndefined();

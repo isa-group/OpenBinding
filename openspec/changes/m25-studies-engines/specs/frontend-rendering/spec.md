@@ -7,7 +7,7 @@ THE study page and the study cell page SHALL show the item's source only in a `S
 
 Needs: impl, utest
 
-Placement rule: design.md §1; content and tests: §3, §7.
+Placement rule: design.md §1; content and tests: §3, §7; file names as built: §12.
 
 #### Scenario: The study opens on its overview
 - **GIVEN** the study `engines-vs-seeds` with a definition
@@ -20,7 +20,7 @@ Placement rule: design.md §1; content and tests: §3, §7.
 - **GIVEN** the study page of `engines-vs-seeds`
 - **WHEN** the tab `Source` is pressed
 - **THEN** `Source` is selected and a region named `Study definition source` shows `study.definition` as indented JSON
-- **AND** the button `Download Study definition source` saves it as `engines-vs-seeds-definition.json` with type `application/json`
+- **AND** the button `Download Study definition source` saves it as `engines-vs-seeds.definition.json` with type `application/json`
 - **AND** the definition matrix is no longer in the document
 
 #### Scenario: The cell opens on its result
@@ -34,7 +34,7 @@ Placement rule: design.md §1; content and tests: §3, §7.
 - **GIVEN** the page of cell 2
 - **WHEN** the tab `Source` is pressed
 - **THEN** a region named `Cell metrics source` shows an object whose keys are `state`, `job_id`, `engine`, `parameters`, `seed` and `metrics`, in that order, with the cell's values
-- **AND** the button `Download Cell metrics source` saves it as `cell-2.json` with type `application/json`
+- **AND** the button `Download Cell metrics source` saves it as `<cell id>.cell.json` with type `application/json`
 
 #### Scenario: A cell that has not finished
 - **GIVEN** a queued cell 3 with no metrics
@@ -49,40 +49,47 @@ Placement rule: design.md §1; content and tests: §3, §7.
 - **AND** every `<pre>` element is inside a `SourceView` region
 
 ### Requirement: The engines' ViewSource renders the catalogue viewer
-THE `ViewSource` helper of `frontend/src/pages/Engines/EngineParts.tsx` SHALL show its value only through the catalogue `SourceView`, named `<label> (JSON)`, while it keeps its export, its props `value` and `label` (default `View source`) and its collapsed disclosure whose summary is the label, so that every screen using it shows that viewer.
+THE `ViewSource` helper of `frontend/src/pages/Engines/EngineParts.tsx` SHALL show its value only through the catalogue `SourceView`, inside a collapsed disclosure whose summary is its `label` (default `View source`), in a region named by `sourceLabel`, else `Source document` for the default label, else the label, and SHALL offer Download only when given a `filename`.
 
 `req~frontend-engines-source-view~1`
 
 Needs: impl, utest
 
-Consumers and value mapping: design.md §2; tests: §7.
+Consumers and value mapping: design.md §2 as amended by §12; tests: §7.
 
 #### Scenario: Collapsed with its summary
 - **GIVEN** `<ViewSource value={{ kind: 'Engine' }} />`
 - **WHEN** it is rendered
 - **THEN** a closed `<details>` element has the summary `View source`
-- **AND** the region named `View source (JSON)` is not visible
+- **AND** the region named `Source document` is not visible
 
 #### Scenario: Opened, it is the catalogue viewer
 - **GIVEN** `<ViewSource value={{ kind: 'Engine' }} />`
 - **WHEN** its summary is pressed
-- **THEN** the region named `View source (JSON)` is visible and its `<code>` text equals `JSON.stringify({ kind: 'Engine' }, null, 2)`
-- **AND** the region has a button named `Copy View source (JSON)` and no button named `Download View source (JSON)`
+- **THEN** the region named `Source document` is visible and its `<code>` text equals `JSON.stringify({ kind: 'Engine' }, null, 2)`
+- **AND** the region has a button named `Copy Source document` and no button named `Download Source document`
 
 #### Scenario: A named source
 - **GIVEN** `<ViewSource value={{ openapi: '3.1.0' }} label="Submitted OpenAPI" />`
 - **WHEN** it is rendered and opened
-- **THEN** the summary reads `Submitted OpenAPI` and the region is named `Submitted OpenAPI (JSON)`
+- **THEN** the summary reads `Submitted OpenAPI` and the region is named `Submitted OpenAPI`
+- **AND** with `sourceLabel="Engine manifest source"` the summary stays as given and the region is named `Engine manifest source`
+
+#### Scenario: A download only with a filename
+- **GIVEN** `<ViewSource value={{ kind: 'Engine' }} filename="engine.json" />`, opened
+- **WHEN** the button `Download Source document` is pressed
+- **THEN** the indented JSON is saved as `engine.json` with type `application/json`
+- **AND** a string value is saved as written with type `text/plain`
 
 #### Scenario: Values that are not objects
 - **GIVEN** `ViewSource` with the values `'kind: Engine'`, `3`, `true`, `null` and `undefined`, one at a time
 - **WHEN** each is rendered and opened
-- **THEN** the region shows `kind: Engine`, `3` and `true` as text, and `Empty` for `null` and for `undefined`
+- **THEN** the region shows `kind: Engine`, `3`, `true` and `null` as text, and `Empty` for `undefined`
 
 #### Scenario: Every consumer shows the catalogue viewer
 - **GIVEN** the register-engine review step, an expanded row of the language extensions, the selected event of `AdminAudit`, the selected error of `AdminErrors` and an open report of `AdminEngineReview`
 - **WHEN** their `ViewSource` disclosure is opened
-- **THEN** each holds a region named `<label> (JSON)` with a `Copy <label> (JSON)` button, where `<label>` is `View source`, or `Verification report`, `Submitted Engine` and `Submitted OpenAPI` for the three of `AdminEngineReview`
+- **THEN** each holds a region with a `Copy <region name>` button, named `Engine manifest source`, `<dialect> dialect source` and `Source document` (twice), and `Verification report`, `Submitted Engine` and `Submitted OpenAPI` for the three of `AdminEngineReview`
 - **AND** none of these screens shows a `<pre>` outside a `SourceView` region
 
 #### Scenario: Nothing raw in the helper
@@ -109,13 +116,13 @@ Needs: impl, utest
 - **GIVEN** the registration page of `edge-solver` version `0.3.0`
 - **WHEN** the tab `Source` is pressed
 - **THEN** a region named `Engine manifest source` contains `"kind": "Engine"`
-- **AND** the button `Download Engine manifest source` saves it as `edge-solver-0.3.0-engine.json`, the pattern being `<name>-<version>-engine.json`
+- **AND** the button `Download Engine manifest source` saves it as `engine.json`
 - **AND** the region `Mode tabu` is no longer in the document
 
 #### Scenario: A manifest that cannot be read
 - **GIVEN** a registration whose manifest is not a readable `bim/v1` Engine
 - **WHEN** its page opens
-- **THEN** the `Manifest` tab shows `The engine manifest couldn’t be read as a bim/v1 Engine.`
+- **THEN** the `Manifest` tab shows `The engine manifest couldn’t be read as a bim/v1 Engine. Its document is on the Source tab.`
 - **AND** after pressing `Source`, the region `Engine manifest source` shows the document as returned
 
 #### Scenario: No manifest returned
@@ -124,25 +131,25 @@ Needs: impl, utest
 - **THEN** the region `Engine manifest` shows `The gateway didn’t return the engine manifest for this registration.` and holds no tab list
 
 #### Scenario: A language-extension row keeps a labelled disclosure
-- **GIVEN** the language extensions page with the expanded row `community`
+- **GIVEN** the language extensions page with the expanded row `edge-annotations`
 - **WHEN** the row is read
-- **THEN** it holds a closed disclosure whose summary is `View source`, and its region `View source (JSON)` is not visible
-- **AND** after the summary is pressed, the region `View source (JSON)` shows the row's document through `SourceView`
+- **THEN** it holds a closed disclosure whose summary is `View source`, and its region `edge-annotations dialect source` is not visible
+- **AND** after the summary is pressed, that region shows the row's document through `SourceView`, with `Download edge-annotations dialect source` saving `edge-annotations.dialect.json`
 - **AND** the row holds no tab list
 
 ### Requirement: Audit event details rendered as typed rows
-WHEN an event card of the organization audit page is open, the page SHALL render each detail value other than `changes` as a typed row (a string as it is, a number in en-US format, a boolean as `yes` or `no`, an array as a list, an object as a nested definition list with readable keys, `null` as `none`), never as stringified JSON.
+WHEN an event card of the organization audit page is open, the page SHALL render each detail value other than `changes` as a typed row (a string as it is, a number in en-US format, a boolean as `Yes` or `No`, an array as a list, an object as a nested definition list with readable keys, `null` and empty values as `none`), never as stringified JSON.
 
 `req~frontend-audit-detail-rendered~1`
 
 Needs: impl, utest
 
-Rules at every depth: design.md §4.
+Rules at every depth: design.md §4 as amended by §12.
 
 #### Scenario: Scalars
 - **GIVEN** an open event whose detail is `{ role: 'ADMIN', seats: 1234.5, invited: true, reminded: false }`
 - **WHEN** its card is read
-- **THEN** it has the rows `Role` / `ADMIN`, `Seats` / `1,234.5`, `Invited` / `yes` and `Reminded` / `no`, each a `<dt>` and a `<dd>`
+- **THEN** it has the rows `Role` / `ADMIN`, `Seats` / `1,234.5`, `Invited` / `Yes` and `Reminded` / `No`, each a `<dt>` and a `<dd>`
 
 #### Scenario: Readable keys
 - **GIVEN** an open event whose detail is `{ old_role: 'MEMBER', billingSponsorUserId: 'nora', 'project-slug': 'qos' }`
@@ -167,7 +174,7 @@ Rules at every depth: design.md §4.
 #### Scenario: Never stringified
 - **GIVEN** an open event whose detail is `{ quota: { limit: 5 }, ids: [1, 2] }`
 - **WHEN** the card text is read
-- **THEN** it contains none of `{`, `}`, `[`, `]` and `"`
+- **THEN** it contains none of `{`, `}`, `[`, `]` and `"`, which `OrgAudit.test.tsx` checks as one pattern over the whole opened card
 - **AND** the raw-rendering detector reports no finding in `frontend/src/pages/Organization/OrgAudit.tsx`
 
 #### Scenario: The CSV export keeps its JSON column
@@ -177,13 +184,13 @@ Rules at every depth: design.md §4.
 - **AND** the `detail` cell of that event is the JSON text `{"quota":{"limit":5}}`, CSV-quoted
 
 ### Requirement: A fixed registration option reads like the manifest view
-WHEN the engine registration form shows an option fixed in the manifest, the form SHALL describe it as the manifest view does (`always <value>` for `const`, `one of <a>, <b>` for `enum`) and list its other schema keywords as a short keyword and value list, never as stringified JSON.
+WHEN the engine registration form shows an option fixed in the manifest, the form SHALL describe it as the manifest view does (`always <value>` for `const`, `one of <a>, <b>` for `enum`) and list its other schema keywords as keyword and value pairs, never as stringified JSON.
 
 `req~frontend-registration-fixed-option-rendered~1`
 
 Needs: impl, utest
 
-Shared wording helper: design.md §5.
+Shared wording helper `describeFixedOption`: design.md §5 as amended by §12.
 
 #### Scenario: A constant
 - **GIVEN** a manifest whose mode option `strategy` is `{ const: 'tabu' }`
@@ -204,12 +211,13 @@ Shared wording helper: design.md §5.
 #### Scenario: Other schema keywords
 - **GIVEN** a mode option `weights` that is `{ type: 'array', minItems: 1, items: { type: 'number' } }`
 - **WHEN** the registration form shows it
-- **THEN** the option row holds a list named `Schema of weights` with the items `type: array`, `minItems: 1` and `items: nested schema`, in that order
+- **THEN** the option row holds a definition list with the pairs `type` / `array`, `minItems` / `1` and `items` / `1 field`, in that order
+- **AND** an array of scalars reads as its items joined with `, `, an object as `<n> field` or `<n> fields`, and `null` as `null`
 
 #### Scenario: A constant with other keywords
 - **GIVEN** a mode option `strategy` that is `{ const: 'tabu', description: 'Search kind' }`
 - **WHEN** the registration form shows it
-- **THEN** the option row reads `always tabu` and the list `Schema of strategy` holds the single item `description: Search kind`
+- **THEN** the option row reads `always tabu` and its definition list holds the single pair `description` / `Search kind`
 
 #### Scenario: Never stringified
 - **GIVEN** the options of the four scenarios above
@@ -241,7 +249,7 @@ The disclosure and the combobox stay, so `frontend/e2e/s5d-workbench.spec.ts` is
 #### Scenario: A file in a folder
 - **GIVEN** a generated file named `resources/candidates.json`
 - **WHEN** it is chosen
-- **THEN** the region is named `resources/candidates.json` and its download is saved as `candidates.json`
+- **THEN** the region is named `resources/candidates.json` and its download is saved under that same name, `resources/candidates.json`
 
 #### Scenario: Collapsed until asked
 - **GIVEN** a generated instance in the preview
@@ -261,7 +269,7 @@ THE snapshot page SHALL show its compiled form and its package files only in a `
 
 Needs: impl, utest
 
-Views and file names: design.md §3.
+Views and file names: design.md §3 as amended by §12.
 
 #### Scenario: The snapshot opens on its overview
 - **GIVEN** a snapshot with a stored compiled form
@@ -285,8 +293,8 @@ Views and file names: design.md §3.
 #### Scenario: A file of the package
 - **GIVEN** the `Source` tab of a snapshot whose archive holds `bim.yaml` and `resources/tasks.json`
 - **WHEN** `Files in the package` is pressed and then the file `resources/tasks.json` is chosen in the list `Files in the package`
-- **THEN** a region named `Preview of tasks.json` shows the file's text
-- **AND** its button `Download Preview of tasks.json` saves it as `tasks.json`
+- **THEN** a region named `resources/tasks.json`, the file's path, shows the file's text
+- **AND** its button `Download resources/tasks.json` saves it as `tasks.json`, the last segment of the path
 - **AND** no read-only code editor is on the page
 
 #### Scenario: The archive loads only for the files view

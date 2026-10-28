@@ -92,8 +92,8 @@ describe('Audit log', () => {
     expect(within(details).getByText('none')).toBeInTheDocument();
     const tags = within(details).getAllByRole('listitem').map((item) => item.textContent);
     expect(tags).toEqual(expect.arrayContaining(['alpha', 'beta']));
-    expect(details.textContent).not.toContain('{"');
-    expect(details.textContent).not.toContain('["');
+    // Never stringified: no brace, bracket or quote survives anywhere in the opened card.
+    expect(details.textContent).not.toMatch(/[{}[\]"]/);
   });
 
   it('copies the reference of an event', async () => {

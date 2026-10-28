@@ -1,6 +1,7 @@
 # Design: m25-studies-engines
 
-Status: specified; nothing built. Fixed inputs: ROADMAP M2.5, constitution Article 15, ADR-0014,
+Status: built in groups A–D. Where §2–§6 differ from the code, §12 ("Deviations from the first draft") says what the
+code does and the delta spec follows it. Fixed inputs: ROADMAP M2.5, constitution Article 15, ADR-0014,
 `docs/agent-work/m25-render-rest/intake.md` (slices S1–S6, decisions 2–4), the `SourceView` contract of
 `m21-rendering-catalogue` (`req~frontend-rendering-source-view~1`), and `components/ui/TabBar` + `TabPanel`.
 
@@ -169,12 +170,31 @@ functions as the hygiene test exports them at the time of group D (`findRawRende
 
 ## 10. Open questions
 
-1. Owner: confirm the reading of 15.2 in §1, that a collapsed, labelled disclosure holding `SourceView` is
-   acceptable inside cards, panels, rows and wizard steps (intake open question 2). ARCHITECTURE §5.3 ("only in Source
-   tabs") is the coordinator's to align with the answer.
+1. Owner, pending CRP `crp-ob-m25-disclosure-reading`: confirm the reading of 15.2 in §1, that a collapsed, labelled
+   disclosure holding `SourceView` is acceptable inside cards, panels, rows and wizard steps (intake open question 2).
+   The change is built on that reading; the answer is pending. ARCHITECTURE §5.3 ("only in
+   Source tabs") is the coordinator's to align with the answer. If the answer is no, the disclosures of §2 and §6
+   become tabs in a change of their own.
 2. Coordinator: one PR after D, or three PRs that each retire their own entries serially (§9).
 
 ## 11. Rollback
 
 Reverting the PR restores the disclosures, the stringified values and the seven allow-list entries. No data, API or
 stored state is touched.
+
+## 12. Deviations from the first draft
+
+What the code does where §2–§6 said otherwise. The delta spec follows the code.
+
+| # | Draft | Built, and why |
+|---|---|---|
+| 1 | `ViewSource` props stay `value` and `label` | adds `sourceLabel` and `filename`: the register review step and the dialect rows need a named region and a download without changing the summary |
+| 2 | region named `<label> (JSON)` | named `sourceLabel`, else `Source document` for the default label `View source`, else the label; the region names the document, the summary names the disclosure |
+| 3 | `null` shown as `Empty` | `sourceOf` turns `null` into the text `null`; only `undefined` is `Empty` (an object is passed on, anything else goes through `String`) |
+| 4 | `EngRegistrationDetail` holds the `Manifest`/`Source` tabs and `ManifestPanel` drops its source | `ManifestPanel` holds the `TabBar` (prefix `eng-manifest-view`), as it is the one component that has the document; the page only renders it, and renders no tabs without a manifest |
+| 5 | Download names `<slug>-definition.json`, `cell-<ordinal>.json`, `<name>-<version>-engine.json` | `<slug>.definition.json`, `<cell id>.cell.json`, `engine.json`; `<dialect>.dialect.json` for a language-extension row |
+| 6 | generator download under the last segment of the path | `LabAside` passes the file name as listed, folder included (`resources/candidates.json`) as region name and filename; browsers may rewrite the slash, a follow-up |
+| 7 | package file preview named `Preview of <name>` | named by the file path; the download uses the last segment. `SourceViewer` mounts only while `Source` is active, so it opens on `Compiled form (JSON)` each time |
+| 8 | audit booleans `yes` / `no`; `detailRows(detail)` | `Yes` / `No`; `detailRows(detail, skip)` takes the keys to skip (`changes`); keys also split on `.`; an empty list or object reads `none` in the view |
+| 9 | `fixedValueText(schema)` and a list `Schema of <name>` with `nested schema` | `describeFixedOption(schema)` returns `{ summary, pairs }`; the pairs show as a `<dl>` under the group `Option <n> fixed in the manifest`; a scalar array is joined with `, `, an object reads `<n> field(s)` |
+| 10 | a new hygiene assertion for the allow-list | the existing allow-list assertions of `rawRenderingHygiene.test.ts` carry `[utest->req~frontend-m25-leave-allow-list~1]`; the list holds offender 6 and the ceiling is 1 |

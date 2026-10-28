@@ -104,12 +104,12 @@ merged into `develop` and the branch is rebased on it. Until then these files be
 Owns: `frontend/src/test/rawRenderingAllowList.ts`, `frontend/src/test/rawRenderingHygiene.test.ts`,
 `docs/qa/RENDERING_CATALOGUE.md` (offender table and counts).
 
-- [ ] D.1 Test first: in `rawRenderingHygiene.test.ts`, the assertion that no entry is numbered 8, 9, 10, 12, 13,
+- [x] D.1 Test first: in `rawRenderingHygiene.test.ts`, the assertion that no entry is numbered 8, 9, 10, 12, 13,
   14 or 15 and none has `retiredBy` `M2.5`; the seven files have no detector finding; the exact-list and ceiling
   assertions at their new values. RED (G3) against the list as `m23-run-result` left it.
-- [ ] D.2 `rawRenderingAllowList.ts`: delete the seven entries; `MAX_ALLOWED_OFFENDERS` minus seven; the
+- [x] D.2 `rawRenderingAllowList.ts`: delete the seven entries; `MAX_ALLOWED_OFFENDERS` minus seven; the
   `[impl->req~frontend-m25-leave-allow-list~1]` tag.
-- [ ] D.3 `docs/qa/RENDERING_CATALOGUE.md`: offender table and counts.
+- [x] D.3 `docs/qa/RENDERING_CATALOGUE.md`: offender table and counts.
 - [ ] D.4 FI, VALL (G5), LINT, TSC, G1; CI for the Playwright specs of A–C.
 - [ ] D.5 Open the PR into `develop` (one PR for A–D unless the coordinator splits it, design.md §9). The
   `ROADMAP.md` M2 status paragraph is placed by the coordinator.
