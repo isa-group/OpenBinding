@@ -5,8 +5,10 @@ The infra tail of M0: follow-ups F1, F4, F5, F7 and F9 of `m09-compose-only` (it
 that share a file run in order: S1b before S2 and S3 (`docs/runbooks/production.md`,
 `openspec/changes/m09-compose-only/tasks.md`), S1b before S2 (`deploy/compose/production/compose.yaml`,
 `openbinding-gateway/tests/test_compose_production.py`), and S1 before S2 (`README.md`).
-- S0 and S1 are built. S1b is next (owner decision "Full": F5 and F9 close completely in this change). S2, S3 and S4
-  are `blocked on <decision>`: they stay unchecked and nobody builds them until the decision is recorded.
+- S0, S1 and S1b are built (owner decision "Full": F5 and F9 close completely in this change). The R1 fix round of
+  the review panel on head 2b89ef9f (section R1 below) is the current work. 1b.6 and 1b.7 stay open until their
+  evidence exists. S2, S3 and S4 are `blocked on <decision>`: they stay unchecked and nobody builds them until the
+  decision is recorded.
 - Tests are written first, and they run red on the slice's base by assertion (G3), except negative controls, which are
   named, and `test_production_nginx.py`, which follows the S1 code (S1b, item 1b.1).
 - Workers have no Docker. Every render and every container check is done in the lab by the coordinator (design.md §3).
@@ -24,7 +26,7 @@ Owned: `openspec/changes/m0-infra-close/proposal.md`, `design.md`, `tasks.md`, `
 
 - [x] 0.1 `proposal.md`, `design.md` (D1 to D6, what is verified where, risks, rollback, Q1) and `tasks.md`.
 - [x] 0.2 Delta `specs/lab-deployment/spec.md`: one ADDED requirement, `req~lab-deployment-compose-config-in-ci~1`.
-  Its `Evidence:` names the S3 files, which do not exist yet.
+  Its `Evidence:` names the S3 files, which do not exist yet. The R1 fix round adds the second one (R1.1).
 - [ ] 0.3 Check 1 green, then the G2 EPIC review by the spec-auditor. The owner or coordinator answers design.md §6 Q1.
 
 ## S1. Nginx request-time resolution (F9), Kubernetes notes (F5) and README pointer (built)
@@ -56,27 +58,48 @@ Owned:
 
 No other file changes.
 
-- [ ] 1b.1 `test_production_nginx.py` reads `nginx/production/nginx.conf` and pins: the
+- [x] 1b.1 `test_production_nginx.py` reads `nginx/production/nginx.conf` and pins: the
   `resolver 127.0.0.11 valid=10s ipv6=off;` line; `$gateway_upstream` in every `proxy_pass`, with no literal
   `gateway:8000` in any of them; no `rewrite` directive; the `/api` `map` on `$request_uri`, which strips `^/api`, has
   an empty default and feeds the `/api/` `proxy_pass`. Each rule is also applied to an in-memory copy that breaks it
   (a literal `proxy_pass`, no resolver, a `rewrite`, a `map` on `$uri`), and the test fails on that copy. The S1 code
-  is already in, so these mutated-copy cases are the evidence that the test detects each defect. No `[utest->…]` tag
-  (design.md D5).
-- [ ] 1b.2 `test_compose_production.py`: the stale phrases above, and the runbook test now pins that nginx follows
+  is already in, so these mutated-copy cases are the evidence that the test detects each defect. The R1 fix round
+  adds the `[utest->req~lab-deployment-production-proxy-upstream~1]` tag (design.md D5, R1.2).
+- [x] 1b.2 `test_compose_production.py`: the stale phrases above, and the runbook test now pins that nginx follows
   the gateway at request time and that "What stays blocked" no longer lists F9. Red on the base runbook by assertion.
-- [ ] 1b.3 `docs/runbooks/production.md`: nginx follows the gateway address at request time (`valid=10s`). The
+- [x] 1b.3 `docs/runbooks/production.md`: nginx follows the gateway address at request time (`valid=10s`). The
   `$DC restart nginx` steps after a recreation of the gateway stay as a precaution; the runbook does not call them
   "harmless" (`test_compose_production.py:2882`, R2-SEC-001). The resolve-once statements (`:48`, `:412`, `:594`),
   the F9 follow-up sentences and the "What stays blocked" bullet on F9 go; the heading "502 after a gateway restart"
   stays (its anchor is linked).
-- [ ] 1b.4 The comment of `compose.yaml:353-354`.
-- [ ] 1b.5 `m09-compose-only/tasks.md`: F5 and F9 checked, each with "done in `m0-infra-close`". Their text keeps
+- [x] 1b.4 The comment of `compose.yaml:353-354`.
+- [x] 1b.5 `m09-compose-only/tasks.md`: F5 and F9 checked, each with "done in `m0-infra-close`". Their text keeps
   `F9`, `R2-REV-002` and `resolver`.
 - [ ] 1b.6 Checks 3, 4 and 2. Review panel: reviewer and security-auditor (the public proxy changes).
 - [ ] 1b.7 Lab, by the coordinator, before merge: the F9 procedure of design.md §3, with the image built from a head
-  with S1 and S1b. The MRP records the request lines that the stand-in logged, the 400, and the request after the
-  gateway was replaced.
+  with S1, S1b and R1. The MRP records the request lines that the stand-in logged, the gateway's answers to
+  `//v1/jobs` and `/v1/x/../jobs`, the 400, the request after the gateway was replaced, and the 502 with its time
+  when no `gateway` exists (step 7).
+
+## R1. Fix round 1 of the review panel (head 2b89ef9f)
+
+Owned: this change's documents (R1.1), and, in a parallel task, `nginx/production/nginx.conf`,
+`openbinding-gateway/tests/test_production_nginx.py`, `docs/runbooks/production.md`, the comment of
+`deploy/compose/production/compose.yaml:353-355` and `openspec/changes/m09-compose-only/tasks.md` (R1.2).
+
+- [x] R1.1 Specification (R1-ARC-001 to R1-ARC-006, R1-REV-003, R1-REV-005, R1-SEC-001, R1-SEC-002): the ADDED
+  requirement `req~lab-deployment-production-proxy-upstream~1`; D1 (`resolver_timeout 5s`, the rejected `upstream`
+  option reworded, the restart precaution and what a restart applies); D5; D6 (profile choice); the lab step 7 for a
+  stopped gateway and its hardening note; R2 corrected; R6; Q1 and Q2; this section. Check 2.
+- [ ] R1.2 Code and docs (parallel task): `resolver_timeout 5s` and
+  `# [impl->req~lab-deployment-production-proxy-upstream~1]` in `nginx/production/nginx.conf`;
+  `[utest->req~lab-deployment-production-proxy-upstream~1]` in `test_production_nginx.py`, which also pins the
+  `resolver_timeout 5s;` line of the TLS server and fails on an in-memory copy without it; the runbook checks the
+  gateway and nginx logs before `$DC restart nginx` (R1-SEC-003) and says that a changed `nginx.conf` needs a new
+  `NGINX_IMAGE` and `$DC up -d` (R1-REV-002); the `compose.yaml` comment and the m09 tasks lines to match. Checks 3,
+  4 and 2.
+- [ ] R1.3 Check 1 (G1), once registered, on the head with R1.1 and R1.2. The trace (G6) shows both tags of the new
+  requirement.
 
 ## S2. `prod` profile (F4) and non-root engines (F7): blocked on CRP-M09-2
 
@@ -108,8 +131,8 @@ compose-config job" of "What stays blocked"), and the F1 line of `m09-compose-on
 
 - [ ] 3.1 blocked on CRP-M09-3: test first, `lab/tests/test_ci_compose_config.py`, tagged
   `[utest->req~lab-deployment-compose-config-in-ci~1]`. It reads `ci.yml` and covers every scenario of the
-  requirement that a static test can check (design.md D6): the three renders with `--quiet`, `--profile dev`, the two
-  production env files, the `compose.lab*.json` glob, the `ci-required` entry, and no change-detection gate. It also
+  requirement that a static test can check (design.md D6): the three renders with `--quiet`, `--profile dev`, `--profile "*"` on
+  the lab and production renders (design.md D6), the two production env files, the `compose.lab*.json` glob, the `ci-required` entry, and no change-detection gate. It also
   checks a mutated copy for each of them. Red on the base: there is no job.
 - [ ] 3.2 blocked on CRP-M09-3: the job `compose-config` of design.md D6, tagged
   `# [impl->req~lab-deployment-compose-config-in-ci~1]`.
@@ -134,15 +157,23 @@ Owned (planned): `docs/previews/README.md`, `docs/DEMO.md` (a "PR previews" sect
   previews" covers images, the work tree and the state record. `docs/ARCHITECTURE.md` is outside the owned files above.
 - [ ] 4.3 blocked on factory F2: check 2.
 
-## A. Archive (explicit archive task, after S1, S1b and S3)
+## A. Archive (explicit archive task, after S1, S1b, R1 and S3, and after the archive of m09-compose-only)
 
 - [ ] `["openspec","archive","m0-infra-close","--yes"]`, then `["openspec","validate","--all","--strict"]`. The
-  archive waits for S3, because the requirement's `Evidence:` files are built there. If CRP-M09-3 is never answered,
-  the archive task records that and leaves the change open.
+  archive waits for S3, because the `Evidence:` files of `req~lab-deployment-compose-config-in-ci~1` are built there.
+  It also waits for the archive of `m09-compose-only`, whose deltas this change builds on
+  (`req~lab-deployment-production-health-restart~1` among them). If CRP-M09-3 is never answered, the archive task
+  records that and leaves the change open.
 
 ## Follow-ups outside this change
 
 - Carry the F5 edit of `bim-toolchain/docs/SERVICE.md` to `isa-group/bim-toolchain` (design.md §4, R4).
-- Request-time resolution for `frontend/nginx.lab.conf` and `nginx/local/nginx.conf`. They have the same
-  resolve-once behaviour, and the lab one also strips `/api/` with a prefix-replacing `proxy_pass`.
+- The D1 and D2 behaviour for both configs, `frontend/nginx.lab.conf` and `nginx/local/nginx.conf`. They still
+  resolve the gateway once and pass the normalised `/api/` URI through a prefix-replacing `proxy_pass`, so a lab
+  preview does not show the production behaviour (design.md §4, R6).
+- After the lab F9 procedure (1b.7) passes, decide whether a revision
+  `req~lab-deployment-production-health-restart~2` drops `restart: true` for `nginx` on `gateway`: each recreation
+  of the gateway restarts the whole public origin (design.md §6, Q2).
+- If step 7 of the lab procedure ever reaches another host, a network alias under a reserved suffix (for example
+  `gateway.openbinding.invalid`) used in `set $gateway_upstream` (design.md §3).
 - `m09-compose-only` F2, F3, F6 and F8 stay with that change and the owner.

@@ -30,11 +30,13 @@ M0.5 (`m05-pr-previews`) has two open documentation tasks, 4.2 and 4.3. This cha
 ## What Changes
 
 - New requirement `req~lab-deployment-compose-config-in-ci~1`: every CI run renders `docker-compose.yml` (profile
-  `dev`), the production definition with its two env files and every `compose.lab*.json` with
-  `docker compose config --quiet`, and a failure fails `ci-required`.
-- Production nginx resolves `gateway` at request time through Docker's embedded DNS, so a recreated gateway is reached
-  within 10 s without restarting nginx. The raw request URI reaches the gateway unchanged apart from the `/api` prefix
-  (design.md D1, D2).
+  `dev`), the production definition with its two env files and every `compose.lab*.json` (both with every
+  profile enabled) with `docker compose config --quiet`, and a failure fails `ci-required`.
+- New requirement `req~lab-deployment-production-proxy-upstream~1`: production nginx resolves `gateway` at request
+  time through Docker's embedded DNS (cache of at most 10 s, resolver timeout of 5 s, 502 when the name does not
+  resolve), so a recreated gateway is reached within 10 s without restarting nginx. The raw request URI reaches the
+  gateway unchanged apart from the `/api` prefix, and an `/api/` request whose raw URI does not start with `/api/`
+  gets 400 (design.md D1, D2).
 - `bim-toolchain/docs/SERVICE.md` loses its Kubernetes notes. The advice that does not depend on Kubernetes stays,
   with no orchestrator named (design.md D3).
 - `README.md` says that the project deploys with Docker Compose only and links `bim-toolchain/docs/SERVICE.md`
@@ -45,13 +47,18 @@ M0.5 (`m05-pr-previews`) has two open documentation tasks, 4.2 and 4.3. This cha
 
 ## Impact
 
-- Capability: `lab-deployment` only. One ADDED requirement. F9, F5 and the README pointer add no requirement: they
-  fix a known defect and remove stale documentation (design.md D5).
+- Capability: `lab-deployment` only. Two ADDED requirements: the CI render (F1) and the production proxy behaviour
+  (F9). F5 and the README pointer add no requirement: they remove stale documentation (design.md D5).
+- Behaviour change for clients of the public origin: `/api/` requests reach the gateway with `//` and dot segments
+  no longer normalised and percent escapes kept in the raw path (design.md §4, R2).
 - Repository, slice S1 (built): `nginx/production/nginx.conf`, `bim-toolchain/docs/SERVICE.md`, `README.md`.
 - Repository, slice S1b: `docs/runbooks/production.md`; the resolve-once comment of
   `deploy/compose/production/compose.yaml:353-354` (comment only); the phrases of
   `openbinding-gateway/tests/test_compose_production.py` that F9 made stale; a new static test
   `openbinding-gateway/tests/test_production_nginx.py`; the F5 and F9 lines of `openspec/changes/m09-compose-only/tasks.md`.
+- Repository, R1 fix round: `resolver_timeout 5s` and the `[impl->…]` tag in `nginx/production/nginx.conf`, the
+  `[utest->…]` tag in `test_production_nginx.py`, the runbook and `compose.yaml` comment corrections, and this
+  change's documents (tasks.md R1).
 - Repository, slice S3 (blocked): `.github/workflows/ci.yml` (new job `compose-config`) and
   `lab/tests/test_ci_compose_config.py`.
 - The production nginx image (`nginx/production/Dockerfile`, image variable `NGINX_IMAGE`) and the `prod` profile of
@@ -66,6 +73,8 @@ M0.5 (`m05-pr-previews`) has two open documentation tasks, 4.2 and 4.3. This cha
   `m05-pr-previews` (tasks.md).
 - The owner-only follow-ups of `m09-compose-only`: F2 (`.agentic/project.yaml` gates and the ADR-0021 evidence line),
   F3 (CRP-4 and Q3), F6 (local SPACE in production) and F8 (OFT trace paths).
-- Request-time resolution in the lab and development proxies (`frontend/nginx.lab.conf`, `nginx/local/nginx.conf`).
+- The D1 and D2 behaviour for the lab and development proxies (`frontend/nginx.lab.conf`, `nginx/local/nginx.conf`):
+  a follow-up (design.md §4, R6).
+- Dropping `restart: true` of `nginx` on `gateway` (design.md §6, Q2).
 - Rendering `compose.pgtest.json` in CI (design.md §6, Q1).
 - Editing `openspec/specs/**`, `docs/adr/**`, ROADMAP or INTENT; archiving.
