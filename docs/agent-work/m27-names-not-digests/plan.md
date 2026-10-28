@@ -1,1 +1,1 @@
-M2.7 part 1: identity labels (shared/lib), CitationPanel, VerifyResult, digest hygiene test with pending list, OpenSpec change aligned to code. Page clean-up and wiring: second change after M2.6. Remaining: CI green, panel (reviewer, test-reviewer, ui-qa), ready.
+M2.7 part 1: identity labels (shared/lib), CitationPanel, VerifyResult, digest hygiene test with pending list, OpenSpec change aligned to code. Page clean-up and wiring: second change after M2.6. Remaining: changelog regeneration, push, CI green, panel round 2 (reviewer + test-reviewer), review package, ready.
