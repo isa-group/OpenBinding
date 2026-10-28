@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+// [impl->req~digest-hygiene~1]
 // [utest->req~digest-hygiene~1]
 // INTENT principle 13 and docs/ARCHITECTURE.md §5.4: the interface shows names, not digests. A digest-shaped string (`sha256-` followed
 // by hexadecimal, a bare 40- or 64-hexadecimal run) or a UUID is rendered only by CitationPanel, VerifyResult, the export manifests and
