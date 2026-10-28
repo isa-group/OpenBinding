@@ -17,11 +17,8 @@ from sqlalchemy import func, select
 
 from _b1_helpers import gate, make_account, make_key, make_org, put_member  # noqa: F401
 from _repo import REPO_ROOT
-from bim_core.compiler import compile_instance, compiler_bundle_digest
 from bim_core.package import load_package
-from openbinding_gateway import analysis_jobs
 from openbinding_gateway.db.models import (
-    AnalysisTask,
     InstanceSnapshot,
     Job,
     JobState,
@@ -37,10 +34,8 @@ from test_security_hardening import HARMLESS, SENSITIVE_OPTIONS
 from test_viewer_error_redaction import PRIVATE_ERROR
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
-ANALYSIS_EXAMPLE = REPO_ROOT / "examples/demo/17_analysis_tradeoffs"
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
 ROLES = ("VIEWER", "MEMBER", "ADMIN", "OWNER")
-ENGINE = {"namespace": "bim.builtin", "name": "diagnostic", "version": "1.0.0", "digest": "sha256-" + "0" * 64}
 PROVENANCE = {"irDigest": "sha256-" + "b" * 64}
 PROBLEM = {"apiVersion": "bim/v1", "kind": "BindingProblem", "spec": {"tasks": ["t1"]}}
 
@@ -102,7 +97,7 @@ def organization_job(lab: Lab, person: Person, state: JobState) -> Job:
 async def counts(db_session) -> dict[str, int]:
     return {
         model.__name__: (await db_session.execute(select(func.count()).select_from(model))).scalar_one()
-        for model in (Job, InstanceSnapshot, Study, StudyRun, AnalysisTask)
+        for model in (Job, InstanceSnapshot, Study, StudyRun)
     }
 
 
@@ -469,67 +464,3 @@ async def test_a_key_of_a_viewer_still_reads_with_the_redaction_of_a_viewer(api_
     assert response.status_code == 200, response.text
     assert all(row["options"] == HARMLESS for row in response.json())
     assert "tok-SECRET" not in response.text and PRIVATE_ERROR not in response.text
-
-
-# -- Analysis work ------------------------------------------------------------
-
-
-async def analysis_job(db_session, lab: Lab, person: Person) -> Job:
-    problem = compile_instance(load_package(ANALYSIS_EXAMPLE))
-    binding = {task: refs[0] for task, refs in problem.document["spec"]["eligibility"].items()}
-    result = {"solutions": [{"decision": {"kind": "binding", "binding": binding}, **problem.evaluate(binding)}]}
-    row = Job(
-        owner_id=person.id, engine_id="diagnostic", engine_job_id=str(uuid.uuid4()),
-        service_url="https://example.invalid", state=JobState.COMPLETED,
-        organization_id=lab.org_id, project_id=lab.project_id,
-        original_request={"bindingProblem": problem.document}, result=result,
-        provenance={"irDigest": problem.digest, "evaluatorDigest": compiler_bundle_digest(), "engine": ENGINE},
-    )
-    db_session.add(row)
-    await db_session.flush()
-    return row
-
-
-@pytest.fixture
-def analysis_dispatch(monkeypatch):
-    dispatched: list[str] = []
-
-    async def queued(task_id):
-        dispatched.append(task_id)
-
-    monkeypatch.setattr(analysis_jobs, "dispatch_analysis", queued)
-    return dispatched
-
-
-async def test_a_viewer_does_not_queue_or_cancel_analysis_work_on_the_jobs_of_an_organization(
-    api_client, db_session, lab, analysis_dispatch
-):
-    viewer, member = lab.people["VIEWER"], lab.people["MEMBER"]
-    viewer_job = await analysis_job(db_session, lab, viewer)
-    member_job = await analysis_job(db_session, lab, member)
-    before = await counts(db_session)
-
-    refused = await api_client.post("/v1/analysis/pareto", headers=viewer.headers, json={"sources": [str(viewer_job.id)]})
-    started = await api_client.post("/v1/analysis/pareto", headers=member.headers, json={"sources": [str(member_job.id)]})
-
-    assert refused.status_code == 403, refused.text
-    assert code_of(refused) == "insufficient_role"
-    assert started.status_code == 202, started.text
-    assert (await counts(db_session))["AnalysisTask"] == before["AnalysisTask"] + 1
-    assert analysis_dispatch == [started.json()["id"]]
-
-    member_task = await db_session.get(AnalysisTask, uuid.UUID(started.json()["id"]))
-    viewer_task = AnalysisTask(
-        owner_id=viewer.id, fingerprint="viewer-" + uuid.uuid4().hex, revision=member_task.revision,
-        request={**member_task.request, "sources": [str(viewer_job.id)]},
-    )
-    db_session.add(viewer_task)
-    await db_session.flush()
-    denied = await api_client.post(f"/v1/analysis/pareto/{viewer_task.id}/cancel", headers=viewer.headers)
-    allowed = await api_client.post(f"/v1/analysis/pareto/{member_task.id}/cancel", headers=member.headers)
-
-    assert denied.status_code == 403, denied.text
-    assert code_of(denied) == "insufficient_role"
-    assert allowed.status_code == 200, allowed.text
-    await db_session.refresh(viewer_task)
-    assert viewer_task.state == "queued"

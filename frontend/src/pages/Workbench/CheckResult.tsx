@@ -40,6 +40,17 @@ function fixOf(item: Diagnostic): string | null {
   return null;
 }
 
+const NO_DIAGNOSTIC_TEXT = 'The gateway sent no message for this diagnostic.';
+
+// [impl->req~frontend-rendering-check-result-diagnostic-text~1]
+/** The words of a diagnostic: its message, else its detail, when they are text; never a dump of the item. */
+function textOf(item: Diagnostic): string {
+  const fields = item as Record<string, unknown>;
+  if (typeof fields.message === 'string' && fields.message) return fields.message;
+  if (typeof fields.detail === 'string' && fields.detail) return fields.detail;
+  return NO_DIAGNOSTIC_TEXT;
+}
+
 function DiagnosticList({ diagnostics, resources, onOpen }: { diagnostics: Diagnostic[]; resources: ResourceEntry[]; onOpen: (item: Diagnostic) => void }) {
   return (
     <ul className="wb-diags" aria-label="Diagnostics">
@@ -55,7 +66,7 @@ function DiagnosticList({ diagnostics, resources, onOpen }: { diagnostics: Diagn
             </div>
             <div className="wb-diag-body">
               <button type="button" className="wb-diag-open" onClick={() => onOpen(item)}>
-                <code>{item.code || 'diagnostic'}</code> {item.message || item.detail || JSON.stringify(item)}
+                <code>{item.code || 'diagnostic'}</code> {textOf(item)}
               </button>
               {fix && <span className="wb-diag-fix"><b>Fix:</b> {fix}</span>}
             </div>

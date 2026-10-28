@@ -84,8 +84,9 @@ lease, a publication or a queue-limit decision is the database's: `now()` and
 interval arithmetic (`now() + make_interval(...)`) inside the same `UPDATE` or
 `SELECT` that reads or writes the column. This covers `claim_job`, `renew_lease`,
 `hold_lease`, the reconciler's requeue / fail / queue-timeout statements,
-`sweep_abandoned` (its "now" is read from the database) and the publisher. The
-analysis tasks (`analysis_jobs.py`) use the same helpers.
+`sweep_abandoned` (its "now" is read from the database) and the publisher. (The
+analysis tasks of `analysis_jobs.py` used the same helpers until M9.6 removed
+them.)
 
 `now()` is the start time of the *transaction*. Every statement above runs in a
 short transaction of its own (the heartbeat opens a session per beat), so the
@@ -348,15 +349,14 @@ exactly once. The platform's own reads are protected by re-evaluation: a result
 is accepted only after OpenBinding recomputes it from the IR, so a duplicate run
 cannot change the recorded decision, but it can cost compute.
 
-## Analysis tasks
+## Analysis tasks (removed)
 
-`analysis_jobs.py` follows the same scheme: a lease renewed from a background
-beat (every 20 s, 60 s lease, by the database clock) and a cap of three claims
-(`analysis_tasks.attempts`, same migration). A task whose lease lapses is put back
-while `attempts < 3`; at the third lost lease it is failed with
-`error = "analysis_abandoned"`. Re-submitting a failed or cancelled task goes
-through `routes/analysis.py`, which does not reset `attempts`: such a task gets a
-single claim before it is failed as abandoned if its worker is lost again.
+Removed by M9.6. `analysis_jobs.py` followed the same scheme as jobs (a lease
+renewed from a background beat, every 20 s with a 60 s lease by the database
+clock, and a cap of three claims in `analysis_tasks.attempts`), and
+`routes/analysis.py` re-submitted failed tasks. The analysis queue, the worker,
+the routes and the `analysis_tasks` table no longer exist; the rows were exported
+and dropped (see [`runbooks/retired-data-export.md`](runbooks/retired-data-export.md)).
 
 ## What has been certified
 

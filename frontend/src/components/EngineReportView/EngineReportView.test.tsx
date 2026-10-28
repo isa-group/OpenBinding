@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { EngineRegistrationReport } from '../../api/client';
+import * as engineReportModule from './EngineReportView';
 import { RegistrationReportView } from './EngineReportView';
 
 const DIGEST = `sha256-${'ab12'.repeat(16)}`;
@@ -46,5 +48,21 @@ describe('registration conformance report', () => {
     expect(screen.getByText('Conformance passed')).toBeInTheDocument();
     expect(screen.getByText('0 checks · 1,234 ms')).toBeInTheDocument();
     expect(screen.getByText('The report lists no individual checks.')).toBeInTheDocument();
+  });
+});
+
+describe('the retired engine report view', () => {
+  // [utest->req~frontend-rendering-engine-report-view-retired~1]
+  it('exports the registration report and no engine report view', () => {
+    expect(Object.keys(engineReportModule)).toEqual(['RegistrationReportView']);
+  });
+
+  // [utest->req~frontend-rendering-engine-report-view-retired~1]
+  it('keeps only the rules of the registration report in the stylesheet', () => {
+    const css = readFileSync(`${process.cwd()}/src/components/EngineReportView/EngineReportView.css`, 'utf8');
+    for (const retired of ['.engine-report', '.engine-claimed', '.divergence-notes', '.divergence-hint']) {
+      expect(css, retired).not.toContain(retired);
+    }
+    expect(css).toContain('.registration-report');
   });
 });

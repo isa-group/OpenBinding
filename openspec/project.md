@@ -21,8 +21,8 @@ objectives, non-goals), `docs/ARCHITECTURE.md` (target architecture), `ROADMAP.m
 - Infrastructure: Docker Compose for every environment (`docker-compose.yml`, NiPoGi lab profiles `compose.lab*.json`,
   a production overlay), nginx; no Kubernetes (ADR-0021).
 - Remote services: SPHERE (the OpenBinding pricing at `sphere.score.us.es`, read through its public permanent-link API)
-  and SPACE (subscriptions and feature access, through `space-python-client` and `space-react-client`; a local SPACE
-  1.7.1 in each stack until `space.score.us.es` runs that release); pricings rendered with `pricing-renderer`.
+  and SPACE (subscriptions and feature access, through `space-python-client` and `space-react-client`; the remote SPACE
+  at `space.score.us.es`); pricings rendered with `pricing-renderer`.
 
 ## Conventions
 
@@ -87,8 +87,7 @@ official clients and public API; only the owner merges `main`.
 ## External dependencies
 
 SPHERE (`https://sphere.score.us.es`, read only; OpenBinding permanent link
-`https://sphere.score.us.es/p/6ab0a323697330667ccce891`; no local image), SPACE (`ghcr.io/scorelabus/space-api` 1.7.1 in each
-stack until `https://space.score.us.es` runs that release), `space-python-client`, `space-react-client`, `pricing-renderer`, Zenodo deposits (QACOBench software and dataset), MiniZincIDE releases
+`https://sphere.score.us.es/p/6ab0a323697330667ccce891`; no local image), the remote SPACE (`https://space.score.us.es`), `space-python-client`, `space-react-client`, `pricing-renderer`, Zenodo deposits (QACOBench software and dataset), MiniZincIDE releases
 (solver bundle), OMG BPMN 2.0.2 XSDs (vendored in bim-core; redistribution not demonstrated).
 
 The OpenSpec CLI used for G1 is `@fission-ai/openspec` (1.14.3 validated locally on 2026-10-22); pinning it in CI and

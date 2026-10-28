@@ -15,17 +15,20 @@ import contextlib
 import dataclasses
 import importlib.util
 import json
+import os
 import socket
 import subprocess
 import sys
 import threading
 import time
-from pathlib import Path
 
 import pytest
 
 from _paths import GATEWAY_ROOT
 from _repo import REPO_ROOT
+
+# The worker-process executor of the BIM service needs pidfd (Linux 5.3+); CI has it.
+pytestmark = pytest.mark.skipif(not hasattr(os, "pidfd_open"), reason="needs os.pidfd_open (Linux 5.3+)")
 
 TOOLS = GATEWAY_ROOT / "tools"
 TOOLCHAIN = REPO_ROOT / "bim-toolchain"

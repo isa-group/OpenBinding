@@ -181,25 +181,25 @@ async def test_an_unknown_body_field_is_pointed_at(api_client, admin):
     assert by_pointer(body)["/nope"]["code"] == "extra_forbidden"
 
 
-async def test_query_errors_name_the_parameter_not_a_body_pointer(api_client, member):
-    base = "/v1/users/me/sponsor-proposals"
-    below = assert_problem(await api_client.get(base + "?limit=0", headers=member))
+async def test_query_errors_name_the_parameter_not_a_body_pointer(api_client, admin):
+    base = "/v1/admin/users"
+    below = assert_problem(await api_client.get(base + "?limit=0", headers=admin))
     [diagnostic] = below["diagnostics"]
     assert (diagnostic["in"], diagnostic["parameter"]) == ("query", "limit")
     assert diagnostic["code"] == "greater_than_equal"
     assert diagnostic["context"] == {"ge": 1}
     assert "pointer" not in diagnostic
 
-    text = assert_problem(await api_client.get(base + "?limit=abc", headers=member))
+    text = assert_problem(await api_client.get(base + "?limit=abc", headers=admin))
     assert text["diagnostics"][0]["code"] == "int_parsing"
 
-    unknown = assert_problem(await api_client.get(base + "?status=bogus", headers=member))
-    assert (unknown["diagnostics"][0]["in"], unknown["diagnostics"][0]["parameter"]) == ("query", "status")
-    assert unknown["detail"].startswith("Request validation failed: query parameter status:")
+    negative = assert_problem(await api_client.get(base + "?offset=-1", headers=admin))
+    assert (negative["diagnostics"][0]["in"], negative["diagnostics"][0]["parameter"]) == ("query", "offset")
+    assert negative["detail"].startswith("Request validation failed: query parameter offset:")
 
 
-async def test_path_errors_name_the_parameter(api_client, member):
-    body = assert_problem(await api_client.get("/v1/sponsor-proposals/1", headers=member))
+async def test_path_errors_name_the_parameter(api_client, admin):
+    body = assert_problem(await api_client.get("/v1/admin/users/1/usage", headers=admin))
     [diagnostic] = body["diagnostics"]
     assert diagnostic["in"] == "path"
     assert diagnostic["parameter"]

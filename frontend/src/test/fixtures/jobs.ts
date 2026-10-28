@@ -38,19 +38,86 @@ export function provenanceOf(over: Record<string, unknown> = {}): Record<string,
   };
 }
 
-export const SOLUTION = {
-  decision: {
-    kind: 'binding',
-    binding: {
-      authenticate: { resource: 'catalog', id: 'authz-eu' },
-      'pay-card': { resource: 'catalog', id: 'payco-eu' },
-      'pay-transfer': { resource: 'catalog', id: 'bankx' },
+const at = (id: string) => ({ resource: 'catalog', id });
+
+/** The canonical solutions of a run: `features`, and `objectives.{type, scalarization, components, penalty, score}`. */
+export const S1 = {
+  decision: { kind: 'binding', binding: { t1: at('c1'), t2: at('c3'), t3: at('c4') } },
+  features: { latency: 420, cost: 9.5 },
+  objectives: {
+    type: 'MULTI',
+    scalarization: 'pareto',
+    components: [
+      { criteria: 'cost', feature: 'cost', value: 9.5, loss: 0.3, weight: 1 },
+      { criteria: 'latency', feature: 'latency', value: 420, loss: 0.4, weight: 1 },
+    ],
+    penalty: 2,
+    score: [0.3, 0.4],
+  },
+  violations: [{ constraint: { resource: 'rules', id: 'prefer-eu' }, enforcement: 'soft', penalty: 2, message: 'Prefer EU providers' }],
+};
+
+export const S2 = {
+  decision: { kind: 'binding', binding: { t1: at('c2'), t2: at('c3'), t3: at('c4') } },
+  features: { latency: 560, cost: 7 },
+  objectives: {
+    type: 'MULTI',
+    scalarization: 'pareto',
+    components: [
+      { criteria: 'cost', feature: 'cost', value: 7, loss: 0.2, weight: 1 },
+      { criteria: 'latency', feature: 'latency', value: 560, loss: 0.55, weight: 1 },
+    ],
+    penalty: 0,
+    score: [0.2, 0.55],
+  },
+  violations: [],
+};
+
+/** Kept for the browser specs that import it: the first solution. */
+export const SOLUTION = S1;
+
+export const RESULT = { termination: 'FEASIBLE', logs: 'solve started\nsolve finished\n', solutions: [S1, S2] };
+
+const candidate = (name: string, provider: string, latency: number, cost: number) => ({ name, provider: { resource: 'catalog', id: provider }, features: { latency, cost } });
+
+/** The compiled document `jobsApi.ir` returns: a BindingProblem that `readBindingProblem` reads. */
+export const CONSTRAINTS = [
+  { ref: { resource: 'rules', id: 'max-latency' }, enforcement: 'hard', assert: { kind: 'compare', op: 'lte', left: { kind: 'path', segments: ['features', 'latency'] }, right: { kind: 'literal', value: 600 } } },
+  { ref: { resource: 'rules', id: 'prefer-eu' }, enforcement: 'soft', assert: { kind: 'compare', op: 'eq', left: { kind: 'path', segments: ['features', 'region'] }, right: { kind: 'literal', value: 'eu' } } },
+];
+
+export const PROBLEM = {
+  apiVersion: 'bim/v1',
+  kind: 'BindingProblem',
+  spec: {
+    application: {
+      tasks: {
+        t1: { name: 'Payment', requires: { type: 'payment' } },
+        t2: { name: 'Shipping', requires: { type: 'shipping' } },
+        t3: { name: 'Notify', requires: { type: 'notify' } },
+      },
+      features: { latency: { unit: 'ms', direction: 'minimize' }, cost: { unit: 'EUR', direction: 'minimize' } },
+    },
+    candidates: {
+      catalog: {
+        providers: { stripe: { name: 'Stripe' }, adyen: { name: 'Adyen' }, dhl: { name: 'DHL' }, twilio: { name: 'Twilio' } },
+        candidates: {
+          c1: candidate('Stripe EU', 'stripe', 120, 4),
+          c2: candidate('Adyen', 'adyen', 90, 5),
+          c3: candidate('DHL', 'dhl', 200, 3),
+          c4: candidate('Twilio', 'twilio', 100, 2.5),
+        },
+      },
+    },
+    eligibility: { t1: [at('c1'), at('c2')], t2: [at('c3')], t3: [at('c4')] },
+    constraints: CONSTRAINTS,
+    optimization: {
+      criteria: [
+        { id: 'cost', feature: { id: 'cost' }, direction: 'minimize' },
+        { id: 'latency', feature: { id: 'latency' }, direction: 'minimize' },
+      ],
     },
   },
-  metrics: { cost: 0.118, latency: 412 },
-  objectives: { mode: 'weighted', components: [], penalty: 0, score: 0.2536 },
-  penalties: [],
-  violations: [],
 };
 
 export function detailOf(id: string, status: string, over: Partial<JobDetail> = {}): JobDetail {
@@ -59,7 +126,7 @@ export function detailOf(id: string, status: string, over: Partial<JobDetail> = 
     id,
     status,
     provenance: provenanceOf(),
-    result: status === 'completed' ? { termination: 'FEASIBLE', solutions: [SOLUTION] } : finished ? { error: 'The deployment didn’t answer within the budget (engine unreachable).' } : null,
+    result: status === 'completed' ? RESULT : finished ? { error: 'The deployment didn’t answer within the budget (engine unreachable).' } : null,
     ...over,
   };
 }
@@ -74,10 +141,10 @@ export const INSTANCE: JobInstanceView = {
 };
 
 export const REPORT: JobReport = {
-  id: 'job-3',
-  gatewayEvaluation: { termination: 'FEASIBLE', solutions: [SOLUTION] },
-  remote: { termination: 'FEASIBLE', solutions: [{ cost: 0.118 }], divergence: { agrees: true, notes: [] } },
-  provenance: provenanceOf(),
+  id: 'job-1',
+  gatewayEvaluation: { termination: 'FEASIBLE', solutions: [] },
+  remote: { engine: 'demo-solver', divergence: { agrees: true, notes: ['Solved with presolve'] } },
+  provenance: {},
 };
 
 export const NEIGHBORHOOD = {

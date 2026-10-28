@@ -1,3 +1,9 @@
+> **Superseded in part (M4, change `m4-remote-space`).** OpenBinding now uses the remote SPACE
+> (`https://space.score.us.es`); no manifest defines a local SPACE, and `compose.lab-pricing.json` is the single
+> one-shot `pricing-bootstrap` (see `docs/qa/PRICING_PROFILE.md`). The sections on the local SPACE, its shared network,
+> key volume, memory table, `DEMO_SPACE_*` secrets and `lab/space` build (§1 to §2, §3.3 to §3.5, §4 to §7) are
+> historical and no longer describe the lab. Read them as the record of the design that M4 replaced.
+
 Status: PROPOSED (2026-10-26), design only. Nothing here was run; items not read from a file are marked UNVERIFIED.
 
 # Design: ROADMAP M4.5, the lab and the previews run with the local SPACE by default

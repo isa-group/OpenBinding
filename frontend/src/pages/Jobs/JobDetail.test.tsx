@@ -4,7 +4,7 @@ import { HttpError } from '../../api/client';
 import type { Job } from '../../api/platform';
 import { caseOf, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
 import { saveBytes } from '../Project/download';
-import { INSTANCE, NEIGHBORHOOD, REPORT, detailOf, jobOf } from '../../test/fixtures/jobs';
+import { INSTANCE, NEIGHBORHOOD, PROBLEM, REPORT, RESULT, S1, detailOf, jobOf } from '../../test/fixtures/jobs';
 import { JobDetail } from './JobDetail';
 
 const jobsApi = vi.hoisted(() => ({ detail: vi.fn(), inProject: vi.fn(), mine: vi.fn(), instance: vi.fn(), cancel: vi.fn(), retry: vi.fn(), report: vi.fn(), ir: vi.fn() }));
@@ -40,7 +40,7 @@ describe('One run', () => {
     jobsApi.mine.mockResolvedValue([meta('completed'), jobOf('job-other-9', 'minizinc', 'completed', 'OPTIMAL', '2026-10-01T09:00:00Z', '2026-10-01T09:00:40Z')]);
     jobsApi.instance.mockResolvedValue(INSTANCE);
     jobsApi.report.mockResolvedValue(REPORT);
-    jobsApi.ir.mockResolvedValue({ kind: 'BindingProblem' });
+    jobsApi.ir.mockResolvedValue(PROBLEM);
     client.getBindingNeighborhood.mockResolvedValue(NEIGHBORHOOD);
   });
 
@@ -82,19 +82,95 @@ describe('One run', () => {
     expect(within(iterations).queryByText('Reduced to the plan’s ceiling')).not.toBeInTheDocument();
   });
 
-  it('shows the authoritative result as figures and a table of chosen providers, with raw JSON only behind View source', async () => {
+  // [utest->req~frontend-rendering-job-run-result~1]
+  it('shows a completed job through the run result, with names, bounds and raw JSON only behind View source', async () => {
     renderJob();
 
-    expect(await screen.findByRole('heading', { name: 'Best combination found' })).toBeInTheDocument();
-    const figures = screen.getByRole('list', { name: 'Quality of this combination' });
-    expect(within(figures).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'Objective0.2536weighted · lower is better', 'cost0.118', 'latency412', 'Nice-to-have rules0penalty',
-    ]);
-    const providers = screen.getByRole('region', { name: 'Chosen providers' });
-    expect(within(providers).getAllByRole('row')).toHaveLength(4);
-    expect(within(providers).getByRole('row', { name: /pay-card payco-eu/ })).toBeInTheDocument();
-    expect(screen.getByText('Numbers are OpenBinding’s own re-check of the engine’s answer.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Solution 1 source')).not.toBeVisible();
+    const run = await screen.findByRole('region', { name: 'Run result' });
+    expect(within(run).getByText('FEASIBLE')).toBeInTheDocument();
+    const providers = await within(run).findByRole('region', { name: 'Chosen providers' });
+    const payment = await within(providers).findByRole('row', { name: /Payment/ });
+    expect(payment).toHaveTextContent('Stripe EU');
+    expect(within(providers).queryByRole('row', { name: /pay-card payco-eu/ })).not.toBeInTheDocument();
+
+    const figures = within(run).getByRole('list', { name: 'Quality of this combination' });
+    expect(within(figures).getByText('latency').closest('li')).toHaveTextContent(/latency.*420/);
+    expect(within(figures).getByText('cost').closest('li')).toHaveTextContent(/cost.*9\.5/);
+    expect(within(figures).queryByText('Objective')).not.toBeInTheDocument();
+
+    const bounds = within(run).getByRole('region', { name: 'QoS against bounds' });
+    expect(await within(bounds).findByText('max-latency')).toBeInTheDocument();
+    expect(within(run).getByRole('region', { name: 'Trade-off set' })).toBeInTheDocument();
+    expect(within(run).getByText('Numbers are OpenBinding’s own re-check of the engine’s answer.')).toBeInTheDocument();
+    expect(await within(run).findByText('Solved with presolve')).toBeInTheDocument();
+
+    const source = within(run).getByText('View source').closest('details') as HTMLDetailsElement;
+    expect(source.open).toBe(false);
+    expect(within(run).getByRole('region', { name: 'Solution 1 source', hidden: true })).not.toBeVisible();
+    expect(within(run).getByRole('region', { name: 'Engine report source', hidden: true })).not.toBeVisible();
+    const log = run.lastElementChild as HTMLElement;
+    expect(log.tagName).toBe('DETAILS');
+    expect(log.querySelector('summary')).toHaveTextContent(/^Engine log/);
+  });
+
+  // [utest->req~frontend-rendering-job-run-result~1]
+  it('loads the compiled problem and the engine report once for a completed job, and has no compare button', async () => {
+    renderJob();
+
+    await screen.findByRole('region', { name: 'Chosen providers' });
+    expect(jobsApi.ir).toHaveBeenCalledTimes(1);
+    expect(jobsApi.ir).toHaveBeenCalledWith('job-done-3');
+    expect(jobsApi.report).toHaveBeenCalledTimes(1);
+    expect(jobsApi.report).toHaveBeenCalledWith('job-done-3');
+    expect(screen.queryByRole('region', { name: 'The engine’s own report' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'The engine’s own report' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Compare with the engine' })).not.toBeInTheDocument();
+  });
+
+  // [utest->req~frontend-rendering-job-run-result~1]
+  it('says the compiled problem is not available (404, then 409) and shows ids, with no notice for a failed report', async () => {
+    const note = 'The compiled problem of this run is not available, so tasks and candidates are shown by id, without feature values, bounds or units.';
+    jobsApi.ir.mockRejectedValue(refusal(404, 'not_found'));
+    jobsApi.report.mockRejectedValue(refusal(410, 'gone'));
+    const view = renderJob();
+
+    const run = await screen.findByRole('region', { name: 'Run result' });
+    expect(await within(run).findByText(note)).toBeInTheDocument();
+    expect(within(run).getByText('FEASIBLE')).toBeInTheDocument();
+    expect(within(run).queryByRole('list', { name: 'Engine notes' })).not.toBeInTheDocument();
+    await waitFor(() => expect(jobsApi.report).toHaveBeenCalled());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText('Payment')).not.toBeInTheDocument();
+    view.unmount();
+
+    jobsApi.ir.mockRejectedValue(refusal(409, 'analysis_unavailable'));
+    renderJob();
+    const again = await screen.findByRole('region', { name: 'Run result' });
+    expect(await within(again).findByText(note)).toBeInTheDocument();
+  });
+
+  // [utest->req~frontend-rendering-job-run-result~1]
+  it.each([
+    ['queued', 'No result yet. It appears here when the run finishes.'],
+    ['running', 'No result yet. It appears here when the run finishes.'],
+    ['cancelled', 'Cancelled before producing a result.'],
+    ['failed', 'Engine crashed. Retrying starts a new attempt.'],
+  ])('fetches neither the compiled problem nor the report for a %s job', async (status, words) => {
+    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', status, status === 'failed' ? { result: { error: 'Engine crashed' } } : {}));
+    jobsApi.inProject.mockResolvedValue(meta(status));
+    renderJob();
+
+    await screen.findByRole('heading', { level: 1, name: 'random-search run' });
+    if (status === 'failed') {
+      const alert = await screen.findByRole('alert');
+      expect(within(alert).getByText('The run failed')).toBeInTheDocument();
+      expect(alert).toHaveTextContent(words);
+    } else {
+      expect(await screen.findByText(words)).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('region', { name: 'Run result' })).not.toBeInTheDocument();
+    expect(jobsApi.ir).not.toHaveBeenCalled();
+    expect(jobsApi.report).not.toHaveBeenCalled();
   });
 
   it('says which snapshot and which case revision the run used', async () => {
@@ -160,15 +236,29 @@ describe('One run', () => {
     expect(await within(swaps).findByText(/isn’t available for analysis any more \(409/)).toBeInTheDocument();
   });
 
-  it('compares the gateway’s re-check with the engine’s own report', async () => {
+  // [utest->req~frontend-rendering-job-run-result~1]
+  it('shows the claimed and evaluated values as a fixed part of the run, from the engine report loaded with it', async () => {
     renderJob();
 
-    const report = (await screen.findByRole('heading', { name: 'The engine’s own report' })).closest('section') as HTMLElement;
-    fireEvent.click(within(report).getByRole('button', { name: 'Compare with the engine' }));
-    // Both sides say the same here: OpenBinding’s re-check and the engine’s own account.
-    expect(await within(report).findAllByText('FEASIBLE · 1 solution')).toHaveLength(2);
-    expect(within(report).getByText('Yes, they agree.')).toBeInTheDocument();
-    expect(within(report).getByText('OpenBinding’s re-check')).toBeInTheDocument();
+    const run = await screen.findByRole('region', { name: 'Run result' });
+    expect(within(run).getByRole('region', { name: 'Claimed and evaluated values' })).toBeInTheDocument();
+    expect(await within(run).findByText('Solved with presolve')).toBeInTheDocument();
+  });
+
+  // [utest->req~frontend-rendering-job-run-result~1]
+  it('puts the swaps panel inside the run result, its source behind View source', async () => {
+    renderJob();
+
+    const run = await screen.findByRole('region', { name: 'Run result' });
+    const swaps = (await within(run).findByRole('heading', { name: 'What if one task used another provider?' })).closest('section') as HTMLElement;
+    fireEvent.click(within(swaps).getByRole('button', { name: 'Check single swaps' }));
+    const list = await within(swaps).findByRole('list', { name: 'Single-task swaps' });
+    const disclosure = within(swaps).getByText('View source').closest('details') as HTMLDetailsElement;
+    expect(disclosure.open).toBe(false);
+    expect(within(swaps).getByRole('region', { name: 'Swaps source', hidden: true })).toBeInTheDocument();
+    expect(list.compareDocumentPosition(disclosure) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const runSource = within(run).getAllByText('View source').map((node) => node.closest('details') as HTMLElement).find((d) => !swaps.contains(d)) as HTMLElement;
+    expect(list.compareDocumentPosition(runSource) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('keeps a run that is not yours, or does not exist, as one neutral answer', async () => {
@@ -203,7 +293,7 @@ describe('One run', () => {
     expect(screen.getByText('No result yet. It appears here when the run finishes.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel run' })).toBeInTheDocument();
     expect(await screen.findByText('Finished · not live', undefined, { timeout: 6000 })).toBeInTheDocument();
-    expect(await screen.findByRole('heading', { name: 'Best combination found' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Run result' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument();
   }, 15_000);
 
@@ -296,18 +386,31 @@ describe('One run', () => {
   });
 
   // [utest->req~frontend-retire-composer-entry-points-repointed~1]
-  it('explains an infeasible result and points back to the rules', async () => {
-    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'completed', {
-      result: { termination: 'INFEASIBLE', solutions: [{ violations: [{ constraint: 'sla-latencia', message: 'Total latency is 742 ms; at most 600 ms is allowed.' }] }] },
-    }));
+  // [utest->req~frontend-rendering-job-run-result~1]
+  it('explains an infeasible result after the verdict and shows the best attempt’s parts below', async () => {
+    const attempt = {
+      ...S1,
+      features: { latency: 742, cost: 9.5 },
+      violations: [{ constraint: { resource: 'rules', id: 'max-latency' }, enforcement: 'hard', message: 'Total latency is 742 ms; at most 600 ms is allowed.' }],
+    };
+    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'completed', { result: { ...RESULT, termination: 'INFEASIBLE', solutions: [attempt] } }));
     renderJob();
 
-    const why = (await screen.findByRole('heading', { name: 'Why no combination works' })).closest('section') as HTMLElement;
-    expect(within(why).getByText(/sla-latencia/)).toBeInTheDocument();
+    const run = await screen.findByRole('region', { name: 'Run result' });
+    const heading = await within(run).findByRole('heading', { name: 'Why no combination works' });
+    const why = heading.closest('section') as HTMLElement;
     expect(within(why).getByText(/Total latency is 742 ms/)).toBeInTheDocument();
     expect(await within(why).findByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/cases/flujo/revisions/2`);
     expect(within(why).getByRole('link', { name: 'Try faster providers' })).toHaveAttribute('href', `${ROOT}/workbench?case=flujo`);
+
+    const badge = within(run).getByText('INFEASIBLE');
+    const bounds = await within(run).findByRole('region', { name: 'QoS against bounds' });
+    const follows = (before: Element, after: Element) => Boolean(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(badge, heading)).toBe(true);
+    expect(follows(heading, bounds)).toBe(true);
+    expect(within(run).getByRole('region', { name: 'Chosen providers' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Best combination found' })).not.toBeInTheDocument();
+    expect(within(run).queryByRole('heading', { name: 'What if one task used another provider?' })).not.toBeInTheDocument();
   });
 
   it('opens another of the account’s runs from the same project', async () => {

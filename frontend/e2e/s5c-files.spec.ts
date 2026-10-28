@@ -121,7 +121,7 @@ const qosData = (): ProjectData => ({
 
 const emptyData = (): ProjectData => ({ files: [], resources: [], resourceRevs: {}, collections: [], collectionRevs: {}, cases: [], caseRevs: {} });
 
-type Refusable = 'files' | 'upload' | 'download' | 'deleteFile' | 'resources' | 'resource' | 'resourceRevisions' | 'createResource' | 'saveResourceRevision'
+type Refusable = 'files' | 'upload' | 'download' | 'deleteFile' | 'resources' | 'resourceRevisions'
   | 'collections' | 'collection' | 'collectionRevisions' | 'createCollection' | 'saveCollectionRevision' | 'deleteCollection';
 
 interface State {
@@ -241,49 +241,16 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
       return json(data.caseRevs[subId] ?? [])(route);
     }
 
-    // --- resources
+    // --- resources: the list and the revisions of one, which a collection reads to name what it pins
     if (sub === 'resources') {
       if (!subId) {
-        if (method === 'POST') {
-          if (state.refuse.createResource) return state.refuse.createResource(route);
-          const body = bodyOf(route) as { slug: string; name: string; description: string; kind: string };
-          state.sent.createResource = body;
-          const created = resourceOf(body.slug, body.name, { description: body.description, kind: body.kind });
-          data.resources = [...data.resources, created];
-          data.resourceRevs[created.slug] = [];
-          return json(created, 201)(route);
-        }
         if (state.refuse.resources) return state.refuse.resources(route);
         return json(data.resources)(route);
       }
       const resource = data.resources.find((item) => item.slug === subId);
-      if (!resource) return detail(404, 'not_found', 'Project resource not found.')(route);
-      if (!action) {
-        if (method === 'PATCH') {
-          state.sent.updateResource = bodyOf(route);
-          Object.assign(resource, bodyOf(route));
-        }
-        if (method === 'DELETE') {
-          state.sent.deleteResource = resource.slug;
-          data.resources = data.resources.filter((item) => item !== resource);
-          return noContent(route);
-        }
-        if (state.refuse.resource) return state.refuse.resource(route);
-        return json(resource)(route);
-      }
-      const revisions = data.resourceRevs[resource.slug] ?? [];
-      if (method === 'POST') {
-        if (state.refuse.saveResourceRevision) return state.refuse.saveResourceRevision(route);
-        const { document } = bodyOf(route) as { document: Record<string, unknown> };
-        state.sent.resourceRevision = document;
-        const same = revisions.find((item) => JSON.stringify(item.document) === JSON.stringify(document));
-        if (same) return json(same, 201)(route);
-        const created = resourceRevisionOf(resource, revisions.length + 1, document, { created_at: '2026-10-09T08:00:00Z' });
-        data.resourceRevs[resource.slug] = [...revisions, created];
-        return json(created, 201)(route);
-      }
+      if (!resource || action !== 'revisions') return detail(404, 'not_found', 'Project resource not found.')(route);
       if (state.refuse.resourceRevisions) return state.refuse.resourceRevisions(route);
-      return json(revisions)(route);
+      return json(data.resourceRevs[resource.slug] ?? [])(route);
     }
 
     // --- collections

@@ -7,7 +7,7 @@ Compose ([ADR-0021](../adr/0021-docker-compose-only.md)).
 production host.** Where this runbook and `compose.yaml` disagree, `compose.yaml` wins and this runbook is the defect.
 Docker was not available where the definition was written, so `docker compose config` still has to be run by a person
 or by CI (see [Render check](#render-check)), and none of the commands below has been executed. The image registry, the
-SPACE decision, the non-root hardening and the host facts are open (see [What stays blocked](#what-stays-blocked)).
+non-root hardening and the host facts are open (see [What stays blocked](#what-stays-blocked)).
 
 ## Who may order a deployment
 
@@ -27,7 +27,6 @@ it does not extend `docker-compose.yml`, builds nothing and has no profiles.
 | `migrate` | `GATEWAY_IMAGE` | `database_url` | one-shot (`OPENBINDING_MIGRATE=only`), exits when the schema is current |
 | `gateway` | `GATEWAY_IMAGE` | `database_url`, `gateway_jwt_secret`, `space_api_key`, `sphere_api_key`, `secrets_fernet_keys`, `bootstrap_admin_password` | starts after `migrate` completed; the only service with the JWT secret |
 | `worker` | `GATEWAY_IMAGE` | `database_url`, `space_api_key`, `sphere_api_key`, `secrets_fernet_keys` | queue `default`, 4 threads |
-| `analysis-worker` | `GATEWAY_IMAGE` | same as `worker` | queue `analysis`, 1 thread |
 | `engine-minizinc` | `ENGINE_MINIZINC_IMAGE` | none | |
 | `engine-random-search` | `ENGINE_RANDOM_SEARCH_IMAGE` | none | |
 | `engine-many-heuristic` | `ENGINE_MANY_HEURISTIC_IMAGE` | none | |
@@ -104,7 +103,7 @@ OPENBINDING_SECRETS_DIR=/srv/openbinding/secrets
 OPENBINDING_BACKUP_DIR=/srv/openbinding/backups
 BACKUP_RETENTION_DAYS=14
 NGINX_SSL_DIR=/srv/openbinding/tls
-SPACE_URL=https://space.example.org
+SPACE_URL=https://space.score.us.es
 # the first administrator, see "First install":
 BOOTSTRAP_ADMIN_USERNAME=
 BOOTSTRAP_ADMIN_EMAIL=
@@ -454,7 +453,7 @@ The archives are created with `umask 077` (mode 0600), and are copied off-host l
 at rest).
 
 ```bash
-$DC stop nginx gateway worker analysis-worker pg-backup postgres
+$DC stop nginx gateway worker pg-backup postgres
 image=$(sed -n 's/^POSTGRES_IMAGE=//p' images.env)          # any pinned image with tar
 for vol in pgdata artifacts; do
   docker run --rm --entrypoint sh -v "openbinding-production_${vol}:/data:ro" -v "$OPENBINDING_BACKUP_DIR:/out" \
@@ -562,7 +561,7 @@ rollback_swap() {   # step 3; $1 is the previous tag
     git checkout "$running"; return 1
   fi
   # the clients stop, then the two renames run in one transaction:
-  if ! { $DC stop nginx gateway worker analysis-worker pg-backup \
+  if ! { $DC stop nginx gateway worker pg-backup \
     && printf 'ALTER DATABASE openbinding RENAME TO openbinding_failed_%s;\nALTER DATABASE openbinding_rollback RENAME TO openbinding;\n' \
       "$(date +%Y%m%d%H%M%S)" | $DC exec -T postgres psql -U openbinding -d postgres -1 -v ON_ERROR_STOP=1 -f -; }; then
     git checkout "$running" && $DC up -d && $DC restart nginx   # the live database was not renamed: start the running release again
@@ -618,7 +617,7 @@ sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
   old=$(sudo cat "$OPENBINDING_SECRETS_DIR/secrets_fernet_keys")
   if [ -n "$new" ] && [ -n "$old" ]; then
     printf '%s,%s' "$new" "$old" | put_secret secrets_fernet_keys 10001 \
-      && $DC up -d --force-recreate gateway worker analysis-worker \
+      && $DC up -d --force-recreate gateway worker \
       && $DC restart nginx
   else
     echo "refuse: the new or the old Fernet key is empty" >&2
@@ -634,7 +633,7 @@ sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
   set +o history
   printf 'new SPACE key: ' >&2; IFS= read -rs v; echo >&2; printf '%s' "$v" | put_secret space_api_key 10001; unset v
   set -o history
-  $DC up -d --force-recreate gateway worker analysis-worker
+  $DC up -d --force-recreate gateway worker
   $DC restart nginx
   ```
 
@@ -654,7 +653,7 @@ sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
       | $DC exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1 \
       && printf '%s' "$password" | put_secret postgres_password 70 \
       && printf '%s' "postgresql+asyncpg://openbinding:${password}@postgres:5432/openbinding" | put_secret database_url 10001 \
-      && $DC up -d --force-recreate migrate gateway worker analysis-worker pg-backup \
+      && $DC up -d --force-recreate migrate gateway worker pg-backup \
       && $DC restart nginx
   else
     echo "refuse: the new password is empty; the role keeps its password" >&2
@@ -685,7 +684,7 @@ sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
     printf "ALTER ROLE openbinding PASSWORD '%s';\n" "$old" \
       | $DC exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1 \
       && sudo sh -c 'for f in postgres_password database_url; do mv -f -- "$1/$f.prev" "$1/$f" || exit 1; done' sh "$dir" \
-      && $DC up -d --force-recreate migrate gateway worker analysis-worker pg-backup \
+      && $DC up -d --force-recreate migrate gateway worker pg-backup \
       && $DC restart nginx
   }
   undo_password_rotation
@@ -731,32 +730,25 @@ docker inspect --format '{{.HostConfig.LogConfig}}' $($DC ps -q gateway)
 docker system df
 ```
 
-## Local SPACE (owner decision local-space)
+## Remote SPACE
 
-The owner decided that production eventually runs its own SPACE (`space-api`, `space-mongo`, `space-redis`, like the
-laboratory pricing profile `compose.lab-pricing.json`). **This definition ships remote SPACE only**: the gateway and
-the workers reach SPACE through `SPACE_URL` and the `space_api_key` file, and `compose.yaml` has no SPACE or SPHERE
-service, network or volume. The reason is that `openbinding-gateway/tests/test_no_local_space.py` (requirement
-`req~lab-deployment-no-local-space`) forbids them under `deploy/**`, and another change is rewriting that test.
+<!-- [impl->req~lab-deployment-runbook-remote-space~1] -->
 
-The follow-up change has to:
+Production and the laboratory use the remote SPACE, `https://space.score.us.es`. The gateway and the workers reach it
+through `SPACE_URL` (required, set in `site.env`; the value is `https://space.score.us.es`) and the secret file `space_api_key`. The key never goes into
+the repository, an image, the logs or the browser. `SPACE_ENABLED` switches the integration, and `APP_ENV=prod` refuses
+the open gate (`SPACE_ENABLED=false`). Plans stay blocked only until the key and the URL are supplied.
 
-- add `space-api`, `space-mongo` and `space-redis` with digest-pinned images, secret files, health checks and limits;
-- back up the SPACE volumes, like `pgdata` and `artifacts`;
-- amend `req~lab-deployment-no-local-space` and `openbinding-gateway/tests/test_no_local_space.py`.
-
-Open points: the SPACE API image has no verified digest or registry (the laboratory profile uses the marker
-`gap.invalid/space-api:1.7.1`), and `INTENT.md:180` lists hosting SPACE in production as a non-goal, which conflicts with
-the owner decision. The owner reconciles `INTENT.md`. Until then plans stay blocked on a remote SPACE.
+Production runs no local SPACE: this stack deploys and backs up no SPACE, and `compose.yaml` has no SPACE or SPHERE
+service, network or volume, so there is nothing of SPACE to restore. `tests/test_no_local_space.py` in
+`openbinding-gateway` guards that. The owner decision of the change `m4-remote-space` replaces the earlier decision to
+host a SPACE in production.
 
 ## What stays blocked
 
 - **Image registry and publish workflow.** No workflow builds and pushes images, so every image built from this
   repository is still a `gap.invalid/...@sha256:000...` marker in `images.env`, and the pre-flight refuses it. Needs
   the owner's registry choice and a token that can write workflows (CRP-4).
-- **Production SPACE.** Production uses a remote SPACE through `SPACE_URL`; which one is the owner's decision. The
-  owner chose a local SPACE for production, which this definition does not ship: see
-  [Local SPACE (owner decision local-space)](#local-space-owner-decision-local-space). Plans stay blocked until then.
 - **Non-root users and dropped capabilities.** The Java engines, `nginx` and `frontend-assets` run as the user of their
   image (root in several of them) with the default capabilities; `compose.yaml` sets only `no-new-privileges`. Setting a
   `user` and `cap_drop` there depends on the writable paths and ports of each image, and cannot be verified without

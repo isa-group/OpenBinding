@@ -2,63 +2,22 @@ import { Link } from 'react-router-dom';
 import { BindingAnalysis } from '../../components/BindingAnalysis/BindingAnalysis';
 import { ArtifactVersionPicker } from '../../components/Artifacts/ArtifactVersionPicker';
 import { Action } from '../../components/ui/Action';
-import { Chip } from '../../components/ui/Chip';
+import { RunResult } from '../../components/rendering/RunResult';
 import { Notice } from '../../components/ui/Notice';
-import { executionKey, isRecord, type BindingDecision, type BindingSolution } from './bimDocuments';
+import { useRunProblem } from '../Jobs/useRunProblem';
+import { executionKey } from './bimDocuments';
 import { RANGE_REFUSAL } from '../../utils/featureRange';
 import { refusesRanges } from './workbenchModel';
 import type { Workbench } from './useWorkbench';
 
-function DecisionView({ decision }: { decision: BindingDecision | undefined }) {
-  if (decision?.kind === 'binding' && decision.binding && typeof decision.binding === 'object') {
-    return (
-      <table className="wb-decision-table">
-        <thead><tr><th scope="col">Task</th><th scope="col">Candidate resource</th><th scope="col">Candidate</th></tr></thead>
-        <tbody>
-          {Object.entries(decision.binding).map(([task, candidate]) => (
-            <tr key={task}><td>{task}</td><td>{candidate?.resource}</td><td>{candidate?.id}</td></tr>
-          ))}
-        </tbody>
-      </table>
-    );
-  }
-  return (
-    <details className="wb-details">
-      <summary>View source</summary>
-      <pre>{JSON.stringify(decision, null, 2)}</pre>
-    </details>
-  );
-}
-
-function Metrics({ value }: { value: unknown }) {
-  if (!isRecord(value)) return null;
-  const entries = Object.entries(value).filter((entry): entry is [string, number] => typeof entry[1] === 'number');
-  if (entries.length === 0) return null;
-  return (
-    <ul className="wb-metrics" aria-label="Quality of this binding">
-      {entries.map(([name, amount]) => <li key={name}><span>{name}</span><b>{amount}</b></li>)}
-    </ul>
-  );
-}
-
-function Solution({ solution, index }: { solution: BindingSolution; index: number }) {
-  return (
-    <section className="wb-decision" aria-label={`Solution ${index + 1}`}>
-      <div className="wb-decision-head">
-        <Chip tone="accent">{solution.decision?.kind || 'unknown'}</Chip>
-        <Metrics value={solution.metrics} />
-      </div>
-      <DecisionView decision={solution.decision} />
-      <details className="wb-details">
-        <summary>View source · evaluation, penalties and violations</summary>
-        <pre>{JSON.stringify({ metrics: solution.metrics, objectives: solution.objectives, penalties: solution.penalties, violations: solution.violations, evaluation: solution.evaluation }, null, 2)}</pre>
-      </details>
-    </section>
-  );
-}
-
 /** Solve the package with an engine: which mode, and the evaluated answer. */
+// [impl->req~frontend-rendering-workbench-run-result~1]
+// [impl->req~frontend-rendering-run-result-allow-list~1]
 export function RunPanel({ wb, orgSlug, jobsHref }: { wb: Workbench; orgSlug: string; jobsHref: string }) {
+  const loaded = useRunProblem(wb.resultJobId, Boolean(wb.result));
+  // A run with no job id has no compiled problem to wait for.
+  const problem = wb.resultJobId ? loaded.problem : null;
+  const constraints = wb.resultJobId ? loaded.constraints : [];
   const working = wb.runState === 'queued' || wb.runState === 'running';
   // A package with ranges can only go to a mode that declares interval values: the others stay in the list, off, with the reason.
   const refused = wb.hasRanges ? wb.allModes.filter(refusesRanges) : [];
@@ -143,9 +102,8 @@ export function RunPanel({ wb, orgSlug, jobsHref }: { wb: Workbench; orgSlug: st
           <section className="wb-result" aria-label="Authoritative result">
             <div className="wb-pane-head">
               <div><span className="wb-eyebrow">Gateway-reevaluated output</span><h3>Authoritative result</h3></div>
-              <p className="wb-result-summary">{wb.result.solutions?.length || 0} solution(s) · <strong>{wb.result.termination || 'UNKNOWN'}</strong></p>
             </div>
-            {wb.result.solutions?.map((solution, index) => <Solution solution={solution} index={index} key={index} />)}
+            <RunResult result={wb.result} problem={problem} constraints={constraints} />
           </section>
         </>
       )}

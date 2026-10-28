@@ -1,0 +1,15 @@
+.rendering-run {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.rendering-run__verdict {
+  align-self: flex-start;
+}
+
+.rendering-run__choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}

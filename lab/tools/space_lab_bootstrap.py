@@ -1,11 +1,16 @@
-"""Bootstrap of the lab SPACE: organization, MANAGEMENT api key, the ``openbinding`` service and the seed contracts.
+"""Bootstrap of the REMOTE SPACE (https://space.score.us.es): the ``openbinding`` service and the seed contracts.
+
+The tool holds one credential, a MANAGEMENT api key of that SPACE (``SPACE_API_KEY``), sent as ``x-api-key`` on every
+request to the host of ``SPACE_URL``.  It never authenticates a user and never touches an organization or an api key.
 
 This is the one module allowed to call SPACE's HTTP API directly (the constitution 16.1 exception of ADR 0022,
-``docs/adr/0022-lab-bootstrap-exception-to-constitution-16-1.md``): ``space-python-client`` has no organization,
-api-key, user or service operation.  Contracts go through the client.  The tool imports nothing from the gateway,
-reads no variable of SPHERE, holds no SPHERE key and sends nothing to SPHERE (SPACE reads the public link itself).
-It never writes a file and never prints, logs or raises the admin password or an api key: error messages are built
-from the item, method, route, status code or exception type only.  Keys stay in memory.
+``docs/adr/0022-lab-bootstrap-exception-to-constitution-16-1.md``): ``space-python-client`` has no service operation.
+Contracts go through the client.  The tool imports nothing from the gateway, reads no variable of SPHERE, holds no
+SPHERE key and sends nothing to SPHERE (SPACE reads the public link itself).  It never writes a file and never
+prints, logs or raises the api key: error messages are built from the item, method, route, status code or exception
+type only, so a SPACE answer that echoes the key leaks nothing.  The key stays in memory.  The tool's own client
+ignores the environment, and ``main`` removes the proxy variables from the process before the contracts client of
+``space-python-client`` (which would read them) is built.
 
 Idempotence is by lookup before each create.  Output: one JSON line on stdout; on failure one line on stderr, status 1.
 """
@@ -26,9 +31,11 @@ from typing import Any
 import httpx
 from space_client import SpaceApiError, SpaceClientFactory
 
+# [impl->req~lab-space-remote-bootstrap~1]
+# [impl->req~lab-space-remote-bootstrap-secrets~1]
+DEFAULT_SPACE_URL = "https://space.score.us.es"
 SPHERE_LINK = "https://sphere.score.us.es/p/6ab0a323697330667ccce891"
 SERVICE_NAME = "openbinding"
-ORGANIZATION_NAME = "openbinding"
 SOURCE = "sphere"
 POLICY = "all_last"
 # Same namespace and users as openbinding-gateway/tools/seed_lab.py (a test compares both texts).
@@ -37,6 +44,8 @@ SYNTHETIC_USERS = ("lab-admin", "lab-owner", "lab-orgadmin", "lab-member", "lab-
 FAILED_STATUSES = ("failed", "blocked", "degraded")
 API = "/api/v1"
 SDK_TIMEOUT_MS = 30000
+MAX_BODY_BYTES = 1024 * 1024
+VERSION_PATTERN = re.compile(r"[0-9]{1,9}(\.[0-9]{1,9})*([-+][0-9A-Za-z.-]{1,64})?")
 
 
 def synthetic_user_id(username: str) -> str:
@@ -47,76 +56,95 @@ class BootstrapError(Exception):
     """A step failed; the message names the item and never carries a response body, header or secret."""
 
 
+# [impl->req~lab-space-remote-bootstrap~1]
+# [impl->req~lab-space-remote-bootstrap-secrets~1]
 @dataclass(frozen=True)
 class Config:
     space_url: str
-    admin_user: str
-    admin_password: str = field(repr=False)
+    api_key: str = field(repr=False)
     plan: str = "FREE"
     poll_attempts: int = 60
     poll_seconds: float = 5
 
     @classmethod
     def from_environ(cls, environ: Mapping[str, str]) -> Config:
-        password = environ.get("SPACE_ADMIN_PASSWORD", "")
-        if not password:
-            raise BootstrapError("configuration: SPACE_ADMIN_PASSWORD is required")
-        space_url = environ.get("SPACE_URL") or "http://space-api:3000"
-        if not _valid_url(space_url):
-            raise BootstrapError("configuration: SPACE_URL must be an http or https URL with a host and no credentials")
-        return cls(
-            space_url=space_url,
-            admin_user=environ.get("SPACE_ADMIN_USER") or "lab-space-admin",
-            admin_password=password,
-            plan=environ.get("SPACE_BOOTSTRAP_PLAN") or "FREE",
-        )
+        api_key = environ.get("SPACE_API_KEY", "")
+        if not api_key:
+            raise BootstrapError("configuration: SPACE_API_KEY is required")
+        space_url = _normalised_url(environ.get("SPACE_URL") or DEFAULT_SPACE_URL)
+        if space_url is None:
+            raise BootstrapError("configuration: SPACE_URL must be an https URL with a host, no credentials, "
+                                 "no path, query or fragment")
+        return cls(space_url=space_url, api_key=api_key, plan=environ.get("SPACE_BOOTSTRAP_PLAN") or "FREE")
 
 
-def _valid_url(url: str) -> bool:
+def _normalised_url(url: str) -> str | None:
+    """``https://<netloc>`` for an https URL with a host and nothing else (a path of ``/`` is dropped), else None.
+
+    Checked inline (the tool imports nothing from the gateway): whitespace, control characters and backslashes are
+    refused as a whole, so no parser difference can move the host.
+    """
+    if "\\" in url or any(c.isspace() or not c.isprintable() for c in url) or "?" in url or "#" in url:
+        return None
     try:
         parts = urllib.parse.urlsplit(url)
         parts.port  # noqa: B018 - raises ValueError on a malformed port
     except ValueError:
-        return False
-    return (parts.scheme in ("http", "https") and bool(parts.hostname) and "@" not in parts.netloc
-            and parts.username is None and parts.password is None)
+        return None
+    if not (parts.scheme == "https" and parts.hostname and "@" not in parts.netloc
+            and parts.username is None and parts.password is None):
+        return None
+    if parts.query or parts.fragment or parts.path not in ("", "/"):
+        return None
+    return f"https://{parts.netloc}"
 
 
-async def _call(client: httpx.AsyncClient, item: str, method: str, route: str, key: str | None = None,
-                body: Any = None, params: Mapping[str, Any] | None = None) -> Any:
-    """One request; the decoded JSON body.  Failures name the item, method, route and status only.
+def _scrub_proxy_environment() -> None:
+    """Remove the proxy variables from the process environment.  The contracts client of ``space-python-client``
+    builds its own HTTP client, which reads them; the key must not travel through a proxy."""
+    # Every name ending in ``_proxy`` in any case: the HTTP clients read the proxy variables.  The CA variables stay
+    # (they only pick trust anchors).
+    for name in [n for n in os.environ if n.lower().endswith("_proxy")]:
+        os.environ.pop(name, None)
 
-    Errors are raised outside the ``except`` blocks, so no exception text travels as their context.
+
+async def _call(client: httpx.AsyncClient, item: str, method: str, route: str, key: str, body: Any = None) -> Any:
+    """One request with the api key; the decoded JSON body.  Failures name the item, method, route and status only.
+
+    A body over ``MAX_BODY_BYTES`` is refused while it is read, before any decoding.  Errors are raised outside the
+    ``except`` blocks, so no exception text travels as their context.
     """
-    headers = {"x-api-key": key} if key else {}
-    failure = None
+    failure = status = None
+    chunks: list[bytes] = []
+    size = 0
     try:
-        response = await client.request(method, f"{API}{route}", headers=headers, json=body, params=params)
-    except httpx.HTTPError as exc:
+        async with client.stream(method, f"{API}{route}", headers={"x-api-key": key}, json=body) as response:
+            status = response.status_code
+            if 200 <= status < 300:
+                async for chunk in response.aiter_bytes():
+                    size += len(chunk)
+                    if size > MAX_BODY_BYTES:
+                        break
+                    chunks.append(chunk)
+    except Exception as exc:  # noqa: BLE001 - only the type reaches the message (an odd key can fail while encoding)
         failure = type(exc).__name__
     if failure is not None:
         raise BootstrapError(f"{item}: {method} {route} failed ({failure})")
-    if not 200 <= response.status_code < 300:
-        raise BootstrapError(f"{item}: {method} {route} returned status {response.status_code}")
-    if not response.content:
+    if not 200 <= status < 300:
+        raise BootstrapError(f"{item}: {method} {route} returned status {status}")
+    if size > MAX_BODY_BYTES:
+        raise BootstrapError(f"{item}: {method} {route} returned a body over 1 MiB")
+    content = b"".join(chunks)
+    if not content:
         return None
     decoded = failure = None
     try:
-        decoded = response.json()
+        decoded = json.loads(content)
     except ValueError:
         failure = "not JSON"
     if failure is not None:
         raise BootstrapError(f"{item}: {method} {route} returned a body that is not JSON")
     return decoded
-
-
-def _management_entries(org: Any) -> list[Mapping[str, Any]]:
-    keys = org.get("apiKeys") if isinstance(org, Mapping) else None
-    return [k for k in keys or [] if isinstance(k, Mapping) and k.get("scope") == "MANAGEMENT"]
-
-
-def _key_values(entries: Any) -> list[str]:
-    return [str(k["key"]) for k in entries or [] if isinstance(k, Mapping) and k.get("key")]
 
 
 def _service_settings(service: Mapping[str, Any]) -> tuple[Any, Any, Any]:
@@ -153,8 +181,11 @@ def _confirmed(contract: Any, version: str, plan: str) -> bool:
             and services.get(SERVICE_NAME) == version and plans.get(SERVICE_NAME) == plan)
 
 
-def _version_key(version: str) -> tuple[int, ...]:
-    return tuple(int(part) for part in re.findall(r"\d+", version))
+def _version_key(version: str) -> tuple[tuple[int, ...], int]:
+    """Numeric core first; a release ranks above its pre-release (``-...``); ``+build`` is ignored."""
+    core = re.split(r"[-+]", version, maxsplit=1)[0]
+    pre_release = "-" in version.split("+", 1)[0]
+    return tuple(int(part) for part in core.split(".")), 0 if pre_release else 1
 
 
 def _active_versions(body: Any) -> list[str]:
@@ -168,6 +199,11 @@ def _active_versions(body: Any) -> list[str]:
         if isinstance(entry, Mapping) and str(entry.get("status", "active")).lower() == "active" and entry.get("version"):
             versions.append(str(entry["version"]))
     return versions
+
+
+def _valid_versions(versions: list[str]) -> list[str]:
+    """Only version-shaped strings are used (they end up in a contract and a route): the others are ignored."""
+    return [v for v in versions if VERSION_PATTERN.fullmatch(v)]
 
 
 async def _wait_for_sync(client, config, key, sleep) -> int:
@@ -223,8 +259,10 @@ async def _contracts(contracts: Any, config: Config, version: str) -> dict[str, 
     return result
 
 
+# [impl->req~lab-space-remote-bootstrap-secrets~1]
 def _connect(config: Config, key: str) -> Any:
     failure = None
+    _scrub_proxy_environment()  # the SDK builds an httpx client that would read them, nothing is restored
     try:
         return SpaceClientFactory.connect_async(config.space_url, key, SDK_TIMEOUT_MS)
     except Exception as exc:  # noqa: BLE001 - only the type reaches the message
@@ -242,58 +280,25 @@ async def _close(sdk: Any, *, quiet: bool = False) -> None:
         raise BootstrapError(f"contracts: closing the SPACE client failed ({failure})")
 
 
+# [impl->req~lab-space-remote-bootstrap~1]
 async def bootstrap(config: Config, *, transport: httpx.AsyncBaseTransport | None = None, contracts: Any = None,
                     sleep: Callable[[float], Any] = asyncio.sleep) -> dict[str, Any]:
     # The HTTP sequence comes from the documentation of SPACE's main branch and is UNVERIFIED against a live v1.7.1.
     report: dict[str, Any] = {}
     async with httpx.AsyncClient(base_url=config.space_url, transport=transport, timeout=30.0,
                                  follow_redirects=False, trust_env=False) as client:
-        auth = await _call(client, "authentication", "POST", "/users/authenticate",
-                           body={"username": config.admin_user, "password": config.admin_password})
-        admin_key = auth.get("apiKey") if isinstance(auth, Mapping) else None
-        if not admin_key:
-            raise BootstrapError("authentication: the response holds no api key")
-
-        # UNVERIFIED against a live v1.7.1: the admin gets {"data": [...], "pagination": {...}}, other roles
-        # {"data": [...]}; a bare list is accepted too.  The name filter q and limit 50 keep the page from hiding it.
-        found = await _call(client, "organization", "GET", "/organizations", admin_key,
-                            params={"q": ORGANIZATION_NAME, "limit": 50})
-        orgs = found.get("data") if isinstance(found, Mapping) else found
-        if not isinstance(orgs, list):
-            raise BootstrapError("organization: GET /organizations returned no list")
-        org = next((o for o in orgs if isinstance(o, Mapping) and o.get("name") == ORGANIZATION_NAME), None)
-        report["organization"] = "exists" if org else "created"
-        if org is None:
-            org = await _call(client, "organization", "POST", "/organizations", admin_key,
-                              {"name": ORGANIZATION_NAME, "owner": config.admin_user})
-        # UNVERIFIED against a live v1.7.1: the id is the mongoose virtual id, or _id.
-        org_id = (org.get("id") or org.get("_id")) if isinstance(org, Mapping) else None
-        if not org_id:
-            raise BootstrapError("organization: the organization has no id")
-        # UNVERIFIED against a live v1.7.1: that the organization lookup returns the value of an existing key.
-        entries = _management_entries(org)
-        values = _key_values(entries)
-        if entries and not values:
-            raise BootstrapError("apiKey: the organization lists a MANAGEMENT key without its value")
-        report["apiKey"] = "exists" if values else "created"
-        if values:
-            key = values[-1]
-        else:
-            known = set(_key_values(org.get("apiKeys")))
-            created = await _call(client, "apiKey", "POST",
-                                  f"/organizations/{urllib.parse.quote(str(org_id), safe='')}/api-keys", admin_key,
-                                  {"scope": "MANAGEMENT"})
-            fresh = [value for value in _key_values(_management_entries(created)) if value not in known]
-            if not fresh:
-                raise BootstrapError("apiKey: the response holds no new MANAGEMENT key")
-            key = fresh[-1]
-
+        key = config.api_key
         services = await _call(client, "service", "GET", "/services", key)
         if not isinstance(services, list):
             raise BootstrapError("service: GET /services returned no list")
         service = next((s for s in services if isinstance(s, Mapping) and s.get("name") == SERVICE_NAME), None)
         report["service"] = "exists" if service else "created"
         if service is not None:
+            if "source" not in service and "sphere" not in service:
+                # a summary entry of the list: the settings are read from the service itself (read-only)
+                service = await _call(client, "service", "GET", f"/services/{SERVICE_NAME}", key)
+                if not isinstance(service, Mapping):
+                    raise BootstrapError(f"service: GET /services/{SERVICE_NAME} returned no document")
             if _service_settings(service) != (SOURCE, SPHERE_LINK, POLICY):
                 raise BootstrapError("service: the existing openbinding service has another source, link or policy")
             # An existing service is not run again: ready is skipped, a synchronization in progress is awaited.
@@ -308,7 +313,8 @@ async def bootstrap(config: Config, *, transport: httpx.AsyncBaseTransport | Non
             await _wait_for_sync(client, config, key, sleep)
             report["synchronization"] = "ready"
 
-        versions = _active_versions(await _call(client, "pricing", "GET", f"/services/{SERVICE_NAME}/pricings", key))
+        versions = _valid_versions(
+            _active_versions(await _call(client, "pricing", "GET", f"/services/{SERVICE_NAME}/pricings", key)))
         if not versions:
             raise BootstrapError("pricing: the openbinding service has no active pricing version")
         version = max(versions, key=_version_key)
@@ -328,7 +334,10 @@ async def bootstrap(config: Config, *, transport: httpx.AsyncBaseTransport | Non
     return report
 
 
+# [impl->req~lab-space-remote-bootstrap~1]
+# [impl->req~lab-space-remote-bootstrap-secrets~1]
 def main(argv: Sequence[str] | None = None, environ: Mapping[str, str] | None = None) -> int:
+    _scrub_proxy_environment()  # before any client is built, whatever the mapping given for the configuration
     try:
         config = Config.from_environ(os.environ if environ is None else environ)
         report = asyncio.run(bootstrap(config))

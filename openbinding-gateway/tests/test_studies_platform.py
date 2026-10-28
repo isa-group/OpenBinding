@@ -192,15 +192,17 @@ async def test_a_study_can_freeze_case_revisions_from_a_collection(
         headers=headers,
         json=await executable_revision_payload(api_client, headers),
     )
-    collection = await api_client.post('/v1/organizations/collection-lab/library', headers=headers,
-        json={'name': 'suite', 'display_name': 'Suite', 'kind': 'Collection'})
-    identity = collection.json()['id']
-    draft = await api_client.post(f'/v1/artifacts/{identity}/drafts', headers=headers,
-        json={'content': {'apiVersion': 'openbinding/collection/v1', 'members': [{
-            'caseRevisionId': revision.json()['id'], 'compositionDigest': revision.json()['digest']}]}})
-    collection_revision = await api_client.post(f"/v1/artifacts/{identity}/drafts/{draft.json()['id']}/seal",
-        headers=headers, json={'revision': 1})
-    assert collection_revision.status_code == 201, collection_revision.text
+    # The library write routes are removed since M9.6: the collection is sealed by the internal artifact service.
+    import _m96_seed as seed
+    from openbinding_gateway.artifacts import reference
+
+    user_id = profile.json()["id"]
+    organization_id = (await seed.project_by_slugs(db_session, "collection-lab", "bench")).organization_id
+    identity = await seed.library_artifact(db_session, organization_id, user_id, name='suite', display_name='Suite',
+                                           kind='Collection')
+    collection_revision = await seed.seal(db_session, identity, user_id, {
+        'apiVersion': 'openbinding/collection/v1', 'members': [{
+            'caseRevisionId': revision.json()['id'], 'compositionDigest': revision.json()['digest']}]})
     created = await api_client.post(
         "/v1/organizations/collection-lab/projects/bench/studies",
         headers=headers,
@@ -208,7 +210,7 @@ async def test_a_study_can_freeze_case_revisions_from_a_collection(
             "slug": "from-suite",
             "name": "From suite",
             "definition": {
-                "collection_version_id": collection_revision.json()["id"],
+                "collection_version_id": str(collection_revision.id),
                 "engines": [study_engine(engine_ref(routes._manifest("random-search")))],
                 "parameter_sets": [{}],
                 "seeds": [0],
@@ -220,15 +222,13 @@ async def test_a_study_can_freeze_case_revisions_from_a_collection(
     assert created.json()["definition"]["case_revision_ids"] == [revision.json()["id"]]
     definition_artifact = created.json()['definition_artifact_id']
     definition_version = created.json()['definition_version_id']
-    manifest = (await api_client.get(f'/v1/artifacts/{definition_artifact}/versions/{definition_version}', headers=headers)).json()
-    assert manifest['manifest']['dependencies'] == [collection_revision.json()['ref']]
+    versions = (await api_client.get(f'/v1/artifacts/{definition_artifact}/versions', headers=headers)).json()
+    manifest = next(version for version in versions if version['id'] == definition_version)
+    assert manifest['manifest']['dependencies'] == [reference(identity, collection_revision)]
     # Editing the collection does not replace the cases already sealed into a study.
-    next_draft = await api_client.post(f'/v1/artifacts/{identity}/drafts', headers=headers,
-        json={'content': {'apiVersion': 'openbinding/collection/v1', 'members': []},
-              'based_on_id': collection_revision.json()['id']})
-    next_collection = await api_client.post(f"/v1/artifacts/{identity}/drafts/{next_draft.json()['id']}/seal",
-        headers=headers, json={'revision': 1})
-    assert next_collection.status_code == 201, next_collection.text
+    next_collection = await seed.seal(db_session, identity, user_id,
+        {'apiVersion': 'openbinding/collection/v1', 'members': []}, based_on_id=collection_revision.id)
+    assert next_collection.id != collection_revision.id
     unchanged = await api_client.get('/v1/organizations/collection-lab/projects/bench/studies', headers=headers)
     assert unchanged.json()[0]['definition_version_id'] == definition_version
     assert unchanged.json()[0]['definition']['case_revision_ids'] == [revision.json()['id']]
@@ -377,13 +377,14 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
         'software': [{'name': 'test-evaluator', 'version': '1', 'digest': 'sha256-' + 'a' * 64}],
         'bimVersion': 'bim/v1', 'engineRevisions': [exact_engine], 'parameters': {},
     }}
-    evidence_report = await api_client.post('/v1/organizations/lab/projects/routing/reports', headers=headers,
-        json={'slug': 'run-evidence', 'title': 'Run evidence', 'study_run_id': run.json()['id'], 'document': report_doc})
-    assert evidence_report.status_code == 201, evidence_report.text
-    sealed_report = await api_client.post('/v1/organizations/lab/projects/routing/reports/run-evidence/freeze', headers=headers)
-    assert sealed_report.status_code == 200, sealed_report.text
+    # The report editor is removed since M9.6: the report is sealed by the internal report services.
+    import _m96_seed as seed
+    user_id = (await api_client.get('/v1/users/me', headers=headers)).json()['id']
+    routing = await seed.project_by_slugs(db_session, 'lab', 'routing')
+    sealed_report = await seed.report(db_session, routing, user_id, slug='run-evidence', title='Run evidence',
+        study_run_id=uuid.UUID(run.json()['id']), document=report_doc, freeze=True)
     from openbinding_gateway.db.models import ArtifactEvidence
-    evidence_rows = (await db_session.scalars(select(ArtifactEvidence).where(ArtifactEvidence.version_id == uuid.UUID(sealed_report.json()['version_id'])))).all()
+    evidence_rows = (await db_session.scalars(select(ArtifactEvidence).where(ArtifactEvidence.version_id == sealed_report.version_id))).all()
     assert len(evidence_rows) == 5
     from sqlalchemy import update
     from sqlalchemy.exc import DBAPIError
@@ -403,22 +404,19 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
         f"/v1/organizations/lab/projects/routing/studies/compare/runs/{run.json()['id']}/cells/{cells[0].id}/retry", headers=headers)
     assert retry_evidence.status_code == 409, retry_evidence.text
     assert retry_evidence.json()['detail']['code'] == 'sealed_evidence'
-    private_publication = await api_client.post('/v1/organizations/lab/projects/routing/publications', headers=headers,
-        json={'report_id': evidence_report.json()['id'], 'slug': 'private-evidence'})
-    assert private_publication.status_code == 422, private_publication.text
 
     original_version_id = study.json()['definition_version_id']
     artifact_id = study.json()['definition_artifact_id']
     assert run.json()['definition_version_id'] == original_version_id
     content = (await api_client.get(f'/v1/artifacts/{artifact_id}/versions/{original_version_id}/content', headers=headers)).json()
     content['seeds'] = [99]
-    draft = await api_client.post(f'/v1/artifacts/{artifact_id}/drafts', headers=headers,
-        json={'content': content, 'based_on_id': original_version_id})
-    sealed = await api_client.post(f"/v1/artifacts/{artifact_id}/drafts/{draft.json()['id']}/seal", headers=headers,
-        json={'revision': 1, 'version': '2'})
-    assert sealed.status_code == 201, sealed.text
+    from openbinding_gateway.db.models import Artifact
+    definition = await db_session.get(Artifact, uuid.UUID(artifact_id))
+    sealed_definition = await seed.seal(db_session, definition, user_id, content, version='2',
+        based_on_id=uuid.UUID(original_version_id))
+    sealed_id = str(sealed_definition.id)
     selected = await api_client.patch('/v1/organizations/lab/projects/routing/studies/compare', headers=headers,
-        json={'definition_version_id': sealed.json()['id']})
+        json={'definition_version_id': sealed_id})
     assert selected.status_code == 200, selected.text
     assert selected.json()['definition']['seeds'] == [99]
     history = await api_client.get('/v1/organizations/lab/projects/routing/studies/compare/runs', headers=headers)
@@ -428,7 +426,7 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
     from sqlalchemy.exc import DBAPIError
     from openbinding_gateway.db.models import StudyRun
     for statement in (
-        update(StudyRun).where(StudyRun.id == uuid.UUID(run.json()['id'])).values(definition_version_id=uuid.UUID(sealed.json()['id'])),
+        update(StudyRun).where(StudyRun.id == uuid.UUID(run.json()['id'])).values(definition_version_id=uuid.UUID(sealed_id)),
         delete(StudyRun).where(StudyRun.id == uuid.UUID(run.json()['id'])),
         update(StudyCell).where(StudyCell.study_run_id == uuid.UUID(run.json()['id'])).values(seed=123),
         update(StudyCell).where(StudyCell.study_run_id == uuid.UUID(run.json()['id'])).values(parameters={'iterations': 999}),

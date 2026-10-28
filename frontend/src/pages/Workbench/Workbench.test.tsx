@@ -6,8 +6,10 @@ import { unzipPackage } from '../../utils/bimZip';
 import { digestOf, irDocument, refOf, revisionDocument } from '../Cases/fixtures';
 import { caseOf, project, revisionOf } from '../Project/testKit';
 import {
-  ENGINE_REF, REGISTRATION_REF, ROOT, SECOND_REGISTRATION, analysis, openWorkbench, packageArchive, packageFile, renderWorkbench,
+  ENGINE_REF, REGISTRATION_REF, ROOT, SECOND_REGISTRATION, analysis, answerIr, jobWith, openWorkbench, packageArchive, packageFile, renderWorkbench, runResult,
 } from './workbenchTestKit';
+
+const NOT_AVAILABLE = 'The compiled problem of this run is not available, so tasks and candidates are shown by id, without feature values, bounds or units.';
 
 const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), caseRevisions: vi.fn(), snapshotArchive: vi.fn(), publicProjects: vi.fn() }));
 const client = vi.hoisted(() => ({
@@ -18,7 +20,12 @@ const workbench = vi.hoisted(() => ({ validate: vi.fn(), snapshot: vi.fn(), ir: 
 
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
+const jobs = vi.hoisted(() => ({ ir: vi.fn() }));
 vi.mock('../../api/workbench', () => ({ workbenchApi: workbench }));
+vi.mock('../../api/jobs', async () => {
+  const actual = await vi.importActual<typeof import('../../api/jobs')>('../../api/jobs');
+  return { ...actual, jobsApi: { ...actual.jobsApi, ir: jobs.ir } };
+});
 vi.mock('../../components/CodeEditor/CodeEditor', () => ({
   CodeEditor: ({ value, onChange, ariaLabel, readOnly }: { value: string; onChange: (value: string) => void; ariaLabel: string; readOnly?: boolean }) => (
     <textarea aria-label={ariaLabel} value={value} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} />
@@ -75,6 +82,7 @@ describe('Workbench', () => {
     workbench.validate.mockResolvedValue(analysis());
     workbench.snapshot.mockResolvedValue({ id: 'snapshot-1', irDigest: 'sha256-ir' });
     workbench.ir.mockResolvedValue(irDocument());
+    answerIr(jobs.ir, 'document');
   });
 
   describe('the page', () => {
@@ -614,11 +622,101 @@ describe('Workbench', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
 
       expect(await screen.findByRole('cell', { name: 'service-a' })).toBeInTheDocument();
-      expect(screen.getByRole('cell', { name: 'hello' })).toBeInTheDocument();
-      expect(document.querySelector('.wb-result-summary')).toHaveTextContent('1 solution(s) · FEASIBLE');
-      expect(screen.getByRole('region', { name: 'Solution 1' })).toHaveTextContent('latency10');
+      expect(screen.getByRole('region', { name: 'Authoritative result' })).toHaveTextContent('FEASIBLE');
       expect(client.createBimJob).toHaveBeenCalledWith('snapshot-1', ENGINE_REF, REGISTRATION_REF, 'seeded');
       expect(workbench.validate).toHaveBeenCalledTimes(1);
+    });
+
+    describe('the authoritative result', () => {
+      /** Solve and return the region once the run result is in it. */
+      async function solved(result: unknown = runResult()) {
+        client.getV1Job.mockResolvedValue(jobWith(result));
+        await openWorkbench();
+        fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
+        const region = await screen.findByRole('region', { name: 'Authoritative result' });
+        return { region, run: await within(region).findByRole('region', { name: 'Run result' }) };
+      }
+
+      // [utest->req~frontend-rendering-workbench-run-result~1]
+      it('shows the run through the run result: verdict, names, feature values, bounds, objectives and source', async () => {
+        const { region, run } = await solved();
+
+        expect(within(run).getByText('FEASIBLE')).toBeInTheDocument();
+        expect(run).toHaveTextContent('1 solution · optimization MULTI');
+        const table = await within(run).findByRole('region', { name: 'Chosen providers' });
+        expect(await within(table).findByRole('rowheader', { name: /Payment/ })).toBeInTheDocument();
+        expect(table).toHaveTextContent('Stripe EU');
+        expect(table).toHaveTextContent('Shipping');
+        expect(table).toHaveTextContent('Twilio');
+        expect(within(table).getByRole('columnheader', { name: 'latency (ms)' })).toBeInTheDocument();
+        expect(table).toHaveTextContent('120');
+        expect(table).toHaveTextContent('2.5');
+        const bounds = within(run).getByRole('region', { name: 'QoS against bounds' });
+        expect(bounds).toHaveTextContent('latency');
+        expect(bounds).toHaveTextContent('420');
+        expect(bounds).toHaveTextContent('600');
+        expect(within(run).getByRole('region', { name: 'Objective breakdown' })).toHaveTextContent('pareto');
+        const source = within(run).getByText('View source');
+        expect(source.closest('details')).not.toHaveAttribute('open');
+        expect(within(region).getByRole('heading', { level: 3, name: 'Authoritative result' })).toBeInTheDocument();
+        expect(region).toHaveTextContent('Gateway-reevaluated output');
+        await waitFor(() => expect(jobs.ir).toHaveBeenCalledTimes(1));
+        expect(jobs.ir).toHaveBeenCalledWith('job-1');
+      });
+
+      // [utest->req~frontend-rendering-workbench-run-result~1]
+      it('has no result summary line and no dump of metrics, penalties or violations outside the source view', async () => {
+        const { region } = await solved();
+        await within(region).findByRole('region', { name: 'Chosen providers' });
+
+        expect(document.querySelector('.wb-result-summary')).toBeNull();
+        expect(region.querySelector('.wb-decision, .wb-decision-table, .wb-metrics')).toBeNull();
+        const outside = [...region.querySelectorAll('pre')].filter((pre) => !pre.closest('[aria-label$=" source"]'));
+        expect(outside).toEqual([]);
+        expect(screen.queryByText(/View source · evaluation, penalties and violations/)).not.toBeInTheDocument();
+      });
+
+      // [utest->req~frontend-rendering-workbench-run-result~1]
+      it('shows task and candidate ids with no note while the compiled problem is loading', async () => {
+        answerIr(jobs.ir, 'pending');
+        const { run } = await solved();
+
+        const table = await within(run).findByRole('region', { name: 'Chosen providers' });
+        expect(table).toHaveTextContent('t1');
+        expect(table).toHaveTextContent('c1');
+        expect(table).not.toHaveTextContent('Payment');
+        expect(run).not.toHaveTextContent('The compiled problem of this run is not available');
+      });
+
+      // [utest->req~frontend-rendering-workbench-run-result~1]
+      it('says the compiled problem is not available when it cannot be read', async () => {
+        answerIr(jobs.ir, 'missing');
+        const { run } = await solved();
+
+        expect(await within(run).findByText(NOT_AVAILABLE)).toBeInTheDocument();
+        expect(within(run).getByRole('region', { name: 'Chosen providers' })).toHaveTextContent('c1');
+      });
+
+      // [utest->req~frontend-rendering-workbench-run-result~1]
+      it('says the compiled problem is not available, without asking for it, when the run has no job id', async () => {
+        client.createBimJob.mockResolvedValue({ status: 'queued', irDigest: 'sha256-ir' });
+        const { run } = await solved();
+
+        expect(await within(run).findByText(NOT_AVAILABLE)).toBeInTheDocument();
+        expect(jobs.ir).not.toHaveBeenCalled();
+      });
+
+      // [utest->req~frontend-rendering-workbench-run-result~1]
+      it('shows the empty binding text and the source for a decision that is not a binding', async () => {
+        const base = runResult();
+        const { run } = await solved({ ...base, solutions: [{ ...base.solutions[0], decision: { kind: 'placement', placement: { p1: 'pool-a' } } }] });
+
+        expect(within(run).queryByRole('region', { name: 'Chosen providers' })).not.toBeInTheDocument();
+        expect(within(run).getByText('This solution carries no binding assignment.')).toBeInTheDocument();
+        const source = within(run).getByRole('region', { name: 'Solution 1 source', hidden: true });
+        expect(source).toHaveTextContent('pool-a');
+        expect(source.closest('details')).not.toHaveAttribute('open');
+      });
     });
 
     it('polls a running job until it completes', async () => {

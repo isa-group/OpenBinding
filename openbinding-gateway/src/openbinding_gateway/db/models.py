@@ -270,31 +270,6 @@ class Job(Base):
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class AnalysisTask(Base):
-    """Durable archive computation, independent of solve jobs."""
-
-    __tablename__ = "analysis_tasks"
-    __table_args__ = (UniqueConstraint("owner_id", "fingerprint", name="uq_analysis_tasks_owner_fingerprint"),)
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    fingerprint: Mapped[str] = mapped_column(String(80), nullable=False)
-    revision: Mapped[str] = mapped_column(String(80), nullable=False)
-    request: Mapped[dict] = mapped_column(JSON, nullable=False)
-    state: Mapped[str] = mapped_column(String(16), default="queued", nullable=False, index=True)
-    progress: Mapped[float] = mapped_column(Float, default=0, nullable=False)
-    cancellation_requested: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    lease_token: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
-    lease_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    #: How many times a worker claimed the task; a lost worker gets it put back
-    #: until ``analysis_jobs.MAX_ATTEMPTS`` claims, then it is failed.
-    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
-    result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    error: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, server_default=func.now(), nullable=False)
-
-
 class RefreshToken(Base):
     """One issued refresh token, so that it can be rotated and revoked.
 
@@ -601,8 +576,6 @@ from .platform_models import (  # noqa: E402,F401
     Report,
     ReportState,
     RunState,
-    SponsorProposal,
-    SponsorProposalStatus,
     Study,
     StudyCell,
     StudyRun,

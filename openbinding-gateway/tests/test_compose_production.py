@@ -491,8 +491,7 @@ ENGINES = (
     "engine-evolutionary-heuristics",
 )
 EXPECTED_SERVICES = frozenset(
-    {"postgres", "redis", "migrate", "gateway", "worker", "analysis-worker", "frontend-assets", "nginx", "pg-backup"}
-    | set(ENGINES)
+    {"postgres", "redis", "migrate", "gateway", "worker", "frontend-assets", "nginx", "pg-backup"} | set(ENGINES)
 )
 EXPECTED_VOLUMES = frozenset({"pgdata", "redisdata", "artifacts", "frontend_dist"})
 PROJECT_NETWORK = "openbinding"
@@ -517,7 +516,6 @@ EXPECTED_IMAGE_VARIABLE = {
     "migrate": "GATEWAY_IMAGE",
     "gateway": "GATEWAY_IMAGE",
     "worker": "GATEWAY_IMAGE",
-    "analysis-worker": "GATEWAY_IMAGE",
     "engine-minizinc": "ENGINE_MINIZINC_IMAGE",
     "engine-random-search": "ENGINE_RANDOM_SEARCH_IMAGE",
     "engine-many-heuristic": "ENGINE_MANY_HEURISTIC_IMAGE",
@@ -557,7 +555,6 @@ EXPECTED_SECRETS = {
         "bootstrap_admin_password",
     },
     "worker": set(WORKER_SECRETS),
-    "analysis-worker": set(WORKER_SECRETS),
     "pg-backup": {"postgres_password"},
 }
 WORKER_ENTRYPOINT = ["/usr/local/bin/docker-entrypoint.sh"]
@@ -585,7 +582,6 @@ REQUIRED_ENVIRONMENT = {
         "BOOTSTRAP_ADMIN_PASSWORD_FILE": "/run/secrets/bootstrap_admin_password",
     },
     "worker": WORKER_ENVIRONMENT,
-    "analysis-worker": WORKER_ENVIRONMENT,
 }
 # depends_on of each service: dependency -> condition.
 HEALTHY = "service_healthy"
@@ -598,7 +594,6 @@ EXPECTED_DEPENDS_ON = {
         **{engine: HEALTHY for engine in ENGINES},
     },
     "worker": {"gateway": HEALTHY, "redis": HEALTHY},
-    "analysis-worker": {"gateway": HEALTHY, "redis": HEALTHY},
     "nginx": {"gateway": HEALTHY, "frontend-assets": HEALTHY},
     "pg-backup": {"postgres": HEALTHY},
 }
@@ -607,7 +602,6 @@ EXPECTED_DEPENDS_ON = {
 EXPECTED_RESTART_ON_DEPENDENCY = {
     "nginx": {"gateway"},
 }
-LAB_SERVICE = {"analysis-worker": "worker"}
 # Settings.app_env when APP_ENV is not set (openbinding_gateway/core/settings.py).
 APP_ENV_DEFAULT = "dev"
 
@@ -779,7 +773,7 @@ def test_production_file_exists():
 def test_production_is_a_standalone_project_with_the_exact_service_set():
     config = production()
     assert not project_problems(config)
-    assert len(config["services"]) == 13
+    assert len(config["services"]) == 12
 
 
 # [utest->req~lab-deployment-production-network~1]
@@ -1063,7 +1057,7 @@ def test_production_has_no_literal_secret_shape_in_the_files():
         (edit("services", "gateway", "env_file", value=[".env"]), "gateway: env_file"),
         (edit("services", "gateway", "environment", "APP_ENV", value="dev"), "gateway: APP_ENV"),
         (edit("services", "gateway", "environment", "APP_ENV"), "gateway: APP_ENV"),
-        (edit("services", "analysis-worker", "environment", "DATABASE_URL_FILE"), "analysis-worker: DATABASE_URL_FILE"),
+        (edit("services", "worker", "environment", "DATABASE_URL_FILE"), "worker: DATABASE_URL_FILE"),
         (edit("services", "worker", "environment", "OPENBINDING_MIGRATE", value="auto"), "worker: OPENBINDING_MIGRATE"),
         (edit("services", "worker", "environment", "APP_ENV", value="dev"), "worker: APP_ENV is 'dev'"),
         (edit("services", "gateway", "environment", "APP_ENV"), "gateway: APP_ENV is 'dev' (unset means 'dev')"),
@@ -1159,9 +1153,8 @@ def health_problems(config: dict) -> list[str]:
             problems.append(
                 f"{name}: depends_on with restart: true is {sorted(restarting)}, not {sorted(expected_restarting)}"
             )
-    for name in ("worker", "analysis-worker"):
-        if services.get(name, {}).get("entrypoint") != WORKER_ENTRYPOINT:
-            problems.append(f"{name}: entrypoint is not the image entrypoint script")
+    if services.get("worker", {}).get("entrypoint") != WORKER_ENTRYPOINT:
+        problems.append("worker: entrypoint is not the image entrypoint script")
     gateway = services.get("gateway", {})
     if "entrypoint" in gateway or "command" in gateway:
         problems.append("gateway: overrides the image entrypoint or command")
@@ -1208,10 +1201,6 @@ def test_production_health_restart_and_start_order():
             edit("services", "worker", "depends_on", "gateway", "restart", value=True),
             "worker: depends_on with restart: true is ['gateway'], not []",
         ),
-        (
-            edit("services", "analysis-worker", "depends_on", "gateway", "restart", value=True),
-            "analysis-worker: depends_on with restart: true",
-        ),
         (edit("services", "gateway", "depends_on", "redis", "restart", value=True), "gateway: depends_on with restart"),
     ],
     ids=[
@@ -1235,7 +1224,6 @@ def test_production_health_restart_and_start_order():
         "nginx-does-not-follow-the-gateway",
         "nginx-restart-false",
         "worker-restarts-with-the-gateway",
-        "analysis-worker-restarts-with-the-gateway",
         "gateway-follows-redis",
     ],
 )
@@ -1247,8 +1235,7 @@ def test_production_health_rule_detects(mutation, fragment):
 def test_production_only_nginx_restarts_with_the_gateway_and_the_workers_wait_for_it():
     services = production()["services"]
     assert services["nginx"]["depends_on"]["gateway"] == {"condition": HEALTHY, "restart": True}
-    for name in ("worker", "analysis-worker"):
-        assert services[name]["depends_on"]["gateway"] == {"condition": HEALTHY}, name
+    assert services["worker"]["depends_on"]["gateway"] == {"condition": HEALTHY}
 
 
 # [utest->req~lab-deployment-production-health-restart~1]
@@ -1281,7 +1268,7 @@ def limit_problems(config: dict, lab: dict[str, dict]) -> list[str]:
         except AssertionError:
             problems.append(f"{name}: no valid mem_limit")
         else:
-            lab_service = lab.get(LAB_SERVICE.get(name, name))
+            lab_service = lab.get(name)
             if lab_service and mib <= _mib(lab_service["mem_limit"]):
                 problems.append(f"{name}: mem_limit {service['mem_limit']} is not above the laboratory value")
         cpus = service.get("cpus")
@@ -1307,7 +1294,7 @@ def test_production_every_service_has_limits_logging_and_no_new_privileges():
 # [utest->req~lab-deployment-production-limits-logs~1]
 def test_production_logging_comes_from_the_shared_anchor():
     text = production_text()
-    assert text.count("logging: *logging") == len(EXPECTED_SERVICES) - 1  # analysis-worker merges worker's
+    assert text.count("logging: *logging") == len(EXPECTED_SERVICES)
     assert "x-logging: &logging" in text
 
 
@@ -1318,7 +1305,7 @@ def test_production_logging_comes_from_the_shared_anchor():
         (edit("services", "engine-minizinc", "mem_limit"), "engine-minizinc: no valid mem_limit"),
         (edit("services", "engine-minizinc", "mem_limit", value="lots"), "engine-minizinc: no valid mem_limit"),
         (edit("services", "gateway", "mem_limit", value="512m"), "gateway: mem_limit"),
-        (edit("services", "analysis-worker", "mem_limit", value="448m"), "analysis-worker: mem_limit"),
+        (edit("services", "worker", "mem_limit", value="448m"), "worker: mem_limit"),
         (edit("services", "engine-minizinc", "cpus", value=0), "engine-minizinc: cpus"),
         (edit("services", "redis", "cpus"), "redis: cpus"),
         (edit("services", "nginx", "logging", "options", "max-size"), "nginx: logging"),
@@ -1747,8 +1734,8 @@ RENDER_COMMAND = (
     "--env-file deploy/compose/production/images.env "
     "--env-file deploy/compose/production/ci.env config --quiet"
 )
-LOCAL_SPACE_HEADING = "Local SPACE (owner decision local-space)"
-LOCAL_SPACE_ANCHOR = "#local-space-owner-decision-local-space"
+REMOTE_SPACE_HEADING = "Remote SPACE"
+REMOTE_SPACE_URL = "https://space.score.us.es"  # the only real host name the runbook may carry
 # Facts the runbook must state, found by review: (what, text that must appear).
 RUNBOOK_FACTS = [
     ("the pre-flight greps value lines only, not comments", "'^[A-Z0-9_]+=gap\\.invalid/'"),
@@ -1822,7 +1809,7 @@ def runbook_problems(config: dict, text: str, compose_text: str) -> list[str]:
             problems.append(f"{kind} {name} is not named")
     if RENDER_COMMAND not in text:
         problems.append("the render command is missing")
-    if "us.es" in text:
+    if "us.es" in text.replace(REMOTE_SPACE_URL, ""):
         problems.append("a real host name (us.es)")
     return problems
 
@@ -2038,7 +2025,7 @@ def test_runbook_rollback_checks_the_dump_and_restores_aside_before_touching_the
             "--exit-on-error",
             'git checkout "$1"',
             "$DC pull",
-            "$DC stop nginx gateway worker analysis-worker pg-backup",
+            "$DC stop nginx gateway worker pg-backup",
             "ALTER DATABASE openbinding RENAME TO openbinding_failed_",
             "ALTER DATABASE openbinding_rollback RENAME TO openbinding",
             "$DC up -d && $DC restart nginx",
@@ -2218,14 +2205,53 @@ def test_runbook_renders_with_the_command_of_ci():
     assert RENDER_COMMAND in runbook_text()
 
 
-# [utest->req~lab-deployment-production-runbook~1]
-def test_runbook_local_space_decision_is_recorded_and_compose_has_no_space_service():
+REMOTE_SPACE_NEEDLES = (
+    REMOTE_SPACE_URL,
+    "SPACE_URL",
+    "`space_api_key`",
+    "tests/test_no_local_space.py",
+    "runs no local SPACE",
+)
+
+
+def remote_space_problems(text: str) -> list[str]:
+    """What the section 'Remote SPACE' lacks: the URL, the variable, the key file, the guard test, no local SPACE."""
+    if f"## {REMOTE_SPACE_HEADING}" not in text:
+        return ["the section is missing"]
+    body = " ".join(section(text, REMOTE_SPACE_HEADING).split())
+    problems = [f"missing: {needle}" for needle in REMOTE_SPACE_NEEDLES if needle not in body]
+    if "http://space.score.us.es" in body:
+        problems.append("a plain http URL")
+    return problems
+
+
+# [utest->req~lab-deployment-runbook-remote-space~1]
+def test_remote_space_rule_refuses_incomplete_sections():
+    good = "## Remote SPACE\n\n" + " ".join(REMOTE_SPACE_NEEDLES) + "\n"
+    assert remote_space_problems(good) == []
+    assert remote_space_problems(good.replace("`space_api_key`", "the key"))
+    assert remote_space_problems(good.replace("tests/test_no_local_space.py", "a test"))
+    assert remote_space_problems(good.replace("runs no local SPACE", "runs a SPACE"))
+    assert remote_space_problems(good + "http://space.score.us.es\n")
+    assert remote_space_problems("## Other\n\ntext\n")
+
+
+# [utest->req~lab-deployment-runbook-remote-space~1]
+def test_runbook_remote_space_section_and_compose_has_no_space_service():
     text = runbook_text()
-    assert f"## {LOCAL_SPACE_HEADING}" in text
-    body = section(text, LOCAL_SPACE_HEADING)
-    for needle in ("INTENT.md", "SPACE_URL", "space-api", "space-mongo", "space-redis", "test_no_local_space.py"):
-        assert needle in body, needle
-    assert LOCAL_SPACE_ANCHOR in section(text, "What stays blocked")
+    assert not remote_space_problems(text)
+    outside = text.replace(section(text, REMOTE_SPACE_HEADING), "")  # that section says there is no local SPACE
+    assert not re.search(r"(?i)local[ -]space", outside)
+    for name in ("space-mongo", "space-redis", "space-api"):
+        assert name not in text, name
+    assert "gap.invalid/space-api" not in text
+    blocked = section(text, "What stays blocked")
+    assert not re.search(r"(?i)\bSPACE\b", blocked), "an item of 'What stays blocked' waits for a SPACE"
+    assert "<!-- [impl->req~lab-deployment-runbook-remote-space~1] -->" in section(text, REMOTE_SPACE_HEADING)
+    body = " ".join(section(text, REMOTE_SPACE_HEADING).split())
+    assert not re.search(r"(?i)\bdefault", body), "SPACE_URL has no default: compose requires it in site.env"
+    assert "`SPACE_URL` (required, set in `site.env`" in body
+    assert "SPACE decision" not in text.split("## Who may order a deployment")[0]
     config = production()
     for kind in ("services", "networks", "volumes"):
         assert not [name for name in config[kind] if "space" in name.lower() or "sphere" in name.lower()], kind
@@ -2280,9 +2306,9 @@ def test_runbook_restarts_nginx_after_every_gateway_recreate():
 def test_runbook_gateway_restart_rule_detects_a_missing_nginx_restart():
     text = runbook_text()
     assert gateway_restart_problems(text.replace("$DC restart nginx\n", "", 1))
-    fernet = "--force-recreate gateway worker analysis-worker \\\n      && $DC restart nginx"
+    fernet = "--force-recreate gateway worker \\\n      && $DC restart nginx"
     assert fernet in text, "the Fernet rotation chains the nginx restart"
-    assert gateway_restart_problems(text.replace(fernet, "--force-recreate gateway worker analysis-worker", 1))
+    assert gateway_restart_problems(text.replace(fernet, "--force-recreate gateway worker", 1))
     assert gateway_restart_problems(text + "\n```bash\n$DC up -d --force-recreate gateway\n```\n")
     assert not gateway_restart_problems(text + "\n```bash\n$DC up -d --force-recreate worker\n```\n")
 
@@ -2552,7 +2578,7 @@ def test_runbook_undo_of_the_password_rotation_sets_the_old_password_and_moves_t
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "dc.log").read_text().splitlines() == [
         "exec -T postgres psql -U openbinding -d openbinding -v ON_ERROR_STOP=1",
-        "up -d --force-recreate migrate gateway worker analysis-worker pg-backup",
+        "up -d --force-recreate migrate gateway worker pg-backup",
         "restart nginx",
     ]
     assert (tmp_path / "dc.log.stdin").read_text() == "ALTER ROLE openbinding PASSWORD 'oldpw';\n"
@@ -2802,7 +2828,8 @@ def test_runbook_compose_commands_name_services_that_exist():
     names = dc_services(runbook_text())
     assert len(names) >= 25, "the parser found too few service names: it no longer reads the runbook"
     assert set(names) <= EXPECTED_SERVICES, sorted(set(names) - EXPECTED_SERVICES)
-    assert {"postgres", "gateway", "nginx", "worker", "analysis-worker", "pg-backup", "migrate"} <= set(names)
+    assert {"postgres", "gateway", "nginx", "worker", "pg-backup", "migrate"} <= set(names)
+    assert not [name for name in names if "analysis" in name]
 
 
 # [utest->req~lab-deployment-production-runbook~1]
@@ -2823,10 +2850,11 @@ def test_runbook_tls_directory_and_key_modes():
 
 
 # [utest->req~lab-deployment-production-runbook~1]
+# [utest->req~lab-deployment-runbook-remote-space~1]
 def test_runbook_site_env_states_that_space_url_is_https_and_the_checks_agree():
     site = section(runbook_text(), "site.env")
     assert "`SPACE_URL` **must be an `https://` URL**" in site
-    assert "SPACE_URL=https://" in site
+    assert f"\nSPACE_URL={REMOTE_SPACE_URL}\n" in site
     assert "SPACE_URL=https://" in CI_ENV.read_text(encoding="utf-8")
 
 

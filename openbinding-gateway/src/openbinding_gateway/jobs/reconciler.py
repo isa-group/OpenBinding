@@ -319,6 +319,7 @@ async def purge_expired_evidence(session: AsyncSession) -> int:
 
 async def _reconcile_cycle(factory) -> None:
     """One pass: sweep, resync cells, publish due jobs, then the other housekeeping."""
+    # [impl->req~job-execution-reconciler-without-retired-sweeps~1]
     global _last_purge
     async with factory() as session:
         failed = await sweep_abandoned(session)
@@ -345,9 +346,6 @@ async def _reconcile_cycle(factory) -> None:
                 await session.rollback()
             except Exception:
                 logger.warning("Could not roll back after cancelling lost attempts", exc_info=True)
-        from ..sponsor_proposals import sweep_expired
-
-        proposals_expired = await sweep_expired(session)
         purged = 0
         if _last_purge is None or time.monotonic() - _last_purge >= ERROR_EVENT_PURGE_INTERVAL_S:
             from ..telemetry import purge_old_error_events
@@ -368,19 +366,12 @@ async def _reconcile_cycle(factory) -> None:
                 await session.rollback()
             except Exception:
                 logger.warning("Could not roll back after purging engine evidence", exc_info=True)
-    # Analysis recovery commits before dispatch; isolate it from the sweep's transaction.
-    from ..analysis_jobs import redeliver_analysis
-
-    async with factory() as analysis_session:
-        await redeliver_analysis(analysis_session)
     if failed:
         logger.info("Failed %d abandoned job(s)", failed)
     if redelivered:
         logger.info("Redelivered %d queued job(s)", redelivered)
     if cancelled:
         logger.info("Asked engines to stop %d remote job(s) of lost attempts", cancelled)
-    if proposals_expired:
-        logger.info("Expired %d sponsorship proposal(s)", proposals_expired)
     if purged:
         logger.info("Purged %d old error event(s)", purged)
     if evidence_purged:

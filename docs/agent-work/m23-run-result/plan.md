@@ -1,0 +1,1 @@
+M2.3 remainder done: spec, H (offenders 1,4), J.1 RunResult, J.2 Jobs wiring (offender 2), W Workbench (offender 3); allow-list 12->8. Remaining: PR, CI, panel (reviewer, test-reviewer, ui-qa), review package, lead_ready.
