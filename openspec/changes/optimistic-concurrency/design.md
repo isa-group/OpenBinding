@@ -211,31 +211,17 @@ LIKE fix.
 
 ## 10. Decision record
 
-Written here because no ADR file is in this change's scope. It must be promoted to
-`docs/adr/0023-optimistic-concurrency-with-etag-if-match.md` (status Proposed; the owner accepts it).
+The decision is recorded in
+[`docs/adr/0023-optimistic-concurrency-with-etag-if-match.md`](../../../docs/adr/0023-optimistic-concurrency-with-etag-if-match.md)
+(status Proposed; the owner accepts it). §1 to §9 above are the detail it summarizes. If they ever differ, the ADR
+states the decision and this file states the implementation.
 
-- **Context.** Concurrent editors of the same resource silently overwrite each other (last writer wins). The API needs
-  lost-update protection without a schema change, without breaking clients that do not know it, and with the
-  platform's two error shapes intact.
-- **Decision.**
-  - Revision = the row's `updated_at` in UTC microseconds. No column is added.
-  - The `ETag` is a strong opaque tag: the first 32 hex digits of SHA-256 over `table:id:revision`.
-  - `If-Match` is opt-in. `*` means "exists". Weak tags never match. A malformed value is `400 invalid_if_match`, a
-    failed precondition is `412 precondition_failed`.
-  - Order of checks: 401/404/403, then `If-Match`, then the state-dependent 402/409/422.
-  - The claim is a guarded `UPDATE … WHERE id AND updated_at = :loaded` in the request's transaction, with a
-    monotonic floor (`max(now, previous + 1 µs)`).
-  - One helper, `core/revision.py`. The owner approved the placement under `core/` in the scope decision. Moving it to
-    `shared/` with family-neutral exceptions is a follow-up.
-  - Each route family keeps its error shape (platform JSON, engine-registry `application/problem+json`).
-- **Consequences.**
-  - Clients that send `If-Match` get lost-update protection; the rest keep today's behaviour.
-  - Profile and preferences share the `users` row, and other writes to it, so some 412s are false (safe, resolved by a
-    reload; D9).
-  - SQLite has the known fractional-seconds limitation (D4); PostgreSQL does not.
-  - Coverage grows table by table under the rule of §9.
-  - Follow-ups: frontend 412 handling, collections via `artifacts.updated_at`, member `PUT`, admin `PATCH`, 428, the
-    move of the helper to `shared/`.
-- **Alternatives rejected.** A version column (a migration on every table). `SELECT … FOR UPDATE` (no-op on SQLite, so
-  the race test proves nothing there). A middleware (runs before lookup and authorization). A readable tag such as the
-  integer or the ISO timestamp (invites parsing, equal across rows). Weak comparison (not allowed for `If-Match`).
+Specific to this change:
+
+- **Placement.** `core/revision.py` is an owner-approved exception to constitution 6.5, named in the scope decision.
+  Moving it to `shared/` with family-neutral exceptions is a follow-up (see the ADR).
+- **Credential route.** It returns responses instead of raising, so a failed claim rolls back explicitly, which also
+  discards earlier writes of the same request (for example `api_key.last_used_at`). Accepted as minor; a savepoint is a
+  follow-up.
+- **Follow-ups.** Frontend 412 handling, collections via `artifacts.updated_at` (§3, §9), member `PUT`, admin `PATCH`,
+  428, PostgreSQL wiring of the race test.
