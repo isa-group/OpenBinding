@@ -11,6 +11,8 @@ from _common import ACTIVE_SUITES, EXPECTED_TOTAL, stable_instance_seed
 from campaign import _normalized_result, _resume_key
 from evaluate_results import main as evaluate_main
 
+OLD_PREFIX = "engine rejected " + "BindingProblem (422)"
+
 
 def test_release_registry_and_seed_are_stable() -> None:
     assert ACTIVE_SUITES == ("01_icws", "02_quantum", "03_hsc_llm", "04_rprsr15", "05_iots", "06_bws_scp", "07_qfbs")
@@ -28,9 +30,9 @@ def test_gateway_result_and_resume_key_follow_public_contract() -> None:
     assert parsed["trace"][0]["eval_index"] == 1
     rejected = _normalized_result({"status": "failed", "result": {
         "termination": "UNKNOWN", "solutions": [],
-        "error": "engine rejected BindingProblem (422)"}}, 5)
-    assert rejected["status"] == "INCOMPATIBLE"
-    assert rejected["error"] == "engine rejected BindingProblem (422)"
+        "error": OLD_PREFIX}}, 5)
+    assert rejected["status"] == "ERROR"
+    assert rejected["error"] == OLD_PREFIX
     record = {"suite": "07_qfbs", "instance_id": "guaranteed/case", "engine": "random-search", "timeout_ms": 5000, "seed": 7, "package_digest": "sha256-a"}
     assert _resume_key(record) == ("07_qfbs", "guaranteed/case", "random-search", 5000, 7, "sha256-a")
 
@@ -85,12 +87,109 @@ def test_qfbs_design_and_requests_match_the_two_groups() -> None:
         assert all("dialects" not in request for request in requests)
 
 
-def test_rejections_keep_the_engine_detail_and_reasons_are_classified() -> None:
+def test_job_failures_are_classified_by_code_never_by_message_text() -> None:
+    text = OLD_PREFIX + ": MiniZinc does not support X"
+    incompatible = _normalized_result({"status": "failed", "result": {"code": "engine_incompatible", "error": text}}, 5)
+    assert incompatible["status"] == "INCOMPATIBLE"
+    assert incompatible["error"] == text
+    assert incompatible["diagnostics"] == [{"code": "engine_incompatible", "message": text}]
+    coded = _normalized_result({"status": "failed", "result": {"code": "engine_rejected", "error": text}}, 5)
+    assert coded["status"] == "ERROR"
+    assert coded["error"] == text
+    assert _normalized_result({"status": "failed", "error": text}, 5)["status"] == "ERROR"
+    assert _normalized_result({"status": "failed", "result": {"error": text}}, 5)["status"] == "ERROR"
+
+
+def test_failed_jobs_without_the_incompatible_code_are_errors_even_without_error_text() -> None:
+    silent = _normalized_result({"status": "failed", "result": {"code": "engine_rejected", "termination": "UNKNOWN", "solutions": []}}, 5)
+    assert silent["status"] == "ERROR"
+    assert silent["error"] == "gateway job failed"
+    assert _normalized_result({"status": "failed", "result": {"termination": "OPTIMAL", "solutions": []}}, 5)["status"] == "ERROR"
+    completed = _normalized_result({"status": "completed", "result": {"code": "engine_incompatible", "error": "x"}}, 5)
+    assert completed["status"] != "INCOMPATIBLE"
+
+
+def _submit(status_code: int, body: dict) -> dict:
+    import asyncio
+
+    import httpx
+    from _common import ENGINE_MODES
+    from campaign import Gateway
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(status_code, json=body)
+
+    gateway = Gateway("http://gw", "u", "p", {})
+    modes = [{"engine": {"name": "minizinc-csp"}, "mode": ENGINE_MODES["minizinc-csp"], "compatible": True, "registration": "r"}]
+
+    async def run() -> dict:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await gateway.solve(client, "snap", modes, "minizinc-csp", 1000, 1, "key", {})
+
+    return asyncio.run(run())
+
+
+def problem(status: int, code: str, detail: str, diagnostics: list | None = None) -> dict:
+    """An RFC 7807 problem document shaped like the gateway's `problem_body`.
+
+    A 422 carries `diagnostics`; when none are given it gets `[{"code": code, "message": detail}]`, as the gateway does.
+    """
+    body: dict = {"type": f"https://openbinding.example/problems/{code}", "title": code, "status": status, "code": code, "detail": detail}
+    if diagnostics is not None:
+        body["diagnostics"] = diagnostics
+    elif status == 422:
+        body["diagnostics"] = [{"code": code, "message": detail}]
+    return body
+
+
+def test_submission_refusals_are_classified_by_code() -> None:
+    diagnostics = [{"code": "unsupported_feature", "message": "MiniZinc does not support X"}, {"code": "other", "message": "y"}]
+    refused = _submit(422, problem(422, "engine_mode_incompatible", "engine cannot run this snapshot", diagnostics))
+    assert refused["status"] == "INCOMPATIBLE"
+    assert refused["diagnostics"] == diagnostics
+    gateway_default = _submit(422, problem(422, "engine_mode_incompatible", "engine cannot run this snapshot"))
+    assert gateway_default["status"] == "INCOMPATIBLE"
+    assert gateway_default["diagnostics"] == [{"code": "engine_mode_incompatible", "message": "engine cannot run this snapshot"}]
+    no_key = _submit(422, {"code": "engine_mode_incompatible", "detail": "engine cannot run this snapshot"})
+    assert no_key["status"] == "INCOMPATIBLE"
+    assert no_key["diagnostics"] == [{"code": "engine_mode_incompatible", "message": "engine cannot run this snapshot"}]
+    assert _submit(422, problem(422, "engine_mode_incompatible", "m", []))["diagnostics"] == [{"code": "engine_mode_incompatible", "message": "m"}]
+    assert _submit(422, problem(422, "engine_registration_required", "no registration"))["status"] == "ERROR"
+    assert _submit(422, problem(422, "validation_error", "bad"))["status"] == "ERROR"
+    assert _submit(400, problem(400, "invalid_option", "bad"))["status"] == "ERROR"
+    assert _submit(400, problem(400, "engine_mode_incompatible", "x"))["status"] == "ERROR"
+    by_text = _submit(422, problem(422, "validation_error", OLD_PREFIX + ": MiniZinc does not support X"))
+    assert by_text["status"] == "ERROR"
+
+
+def test_submission_refusal_tolerates_a_non_list_diagnostics_field() -> None:
+    refused = _submit(422, problem(422, "engine_mode_incompatible", "refused", "not a list"))  # type: ignore[arg-type]
+    assert refused["status"] == "INCOMPATIBLE"
+    assert refused["diagnostics"] == [{"code": "engine_mode_incompatible", "message": "refused"}]
+    assert _submit(422, problem(422, "validation_error", "bad", {"code": "x"}))["status"] == "ERROR"  # type: ignore[arg-type]
+
+
+def test_submission_refusal_with_the_code_only_inside_a_detail_object_is_an_error() -> None:
+    body = {"detail": {"code": "engine_mode_incompatible", "message": "not supported"}}
+    refused = _submit(422, body)
+    assert refused["status"] == "ERROR"
+    assert refused["status"] != "INCOMPATIBLE"
+    assert "engine_mode_incompatible" in refused["error"]
+    assert "not supported" in refused["error"]
+
+
+def test_throttled_and_unavailable_submissions_raise_instead_of_being_recorded() -> None:
+    import pytest
+
+    with pytest.raises(RuntimeError):
+        _submit(429, problem(429, "rate_limited", "slow down"))
+    with pytest.raises(RuntimeError):
+        _submit(503, problem(503, "unavailable", "later"))
+
+
+def test_reasons_are_classified() -> None:
     from campaign import termination_reason
 
-    rejected = _normalized_result({"status": "failed", "error": "engine rejected BindingProblem (422): MiniZinc does not support X"}, 5)
-    assert rejected["status"] == "INCOMPATIBLE"
-    assert rejected["diagnostics"][0]["message"].endswith("does not support X")
     assert termination_reason("minizinc-csp", "OPTIMAL", {}, 5000) == "proof"
     assert termination_reason("minizinc-csp", "FEASIBLE", {}, 5000) == "time_budget"
     assert termination_reason("random-search", "FEASIBLE", {"options": {"iterations": 1000}, "engineReported": {"evaluations": 1000, "elapsed_ms": 50}}, 5000) == "evaluation_budget"

@@ -64,7 +64,8 @@ Compare, for every package of the corpus and every negative case, what must not 
   of the vendored XSDs (`protocol.json`).
 
 `tools/baseline_core.py` computes them with `bim_core` only and
-`packages/bim-core/tests/test_baseline_equivalence.py` compares them with `golden/bim_baseline`. Fields under a
+`packages/bim-core/tests/test_baseline_equivalence.py` compares them with `golden/bim_baseline` (`compat.json` and
+`protocol.json` with the second frozen baseline `golden/bim_baseline_1_1_1`, below). Fields under a
 `toolchain` key (`compilerDigest`, `irDigest`) are informative and are removed before comparing. Never use
 `irDigest` or `compilerDigest` to argue that two toolchains are equivalent.
 
@@ -74,24 +75,42 @@ Compare, for every package of the corpus and every negative case, what must not 
 | --- | --- |
 | `corpus.json` (82 packages), `negatives.json`, `vectors.json` | identical (`toolchain` fields aside) |
 | `protocol.json` | `protocolDigest`, `engineContract`, `schemas` and `vendor` identical. `protocolDigest` does **not** change: the YAML contract and `binding-problem.schema.json` are byte-identical copies, and the digest is computed over the parsed document plus the schema bytes |
-| `compat.json` | identical for the four Engines whose manifest exists; see the difference below |
+| `compat.json` | identical to `golden/bim_baseline_1_1_1/compat.json` for the four Engines whose manifest exists, none removed from the comparison; the two differences with `golden/bim_baseline` are below |
 
 **Legitimate difference: the Engine `meta-router-csp`.** `golden/bim_baseline/compat.json` and `protocol.json`
 (the copy in this directory) list five Engines; the manifest `meta-router-csp.json` is not in
 `schemas/bim/v1/manifests/` of the repository (only four are), so it cannot be a fixture and its entries cannot
-be recomputed. Nothing else differs. OpenBinding's current goldens (`openbinding-gateway/tests/golden/bim_baseline`)
-already list four Engines and are the same document as `golden/bim_core/{compat,protocol}.json` (the tests compare
-them when OpenBinding is present), while the copy here still lists five. The original files are kept untouched;
-the comparison removes the missing Engine from them (`baseline_core.without_engines`), and the same documents with
-four Engines are pinned in `golden/bim_core/`.
+be recomputed. Apart from the `minizinc-csp` change below, nothing else differs. OpenBinding's current goldens
+(`openbinding-gateway/tests/golden/bim_baseline`) already list four Engines and are the same document as
+`golden/bim_baseline_1_1_1/{compat,protocol}.json` and `golden/bim_core/{compat,protocol}.json` (the tests compare
+them when OpenBinding is present), while the copy here still lists five. The original files are kept untouched.
+`baseline_core.without_engines` (whose default is `MISSING_MANIFESTS`) remains only to read that old frozen copy in the
+`test_frozen_manifest_*` tests; no comparison of the tool removes an Engine.
 
-**Manifest change after the freeze: `minizinc-csp` 1.1.1.** The OpenBinding 1.1.1 release extended the
-`minizinc-csp` manifest (multiplicative aggregations, soft constraints, `and`, `repeat.expectedCount`, the
-`product_constraints` option). Its manifest digest and the mode compatibility of the packages that use those
-constructs therefore moved with the manifest, not with the toolchain. The fixture
-(`packages/bim-core/tests/fixtures/manifests/minizinc-csp.json`) is the 1.1.1 copy, `golden/bim_core/` and
-OpenBinding's goldens were regenerated with `tools/baseline_core.py` and `tools/bim_baseline.py`, and the Engines of
-`baseline_core.CHANGED_MANIFESTS` are left out of the comparison with the frozen baseline, which stays untouched.
+**Manifest change after the freeze: `minizinc-csp` 1.1.1 and `golden/bim_baseline_1_1_1`.** The OpenBinding 1.1.1
+release extended the `minizinc-csp` manifest (multiplicative aggregations, soft constraints, `and`,
+`repeat.expectedCount`, the `product_constraints` option). Its manifest digest and the mode compatibility of the
+packages that use those constructs therefore moved with the manifest, not with the toolchain. The fixture
+(`packages/bim-core/tests/fixtures/manifests/minizinc-csp.json`) is the 1.1.1 copy and OpenBinding's goldens were
+regenerated with `tools/bim_baseline.py`. `golden/bim_baseline` cannot absorb the change (it is frozen), so the
+documents computed with the 1.1.1 manifest are a second frozen baseline, `golden/bim_baseline_1_1_1/`:
+
+- `compat.json` and `protocol.json` are byte copies of `golden/bim_core/{compat,protocol}.json` at the moment the
+  directory was created: four Engines, `minizinc-csp` at 1.1.1. Their SHA-256 are pinned in
+  `test_baseline_equivalence.py::test_frozen_manifest_files_have_the_pinned_sha256`, `tools/baseline_core.py` never writes
+  them (not even with `--output`), and they are not listed in `regen_normalized_metadata.FROZEN`; their `toolchain`
+  member is informative and is not compared, like every other one. `baseline_core.mismatches` compares `compat` and
+  `protocol` with them, with no Engine removed from either side.
+- `minizinc_moves.json` pins what 1.1.1 changed for `minizinc-csp` (below).
+
+The two baselines are related by identifier in `test_baseline_equivalence.py::test_frozen_manifest_*`: apart from the
+Engine `meta-router-csp`, which is gone, and the informative `toolchain` members, the two directories differ only in
+`minizinc-csp`: its manifest digest
+(`sha256-d17e2be6…` → `sha256-c8b669e9…`, in both `compat.json` and `protocol.json`) and the entry of 65 packages, which
+were incompatible with the single mode `exact-weighted` (codes `unsupported_capability_value:*`) and are compatible
+with no codes. Those 65 packages and their old codes are listed in `minizinc_moves.json`, and the test recomputes the
+list from the two baselines and requires it to be the pinned one. No entry that was compatible in `golden/bim_baseline`
+is incompatible in `golden/bim_baseline_1_1_1`.
 
 ## Goldens with no OpenBinding original
 
@@ -102,7 +121,7 @@ change. `toolchain` fields in them are informative.
 
 | File | Why it exists | Independent evidence |
 | --- | --- | --- |
-| `golden/bim_core/compat.json`, `golden/bim_core/protocol.json` | the two documents with the four Engines that exist (reason above) | equal to the original minus `meta-router-csp`, and to OpenBinding's current files |
+| `golden/bim_core/compat.json`, `golden/bim_core/protocol.json` | the two documents with the four Engines that exist (reason above), as regenerable regression pins of this toolchain's output; `golden/bim_baseline_1_1_1` holds the frozen copies of them | equal to `golden/bim_baseline_1_1_1` while no manifest moves (`baseline_core.mismatches` compares the live documents with both), and to OpenBinding's current files |
 | `golden/bim_core/evaluator_errors.json` | `bim_core.evaluator.validate_binding` raises `EvaluationError` (a `ValueError`, code `binding_invalid`) where `BindingProblem.validate_binding` raises `ValueError`; the original `negatives.json` records the type name `ValueError` and stays as it is | same cases, same messages as `negatives.json`; only the type name differs |
 | `golden/bim_normalized/corpus.json` | the baseline of the normalized IR (semantic digests, section digests, evaluations of the 82 packages); `golden/bim_baseline/corpus.json` is the frozen baseline of 0.1.x | `test_ir_previous_baseline.py`: the 18 unmoved packages have the same entry, the 64 moved ones differ in `eligibility`, `constraints` and `placement` only, and every package has the previous toolchain's members and evaluations by identifier |
 | `golden/bim_normalized/zip_equivalence.json` | the package compiled from each other form (raw ZIP, entries reversed, canonical ZIP, two shuffles of the JSON members) against the package compiled from its directory: all equal (see "Directory, raw ZIP and canonical ZIP") | the forms are compiled in the same run; the semantic digest of the directory is the one in `bim_normalized/corpus.json` |
@@ -110,8 +129,8 @@ change. `toolchain` fields in them are informative.
 | `golden/vectors_extra.json` | hostile engine answers: altered objectives, bindings outside the eligible space, `UNKNOWN`/`INFEASIBLE` with a binding, NaN/Infinity (written as `{"$float": ...}`), extra keys, unhashable and mistyped values | hand-written expectations in `tests/test_vectors_extra.py` (termination, number of solutions kept, `ProtocolError` code with and without `finite=True`) |
 | `golden/synthetic/corpus.json` | the corpus document (digests, evaluations, binding space), the Engine compatibility and the directory/ZIP equivalence of the packages that live in this repository (the five variants of `tests/synthetic_packages.py` and `fixtures/example-package`), so that a repository without the OpenBinding corpus still compares something with a golden | `tests/test_synthetic_golden.py` recomputes it; `tests/test_zip_dir_equivalence.py` compares the forms of the same synthetic packages independently; see "Metadata of the goldens" |
 
-`toolchain` values stored in `golden/bim_core`, `golden/vectors_extra.json` and `golden/ir_previous` are those of the moment
-they were created and are never compared. The ones of `golden/bim_normalized/corpus.json` (and of `golden/synthetic/corpus.json`)
+`toolchain` values stored in `golden/bim_core`, `golden/bim_baseline_1_1_1`, `golden/vectors_extra.json` and
+`golden/ir_previous` are those of the moment they were created and are never compared. The ones of `golden/bim_normalized/corpus.json` (and of `golden/synthetic/corpus.json`)
 are kept up to date by a tool and a test (below).
 
 ## Directory, raw ZIP and canonical ZIP
@@ -159,8 +178,10 @@ computed *by identifier*: the evaluation of bindings chosen by identifier (never
 of the members of every set of the IR, order forgotten, for the 82 packages. `test_ir_previous_baseline.py` requires the
 current toolchain to reproduce all of it (violations compared as a set; a message with `6.0` reads `6`) and the
 exhaustive summaries of `golden/bim_baseline/corpus.json`. `golden/bim_normalized/{corpus,zip_equivalence}.json` is
-the baseline of 0.2.0, created once those invariants held. `negatives.json`, `vectors.json`, `compat.json` and
-`protocol.json` did not move and are still compared with the frozen baseline.
+the baseline of 0.2.0, created once those invariants held. `negatives.json` and `vectors.json` did not move and are still
+compared with the frozen baseline. `compat.json` and `protocol.json` did not move with the normalization either, but they
+moved with the `minizinc-csp` manifest (above): they are compared with the second frozen baseline,
+`golden/bim_baseline_1_1_1`, with no Engine left out.
 
 - `golden/bim_normalized/zip_equivalence.json` lists, per package, the `packageDigest` and whether each form compiles to
   the same IR and semantic digest as the directory. `tools/baseline_core.py --check` fails if any does not.
@@ -265,4 +286,8 @@ which moved 64 semantic digests, is `0.2.0`, and `bim-service` and `bim-client` 
 A change that moves a golden is a MAJOR change unless the golden was wrong, and goldens are regenerated only in a
 reviewed change that states why. A golden that a MAJOR change moves is not overwritten: the previous one is kept as a
 frozen fixture (`golden/bim_baseline`, pinned by SHA-256 in `golden/ir_previous/evidence.json`), the new one goes to
-`golden/bim_normalized`, and a test compares the two by identifier before the new one is created.
+`golden/bim_normalized`, and a test compares the two by identifier before the new one is created. The same rule applies to
+a manifest that moves: the documents computed with the old manifest stay frozen, the ones computed with the new manifest
+go to a directory of their own (`golden/bim_baseline_1_1_1` for `minizinc-csp` 1.1.1, pinned by SHA-256 in
+`test_baseline_equivalence.py::test_frozen_manifest_files_have_the_pinned_sha256`), and `test_frozen_manifest_*` compares
+the two by identifier. No comparison of the tool removes an Engine to hide such a change.

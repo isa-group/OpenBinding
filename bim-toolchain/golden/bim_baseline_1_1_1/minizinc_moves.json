@@ -1,0 +1,263 @@
+{
+  "manifestDigest": {
+    "new": "sha256-c8b669e994978a33c0c0ba17fb36b68fc799c1edc6280725482024dc66458e6c",
+    "old": "sha256-d17e2be6cefac0d435e30af365e0b3c8d6650433d36fad19b5e0383a6f7c799b"
+  },
+  "mode": "exact-weighted",
+  "newEntry": {
+    "codes": [],
+    "compatible": true,
+    "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "note": "minizinc-csp 1.1.1 extended its manifest (multiplicative aggregations, soft constraints, and, repeat.expectedCount, the product_constraints option), so its manifest digest changed and every package listed in oldCodes went from incompatible with the codes listed there to compatible with no codes.",
+  "oldCodes": {
+    "engines/minizinc-csp/tests/fixtures/loops": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount"
+    ],
+    "engines/minizinc-csp/tests/fixtures/xor-choice": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "examples/demo/03_xor_choice": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "examples/demo/06_loops": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount"
+    ],
+    "examples/demo/07_soft_constraints": [
+      "unsupported_capability_value:constraints:soft.aggregate-bound"
+    ],
+    "examples/demo/09_mixed": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "examples/demo/10_large_scale": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:parallel.product,repeat.power,sequence.product"
+    ],
+    "examples/demo/12_many_obj_pareto": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "examples/demo/13_fms": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "examples/demo/18_analysis_constraints": [
+      "unsupported_capability_value:constraints:soft.aggregate-bound"
+    ],
+    "examples/demo/19_analysis_journey": [
+      "unsupported_capability_value:constraints:soft.aggregate-bound"
+    ],
+    "examples/literature/benatallah": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product"
+    ],
+    "examples/literature/bultan": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:parallel.product,repeat.power,sequence.product"
+    ],
+    "examples/literature/cremaschi": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product"
+    ],
+    "examples/literature/netedu": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "examples/literature/pautasso": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:repeat.power,sequence.product",
+      "unsupported_capability_value:expressions:and"
+    ],
+    "examples/literature/zhang": [
+      "unsupported_capability_value:aggregations:sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound"
+    ],
+    "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_many_hard": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product"
+    ],
+    "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_many_soft": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_one_hard": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product"
+    ],
+    "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_one_soft": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_utility_hard": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product"
+    ],
+    "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_utility_soft": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_multi_hard": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product"
+    ],
+    "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_multi_soft": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/bultan2003-warehouse-example_many_hard": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:parallel.product,repeat.power,sequence.product"
+    ],
+    "experimentation/icws/instances/bultan2003-warehouse-example_many_soft": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:parallel.product,repeat.power,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/bultan2003-warehouse-example_mono_one_hard": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:parallel.product,repeat.power,sequence.product"
+    ],
+    "experimentation/icws/instances/bultan2003-warehouse-example_mono_one_soft": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:parallel.product,repeat.power,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/bultan2003-warehouse-example_mono_utility_hard": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:parallel.product,repeat.power,sequence.product"
+    ],
+    "experimentation/icws/instances/bultan2003-warehouse-example_mono_utility_soft": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:parallel.product,repeat.power,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/bultan2003-warehouse-example_multi_hard": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:parallel.product,repeat.power,sequence.product"
+    ],
+    "experimentation/icws/instances/bultan2003-warehouse-example_multi_soft": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:parallel.product,repeat.power,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/cremaschi2018-textbook-access_many_hard": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product"
+    ],
+    "experimentation/icws/instances/cremaschi2018-textbook-access_many_soft": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/cremaschi2018-textbook-access_mono_one_hard": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product"
+    ],
+    "experimentation/icws/instances/cremaschi2018-textbook-access_mono_one_soft": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/cremaschi2018-textbook-access_mono_utility_hard": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product"
+    ],
+    "experimentation/icws/instances/cremaschi2018-textbook-access_mono_utility_soft": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/cremaschi2018-textbook-access_multi_hard": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product"
+    ],
+    "experimentation/icws/instances/cremaschi2018-textbook-access_multi_soft": [
+      "unsupported_capability_value:aggregations:parallel.product,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/netedu2020-transport-agency_many_hard": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "experimentation/icws/instances/netedu2020-transport-agency_many_soft": [
+      "unsupported_capability_value:aggregations:sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/netedu2020-transport-agency_mono_one_hard": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "experimentation/icws/instances/netedu2020-transport-agency_mono_one_soft": [
+      "unsupported_capability_value:aggregations:sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/netedu2020-transport-agency_mono_utility_hard": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "experimentation/icws/instances/netedu2020-transport-agency_mono_utility_soft": [
+      "unsupported_capability_value:aggregations:sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/netedu2020-transport-agency_multi_hard": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "experimentation/icws/instances/netedu2020-transport-agency_multi_soft": [
+      "unsupported_capability_value:aggregations:sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/pautasso2009-restful-ecommerce_many_hard": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:repeat.power,sequence.product",
+      "unsupported_capability_value:expressions:and"
+    ],
+    "experimentation/icws/instances/pautasso2009-restful-ecommerce_many_soft": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:repeat.power,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
+      "unsupported_capability_value:expressions:and"
+    ],
+    "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_one_hard": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:repeat.power,sequence.product",
+      "unsupported_capability_value:expressions:and"
+    ],
+    "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_one_soft": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:repeat.power,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
+      "unsupported_capability_value:expressions:and"
+    ],
+    "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_utility_hard": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:repeat.power,sequence.product",
+      "unsupported_capability_value:expressions:and"
+    ],
+    "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_utility_soft": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:repeat.power,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
+      "unsupported_capability_value:expressions:and"
+    ],
+    "experimentation/icws/instances/pautasso2009-restful-ecommerce_multi_hard": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:repeat.power,sequence.product",
+      "unsupported_capability_value:expressions:and"
+    ],
+    "experimentation/icws/instances/pautasso2009-restful-ecommerce_multi_soft": [
+      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
+      "unsupported_capability_value:aggregations:repeat.power,sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
+      "unsupported_capability_value:expressions:and"
+    ],
+    "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_many_hard": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_many_soft": [
+      "unsupported_capability_value:aggregations:sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_one_hard": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_one_soft": [
+      "unsupported_capability_value:aggregations:sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_utility_hard": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_utility_soft": [
+      "unsupported_capability_value:aggregations:sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ],
+    "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_multi_hard": [
+      "unsupported_capability_value:aggregations:sequence.product"
+    ],
+    "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_multi_soft": [
+      "unsupported_capability_value:aggregations:sequence.product",
+      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression"
+    ]
+  }
+}

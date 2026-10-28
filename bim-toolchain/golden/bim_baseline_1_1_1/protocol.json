@@ -1,0 +1,47 @@
+{
+ "engineContract": {
+  "openapiBytes": "sha256-bd6c45638baddf7660bb33114c029002f11ff513d62183312418f6acf2fb4f0c",
+  "openapiDocument": "sha256-e196864a3e18c337d921e95fb9fdfeb6dec633ab04d1100fa71b5e52213525c5"
+ },
+ "manifests": {
+  "evolutionary-heuristics": "sha256-049546e1a5a680457bd3591da15498174c328c466203ba78ef8d891ab6196530",
+  "many-heuristic": "sha256-2e31adb73e054c7b210086b8bdbb6ec566efa146fecd8d2df67992f6dd69b75e",
+  "minizinc-csp": "sha256-c8b669e994978a33c0c0ba17fb36b68fc799c1edc6280725482024dc66458e6c",
+  "random-search": "sha256-c7c395fecbab64c75391eb1c38a2074c9cd669c0192ac472965772e30ef70409"
+ },
+ "protocolDigest": "sha256-1de9afb5af0d4ea913c5c0e6e24948cc76a58ebcd7edc54a53e68a5a2f761563",
+ "schema": "bim-baseline/protocol/1",
+ "schemas": {
+  "application.schema.json": "sha256-3d76febe818d2f8dac25e2c34220b3508d251ce46cd862d66c23345dc3128db2",
+  "binding-problem.schema.json": "sha256-5a6de6eca2e04e95be6e42d8aec6e78d988ea78211018cef1ebec9da76bed58e",
+  "candidate-catalog.schema.json": "sha256-606afa4e75f62b4d9df9f316ecb744fc6c8d51b557aa1122bc5b11ddb39f76d6",
+  "constraint-set.schema.json": "sha256-53e2f67b56300a0a1c904fb196165d700f3629e3893ad1ff901b83ea02897c6e",
+  "dialect.schema.json": "sha256-d02fbdaa56120310d1f0b96b463d50512c0e381c8dc8c738e78196cdd29862f2",
+  "engine-registration.schema.json": "sha256-42b60ee99f3a12c5315f7401bfd77eb3c2ff355048cb3f71628271cf46cabbf5",
+  "engine.schema.json": "sha256-74038ef5eee28dba85df3b6db7bdc200c6b17aa2cb029795ce41d810060c9496",
+  "instance.schema.json": "sha256-a39a7d6459a69a933bf00427bd64806c36fa9f1f4dffe01e688cc806237102f0",
+  "optimization.schema.json": "sha256-d03ccb99fc612d3caa1210674b5ad4c3019e8c375e04c7565aebe1805742dc62",
+  "placement.schema.json": "sha256-724bd0fc1a4b39b5da88cd4fce59b27f1fd7ff6313c9e0f385d8c203fd5da7c0",
+  "profile.schema.json": "sha256-7efecaf86d88521fd08508d8b18f74a8e9c810fdce55d2f13970d1bf7abc3b65",
+  "routing-overlay.schema.json": "sha256-708d7e762de70f6040e09879d9edfc13820e8c6f6d01f119c1530c2ef58bb810"
+ },
+ "toolchain": {
+  "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+  "dialects": [
+   "sha256-791df7b755dd413ca46343fd9dee0246984ed5cf4593f9a7cf5551124d0ffaf5",
+   "sha256-8877c248486cd3e78d871860400a5acfd8229c34f4f4771c9fd5187f0106190c",
+   "sha256-a105d9e2a256ef1fc4838d0d9d7a3085cb6ec7b1d9d0fcd2c1058218e78f2e67"
+  ],
+  "profiles": [
+   "sha256-5264d3f83a06fc1408f76fd4978d689dcfda944dd9952501d046128829779762"
+  ]
+ },
+ "vendor": {
+  "omg/bpmn/2.0.2/BPMN20.xsd": "sha256-a07c159cb0594573dd7c97b1370dd116112378f377e43c89a8bf512ac5030705",
+  "omg/bpmn/2.0.2/BPMNDI.xsd": "sha256-f0dff1cd559d1514d8ebfc8c646f58402bcaced27ec22e2aa6456c2dcc80b038",
+  "omg/bpmn/2.0.2/DC.xsd": "sha256-a2f90e5ad9bb48c6915e4e034b4e27ac838264a1d4f27bfc70dbdfc69351312d",
+  "omg/bpmn/2.0.2/DI.xsd": "sha256-8220b179c175572df74e08a51bffabe957867962035cee7b5fee0b6acb4c4498",
+  "omg/bpmn/2.0.2/README.md": "sha256-7301b0e04a6d7204c67105d8be3a0e69af3dec95869e38a8bb7e2744b25d4678",
+  "omg/bpmn/2.0.2/Semantic.xsd": "sha256-c4318842f7d2bbc262d7954c9452c501db16f0868eac0b8732ec5d7fb384d9a7"
+ }
+}
