@@ -6,7 +6,7 @@ import type { ResolveLocation, ResolveResponse } from '../../api/platform';
 export const RESOLVE_KINDS = [
   { id: 'report', label: 'Report edition' },
   { id: 'artifact', label: 'Artifact' },
-  { id: 'case-revision', label: 'Case revision' },
+  { id: 'case-revision', label: 'Problem version' },
   { id: 'resource-revision', label: 'Resource revision' },
   { id: 'collection-revision', label: 'Collection revision' },
   { id: 'engine', label: 'Engine' },
@@ -62,8 +62,8 @@ export function outcomeOf(result: { data?: unknown; error?: unknown; failed: boo
 }
 
 /**
- * Where a location lives in the application, built from routes this app serves. The gateway's own `web_url` now sends
- * the same routes (`d1`..`d8`), but it is `null` for what has no screen and depends on who is asking, so the address
+ * Where a location lives in the application, built from routes this app serves. The gateway's own `web_url` sends
+ * routes of this app too, but it is `null` for what has no screen and depends on who is asking, so the address
  * is still built here from the slugs the location names.
  */
 export function locationHref(kind: string, location: ResolveLocation): { href: string; requiresAccount: boolean } | null {

@@ -10,7 +10,7 @@ export interface EntityKind {
 
 /** What the verifier can find a fingerprint in (`_search_matching_entities` of the gateway), in the words of the screen. */
 export const ENTITY_KINDS: readonly EntityKind[] = [
-  { type: 'case', label: 'Case revision', resolve: 'case-revision' },
+  { type: 'case', label: 'Problem version', resolve: 'case-revision' },
   { type: 'snapshot', label: 'Instance snapshot', resolve: 'instance-snapshot' },
   { type: 'collection', label: 'Collection revision', resolve: 'collection-revision' },
   { type: 'report', label: 'Report edition', resolve: 'report' },

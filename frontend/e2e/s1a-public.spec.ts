@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-// S1a · public screens: pub-home, pub-explore, pub-resolve, pub-status, pub-about.
+// S1a · public screens: pub-home, pub-explore, verify, pub-status, pub-about.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 
@@ -272,13 +272,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('alert')).toHaveCount(0);
     });
 
-    test('pub-resolve /resolve/:kind/:digest', async ({ page, context }, testInfo) => {
+    test('verify /verify · a permanent link in the address', async ({ page, context }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await context.grantPermissions(['clipboard-read', 'clipboard-write']);
       await mockApi(page);
-      await page.goto(`/resolve/report/${DIGEST}`);
+      await page.goto(`/verify/report/${DIGEST}`);
       const main = page.locator('main');
 
+      await expect(main.getByRole('heading', { level: 1, name: 'Verify' })).toBeVisible();
       await expect(main.getByText('Verified', { exact: true })).toBeVisible();
       await expect(main.getByText('kind · report')).toBeVisible();
       const identity = main.getByRole('region', { name: 'Identity and provenance' });
@@ -292,15 +293,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(locations.getByRole('link', { name: 'Log in to open' })).toHaveAttribute('href', '/login');
       await expect(main.getByRole('region', { name: 'Content' })).toContainText('Document structure');
       await ready(page);
-      await page.screenshot({ path: testInfo.outputPath(`resolve-${name}-verified.png`), fullPage: true, animations: 'disabled' });
+      await page.screenshot({ path: testInfo.outputPath(`verify-${name}-verified.png`), fullPage: true, animations: 'disabled' });
 
       // Download the content as a file.
       const [download] = await Promise.all([page.waitForEvent('download'), main.getByRole('button', { name: 'Download content' }).click()]);
       expect(download.suggestedFilename()).toBe(`report-${HEX.slice(0, 12)}.json`);
       await expect(main.getByText(/Downloaded \d+ bytes of application\/json\./)).toBeVisible();
 
-      // Cite it.
+      // Cite it: the permanent link keeps the /resolve/<kind>/<digest> form.
       const cite = main.getByRole('region', { name: 'Cite this' });
+      await cite.getByRole('button', { name: 'Copy permanent link' }).click();
+      await expect(cite.getByRole('button', { name: 'Permanent link copied' })).toBeVisible();
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`${new URL(page.url()).origin}/resolve/report/${DIGEST}`);
       await cite.getByRole('button', { name: 'Copy for reference manager' }).click();
       await expect(cite.getByRole('button', { name: 'Copied for reference manager' })).toBeVisible();
       const bibtex = await page.evaluate(() => navigator.clipboard.readText());
@@ -309,48 +313,84 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(bibtex).not.toMatch(/doi/i);
 
       // Verify another digest from the form.
-      await main.getByRole('textbox', { name: 'Digest' }).fill(`SHA256:${'12AB34CD'.repeat(8)}`);
+      await main.getByRole('textbox', { name: 'Link or digest' }).fill(`SHA256:${'12AB34CD'.repeat(8)}`);
       await main.getByRole('button', { name: 'Verify' }).click();
-      await expect(page).toHaveURL(new RegExp(`/resolve/report/sha256-${'12ab34cd'.repeat(8)}$`));
+      await expect(page).toHaveURL(new RegExp(`/verify/report/sha256-${'12ab34cd'.repeat(8)}$`));
 
       await expectNoHorizontalOverflow(page);
       expect(critical).toEqual([]);
     });
 
-    test('pub-resolve · a verified element with no visible location', async ({ page }, testInfo) => {
+    test('verify /verify · the permanent links /resolve/:kind/:digest and /app/verifier land on the page, with no login', async ({ page }) => {
+      await mockApi(page);
+
+      await page.goto(`/resolve/report/${DIGEST}?ref=cite#locations`);
+      await expect(page).toHaveURL(new RegExp(`/verify/report/${DIGEST}\\?ref=cite#locations$`));
+      await expect(page.locator('main').getByText('Verified', { exact: true })).toBeVisible();
+
+      await page.goto(`/app/verifier?digest=${DIGEST}`);
+      await expect(page).toHaveURL(new RegExp(`/verify\\?digest=${DIGEST}$`));
+      await expect(page.locator('main').getByRole('heading', { level: 1, name: 'Verify' })).toBeVisible();
+      await expect(page.locator('main').getByRole('textbox', { name: 'Link or digest' })).toHaveValue(DIGEST);
+    });
+
+    test('verify /verify · a digest without a kind needs a kind, and a document or a file needs an account', async ({ page }) => {
+      const asked: string[] = [];
+      await mockApi(page);
+      page.on('request', (request) => { if (request.url().startsWith(`${API}/v1/`)) asked.push(new URL(request.url()).pathname); });
+      await page.goto(`/verify?digest=${DIGEST}`);
+      const main = page.locator('main');
+
+      await expect(main.getByRole('textbox', { name: 'Link or digest' })).toHaveValue(DIGEST);
+      await expect(main.getByLabel('Kind')).toBeVisible();
+      expect(asked.filter((path) => path.startsWith('/v1/resolve/'))).toEqual([]);
+      await main.getByLabel('Kind').selectOption('report');
+      await expect(page).toHaveURL(new RegExp(`/verify/report/${DIGEST}$`));
+      await expect(main.getByText('Verified', { exact: true })).toBeVisible();
+
+      await main.getByRole('tab', { name: 'Document' }).click();
+      await expect(main.getByText('Log in to check a document or a file')).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Log in', exact: true })).toHaveAttribute('href', '/login');
+      await main.getByRole('tab', { name: 'File' }).click();
+      await expect(main.getByText('Log in to check a document or a file')).toBeVisible();
+      expect(asked.filter((path) => path.startsWith('/v1/verifier/'))).toEqual([]);
+    });
+
+    test('verify /verify · a verified element with no visible location', async ({ page }, testInfo) => {
       await mockApi(page, {
         resolve: json({ ...resolved, locations: [], pagination: { total: 0, limit: 20, offset: 0, has_more: false } }),
       });
-      await page.goto(`/resolve/report/${DIGEST}`);
+      await page.goto(`/verify/report/${DIGEST}`);
       const main = page.locator('main');
 
       await expect(main.getByText('Verified', { exact: true })).toBeVisible();
       await expect(main.getByText(/none of the places it lives are visible to you/)).toBeVisible();
       await expect(main.getByRole('region', { name: 'Locations' })).toContainText('0 visible');
       await ready(page);
-      await main.getByRole('region', { name: 'Locations' }).screenshot({ path: testInfo.outputPath(`resolve-${name}-no-locations.png`), animations: 'disabled', style: HIDE_FLOATING });
+      await main.getByRole('region', { name: 'Locations' }).screenshot({ path: testInfo.outputPath(`verify-${name}-no-locations.png`), animations: 'disabled', style: HIDE_FLOATING });
     });
 
-    test('pub-resolve · neutral 404, malformed digest and 503', async ({ page }, testInfo) => {
+    test('verify /verify · nothing public matches, malformed digest and 503', async ({ page }, testInfo) => {
       await mockApi(page, { resolve: json({ detail: { code: 'not_found', message: 'Element not found.' } }, 404) });
-      await page.goto(`/resolve/report/${DIGEST}`);
+      await page.goto(`/verify/report/${DIGEST}`);
       const main = page.locator('main');
 
-      await expect(main.getByText('Nothing found for this digest')).toBeVisible();
+      await expect(main.getByText('Nothing public matches this digest')).toBeVisible();
       await expect(main.getByText('404 · not_found')).toBeVisible();
+      await expect(main.getByRole('textbox', { name: 'Link or digest' })).toBeVisible();
       await ready(page);
-      await page.screenshot({ path: testInfo.outputPath(`resolve-${name}-not-found.png`), fullPage: true, animations: 'disabled' });
+      await page.screenshot({ path: testInfo.outputPath(`verify-${name}-not-found.png`), fullPage: true, animations: 'disabled' });
 
-      await page.goto('/resolve/report/not-a-digest');
+      await page.goto('/verify/report/not-a-digest');
       await expect(main.getByText('That digest isn’t well formed')).toBeVisible();
-      await expect(main.getByRole('textbox', { name: 'Digest' })).toHaveAttribute('aria-invalid', 'true');
-      await page.screenshot({ path: testInfo.outputPath(`resolve-${name}-malformed.png`), fullPage: true, animations: 'disabled' });
+      await expect(main.getByRole('textbox', { name: 'Link or digest' })).toHaveAttribute('aria-invalid', 'true');
+      await page.screenshot({ path: testInfo.outputPath(`verify-${name}-malformed.png`), fullPage: true, animations: 'disabled' });
 
       await page.route(new RegExp(`${API}/v1/resolve/report/sha256-[0-9a-f]{64}(\\?.*)?$`), json({ detail: { code: 'service_unavailable' } }, 503));
-      await page.goto(`/resolve/report/${DIGEST}`);
+      await page.goto(`/verify/report/${DIGEST}`);
       await expect(main.getByText(/Verification is unavailable right now \(HTTP 503\)/)).toBeVisible();
       await expect(main.getByRole('button', { name: 'Retry' })).toBeVisible();
-      await page.screenshot({ path: testInfo.outputPath(`resolve-${name}-unavailable.png`), fullPage: true, animations: 'disabled' });
+      await page.screenshot({ path: testInfo.outputPath(`verify-${name}-unavailable.png`), fullPage: true, animations: 'disabled' });
     });
 
     test('pub-status /status', async ({ page }, testInfo) => {

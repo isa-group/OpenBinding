@@ -7,7 +7,7 @@ import { EDITION, FROZEN, publicationOf } from '../src/test/fixtures/reports';
 import { usageOf } from '../src/test/fixtures/resources';
 import { RUN_ID, cellsFixture, digestOf, runFixture, studyFixture } from '../src/test/fixtures/studies';
 
-// S7b · reports: the redirect of the retired analysis and report addresses, proj-publications and verifier.
+// S7b · reports: the redirect of the retired analysis and report addresses, proj-publications and the signed-in side of verify.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. Every test walks a screen through its states on a desktop and on a phone.
 
@@ -340,20 +340,34 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('verifier /app/verifier · a fingerprint: verified with its matches and citation, not found, and not a fingerprint', async ({ page }, testInfo) => {
+    test('verify /verify · the permanent links /resolve/:kind/:digest and /app/verifier land on the page, signed in too', async ({ page }) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(page);
+
+      await page.goto(`/resolve/report/${EDITION}`);
+      await expect(page).toHaveURL(new RegExp(`/verify/report/${EDITION}$`));
+      await expect(page.locator('main').getByRole('heading', { level: 1, name: 'Verify' })).toBeVisible();
+
+      await page.goto('/app/verifier');
+      await expect(page).toHaveURL(/\/verify$/);
+      await expect(page.locator('main').getByRole('heading', { level: 1, name: 'Verify' })).toBeVisible();
+      expect(critical).toEqual([]);
+    });
+
+    test('verify /verify · a digest: verified with its matches and citation, not found, and not a digest', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/verifier');
-      const main = page.locator('#platform-main');
+      await page.goto('/verify');
+      const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Verifier' })).toBeVisible();
-      await expect(main.getByText(/Your browser computes the fingerprint and the server confirms it\./)).toBeVisible();
-      await expect(main.getByText('Enter something to check.')).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Check' })).toBeDisabled();
-      await capture(page, testInfo, `verifier-${name}-empty`, { height: 1100 });
+      await expect(main.getByRole('heading', { level: 1, name: 'Verify' })).toBeVisible();
+      await expect(main.getByRole('tab')).toHaveText(['Link or digest', 'Document', 'File']);
+      await expect(main.getByText('Enter a link or a digest to check.')).toBeVisible();
+      await capture(page, testInfo, `verify-${name}-empty`, { height: 1100 });
 
-      await main.getByRole('textbox', { name: 'Fingerprint' }).fill(EDITION);
-      await main.getByRole('button', { name: 'Check' }).click();
+      await main.getByRole('textbox', { name: 'Link or digest' }).fill(EDITION);
+      await main.getByRole('button', { name: 'Verify' }).click();
+      await expect(page).toHaveURL(new RegExp(`/verify\\?digest=${EDITION}$`));
       const verdict = main.getByRole('region', { name: 'Verdict' });
       await expect(verdict.getByText('Verified', { exact: true })).toBeVisible();
       await expect(verdict.getByText('OpenBinding recorded an element with this fingerprint.')).toBeVisible();
@@ -363,114 +377,119 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(matches.getByRole('link', { name: 'Public record' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
       await expect(main.getByText('OpenBinding (2026). Engine comparison at checkout. OpenBinding report edition, digest sha256-eeee…eeee.')).toBeVisible();
       expect(state.sent.verify.at(-1)).toEqual({ digest: EDITION });
-      await capture(page, testInfo, `verifier-${name}-verified`, { height: 1700 });
+      await capture(page, testInfo, `verify-${name}-verified`, { height: 1700 });
 
-      await main.getByRole('textbox', { name: 'Fingerprint' }).fill(digestOf('0'));
-      await main.getByRole('button', { name: 'Check' }).click();
+      await main.getByRole('textbox', { name: 'Link or digest' }).fill(digestOf('0'));
+      await main.getByRole('button', { name: 'Verify' }).click();
       await expect(main.getByText('Nothing found', { exact: true })).toBeVisible();
       await expect(main.getByText('nothing recorded', { exact: true })).toBeVisible();
       await expect(main.getByRole('region', { name: 'Matches' })).toHaveCount(0);
-      await capture(page, testInfo, `verifier-${name}-not-found`, { height: 1200 });
+      await capture(page, testInfo, `verify-${name}-not-found`, { height: 1200 });
 
+      // Something that is not a digest never reaches the server.
       const asked = state.sent.verify.length;
-      await main.getByRole('textbox', { name: 'Fingerprint' }).fill('sha256-123');
-      await main.getByRole('button', { name: 'Check' }).click();
+      await main.getByRole('textbox', { name: 'Link or digest' }).fill('sha256-123');
+      await main.getByRole('button', { name: 'Verify' }).click();
       await expect(main.getByText('That can’t be checked')).toBeVisible();
       await expect(main.getByText('That isn’t a valid fingerprint. A fingerprint is sha256- followed by 64 lowercase hexadecimal characters.')).toBeVisible();
       expect(state.sent.verify).toHaveLength(asked);
-      await capture(page, testInfo, `verifier-${name}-invalid`, { height: 1100 });
+      await capture(page, testInfo, `verify-${name}-invalid`, { height: 1100 });
 
-      // A fingerprint in the address is checked on arrival.
-      await page.goto(`/app/verifier?digest=${EDITION}`);
+      // A digest in the address is checked on arrival, and the field holds it.
+      await page.goto(`/verify?digest=${EDITION}`);
       await expect(main.getByRole('region', { name: 'Verdict' }).getByText('Verified', { exact: true })).toBeVisible();
-      await expect(main.getByRole('textbox', { name: 'Fingerprint' })).toHaveValue(EDITION);
+      await expect(main.getByRole('textbox', { name: 'Link or digest' })).toHaveValue(EDITION);
       expect(critical).toEqual([]);
     });
 
-    test('verifier /app/verifier · a document and a file: computed, doesn’t match, verified, and the matches inside one project', async ({ page }, testInfo) => {
+    test('verify /verify · a document and a file: computed, doesn’t match, verified, and the canonical JSON behind a disclosure', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/verifier');
-      const main = page.locator('#platform-main');
+      await page.goto('/verify');
+      const main = page.locator('main');
 
       // A document: normalised before fingerprinting, so spacing and key order don't matter.
-      await main.getByRole('tab', { name: 'Document text' }).click();
+      await main.getByRole('tab', { name: 'Document' }).click();
       await main.getByLabel('Paste the document’s text').fill('{ "b": 1,\n  "a": 2 }');
-      await main.getByRole('button', { name: 'Check' }).click();
+      await main.getByRole('button', { name: 'Verify' }).click();
       const fingerprint = sha(canonical({ a: 2, b: 1 }));
       await expect(main.getByText('Computed, not on record')).toBeVisible();
       await expect(main.getByText('Computed in your browser')).toBeVisible();
       await expect(main.getByText(fingerprint, { exact: true }).first()).toBeVisible();
       expect(state.sent.verify.at(-1)).toEqual({ document: { b: 1, a: 2 }, digest: null });
-      await expect(main.getByLabel('Normalised document')).toBeHidden();
-      await main.getByText('View source').click();
-      await expect(main.getByLabel('Normalised document')).toHaveText('{"a":2,"b":1}');
-      await capture(page, testInfo, `verifier-${name}-computed`, { height: 1500 });
+
+      // The canonical JSON is raw material: collapsed, and shown by SourceView once opened.
+      const source = main.getByRole('region', { name: 'Canonical JSON' });
+      await expect(source).toBeHidden();
+      await main.locator('summary', { hasText: 'Canonical JSON' }).click();
+      await expect(source.locator('pre')).toHaveText('{"a":2,"b":1}');
+      await expect(source.getByRole('button', { name: 'Copy Canonical JSON' })).toBeVisible();
+      await expect(main.locator('pre')).toHaveCount(1);
+      await capture(page, testInfo, `verify-${name}-computed`, { height: 1500 });
 
       await main.getByLabel('Fingerprint it should have (optional)').fill(EDITION);
-      await main.getByRole('button', { name: 'Check' }).click();
+      await main.getByRole('button', { name: 'Verify' }).click();
       await expect(main.getByText('Doesn’t match', { exact: true })).toBeVisible();
       await expect(main.getByText('Fingerprint you expected', { exact: true })).toBeVisible();
-      await capture(page, testInfo, `verifier-${name}-mismatch`, { height: 1500 });
+      await capture(page, testInfo, `verify-${name}-mismatch`, { height: 1500 });
       await main.getByLabel('Fingerprint it should have (optional)').fill(fingerprint);
-      await main.getByRole('button', { name: 'Check' }).click();
+      await main.getByRole('button', { name: 'Verify' }).click();
       await expect(main.getByRole('region', { name: 'Verdict' }).getByText('Verified', { exact: true })).toBeVisible();
 
       await main.getByLabel('Paste the document’s text').fill('just words');
-      await main.getByRole('button', { name: 'Check' }).click();
+      await main.getByRole('button', { name: 'Verify' }).click();
       await expect(main.getByText(/That text isn’t a JSON document/)).toBeVisible();
 
       // A file: hashed in the browser, then looked up.
       await main.getByRole('tab', { name: 'File' }).click();
       await main.getByLabel('Choose file').setInputFiles({ name: 'results.csv', mimeType: 'text/csv', buffer: Buffer.from(FILE_BYTES) });
       await expect(main.getByText(/results\.csv · 8 bytes/)).toBeVisible();
-      await main.getByRole('button', { name: 'Check' }).click();
+      await main.getByRole('button', { name: 'Verify' }).click();
       await expect(main.getByRole('region', { name: 'Verdict' }).getByText('Verified', { exact: true })).toBeVisible();
       await expect(main.getByText(sha(FILE_BYTES), { exact: true }).first()).toBeVisible();
       await expect(main.getByRole('region', { name: 'Matches' }).getByText('Blob (text/csv, 8 B)')).toBeVisible();
-      await capture(page, testInfo, `verifier-${name}-file`, { height: 1500 });
+      await capture(page, testInfo, `verify-${name}-file`, { height: 1500 });
       await main.getByLabel('Choose file').setInputFiles({ name: 'other.bin', mimeType: 'application/octet-stream', buffer: Buffer.from('something else') });
-      await main.getByRole('button', { name: 'Check' }).click();
+      await main.getByRole('button', { name: 'Verify' }).click();
       await expect(main.getByText('Computed, not on record')).toBeVisible();
       expect(state.sent.verifyFile).toBe(2);
 
-      // Several matches, and only those of the current project on request.
+      // Several matches: all of them are listed (the page has no project filter).
       state.refuse.verify = json(verdictOf('verified', EDITION, [reportEntity, caseEntity]));
-      await main.getByRole('tab', { name: 'Fingerprint' }).click();
-      await main.getByRole('textbox', { name: 'Fingerprint' }).fill(EDITION);
-      await main.getByRole('button', { name: 'Check' }).click();
-      const matches = main.getByRole('region', { name: 'Matches' });
-      await expect(matches.getByRole('listitem')).toHaveCount(2);
-      await main.getByRole('checkbox', { name: 'Only show matches inside QoS Benchmarks' }).check();
-      await expect(matches.getByRole('listitem')).toHaveCount(1);
-      await expect(matches.getByText('1 more outside the chosen project.')).toBeVisible();
-      await capture(page, testInfo, `verifier-${name}-scope`, { height: 1700 });
+      await main.getByRole('tab', { name: 'Link or digest' }).click();
+      await main.getByRole('textbox', { name: 'Link or digest' }).fill(EDITION);
+      await main.getByRole('button', { name: 'Verify' }).click();
+      await expect(main.getByRole('region', { name: 'Matches' }).getByRole('listitem')).toHaveCount(2);
+      await expect(main.getByRole('checkbox')).toHaveCount(0);
+      await capture(page, testInfo, `verify-${name}-matches`, { height: 1700 });
       expect(critical).toEqual([]);
     });
 
-    test('verifier /app/verifier · the server refuses (422, 413, 503) and the page says what it means', async ({ page }, testInfo) => {
+    test('verify /verify · the server refuses (422, 413, 503) and the page says what it means', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/verifier');
-      const main = page.locator('#platform-main');
+      await page.goto('/verify');
+      const main = page.locator('main');
 
-      await main.getByRole('textbox', { name: 'Fingerprint' }).fill(EDITION);
+      await main.getByRole('textbox', { name: 'Link or digest' }).fill(EDITION);
       state.refuse.verify = detail(422, 'validation_error', 'digest is malformed');
-      await main.getByRole('button', { name: 'Check' }).click();
+      await main.getByRole('button', { name: 'Verify' }).click();
       await expect(main.getByText('That isn’t a valid fingerprint or document (422 · validation_error)')).toBeVisible();
-      await capture(page, testInfo, `verifier-${name}-422`, { height: 1100 });
+      await capture(page, testInfo, `verify-${name}-422`, { height: 1100 });
 
       state.refuse.verify = unavailable;
-      await main.getByRole('button', { name: 'Check' }).click();
+      await main.getByRole('tab', { name: 'Document' }).click();
+      await main.getByLabel('Paste the document’s text').fill('{"a":1}');
+      await main.getByRole('button', { name: 'Verify' }).click();
       await expect(main.getByText('The verifier didn’t answer')).toBeVisible();
-      await capture(page, testInfo, `verifier-${name}-503`, { height: 1100 });
+      await capture(page, testInfo, `verify-${name}-503`, { height: 1100 });
 
       await main.getByRole('tab', { name: 'File' }).click();
       await main.getByLabel('Choose file').setInputFiles({ name: 'huge.bin', mimeType: 'application/octet-stream', buffer: Buffer.from('x') });
       state.refuse.verifyFile = detail(413, 'payload_too_large', 'The file is too large.');
-      await main.getByRole('button', { name: 'Check' }).click();
+      await main.getByRole('button', { name: 'Verify' }).click();
       await expect(main.getByText('That file is too large to check here (413 · payload_too_large)')).toBeVisible();
-      await capture(page, testInfo, `verifier-${name}-413`, { height: 1100 });
+      await capture(page, testInfo, `verify-${name}-413`, { height: 1100 });
       expect(critical).toEqual([]);
     });
   });

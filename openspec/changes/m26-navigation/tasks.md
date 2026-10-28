@@ -81,7 +81,7 @@ Owns: `R/verify`+t, `P/verify.ts`, `F/pages/Verify/**` (new), `F/pages/Resolve/*
 `F/test/rawRenderingAllowList.ts`, `E/s1a-public.spec.ts`, `E/s7b-reports.spec.ts`, `G/verify.ts`.
 
 Tasks:
-- [ ] 2.1 T-V acceptance spec. Then unit tests:
+- [x] 2.1 T-V acceptance spec. Then unit tests:
   - the three modes;
   - signed-out requests only to `/v1/resolve/`;
   - the kind selector;
@@ -90,11 +90,16 @@ Tasks:
   - the ten kinds redirected, signed in and signed out;
   - `/app/verifier?digest=` redirected without `/login`;
   - copying a permanent link gives the `/resolve/...` form.
-- [ ] 2.2 The `verify` screen; the moved entries `/resolve/:kind/:digest` and `/app/verifier` (`permanent`); delete
+
+  The unit tests are in `F/pages/Verify/Verify.test.tsx` and `R/verify.test.ts`, and the mocked specs `E/s1a-public.spec.ts`
+  and `E/s7b-reports.spec.ts` follow the page. The T-V acceptance spec is the test-designer's.
+- [x] 2.2 The `verify` screen; the moved entries `/resolve/:kind/:digest` and `/app/verifier` (`permanent`); delete
   `pub-resolve` and `verifier`.
-- [ ] 2.3 Remove offender 6 and set `MAX_ALLOWED_OFFENDERS` to 0 (finding 16 stays unlisted until slice 15).
+- [x] 2.3 Remove offender 6 and set `MAX_ALLOWED_OFFENDERS` to 0 (finding 16 stays unlisted until slice 15).
 - [ ] 2.4 Repoint the links to `/app/verifier` in the hub files through `P/verify.ts`. Links to `/resolve/...` may stay.
-- [ ] 2.5 The kind names of the Verify page use the glossary: `case-revision` reads `Problem version`
+  Not done in this attempt: the hub files are other slices' files, and the links keep working through the `permanent`
+  entry. `P/verify.ts` and `G/verify.ts` are not created either.
+- [x] 2.5 The kind names of the Verify page use the glossary: `case-revision` reads `Problem version`
   (`frontend-nav-vocabulary-text`).
 - Budget: 68.
 

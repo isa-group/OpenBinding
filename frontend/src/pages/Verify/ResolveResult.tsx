@@ -1,8 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import {
   Calendar, Check, FileText, Loader2, Search, ShieldCheck, User,
 } from 'lucide-react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { platformApi, type ResolveLocation, type ResolveResponse } from '../../api/platform';
 import { Button } from '../../components/ui/Button';
 import { Chip } from '../../components/ui/Chip';
@@ -10,39 +10,31 @@ import { CopyField } from '../../components/ui/CopyField';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
-import { useAuth } from '../../contexts/auth';
 import { buildCitation } from '../../utils/citation';
-import { isDigest, normalizeDigest, shortDigest } from '../../utils/digest';
+import { isDigest, normalizeDigest } from '../../utils/digest';
 import { formatBytes, formatDate, formatDateTime, yearOf } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import {
   RESOLVE_KINDS, asResolved, extensionOf, formatOf, isKnownKind, kindLabel, locationHref, outcomeOf, summarizeDocument,
   type ResolveOutcome,
 } from './resolveModel';
-import './Resolve.css';
 
 const PAGE_SIZE = 20;
-const HELP_DEFAULT = 'Private and non-existent elements give the same answer, by design.';
-const HELP_INVALID = 'Not a valid digest: use sha256- followed by 64 lowercase hex characters.';
 
-export function Resolve() {
-  const { kind = 'report', digest = '' } = useParams<{ kind: string; digest: string }>();
-  const location = useLocation();
-  // The view is rebuilt for every navigation, so the form always starts from what is shown and Verify always asks again.
-  return <ResolveView key={location.key} kind={kind} digest={digest} />;
+interface ResolveResultProps {
+  /** The kind and digest of the address, as written there. */
+  kind: string;
+  digest: string;
+  signedIn: boolean;
 }
 
-function ResolveView({ kind, digest }: { kind: string; digest: string }) {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+/** What `GET /v1/resolve/{kind}/{digest}` answers for the address: the element, or why there is none. */
+// [impl->req~frontend-nav-verify-signed-out~1]
+export function ResolveResult({ kind, digest, signedIn }: ResolveResultProps) {
+  const [offset, setOffset] = useState(0);
   const normalized = normalizeDigest(digest);
   const requestKind = kind.trim().toLowerCase();
   const valid = isKnownKind(requestKind) && isDigest(normalized);
-
-  const [kindInput, setKindInput] = useState(isKnownKind(requestKind) ? requestKind : 'report');
-  const [digestInput, setDigestInput] = useState(digest);
-  const [inputError, setInputError] = useState(false);
-  const [offset, setOffset] = useState(0);
 
   const resource = useResource(
     `${valid ? `${requestKind}/${normalized}` : 'invalid'}@${offset}`,
@@ -59,67 +51,22 @@ function ResolveView({ kind, digest }: { kind: string; digest: string }) {
   const pageLoading = loading && stale !== null && stale.digest === normalized && stale.kind === requestKind;
   const shown: ResolveResponse | null = outcome?.type === 'resolved' ? outcome.element : pageLoading ? stale : null;
 
-  const invalidInput = inputError || (!valid && digest !== '');
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (!digestInput.trim()) {
-      setInputError(true);
-      return;
-    }
-    const next = normalizeDigest(digestInput);
-    // Every submit is a navigation, even to the address already shown: that is what asks again.
-    navigate(`/resolve/${kindInput}/${isDigest(next) ? next : encodeURIComponent(digestInput.trim())}`);
-  };
-
   return (
-    <div className="resolve-page">
-      <h1 className="sr-only">Verify by digest</h1>
-      <nav aria-label="Breadcrumb" className="resolve-breadcrumb">
-        <Link to="/explore">Explore</Link><span aria-hidden="true">/</span><span>Verify</span>
-        <span aria-hidden="true">/</span><span>{requestKind}</span>
-        <span aria-hidden="true">/</span><span className="resolve-breadcrumb-digest">{shortDigest(normalized)}</span>
-      </nav>
-
-      <form className="resolve-form" onSubmit={submit} noValidate>
-        <label>
-          <span>Kind</span>
-          <select value={kindInput} onChange={(event) => setKindInput(event.target.value)}>
-            {RESOLVE_KINDS.map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}
-          </select>
-        </label>
-        <label className="resolve-form-digest">
-          <span>Digest</span>
-          <input
-            value={digestInput}
-            onChange={(event) => { setDigestInput(event.target.value); setInputError(false); }}
-            aria-invalid={invalidInput}
-            aria-describedby="resolve-digest-help"
-            spellCheck={false}
-            autoComplete="off"
-            placeholder="sha256-…"
-          />
-        </label>
-        <Button type="submit" size="md">Verify</Button>
-        <span id="resolve-digest-help" className={invalidInput ? 'is-invalid' : undefined}>{invalidInput ? HELP_INVALID : HELP_DEFAULT}</span>
-      </form>
-
-      <div className="resolve-results" aria-live="polite" aria-busy={loading}>
-        {loading && !pageLoading && <CheckingState />}
-        {!loading && outcome?.type === 'invalid' && <InvalidState digest={digest} kind={kind} />}
-        {!loading && outcome?.type === 'malformed' && <MalformedState detail={outcome.detail} />}
-        {!loading && outcome?.type === 'not-found' && <NotFoundState />}
-        {!loading && outcome?.type === 'unavailable' && <UnavailableState status={outcome.status} onRetry={resource.reload} />}
-        {shown && (
-          <ResolvedElement
-            element={shown}
-            signedIn={Boolean(user)}
-            loadingLocations={pageLoading}
-            offset={offset}
-            onPage={setOffset}
-          />
-        )}
-      </div>
+    <div className="resolve-results" aria-live="polite" aria-busy={loading}>
+      {loading && !pageLoading && <CheckingState />}
+      {!loading && outcome?.type === 'invalid' && <InvalidState digest={digest} kind={kind} />}
+      {!loading && outcome?.type === 'malformed' && <MalformedState detail={outcome.detail} />}
+      {!loading && outcome?.type === 'not-found' && <NotFoundState signedIn={signedIn} />}
+      {!loading && outcome?.type === 'unavailable' && <UnavailableState status={outcome.status} onRetry={resource.reload} />}
+      {shown && (
+        <ResolvedElement
+          element={shown}
+          signedIn={signedIn}
+          loadingLocations={pageLoading}
+          offset={offset}
+          onPage={setOffset}
+        />
+      )}
     </div>
   );
 }
@@ -160,12 +107,14 @@ function MalformedState({ detail }: { detail: string }) {
   );
 }
 
-function NotFoundState() {
+function NotFoundState({ signedIn }: { signedIn: boolean }) {
   return (
     <div className="resolve-empty" role="alert">
       <Search aria-hidden="true" />
-      <strong>Nothing found for this digest</strong>
-      <span>There is no element you can see with this kind and digest. Check both values, or log in if you expected to have access.</span>
+      <strong>Nothing public matches this digest</strong>
+      <span>
+        There is no public element with this kind and digest. Check both values{signedIn ? '.' : ', or log in if you expected to have access.'}
+      </span>
       <small>404 · not_found</small>
     </div>
   );
@@ -202,6 +151,7 @@ function ResolvedElement({ element, signedIn, loadingLocations, offset, onPage }
   const visibleIn = firstLocation
     ? (firstLocation.organization && firstLocation.project ? `${firstLocation.organization.name} / ${firstLocation.project.name}` : firstLocation.slug ?? label)
     : 'No visible location';
+  // The permanent-link form that publications cite.
   const uri = `${window.location.origin}/resolve/${element.kind}/${element.digest}`;
   const citation = buildCitation({
     title: name, author, year: yearOf(element.created_at), kindLabel: label.toLowerCase(), digest: element.digest, url: uri,
@@ -336,9 +286,9 @@ function ResolvedElement({ element, signedIn, loadingLocations, offset, onPage }
         <h2 id="resolve-cite-title">Cite this</h2>
         <div className="resolve-cite">
           <div>
-            <span>URI</span>
+            <span>Permanent link</span>
             <code>{`/resolve/${element.kind}/${element.digest}`}</code>
-            <button type="button" onClick={() => void copy(uri, 'uri')}>{status('uri') === 'copied' ? 'URI copied' : 'Copy URI'}</button>
+            <button type="button" onClick={() => void copy(uri, 'uri')}>{status('uri') === 'copied' ? 'Permanent link copied' : 'Copy permanent link'}</button>
           </div>
           <div>
             <span>Citation</span>

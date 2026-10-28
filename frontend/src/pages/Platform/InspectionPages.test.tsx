@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { VerifierEntity } from '../../api/platform';
-import { ENTITY_KINDS, entityHref, entityKind } from './verifierOptions';
+import { ENTITY_KINDS, entityHref, entityKind } from '../Verify/verifierOptions';
 
-// The report page and the verifier are tested with their screens in pages/Reports; what stays here is the vocabulary of the verifier's matches.
+// The Verify page is tested with its screen in pages/Verify; what stays here is the vocabulary of the verifier's matches.
 const entity = (over: Partial<VerifierEntity>): VerifierEntity => ({ entity_type: 'case', id: 'id-1', ...over });
 
 describe('what the verifier can match', () => {
   it('names every kind of element the gateway searches', () => {
     expect(ENTITY_KINDS.map((kind) => kind.type)).toEqual(['case', 'snapshot', 'collection', 'report', 'artifact', 'engine', 'study_run']);
-    expect(entityKind('case')).toMatchObject({ label: 'Case revision', resolve: 'case-revision' });
+    expect(entityKind('case')).toMatchObject({ label: 'Problem version', resolve: 'case-revision' });
     expect(entityKind('study_run').resolve).toBeUndefined();
   });
 
