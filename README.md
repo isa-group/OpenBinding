@@ -123,7 +123,9 @@ The `prod` profile builds the images from the checkout and pins nothing: it is a
 production-like local build, not a deployment. Production uses the digest-pinned
 definition in `deploy/compose/production/` and is operated with
 [`docs/runbooks/production.md`](docs/runbooks/production.md); only the owner
-orders a production deployment.
+orders a production deployment. The project deploys with Docker Compose only;
+the standalone bim-service container is described in
+[`bim-toolchain/docs/SERVICE.md`](bim-toolchain/docs/SERVICE.md).
 
 `docker-compose.yml` defines the profiles `dev`, `prod`, `db-tools` (Adminer),
 `federated-example` and `benchmark`. `dev` and `prod` start PostgreSQL, Redis,

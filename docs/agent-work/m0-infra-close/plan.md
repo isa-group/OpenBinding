@@ -1,0 +1,1 @@
+Change m0-infra-close (Full scope). Done: S0..S1b, R1/R2 fixes, round-2 panel approve, docs deltas R3, R4, R5 with fixes (1465ca08, f2720bb9, 33857a32) integrated. Remaining: narrow final reviewer on the last delta, push, CI green, coordinator changelog push + note, set_review_package, lead_ready.

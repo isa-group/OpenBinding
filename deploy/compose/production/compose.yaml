@@ -350,8 +350,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    # restart: true re-resolves the gateway address (nginx.conf resolves `gateway` once) when Compose recreates the
-    # gateway. It does not follow a restart by the Docker daemon (crash, OOM): the runbook restarts nginx then.
+    # nginx.conf resolves `gateway` at request time (valid=10s), so nginx follows a new gateway address by itself,
+    # also after a restart by the Docker daemon (crash, OOM). restart: true still restarts nginx when Compose
+    # recreates the gateway. A restart applies new certificates (bind-mounted); nginx.conf is built into the image, so
+    # a changed one needs a new NGINX_IMAGE and `up -d`.
     depends_on:
       gateway:
         condition: service_healthy
