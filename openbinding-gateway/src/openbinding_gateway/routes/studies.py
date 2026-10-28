@@ -8,13 +8,14 @@ import math
 from collections.abc import Mapping
 from typing import Any
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Header, Response, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access import public_read
 from ..access.dependencies import get_current_user, session_dependency
 from ..collaboration import enforce_sponsor_capacity, organization_by_ref, require_project
+from ..core import revision
 from ..core.settings import get_settings
 from ..domain import usage_counters
 from ..db.models import (
@@ -547,14 +548,19 @@ async def create_study(
     return _study_view(value)
 
 
-@router.patch("/studies/{study}", response_model=StudyView, operation_id="updateStudy")
+@router.patch(
+    "/studies/{study}", response_model=StudyView, operation_id="updateStudy",
+    responses=revision.PRECONDITION_RESPONSES,
+)
 async def update_study(
-    org: str, project: str, study: str, payload: StudyUpdate,
+    org: str, project: str, study: str, payload: StudyUpdate, response: Response,
+    if_match: str | None = Header(default=None, alias="If-Match", description=revision.IF_MATCH_DESCRIPTION),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> StudyView:
     organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
     found = await _study(session, found_project.id, study, user)
+    await revision.guard(session, found, if_match)
     if payload.definition_version_id is not None:
         from ..artifacts import resolve_version, reference
         from ..db.models import Artifact, ArtifactVersion
@@ -577,6 +583,8 @@ async def update_study(
     if payload.description is not None:
         found.description = payload.description
     await session.flush()
+    await session.refresh(found, ["updated_at"])
+    revision.set_etag(response, found)
     _audit(session, user, "study.updated", found, organization.id)
     return _study_view(found)
 
