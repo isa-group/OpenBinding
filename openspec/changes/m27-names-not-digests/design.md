@@ -112,10 +112,17 @@ and no literal UUID.
 
 Dates are formatted in UTC as `<day> <Mon> <year>`. The day has no leading zero, and the month comes from the fixed
 table `Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec`. `Intl` is not used, because current ICU data writes
-September as `Sept` in `en-GB`. A string date-time without an offset (`YYYY-MM-DDTHH:MM`, optionally with seconds and
-fractions) gets `Z` appended before parsing, so it is read as UTC rather than local time; a date-only string is read
-as UTC by `Date` already. The existing `utils/format.ts` `formatDate` (`Aug 20, 2026`) is not changed (open
-question 3).
+September as `Sept` in `en-GB`. Every date is read as UTC (private `utcText`, before `new Date`):
+- a date-time with `T` and no offset (`YYYY-MM-DDTHH:MM`, optionally with seconds and fractions) gets `Z` appended;
+- a date-time with a space instead of `T` and no offset (`YYYY-MM-DD HH:MM`, optionally with seconds and fractions,
+  as some database drivers write it) is rewritten to `YYYY-MM-DDTHH:MM…Z`;
+- a value with `Z` or an offset (`-02:00`, `+05:00`), with `T` or a space, keeps it and is converted to UTC;
+- a date-only string is read as UTC by `Date` already.
+
+The tests run the date cases twice more under `process.env.TZ` set to `Pacific/Kiritimati` (UTC+14) and
+`America/Los_Angeles` (UTC−7 in August), first asserting that the zone really applies (`getTimezoneOffset()` −840 and
+420), so a local-time reading would show a different day. The existing `utils/format.ts` `formatDate`
+(`Aug 20, 2026`) is not changed (open question 3).
 
 ### 2.6 The sample table
 
@@ -165,7 +172,10 @@ The panel is a `<section>` labelled by its `<h2>` `Cite and link` (fixed text an
 2. `Cite as`: the citation text in a `<p>`, then three buttons `Copy citation`, `Copy BibTeX` and `Copy CSL-JSON`
    (through `components/ui/useCopy`). For two seconds after a successful copy, the pressed button's text, and so its
    accessible name, reads `Citation copied`, `BibTeX copied` or `CSL-JSON copied`. One visually hidden `role="status"`
-   reads `Citation copied` after any of the three, or `Could not copy the citation` when the clipboard refuses.
+   announces the outcome of the latest copy only, named by what was copied: `Citation text copied`, `BibTeX copied`
+   or `CSL-JSON copied`, or `Could not copy the citation text`, `Could not copy the BibTeX` or `Could not copy the
+   CSL-JSON` when the clipboard refuses. `useCopy` keeps only the latest key, so a new outcome replaces the earlier
+   one, and the status empties when the two seconds are over.
 3. `Digest`, only when `digest` is a non-empty string: a `CopyField` with the value in `<code>` and the button
    `Copy digest`, with its own status (`digest copied` / `Could not copy the digest`).
 
@@ -235,7 +245,7 @@ The test fixtures are:
 
 The root is a `<div class="verify-result">` holding, in order, these parts:
 
-1. **Verdict**: a `<section aria-label="Verdict" aria-live="polite">` with a glyph (`aria-hidden="true"`, a lucide
+1. **Verdict**: a `<div role="status" aria-label="Verdict">` (a live status, polite by its role) with a glyph (`aria-hidden="true"`, a lucide
    icon per status), the title in `<strong>`, the text in `<span>` and, when given, `detail` in `<small>`. The tone
    class is `is-ok`, `is-info`, `is-bad` or `is-plain`. The meaning is in the words, never only in the colour
    (constitution 11.1).
@@ -251,20 +261,30 @@ The root is a `<div class="verify-result">` holding, in order, these parts:
    `verdict.digest`, a warning `Notice` (role `status`) titled `Your browser and the server disagree`: "They computed
    different fingerprints for the same input. Don’t rely on either until that is explained."
 
-3. **Two sides** (`sidesOf`):
+3. **Sides** (`sidesOf`): one or two labelled sides, the left one first.
 
-   | Side | When | Label | Value |
-   |---|---|---|---|
-   | left | `computed` given | `Computed in your browser` | `computed` |
-   | left | otherwise | `Fingerprint you gave` | `given`, else `verdict.digest` |
-   | right | `status` is `mismatch` | `Fingerprint you expected` | `verdict.digest` |
-   | right | otherwise | `Recorded by OpenBinding` | `verdict.digest` when `entities` is non-empty, else none |
+   | Side | When | Label | Copy button | Value |
+   |---|---|---|---|---|
+   | left | `computed` given | `Computed in your browser` | `Copy computed fingerprint` | `computed` |
+   | left | else `given` given | `Fingerprint you gave` | `Copy fingerprint you gave` | `given` |
+   | left | neither | not shown | | |
+   | right | `status` is `mismatch` | `Fingerprint you expected` | `Copy expected fingerprint` | `verdict.digest` |
+   | right | otherwise, `entities` non-empty | `Recorded by OpenBinding` | `Copy recorded fingerprint` | `verdict.digest` |
+   | right | otherwise | `Recorded by OpenBinding` | none | none: reads `nothing recorded` |
 
-   A side with a value shows a `CopyField` whose button is named `Copy <label in lower case>` (`Copy recorded by
-   openbinding`, `Copy fingerprint you gave`, …), with its own status `<label in lower case> copied` / `Could not
-   copy the <label in lower case>`. A side without a value reads `nothing recorded` and has no button. So the
-   result shows at most two fingerprint values, one per side, and as many copy buttons. Values are shown as given;
-   their shape is not checked.
+   Each fingerprint is shown once (constitution 15.5, "one copyable value"):
+   - When the left side holds the same digest as the right side, the left side shows no value and no button and
+     reads `Matches the recorded fingerprint`, or `Matches the expected fingerprint` when the right side is the
+     expected one. The digest and its one copy button stay on the right side.
+   - With nothing given or computed only the right side shows, so a verified result shows the digest once with one
+     button.
+   - Two different digests (a given or computed value that differs from the recorded one, or any mismatch) show one
+     value and one copy button each.
+
+   A side with a value shows the shared `CopyField`, whose button is named `Copy <what>` with an explicit
+   `<what>` per side (`copyLabel`, the table's column), and whose own status reads `<what> copied` / `Could not copy
+   the <what>`. Values are shown as given; their shape is not checked. Whether two different digests side by side
+   meet 15.5 is the owner's reading (§8, question 5).
 
 4. **Matches**: when `entities` is non-empty, a `<section>` labelled by its `<h2>` `Matches`, with one item per
    entity: a `Chip` with the kind (`kindLabels[entity_type]`, or `entity_type` with `_` read as a space), then the
@@ -281,8 +301,10 @@ switches to the component (open question 4).
 
 `VerifyResult.css` uses tokens and no hexadecimal colour: the tones use `var(--color-success)` and
 `var(--color-error)`, and labels use `var(--color-text-secondary)`. The sides sit in a grid of
-`minmax(16rem, 1fr)` columns. The values wrap through the shared `CopyField.css` (`overflow-wrap: anywhere`). The
-test checks only the absence of hexadecimal colours.
+`minmax(16rem, 1fr)` columns, and each side has `min-width: 0`. The values wrap through the shared `CopyField.css`
+(`overflow-wrap: anywhere`). Each child of a match item (`.verify-result__matches li > *`) has
+`overflow-wrap: anywhere` and `min-width: 0`, so a long match name wraps inside the item instead of overflowing it
+at 390 px. The tests check the absence of hexadecimal colours and that wrap rule, both by reading the stylesheet.
 
 ## 5. Digest hygiene test
 
@@ -297,7 +319,9 @@ Everything in this section is in `frontend/src/test/digestHygiene.test.ts`; noth
 - Paths are the Vite keys, `/src/...`.
 
 The test asserts that more than 100 files are read, and more than 50 are checked (outside the allowed set and the
-pending list).
+pending list). It also asserts that at least one stylesheet is read from disk and that
+`/src/components/CitationPanel/CitationPanel.css` arrives with non-empty content, so an empty read cannot pass
+silently.
 
 ### 5.2 Allowed set
 
@@ -314,6 +338,16 @@ One regular expression, unanchored at the start:
 | `/src/test/` | test support |
 | a file name ending in `fixture.ts`, `fixtures.ts`, `Fixture.ts` or `Fixtures.ts` | fixtures, imported only by tests (`pages/Cases/fixtures.ts`, `pages/Pricing/pricingFixture.ts`, `pages/Project/packageFixture.ts`); `.tsx` fixtures and `fixtures/` directories are not covered |
 
+The pattern is pinned by `EXEMPT_FILES`, the explicit list of the 39 shipped files it exempts today: 11 under
+`api/`, the 4 non-test files of `components/CitationPanel/` and the 4 of `components/VerifyResult/`, the 4
+`LogPanel` and `SourceView` sources and stylesheets, `components/rendering/runResultFixtures.ts`, the 4 page fixtures
+(`pages/Cases/fixtures.ts`, `pages/Organization/auditFixture.ts`, `pages/Pricing/pricingFixture.ts`,
+`pages/Project/packageFixture.ts`), 6 files under `test/fixtures/`, `test/rawRenderingAllowList.ts` and the 4
+utilities `utils/canonicalDigest.ts`, `utils/citation.ts`, `utils/digest.ts` and `utils/uuid.ts`. The test asserts
+that the sorted set of exempted shipped paths equals the sorted list. A new file whose name the pattern happens to
+exempt (a new `…Fixture.ts`, a new file under `api/`) fails the suite until it is added to the list by an edit that
+review sees.
+
 ### 5.3 Detectors
 
 The test greps each line of each checked file (comment lines included; there is no comment skipping) with three
@@ -327,6 +361,11 @@ patterns. A finding is reported as `<path>:<line>  <trimmed line>`.
 
 The detector tests pin: a full digest, a bare 64-hex run, a 40-hex git SHA and a UUID are caught; an ordinary word, a
 12-hex string, the prose `sha256- followed by` and a 65-hex run are not; `digestPrefixes` is not a helper.
+
+The scan pipeline has its own self-test: the `grep` function that the real assertions use, given one synthetic
+entry `/src/x/Foo.ts` with `shortDigest(x)` on line 2, reports exactly `/src/x/Foo.ts:2  const b = shortDigest(x);`
+for the helper detector and nothing for the digest-literal detector. So an empty finding list in the real
+assertions means "nothing found", not "nothing scanned".
 
 Known limits, as built:
 - `sha256-` followed by fewer than 8 hexadecimal characters is not caught: `sha256-…`, `sha256-${…}` and today's
@@ -346,8 +385,9 @@ Pending files are left out of the check as a whole. The test asserts:
 - no entry matches the allowed set.
 
 The test does not assert a ceiling (there is no `MAX_PENDING_FILES`), an exact list or a count, and an entry that no
-longer offends does not fail the suite, because parallel changes may clean some files. "Entries are only removed,
-never added" is the rule written in the test's header comment, and review enforces it.
+longer offends does not fail the suite (there is no stale-entry check), because parallel changes may clean some
+files. No test asserts that the list shrinks: its header comment says reviewers keep it shrinking, and review
+enforces that. A ceiling and a stale check are follow-ups (tasks.md F.2).
 
 ### 5.5 The pending list as built
 
@@ -390,11 +430,17 @@ Files that the first draft of this design listed and the test does not:
 | `identity-labels` | `shared/lib/identity.test.ts`, every case | `shared/lib/identity.ts` (file header) |
 | `citation-panel` | `components/CitationPanel/CitationPanel.test.tsx`, every case (the component and `buildPanelCitation`) | `CitationPanel.tsx` (`CitationPanel`), `citationModel.ts` (`buildPanelCitation`) |
 | `verify-result` | `components/VerifyResult/VerifyResult.test.tsx`, every case | `VerifyResult.tsx` (`VerifyResult`) |
-| `digest-hygiene` | `test/digestHygiene.test.ts` (file header) | none: no `[impl->req~digest-hygiene~1]` tag exists. The detectors and the pending list live in the test file, as in M2.2 |
+| `digest-hygiene` | `test/digestHygiene.test.ts` (file header, `[utest->req~digest-hygiene~1]`) | `test/digestHygiene.test.ts` (file header, `[impl->req~digest-hygiene~1]`): the detectors, the allowed set, `EXEMPT_FILES` and the pending list live in the test file, as in M2.2, so the same file carries both tags |
 
-The requirement keeps `Needs: impl, utest`. The missing `impl` tag for `digest-hygiene` is reported to the
-coordinator: the trace (G6) shows it as uncovered until a code task adds the tag or the requirement's `Needs` is
-changed. Stylesheet scenarios read the CSS as raw text from disk (the M2.1 "tokens only" pattern).
+Every requirement keeps `Needs: impl, utest` and revision `~1`, the revision the code tags name. Stylesheet
+scenarios read the CSS as raw text from disk (the M2.1 "tokens only" pattern).
+
+| Requirement | Tested by (test names in the test file) |
+|---|---|
+| `identity-labels` | the `identity labels` cases, and `dates in the Pacific/Kiritimati time zone` / `dates in the America/Los_Angeles time zone` (zone check, offset-bearing / `Z` / offset-less / date-only values, and space-separated values) |
+| `citation-panel` | digest once, copy actions, no digest, `announces a copy to assistive technology`, `announces only the latest outcome, a failure replacing an earlier success`, tokens only, and the four `buildPanelCitation` cases |
+| `verify-result` | the four verdicts (role `status`, name `Verdict`), the digest once with one copy button (given, computed, nothing given, mismatch given), two different digests with one button each, the mismatch sides, `nothing recorded`, the disagreement warning and its absence, matches, links, citation slot, tokens only, and `lets long match names wrap instead of overflowing` |
+| `digest-hygiene` | files read, stylesheets read with content, the pinned exempt list, the application sources, the helper names, the pending-list form, no allowed path pending, `the scan pipeline` and `the digest detectors` |
 
 ## 7. Risks
 
@@ -409,8 +455,10 @@ changed. Stylesheet scenarios read the CSS as raw text from disk (the M2.1 "toke
   caught; there is no ceiling assertion. The second change empties the list and adds ui-qa screenshots (G12) and DOM
   assertions per screen.
 - **Unguarded inputs.** `CitationPanel` shows `url`, `title`, `author` and `digest` as given, and `VerifyResult` shows
-  side values and entity names as given. A caller can still put an identifier on screen; the second change passes
-  slug links and names.
+  side values and entity names as given. A caller can still put an identifier on screen. One path exists today: the
+  gateway verifier sets a snapshot match's `title_or_name` to `Snapshot <id[:8]>` when the snapshot has no name
+  (`openbinding-gateway/src/openbinding_gateway/routes/verifier.py`, line 253), and `VerifyResult` would show those
+  eight hexadecimal characters. The second change guards entity names and removes that fallback (tasks.md F.1).
 - **No mounted screen.** ui-qa reviews the components' DOM, focus order and stylesheets from tests and code.
   Screenshots at 1440×900 and 390×844 wait for the second change.
 
@@ -426,18 +474,28 @@ changed. Stylesheet scenarios read the CSS as raw text from disk (the M2.1 "toke
    `20 Aug 2026`, so one screen does not show both forms.
 4. Coordinator: `VerifyResult` says "fingerprint" while the glossary term is "digest" (INTENT §5). Rewording is a
    change of the component's text and of its scenarios.
-5. Not built, drafted earlier, candidates for the second change:
+5. Owner: the reading of constitution 15.5 ("one copyable value") when two different digests are compared. As built,
+   `VerifyResult` shows a digest once when both sides hold it, but two different digests (a given or computed value
+   that differs from the recorded one, or a mismatch) show side by side, one copy button each, because the
+   difference is what the person verifies. The owner confirms that reading, or the component changes in a `~2`
+   revision (tasks.md F.4).
+6. Follow-ups for the second change, tracked in tasks.md section F:
+   - guard identifier-shaped entity names in `VerifyResult`, and remove the gateway's `Snapshot <id[:8]>` fallback
+     (§7);
+   - a ceiling and a stale-entry check for `PENDING_CLEANUP` (§5.4);
+   - a 44 px touch-target check of the copy buttons with Playwright, on a mounted screen;
+   - the owner's reading of 15.5 (question 5);
+   - the page clean-up and the wiring of `VerifyResult` and `CitationPanel`.
+7. Not built, drafted earlier, other candidates for the second change:
    - `CitationPanel`: Download BibTeX and CSL-JSON buttons through `saveText`; the URL in the citation text; the
      digest in the BibTeX and CSL-JSON `note`; a fixed `kind` and an author list; the heading `Cite this <kind>` with
      a configurable level; showing `No digest recorded` for a value that is not a full digest; treating an
      identifier-shaped title or author as missing; refusing a digest-bearing link (question 1); a cite key with
      accent folding (`López` → `lopez`; today `lpez`).
-   - `VerifyResult`: a region named `Verification result`, a `resolvesTo` identity label, `against: 'expected'`, a
-     full-digest check per side (`Not computed`), a guard on identifier-shaped entity names, and copy outcomes in one
-     shared status region.
-   - Hygiene: comment skipping, a `MAX_PENDING_FILES` ceiling and an exact-list assertion, a stale-entry check, and
-     exported `findDigestText` / `unlistedFindings` / `stalePendingFiles` helpers with fix-it messages.
-   - An `[impl->req~digest-hygiene~1]` tag (§6).
+   - `VerifyResult`: a `resolvesTo` identity label, `against: 'expected'` and a full-digest check per side
+     (`Not computed`).
+   - Hygiene: comment skipping, an exact-list assertion, and exported `findDigestText` / `unlistedFindings` /
+     `stalePendingFiles` helpers with fix-it messages.
 
 ## 9. Rollback
 

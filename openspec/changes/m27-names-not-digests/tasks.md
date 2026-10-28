@@ -28,6 +28,10 @@ Checks the groups register. Each is a `bash -c 'set -euo pipefail; cd frontend; 
 - [x] A.2 G1 (`openspec validate m27-names-not-digests --strict`): valid.
 - [x] A.3 Spec follows code: the change is rewritten to describe the built code and tests (design.md, Status:
   built), and G1 is valid again.
+- [ ] A.3b Spec follows code again after the review fixes: one value per fingerprint in `VerifyResult`, the verdict
+  as role `status`, explicit copy names, wrapping match names, the latest-only copy announcement of
+  `CitationPanel`, UTC dates under other time zones and space-separated date-times, and the hygiene test's impl
+  tag, pinned exempt list and pipeline self-test. G1 to be run again.
 - [ ] A.4 G2 (epic review) on the rewritten change.
 
 ## B. Identity labels
@@ -39,6 +43,9 @@ Owns `frontend/src/shared/lib/identity.ts`, `frontend/src/shared/lib/identity.te
   - the six full labels, and the grouped count `1,200 problems`;
   - the dates (UTC, `2 Sep 2026`, `5 Dec 2026`, `31 Jan 2026`, `1 Oct 2026`, `'soon'` dropped), and a date-time
     without an offset read as UTC;
+  - the same dates under `process.env.TZ` `Pacific/Kiritimati` and `America/Los_Angeles`, after checking the zone
+    applies: offset-bearing, `Z`, offset-less (`T`) and date-only values, and space-separated values with and
+    without an offset (design.md §2.5);
   - the missing-part table of design.md §2.2, function by function;
   - versions `'3'` and `'v3'`, `2.5` dropped, engine versions as given, `run 1014`;
   - identifier-shaped values as missing, including `SHA256-…`, a hex run glued to letters, an upper-case UUID, and
@@ -57,7 +64,8 @@ Owns `frontend/src/components/CitationPanel/{CitationPanel.tsx,CitationPanel.css
   - the digest exactly once, one `Copy digest`, and the citation sentence;
   - copies of the permanent link, the digest, BibTeX, CSL-JSON and the citation text;
   - the region `Cite and link` without a digest, and no `Copy digest`;
-  - the `Citation copied` announcement;
+  - the announcements `BibTeX copied`, `CSL-JSON copied` and `Citation text copied`, and only the latest outcome
+    (`Could not copy the citation text` replaces `BibTeX copied`);
   - no hexadecimal colour in the stylesheet;
   - `buildPanelCitation`: no digest in any format, BibTeX escaping, CSL-JSON `dataset` and `document`, and the
     `OpenBinding` / `n.d.` fallbacks.
@@ -69,27 +77,32 @@ Owns `frontend/src/components/VerifyResult/{VerifyResult.tsx,VerifyResult.css,ve
 (new). Not `pages/Reports/Verifier.tsx` or `pages/Resolve/**`: M2.6 owns them.
 
 - [x] C2.1 `VerifyResult.test.tsx`:
-  - the four verdicts with their titles, texts and detail in the region `Verdict`;
-  - the given and recorded sides of a verified fingerprint, `D1` twice, one copy button each;
-  - the computed and expected sides of a mismatch;
+  - the four verdicts with their titles, texts and detail in the element with role `status` named `Verdict`;
+  - a verified digest shown once with one `Copy recorded fingerprint` button, the given or computed side reading
+    `Matches the recorded fingerprint`; a given digest equal to the expected one reading
+    `Matches the expected fingerprint`; only the recorded side when nothing is given or computed;
+  - two different given and recorded digests, `Copy fingerprint you gave` and `Copy recorded fingerprint`;
+  - the computed and expected sides of a mismatch, two copy buttons;
   - `nothing recorded` without a copy button;
   - the disagreement warning, and no warning when the two agree or nothing was computed;
   - matches by name and kind chip, the slug and `unnamed element` fallbacks, and no entity id;
   - links through `renderLink` or `hrefOf`, and the name alone otherwise;
   - the citation slot;
-  - no hexadecimal colour in the stylesheet.
+  - no hexadecimal colour in the stylesheet, and the wrap rule for long match names.
 - [x] C2.2 `verifyModel.ts`, `VerifyResult.tsx`, `VerifyResult.css` and `index.ts` (design.md §4).
 - [ ] C2.3 Evidence on the PR: RED (G3), FI, V, LINT, TSC. Review: reviewer and test-reviewer.
 
 ## D. Digest hygiene test (risk medium: it can block other changes; after B, C1 and C2)
 Owns `frontend/src/test/digestHygiene.test.ts` (new).
 
-- [x] D.1 Tests: the scanned set, the application sources (digest literal, UUID and helper), the pending list
-  (sorted, no duplicates, existing files, no allowed path), and the detector controls (caught, not caught, whole
-  words).
-- [x] D.2 Source: the allowed set, the three detectors and `PENDING_CLEANUP` with the 40 paths of design.md §5.5.
-- [ ] D.3 Add the missing `[impl->req~digest-hygiene~1]` tag in a code task, or have the coordinator decide that
-  the requirement needs `utest` only (design.md §6).
+- [x] D.1 Tests: the scanned set and the stylesheets with content, the pinned `EXEMPT_FILES`, the application
+  sources (digest literal, UUID and helper), the pending list (sorted, no duplicates, existing files, no allowed
+  path), the scan-pipeline self-test, and the detector controls (caught, not caught, whole words). No test asserts
+  that the pending list shrinks.
+- [x] D.2 Source: the allowed set, `EXEMPT_FILES` (39 paths, design.md §5.2), the three detectors and
+  `PENDING_CLEANUP` with the 40 paths of design.md §5.5.
+- [x] D.3 The `[impl->req~digest-hygiene~1]` tag, next to `[utest->req~digest-hygiene~1]` in the test file header
+  (design.md §6).
 - [ ] D.4 Evidence on the PR: FI, VALL (G5), LINT, TSC, G1.
 
 ## Review panel
@@ -113,20 +126,31 @@ Owns `frontend/src/test/digestHygiene.test.ts` (new).
 - [ ] After `m21-rendering-catalogue` is archived, archive this change in an explicit archive task:
   `["openspec", "archive", "m27-names-not-digests", "--yes"]`, then `["openspec", "validate", "--all", "--strict"]`.
 
-## Follow-up: the second M2.7 change (after M2.6 merges)
-`pages/**` is untouched by this change. The second change:
-- [ ] F.1 Moves the 40 pending files onto identity labels, `CitationPanel` and `VerifyResult`, and removes their
-  digest text, emptying `PENDING_CLEANUP`. This includes wiring the Verify page (M2.6's) to `VerifyResult` and the
-  problem, collection and published-result pages to `CitationPanel`.
-- [ ] F.2 MODIFIES `frontend-catalog-pricing`'s engine-card requirement ("exact identity (namespace, name, version,
-  digest)") to the engine label.
-- [ ] F.3 Decides `shortDigest`/`digestPrefix` and `utils/citation.ts` (design.md §8 question 2).
-- [ ] F.4 Adds permanent links by permanent id or slug, or a refusal of digest-bearing links in `CitationPanel`
-  (design.md §8 question 1).
-- [ ] F.5 Decides the drafted, unbuilt behaviour of design.md §8 item 5 (Download buttons, digest `note`,
-  identifier guards in the components, "fingerprint" vs "digest", comment skipping and a ceiling in the hygiene
-  test), each as a `~2` revision when taken.
-- [ ] F.6 ui-qa screenshots (G12) of every screen that changed, desktop and mobile.
+## F. Follow-ups for the second change (after M2.6)
+`pages/**` and the gateway are untouched by this change. The second M2.7 change, after M2.6 merges, owns these. A
+behaviour change to a requirement of this change is a `~2` revision, with its code and test tags re-tagged.
+- [ ] F.1 Guard identifier-shaped entity names in `VerifyResult` (an entity name that is or contains a digest, a hex
+  run or a UUID, or a short id, reads as missing), and remove the gateway verifier's `Snapshot <id[:8]>` fallback
+  for an unnamed snapshot (`openbinding-gateway/src/openbinding_gateway/routes/verifier.py`, line 253; design.md §7).
+  The gateway part is an API-visible text change, through a gateway task.
+- [ ] F.2 Pending-list ceiling and stale check in `digestHygiene.test.ts`: a `MAX_PENDING_FILES` (or exact-list)
+  assertion so the list cannot grow, and a check that every listed file still offends, so a cleaned file must
+  leave the list (design.md §5.4).
+- [ ] F.3 Touch-target check with Playwright: every copy button of `CitationPanel` and `VerifyResult` has a hit
+  area of at least 44×44 px, at 1440×900 and 390×844, on the mounted screens.
+- [ ] F.4 Owner reading of constitution 15.5 ("one copyable value") for two different digests side by side in
+  `VerifyResult` (design.md §8, question 5); a `~2` revision of `req~verify-result` if the owner reads it otherwise.
+- [ ] F.5 Page clean-up and wiring: move the 40 pending files onto identity labels, `CitationPanel` and
+  `VerifyResult` and remove their digest text, emptying `PENDING_CLEANUP`; wire the Verify page (M2.6's) to
+  `VerifyResult` and the problem, collection and published-result pages to `CitationPanel`. With it:
+  - MODIFY `frontend-catalog-pricing`'s engine-card requirement ("exact identity (namespace, name, version,
+    digest)") to the engine label;
+  - decide `shortDigest`/`digestPrefix` and `utils/citation.ts` (design.md §8, question 2);
+  - add permanent links by permanent id or slug, or a refusal of digest-bearing links in `CitationPanel`
+    (design.md §8, question 1);
+  - decide the other drafted, unbuilt behaviour of design.md §8 item 7 and "fingerprint" versus "digest"
+    (question 4);
+  - ui-qa screenshots (G12) of every screen that changed, desktop and mobile.
 - Outside both changes:
   - constitution 15.5's "Enforced: GAP" line names `frontend/src/hygiene.test.ts`. The owner updates it to the
     hygiene tests;

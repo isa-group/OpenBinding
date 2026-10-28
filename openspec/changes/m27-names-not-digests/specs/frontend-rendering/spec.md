@@ -34,6 +34,18 @@ Rules: design.md §2.
 - **WHEN** each is called
 - **THEN** both return `p v1 · sealed 20 Aug 2026`
 
+#### Scenario: Dates do not depend on the local time zone
+- **GIVEN** the process time zone set to `Pacific/Kiritimati` (offset −840 minutes), then to `America/Los_Angeles` (offset 420 minutes in August), and `problemVersionLabel({ name: 'p', version: 1, sealedAt })`
+- **WHEN** it is called with `sealedAt` `'2026-08-20T09:30:00Z'`, `'2026-08-20T23:30:00'`, `'2026-08-20T23:30'`, `'2026-08-20T23:30:00.123'`, `'2026-08-20T00:00:00'` and `'2026-08-20'`
+- **THEN** each returns `p v1 · sealed 20 Aug 2026` in both zones
+- **AND** `'2026-12-31T23:59:59Z'` returns `p v1 · sealed 31 Dec 2026`, `'2026-09-01T23:30:00-02:00'` returns `p v1 · sealed 2 Sep 2026`, `'2026-09-30T23:30:00-02:00'` returns `p v1 · sealed 1 Oct 2026` and `'2026-08-20T01:00:00+05:00'` returns `p v1 · sealed 19 Aug 2026`, in both zones
+
+#### Scenario: A space-separated date-time without an offset is read as UTC
+- **GIVEN** the process time zone set to `Pacific/Kiritimati`, then to `America/Los_Angeles`, and `problemVersionLabel({ name: 'p', version: 1, sealedAt })`
+- **WHEN** it is called with `sealedAt` `'2026-08-20 23:30:00'`, `'2026-08-20 23:30'`, `'2026-08-20 00:00:00.5'` and `'2026-08-20 23:30:00Z'`
+- **THEN** each returns `p v1 · sealed 20 Aug 2026` in both zones
+- **AND** `'2026-08-20 23:30:00-02:00'`, which carries an offset, returns `p v1 · sealed 21 Aug 2026` in both zones
+
 #### Scenario: Missing parts of a problem version
 - **GIVEN** `problemVersionLabel` with the problem version input above changed, in turn, to: no `sealedAt`; `version: null`; `name: '  '`; `version: 0`; `{}`; and `{ sealedAt: '2026-08-20T09:30:00Z' }`
 - **WHEN** each is called
@@ -96,10 +108,16 @@ Props, formats and the fixtures `DIGEST` and `BASE`: design.md §3.
 - **THEN** a region named `Cite and link` is shown
 - **AND** there is no button named `Copy digest`
 
-#### Scenario: A copy is announced
+#### Scenario: Each copy is announced by what was copied
 - **GIVEN** `<CitationPanel {...BASE} />` and a clipboard that accepts writes
-- **WHEN** `Copy BibTeX` is pressed
-- **THEN** an element with role `status` reads `Citation copied`
+- **WHEN** `Copy BibTeX`, `Copy CSL-JSON` and `Copy citation` are pressed in turn
+- **THEN** after each press an element with role `status` reads, in turn, `BibTeX copied`, `CSL-JSON copied` and `Citation text copied`
+
+#### Scenario: Only the latest copy outcome is announced
+- **GIVEN** `<CitationPanel {...BASE} />`, `Copy BibTeX` pressed and `BibTeX copied` announced
+- **WHEN** the clipboard refuses the next write and `Copy citation` is pressed
+- **THEN** an element with role `status` reads `Could not copy the citation text`
+- **AND** the text `BibTeX copied` is no longer in the document
 
 #### Scenario: No digest in any citation format
 - **GIVEN** `buildPanelCitation(BASE)`
@@ -129,27 +147,54 @@ Props, formats and the fixtures `DIGEST` and `BASE`: design.md §3.
 - **WHEN** it is read
 - **THEN** it contains no hexadecimal colour (`#` followed by 3 to 8 hexadecimal characters)
 
-### Requirement: Verify result with one value per side
+### Requirement: Verify result with each fingerprint shown once
 `req~verify-result~1`
-The `VerifyResult` component SHALL show the verifier's verdict as text in a region named `Verdict`, and the two fingerprints being compared as two labelled sides, each holding either one copyable value or the words `nothing recorded`.
+The `VerifyResult` component SHALL show the verifier's verdict as text in a status element named `Verdict`, and each distinct fingerprint being compared exactly once, as a copyable value in a labelled side.
 
 Needs: impl, utest
 
-Props, wording and the fixtures `D1`, `D2`, `ID` and `entity`: design.md §4.
+Props, sides, wording and the fixtures `D1`, `D2`, `ID` and `entity`: design.md §4.
 
 #### Scenario: The four verdicts
 - **GIVEN** `<VerifyResult verdict={{ status, digest: D1, detail: 'because' }} />` for each `status` of `verified`, `computed`, `mismatch` and `not_found`
 - **WHEN** it is rendered
-- **THEN** the region named `Verdict` holds that status's title and text from design.md §4.2 (`Verified`, `Computed, not on record`, `Doesn’t match`, `Nothing found`)
+- **THEN** the element with role `status` named `Verdict` holds that status's title and text from design.md §4.2 (`Verified`, `Computed, not on record`, `Doesn’t match`, `Nothing found`)
 - **AND** it holds the detail `because`
 
-#### Scenario: A verified fingerprint that was given
+#### Scenario: A verified fingerprint that was given is shown once
 - **GIVEN** `<VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity()] }} given={D1} />` and a clipboard that accepts writes
 - **WHEN** it is rendered
-- **THEN** the sides are labelled `Fingerprint you gave` and `Recorded by OpenBinding`
-- **AND** `D1` is shown exactly twice, once per side
-- **AND** exactly two buttons have a name starting `Copy `
-- **AND** pressing `Copy recorded by openbinding` writes `D1` to the clipboard
+- **THEN** the side `Fingerprint you gave` reads `Matches the recorded fingerprint`
+- **AND** the side `Recorded by OpenBinding` shows `D1`
+- **AND** the rendered text contains `D1` exactly once
+- **AND** exactly one button has a name starting `Copy `, and pressing `Copy recorded fingerprint` writes `D1` to the clipboard
+
+#### Scenario: Nothing given or computed
+- **GIVEN** `<VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity()] }} />`
+- **WHEN** it is rendered
+- **THEN** there is no side `Fingerprint you gave` and no side `Computed in your browser`
+- **AND** the rendered text contains `D1` exactly once
+- **AND** exactly one button has a name starting `Copy `
+
+#### Scenario: A matching computed fingerprint is shown once
+- **GIVEN** `<VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity()] }} computed={D1} />`
+- **WHEN** it is rendered
+- **THEN** the side `Computed in your browser` reads `Matches the recorded fingerprint`
+- **AND** the rendered text contains `D1` exactly once
+- **AND** the side `Recorded by OpenBinding` has the button `Copy recorded fingerprint`
+
+#### Scenario: A given fingerprint equal to the expected one is shown once
+- **GIVEN** `<VerifyResult verdict={{ status: 'mismatch', digest: D1 }} given={D1} />`
+- **WHEN** it is rendered
+- **THEN** the side `Fingerprint you gave` reads `Matches the expected fingerprint`
+- **AND** the rendered text contains `D1` exactly once
+- **AND** exactly one button has a name starting `Copy `
+
+#### Scenario: Two different fingerprints, one copy button each
+- **GIVEN** `<VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity()] }} given={D2} />`
+- **WHEN** it is rendered
+- **THEN** the side `Fingerprint you gave` shows `D2` and the side `Recorded by OpenBinding` shows `D1`
+- **AND** exactly two buttons have a name starting `Copy `: `Copy fingerprint you gave` and `Copy recorded fingerprint`
 
 #### Scenario: A mismatch computed in the browser
 - **GIVEN** `<VerifyResult verdict={{ status: 'mismatch', digest: D2 }} computed={D1} />`
@@ -197,19 +242,41 @@ Props, wording and the fixtures `D1`, `D2`, `ID` and `entity`: design.md §4.
 - **WHEN** it is read
 - **THEN** it contains no hexadecimal colour (`#` followed by 3 to 8 hexadecimal characters)
 
+#### Scenario: Long match names wrap
+- **GIVEN** `frontend/src/components/VerifyResult/VerifyResult.css`
+- **WHEN** it is read
+- **THEN** its rule for `.verify-result__matches li > *` sets `overflow-wrap: anywhere` and `min-width: 0`
+
 ### Requirement: Digest and UUID hygiene with a pending clean-up list
 `req~digest-hygiene~1`
-IF a shipped frontend source that is neither in the allowed set nor on the pending clean-up list has a line with a digest-shaped literal, a UUID or the name `shortDigest` or `digestPrefix`, or the pending list is unsorted, holds a duplicate, names a missing file or names an allowed path, THEN the frontend test suite SHALL fail.
+IF a shipped frontend source that is neither in the allowed set nor on the pending clean-up list has a line with a digest-shaped literal, a UUID or the name `shortDigest` or `digestPrefix`, or the files the allowed set exempts differ from the pinned exempt list, or the pending list is unsorted, holds a duplicate, names a missing file or names an allowed path, THEN the frontend test suite SHALL fail.
 
 Needs: impl, utest
 
-Scanned set, allowed set, detectors and the pending list: design.md §5.
+Scanned set, allowed set, exempt list, detectors and the pending list: design.md §5.
 
 #### Scenario: The sources are read
 - **GIVEN** the `.ts`, `.tsx` and `.css` files under `frontend/src`, without tests, `src/test/setup.ts` and test kits
 - **WHEN** the hygiene test collects them
 - **THEN** it reads more than 100 shipped files
 - **AND** more than 50 of them are outside the allowed set and the pending list
+
+#### Scenario: The stylesheets are read with their content
+- **GIVEN** the `.css` files under `frontend/src`, read from disk
+- **WHEN** the hygiene test collects them
+- **THEN** at least one stylesheet is read
+- **AND** `/src/components/CitationPanel/CitationPanel.css` has non-empty content
+
+#### Scenario: The allowed set exempts exactly the pinned files
+- **GIVEN** `EXEMPT_FILES` of `frontend/src/test/digestHygiene.test.ts`: the 39 paths of design.md §5.2
+- **WHEN** the hygiene test applies the allowed set to the shipped files
+- **THEN** the sorted exempted paths equal the sorted `EXEMPT_FILES`
+
+#### Scenario: A finding names its file and line
+- **GIVEN** the entry `/src/x/Foo.ts` with the text `const a = 1;` on line 1 and `  const b = shortDigest(x);  ` on line 2
+- **WHEN** the scan pipeline reads it with the helper detector, then with the digest-literal detector
+- **THEN** the helper detector reports exactly `/src/x/Foo.ts:2  const b = shortDigest(x);`
+- **AND** the digest-literal detector reports nothing
 
 #### Scenario: The application sources pass
 - **GIVEN** the shipped sources outside the allowed set and the pending list
@@ -234,10 +301,10 @@ Scanned set, allowed set, detectors and the pending list: design.md §5.
 - **THEN** it flags the first two
 - **AND** it does not flag the third
 
-#### Scenario: The pending list only shrinks
+#### Scenario: The pending list is well formed
 - **GIVEN** `PENDING_CLEANUP` of `frontend/src/test/digestHygiene.test.ts` as this change leaves it: the 40 paths of design.md §5.5
 - **WHEN** the hygiene test reads it
 - **THEN** it is sorted and has no duplicates
 - **AND** every entry names a file of the scanned glob
 - **AND** no entry is in the allowed set
-- **AND** a listed file that no longer offends does not fail the suite: the rule that entries are only removed, never added, is kept by review, because the test has no ceiling assertion (design.md §5.4)
+- **AND** a listed file that no longer offends does not fail the suite
