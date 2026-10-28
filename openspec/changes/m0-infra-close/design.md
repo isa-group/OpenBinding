@@ -162,8 +162,8 @@ F5 removes stale documentation and the README pointer is documentation, so neith
   `rewrite`, and the `/api` `map` on `$request_uri`. It comes after the S1 code, so the cases that break each rule on
   an in-memory copy are its evidence that it detects the defect.
 - The static test checks the configuration only. The scenarios that need a running nginx (a recreated gateway, the
-  request targets that reach the gateway, the 400 and the 502) are verified by the lab procedure of §3, and the MRP
-  records its output.
+  request targets that reach the gateway, the 400 and the 502) are covered by the pre-deployment check of the runbook
+  (§3), which the operator runs and whose output goes into the deployment notes. The factory did not run it.
 
 ### D6. The CI job (S3, planned, not built)
 
@@ -220,14 +220,15 @@ files that do not exist yet. They are marked as planned in the spec and in tasks
 
 Workers have no Docker. Only static checks run in a worker's `qa_run`.
 
-| Item | Worker (static, `qa_run`) | Lab (coordinator, with Docker) |
+| Item | Worker (static, `qa_run`) | Pre-deployment check of the runbook (operator, with Docker) |
 |---|---|---|
-| F9 nginx (`req~lab-deployment-production-proxy-upstream~1`) | `test_production_nginx.py` (tagged `[utest->…]`); `test_compose_production.py`, with its runbook assertions changed as tasks.md S1b lists | the procedure below |
+| F9 nginx (`req~lab-deployment-production-proxy-upstream~1`) | `test_production_nginx.py` (tagged `[utest->…]`); `test_compose_production.py`, with its runbook assertions changed as tasks.md S1b lists | steps 1 to 7 with a stand-in gateway; step 8, after the first deployment, with the real gateway (below) |
 | F5 SERVICE.md | `git diff --check`; `git grep -n -i kubernetes -- bim-toolchain/docs/SERVICE.md` prints nothing | none |
 | README pointer | `git diff --check` | none |
 | S3 CI job | `test_ci_compose_config.py` | the CI run of the pull request |
 
-F9 in the lab, run by the coordinator on a head with S1 and S1b:
+The F9 procedure, as the operator runs it in the pre-deployment check of the runbook (steps 1 to 7 with a stand-in
+gateway, then step 8 with the real gateway):
 
 1. Build the image: `docker build -t m0ic-nginx nginx/production`.
 2. `docker run --rm m0ic-nginx nginx -t` passes, with a self-signed certificate mounted at `/etc/nginx/ssl`.
@@ -237,36 +238,41 @@ F9 in the lab, run by the coordinator on a head with S1 and S1b:
    The stand-in logs `GET /v1/x%2Fy?a=1`.
 5. `curl` of `/%61pi/x` answers 400, and `curl` of `/api/v1/jobs?limit=5` reaches the stand-in as
    `GET /v1/jobs?limit=5`. `curl --path-as-is` of `/api//v1/jobs` and of `/api/v1/x/../jobs` reaches the stand-in as
-   `//v1/jobs` and `/v1/x/../jobs`, and the MRP records the gateway's answer to both (R2).
-6. Replace the stand-in with a new container with the same alias and a different address, then wait 11 s. The next
-   `curl` of `/api/health` reaches the new stand-in, not a 502, without restarting nginx.
+   `//v1/jobs` and `/v1/x/../jobs`. The runbook step 8 records the real gateway's answer to both (R2).
+6. Replace the stand-in with a new container with the same alias and a different address (the runbook reads both
+   addresses with `docker inspect`, the first before it removes the first container), then wait 11 s. The next
+   `curl` of `/api/health` reaches the new stand-in as `GET /health` (the map strips only `/api`), not a 502,
+   without restarting nginx.
 7. Stop the stand-in, so that no container has the alias `gateway`, and wait 11 s. `curl -sk -o /dev/null
    -w '%{http_code} %{time_total}'` of `/api/health` answers 502 within about 5 s (`resolver_timeout 5s`; the
    requirement's bound is 6 s), and never 200 or another body.
    If a host is available whose DNS can answer the bare name `gateway` (a search domain or a local record), run this
-   step there too, because Docker's embedded DNS forwards names it does not know to the host's resolvers. The MRP
-   records the status and the time.
+   step there too, because Docker's embedded DNS forwards names it does not know to the host's resolvers. The
+   operator records the status and the time in the deployment notes.
+8. Runbook step 8, after the first deployment of the release, with the real gateway: the two
+   `/api/v1/examples/...` requests of R2 (§4) through the public origin and directly to `gateway:8000` from a
+   container on the Compose network, with the same status and body; `curl --path-as-is` of `/api//v1/jobs` and
+   `/api/v1/x/../jobs` through the origin, whose answers go into the deployment notes; and a restart of only the
+   gateway container, after which `/api/health/ready` answers 200 through nginx within 10 s and the start time of
+   nginx does not change.
 
 The alias is a contingency, not part of the procedure. Apply it only if step 7 shows a fall-through to another host:
 a network alias under a reserved suffix, for example `gateway.openbinding.invalid` on the gateway service, used in
 `set $gateway_upstream`, so that no outside resolver can answer it.
 
-Evidence limitation: the lab cannot run this procedure, because it brings up only tracked Compose files. F9 is therefore
-verified by the static tests and the review panel only, not in a real nginx. The procedure is the pre-deployment check
-of `docs/runbooks/production.md` (section "Nginx check before the first deployment of this configuration"), which the
-operator runs at the R1 production deployment. This is an evidence limitation, not a waived gate.
-
-Then the `prod` profile of `docker-compose.yml`: `docker compose --profile prod up -d`, then
-`docker compose up -d --force-recreate --no-deps gateway`. Within 10 s of the gateway becoming healthy,
-`/api/health/ready` answers 200 through nginx, and nginx was not restarted. The two `/api/v1/examples/...` requests
-of R2 (§4) answer through nginx with the same status and body as the same requests made to `gateway:8000` from a
-container on the same network.
+Evidence limitation: the factory cannot run this procedure, because its lab brings up only tracked Compose files. None
+of it was run in a real nginx by the factory: F9 is verified by the static tests and the review panel only. The
+procedure is the pre-deployment check of `docs/runbooks/production.md` (section "Nginx check before the first
+deployment of this configuration"). Steps 1 to 7 (stand-in gateway) are run before the first deployment of this
+configuration; step 8 (the real gateway: the R2 settling step and the restart of the gateway container) after it.
+This is an evidence limitation, not a waived gate. The `prod` profile of `docker-compose.yml` is not covered by
+either; it uses the same `nginx.conf`.
 
 ## 4. Risks
 
 - R1. A typo in `resolver` or a missing `resolver` makes every `/api/` request fail with 502 ("no resolver defined").
-  Mitigation: the static test checks the line, the lab procedure step 4 runs before merge, and the nginx health check
-  (`nginx -t`) catches syntax errors.
+  Mitigation: the static test checks the line, step 4 of the pre-deployment check of the runbook shows the request
+  reaching the stand-in, and the nginx health check (`nginx -t`) catches syntax errors.
 - R2. D2 changes the URI that the gateway receives for `/api/` paths. It is now the URI the client sent. A client
   that calls `gateway-dev:8000` directly in development gets the same; `nginx/local/nginx.conf` (and
   `frontend/nginx.lab.conf`) still normalise the URI (R6).
@@ -279,9 +285,12 @@ container on the same network.
   - The examples route guards path traversal itself (`resolve()` and `relative_to` in
     `services/discovery.py:193-195`), so this changes behaviour but opens no path out of `examples/`.
 
-  Mitigation and settling step: the lab procedure (§3) requests `/api/v1/examples/<a file of examples/>` and
-  `/api/v1/examples/<directory>%2F<file>` and compares the answers with the same requests made directly to the
-  gateway, and the MRP records the gateway's answers to `//v1/jobs` and `/v1/x/../jobs` (step 5).
+  Mitigation and settling step: step 8 of the pre-deployment check of the runbook (§3), run after the first deployment
+  of the release against the real gateway, requests `/api/v1/examples/<a file of examples/>` and
+  `/api/v1/examples/<directory>%2F<file>` through the origin and compares the answers with the same requests made
+  directly to the gateway, and records the gateway's answers to `//v1/jobs` and `/v1/x/../jobs` in the deployment
+  notes. Steps 1 to 7 use a stand-in gateway and show only the request lines. None of it was run in a real nginx by the
+  factory.
 - R3. Up to 10 s of 502 after the gateway changes address, the cache bound of `valid=10s`. Today it lasts until
   someone restarts nginx.
 - R4. `bim-toolchain/` is being extracted. If the extraction copies an older `SERVICE.md`, the Kubernetes notes come
@@ -291,8 +300,9 @@ container on the same network.
 - R6. Production now differs from `frontend/nginx.lab.conf` and `nginx/local/nginx.conf`. Those two still resolve
   the gateway once, when nginx starts, and still pass the normalised `/api/` URI through the prefix-replacing
   `proxy_pass http://gateway:8000/` (lab) and `proxy_pass http://gateway-dev:8000/` (local). So a green lab preview
-  does not show how production handles encoded or dot-segment paths, nor a recreated gateway. Mitigation: the lab
-  procedure of §3 runs the production image itself. Follow-up (tasks.md): the D1 and D2 behaviour for both configs.
+  does not show how production handles encoded or dot-segment paths, nor a recreated gateway. Mitigation: the
+  pre-deployment check of the runbook (§3) runs the production image itself (steps 1 to 7 with a stand-in gateway,
+  step 8 with the real one, after the first deployment); the factory did not run it. Follow-up (tasks.md): the D1 and D2 behaviour for both configs.
 
 ## 5. Rollback
 
@@ -308,7 +318,7 @@ in `images.env`, as `docs/runbooks/production.md` describes for any release.
   choice is settled (D6): it would be one more file of the same loop, rendered with `--profile "*"`. If the answer
   comes before the archive, the requirement text changes in place (it is not in the living spec yet); after it, a
   revision `~2`.
-- Q2. After the lab F9 procedure (§3) passes, should a revision `req~lab-deployment-production-health-restart~2`
+- Q2. After the pre-deployment check of the runbook (§3) passes, should a revision `req~lab-deployment-production-health-restart~2`
   drop `restart: true` for `nginx` on `gateway`? With request-time resolution it no longer fixes a stale address,
   and each recreation of the gateway by Compose restarts the whole public origin and interrupts the running
   synchronous solves. Owner or coordinator, in a later change (tasks.md follow-ups).

@@ -8,12 +8,13 @@ that share a file run in order: S1b before S2 and S3 (`docs/runbooks/production.
 - S0, S1 and S1b are built (owner decision "Full": F5 and F9 close completely in this change). The R1 fix round of
   the review panel on head 2b89ef9f (section R1 below) is delivered and integrated (head f628c612). CI ran
   `test_production_nginx.py` and `test_compose_production.py` green in the gateway-unit shards, and the openspec and
-  trace jobs are green. What stays open has no evidence yet: the ruff check, the lab run 1b.7, S3 and the owner
+  trace jobs are green. What stays open has no evidence yet: the ruff check, the pre-deployment check 1b.7, S3 and the owner
   questions. S2, S3 and S4 are `blocked on <decision>`: they stay unchecked and nobody builds them until the
   decision is recorded.
 - Tests are written first, and they run red on the slice's base by assertion (G3), except negative controls, which are
   named, and `test_production_nginx.py`, which follows the S1 code (S1b, item 1b.1).
-- Workers have no Docker. Every render and every container check is done in the lab by the coordinator (design.md §3).
+- Workers have no Docker. The container checks of F9 are the pre-deployment check of the runbook (design.md §3); the
+  factory did not run them. The Compose renders of S3 run in CI.
 
 Checks to register. The argv is listed; `cwd` is the repository root.
 1. G1: `["openspec","validate","m0-infra-close","--strict"]`.
@@ -79,13 +80,18 @@ No other file changes.
   `F9`, `R2-REV-002` and `resolver`.
 - [ ] 1b.6 Checks 3, 4 and 2. Review panel: reviewer and security-auditor (the public proxy changes).
   - [x] Check 3: CI on head f628c612 ran both test files green in the gateway-unit shards.
-  - [ ] Check 4 (ruff) has no evidence yet. Check 2 and the panel round 2 are open.
-- [ ] 1b.7 Not run in the lab (it brings up only tracked Compose files). Delegated to the operator as the pre-deployment
-  check "Nginx check before the first deployment of this configuration" of `docs/runbooks/production.md`, at the R1
-  production deployment: the F9 procedure of design.md §3, whose results the operator records in the deployment notes
-  (request lines, the 400, the request after the gateway was replaced, the 502 with its time when no `gateway`
-  exists). Evidence limitation, not a waived gate: until then F9 is verified by the static tests and the review panel
-  only. Stays unchecked until the operator's result is known.
+  - [ ] Check 4 (ruff) has no evidence yet. Check 2 is open. The panel round 2 approved head f628c612; round 3 (docs
+    delta) is in progress.
+- [ ] 1b.7 Not run by the factory (its lab brings up only tracked Compose files). Delegated to the operator as the
+  pre-deployment check "Nginx check before the first deployment of this configuration" of
+  `docs/runbooks/production.md`: the F9 procedure of design.md §3. Steps 1 to 7 use a stand-in gateway and run before
+  the first deployment of this configuration (request lines, the 400, the request after the stand-in was replaced as
+  `GET /health`, the 502 with its time when no `gateway` exists). Step 8 uses the real gateway and runs after the first
+  deployment of the release (the two example requests through nginx and direct, the answers to `//v1/jobs` and
+  `/v1/x/../jobs`, the restart of the gateway container without a restart of nginx). The operator records the results
+  in the deployment notes. None of it was run in a real nginx by the factory. Evidence limitation, not a waived gate:
+  until then F9 is verified by the static tests and the review panel only. Stays unchecked until the operator's result
+  is known.
 
 ## R1. Fix round 1 of the review panel (head 2b89ef9f)
 
@@ -105,10 +111,11 @@ Owned: this change's documents (R1.1), and, in a parallel task, `nginx/productio
   gateway and nginx logs before `$DC restart nginx` (R1-SEC-003) and says that a changed `nginx.conf` needs a new
   `NGINX_IMAGE` and `$DC up -d` (R1-REV-002); the `compose.yaml` comment and the m09 tasks lines to match. Checks 3,
   4 and 2.
-- [ ] R1.4 Regenerate `frontend/src/content/changelog.generated.json` with `python3 tools/generate_changelog.py`. The
-  file is outside this change's files: the coordinator regenerates it after the change optimistic-concurrency merges.
 - [ ] R1.3 Check 1 (G1), once registered, on the head with R1.1 and R1.2. The trace (G6) shows both tags of the new
   requirement.
+- [ ] R1.4 Regenerate `frontend/src/content/changelog.generated.json` with `python3 tools/generate_changelog.py`. The
+  file is outside this change's files: the coordinator regenerates it after the change `optimistic-concurrency` has
+  merged.
 
 ## S2. `prod` profile (F4) and non-root engines (F7): blocked on CRP-M09-2
 
@@ -180,9 +187,9 @@ Owned (planned): `docs/previews/README.md`, `docs/DEMO.md` (a "PR previews" sect
 - The D1 and D2 behaviour for both configs, `frontend/nginx.lab.conf` and `nginx/local/nginx.conf`. They still
   resolve the gateway once and pass the normalised `/api/` URI through a prefix-replacing `proxy_pass`, so a lab
   preview does not show the production behaviour (design.md §4, R6).
-- After the lab F9 procedure (1b.7) passes, decide whether a revision
+- After the pre-deployment check (1b.7) passes, decide whether a revision
   `req~lab-deployment-production-health-restart~2` drops `restart: true` for `nginx` on `gateway`: each recreation
   of the gateway restarts the whole public origin (design.md §6, Q2).
-- If step 7 of the lab procedure ever reaches another host, a network alias under a reserved suffix (for example
+- If step 7 of the pre-deployment check ever reaches another host, a network alias under a reserved suffix (for example
   `gateway.openbinding.invalid`) used in `set $gateway_upstream` (design.md §3).
 - `m09-compose-only` F2, F3, F6 and F8 stay with that change and the owner.

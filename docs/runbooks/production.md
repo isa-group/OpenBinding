@@ -353,13 +353,16 @@ Before the first deployment of a release that carries the request-time resolver 
 ### Nginx check before the first deployment of this configuration
 
 The request-time resolver of `nginx/production/nginx.conf` (it follows a new `gateway` address without a restart and
-answers `502` when no `gateway` exists) and its rewrite of the request URI were verified by static tests and by review
-only, never in a real `nginx`: the laboratory brings up only tracked Compose files and could not run this procedure.
-This is an evidence limitation, not a waived gate. Run the procedure once on a machine with Docker, with the release
-checkout, before the first deployment of this `nginx` configuration. Use the server name of `nginx.conf` for `<name>`
-and any small image with Python for `<python image>`; `<tls dir>` is an empty directory for a self-signed certificate.
+answers `502` when no `gateway` exists) and its stripping of `/api` from the raw request URI (a `map` on
+`$request_uri`) were verified by static tests and by review only, never in a real `nginx`: the laboratory brings up only
+tracked Compose files and could not run this procedure. This is an evidence limitation, not a waived gate. Run steps 1
+to 7 once on a machine with Docker, from the root of the release checkout, before the first deployment of this `nginx`
+configuration; they use a stand-in for the gateway. Step 8 needs the real gateway, so run it after the first deployment
+of the release. Use the `server_name` of the first `listen 443 ssl` server of `nginx.conf` (the one with
+`location ^~ /api/`) for `<name>`; the other server names answer `301`. Use any small image with Python for
+`<python image>`; `<tls dir>` is an empty directory for a self-signed certificate.
 
-1. Build the image from the checkout:
+1. Build the image from the root of the release checkout:
 
    ```bash
    docker build -t nginx-check nginx/production
@@ -400,13 +403,16 @@ and any small image with Python for `<python image>`; `<tls dir>` is an empty di
    docker logs gw1
    ```
 
-6. Replace the stand-in with a new container under the same alias and another address (compare the two with
-   `docker inspect`), wait 11 s, and request `/api/health`. The request line `GET /v1/health` appears in
-   `docker logs gw2` and the answer is not `502`, with no restart of `nginx`:
+6. Replace the stand-in with a new container under the same alias and another address, wait 11 s, and request
+   `/api/health`. The map strips only `/api`, so the request line `GET /health` appears in `docker logs gw2` and the
+   answer is not `502`, with no restart of `nginx`. The two addresses must differ; if they are equal, start another
+   throwaway container first and repeat the step:
 
    ```bash
+   docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gw1
    docker rm -f gw1
    docker run -d --name gw2 --network nginx-check --network-alias gateway <python image> python -m http.server 8000
+   docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gw2
    sleep 11
    curl -sk -o /dev/null -w '%{http_code}\n' --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/health"
    docker logs gw2
@@ -424,15 +430,60 @@ and any small image with Python for `<python image>`; `<tls dir>` is an empty di
 If a host exists whose DNS can answer the bare name `gateway` (a search domain or a local record), repeat step 7 there,
 because Docker's embedded DNS forwards names it does not know to the host's resolvers; the answer must still be `502`.
 
-Remove what the check created:
+8. After the first deployment of the release, when the real gateway runs, check what the stand-in could not show. Use
+   the public origin for `<origin>` and the Compose network of the stack (see `docker network ls`) for `<network>`.
+   - Request `/api/v1/examples/library/manifest.json` and `/api/v1/examples/library%2FREADME.md` through the origin,
+     and the same two paths directly to the gateway from a container on the Compose network. The `nginx` image of this
+     repository is not relied on as a client; a Python image makes the request and does not normalise the path.
+     Compare the status and the body of each pair; they must be equal:
+
+     ```bash
+     curl -sS -w '\n%{http_code}\n' "<origin>/api/v1/examples/library/manifest.json"
+     curl -sS -w '\n%{http_code}\n' "<origin>/api/v1/examples/library%2FREADME.md"
+     docker run --rm --network <network> <python image> python -c \
+       "import http.client,sys; c=http.client.HTTPConnection('gateway',8000); c.request('GET',sys.argv[1]); r=c.getresponse(); print(r.read().decode()); print(r.status)" \
+       /v1/examples/library/manifest.json
+     docker run --rm --network <network> <python image> python -c \
+       "import http.client,sys; c=http.client.HTTPConnection('gateway',8000); c.request('GET',sys.argv[1]); r=c.getresponse(); print(r.read().decode()); print(r.status)" \
+       /v1/examples/library%2FREADME.md
+     ```
+
+   - Through the origin, with `curl --path-as-is`, request `/api//v1/jobs` and `/api/v1/x/../jobs`, which reach the
+     gateway as `//v1/jobs` and `/v1/x/../jobs`. Record the status and body of both in the deployment notes; they
+     document how the real gateway answers the raw form:
+
+     ```bash
+     curl -sS --path-as-is -w '\n%{http_code}\n' "<origin>/api//v1/jobs"
+     curl -sS --path-as-is -w '\n%{http_code}\n' "<origin>/api/v1/x/../jobs"
+     ```
+
+   - Restart only the gateway container, as the daemon does in the case of the section
+     [502 after a gateway restart](#502-after-a-gateway-restart), and do not restart `nginx`. Note the start time of
+     `nginx` first and compare it afterwards; it must not change. `/api/health/ready` must answer `200` through `nginx`
+     within 10 s of the gateway becoming healthy. The Compose commands of
+     [Pull and start](#pull-and-start) recreate the gateway together with `nginx` (`restart: true`), so they do not
+     prove this and are not used here:
+
+     ```bash
+     docker inspect -f '{{.State.StartedAt}}' $(docker ps -q --filter label=com.docker.compose.service=nginx)
+     docker restart $(docker ps -q --filter label=com.docker.compose.service=gateway)
+     curl -sS -o /dev/null -w '%{http_code} %{time_total}\n' --retry 10 --retry-delay 1 --retry-all-errors "<origin>/api/health/ready"
+     docker inspect -f '{{.State.StartedAt}}' $(docker ps -q --filter label=com.docker.compose.service=nginx)
+     ```
+
+Remove what the check created. The `docker rm -f` of `gw1` and `gw2` prints `no such container` when step 6 or 7
+already removed them; that is expected:
 
 ```bash
 docker rm -f nginx-under-check gw1 gw2
 docker network rm nginx-check
+docker rmi nginx-check
+rm -r <tls dir>
 ```
 
 Record the date, the image and the result of every step in the deployment notes. A failure of any step is a stop: do
-not deploy this `nginx` image, and tell the maintainers.
+not deploy this `nginx` image (for step 8, which runs after the first deployment, roll back as in the section on
+rollback), and tell the maintainers.
 
 ### Pull and start
 
