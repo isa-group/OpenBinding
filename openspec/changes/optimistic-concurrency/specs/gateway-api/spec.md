@@ -229,7 +229,7 @@ Evidence: `openbinding-gateway/tests/test_optimistic_revision.py`; `openbinding-
 RFC 9110 §13.1.1: `If-Match` uses the strong comparison function.
 
 ### Requirement: Malformed If-Match refused
-IF a request to a covered write operation carries an `If-Match` header that is neither `*` nor a comma-separated list of entity tags, THEN THE gateway SHALL answer 400 with error code `invalid_if_match` and change nothing.
+IF a request to a covered write operation carries an `If-Match` header that is neither `*` nor a comma-separated list of entity tags, or whose value is longer than 2048 characters, THEN THE gateway SHALL answer 400 with error code `invalid_if_match` and change nothing.
 
 `req~gateway-api-optimistic-concurrency-invalid-if-match~1`
 
@@ -247,6 +247,16 @@ Needs: impl, utest
 - **WHEN** the member sends the same request with each of the `If-Match` values: an empty value, `,`, `"a", *`, `"a`, `"a" "b"` and `W/a`
 - **THEN** every answer is 400 with `code` `invalid_if_match`
 
+#### Scenario: Value over 2048 characters
+- **GIVEN** the same case and member
+- **WHEN** the member sends the same request with an `If-Match` value of 2049 characters
+- **THEN** the gateway answers 400 with `code` `invalid_if_match` and changes nothing
+
+#### Scenario: Repeated header fields
+- **GIVEN** the same case with `ETag` A
+- **WHEN** the member sends the request with two `If-Match` fields, `A` first and `"stale"` second
+- **THEN** the gateway reads the first field only and the precondition is met
+
 #### Scenario: Empty list elements accepted
 - **GIVEN** the same case with `ETag` A
 - **WHEN** the member sends the same request with `If-Match: , A,`
@@ -254,7 +264,7 @@ Needs: impl, utest
 
 Evidence: `openbinding-gateway/tests/test_optimistic_revision.py`; `openbinding-gateway/tests/test_optimistic_organizations.py`
 
-Empty list elements are ignored (RFC 9110 §5.6.1.2). A header that holds no entity tag at all (an empty value, or only commas) is refused as malformed rather than read as an empty list (design.md D3).
+Empty list elements are ignored (RFC 9110 §5.6.1.2). A header that holds no entity tag at all (an empty value, or only commas) is refused as malformed rather than read as an empty list. The route reads one `If-Match` field; of repeated fields the first wins (design.md D3).
 
 ### Requirement: Failed precondition refused
 IF the `If-Match` precondition of a request to a covered write operation is not met, THEN THE gateway SHALL answer 412 with error code `precondition_failed` in the error body of `docs/ERRORS.md` for the route's family.
@@ -432,6 +442,11 @@ Needs: impl, utest
 - **WHEN** another writer commits an edit before the ADMIN's claim runs
 - **THEN** the ADMIN's `UPDATE … WHERE id = :id AND updated_at = :read_value` matches no row
 - **AND** the gateway answers 412 with the new `ETag` and applies nothing
+
+#### Scenario: Row deleted before the claim
+- **GIVEN** project `p1` with `ETag` A and an ADMIN whose request has read the row
+- **WHEN** another writer deletes the row before the ADMIN's claim runs
+- **THEN** the gateway answers 404 with `code` `not_found`, not 412, and applies nothing
 
 Evidence: `openbinding-gateway/tests/test_optimistic_organizations.py`; `openbinding-gateway/tests/test_optimistic_studies.py`; `openbinding-gateway/tests/test_optimistic_accounts.py`; `openbinding-gateway/tests/test_optimistic_credential.py`
 

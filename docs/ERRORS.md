@@ -147,7 +147,7 @@ winning.
 | `code` | Status | Meaning |
 |---|---|---|
 | `precondition_failed` | 412 | `If-Match` did not match the resource's current `ETag`: somebody changed it since you read it, or (for `*` or a tag) it has no current state yet, such as an engine credential never set. The response carries the **current** `ETag` header (none when the resource has no current state). **Nothing in the request was applied**: no field, no audit event, no side effect (no sponsorship transfer, no registration reset). Re-read the resource, merge, and retry with the new tag |
-| `invalid_if_match` | 400 | `If-Match` is present but is neither `*` nor a comma-separated list of quoted entity tags (`"abc"`, `W/"abc"`). Examples: an unquoted value, `*` mixed with tags, a missing comma, an empty value. Nothing was applied |
+| `invalid_if_match` | 400 | `If-Match` is present but is neither `*` nor a comma-separated list of quoted entity tags (`"abc"`, `W/"abc"`), or it is longer than 2048 characters. Examples: an unquoted value, `*` mixed with tags, a missing comma, an empty value. Nothing was applied. Of repeated `If-Match` header fields only the first is read |
 
 Weak tags (`W/"…"`) are well-formed but never match, because `If-Match` uses strong comparison (RFC 9110 §13.1.1).
 `*` matches whenever the resource exists. Authentication (`401`), not-found (`404`) and permission (`403`) refusals

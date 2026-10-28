@@ -54,9 +54,11 @@ that denote the same instant give the same tag (`normalise`). Considered and rej
 Optional whitespace around commas is allowed, and empty list elements are ignored (§5.6.1.2). Refused with 400: `*`
 mixed with tags, an unquoted or unterminated tag, two tags without a comma, a `DQUOTE` or control character inside a
 tag, and a header with no tag at all (an empty value, or only commas). The last case is a choice: the grammar would
-read it as an empty list that never matches, but such a value is a client bug, and 400 says so earlier than 412. When
-FastAPI joins repeated `If-Match` fields, they are parsed as one comma-joined list, which is the RFC's combination
-rule.
+read it as an empty list that never matches, but such a value is a client bug, and 400 says so earlier than 412. A value
+longer than 2048 characters is refused with `400 invalid_if_match` before parsing (a fix task adds that cap in code; it
+bounds the work per request). Repeated `If-Match` header fields: the route declares one `Header` parameter, so it reads
+one field and the first wins; the others are ignored. The RFC's rule of combining repeated fields into one
+comma-joined list is not applied.
 
 **D4. Atomic claim: a guarded `UPDATE`.**
 
@@ -66,14 +68,15 @@ UPDATE <table> SET updated_at = :new WHERE id = :id AND updated_at = :expected
 
 `guard` runs this in the request's transaction, after the precondition is evaluated in memory against the row the
 handler loaded, and before any field is written. `rowcount == 0` means somebody else committed first (or the row
-vanished). `guard` re-reads `updated_at` and raises the 412 with that tag, and the request transaction is rolled back,
+vanished). `guard` re-reads `updated_at` and raises the 412 with that tag (or the 404 below when the row is gone), and the request transaction is rolled back,
 so nothing is changed. After a successful claim the handler applies its fields as today. The tag returned is the one
 read back after the final flush, so the 200 `ETag` always equals what the next `GET` returns.
 
 - When `If-Match` is present, the guard always bumps `updated_at` to `max(now, previous + 1 µs)`, so a guarded 200
   always carries a new `ETag`, even for a request that changes no field
   (`req~gateway-api-optimistic-concurrency-revision-bump~1`). The floor holds even if two writes fall in the same
-  microsecond or the clock steps back.
+  microsecond or the clock steps back. The floor is kept through the final flush: a fix task makes the claimed
+  instant survive the row's `onupdate`, so the stored value is the one the claim wrote.
 - `If-Match: *` still claims and bumps, but its `UPDATE` carries no `updated_at` predicate (`WHERE id = :id` only): `*`
   accepts any revision, so only a vanished row fails the claim. A concurrent bump between the read and the claim does
   not make a `*` request fail.
@@ -82,6 +85,14 @@ read back after the final flush, so the 200 `ETag` always equals what the next `
   route already uses `FOR UPDATE` (`routes/organizations.py:1019-1023`), and this change leaves that alone.
 - Equality on `updated_at`: the comparison uses the value as loaded from the row, never a value re-parsed from the
   tag. That way the database's own representation, including SQLite's text form, is compared with itself.
+- **Known limitation (SQLite only)**: the SQLite claim compares the loaded value as SQLAlchemy formats it
+  (fractional seconds included). A row whose `updated_at` came from `server_default CURRENT_TIMESTAMP` or from raw SQL,
+  without fractional seconds, may therefore not match, and a guarded write to it answers 412 until a write through the
+  ORM rewrites the value. PostgreSQL compares typed timestamps and is unaffected. Accepted: the suite and
+  development use SQLite, production uses PostgreSQL.
+- **Row deleted between the load and the claim**: `rowcount == 0` and the re-read finds no row. `guard` answers
+  `404 not_found` (the resource is gone, there is no current tag to send), not 412
+  (`req~gateway-api-optimistic-concurrency-atomic~1`, scenario "Row deleted before the claim").
 
 Without `If-Match` nothing is claimed (`req~gateway-api-optimistic-concurrency-if-match-absent~1`) and `updated_at`
 changes only when a column changes, through the row's `onupdate` (`db/platform_models.py:142-144` and the other
@@ -189,3 +200,42 @@ Code carries `[impl->req~gateway-api-optimistic-concurrency-…~1]` and tests ca
 
 None (the `artifacts.updated_at` migration belongs to the follow-up of §3). Rollback is reverting the code: clients that send `If-Match`
 then get today's behaviour, because unknown request headers are ignored.
+
+## 9. Follow-up coverage rule
+
+A table (collections/artifacts, the member `PUT`, the admin `PATCH`) is covered only once its `updated_at` is
+`NOT NULL` and has `onupdate`. `etag_for` raises on a NULL `updated_at`, which can happen during an expand window
+(column added nullable, not yet back-filled), so covering a table earlier would turn reads into 500s. The admin
+`PATCH /v1/admin/users/{user_id}` reuses the `users` revision (D9) and needs no migration. It waits for the `admin.py`
+LIKE fix.
+
+## 10. Decision record
+
+Written here because no ADR file is in this change's scope. It must be promoted to
+`docs/adr/0023-optimistic-concurrency-with-etag-if-match.md` (status Proposed; the owner accepts it).
+
+- **Context.** Concurrent editors of the same resource silently overwrite each other (last writer wins). The API needs
+  lost-update protection without a schema change, without breaking clients that do not know it, and with the
+  platform's two error shapes intact.
+- **Decision.**
+  - Revision = the row's `updated_at` in UTC microseconds. No column is added.
+  - The `ETag` is a strong opaque tag: the first 32 hex digits of SHA-256 over `table:id:revision`.
+  - `If-Match` is opt-in. `*` means "exists". Weak tags never match. A malformed value is `400 invalid_if_match`, a
+    failed precondition is `412 precondition_failed`.
+  - Order of checks: 401/404/403, then `If-Match`, then the state-dependent 402/409/422.
+  - The claim is a guarded `UPDATE … WHERE id AND updated_at = :loaded` in the request's transaction, with a
+    monotonic floor (`max(now, previous + 1 µs)`).
+  - One helper, `core/revision.py`. The owner approved the placement under `core/` in the scope decision. Moving it to
+    `shared/` with family-neutral exceptions is a follow-up.
+  - Each route family keeps its error shape (platform JSON, engine-registry `application/problem+json`).
+- **Consequences.**
+  - Clients that send `If-Match` get lost-update protection; the rest keep today's behaviour.
+  - Profile and preferences share the `users` row, and other writes to it, so some 412s are false (safe, resolved by a
+    reload; D9).
+  - SQLite has the known fractional-seconds limitation (D4); PostgreSQL does not.
+  - Coverage grows table by table under the rule of §9.
+  - Follow-ups: frontend 412 handling, collections via `artifacts.updated_at`, member `PUT`, admin `PATCH`, 428, the
+    move of the helper to `shared/`.
+- **Alternatives rejected.** A version column (a migration on every table). `SELECT … FOR UPDATE` (no-op on SQLite, so
+  the race test proves nothing there). A middleware (runs before lookup and authorization). A readable tag such as the
+  integer or the ISO timestamp (invites parsing, equal across rows). Weak comparison (not allowed for `If-Match`).
