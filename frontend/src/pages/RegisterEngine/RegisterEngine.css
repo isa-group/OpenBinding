@@ -198,7 +198,11 @@
 .rg-option input[aria-invalid='true'], .rg-limits input[aria-invalid='true'], .rg-path input[aria-invalid='true'] { border-color: var(--tp-severity-error); }
 .rg-option-tail { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; grid-column: 1 / -1; }
 .rg-fixed { display: flex; flex-direction: column; gap: 4px; grid-column: span 2; color: var(--tp-steel); font-size: 0.75rem; }
-.rg-fixed code { padding: 4px 8px; border-radius: var(--tp-radius-sm); background: var(--tp-surface); overflow-wrap: anywhere; }
+.rg-fixed strong { padding: 4px 8px; border-radius: var(--tp-radius-sm); background: var(--tp-surface); font-weight: 500; overflow-wrap: anywhere; }
+.rg-fixed-pairs { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; }
+.rg-fixed-pairs div { display: flex; gap: 6px; }
+.rg-fixed-pairs dt { color: var(--tp-steel); }
+.rg-fixed-pairs dd { margin: 0; overflow-wrap: anywhere; }
 .rg-limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px 12px; }
 
 .rg-more { border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-xl); }

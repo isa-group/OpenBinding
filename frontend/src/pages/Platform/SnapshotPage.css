@@ -42,7 +42,6 @@
 .snap-download em { color: var(--tp-primary); font-size: 0.75rem; font-style: normal; font-weight: 500; }
 
 .snap-source { padding: var(--tp-spacing-sm) var(--tp-spacing-md); border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); }
-.snap-source summary { cursor: pointer; font-size: 0.875rem; font-weight: 500; }
 .snap-source-body { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); margin-top: var(--tp-spacing-sm); }
 
 .snap-tabs { display: inline-flex; align-self: flex-start; overflow: hidden; border: 1px solid var(--tp-hairline); border-radius: 10px; }

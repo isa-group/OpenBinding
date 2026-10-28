@@ -614,14 +614,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: /^Compiled form\s*For tools/ }).click();
       expect((await compiled).suggestedFilename()).toBe(`snapshot-${S2}-compiled.json`);
 
-      // The raw source is behind a control.
-      await main.getByText('View source').click();
-      await expect(main.getByLabel('Compiled form (JSON)')).toBeVisible();
+      // The raw source is in its own tab.
+      await main.getByRole('tab', { name: 'Source' }).click();
+      await expect(main.getByRole('region', { name: 'Compiled form (JSON)' })).toBeVisible();
       await main.getByRole('button', { name: 'Files in the package' }).click();
       await expect(main.getByRole('list', { name: 'Files in the package' }).getByRole('button')).toHaveCount(2);
       await capture(page, testInfo, `snapshot-${name}-source`);
 
-      // The pinned files and resources.
+      // The pinned files and resources are on the overview.
+      await main.getByRole('tab', { name: 'Overview' }).click();
       await main.getByText('Per-file and per-resource fingerprints').click();
       await expect(main.getByRole('table', { name: 'Files (2)' })).toBeVisible();
 

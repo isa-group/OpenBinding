@@ -13,6 +13,9 @@ import { GeneratorLab } from './GeneratorLab';
 const generator = vi.hoisted(() => ({ instance: vi.fn(), corpus: vi.fn(), convertLegacy: vi.fn() }));
 const platform = vi.hoisted(() => ({ projects: vi.fn() }));
 
+const { saveText } = vi.hoisted(() => ({ saveText: vi.fn() }));
+
+vi.mock('../../components/rendering/download', () => ({ saveText }));
 vi.mock('../../api/generator', () => ({ generatorApi: generator }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 
@@ -147,6 +150,7 @@ describe('Generator lab', () => {
       expect(within(preview()).getByText('Seed').nextSibling).toHaveTextContent(String(seed));
     });
 
+    // [utest->req~frontend-generator-files-source-view~1]
     it('shows the files behind View source and clears the preview when a setting changes', async () => {
       renderLab();
       generate();
@@ -154,9 +158,17 @@ describe('Generator lab', () => {
 
       fireEvent.click(within(preview()).getByText('View source'));
       expect(within(preview()).getByRole('combobox', { name: 'File' })).toHaveValue('instance.json');
-      expect(within(preview()).getByText(/"apiVersion": "bim\/v1"/)).toBeInTheDocument();
+      const instanceView = within(preview()).getByRole('region', { name: 'instance.json' });
+      expect(within(instanceView).getByText(/"apiVersion": "bim\/v1"/)).toBeInTheDocument();
+      fireEvent.click(within(instanceView).getByRole('button', { name: 'Download instance.json' }));
+      expect(saveText).toHaveBeenLastCalledWith(expect.stringContaining('"apiVersion": "bim/v1"'), 'instance.json', 'text/plain');
+
       fireEvent.change(within(preview()).getByRole('combobox', { name: 'File' }), { target: { value: 'workflow.bpmn' } });
-      expect(within(preview()).getByText('<bpmn:definitions/>')).toBeInTheDocument();
+      const bpmnView = within(preview()).getByRole('region', { name: 'workflow.bpmn' });
+      expect(within(bpmnView).getByText('<bpmn:definitions/>')).toBeInTheDocument();
+      expect(within(preview()).queryByRole('region', { name: 'instance.json' })).not.toBeInTheDocument();
+      fireEvent.click(within(bpmnView).getByRole('button', { name: 'Download workflow.bpmn' }));
+      expect(saveText).toHaveBeenLastCalledWith('<bpmn:definitions/>', 'workflow.bpmn', 'text/plain');
 
       fireEvent.change(screen.getByLabelText('Tasks'), { target: { value: '8' } });
       expect(within(preview()).getByText('Default settings shown. Generate to see the structure.')).toBeInTheDocument();

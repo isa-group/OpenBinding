@@ -70,13 +70,22 @@ describe('One study', () => {
     expect(within(tabs).getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('keeps the raw definition behind View source', async () => {
+  // [utest->req~frontend-studies-source-tab~1]
+  it('keeps the raw definition in the Source tab, with Overview as the default', async () => {
     renderDetail();
 
     await screen.findByRole('heading', { level: 1, name: 'Engines × seeds' });
-    const source = screen.getByText('View source').closest('details') as HTMLDetailsElement;
-    expect(source.open).toBe(false);
-    expect(screen.getByLabelText('Study definition source')).toHaveTextContent('"case_revision_ids"');
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('region', { name: 'Study definition source' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Source' }));
+    expect(screen.getByRole('tab', { name: 'Source' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('region', { name: 'Study definition source' })).toHaveTextContent('"case_revision_ids"');
+    expect(screen.getByRole('button', { name: 'Download Study definition source' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'The cells of the matrix' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    expect(await screen.findByRole('region', { name: 'The cells of the matrix' })).toBeInTheDocument();
   });
 
   it('says there are no runs yet and how much one would use', async () => {

@@ -27,18 +27,6 @@
 .st-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs) var(--tp-spacing-sm); }
 .st-empty-line { margin: 0; color: var(--tp-slate); }
 
-.st-source summary { cursor: pointer; color: var(--tp-primary); font-size: 0.8125rem; font-weight: 500; }
-.st-source pre {
-  max-height: 320px;
-  margin: 8px 0 0;
-  padding: 12px;
-  overflow: auto;
-  border-radius: var(--tp-radius-md);
-  background: var(--tp-surface);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-}
-
 .st-select { display: flex; flex-direction: column; gap: 6px; color: var(--tp-steel); font-size: 0.75rem; font-weight: 500; }
 
 .st-select select, .st-pair select {

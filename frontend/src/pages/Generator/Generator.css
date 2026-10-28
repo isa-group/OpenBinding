@@ -118,7 +118,7 @@
 .gl-instances li { display: flex; justify-content: space-between; gap: 8px; }
 .gl-instances span { color: var(--tp-steel); font-family: var(--font-mono); }
 .gl-details summary { cursor: pointer; font-size: 0.8125rem; font-weight: 500; }
-.gl-details pre { max-height: 260px; margin: 8px 0 0; overflow: auto; padding: 10px; border-radius: var(--tp-radius-md); background: var(--tp-surface); font-size: 0.75rem; }
+.gl-details .rendering-source { margin-top: 8px; }
 .gl-details label { margin-top: 8px; }
 .gl-buttons { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); }
 

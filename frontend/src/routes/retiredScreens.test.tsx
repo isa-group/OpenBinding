@@ -137,7 +137,7 @@ describe('the retired decision-space workspace', () => {
     const inAnalysis = (entry: { file: string }) => entry.file.startsWith('pages/Analysis');
     expect(RAW_RENDERING_ALLOW_LIST.filter(inAnalysis)).toEqual([]);
     expect(UNLISTED_FINDINGS.filter(inAnalysis)).toEqual([]);
-    expect(MAX_ALLOWED_OFFENDERS).toBe(8);
+    expect(MAX_ALLOWED_OFFENDERS).toBe(1);
   });
 });
 
@@ -273,7 +273,7 @@ describe('the retired sponsorship screen', () => {
     expect(ids).not.toContain('admin-sponsor');
     for (const id of ['admin-overview', 'admin-users', 'admin-user-detail', 'admin-audit']) expect(ids, id).toContain(id);
     expect(routeDefinitions).toHaveLength(69);
-    expect(MAX_ALLOWED_OFFENDERS).toBe(8);
+    expect(MAX_ALLOWED_OFFENDERS).toBe(1);
   });
 
   // [utest->req~frontend-retire-sponsorship-screen-not-routed~1]

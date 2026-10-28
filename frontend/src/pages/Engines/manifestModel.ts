@@ -114,15 +114,43 @@ function scalar(value: unknown): string {
   return typeof value === 'number' ? format(value) : typeof value === 'string' || typeof value === 'boolean' ? String(value) : '—';
 }
 
+export interface FixedOptionView {
+  /** `always X` for a `const`, `one of a, b` for an `enum`; null for any other schema. */
+  summary: string | null;
+  /** Every other schema keyword with a short reading of its value: never JSON text. */
+  pairs: Array<{ keyword: string; value: string }>;
+}
+
+function keywordValue(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return value.map(keywordValue).join(', ');
+  if (isRecord(value)) {
+    const count = Object.keys(value).length;
+    return `${count} field${count === 1 ? '' : 's'}`;
+  }
+  return scalar(value);
+}
+
+/** What a fixed option schema says, in words: the `const`/`enum` reading of the options table, plus the other keywords as pairs. */
+// [impl->req~frontend-registration-fixed-option-rendered~1]
+export function describeFixedOption(schema: unknown): FixedOptionView {
+  const body = isRecord(schema) ? schema : {};
+  const summary = 'const' in body
+    ? `always ${keywordValue(body.const)}`
+    : Array.isArray(body.enum) ? `one of ${body.enum.map(keywordValue).join(', ')}` : null;
+  const pairs = Object.entries(body)
+    .filter(([keyword]) => keyword !== 'const' && keyword !== 'enum')
+    .map(([keyword, value]) => ({ keyword, value: keywordValue(value) }));
+  return { summary, pairs };
+}
+
 function readOptions(schema: unknown): OptionRow[] {
   const body = isRecord(schema) ? schema : {};
   const properties = isRecord(body.properties) ? body.properties : {};
   const required = strings(body.required);
   return Object.entries(properties).map(([name, raw]) => {
     const option = isRecord(raw) ? raw : {};
-    const fixed = 'const' in option
-      ? `always ${scalar(option.const)}`
-      : Array.isArray(option.enum) ? `one of ${option.enum.map(scalar).join(', ')}` : null;
+    const fixed = describeFixedOption(option).summary;
     return {
       name,
       type: typeof option.type === 'string' ? option.type : fixed ? 'fixed' : '—',

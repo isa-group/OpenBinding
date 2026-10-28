@@ -96,7 +96,15 @@ describe('lang-extensions', () => {
     expect(within(community).getByText('/spec/annotations')).toBeInTheDocument();
     expect(within(community).getByText('Application')).toBeInTheDocument();
     expect(within(community).getByRole('button', { name: 'Copy edge-annotations-adapter binary fingerprint' })).toBeInTheDocument();
-    expect(within(community).getByLabelText('View source (JSON)')).not.toBeVisible();
+    // [utest->req~frontend-engines-source-view~1]
+    const summary = within(community).getByText('View source');
+    const disclosure = summary.closest('details') as HTMLDetailsElement;
+    expect(disclosure).not.toHaveAttribute('open');
+    const source = within(community).getByRole('region', { name: 'edge-annotations dialect source', hidden: true });
+    expect(disclosure).toContainElement(source);
+    expect(source).not.toBeVisible();
+    expect(source).toHaveTextContent('"kind"');
+    expect(within(source).getByRole('button', { name: 'Copy edge-annotations dialect source', hidden: true })).toBeInTheDocument();
   });
 
   it('narrows the dialects by where they come from and by what is typed', async () => {

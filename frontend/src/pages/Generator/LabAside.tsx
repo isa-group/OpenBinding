@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { SourceView } from '../../components/rendering/SourceView';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
@@ -7,6 +8,7 @@ import { shortDigest } from '../../utils/digest';
 import { outputFacts, workspaceFilesOf, type Output, type ProjectChoice } from './generatorModel';
 
 /** The files of a result, one at a time, as the text they hold. Behind a control: the preview does not need them. */
+// [impl->req~frontend-generator-files-source-view~1]
 function SourceOfFiles({ files }: { files: Record<string, unknown> }) {
   const text = workspaceFilesOf(files);
   const names = Object.keys(text);
@@ -22,7 +24,7 @@ function SourceOfFiles({ files }: { files: Record<string, unknown> }) {
           {names.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
       </label>
-      <pre>{text[shown]}</pre>
+      <SourceView source={text[shown]} label={shown} filename={shown} maxHeight="24rem" />
     </details>
   );
 }
