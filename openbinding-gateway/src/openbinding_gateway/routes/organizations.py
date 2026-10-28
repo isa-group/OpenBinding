@@ -8,7 +8,7 @@ import secrets
 import uuid
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Header, Query, Response, status
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,6 +53,7 @@ from ..db.models import (
     Visibility,
     utcnow,
 )
+from ..core import revision
 from ..models.errors import ErrorResponse, api_error
 from ..security.redaction import must_redact_jobs
 from ..models.platform import (
@@ -215,14 +216,19 @@ async def create_organization(
     return await _org_view(session, organization, user)
 
 
+IF_MATCH_HEADER = Header(default=None, alias="If-Match", description=revision.IF_MATCH_DESCRIPTION)
+
+
 @router.get("/{org}", response_model=OrganizationView, operation_id="getOrganization")
 async def get_organization(
     org: str,
+    response: Response,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> OrganizationView:
     organization = await _required_org(session, org)
     await require_role(session, organization, user, OrganizationRole.VIEWER)
+    revision.set_etag(response, organization)
     return await _org_view(session, organization, user)
 
 
@@ -231,6 +237,7 @@ async def get_organization(
     response_model=OrganizationView,
     operation_id="updateOrganization",
     responses={
+        **revision.PRECONDITION_RESPONSES,
         402: {"model": ErrorResponse, "description": "Naming oneself: the caller's plan cannot take the subtree (`sponsor_quota_exceeded`)."},
         422: {
             "description": (
@@ -244,6 +251,8 @@ async def get_organization(
 async def update_organization(
     org: str,
     payload: OrganizationUpdate,
+    response: Response,
+    if_match: str | None = IF_MATCH_HEADER,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> OrganizationView:
@@ -259,6 +268,16 @@ async def update_organization(
     )
     if sponsor_named:
         await require_role(session, organization, user, OrganizationRole.OWNER)
+    # The target parent is an authorisation question too, so it is settled
+    # before the revision is checked; validation comes after it.
+    new_parent = None
+    if payload.parent_id is not None and not payload.move_to_root:
+        new_parent = await session.get(Organization, payload.parent_id)
+        if new_parent is None:
+            raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "New parent not found.")
+        await require_role(session, new_parent, user, OrganizationRole.ADMIN)
+    await revision.guard(session, organization, if_match)
+    if sponsor_named:
         if payload.billing_sponsor_user_id != user.id:
             raise api_error(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -272,11 +291,6 @@ async def update_organization(
     if payload.move_to_root or payload.parent_id is not None:
         new_parent_id = None if payload.move_to_root else payload.parent_id
         await assert_acyclic_move(session, organization.id, new_parent_id)
-        if new_parent_id is not None:
-            new_parent = await session.get(Organization, new_parent_id)
-            if new_parent is None:
-                raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "New parent not found.")
-            await require_role(session, new_parent, user, OrganizationRole.ADMIN)
         organization.parent_id = new_parent_id
     sponsor_change: dict[str, str] = {}
     if sponsor_named:
@@ -290,6 +304,9 @@ async def update_organization(
         }
     _audit(session, user, "organization.updated", organization, organization.id, **sponsor_change)
     await session.flush()
+    # A sponsor transfer bumps updated_at with a bulk UPDATE the object never saw.
+    await session.refresh(organization, ["updated_at"])
+    revision.set_etag(response, organization)
     return await _org_view(session, organization, user)
 
 
@@ -804,26 +821,34 @@ async def create_project(
     summary="Read a project (members, or anyone for a public project)",
 )
 async def get_project(
-    org: str, project: str,
+    org: str, project: str, response: Response,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> ProjectView:
     """A member sees their role; a non-member, even anonymous, reads a public project read-only (access public_read)."""
     organization = await _required_org(session, org)
     found = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
+    revision.set_etag(response, found)
     if public_read.is_public_read(session):
         return _project_view(found, None, public_read.PUBLIC_READ)
     return _project_view(found, await effective_role(session, organization.id, user))
 
 
-@router.patch("/{org}/projects/{project}", response_model=ProjectView, operation_id="updateProject")
+@router.patch(
+    "/{org}/projects/{project}",
+    response_model=ProjectView,
+    operation_id="updateProject",
+    responses=revision.PRECONDITION_RESPONSES,
+)
 async def update_project(
-    org: str, project: str, payload: ProjectUpdate,
+    org: str, project: str, payload: ProjectUpdate, response: Response,
+    if_match: str | None = IF_MATCH_HEADER,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> ProjectView:
     organization = await _required_org(session, org)
     found = await require_project(session, organization, project, user, OrganizationRole.ADMIN)
+    await revision.guard(session, found, if_match)
     if payload.name is not None:
         found.name = payload.name
     if payload.description is not None:
@@ -835,6 +860,7 @@ async def update_project(
         found.visibility = Visibility(payload.visibility)
     _audit(session, user, "project.updated", found, organization.id)
     await session.flush()
+    revision.set_etag(response, found)
     return _project_view(found, await effective_role(session, organization.id, user))
 
 
@@ -904,13 +930,14 @@ async def _case(session: AsyncSession, project_id: uuid.UUID, reference: str) ->
 
 @router.get("/{org}/projects/{project}/cases/{case}", response_model=BindingCaseView, operation_id="getBindingCase")
 async def get_case(
-    org: str, project: str, case: str,
+    org: str, project: str, case: str, response: Response,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> BindingCaseView:
     organization = await _required_org(session, org)
     found_project = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
     found_case = await _case(session, found_project.id, case)
+    revision.set_etag(response, found_case)
     return BindingCaseView.model_validate(found_case, from_attributes=True)
 
 
@@ -1043,21 +1070,29 @@ async def create_case_revision(
     return CaseRevisionView.model_validate(revision, from_attributes=True)
 
 
-@router.patch("/{org}/projects/{project}/cases/{case}", response_model=BindingCaseView, operation_id="updateBindingCase")
+@router.patch(
+    "/{org}/projects/{project}/cases/{case}",
+    response_model=BindingCaseView,
+    operation_id="updateBindingCase",
+    responses=revision.PRECONDITION_RESPONSES,
+)
 async def update_case(
-    org: str, project: str, case: str, payload: BindingCaseUpdate,
+    org: str, project: str, case: str, payload: BindingCaseUpdate, response: Response,
+    if_match: str | None = IF_MATCH_HEADER,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> BindingCaseView:
     organization = await _required_org(session, org)
     found_project = await require_project(session, organization, project, user, OrganizationRole.MEMBER)
     found_case = await _case(session, found_project.id, case)
+    await revision.guard(session, found_case, if_match)
     if payload.name is not None:
         found_case.name = payload.name
     if payload.description is not None:
         found_case.description = payload.description
     await session.flush()
     _audit(session, user, "binding_case.updated", found_case, organization.id)
+    revision.set_etag(response, found_case)
     return BindingCaseView.model_validate(found_case, from_attributes=True)
 
 

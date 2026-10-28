@@ -1,0 +1,1 @@
+Slices done: spec, revision helper + organizations/projects/cases, studies, users/notification prefs, credential PUT, PG guard test, openapi snapshot. Remaining: push, PR, CI, panel (reviewer, test-reviewer, security-auditor, arch-reviewer), review package, lead_ready.

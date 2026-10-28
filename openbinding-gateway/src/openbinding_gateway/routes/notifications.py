@@ -5,12 +5,13 @@ from __future__ import annotations
 from datetime import timedelta
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Header, Response, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, session_dependency
+from ..core import revision
 from ..db.models import Notification, User, utcnow
 from ..models.errors import api_error
 from ..models.platform import NotificationView
@@ -96,16 +97,30 @@ async def mark_notification_read(
 
 
 @router.get("/preferences", response_model=NotificationPreferences, operation_id="getNotificationPreferences")
-async def get_preferences(user: User = Depends(get_current_user)) -> NotificationPreferences:
+async def get_preferences(response: Response, user: User = Depends(get_current_user)) -> NotificationPreferences:
+    # The revision is the account row's, shared with PATCH /v1/users/me.
+    revision.set_etag(response, user)
     return NotificationPreferences(**(user.preferences or {}))
 
 
-@router.put("/preferences", response_model=NotificationPreferences, operation_id="updateNotificationPreferences")
+@router.put(
+    "/preferences",
+    response_model=NotificationPreferences,
+    operation_id="updateNotificationPreferences",
+    responses=revision.PRECONDITION_RESPONSES,
+)
 async def update_preferences(
     payload: NotificationPreferences,
+    response: Response,
     user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+    if_match: str | None = Header(default=None, alias="If-Match", description=revision.IF_MATCH_DESCRIPTION),
 ) -> NotificationPreferences:
+    await revision.guard(session, user, if_match)
     current = dict(user.preferences or {})
     current.update(payload.model_dump())
     user.preferences = current
+    await session.flush()
+    await session.refresh(user, ["updated_at"])
+    revision.set_etag(response, user)
     return payload

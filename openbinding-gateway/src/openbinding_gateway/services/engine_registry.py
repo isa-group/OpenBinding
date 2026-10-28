@@ -21,6 +21,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import timedelta
 from functools import partial
 from typing import Any, Mapping
 
@@ -30,7 +31,9 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..core import revision as core_revision
 from ..core.settings import Settings
+from ..models.problem import split_detail
 from ..db.models import (
     EngineCredential,
     EngineRegistrationRevision,
@@ -81,8 +84,11 @@ class RegistryProblem(Exception):
         detail: str,
         diagnostics: list[dict[str, Any]] | None = None,
         extra: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         super().__init__(detail)
+        #: Response headers of the refusal (the current ``ETag`` of a 412).
+        self.headers = headers
         self.status = status
         self.code = code
         self.detail = detail
@@ -1161,6 +1167,14 @@ async def delete_registration(
     await session.flush()
 
 
+def _conditional_problem(exc: HTTPException) -> RegistryProblem:
+    """A refusal of ``core.revision`` (platform shape) as this family's problem, keeping its ``ETag`` header."""
+    code, message, diagnostics, extra = split_detail(exc.detail, "request_invalid")
+    return RegistryProblem(
+        exc.status_code, code, message, diagnostics or None, extra or None, headers=dict(exc.headers or {}) or None
+    )
+
+
 async def set_credential(
     key: RegistrationKey,
     secret: str,
@@ -1168,13 +1182,34 @@ async def set_credential(
     session: AsyncSession | None,
     *,
     settings: Settings,
+    if_match: str | None = None,
 ) -> dict[str, Any]:
+    """``set_credential_revision`` without the ETag of the stored credential."""
+    summary, _ = await set_credential_revision(key, secret, caller, session, settings=settings, if_match=if_match)
+    return summary
+
+
+async def set_credential_revision(
+    key: RegistrationKey,
+    secret: str,
+    caller: User,
+    session: AsyncSession | None,
+    *,
+    settings: Settings,
+    if_match: str | None = None,
+) -> tuple[dict[str, Any], str]:
     """Replace the deployment credential without ever placing it in a manifest.
 
     Only the owner may, and not once the registration is published.  The secret is encrypted before it is
-    stored and the answer is the registration summary: nothing derived from the secret leaves this function.
+    stored and the answer is the registration summary and the ETag of the stored credential: nothing derived
+    from the secret leaves this function.
     The change resets the registration (inactive, private, report pending): a previous conformance result
     is no evidence for the new authentication context.
+
+    ``if_match`` is checked right after the registration is found and before every refusal that depends on
+    stored state.  With no credential stored yet any ``If-Match`` is a 412 (there is no revision to match, and
+    no ETag to report).  Otherwise the credential row is claimed with ``core.revision.guard``; a refusal after
+    that claim rolls the transaction back, so a refused request never leaves the bumped revision committed.
     """
     if session is None:
         raise RegistryProblem(503, "accounts_unavailable", _ACCOUNTS_REQUIRED)
@@ -1188,21 +1223,36 @@ async def set_credential(
     row = (await session.execute(query)).scalars().first()
     if row is None or not allows_engine(caller, registration_engine_reference(row) or {}):
         raise RegistryProblem(404, "not_found", _NOT_FOUND)
-    if row.publication_status == "published":
-        raise RegistryProblem(
-            409,
-            "immutable_published_registration",
-            "A published registration cannot change credentials; create a new revision",
-        )
-    try:
-        encrypted = CredentialStore.from_settings(settings).encrypt(secret)
-    except SecretsUnavailable as exc:
-        raise RegistryProblem(503, "credential_store_unavailable", str(exc)) from None
     credential = (
         await session.execute(
             select(EngineCredential).where(EngineCredential.registration_id == row.id)
         )
     ).scalars().first()
+    try:
+        if if_match is not None and credential is None:
+            core_revision.parse_if_match(if_match)  # a malformed header is 400 even here
+            raise RegistryProblem(
+                412, "precondition_failed", "The resource changed since it was read; fetch it again and retry."
+            )
+        await core_revision.guard(session, credential, if_match)
+    except HTTPException as exc:
+        raise _conditional_problem(exc) from None
+    claimed = if_match is not None
+    try:
+        if row.publication_status == "published":
+            raise RegistryProblem(
+                409,
+                "immutable_published_registration",
+                "A published registration cannot change credentials; create a new revision",
+            )
+        try:
+            encrypted = CredentialStore.from_settings(settings).encrypt(secret)
+        except SecretsUnavailable as exc:
+            raise RegistryProblem(503, "credential_store_unavailable", str(exc)) from None
+    except RegistryProblem:
+        if claimed:
+            await session.rollback()
+        raise
     if credential is None:
         credential = EngineCredential(
             registration_id=row.id,
@@ -1212,7 +1262,8 @@ async def set_credential(
         session.add(credential)
     else:
         credential.credential_encrypted = encrypted
-        credential.updated_at = utcnow()
+        # Never at or before the revision the guard claimed: the tag must change with the edit.
+        credential.updated_at = max(utcnow(), core_revision.normalise(credential.updated_at) + timedelta(microseconds=1))
     row.is_active = False
     row.publication_status = "private"
     row.verified_at = None
@@ -1226,4 +1277,4 @@ async def set_credential(
     row.openapi_document = row.document["spec"]["openapi"]
     row.openapi_digest = digest(row.openapi_document)
     await session.flush()
-    return registration_summary(row)
+    return registration_summary(row), core_revision.etag_for(credential)
