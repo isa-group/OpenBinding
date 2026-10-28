@@ -739,7 +739,7 @@ BIM_SERVICE_TOKENS_FILE=$PWD/tokens uvicorn --factory bim_service.app:create_app
 `packages/bim-service/Dockerfile` builds an image from the context `bim-toolchain/`: `python:3.11-slim`, an unprivileged
 user (uid 10001), only `bim-core` and `bim-service` installed (no tests, goldens, corpus or docs in the image), the
 licence files under `/usr/share/doc/bim-service/`, a `HEALTHCHECK` on `/healthz` and `uvicorn --factory` as `CMD`.
-The tokens are mounted at `/run/secrets/bim_service_tokens` (a Docker or Kubernetes secret), not baked in.
+The tokens are mounted at `/run/secrets/bim_service_tokens` (a Docker or Compose secret, or any mounted file), not baked in.
 
 ```sh
 docker build -f packages/bim-service/Dockerfile -t bim-service:0.2.0 .
@@ -748,11 +748,10 @@ docker run --rm -p 8080:8080 -v "$PWD/tokens:/run/secrets/bim_service_tokens:ro"
 
 *The Dockerfile has not been built or run*; it was written without a Docker daemon (see `EXTRACTION_LOG.md`).
 
-Kubernetes notes: use `/healthz` for liveness and `/readyz` for readiness; a failing start (no tokens, invalid file)
-exits non-zero, so a bad rollout never takes traffic. Kubernetes injects `BIM_SERVICE_PORT` and `BIM_SERVICE_SERVICE_HOST`
-into the pods of a Service called `bim-service`; unknown `BIM_SERVICE_*` variables are ignored for that reason. Put the
-service behind TLS and restrict it with a network policy to the pods that call it: the token is a defence in depth, not
-the perimeter.
+Operation notes: use `/healthz` for liveness and `/readyz` for readiness; a failing start (no tokens, invalid file)
+exits non-zero, so a bad rollout never takes traffic. Container platforms may inject service-link variables such as
+`BIM_SERVICE_PORT`; unknown `BIM_SERVICE_*` variables are ignored for that reason. Put the service behind TLS and
+restrict network access to the callers: the token is a defence in depth, not the perimeter.
 
 `BIM_SERVICE_EXECUTOR=process` needs Linux with pidfd (kernel 5.3 or later; the service says so and stops otherwise) and a
 container whose memory limit holds the parent, N workers and their buffers: size it with the fit rule under "Worker
