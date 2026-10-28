@@ -38,10 +38,16 @@ function count(value: Maybe<number>): number | null {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
 }
 
+function utcText(value: string): string {
+  if (/T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(value)) return `${value}Z`;
+  const spaced = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)$/.exec(value);
+  return spaced ? `${spaced[1]}T${spaced[2]}Z` : value;
+}
+
 function date(value: Maybe<string | number | Date>): string | null {
   if (value === null || value === undefined || value === '') return null;
-  // A date-time without an offset would be read in local time; read it as UTC.
-  const parsed = new Date(typeof value === 'string' && /T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(value.trim()) ? `${value.trim()}Z` : value);
+  // A date-time without an offset would be read in local time; read it as UTC. `YYYY-MM-DD HH:MM` is the same value with a space.
+  const parsed = new Date(typeof value === 'string' ? utcText(value.trim()) : value);
   if (Number.isNaN(parsed.getTime())) return null;
   return `${parsed.getUTCDate()} ${MONTHS[parsed.getUTCMonth()]} ${parsed.getUTCFullYear()}`;
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   collectionVersionLabel,
   engineLabel,
@@ -141,5 +141,47 @@ describe('identity labels', () => {
   it('reads a date-time without an offset as UTC', () => {
     expect(problemVersionLabel({ name: 'p', version: 1, sealedAt: '2026-08-20T23:30:00' })).toBe('p v1 · sealed 20 Aug 2026');
     expect(problemVersionLabel({ name: 'p', version: 1, sealedAt: '2026-08-20' })).toBe('p v1 · sealed 20 Aug 2026');
+  });
+});
+
+describe.each(['Pacific/Kiritimati', 'America/Los_Angeles'])('dates in the %s time zone', (zone) => {
+  const originalTz = process.env.TZ;
+  beforeAll(() => {
+    process.env.TZ = zone;
+  });
+  afterAll(() => {
+    if (originalTz === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTz;
+  });
+
+  const at = (sealedAt: string) => problemVersionLabel({ name: 'p', version: 1, sealedAt });
+
+  // [utest->req~identity-labels~1]
+  it('really runs in the requested zone', () => {
+    const offset = new Date('2026-08-20T12:00:00Z').getTimezoneOffset();
+    expect(offset).toBe(zone === 'Pacific/Kiritimati' ? -840 : 420);
+  });
+
+  // [utest->req~identity-labels~1]
+  it('reads offset-bearing, Z, offset-less and date-only values as UTC', () => {
+    expect(at('2026-08-20T09:30:00Z')).toBe('p v1 · sealed 20 Aug 2026');
+    expect(at('2026-08-20T23:30:00')).toBe('p v1 · sealed 20 Aug 2026');
+    expect(at('2026-08-20T23:30')).toBe('p v1 · sealed 20 Aug 2026');
+    expect(at('2026-08-20T23:30:00.123')).toBe('p v1 · sealed 20 Aug 2026');
+    expect(at('2026-08-20T00:00:00')).toBe('p v1 · sealed 20 Aug 2026');
+    expect(at('2026-08-20')).toBe('p v1 · sealed 20 Aug 2026');
+    expect(at('2026-12-31T23:59:59Z')).toBe('p v1 · sealed 31 Dec 2026');
+    expect(at('2026-09-01T23:30:00-02:00')).toBe('p v1 · sealed 2 Sep 2026');
+    expect(at('2026-09-30T23:30:00-02:00')).toBe('p v1 · sealed 1 Oct 2026');
+    expect(at('2026-08-20T01:00:00+05:00')).toBe('p v1 · sealed 19 Aug 2026');
+  });
+
+  // [utest->req~identity-labels~1]
+  it('reads a date-time with a space and no offset as UTC', () => {
+    expect(at('2026-08-20 23:30:00')).toBe('p v1 · sealed 20 Aug 2026');
+    expect(at('2026-08-20 23:30')).toBe('p v1 · sealed 20 Aug 2026');
+    expect(at('2026-08-20 00:00:00.5')).toBe('p v1 · sealed 20 Aug 2026');
+    expect(at('2026-08-20 23:30:00Z')).toBe('p v1 · sealed 20 Aug 2026');
+    expect(at('2026-08-20 23:30:00-02:00')).toBe('p v1 · sealed 21 Aug 2026');
   });
 });
