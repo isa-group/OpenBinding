@@ -232,17 +232,17 @@ gateway, then step 8 with the real gateway):
 
 1. Build the image: `docker build -t nginx-check nginx/production`.
 2. `docker run --rm nginx-check nginx -t` passes, with a self-signed certificate mounted at `/etc/nginx/ssl`.
-3. On a throwaway network, start a stand-in gateway with the alias `gateway` that logs the request line, for example
+3. On a throwaway network with a fixed subnet (`172.29.77.0/24`; the operator picks another unused /24 on a clash),
+   start a stand-in gateway with the alias `gateway` and the address `.10` that logs the request line, for example
    `python -m http.server 8000`, and start the image next to it.
 4. `curl -sk --resolve openbinding.score.us.es:<port>:127.0.0.1 "https://openbinding.score.us.es:<port>/api/v1/x%2Fy?a=1&b=%20"`.
    The stand-in logs `GET /v1/x%2Fy?a=1&b=%20`.
 5. `curl` of `/%61pi/x` answers 400, and `curl` of `/api/v1/jobs?limit=5` reaches the stand-in as
    `GET /v1/jobs?limit=5`. `/static/a%20b.css` and `/avatars/u1.png?v=2` reach it unchanged. `curl --path-as-is` of `/api//v1/jobs` and of `/api/v1/x/../jobs` reaches the stand-in as
    `//v1/jobs` and `/v1/x/../jobs`. The runbook step 8 records the real gateway's answer to both (R2).
-6. Replace the stand-in with a new container with the same alias and a different address (the runbook reads both
-   addresses with `docker inspect`, the first before it removes the first container; when they are equal, it starts a
-   throwaway container on the network, removes the new stand-in, starts it again under the alias and compares again),
-   then wait 11 s. The next
+6. Replace the stand-in with a new container with the same alias and a different address (`.11` against `.10`: the
+   addresses differ by construction, because Docker would otherwise reuse the lowest free address; the runbook still
+   shows both with `docker inspect`), then wait 11 s. The next
    `curl` of `/api/health` reaches the new stand-in as `GET /health` (the map strips only `/api`), not a 502,
    without restarting nginx.
 7. Stop the stand-in, so that no container has the alias `gateway`, and wait 11 s. `curl -sk -o /dev/null

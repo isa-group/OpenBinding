@@ -380,11 +380,15 @@ of the release. Use the `server_name` of the first `listen 443 ssl` server of `n
    the image next to it:
 
    ```bash
-   docker network create nginx-check
-   docker run -d --name gw1 --network nginx-check --network-alias gateway <python image> python -m http.server 8000
+   docker network create --subnet 172.29.77.0/24 nginx-check
+   docker run -d --name gw1 --network nginx-check --ip 172.29.77.10 --network-alias gateway <python image> python -m http.server 8000
    docker run -d --name nginx-under-check --network nginx-check -p 127.0.0.1:8443:443 \
      -v <tls dir>:/etc/nginx/ssl:ro nginx-check
    ```
+
+   The fixed subnet and the fixed address of `gw1` make step 6 deterministic. If `docker network create` reports that
+   the subnet overlaps an existing Docker network, pick another unused /24 and keep the host parts `.10` and `.11`
+   in this step and in step 6.
 
 4. The raw request URI arrives without the `/api` prefix. `docker logs gw1` shows `GET /v1/x%2Fy?a=1&b=%20`:
 
@@ -408,16 +412,13 @@ of the release. Use the `server_name` of the first `listen 443 ssl` server of `n
 
 6. Replace the stand-in with a new container under the same alias and another address, wait 11 s, and request
    `/api/health`. The map strips only `/api`, so the request line `GET /health` appears in `docker logs gw2` and the
-   answer is not `502`, with no restart of `nginx`. The two addresses must differ. If they are equal, start a throwaway
-   container on `nginx-check` (`docker run -d --name spare --network nginx-check <python image> sleep 600`), run
-   `docker rm -f gw2`, start the stand-in again under the alias `gateway` with the `docker run` line below, and compare
-   its address with the recorded address of `gw1`; when it differs, continue with the `sleep` line. Remove `spare`
-   afterwards with `docker rm -f spare`:
+   answer is not `502`, with no restart of `nginx`. The two addresses differ by construction (`gw1` has `.10`, `gw2`
+   has `.11`); the two `docker inspect` lines show them:
 
    ```bash
    docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gw1
    docker rm -f gw1
-   docker run -d --name gw2 --network nginx-check --network-alias gateway <python image> python -m http.server 8000
+   docker run -d --name gw2 --network nginx-check --ip 172.29.77.11 --network-alias gateway <python image> python -m http.server 8000
    docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gw2
    sleep 11
    curl -sk -o /dev/null -w '%{http_code}\n' --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/health"
@@ -476,17 +477,20 @@ rm -r <tls dir>
    - Restart only the gateway container, as the daemon does in the case of the section
      [502 after a gateway restart](#502-after-a-gateway-restart), and do not restart `nginx`. Note the start time of
      `nginx` first and compare it afterwards; it must not change. Restart the gateway by its id, wait until its health
-     status is `healthy` (the health check of the gateway has a `start_period` of 30 s, so this takes a while), and
+     status is `healthy` (the first probe runs after one 10 s interval, with a `start_period` of 30 s in `compose.yaml`, so the wait is at
+     least about 10 s), and
      only then request `/api/health/ready`: it must answer `200` through `nginx` within 10 s of the gateway becoming
      healthy, which the retries of `curl` (10 tries, 1 s apart) bound at about 10 s. The printed code and time are the
      result. If the gateway is not healthy after 2 minutes, stop the loop with Ctrl-C; that is a failure of the step.
      The Compose commands of [Pull and start](#pull-and-start) recreate the gateway together with `nginx`
      (`restart: true`), so they do not prove this and are not used here. The filters limit the lookups to the Compose
-     project:
+     project. If the guard line prints `stop: gateway or nginx not found`, do not run the lines after it; find the
+     containers first:
 
      ```bash
      gw=$(docker ps -q --filter label=com.docker.compose.project=openbinding-production --filter label=com.docker.compose.service=gateway)
      nx=$(docker ps -q --filter label=com.docker.compose.project=openbinding-production --filter label=com.docker.compose.service=nginx)
+     [ -n "$gw" ] && [ -n "$nx" ] || { echo "stop: gateway or nginx not found" >&2; }
      docker inspect -f '{{.State.StartedAt}}' "$nx"
      docker restart "$gw"
      until [ "$(docker inspect -f '{{.State.Health.Status}}' "$gw")" = healthy ]; do sleep 1; done
