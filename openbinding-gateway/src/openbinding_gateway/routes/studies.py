@@ -8,7 +8,7 @@ import math
 from collections.abc import Mapping
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, Response, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -244,16 +244,16 @@ async def list_collection_revisions(
     revisions = (await session.scalars(select(ArtifactVersion).where(
         ArtifactVersion.artifact_id == found.id).order_by(ArtifactVersion.ordinal))).all()
     result = []
-    for revision in revisions:
-        content, _ = await version_content(session, revision)
+    for version in revisions:
+        content, _ = await version_content(session, version)
         members = CollectionArtifactContent.model_validate(json.loads(content)).members
         items = [CollectionItemInput(target_kind="case" if hasattr(item, "caseRevisionId") else "resource",
             target_digest=(item.compositionDigest if hasattr(item, "compositionDigest") else item.versionDigest),
             target_ref=(item.model_dump(mode="json"))) for item in members]
         result.append(CollectionRevisionView(
-            id=revision.id, collection_id=found.id, revision=revision.ordinal,
-            digest=revision.content_digest, items=items,
-            created_at=revision.created_at,
+            id=version.id, collection_id=found.id, revision=version.ordinal,
+            digest=version.content_digest, items=items,
+            created_at=version.created_at,
         ))
     return result
 
@@ -346,13 +346,13 @@ async def create_collection_revision(
     manifest = {"apiVersion": "openbinding/artifact/v1", "kind": "Collection",
         "identity": {"namespace": found.namespace, "name": found.name, "version": str(ordinal)},
         "contentDigest": revision_digest, "mediaType": "application/json", "contracts": [], "dependencies": []}
-    revision = ArtifactVersion(artifact_id=found.id, ordinal=ordinal, version=str(ordinal), blob_id=blob.id,
+    created = ArtifactVersion(artifact_id=found.id, ordinal=ordinal, version=str(ordinal), blob_id=blob.id,
         content_digest=revision_digest, version_digest=digest(manifest), manifest=manifest, created_by_id=user.id)
-    session.add(revision)
+    session.add(created)
     await session.flush()
-    _audit(session, user, "collection.revision.created", revision, organization.id, digest=revision_digest)
-    return CollectionRevisionView(id=revision.id, collection_id=found.id, revision=revision.ordinal,
-        digest=revision.content_digest, items=payload.items, created_at=revision.created_at)
+    _audit(session, user, "collection.revision.created", created, organization.id, digest=revision_digest)
+    return CollectionRevisionView(id=created.id, collection_id=found.id, revision=created.ordinal,
+        digest=created.content_digest, items=payload.items, created_at=created.created_at)
 
 
 @router.get(
@@ -550,11 +550,11 @@ async def create_study(
 
 @router.patch(
     "/studies/{study}", response_model=StudyView, operation_id="updateStudy",
-    responses=revision.PRECONDITION_RESPONSES,
+    responses=revision.EDIT_RESPONSES,
 )
 async def update_study(
     org: str, project: str, study: str, payload: StudyUpdate, response: Response,
-    if_match: str | None = Header(default=None, alias="If-Match", description=revision.IF_MATCH_DESCRIPTION),
+    if_match: str | None = revision.IF_MATCH_HEADER,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> StudyView:

@@ -21,7 +21,6 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import timedelta
 from functools import partial
 from typing import Any, Mapping
 
@@ -1262,8 +1261,6 @@ async def set_credential_revision(
         session.add(credential)
     else:
         credential.credential_encrypted = encrypted
-        # Never at or before the revision the guard claimed: the tag must change with the edit.
-        credential.updated_at = max(utcnow(), core_revision.normalise(credential.updated_at) + timedelta(microseconds=1))
     row.is_active = False
     row.publication_status = "private"
     row.verified_at = None

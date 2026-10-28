@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 import uuid
 
-from fastapi import APIRouter, Depends, Header, Response, status
+from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -96,7 +96,12 @@ async def mark_notification_read(
     return _view(row)
 
 
-@router.get("/preferences", response_model=NotificationPreferences, operation_id="getNotificationPreferences")
+@router.get(
+    "/preferences",
+    response_model=NotificationPreferences,
+    operation_id="getNotificationPreferences",
+    responses=revision.ETAG_RESPONSE,
+)
 async def get_preferences(response: Response, user: User = Depends(get_current_user)) -> NotificationPreferences:
     # The revision is the account row's, shared with PATCH /v1/users/me.
     revision.set_etag(response, user)
@@ -107,14 +112,14 @@ async def get_preferences(response: Response, user: User = Depends(get_current_u
     "/preferences",
     response_model=NotificationPreferences,
     operation_id="updateNotificationPreferences",
-    responses=revision.PRECONDITION_RESPONSES,
+    responses=revision.EDIT_RESPONSES,
 )
 async def update_preferences(
     payload: NotificationPreferences,
     response: Response,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
-    if_match: str | None = Header(default=None, alias="If-Match", description=revision.IF_MATCH_DESCRIPTION),
+    if_match: str | None = revision.IF_MATCH_HEADER,
 ) -> NotificationPreferences:
     await revision.guard(session, user, if_match)
     current = dict(user.preferences or {})

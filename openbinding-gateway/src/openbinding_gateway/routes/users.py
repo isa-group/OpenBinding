@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, Header, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -115,7 +115,7 @@ async def profile_of(session: AsyncSession, user: User) -> UserProfile:
     response_model=UserProfile,
     operation_id="getOwnProfile",
     summary="The signed-in account",
-    responses={401: UNAUTHORIZED_RESPONSE, 503: UNAVAILABLE_RESPONSE},
+    responses={**revision.ETAG_RESPONSE, 401: UNAUTHORIZED_RESPONSE, 503: UNAVAILABLE_RESPONSE},
 )
 async def read_own_profile(
     response: Response,
@@ -132,7 +132,7 @@ async def read_own_profile(
     operation_id="updateOwnProfile",
     summary="Change your email or password",
     responses={
-        **revision.PRECONDITION_RESPONSES,
+        **revision.EDIT_RESPONSES,
         401: UNAUTHORIZED_RESPONSE,
         409: CONFLICT_RESPONSE,
         422: {"description": "The new password is not acceptable."},
@@ -144,7 +144,7 @@ async def update_own_profile(
     response: Response,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
-    if_match: str | None = Header(default=None, alias="If-Match", description=revision.IF_MATCH_DESCRIPTION),
+    if_match: str | None = revision.IF_MATCH_HEADER,
 ) -> UserProfile:
     """Change what the account holder is allowed to change.
 

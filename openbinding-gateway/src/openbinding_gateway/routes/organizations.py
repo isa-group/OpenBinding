@@ -8,7 +8,7 @@ import secrets
 import uuid
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, Header, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -216,10 +216,9 @@ async def create_organization(
     return await _org_view(session, organization, user)
 
 
-IF_MATCH_HEADER = Header(default=None, alias="If-Match", description=revision.IF_MATCH_DESCRIPTION)
-
-
-@router.get("/{org}", response_model=OrganizationView, operation_id="getOrganization")
+@router.get(
+    "/{org}", response_model=OrganizationView, operation_id="getOrganization", responses=revision.ETAG_RESPONSE
+)
 async def get_organization(
     org: str,
     response: Response,
@@ -237,7 +236,7 @@ async def get_organization(
     response_model=OrganizationView,
     operation_id="updateOrganization",
     responses={
-        **revision.PRECONDITION_RESPONSES,
+        **revision.EDIT_RESPONSES,
         402: {"model": ErrorResponse, "description": "Naming oneself: the caller's plan cannot take the subtree (`sponsor_quota_exceeded`)."},
         422: {
             "description": (
@@ -252,7 +251,7 @@ async def update_organization(
     org: str,
     payload: OrganizationUpdate,
     response: Response,
-    if_match: str | None = IF_MATCH_HEADER,
+    if_match: str | None = revision.IF_MATCH_HEADER,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> OrganizationView:
@@ -819,6 +818,7 @@ async def create_project(
     response_model=ProjectView,
     operation_id="getProject",
     summary="Read a project (members, or anyone for a public project)",
+    responses=revision.ETAG_RESPONSE,
 )
 async def get_project(
     org: str, project: str, response: Response,
@@ -838,11 +838,11 @@ async def get_project(
     "/{org}/projects/{project}",
     response_model=ProjectView,
     operation_id="updateProject",
-    responses=revision.PRECONDITION_RESPONSES,
+    responses=revision.EDIT_RESPONSES,
 )
 async def update_project(
     org: str, project: str, payload: ProjectUpdate, response: Response,
-    if_match: str | None = IF_MATCH_HEADER,
+    if_match: str | None = revision.IF_MATCH_HEADER,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> ProjectView:
@@ -928,7 +928,12 @@ async def _case(session: AsyncSession, project_id: uuid.UUID, reference: str) ->
     return found
 
 
-@router.get("/{org}/projects/{project}/cases/{case}", response_model=BindingCaseView, operation_id="getBindingCase")
+@router.get(
+    "/{org}/projects/{project}/cases/{case}",
+    response_model=BindingCaseView,
+    operation_id="getBindingCase",
+    responses=revision.ETAG_RESPONSE,
+)
 async def get_case(
     org: str, project: str, case: str, response: Response,
     user: User = Depends(get_current_user),
@@ -1074,11 +1079,11 @@ async def create_case_revision(
     "/{org}/projects/{project}/cases/{case}",
     response_model=BindingCaseView,
     operation_id="updateBindingCase",
-    responses=revision.PRECONDITION_RESPONSES,
+    responses=revision.EDIT_RESPONSES,
 )
 async def update_case(
     org: str, project: str, case: str, payload: BindingCaseUpdate, response: Response,
-    if_match: str | None = IF_MATCH_HEADER,
+    if_match: str | None = revision.IF_MATCH_HEADER,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> BindingCaseView:
