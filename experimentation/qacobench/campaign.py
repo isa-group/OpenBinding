@@ -293,18 +293,10 @@ class Gateway:
                 body = response.json()
                 if isinstance(body, dict):
                     # RFC 7807 problem document: `code` and `diagnostics` at the top level, `detail` a sentence.
-                    # A `detail` object (older shape) is read as a fallback.
                     code = body.get("code")
                     detail = body.get("detail")
-                    message = None
+                    message = detail if isinstance(detail, str) else None
                     listed = body.get("diagnostics")
-                    if isinstance(detail, dict):
-                        code = code or detail.get("code")
-                        message = detail.get("message")
-                        if not isinstance(listed, list):
-                            listed = detail.get("diagnostics")
-                    elif isinstance(detail, str):
-                        message = detail
                     if response.status_code == 422 and code == "engine_mode_incompatible":
                         status = "INCOMPATIBLE"
                     if isinstance(listed, list) and listed:

@@ -11,7 +11,7 @@ Source: `docs/agent-work/m08-qacobench-baseline/intake.md` (facts F1-F20, slices
   no `error` text; a completed job is never `INCOMPATIBLE`, whatever its result `code`.
 - Submission: a 422 of `POST /v1/jobs` is `INCOMPATIBLE` only when the problem document's top-level `code` is
   `engine_mode_incompatible`; its diagnostics are the document's top-level `diagnostics` list (`detail` is a string,
-  not an object). Any other 4xx is `ERROR` (`campaign.py:289`).
+  not an object). Any other 4xx is `ERROR` (`campaign.py:290`).
 - The code name comes from the spec; S2 does not edit the gateway contract and can merge before S1.
 - Until S1 ships (CRP-M08-1), the gateway codes every job-level refusal `engine_rejected`, which S2 records as
   `ERROR`, and an `ERROR` result stops the campaign (`campaign.py` raises on `ERROR`). The 1.1.2 re-run therefore

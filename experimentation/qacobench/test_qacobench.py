@@ -130,10 +130,15 @@ def _submit(status_code: int, body: dict) -> dict:
 
 
 def problem(status: int, code: str, detail: str, diagnostics: list | None = None) -> dict:
-    """An RFC 7807 problem document shaped like the gateway's `problem_body`."""
+    """An RFC 7807 problem document shaped like the gateway's `problem_body`.
+
+    A 422 carries `diagnostics`; when none are given it gets `[{"code": code, "message": detail}]`, as the gateway does.
+    """
     body: dict = {"type": f"https://openbinding.example/problems/{code}", "title": code, "status": status, "code": code, "detail": detail}
     if diagnostics is not None:
         body["diagnostics"] = diagnostics
+    elif status == 422:
+        body["diagnostics"] = [{"code": code, "message": detail}]
     return body
 
 
@@ -142,9 +147,14 @@ def test_submission_refusals_are_classified_by_code() -> None:
     refused = _submit(422, problem(422, "engine_mode_incompatible", "engine cannot run this snapshot", diagnostics))
     assert refused["status"] == "INCOMPATIBLE"
     assert refused["diagnostics"] == diagnostics
-    no_list = _submit(422, problem(422, "engine_mode_incompatible", "engine cannot run this snapshot"))
-    assert no_list["status"] == "INCOMPATIBLE"
-    assert no_list["diagnostics"] == [{"code": "engine_mode_incompatible", "message": "engine cannot run this snapshot"}]
+    gateway_default = _submit(422, problem(422, "engine_mode_incompatible", "engine cannot run this snapshot"))
+    assert gateway_default["status"] == "INCOMPATIBLE"
+    assert gateway_default["diagnostics"] == [{"code": "engine_mode_incompatible", "message": "engine cannot run this snapshot"}]
+    no_key = _submit(422, {"code": "engine_mode_incompatible", "detail": "engine cannot run this snapshot"})
+    assert no_key["status"] == "INCOMPATIBLE"
+    assert no_key["diagnostics"] == [{"code": "engine_mode_incompatible", "message": "engine cannot run this snapshot"}]
+    assert _submit(422, problem(422, "engine_mode_incompatible", "m", []))["diagnostics"] == [{"code": "engine_mode_incompatible", "message": "m"}]
+    assert _submit(422, problem(422, "engine_registration_required", "no registration"))["status"] == "ERROR"
     assert _submit(422, problem(422, "validation_error", "bad"))["status"] == "ERROR"
     assert _submit(400, problem(400, "invalid_option", "bad"))["status"] == "ERROR"
     assert _submit(400, problem(400, "engine_mode_incompatible", "x"))["status"] == "ERROR"
@@ -159,11 +169,22 @@ def test_submission_refusal_tolerates_a_non_list_diagnostics_field() -> None:
     assert _submit(422, problem(422, "validation_error", "bad", {"code": "x"}))["status"] == "ERROR"  # type: ignore[arg-type]
 
 
-def test_submission_refusal_keeps_the_legacy_detail_dict_shape() -> None:
-    refused = _submit(422, {"detail": {"code": "engine_mode_incompatible", "message": "not supported"}})
-    assert refused["status"] == "INCOMPATIBLE"
-    assert refused["diagnostics"] == [{"code": "engine_mode_incompatible", "message": "not supported"}]
-    assert _submit(422, {"detail": {"code": "validation_error", "message": "bad"}})["status"] == "ERROR"
+def test_submission_refusal_with_the_code_only_inside_a_detail_object_is_an_error() -> None:
+    body = {"detail": {"code": "engine_mode_incompatible", "message": "not supported"}}
+    refused = _submit(422, body)
+    assert refused["status"] == "ERROR"
+    assert refused["status"] != "INCOMPATIBLE"
+    assert "engine_mode_incompatible" in refused["error"]
+    assert "not supported" in refused["error"]
+
+
+def test_throttled_and_unavailable_submissions_raise_instead_of_being_recorded() -> None:
+    import pytest
+
+    with pytest.raises(RuntimeError):
+        _submit(429, problem(429, "rate_limited", "slow down"))
+    with pytest.raises(RuntimeError):
+        _submit(503, problem(503, "unavailable", "later"))
 
 
 def test_reasons_are_classified() -> None:

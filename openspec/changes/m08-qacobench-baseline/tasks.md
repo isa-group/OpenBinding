@@ -23,8 +23,10 @@ CRP-M08-1 (option (a) or (c) assumed: the job-level code is literally `engine_in
 - [x] 2.2 RED (G3).
 - [x] 2.3 `campaign.py` classification by code; README `:52` sentence. `reference/1.1.1/**` untouched.
 - [ ] 2.4 Review (G11).
-- [ ] 2.5 Review-round fix: `campaign.py` reads the submission problem document's top-level `code` and `diagnostics`
+- [x] 2.5 Review-round fix: `campaign.py` reads the submission problem document's top-level `code` and `diagnostics`
   (not `detail.code`), and records a failed job without a code or an error text as `ERROR`; tests for both scenarios.
+- [x] 2.6 Round-2 fix: the `detail`-object fallback is removed (a code only inside `detail` is `ERROR`); tests cover
+  that case, a code that only shares a prefix, an empty `diagnostics` list, and 429/503 submissions raising.
 
 ## 3. S3 bim-toolchain frozen baseline
 - See `bim-toolchain/openspec/changes/m08-frozen-manifest-baseline/tasks.md`.
