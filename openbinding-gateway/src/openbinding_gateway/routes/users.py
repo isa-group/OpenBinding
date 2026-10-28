@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Header, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -52,6 +52,7 @@ from ..security.apikeys import (
     permissions_of,
 )
 from ..security.passwords import hash_password, password_complaint, verify_password
+from ..core import revision
 from ..core.public_errors import pricing_unavailable_error
 from ..services.entitlements import entitlement_service
 from ..space_client import PricingUnavailable, get_gate
@@ -117,9 +118,11 @@ async def profile_of(session: AsyncSession, user: User) -> UserProfile:
     responses={401: UNAUTHORIZED_RESPONSE, 503: UNAVAILABLE_RESPONSE},
 )
 async def read_own_profile(
+    response: Response,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> UserProfile:
+    revision.set_etag(response, user)
     return await profile_of(session, user)
 
 
@@ -129,6 +132,7 @@ async def read_own_profile(
     operation_id="updateOwnProfile",
     summary="Change your email or password",
     responses={
+        **revision.PRECONDITION_RESPONSES,
         401: UNAUTHORIZED_RESPONSE,
         409: CONFLICT_RESPONSE,
         422: {"description": "The new password is not acceptable."},
@@ -137,16 +141,23 @@ async def read_own_profile(
 )
 async def update_own_profile(
     request: UpdateProfileRequest,
+    response: Response,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
+    if_match: str | None = Header(default=None, alias="If-Match", description=revision.IF_MATCH_DESCRIPTION),
 ) -> UserProfile:
     """Change what the account holder is allowed to change.
 
     Both changes need the current password. Email is included in that because
     the email address is one of the two ways to sign in, so changing it is a
     change of credential, not of contact details.
+
+    The revision is the account row's, shared with the notification preferences.
     """
     if request.new_password is None and request.email is None:
+        # A read: the tag is still checked, but nothing is stored and the revision stays.
+        revision.precondition(user, if_match)
+        revision.set_etag(response, user)
         return await profile_of(session, user)
 
     if not request.current_password or not verify_password(
@@ -157,6 +168,8 @@ async def update_own_profile(
             "invalid_credentials",
             "The current password is required to change these details.",
         )
+
+    await revision.guard(session, user, if_match)
 
     if request.email is not None:
         email = request.email.lower()
@@ -178,6 +191,8 @@ async def update_own_profile(
         user.password_enabled = True
 
     await session.flush()
+    await session.refresh(user, ["updated_at"])
+    revision.set_etag(response, user)
     return await profile_of(session, user)
 
 
