@@ -15,11 +15,11 @@ the gateway container.
 M0.9 shipped with change `m09-compose-only`, which left nine follow-ups open (`m09-compose-only/tasks.md`, F1 to F9).
 M0.5 (`m05-pr-previews`) has two open documentation tasks, 4.2 and 4.3. This change closes that infra tail in slices:
 
-- F5: `bim-toolchain/docs/SERVICE.md:742,751-755` still gives Kubernetes advice, although ADR-0021 and
+- F5: before S1, `bim-toolchain/docs/SERVICE.md:742,751-755` gave Kubernetes advice, although ADR-0021 and
   `req~lab-deployment-compose-only~1` say Docker Compose is the only deployment tool.
-- F9 (round-2 finding R2-REV-002, accepted for now): `nginx/production/nginx.conf` resolves `gateway` once, when nginx
-  starts. After the Docker daemon restarts the gateway (crash, out-of-memory kill), nginx keeps the old address and the
-  public origin answers 502 until someone runs `$DC restart nginx` (`docs/runbooks/production.md:410-426`).
+- F9 (round-2 finding R2-REV-002, accepted for now): before S1, `nginx/production/nginx.conf` resolved `gateway` once,
+  when nginx started. After the Docker daemon restarts the gateway (crash, out-of-memory kill), nginx kept the old
+  address and the public origin answered 502 until someone ran `$DC restart nginx` (`docs/runbooks/production.md:410-426`).
 - F1: the M0.9 acceptance "passes in CI for development, lab and production" is met only for development
   (`.github/workflows/ci.yml:424-425`). This change specifies the CI requirement; the job itself waits for a token.
 - F4 and F7: the `prod` profile of `docker-compose.yml`, and non-root users with `cap_drop` for the Java engines,
@@ -36,18 +36,21 @@ M0.5 (`m05-pr-previews`) has two open documentation tasks, 4.2 and 4.3. This cha
   within 10 s without restarting nginx. The raw request URI reaches the gateway unchanged apart from the `/api` prefix
   (design.md D1, D2).
 - `bim-toolchain/docs/SERVICE.md` loses its Kubernetes notes. The advice that does not depend on Kubernetes stays,
-  worded for Docker Compose (design.md D3).
-- `README.md` points to the open infra items of the production runbook (design.md D4).
+  with no orchestrator named (design.md D3).
+- `README.md` says that the project deploys with Docker Compose only and links `bim-toolchain/docs/SERVICE.md`
+  (design.md D4).
+- The production runbook says that nginx follows the gateway address at request time. Its restart steps stay as a
+  precaution. F5 and F9 close completely in this change.
 - The slices that wait for an owner or factory decision (S2, S3, S4) are listed in tasks.md and not built here.
 
 ## Impact
 
 - Capability: `lab-deployment` only. One ADDED requirement. F9, F5 and the README pointer add no requirement: they
   fix a known defect and remove stale documentation (design.md D5).
-- Repository, slice S1: `nginx/production/nginx.conf`; the resolve-once comment of
-  `deploy/compose/production/compose.yaml:353`; in `openbinding-gateway/tests/test_compose_production.py`, the
-  resolve-once comments and the runbook assertions that pin F9 as open (tasks.md S1);
-  `docs/runbooks/production.md`; `bim-toolchain/docs/SERVICE.md`; `README.md`; a new static test
+- Repository, slice S1 (built): `nginx/production/nginx.conf`, `bim-toolchain/docs/SERVICE.md`, `README.md`.
+- Repository, slice S1b: `docs/runbooks/production.md`; the resolve-once comment of
+  `deploy/compose/production/compose.yaml:353-354` (comment only); the phrases of
+  `openbinding-gateway/tests/test_compose_production.py` that F9 made stale; a new static test
   `openbinding-gateway/tests/test_production_nginx.py`; the F5 and F9 lines of `openspec/changes/m09-compose-only/tasks.md`.
 - Repository, slice S3 (blocked): `.github/workflows/ci.yml` (new job `compose-config`) and
   `lab/tests/test_ci_compose_config.py`.

@@ -1,21 +1,21 @@
 # Tasks: m0-infra-close
 
 The infra tail of M0: follow-ups F1, F4, F5, F7 and F9 of `m09-compose-only` (its tasks.md, lines 109-140), and tasks
-4.2 and 4.3 of `m05-pr-previews`. Each slice has one capability. It merges into `develop` as its own PR and stays
-within about 300 changed lines. Slices that share a file run in order: S1 before S2 and S3
-(`docs/runbooks/production.md`, `openspec/changes/m09-compose-only/tasks.md`), and S1 before S2 (`README.md`,
-`deploy/compose/production/compose.yaml`, `openbinding-gateway/tests/test_compose_production.py`).
-- Only S0 and S1 are built now. S2, S3 and S4 are `blocked on <decision>`: they stay unchecked and nobody builds them
-  until the decision is recorded.
+4.2 and 4.3 of `m05-pr-previews`. Each slice has one capability and stays within about 300 changed lines. Slices
+that share a file run in order: S1b before S2 and S3 (`docs/runbooks/production.md`,
+`openspec/changes/m09-compose-only/tasks.md`), S1b before S2 (`deploy/compose/production/compose.yaml`,
+`openbinding-gateway/tests/test_compose_production.py`), and S1 before S2 (`README.md`).
+- S0 and S1 are built. S1b is next (owner decision "Full": F5 and F9 close completely in this change). S2, S3 and S4
+  are `blocked on <decision>`: they stay unchecked and nobody builds them until the decision is recorded.
 - Tests are written first, and they run red on the slice's base by assertion (G3), except negative controls, which are
-  named.
+  named, and `test_production_nginx.py`, which follows the S1 code (S1b, item 1b.1).
 - Workers have no Docker. Every render and every container check is done in the lab by the coordinator (design.md §3).
 
 Checks to register. The argv is listed; `cwd` is the repository root.
 1. G1: `["openspec","validate","m0-infra-close","--strict"]`.
 2. G9: `["git","diff","--check"]`.
-3. S1 static tests: `["uv","run","--project","openbinding-gateway","--locked","--extra","test","pytest","-q","openbinding-gateway/tests/test_production_nginx.py","openbinding-gateway/tests/test_compose_production.py","openbinding-gateway/tests/test_no_kubernetes.py"]`.
-4. S1 ruff: `["uv","run","--project","openbinding-gateway","--locked","--extra","test","ruff","check","openbinding-gateway/tests/test_production_nginx.py"]`.
+3. S1b static tests: `["uv","run","--project","openbinding-gateway","--locked","--extra","test","pytest","-q","openbinding-gateway/tests/test_production_nginx.py","openbinding-gateway/tests/test_compose_production.py","openbinding-gateway/tests/test_no_kubernetes.py"]`.
+4. S1b ruff: `["uv","run","--project","openbinding-gateway","--locked","--extra","test","ruff","check","openbinding-gateway/tests/test_production_nginx.py"]`.
 5. S3 static tests: `["uv","run","--project","openbinding-gateway","--locked","--extra","test","pytest","-q","lab/tests/test_ci_compose_config.py","lab/tests/test_ci_gate_tooling.py"]`.
 
 ## S0. Specification (specifier)
@@ -27,79 +27,68 @@ Owned: `openspec/changes/m0-infra-close/proposal.md`, `design.md`, `tasks.md`, `
   Its `Evidence:` names the S3 files, which do not exist yet.
 - [ ] 0.3 Check 1 green, then the G2 EPIC review by the spec-auditor. The owner or coordinator answers design.md §6 Q1.
 
-## S1. Nginx request-time resolution (F9), Kubernetes notes (F5) and README pointer
+## S1. Nginx request-time resolution (F9), Kubernetes notes (F5) and README pointer (built)
+
+Owned: `nginx/production/nginx.conf` (design.md D1, D2), `bim-toolchain/docs/SERVICE.md` (D3), `README.md` (D4).
+
+- [x] 1.1 `nginx/production/nginx.conf`: the `resolver` and `set $gateway_upstream http://gateway:8000;` at server
+  level, the `/api` `map` on `$request_uri`, the 400 on its empty value, `proxy_pass $gateway_upstream$gateway_api_uri;`
+  for `/api/` and `proxy_pass $gateway_upstream;` (no URI) for `/static/` and `/avatars/`.
+- [x] 1.2 F5: `bim-toolchain/docs/SERVICE.md` line 742 and the former "Kubernetes notes" (now "Operation notes", lines 751-754) as
+  in design.md D3.
+  `git grep -n -i kubernetes -- bim-toolchain/docs/SERVICE.md` prints nothing.
+- [x] 1.3 `README.md`: one sentence after line 126, "The project deploys with Docker Compose only", with the link to
+  `bim-toolchain/docs/SERVICE.md`.
+
+## S1b. Runbook, stale F9 phrases, nginx static test and the m09 follow-ups
 
 Owned:
-- `openbinding-gateway/tests/test_production_nginx.py` (new, written first; design.md D5);
-- `nginx/production/nginx.conf` (design.md D1, D2);
-- `deploy/compose/production/compose.yaml`: only the comment at line 353 that says nginx resolves `gateway` once.
-  `restart: true` stays (`req~lab-deployment-production-health-restart~1`);
-- `openbinding-gateway/tests/test_compose_production.py`, edited before the runbook (item 1.1):
-  - the comment at line 600 and the docstring of `gateway_restart_problems` (line 2283), which say nginx resolves the
-    gateway once;
-  - `test_runbook_says_that_only_nginx_restarts_with_the_gateway_and_that_a_daemon_restart_needs_a_manual_one`
-    (lines 2932-2947) is renamed to `test_runbook_says_that_only_nginx_restarts_with_the_gateway_and_that_nginx_re_resolves_it`.
-    Its assertions change:
-    - the needle `"F9"` of the section "502 after a gateway restart" becomes `"10 s"`;
-    - `"#502-after-a-gateway-restart" in section(text, "What stays blocked")` becomes
-      `"Nginx resolves the gateway once" not in section(text, "What stays blocked")`;
-    - the assertions on "What is deployed" (`restart: true`, the workers, the anchor link) stay.
-  - `gateway_restart_problems` and its tests stay: every recreation of the gateway in the runbook is still followed by
-    `$DC restart nginx`. So does `test_runbook_follow_up_f7_and_the_trace_follow_up_are_recorded_in_the_tasks`
-    (line 2925), which needs `F9`, `R2-REV-002` and `resolver` in `m09-compose-only/tasks.md`;
-- `docs/runbooks/production.md`:
-  - lines 48-51: nginx re-resolves `gateway` within 10 s. The sentence "`nginx` therefore depends on `gateway` with
-    `restart: true`" and the link to `#502-after-a-gateway-restart` stay;
-  - line 594, and the section "502 after a gateway restart" (lines 410-426): its heading stays (the anchor is linked
-    from "What is deployed"). The text says that nginx reaches a recreated gateway within 10 s. A 502 that lasts more
-    than 10 s after the gateway is healthy is a new incident, and `$DC restart nginx` is its first step. The section
-    keeps the words "crash or an out-of-memory kill" and "502 Bad Gateway", and drops the F9 follow-up sentence
-    (lines 424-425). The explicit `$DC restart nginx` lines of the procedures stay, because they are harmless and also
-    reload the configuration;
-  - the bullet "Nginx resolves the gateway once" of "What stays blocked" (lines 757-760) goes;
-- `bim-toolchain/docs/SERVICE.md`: line 742 and lines 751-755 (design.md D3);
-- `README.md`: one sentence after line 126 (design.md D4);
-- `openspec/changes/m09-compose-only/tasks.md`: F5 and F9 are checked, each with "done in `m0-infra-close` S1". Their
-  text stays (line 2925 of `test_compose_production.py` reads it).
+- `openbinding-gateway/tests/test_production_nginx.py` (new; design.md D5);
+- `openbinding-gateway/tests/test_compose_production.py`: the phrases made stale by F9, that is the comment at line
+  600, the docstring of `gateway_restart_problems` (line 2283), and the runbook test of lines 2932-2947, whose needle
+  `"F9"` and whose link from "What stays blocked" pin F9 as open. `gateway_restart_problems` and its tests stay. So
+  does `test_runbook_follow_up_f7_and_the_trace_follow_up_are_recorded_in_the_tasks` (line 2925), which reads `F9`,
+  `R2-REV-002` and `resolver` in `m09-compose-only/tasks.md`;
+- `docs/runbooks/production.md`;
+- `deploy/compose/production/compose.yaml`: only the comment at lines 353-354 that says nginx resolves `gateway`
+  once. `restart: true` stays (`req~lab-deployment-production-health-restart~1`);
+- `openspec/changes/m09-compose-only/tasks.md`: the F5 and F9 lines.
 
 No other file changes.
 
-- [ ] 1.1 Test first: `test_production_nginx.py` reads `nginx/production/nginx.conf` and checks:
-  - the `resolver 127.0.0.11 valid=10s ipv6=off;` line;
-  - every `proxy_pass` uses `$gateway_upstream`, and no `proxy_pass` names `gateway:8000` literally;
-  - the `/api/` `proxy_pass` ends with the variable mapped from `$request_uri`, the `map` strips `^/api` and has an
-    empty default, and the location returns 400 on the empty value;
-  - no `rewrite` directive in the file.
-
-  Each rule is also applied to an in-memory copy that breaks it: the literal `proxy_pass`, no resolver, a `rewrite`.
-  The test fails on that copy. On the base the test is red by assertion (no resolver). The mutated-copy cases are
-  negative controls and pass on the base. The tests carry no `[utest->…]` tag (design.md D5).
-
-  In the same item, the `test_compose_production.py` edits listed above. The changed runbook test is red on the base
-  by assertion: the base runbook still has the bullet "Nginx resolves the gateway once", and its section "502 after a
-  gateway restart" has no "10 s".
-- [ ] 1.2 `nginx/production/nginx.conf`: D1 and D2. The `/static/` and `/avatars/` locations keep a `proxy_pass`
-  without a URI.
-- [ ] 1.3 The comments of `compose.yaml:353` and `test_compose_production.py:600`, and the runbook edits listed above.
-- [ ] 1.4 F5: `bim-toolchain/docs/SERVICE.md` as in design.md D3. MRP evidence:
-  `git grep -n -i kubernetes -- bim-toolchain/docs/SERVICE.md` prints nothing.
-- [ ] 1.5 `README.md` pointer (D4), and the F5 and F9 lines of `m09-compose-only/tasks.md`.
-- [ ] 1.6 Checks 3, 4 and 2. Review panel: reviewer and security-auditor (the public proxy changes).
-- [ ] 1.7 Lab, by the coordinator, before merge: the F9 procedure of design.md §3, with the image built from the S1
-  head. The MRP records the request lines that the stand-in logged, the 400, and the request after the gateway was
-  replaced.
+- [ ] 1b.1 `test_production_nginx.py` reads `nginx/production/nginx.conf` and pins: the
+  `resolver 127.0.0.11 valid=10s ipv6=off;` line; `$gateway_upstream` in every `proxy_pass`, with no literal
+  `gateway:8000` in any of them; no `rewrite` directive; the `/api` `map` on `$request_uri`, which strips `^/api`, has
+  an empty default and feeds the `/api/` `proxy_pass`. Each rule is also applied to an in-memory copy that breaks it
+  (a literal `proxy_pass`, no resolver, a `rewrite`, a `map` on `$uri`), and the test fails on that copy. The S1 code
+  is already in, so these mutated-copy cases are the evidence that the test detects each defect. No `[utest->…]` tag
+  (design.md D5).
+- [ ] 1b.2 `test_compose_production.py`: the stale phrases above, and the runbook test now pins that nginx follows
+  the gateway at request time and that "What stays blocked" no longer lists F9. Red on the base runbook by assertion.
+- [ ] 1b.3 `docs/runbooks/production.md`: nginx follows the gateway address at request time (`valid=10s`). The
+  `$DC restart nginx` steps after a recreation of the gateway stay as a precaution; the runbook does not call them
+  "harmless" (`test_compose_production.py:2882`, R2-SEC-001). The resolve-once statements (`:48`, `:412`, `:594`),
+  the F9 follow-up sentences and the "What stays blocked" bullet on F9 go; the heading "502 after a gateway restart"
+  stays (its anchor is linked).
+- [ ] 1b.4 The comment of `compose.yaml:353-354`.
+- [ ] 1b.5 `m09-compose-only/tasks.md`: F5 and F9 checked, each with "done in `m0-infra-close`". Their text keeps
+  `F9`, `R2-REV-002` and `resolver`.
+- [ ] 1b.6 Checks 3, 4 and 2. Review panel: reviewer and security-auditor (the public proxy changes).
+- [ ] 1b.7 Lab, by the coordinator, before merge: the F9 procedure of design.md §3, with the image built from a head
+  with S1 and S1b. The MRP records the request lines that the stand-in logged, the 400, and the request after the
+  gateway was replaced.
 
 ## S2. `prod` profile (F4) and non-root engines (F7): blocked on CRP-M09-2
 
 Owner decision CRP-M09-2 (`m09-compose-only`, design.md §4 and §10): keep the production definition standalone and
 remove the `prod` profile, or turn production into an override of `docker-compose.yml`. Nothing in S2 starts before
-the answer is recorded.
+the answer is recorded. S2 keeps only F4 and F7.
 
 Owned (planned): `docker-compose.yml`, `README.md:118-131`, the comment of `.github/workflows/ci.yml:404-411` if
 the `prod` profile goes (a workflow edit, so it also needs CRP-M09-3), `deploy/compose/production/compose.yaml`
-(`user` and `cap_drop` for the Java engines, `nginx` and `frontend-assets`), `docs/runbooks/production.md` ("What
-stays blocked"), `openbinding-gateway/tests/test_compose_production.py`, and the F4 and F7 lines of
-`m09-compose-only/tasks.md`.
+(`user` and `cap_drop` for the Java engines, `nginx` and `frontend-assets`), `docs/runbooks/production.md` (the F7
+bullet of "What stays blocked"), `openbinding-gateway/tests/test_compose_production.py` (F4 and F7 only), and the F4
+and F7 lines of `m09-compose-only/tasks.md`.
 
 - [ ] 2.1 blocked on CRP-M09-2: F4, remove or rename the `prod` profile of `docker-compose.yml`, as the answer says.
 - [ ] 2.2 blocked on CRP-M09-2: F7, a `user` and `cap_drop: [ALL]` for the Java engines, `nginx` and
@@ -145,7 +134,7 @@ Owned (planned): `docs/previews/README.md`, `docs/DEMO.md` (a "PR previews" sect
   previews" covers images, the work tree and the state record. `docs/ARCHITECTURE.md` is outside the owned files above.
 - [ ] 4.3 blocked on factory F2: check 2.
 
-## A. Archive (explicit archive task, after S1 and S3)
+## A. Archive (explicit archive task, after S1, S1b and S3)
 
 - [ ] `["openspec","archive","m0-infra-close","--yes"]`, then `["openspec","validate","--all","--strict"]`. The
   archive waits for S3, because the requirement's `Evidence:` files are built there. If CRP-M09-3 is never answered,

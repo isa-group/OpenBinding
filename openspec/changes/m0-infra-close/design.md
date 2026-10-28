@@ -4,8 +4,8 @@
 
 `m09-compose-only` made Docker Compose the only deployment tool and added the production definition
 `deploy/compose/production/`. Its tasks.md (lines 109-140) leaves follow-ups F1 to F9 open. `m05-pr-previews` leaves
-tasks 4.2 and 4.3 open. This change collects the infra tail of M0 in five slices (tasks.md). Only S0 (this
-specification) and S1 are built now. S2, S3 and S4 wait for a decision each.
+tasks 4.2 and 4.3 open. This change collects the infra tail of M0 in six slices (tasks.md). S0 (this
+specification) and S1 are built, and S1b follows them. S2, S3 and S4 wait for a decision each.
 
 ### 1.1 What CI renders today
 
@@ -30,9 +30,9 @@ specification) and S1 are built now. S2, S3 and S4 wait for a decision each.
 So the M0.9 acceptance "`docker compose config` passes in CI for development, lab and production" is met for
 development only, and for two lab files only as a side effect of a unit test.
 
-### 1.2 Where nginx resolves the gateway today
+### 1.2 Where nginx resolved the gateway before S1
 
-`nginx/production/nginx.conf` uses the literal `proxy_pass http://gateway:8000/` for `/api/` (line 40) and
+`nginx/production/nginx.conf` used the literal `proxy_pass http://gateway:8000/` for `/api/` (line 40) and
 `http://gateway:8000` for `/static/` and `/avatars/` (lines 63, 76). With a literal host name, nginx resolves it once,
 when it loads the configuration, and keeps that address. `docs/runbooks/production.md:48-51` and its section "502 after a gateway restart" (`:410-426`) describe the
 outcome: after the Docker daemon restarts the gateway, the public origin answers 502 while `$DC ps` shows every service
@@ -43,19 +43,15 @@ healthy, until `$DC restart nginx`. The same file is the configuration of the pr
 
 ### D1. Nginx resolves `gateway` at request time
 
-In the `http` context (the file is included from `conf.d`):
+In the `server` block of `openbinding.score.us.es`, the one that proxies, the resolver is set and the upstream,
+scheme included, goes into a variable at server level. Each `proxy_pass` uses it:
 
 ```nginx
 resolver 127.0.0.11 valid=10s ipv6=off;
-```
-
-In the `server` block that proxies, the upstream goes into a variable, and each `proxy_pass` uses it:
-
-```nginx
-set $gateway_upstream gateway:8000;
+set $gateway_upstream http://gateway:8000;
 ...
-proxy_pass http://$gateway_upstream$gateway_api_uri;   # /api/ (D2)
-proxy_pass http://$gateway_upstream;                   # /static/ and /avatars/
+proxy_pass $gateway_upstream$gateway_api_uri;   # /api/ (D2)
+proxy_pass $gateway_upstream;                   # /static/ and /avatars/
 ```
 
 - `127.0.0.11` is the embedded DNS server of Docker on user-defined networks. Every Compose network is one, the
@@ -68,7 +64,10 @@ proxy_pass http://$gateway_upstream;                   # /static/ and /avatars/
 
 The `restart: true` of `nginx` on `gateway` stays. `req~lab-deployment-production-health-restart~1` requires it, and
 it still covers the recreations that Compose makes itself. Only the comment that explains it changes
-(`deploy/compose/production/compose.yaml:353`).
+(`deploy/compose/production/compose.yaml:353-354`, slice S1b).
+
+The runbook (S1b) says that nginx follows the gateway address at request time, within the `valid=10s` cache. Its
+`$DC restart nginx` steps after a recreation of the gateway stay as a precaution that does no harm.
 
 Options considered:
 - `upstream gateway_upstream { zone ...; server gateway:8000 resolve; }`. Open-source nginx supports `resolve` since
@@ -85,8 +84,8 @@ client sent it, query string included, still encoded:
 
 ```nginx
 map $request_uri $gateway_api_uri {
-    ~^/api(/.*)$  $1;
-    default       "";
+    default         "";
+    ~^/api(/.*)$    $1;
 }
 ```
 
@@ -104,7 +103,7 @@ if ($gateway_api_uri = "") { return 400; }
 - The `400` covers the requests that match `location ^~ /api/` only after normalization, for example `/%61pi/x`, so
   their raw form does not start with `/api/`. Nginx refuses them instead of passing an empty URI.
 - `/static/` and `/avatars/` keep a `proxy_pass` without a URI. Then nginx passes the request URI in the form the
-  client sent it, as it does today.
+  client sent it, as before S1.
 - `location = /api` (the `308` to `/api/`) does not change.
 
 ### D3. F5: the Kubernetes notes of `bim-toolchain/docs/SERVICE.md` go
@@ -112,24 +111,23 @@ if ($gateway_api_uri = "") { return 400; }
 ADR-0021 and `req~lab-deployment-compose-only~1` make Docker Compose the only deployment tool, and INTENT §8 lists
 "Kubernetes or any orchestrator other than Docker Compose" as a non-goal. `SERVICE.md` still gives Kubernetes advice:
 
-- line 742 calls the token mount "a Docker or Kubernetes secret". It becomes "a Docker Compose secret";
-- lines 751-755, the paragraph "Kubernetes notes", go. Two parts do not depend on Kubernetes and stay, reworded for
-  Compose: use `/healthz` for the container health check and `/readyz` for readiness, and a failing start exits
-  non-zero; put the service behind TLS and reach it only from the services that call it, because the token is a
-  defence in depth, not the perimeter. The sentence on `BIM_SERVICE_PORT` and `BIM_SERVICE_SERVICE_HOST`, the
-  variables that Kubernetes injects, goes. The behaviour it explains, ignoring unknown `BIM_SERVICE_*` variables, is
-  not changed by this change.
+- line 742 called the token mount "a Docker or Kubernetes secret". It is now "a Docker or Compose secret, or any
+  mounted file";
+- lines 751-755, the paragraph "Kubernetes notes", become "Operation notes", with no orchestrator named: `/healthz`
+  for liveness and `/readyz` for readiness, and a failing start exits non-zero; container platforms may inject
+  service-link variables such as `BIM_SERVICE_PORT`, which is why unknown `BIM_SERVICE_*` variables are ignored; put
+  the service behind TLS and restrict network access to the callers, because the token is a defence in depth, not the
+  perimeter. The behaviour of the service does not change.
 
 `bim-toolchain/` is being extracted to `isa-group/bim-toolchain` (`AGENTS.md:26`). The same edit has to reach that
 repository too (§4, R4).
 
 ### D4. The README pointer
 
-`README.md:122-126` already points to `docs/runbooks/production.md`. S1 adds one sentence after it. The sentence
-names the runbook section "What stays blocked" (`docs/runbooks/production.md:747`) as the list of open production
-items. After S1 removes its F9 bullet, that list holds: the image registry and publish workflow (CRP-4), non-root
-users and dropped capabilities (F7, S2), the CI compose-config job (S3), the first render on a host with Docker, and
-the host facts (Q3). The README stays short, and the runbook stays the one place where these items are described.
+`README.md:122-126` already points to `docs/runbooks/production.md`. S1 adds one sentence after it: the project
+deploys with Docker Compose only, and the standalone bim-service container is described in
+`bim-toolchain/docs/SERVICE.md` (linked). The README stays short, and the runbook stays the one place where the open
+production items are described.
 
 ### D5. One requirement, and none for F9 or F5
 
@@ -138,10 +136,11 @@ The delta adds only `req~lab-deployment-compose-config-in-ci~1`, as `m09-compose
 the README pointer is documentation. None of them adds an obligation that is not already in the living spec or the
 deltas of `m09-compose-only`.
 
-- S1 still writes a static test first, `openbinding-gateway/tests/test_production_nginx.py`. It checks that every
-  `proxy_pass` of `nginx/production/nginx.conf` goes through `$gateway_upstream`, that the `resolver` line is present,
-  that the `map` reads `$request_uri`, and that no `rewrite` touches `/api/`. Its tests carry no `[utest->…]` tag,
-  because no requirement covers them.
+- S1b adds a static test, `openbinding-gateway/tests/test_production_nginx.py`. It pins the `resolver` line, that
+  every `proxy_pass` of `nginx/production/nginx.conf` goes through `$gateway_upstream`, that there is no `rewrite`,
+  and the `/api` `map` on `$request_uri`. It comes after the S1 code, so the cases that break each rule on an
+  in-memory copy are its evidence that it detects the defect. Its tests carry no `[utest->…]` tag, because no
+  requirement covers them.
 - A later change can add a requirement for request-time resolution if the owner wants it traced.
 
 ### D6. The CI job (S3, planned, not built)
@@ -174,12 +173,12 @@ Workers have no Docker. Only static checks run in a worker's `qa_run`.
 
 | Item | Worker (static, `qa_run`) | Lab (coordinator, with Docker) |
 |---|---|---|
-| F9 nginx | `test_production_nginx.py`; `test_compose_production.py`, with its runbook assertions changed as tasks.md S1 lists | the procedure below |
-| F5 SERVICE.md | `git diff --check` | none |
+| F9 nginx | `test_production_nginx.py`; `test_compose_production.py`, with its runbook assertions changed as tasks.md S1b lists | the procedure below |
+| F5 SERVICE.md | `git diff --check`; `git grep -n -i kubernetes -- bim-toolchain/docs/SERVICE.md` prints nothing | none |
 | README pointer | `git diff --check` | none |
 | S3 CI job | `test_ci_compose_config.py` | the CI run of the pull request |
 
-F9 in the lab, run by the coordinator on the S1 head:
+F9 in the lab, run by the coordinator on a head with S1 and S1b:
 
 1. Build the image: `docker build -t m0ic-nginx nginx/production`.
 2. `docker run --rm m0ic-nginx nginx -t` passes, with a self-signed certificate mounted at `/etc/nginx/ssl`.
@@ -224,7 +223,7 @@ container on the same network.
 ## 5. Rollback
 
 Each slice is one squash commit into `develop`. Reverting it restores the previous files: the literal `proxy_pass` and
-the restart instructions of the runbook for S1, the old `SERVICE.md` text for F5. Nothing in S0 or S1 migrates data or
+the old `SERVICE.md` text for S1, the resolve-once runbook text and its tests for S1b. Nothing in S0, S1 or S1b migrates data or
 changes an API. If production ever runs an image with the S1 configuration, the rollback is the previous image digest
 in `images.env`, as `docs/runbooks/production.md` describes for any release.
 
