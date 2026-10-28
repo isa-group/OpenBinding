@@ -127,6 +127,40 @@ The sponsor-proposal codes (`sponsor_proposal_pending`, `sponsor_proposal_expire
 M9.6 removed the proposal routes. A request that still sends
 `replace_pending_proposal` is refused with `validation_error`.
 
+## Conditional writes (`If-Match`)
+
+These operations take an optional `If-Match` header:
+
+- `PATCH /v1/organizations/{org}`
+- `PATCH …/projects/{project}`
+- `PATCH …/cases/{case}`
+- `PATCH …/collections/{collection}`
+- `PATCH …/studies/{study}`
+- `PATCH /v1/users/me`
+- `PUT /v1/notifications/preferences`
+- `PUT /v1/engine-registrations/{name}/credential`
+
+The list is the covered-operations table of change `optimistic-concurrency`. Their `200`, and the single-resource
+`GET` of the same resource, carry an `ETag`. The tag is a strong, opaque entity tag, so send it back unchanged and
+never parse it. Without `If-Match` nothing is checked and the request behaves as it always did, with the last writer
+winning.
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `precondition_failed` | 412 | `If-Match` did not match the resource's current `ETag`: somebody changed it since you read it, or (for `*` or a tag) it has no current state yet, such as an engine credential never set. The response carries the **current** `ETag` header (none when the resource has no current state). **Nothing in the request was applied**: no field, no audit event, no side effect (no sponsorship transfer, no registration reset). Re-read the resource, merge, and retry with the new tag |
+| `invalid_if_match` | 400 | `If-Match` is present but is neither `*` nor a comma-separated list of quoted entity tags (`"abc"`, `W/"abc"`). Examples: an unquoted value, `*` mixed with tags, a missing comma, an empty value. Nothing was applied |
+
+Weak tags (`W/"…"`) are well-formed but never match, because `If-Match` uses strong comparison (RFC 9110 §13.1.1).
+`*` matches whenever the resource exists. Authentication (`401`), not-found (`404`) and permission (`403`) refusals
+come first, so a caller who may not read the resource never sees its `ETag`. `412` comes before the refusals that
+depend on stored state (`402`, `409` and `422` such as `sponsor_must_be_caller` or `already_registered`). A request
+body the framework refuses is still `422 validation_error`.
+
+Both codes keep the shape of their route family (below): platform routes answer
+`{"detail": {"code", "error"}, "type", "title", "status", "code"}`, and
+`/v1/engine-registrations/…` answers `Problem` as `application/problem+json`. The tag appears only in the `ETag`
+header, never in the body.
+
 ## The other statuses
 
 `400`, `401`, `402`, `403`, `404`, `409`, `429`, `503`, … keep the shape they
