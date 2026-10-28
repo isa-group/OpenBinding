@@ -45,12 +45,13 @@ them. Image variables, also required: the nine `*_IMAGE` names of the table.
 Every service has `mem_limit`, `cpus`, `no-new-privileges` and rotated `json-file` logs; every service except
 `migrate` has a health check and `restart: unless-stopped`.
 
-`nginx` resolves the address of `gateway` once, when it starts, so it would keep the old address after the gateway is
-recreated. `nginx` therefore depends on `gateway` with `restart: true` (Compose 2.17 or newer): Compose restarts it
-when it recreates the gateway. A command that recreates only the gateway may not trigger it, so every step below that
-recreates the gateway is followed by `$DC restart nginx`. The workers wait for a healthy `gateway` but do not restart
-with it: they have no gateway address, and a restart would only cut running jobs. `restart: true` does not follow a
-restart by the Docker daemon (a crash or an out-of-memory kill of the gateway): see
+`nginx` resolves `gateway` at request time (Docker's resolver, cached for 10 seconds), so it follows the new gateway
+address within about 10 seconds after the gateway is recreated or restarted by the Docker daemon. `nginx` also depends
+on `gateway` with `restart: true` (Compose 2.17 or newer): Compose restarts it when it recreates the gateway. A command
+that recreates only the gateway may not trigger it, so every step below that recreates the gateway is followed by
+`$DC restart nginx`; this is a precaution, not needed for an address change (a restart still applies a changed
+`nginx.conf` or certificates). The workers wait for a healthy `gateway` but do not restart with it: they have no
+gateway address, and a restart would only cut running jobs. For a transient `502` after a gateway restart see
 [502 after a gateway restart](#502-after-a-gateway-restart).
 
 ### Images
@@ -377,8 +378,8 @@ $DC restart nginx
 ```
 
 Compose recreates only the services whose image or configuration changed; `migrate` runs again and applies the new
-revisions before `gateway` starts. `nginx` is restarted with the gateway (`restart: true`); the explicit restart makes
-sure of it.
+revisions before `gateway` starts. `nginx` is restarted with the gateway (`restart: true`); the explicit restart is a
+precaution (it also applies a changed `nginx.conf` or certificates), not needed for a new gateway address.
 
 ## Verification
 
@@ -409,20 +410,21 @@ sure of it.
 
 ### 502 after a gateway restart
 
-`nginx` resolves the address of `gateway` once, when it starts. `restart: true` makes Compose restart it when Compose
-recreates the gateway, but not when the Docker daemon restarts the gateway by its restart policy (a crash or an
-out-of-memory kill). The gateway then has a new address, `nginx` still uses the old one, and the public origin answers
-`502 Bad Gateway` while `$DC ps` shows every service healthy. Restart `nginx`:
+`nginx` resolves `gateway` at request time through Docker's resolver (`valid=10s`), so it follows the new address
+within about 10 seconds after the gateway is recreated or restarted by the Docker daemon (a crash or an out-of-memory
+kill). During that window, plus the start time of the gateway, the public origin may answer `502 Bad Gateway`; this is
+transient and needs no action on `nginx`. Wait and check:
 
 ```bash
 $DC ps gateway                     # when it started: a recent start time points to a restart by the daemon
-$DC restart nginx
 curl -fsS "$PUBLIC_ORIGIN/api/health/ready"
 ```
 
-Look for the cause of the gateway restart in `$DC logs --tail 100 gateway` and in `docker inspect --format
-'{{.State.OOMKilled}}' $($DC ps -q gateway)` before closing the incident. Making `nginx` resolve the name on every
-request is a follow-up (F9 in the tasks of the change `m09-compose-only`).
+If `$DC ps gateway` shows the gateway healthy and the `502` still lasts more than 10 seconds, treat it as a new
+incident and run `$DC restart nginx` as its first step. A `502` that persists means the gateway is not healthy: read `$DC ps` and `$DC logs --tail 100 gateway`, and look at
+`docker inspect --format '{{.State.OOMKilled}}' $($DC ps -q gateway)` before closing the incident. Restarting `nginx`
+is not required for an address change; it still applies a changed `nginx.conf` or new certificates
+(`$DC restart nginx`).
 
 ## Backups
 
@@ -591,7 +593,8 @@ expand then contract, so that the first case is rare (see the release rules).
 The files are owned by uid 70 or 10001, so every command uses `sudo` (`put_secret` of the
 [secrets directory](#secrets-directory) does). Keep mode 0400, then recreate the services that read the file
 (`$DC up -d --force-recreate <service>`): Compose does not detect a changed secret file. After recreating the gateway,
-restart `nginx`, which resolves the gateway address once. `put_secret` keeps the previous file as `<name>.prev`; when the
+restart `nginx` (a precaution: `nginx` follows the new gateway address within about 10 seconds on its own).
+`put_secret` keeps the previous file as `<name>.prev`; when the
 [verification](#verification) passes, delete the previous files, and if it fails move the `.prev` file back and
 recreate again (the PostgreSQL password has a step of its own, below). The directory is root's (mode 0700), so the
 glob is expanded by a root shell:
@@ -754,10 +757,6 @@ host a SPACE in production.
   `user` and `cap_drop` there depends on the writable paths and ports of each image, and cannot be verified without
   Docker, so it is a follow-up (F7 in the tasks of the change `m09-compose-only`), to be rendered and tested on a
   host with Docker.
-- **Nginx resolves the gateway once.** After a restart of the gateway by the Docker daemon, `nginx` must be restarted
-  by hand ([502 after a gateway restart](#502-after-a-gateway-restart)). Resolving the name on every request is a
-  follow-up (F9 in the tasks of the change `m09-compose-only`) that needs the image configuration and a host with
-  Docker to test.
 - **CI compose-config job.** The job that runs `docker compose config` for development, lab and production is written
   but cannot be pushed until a token with Workflows: write exists (CRP-3). Until then, run the
   [render check](#render-check) by hand.

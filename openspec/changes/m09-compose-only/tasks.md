@@ -124,7 +124,7 @@ Order:
   verified digest or registry. The owner reconciles `INTENT.md:180` (hosting SPACE in production is listed as a
   non-goal). See the runbook section `Local SPACE (owner decision local-space)`.
 - [ ] F4 After CRP-2: remove or rename the `prod` profile of `docker-compose.yml`.
-- [ ] F5 `bim-toolchain/docs/SERVICE.md:742,751-752`: drop the Kubernetes notes.
+- [x] F5 `bim-toolchain/docs/SERVICE.md:742,751-752`: drop the Kubernetes notes. (done in change m0-infra-close)
 - [ ] F7 Non-root user and `cap_drop` for the Java engines, `nginx` and `frontend-assets` (round-1 finding
   R1-SEC-003, accepted for now). Today they run as the user of their image with the default capabilities, and
   `compose.yaml` sets only `no-new-privileges`. A `user` and `cap_drop: [ALL]` depend on the writable paths and ports
@@ -133,8 +133,8 @@ Order:
 - [ ] F8 Owner: extend the OFT trace paths so that the `[impl->…]` tags in `docker-entrypoint.sh` and
   `deploy/compose/production/compose.yaml`, and the `[utest->…]` tags in `openbinding-gateway/tests/`, are traced
   (the project configuration is owner-only).
-- [ ] F9 Nginx resolver (round-2 finding R2-REV-002, accepted for now): `nginx.conf` resolves `gateway` once, when
-  nginx starts, so after a restart of the gateway by the Docker daemon (crash, OOM) nginx keeps the old address until
+- [x] F9 Nginx resolver (done in change m0-infra-close; round-2 finding R2-REV-002, accepted for now): `nginx.conf`
+  resolves `gateway` once, when nginx starts, so after a restart of the gateway by the Docker daemon (crash, OOM) nginx keeps the old address until
   it is restarted. The runbook says to run `$DC restart nginx` then. A follow-up change makes nginx resolve the name
   at request time (`resolver 127.0.0.11` with a variable in `proxy_pass`), which needs the image configuration and a
   host with Docker to test.

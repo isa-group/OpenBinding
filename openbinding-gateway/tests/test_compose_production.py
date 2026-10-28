@@ -597,8 +597,8 @@ EXPECTED_DEPENDS_ON = {
     "nginx": {"gateway": HEALTHY, "frontend-assets": HEALTHY},
     "pg-backup": {"postgres": HEALTHY},
 }
-# Services that must be restarted when the gateway is recreated (nginx.conf resolves `gateway` once). The workers
-# have no gateway address, so they only wait for it to be healthy.
+# Services that are restarted when the gateway is recreated (nginx also applies a changed nginx.conf or certificates
+# then). The workers have no gateway address, so they only wait for it to be healthy.
 EXPECTED_RESTART_ON_DEPENDENCY = {
     "nginx": {"gateway"},
 }
@@ -2280,7 +2280,7 @@ def function_body(text: str, name: str) -> str:
 
 
 def gateway_restart_problems(text: str) -> list[str]:
-    """Every command that recreates the gateway is followed by ``$DC restart nginx`` (nginx resolves it once)."""
+    """Every command that recreates the gateway is followed by ``$DC restart nginx`` (a precaution only)."""
     problems = []
     lines = commands(text)
     for number, line in enumerate(lines):
@@ -2930,18 +2930,34 @@ def test_runbook_follow_up_f7_and_the_trace_follow_up_are_recorded_in_the_tasks(
 
 
 # [utest->req~lab-deployment-production-health-restart~1]
-def test_runbook_says_that_only_nginx_restarts_with_the_gateway_and_that_a_daemon_restart_needs_a_manual_one():
+def test_runbook_says_that_only_nginx_restarts_with_the_gateway_and_follows_a_new_gateway_address_by_itself():
     text = runbook_text()
     deployed = " ".join(section(text, "What is deployed").split())
-    assert "`nginx` therefore depends on `gateway` with `restart: true`" in deployed
+    assert "`nginx` also depends on `gateway` with `restart: true`" in deployed
     assert "The workers wait for a healthy `gateway` but do not restart with it" in deployed
     assert "`nginx` and the workers therefore depend" not in deployed
+    assert "`nginx` resolves `gateway` at request time" in deployed
+    assert "within about 10 seconds" in deployed
+    assert "resolves the address of `gateway` once" not in deployed
     assert "#502-after-a-gateway-restart" in deployed
     body = section(text, "Verification")
     assert "### 502 after a gateway restart" in body
     after = " ".join(body[body.index("### 502 after a gateway restart") :].split())
-    for needle in ("crash or an out-of-memory kill", "502 Bad Gateway", "$DC restart nginx", "F9"):
+    for needle in (
+        "crash or an out-of-memory kill",
+        "502 Bad Gateway",
+        "`valid=10s`",
+        "within about 10 seconds",
+        "transient",
+        "persists means the gateway is not healthy",
+        "is not required for an address change",
+        "`$DC restart nginx`",
+    ):
         assert needle in after, needle
-    assert "#502-after-a-gateway-restart" in section(text, "What stays blocked")
+    for stale in ("resolves the address of `gateway` once", "F9", "follow-up"):
+        assert stale not in after, stale
+    blocked = section(text, "What stays blocked")
+    assert "Nginx resolves the gateway once" not in blocked and "F9" not in blocked
+    assert "F7" in blocked
     # The anchor of the heading is the link target used above.
     assert "502-after-a-gateway-restart" == re.sub(r"[^a-z0-9]+", "-", "502 after a gateway restart".lower()).strip("-")
