@@ -107,7 +107,7 @@
       "date": "2026-10-28",
       "title": "OpenBinding documentation",
       "changes": [
-        "M23-run-result plan and handoff",
+        "M4-remote-space plan and handoff",
         "Retire the sponsorship screen (M2.4 slice 5, ADR-0020) (#66)",
         "Retire the composer screen (M2.4 slice 4, ADR-0020) (#65)",
         "DEMO_LAB_PORT parametrization of the lab compose files (M0.5 S1a+S2) (#41)",

@@ -1734,8 +1734,8 @@ RENDER_COMMAND = (
     "--env-file deploy/compose/production/images.env "
     "--env-file deploy/compose/production/ci.env config --quiet"
 )
-LOCAL_SPACE_HEADING = "Local SPACE (owner decision local-space)"
-LOCAL_SPACE_ANCHOR = "#local-space-owner-decision-local-space"
+REMOTE_SPACE_HEADING = "Remote SPACE"
+REMOTE_SPACE_URL = "https://space.score.us.es"  # the only real host name the runbook may carry
 # Facts the runbook must state, found by review: (what, text that must appear).
 RUNBOOK_FACTS = [
     ("the pre-flight greps value lines only, not comments", "'^[A-Z0-9_]+=gap\\.invalid/'"),
@@ -1809,7 +1809,7 @@ def runbook_problems(config: dict, text: str, compose_text: str) -> list[str]:
             problems.append(f"{kind} {name} is not named")
     if RENDER_COMMAND not in text:
         problems.append("the render command is missing")
-    if "us.es" in text:
+    if "us.es" in text.replace(REMOTE_SPACE_URL, ""):
         problems.append("a real host name (us.es)")
     return problems
 
@@ -2205,14 +2205,53 @@ def test_runbook_renders_with_the_command_of_ci():
     assert RENDER_COMMAND in runbook_text()
 
 
-# [utest->req~lab-deployment-production-runbook~1]
-def test_runbook_local_space_decision_is_recorded_and_compose_has_no_space_service():
+REMOTE_SPACE_NEEDLES = (
+    REMOTE_SPACE_URL,
+    "SPACE_URL",
+    "`space_api_key`",
+    "tests/test_no_local_space.py",
+    "runs no local SPACE",
+)
+
+
+def remote_space_problems(text: str) -> list[str]:
+    """What the section 'Remote SPACE' lacks: the URL, the variable, the key file, the guard test, no local SPACE."""
+    if f"## {REMOTE_SPACE_HEADING}" not in text:
+        return ["the section is missing"]
+    body = " ".join(section(text, REMOTE_SPACE_HEADING).split())
+    problems = [f"missing: {needle}" for needle in REMOTE_SPACE_NEEDLES if needle not in body]
+    if "http://space.score.us.es" in body:
+        problems.append("a plain http URL")
+    return problems
+
+
+# [utest->req~lab-deployment-runbook-remote-space~1]
+def test_remote_space_rule_refuses_incomplete_sections():
+    good = "## Remote SPACE\n\n" + " ".join(REMOTE_SPACE_NEEDLES) + "\n"
+    assert remote_space_problems(good) == []
+    assert remote_space_problems(good.replace("`space_api_key`", "the key"))
+    assert remote_space_problems(good.replace("tests/test_no_local_space.py", "a test"))
+    assert remote_space_problems(good.replace("runs no local SPACE", "runs a SPACE"))
+    assert remote_space_problems(good + "http://space.score.us.es\n")
+    assert remote_space_problems("## Other\n\ntext\n")
+
+
+# [utest->req~lab-deployment-runbook-remote-space~1]
+def test_runbook_remote_space_section_and_compose_has_no_space_service():
     text = runbook_text()
-    assert f"## {LOCAL_SPACE_HEADING}" in text
-    body = section(text, LOCAL_SPACE_HEADING)
-    for needle in ("INTENT.md", "SPACE_URL", "space-api", "space-mongo", "space-redis", "test_no_local_space.py"):
-        assert needle in body, needle
-    assert LOCAL_SPACE_ANCHOR in section(text, "What stays blocked")
+    assert not remote_space_problems(text)
+    outside = text.replace(section(text, REMOTE_SPACE_HEADING), "")  # that section says there is no local SPACE
+    assert not re.search(r"(?i)local[ -]space", outside)
+    for name in ("space-mongo", "space-redis", "space-api"):
+        assert name not in text, name
+    assert "gap.invalid/space-api" not in text
+    blocked = section(text, "What stays blocked")
+    assert not re.search(r"(?i)\bSPACE\b", blocked), "an item of 'What stays blocked' waits for a SPACE"
+    assert "<!-- [impl->req~lab-deployment-runbook-remote-space~1] -->" in section(text, REMOTE_SPACE_HEADING)
+    body = " ".join(section(text, REMOTE_SPACE_HEADING).split())
+    assert not re.search(r"(?i)\bdefault", body), "SPACE_URL has no default: compose requires it in site.env"
+    assert "`SPACE_URL` (required, set in `site.env`" in body
+    assert "SPACE decision" not in text.split("## Who may order a deployment")[0]
     config = production()
     for kind in ("services", "networks", "volumes"):
         assert not [name for name in config[kind] if "space" in name.lower() or "sphere" in name.lower()], kind
@@ -2811,10 +2850,11 @@ def test_runbook_tls_directory_and_key_modes():
 
 
 # [utest->req~lab-deployment-production-runbook~1]
+# [utest->req~lab-deployment-runbook-remote-space~1]
 def test_runbook_site_env_states_that_space_url_is_https_and_the_checks_agree():
     site = section(runbook_text(), "site.env")
     assert "`SPACE_URL` **must be an `https://` URL**" in site
-    assert "SPACE_URL=https://" in site
+    assert f"\nSPACE_URL={REMOTE_SPACE_URL}\n" in site
     assert "SPACE_URL=https://" in CI_ENV.read_text(encoding="utf-8")
 
 

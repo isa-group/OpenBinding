@@ -1,95 +1,16 @@
 {
   "name": "openbinding-lab-pricing",
   "services": {
-    "space-mongo": {
-      "image": "mongo:7.0.16@sha256:c630c59342c1493d50345136df2af14a76b9e827dd5316bfabee07a0880a5f3a",
-      "user": "999:999",
-      "command": ["mongod", "--wiredTigerCacheSizeGB", "0.25"],
-      "environment": {
-        "MONGO_INITDB_ROOT_USERNAME": "space",
-        "MONGO_INITDB_ROOT_PASSWORD": "${DEMO_SPACE_MONGO_PASSWORD}"
-      },
-      "volumes": [
-        {"type": "volume", "source": "lab-pricing-mongo", "target": "/data/db"}
-      ],
-      "mem_limit": "512m",
-      "healthcheck": {
-        "test": ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\""],
-        "interval": "10s",
-        "timeout": "5s",
-        "retries": 10,
-        "start_period": "30s"
-      }
-    },
-    "space-redis": {
-      "image": "redis:7.4.2@sha256:fbdbaea47b9ae4ecc2082ecdb4e1cea81e32176ffb1dcf643d422ad07427e5d9",
-      "user": "999:999",
-      "command": ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "noeviction"],
-      "volumes": [
-        {"type": "volume", "source": "lab-pricing-redis", "target": "/data"}
-      ],
-      "mem_limit": "96m",
-      "healthcheck": {
-        "test": ["CMD", "redis-cli", "ping"],
-        "interval": "10s",
-        "timeout": "3s",
-        "retries": 10
-      }
-    },
-    "space-api": {
-      "image": "openbinding-lab/space-api:1.7.1",
-      "build": {"context": "lab/space", "dockerfile": "Dockerfile"},
-      "user": "1000:1000",
-      "environment": {
-        "NODE_OPTIONS": "--max-old-space-size=192",
-        "MONGO_URI": "mongodb://space:${DEMO_SPACE_MONGO_PASSWORD}@space-mongo:27017/space_db?authSource=admin",
-        "REDIS_URL": "redis://space-redis:6379",
-        "JWT_SECRET": "${DEMO_SPACE_JWT_SECRET}",
-        "JWT_SALT": "${DEMO_SPACE_JWT_SALT}",
-        "ADMIN_USER": "lab-space-admin",
-        "ADMIN_PASSWORD": "${DEMO_SPACE_ADMIN_PASSWORD}",
-        "SERVER_PORT": "3000",
-        "SPHERE_SYNC_ENABLED": "true",
-        "SPHERE_PUBLIC_URL": "https://sphere.score.us.es",
-        "SPHERE_API_URL": "https://sphere.score.us.es/api/v1",
-        "SPHERE_ALLOW_LOCAL_HTTP": "false"
-      },
-      "mem_limit": "384m",
-      "depends_on": {
-        "space-mongo": {"condition": "service_healthy"},
-        "space-redis": {"condition": "service_healthy"}
-      },
-      "healthcheck": {
-        "test": [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:3000/api/v1/healthcheck').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
-        ],
-        "interval": "10s",
-        "timeout": "5s",
-        "retries": 10,
-        "start_period": "30s"
-      }
-    },
     "pricing-bootstrap": {
       "image": "openbinding-lab/pricing-bootstrap:1",
       "build": {"context": "lab/tools", "dockerfile": "Dockerfile"},
       "user": "1000:1000",
       "restart": "no",
       "environment": {
-        "SPACE_URL": "http://space-api:3000",
-        "SPACE_ADMIN_USER": "lab-space-admin",
-        "SPACE_ADMIN_PASSWORD": "${DEMO_SPACE_ADMIN_PASSWORD}"
+        "SPACE_URL": "https://space.score.us.es",
+        "SPACE_API_KEY": "${DEMO_SPACE_MANAGEMENT_KEY}"
       },
-      "mem_limit": "96m",
-      "depends_on": {
-        "space-api": {"condition": "service_healthy"}
-      }
+      "mem_limit": "96m"
     }
-  },
-  "volumes": {
-    "lab-pricing-mongo": {"labels": {"profile": "pricing"}},
-    "lab-pricing-redis": {"labels": {"profile": "pricing"}}
   }
 }
