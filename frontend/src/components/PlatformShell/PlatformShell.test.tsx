@@ -4,14 +4,27 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { AuthContext } from '../../contexts/auth';
 import { PlatformShell, type PlatformOutletContext } from './PlatformShell';
+import { buildCommands } from './paletteCommands';
 import { platformApi, type Organization, type Project } from '../../api/platform';
+import { movedRoutes, routeDefinitions } from '../../routes/registry';
 
-vi.mock('../../api/platform', () => ({
+vi.mock('../../api/platform', async () => ({
+  ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'),
   platformApi: {
     organizations: vi.fn(),
     projects: vi.fn(),
   },
 }));
+
+/**
+ * One address for each fixed first segment under /app that the registry answers with something other than an organization: the
+ * screens and the moved addresses. A segment that is a `:param` names an organization and is not listed.
+ */
+const FIXED_ADDRESSES = [...new Map([...routeDefinitions, ...movedRoutes].flatMap((route) => {
+  const [, root, first] = route.path.split('/');
+  const address = route.path.replace(/\/:[A-Za-z]+\?/g, '').replace(/:[A-Za-z]+/g, 'sample');
+  return root === 'app' && first && !first.startsWith(':') ? [[first, address] as const] : [];
+})).values()];
 
 const user: UserProfile = {
   id: 'user-1',
@@ -147,7 +160,11 @@ describe('PlatformShell (application layout)', () => {
     expect(screen.getByTestId('project')).toHaveTextContent('atlas');
   });
 
-  it.each(['/app/verifier', '/app/engines/registrations', '/app/jobs','/app/language/extensions', '/app/system/states'])(
+  it('knows the fixed addresses of the registry', () => {
+    expect(FIXED_ADDRESSES.length).toBeGreaterThan(3);
+  });
+
+  it.each(FIXED_ADDRESSES)(
     'does not mistake the fixed screen %s for an organization',
     async (path) => {
       renderShell(user, path);
@@ -213,7 +230,7 @@ describe('PlatformShell (application layout)', () => {
   });
 
   // [utest->req~frontend-retire-reports-navigation~1]
-  it('has no link to the retired report address in the header of a project, and offers the publications in the palette', async () => {
+  it('has no link to the retired report address in the header of a project, and fills the palette with the commands of the project', async () => {
     renderShell(user, '/app/test-org/atlas');
     await ready();
 
@@ -225,7 +242,11 @@ describe('PlatformShell (application layout)', () => {
     const palette = await screen.findByRole('dialog', { name: 'Command palette' });
     const links = within(palette).getAllByRole('link');
     expect(links.filter((link) => /\/reports([/?#]|$)/.test(link.getAttribute('href') ?? ''))).toEqual([]);
-    expect(links.map((link) => link.getAttribute('href'))).toContain('/app/test-org/atlas/publications');
+    // The palette offers what paletteCommands.ts builds for the loaded workspace (the commands themselves are tested there).
+    const organizations = [organization('org-1', 'test-org', 'Test Org'), organization('org-2', 'other-org', 'Other Org')];
+    const projects = [project('project-1', 'org-1', 'atlas', 'Atlas'), project('project-2', 'org-1', 'borealis', 'Borealis')];
+    const expected = buildCommands({ organizations, projects, organization: organizations[0], project: projects[0], isAdmin: false });
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(expected.map((command) => command.href));
   });
 
   it('does not offer the retired sidebar or direct links to the old public routes', async () => {

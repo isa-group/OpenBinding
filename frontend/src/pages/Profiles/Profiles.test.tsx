@@ -148,7 +148,7 @@ describe('language: profiles, dialects and registered resources', () => {
     unmount();
 
     renderPage(lucia);
-    expect(await screen.findByRole('link', { name: 'Submit a dialect or resource' })).toHaveAttribute('href', '/app/language/extensions');
+    expect(await screen.findByRole('link', { name: 'Submit a dialect or resource' })).toHaveAttribute('href', '/language/extensions');
   });
 
   it('copies the exact reference of a registered resource', async () => {

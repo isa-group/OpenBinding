@@ -1,15 +1,19 @@
 import { render, waitFor } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { matchRoutes, MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../api/auth';
 import { mainLinks } from '../components/PlatformShell/appNavigation';
 import { buildCommands } from '../components/PlatformShell/paletteCommands';
 import { AuthContext } from '../contexts/auth';
 import { RAW_RENDERING_ALLOW_LIST, UNLISTED_FINDINGS } from '../test/rawRenderingAllowList';
+import { followMoved } from './followMoved';
 import { AppRoutes } from './index';
-import { routeDefinitions } from './registry';
+import { movedRoutes, routeDefinitions } from './registry';
 
 // M2.4 slice 1 (ADR-0020): the decision-space workspace is retired. Its addresses redirect to the jobs list or to the study run.
+//
+// The tests name the retired ids and files, and the addresses the redirects lead to. They name no screen of a live area: a screen is
+// found by the address it ends on, and an address that a later change moves on is followed through the moved routes (followMoved).
 
 vi.mock('../api/platform', async () => ({
   ...await vi.importActual<typeof import('../api/platform')>('../api/platform'),
@@ -24,43 +28,26 @@ vi.mock('../api/client', async () => ({
   apiClient: { listNotifications: vi.fn().mockResolvedValue([]) },
 }));
 
-// Only the location is asserted, so the destination screens are replaced.
-vi.mock('../pages/Jobs/JobHistory', async () => {
+// Only the location and the screen on show are asserted, so every screen of the registry is replaced by a stub that names itself.
+vi.mock('./registry', async () => {
+  const actual = await vi.importActual<typeof import('./registry')>('./registry');
   const { createElement } = await import('react');
-  return { JobHistory: () => createElement('h1', null, 'Job history screen') };
+  return {
+    ...actual,
+    routeDefinitions: actual.routeDefinitions.map((definition) => ({
+      ...definition,
+      element: createElement('h1', { 'data-screen': definition.id }, `Screen ${definition.id}`),
+    })),
+  };
 });
-vi.mock('../pages/Reports/ProjPublications', async () => {
-  const { createElement } = await import('react');
-  return { ProjPublications: () => createElement('h1', null, 'Publications screen') };
-});
-vi.mock('../pages/Organization/OrgOverview', async () => {
-  const { createElement } = await import('react');
-  return { OrgOverview: () => createElement('h1', null, 'Organization page screen') };
-});
-vi.mock('../pages/Workbench/Workbench', async () => {
-  const { createElement } = await import('react');
-  return { Workbench: () => createElement('h1', null, 'Workbench screen') };
-});
-vi.mock('../pages/Resources/CollList', async () => {
-  const { createElement } = await import('react');
-  return { CollList: () => createElement('h1', null, 'Collections screen') };
-});
-vi.mock('../pages/Admin/AdminOverview', async () => {
-  const { createElement } = await import('react');
-  return { AdminOverview: () => createElement('h1', null, 'Administration screen') };
-});
-vi.mock('../pages/Account/Account', async () => {
-  const { createElement } = await import('react');
-  return { Account: () => createElement('h1', null, 'Account screen') };
-});
-vi.mock('../pages/Studies/StudyDetail', async () => {
-  const { createElement } = await import('react');
-  return { StudyDetail: () => createElement('h1', null, 'Study detail screen') };
-});
-vi.mock('../pages/Studies/StudyRun', async () => {
-  const { createElement } = await import('react');
-  return { StudyRun: () => createElement('h1', null, 'Study run screen') };
-});
+
+const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+/** The screen an address resolves to, by the registry's own paths. */
+const screenAt = (address: string) => matchRoutes(config, address.split(/[?#]/)[0])?.at(-1)?.route.id ?? null;
+/** The screen on show, read from its stub. */
+const shown = () => document.querySelector('[data-screen]')?.getAttribute('data-screen') ?? null;
+/** Where an address ends once the moved addresses have redirected it. */
+const settled = (address: string) => followMoved(address, routeDefinitions, movedRoutes);
 
 const person: UserProfile = {
   id: 'user-1', username: 'alice', email: 'alice@example.com', role: 'user', plan: 'FREE',
@@ -92,11 +79,17 @@ function renderAt(path: string, isAdmin = false) {
   );
 }
 
-/** Where the visitor ends up, once the redirects have settled. */
+/**
+ * Where the visitor ends up, once the redirects have settled: `expected` is the address the retired route names, followed through the
+ * moved routes. The screen on show is the one of that address.
+ */
 async function endsAt(path: string, expected: string, isAdmin = false) {
   const view = renderAt(path, isAdmin);
-  await waitFor(() => expect(view.getByTestId('pathname').textContent).toBe(expected));
-  expect(view.getByTestId('search').textContent).toBe('');
+  const want = new URL(settled(expected), 'http://localhost');
+  expect(screenAt(want.pathname), `${want.pathname} is a routed screen`).not.toBeNull();
+  await waitFor(() => expect(view.getByTestId('pathname').textContent).toBe(want.pathname));
+  expect(view.getByTestId('search').textContent).toBe(want.search);
+  await waitFor(() => expect(shown()).toBe(screenAt(want.pathname)));
   view.unmount();
 }
 
@@ -144,13 +137,11 @@ describe('the retired report editor', () => {
   beforeEach(() => vi.clearAllMocks());
 
   // [utest->req~frontend-retire-reports-screens-not-routed~1]
-  it('is gone from the route registry, and the publications and the verifier stay', () => {
+  it('is gone from the route registry', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('rep-list');
     expect(ids).not.toContain('rep-detail');
     expect(routeDefinitions.map((definition) => definition.path).filter((path) => /\/reports(\/|$)/.test(path))).toEqual([]);
-    expect(ids).toContain('proj-publications');
-    expect(ids).toContain('verifier');
   });
 
   // [utest->req~frontend-retire-reports-screens-not-routed~1]
@@ -159,11 +150,9 @@ describe('the retired report editor', () => {
     expect(files).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-reports-publications-stay~1]
-  it('keeps the screens of the publications and of the verifier', () => {
-    const files = Object.keys(import.meta.glob(['../pages/Reports/ProjPublications.tsx', '../pages/Reports/Verifier.tsx']));
-    expect(files.sort()).toEqual(['../pages/Reports/ProjPublications.tsx', '../pages/Reports/Verifier.tsx']);
-  });
+  // `req~frontend-retire-reports-publications-stay~1` (the publications and the verifier stay routed, and their files exist) is
+  // superseded by m26-navigation (design.md section 7): the Verify page and the Published tab replace those screens. Its tests are
+  // no longer here; each area test (areas/project.test.ts, areas/verify.test.ts) holds what its own screens need.
 
   // [utest->req~frontend-retire-reports-redirect~1]
   it('sends the report list and a report to the publications of their project', async () => {
@@ -179,12 +168,11 @@ describe('the retired library catalogue and project resources', () => {
   beforeEach(() => vi.clearAllMocks());
 
   // [utest->req~frontend-retire-library-screens-not-routed~1]
-  it('is gone from the route registry, and the files and the collections stay', () => {
+  it('is gone from the route registry', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     for (const id of ['lib-list', 'lib-artifact', 'lib-draft', 'lib-version', 'proj-library', 'proj-resources', 'proj-resource-detail']) {
       expect(ids, id).not.toContain(id);
     }
-    for (const id of ['proj-files', 'coll-list', 'coll-detail']) expect(ids, id).toContain(id);
   });
 
   // [utest->req~frontend-retire-library-screens-not-routed~1]
@@ -222,10 +210,14 @@ describe('the retired library catalogue and project resources', () => {
 
   // [utest->req~frontend-retire-library-redirect~1]
   it('leaves a project called library the screens of its sections, which win the tie with the retired library artifact', async () => {
-    const view = renderAt('/app/acme/library/collections');
+    // Not `/app/acme`, where the retired library artifact would send it: the address stays (or moves on with its section).
+    const address = '/app/acme/library/collections';
+    const view = renderAt(address);
+    const want = new URL(settled(address), 'http://localhost');
 
-    expect(await view.findByRole('heading', { name: 'Collections screen' })).toBeInTheDocument();
-    expect(view.getByTestId('pathname').textContent).toBe('/app/acme/library/collections');
+    await waitFor(() => expect(shown()).toBe(screenAt(want.pathname)));
+    expect(view.getByTestId('pathname').textContent).toBe(want.pathname);
+    expect(want.pathname).toMatch(/^\/app\/acme\/library\//);
     view.unmount();
   });
 });
@@ -235,10 +227,9 @@ describe('the retired composer', () => {
   beforeEach(() => vi.clearAllMocks());
 
   // [utest->req~frontend-retire-composer-screen-not-routed~1]
-  it('is gone from the route registry, and the case screens and the workbench stay', () => {
+  it('is gone from the route registry', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('case-composer');
-    for (const id of ['case-list', 'case-detail', 'case-revision', 'case-compare', 'wb-workbench']) expect(ids, id).toContain(id);
   });
 
   // [utest->req~frontend-retire-composer-screen-not-routed~1]
@@ -249,10 +240,11 @@ describe('the retired composer', () => {
   // [utest->req~frontend-retire-composer-redirect~1]
   it('sends the composer to the workbench of the project with the case', async () => {
     const view = renderAt('/app/acme/atlas/cases/flujo/compose?case=other#top');
+    const want = new URL(settled('/app/acme/atlas/workbench?case=flujo'), 'http://localhost');
 
-    expect(await view.findByRole('heading', { name: 'Workbench screen' })).toBeInTheDocument();
-    expect(view.getByTestId('pathname').textContent).toBe('/app/acme/atlas/workbench');
-    expect(view.getByTestId('search').textContent).toBe('?case=flujo');
+    await waitFor(() => expect(view.getByTestId('pathname').textContent).toBe(want.pathname));
+    expect(view.getByTestId('search').textContent).toBe(want.search);
+    await waitFor(() => expect(shown()).toBe(screenAt(want.pathname)));
     view.unmount();
   });
 });
@@ -262,10 +254,9 @@ describe('the retired sponsorship screen', () => {
   beforeEach(() => vi.clearAllMocks());
 
   // [utest->req~frontend-retire-sponsorship-screen-not-routed~1]
-  it('is gone from the route registry, and the other administration screens stay', () => {
+  it('is gone from the route registry', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('admin-sponsor');
-    for (const id of ['admin-overview', 'admin-users', 'admin-user-detail', 'admin-audit']) expect(ids, id).toContain(id);
   });
 
   // [utest->req~frontend-retire-sponsorship-screen-not-routed~1]
