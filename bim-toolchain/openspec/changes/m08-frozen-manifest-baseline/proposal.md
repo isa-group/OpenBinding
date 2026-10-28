@@ -11,7 +11,9 @@ compatibility goes unseen. The living spec's TODO asks to review that exception.
 - `schema-versioning`: `req~bim-schema-versioning-goldens` goes to revision 2. The live goldens are compared with
   frozen baselines with no engine excluded; minizinc-csp 1.1.1 gets its own frozen baseline
   `golden/bim_baseline_1_1_1` (byte copy of `golden/bim_core/{compat,protocol}.json`, pinned by SHA-256), compared
-  with `golden/bim_baseline` by identifier. `CHANGED_MANIFESTS` is removed.
+  with `golden/bim_baseline` by identifier; the 65 `minizinc-csp` moves are pinned in
+  `golden/bim_baseline_1_1_1/minizinc_moves.json`. `CHANGED_MANIFESTS` is removed. The tests are in
+  `packages/bim-core/tests/test_baseline_equivalence.py` (`test_frozen_manifest_*`).
 
 ## Out of scope
 

@@ -24,4 +24,5 @@ Order: S0 → (S1 ∥ S2 ∥ S3) → owner step R. Slices own disjoint files (in
 
 ## Archive (later, owner-approved)
 - [ ] `qacobench-experimentation` delta after S2; `job-execution` delta together with S1.
-- [ ] Re-running as 1.1.2 (CRP-M08-2) is an owner step outside this change.
+- [ ] Re-running as 1.1.2 (CRP-M08-2) is an owner step outside this change. It needs S1: until then a job coded
+  `engine_rejected` is recorded `ERROR`, and `campaign.py` raises on `ERROR`, stopping the campaign.

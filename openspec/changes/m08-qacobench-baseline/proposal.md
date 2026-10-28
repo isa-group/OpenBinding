@@ -26,7 +26,8 @@ old message prefix, records job-level capability refusals as `ERROR` (intake F3,
   for API clients and needs the owner's decision **CRP-M08-1**. The `job-execution` delta is archived together with
   S1, not before.
 - Re-running QACOBench as 1.1.2 and changing `reference/1.1.1` (owner step, **CRP-M08-2**). `reference/1.1.1` stays
-  byte-identical.
+  byte-identical. The re-run needs S1: until the gateway emits `engine_incompatible`, a job coded `engine_rejected`
+  is recorded `ERROR` and an `ERROR` result stops the campaign (`campaign.py` raises on `ERROR`).
 - Editing the living specs; archiving is a later owner-approved task.
 
 ## Impact

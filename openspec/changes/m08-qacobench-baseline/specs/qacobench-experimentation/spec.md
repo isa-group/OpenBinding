@@ -11,7 +11,9 @@ Evidence: `experimentation/qacobench/campaign.py`; `experimentation/qacobench/te
 
 This revision resolves in part the TODO "Job-level capability rejections" of the living spec: the classification by
 code is specified here. Re-running the campaign as 1.1.2 against `reference/1.1.1` provenance digests stays an owner
-step (CRP-M08-2) and is out of scope.
+step (CRP-M08-2) and is out of scope. Until the gateway emits `engine_incompatible` (slice S1, after CRP-M08-1), a
+job coded `engine_rejected` is recorded `ERROR`, and an `ERROR` result stops the campaign (`campaign.py` raises on
+`ERROR`), so the 1.1.2 re-run needs S1.
 
 #### Scenario: MiniZinc refuses a soft constraint
 - **GIVEN** an instance with a soft constraint expression
