@@ -7,10 +7,14 @@ THE toolchain SHALL compare every compilation, semantic digest, evaluation, nega
 
 Needs: impl, utest
 
-Evidence: `packages/bim-core/tests/test_baseline_equivalence.py::test_the_normalized_goldens_match`; `packages/bim-core/tests/test_baseline_equivalence.py::test_frozen_manifest_files_have_the_pinned_sha256`; `packages/bim-core/tests/test_baseline_equivalence.py::test_frozen_manifest_is_the_previous_baseline_apart_from_minizinc_csp`; `packages/bim-core/tests/test_baseline_equivalence.py::test_frozen_manifest_moves_are_exactly_the_pinned_list`; `packages/bim-core/tests/test_baseline_equivalence.py::test_frozen_manifest_no_compatible_pair_became_incompatible`; `packages/bim-core/tests/test_baseline_equivalence.py::test_frozen_manifest_comparison_removes_no_engine`; `docs/DIGESTS.md`; `packages/bim-core/tests/test_golden_toolchain_metadata.py::test_the_frozen_baselines_were_not_touched`
+Evidence: `packages/bim-core/tests/test_baseline_equivalence.py::test_the_normalized_goldens_match`; `packages/bim-core/tests/test_baseline_equivalence.py::test_frozen_manifest_files_have_the_pinned_sha256`; `packages/bim-core/tests/test_baseline_equivalence.py::test_frozen_manifest_is_the_previous_baseline_apart_from_minizinc_csp`; `packages/bim-core/tests/test_baseline_equivalence.py::test_frozen_manifest_moves_are_exactly_the_pinned_list`; `packages/bim-core/tests/test_baseline_equivalence.py::test_frozen_manifest_no_compatible_pair_became_incompatible`; `packages/bim-core/tests/test_baseline_equivalence.py::test_frozen_manifest_comparison_removes_no_engine`; `docs/DIGESTS.md`; `packages/bim-core/tests/test_golden_toolchain_metadata.py::test_the_frozen_baselines_were_not_touched`; `packages/bim-core/tests/test_golden_toolchain_metadata.py::test_only_lines_that_hold_a_toolchain_digest_may_differ`
 
 `golden/bim_baseline_1_1_1/{compat,protocol}.json` are byte copies of `golden/bim_core/{compat,protocol}.json` at
-creation, pinned by SHA-256. `baseline_core.CHANGED_MANIFESTS` no longer exists.
+creation. `baseline_core.CHANGED_MANIFESTS` no longer exists. `test_the_frozen_baselines_were_not_touched` covers
+only the files of `tools/regen_normalized_metadata.py` `FROZEN` (`golden/bim_baseline/**` and
+`golden/ir_previous/evidence.json`), not `golden/bim_baseline_1_1_1`; the new directory is protected by
+`test_baseline_equivalence.py::test_frozen_manifest_files_have_the_pinned_sha256` (SHA-256 pins). Adding it to
+`regen_normalized_metadata.FROZEN` is a possible follow-up.
 
 #### Scenario: Refreshing goldens after a semantic change
 - **GIVEN** a change that alters one evaluation of a corpus package

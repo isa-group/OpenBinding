@@ -3,7 +3,12 @@
 ### Requirement: Failed jobs show catalog sentences only
 WHEN a job fails, THE gateway SHALL store and show only a stable failure code from the job-failure catalog (e.g. `engine_rejected`, `engine_incompatible`, `lease_lost`) with its fixed sentence, and SHALL keep the engine's own text, hosts and addresses out of every table and response, logging them with the job id instead.
 
-`req~job-execution-failure-catalog~1`
+`req~job-execution-failure-catalog~2`
+
+Needs: impl, utest
+
+Revision 2: the observable outcome of an engine 422 changes from `engine_rejected` to `engine_incompatible` (CRP-M08-1),
+so code and tests that cover revision 1 must be re-checked and re-tagged by slice S1.
 
 Evidence: `openbinding-gateway/tests/test_job_error_text.py`; `openbinding-gateway/src/openbinding_gateway/core/public_errors.py`
 

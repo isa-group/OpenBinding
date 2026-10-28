@@ -7,8 +7,11 @@ Source: `docs/agent-work/m08-qacobench-baseline/intake.md` (facts F1-F20, slices
 - `_normalized_result` in `experimentation/qacobench/campaign.py`: `INCOMPATIBLE` iff `result.code ==
   "engine_incompatible"`, with diagnostics `[{"code": "engine_incompatible", "message": result.error}]`. Every other
   error is `ERROR`. The prefix tests (`campaign.py:109-121`) are removed.
-- Submission: a 422 of `POST /v1/jobs` is `INCOMPATIBLE` only when the problem `code` is `engine_mode_incompatible`;
-  any other 4xx is `ERROR` (`campaign.py:289`).
+- A failed job (status `failed`) whose result `code` is not `engine_incompatible` is `ERROR`, also when it carries
+  no `error` text; a completed job is never `INCOMPATIBLE`, whatever its result `code`.
+- Submission: a 422 of `POST /v1/jobs` is `INCOMPATIBLE` only when the problem document's top-level `code` is
+  `engine_mode_incompatible`; its diagnostics are the document's top-level `diagnostics` list (`detail` is a string,
+  not an object). Any other 4xx is `ERROR` (`campaign.py:289`).
 - The code name comes from the spec; S2 does not edit the gateway contract and can merge before S1.
 - Until S1 ships (CRP-M08-1), the gateway codes every job-level refusal `engine_rejected`, which S2 records as
   `ERROR`, and an `ERROR` result stops the campaign (`campaign.py` raises on `ERROR`). The 1.1.2 re-run therefore
@@ -29,14 +32,26 @@ visible to API clients). Planned, once approved:
   `engine_mode_incompatible` (submission) and `engine_incompatible` (execution).
 
 Only an engine 422 is re-coded because `engine-protocol/spec.md:27` defines 422 as "not supported by the requested
-mode". The `job-execution` delta is archived together with S1.
+mode". The `job-execution` delta is archived together with S1 and with the `qacobench-experimentation` delta (§3a).
 
 ## 3. Revisions
 
 - `req~qacobench-experimentation-incompatible-is-data` 1 → 2: the condition changed (code, not a 422 status read from
   text), so `[impl->]`/`[utest->]` tags must be re-checked.
-- `req~job-execution-failure-catalog~1` keeps its revision: the obligation is unchanged; only the example scenario
-  for 422 changes code, and the new behaviour is the new requirement `req~job-execution-engine-incompatible~1`.
+- `req~job-execution-failure-catalog` 1 → 2: the observable outcome of its 422 scenario changes (`engine_incompatible`
+  instead of `engine_rejected`), so a client or test that relied on revision 1 sees a different code. When the
+  engine's 422 is re-coded is the new requirement `req~job-execution-engine-incompatible~1`.
+
+## 3a. Dependency on CRP-M08-1 and archive order
+
+- S1 (gateway) needs the owner's answer to **CRP-M08-1** before it starts. This change assumes option (a) or (c):
+  the job-level code is literally `engine_incompatible`. Another answer means a new revision of this change first.
+- The `job-execution` delta and the `qacobench-experimentation` delta are archived **together**, after CRP-M08-1 is
+  answered and S1 is merged: `incompatible-is-data~2` classifies by the code that `failure-catalog~2` and
+  `engine-incompatible~1` define, so archiving one without the other leaves the living specs inconsistent.
+- The submission refusal read by the campaign is the RFC 7807 problem document of `problem_body`
+  (`openbinding-gateway/src/openbinding_gateway/models/problem.py`; `docs/ERRORS.md`): top-level `code`, string
+  `detail`, top-level `diagnostics`.
 
 ## 4. Living-spec TODOs
 
