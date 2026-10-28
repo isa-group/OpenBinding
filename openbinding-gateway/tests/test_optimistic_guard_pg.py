@@ -8,7 +8,11 @@ can only be shown to be the compare-and-swap it is claimed to be on a real serve
 * ``If-Match: *``: both succeed one after the other, neither gets a 412;
 * a writer that rolls back after its claim leaves ``updated_at`` and the ETag as they were (and a waiting writer
   with the old tag then succeeds);
-* the ETag of a timestamp read back from PostgreSQL (aware, microseconds) equals the one computed right after the write.
+* the ETag of a timestamp read back from PostgreSQL (aware, microseconds) equals the one computed right after the write;
+* over HTTP, two concurrent PATCHes of one project with the same ETag give one 200 and one 412, and the stored name is
+  the winner's;
+* over HTTP, a PATCH with the current tag that is refused after its claim (422 ``sponsor_must_be_caller``) leaves the
+  ETag of the next GET unchanged: the request transaction rolled the claim back.
 
 Needs ``TEST_DATABASE_URL`` (the ``pg`` fixture skips without it); synthetic data, no network.
 """
@@ -21,7 +25,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
 
-from _pg_support import settle
+from _pg_support import http_client, settle
 
 from openbinding_gateway.core import revision
 from openbinding_gateway.db.models import Organization, Project, User
@@ -49,6 +53,17 @@ async def stored_tag(pg, project_id: uuid.UUID):
     async with pg.session() as session:
         row = await session.get(Project, project_id)
         return row.updated_at, revision.etag_for(row)
+
+
+async def signed_in(client, registration) -> dict[str, str]:
+    details = registration()
+    created = await client.post("/v1/auth/register", json=details)
+    assert created.status_code == 201, created.text
+    logged = await client.post(
+        "/v1/auth/login", json={"username_or_email": details["username"], "password": details["password"]}
+    )
+    assert logged.status_code == 200, logged.text
+    return {"Authorization": f"Bearer {logged.json()['access_token']}"}
 
 
 def precondition_failed(outcome) -> HTTPException:
@@ -183,3 +198,69 @@ async def test_a_python_timestamp_written_with_microseconds_and_an_offset_keeps_
         await revision.guard(session, row, read_back)
         assert revision.etag_for(row) != read_back
         await session.commit()
+
+
+# -- through the routes ------------------------------------------------------------------------------------
+
+
+async def test_over_http_two_concurrent_patches_with_the_same_etag_give_one_200_and_one_412(pg, registration):
+    async with http_client(pg) as client:
+        headers = await signed_in(client, registration)
+        slug = f"o{uuid.uuid4().hex[:8]}"
+        assert (
+            await client.post("/v1/organizations", headers=headers, json={"slug": slug, "name": "Org"})
+        ).status_code == 201
+        created = await client.post(
+            f"/v1/organizations/{slug}/projects", headers=headers, json={"slug": "p", "name": "P"}
+        )
+        assert created.status_code == 201, created.text
+        url = f"/v1/organizations/{slug}/projects/p"
+        first_read = await client.get(url, headers=headers)
+        assert first_read.status_code == 200, first_read.text
+        tag = first_read.headers["ETag"]
+
+        def patch(name):
+            return client.patch(url, headers={**headers, "If-Match": tag}, json={"name": name})
+
+        responses = await settle(patch("alpha"), patch("beta"))
+        assert all(not isinstance(item, BaseException) for item in responses), responses
+        assert sorted(item.status_code for item in responses) == [200, 412], [item.text for item in responses]
+        winner = next(item for item in responses if item.status_code == 200)
+        loser = next(item for item in responses if item.status_code == 412)
+        assert loser.json()["code"] == "precondition_failed"
+        assert loser.headers["ETag"] == winner.headers["ETag"] != tag  # retry with the winner's revision
+
+        final = await client.get(url, headers=headers)
+        assert final.json()["name"] == winner.json()["name"] in ("alpha", "beta")
+        assert final.headers["ETag"] == winner.headers["ETag"]
+
+
+async def test_over_http_a_patch_refused_after_its_claim_leaves_the_etag_unchanged(pg, registration):
+    async with http_client(pg) as client:
+        headers = await signed_in(client, registration)
+        slug = f"o{uuid.uuid4().hex[:8]}"
+        assert (
+            await client.post("/v1/organizations", headers=headers, json={"slug": slug, "name": "Org"})
+        ).status_code == 201
+        url = f"/v1/organizations/{slug}"
+        read = await client.get(url, headers=headers)
+        assert read.status_code == 200, read.text
+        tag = read.headers["ETag"]
+
+        # Past the guard (the claim bumped updated_at in this transaction), then refused: nobody else may be made sponsor.
+        refused = await client.patch(
+            url,
+            headers={**headers, "If-Match": tag},
+            json={"name": "Renamed", "billing_sponsor_user_id": str(uuid.uuid4())},
+        )
+        assert refused.status_code == 422, refused.text
+        assert refused.json()["code"] == "sponsor_must_be_caller"
+
+        after = await client.get(url, headers=headers)
+        assert after.headers["ETag"] == tag  # the claim was not committed with the refused request
+        assert after.json()["name"] == "Org"
+
+        # The same tag is still good, which a surviving claim would have made a 412.
+        retry = await client.patch(url, headers={**headers, "If-Match": tag}, json={"name": "Renamed"})
+        assert retry.status_code == 200, retry.text
+        assert retry.headers["ETag"] != tag
