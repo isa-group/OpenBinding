@@ -11,6 +11,8 @@ from _common import ACTIVE_SUITES, EXPECTED_TOTAL, stable_instance_seed
 from campaign import _normalized_result, _resume_key
 from evaluate_results import main as evaluate_main
 
+OLD_PREFIX = "engine rejected " + "BindingProblem (422)"
+
 
 def test_release_registry_and_seed_are_stable() -> None:
     assert ACTIVE_SUITES == ("01_icws", "02_quantum", "03_hsc_llm", "04_rprsr15", "05_iots", "06_bws_scp", "07_qfbs")
@@ -28,9 +30,9 @@ def test_gateway_result_and_resume_key_follow_public_contract() -> None:
     assert parsed["trace"][0]["eval_index"] == 1
     rejected = _normalized_result({"status": "failed", "result": {
         "termination": "UNKNOWN", "solutions": [],
-        "error": "engine rejected BindingProblem (422)"}}, 5)
-    assert rejected["status"] == "INCOMPATIBLE"
-    assert rejected["error"] == "engine rejected BindingProblem (422)"
+        "error": OLD_PREFIX}}, 5)
+    assert rejected["status"] == "ERROR"
+    assert rejected["error"] == OLD_PREFIX
     record = {"suite": "07_qfbs", "instance_id": "guaranteed/case", "engine": "random-search", "timeout_ms": 5000, "seed": 7, "package_digest": "sha256-a"}
     assert _resume_key(record) == ("07_qfbs", "guaranteed/case", "random-search", 5000, 7, "sha256-a")
 
@@ -85,12 +87,51 @@ def test_qfbs_design_and_requests_match_the_two_groups() -> None:
         assert all("dialects" not in request for request in requests)
 
 
-def test_rejections_keep_the_engine_detail_and_reasons_are_classified() -> None:
+def test_job_failures_are_classified_by_code_never_by_message_text() -> None:
+    text = OLD_PREFIX + ": MiniZinc does not support X"
+    incompatible = _normalized_result({"status": "failed", "result": {"code": "engine_incompatible", "error": text}}, 5)
+    assert incompatible["status"] == "INCOMPATIBLE"
+    assert incompatible["error"] == text
+    assert incompatible["diagnostics"] == [{"code": "engine_incompatible", "message": text}]
+    coded = _normalized_result({"status": "failed", "result": {"code": "engine_rejected", "error": text}}, 5)
+    assert coded["status"] == "ERROR"
+    assert coded["error"] == text
+    assert _normalized_result({"status": "failed", "error": text}, 5)["status"] == "ERROR"
+    assert _normalized_result({"status": "failed", "result": {"error": text}}, 5)["status"] == "ERROR"
+
+
+def _submit(status_code: int, body: dict) -> dict:
+    import asyncio
+
+    import httpx
+    from _common import ENGINE_MODES
+    from campaign import Gateway
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(status_code, json=body)
+
+    gateway = Gateway("http://gw", "u", "p", {})
+    modes = [{"engine": {"name": "minizinc-csp"}, "mode": ENGINE_MODES["minizinc-csp"], "compatible": True, "registration": "r"}]
+
+    async def run() -> dict:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await gateway.solve(client, "snap", modes, "minizinc-csp", 1000, 1, "key", {})
+
+    return asyncio.run(run())
+
+
+def test_submission_refusals_are_classified_by_code() -> None:
+    refused = _submit(422, {"detail": {"code": "engine_mode_incompatible", "message": "not supported"}})
+    assert refused["status"] == "INCOMPATIBLE"
+    assert refused["diagnostics"] == [{"code": "engine_mode_incompatible", "message": "not supported"}]
+    assert _submit(422, {"detail": {"code": "validation_error", "message": "bad"}})["status"] == "ERROR"
+    assert _submit(400, {"detail": {"code": "invalid_option", "message": "bad"}})["status"] == "ERROR"
+    assert _submit(400, {"detail": {"code": "engine_mode_incompatible", "message": "x"}})["status"] == "ERROR"
+
+
+def test_reasons_are_classified() -> None:
     from campaign import termination_reason
 
-    rejected = _normalized_result({"status": "failed", "error": "engine rejected BindingProblem (422): MiniZinc does not support X"}, 5)
-    assert rejected["status"] == "INCOMPATIBLE"
-    assert rejected["diagnostics"][0]["message"].endswith("does not support X")
     assert termination_reason("minizinc-csp", "OPTIMAL", {}, 5000) == "proof"
     assert termination_reason("minizinc-csp", "FEASIBLE", {}, 5000) == "time_budget"
     assert termination_reason("random-search", "FEASIBLE", {"options": {"iterations": 1000}, "engineReported": {"evaluations": 1000, "elapsed_ms": 50}}, 5000) == "evaluation_budget"

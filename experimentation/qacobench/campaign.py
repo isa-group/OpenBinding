@@ -104,11 +104,13 @@ def _resume_key(record: dict[str, Any]) -> tuple[str, str, str, int, int, str]:
 
 def _normalized_result(data: dict[str, Any], wall_ms: float) -> dict[str, Any]:
     result = data.get("result") or {}
-    if data.get("status") == "failed" and not result:
-        error = data.get("error") or "gateway job failed"
-        # The gateway relays the engine's own rejection text ("engine rejected BindingProblem (422): ...").
-        status = "INCOMPATIBLE" if isinstance(error, str) and error.startswith("engine rejected BindingProblem (422)") else "ERROR"
-        return {"status": status, "runtime_ms": 0.0, "wall_ms": round(wall_ms, 3), "overhead_ms": round(wall_ms, 3), "binding": None, "features": None, "objectives": {}, "quality": None, "violations": [], "provenance": {}, "trace": [], "trace_kind": None, "engine_evaluations": None, "error": error, "diagnostics": [{"message": error}] if status == "INCOMPATIBLE" else []}
+    # Classified by the job's failure code. Until the gateway emits `engine_incompatible`, capability refusals
+    # carry `engine_rejected` and are recorded ERROR (which stops the campaign like any unclassified error).
+    incompatible = data.get("status") == "failed" and result.get("code") == "engine_incompatible"
+    if data.get("status") == "failed" and (not result or incompatible):
+        error = result.get("error") or data.get("error") or "gateway job failed"
+        status = "INCOMPATIBLE" if incompatible else "ERROR"
+        return {"status": status, "runtime_ms": 0.0, "wall_ms": round(wall_ms, 3), "overhead_ms": round(wall_ms, 3), "binding": None, "features": None, "objectives": {}, "quality": None, "violations": [], "provenance": {}, "trace": [], "trace_kind": None, "engine_evaluations": None, "error": error, "diagnostics": [{"code": "engine_incompatible", "message": error}] if incompatible else []}
     termination = str(result.get("termination") or "UNKNOWN").upper()
     status = {
         "INFEASIBLE": "UNSAT",
@@ -117,9 +119,7 @@ def _normalized_result(data: dict[str, Any], wall_ms: float) -> dict[str, Any]:
         "UNKNOWN": "TIMEOUT",
     }.get(termination, termination if termination in {"OPTIMAL", "FEASIBLE", "UNSAT", "TIMEOUT"} else "ERROR")
     error = result.get("error") or data.get("error")
-    if isinstance(error, str) and error.startswith("engine rejected BindingProblem (422)"):
-        status = "INCOMPATIBLE"
-    elif error:
+    if error:
         status = "ERROR"
     solutions = result.get("solutions") or []
     solution = solutions[0] if solutions else {}
@@ -286,12 +286,14 @@ class Gateway:
         if response.status_code not in (200, 201, 202):
             if response.status_code == 429 or response.status_code >= 500:
                 raise RuntimeError(f"gateway job submission failed: HTTP {response.status_code} {response.text[:500]}")
-            status = "INCOMPATIBLE" if response.status_code == 422 else "ERROR"
+            status = "ERROR"
             diagnostics: list[dict[str, Any]] = []
             try:
                 body = response.json()
                 detail = body.get("detail") if isinstance(body, dict) else None
                 if isinstance(detail, dict):
+                    if response.status_code == 422 and detail.get("code") == "engine_mode_incompatible":
+                        status = "INCOMPATIBLE"
                     diagnostics = list(detail.get("diagnostics") or [])
                     if not diagnostics and detail.get("message"):
                         diagnostics = [{"code": detail.get("code"), "message": detail.get("message")}]

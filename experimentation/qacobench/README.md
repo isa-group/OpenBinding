@@ -37,7 +37,7 @@ The gateway registry keeps every engine revision it has seen, keyed by (namespac
 * `--concurrency n` — packages in flight at once; `n > 1` shortens the campaign but adds CPU contention to the runtime measurements, so the reference campaign uses 1.
 * `--engines`, `--suite`, `--package`, `--sample`, `--source-only` — subsets, as before.
 
-Every record carries `termination_reason` (`proof`, `evaluation_budget`, `time_budget`, `incompatible`) and the effective `engine_options`. The heuristic engines run with their declared defaults inside the 5,000 ms budget: random-search 1,000 evaluations, evolutionary-heuristics population 100 and 10,000 evaluations; the budget is recorded in the run manifest (`engine_budgets`) and reported with the results, so that "time budget" and "evaluation budget" terminations are never conflated. Capability rejections are recorded as `INCOMPATIBLE` with the engine's 422 diagnostics (`diagnostics`), never as errors.
+Every record carries `termination_reason` (`proof`, `evaluation_budget`, `time_budget`, `incompatible`) and the effective `engine_options`. The heuristic engines run with their declared defaults inside the 5,000 ms budget: random-search 1,000 evaluations, evolutionary-heuristics population 100 and 10,000 evaluations; the budget is recorded in the run manifest (`engine_budgets`) and reported with the results, so that "time budget" and "evaluation budget" terminations are never conflated. Capability rejections that carry the `engine_incompatible` or `engine_mode_incompatible` code are recorded as `INCOMPATIBLE` with the engine's 422 diagnostics (`diagnostics`).
 
 ## QFBS design
 
@@ -49,7 +49,7 @@ The generator saves returned file bytes, requests, seeds, response digests, obse
 
 ## Execution and analysis
 
-The campaign resumes by instance identity, package digest, solver, budget and seed. Quota failures, communication failures and unclassified infrastructure errors stop execution. Capability rejections remain `INCOMPATIBLE`. Results from another design must not be placed in the new output directory.
+The campaign resumes by instance identity, package digest, solver, budget and seed. Quota failures, communication failures and unclassified infrastructure errors stop execution. Capability rejections remain `INCOMPATIBLE`; they are recognised by error code (job-level `engine_incompatible`, submission-level `engine_mode_incompatible`), never by message text. A job the gateway still codes `engine_rejected` is recorded `ERROR`, and an `ERROR` result stops the campaign (see campaign.py), so a campaign against a gateway that does not yet emit `engine_incompatible` stops at the first MiniZinc refusal. Results from another design must not be placed in the new output directory.
 
 Evaluation summarizes recorded responses without recompiling instances or re-evaluating bindings (every binding was already validated by the gateway when it was recorded). The research questions and the artifacts that answer them:
 
