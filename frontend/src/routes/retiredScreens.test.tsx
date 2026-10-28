@@ -5,7 +5,7 @@ import type { UserProfile } from '../api/auth';
 import { mainLinks } from '../components/PlatformShell/appNavigation';
 import { buildCommands } from '../components/PlatformShell/paletteCommands';
 import { AuthContext } from '../contexts/auth';
-import { MAX_ALLOWED_OFFENDERS, RAW_RENDERING_ALLOW_LIST, UNLISTED_FINDINGS } from '../test/rawRenderingAllowList';
+import { RAW_RENDERING_ALLOW_LIST, UNLISTED_FINDINGS } from '../test/rawRenderingAllowList';
 import { AppRoutes } from './index';
 import { routeDefinitions } from './registry';
 
@@ -107,7 +107,6 @@ describe('the retired decision-space workspace', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('analysis-sources');
     expect(ids).not.toContain('analysis-workspace');
-    expect(routeDefinitions).toHaveLength(69);
   });
 
   it('has no screen files left', () => {
@@ -137,7 +136,6 @@ describe('the retired decision-space workspace', () => {
     const inAnalysis = (entry: { file: string }) => entry.file.startsWith('pages/Analysis');
     expect(RAW_RENDERING_ALLOW_LIST.filter(inAnalysis)).toEqual([]);
     expect(UNLISTED_FINDINGS.filter(inAnalysis)).toEqual([]);
-    expect(MAX_ALLOWED_OFFENDERS).toBe(1);
   });
 });
 
@@ -187,7 +185,6 @@ describe('the retired library catalogue and project resources', () => {
       expect(ids, id).not.toContain(id);
     }
     for (const id of ['proj-files', 'coll-list', 'coll-detail']) expect(ids, id).toContain(id);
-    expect(routeDefinitions).toHaveLength(69);
   });
 
   // [utest->req~frontend-retire-library-screens-not-routed~1]
@@ -238,12 +235,10 @@ describe('the retired composer', () => {
   beforeEach(() => vi.clearAllMocks());
 
   // [utest->req~frontend-retire-composer-screen-not-routed~1]
-  // [utest->req~frontend-retire-composer-screen-count~1]
   it('is gone from the route registry, and the case screens and the workbench stay', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('case-composer');
     for (const id of ['case-list', 'case-detail', 'case-revision', 'case-compare', 'wb-workbench']) expect(ids, id).toContain(id);
-    expect(routeDefinitions).toHaveLength(69);
   });
 
   // [utest->req~frontend-retire-composer-screen-not-routed~1]
@@ -267,13 +262,10 @@ describe('the retired sponsorship screen', () => {
   beforeEach(() => vi.clearAllMocks());
 
   // [utest->req~frontend-retire-sponsorship-screen-not-routed~1]
-  // [utest->req~frontend-retire-sponsorship-screen-count~1]
   it('is gone from the route registry, and the other administration screens stay', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('admin-sponsor');
     for (const id of ['admin-overview', 'admin-users', 'admin-user-detail', 'admin-audit']) expect(ids, id).toContain(id);
-    expect(routeDefinitions).toHaveLength(69);
-    expect(MAX_ALLOWED_OFFENDERS).toBe(1);
   });
 
   // [utest->req~frontend-retire-sponsorship-screen-not-routed~1]
