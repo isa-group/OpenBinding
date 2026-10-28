@@ -7,8 +7,9 @@ from datetime import timedelta
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import update
+from sqlalchemy import select, update
 
+from openbinding_gateway.core import revision
 from openbinding_gateway.db.models import User, utcnow
 from test_collaboration_platform import account
 
@@ -51,6 +52,9 @@ async def login_status(client, identifier, password) -> int:
     ).status_code
 
 
+# [utest->req~gateway-api-optimistic-concurrency-covered~1]
+# [utest->req~gateway-api-optimistic-concurrency-etag-format~1]
+# [utest->req~gateway-api-optimistic-concurrency-etag-on-read~1]
 async def test_both_gets_carry_the_same_strong_etag(api_client, holder) -> None:
     profile = await tag_of(api_client, PROFILE, holder["headers"])
     preferences = await tag_of(api_client, PREFERENCES, holder["headers"])
@@ -59,6 +63,8 @@ async def test_both_gets_carry_the_same_strong_etag(api_client, holder) -> None:
     assert profile == preferences
 
 
+# [utest->req~gateway-api-optimistic-concurrency-etag-on-write~1]
+# [utest->req~gateway-api-optimistic-concurrency-revision-bump~1]
 async def test_profile_edit_with_the_current_tag_returns_the_new_one(api_client, holder) -> None:
     tag = await tag_of(api_client, PROFILE, holder["headers"])
 
@@ -70,6 +76,7 @@ async def test_profile_edit_with_the_current_tag_returns_the_new_one(api_client,
     assert edited.headers["ETag"] == await tag_of(api_client, PREFERENCES, holder["headers"])
 
 
+# [utest->req~gateway-api-optimistic-concurrency-etag-on-write~1]
 async def test_email_edit_returns_the_tag_a_following_get_reports(api_client, holder) -> None:
     tag = await tag_of(api_client, PROFILE, holder["headers"])
 
@@ -80,6 +87,8 @@ async def test_email_edit_returns_the_tag_a_following_get_reports(api_client, ho
     assert edited.headers["ETag"] == await tag_of(api_client, PROFILE, holder["headers"])
 
 
+# [utest->req~gateway-api-optimistic-concurrency-etag-on-write~1]
+# [utest->req~gateway-api-optimistic-concurrency-revision-bump~1]
 async def test_preferences_put_with_the_current_tag_returns_the_new_one(api_client, holder) -> None:
     tag = await tag_of(api_client, PREFERENCES, holder["headers"])
 
@@ -91,6 +100,9 @@ async def test_preferences_put_with_the_current_tag_returns_the_new_one(api_clie
     assert edited.headers["ETag"] == await tag_of(api_client, PROFILE, holder["headers"])
 
 
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-unchanged~1]
 async def test_replaying_an_old_profile_tag_is_412_and_changes_nothing(api_client, holder) -> None:
     old = await tag_of(api_client, PROFILE, holder["headers"])
     first = await edit_profile(api_client, holder, old, new_password=NEW_PASSWORD)
@@ -113,6 +125,9 @@ async def test_replaying_an_old_profile_tag_is_412_and_changes_nothing(api_clien
     assert await login_status(api_client, holder["details"]["email"], NEW_PASSWORD) == 200
 
 
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-unchanged~1]
 async def test_replaying_an_old_preferences_tag_is_412_and_changes_nothing(api_client, holder) -> None:
     old = await tag_of(api_client, PREFERENCES, holder["headers"])
     first = await edit_preferences(api_client, holder, old)
@@ -127,6 +142,8 @@ async def test_replaying_an_old_preferences_tag_is_412_and_changes_nothing(api_c
     assert stored["inbox"] is False and stored["email_job_failures"] is False
 
 
+# [utest->req~gateway-api-optimistic-concurrency-if-match-absent~1]
+# [utest->req~gateway-api-optimistic-concurrency-etag-on-write~1]
 async def test_without_if_match_both_edits_still_succeed(api_client, holder) -> None:
     profile = await edit_profile(api_client, holder, new_password=NEW_PASSWORD)
     preferences = await edit_preferences(api_client, holder)
@@ -136,14 +153,127 @@ async def test_without_if_match_both_edits_still_succeed(api_client, holder) -> 
     assert preferences.headers["ETag"] == await tag_of(api_client, PROFILE, holder["headers"])
 
 
+# [utest->req~gateway-api-optimistic-concurrency-if-match-any~1]
 async def test_wildcard_matches(api_client, holder) -> None:
-    profile = await edit_profile(api_client, holder, "*", new_password=NEW_PASSWORD)
-    preferences = await edit_preferences(api_client, holder, "*")
+    before = await tag_of(api_client, PROFILE, holder["headers"])
+    email = f"star{uuid.uuid4().hex[:8]}@example.org"
+
+    profile = await edit_profile(api_client, holder, "*", email=email)
 
     assert profile.status_code == 200, profile.text
+    assert profile.headers["ETag"] != before
+    assert profile.headers["ETag"] == await tag_of(api_client, PROFILE, holder["headers"])
+    assert (await api_client.get(PROFILE, headers=holder["headers"])).json()["email"] == email
+
+    preferences = await edit_preferences(api_client, holder, "*")
+
     assert preferences.status_code == 200, preferences.text
+    assert preferences.headers["ETag"] != profile.headers["ETag"]
+    assert preferences.headers["ETag"] == await tag_of(api_client, PREFERENCES, holder["headers"])
+    assert (await api_client.get(PREFERENCES, headers=holder["headers"])).json()["inbox"] is False
 
 
+# [utest->req~gateway-api-optimistic-concurrency-if-match-list~1]
+# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
+async def test_a_list_with_the_current_tag_matches_with_or_without_whitespace_and_empty_elements(
+    api_client, holder
+) -> None:
+    for template in ('"stale", {tag}', '"stale" ,{tag} ', " \t{tag}\t, ", ", {tag},", '{tag}, "stale"'):
+        tag = await tag_of(api_client, PROFILE, holder["headers"])
+        email = f"list{uuid.uuid4().hex[:8]}@example.org"
+
+        edited = await edit_profile(api_client, holder, template.format(tag=tag), email=email)
+
+        assert edited.status_code == 200, (template, edited.text)
+        assert edited.headers["ETag"] != tag
+        assert (await api_client.get(PROFILE, headers=holder["headers"])).json()["email"] == email
+
+
+# [utest->req~gateway-api-optimistic-concurrency-if-match-list~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
+async def test_a_list_without_the_current_tag_is_412(api_client, holder) -> None:
+    stale = await tag_of(api_client, PROFILE, holder["headers"])
+    assert (await edit_preferences(api_client, holder)).status_code == 200
+    current = await tag_of(api_client, PROFILE, holder["headers"])
+
+    refused = await edit_profile(api_client, holder, f'{stale}, "other", W/{current}', new_password=NEW_PASSWORD)
+
+    assert refused.status_code == 412, refused.text
+    assert refused.headers["ETag"] == current
+    assert await login_status(api_client, holder["details"]["username"], NEW_PASSWORD) == 401
+
+
+# [utest->req~gateway-api-optimistic-concurrency-if-match-absent~1]
+async def test_without_if_match_a_stale_reader_still_wins_twice(api_client, holder) -> None:
+    held = await tag_of(api_client, PROFILE, holder["headers"])
+
+    first = await edit_profile(api_client, holder, email=f"one{uuid.uuid4().hex[:8]}@example.org")
+    second = await edit_profile(api_client, holder, email=f"two{uuid.uuid4().hex[:8]}@example.org")
+    again = await edit_preferences(api_client, holder)
+    last = await edit_preferences(api_client, holder)
+
+    for response in (first, second, again, last):
+        assert response.status_code == 200, response.text
+    assert held != first.headers["ETag"] != second.headers["ETag"]
+    assert last.headers["ETag"] == await tag_of(api_client, PROFILE, holder["headers"])
+
+
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
+async def test_the_412_body_has_the_platform_error_shape(api_client, holder) -> None:
+    old = await tag_of(api_client, PROFILE, holder["headers"])
+    assert (await edit_preferences(api_client, holder)).status_code == 200
+    current = await tag_of(api_client, PROFILE, holder["headers"])
+
+    refused = await edit_profile(api_client, holder, old, new_password=NEW_PASSWORD)
+
+    assert refused.status_code == 412, refused.text
+    assert refused.headers["content-type"].startswith("application/json")
+    body = refused.json()
+    assert body["status"] == 412
+    assert body["code"] == "precondition_failed"
+    assert body["title"] == "precondition_failed"
+    assert body["detail"]["code"] == "precondition_failed"
+    assert refused.headers["ETag"] == current
+    assert old not in refused.text and current not in refused.text
+
+
+# [utest->req~gateway-api-optimistic-concurrency-etag-on-read~1]
+async def test_a_refused_read_carries_no_etag(api_client, holder) -> None:
+    bad = {"Authorization": "Bearer not-a-token"}
+
+    for url in (PROFILE, PREFERENCES):
+        for headers in (bad, {}):
+            refused = await api_client.get(url, headers=headers)
+
+            assert refused.status_code == 401, refused.text
+            assert "ETag" not in refused.headers
+
+
+# [utest->req~gateway-api-optimistic-concurrency-revision-bump~1]
+# [utest->req~gateway-api-optimistic-concurrency-etag-on-write~1]
+async def test_an_email_change_keeps_the_claimed_revision_across_its_autoflushes(
+    api_client, holder, db_session
+) -> None:
+    """The email lookup autoflushes the claim; the later write must not fall back to the clock."""
+    future = utcnow() + timedelta(days=3)
+    await db_session.execute(
+        update(User).where(User.id == uuid.UUID(holder["id"])).values(updated_at=future)
+    )
+    await db_session.commit()
+    held = await tag_of(api_client, PROFILE, holder["headers"])
+
+    edited = await edit_profile(api_client, holder, held, email=f"late{uuid.uuid4().hex[:8]}@example.org")
+
+    assert edited.status_code == 200, edited.text
+    assert edited.headers["ETag"] != held
+    assert edited.headers["ETag"] == await tag_of(api_client, PROFILE, holder["headers"])
+    stored = await db_session.scalar(select(User.updated_at).where(User.id == uuid.UUID(holder["id"])))
+    assert revision.normalise(stored) > revision.normalise(future)
+
+
+# [utest->req~gateway-api-optimistic-concurrency-if-match-weak~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
 async def test_weak_tag_never_matches(api_client, holder) -> None:
     tag = await tag_of(api_client, PROFILE, holder["headers"])
 
@@ -154,6 +284,7 @@ async def test_weak_tag_never_matches(api_client, holder) -> None:
     assert profile.headers["ETag"] == preferences.headers["ETag"] == tag
 
 
+# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 async def test_malformed_if_match_is_400(api_client, holder) -> None:
     profile = await edit_profile(api_client, holder, "not a tag", new_password=NEW_PASSWORD)
     preferences = await edit_preferences(api_client, holder, "not a tag")
@@ -163,6 +294,7 @@ async def test_malformed_if_match_is_400(api_client, holder) -> None:
         assert refused.json()["detail"]["code"] == "invalid_if_match"
 
 
+# [utest->req~gateway-api-optimistic-concurrency-order-access~1]
 async def test_no_credentials_is_401_not_412_or_400(api_client) -> None:
     for tag in ('"stale"', "not a tag"):
         profile = await api_client.patch(
@@ -174,6 +306,7 @@ async def test_no_credentials_is_401_not_412_or_400(api_client) -> None:
         assert "ETag" not in profile.headers and "ETag" not in preferences.headers
 
 
+# [utest->req~gateway-api-optimistic-concurrency-order-access~1]
 async def test_wrong_current_password_is_401_before_a_stale_tag(api_client, holder) -> None:
     refused = await api_client.patch(
         PROFILE,
@@ -185,6 +318,8 @@ async def test_wrong_current_password_is_401_before_a_stale_tag(api_client, hold
     assert refused.json()["detail"]["code"] == "invalid_credentials"
 
 
+# [utest->req~gateway-api-optimistic-concurrency-order-state~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
 async def test_stale_tag_beats_already_registered_and_weak_password(api_client, holder, registration) -> None:
     other, _ = await account(api_client, registration)
     tag = await tag_of(api_client, PROFILE, holder["headers"])
@@ -203,6 +338,7 @@ async def test_stale_tag_beats_already_registered_and_weak_password(api_client, 
     assert weak_now.status_code == 422, weak_now.text
 
 
+# [utest->req~gateway-api-optimistic-concurrency-covered~1]
 async def test_the_revision_is_shared_between_profile_and_preferences(api_client, holder) -> None:
     profile_tag = await tag_of(api_client, PROFILE, holder["headers"])
     assert (await edit_preferences(api_client, holder, profile_tag)).status_code == 200
@@ -216,6 +352,7 @@ async def test_the_revision_is_shared_between_profile_and_preferences(api_client
     assert stale_preferences.status_code == 412, stale_preferences.text
 
 
+# [utest->req~gateway-api-optimistic-concurrency-revision-bump~1]
 async def test_an_empty_profile_patch_keeps_the_etag(api_client, holder) -> None:
     tag = await tag_of(api_client, PROFILE, holder["headers"])
 
@@ -227,6 +364,8 @@ async def test_an_empty_profile_patch_keeps_the_etag(api_client, holder) -> None
     assert await tag_of(api_client, PROFILE, holder["headers"]) == tag
 
 
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
+# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 async def test_an_empty_profile_patch_with_a_stale_or_bad_tag_is_refused(api_client, holder) -> None:
     tag = await tag_of(api_client, PROFILE, holder["headers"])
     assert (await edit_preferences(api_client, holder)).status_code == 200
@@ -241,6 +380,9 @@ async def test_an_empty_profile_patch_with_a_stale_or_bad_tag_is_refused(api_cli
     assert await tag_of(api_client, PROFILE, holder["headers"]) == current
 
 
+# [utest->req~gateway-api-optimistic-concurrency-atomic~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-unchanged~1]
 @pytest.mark.parametrize("target", ["profile", "preferences"])
 async def test_a_writer_that_commits_between_read_and_write_loses(
     api_client, holder, db_session, monkeypatch, target
@@ -280,6 +422,7 @@ async def test_a_writer_that_commits_between_read_and_write_loses(
         assert stored["inbox"] is True
 
 
+# [utest->req~gateway-api-optimistic-concurrency-openapi~1]
 def test_openapi_documents_if_match_etag_and_both_failures() -> None:
     from openbinding_gateway.main import app
 
@@ -290,5 +433,12 @@ def test_openapi_documents_if_match_etag_and_both_failures() -> None:
     ]:
         edit = paths[path][method]
         assert edit["operationId"] == operation
-        assert any(p["name"] == "If-Match" and p["in"] == "header" for p in edit["parameters"])
+        header = [p for p in edit["parameters"] if p["name"] == "If-Match"]
+        assert len(header) == 1 and header[0]["in"] == "header" and header[0]["required"] is False
         assert {"400", "412"} <= set(edit["responses"])
+        assert "ETag" in edit["responses"]["200"]["headers"]
+        assert "ETag" in edit["responses"]["412"]["headers"]
+        assert "content" in edit["responses"]["200"]
+    for path in (PROFILE, PREFERENCES):
+        read = paths[path]["get"]["responses"]["200"]
+        assert "ETag" in read["headers"] and "content" in read

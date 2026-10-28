@@ -95,6 +95,9 @@ def assert_problem(response, status: int, code: str) -> None:
     assert body["code"] == code and body["status"] == status
 
 
+# [utest->req~gateway-api-optimistic-concurrency-etag-on-write~1]
+# [utest->req~gateway-api-optimistic-concurrency-no-current-revision~1]
+# [utest->req~gateway-api-optimistic-concurrency-if-match-absent~1]
 async def test_first_credential_without_if_match_is_stored_and_returns_the_etag(api_client, db_session, lab) -> None:
     response = await put(api_client, lab)
 
@@ -103,6 +106,8 @@ async def test_first_credential_without_if_match_is_stored_and_returns_the_etag(
     assert response.headers["ETag"] == revision.etag_for(credential)
 
 
+# [utest->req~gateway-api-optimistic-concurrency-no-current-revision~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
 async def test_first_credential_with_any_if_match_is_412_without_etag_and_stores_nothing(
     api_client, db_session, lab
 ) -> None:
@@ -115,6 +120,8 @@ async def test_first_credential_with_any_if_match_is_412_without_etag_and_stores
         assert credential is None
 
 
+# [utest->req~gateway-api-optimistic-concurrency-etag-on-write~1]
+# [utest->req~gateway-api-optimistic-concurrency-revision-bump~1]
 async def test_replace_with_the_matching_tag_succeeds_and_returns_a_new_one(api_client, db_session, lab) -> None:
     tag = await with_credential(api_client, db_session, lab)
     _, before = await stored(db_session, lab)
@@ -130,6 +137,7 @@ async def test_replace_with_the_matching_tag_succeeds_and_returns_a_new_one(api_
     assert registration.is_active is False and registration.publication_status == "private"
 
 
+# [utest->req~gateway-api-optimistic-concurrency-if-match-any~1]
 async def test_wildcard_replaces_an_existing_credential(api_client, db_session, lab) -> None:
     tag = await with_credential(api_client, db_session, lab)
 
@@ -139,6 +147,9 @@ async def test_wildcard_replaces_an_existing_credential(api_client, db_session, 
     assert replaced.headers["ETag"] != tag
 
 
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-unchanged~1]
 async def test_stale_tag_is_412_with_the_current_etag_and_changes_nothing(api_client, db_session, lab) -> None:
     old = await with_credential(api_client, db_session, lab)
     current = (await put(api_client, lab, SECOND, if_match=old)).headers["ETag"]
@@ -169,6 +180,7 @@ async def test_stale_tag_is_412_with_the_current_etag_and_changes_nothing(api_cl
     ) == snapshot
 
 
+# [utest->req~gateway-api-optimistic-concurrency-if-match-weak~1]
 async def test_weak_tag_never_matches(api_client, db_session, lab) -> None:
     tag = await with_credential(api_client, db_session, lab)
 
@@ -180,6 +192,7 @@ async def test_weak_tag_never_matches(api_client, db_session, lab) -> None:
     assert registration.is_active is True
 
 
+# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 async def test_malformed_if_match_is_a_400_problem(api_client, db_session, lab) -> None:
     tag = await with_credential(api_client, db_session, lab)
 
@@ -192,10 +205,12 @@ async def test_malformed_if_match_is_a_400_problem(api_client, db_session, lab) 
     assert revision.etag_for(credential) == tag
 
 
+# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 async def test_malformed_if_match_without_a_stored_credential_is_still_400(api_client, lab) -> None:
     assert_problem(await put(api_client, lab, if_match="not-quoted"), 400, "invalid_if_match")
 
 
+# [utest->req~gateway-api-optimistic-concurrency-order-access~1]
 async def test_wrong_owner_and_unknown_registration_are_404_before_the_precondition(
     api_client, db_session, lab
 ) -> None:
@@ -212,6 +227,8 @@ async def test_wrong_owner_and_unknown_registration_are_404_before_the_precondit
         assert "etag" not in response.headers
 
 
+# [utest->req~gateway-api-optimistic-concurrency-order-state~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
 async def test_412_comes_before_the_immutable_published_409_and_a_409_leaves_the_revision_alone(
     api_client, db_session, lab
 ) -> None:
@@ -240,6 +257,7 @@ async def test_412_comes_before_the_immutable_published_409_and_a_409_leaves_the
     assert registration.publication_status == "published"
 
 
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-unchanged~1]
 async def test_credential_store_unavailable_after_the_claim_leaves_the_revision_alone(
     api_client, db_session, lab, monkeypatch
 ) -> None:
@@ -255,6 +273,8 @@ async def test_credential_store_unavailable_after_the_claim_leaves_the_revision_
     assert after.updated_at == stamp and revision.etag_for(after) == tag
 
 
+# [utest->req~gateway-api-optimistic-concurrency-atomic~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
 async def test_a_writer_that_commits_between_read_and_claim_loses(api_client, db_session, lab, monkeypatch) -> None:
     tag = await with_credential(api_client, db_session, lab)
     _, before = await stored(db_session, lab)
@@ -286,11 +306,51 @@ async def test_a_writer_that_commits_between_read_and_claim_loses(api_client, db
     assert registration.is_active is True
 
 
+# [utest->req~gateway-api-optimistic-concurrency-openapi~1]
 def test_openapi_declares_the_header_and_the_conditional_responses() -> None:
     operation = app.openapi()["paths"]["/v1/engine-registrations/{name}/credential"]["put"]
 
-    header = next(item for item in operation["parameters"] if item["name"] == "If-Match")
-    assert header["in"] == "header" and header.get("required", False) is False
+    header = [item for item in operation["parameters"] if item["name"] == "If-Match"]
+    assert len(header) == 1 and header[0]["in"] == "header" and header[0]["required"] is False
     for code in ("400", "412"):
         assert PROBLEM in operation["responses"][code]["content"]
+    assert "ETag" in operation["responses"]["200"]["headers"]
     assert "ETag" in operation["responses"]["412"]["headers"]
+    assert "content" in operation["responses"]["200"]
+
+
+# [utest->req~gateway-api-optimistic-concurrency-revision-bump~1]
+# [utest->req~gateway-api-optimistic-concurrency-etag-on-write~1]
+async def test_the_etag_changes_even_when_the_clock_is_behind_the_held_revision(api_client, db_session, lab) -> None:
+    await with_credential(api_client, db_session, lab)
+    _, credential = await stored(db_session, lab)
+    future = utcnow() + timedelta(days=3)
+    await db_session.execute(
+        update(EngineCredential).where(EngineCredential.id == credential.id).values(updated_at=future)
+    )
+    await db_session.commit()
+    _, credential = await stored(db_session, lab)
+    held = revision.etag_for(credential)
+
+    replaced = await put(api_client, lab, SECOND, if_match=held)
+
+    assert replaced.status_code == 200, replaced.text
+    assert replaced.headers["ETag"] != held
+    _, after = await stored(db_session, lab)
+    assert replaced.headers["ETag"] == revision.etag_for(after)
+    assert revision.normalise(after.updated_at) > revision.normalise(future)
+
+
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
+async def test_the_412_body_is_a_problem_document(api_client, db_session, lab) -> None:
+    old = await with_credential(api_client, db_session, lab)
+    current = (await put(api_client, lab, SECOND, if_match=old)).headers["ETag"]
+
+    refused = await put(api_client, lab, "third-secret", if_match=old)
+
+    assert_problem(refused, 412, "precondition_failed")
+    body = refused.json()
+    assert body["title"] == "precondition_failed"
+    assert refused.headers["content-type"].startswith(PROBLEM)
+    assert refused.headers["ETag"] == current

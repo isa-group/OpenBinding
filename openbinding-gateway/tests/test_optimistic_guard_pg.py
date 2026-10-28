@@ -55,8 +55,8 @@ async def stored_tag(pg, project_id: uuid.UUID):
         return row.updated_at, revision.etag_for(row)
 
 
-async def signed_in(client, registration) -> dict[str, str]:
-    details = registration()
+async def signed_in(client, registration, details=None) -> dict[str, str]:
+    details = details or registration()
     created = await client.post("/v1/auth/register", json=details)
     assert created.status_code == 201, created.text
     logged = await client.post(
@@ -73,6 +73,7 @@ def precondition_failed(outcome) -> HTTPException:
     return outcome
 
 
+# [utest->req~gateway-api-optimistic-concurrency-atomic~1]
 async def test_the_second_writer_with_the_same_tag_waits_for_the_first_and_then_gets_412(pg):
     project_id, tag = await a_project(pg)
     original, _ = await stored_tag(pg, project_id)
@@ -102,6 +103,7 @@ async def test_the_second_writer_with_the_same_tag_waits_for_the_first_and_then_
     assert updated == winner and current == won_tag  # exactly the first writer's bump, nothing of the second
 
 
+# [utest->req~gateway-api-optimistic-concurrency-if-match-any~1]
 async def test_if_match_star_lets_both_writers_through_one_after_the_other(pg):
     project_id, tag = await a_project(pg)
 
@@ -125,6 +127,7 @@ async def test_if_match_star_lets_both_writers_through_one_after_the_other(pg):
     assert second >= first
 
 
+# [utest->req~gateway-api-optimistic-concurrency-atomic~1]
 async def test_a_writer_that_rolls_back_after_its_claim_leaves_the_revision_untouched(pg):
     project_id, tag = await a_project(pg)
     original, _ = await stored_tag(pg, project_id)
@@ -154,6 +157,7 @@ async def test_a_writer_that_rolls_back_after_its_claim_leaves_the_revision_unto
     assert updated > original and current != tag
 
 
+# [utest->req~gateway-api-optimistic-concurrency-etag-format~1]
 async def test_the_etag_of_a_value_read_back_from_postgresql_equals_the_one_computed_after_the_write(pg):
     project_id, tag = await a_project(pg)
 
@@ -176,6 +180,7 @@ async def test_the_etag_of_a_value_read_back_from_postgresql_equals_the_one_comp
         assert again.updated_at.microsecond == written.microsecond
 
 
+# [utest->req~gateway-api-optimistic-concurrency-etag-format~1]
 async def test_a_python_timestamp_written_with_microseconds_and_an_offset_keeps_its_etag_when_read_back(pg):
     project_id, _ = await a_project(pg)
     # Never read from the database: an aware value with microseconds in a non-UTC zone, as the code may bind it.
@@ -203,6 +208,7 @@ async def test_a_python_timestamp_written_with_microseconds_and_an_offset_keeps_
 # -- through the routes ------------------------------------------------------------------------------------
 
 
+# [utest->req~gateway-api-optimistic-concurrency-atomic~1]
 async def test_over_http_two_concurrent_patches_with_the_same_etag_give_one_200_and_one_412(pg, registration):
     async with http_client(pg) as client:
         headers = await signed_in(client, registration)
@@ -235,6 +241,8 @@ async def test_over_http_two_concurrent_patches_with_the_same_etag_give_one_200_
         assert final.headers["ETag"] == winner.headers["ETag"]
 
 
+# [utest->req~gateway-api-optimistic-concurrency-atomic~1]
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-unchanged~1]
 async def test_over_http_a_patch_refused_after_its_claim_leaves_the_etag_unchanged(pg, registration):
     async with http_client(pg) as client:
         headers = await signed_in(client, registration)
@@ -262,5 +270,46 @@ async def test_over_http_a_patch_refused_after_its_claim_leaves_the_etag_unchang
 
         # The same tag is still good, which a surviving claim would have made a 412.
         retry = await client.patch(url, headers={**headers, "If-Match": tag}, json={"name": "Renamed"})
+        assert retry.status_code == 200, retry.text
+        assert retry.headers["ETag"] != tag
+
+
+# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-unchanged~1]
+async def test_over_http_a_profile_edit_refused_after_its_claim_leaves_the_etag_unchanged(pg, registration):
+    async with http_client(pg) as client:
+        details, other = registration(), registration()
+        headers = await signed_in(client, registration, details)
+        await signed_in(client, registration, other)
+        url = "/v1/users/me"
+        read = await client.get(url, headers=headers)
+        assert read.status_code == 200, read.text
+        tag = read.headers["ETag"]
+
+        # Past the guard (the claim bumped updated_at in this transaction), then refused after it.
+        taken = await client.patch(
+            url,
+            headers={**headers, "If-Match": tag},
+            json={"current_password": details["password"], "email": other["email"]},
+        )
+        weak = await client.patch(
+            url,
+            headers={**headers, "If-Match": tag},
+            json={"current_password": details["password"], "new_password": "short"},
+        )
+        assert taken.status_code == 409, taken.text
+        assert taken.json()["code"] == "already_registered"
+        assert weak.status_code == 422, weak.text
+        assert weak.json()["code"] == "weak_password"
+
+        after = await client.get(url, headers=headers)
+        assert after.headers["ETag"] == tag  # neither claim was committed with its refused request
+        assert after.json()["email"] == details["email"]
+
+        # The same tag is still good, which a surviving claim would have made a 412.
+        retry = await client.patch(
+            url,
+            headers={**headers, "If-Match": tag},
+            json={"current_password": details["password"], "email": f"new{uuid.uuid4().hex[:8]}@example.org"},
+        )
         assert retry.status_code == 200, retry.text
         assert retry.headers["ETag"] != tag
