@@ -347,6 +347,93 @@ preflight && echo "pre-flight passed"
 Read the `ls -ln` output: the secrets directory is mode 0700 root with the files of the
 [layout](#secrets-directory), and `NGINX_SSL_DIR` is mode 0750 root with `privkey.pem` at 0600 root.
 
+Before the first deployment of a release that carries the request-time resolver of `nginx`, also run the
+[nginx check](#nginx-check-before-the-first-deployment-of-this-configuration).
+
+### Nginx check before the first deployment of this configuration
+
+The request-time resolver of `nginx/production/nginx.conf` (it follows a new `gateway` address without a restart and
+answers `502` when no `gateway` exists) and its rewrite of the request URI were verified by static tests and by review
+only, never in a real `nginx`: the laboratory brings up only tracked Compose files and could not run this procedure.
+This is an evidence limitation, not a waived gate. Run the procedure once on a machine with Docker, with the release
+checkout, before the first deployment of this `nginx` configuration. Use the server name of `nginx.conf` for `<name>`
+and any small image with Python for `<python image>`; `<tls dir>` is an empty directory for a self-signed certificate.
+
+1. Build the image from the checkout:
+
+   ```bash
+   docker build -t nginx-check nginx/production
+   ```
+
+2. `nginx -t` passes with a self-signed certificate mounted at `/etc/nginx/ssl`:
+
+   ```bash
+   openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=check \
+     -keyout <tls dir>/privkey.pem -out <tls dir>/fullchain.pem
+   docker run --rm -v <tls dir>:/etc/nginx/ssl:ro nginx-check nginx -t
+   ```
+
+3. On a throwaway network, start a stand-in gateway under the alias `gateway`, which logs every request line, and start
+   the image next to it:
+
+   ```bash
+   docker network create nginx-check
+   docker run -d --name gw1 --network nginx-check --network-alias gateway <python image> python -m http.server 8000
+   docker run -d --name nginx-under-check --network nginx-check -p 127.0.0.1:8443:443 \
+     -v <tls dir>:/etc/nginx/ssl:ro nginx-check
+   ```
+
+4. The raw request URI arrives without the `/api` prefix. `docker logs gw1` shows `GET /v1/x%2Fy?a=1`:
+
+   ```bash
+   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/x%2Fy?a=1"
+   ```
+
+5. `/%61pi/x` answers `400`; `/api/v1/jobs?limit=5` arrives as `GET /v1/jobs?limit=5`; and with `--path-as-is`,
+   `/api//v1/jobs` and `/api/v1/x/../jobs` arrive as `//v1/jobs` and `/v1/x/../jobs`:
+
+   ```bash
+   curl -sk -o /dev/null -w '%{http_code}\n' --resolve <name>:8443:127.0.0.1 "https://<name>:8443/%61pi/x"
+   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/jobs?limit=5"
+   curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api//v1/jobs"
+   curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/x/../jobs"
+   docker logs gw1
+   ```
+
+6. Replace the stand-in with a new container under the same alias and another address (compare the two with
+   `docker inspect`), wait 11 s, and request `/api/health`. The request line `GET /v1/health` appears in
+   `docker logs gw2` and the answer is not `502`, with no restart of `nginx`:
+
+   ```bash
+   docker rm -f gw1
+   docker run -d --name gw2 --network nginx-check --network-alias gateway <python image> python -m http.server 8000
+   sleep 11
+   curl -sk -o /dev/null -w '%{http_code}\n' --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/health"
+   docker logs gw2
+   ```
+
+7. Remove the stand-in so that no container has the alias `gateway`, and wait 11 s. `/api/health` answers `502` within
+   about 5 s (`resolver_timeout 5s`) and never `200`:
+
+   ```bash
+   docker rm -f gw2
+   sleep 11
+   curl -sk -o /dev/null -w '%{http_code} %{time_total}\n' --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/health"
+   ```
+
+If a host exists whose DNS can answer the bare name `gateway` (a search domain or a local record), repeat step 7 there,
+because Docker's embedded DNS forwards names it does not know to the host's resolvers; the answer must still be `502`.
+
+Remove what the check created:
+
+```bash
+docker rm -f nginx-under-check gw1 gw2
+docker network rm nginx-check
+```
+
+Record the date, the image and the result of every step in the deployment notes. A failure of any step is a stop: do
+not deploy this `nginx` image, and tell the maintainers.
+
 ### Pull and start
 
 Take a database dump first when the release added a migration, that is when

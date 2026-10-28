@@ -80,10 +80,12 @@ No other file changes.
 - [ ] 1b.6 Checks 3, 4 and 2. Review panel: reviewer and security-auditor (the public proxy changes).
   - [x] Check 3: CI on head f628c612 ran both test files green in the gateway-unit shards.
   - [ ] Check 4 (ruff) has no evidence yet. Check 2 and the panel round 2 are open.
-- [ ] 1b.7 Lab, by the coordinator, before merge: the F9 procedure of design.md §3, with the image built from a head
-  with S1, S1b and R1. The MRP records the request lines that the stand-in logged, the gateway's answers to
-  `//v1/jobs` and `/v1/x/../jobs`, the 400, the request after the gateway was replaced, and the 502 with its time
-  when no `gateway` exists (step 7).
+- [ ] 1b.7 Not run in the lab (it brings up only tracked Compose files). Delegated to the operator as the pre-deployment
+  check "Nginx check before the first deployment of this configuration" of `docs/runbooks/production.md`, at the R1
+  production deployment: the F9 procedure of design.md §3, whose results the operator records in the deployment notes
+  (request lines, the 400, the request after the gateway was replaced, the 502 with its time when no `gateway`
+  exists). Evidence limitation, not a waived gate: until then F9 is verified by the static tests and the review panel
+  only. Stays unchecked until the operator's result is known.
 
 ## R1. Fix round 1 of the review panel (head 2b89ef9f)
 
@@ -104,7 +106,7 @@ Owned: this change's documents (R1.1), and, in a parallel task, `nginx/productio
   `NGINX_IMAGE` and `$DC up -d` (R1-REV-002); the `compose.yaml` comment and the m09 tasks lines to match. Checks 3,
   4 and 2.
 - [ ] R1.4 Regenerate `frontend/src/content/changelog.generated.json` with `python3 tools/generate_changelog.py`. The
-  file is outside this change's files: it is done only if the coordinator extends the scope.
+  file is outside this change's files: the coordinator regenerates it after the change optimistic-concurrency merges.
 - [ ] R1.3 Check 1 (G1), once registered, on the head with R1.1 and R1.2. The trace (G6) shows both tags of the new
   requirement.
 
