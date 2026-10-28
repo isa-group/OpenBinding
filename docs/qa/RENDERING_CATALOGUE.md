@@ -203,7 +203,7 @@ Also not seen: raw rendering built without the literal `<pre` or `JSON.stringify
 `white-space: pre`, or a stringified variable shown elsewhere, as at `RepDetail.tsx:77`, whose `sourceText` reaches
 the textarea at :317).
 
-The allow-list `frontend/src/test/rawRenderingAllowList.ts` holds the 8 remaining offenders of ROADMAP M2 (`RAW_RENDERING_ALLOW_LIST`)
+The allow-list `frontend/src/test/rawRenderingAllowList.ts` holds the 1 remaining offender of ROADMAP M2 (`RAW_RENDERING_ALLOW_LIST`)
 and `UNLISTED_FINDINGS` for 1 finding not in the roadmap, awaiting classification: `pages/Workbench/SourcePanel.tsx`
 (diff `<pre>`). Findings and listed lines are matched as a
 multiset per file and trimmed line text: a second identical raw line in a listed file is a new finding, and a listed
@@ -218,7 +218,7 @@ lower `MAX_ALLOWED_OFFENDERS`, and in the first such slice relax the "numbered 1
 |---|---|
 | M2.3 | none left (1 `EngineReportView.tsx`, 2 `pages/Jobs/JobResult.tsx`, 3 `pages/Workbench/RunPanel.tsx` and 4 `pages/Workbench/CheckResult.tsx` are retired) |
 | M2.4 | none left (5 `pages/Reports/RepDetail.tsx` and 11 `pages/Library/ContentView.tsx` are retired) |
-| M2.5 | 8 `pages/Studies/StudyCell.tsx`; 9 `pages/Studies/StudyDetail.tsx`; 10 `pages/Engines/EngineParts.tsx`; 12 `pages/Organization/OrgAudit.tsx`; 13 `pages/RegisterEngine/EngineForm.tsx`; 14 `pages/Generator/LabAside.tsx`; 15 `pages/Cases/SnapshotDetail.tsx` |
+| M2.5 | none left (8 `pages/Studies/StudyCell.tsx`, 9 `pages/Studies/StudyDetail.tsx`, 10 `pages/Engines/EngineParts.tsx`, 12 `pages/Organization/OrgAudit.tsx`, 13 `pages/RegisterEngine/EngineForm.tsx`, 14 `pages/Generator/LabAside.tsx` and 15 `pages/Cases/SnapshotDetail.tsx` are retired) |
 | M2.6 | 6 `pages/Reports/Verifier.tsx` |
 | none yet | 16 `pages/Workbench/SourcePanel.tsx` |
 
