@@ -1,5 +1,7 @@
 """Report project contexts use the same editorial library as other resources."""
+import math
 import uuid
+from typing import Any
 from sqlalchemy import select
 from .artifacts import seal_draft
 from .db.models import Artifact, ArtifactDraft, ProjectArtifact, Report, ReportState, StudyRun
@@ -53,6 +55,17 @@ async def new_report_draft(session, value, user):
     return draft
 
 
+def safe(value: Any) -> Any:
+    """Malformed evidence remains inspectable, without emitting invalid JSON numbers."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {str(k): safe(v) for k, v in value.items()}
+    if isinstance(value, (tuple, list)):
+        return [safe(v) for v in value]
+    return value
+
+
 async def report_evidence(session, artifact, document, user):
     """Validate referenced terminal sources and return typed retention edges."""
     from types import SimpleNamespace
@@ -72,7 +85,6 @@ async def report_evidence(session, artifact, document, user):
             job = await owned_job(str(identity), user, session)
             if job is None or job.state.value not in {'completed', 'failed', 'cancelled'} or job.result is None:
                 raise api_error(422, 'nonterminal_evidence', 'Report evidence must have a stored terminal result.')
-            from .v1.archive import safe
             result_digest = digest(safe(job.result))
             if source.get('resultDigestKind') == 'stored-json':
                 from sqlalchemy import Text, cast, func

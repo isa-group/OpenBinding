@@ -9,7 +9,7 @@ import { StudyRun } from './StudyRun';
 
 const platform = vi.hoisted(() => ({
   project: vi.fn(), publicProjects: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), cancelStudyRun: vi.fn(), retryStudyCell: vi.fn(),
-  reports: vi.fn(), createReport: vi.fn(), cases: vi.fn(), revisions: vi.fn(),
+  reports: vi.fn(), cases: vi.fn(), revisions: vi.fn(),
 }));
 
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));

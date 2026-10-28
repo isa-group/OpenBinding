@@ -14,7 +14,6 @@ retires an address the resolver emits must list it there in the same PR.
 from __future__ import annotations
 
 import re
-import sys
 import uuid
 from pathlib import Path
 
@@ -34,11 +33,8 @@ from openbinding_gateway.db.platform_models import Report, ReportState
 from openbinding_gateway.routes import resolve as resolve_routes
 from bim_core.package import load_package
 from _pricing import fake_pricing_gate, largest_plan
-from _paths import GATEWAY_ROOT
 from _repo import REPO_ROOT
-
-sys.path.insert(0, str(GATEWAY_ROOT / "tools"))
-from seed_analysis import analysis_link, report_link  # noqa: E402
+import _m96_seed as seed
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 ROUTES = sorted((REPO_ROOT / "frontend" / "src" / "routes").glob("d[0-9].tsx"))
@@ -59,7 +55,6 @@ def retired_paths(source: str) -> list[str]:
 # emitter is retargeted. Every entry must be in RETIRED_ROUTES (see ``stale_entries``). A slice that retires an
 # address the resolver emits must list it here in the same PR.
 KNOWN_REDIRECTING_WEB_URLS = {
-    "/app/analysis/workspace": "seed_analysis links; the redirect to /app/jobs keeps the context only partially",
     "/app/:org/:project/reports/:slug": "retired by M2.4 slice 2; retarget the resolver in M9.6 or earlier",
     "/app/:org/library/:artifact/versions/:version": "retired by M2.4 slice 3; retarget the resolver in M9.6 or earlier",
 }
@@ -234,25 +229,6 @@ def test_no_legacy_route_is_left_in_the_resolver():
         assert legacy not in source
 
 
-def test_seed_analysis_links_open_a_page_through_a_redirect_and_keep_context_only_partially():
-    """The analysis links redirect to /app/jobs and lose their query.
-
-    Follow-up: point seed_analysis at a live screen or null, then drop its entries from
-    KNOWN_REDIRECTING_WEB_URLS.
-    """
-    jobs = [str(uuid.uuid4()), str(uuid.uuid4())]
-
-    sources = analysis_link(jobs)
-    saved = analysis_link(jobs, ("lab", "routing", "analysis-tradeoffs-abc"))
-
-    assert sources == f"/app/analysis/workspace?job={jobs[0]}&job={jobs[1]}"
-    assert saved == "/app/analysis/workspace?report=lab%2Frouting%2Fanalysis-tradeoffs-abc"
-    assert report_link("lab", "routing", "analysis-tradeoffs-abc") == "/app/lab/routing/reports/analysis-tradeoffs-abc"
-    for url in (sources, saved, report_link("lab", "routing", "x")):
-        assert_opens_a_frontend_page(url)
-    assert "/app/analysis?" not in sources and "/app/analysis?" not in saved
-
-
 # -- every kind, through the endpoint -----------------------------------------
 
 
@@ -297,19 +273,23 @@ async def project(client, headers) -> tuple[str, str]:
     return org, slug
 
 
-async def seal(client, headers, org: str, kind: str, content: dict, name: str | None = None) -> dict:
-    created = await client.post(
-        f"/v1/organizations/{org}/library",
-        headers=headers,
-        json={"name": name or f"item-{uuid.uuid4().hex[:6]}", "display_name": "Item", "kind": kind},
-    )
-    assert created.status_code == 201, created.text
-    base = f"/v1/artifacts/{created.json()['id']}"
-    draft = await client.post(f"{base}/drafts", headers=headers, json={"content": content})
-    assert draft.status_code == 201, draft.text
-    sealed = await client.post(f"{base}/drafts/{draft.json()['id']}/seal", headers=headers, json={"revision": 1})
-    assert sealed.status_code == 201, sealed.text
-    return {"artifact": created.json(), "version": sealed.json()}
+async def seal(client, headers, org: str, kind: str, content: dict, name: str | None = None, *, db,
+               dependencies=()) -> dict:
+    """A sealed library version, as the views of the removed create and seal routes described it.
+
+    The library write routes are removed since M9.6: the version is sealed by ``artifacts.seal_draft``.
+    """
+    from openbinding_gateway.artifacts import artifact_view, version_view
+    from openbinding_gateway.db.models import Organization
+    from openbinding_gateway.models.artifacts import ArtifactVersionView, ArtifactView
+
+    user_id = (await client.get("/v1/users/me", headers=headers)).json()["id"]
+    organization = (await db.execute(select(Organization).where(Organization.slug == org))).scalars().one()
+    artifact = await seed.library_artifact(db, organization.id, user_id, name=name or f"item-{uuid.uuid4().hex[:6]}",
+                                           display_name="Item", kind=kind)
+    version = await seed.seal(db, artifact, user_id, content, dependencies=dependencies)
+    return {"artifact": ArtifactView.model_validate(artifact_view(artifact)).model_dump(mode="json"),
+            "version": ArtifactVersionView.model_validate(version_view(artifact, version)).model_dump(mode="json")}
 
 
 async def resolved_locations(client, kind: str, digest: str, headers=None) -> list[dict]:
@@ -341,19 +321,22 @@ async def test_case_revision_points_at_the_revision_screen(api_client, registrat
 
 
 async def test_resource_and_collection_versions_open_the_organization_overview_through_the_redirect(
-    api_client, registration, platform_gate
+    api_client, registration, platform_gate, db_session
 ):
+    from openbinding_gateway.db.models import ProjectArtifact
+
     alice, headers = await account(api_client, registration, platform_gate)
     org, proj = await project(api_client, headers)
-    dataset = await seal(api_client, headers, org, "Dataset", {"value": 1})
+    dataset = await seal(api_client, headers, org, "Dataset", {"value": 1}, db=db_session)
     collection = await seal(
-        api_client, headers, org, "Collection", {"apiVersion": "openbinding/collection/v1", "members": []}
+        api_client, headers, org, "Collection", {"apiVersion": "openbinding/collection/v1", "members": []},
+        db=db_session,
     )
+    # The project library association route is removed since M9.6: the project uses them through its rows.
+    project_row = (await db_session.execute(select(Project).where(Project.slug == proj))).scalars().one()
     for sealed in (dataset, collection):
-        used = await api_client.put(
-            f"/v1/organizations/{org}/projects/{proj}/library/{sealed['artifact']['id']}", headers=headers
-        )
-        assert used.status_code == 200, used.text
+        db_session.add(ProjectArtifact(project_id=project_row.id, artifact_id=uuid.UUID(sealed["artifact"]["id"])))
+    await db_session.flush()
 
     resource = await resolved_locations(api_client, "resource-revision", dataset["version"]["contentDigest"], headers)
     grouped = await resolved_locations(api_client, "collection-revision", collection["version"]["contentDigest"], headers)
@@ -368,7 +351,7 @@ async def test_resource_and_collection_versions_open_the_organization_overview_t
 async def test_a_report_points_at_the_report_screen(api_client, registration, platform_gate, db_session):
     alice, headers = await account(api_client, registration, platform_gate)
     org, proj = await project(api_client, headers)
-    sealed = await seal(api_client, headers, org, "Dataset", {"decision": "binding-a"})
+    sealed = await seal(api_client, headers, org, "Dataset", {"decision": "binding-a"}, db=db_session)
     project_row = (await db_session.execute(select(Project).where(Project.slug == proj))).scalars().one()
     db_session.add(Report(
         project_id=project_row.id, slug="decision-1", title="Decision", state=ReportState.FROZEN,

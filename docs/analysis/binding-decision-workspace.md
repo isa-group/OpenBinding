@@ -1,7 +1,10 @@
 # Binding decision workspace
 
-> Historical. The decision-space workspace retires (ADR-0020); only the trade-off set of multi-objective
-> runs survives, in the run and study pages (`docs/ARCHITECTURE.md` §5.2).
+> Historical. The decision-space workspace was retired (ADR-0020) and **removed by M9.6** (2026-10-27): the
+> `/v1/analysis` routes, the analysis queue and worker, `tools/verify_analysis.py`, `tools/seed_analysis.py` and the
+> tests named below no longer exist (see [`API_DEPRECATIONS.md`](../API_DEPRECATIONS.md)). Only the trade-off set of
+> multi-objective runs survives, in the run and study pages (`docs/ARCHITECTURE.md` §5.2). The text below records the
+> workspace as it was.
 
 The integrated `/app/analysis` workspace compares stored evidence, makes a recommendation under explicit priorities, and saves a reproducible draft decision. It never launches a solver or evaluates new bindings. Playground, project Jobs, Account execution history and project Analytics expose the same **Open analysis** action.
 
@@ -62,28 +65,16 @@ Start the development gateway, solver worker and analysis worker with the existi
 ```bash
 # Normal bounded live jobs plus diagnostic gallery
 ./tools/seed_dev.sh
-# Additive diagnostic gallery; no engine calls
-./tools/seed_dev.sh --analysis-only
-# Opt-in genuine live jobs, background lifecycle and unique 1k/10k/100k archives
-./tools/seed_dev.sh --analysis-full
-
-cd openbinding-gateway
-.venv/bin/python tools/verify_analysis.py --scale --docker-memory
-.venv/bin/pytest tests/test_archive_analysis.py tests/test_seed_analysis.py tests/test_studies_platform.py tests/test_api_keys.py -q
-.venv/bin/python tools/dump_openapi.py --check
-cd ../frontend
-ANALYSIS_LIVE=1 pnpm exec playwright test e2e/analysis-live.spec.ts
-pnpm test --run
-pnpm build
 ```
 
-The wrapper also supports Docker execution directly. The live browser suite uses `http://localhost:5173` and gateway port 8000, real authentication and the generated manifest; it does not mock analysis responses. It intentionally creates a draft Report and one genuine Playground job. Use a development database, as for population itself.
+The `--analysis-only` and `--analysis-full` seeder options, `tools/verify_analysis.py` and the analysis tests that
+used to follow no longer exist. The wrapper also supports Docker execution directly. The live browser suite uses `http://localhost:5173` and gateway port 8000, real authentication and the generated manifest; it does not mock analysis responses. It intentionally creates a draft Report and one genuine Playground job. Use a development database, as for population itself.
 
 Diagnostic jobs contain explicit generated assignments evaluated by the canonical evaluator, with separately recorded evaluated/retained counts. They are labeled **not solver benchmarks**, carry `UNKNOWN` solver termination, and contain no invented solve timings. Live MiniZinc and Random Search jobs use normal job creation and execution and retain genuine termination, traces and reevaluation. Random Search records 128 evaluations and one retained binding; MiniZinc retains one binding and leaves the unreported evaluation count null. A failed engine or background check is a manifest coverage gap. Scenario identities include inputs, engine/evaluator identity, generator version and parameters; unchanged sources are reused and changed semantics create new immutable versions. Study execution delegates subsequent cells exclusively to the production worker, avoiding competing coordinators.
 
 ## Feature-to-scenario coverage
 
-The generated [scenario manifest](../../openbinding-gateway/tools/analysis-manifest.json) contains actual job IDs, archive revisions, analysis URLs, draft Report URLs, observed timings and background task identities. IDs are local deployment artifacts and will differ after a fresh population.
+The generated scenario manifest (`openbinding-gateway/tools/analysis-manifest.json`, no longer generated since M9.6) contained actual job IDs, archive revisions, analysis URLs, draft Report URLs, observed timings and background task identities. IDs are local deployment artifacts and will differ after a fresh population.
 
 | Feature / edge case | Persisted scenario or independent check |
 |---|---|

@@ -1,4 +1,3 @@
-import type { SponsorProposal } from './auth';
 import { apiClient } from './client';
 
 export type Visibility = 'private' | 'public';
@@ -395,6 +394,8 @@ const root = (org: string, project?: string) =>
   `/v1/organizations/${encodeURIComponent(org)}${project ? `/projects/${encodeURIComponent(project)}` : ''}`;
 
 // The mutations of an organization throw on a 422 (a refused submission) instead of handing its body back as if it were the result.
+// The report editor, the resource writes and the sponsor proposals are not bound since M9.6.
+// [impl->req~frontend-workspace-no-removed-operation-binding~1]
 export const platformApi = {
   organizations: () => apiClient.request<Organization[]>('/v1/organizations'),
   /** One organization by slug or id. 403 for an account that is not in it, platform administrators included. */
@@ -405,14 +406,13 @@ export const platformApi = {
       method: 'POST', body: JSON.stringify(value),
     }, undefined, true, true),
   /**
-   * Renaming and moving need ADMIN; naming a sponsor needs OWNER. Naming yourself changes the sponsor at once (200, the organization);
-   * naming somebody else answers 202 with a pending {@link SponsorProposal} and leaves the sponsor alone (the other fields are applied).
-   * 409 `sponsor_proposal_pending` when one is already waiting: its proposer may send `replace_pending_proposal`.
+   * Renaming and moving need ADMIN; naming a sponsor needs OWNER, and a user may only name themselves: naming somebody else is a
+   * 422 `sponsor_must_be_caller`. The answer is always the organization (200).
    */
   updateOrganization: (org: string, value: {
-    name?: string; parent_id?: string | null; move_to_root?: boolean; billing_sponsor_user_id?: string | null; replace_pending_proposal?: boolean;
+    name?: string; parent_id?: string | null; move_to_root?: boolean; billing_sponsor_user_id?: string | null;
   }) =>
-    apiClient.request<Organization | SponsorProposal>(root(org), {
+    apiClient.request<Organization>(root(org), {
       method: 'PATCH', body: JSON.stringify(value),
     }, undefined, true, true),
   deleteOrganization: (org: string) =>
@@ -484,32 +484,9 @@ export const platformApi = {
   /** The project's older resources: library items of kinds the library screens don't own. VIEWER can read. */
   resources: (org: string, project: string) =>
     apiClient.request<ProjectResource[]>(`${root(org, project)}/resources`),
-  /** One resource by its address. 404 whether it is missing or not in this project. */
-  resource: (org: string, project: string, resourceSlug: string) =>
-    apiClient.request<ProjectResource>(`${root(org, project)}/resources/${encodeURIComponent(resourceSlug)}`, {}, undefined, true, true),
-  /** Needs MEMBER. 409 `slug_conflict` when the address is taken anywhere in the organization; 422 for an invalid address, name or kind. */
-  createResource: (org: string, project: string, value: { slug: string; name: string; description: string; kind: string }) =>
-    apiClient.request<ProjectResource>(`${root(org, project)}/resources`, {
-      method: 'POST', body: JSON.stringify(value),
-    }, undefined, true, true),
-  /** Needs MEMBER. */
-  updateResource: (org: string, project: string, resourceSlug: string, value: { name?: string; description?: string; kind?: string }) =>
-    apiClient.request<ProjectResource>(`${root(org, project)}/resources/${encodeURIComponent(resourceSlug)}`, {
-      method: 'PATCH', body: JSON.stringify(value),
-    }, undefined, true, true),
-  /** Needs ADMIN. Takes the resource out of the project; its library versions stay. */
-  deleteResource: (org: string, project: string, resourceSlug: string) =>
-    apiClient.request<void>(`${root(org, project)}/resources/${encodeURIComponent(resourceSlug)}`, { method: 'DELETE' }, undefined, true, true),
   resourceRevisions: (org: string, project: string, resource: string) =>
     apiClient.request<ProjectResourceRevision[]>(
       `${root(org, project)}/resources/${encodeURIComponent(resource)}/revisions`,
-    ),
-  /** Needs MEMBER. A document identical to an existing revision answers with that revision instead of a new one. */
-  createResourceRevision: (org: string, project: string, resource: string, document: Record<string, unknown>) =>
-    apiClient.request<ProjectResourceRevision>(
-      `${root(org, project)}/resources/${encodeURIComponent(resource)}/revisions`,
-      { method: 'POST', body: JSON.stringify({ document }) },
-      undefined, true, true,
     ),
   collections: (org: string, project: string) =>
     apiClient.request<Collection[]>(`${root(org, project)}/collections`),
@@ -559,44 +536,9 @@ export const platformApi = {
     apiClient.request<void>(`${root(org, project)}/studies/${encodeURIComponent(study)}`, { method: 'DELETE' }, undefined, true, true),
   reports: (org: string, project: string) =>
     apiClient.request<Report[]>(`${root(org, project)}/reports`),
-  createReport: (org: string, project: string, value: { slug: string; title: string; study_run_id: string | null; document: Record<string, unknown> }) =>
-    apiClient.request<Report>(`${root(org, project)}/reports`, {
-      method: 'POST', body: JSON.stringify(value),
-    }, undefined, true, true),
-  /**
-   * Needs MEMBER. 409 `report_frozen` once sealed, 409 `draft_conflict` when `draft_revision` is not the current one. A 422 throws:
-   * the old body-as-data answer made a refused save look like a saved report.
-   */
-  updateReport: (org: string, project: string, report: string, value: { title?: string; document?: Record<string, unknown>; draft_revision?: number }) =>
-    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}`, {
-      method: 'PATCH', body: JSON.stringify(value),
-    }, undefined, true, true),
-  /** Needs ADMIN. 409 `report_history_retained` once an edition was sealed. */
-  deleteReport: (org: string, project: string, report: string) =>
-    apiClient.request<void>(`${root(org, project)}/reports/${encodeURIComponent(report)}`, { method: 'DELETE' }, undefined, true, true),
-  /** VIEWER can read. 404 whether the report is missing or the account is not in the organization. */
-  report: (org: string, project: string, reportSlug: string) =>
-    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(reportSlug)}`, {}, undefined, true, true),
-  /** Needs MEMBER. A new editable draft from the sealed edition (or the open draft, when there is one). */
-  createReportDraft: (org: string, project: string, report: string) =>
-    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}/drafts`, { method: 'POST' }, undefined, true, true),
-  /**
-   * Needs MEMBER. 422 `incomplete_provenance`, `invalid_provenance`, `study_provenance_mismatch`, `incomplete_evidence`, `invalid_evidence`,
-   * `nonterminal_evidence`, `evidence_digest_mismatch` or `foreign_evidence`: the document must carry exact provenance and finished evidence.
-   */
-  freezeReport: (org: string, project: string, report: string) =>
-    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}/freeze`, { method: 'POST' }, undefined, true, true),
   /** Withdrawn publications are listed too: `withdrawn` says which. */
   publications: (org: string, project: string) =>
     apiClient.request<Publication[]>(`${root(org, project)}/publications`),
-  /**
-   * Needs ADMIN. 409 `report_not_frozen`, 409 `publication_conflict`, 409 `publication_withdrawn`, 422 `private_evidence`,
-   * `private_engine_dependency`, `private_dependency` or `private_case_dependency`: everything a public edition cites must be public.
-   */
-  publishReport: (org: string, project: string, value: { report_id: string; version_id?: string; slug: string; citation: Record<string, unknown> }) =>
-    apiClient.request<Publication>(`${root(org, project)}/publications`, {
-      method: 'POST', body: JSON.stringify(value),
-    }, undefined, true, true),
   /** Needs ADMIN. This withdraws: the publication, its link, citation and fingerprint stay; it only leaves the listings. */
   deletePublication: (org: string, project: string, publication: string) =>
     apiClient.request<void>(`${root(org, project)}/publications/${encodeURIComponent(publication)}`, { method: 'DELETE' }, undefined, true, true),

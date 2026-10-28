@@ -412,121 +412,50 @@ async def organization_with_two_users(
     return alice, alice_headers, bob, created.json()
 
 
-async def test_an_admin_sponsor_proposal_and_its_acceptance_appear_in_the_platform_audit(
-    api_client, registration, gate, db_session
-):
-    alice, alice_headers, bob, organization, bob_auth = await organization_with_two_users(
-        api_client, registration, gate, db_session, bob_headers=True
-    )
-    admin_profile, admin = await account(api_client, registration, db_session, admin=True)
-
-    proposed = await api_client.post(
-        f"/v1/admin/organizations/{organization['id']}/sponsor",
-        headers=admin,
-        json={"billing_sponsor_user_id": bob["id"]},
-    )
-    assert proposed.status_code == 202, proposed.text
-    accepted = await api_client.post(
-        f"/v1/sponsor-proposals/{proposed.json()['id']}/accept", headers=bob_auth
-    )
-    assert accepted.status_code == 200, accepted.text
-    proposed_events = await api_client.get(
-        "/v1/admin/audit?action=organization.sponsor.proposed", headers=admin
-    )
-    accepted_events = await api_client.get(
-        "/v1/admin/audit?action=organization.sponsor.accepted", headers=admin
-    )
-
-    assert proposed_events.json()["total"] == 1
-    item = proposed_events.json()["events"][0]
-    assert item["organizationId"] == organization["id"]
-    assert item["organizationSlug"] == organization["slug"]
-    assert item["targetType"] == "SponsorProposal"
-    assert item["targetId"] == proposed.json()["id"]
-    assert item["actorId"] == admin_profile["id"]
-    assert item["detail"]["proposed_user_id"] == bob["id"]
-    assert item["detail"]["proposed_by_user_id"] == admin_profile["id"]
-    assert accepted_events.json()["total"] == 1
-    done = accepted_events.json()["events"][0]
-    assert done["organizationId"] == organization["id"]
-    assert done["actorId"] == bob["id"]
-    assert done["detail"]["previous_sponsor_user_id"] == alice["id"]
-    assert done["detail"]["new_sponsor_user_id"] == bob["id"]
-
-
-async def test_an_admin_taking_the_sponsorship_themselves_is_immediate_and_audited(
-    api_client, registration, gate, db_session
-):
-    alice, alice_headers, bob, organization = await organization_with_two_users(
-        api_client, registration, gate, db_session
-    )
-    admin_profile, admin = await account(api_client, registration, db_session, admin=True)
-    gate.plans[uuid.UUID(admin_profile["id"])] = largest_plan()
-
-    transferred = await api_client.post(
-        f"/v1/admin/organizations/{organization['id']}/sponsor",
-        headers=admin,
-        json={"billing_sponsor_user_id": admin_profile["id"]},
-    )
-    listing = await api_client.get(
-        "/v1/admin/audit?action=organization.sponsor_transferred", headers=admin
-    )
-
-    assert transferred.status_code == 200, transferred.text
-    assert transferred.json()["billing_sponsor_user_id"] == admin_profile["id"]
-    assert listing.json()["total"] == 1
-    item = listing.json()["events"][0]
-    assert item["organizationId"] == organization["id"]
-    assert item["detail"]["previous_sponsor_user_id"] == alice["id"]
-    assert item["detail"]["new_sponsor_user_id"] == admin_profile["id"]
-
-
-async def test_a_sponsor_proposal_through_the_organization_patch_appears_too(
+async def test_an_owner_taking_the_sponsorship_appears_in_the_platform_audit(
     api_client, registration, gate, db_session
 ):
     alice, alice_headers, bob, organization, bob_auth = await organization_with_two_users(
         api_client, registration, gate, db_session, bob_headers=True
     )
     _, admin = await account(api_client, registration, db_session, admin=True)
+    added = await api_client.put(
+        f"/v1/organizations/{organization['slug']}/members/{bob['id']}",
+        headers=alice_headers,
+        json={"user_id": bob["id"], "role": "OWNER"},
+    )
+    assert added.status_code == 200, added.text
 
-    patched = await api_client.patch(
+    # Naming somebody else is refused and leaves nothing in the audit (M9.6).
+    refused = await api_client.patch(
         f"/v1/organizations/{organization['slug']}",
         headers=alice_headers,
         json={"billing_sponsor_user_id": bob["id"]},
     )
-    proposals = await api_client.get(
-        f"/v1/admin/audit?organization_id={organization['id']}&action=organization.sponsor.proposed",
-        headers=admin,
-    )
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["code"] == "sponsor_must_be_caller"
 
-    assert patched.status_code == 202, patched.text
-    assert proposals.json()["total"] == 1
-    item = proposals.json()["events"][0]
-    assert item["organizationSlug"] == organization["slug"]
-    assert item["detail"]["proposed_user_id"] == bob["id"]
-    assert item["detail"]["current_sponsor_user_id"] == alice["id"]
-
-    # Bob accepts, then the owner takes the sponsorship back: that one is immediate
-    # and keeps the `organization.updated` detail the audit always had.
-    accepted = await api_client.post(
-        f"/v1/sponsor-proposals/{patched.json()['id']}/accept", headers=bob_auth
-    )
-    assert accepted.status_code == 200, accepted.text
-    back = await api_client.patch(
+    # Bob takes the sponsorship himself: immediate, with the detail the audit always had.
+    taken = await api_client.patch(
         f"/v1/organizations/{organization['slug']}",
-        headers=alice_headers,
-        json={"billing_sponsor_user_id": alice["id"]},
+        headers=bob_auth,
+        json={"billing_sponsor_user_id": bob["id"]},
     )
-    assert back.status_code == 200, back.text
+    assert taken.status_code == 200, taken.text
+    assert taken.json()["billing_sponsor_user_id"] == bob["id"]
     listing = await api_client.get(
         f"/v1/admin/audit?organization_id={organization['id']}&action=organization.updated",
         headers=admin,
     )
-    details = [event["detail"] for event in listing.json()["events"]]
-    assert {
-        "previous_sponsor_user_id": bob["id"],
-        "new_sponsor_user_id": alice["id"],
-    } in details
+
+    assert listing.json()["total"] == 1
+    item = listing.json()["events"][0]
+    assert item["organizationSlug"] == organization["slug"]
+    assert item["actorId"] == bob["id"]
+    assert item["detail"] == {
+        "previous_sponsor_user_id": alice["id"],
+        "new_sponsor_user_id": bob["id"],
+    }
 
 
 async def test_the_audit_can_be_filtered_by_organization(
@@ -584,11 +513,10 @@ async def test_organization_members_see_exactly_what_they_saw_before(
     )
     _, admin = await account(api_client, registration, db_session, admin=True)
     await api_client.patch(f"/v1/admin/users/{bob['id']}", headers=admin, json={"role": "admin"})
-    await api_client.post(
-        f"/v1/admin/organizations/{organization['id']}/sponsor",
-        headers=admin,
-        json={"billing_sponsor_user_id": bob["id"]},
+    renamed = await api_client.patch(
+        f"/v1/organizations/{organization['slug']}", headers=alice_headers, json={"name": "Renamed Org"}
     )
+    assert renamed.status_code == 200, renamed.text
 
     own = await api_client.get(f"/v1/organizations/{organization['slug']}/audit", headers=alice_headers)
 
@@ -599,7 +527,7 @@ async def test_organization_members_see_exactly_what_they_saw_before(
         "id", "organizationId", "actorId", "action", "targetType", "targetId", "detail", "createdAt",
     }
     actions = {item["action"] for item in own.json()["events"]}
-    assert "organization.sponsor.proposed" in actions
+    assert "organization.updated" in actions
     assert not any(action.startswith("admin.") for action in actions)
 
 

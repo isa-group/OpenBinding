@@ -498,7 +498,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       });
       state.extraAudit = [
         recorded(7, 'organization.sponsor.proposed', { proposal_id: 'prop-1', proposed_user_id: PRIYA.id, proposed_by_user_id: ALEX.id, expires_at: '2026-10-23T12:00:00Z' },
-          { organizationId: ORG.id, organizationSlug: 'isa-demo', targetType: 'SponsorProposal', targetId: 'prop-1' }),
+          { organizationId: ORG.id, organizationSlug: 'isa-demo', targetType: 'Organization', targetId: ORG.id }),
         recorded(6, 'admin.user.updated', { username: 'sam.okafor', changes: { is_active: { from: true, to: false } } }),
         recorded(5, 'admin.api_key.revoked', { user_id: SAM.id, key: { id: 'key-1', name: 'ci pipeline', prefix: 'obk_ab12' } }, { targetType: 'ApiKey', targetId: 'key-1' }),
         recorded(4, 'account.cas.linked', { provider: 'us-cas', plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false } }),

@@ -11,11 +11,8 @@ import type {
   AdminModerationOverview,
   AdminOverview,
   AdminQueueStatus,
-  AdminSponsorTransferResult,
   CasSession,
   PlanChange,
-  SponsorProposal,
-  SponsorProposalStatus,
   CreateApiKeyRequest,
   CreatedApiKey,
   ContractChangeReason,
@@ -1289,58 +1286,6 @@ export class ApiClient {
   /** How many engines, dialects and engine registrations sit in each publication state. */
   async adminModeration(): Promise<AdminModerationOverview> {
     return this.request('/v1/admin/moderation');
-  }
-
-  /**
-   * Name the billing sponsor of an organization and its whole subtree. Nobody can make another person pay: naming somebody else
-   * answers 202 with a pending {@link SponsorProposal} and the sponsor does not change until that person accepts; naming the
-   * administrator themselves changes it at once (200, the organization).
-   * 404 unknown organization, 422 `invalid_sponsor` (not active), 409 `sponsor_proposal_pending` (with `proposal_id`; the
-   * proposer may send `replacePending`) or `already_sponsor`, 402 `sponsor_quota_exceeded` (naming oneself: a {@link QuotaError}
-   * naming the first dimension), 503 when limits can't be read.
-   */
-  async adminTransferSponsor(organizationId: string, sponsorUserId: string, replacePending = false): Promise<AdminSponsorTransferResult | SponsorProposal> {
-    return this.request<AdminSponsorTransferResult | SponsorProposal>(`/v1/admin/organizations/${encodeURIComponent(organizationId)}/sponsor`, {
-      method: 'POST',
-      body: JSON.stringify({ billing_sponsor_user_id: sponsorUserId, ...(replacePending ? { replace_pending_proposal: true } : {}) }),
-    }, undefined, true, true);
-  }
-
-  // -- Sponsor requests ------------------------------------------------
-
-  /** The requests addressed to me (`GET /v1/users/me/sponsor-proposals`), newest first as the gateway sends them. */
-  async listMySponsorProposals(status?: SponsorProposalStatus): Promise<SponsorProposal[]> {
-    const query = status ? `?status=${encodeURIComponent(status)}` : '';
-    return this.request<SponsorProposal[]>(`/v1/users/me/sponsor-proposals${query}`);
-  }
-
-  /** The requests made for one organization. OWNER or ADMIN of it (and platform administrators); 404 for a non-member, 403 below ADMIN. */
-  async listOrganizationSponsorProposals(organization: string, status?: SponsorProposalStatus): Promise<SponsorProposal[]> {
-    const query = status ? `?status=${encodeURIComponent(status)}` : '';
-    return this.request<SponsorProposal[]>(`/v1/organizations/${encodeURIComponent(organization)}/sponsor-proposals${query}`);
-  }
-
-  private async answerSponsorProposal(id: string, answer: 'accept' | 'decline' | 'cancel'): Promise<SponsorProposal> {
-    return this.request<SponsorProposal>(`/v1/sponsor-proposals/${encodeURIComponent(id)}/${answer}`, { method: 'POST' }, undefined, true, true);
-  }
-
-  /**
-   * Accept being the sponsor (only the person it names). The consumption of the organization and its subtree moves to their plan.
-   * 402 `sponsor_quota_exceeded` and 503 `pricing_unavailable` leave the request pending, so it can be tried again.
-   * 409 `sponsor_proposal_expired` or `sponsor_proposal_not_pending`.
-   */
-  async acceptSponsorProposal(id: string): Promise<SponsorProposal> {
-    return this.answerSponsorProposal(id, 'accept');
-  }
-
-  /** Decline being the sponsor (only the person it names). */
-  async declineSponsorProposal(id: string): Promise<SponsorProposal> {
-    return this.answerSponsorProposal(id, 'decline');
-  }
-
-  /** Withdraw a request: its proposer, an OWNER of the organization or a platform administrator. An ADMIN of the organization gets 403. */
-  async cancelSponsorProposal(id: string): Promise<SponsorProposal> {
-    return this.answerSponsorProposal(id, 'cancel');
   }
 
   async adminMaintenancePreview(retentionDays = 365): Promise<MaintenancePreview> {

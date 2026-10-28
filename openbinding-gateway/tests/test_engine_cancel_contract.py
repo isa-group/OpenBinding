@@ -23,7 +23,6 @@ import threading
 import uuid
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 
 import pytest
 
@@ -33,7 +32,13 @@ from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import JobState
 from openbinding_gateway.services import engines, execution
 from openbinding_gateway.v1 import remote
-from test_remote_cancel import cancel_rows, claim_and_record, cycle, frozen, lose_and_sweep, owner  # noqa: F401
+from test_remote_cancel import cancel_rows, claim_and_record, cycle, lose_and_sweep  # noqa: F401
+from test_remote_cancel import frozen as _frozen
+from test_remote_cancel import owner as _owner
+
+# Fixtures re-exported by assignment so the tests' own parameters do not redefine an imported name.
+frozen = _frozen
+owner = _owner
 
 REPO = REPO_ROOT
 TOKEN_A = "tenant-a-token-0123456789"

@@ -170,7 +170,7 @@ describe('the scan for retired addresses', () => {
   it('does not report look-alikes, comments or apostrophes in text', () => {
     const source = [
       "const a = '/app/analysisx';",
-      "const b = '/v1/analysis/sources';",
+      "const b = '/v1/jobs/j1/analysis/neighborhood';",
       "const c = '/app/:org/:project/studies';",
       "// '/app/analysis' in a comment",
       "/* '/app/analysis' */",
@@ -350,11 +350,10 @@ describe('the scan for retired addresses', () => {
     });
 
     // [utest->req~frontend-retire-sponsorship-no-link~1]
-    it('does not report look-alikes, the gateway endpoint or the replacements', () => {
+    it('does not report look-alikes or the replacements', () => {
       const source = [
         "const a = '/app/admin/organizations/isa-demo/sponsors';",
-        'const b = `${base}/sponsor-proposals`;',
-        'const c = `/v1/admin/organizations/${id}/sponsor`;',
+        'const b = `${base}/sponsors`;',
         "const d = '/app/admin';",
         "const e = '/app/admin/users/u1';",
       ].join('\n');

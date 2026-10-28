@@ -48,7 +48,7 @@ describe('the interface is light and carries no prototype persona', () => {
 
   it('keeps the shared fixtures in src/test/fixtures, in English', () => {
     const fixtures = shipped.filter(([path]) => /\/src\/test\/fixtures\//.test(path));
-    expect(fixtures.length).toBeGreaterThanOrEqual(7);
+    expect(fixtures.length).toBeGreaterThanOrEqual(6);
     expect(grep(/[áéíóúñÁÉÍÓÚÑ¿¡]/, /./, fixtures)).toEqual([]);
     expect(grep(/\b(flujo|checkout-comparativa|semillas|borrador|autenticar|pago-tarjeta)\b/i, /./, fixtures)).toEqual([]);
   });

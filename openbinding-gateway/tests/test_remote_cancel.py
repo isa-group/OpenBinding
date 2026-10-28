@@ -943,12 +943,14 @@ def test_the_migration_hangs_from_the_previous_head_and_its_downgrade_drops_the_
     database = tmp_path / "attempts.db"
 
     heads = run(database, "heads")
-    assert heads.count("(head)") == 1 and THIS_REVISION in heads
+    assert heads.count("(head)") == 1
+    # Later revisions (e7f8a9b0c1d2, M9.6) hang from this one; it is pinned by id.
+    assert f"{PREVIOUS_REVISION} -> {THIS_REVISION}" in run(database, "history")
 
     run(database, "upgrade", PREVIOUS_REVISION)
     assert table_info(database) == (set(), {})
 
-    run(database, "upgrade", "head")
+    run(database, "upgrade", THIS_REVISION)
     columns, indexes = table_info(database)
     assert columns == {
         "id", "job_id", "attempt", "engine_job_id", "endpoint", "registered_at",
@@ -960,7 +962,7 @@ def test_the_migration_hangs_from_the_previous_head_and_its_downgrade_drops_the_
     run(database, "downgrade", PREVIOUS_REVISION)  # drops the table and the ids and pending cancellations in it
     assert table_info(database) == (set(), {})
 
-    run(database, "upgrade", "head")
+    run(database, "upgrade", THIS_REVISION)
     assert table_info(database)[0]
 
 

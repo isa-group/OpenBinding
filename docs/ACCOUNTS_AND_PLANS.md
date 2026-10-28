@@ -83,20 +83,12 @@ filtered, and an exact disallowed resource answers `404` so the key does not
 learn that it exists. Registering a brand-new Engine revision requires an
 all-Engines key because its immutable digest cannot be selected in advance.
 
-**Analysis routes.** `jobs:read` reads analyses: `GET /v1/analysis/sources`,
-`GET /v1/analysis/pareto/{task_id}`, and the `POST` routes that only read stored
-evidence (`query`, `candidate`, `export`). Starting or cancelling analysis work
-creates and dispatches an `AnalysisTask`, so `POST /v1/analysis/pareto` and
-`POST /v1/analysis/pareto/{task_id}/cancel` additionally need
-`engines:execute`, the permission `POST /v1/jobs` needs. A key with only
-`jobs:read` gets `403 insufficient_api_key_permission` (`missing_permissions`
-lists `engines:execute`) and no task is created or dispatched; a key outside the
-analysed sources still gets `404` first. Sessions do not go through key
-permissions and are unchanged, and any other `/v1/analysis` route stays closed to
-a key without `jobs:read`. The generated OpenAPI document and `docs/openapi.json`
-are not changed: `x-required-api-key-permissions` of these two operations still
-lists `jobs:read`, the check on top of it is made by the route
-(`security/apikeys.py: analysis_work_permissions`).
+**Analysis routes (removed).** The `/v1/analysis` routes (sources, query,
+candidate, export, reports and the Pareto tasks) and their extra
+`engines:execute` check were removed by M9.6, together with the analysis queue.
+The kept `GET /v1/jobs/{job_id}/analysis/neighborhood` is guarded by `jobs:read`
+like any job read. Keys that hold `reports:write` or `engines:execute` keep
+working: both permissions still guard kept operations.
 
 The number of active keys is the plan's `apiKeys` limit, read from the
 contract (`routes/users.py`); exceeding it is `402 quota_exceeded`. Revoked keys
@@ -185,11 +177,10 @@ before anything is compiled, reserved or written.
 | Create a study, collection or case | `POST …/studies`, `…/collections`, `…/cases` | MEMBER |
 | Run a study, retry a cell, cancel a run | `POST …/studies/{study}/runs`, `…/cells/{cell}/retry`, `…/runs/{run}/cancel` | MEMBER |
 | Retry or cancel a job of an organization | `POST /v1/jobs/{id}/retry`, `POST /v1/jobs/{id}/cancel` | MEMBER (the job must also be the caller's) |
-| Queue or cancel an analysis (Pareto) on the jobs of an organization | `POST /v1/analysis/pareto`, `POST /v1/analysis/pareto/{task}/cancel` | MEMBER |
 | Delete a study | `DELETE …/studies/{study}` | ADMIN |
 
 A refused role is `403` with the stable code `insufficient_role` for `/v1/jobs`
-and `/v1/analysis` (and `organization_forbidden` on the project routes, as
+(and `organization_forbidden` on the project routes, as
 before). A user who has no role at all in the organization that owns a snapshot
 still gets `404 not_found`, the same as for a snapshot that does not exist.
 
@@ -266,81 +257,39 @@ read only their own organization's log, at `GET /v1/organizations/{org}/audit`,
 which is unchanged and never shows platform events. A sponsor change that a
 person makes for **themselves** through `PATCH /v1/organizations/{org}` is
 recorded as `organization.updated` with `previous_sponsor_user_id` /
-`new_sponsor_user_id`, and the administrator doing so for themselves through
-`POST /v1/admin/organizations/{id}/sponsor` as `organization.sponsor_transferred`.
-Proposing somebody else, and what happens to the proposal, are the
-`organization.sponsor.*` events below.
+`new_sponsor_user_id`. The administrator route that produced
+`organization.sponsor_transferred`, and the `organization.sponsor.*` events of the
+proposals, were removed by M9.6; the events already written stay in the log.
 
-## Sponsorship needs the sponsor's acceptance
+## Only the caller can become billing sponsor
 
 The sponsor of an organization (`billing_sponsor_user_id`) is the account whose
 plan limits (organizations, members, projects, studies, storage, …) the
 organization **and its whole subtree** count against
 (`collaboration.enforce_sponsor_capacity`). No money changes hands. Nobody can
-be made to carry someone else's organization: naming another person only creates
-a **proposal**, and the sponsor changes when that person accepts.
+be made to carry someone else's organization, so the only way to change the
+sponsor is to name **yourself**. (Until M9.6 naming another person created a
+sponsor proposal that the person had to accept; the proposals and their routes
+were removed, see [API_DEPRECATIONS.md](API_DEPRECATIONS.md).)
 
-| Who | Does | Result |
+`PATCH /v1/organizations/{org}` with `billing_sponsor_user_id`:
+
+| Caller | Named | Answer |
 |---|---|---|
-| organization OWNER | `PATCH /v1/organizations/{org}` with `billing_sponsor_user_id` = somebody else | `202` + the pending proposal. The sponsor is unchanged; the other fields of the `PATCH` (name, parent) are applied |
-| platform administrator | `POST /v1/admin/organizations/{id}/sponsor` with somebody else | `202` + the pending proposal |
-| either, naming **themselves** | same calls | immediate change, `200` + the organization, subject to *their own* plan limits (`402 sponsor_quota_exceeded`); a pending proposal for somebody else is closed (`decision_reason: sponsor_changed`) |
-| the proposed person | `POST /v1/sponsor-proposals/{id}/accept` / `.../decline` | only that person; not even a platform administrator can answer for them (`403 sponsor_proposal_forbidden`) |
-| the proposer, an OWNER of the organization, or a platform administrator | `POST /v1/sponsor-proposals/{id}/cancel` | an organization ADMIN may see the proposal but not cancel it (`403`) |
+| not OWNER (ADMIN) | anyone different from the current sponsor | `403`, as for any owner-only change |
+| OWNER | the current sponsor | `200`, no sponsor change |
+| OWNER | the caller | `200` + the organization. The caller becomes sponsor of the organization and its subtree, subject to *their own* plan limits (`402 sponsor_quota_exceeded`). The audit event `organization.updated` carries `previous_sponsor_user_id` and `new_sponsor_user_id` |
+| OWNER | anyone else, existing or not, active or not | `422 sponsor_must_be_caller` ([ERRORS.md](ERRORS.md)); nothing in the request is applied. The check runs before the person is looked up, so the answer does not reveal whether the account exists |
 
-Reading: `GET /v1/users/me/sponsor-proposals?status=` (addressed to me),
-`GET /v1/organizations/{org}/sponsor-proposals?status=` (organization OWNER/ADMIN
-and platform administrators; a non-member gets `404`, a member below ADMIN `403`)
-and `GET /v1/sponsor-proposals/{id}`. Anyone who may not see a proposal gets
-`404`, never `403`, so other people's proposals are not discoverable; ids are UUIDs.
+The request field `replace_pending_proposal` no longer exists; a client that
+still sends it gets `422 validation_error`. `POST /v1/admin/organizations/{id}/sponsor`
+was removed too: a platform administrator does not move a sponsorship.
 
-A proposal is `{id, organization_id, organization_slug, organization_name,
-proposed_user_id, proposed_username, proposed_by_user_id, proposed_by_username,
-status, created_at, expires_at, decided_at, decided_by_user_id, decision_reason}`
-with `status` one of `pending | accepted | declined | cancelled | expired`. Every
-state but `pending` is terminal.
-
-- **One pending proposal per organization** (also a unique database index).
-  Another proposal answers `409 sponsor_proposal_pending` (with `proposal_id`),
-  unless it is made by *the same person who made the pending one* and sends
-  `replace_pending_proposal: true` (in the `PATCH`, or in the administrator
-  body), which cancels the old one with `decision_reason: replaced`. Anyone else
-  must cancel it first. A pending proposal that is already due is simply expired.
-- **Expiry**: `SPONSOR_PROPOSAL_TTL_DAYS` (default 14). It is evaluated lazily
-  when a proposal is read, listed, answered or replaced, and the periodic
-  reconciler sweeps what nobody touched. Answering a lapsed proposal is
-  `409 sponsor_proposal_expired`; answering a resolved one is
-  `409 sponsor_proposal_not_pending` (its `status` says which).
-- **Acceptance revalidates inside one transaction**: the proposal is pending and
-  unexpired, the person is still active, and their plan admits the whole
-  hypothetical total (what they already sponsor plus this subtree) with the same
-  errors as before: `402 sponsor_quota_exceeded`, `503 pricing_unavailable`. A
-  refusal leaves the proposal **pending**, so the person can raise their plan and
-  accept again. Only then does `billing_sponsor_user_id` change for the
-  organization and its subtree, which moves what counts against the limits.
-- A deactivated or deleted account closes its pending proposals, those addressed
-  to it and those it made (`cancelled`, `decision_reason: user_deactivated` /
-  `user_deleted`).
-- Existing sponsors do not change. Account deletion still hands the
-  organizations a deleted sponsor paid for to the next OWNER, as it always did;
-  that transfer is not a proposal.
-
-Audit (organization events, so `GET /v1/admin/audit` shows them with
-`organizationId`/`organizationSlug`, and the organization's own log too):
-`organization.sponsor.proposed` (actor: proposer; `current_sponsor_user_id`,
-`expires_at`), `.accepted` (actor: the new sponsor; `previous_sponsor_user_id`,
-`new_sponsor_user_id`), `.declined`, `.cancelled` (`reason` when the system did it)
-and `.expired` (no actor). Every one carries `proposal_id`, `organization_id`,
-`proposed_user_id` and `proposed_by_user_id`.
-
-Notifications (the existing inbox, kind = the audit action): the proposed person
-when a proposal is made, and the proposer and the organization's OWNERs (except
-whoever decided) when it is accepted, declined, cancelled or expires. No e-mail is
-sent: the mailer only sends the notification types it already did.
-
-API keys: the endpoints need `organizations:read` (reading) and
-`organizations:write` (answering); the list of proposals addressed to *me* is an
-`/v1/users/me` route and needs `account:read`.
+Existing sponsors do not change. Deactivating an account (`PATCH
+/v1/admin/users/{id}`) and deleting it no longer touch sponsor proposals.
+Account deletion still hands the organizations a deleted sponsor paid for to the
+next OWNER, as it always did. Past notifications of kinds `organization.sponsor.*`
+and audit events about a `SponsorProposal` stay as history.
 
 ## Public projects are readable without membership
 
