@@ -88,7 +88,8 @@ No other file changes.
   the first deployment of this configuration (request lines, the 400, the request after the stand-in was replaced as
   `GET /health`, the 502 with its time when no `gateway` exists). Step 8 uses the real gateway and runs after the first
   deployment of the release (the two example requests through nginx and direct, the answers to `//v1/jobs` and
-  `/v1/x/../jobs`, the restart of the gateway container without a restart of nginx). The operator records the results
+  `/v1/x/../jobs`, the restart of the gateway container without a restart of nginx, with `/api/health/ready` requested once the
+  container is healthy). The operator records the results
   in the deployment notes. None of it was run in a real nginx by the factory. Evidence limitation, not a waived gate:
   until then F9 is verified by the static tests and the review panel only. Stays unchecked until the operator's result
   is known.

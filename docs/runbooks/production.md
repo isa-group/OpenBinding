@@ -386,18 +386,21 @@ of the release. Use the `server_name` of the first `listen 443 ssl` server of `n
      -v <tls dir>:/etc/nginx/ssl:ro nginx-check
    ```
 
-4. The raw request URI arrives without the `/api` prefix. `docker logs gw1` shows `GET /v1/x%2Fy?a=1`:
+4. The raw request URI arrives without the `/api` prefix. `docker logs gw1` shows `GET /v1/x%2Fy?a=1&b=%20`:
 
    ```bash
-   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/x%2Fy?a=1"
+   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/x%2Fy?a=1&b=%20"
    ```
 
-5. `/%61pi/x` answers `400`; `/api/v1/jobs?limit=5` arrives as `GET /v1/jobs?limit=5`; and with `--path-as-is`,
-   `/api//v1/jobs` and `/api/v1/x/../jobs` arrive as `//v1/jobs` and `/v1/x/../jobs`:
+5. `/%61pi/x` answers `400`; `/api/v1/jobs?limit=5` arrives as `GET /v1/jobs?limit=5`; `/static/a%20b.css` and
+   `/avatars/u1.png?v=2` arrive unchanged, as `GET /static/a%20b.css` and `GET /avatars/u1.png?v=2`; and with
+   `--path-as-is`, `/api//v1/jobs` and `/api/v1/x/../jobs` arrive as `//v1/jobs` and `/v1/x/../jobs`:
 
    ```bash
    curl -sk -o /dev/null -w '%{http_code}\n' --resolve <name>:8443:127.0.0.1 "https://<name>:8443/%61pi/x"
    curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/jobs?limit=5"
+   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/static/a%20b.css"
+   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/avatars/u1.png?v=2"
    curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api//v1/jobs"
    curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/x/../jobs"
    docker logs gw1
@@ -405,8 +408,11 @@ of the release. Use the `server_name` of the first `listen 443 ssl` server of `n
 
 6. Replace the stand-in with a new container under the same alias and another address, wait 11 s, and request
    `/api/health`. The map strips only `/api`, so the request line `GET /health` appears in `docker logs gw2` and the
-   answer is not `502`, with no restart of `nginx`. The two addresses must differ; if they are equal, start another
-   throwaway container first and repeat the step:
+   answer is not `502`, with no restart of `nginx`. The two addresses must differ. If they are equal, start a throwaway
+   container on `nginx-check` (`docker run -d --name spare --network nginx-check <python image> sleep 600`), run
+   `docker rm -f gw2`, start the stand-in again under the alias `gateway` with the `docker run` line below, and compare
+   its address with the recorded address of `gw1`; when it differs, continue with the `sleep` line. Remove `spare`
+   afterwards with `docker rm -f spare`:
 
    ```bash
    docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gw1
@@ -429,6 +435,16 @@ of the release. Use the `server_name` of the first `listen 443 ssl` server of `n
 
 If a host exists whose DNS can answer the bare name `gateway` (a search domain or a local record), repeat step 7 there,
 because Docker's embedded DNS forwards names it does not know to the host's resolvers; the answer must still be `502`.
+
+After step 7, remove what steps 1 to 7 created. The `docker rm -f` of `gw1` and `gw2` prints `no such container` when
+step 6 or 7 already removed them; that is expected:
+
+```bash
+docker rm -f nginx-under-check gw1 gw2
+docker network rm nginx-check
+docker rmi nginx-check
+rm -r <tls dir>
+```
 
 8. After the first deployment of the release, when the real gateway runs, check what the stand-in could not show. Use
    the public origin for `<origin>` and the Compose network of the stack (see `docker network ls`) for `<network>`.
@@ -459,27 +475,27 @@ because Docker's embedded DNS forwards names it does not know to the host's reso
 
    - Restart only the gateway container, as the daemon does in the case of the section
      [502 after a gateway restart](#502-after-a-gateway-restart), and do not restart `nginx`. Note the start time of
-     `nginx` first and compare it afterwards; it must not change. `/api/health/ready` must answer `200` through `nginx`
-     within 10 s of the gateway becoming healthy. The Compose commands of
-     [Pull and start](#pull-and-start) recreate the gateway together with `nginx` (`restart: true`), so they do not
-     prove this and are not used here:
+     `nginx` first and compare it afterwards; it must not change. Restart the gateway by its id, wait until its health
+     status is `healthy` (the health check of the gateway has a `start_period` of 30 s, so this takes a while), and
+     only then request `/api/health/ready`: it must answer `200` through `nginx` within 10 s of the gateway becoming
+     healthy, which the retries of `curl` (10 tries, 1 s apart) bound at about 10 s. The printed code and time are the
+     result. If the gateway is not healthy after 2 minutes, stop the loop with Ctrl-C; that is a failure of the step.
+     The Compose commands of [Pull and start](#pull-and-start) recreate the gateway together with `nginx`
+     (`restart: true`), so they do not prove this and are not used here. The filters limit the lookups to the Compose
+     project:
 
      ```bash
-     docker inspect -f '{{.State.StartedAt}}' $(docker ps -q --filter label=com.docker.compose.service=nginx)
-     docker restart $(docker ps -q --filter label=com.docker.compose.service=gateway)
+     gw=$(docker ps -q --filter label=com.docker.compose.project=openbinding-production --filter label=com.docker.compose.service=gateway)
+     nx=$(docker ps -q --filter label=com.docker.compose.project=openbinding-production --filter label=com.docker.compose.service=nginx)
+     docker inspect -f '{{.State.StartedAt}}' "$nx"
+     docker restart "$gw"
+     until [ "$(docker inspect -f '{{.State.Health.Status}}' "$gw")" = healthy ]; do sleep 1; done
      curl -sS -o /dev/null -w '%{http_code} %{time_total}\n' --retry 10 --retry-delay 1 --retry-all-errors "<origin>/api/health/ready"
-     docker inspect -f '{{.State.StartedAt}}' $(docker ps -q --filter label=com.docker.compose.service=nginx)
+     docker inspect -f '{{.State.StartedAt}}' "$nx"
      ```
 
-Remove what the check created. The `docker rm -f` of `gw1` and `gw2` prints `no such container` when step 6 or 7
-already removed them; that is expected:
-
-```bash
-docker rm -f nginx-under-check gw1 gw2
-docker network rm nginx-check
-docker rmi nginx-check
-rm -r <tls dir>
-```
+   Step 8 needs no cleanup beyond what it states: it creates nothing except the throwaway Python containers, which
+   `--rm` removes.
 
 Record the date, the image and the result of every step in the deployment notes. A failure of any step is a stop: do
 not deploy this `nginx` image (for step 8, which runs after the first deployment, roll back as in the section on

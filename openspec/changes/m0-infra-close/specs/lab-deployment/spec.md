@@ -90,4 +90,4 @@ Needs: impl, utest
 - **WHEN** a client sends `GET /static/a%20b.css` and then `GET /avatars/u1.png?v=2`
 - **THEN** the gateway receives the request targets `/static/a%20b.css` and `/avatars/u1.png?v=2`
 
-Evidence: `nginx/production/nginx.conf` (`# [impl->req~lab-deployment-production-proxy-upstream~1]`); `openbinding-gateway/tests/test_production_nginx.py` (`[utest->req~lab-deployment-production-proxy-upstream~1]`, static checks of the configuration); the lab procedure of design.md §3 for the scenarios that need a running nginx
+Evidence: `nginx/production/nginx.conf` (`# [impl->req~lab-deployment-production-proxy-upstream~1]`); `openbinding-gateway/tests/test_production_nginx.py` (`[utest->req~lab-deployment-production-proxy-upstream~1]`, static checks of the configuration); the pre-deployment check of the runbook (design.md §3) for the scenarios that need a running nginx

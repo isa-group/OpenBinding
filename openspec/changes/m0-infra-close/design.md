@@ -230,17 +230,19 @@ Workers have no Docker. Only static checks run in a worker's `qa_run`.
 The F9 procedure, as the operator runs it in the pre-deployment check of the runbook (steps 1 to 7 with a stand-in
 gateway, then step 8 with the real gateway):
 
-1. Build the image: `docker build -t m0ic-nginx nginx/production`.
-2. `docker run --rm m0ic-nginx nginx -t` passes, with a self-signed certificate mounted at `/etc/nginx/ssl`.
+1. Build the image: `docker build -t nginx-check nginx/production`.
+2. `docker run --rm nginx-check nginx -t` passes, with a self-signed certificate mounted at `/etc/nginx/ssl`.
 3. On a throwaway network, start a stand-in gateway with the alias `gateway` that logs the request line, for example
    `python -m http.server 8000`, and start the image next to it.
-4. `curl -sk --resolve openbinding.score.us.es:<port>:127.0.0.1 "https://openbinding.score.us.es:<port>/api/v1/x%2Fy?a=1"`.
-   The stand-in logs `GET /v1/x%2Fy?a=1`.
+4. `curl -sk --resolve openbinding.score.us.es:<port>:127.0.0.1 "https://openbinding.score.us.es:<port>/api/v1/x%2Fy?a=1&b=%20"`.
+   The stand-in logs `GET /v1/x%2Fy?a=1&b=%20`.
 5. `curl` of `/%61pi/x` answers 400, and `curl` of `/api/v1/jobs?limit=5` reaches the stand-in as
-   `GET /v1/jobs?limit=5`. `curl --path-as-is` of `/api//v1/jobs` and of `/api/v1/x/../jobs` reaches the stand-in as
+   `GET /v1/jobs?limit=5`. `/static/a%20b.css` and `/avatars/u1.png?v=2` reach it unchanged. `curl --path-as-is` of `/api//v1/jobs` and of `/api/v1/x/../jobs` reaches the stand-in as
    `//v1/jobs` and `/v1/x/../jobs`. The runbook step 8 records the real gateway's answer to both (R2).
 6. Replace the stand-in with a new container with the same alias and a different address (the runbook reads both
-   addresses with `docker inspect`, the first before it removes the first container), then wait 11 s. The next
+   addresses with `docker inspect`, the first before it removes the first container; when they are equal, it starts a
+   throwaway container on the network, removes the new stand-in, starts it again under the alias and compares again),
+   then wait 11 s. The next
    `curl` of `/api/health` reaches the new stand-in as `GET /health` (the map strips only `/api`), not a 502,
    without restarting nginx.
 7. Stop the stand-in, so that no container has the alias `gateway`, and wait 11 s. `curl -sk -o /dev/null
@@ -253,8 +255,9 @@ gateway, then step 8 with the real gateway):
    `/api/v1/examples/...` requests of R2 (§4) through the public origin and directly to `gateway:8000` from a
    container on the Compose network, with the same status and body; `curl --path-as-is` of `/api//v1/jobs` and
    `/api/v1/x/../jobs` through the origin, whose answers go into the deployment notes; and a restart of only the
-   gateway container, after which `/api/health/ready` answers 200 through nginx within 10 s and the start time of
-   nginx does not change.
+   gateway container (found by id within the Compose project), after which, once the container is `healthy`,
+   `/api/health/ready` answers 200 through nginx within 10 s of becoming healthy (`curl --retry 10 --retry-delay 1
+   --retry-all-errors`) and the start time of nginx does not change.
 
 The alias is a contingency, not part of the procedure. Apply it only if step 7 shows a fall-through to another host:
 a network alias under a reserved suffix, for example `gateway.openbinding.invalid` on the gateway service, used in
