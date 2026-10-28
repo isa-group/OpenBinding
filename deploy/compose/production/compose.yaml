@@ -352,7 +352,8 @@ services:
       start_period: 10s
     # nginx.conf resolves `gateway` at request time (valid=10s), so nginx follows a new gateway address by itself,
     # also after a restart by the Docker daemon (crash, OOM). restart: true still restarts nginx when Compose
-    # recreates the gateway, which also applies a changed nginx.conf or certificates.
+    # recreates the gateway. A restart applies new certificates (bind-mounted); nginx.conf is built into the image, so
+    # a changed one needs a new NGINX_IMAGE and `up -d`.
     depends_on:
       gateway:
         condition: service_healthy

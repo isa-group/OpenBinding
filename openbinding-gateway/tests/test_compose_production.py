@@ -597,8 +597,8 @@ EXPECTED_DEPENDS_ON = {
     "nginx": {"gateway": HEALTHY, "frontend-assets": HEALTHY},
     "pg-backup": {"postgres": HEALTHY},
 }
-# Services that are restarted when the gateway is recreated (nginx also applies a changed nginx.conf or certificates
-# then). The workers have no gateway address, so they only wait for it to be healthy.
+# Services that are restarted when the gateway is recreated (a restart applies new certificates, not a changed
+# nginx.conf, which is built into the image). The workers have no gateway address, so they only wait for it to be healthy.
 EXPECTED_RESTART_ON_DEPENDENCY = {
     "nginx": {"gateway"},
 }
@@ -2949,8 +2949,14 @@ def test_runbook_says_that_only_nginx_restarts_with_the_gateway_and_follows_a_ne
         "`valid=10s`",
         "within about 10 seconds",
         "transient",
-        "persists means the gateway is not healthy",
+        "If the gateway is not healthy, the `502` persists because of the gateway",
+        "`$DC logs --tail 100 nginx` (look for `could not be resolved`)",
+        "treat it as a new incident and restart `nginx`",
+        "only after the logs",
         "is not required for an address change",
+        "interrupts the synchronous solves in progress (up to 1860 seconds)",
+        "can hide a resolver fault",
+        "a changed `nginx.conf` needs a new `NGINX_IMAGE` and `$DC up -d`",
         "`$DC restart nginx`",
     ):
         assert needle in after, needle

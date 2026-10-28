@@ -49,8 +49,8 @@ Every service has `mem_limit`, `cpus`, `no-new-privileges` and rotated `json-fil
 address within about 10 seconds after the gateway is recreated or restarted by the Docker daemon. `nginx` also depends
 on `gateway` with `restart: true` (Compose 2.17 or newer): Compose restarts it when it recreates the gateway. A command
 that recreates only the gateway may not trigger it, so every step below that recreates the gateway is followed by
-`$DC restart nginx`; this is a precaution, not needed for an address change (a restart still applies a changed
-`nginx.conf` or certificates). The workers wait for a healthy `gateway` but do not restart with it: they have no
+`$DC restart nginx`; this is a precaution, not needed for an address change (a restart applies new certificates, which are bind-mounted; a changed
+`nginx.conf` is built into the image and needs a new `NGINX_IMAGE` and `$DC up -d`). The workers wait for a healthy `gateway` but do not restart with it: they have no
 gateway address, and a restart would only cut running jobs. For a transient `502` after a gateway restart see
 [502 after a gateway restart](#502-after-a-gateway-restart).
 
@@ -379,7 +379,8 @@ $DC restart nginx
 
 Compose recreates only the services whose image or configuration changed; `migrate` runs again and applies the new
 revisions before `gateway` starts. `nginx` is restarted with the gateway (`restart: true`); the explicit restart is a
-precaution (it also applies a changed `nginx.conf` or certificates), not needed for a new gateway address.
+precaution (it applies new certificates; a changed `nginx.conf` needs a new `NGINX_IMAGE`, which `$DC up -d` applies),
+not needed for a new gateway address.
 
 ## Verification
 
@@ -420,11 +421,14 @@ $DC ps gateway                     # when it started: a recent start time points
 curl -fsS "$PUBLIC_ORIGIN/api/health/ready"
 ```
 
-If `$DC ps gateway` shows the gateway healthy and the `502` still lasts more than 10 seconds, treat it as a new
-incident and run `$DC restart nginx` as its first step. A `502` that persists means the gateway is not healthy: read `$DC ps` and `$DC logs --tail 100 gateway`, and look at
-`docker inspect --format '{{.State.OOMKilled}}' $($DC ps -q gateway)` before closing the incident. Restarting `nginx`
-is not required for an address change; it still applies a changed `nginx.conf` or new certificates
-(`$DC restart nginx`).
+If the `502` lasts, read first: `$DC ps gateway`, `$DC logs --tail 100 gateway` and `$DC logs --tail 100 nginx` (look
+for `could not be resolved`). If the gateway is not healthy, the `502` persists because of the gateway: read `$DC ps`
+and the gateway logs, and look at `docker inspect --format '{{.State.OOMKilled}}' $($DC ps -q gateway)` before closing
+the incident. If `$DC ps gateway` shows the gateway healthy and the `502` still lasts more than 10 seconds, treat it as
+a new incident and restart `nginx` (`$DC restart nginx`) only after the logs. Restarting `nginx` is not required for an
+address change; it interrupts the synchronous solves in progress (up to 1860 seconds) and can hide a resolver fault,
+which is why the logs come first. A restart applies new certificates; a changed `nginx.conf` needs a new
+`NGINX_IMAGE` and `$DC up -d`.
 
 ## Backups
 

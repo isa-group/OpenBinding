@@ -134,10 +134,9 @@ Order:
   `deploy/compose/production/compose.yaml`, and the `[utest->…]` tags in `openbinding-gateway/tests/`, are traced
   (the project configuration is owner-only).
 - [x] F9 Nginx resolver (done in change m0-infra-close; round-2 finding R2-REV-002, accepted for now): `nginx.conf`
-  resolves `gateway` once, when nginx starts, so after a restart of the gateway by the Docker daemon (crash, OOM) nginx keeps the old address until
-  it is restarted. The runbook says to run `$DC restart nginx` then. A follow-up change makes nginx resolve the name
-  at request time (`resolver 127.0.0.11` with a variable in `proxy_pass`), which needs the image configuration and a
-  host with Docker to test.
+  resolved `gateway` once, when nginx started, so after a restart of the gateway by the Docker daemon (crash, OOM)
+  nginx kept the old address until it was restarted. It now resolves the name at request time (`resolver 127.0.0.11`
+  with a variable in `proxy_pass`), done in change m0-infra-close.
 
 ## A. Archive (explicit archive task, after S1-S4)
 - [ ] `["openspec", "archive", "m09-compose-only", "--yes"]`, then the Purpose, TODO and Out-of-scope edits of
