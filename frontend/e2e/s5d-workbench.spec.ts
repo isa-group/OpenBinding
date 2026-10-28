@@ -188,6 +188,8 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     return json({ id: 'job-1', status: 'queued', irDigest: digestOf('c') }, 202)(route);
   });
   await page.route(`${API}/v1/jobs/job-1`, json(completedJob));
+  // The run's compiled problem: not available here, so RunResult falls back to the ids it has.
+  await page.route(`${API}/v1/jobs/job-1/ir`, (route) => route.fulfill({ status: 404, json: { detail: 'not found' } }));
 
   await page.route(`${API}/v1/generator/instances`, (route) => {
     // Every body the lab sent for an instance, in order: the preview first, then what was kept.
@@ -539,8 +541,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // Run with the engine mode the analysis offered; the same snapshot is used.
       await main.getByRole('button', { name: 'Solve' }).click();
-      await expect(main.getByRole('cell', { name: 'service-a' })).toBeVisible();
-      await expect(main.getByText('1 solution(s) · FEASIBLE')).toBeVisible();
+      const runResult = main.getByRole('region', { name: 'Authoritative result' }).getByRole('region', { name: 'Run result' });
+      await expect(runResult.getByRole('cell', { name: 'service-a' })).toBeVisible();
+      await expect(runResult.getByText('View source').first()).toBeVisible();
       expect(state.sent.job).toMatchObject({ snapshot: 'snapshot-1', engine: ENGINE, registration: REGISTRATION, mode: 'seeded' });
       await capture(page, testInfo, `bar-${name}-run`);
       expect(critical).toEqual([]);

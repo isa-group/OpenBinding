@@ -1,10 +1,10 @@
 # Rendering catalogue: foundations (M2.1)
 
 **Status: built and tested (ROADMAP M2.1).** Five components in `frontend/src/components/rendering/` and a hygiene test that
-stops new raw rendering. The 10 files that still dump data (9 of the 15 offenders of ROADMAP M2 plus one unlisted finding)
-are listed below; the 9 are retired in M2.3 to M2.6, the one waits for classification. Offender 7 and finding 17
-went with the decision-space workspace (M2.4, slice 1); offenders 1, 2 and 4 went with M2.3 (the dead engine-answer view,
-the Jobs run result and the diagnostic text fallback).
+stops new raw rendering. The 9 files that still dump data (8 of the 15 offenders of ROADMAP M2 plus one unlisted finding)
+are listed below; the 8 are retired in M2.4 to M2.6, the one waits for classification. Offender 7 and finding 17
+went with the decision-space workspace (M2.4, slice 1); offenders 1 to 4 went with M2.3 (the dead engine-answer view,
+the Jobs run result, the Workbench result panel and the diagnostic text fallback).
 
 ROADMAP M2.1 asks for the components to be documented in the design system. No separate design-system document exists in
 this change, and [ARCHITECTURE §5.3](../ARCHITECTURE.md) is the catalogue table (owned by the coordinator), so this page
@@ -136,7 +136,7 @@ numbers by hand or passing digests as values.
 
 ### RunResult
 
-The whole result of a run, for a page to place as it is. Used in: the Jobs run result. Import it from
+The whole result of a run, for a page to place as it is. Used in: the Jobs page and the Workbench result panel. Import it from
 `components/rendering/RunResult`.
 
 | Prop | Type | Default | Meaning |
@@ -203,7 +203,7 @@ Also not seen: raw rendering built without the literal `<pre` or `JSON.stringify
 `white-space: pre`, or a stringified variable shown elsewhere, as at `RepDetail.tsx:77`, whose `sourceText` reaches
 the textarea at :317).
 
-The allow-list `frontend/src/test/rawRenderingAllowList.ts` holds the 9 remaining offenders of ROADMAP M2 (`RAW_RENDERING_ALLOW_LIST`)
+The allow-list `frontend/src/test/rawRenderingAllowList.ts` holds the 8 remaining offenders of ROADMAP M2 (`RAW_RENDERING_ALLOW_LIST`)
 and `UNLISTED_FINDINGS` for 1 finding not in the roadmap, awaiting classification: `pages/Workbench/SourcePanel.tsx`
 (diff `<pre>`). Findings and listed lines are matched as a
 multiset per file and trimmed line text: a second identical raw line in a listed file is a new finding, and a listed
@@ -216,8 +216,8 @@ lower `MAX_ALLOWED_OFFENDERS`, and in the first such slice relax the "numbered 1
 
 | Slice | Offenders (file under `frontend/src`) |
 |---|---|
-| M2.3 | 3 `pages/Workbench/RunPanel.tsx` (1 `EngineReportView.tsx`, 2 `pages/Jobs/JobResult.tsx` and 4 `pages/Workbench/CheckResult.tsx` are retired) |
-| M2.4 | 5 `pages/Reports/RepDetail.tsx`; 11 `pages/Library/ContentView.tsx` |
+| M2.3 | none left (1 `EngineReportView.tsx`, 2 `pages/Jobs/JobResult.tsx`, 3 `pages/Workbench/RunPanel.tsx` and 4 `pages/Workbench/CheckResult.tsx` are retired) |
+| M2.4 | none left (5 `pages/Reports/RepDetail.tsx` and 11 `pages/Library/ContentView.tsx` are retired) |
 | M2.5 | 8 `pages/Studies/StudyCell.tsx`; 9 `pages/Studies/StudyDetail.tsx`; 10 `pages/Engines/EngineParts.tsx`; 12 `pages/Organization/OrgAudit.tsx`; 13 `pages/RegisterEngine/EngineForm.tsx`; 14 `pages/Generator/LabAside.tsx`; 15 `pages/Cases/SnapshotDetail.tsx` |
 | M2.6 | 6 `pages/Reports/Verifier.tsx` |
 | none yet | 16 `pages/Workbench/SourcePanel.tsx` |

@@ -21,24 +21,12 @@ export type UnlistedFinding = Omit<RawRenderingOffender, 'retiredBy'> & { retire
 // [impl->req~frontend-retire-allow-list-leaves~1]
 // [impl->req~frontend-retire-reports-allow-list~1]
 // [impl->req~frontend-retire-library-allow-list~1]
-export const MAX_ALLOWED_OFFENDERS = 9;
+export const MAX_ALLOWED_OFFENDERS = 8;
+// [impl->req~frontend-rendering-run-result-allow-list~1]
 
 export const UNLISTED_REASON = 'found by the detector, not in ROADMAP M2; to be decided by the owner/coordinator';
 
 export const RAW_RENDERING_ALLOW_LIST: RawRenderingOffender[] = [
-  {
-    offender: 3,
-    file: 'pages/Workbench/RunPanel.tsx',
-    lines: [
-      { line: 28, text: '<pre>{JSON.stringify(decision, null, 2)}</pre>' },
-      {
-        line: 54,
-        text: '<pre>{JSON.stringify({ metrics: solution.metrics, objectives: solution.objectives, penalties: solution.penalties, violations: solution.violations, evaluation: solution.evaluation }, null, 2)}</pre>',
-      },
-    ],
-    reason: 'Decision and solution JSON in <pre>.',
-    retiredBy: 'M2.3',
-  },
   {
     offender: 6,
     file: 'pages/Reports/Verifier.tsx',

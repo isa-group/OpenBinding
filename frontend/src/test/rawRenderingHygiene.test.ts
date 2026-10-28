@@ -359,9 +359,9 @@ describe('the allow-list', () => {
   });
 
   // [utest->req~frontend-rendering-run-result-allow-list~1]
-  it('has a ceiling of 9 after slice J, as many as its entries', () => {
-    expect(MAX_ALLOWED_OFFENDERS).toBe(9);
-    expect(RAW_RENDERING_ALLOW_LIST).toHaveLength(9);
+  it('has a ceiling of 8 after M2.3, as many as its entries', () => {
+    expect(MAX_ALLOWED_OFFENDERS).toBe(8);
+    expect(RAW_RENDERING_ALLOW_LIST).toHaveLength(8);
     expect(ceilingMismatch(MAX_ALLOWED_OFFENDERS, RAW_RENDERING_ALLOW_LIST)).toBeUndefined();
   });
 
@@ -380,8 +380,8 @@ describe('the allow-list', () => {
   // [utest->req~frontend-retire-reports-allow-list~1]
   // [utest->req~frontend-retire-library-allow-list~1]
   // [utest->req~frontend-rendering-run-result-allow-list~1]
-  it('holds exactly the offenders that remain after slice J', () => {
-    expect(RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender)).toEqual([3, 6, 8, 9, 10, 12, 13, 14, 15]);
+  it('holds exactly the offenders that remain after M2.3', () => {
+    expect(RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender)).toEqual([6, 8, 9, 10, 12, 13, 14, 15]);
     expect(UNLISTED_FINDINGS.map((entry) => entry.offender)).toEqual([16]);
     expect(UNLISTED_FINDINGS.map((entry) => entry.file)).toEqual(['pages/Workbench/SourcePanel.tsx']);
     expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('pages/Analysis'))).toEqual([]);
@@ -403,7 +403,7 @@ describe('the allow-list', () => {
   it('retires the offenders in the slices ROADMAP names', () => {
     const slice = (n: number) => RAW_RENDERING_ALLOW_LIST.find((entry) => entry.offender === n)?.retiredBy;
     expect(slice(2)).toBeUndefined();
-    expect(slice(3)).toBe('M2.3');
+    for (const n of [1, 3, 4]) expect(slice(n), `offender ${n}`).toBeUndefined();
     expect(slice(5)).toBeUndefined();
     expect(slice(11)).toBeUndefined();
     for (const n of [8, 9, 10, 12, 13, 14, 15]) expect(slice(n), `offender ${n}`).toBe('M2.5');
