@@ -12,13 +12,14 @@ import uuid
 from typing import Any, Mapping
 
 from ..models.analysis import NeighborhoodResponse
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import optional_session, require_v1_admin, solve_caller
+from ..core import revision
 from ..core.settings import get_settings
 from ..db import base as db_base
 from ..db.models import (
@@ -171,7 +172,7 @@ async def _read_json_body(request: Request, invalid_code: str) -> Any | JSONResp
 
 
 def _registry_problem(exc: engine_registry.RegistryProblem) -> JSONResponse:
-    return _problem(exc.status, exc.code, exc.detail, exc.diagnostics, extra=exc.extra)
+    return _problem(exc.status, exc.code, exc.detail, exc.diagnostics, extra=exc.extra, headers=exc.headers)
 
 
 @router.get("/profiles")
@@ -962,13 +963,35 @@ async def get_engine_registration_report(
         return _registry_problem(exc)
 
 
-@router.put("/engine-registrations/{name}/credential")
+_PROBLEM_BODY = {PROBLEM_MEDIA_TYPE: {"schema": {"$ref": "#/components/schemas/Problem"}}}
+_CREDENTIAL_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {
+        "description": "The registration summary. `ETag` is the revision of the stored credential.",
+        "headers": {"ETag": {"description": "Revision of the stored credential.", "schema": {"type": "string"}}},
+    },
+    400: {
+        "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`).",
+        "content": _PROBLEM_BODY,
+    },
+    412: {
+        "description": (
+            "`If-Match` does not match the stored credential (code `precondition_failed`), or no credential is "
+            "stored yet: nothing was applied. The `ETag` header carries the current revision when one exists."
+        ),
+        "headers": {"ETag": {"description": "Current revision of the stored credential.", "schema": {"type": "string"}}},
+        "content": _PROBLEM_BODY,
+    },
+}
+
+
+@router.put("/engine-registrations/{name}/credential", responses=_CREDENTIAL_RESPONSES)
 async def set_engine_registration_credential(
     name: str,
     request: Request,
     namespace: str = Query(...),
     version: str = Query(...),
     manifest_digest: str = Query(..., alias="digest"),
+    if_match: str | None = Header(None, alias="If-Match", description=revision.IF_MATCH_DESCRIPTION),
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
@@ -980,15 +1003,17 @@ async def set_engine_registration_credential(
     if not isinstance(secret, str) or not secret:
         return _problem(422, "invalid_credential", "credential payload requires a non-empty secret")
     try:
-        return await engine_registry.set_credential(
+        summary, etag = await engine_registry.set_credential_revision(
             RegistrationKey(namespace, name, version, manifest_digest),
             secret,
             caller,
             session,
             settings=get_settings(),
+            if_match=if_match,
         )
     except engine_registry.RegistryProblem as exc:
         return _registry_problem(exc)
+    return JSONResponse(summary, headers={"ETag": etag})
 
 
 @router.post("/instances/validate")
