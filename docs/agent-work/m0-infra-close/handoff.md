@@ -1,0 +1,6 @@
+Goal: close M0 infra (F9 nginx request-time resolver, F5, README pointer, runbook, tests) in one PR; S2 (CRP-M09-2), S3 (CRP-M09-3), S4 (factory F2) out of scope; when merged, park and tell coordinator.
+State: head 1396287b (before this checkpoint commit) has all four task results integrated: S1 f3f2e04c, S0 ea1fc9e4, S0b da257707, S1b 13b5fa75.
+Caveat: workers had no pytest/ruff/openspec check registered, so test_compose_production.py, test_production_nginx.py (hand-traced and reviewed only) and `openspec validate m0-infra-close --strict` have NOT been executed. CI is the first real run; if red, give output to a debugger task. F9 itself is unverified in a real nginx (lab procedure in design.md, coordinator).
+Decisions: restart nginx steps kept in runbook as precaution; runbook avoids the word 'harmless' (test pins it, R2-SEC-001); new 502 sentence: persistent 502 with healthy gateway after >10s is a new incident, restart nginx first.
+Next: 1) push + PR; 2) CI green (changelog.generated.json may need scope); 3) panel reviewer/test-reviewer/security-auditor/arch-reviewer, set_review_package, lead_ready.
+Open: Q1 compose.pgtest.json in S3 render. Followups: resolver for frontend/nginx.lab.conf and nginx/local/nginx.conf; carry SERVICE.md edit to isa-group/bim-toolchain.
