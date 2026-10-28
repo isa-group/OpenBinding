@@ -8,6 +8,7 @@
 # disagree, this file wins. The mem_limit and cpus values are starting values, tuned after the first measured week.
 name: openbinding-production
 
+# [impl->req~lab-deployment-no-local-space~4] (no SPACE or SPHERE service, network or volume: SPACE is remote)
 # [impl->req~lab-deployment-production-limits-logs~1]
 # [impl->req~lab-deployment-production-pinned-images~1] (every image is ${..._IMAGE:?} from images.env)
 # [impl->req~lab-deployment-compose-only~1]
@@ -109,7 +110,7 @@ services:
       BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
       BOOTSTRAP_ADMIN_PASSWORD_FILE: /run/secrets/bootstrap_admin_password
-      # Production refuses SPACE_ENABLED=false (APP_ENV=prod). SPACE is remote only; there is no local SPACE.
+      # Production refuses SPACE_ENABLED=false (APP_ENV=prod). Production uses the remote SPACE; this stack deploys none.
       SPACE_ENABLED: "true"
       SPACE_URL: ${SPACE_URL:?set SPACE_URL in site.env}
       SPACE_API_KEY_FILE: /run/secrets/space_api_key

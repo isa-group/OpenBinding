@@ -271,6 +271,7 @@ def test_control_skips_tests_and_mocks():
 
 def test_lab_tools_has_only_the_bootstrap_as_a_direct_caller():
     # [utest->req~lab-space-no-direct-http~1]
+    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     # ADR 0022 limits the raw-HTTP exception to the bootstrap; a new raw-HTTP file in lab/tools needs a deliberate
     # edit of LAB_TOOLS_DIRECT_CALLERS and of the ADR.
     in_tools = {rel for rel in detected() if rel.startswith("lab/tools/")}

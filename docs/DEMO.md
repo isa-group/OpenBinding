@@ -97,8 +97,8 @@ so the steady state is 3648 MiB. `test_lab_compose.py` and
 if this document does not state it. `mem_limit` bounds the container, not the
 page cache of the named volumes, and image builds are not limited by it.
 
-Optional: the local SPACE pricing profile `compose.lab-pricing.json` is a separate project, outside this 4032 MiB sum;
-see [qa/PRICING_PROFILE.md](qa/PRICING_PROFILE.md).
+Optional: the pricing profile `compose.lab-pricing.json` is a 96 MiB one-shot against the remote SPACE, a separate
+project outside this 4032 MiB sum; see [qa/PRICING_PROFILE.md](qa/PRICING_PROFILE.md).
 
 **Unprivileged containers.** The gateway image (`gateway`, `worker`, `seed`) runs as
 UID/GID 10001 with no login shell; `bim-service` already did. Root inside a rootless
