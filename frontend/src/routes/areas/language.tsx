@@ -1,20 +1,21 @@
-import { lazy } from 'react';
 import { Examples } from '../../pages/Examples/Examples';
-import { Profiles } from '../../pages/Profiles/Profiles';
+import { LanguageHub } from '../../pages/Profiles/LanguageHub';
 import { live } from '../define';
+import { moved } from '../moved';
 import type { MovedRoute } from '../moved';
 import type { RouteDefinition } from '../types';
 
-// Area: language. The problem language: profiles, schemas, examples and the extensions of the account.
-
-const Schemas = lazy(() => import('../../pages/Schemas/Schemas').then((module) => ({ default: module.Schemas })));
-const LangExtensions = lazy(() => import('../../pages/Engines/LangExtensions').then((module) => ({ default: module.LangExtensions })));
+// Area: language. The problem language: the hub (profiles, schemas, extensions) and the examples.
+// [impl->req~frontend-nav-language-hub~1]
 
 export const routes: RouteDefinition[] = [
-  live('lang-profiles', '/language', <Profiles />),
-  live('lang-schemas', '/language/schemas/:kind', <Schemas />),
+  live('lang-profiles', '/language/:section?/:item?', <LanguageHub />),
   live('lang-examples', '/examples', <Examples />),
-  live('lang-extensions', '/app/language/extensions', <LangExtensions />),
 ];
 
-export const moved: MovedRoute[] = [];
+const movedAddresses: MovedRoute[] = [
+  moved('lang-extensions', '/app/language/extensions', '/language/extensions'),
+];
+
+// The registry reads `moved` from every area module.
+export { movedAddresses as moved };

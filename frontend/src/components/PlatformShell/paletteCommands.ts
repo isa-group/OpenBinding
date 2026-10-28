@@ -40,7 +40,7 @@ export function buildCommands({ organizations = [], projects = [], organization,
     command('Go to', 'Pricing', 'Plans, limits and add-ons', '/pricing'),
     command('Tools', 'Verifier', 'Resolve a digest and check its provenance', '/app/verifier'),
     command('Tools', 'My engines', 'Engines registered by your account', '/app/engines/registrations'),
-    command('Tools', 'Language extensions', 'Dialects and profiles you maintain', '/app/language/extensions'),
+    command('Tools', 'Language extensions', 'Dialects and profiles you maintain', '/language/extensions'),
     command('Tools', 'Generator lab', 'Generate benchmark instances', '/app/generator'),
   ];
 

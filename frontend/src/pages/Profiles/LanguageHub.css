@@ -1,0 +1,18 @@
+/* lang-profiles: the language hub */
+.language-hub-nav { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xxs); font-size: 0.8125rem; max-width: 1200px; margin: 0 auto; padding: var(--tp-spacing-md) var(--tp-spacing-md) 0; }
+
+.language-hub-nav a,
+.language-hub-nav span {
+  padding: 4px 10px;
+  border-radius: var(--tp-radius-full);
+  background: var(--tp-surface);
+  color: var(--tp-slate);
+  text-decoration: none;
+}
+
+.language-hub-nav a:hover { background: var(--tp-cream-deeper); color: var(--tp-ink); }
+.language-hub-nav [aria-current='page'] { background: var(--tp-primary); color: var(--tp-on-primary); }
+
+.language-hub-signed-out,
+.language-hub-unknown,
+.language-hub-wait { display: grid; gap: var(--tp-spacing-sm); max-width: 1200px; margin: 0 auto; padding: var(--tp-spacing-lg) var(--tp-spacing-md); }

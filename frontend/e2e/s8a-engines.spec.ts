@@ -662,11 +662,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('lang-extensions /app/language/extensions · dialects, adapters and registered resources with their version and provenance', async ({ page }, testInfo) => {
+    test('lang-profiles /language/extensions · dialects, adapters and registered resources with their version and provenance', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto('/app/language/extensions');
-      const main = page.locator('#platform-main');
+      await page.goto('/language/extensions');
+      const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Language extensions' })).toBeVisible();
       await expect(main.getByRole('region', { name: 'What is installed' })).toContainText('2Dialects installed');
@@ -704,28 +704,28 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('lang-extensions /app/language/extensions · nothing installed yet, a key that cannot read it (403) and a catalog that does not answer (503)', async ({ page }, testInfo) => {
+    test('lang-profiles /language/extensions · nothing installed yet, a key that cannot read it (403) and a catalog that does not answer (503)', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       state.refuse.dialects = json({ dialects: [] });
       state.refuse.resources = json({ resources: [] });
       state.refuse.profiles = json({ profiles: [] });
-      await page.goto('/app/language/extensions');
+      await page.goto('/language/extensions');
       await expect(main.getByText('No dialects installed')).toBeVisible();
       await capture(page, testInfo, `language-${name}-empty`, { height: tall(1200) });
       await main.getByRole('tab', { name: /Registered resources/ }).click();
       await expect(main.getByText('No resources registered yet')).toBeVisible();
 
       state.refuse.resources = problem(403, 'insufficient_api_key_permission', 'The API key does not include this permission');
-      await page.goto('/app/language/extensions?tab=resources');
+      await page.goto('/language/extensions?tab=resources');
       await expect(main.getByText('This API key can’t read the language catalog (403)')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Manage API keys' })).toHaveAttribute('href', '/app/account/keys');
       await capture(page, testInfo, `language-${name}-403`, { height: tall(1100) });
 
       state.refuse.dialects = unavailable;
-      await page.goto('/app/language/extensions');
+      await page.goto('/language/extensions');
       await expect(main.getByText(/The language extensions couldn’t be loaded \(HTTP 503\)/)).toBeVisible();
       await capture(page, testInfo, `language-${name}-503`, { height: tall(1100) });
       state.refuse.dialects = undefined;

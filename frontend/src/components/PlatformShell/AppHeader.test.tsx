@@ -150,7 +150,7 @@ describe('AppHeader', () => {
       ['Verifier', '/app/verifier'],
       ['Engine catalog', '/engines'],
       ['My engines', '/app/engines/registrations'],
-      ['Language extensions', '/app/language/extensions'],
+      ['Language extensions', '/language/extensions'],
       ['Generator lab', '/app/generator'],
       ['Language docs', '/language'],
     ]);

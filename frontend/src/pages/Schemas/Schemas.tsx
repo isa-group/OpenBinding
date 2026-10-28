@@ -228,15 +228,17 @@ function SchemaView({ kind, item }: { kind: BimSchemaKind; item: SchemaCatalogIt
   );
 }
 
-export function Schemas() {
-  const { kind: segment = '' } = useParams();
+/** `embedded`: shown inside the language hub, which draws the section navigation and gives the kind (`kind`) from its address. */
+export function Schemas({ embedded = false, kind: kindProp }: { embedded?: boolean; kind?: string } = {}) {
+  const { kind: paramKind = '' } = useParams();
+  const segment = kindProp ?? paramKind;
   const kind = resolveSchemaKind(segment);
   const item = kind ? SCHEMA_CATALOG.find((entry) => entry.kind === kind) : undefined;
 
   return (
     <div className="schemas-page">
       <div className="schemas-head">
-        <LanguageNav current="schemas" />
+        {!embedded && <LanguageNav current="schemas" />}
         <h1>Schemas</h1>
         <p>
           What each part of a package contains: every field with its kind, whether it’s required, its unit and its allowed values. Use

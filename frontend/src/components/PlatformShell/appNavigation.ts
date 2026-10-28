@@ -22,7 +22,7 @@ export const toolLinks: readonly NavLinkItem[] = [
   { to: '/app/verifier', label: 'Verifier' },
   { to: '/engines', label: 'Engine catalog' },
   { to: '/app/engines/registrations', label: 'My engines' },
-  { to: '/app/language/extensions', label: 'Language extensions' },
+  { to: '/language/extensions', label: 'Language extensions' },
   { to: '/app/generator', label: 'Generator lab' },
   { to: '/language', label: 'Language docs' },
 ];
@@ -62,7 +62,10 @@ export function currentSection(pathname: string): MainSection {
 }
 
 export function isToolActive(pathname: string, link: NavLinkItem): boolean {
-  return link.to === '/app/engines/registrations' ? under(pathname, '/app/engines') : under(pathname, link.to);
+  if (link.to === '/app/engines/registrations') return under(pathname, '/app/engines');
+  // The extensions are a section of the language hub: they mark their own entry, not "Language docs".
+  if (link.to === '/language') return under(pathname, link.to) && !under(pathname, '/language/extensions');
+  return under(pathname, link.to);
 }
 
 export interface CreateItem {

@@ -13,7 +13,9 @@ describe('address resolution across the registry', () => {
     ['/', 'pub-home'],
     ['/engines/bim.builtin/random-search/1.0.0', 'eng-detail'],
     ['/engines/new', null],
-    ['/language/schemas/Instance', 'lang-schemas'],
+    ['/language', 'lang-profiles'],
+    ['/language/schemas/Instance', 'lang-profiles'],
+    ['/language/extensions', 'lang-profiles'],
     ['/resolve/report/sha256-abc', 'pub-resolve'],
     ['/password-reset/complete', 'auth-reset-complete'],
     ['/app', 'app-home'],
@@ -35,7 +37,6 @@ describe('address resolution across the registry', () => {
     ['/app/engines/registrations/edge', 'eng-registration-detail'],
     ['/app/engines/registrations/settings', 'eng-registration-detail'],
     ['/app/engines/other', 'proj-overview'],
-    ['/app/language/extensions', 'lang-extensions'],
     ['/app/language/other', 'proj-overview'],
     ['/app/admin', 'admin-overview'],
     ['/app/admin/users', 'admin-users'],
@@ -76,5 +77,10 @@ describe('address resolution across the registry', () => {
     ['/app/acme/atlas/other', null],
   ])('%s -> %s', (path, id) => {
     expect(resolve(path)).toBe(id);
+  });
+
+  // /app/language/extensions is a moved address (areas/language.tsx), not a screen: the registry gives it no screen of its own.
+  it('gives /app/language/extensions no screen of its own', () => {
+    expect(routeDefinitions.some((definition) => definition.path === '/app/language/extensions')).toBe(false);
   });
 });

@@ -8,7 +8,7 @@ const SECTION_OF: Record<string, readonly string[]> = {
   home: ['app-home', 'org-create', 'org-overview', 'org-settings', 'org-members', 'org-audit', 'proj-create', 'proj-overview'],
   jobs: ['job-launch', 'job-list', 'job-detail', 'job-history'],
   explore: ['pub-explore'],
-  tools: ['eng-catalog', 'eng-detail', 'lang-profiles', 'lang-schemas', 'gen-lab', 'verifier', 'eng-register', 'eng-registrations', 'eng-registration-detail', 'lang-extensions'],
+  tools: ['eng-catalog', 'eng-detail', 'lang-profiles', 'gen-lab', 'verifier', 'eng-register', 'eng-registrations', 'eng-registration-detail'],
   admin: routeDefinitions.filter((definition) => definition.id.startsWith('admin-')).map((definition) => definition.id),
 };
 
@@ -88,7 +88,8 @@ describe('isToolActive', () => {
     expect(marked('/engines/isa/solver/1.0.0')).toEqual(['Engine catalog']);
     expect(marked('/app/engines/registrations/edge-solver')).toEqual(['My engines']);
     expect(marked('/app/engines/new')).toEqual(['My engines']);
-    expect(marked('/app/language/extensions')).toEqual(['Language extensions']);
+    expect(marked('/language/extensions')).toEqual(['Language extensions']);
+    expect(marked('/language')).toEqual(['Language docs']);
     expect(marked('/app/generator')).toEqual(['Generator lab']);
     expect(marked('/language/schemas/application')).toEqual(['Language docs']);
     expect(marked('/app/isa-demo/qos/studies')).toEqual([]);

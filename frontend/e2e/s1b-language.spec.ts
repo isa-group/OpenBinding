@@ -556,7 +556,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.route(`${API}/v1/dialects`, json({ detail: 'down' }, 503));
       await page.goto('/language');
       const main = page.locator('main');
-      await expect(main.getByRole('link', { name: 'Submit a dialect or resource' })).toHaveAttribute('href', '/app/language/extensions');
+      await expect(main.getByRole('link', { name: 'Submit a dialect or resource' })).toHaveAttribute('href', '/language/extensions');
       await expect(main.getByRole('alert')).toContainText('The language catalog couldn’t be loaded (HTTP 503). The diagram above still works.');
       await ready(page);
       await shot(page, testInfo, 'language-profiles-error');
@@ -618,6 +618,41 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await shot(page, testInfo, 'schemas-unknown-kind');
       await alert.getByRole('link', { name: 'Placement', exact: true }).click();
       await expect(main.getByRole('heading', { level: 2, name: 'Placement' })).toBeVisible();
+    });
+
+    // [utest->req~frontend-nav-language-hub~1]
+    test('lang-profiles hub switches between Profiles, Schemas and Extensions at /language/:section?/:item?', async ({ page }) => {
+      await mockApi(page, { signedIn: true });
+      await page.goto('/language');
+      const main = page.locator('main');
+      const sections = main.getByRole('navigation', { name: 'Language sections' });
+      await expect(main.getByRole('heading', { level: 1, name: 'The BIM language' })).toBeVisible();
+
+      await sections.getByRole('link', { name: 'Schemas' }).click();
+      await expect(page).toHaveURL(/\/language\/schemas$/);
+      await expect(main.getByRole('heading', { level: 2, name: 'Application' })).toBeVisible();
+
+      await sections.getByRole('link', { name: 'Extensions' }).click();
+      await expect(page).toHaveURL(/\/language\/extensions$/);
+      await expect(main.getByRole('heading', { level: 1, name: 'Language extensions' })).toBeVisible();
+    });
+
+    // [utest->req~frontend-nav-language-hub~1]
+    test('lang-profiles hub: signed out, Extensions explains and offers the login', async ({ page }) => {
+      await mockApi(page);
+      await page.goto('/language/extensions');
+      const main = page.locator('main');
+      await expect(main.getByRole('link', { name: 'Log in to see and manage language extensions' })).toHaveAttribute('href', '/login');
+    });
+
+    // [utest->req~frontend-nav-language-hub~1]
+    test('lang-profiles hub: an unknown section answers 404 and the old extensions address moves', async ({ page }) => {
+      await mockApi(page, { signedIn: true });
+      await page.goto('/language/nowhere');
+      await expect(page.locator('main').getByText(/no “nowhere” section \(404\)/)).toBeVisible();
+
+      await page.goto('/app/language/extensions?tab=resources');
+      await expect(page).toHaveURL(/\/language\/extensions\?tab=resources$/);
     });
 
     test('lang-examples /examples', async ({ page }, testInfo) => {

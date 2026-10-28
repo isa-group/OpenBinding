@@ -175,7 +175,7 @@ function ResourcesTable({ rows }: { rows: ResourceRow[] }) {
 }
 
 /** lang-extensions: the dialects, adapters and resources that extend the language, with their version and where they come from. */
-export function LangExtensions() {
+export function LangExtensions({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, isAdmin } = useAuth();
   const username = user?.username ?? '';
   const [params, setParams] = useSearchParams();
@@ -222,15 +222,17 @@ export function LangExtensions() {
 
   return (
     <div className="lang-page">
-      <nav aria-label="Breadcrumb" className="eng-crumbs">
-        <span className="eng-crumb"><Link to="/app" viewTransition>Home</Link><span aria-hidden="true">/</span></span>
-        <span className="eng-crumb"><span aria-current="page">Language extensions</span></span>
-      </nav>
+      {!embedded && (
+        <nav aria-label="Breadcrumb" className="eng-crumbs">
+          <span className="eng-crumb"><Link to="/app" viewTransition>Home</Link><span aria-hidden="true">/</span></span>
+          <span className="eng-crumb"><span aria-current="page">Language extensions</span></span>
+        </nav>
+      )}
       <PageHeader
         eyebrow="Language"
         title="Language extensions"
         lede="Teach OpenBinding new kinds of resources. A dialect declares them; registered resources are documents written in them. Each submission is a fixed revision that an administrator approves before anyone can use it."
-        actions={<Action to="/language" variant="secondary">Profiles and installed dialects</Action>}
+        actions={embedded ? undefined : <Action to="/language" variant="secondary">Profiles and installed dialects</Action>}
       />
 
       <section className="lang-kpis" aria-label="What is installed">

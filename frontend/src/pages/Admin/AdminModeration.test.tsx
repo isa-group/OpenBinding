@@ -168,7 +168,7 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
     await waitFor(() => expect(api.adminApproveExtension).toHaveBeenCalledWith('dialect', { namespace: 'maria-santos', name: 'edge-annotations', version: '1.0.0', revision: 'sha256-abc' }));
     expect(await screen.findByText('Dialect maria-santos/edge-annotations@1.0.0 approved and published. Recorded in the audit log.')).toBeInTheDocument();
     expect(screen.getByText(/there is no reject action for them/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Language extensions' })).toHaveAttribute('href', '/app/language/extensions');
+    expect(screen.getByRole('link', { name: 'Language extensions' })).toHaveAttribute('href', '/language/extensions');
   });
 
   it('says why a resource cannot be approved', async () => {
