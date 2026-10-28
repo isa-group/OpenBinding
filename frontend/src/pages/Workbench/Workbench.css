@@ -354,17 +354,6 @@
 
 .wb-result { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); padding-top: var(--tp-spacing-sm); border-top: 1px solid var(--tp-hairline-soft); }
 .wb-result .wb-pane-head h3 { font-size: 1.125rem; }
-.wb-result-summary { margin: 0; color: var(--tp-slate); font-size: 0.8125rem; }
-.wb-decision { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); padding: var(--tp-spacing-md); border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-lg); }
-.wb-decision-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-sm); }
-.wb-decision-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
-.wb-decision-table th, .wb-decision-table td { padding: 8px 10px; border-bottom: 1px solid var(--tp-hairline-soft); text-align: left; overflow-wrap: anywhere; }
-.wb-decision-table th { color: var(--tp-steel); font-size: 0.75rem; font-weight: 600; }
-.wb-metrics { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.wb-metrics li { display: inline-flex; gap: 6px; padding: 1px 10px; border: 1px solid var(--tp-hairline); border-radius: 9999px; font-size: 0.75rem; }
-.wb-metrics span { color: var(--tp-steel); }
-.wb-details summary { color: var(--tp-slate); cursor: pointer; font-size: 0.8125rem; }
-.wb-details pre { max-height: 320px; margin: 8px 0 0; overflow: auto; padding: 12px; border-radius: var(--tp-radius-md); background: var(--tp-surface); font-size: 0.75rem; }
 
 /* What a valid package can become */
 /* The dock keeps what a valid package can become, and what just happened to it, in view while the page scrolls */

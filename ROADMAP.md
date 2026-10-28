@@ -65,7 +65,7 @@ vocabulary of `INTENT.md` §5; names instead of digests.
 |---|---|---|
 | M2.1 | Rendering catalogue foundations: `SourceView`, `LogPanel`, `DiagnosticsList`, `VerdictBadge`, `MetricCards` | components with unit and accessibility tests; documented in the design system |
 | M2.2 | Hygiene test with a shrinking allow-list of today's offenders | test fails on any new raw rendering; allow-list lists the 15 offenders below |
-| M2.3 | Run result rendered (`BindingTable`, `QoSAgainstBounds`, `ObjectiveBreakdown`, `EvaluationDiff`, `LogPanel`, and `TradeOffChart` when there are several objectives) | offenders 1–4 removed from the allow-list |
+| M2.3 | Run result rendered (`BindingTable`, `QoSAgainstBounds`, `ObjectiveBreakdown`, `EvaluationDiff`, `LogPanel`, and `TradeOffChart` when there are several objectives) | offenders 1–4 removed from the allow-list (built) |
 | M2.4 | Retirements, screens first (ADR-0020): decision-space workspace, report editor, library catalogue and project resources, composer, sponsorship; old URLs redirect to their replacement; their endpoints answer with `Deprecation` and `Sunset` headers (CRP) | offenders 5, 7 and 11 gone with their screens; the route count drops; no link leads to a retired screen |
 | M2.5 | Studies, engines, audit, registration and generator rendered; raw views moved to Source tabs | offenders 8–10 and 12–15 removed |
 | M2.6 | Navigation and project tabs of ARCHITECTURE §5.2, Problem/Run vocabulary, Verify page (resolve and verifier, offender 6), system-states screen development-only | e2e route smoke green; old URLs redirect; allow-list empty; at most 45 routed screens |
@@ -76,7 +76,9 @@ Slice status (2026-10-26): M2.1 and M2.2 merged (PR #38); M2.4 in progress: slic
 merged (PR #51); slice 2 (report editor) is merged (PR #53); slice 3 (library catalogue and project resources; offender
 11 gone with its screens) is merged (PR #55); slice 4 (composer) is merged (PR #65); slice 5 (sponsorship, the
 last one) is under review in the pull request of change `m24-retire-sponsorship`. The endpoints and their `Deprecation` and
-`Sunset` headers are a separate step that needs an owner CRP. The other slices have no recorded progress.
+`Sunset` headers are a separate step that needs an owner CRP. M2.3 is built (change `m23-run-result`): the shared
+`RunResult` renders the Jobs run and the Workbench "Authoritative result"; offenders 1 to 4 are off the allow-list, which
+now holds 8. The other slices have no recorded progress.
 
 Raw-rendering offenders at 912648c (INTENT O5):
 

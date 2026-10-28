@@ -104,8 +104,8 @@
   background: var(--tp-canvas);
 }
 
-.job-card h2, .job-solutions h2 { margin: 0; font-family: var(--font-body); font-size: 1rem; font-weight: 600; letter-spacing: normal; line-height: 1.3; }
-.job-card > p, .job-solutions > p { margin: 0; }
+.job-card h2 { margin: 0; font-family: var(--font-body); font-size: 1rem; font-weight: 600; letter-spacing: normal; line-height: 1.3; }
+.job-card > p { margin: 0; }
 .job-card.is-warning { border-color: var(--tp-severity-warning-border); background: var(--tp-severity-warning-bg); }
 .job-card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-spacing-xs); }
 .job-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
@@ -154,15 +154,14 @@
 .job-fact > div:last-child { font-size: 0.8125rem; font-weight: 500; overflow-wrap: anywhere; }
 .job-digest { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
-.job-table, .job-binding { overflow-x: auto; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-lg); }
-.job-table table, .job-binding table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
-.job-table th, .job-binding th { padding: 8px 12px; background: var(--tp-surface); color: var(--tp-slate); font-size: 0.75rem; font-weight: 500; text-align: left; white-space: nowrap; }
-.job-table td, .job-binding td { padding: 10px 12px; border-top: 1px solid var(--tp-hairline-soft); vertical-align: top; }
+.job-table { overflow-x: auto; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-lg); }
+.job-table table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+.job-table th { padding: 8px 12px; background: var(--tp-surface); color: var(--tp-slate); font-size: 0.75rem; font-weight: 500; text-align: left; white-space: nowrap; }
+.job-table td { padding: 10px 12px; border-top: 1px solid var(--tp-hairline-soft); vertical-align: top; }
 .job-table td small { display: block; }
 .job-table table { min-width: 520px; }
-.job-binding code { font-family: var(--font-mono); }
 
-.job-solutions { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); }
+/* Not used by the Jobs page any more: Studies/StudyCell.tsx still renders its figures with these rules. */
 .job-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
 .job-figures li { display: flex; flex-direction: column; gap: 4px; padding: 14px; border: 1px solid var(--tp-hairline); border-radius: 14px; background: var(--tp-canvas); }
 .job-figures li > span { color: var(--tp-slate); font-size: 0.75rem; }
@@ -172,16 +171,6 @@
 .job-empty { padding: 24px; border: 1px dashed var(--tp-hairline-strong); border-radius: var(--tp-radius-xl); background: var(--tp-canvas); color: var(--tp-charcoal); }
 
 .job-source summary { cursor: pointer; color: var(--tp-primary); font-size: 0.8125rem; font-weight: 500; }
-.job-source pre {
-  max-height: 320px;
-  margin: 8px 0 0;
-  padding: 12px;
-  overflow: auto;
-  border-radius: var(--tp-radius-md);
-  background: var(--tp-surface);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-}
 
 .job-violations { display: flex; flex-direction: column; gap: 4px; margin: 0; padding-left: 18px; font-size: 0.8125rem; }
 
