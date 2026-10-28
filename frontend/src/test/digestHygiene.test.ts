@@ -9,9 +9,10 @@ import { describe, expect, it } from 'vitest';
 // SourceView / LogPanel. This test reads the shipped sources (as src/hygiene.test.ts does) and fails on a literal of that shape, or on a
 // use of `shortDigest` / `digestPrefix`, outside that allowed set.
 //
-// PENDING_CLEANUP is a ceiling, not a target: the pages and components that still offend today. The follow-up change (after M2.6)
-// empties it. Entries are only ever removed, never added; an entry that no longer offends is not an error (parallel changes may clean
-// some), but a path that no longer exists must be removed.
+// PENDING_CLEANUP lists the pages and components that still offend today; reviewers keep it shrinking (see
+// design.md section 5; nothing asserts its size). The follow-up change (after M2.6) empties it. An entry that no longer offends is not an error (parallel changes
+// may clean some), but a path that no longer exists must be removed.
+// Known limits: short digests, digests built from a template, offences inside pending files and runtime data are not detected.
 
 const files = import.meta.glob(['/src/**/*.{ts,tsx,css}', '!/src/**/*.test.*'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
@@ -26,7 +27,50 @@ const shipped = [...Object.entries(files).filter(([path]) => !path.endsWith('.cs
 
 const ALLOWED = /\/src\/(components\/CitationPanel\/|components\/VerifyResult\/|components\/rendering\/(SourceView|LogPanel)|utils\/(digest|uuid|canonicalDigest|citation)|api\/|test\/)|[Ff]ixtures?\.ts$/;
 
-const DIGEST_LITERAL = /sha256-[0-9a-fA-F]{8,}|(?<![0-9a-fA-F])(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})(?![0-9a-fA-F])/;
+// Every shipped file the ALLOWED pattern exempts; a new exempt-named file needs an edit here.
+const EXEMPT_FILES: readonly string[] = [
+  '/src/api/auth.ts',
+  '/src/api/cases.ts',
+  '/src/api/client.ts',
+  '/src/api/generator.ts',
+  '/src/api/health.ts',
+  '/src/api/jobs.ts',
+  '/src/api/library.ts',
+  '/src/api/limitNotice.ts',
+  '/src/api/platform.ts',
+  '/src/api/problem.ts',
+  '/src/api/workbench.ts',
+  '/src/components/CitationPanel/CitationPanel.css',
+  '/src/components/CitationPanel/CitationPanel.tsx',
+  '/src/components/CitationPanel/citationModel.ts',
+  '/src/components/CitationPanel/index.ts',
+  '/src/components/VerifyResult/VerifyResult.css',
+  '/src/components/VerifyResult/VerifyResult.tsx',
+  '/src/components/VerifyResult/index.ts',
+  '/src/components/VerifyResult/verifyModel.ts',
+  '/src/components/rendering/LogPanel.css',
+  '/src/components/rendering/LogPanel.tsx',
+  '/src/components/rendering/SourceView.css',
+  '/src/components/rendering/SourceView.tsx',
+  '/src/components/rendering/runResultFixtures.ts',
+  '/src/pages/Cases/fixtures.ts',
+  '/src/pages/Organization/auditFixture.ts',
+  '/src/pages/Pricing/pricingFixture.ts',
+  '/src/pages/Project/packageFixture.ts',
+  '/src/test/fixtures/admin.ts',
+  '/src/test/fixtures/engines.ts',
+  '/src/test/fixtures/jobs.ts',
+  '/src/test/fixtures/reports.ts',
+  '/src/test/fixtures/resources.ts',
+  '/src/test/fixtures/studies.ts',
+  '/src/test/rawRenderingAllowList.ts',
+  '/src/utils/canonicalDigest.ts',
+  '/src/utils/citation.ts',
+  '/src/utils/digest.ts',
+  '/src/utils/uuid.ts',
+];
+
+const DIGEST_LITERAL =/sha256-[0-9a-fA-F]{8,}|(?<![0-9a-fA-F])(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})(?![0-9a-fA-F])/;
 const UUID_LITERAL = /(?<![0-9a-fA-F])[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?![0-9a-fA-F])/;
 const SHORTENER = /\b(?:shortDigest|digestPrefix)\b/;
 
@@ -101,6 +145,16 @@ describe('names, not digests: no digest-shaped string or UUID outside the places
     expect(checked.length).toBeGreaterThan(50);
   });
 
+  it('reads the stylesheets from disk with their content', () => {
+    expect(stylesheets.length).toBeGreaterThan(0);
+    const citation = stylesheets.find(([path]) => path === '/src/components/CitationPanel/CitationPanel.css');
+    expect(citation?.[1].trim().length).toBeGreaterThan(0);
+  });
+
+  it('exempts exactly the files of the explicit allowed list', () => {
+    expect(shipped.map(([path]) => path).filter((path) => ALLOWED.test(path)).sort()).toEqual([...EXEMPT_FILES].sort());
+  });
+
   it('carries no digest-shaped literal or UUID outside the allowed set', () => {
     expect(grep(DIGEST_LITERAL)).toEqual([]);
     expect(grep(UUID_LITERAL)).toEqual([]);
@@ -117,6 +171,14 @@ describe('names, not digests: no digest-shaped string or UUID outside the places
 
   it('keeps no allowed-set path in PENDING_CLEANUP', () => {
     expect(PENDING_CLEANUP.filter((path) => ALLOWED.test(path))).toEqual([]);
+  });
+});
+
+describe('the scan pipeline', () => {
+  it('reports a match as path:line  text', () => {
+    const entries: Array<[string, string]> = [['/src/x/Foo.ts', 'const a = 1;\n  const b = shortDigest(x);  \n']];
+    expect(grep(SHORTENER, entries)).toEqual(['/src/x/Foo.ts:2  const b = shortDigest(x);']);
+    expect(grep(DIGEST_LITERAL, entries)).toEqual([]);
   });
 });
 
