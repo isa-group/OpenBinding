@@ -45,12 +45,14 @@ them. Image variables, also required: the nine `*_IMAGE` names of the table.
 Every service has `mem_limit`, `cpus`, `no-new-privileges` and rotated `json-file` logs; every service except
 `migrate` has a health check and `restart: unless-stopped`.
 
-`nginx` resolves the address of `gateway` once, when it starts, so it would keep the old address after the gateway is
-recreated. `nginx` therefore depends on `gateway` with `restart: true` (Compose 2.17 or newer): Compose restarts it
-when it recreates the gateway. A command that recreates only the gateway may not trigger it, so every step below that
-recreates the gateway is followed by `$DC restart nginx`. The workers wait for a healthy `gateway` but do not restart
-with it: they have no gateway address, and a restart would only cut running jobs. `restart: true` does not follow a
-restart by the Docker daemon (a crash or an out-of-memory kill of the gateway): see
+`nginx` resolves `gateway` at request time (Docker's resolver, cached for 10 seconds), so it follows the new gateway
+address within about 10 seconds after the gateway is recreated or restarted by the Docker daemon. `nginx` also depends
+on `gateway` with `restart: true` (Compose 2.17 or newer): Compose restarts it when it recreates the gateway. A command
+that recreates only the gateway may not trigger it, so every step below that recreates the gateway is followed by
+`$DC restart nginx`; this is a precaution, not needed for an address change (a restart applies new certificates, which
+are bind-mounted; a changed `nginx.conf` is built into the image and needs a new `NGINX_IMAGE` and `$DC up -d`). The
+workers wait for a healthy `gateway` but do not restart with it: they have no gateway address, and a restart would only
+cut running jobs. For a transient `502` after a gateway restart see
 [502 after a gateway restart](#502-after-a-gateway-restart).
 
 ### Images
@@ -345,6 +347,164 @@ preflight && echo "pre-flight passed"
 Read the `ls -ln` output: the secrets directory is mode 0700 root with the files of the
 [layout](#secrets-directory), and `NGINX_SSL_DIR` is mode 0750 root with `privkey.pem` at 0600 root.
 
+Before the first deployment of a release that carries the request-time resolver of `nginx`, also run the
+[nginx check](#nginx-check-before-the-first-deployment-of-this-configuration).
+
+### Nginx check before the first deployment of this configuration
+
+The request-time resolver of `nginx/production/nginx.conf` (it follows a new `gateway` address without a restart and
+answers `502` when no `gateway` exists) and its stripping of `/api` from the raw request URI (a `map` on
+`$request_uri`) were verified by static tests and by review only, never in a real `nginx`: the laboratory brings up only
+tracked Compose files and could not run this procedure. This is an evidence limitation, not a waived gate. Run steps 1
+to 7 once on a machine with Docker, from the root of the release checkout, before the first deployment of this `nginx`
+configuration; they use a stand-in for the gateway. Step 8 needs the real gateway, so run it after the first deployment
+of the release. Use the `server_name` of the first `listen 443 ssl` server of `nginx.conf` (the one with
+`location ^~ /api/`) for `<name>`; the other server names answer `301`. Use any small image with Python for
+`<python image>`; `<tls dir>` is an empty directory for a self-signed certificate.
+
+1. Build the image from the root of the release checkout:
+
+   ```bash
+   docker build -t nginx-check nginx/production
+   ```
+
+2. `nginx -t` passes with a self-signed certificate mounted at `/etc/nginx/ssl`:
+
+   ```bash
+   openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=check \
+     -keyout <tls dir>/privkey.pem -out <tls dir>/fullchain.pem
+   docker run --rm -v <tls dir>:/etc/nginx/ssl:ro nginx-check nginx -t
+   ```
+
+3. On a throwaway network, start a stand-in gateway under the alias `gateway`, which logs every request line, and start
+   the image next to it:
+
+   ```bash
+   docker network create --subnet 172.29.77.0/24 nginx-check
+   docker run -d --name gw1 --network nginx-check --ip 172.29.77.10 --network-alias gateway <python image> python -m http.server 8000
+   docker run -d --name nginx-under-check --network nginx-check -p 127.0.0.1:8443:443 \
+     -v <tls dir>:/etc/nginx/ssl:ro nginx-check
+   ```
+
+   The fixed subnet and the fixed address of `gw1` make step 6 deterministic. If `docker network create` reports that
+   the subnet overlaps an existing Docker network, pick another unused /24 and keep the host parts `.10` and `.11`
+   in this step and in step 6.
+
+4. The raw request URI arrives without the `/api` prefix. `docker logs gw1` shows `GET /v1/x%2Fy?a=1&b=%20`:
+
+   ```bash
+   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/x%2Fy?a=1&b=%20"
+   ```
+
+5. `/%61pi/x` answers `400`; `/api/v1/jobs?limit=5` arrives as `GET /v1/jobs?limit=5`; `/static/a%20b.css` and
+   `/avatars/u1.png?v=2` arrive unchanged, as `GET /static/a%20b.css` and `GET /avatars/u1.png?v=2`; and with
+   `--path-as-is`, `/api//v1/jobs` and `/api/v1/x/../jobs` arrive as `//v1/jobs` and `/v1/x/../jobs`:
+
+   ```bash
+   curl -sk -o /dev/null -w '%{http_code}\n' --resolve <name>:8443:127.0.0.1 "https://<name>:8443/%61pi/x"
+   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/jobs?limit=5"
+   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/static/a%20b.css"
+   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/avatars/u1.png?v=2"
+   curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api//v1/jobs"
+   curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/x/../jobs"
+   docker logs gw1
+   ```
+
+6. Replace the stand-in with a new container under the same alias and another address, wait 11 s, and request
+   `/api/health`. The map strips only `/api`, so the request line `GET /health` appears in `docker logs gw2` and the
+   answer is not `502`, with no restart of `nginx`. The two addresses differ by construction (`gw1` has `.10`, `gw2`
+   has `.11`); the two `docker inspect` lines show them:
+
+   ```bash
+   docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gw1
+   docker rm -f gw1
+   docker run -d --name gw2 --network nginx-check --ip 172.29.77.11 --network-alias gateway <python image> python -m http.server 8000
+   docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gw2
+   sleep 11
+   curl -sk -o /dev/null -w '%{http_code}\n' --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/health"
+   docker logs gw2
+   ```
+
+7. Remove the stand-in so that no container has the alias `gateway`, and wait 11 s. `/api/health` answers `502` within
+   about 5 s (`resolver_timeout 5s`) and never `200`:
+
+   ```bash
+   docker rm -f gw2
+   sleep 11
+   curl -sk -o /dev/null -w '%{http_code} %{time_total}\n' --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/health"
+   ```
+
+If a host exists whose DNS can answer the bare name `gateway` (a search domain or a local record), repeat step 7 there,
+because Docker's embedded DNS forwards names it does not know to the host's resolvers; the answer must still be `502`.
+
+After step 7, remove what steps 1 to 7 created. The `docker rm -f` of `gw1` and `gw2` prints `no such container` when
+step 6 or 7 already removed them; that is expected:
+
+```bash
+docker rm -f nginx-under-check gw1 gw2
+docker network rm nginx-check
+docker rmi nginx-check
+rm -r <tls dir>
+```
+
+8. After the first deployment of the release, when the real gateway runs, check what the stand-in could not show. Use
+   the public origin for `<origin>` and the Compose network of the stack (see `docker network ls`) for `<network>`.
+   - Request `/api/v1/examples/library/manifest.json` and `/api/v1/examples/library%2FREADME.md` through the origin,
+     and the same two paths directly to the gateway from a container on the Compose network. The `nginx` image of this
+     repository is not relied on as a client; a Python image makes the request and does not normalise the path.
+     Compare the status and the body of each pair; they must be equal:
+
+     ```bash
+     curl -sS -w '\n%{http_code}\n' "<origin>/api/v1/examples/library/manifest.json"
+     curl -sS -w '\n%{http_code}\n' "<origin>/api/v1/examples/library%2FREADME.md"
+     docker run --rm --network <network> <python image> python -c \
+       "import http.client,sys; c=http.client.HTTPConnection('gateway',8000); c.request('GET',sys.argv[1]); r=c.getresponse(); print(r.read().decode()); print(r.status)" \
+       /v1/examples/library/manifest.json
+     docker run --rm --network <network> <python image> python -c \
+       "import http.client,sys; c=http.client.HTTPConnection('gateway',8000); c.request('GET',sys.argv[1]); r=c.getresponse(); print(r.read().decode()); print(r.status)" \
+       /v1/examples/library%2FREADME.md
+     ```
+
+   - Through the origin, with `curl --path-as-is`, request `/api//v1/jobs` and `/api/v1/x/../jobs`, which reach the
+     gateway as `//v1/jobs` and `/v1/x/../jobs`. Record the status and body of both in the deployment notes; they
+     document how the real gateway answers the raw form:
+
+     ```bash
+     curl -sS --path-as-is -w '\n%{http_code}\n' "<origin>/api//v1/jobs"
+     curl -sS --path-as-is -w '\n%{http_code}\n' "<origin>/api/v1/x/../jobs"
+     ```
+
+   - Restart only the gateway container, as the daemon does in the case of the section
+     [502 after a gateway restart](#502-after-a-gateway-restart), and do not restart `nginx`. Note the start time of
+     `nginx` first and compare it afterwards; it must not change. Restart the gateway by its id, wait until its health
+     status is `healthy` (the first probe runs after one 10 s interval, with a `start_period` of 30 s in `compose.yaml`, so the wait is at
+     least about 10 s), and
+     only then request `/api/health/ready`: it must answer `200` through `nginx` within 10 s of the gateway becoming
+     healthy, which the retries of `curl` (10 tries, 1 s apart) bound at about 10 s. The printed code and time are the
+     result. If the gateway is not healthy after 2 minutes, stop the loop with Ctrl-C; that is a failure of the step.
+     The Compose commands of [Pull and start](#pull-and-start) recreate the gateway together with `nginx`
+     (`restart: true`), so they do not prove this and are not used here. The filters limit the lookups to the Compose
+     project. If the guard line prints `stop: gateway or nginx not found`, do not run the lines after it; find the
+     containers first:
+
+     ```bash
+     gw=$(docker ps -q --filter label=com.docker.compose.project=openbinding-production --filter label=com.docker.compose.service=gateway)
+     nx=$(docker ps -q --filter label=com.docker.compose.project=openbinding-production --filter label=com.docker.compose.service=nginx)
+     [ -n "$gw" ] && [ -n "$nx" ] || { echo "stop: gateway or nginx not found" >&2; }
+     docker inspect -f '{{.State.StartedAt}}' "$nx"
+     docker restart "$gw"
+     until [ "$(docker inspect -f '{{.State.Health.Status}}' "$gw")" = healthy ]; do sleep 1; done
+     curl -sS -o /dev/null -w '%{http_code} %{time_total}\n' --retry 10 --retry-delay 1 --retry-all-errors "<origin>/api/health/ready"
+     docker inspect -f '{{.State.StartedAt}}' "$nx"
+     ```
+
+   Step 8 needs no cleanup beyond what it states: it creates nothing except the throwaway Python containers, which
+   `--rm` removes.
+
+Record the date, the image and the result of every step in the deployment notes. A failure of any step is a stop: do
+not deploy this `nginx` image (for step 8, which runs after the first deployment, roll back as in the section on
+rollback), and tell the maintainers.
+
 ### Pull and start
 
 Take a database dump first when the release added a migration, that is when
@@ -377,8 +537,9 @@ $DC restart nginx
 ```
 
 Compose recreates only the services whose image or configuration changed; `migrate` runs again and applies the new
-revisions before `gateway` starts. `nginx` is restarted with the gateway (`restart: true`); the explicit restart makes
-sure of it.
+revisions before `gateway` starts. `nginx` is restarted with the gateway (`restart: true`); the explicit restart is a
+precaution (it applies new certificates; a changed `nginx.conf` needs a new `NGINX_IMAGE`, which `$DC up -d` applies),
+not needed for a new gateway address.
 
 ## Verification
 
@@ -409,20 +570,24 @@ sure of it.
 
 ### 502 after a gateway restart
 
-`nginx` resolves the address of `gateway` once, when it starts. `restart: true` makes Compose restart it when Compose
-recreates the gateway, but not when the Docker daemon restarts the gateway by its restart policy (a crash or an
-out-of-memory kill). The gateway then has a new address, `nginx` still uses the old one, and the public origin answers
-`502 Bad Gateway` while `$DC ps` shows every service healthy. Restart `nginx`:
+`nginx` resolves `gateway` at request time through Docker's resolver (`valid=10s`), so it follows the new address
+within about 10 seconds after the gateway is recreated or restarted by the Docker daemon (a crash or an out-of-memory
+kill). During that window, plus the start time of the gateway, the public origin may answer `502 Bad Gateway`; this is
+transient and needs no action on `nginx`. Wait and check:
 
 ```bash
 $DC ps gateway                     # when it started: a recent start time points to a restart by the daemon
-$DC restart nginx
 curl -fsS "$PUBLIC_ORIGIN/api/health/ready"
 ```
 
-Look for the cause of the gateway restart in `$DC logs --tail 100 gateway` and in `docker inspect --format
-'{{.State.OOMKilled}}' $($DC ps -q gateway)` before closing the incident. Making `nginx` resolve the name on every
-request is a follow-up (F9 in the tasks of the change `m09-compose-only`).
+If the `502` lasts, read first: `$DC ps gateway`, `$DC logs --tail 100 gateway` and `$DC logs --tail 100 nginx` (look
+for `could not be resolved`). If the gateway is not healthy, the `502` persists because of the gateway: read `$DC ps`
+and the gateway logs, and look at `docker inspect --format '{{.State.OOMKilled}}' $($DC ps -q gateway)` before closing
+the incident. If `$DC ps gateway` shows the gateway healthy and the `502` still lasts more than 10 seconds, treat it as
+a new incident and restart `nginx` (`$DC restart nginx`) only after the logs. Restarting `nginx` is not required for an
+address change; it interrupts the synchronous solves in progress (up to 1860 seconds) and can hide a resolver fault,
+which is why the logs come first. A restart applies new certificates; a changed `nginx.conf` needs a new
+`NGINX_IMAGE` and `$DC up -d`.
 
 ## Backups
 
@@ -591,7 +756,8 @@ expand then contract, so that the first case is rare (see the release rules).
 The files are owned by uid 70 or 10001, so every command uses `sudo` (`put_secret` of the
 [secrets directory](#secrets-directory) does). Keep mode 0400, then recreate the services that read the file
 (`$DC up -d --force-recreate <service>`): Compose does not detect a changed secret file. After recreating the gateway,
-restart `nginx`, which resolves the gateway address once. `put_secret` keeps the previous file as `<name>.prev`; when the
+restart `nginx` (a precaution: `nginx` follows the new gateway address within about 10 seconds on its own).
+`put_secret` keeps the previous file as `<name>.prev`; when the
 [verification](#verification) passes, delete the previous files, and if it fails move the `.prev` file back and
 recreate again (the PostgreSQL password has a step of its own, below). The directory is root's (mode 0700), so the
 glob is expanded by a root shell:
@@ -754,10 +920,6 @@ host a SPACE in production.
   `user` and `cap_drop` there depends on the writable paths and ports of each image, and cannot be verified without
   Docker, so it is a follow-up (F7 in the tasks of the change `m09-compose-only`), to be rendered and tested on a
   host with Docker.
-- **Nginx resolves the gateway once.** After a restart of the gateway by the Docker daemon, `nginx` must be restarted
-  by hand ([502 after a gateway restart](#502-after-a-gateway-restart)). Resolving the name on every request is a
-  follow-up (F9 in the tasks of the change `m09-compose-only`) that needs the image configuration and a host with
-  Docker to test.
 - **CI compose-config job.** The job that runs `docker compose config` for development, lab and production is written
   but cannot be pushed until a token with Workflows: write exists (CRP-3). Until then, run the
   [render check](#render-check) by hand.
