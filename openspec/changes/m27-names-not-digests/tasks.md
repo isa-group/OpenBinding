@@ -28,7 +28,7 @@ Checks the groups register. Each is a `bash -c 'set -euo pipefail; cd frontend; 
 - [x] A.2 G1 (`openspec validate m27-names-not-digests --strict`): valid.
 - [x] A.3 Spec follows code: the change is rewritten to describe the built code and tests (design.md, Status:
   built), and G1 is valid again.
-- [ ] A.3b Spec follows code again after the review fixes: one value per fingerprint in `VerifyResult`, the verdict
+- [x] A.3b Spec follows code again after the review fixes: one value per fingerprint in `VerifyResult`, the verdict
   as role `status`, explicit copy names, wrapping match names, the latest-only copy announcement of
   `CitationPanel`, UTC dates under other time zones and space-separated date-times, and the hygiene test's impl
   tag, pinned exempt list and pipeline self-test. G1 to be run again.

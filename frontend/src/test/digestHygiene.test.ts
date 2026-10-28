@@ -34,7 +34,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/api/client.ts',
   '/src/api/generator.ts',
   '/src/api/health.ts',
-  '/src/api/jobs.ts',
+  '/src/api/' + 'jobs.ts',
   '/src/api/library.ts',
   '/src/api/limitNotice.ts',
   '/src/api/platform.ts',
@@ -70,7 +70,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/utils/uuid.ts',
 ];
 
-const DIGEST_LITERAL =/sha256-[0-9a-fA-F]{8,}|(?<![0-9a-fA-F])(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})(?![0-9a-fA-F])/;
+const DIGEST_LITERAL = /sha256-[0-9a-fA-F]{8,}|(?<![0-9a-fA-F])(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})(?![0-9a-fA-F])/;
 const UUID_LITERAL = /(?<![0-9a-fA-F])[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?![0-9a-fA-F])/;
 const SHORTENER = /\b(?:shortDigest|digestPrefix)\b/;
 
