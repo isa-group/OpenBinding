@@ -100,6 +100,15 @@ def test_job_failures_are_classified_by_code_never_by_message_text() -> None:
     assert _normalized_result({"status": "failed", "result": {"error": text}}, 5)["status"] == "ERROR"
 
 
+def test_failed_jobs_without_the_incompatible_code_are_errors_even_without_error_text() -> None:
+    silent = _normalized_result({"status": "failed", "result": {"code": "engine_rejected", "termination": "UNKNOWN", "solutions": []}}, 5)
+    assert silent["status"] == "ERROR"
+    assert silent["error"] == "gateway job failed"
+    assert _normalized_result({"status": "failed", "result": {"termination": "OPTIMAL", "solutions": []}}, 5)["status"] == "ERROR"
+    completed = _normalized_result({"status": "completed", "result": {"code": "engine_incompatible", "error": "x"}}, 5)
+    assert completed["status"] != "INCOMPATIBLE"
+
+
 def _submit(status_code: int, body: dict) -> dict:
     import asyncio
 
@@ -120,13 +129,41 @@ def _submit(status_code: int, body: dict) -> dict:
     return asyncio.run(run())
 
 
+def problem(status: int, code: str, detail: str, diagnostics: list | None = None) -> dict:
+    """An RFC 7807 problem document shaped like the gateway's `problem_body`."""
+    body: dict = {"type": f"https://openbinding.example/problems/{code}", "title": code, "status": status, "code": code, "detail": detail}
+    if diagnostics is not None:
+        body["diagnostics"] = diagnostics
+    return body
+
+
 def test_submission_refusals_are_classified_by_code() -> None:
+    diagnostics = [{"code": "unsupported_feature", "message": "MiniZinc does not support X"}, {"code": "other", "message": "y"}]
+    refused = _submit(422, problem(422, "engine_mode_incompatible", "engine cannot run this snapshot", diagnostics))
+    assert refused["status"] == "INCOMPATIBLE"
+    assert refused["diagnostics"] == diagnostics
+    no_list = _submit(422, problem(422, "engine_mode_incompatible", "engine cannot run this snapshot"))
+    assert no_list["status"] == "INCOMPATIBLE"
+    assert no_list["diagnostics"] == [{"code": "engine_mode_incompatible", "message": "engine cannot run this snapshot"}]
+    assert _submit(422, problem(422, "validation_error", "bad"))["status"] == "ERROR"
+    assert _submit(400, problem(400, "invalid_option", "bad"))["status"] == "ERROR"
+    assert _submit(400, problem(400, "engine_mode_incompatible", "x"))["status"] == "ERROR"
+    by_text = _submit(422, problem(422, "validation_error", OLD_PREFIX + ": MiniZinc does not support X"))
+    assert by_text["status"] == "ERROR"
+
+
+def test_submission_refusal_tolerates_a_non_list_diagnostics_field() -> None:
+    refused = _submit(422, problem(422, "engine_mode_incompatible", "refused", "not a list"))  # type: ignore[arg-type]
+    assert refused["status"] == "INCOMPATIBLE"
+    assert refused["diagnostics"] == [{"code": "engine_mode_incompatible", "message": "refused"}]
+    assert _submit(422, problem(422, "validation_error", "bad", {"code": "x"}))["status"] == "ERROR"  # type: ignore[arg-type]
+
+
+def test_submission_refusal_keeps_the_legacy_detail_dict_shape() -> None:
     refused = _submit(422, {"detail": {"code": "engine_mode_incompatible", "message": "not supported"}})
     assert refused["status"] == "INCOMPATIBLE"
     assert refused["diagnostics"] == [{"code": "engine_mode_incompatible", "message": "not supported"}]
     assert _submit(422, {"detail": {"code": "validation_error", "message": "bad"}})["status"] == "ERROR"
-    assert _submit(400, {"detail": {"code": "invalid_option", "message": "bad"}})["status"] == "ERROR"
-    assert _submit(400, {"detail": {"code": "engine_mode_incompatible", "message": "x"}})["status"] == "ERROR"
 
 
 def test_reasons_are_classified() -> None:

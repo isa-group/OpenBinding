@@ -106,8 +106,9 @@ def _normalized_result(data: dict[str, Any], wall_ms: float) -> dict[str, Any]:
     result = data.get("result") or {}
     # Classified by the job's failure code. Until the gateway emits `engine_incompatible`, capability refusals
     # carry `engine_rejected` and are recorded ERROR (which stops the campaign like any unclassified error).
-    incompatible = data.get("status") == "failed" and result.get("code") == "engine_incompatible"
-    if data.get("status") == "failed" and (not result or incompatible):
+    failed = data.get("status") == "failed"
+    incompatible = failed and result.get("code") == "engine_incompatible"
+    if failed:
         error = result.get("error") or data.get("error") or "gateway job failed"
         status = "INCOMPATIBLE" if incompatible else "ERROR"
         return {"status": status, "runtime_ms": 0.0, "wall_ms": round(wall_ms, 3), "overhead_ms": round(wall_ms, 3), "binding": None, "features": None, "objectives": {}, "quality": None, "violations": [], "provenance": {}, "trace": [], "trace_kind": None, "engine_evaluations": None, "error": error, "diagnostics": [{"code": "engine_incompatible", "message": error}] if incompatible else []}
@@ -290,13 +291,26 @@ class Gateway:
             diagnostics: list[dict[str, Any]] = []
             try:
                 body = response.json()
-                detail = body.get("detail") if isinstance(body, dict) else None
-                if isinstance(detail, dict):
-                    if response.status_code == 422 and detail.get("code") == "engine_mode_incompatible":
+                if isinstance(body, dict):
+                    # RFC 7807 problem document: `code` and `diagnostics` at the top level, `detail` a sentence.
+                    # A `detail` object (older shape) is read as a fallback.
+                    code = body.get("code")
+                    detail = body.get("detail")
+                    message = None
+                    listed = body.get("diagnostics")
+                    if isinstance(detail, dict):
+                        code = code or detail.get("code")
+                        message = detail.get("message")
+                        if not isinstance(listed, list):
+                            listed = detail.get("diagnostics")
+                    elif isinstance(detail, str):
+                        message = detail
+                    if response.status_code == 422 and code == "engine_mode_incompatible":
                         status = "INCOMPATIBLE"
-                    diagnostics = list(detail.get("diagnostics") or [])
-                    if not diagnostics and detail.get("message"):
-                        diagnostics = [{"code": detail.get("code"), "message": detail.get("message")}]
+                    if isinstance(listed, list) and listed:
+                        diagnostics = list(listed)
+                    elif message:
+                        diagnostics = [{"code": code, "message": message}]
             except ValueError:
                 pass
             return {"status": status, "runtime_ms": 0.0, "wall_ms": 0.0, "overhead_ms": 0.0, "mode": mode, "engine_ref": selected["engine"], "registration_ref": selected["registration"], "error": response.text[:500], "diagnostics": diagnostics, "trace": []}

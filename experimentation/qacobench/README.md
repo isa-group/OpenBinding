@@ -37,7 +37,7 @@ The gateway registry keeps every engine revision it has seen, keyed by (namespac
 * `--concurrency n` — packages in flight at once; `n > 1` shortens the campaign but adds CPU contention to the runtime measurements, so the reference campaign uses 1.
 * `--engines`, `--suite`, `--package`, `--sample`, `--source-only` — subsets, as before.
 
-Every record carries `termination_reason` (`proof`, `evaluation_budget`, `time_budget`, `incompatible`) and the effective `engine_options`. The heuristic engines run with their declared defaults inside the 5,000 ms budget: random-search 1,000 evaluations, evolutionary-heuristics population 100 and 10,000 evaluations; the budget is recorded in the run manifest (`engine_budgets`) and reported with the results, so that "time budget" and "evaluation budget" terminations are never conflated. Capability rejections that carry the `engine_incompatible` or `engine_mode_incompatible` code are recorded as `INCOMPATIBLE` with the engine's 422 diagnostics (`diagnostics`).
+Every record carries `termination_reason` (`proof`, `evaluation_budget`, `time_budget`, `incompatible`) and the effective `engine_options`. The heuristic engines run with their declared defaults inside the 5,000 ms budget: random-search 1,000 evaluations, evolutionary-heuristics population 100 and 10,000 evaluations; the budget is recorded in the run manifest (`engine_budgets`) and reported with the results, so that "time budget" and "evaluation budget" terminations are never conflated. A submission refused with the `engine_mode_incompatible` code keeps the gateway's diagnostics; a job-level `engine_incompatible` carries the gateway's catalog sentence as its single diagnostic. Both are recorded as `INCOMPATIBLE`.
 
 ## QFBS design
 
