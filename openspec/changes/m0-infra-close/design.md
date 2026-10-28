@@ -69,7 +69,7 @@ proxy_pass $gateway_upstream;                   # /static/ and /avatars/
 
 The `restart: true` of `nginx` on `gateway` stays. `req~lab-deployment-production-health-restart~1` requires it, and
 it still covers the recreations that Compose makes itself. Only the comment that explains it changes
-(`deploy/compose/production/compose.yaml:353-354`, slice S1b). Each recreation of the gateway by Compose therefore
+(`deploy/compose/production/compose.yaml:353-356`, slice S1b). Each recreation of the gateway by Compose therefore
 still restarts nginx, and with it the whole public origin; §6 Q2 asks whether a later revision drops it.
 
 The runbook (S1b) says that nginx follows the gateway address at request time, within the `valid=10s` cache. Its
@@ -247,9 +247,9 @@ F9 in the lab, run by the coordinator on a head with S1 and S1b:
    step there too, because Docker's embedded DNS forwards names it does not know to the host's resolvers. The MRP
    records the status and the time.
 
-If step 7 ever reaches another host, the hardening is a network alias under a reserved suffix, for example
-`gateway.openbinding.invalid` on the gateway service, used in `set $gateway_upstream`, so that no outside resolver
-can answer it.
+The alias is a contingency, not part of the procedure. Apply it only if step 7 shows a fall-through to another host:
+a network alias under a reserved suffix, for example `gateway.openbinding.invalid` on the gateway service, used in
+`set $gateway_upstream`, so that no outside resolver can answer it.
 
 Then the `prod` profile of `docker-compose.yml`: `docker compose --profile prod up -d`, then
 `docker compose up -d --force-recreate --no-deps gateway`. Within 10 s of the gateway becoming healthy,

@@ -6,8 +6,10 @@ that share a file run in order: S1b before S2 and S3 (`docs/runbooks/production.
 `openspec/changes/m09-compose-only/tasks.md`), S1b before S2 (`deploy/compose/production/compose.yaml`,
 `openbinding-gateway/tests/test_compose_production.py`), and S1 before S2 (`README.md`).
 - S0, S1 and S1b are built (owner decision "Full": F5 and F9 close completely in this change). The R1 fix round of
-  the review panel on head 2b89ef9f (section R1 below) is the current work. 1b.6 and 1b.7 stay open until their
-  evidence exists. S2, S3 and S4 are `blocked on <decision>`: they stay unchecked and nobody builds them until the
+  the review panel on head 2b89ef9f (section R1 below) is delivered and integrated (head f628c612). CI ran
+  `test_production_nginx.py` and `test_compose_production.py` green in the gateway-unit shards, and the openspec and
+  trace jobs are green. What stays open has no evidence yet: the ruff check, the lab run 1b.7, S3 and the owner
+  questions. S2, S3 and S4 are `blocked on <decision>`: they stay unchecked and nobody builds them until the
   decision is recorded.
 - Tests are written first, and they run red on the slice's base by assertion (G3), except negative controls, which are
   named, and `test_production_nginx.py`, which follows the S1 code (S1b, item 1b.1).
@@ -52,7 +54,7 @@ Owned:
   does `test_runbook_follow_up_f7_and_the_trace_follow_up_are_recorded_in_the_tasks` (line 2925), which reads `F9`,
   `R2-REV-002` and `resolver` in `m09-compose-only/tasks.md`;
 - `docs/runbooks/production.md`;
-- `deploy/compose/production/compose.yaml`: only the comment at lines 353-354 that says nginx resolves `gateway`
+- `deploy/compose/production/compose.yaml`: only the nginx `depends_on` comment (lines 353-356) that says nginx resolves `gateway`
   once. `restart: true` stays (`req~lab-deployment-production-health-restart~1`);
 - `openspec/changes/m09-compose-only/tasks.md`: the F5 and F9 lines.
 
@@ -72,10 +74,12 @@ No other file changes.
   "harmless" (`test_compose_production.py:2882`, R2-SEC-001). The resolve-once statements (`:48`, `:412`, `:594`),
   the F9 follow-up sentences and the "What stays blocked" bullet on F9 go; the heading "502 after a gateway restart"
   stays (its anchor is linked).
-- [x] 1b.4 The comment of `compose.yaml:353-354`.
+- [x] 1b.4 The nginx `depends_on` comment of `compose.yaml` (lines 353-356).
 - [x] 1b.5 `m09-compose-only/tasks.md`: F5 and F9 checked, each with "done in `m0-infra-close`". Their text keeps
   `F9`, `R2-REV-002` and `resolver`.
 - [ ] 1b.6 Checks 3, 4 and 2. Review panel: reviewer and security-auditor (the public proxy changes).
+  - [x] Check 3: CI on head f628c612 ran both test files green in the gateway-unit shards.
+  - [ ] Check 4 (ruff) has no evidence yet. Check 2 and the panel round 2 are open.
 - [ ] 1b.7 Lab, by the coordinator, before merge: the F9 procedure of design.md §3, with the image built from a head
   with S1, S1b and R1. The MRP records the request lines that the stand-in logged, the gateway's answers to
   `//v1/jobs` and `/v1/x/../jobs`, the 400, the request after the gateway was replaced, and the 502 with its time
@@ -84,20 +88,23 @@ No other file changes.
 ## R1. Fix round 1 of the review panel (head 2b89ef9f)
 
 Owned: this change's documents (R1.1), and, in a parallel task, `nginx/production/nginx.conf`,
-`openbinding-gateway/tests/test_production_nginx.py`, `docs/runbooks/production.md`, the comment of
-`deploy/compose/production/compose.yaml:353-355` and `openspec/changes/m09-compose-only/tasks.md` (R1.2).
+`openbinding-gateway/tests/test_production_nginx.py`, `docs/runbooks/production.md`, the nginx
+`depends_on` comment of `deploy/compose/production/compose.yaml` (lines 353-356) and `openspec/changes/m09-compose-only/tasks.md` (R1.2).
 
 - [x] R1.1 Specification (R1-ARC-001 to R1-ARC-006, R1-REV-003, R1-REV-005, R1-SEC-001, R1-SEC-002): the ADDED
   requirement `req~lab-deployment-production-proxy-upstream~1`; D1 (`resolver_timeout 5s`, the rejected `upstream`
   option reworded, the restart precaution and what a restart applies); D5; D6 (profile choice); the lab step 7 for a
   stopped gateway and its hardening note; R2 corrected; R6; Q1 and Q2; this section. Check 2.
-- [ ] R1.2 Code and docs (parallel task): `resolver_timeout 5s` and
+- [x] R1.2 (delivered; CI on head f628c612: `test_production_nginx.py` and `test_compose_production.py` green in the
+  gateway-unit shards; the ruff check, check 4, has no evidence yet) Code and docs (parallel task): `resolver_timeout 5s` and
   `# [impl->req~lab-deployment-production-proxy-upstream~1]` in `nginx/production/nginx.conf`;
   `[utest->req~lab-deployment-production-proxy-upstream~1]` in `test_production_nginx.py`, which also pins the
   `resolver_timeout 5s;` line of the TLS server and fails on an in-memory copy without it; the runbook checks the
   gateway and nginx logs before `$DC restart nginx` (R1-SEC-003) and says that a changed `nginx.conf` needs a new
   `NGINX_IMAGE` and `$DC up -d` (R1-REV-002); the `compose.yaml` comment and the m09 tasks lines to match. Checks 3,
   4 and 2.
+- [ ] R1.4 Regenerate `frontend/src/content/changelog.generated.json` with `python3 tools/generate_changelog.py`. The
+  file is outside this change's files: it is done only if the coordinator extends the scope.
 - [ ] R1.3 Check 1 (G1), once registered, on the head with R1.1 and R1.2. The trace (G6) shows both tags of the new
   requirement.
 

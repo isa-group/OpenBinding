@@ -49,9 +49,10 @@ Every service has `mem_limit`, `cpus`, `no-new-privileges` and rotated `json-fil
 address within about 10 seconds after the gateway is recreated or restarted by the Docker daemon. `nginx` also depends
 on `gateway` with `restart: true` (Compose 2.17 or newer): Compose restarts it when it recreates the gateway. A command
 that recreates only the gateway may not trigger it, so every step below that recreates the gateway is followed by
-`$DC restart nginx`; this is a precaution, not needed for an address change (a restart applies new certificates, which are bind-mounted; a changed
-`nginx.conf` is built into the image and needs a new `NGINX_IMAGE` and `$DC up -d`). The workers wait for a healthy `gateway` but do not restart with it: they have no
-gateway address, and a restart would only cut running jobs. For a transient `502` after a gateway restart see
+`$DC restart nginx`; this is a precaution, not needed for an address change (a restart applies new certificates, which
+are bind-mounted; a changed `nginx.conf` is built into the image and needs a new `NGINX_IMAGE` and `$DC up -d`). The
+workers wait for a healthy `gateway` but do not restart with it: they have no gateway address, and a restart would only
+cut running jobs. For a transient `502` after a gateway restart see
 [502 after a gateway restart](#502-after-a-gateway-restart).
 
 ### Images
