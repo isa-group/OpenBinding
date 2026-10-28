@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { CASE, PROJECT_PATH, capture, signInByApi, watchPageErrors } from './support';
 
 // This spec starts one real job (random-search, a few iterations) as the owner of lab-main and waits for its result: the engine runs in
@@ -6,7 +6,13 @@ import { CASE, PROJECT_PATH, capture, signInByApi, watchPageErrors } from './sup
 // contract for the users the gateway answers 503 `pricing_unavailable`, the run is not accepted, and this spec fails at "Send run"
 // with that status in its message (see docs/qa/E2E_PLAN.md). Its job is also what visual-qa.spec.ts opens as "a result".
 
-const RESULT = /Best combination found|Solution \d+ of \d+|Why no combination works/;
+// A finished run: the 'Run result' region holding the chosen providers, or the explanation of why no combination works.
+const finishedResult = (page: Page) =>
+  page.getByRole('region', { name: 'Run result' }).filter({
+    has: page
+      .getByRole('region', { name: 'Chosen providers' })
+      .or(page.getByRole('heading', { level: 2, name: 'Why no combination works' })),
+  });
 
 test.describe('live · a random-search job and its result', () => {
   test('the owner launches random-search on simple-seq, follows the run and reads the result', async ({ page }, testInfo) => {
@@ -64,7 +70,7 @@ test.describe('live · a random-search job and its result', () => {
     // The run page: it moves from queued to completed and shows what the engine found.
     await expect(page).toHaveURL(new RegExp(`${PROJECT_PATH}/jobs/[0-9a-f-]+$`));
     await expect(page.getByRole('heading', { level: 1, name: /random-search run/ })).toBeVisible();
-    await expect(page.getByRole('heading', { level: 2, name: RESULT })).toBeVisible({ timeout: 180_000 });
+    await expect(finishedResult(page)).toBeVisible({ timeout: 180_000 });
     await capture(page, testInfo, 'job-result');
     expect(errors).toEqual([]);
   });

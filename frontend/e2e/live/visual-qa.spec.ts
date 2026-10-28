@@ -26,7 +26,13 @@ import { API, CASE, ORG, PROJECT_PATH, RESULTS_DIR, signInByApi } from './suppor
 const MIN_TARGET_PX = 24;
 /** The kind of a finding is what comes before the first colon of its text; this is the one for content a container cuts off. */
 const CLIPPED_KIND = 'clipped content';
-const RESULT_HEADING = /Best combination found|Solution \d+ of \d+|Why no combination works/;
+/** A finished run: the 'Run result' region holding the chosen providers, or the explanation of why no combination works. */
+const finishedResult = (target: Page) =>
+  target.getByRole('region', { name: 'Run result' }).filter({
+    has: target
+      .getByRole('region', { name: 'Chosen providers' })
+      .or(target.getByRole('heading', { level: 2, name: 'Why no combination works' })),
+  });
 /** Chromium logs every 4xx/5xx of a sub-resource as a console error; the answers are counted on their own. */
 const STATUS_LOG = /^Failed to load resource: the server responded with a status of \d{3}/;
 
@@ -290,7 +296,7 @@ test.describe('live · visual QA', () => {
       stops.splice(6, 0, {
         slug: 'job-result',
         path: `${PROJECT_PATH}/jobs/${finished.id}`,
-        ready: (target) => target.getByRole('heading', { level: 2, name: RESULT_HEADING }),
+        ready: (target) => finishedResult(target),
       });
     } else {
       skipped.push({ slug: 'job-result', why: `the owner has no completed job to open (GET /v1/jobs answered ${listed.status()}, ${jobs.length} jobs); run 04-job-random-search first` });
