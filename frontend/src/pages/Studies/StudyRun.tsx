@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { platformApi, type StudyCell } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
@@ -10,10 +9,10 @@ import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import { RefusalNotice } from '../Jobs/parts';
 import { CellTable, RunHeatmap } from './CellViews';
-import { CellBar, StateChip, StudyFrame, StudyGate } from './parts';
-import { StudyScope, type StudyScopeValue } from './StudyScope';
+import { CellBar, StateChip, StudyGate } from './parts';
+import type { StudyScopeValue } from './StudyScope';
 import { loadRun } from './runData';
-import { MAX_GRID_CELLS, RUNTIME, breakdownText, countStates, isActiveState, isRetryable, measureLabel, measuresOf, metricsOf, plural } from './studiesModel';
+import { MAX_GRID_CELLS, RUNTIME, breakdownText, countStates, isActiveState, isRetryable, measureLabel, measuresOf, metricsOf, plural, studyPageHref } from './studiesModel';
 import { studyRefusal, type Refusal } from './studyErrors';
 import { POLL_MS, usePolling } from './usePolling';
 import { useRevisionIndex } from './useRevisionIndex';
@@ -22,12 +21,13 @@ type Outcome =
   | { tone: 'success'; text: string }
   | { tone: 'error'; refusal: Refusal };
 
-function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
+/** The Progress tab of the study page: the study run `runId` with every cell and its state, kept up to date while it runs. */
+// [impl->req~frontend-nav-study-page~1]
+export function RunProgress({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
   const { study, organization, project, access, root } = scope;
   const org = organization.slug;
   const slug = project.slug;
   const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
-  const runPath = `${studyPath}/runs/${runId}`;
   const { index } = useRevisionIndex(org, slug);
   const resource = useResource(`run:${study.id}/${runId}`, () => loadRun(org, slug, study.slug, runId));
   const [auto, setAuto] = useState(true);
@@ -45,35 +45,23 @@ function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
     const problem = classifyAuthError(resource.error);
     if (problem.status === 403) {
       return (
-        <StudyFrame organization={organization} project={project} trail={[{ label: 'Studies', to: `${root}/studies` }, { label: study.name, to: studyPath }, { label: 'Run' }]}>
-          <Notice tone="warning" title={`This API key can’t show this run${marker(problem)}`}>
-            {problem.message || 'The key isn’t allowed to use one of the engines this run pinned.'} Use a browser session, or a key whose engine access includes every engine of the study.
-          </Notice>
-        </StudyFrame>
+        <Notice tone="warning" title={`This API key can’t show this run${marker(problem)}`}>
+          {problem.message || 'The key isn’t allowed to use one of the engines this run pinned.'} Use a browser session, or a key whose engine access includes every engine of the study.
+        </Notice>
       );
     }
     if (problem.status === 404) {
       return (
-        <StudyFrame organization={organization} project={project} trail={[{ label: 'Studies', to: `${root}/studies` }, { label: study.name, to: studyPath }, { label: 'Run' }]} width="lg">
-          <StudyGate title="Run not found" action={<Action to={studyPath} variant="primary">Back to the study</Action>}>
-            This run doesn’t exist (404), or it isn’t one of {study.name}’s runs.
-          </StudyGate>
-        </StudyFrame>
+        <StudyGate title="Run not found" action={<Action to={studyPath} variant="primary">Back to the study</Action>}>
+          This run doesn’t exist (404), or it isn’t one of {study.name}’s runs.
+        </StudyGate>
       );
     }
-    return (
-      <StudyFrame organization={organization} project={project} trail={[{ label: 'Studies', to: `${root}/studies` }, { label: study.name, to: studyPath }, { label: 'Run' }]}>
-        <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={reload}>Retry</Action>}>The run couldn’t be loaded{marker(problem)}.</Notice>
-      </StudyFrame>
-    );
+    return <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={reload}>Retry</Action>}>The run couldn’t be loaded{marker(problem)}.</Notice>;
   }
 
   if (!data) {
-    return (
-      <StudyFrame organization={organization} project={project} trail={[{ label: 'Studies', to: `${root}/studies` }, { label: study.name, to: studyPath }, { label: 'Run' }]}>
-        <div role="status" aria-busy="true"><span className="sr-only">Loading the run…</span><Skeleton variant="panel" /></div>
-      </StudyFrame>
-    );
+    return <div role="status" aria-busy="true"><span className="sr-only">Loading the run…</span><Skeleton variant="panel" /></div>;
   }
 
   const { run, cells } = data;
@@ -133,12 +121,14 @@ function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
     }
   };
 
+  const cellHref = (cellId: string) => studyPageHref(studyPath, 'results', { run: runId, cell: cellId });
+
   return (
-    <StudyFrame organization={organization} project={project} trail={[{ label: 'Studies', to: `${root}/studies` }, { label: study.name, to: studyPath }, { label: `Run #${run.run_number}` }]}>
+    <>
       <header className="proj-title-row">
         <div className="proj-title">
           <div className="proj-title-line">
-            <h1>Run #{run.run_number}</h1>
+            <h2>Run #{run.run_number}</h2>
             <StateChip state={run.state} />
           </div>
           <p>
@@ -147,7 +137,7 @@ function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
         </div>
         {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
         <div className="proj-actions">
-          <Action to={`${runPath}/analytics`} variant="primary">Compare results</Action>
+          <Action to={studyPageHref(studyPath, 'results', { run: runId })} variant="primary">Compare results</Action>
           {access.canCreate && isActiveState(run.state) && (
             <Action variant="danger-outline" busy={busy === 'cancel'} disabled={busy !== null} onClick={() => void cancel()}>Cancel run</Action>
           )}
@@ -197,7 +187,7 @@ function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
                   </label>
                 )}
               </div>
-              <RunHeatmap cells={cells} measure={measure} where={{ runPath, index }} />
+              <RunHeatmap cells={cells} measure={measure} where={{ cellHref, index }} />
               <span className="st-scale">Better <span className="st-scale-bar" aria-hidden="true" /> Worse</span>
               <small className="org-muted">{breakdownText(cells)}. Each square opens its cell.</small>
             </section>
@@ -205,15 +195,9 @@ function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
             <Notice tone="info">This run has {cells.length.toLocaleString('en-US')} cells, too many to draw as squares. The table below lists them all, a page at a time.</Notice>
           )}
 
-          <CellTable cells={cells} where={{ runPath, index }} canRetry={access.canCreate} retrying={retrying} onRetry={(cell) => void retryOne(cell)} />
+          <CellTable cells={cells} where={{ cellHref, index }} canRetry={access.canCreate} retrying={retrying} onRetry={(cell) => void retryOne(cell)} />
         </>
       )}
-    </StudyFrame>
+    </>
   );
-}
-
-/** One execution of a study (`study-run`, `/app/:org/:project/studies/:study/runs/:run`): every cell with its state, kept up to date while it runs. */
-export function StudyRun() {
-  const { run = '' } = useParams();
-  return <StudyScope>{(scope) => <RunBody key={`${scope.study.id}/${run}`} scope={scope} runId={run} />}</StudyScope>;
 }

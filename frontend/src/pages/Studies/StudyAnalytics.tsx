@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { platformApi, type BindingSpaceAnalytics, type StudyCell } from '../../api/platform';
 import { BindingAnalysis } from '../../components/BindingAnalysis/BindingAnalysis';
@@ -15,13 +15,12 @@ import { shortDigest } from '../../utils/digest';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
-import { saveBytes } from '../Project/download';
 import { DistributionPlot, RankingTable, SeedTable, TimeBars, TradeoffPlot } from './AnalyticsCharts';
-import { cellsCsv, engineRows, measureTitle, scatterOf, seedGroups, spreadOf } from './analyticsModel';
-import { StateChip, StudyFrame, StudyGate } from './parts';
+import { engineRows, measureTitle, scatterOf, seedGroups, spreadOf } from './analyticsModel';
+import { StateChip, StudyGate } from './parts';
 import { loadRun } from './runData';
-import { StudyScope, type StudyScopeValue } from './StudyScope';
-import { RUNTIME, countStates, engineKeyOf, enginesOf, formatMeasure, formatSeconds, measureLabel, measuresOf, metricsOf, plural, revisionLabel } from './studiesModel';
+import type { StudyScopeValue } from './StudyScope';
+import { RUNTIME, countStates, engineKeyOf, enginesOf, formatMeasure, formatSeconds, measureLabel, measuresOf, metricsOf, plural, revisionLabel, studyPageHref } from './studiesModel';
 import { useRevisionIndex } from './useRevisionIndex';
 
 function Counter({ value, label, tone }: { value: string; label: string; tone?: 'ok' | 'bad' }) {
@@ -93,12 +92,14 @@ function CellSolutions({ cells, index }: { cells: readonly StudyCell[]; index: R
   );
 }
 
-function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
+/** The Results tab of the study page: the analytics of the study run `runId` and its cells. */
+// [impl->req~frontend-nav-study-page~1]
+export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
   const { study, organization, project, root } = scope;
   const org = organization.slug;
   const slug = project.slug;
   const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
-  const runPath = `${studyPath}/runs/${runId}`;
+  const cellHref = (cellId: string) => studyPageHref(studyPath, 'results', { run: runId, cell: cellId });
   const { index } = useRevisionIndex(org, slug);
   const analytics = useResource(`analytics:${runId}`, () => platformApi.analytics(org, slug, study.slug, runId));
   const loaded = useResource(`analytics-run:${study.id}/${runId}`, () => loadRun(org, slug, study.slug, runId));
@@ -108,32 +109,22 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
   const [xChoice, setXChoice] = useState<string | null>(null);
   const [yChoice, setYChoice] = useState<string | null>(null);
 
-  const run = loaded.data?.run ?? loaded.stale?.run;
-  const trail = (last: string) => [{ label: 'Studies', to: `${root}/studies` }, { label: study.name, to: studyPath }, { label: `Run #${run?.run_number ?? '…'}`, to: runPath }, { label: last }];
   const summary = analytics.data ?? analytics.stale;
   const data = loaded.data ?? loaded.stale;
 
   const failed = analytics.status === 'error' ? analytics.error : loaded.status === 'error' ? loaded.error : null;
   if (failed && (!summary || !data)) {
     const problem = classifyAuthError(failed);
-    return (
-      <StudyFrame organization={organization} project={project} trail={trail('Compare results')} width={problem.status === 404 ? 'lg' : 'wide'}>
-        {problem.status === 404 ? (
-          <StudyGate title="Run not found" action={<Action to={studyPath} variant="primary">Back to the study</Action>}>No such run in {project.name} (404).</StudyGate>
-        ) : problem.status === 403 ? (
-          <Notice tone="warning" title={`This API key can’t show these results${marker(problem)}`}>The key isn’t allowed to use one of the engines this run pinned.</Notice>
-        ) : (
-          <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={() => { analytics.reload(); loaded.reload(); }}>Retry</Action>}>Analytics couldn’t be loaded{marker(problem)}.</Notice>
-        )}
-      </StudyFrame>
-    );
+    if (problem.status === 404) {
+      return <StudyGate title="Run not found" action={<Action to={studyPath} variant="primary">Back to the study</Action>}>No such run in {project.name} (404).</StudyGate>;
+    }
+    if (problem.status === 403) {
+      return <Notice tone="warning" title={`This API key can’t show these results${marker(problem)}`}>The key isn’t allowed to use one of the engines this run pinned.</Notice>;
+    }
+    return <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={() => { analytics.reload(); loaded.reload(); }}>Retry</Action>}>Analytics couldn’t be loaded{marker(problem)}.</Notice>;
   }
   if (!summary || !data) {
-    return (
-      <StudyFrame organization={organization} project={project} trail={trail('Compare results')}>
-        <div className="st-skeletons" role="status" aria-busy="true"><span className="sr-only">Loading the analytics…</span><Skeleton variant="panel" /><Skeleton variant="panel" /></div>
-      </StudyFrame>
-    );
+    return <div className="st-skeletons" role="status" aria-busy="true"><span className="sr-only">Loading the analytics…</span><Skeleton variant="panel" /><Skeleton variant="panel" /></div>;
   }
 
   const allCells = data.cells;
@@ -154,21 +145,13 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
   const points = objectives.length >= 2 ? scatterOf(cells, scatterCase, xName, yName) : [];
   const groups = seedGroups(cells, measure, index).filter((group) => group.seeds.length > 1);
 
-  const exportCsv = () => {
-    const text = cellsCsv(allCells, measures, index);
-    saveBytes(new TextEncoder().encode(text).slice().buffer, `${study.slug}-run-${data.run.run_number}-cells.csv`, 'text/csv');
-  };
-
   return (
-    <StudyFrame organization={organization} project={project} trail={trail('Compare results')}>
+    <>
+      {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
       <header className="proj-title-row">
         <div className="proj-title">
-          <h1>Compare results · run #{data.run.run_number}</h1>
+          <h2>Compare results · run #{data.run.run_number}</h2>
           <p>Only what the run recorded. Nothing here is estimated: lower is better for every objective.</p>
-        </div>
-        {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
-        <div className="proj-actions">
-          <Action variant="secondary" onClick={exportCsv}>Export CSV</Action>
         </div>
       </header>
 
@@ -184,7 +167,7 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
       {completed.length === 0 && engine === '' ? (
         <div className="st-empty-card">
           No completed cells yet, so there’s nothing to chart. Cells fail when an engine doesn’t answer, or are cancelled before running.
-          <span><StateChip state={data.run.state} /> <Link to={runPath} viewTransition>Back to the run</Link></span>
+          <span><StateChip state={data.run.state} /> <Link to={studyPageHref(studyPath, 'progress', { run: runId })} viewTransition>Back to the run</Link></span>
         </div>
       ) : (
         <>
@@ -261,7 +244,7 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
                   {points.some((point) => point.front) && (
                     <p className="st-caption">
                       Best trade-offs: {points.filter((point) => point.front).sort((a, b) => a.x - b.x).map((point, position) => (
-                        <span key={point.cell.id}>{position > 0 && '; '}<Link to={`${runPath}/cells/${point.cell.id}`} viewTransition>cell {point.cell.ordinal}</Link> ({formatMeasure(point.x)}, {formatMeasure(point.y)})</span>
+                        <span key={point.cell.id}>{position > 0 && '; '}<Link to={cellHref(point.cell.id)} viewTransition>cell {point.cell.ordinal}</Link> ({formatMeasure(point.x)}, {formatMeasure(point.y)})</span>
                       ))}.
                     </p>
                   )}
@@ -277,7 +260,7 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
 
             <section className="st-card st-wide" aria-labelledby="st-seed-title">
               <h2 id="st-seed-title">Same inputs, different seed</h2>
-              {groups.length === 0 ? <p className="org-muted">Each cell ran with a single seed, so there’s no seed-to-seed difference to show.</p> : <SeedTable groups={groups} measure={measure} runPath={runPath} />}
+              {groups.length === 0 ? <p className="org-muted">Each cell ran with a single seed, so there’s no seed-to-seed difference to show.</p> : <SeedTable groups={groups} measure={measure} cellHref={cellHref} />}
               {Object.keys(summary.stability).length > 0 && (
                 <div className="stability-ledger st-stability" aria-label="Repeatability of each engine">
                   {Object.entries(summary.stability).map(([name, value]) => (
@@ -314,7 +297,7 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
               <tbody>
                 {cells.slice(0, 200).map((cell) => (
                   <tr key={cell.id}>
-                    <td><Link to={`${runPath}/cells/${cell.id}`} viewTransition aria-label={`Open cell ${cell.ordinal}`}>#{cell.ordinal}</Link></td>
+                    <td><Link to={cellHref(cell.id)} viewTransition aria-label={`Open cell ${cell.ordinal}`}>#{cell.ordinal}</Link></td>
                     <td>{cell.engine_ref.name}<small className="org-muted">{cell.engine_ref.mode ?? cell.engine_ref.version} · seed {cell.seed}</small></td>
                     <td><StateChip state={cell.state} /></td>
                     <td>{formatSeconds(metricsOf(cell).runtimeSeconds)}</td>
@@ -323,17 +306,11 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
                 ))}
               </tbody>
             </DataTable>
-            {cells.length > 200 && <small className="org-muted">Showing the first 200 of {cells.length.toLocaleString('en-US')} cells; the CSV has them all.</small>}
+            {cells.length > 200 && <small className="org-muted">Showing the first 200 of {cells.length.toLocaleString('en-US')} cells; the CSV in Publish has them all.</small>}
             {formatDateTime(data.run.finished_at) && <small className="org-muted">Run finished {formatDateTime(data.run.finished_at)}.</small>}
           </section>
         </>
       )}
-    </StudyFrame>
+    </>
   );
-}
-
-/** The analytics of a run (`study-analytics`, `/app/:org/:project/studies/:study/runs/:run/analytics`): tables and charts that compare the engines. */
-export function StudyAnalytics() {
-  const { run = '' } = useParams();
-  return <StudyScope>{(scope) => <AnalyticsBody key={`${scope.study.id}/${run}`} scope={scope} runId={run} />}</StudyScope>;
 }

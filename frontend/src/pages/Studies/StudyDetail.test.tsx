@@ -1,19 +1,27 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { org, project, renderProjectScreen } from '../Project/testKit';
-import { CHECKOUT, REVISION_1, REVISION_2, VERSION_ID, cellsFixture, digestOf, runFixture, studyFixture } from '../../test/fixtures/studies';
+import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, VERSION_ID, analyticsFixture, cellsFixture, digestOf, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
   project: vi.fn(), publicProjects: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), runStudy: vi.fn(), updateStudy: vi.fn(), deleteStudy: vi.fn(),
-  cases: vi.fn(), revisions: vi.fn(),
+  cases: vi.fn(), revisions: vi.fn(), analytics: vi.fn(),
 }));
 const library = vi.hoisted(() => ({ libraryApi: { versions: vi.fn() } }));
+const download = vi.hoisted(() => ({ saveBytes: vi.fn() }));
 
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/library', () => library);
+vi.mock('../Project/download', () => download);
+// The decision workspace is not what is under test here.
+vi.mock('../../components/BindingAnalysis/BindingAnalysis', async () => {
+  const { createElement } = await import('react');
+  return { BindingAnalysis: ({ jobId }: { jobId?: string }) => createElement('div', null, `Binding analysis of ${jobId}`) };
+});
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
@@ -29,11 +37,21 @@ const version = (id: string, ordinal: number) => ({
 
 const refusal = (status: number, code: string, message = 'refused', extra: Partial<HttpError> = {}) => Object.assign(new HttpError(status, message), { code }, extra);
 
-function renderDetail(slug = 'isa-demo', study = 'engines-vs-seeds') {
-  return renderProjectScreen(<StudyDetail />, {
-    path: '/app/:org/:project/studies/:study', url: `/app/${slug}/qos-benchmarks/studies/${study}`, organizations: [group, viewing, member],
+/** The address the page is on, as the person sees it. */
+function Where() {
+  const location = useLocation();
+  return <output data-testid="where">{location.pathname + location.search}</output>;
+}
+
+/** `tail` is what follows the study in the address: `/setup` unless a test is about the default tab or another one. */
+function renderDetail(slug = 'isa-demo', study = 'engines-vs-seeds', tail = '/setup') {
+  return renderProjectScreen(<><StudyDetail /><Where /></>, {
+    path: '/app/:org/:project/studies/:study/:tab?', url: `/app/${slug}/qos-benchmarks/studies/${study}${tail}`, organizations: [group, viewing, member],
   });
 }
+
+const where = () => screen.getByTestId('where').textContent;
+const runTwo = () => runFixture({ id: 'run-2', run_number: 2, state: 'completed', created_at: '2026-09-21T09:00:00Z' });
 
 describe('One study', () => {
   beforeEach(() => {
@@ -45,7 +63,102 @@ describe('One study', () => {
     platform.studyCells.mockResolvedValue(cellsFixture());
     platform.cases.mockResolvedValue([CHECKOUT]);
     platform.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
+    platform.analytics.mockResolvedValue(analyticsFixture());
     library.libraryApi.versions.mockResolvedValue([version(VERSION_ID, 1)]);
+  });
+
+  // [utest->req~frontend-nav-study-page~1]
+  it('opens Progress on the latest study run when the study has runs, and Setup when it has none', async () => {
+    platform.studyRuns.mockResolvedValue([runFixture(), runTwo()]);
+    const view = renderDetail('isa-demo', 'engines-vs-seeds', '');
+
+    const tabs = await screen.findByRole('tablist', { name: 'Study sections' });
+    expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Setup', 'Progress', 'Results', 'Publish']);
+    expect(within(tabs).getByRole('tab', { name: 'Progress' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('combobox', { name: 'Study run' })).toHaveValue('run-2');
+    expect(await screen.findByRole('heading', { level: 2, name: 'Run #2' })).toBeInTheDocument();
+    view.unmount();
+
+    platform.studyRuns.mockResolvedValue([]);
+    renderDetail('isa-demo', 'engines-vs-seeds', '');
+    expect(await screen.findByRole('tab', { name: 'Setup' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('combobox', { name: 'Study run' })).not.toBeInTheDocument();
+    expect(await screen.findByText('No runs yet. Running uses 1 study run from your month and runs up to 8 cells.')).toBeInTheDocument();
+  });
+
+  // [utest->req~frontend-nav-study-page~1]
+  it('shows the study run named by ?run= and sets the query when another one is chosen', async () => {
+    platform.studyRuns.mockResolvedValue([runFixture(), runTwo()]);
+    renderDetail('isa-demo', 'engines-vs-seeds', '/results');
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Compare results · run #2' })).toBeInTheDocument();
+    expect(platform.analytics).toHaveBeenLastCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', 'run-2');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Study run' }), { target: { value: RUN_ID } });
+
+    await waitFor(() => expect(where()).toBe(`${STUDY}/results?run=${RUN_ID}`));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Compare results · run #1' })).toBeInTheDocument();
+    expect(platform.analytics).toHaveBeenLastCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', RUN_ID);
+  });
+
+  // [utest->req~frontend-nav-study-page~1]
+  it('keeps the chosen run when another tab is chosen, and says so for a run that is not the study’s', async () => {
+    platform.studyRuns.mockResolvedValue([runFixture(), runTwo()]);
+    const view = renderDetail('isa-demo', 'engines-vs-seeds', `/progress?run=${RUN_ID}`);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Publish' }));
+    await waitFor(() => expect(where()).toBe(`${STUDY}/publish?run=${RUN_ID}`));
+    expect(screen.getByRole('tab', { name: 'Publish' })).toHaveAttribute('aria-selected', 'true');
+    view.unmount();
+
+    renderDetail('isa-demo', 'engines-vs-seeds', '/progress?run=ghost');
+    expect(await screen.findByRole('heading', { name: 'Run not found' })).toBeInTheDocument();
+  });
+
+  // [utest->req~frontend-nav-study-page~1]
+  it('holds the CSV export of the study run and a link to the Published tab in Publish', async () => {
+    platform.studyRuns.mockResolvedValue([runFixture(), runTwo()]);
+    renderDetail('isa-demo', 'engines-vs-seeds', `/publish?run=${RUN_ID}`);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Export CSV' }));
+
+    expect(download.saveBytes).toHaveBeenCalledTimes(1);
+    const [bytes, name, type] = download.saveBytes.mock.calls[0] as [ArrayBuffer, string, string];
+    expect(name).toBe('engines-vs-seeds-run-1-cells.csv');
+    expect(type).toBe('text/csv');
+    expect(new TextDecoder().decode(bytes).split('\n')[0]).toBe('cell,case_revision,engine,engine_version,mode,setting,seed,state,feasible,cost,latency,runtime_seconds,job_id,fingerprint');
+    expect(screen.getByRole('link', { name: 'Published results of this project' })).toHaveAttribute('href', `${ROOT}/published`);
+  });
+
+  // [utest->req~frontend-nav-study-page~1]
+  it('says Progress and Results have nothing to show before the first study run', async () => {
+    platform.studyRuns.mockResolvedValue([]);
+    renderDetail('isa-demo', 'engines-vs-seeds', '/progress');
+
+    expect(await screen.findByText(/This study has no run yet\. Start one with Run study/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Results' }));
+    expect(await screen.findByText(/This study has no run yet\. Start one with Run study/)).toBeInTheDocument();
+    expect(platform.studyCells).not.toHaveBeenCalled();
+  });
+
+  // [utest->req~frontend-nav-study-page~1]
+  it('does not say a study has no run while its runs load, and offers a retry when they cannot', async () => {
+    platform.studyRuns.mockRejectedValueOnce(refusal(503, 'unavailable'));
+    renderDetail('isa-demo', 'engines-vs-seeds', '/results');
+
+    expect(screen.queryByText(/This study has no run yet/)).not.toBeInTheDocument();
+    expect(await screen.findByText(/The runs couldn’t be loaded \(503 · unavailable\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/This study has no run yet/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Compare results · run #1' })).toBeInTheDocument();
+  });
+
+  // [utest->req~frontend-nav-study-page~1]
+  it('answers a tab the page does not have with Page not found', async () => {
+    renderDetail('isa-demo', 'engines-vs-seeds', '/runs');
+
+    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Engines × seeds' })).not.toBeInTheDocument();
+    expect(platform.studies).not.toHaveBeenCalled();
   });
 
   it('shows the definition, the matrix it expands to, and the runs it has', async () => {
@@ -61,7 +174,7 @@ describe('One study', () => {
     expect(screen.getByText(/2 case revisions × 2 engines × 1 setting × 2 seeds = 8 cells\. Settings: 1 · engine defaults\. Seeds: 1, 2\. Every run repeats exactly these cells\./)).toBeInTheDocument();
 
     expect(await screen.findByRole('region', { name: 'Runs' })).toBeInTheDocument();
-    expect(await screen.findByRole('link', { name: /Run #1/ })).toHaveAttribute('href', `${STUDY}/runs/00000000-0000-4000-8000-000000000101`);
+    expect(await screen.findByRole('link', { name: /Run #1/ })).toHaveAttribute('href', `${STUDY}/progress?run=00000000-0000-4000-8000-000000000101`);
     expect(screen.getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeInTheDocument();
     // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(screen.queryByRole('link', { name: /library/i })).toBeNull();
@@ -102,7 +215,7 @@ describe('One study', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Run study' }));
 
     expect(await screen.findByText('Run #2 accepted (202). Cells start as job slots free up.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Follow run #2' })).toHaveAttribute('href', `${STUDY}/runs/run-2`);
+    expect(screen.getByRole('link', { name: 'Follow run #2' })).toHaveAttribute('href', `${STUDY}/progress?run=run-2`);
     expect(platform.runStudy).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', VERSION_ID);
   });
 

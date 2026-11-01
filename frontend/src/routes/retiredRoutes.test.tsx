@@ -111,7 +111,7 @@ describe('the table of retired addresses', () => {
     const to = (query: string) => targetOf(route, query);
     const study = 'org=isa-demo&project=qos-benchmarks&study=engines-vs-seeds';
 
-    expect(to(`${study}&run=run-1&cell=cell-3`)).toBe('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds/runs/run-1');
+    expect(to(`${study}&run=run-1&cell=cell-3`)).toBe('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds/progress?run=run-1');
     expect(to(study)).toBe('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds');
     expect(to('org=isa-demo&project=qos-benchmarks&run=run-1')).toBe('/app/jobs');
     expect(to('job=job-done-1&job=job-done-3')).toBe('/app/jobs');
@@ -147,7 +147,7 @@ describe('the table of retired addresses', () => {
         expect(matchRoutes(retiredConfig, landing), `${route.id} ${query} -> ${landing} is a retired address`).toBeNull();
       }
       const encoded = targetOf(route, encodedQuery, PARAMS);
-      expect(encoded).toBe(fixedTarget[route.slice]?.(route) ?? '/app/a%20b/p%2Fq/studies/s%23t/runs/r%3Fx');
+      expect(encoded).toBe(fixedTarget[route.slice]?.(route) ?? '/app/a%20b/p%2Fq/studies/s%23t/progress?run=r%3Fx');
       expect(routeDefinitions.map((definition) => definition.path)).not.toContain(route.path);
       expect(route.slice).toBeGreaterThanOrEqual(1);
     }

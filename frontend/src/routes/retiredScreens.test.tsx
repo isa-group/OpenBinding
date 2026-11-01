@@ -112,7 +112,7 @@ describe('the retired decision-space workspace', () => {
   });
 
   it('sends a workspace link that names a run to that run', async () => {
-    await endsAt('/app/analysis/workspace?org=acme&project=atlas&study=s1&run=r1', '/app/acme/atlas/studies/s1/runs/r1');
+    await endsAt('/app/analysis/workspace?org=acme&project=atlas&study=s1&run=r1', '/app/acme/atlas/studies/s1/progress?run=r1');
   });
 
   it('sends a workspace link that names only a study to that study', async () => {

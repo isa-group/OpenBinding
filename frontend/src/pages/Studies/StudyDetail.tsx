@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { libraryApi, type ArtifactVersion } from '../../api/library';
 import { HttpError } from '../../api/client';
 import { platformApi, type Study, type StudyCell, type StudyRun } from '../../api/platform';
@@ -15,21 +15,23 @@ import { formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import { RefusalNotice } from '../Jobs/parts';
+import { NotFoundScreen } from '../../routes/NotFoundScreen';
 import { CellBar, StateChip, StudyFrame } from './parts';
+import { CellPanel } from './StudyCell';
 import { StudyScope, type StudyScopeValue } from './StudyScope';
-import { definitionGrid, definitionSize, describeParameters, formulaOf, plural, revisionLabel } from './studiesModel';
+import { RunResults } from './StudyAnalytics';
+import { RunPublish } from './StudyPublish';
+import { RunProgress } from './StudyRun';
+import {
+  STUDY_TABS, definitionGrid, definitionSize, describeParameters, formulaOf, isStudyTab, plural, revisionLabel, stateWord, studyPageHref, type StudyTabId,
+} from './studiesModel';
 import { studyRefusal, type Refusal } from './studyErrors';
 import { useRevisionIndex } from './useRevisionIndex';
 
 /** How many of the newest runs show their cells as a bar; older ones show only their state. */
 const RUNS_WITH_BARS = 5;
 
-interface RunsData {
-  runs: StudyRun[];
-  cells: Record<string, StudyCell[]>;
-}
-
-const TABS = [{ id: 'overview', label: 'Overview' }, { id: 'source', label: 'Source' }];
+const VIEWS = [{ id: 'overview', label: 'Overview' }, { id: 'source', label: 'Source' }];
 
 type Outcome =
   | { tone: 'success'; text: string; follow?: { to: string; label: string } }
@@ -79,9 +81,17 @@ function DefinitionMatrix({ study, org, project }: { study: Study; org: string; 
   );
 }
 
-function RunsCard({ scope, runs }: { scope: StudyScopeValue; runs: Resource<RunsData> }) {
-  const { study, root } = scope;
-  const data = runs.data ?? runs.stale;
+function RunsCard({ scope, runs }: { scope: StudyScopeValue; runs: Resource<StudyRun[]> }) {
+  const { study, root, organization, project } = scope;
+  const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
+  const list = runs.data ?? runs.stale;
+  // The newest runs show their cells as a bar; reading them waits for the Setup tab, which is the only one that draws them.
+  const newest = (list ?? []).slice(0, RUNS_WITH_BARS);
+  const bars = useResource<Record<string, StudyCell[]>>(`study-run-bars:${study.id}:${newest.map((run) => run.id).join(',')}`, async () => {
+    const entries = await Promise.all(newest.map(async (run) => [run.id, await platformApi.studyCells(organization.slug, project.slug, study.slug, run.id).catch(() => undefined)] as const));
+    return Object.fromEntries(entries.filter((entry): entry is readonly [string, StudyCell[]] => entry[1] !== undefined));
+  });
+  const data = list ? { runs: list, cells: bars.data ?? bars.stale ?? {} } : undefined;
   const failure = runs.status === 'error' ? classifyAuthError(runs.error) : null;
   return (
     <section className="st-card" aria-labelledby="st-runs-title">
@@ -106,7 +116,7 @@ function RunsCard({ scope, runs }: { scope: StudyScopeValue; runs: Resource<Runs
             const finished = formatDateTime(run.finished_at);
             return (
               <li key={run.id}>
-                <Link to={`${root}/studies/${encodeURIComponent(study.slug)}/runs/${run.id}`} viewTransition className="st-run-link">
+                <Link to={studyPageHref(studyPath, 'progress', { run: run.id })} viewTransition className="st-run-link">
                   <span className="st-run-head"><strong>Run #{run.run_number}</strong><StateChip state={run.state} /></span>
                   <small>{formatDateTime(run.created_at) ?? '—'}{finished ? ` → ${finished}` : ''} · {plural(run.cells, 'cell')}</small>
                   {cells && cells.length > 0 && <CellBar cells={cells} size="sm" />}
@@ -148,16 +158,49 @@ function VersionsCard({ scope, versions, onPick, busy }: {
   );
 }
 
-function DetailBody({ scope }: { scope: StudyScopeValue }) {
+/** The Setup tab: the definition as the M2.5 pair, Overview (matrix, runs, versions) and Source. */
+function SetupTab({ scope, runs, versions, onPick, busy }: {
+  scope: StudyScopeValue; runs: Resource<StudyRun[]>; versions: Resource<ArtifactVersion[] | null>; onPick: (id: string) => void; busy: boolean;
+}) {
+  const { study, organization, project, access } = scope;
+  const [view, setView] = useState<'overview' | 'source'>('overview');
+  return (
+    <>
+      <TabBar items={VIEWS} value={view} onChange={(id) => setView(id as 'overview' | 'source')} ariaLabel="Study views" prefix="st-view" />
+      <TabPanel prefix="st-view" active={view}>
+        {view === 'overview' ? (
+          <>
+            <DefinitionMatrix study={study} org={organization.slug} project={project.slug} />
+
+            <div className="st-two">
+              <RunsCard scope={scope} runs={runs} />
+              {!access.publicRead && <VersionsCard scope={scope} versions={versions} onPick={onPick} busy={busy} />}
+            </div>
+          </>
+        ) : (
+          // [impl->req~frontend-studies-source-tab~1]
+          <SourceView source={study.definition} label="Study definition source" filename={`${study.slug}.definition.json`} />
+        )}
+      </TabPanel>
+    </>
+  );
+}
+
+function NoRuns() {
+  return <p className="org-muted">This study has no run yet. Start one with Run study; its progress and results appear here.</p>;
+}
+
+// [impl->req~frontend-nav-study-page~1]
+function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | undefined }) {
   const { study, organization, project, access, root, reloadStudy } = scope;
   const org = organization.slug;
   const slug = project.slug;
   const navigate = useNavigate();
-  const runs = useResource<RunsData>(`study-runs:${study.id}`, async () => {
+  const [query, setQuery] = useSearchParams();
+  const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
+  const runs = useResource<StudyRun[]>(`study-runs:${study.id}`, async () => {
     const list = await platformApi.studyRuns(org, slug, study.slug);
-    const newest = [...list].sort((a, b) => b.run_number - a.run_number);
-    const entries = await Promise.all(newest.slice(0, RUNS_WITH_BARS).map(async (run) => [run.id, await platformApi.studyCells(org, slug, study.slug, run.id).catch(() => undefined)] as const));
-    return { runs: newest, cells: Object.fromEntries(entries.filter((entry): entry is readonly [string, StudyCell[]] => entry[1] !== undefined)) };
+    return [...list].sort((a, b) => b.run_number - a.run_number);
   });
   // The definition lives in the organization’s library, which a visitor of a public project doesn’t read.
   const versions = useResource<ArtifactVersion[] | null>(
@@ -168,7 +211,17 @@ function DetailBody({ scope }: { scope: StudyScopeValue }) {
   const [busy, setBusy] = useState<'run' | 'archive' | 'version' | 'delete' | null>(null);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [tab, setTab] = useState<'overview' | 'source'>('overview');
+
+  // The study run shown: the one the address names, else the latest. The default tab is Progress for a study with runs, else Setup.
+  const runList = runs.data ?? runs.stale;
+  const named = query.get('run') ?? '';
+  const runId = named || runList?.[0]?.id || '';
+  const cellId = query.get('cell') ?? '';
+  // Every tab but Setup needs to know the run: until the list says which, or when it can't, the tab has nothing true to say about runs.
+  const needsList = tab !== 'setup' && !named && !runList;
+  const waiting = needsList && runs.status === 'loading';
+  const listFailure = needsList && runs.status === 'error' ? classifyAuthError(runs.error) : null;
+  const active: StudyTabId = tab ?? (runList && runList.length > 0 ? 'progress' : 'setup');
 
   const current = (versions.data ?? versions.stale ?? []).find((version) => version.id === study.definition_version_id);
   const settle = (next: Outcome | null) => { setOutcome(next); setBusy(null); };
@@ -178,7 +231,7 @@ function DetailBody({ scope }: { scope: StudyScopeValue }) {
     setOutcome(null);
     try {
       const made = await platformApi.runStudy(org, slug, study.slug, study.definition_version_id);
-      settle({ tone: 'success', text: `Run #${made.run_number} accepted (202). Cells start as job slots free up.`, follow: { to: `${root}/studies/${encodeURIComponent(study.slug)}/runs/${made.id}`, label: `Follow run #${made.run_number}` } });
+      settle({ tone: 'success', text: `Run #${made.run_number} accepted (202). Cells start as job slots free up.`, follow: { to: studyPageHref(studyPath, 'progress', { run: made.id }), label: `Follow run #${made.run_number}` } });
       runs.reload();
     } catch (caught) {
       settle({ tone: 'error', refusal: studyRefusal(caught, 'run') });
@@ -269,22 +322,48 @@ function DetailBody({ scope }: { scope: StudyScopeValue }) {
         </p>
       )}
 
-      <TabBar items={TABS} value={tab} onChange={(id) => setTab(id as 'overview' | 'source')} ariaLabel="Study views" prefix="st-view" />
-      <TabPanel prefix="st-view" active={tab}>
-        {tab === 'overview' ? (
-          <>
-            <DefinitionMatrix study={study} org={org} project={slug} />
+      {waiting ? (
+        <div role="status" aria-busy="true"><span className="sr-only">Loading the runs…</span><Skeleton variant="panel" /></div>
+      ) : (
+        <>
+          {runList && runList.length > 0 && (
+            <label className="job-select st-run-pick">
+              <span>Study run</span>
+              <select aria-label="Study run" value={runList.some((item) => item.id === runId) ? runId : ''} onChange={(event) => setQuery({ run: event.target.value })}>
+                {!runList.some((item) => item.id === runId) && <option value="">Choose a run</option>}
+                {runList.map((item) => <option key={item.id} value={item.id}>Run #{item.run_number} · {stateWord(item.state).label}</option>)}
+              </select>
+            </label>
+          )}
 
-            <div className="st-two">
-              <RunsCard scope={scope} runs={runs} />
-              {!access.publicRead && <VersionsCard scope={scope} versions={versions} onPick={(id) => void pickVersion(id)} busy={busy === 'version'} />}
-            </div>
-          </>
-        ) : (
-          // [impl->req~frontend-studies-source-tab~1]
-          <SourceView source={study.definition} label="Study definition source" filename={`${study.slug}.definition.json`} />
-        )}
-      </TabPanel>
+          <TabBar
+            items={STUDY_TABS}
+            value={active}
+            onChange={(id) => void navigate(studyPageHref(studyPath, id as StudyTabId, { run: named }), { viewTransition: true })}
+            ariaLabel="Study sections"
+            prefix="st-tab"
+          />
+          <TabPanel prefix="st-tab" active={active}>
+            {active === 'setup' && <SetupTab scope={scope} runs={runs} versions={versions} onPick={(id) => void pickVersion(id)} busy={busy === 'version'} />}
+            {active !== 'setup' && listFailure && (
+              <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={runs.reload}>Retry</Action>}>
+                {listFailure.status === 403 ? `This key can’t read the runs${marker(listFailure)}.` : `The runs couldn’t be loaded${marker(listFailure)}.`}
+              </Notice>
+            )}
+            {active !== 'setup' && !listFailure && (
+              <>
+                {active === 'progress' && (runId ? <RunProgress key={runId} scope={scope} runId={runId} /> : <NoRuns />)}
+                {active === 'results' && (runId
+                  ? cellId
+                    ? <CellPanel key={`${runId}/${cellId}`} scope={scope} runId={runId} cellId={cellId} />
+                    : <RunResults key={runId} scope={scope} runId={runId} />
+                  : <NoRuns />)}
+                {active === 'publish' && <RunPublish key={runId} scope={scope} runId={runId} />}
+              </>
+            )}
+          </TabPanel>
+        </>
+      )}
 
       {editing && <EditDialog study={study} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); settle({ tone: 'success', text: 'Details saved.' }); reloadStudy(); }} org={org} project={slug} />}
       {deleting && (
@@ -335,7 +414,13 @@ function EditDialog({ study, org, project, onClose, onSaved }: { study: Study; o
   );
 }
 
-/** One study (`study-detail`, `/app/:org/:project/studies/:study`): its matrix, its runs, and the definition version it runs with. */
+/**
+ * One study (`study-detail`, `/app/:org/:project/studies/:study/:tab?`): Setup (the definition), Progress, Results and Publish of the study run
+ * named by `?run=` (the latest when none). Any other tab is a page that does not exist.
+ */
+// [impl->req~frontend-nav-study-page~1]
 export function StudyDetail() {
-  return <StudyScope>{(scope) => <DetailBody key={scope.study.id} scope={scope} />}</StudyScope>;
+  const { tab } = useParams();
+  if (tab !== undefined && !isStudyTab(tab)) return <NotFoundScreen />;
+  return <StudyScope>{(scope) => <DetailBody key={scope.study.id} scope={scope} tab={tab} />}</StudyScope>;
 }

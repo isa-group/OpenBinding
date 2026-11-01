@@ -36,7 +36,7 @@ export function entityHref(entity: VerifierEntity): string | null {
     // [impl->req~frontend-retire-reports-no-link~1]
     // [impl->req~frontend-retire-reports-publications-stay~1]
     case 'report': return `${base}/published`;
-    case 'study_run': return slug ? `${base}/studies/${slug}/runs/${encodeURIComponent(entity.id)}` : null;
+    case 'study_run': return slug ? `${base}/studies/${slug}/progress?run=${encodeURIComponent(entity.id)}` : null;
     // The project files list is retired (`/files` only redirects), so a file leads to its project.
     // [impl->req~frontend-nav-files-retired~1]
     case 'artifact': return base;

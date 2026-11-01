@@ -25,7 +25,7 @@ function decisionSpaceTarget(query: URLSearchParams): string {
   const run = carried(query, 'run');
   if (org && project && study) {
     const studyPath = `/app/${encodeURIComponent(org)}/${encodeURIComponent(project)}/studies/${encodeURIComponent(study)}`;
-    return run ? `${studyPath}/runs/${encodeURIComponent(run)}` : studyPath;
+    return run ? `${studyPath}/progress?run=${encodeURIComponent(run)}` : studyPath;
   }
   return '/app/jobs';
 }

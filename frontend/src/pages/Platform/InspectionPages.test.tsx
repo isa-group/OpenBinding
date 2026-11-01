@@ -21,7 +21,7 @@ describe('what the verifier can match', () => {
     const where = { organization_slug: 'isa-demo', project_slug: 'qos-benchmarks' };
     expect(entityHref(entity({ ...where, slug: 'checkout-flow' }))).toBe('/app/isa-demo/qos-benchmarks/cases/checkout-flow');
     expect(entityHref(entity({ ...where, entity_type: 'collection', slug: 'core' }))).toBe('/app/isa-demo/qos-benchmarks/collections/core');
-    expect(entityHref(entity({ ...where, entity_type: 'study_run', slug: 'engines-vs-seeds', id: 'run-1' }))).toBe('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds/runs/run-1');
+    expect(entityHref(entity({ ...where, entity_type: 'study_run', slug: 'engines-vs-seeds', id: 'run-1' }))).toBe('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds/progress?run=run-1');
     // [utest->req~frontend-nav-files-retired~1]
     expect(entityHref(entity({ ...where, entity_type: 'artifact' }))).toBe('/app/isa-demo/qos-benchmarks');
   });

@@ -556,6 +556,28 @@ export function breakdownText(cells: readonly StudyCell[]): string {
   return `${parts.join(', ') || 'No cells'} of ${plural(cells.length, 'cell')}`;
 }
 
+// --- the study page
+
+export const STUDY_TABS = [
+  { id: 'setup', label: 'Setup' },
+  { id: 'progress', label: 'Progress' },
+  { id: 'results', label: 'Results' },
+  { id: 'publish', label: 'Publish' },
+] as const;
+
+export type StudyTabId = (typeof STUDY_TABS)[number]['id'];
+
+export const isStudyTab = (value: string): value is StudyTabId => STUDY_TABS.some((tab) => tab.id === value);
+
+/** An address on the study page: a tab, the study run it shows (`run`) and the cell inside Results (`cell`). */
+export function studyPageHref(studyPath: string, tab: StudyTabId, show: { run?: string; cell?: string } = {}): string {
+  const query = new URLSearchParams();
+  if (show.run) query.set('run', show.run);
+  if (show.cell) query.set('cell', show.cell);
+  const text = query.toString();
+  return `${studyPath}/${tab}${text ? `?${text}` : ''}`;
+}
+
 export const CELLS_PER_PAGE = 50;
 /** Beyond this many cells the colour grid would be a wall of squares: the table carries the run. */
 export const MAX_GRID_CELLS = 600;

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { jobsApi } from '../../api/jobs';
 import { platformApi, type Job, type StudyCell as StudyCellView } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
@@ -15,12 +15,12 @@ import { classifyAuthError, marker } from '../Account/accountErrors';
 import { normalizeStatus, shortJobId } from '../Jobs/jobsModel';
 import { RefusalNotice } from '../Jobs/parts';
 import { Choice } from '../Organization/parts';
-import { StateChip, StudyFrame, StudyGate } from './parts';
+import { StateChip, StudyGate } from './parts';
 import { loadRun } from './runData';
-import { StudyScope, type StudyScopeValue } from './StudyScope';
+import type { StudyScopeValue } from './StudyScope';
 import {
   RUNTIME, describeParameters, engineKeyOf, engineTitle, enginesOf, explainFailure, formatMeasure, formatSeconds, isActiveState, isRetryable, measureLabel,
-  measureValue, measuresOf, metricsOf, revisionLabel, rivalsOf, seedsOf,
+  measureValue, measuresOf, metricsOf, revisionLabel, rivalsOf, seedsOf, studyPageHref,
 } from './studiesModel';
 import { studyRefusal, type Refusal } from './studyErrors';
 import { POLL_MS, usePolling } from './usePolling';
@@ -90,8 +90,8 @@ function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: Stud
   );
 }
 
-function RivalsCard({ cell, cells, measure, onMeasure, measures, runPath }: {
-  cell: StudyCellView; cells: readonly StudyCellView[]; measure: string; onMeasure: (name: string) => void; measures: string[]; runPath: string;
+function RivalsCard({ cell, cells, measure, onMeasure, measures, cellHref }: {
+  cell: StudyCellView; cells: readonly StudyCellView[]; measure: string; onMeasure: (name: string) => void; measures: string[]; cellHref: (cellId: string) => string;
 }) {
   const rivals = rivalsOf(cell, cells);
   const labels = new Map(enginesOf(rivals).map((engine) => [engine.key, engine.label]));
@@ -122,7 +122,7 @@ function RivalsCard({ cell, cells, measure, onMeasure, measures, runPath }: {
             return (
               <li key={item.id} className={isThis ? 'is-this' : undefined}>
                 <span className="st-rival-name">
-                  {isThis ? <b>{labels.get(engineKeyOf(item.engine_ref)) ?? engineTitle(item.engine_ref)} (this cell)</b> : <Link to={`${runPath}/cells/${item.id}`} viewTransition>{labels.get(engineKeyOf(item.engine_ref)) ?? engineTitle(item.engine_ref)}</Link>}
+                  {isThis ? <b>{labels.get(engineKeyOf(item.engine_ref)) ?? engineTitle(item.engine_ref)} (this cell)</b> : <Link to={cellHref(item.id)} viewTransition>{labels.get(engineKeyOf(item.engine_ref)) ?? engineTitle(item.engine_ref)}</Link>}
                 </span>
                 <span className="st-rival-bar" aria-hidden="true"><i className={value !== null && best !== null && value === best ? 'is-best' : undefined} style={{ width: `${value !== null && top > 0 ? Math.max(3, Math.round((value / top) * 100)) : 0}%` }} /></span>
                 <span className="st-rival-value">{value !== null ? formatMeasure(value) : <StateChip state={item.state} />}{value !== null && best !== null && value === best && rivals.length > 1 ? <small> best</small> : null}</span>
@@ -143,13 +143,16 @@ function RivalsCard({ cell, cells, measure, onMeasure, measures, runPath }: {
   );
 }
 
-function CellBody({ scope, runId, cellId }: { scope: StudyScopeValue; runId: string; cellId: string }) {
+/** One cell of the study run `runId`, shown inside the Results tab: what it ran on, how it ended, and how the engines compare on it. */
+// [impl->req~frontend-nav-study-page~1]
+export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; runId: string; cellId: string }) {
   const { study, organization, project, access, root } = scope;
   const org = organization.slug;
   const slug = project.slug;
   const navigate = useNavigate();
   const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
-  const runPath = `${studyPath}/runs/${runId}`;
+  const resultsHref = studyPageHref(studyPath, 'results', { run: runId });
+  const cellHref = (id: string) => studyPageHref(studyPath, 'results', { run: runId, cell: id });
   const { index } = useRevisionIndex(org, slug);
   const siblings = useResource(`cell-run:${study.id}/${runId}`, () => loadRun(org, slug, study.slug, runId));
   const one = useResource(`cell:${runId}/${cellId}`, () => platformApi.studyCell(org, slug, study.slug, runId, cellId));
@@ -163,30 +166,23 @@ function CellBody({ scope, runId, cellId }: { scope: StudyScopeValue; runId: str
   const all = siblings.data ?? siblings.stale;
   const reloadAll = () => { one.reload(); siblings.reload(); };
   usePolling(Boolean(cell && isActiveState(cell.state)), reloadAll, POLL_MS);
-  const trail = (last: string) => [{ label: 'Studies', to: `${root}/studies` }, { label: study.name, to: studyPath }, { label: `Run #${all?.run.run_number ?? '…'}`, to: runPath }, { label: last }];
 
   if (one.status === 'error' && !cell) {
     const problem = classifyAuthError(one.error);
-    return (
-      <StudyFrame organization={organization} project={project} trail={trail('Cell')} width={problem.status === 404 ? 'lg' : 'wide'}>
-        {problem.status === 404 ? (
-          <StudyGate title="Cell not found" action={<Action to={studyPath} variant="primary">Back to the study</Action>}>
-            No such cell here (404). It may belong to another run, or the run no longer exists.
-          </StudyGate>
-        ) : problem.status === 403 ? (
-          <Notice tone="warning" title={`This API key can’t show this cell${marker(problem)}`}>The key isn’t allowed to use the engine this cell pins.</Notice>
-        ) : (
-          <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={one.reload}>Retry</Action>}>The cell couldn’t be loaded{marker(problem)}.</Notice>
-        )}
-      </StudyFrame>
-    );
+    if (problem.status === 404) {
+      return (
+        <StudyGate title="Cell not found" action={<Action to={studyPath} variant="primary">Back to the study</Action>}>
+          No such cell here (404). It may belong to another run, or the run no longer exists.
+        </StudyGate>
+      );
+    }
+    if (problem.status === 403) {
+      return <Notice tone="warning" title={`This API key can’t show this cell${marker(problem)}`}>The key isn’t allowed to use the engine this cell pins.</Notice>;
+    }
+    return <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={one.reload}>Retry</Action>}>The cell couldn’t be loaded{marker(problem)}.</Notice>;
   }
   if (!cell) {
-    return (
-      <StudyFrame organization={organization} project={project} trail={trail('Cell')}>
-        <div role="status" aria-busy="true"><span className="sr-only">Loading the cell…</span><Skeleton variant="panel" /></div>
-      </StudyFrame>
-    );
+    return <div role="status" aria-busy="true"><span className="sr-only">Loading the cell…</span><Skeleton variant="panel" /></div>;
   }
 
   const cells = all?.cells ?? [];
@@ -221,17 +217,17 @@ function CellBody({ scope, runId, cellId }: { scope: StudyScopeValue; runId: str
   ];
 
   return (
-    <StudyFrame organization={organization} project={project} trail={trail(`Cell ${cell.ordinal}`)}>
+    <>
       <header className="proj-title-row">
         <div className="proj-title">
           <div className="proj-title-line">
-            <h1>Cell {cell.ordinal}</h1>
+            <h2>Cell {cell.ordinal}</h2>
             <StateChip state={cell.state} />
           </div>
           {cells.length > 1 && (
             <label className="job-select">
               <span>Other cell</span>
-              <select aria-label="Other cell" value={cell.id} onChange={(event) => void navigate(`${runPath}/cells/${event.target.value}`, { viewTransition: true })}>
+              <select aria-label="Other cell" value={cell.id} onChange={(event) => void navigate(cellHref(event.target.value), { viewTransition: true })}>
                 {cells.map((item) => (
                   <option key={item.id} value={item.id}>
                     Cell {item.ordinal} · {revisionLabel(index, item.binding_case_revision_id, true)} · {item.engine_ref.name ?? 'engine'} · seed {item.seed} · {item.state}
@@ -296,15 +292,15 @@ function CellBody({ scope, runId, cellId }: { scope: StudyScopeValue; runId: str
       {cell.state === 'cancelled' && <Notice tone="info">Cancelled before it ran. Retry it, or attach the result of a job you already ran with the same inputs.</Notice>}
       {isActiveState(cell.state) && <Notice tone="info">{cell.state === 'queued' ? 'Waiting for a job slot.' : 'The engine is solving it.'} This page updates by itself.</Notice>}
 
-      {cell.state === 'completed' && <RivalsCard cell={cell} cells={cells} measure={measure} onMeasure={setMeasureChoice} measures={measures} runPath={runPath} />}
+      {cell.state === 'completed' && <RivalsCard cell={cell} cells={cells} measure={measure} onMeasure={setMeasureChoice} measures={measures} cellHref={cellHref} />}
 
       <p className="st-job-line">
-        <span className="org-muted">Linked job:</span>{' '}
+        <span className="org-muted">Ran as:</span>{' '}
         {cell.job_id
-          ? <Link to={`${root}/jobs/${cell.job_id}`} viewTransition title="A job opens for whoever launched it">{shortJobId(cell.job_id)}</Link>
+          ? <><span>{shortJobId(cell.job_id)}</span>{' · '}<Link to={`${root}/jobs/${cell.job_id}`} viewTransition title="A run opens for whoever launched it">Open run</Link></>
           : <span>none yet</span>}
-        {' · '}<Link to={`${runPath}/analytics`} viewTransition>Compare results</Link>
-        {' · '}<Link to={runPath} viewTransition>Back to the run</Link>
+        {' · '}<Link to={resultsHref} viewTransition>Back to the results</Link>
+        {' · '}<Link to={studyPageHref(studyPath, 'progress', { run: runId })} viewTransition>Back to the progress</Link>
       </p>
       </>
       )}
@@ -319,12 +315,6 @@ function CellBody({ scope, runId, cellId }: { scope: StudyScopeValue; runId: str
           onAttached={() => { setAttaching(false); setOutcome({ tone: 'success', text: 'Result attached. It now counts as this cell’s result.' }); reloadAll(); }}
         />
       )}
-    </StudyFrame>
+    </>
   );
-}
-
-/** One cell of a run (`study-cell`, `/app/:org/:project/studies/:study/runs/:run/cells/:cell`): what it ran on, how it ended, and how the engines compare on it. */
-export function StudyCell() {
-  const { run = '', cell = '' } = useParams();
-  return <StudyScope>{(scope) => <CellBody key={`${scope.study.id}/${run}/${cell}`} scope={scope} runId={run} cellId={cell} />}</StudyScope>;
 }

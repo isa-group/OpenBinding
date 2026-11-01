@@ -18,7 +18,7 @@ import { loadStudies } from '../Project/projectData';
 import type { StudyContent } from '../Project/projectModel';
 import { useRouteProject } from '../Project/useRouteProject';
 import { CellBar, StateChip, StudyFrame } from './parts';
-import { definitionSize, formulaOf, latestOf, plural } from './studiesModel';
+import { definitionSize, formulaOf, latestOf, plural, studyPageHref } from './studiesModel';
 import { studyRefusal, type Refusal } from './studyErrors';
 
 /** The studies on show carry the cells of their latest run; this many of the newest do, the rest show only the run's state. */
@@ -158,7 +158,7 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
                   {run ? (
                     <>
                       <small>
-                        <Link to={`${root}/studies/${encodeURIComponent(study.slug)}/runs/${run.id}`} viewTransition>Last run #{run.run_number}</Link>
+                        <Link to={studyPageHref(`${root}/studies/${encodeURIComponent(study.slug)}`, 'progress', { run: run.id })} viewTransition>Last run #{run.run_number}</Link>
                         {when ? ` · ${when}` : ''} · {run.state}
                         {runs.length > 1 ? ` · ${plural(runs.length, 'run')} in all` : ''}
                       </small>

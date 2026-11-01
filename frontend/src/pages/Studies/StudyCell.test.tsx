@@ -6,34 +6,39 @@ import type { StudyCell as StudyCellView } from '../../api/platform';
 import { jobOf } from '../../test/fixtures/jobs';
 import { org, project, renderProjectScreen } from '../Project/testKit';
 import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
-import { StudyCell } from './StudyCell';
+import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
   project: vi.fn(), publicProjects: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), studyCell: vi.fn(), retryStudyCell: vi.fn(),
   attachStudyCellResult: vi.fn(), projectJobs: vi.fn(), cases: vi.fn(), revisions: vi.fn(),
 }));
 const jobs = vi.hoisted(() => ({ jobsApi: { mine: vi.fn() } }));
+const library = vi.hoisted(() => ({ libraryApi: { versions: vi.fn().mockResolvedValue([]) } }));
 
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/library', () => library);
 vi.mock('../../api/jobs', () => jobs);
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const ROOT = '/app/isa-demo/qos-benchmarks';
-const RUN = `${ROOT}/studies/engines-vs-seeds/runs/${RUN_ID}`;
+const STUDY = `${ROOT}/studies/engines-vs-seeds`;
+const RESULTS = `${STUDY}/results?run=${RUN_ID}`;
 
 const cells = cellsFixture();
 const byOrdinal = (n: number): StudyCellView => cells[n];
 const refusal = (status: number, code: string, message = 'refused') => Object.assign(new HttpError(status, message), { code });
 
+/** A cell inside the Results tab of the study page: `?run=` names the study run and `?cell=` the cell. */
 function renderCell(ordinal: number, slug = 'isa-demo') {
-  return renderProjectScreen(<StudyCell />, {
-    path: '/app/:org/:project/studies/:study/runs/:run/cells/:cell', url: `/app/${slug}/qos-benchmarks/studies/engines-vs-seeds/runs/${RUN_ID}/cells/${byOrdinal(ordinal).id}`, organizations: [group, viewing],
+  return renderProjectScreen(<StudyDetail />, {
+    path: '/app/:org/:project/studies/:study/:tab?', url: `/app/${slug}/qos-benchmarks/studies/engines-vs-seeds/results?run=${RUN_ID}&cell=${byOrdinal(ordinal).id}`, organizations: [group, viewing],
   });
 }
 
-describe('One cell of a run', () => {
+// [utest->req~frontend-nav-study-page~1]
+describe('One cell of a run, inside the Results tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
@@ -54,7 +59,7 @@ describe('One cell of a run', () => {
   it('shows what the cell ran on and how it ended', async () => {
     renderCell(2);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Cell 2' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Cell 2' })).toBeInTheDocument();
     expect(screen.getAllByText('Completed').length).toBeGreaterThan(0);
     const inputs = screen.getByRole('region', { name: 'Frozen inputs' });
     expect(await within(inputs).findByRole('link', { name: 'Checkout flow · revision 1' })).toHaveAttribute('href', `${ROOT}/cases/checkout-flow/revisions/1`);
@@ -68,9 +73,10 @@ describe('One cell of a run', () => {
     expect(within(result).getByText('0.121')).toBeInTheDocument();
     expect(within(result).getByText('430')).toBeInTheDocument();
     expect(within(result).getByText('58 s')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '00000000…0302' })).toHaveAttribute('href', `${ROOT}/jobs/00000000-0000-4000-8000-000000000302`);
-    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(await within(crumbs).findByRole('link', { name: 'Run #1' })).toHaveAttribute('href', RUN);
+    expect(screen.getByRole('link', { name: 'Open run' })).toHaveAttribute('href', `${ROOT}/jobs/00000000-0000-4000-8000-000000000302`);
+    expect(screen.getByRole('link', { name: 'Back to the results' })).toHaveAttribute('href', RESULTS);
+    expect(screen.getByRole('link', { name: 'Back to the progress' })).toHaveAttribute('href', `${STUDY}/progress?run=${RUN_ID}`);
+    expect(screen.getByRole('tab', { name: 'Results' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('compares the engines on the same case, setting and seed', async () => {
@@ -79,7 +85,7 @@ describe('One cell of a run', () => {
     const rivals = await screen.findByRole('list', { name: 'Cost of each engine on this input' });
     expect(within(rivals).getAllByRole('listitem')).toHaveLength(2);
     expect(within(rivals).getByText('random-search (this cell)')).toBeInTheDocument();
-    expect(within(rivals).getByRole('link', { name: 'evolutionary' })).toHaveAttribute('href', `${RUN}/cells/${cells[0].id}`);
+    expect(within(rivals).getByRole('link', { name: 'evolutionary' })).toHaveAttribute('href', `${RESULTS}&cell=${cells[0].id}`);
     expect(within(rivals).getByText('best')).toBeInTheDocument();
     expect(screen.getByText('Same engine, other seeds: seed 1 0.121 · seed 2 0.118.')).toBeInTheDocument();
     fireEvent.change(screen.getByRole('combobox', { name: 'Compare by' }), { target: { value: 'latency' } });
@@ -91,14 +97,14 @@ describe('One cell of a run', () => {
 
     fireEvent.change(await screen.findByRole('combobox', { name: 'Other cell' }), { target: { value: cells[4].id } });
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Cell 4' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Cell 4' })).toBeInTheDocument();
   });
 
   it('explains a failed cell and retries it', async () => {
     platform.retryStudyCell.mockResolvedValue({ id: cells[1].id, state: 'queued', fingerprint: 'f' });
     renderCell(1);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Cell 1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Cell 1' })).toBeInTheDocument();
     expect(screen.getByText('Failed: The engine deployment didn’t answer in time.')).toBeInTheDocument();
     expect(screen.getByText(/Code engine_unreachable · timeout\. Retrying usually helps\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry this cell' }));
@@ -126,6 +132,7 @@ describe('One cell of a run', () => {
 
     expect(await screen.findByText('Cancelled before it ran. Retry it, or attach the result of a job you already ran with the same inputs.')).toBeInTheDocument();
     expect(screen.getByText('none yet')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open run' })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Result' })).not.toBeInTheDocument();
   });
 
@@ -218,7 +225,7 @@ describe('One cell of a run', () => {
   it('is read-only for a viewer', async () => {
     renderCell(1, 'read-lab');
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Cell 1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Cell 1' })).toBeInTheDocument();
     expect(screen.getByText('Read-only: retrying and attaching a result need MEMBER in Read Lab.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Retry this cell' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Use an existing job’s result' })).not.toBeInTheDocument();
@@ -243,7 +250,7 @@ describe('One cell of a run', () => {
     renderCell(1);
     expect(await screen.findByText(/The cell couldn’t be loaded \(503 · unavailable\)/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Cell 1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Cell 1' })).toBeInTheDocument();
   });
 
   it('says a cell that is waiting or running is not done and keeps the page current', async () => {

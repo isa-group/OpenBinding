@@ -45,7 +45,7 @@ describe('Studies of a project', () => {
     const list = await screen.findByRole('list', { name: 'Studies of the project' });
     expect(within(list).getByRole('link', { name: /Engines × seeds/ })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds`);
     expect(within(list).getByText('2 case revisions × 2 engines × 1 setting × 2 seeds = 8 cells')).toBeInTheDocument();
-    expect(within(list).getByRole('link', { name: 'Last run #1' })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds/runs/00000000-0000-4000-8000-000000000101`);
+    expect(within(list).getByRole('link', { name: 'Last run #1' })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds/progress?run=00000000-0000-4000-8000-000000000101`);
     expect(within(list).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
     expect(within(tabs).getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');

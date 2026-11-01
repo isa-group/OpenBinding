@@ -5,33 +5,39 @@ import { HttpError } from '../../api/client';
 import type { Report, StudyCell } from '../../api/platform';
 import { org, project, reportOf, renderProjectScreen } from '../Project/testKit';
 import { CHECKOUT, EVOLUTIONARY, REVISION_1, REVISION_2, RUN_ID, cellFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
-import { StudyRun } from './StudyRun';
+import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
   project: vi.fn(), publicProjects: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), cancelStudyRun: vi.fn(), retryStudyCell: vi.fn(),
   reports: vi.fn(), cases: vi.fn(), revisions: vi.fn(),
 }));
 
+const library = vi.hoisted(() => ({ libraryApi: { versions: vi.fn().mockResolvedValue([]) } }));
+
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/library', () => library);
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const ROOT = '/app/isa-demo/qos-benchmarks';
-const RUN = `${ROOT}/studies/engines-vs-seeds/runs/${RUN_ID}`;
+const STUDY = `${ROOT}/studies/engines-vs-seeds`;
+const RESULTS = `${STUDY}/results?run=${RUN_ID}`;
 
 const refusal = (status: number, code: string, message = 'refused') => Object.assign(new HttpError(status, message), { code });
 const running = (cells: StudyCell[]) => cells.map((cell) => (cell.state === 'cancelled' ? { ...cell, state: 'running' as const } : cell));
 
+/** The Progress tab of the study page, on the study run named by `?run=`. */
 function renderRun(options: { slug?: string; run?: string } = {}) {
-  return renderProjectScreen(<StudyRun />, {
-    path: '/app/:org/:project/studies/:study/runs/:run', url: `/app/${options.slug ?? 'isa-demo'}/qos-benchmarks/studies/engines-vs-seeds/runs/${options.run ?? RUN_ID}`, organizations: [group, viewing],
+  return renderProjectScreen(<StudyDetail />, {
+    path: '/app/:org/:project/studies/:study/:tab?', url: `/app/${options.slug ?? 'isa-demo'}/qos-benchmarks/studies/engines-vs-seeds/progress?run=${options.run ?? RUN_ID}`, organizations: [group, viewing],
   });
 }
 
 const draftOf = (over: Partial<Report> = {}) => reportOf('engines-vs-seeds-run-1', 'draft', { study_run_id: RUN_ID, ...over });
 
-describe('One run of a study', () => {
+// [utest->req~frontend-nav-study-page~1]
+describe('One run of a study, in the Progress tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
@@ -51,20 +57,20 @@ describe('One run of a study', () => {
   it('shows the run, how its cells ended and the matrix of them', async () => {
     renderRun();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Run #1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Run #1' })).toBeInTheDocument();
     expect(screen.getAllByText('Partial').length).toBeGreaterThan(0);
     expect(screen.getByText(/Sep 20, 2026, 09:00 UTC → Sep 20, 2026, 09:20 UTC/)).toBeInTheDocument();
     const progress = screen.getByRole('region', { name: 'Progress of the run' });
     expect(within(progress).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeInTheDocument();
     expect(within(progress).getByText('6 of 6 completed are feasible')).toBeInTheDocument();
     expect(within(progress).getByText('Finished · not live')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Compare results' })).toHaveAttribute('href', `${RUN}/analytics`);
+    expect(screen.getByRole('link', { name: 'Compare results' })).toHaveAttribute('href', RESULTS);
 
     expect(screen.getByRole('heading', { name: 'Cells · cost (lower is better)' })).toBeInTheDocument();
     const heat = screen.getByRole('region', { name: 'Cells of the run as a matrix' });
     expect(within(heat).getAllByRole('link')).toHaveLength(8);
     const best = within(heat).getByRole('link', { name: 'Cell 4, Checkout flow r2, evolutionary · seed 1: completed, Cost 0.104' });
-    expect(best).toHaveAttribute('href', `${RUN}/cells/00000000-0000-4000-8000-000000000204`);
+    expect(best).toHaveAttribute('href', `${RESULTS}&cell=00000000-0000-4000-8000-000000000204`);
     expect(best).toHaveClass('is-level-0');
     expect(within(heat).getByRole('link', { name: /Cell 2, .* completed, Cost 0\.121/ })).toHaveClass('is-level-3');
     expect(within(heat).getByRole('link', { name: /Cell 1, .* failed$/ })).toHaveTextContent('engine_unreachable');
@@ -158,7 +164,7 @@ describe('One run of a study', () => {
 
     platform.studyRuns.mockResolvedValue([runFixture()]);
     renderRun();
-    await screen.findByRole('heading', { level: 1, name: 'Run #1' });
+    await screen.findByRole('heading', { level: 2, name: 'Run #1' });
     expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument();
   });
 
@@ -179,7 +185,7 @@ describe('One run of a study', () => {
     const action = /create (a |draft )?report|open the report/i;
     const view = renderRun();
 
-    await screen.findByRole('heading', { level: 1, name: 'Run #1' });
+    await screen.findByRole('heading', { level: 2, name: 'Run #1' });
     expect(screen.getByRole('link', { name: 'Compare results' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: action })).not.toBeInTheDocument();
@@ -187,7 +193,7 @@ describe('One run of a study', () => {
 
     platform.reports.mockResolvedValue([draftOf()]);
     renderRun();
-    await screen.findByRole('heading', { level: 1, name: 'Run #1' });
+    await screen.findByRole('heading', { level: 2, name: 'Run #1' });
     expect(screen.queryByRole('link', { name: action })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
     const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
@@ -199,7 +205,7 @@ describe('One run of a study', () => {
   it('shows a viewer everything and offers nothing to change', async () => {
     renderRun({ slug: 'read-lab' });
 
-    await screen.findByRole('heading', { level: 1, name: 'Run #1' });
+    await screen.findByRole('heading', { level: 2, name: 'Run #1' });
     expect(screen.getByRole('link', { name: 'Compare results' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /^Open cell/ })).toHaveLength(8);
     for (const name of ['Cancel run', 'Retry cell 1', 'Retry 2 unfinished cells']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
@@ -227,7 +233,7 @@ describe('One run of a study', () => {
 
     expect(await screen.findByText(/The run couldn’t be loaded \(503 · unavailable\)/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Run #1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Run #1' })).toBeInTheDocument();
   });
 
   it('flags a run with no cells', async () => {
