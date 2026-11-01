@@ -65,6 +65,14 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => /^\/app\/account\/keys\/new([/?#]|$)/.test(command.href))).toEqual([]);
   });
 
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it('opens the New organization dialog of the workspace home, not the moved address', () => {
+    const commands = buildCommands({ organizations: [organization], isAdmin: false });
+
+    expect(commands.filter((command) => command.label === 'New organization').map((command) => command.href)).toEqual(['/app?create=organization']);
+    expect(commands.filter((command) => /^\/app\/organizations\/new([/?#]|$)/.test(command.href))).toEqual([]);
+  });
+
   // [utest->req~frontend-retire-reports-navigation~1]
   it('offers no report command without a project either', () => {
     const commands = buildCommands({ organizations: [organization], isAdmin: true });

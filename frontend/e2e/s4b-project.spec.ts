@@ -3,7 +3,7 @@ import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { REPORT_MARKER, samplePackage } from '../src/pages/Project/packageFixture';
 
-// S4b · organization and collaboration, part 2: proj-create, proj-overview, proj-settings (with the package export and import).
+// S4b · organization and collaboration, part 2: the New project dialog (was proj-create), proj-overview, proj-settings (with the package export and import).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 // One test per screen and viewport: the desktop walks the states of the screen, the phone gets its layout and its dialogs.
@@ -303,74 +303,84 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S4b projects`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('proj-create /app/:org/new-project', async ({ page }, testInfo) => {
+    // [utest->req~frontend-nav-create-dialogs~1]
+    test('proj-create dialog /app/:org?create=project', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/isa-demo/new-project');
       const main = page.locator('#platform-main');
+      const dialog = page.getByRole('dialog', { name: 'New project' });
+      // The old creation address lands on the open dialog.
+      await page.goto('/app/isa-demo/new-project');
+      await expect(page).toHaveURL(/\/app\/isa-demo\?create=project$/);
 
-      await expect(main.getByRole('heading', { level: 1, name: 'New project in ISA Demo Group' })).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo');
-      await expect(main.getByRole('button', { name: 'Create project' })).toBeDisabled();
-      await main.getByLabel('Name', { exact: true }).fill('Placement multi-región');
-      await expect(main.getByLabel('Address')).toHaveValue('placement-multi-region');
-      await expect(main.getByText('Looks good · can’t be changed later.')).toBeVisible();
-      await expect(main.getByText('Up to 50', { exact: true })).toBeVisible();
-      await expect(main.getByText('Up to 30', { exact: true })).toBeVisible();
-      await expect(main.getByRole('meter')).toHaveCount(0);
-      await main.getByLabel(/^Description/).fill('Pools and latencies at the edge.');
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByText(/^In ISA Demo Group\./)).toBeVisible();
+      await expect(dialog.getByRole('button', { name: 'Create project' })).toBeDisabled();
+      await dialog.getByLabel('Name', { exact: true }).fill('Placement multi-región');
+      await expect(dialog.getByLabel('Address')).toHaveValue('placement-multi-region');
+      await expect(dialog.getByText('Looks good · can’t be changed later.')).toBeVisible();
+      await expect(dialog.getByText('Up to 50', { exact: true })).toBeVisible();
+      await expect(dialog.getByText('Up to 30', { exact: true })).toBeVisible();
+      await expect(dialog.getByRole('meter')).toHaveCount(0);
+      await dialog.getByLabel(/^Description/).fill('Pools and latencies at the edge.');
       await capture(page, testInfo, `create-${name}-form`);
 
       // A VIEWER can look at the form and not create.
-      await page.goto('/app/consultora-demo/new-project');
-      await expect(main.getByRole('note')).toContainText('You’re a VIEWER in Consultora Demo, so you can look at this form but not create a project (403).');
-      await expect(main.getByLabel('Name', { exact: true })).toBeDisabled();
-      await expect(main.getByRole('button', { name: 'Create project' })).toBeDisabled();
-      await expect(main.getByText(/nora’s plan is visible only to them|Sponsor’s room/).first()).toBeVisible();
+      await page.goto('/app/consultora-demo?create=project');
+      await expect(dialog.getByRole('note')).toContainText('You’re a VIEWER in Consultora Demo, so you can look at this form but not create a project (403).');
+      await expect(dialog.getByLabel('Name', { exact: true })).toBeDisabled();
+      await expect(dialog.getByRole('button', { name: 'Create project' })).toBeDisabled();
+      await expect(dialog.getByText(/nora’s plan is visible only to them|Sponsor’s room/).first()).toBeVisible();
       await capture(page, testInfo, `create-${name}-viewer`);
       if (isMobile) {
-        await page.goto('/app/isa-demo/new-project');
-        await main.getByLabel('Name', { exact: true }).fill('Placement');
-        await main.getByRole('radio', { name: /^Public/ }).check({ force: true });
+        await page.goto('/app/isa-demo?create=project');
+        await dialog.getByLabel('Name', { exact: true }).fill('Placement');
+        await dialog.getByRole('radio', { name: /^Public/ }).check({ force: true });
         await capture(page, testInfo, `create-${name}-public`);
         expect(critical).toEqual([]);
         return;
       }
 
+      // Cancel goes back to the organization and creates nothing.
+      await page.goto('/app/isa-demo?create=project');
+      await dialog.getByRole('button', { name: 'Cancel' }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(page).toHaveURL(/\/app\/isa-demo$/);
+      await expect(main.getByRole('button', { name: 'New project' })).toBeFocused();
+
       // The gateway's refusals, one by one: 409, 402, 503.
-      await page.goto('/app/isa-demo/new-project');
-      await main.getByLabel('Name', { exact: true }).fill('Placement multi-región');
-      const create = main.getByRole('button', { name: 'Create project' });
+      await main.getByRole('button', { name: 'New project' }).click();
+      await expect(page).toHaveURL(/\/app\/isa-demo\?create=project$/);
+      await dialog.getByLabel('Name', { exact: true }).fill('Placement multi-región');
+      const create = dialog.getByRole('button', { name: 'Create project' });
       state.refuse.create = detail(409, 'slug_conflict', 'That project slug is in use.');
       await create.click();
-      await expect(main.getByRole('alert')).toContainText('That address is already used in ISA Demo Group (409 · slug_conflict).');
+      await expect(dialog.getByRole('alert')).toContainText('That address is already used in ISA Demo Group (409 · slug_conflict).');
       await capture(page, testInfo, `create-${name}-409`);
 
       state.refuse.create = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 30 private projects.', { quota: { limit_id: 'privateProjects', limit: 30, used: 30 } });
       await create.click();
-      const full = main.getByRole('alert');
+      const full = dialog.getByRole('alert');
       await expect(full).toContainText('The sponsor has no private projects left (402 · sponsor_quota_exceeded). 30 of 30 private projects.');
       await expect(full.getByRole('link', { name: 'Your plan' })).toHaveAttribute('href', '/app/account/usage');
       await capture(page, testInfo, `create-${name}-402`);
 
       state.refuse.create = detail(503, 'pricing_unavailable', 'The pricing service is not reachable.');
       await create.click();
-      await expect(main.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing was created.');
+      await expect(dialog.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing was created.');
       await capture(page, testInfo, `create-${name}-503`);
 
-      // "Make it public instead" after the 402, then it is created: the payload carries what was typed.
+      // "Make it public instead" after the 402, then it is created: the payload carries what was typed, the dialog closes and the project opens.
       state.refuse.create = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 30 private projects.', { quota: { limit_id: 'privateProjects', limit: 30, used: 30 } });
       await create.click();
-      await main.getByRole('button', { name: 'Make it public instead' }).click();
-      await expect(main.getByRole('radio', { name: /^Public/ })).toBeChecked();
+      await dialog.getByRole('button', { name: 'Make it public instead' }).click();
+      await expect(dialog.getByRole('radio', { name: /^Public/ })).toBeChecked();
       state.refuse.create = undefined;
       const posted = request(page, 'POST', '/v1/organizations/isa-demo/projects');
       await create.click();
       expect((await posted).postDataJSON()).toEqual({ name: 'Placement multi-región', slug: 'placement-multi-region', description: '', visibility: 'public' });
-      await expect(main.getByText('Placement multi-región is ready')).toBeVisible();
-      await expect(main.getByText('Public: its card now appears in Explore.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open project' })).toHaveAttribute('href', '/app/isa-demo/placement-multi-region');
-      await capture(page, testInfo, `create-${name}-created`);
+      await expect(dialog).toHaveCount(0);
+      await expect(page).toHaveURL(/\/app\/isa-demo\/placement-multi-region$/);
 
       // A missing organization reads the same as one the account is not in.
       await page.goto('/app/ghost-lab/new-project');

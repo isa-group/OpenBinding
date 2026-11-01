@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useLocation, useOutletContext } from 'react-router-dom';
-import { FilePlus2, Play, Plus, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
+import { Building2, FilePlus2, Play, Plus, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import type { JobSummary } from '../../api/client';
 import type { Notification } from '../../api/auth';
@@ -20,6 +20,8 @@ import { contractChange } from '../Account/notificationsModel';
 import { usageRows } from '../Account/usageModel';
 import { classifyAuthError, generalFailure, isForbidden, marker } from '../Organization/orgErrors';
 import { buildForest, roleSource, type TreeNode } from '../Organization/orgModel';
+import { createAddress, useCreateDialog } from '../Organization/createDialog';
+import { OrgCreate } from '../Organization/OrgCreate';
 import { OrgTile, RoleChip } from '../Organization/parts';
 import './AppHome.css';
 
@@ -234,6 +236,8 @@ export function AppHome() {
   const context = useOutletContext<PlatformOutletContext>();
   const { user, isAdmin } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const dialog = useCreateDialog('organization', '/app');
   const [announcement, setAnnouncement] = useState('');
   const deleted = (location.state as { deletedOrganization?: string } | null)?.deletedOrganization;
 
@@ -247,7 +251,7 @@ export function AppHome() {
   const organization = context.organization ?? list[0];
   const project = context.project;
   const shortcuts: Shortcut[] = [];
-  if (organization) shortcuts.push({ label: 'New project', to: `/app/${organization.slug}/new-project`, icon: Plus });
+  if (organization) shortcuts.push({ label: 'New project', to: createAddress(`/app/${organization.slug}`, 'project'), icon: Plus });
   if (organization && project) {
     shortcuts.push({ label: 'New case', to: `/app/${organization.slug}/${project.slug}/cases`, icon: FilePlus2 });
     shortcuts.push({ label: 'Run', to: `/app/${organization.slug}/${project.slug}/jobs/new`, icon: Play });
@@ -267,6 +271,7 @@ export function AppHome() {
           <p>{subtitle}</p>
         </div>
         <div className="home-shortcuts">
+          <button type="button" data-create-opener="organization" onClick={dialog.openDialog}><Building2 aria-hidden="true" />New organization</button>
           {shortcuts.map(({ label, to, icon: Icon }) => (
             <Link key={label} to={to} viewTransition><Icon aria-hidden="true" />{label}</Link>
           ))}
@@ -290,7 +295,7 @@ export function AppHome() {
               {' '}You’ll sponsor it: it counts against your plan’s organization limit{typeof limit === 'number' ? ` (${limit} on ${usage.data?.plan})` : ''}.
             </span>
             <span className="home-first-actions">
-              <Action to="/app/organizations/new" variant="primary">Create organization</Action>
+              <Action to={createAddress('/app', 'organization')} variant="primary">Create organization</Action>
               <Link to="/invitations/accept">I have an invitation</Link>
             </span>
           </div>
@@ -301,7 +306,7 @@ export function AppHome() {
         <section className="apphome-card home-orgs" aria-labelledby="home-orgs-title" aria-busy={orgs.status === 'loading'}>
           <header className="home-card-head">
             <h2 id="home-orgs-title">Your organizations</h2>
-            <Link to="/app/organizations/new" viewTransition>+ New</Link>
+            <Link to={createAddress('/app', 'organization')} viewTransition>+ New</Link>
           </header>
           {orgs.status === 'loading' && <div className="home-skeleton" role="status"><span className="sr-only">Loading organizations…</span><Skeleton variant="tile" /><Skeleton variant="tile" /><Skeleton variant="tile" /></div>}
           {failure && isForbidden(failure) && <p className="home-blocked">Not available with this key (needs organizations: read).</p>}
@@ -336,6 +341,7 @@ export function AppHome() {
         </div>
       </div>
       <div className="sr-only" aria-live="polite">{announcement}</div>
+      {dialog.open && <OrgCreate onClose={dialog.close} onCreated={(created) => navigate(`/app/${created.slug}`, { replace: true })} />}
     </div>
   );
 }

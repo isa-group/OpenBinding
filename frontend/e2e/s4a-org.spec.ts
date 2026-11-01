@@ -2,7 +2,7 @@ import { expect as baseExpect, test, type Locator, type Page, type Route, type T
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 
-// S4a · organization and collaboration, part 1: app-home, org-create, org-overview, org-settings (General, with the members and audit sections at /settings/members and /settings/audit).
+// S4a · organization and collaboration, part 1: app-home, the New organization dialog (was org-create), org-overview, org-settings (General, with the members and audit sections at /settings/members and /settings/audit).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 // One test per screen and viewport: each walks the states of its screen in order, on one page. The phone gets the
@@ -309,7 +309,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(page.locator('header.app-header')).toBeVisible();
       await expect(main.getByRole('heading', { level: 1, name: 'Hello, lucia.vega' })).toBeVisible();
       await expect(main.getByText('Pick up where you left off.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/isa-demo/new-project');
+      await expect(main.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/isa-demo?create=project');
+      await expect(main.getByRole('button', { name: 'New organization' })).toBeVisible();
 
       const tree = main.getByRole('list', { name: 'Organizations' });
       await expect(tree.getByRole('link')).toHaveCount(5);
@@ -364,7 +365,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.jobs = { jobs: [], total: 0, retention_days: 180 };
       await page.reload();
       await expect(main.getByRole('heading', { name: 'Create your first organization' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Create organization' })).toHaveAttribute('href', '/app/organizations/new');
+      await expect(main.getByRole('link', { name: 'Create organization' })).toHaveAttribute('href', '/app?create=organization');
       await expect(main.getByRole('link', { name: 'I have an invitation' })).toHaveAttribute('href', '/invitations/accept');
       await expect(main.getByText(/organization limit \(5 on RESEARCH\)/)).toBeVisible();
       await expect(main.getByText('You’re not in any organization yet.')).toBeVisible();
@@ -373,60 +374,51 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('org-create /app/organizations/new', async ({ page }, testInfo) => {
+    // [utest->req~frontend-nav-create-dialogs~1]
+    test('org-create dialog /app?create=organization', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
+      // The old creation address lands on the open dialog.
       await page.goto('/app/organizations/new');
-      const main = page.locator('#platform-main');
-      const next = () => main.getByRole('button', { name: 'Continue' }).click();
+      await expect(page).toHaveURL(/\/app\?create=organization$/);
+      const dialog = page.getByRole('dialog', { name: 'New organization' });
 
-      await expect(main.getByRole('heading', { level: 1, name: 'New organization' })).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Breadcrumb' })).toContainText('New organization');
-      await expect(main.getByRole('list', { name: 'Steps' }).getByRole('button')).toHaveCount(4);
-      await expect(main.getByRole('button', { name: 'Continue' })).toBeDisabled();
-      await main.getByLabel('Name', { exact: true }).fill('Distributed Systems Lab');
-      await expect(main.getByLabel('Address')).toHaveValue('distributed-systems-lab');
-      await expect(main.getByText('Available to try · can’t be changed later.')).toBeVisible();
-      await capture(page, testInfo, `create-${name}-1-name`);
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole('list', { name: 'Steps' })).toHaveCount(0);
+      await expect(dialog.getByRole('button', { name: 'Create organization' })).toBeDisabled();
+      await dialog.getByLabel('Name', { exact: true }).fill('Distributed Systems Lab');
+      await expect(dialog.getByLabel('Address')).toHaveValue('distributed-systems-lab');
+      await expect(dialog.getByText('Available to try · can’t be changed later.')).toBeVisible();
+      await expect(dialog.getByRole('button', { name: 'Create organization' })).toBeEnabled();
 
-      await next();
-      await expect(main.getByRole('heading', { name: 'Where it sits' })).toBeVisible();
-      const parents = main.getByRole('group', { name: 'Parent organization' });
+      const parents = dialog.getByRole('group', { name: 'Parent organization' });
       await expect(parents.getByRole('radio', { name: /Consultora Demo/ })).toBeDisabled();
       await expect(parents.getByText('Needs ADMIN here; your role is VIEWER')).toBeVisible();
       await expect(parents.getByRole('radio', { name: /Research Hub/ })).toBeEnabled();
       await parents.getByRole('radio', { name: /ISA Demo Group/ }).check();
-      const preview = main.getByRole('list', { name: 'Organization tree preview' });
+      const preview = dialog.getByRole('list', { name: 'Organization tree preview' });
       await expect(preview.getByRole('listitem')).toHaveCount(2);
       await expect(preview.getByText('NEW', { exact: true })).toBeVisible();
-      await expect(main.getByText('Up to 5', { exact: true })).toBeVisible();
-      await expect(main.getByRole('meter')).toHaveCount(0);
-      await capture(page, testInfo, `create-${name}-2-place`);
-
-      await next();
-      await expect(main.getByRole('heading', { name: 'Who sponsors it' })).toBeVisible();
-      await expect(main.getByRole('radio', { name: /You \(lucia\.vega\)/ })).toBeChecked();
-      await expect(main.getByText('Counts against your RESEARCH plan')).toBeVisible();
-      await next();
-      await expect(main.getByRole('heading', { name: 'Review' })).toBeVisible();
-      await expect(main.getByText('/app/distributed-systems-lab')).toBeVisible();
-      await expect(main.getByText('Your role', { exact: true })).toBeVisible();
-      await capture(page, testInfo, `create-${name}-4-review`);
+      await expect(dialog.getByText('Up to 5', { exact: true })).toBeVisible();
+      await expect(dialog.getByRole('meter')).toHaveCount(0);
+      await expect(dialog.getByRole('radio', { name: /You \(lucia\.vega\)/ })).toBeChecked();
+      await expect(dialog.getByText('Counts against your RESEARCH plan')).toBeVisible();
+      await capture(page, testInfo, `create-${name}-dialog`);
       if (isMobile) {
         expect(critical).toEqual([]);
         return;
       }
 
       // The gateway's refusals, one by one: 409, 402, 503.
-      const create = main.getByRole('button', { name: 'Create organization' });
+      const create = dialog.getByRole('button', { name: 'Create organization' });
       state.refuse.create = detail(409, 'slug_conflict', 'That organization slug is in use.');
       await create.click();
-      await expect(main.getByRole('alert')).toContainText('That address is taken (409 · slug_conflict). Another organization already uses /app/distributed-systems-lab.');
+      await expect(dialog.getByRole('alert')).toContainText('That address is taken (409 · slug_conflict). Another organization already uses /app/distributed-systems-lab.');
       await capture(page, testInfo, `create-${name}-409`);
 
       state.refuse.create = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 5 organizations.', { quota: { limit_id: 'organizations', limit: 5, used: 5 } });
       await create.click();
-      const full = main.getByRole('alert');
+      const full = dialog.getByRole('alert');
       await expect(full).toContainText('The sponsor has no organizations left (402 · sponsor_quota_exceeded). You already sponsor 5 of 5 organizations.');
       await expect(full.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       await expect(full.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
@@ -434,21 +426,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       state.refuse.create = detail(503, 'pricing_unavailable', 'The pricing service is not reachable.');
       await create.click();
-      await expect(main.getByRole('alert')).toContainText('The sponsor’s limits can’t be checked right now (503 · pricing_unavailable), so nothing was created.');
+      await expect(dialog.getByRole('alert')).toContainText('The sponsor’s limits can’t be checked right now (503 · pricing_unavailable), so nothing was created.');
       await capture(page, testInfo, `create-${name}-503`);
 
-      // Created: the payload carries the parent and the sponsor, and the way on opens the organization.
+      // Created: the payload carries the parent and the sponsor, the dialog closes and the organization opens.
       state.refuse.create = undefined;
       const posted = request(page, 'POST', '/v1/organizations');
-      await main.getByRole('alert').getByRole('button', { name: 'Try again' }).click();
+      await dialog.getByRole('alert').getByRole('button', { name: 'Try again' }).click();
       expect((await posted).postDataJSON()).toEqual({
         name: 'Distributed Systems Lab', slug: 'distributed-systems-lab', parent_id: 'org-1', billing_sponsor_user_id: 'user-1',
       });
-      await expect(main.getByText('Distributed Systems Lab is ready')).toBeVisible();
-      await expect(main.getByText(/It sits inside ISA Demo Group, so members there keep their roles here\./)).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open organization' })).toHaveAttribute('href', '/app/distributed-systems-lab');
-      await expect(main.getByRole('link', { name: 'Create the first project' })).toHaveAttribute('href', '/app/distributed-systems-lab/new-project');
-      await capture(page, testInfo, `create-${name}-created`);
+      await expect(dialog).toHaveCount(0);
+      await expect(page).toHaveURL(/\/app\/distributed-systems-lab$/);
+      await expect(page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Distributed Systems Lab' })).toBeVisible();
       expect(critical).toEqual([]);
     });
 
@@ -464,7 +454,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(hero.getByText('/app/isa-demo')).toBeVisible();
       await expect(hero.getByText('OWNER')).toBeVisible();
       await expect(hero.getByText('lucia.vega (you)')).toBeVisible();
-      await expect(hero.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/isa-demo/new-project');
+      await expect(hero.getByRole('button', { name: 'New project' })).toBeVisible();
       await expect(hero.getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
       await expect(hero.getByRole('link', { name: 'Audit' })).toHaveAttribute('href', '/app/isa-demo/settings/audit');
       await expect(hero.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/app/isa-demo/settings');

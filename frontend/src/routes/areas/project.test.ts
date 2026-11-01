@@ -5,7 +5,6 @@ import { moved as moves } from './project';
 
 // One pair per line: screenBudget.test.ts counts them.
 const SCREENS: Array<[string, string]> = [
-  ['proj-create', '/app/:org/new-project'],
   ['proj-overview', '/app/:org/:project'],
   ['proj-settings', '/app/:org/:project/settings/:section?'],
   ['proj-publications', '/app/:org/:project/published'],
@@ -19,8 +18,8 @@ const idsOfScreens = routeDefinitions.map((definition) => definition.id);
 describe('area project', () => {
   // [utest->req~frontend-nav-route-areas~1]
   // [utest->req~frontend-nav-project-tabs~1]
-  it('has 4 screens: the creation screen that the dialogs replace later, the overview, the settings and the published results', () => {
-    expect(routesByArea.project).toHaveLength(4);
+  it('has 3 screens: the overview, the settings and the published results', () => {
+    expect(routesByArea.project).toHaveLength(3);
     expect(routesByArea.project.map((definition) => [definition.id, definition.path])).toEqual(SCREENS);
   });
 
@@ -44,16 +43,16 @@ describe('area project', () => {
     expect(resolve('/app/acme/atlas/publications') ?? null).toBeNull();
   });
 
-  it('keeps the fixed project screen from being read as an organization or project', () => {
-    expect(resolve('/app/acme/new-project')).toBe('proj-create');
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it('declares no creation screen: a new project is made in a dialog over the organization', () => {
+    expect(idsOfScreens).not.toContain('proj-create');
+    expect(routeDefinitions.map((definition) => definition.path)).not.toContain('/app/:org/new-project');
   });
 
   describe('address resolution', () => {
     // [utest->req~frontend-nav-route-areas~1]
     // [utest->req~frontend-nav-project-tabs~1]
     it.each([
-      ['/app/acme/new-project', 'proj-create'],
-      ['/app/new-project/new-project', 'proj-create'],
       ['/app/acme/atlas', 'proj-overview'],
       ['/app/acme/atlas/settings', 'proj-settings'],
       ['/app/acme/atlas/settings/members', 'proj-settings'],
@@ -75,13 +74,22 @@ describe('the moved addresses of the project area', () => {
 
   // [utest->req~frontend-nav-project-tabs~1]
   // [utest->req~frontend-nav-files-retired~1]
-  it('declares publications, files and package, with ids of their own', () => {
+  it('declares the creation address, publications, files and package, with ids of their own', () => {
     expect(moves.map((route) => route.path)).toEqual([
+      '/app/:org/new-project',
       '/app/:org/:project/publications',
       '/app/:org/:project/files',
       '/app/:org/:project/package',
     ]);
     for (const route of moves) expect(idsOfScreens).not.toContain(route.id);
+  });
+
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it('moves the old creation address to the dialog over the organization, and drops its query', () => {
+    expect(target('/app/:org/new-project')).toBe('/app/acme?create=project');
+    expect(target('/app/:org/new-project', 'a=1')).toBe('/app/acme?create=project');
+    expect(entry('/app/:org/new-project')?.permanent).toBeUndefined();
+    expect(resolve('/app/acme')).toBe('org-overview');
   });
 
   // [utest->req~frontend-nav-project-tabs~1]

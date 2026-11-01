@@ -1,11 +1,12 @@
 import type { ReactElement } from 'react';
 import { render } from '@testing-library/react';
-import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Outlet, parsePath, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
 import type { UsageView, UserProfile } from '../../api/auth';
 import type { Organization, OrganizationMember, Project } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { AuthContext } from '../../contexts/auth';
+import { Where } from './Where';
 
 /** Shared by the tests of the organization screens: accounts, organizations and a router with the workspace outlet. */
 export const lucia: UserProfile = {
@@ -57,6 +58,9 @@ export interface RenderOptions {
   state?: unknown;
 }
 
+/** The address the router is at (path and query), as `renderScreen` renders it. */
+export const addressNow = (): string => document.querySelector('[data-testid="address"]')?.getAttribute('data-address') ?? '';
+
 export function renderScreen(ui: ReactElement, options: RenderOptions) {
   const user = options.user ?? lucia;
   const organizations = options.organizations ?? [];
@@ -65,7 +69,7 @@ export function renderScreen(ui: ReactElement, options: RenderOptions) {
     organizations, projects: [], organization: organizations[0], project: undefined, loading: options.loading ?? false, reload,
   };
   const view = render(
-    <MemoryRouter initialEntries={[{ pathname: options.url, state: options.state }]}>
+    <MemoryRouter initialEntries={[{ ...parsePath(options.url), state: options.state }]}>
       <AuthContext.Provider value={{ user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: user.role === 'admin' }}>
         <Routes>
           <Route element={<Outlet context={context} />}>
@@ -73,6 +77,7 @@ export function renderScreen(ui: ReactElement, options: RenderOptions) {
             <Route path="*" element={<p>elsewhere</p>} />
           </Route>
         </Routes>
+        <Where />
       </AuthContext.Provider>
     </MemoryRouter>,
   );

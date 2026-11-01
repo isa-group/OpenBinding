@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { config } from '../../config';
-import { org, renderScreen, researchUsage } from '../Organization/testKit';
+import { addressNow, org, renderScreen, researchUsage } from '../Organization/testKit';
 import { AppHome } from './AppHome';
 
 const api = vi.hoisted(() => ({ listOwnJobs: vi.fn(), getOwnUsage: vi.fn(), listNotifications: vi.fn(), markNotificationRead: vi.fn() }));
-const platform = vi.hoisted(() => ({ organizations: vi.fn() }));
+const platform = vi.hoisted(() => ({ organizations: vi.fn(), createOrganization: vi.fn(), members: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
@@ -45,7 +45,7 @@ describe('Home', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Hello, lucia.vega' })).toBeInTheDocument();
     expect(await screen.findByText('Pick up where you left off.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/isa-demo/new-project');
+    expect(screen.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/isa-demo?create=project');
     expect(screen.getByRole('link', { name: 'Verify a digest' })).toHaveAttribute('href', '/app/verifier');
     // No project is selected in the workspace, so there is nothing to run or to add a case to.
     expect(screen.queryByRole('link', { name: 'Run' })).not.toBeInTheDocument();
@@ -160,7 +160,7 @@ describe('Home', () => {
 
     expect(await screen.findByRole('heading', { name: 'Create your first organization' })).toBeInTheDocument();
     expect(screen.getByText('Let’s set up a place for your work.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Create organization' })).toHaveAttribute('href', '/app/organizations/new');
+    expect(screen.getByRole('link', { name: 'Create organization' })).toHaveAttribute('href', '/app?create=organization');
     expect(screen.getByRole('link', { name: 'I have an invitation' })).toHaveAttribute('href', '/invitations/accept');
     expect(await screen.findByText(/organization limit \(5 on RESEARCH\)/)).toBeInTheDocument();
     expect(screen.getByText('You’re not in any organization yet.')).toBeInTheDocument();
@@ -168,6 +168,67 @@ describe('Home', () => {
     expect(await screen.findByText(/No jobs yet/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the Workbench' })).toHaveAttribute('href', '/workbench');
     expect(screen.queryByRole('link', { name: 'New project' })).not.toBeInTheDocument();
+  });
+
+  describe('the dialog New organization', () => {
+    beforeEach(() => {
+      platform.createOrganization.mockResolvedValue(org('lab-two', { name: 'lab-two' }));
+    });
+
+    // [utest->req~frontend-nav-create-dialogs~1]
+    it('opens from the New organization button with create=organization in the address', async () => {
+      renderHome();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'New organization' }));
+
+      expect(await screen.findByRole('dialog', { name: 'New organization' })).toBeInTheDocument();
+      expect(addressNow()).toBe('/app?create=organization');
+    });
+
+    // [utest->req~frontend-nav-create-dialogs~1]
+    it('is open when the address holds create=organization', async () => {
+      renderScreen(<AppHome />, { path: '/app', url: '/app?create=organization', organizations: [group, lab] });
+
+      expect(await screen.findByRole('dialog', { name: 'New organization' })).toBeInTheDocument();
+    });
+
+    // [utest->req~frontend-nav-create-dialogs~1]
+    it('goes back to /app on Cancel, returns the focus to New organization and creates nothing', async () => {
+      renderScreen(<AppHome />, { path: '/app', url: '/app?create=organization', organizations: [group, lab] });
+      const dialog = await screen.findByRole('dialog', { name: 'New organization' });
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(addressNow()).toBe('/app');
+      expect(screen.getByRole('button', { name: 'New organization' })).toHaveFocus();
+      expect(platform.createOrganization).not.toHaveBeenCalled();
+    });
+
+    // [utest->req~frontend-nav-create-dialogs~1]
+    it('closes on Escape too', async () => {
+      renderScreen(<AppHome />, { path: '/app', url: '/app?create=organization', organizations: [group, lab] });
+      const dialog = await screen.findByRole('dialog', { name: 'New organization' });
+
+      fireEvent.keyDown(dialog, { key: 'Escape' });
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(addressNow()).toBe('/app');
+    });
+
+    // [utest->req~frontend-nav-create-dialogs~1]
+    it('creating lab-two closes the dialog and opens /app/lab-two', async () => {
+      renderScreen(<AppHome />, { path: '/app', url: '/app?create=organization', organizations: [group, lab] });
+      const dialog = await screen.findByRole('dialog', { name: 'New organization' });
+
+      fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'lab-two' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Create organization' }));
+
+      await waitFor(() => expect(addressNow()).toBe('/app/lab-two'));
+      expect(platform.createOrganization).toHaveBeenCalledWith(expect.objectContaining({ name: 'lab-two', slug: 'lab-two' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 
   it('confirms an organization that was just deleted', async () => {

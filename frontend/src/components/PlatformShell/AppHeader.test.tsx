@@ -162,6 +162,7 @@ describe('AppHeader', () => {
     expect(tools).toHaveFocus();
   });
 
+  // [utest->req~frontend-nav-create-dialogs~1]
   it('lists what can be created from the New menu', () => {
     renderHeader();
     const toggle = screen.getByRole('button', { name: /^New/ });
@@ -169,8 +170,8 @@ describe('AppHeader', () => {
 
     const menu = document.getElementById('app-new-menu') as HTMLElement;
     expect(within(menu).getAllByRole('link').map((link) => [link.firstChild?.textContent, link.getAttribute('href')])).toEqual([
-      ['Organization', '/app/organizations/new'],
-      ['Project', '/app/isa-demo/new-project'],
+      ['Organization', '/app?create=organization'],
+      ['Project', '/app/isa-demo?create=project'],
       ['Case', '/app/isa-demo/qos/cases'],
       ['Job', '/app/isa-demo/qos/jobs/new'],
       ['Study', '/app/isa-demo/qos/studies/new'],
@@ -190,7 +191,7 @@ describe('AppHeader', () => {
     expect(within(menu).queryByRole('link', { name: /^Job/ })).toBeNull();
     const disabled = menu.querySelectorAll('[aria-disabled="true"]');
     expect([...disabled].map((item) => item.firstChild?.textContent)).toEqual(['Case', 'Job', 'Study']);
-    expect(within(menu).getByRole('link', { name: /^Project/ })).toHaveAttribute('href', '/app/isa-demo/new-project');
+    expect(within(menu).getByRole('link', { name: /^Project/ })).toHaveAttribute('href', '/app/isa-demo?create=project');
   });
 
   it('offers the Admin entry only to administrators', () => {
@@ -277,7 +278,7 @@ describe('AppHeader', () => {
       const desktop = new Set([
         ...hrefs(mainNav()),
         ...toolsHrefs(),
-        '/app/organizations/new', '/app/isa-demo/new-project', '/app/isa-demo/qos/cases',
+        '/app?create=organization', '/app/isa-demo?create=project', '/app/isa-demo/qos/cases',
         '/app/isa-demo/qos/jobs/new', '/app/isa-demo/qos/studies/new', '/app/account/keys?create=key', '/app/engines/new',
       ]);
       const mobile = new Set(hrefs(mobileNav()));

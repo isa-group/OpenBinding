@@ -83,9 +83,9 @@ export function projectRoot(organization?: Organization, project?: Project): str
 export function createItems(organization?: Organization, project?: Project): CreateItem[] {
   const root = projectRoot(organization, project);
   return [
-    { label: 'Organization', to: '/app/organizations/new', hint: '' },
+    { label: 'Organization', to: '/app?create=organization', hint: '' },
     organization
-      ? { label: 'Project', to: `/app/${organization.slug}/new-project`, hint: `in ${organization.name}` }
+      ? { label: 'Project', to: `/app/${organization.slug}?create=project`, hint: `in ${organization.name}` }
       : { label: 'Project', hint: 'Needs an organization' },
     root
       ? { label: 'Case', to: `${root}/cases`, hint: `in ${project?.name}` }

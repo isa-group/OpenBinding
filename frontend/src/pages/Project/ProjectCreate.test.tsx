@@ -14,8 +14,11 @@ vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof imp
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const consultora = org('consultora-demo', { name: 'Consultora Demo', effective_role: 'VIEWER', billing_sponsor_user_id: 'user-nora' });
 
+const onClose = vi.fn();
+const onCreated = vi.fn();
+
 function renderCreate(organizations = [group, consultora], slug = 'isa-demo', projects = [project('qos-benchmarks')]) {
-  return renderProjectScreen(<ProjectCreate />, { path: '/app/:org/new-project', url: `/app/${slug}/new-project`, organizations, projects });
+  return renderProjectScreen(<ProjectCreate onClose={onClose} onCreated={onCreated} />, { path: '/app/:org', url: `/app/${slug}`, organizations, projects });
 }
 
 const refusal = (status: number, code: string) => Object.assign(new HttpError(status, 'refused'), { code });
@@ -31,22 +34,34 @@ describe('New project', () => {
     ));
   });
 
-  it('frames the form with the breadcrumb, the title and a disabled Create until it is valid', async () => {
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it('is the dialog New project, with the name first and a disabled Create until the form is valid', async () => {
     renderCreate();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'New project in ISA Demo Group' })).toBeInTheDocument();
-    expect(screen.getByText('A project holds the cases, runs, studies and reports for one piece of work.')).toBeInTheDocument();
-    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(crumbs).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo');
-    expect(within(crumbs).getByText('New project')).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('button', { name: 'Create project' })).toBeDisabled();
-    expect(screen.getByRole('radio', { name: /^Private/ })).toBeChecked();
-    expect(screen.getByRole('link', { name: 'Cancel' })).toHaveAttribute('href', '/app/isa-demo');
+    const dialog = await screen.findByRole('dialog', { name: 'New project' });
+    expect(within(dialog).getByText(/^In ISA Demo Group\. A project holds the cases, runs, studies and reports for one piece of work\./)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Name')).toHaveFocus();
+    expect(within(dialog).getByRole('button', { name: 'Create project' })).toBeDisabled();
+    expect(within(dialog).getByRole('radio', { name: /^Private/ })).toBeChecked();
+  });
+
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it('ends at onClose from Cancel, the × button and Escape, and creates nothing', async () => {
+    renderCreate();
+    await screen.findByRole('dialog', { name: 'New project' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'New project' }), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(3);
+    expect(platform.createProject).not.toHaveBeenCalled();
   });
 
   it('suggests the address from the name until the address is edited, and checks it', async () => {
     renderCreate();
-    await screen.findByRole('heading', { level: 1 });
+    await screen.findByRole('dialog', { name: 'New project' });
 
     fill('Name', 'Placement multi-región');
     expect(screen.getByLabelText('Address')).toHaveValue('placement-multi-region');
@@ -68,7 +83,7 @@ describe('New project', () => {
 
   it('counts the description', async () => {
     renderCreate();
-    await screen.findByRole('heading', { level: 1 });
+    await screen.findByRole('dialog', { name: 'New project' });
 
     fill(/^Description/, 'Reference cases');
     expect(screen.getByText('15 / 2,000')).toBeInTheDocument();
@@ -91,9 +106,10 @@ describe('New project', () => {
     expect(screen.queryByRole('meter')).not.toBeInTheDocument();
   });
 
-  it('creates the project with what was typed and offers to open it', async () => {
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it('creates the project with what was typed, reloads the workspace and hands the project over', async () => {
     const { reload } = renderCreate();
-    await screen.findByRole('heading', { level: 1 });
+    await screen.findByRole('dialog', { name: 'New project' });
     fill('Name', 'Placement multi-región');
     fill(/^Description/, ' Pools and latencies ');
     fireEvent.click(screen.getByRole('radio', { name: /^Public/ }));
@@ -102,10 +118,10 @@ describe('New project', () => {
     await waitFor(() => expect(platform.createProject).toHaveBeenCalledWith('isa-demo', {
       name: 'Placement multi-región', slug: 'placement-multi-region', description: 'Pools and latencies', visibility: 'public',
     }));
-    expect(await screen.findByText('Placement multi-región is ready')).toBeInTheDocument();
-    expect(screen.getByText('Public: its card now appears in Explore.')).toBeInTheDocument();
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+    expect(onCreated.mock.calls[0][0]).toMatchObject({ slug: 'placement-multi-region', visibility: 'public' });
     expect(reload).toHaveBeenCalledOnce();
-    expect(screen.getByRole('link', { name: 'Open project' })).toHaveAttribute('href', '/app/isa-demo/placement-multi-region');
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('is read-only for a VIEWER, who is told why', async () => {
@@ -122,7 +138,7 @@ describe('New project', () => {
   describe('when the gateway refuses', () => {
     async function submit() {
       renderCreate();
-      await screen.findByRole('heading', { level: 1 });
+      await screen.findByRole('dialog', { name: 'New project' });
       fill('Name', 'Placement');
       fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
     }
@@ -132,7 +148,7 @@ describe('New project', () => {
       await submit();
 
       expect(await screen.findByRole('alert')).toHaveTextContent('That address is already used in ISA Demo Group (409 · slug_conflict).');
-      expect(screen.queryByText(/is ready/)).not.toBeInTheDocument();
+      expect(onCreated).not.toHaveBeenCalled();
     });
 
     it('402: no private project left, with the way to make it public instead', async () => {
@@ -164,7 +180,7 @@ describe('New project', () => {
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('Limits can’t be checked right now (503 · pricing_unavailable). Nothing was created.');
       fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
-      expect(await screen.findByText('Placement is ready')).toBeInTheDocument();
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
       expect(platform.createProject).toHaveBeenCalledTimes(2);
     });
 
@@ -187,7 +203,7 @@ describe('New project', () => {
     let finish: (value: unknown) => void = () => undefined;
     platform.createProject.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
     renderCreate();
-    await screen.findByRole('heading', { level: 1 });
+    await screen.findByRole('dialog', { name: 'New project' });
     fill('Name', 'Placement');
     fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
 
@@ -195,6 +211,6 @@ describe('New project', () => {
     fireEvent.submit(screen.getByRole('button', { name: 'Create project' }).closest('form')!);
     expect(platform.createProject).toHaveBeenCalledOnce();
     finish(project('placement'));
-    expect(await screen.findByText('placement is ready')).toBeInTheDocument();
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
   });
 });

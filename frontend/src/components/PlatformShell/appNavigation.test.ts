@@ -94,6 +94,17 @@ describe('mainLinks', () => {
     expect(matchRoutes(routed, '/app/account/keys'), 'the section the dialog opens over').not.toBeNull();
   });
 
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it('offers the Organization and Project items of the New menu as the creation dialogs', () => {
+    const organization = { slug: 'isa-demo', name: 'ISA demo' } as Organization;
+    const items = createItems(organization);
+
+    expect(items.filter((item) => item.label === 'Organization' || item.label === 'Project').map((item) => item.to))
+      .toEqual(['/app?create=organization', '/app/isa-demo?create=project']);
+    expect(matchRoutes(routed, '/app'), 'the screen the organization dialog opens over').not.toBeNull();
+    expect(matchRoutes(routed, '/app/isa-demo'), 'the screen the project dialog opens over').not.toBeNull();
+  });
+
   it('leads every entry of the tool and account menus to a routed address', () => {
     for (const link of [...toolLinks, ...accountLinks]) expect(matchRoutes(routed, link.to), `${link.label} ${link.to}`).not.toBeNull();
   });

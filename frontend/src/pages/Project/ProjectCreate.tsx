@@ -1,17 +1,18 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Link, useOutletContext, useParams } from 'react-router-dom';
-import { Check, Globe2, Lock } from 'lucide-react';
+import { Globe2, Lock } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { platformApi } from '../../api/platform';
 import type { Project, Visibility } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
+import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
 import { sponsorName } from '../Organization/orgModel';
-import { Breadcrumb, NeutralGate, PageSkeleton, RoleChip } from '../Organization/parts';
+import { NeutralGate, PageSkeleton, RoleChip } from '../Organization/parts';
 import { RoomBars } from '../Organization/room';
 import { roomFromUsage } from '../Organization/roomModel';
 import { createRefusal, type ProjectRefusal } from './projectErrors';
@@ -26,8 +27,16 @@ const CHOICES: ReadonlyArray<{ value: Visibility; label: string; icon: typeof Lo
   { value: 'public', label: 'Public', icon: Globe2, points: [['✓', 'Its card appears in Explore'], ['✓', 'Published results can be verified by anyone'], ['–', 'Drafts and cases still need membership to open']] },
 ];
 
-/** New project (`proj-create`, `/app/:org/new-project`): name, address, description and who can see it. */
-export function ProjectCreate() {
+interface ProjectCreateProps {
+  /** Cancel, the × button and Escape end here: the address goes back to the organization under the dialog. */
+  onClose: () => void;
+  /** The project exists and the workspace knows it. The caller opens it. */
+  onCreated: (project: Project) => void;
+}
+
+/** New project: the dialog `New project`, open at `/app/:org?create=project`. Name, address, description and who can see it. */
+// [impl->req~frontend-nav-create-dialogs~1]
+export function ProjectCreate({ onClose, onCreated }: ProjectCreateProps) {
   const context = useOutletContext<PlatformOutletContext>();
   const { org: orgSlug = '' } = useParams();
   const { user, isAdmin } = useAuth();
@@ -42,15 +51,13 @@ export function ProjectCreate() {
   const [visibility, setVisibility] = useState<Visibility>('private');
   const [creating, setCreating] = useState(false);
   const [refusal, setRefusal] = useState<ProjectRefusal | null>(null);
-  const [created, setCreated] = useState<Project | null>(null);
 
   const sponsorIsMe = Boolean(organization && user && user.id === organization.billing_sponsor_user_id);
   const usage = useResource(`new-project-usage:${orgSlug}:${sponsorIsMe}`, () => (sponsorIsMe ? apiClient.getOwnUsage().catch(() => null) : Promise.resolve(null)));
   const people = useResource(`new-project-people:${orgSlug}`, () => (organization ? platformApi.members(orgSlug).catch(() => []) : Promise.resolve([])));
 
   if (!organization) {
-    if (context.loading) return <div className="org-page is-sm"><PageSkeleton /></div>;
-    return <div className="org-page is-sm"><NeutralGate /></div>;
+    return <Modal title="New project" size="lg" onClose={onClose}>{context.loading ? <PageSkeleton /> : <NeutralGate />}</Modal>;
   }
 
   const access = accessIn(organization, isAdmin);
@@ -83,7 +90,7 @@ export function ProjectCreate() {
     try {
       const project = await platformApi.createProject(orgSlug, { name: name.trim(), slug, description: description.trim(), visibility });
       await context.reload();
-      setCreated(project);
+      onCreated(project);
     } catch (caught) {
       setRefusal(createRefusal(caught, { organization: organization.name, isPrivate }));
     } finally {
@@ -97,39 +104,9 @@ export function ProjectCreate() {
     void create();
   };
 
-  const crumbs = [{ label: 'Home', to: '/app' }, { label: organization.name, to: `/app/${orgSlug}` }];
-
-  if (created) {
-    return (
-      <div className="org-page is-sm">
-        <Breadcrumb items={[...crumbs, { label: 'New project' }]} />
-        <section className="org-done" role="status" aria-live="polite">
-          <span className="org-done-mark" aria-hidden="true"><Check /></span>
-          <div className="org-done-body">
-            <strong>{created.name} is ready</strong>
-            <span>
-              {created.visibility === 'private'
-                ? `Private: only members of ${organization.name} can see it.`
-                : 'Public: its card now appears in Explore.'}
-            </span>
-          </div>
-          <div className="org-done-actions">
-            <Action to={`/app/${orgSlug}/${created.slug}`} variant="primary">Open project</Action>
-          </div>
-        </section>
-      </div>
-    );
-  }
-
   return (
-    <div className="org-page is-sm">
-      <Breadcrumb items={[...crumbs, { label: 'New project' }]} />
-      <header className="org-head">
-        <div>
-          <h1>New project in {organization.name}</h1>
-          <p>A project holds the cases, runs, studies and reports for one piece of work.</p>
-        </div>
-      </header>
+    <Modal title="New project" size="lg" onClose={() => !creating && onClose()}>
+      <p className="org-muted proj-create-lede">In {organization.name}. A project holds the cases, runs, studies and reports for one piece of work.</p>
 
       {viewerOnly && (
         <div className="proj-note" role="note">
@@ -143,7 +120,7 @@ export function ProjectCreate() {
       <form className="proj-create" onSubmit={submit} noValidate>
         <div className="proj-create-main">
           <section className="proj-card" aria-labelledby="pc-about">
-            <h2 id="pc-about">About the project</h2>
+            <h3 id="pc-about">About the project</h3>
             <FormField
               label="Name"
               value={name}
@@ -183,7 +160,7 @@ export function ProjectCreate() {
           </section>
 
           <section className="proj-card" aria-labelledby="pc-vis">
-            <h2 id="pc-vis">Who can see it</h2>
+            <h3 id="pc-vis">Who can see it</h3>
             <fieldset className="proj-vis" disabled={viewerOnly}>
               <legend className="sr-only">Visibility</legend>
               {CHOICES.map((choice) => {
@@ -247,13 +224,15 @@ export function ProjectCreate() {
               </Notice>
             )}
             {creating && <div role="status" className="org-creating"><span className="org-spinner" aria-hidden="true" />Creating…</div>}
-            <Action type="submit" variant="primary" disabled={!valid} busy={creating}>Create project</Action>
-            <Link className="proj-cancel" to={`/app/${orgSlug}`} viewTransition>Cancel</Link>
           </section>
           <RoleLine role={organization.effective_role} />
         </aside>
+        <div className="ui-modal-actions">
+          <Action variant="secondary" onClick={onClose} disabled={creating}>Cancel</Action>
+          <Action type="submit" variant="primary" disabled={!valid} busy={creating}>Create project</Action>
+        </div>
       </form>
-    </div>
+    </Modal>
   );
 }
 

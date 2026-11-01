@@ -1,6 +1,6 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { routeDefinitions, routesByArea, type AreaName } from './registry';
+import { movedRoutes, routeDefinitions, routesByArea, type AreaName } from './registry';
 
 // [utest->req~frontend-nav-route-areas~1]
 // Resolution across the areas. Addresses where a fixed segment meets a `:param` segment are the ones a reordering of the registry could
@@ -62,12 +62,33 @@ describe('address resolution across the registry', () => {
     // The fixed `settings` segment wins over a project called `settings`.
     ['/app/acme/settings', 'organizations'],
     ['/app/settings/settings', 'organizations'],
-    // A project called `new-project` is the project area either way.
+    // No screen is fixed at the old creation addresses, so among the screens alone they read as an organization and a project. The moved
+    // addresses (below) take them before any screen does.
     ['/app/acme/new-project', 'project'],
-    ['/app/new-project/new-project', 'project'],
+    ['/app/organizations/new', 'project'],
     ['/app/acme/atlas', 'project'],
   ] as const)('%s -> the area %s', (path, area) => {
     expect(areaAt(path)).toBe(area);
+  });
+
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it('has no screen called org-create or proj-create', () => {
+    const ids = routeDefinitions.map((definition) => definition.id);
+    expect(ids).not.toContain('org-create');
+    expect(ids).not.toContain('proj-create');
+  });
+
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it.each([
+    ['/app/organizations/new', '/app?create=organization'],
+    ['/app/acme/new-project', '/app/acme?create=project'],
+    ['/app/new-project/new-project', '/app/new-project?create=project'],
+  ])('answers %s by the moved address that leads to %s, before any screen', (path, target) => {
+    const matched = matchRoutes([...movedRoutes.map((route) => ({ id: route.id, path: route.path })), ...config], path)?.at(-1)?.route.id;
+    const entry = movedRoutes.find((route) => route.id === matched);
+    expect(entry, path).toBeDefined();
+    const params = matchRoutes([{ path: entry?.path ?? '' }], path)?.[0].params ?? {};
+    expect(entry?.target(new URLSearchParams(''), params)).toBe(target);
   });
 
   it.each([
