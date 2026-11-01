@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { KeyRound, Mail } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { Notice } from '../../components/ui/Notice';
 import { classifyAuthError, fieldErrorsFrom } from './authErrors';
@@ -11,7 +11,7 @@ import { MIN_PASSWORD_LENGTH, passwordStrength } from './passwordStrength';
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 /** Ask for a one-time reset link. The answer never says whether the address has an account. */
-export function PasswordResetRequestPage() {
+function RequestForm() {
   const [email, setEmail] = useState('');
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -100,21 +100,27 @@ export function PasswordResetRequestPage() {
   );
 }
 
-type TokenState = 'ready' | 'missing' | 'refused' | 'used';
+// [impl->req~frontend-nav-reset-single-screen~1]
+/**
+ * The password-reset screen. A non-empty `token` in the query (the link of the reset e-mail) shows the new-password form;
+ * without one the request form is shown.
+ */
+export function PasswordResetPage() {
+  const [query] = useSearchParams();
+  const token = query.get('token') ?? '';
+  return token ? <NewPasswordForm key={token} token={token} /> : <RequestForm />;
+}
 
-const TOKEN_CHIP: Record<TokenState, { label: string; tone: 'ok' | 'bad' | 'warn' | 'plain' }> = {
+type TokenState = 'ready' | 'refused' | 'used';
+
+const TOKEN_CHIP: Record<TokenState, { label: string; tone: 'ok' | 'bad' | 'plain' }> = {
   ready: { label: 'ready to use', tone: 'ok' },
-  missing: { label: 'missing', tone: 'warn' },
   refused: { label: 'not accepted', tone: 'bad' },
   used: { label: 'used', tone: 'plain' },
 };
 
 /** Spend the one-time token from the reset link and set the new password. */
-export function PasswordResetCompletePage() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  // The token is read once and kept here: the link's address stops carrying it as soon as the page has it.
-  const [token] = useState(() => new URLSearchParams(location.search).get('token') ?? '');
+function NewPasswordForm({ token }: { token: string }) {
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [touched, setTouched] = useState(false);
@@ -126,17 +132,7 @@ export function PasswordResetCompletePage() {
   const passwordRef = useRef<HTMLInputElement>(null);
   const confirmationRef = useRef<HTMLInputElement>(null);
 
-  // A one-time secret must not stay in the address bar, the history or a later referrer.
-  useEffect(() => {
-    if (new URLSearchParams(location.search).has('token')) {
-      const rest = new URLSearchParams(location.search);
-      rest.delete('token');
-      const search = rest.toString();
-      navigate({ pathname: location.pathname, search: search ? `?${search}` : '', hash: location.hash }, { replace: true });
-    }
-  }, [location.pathname, location.search, location.hash, navigate]);
-
-  const state: TokenState = done ? 'used' : !token ? 'missing' : refused ? 'refused' : 'ready';
+  const state: TokenState = done ? 'used' : refused ? 'refused' : 'ready';
   const chip = TOKEN_CHIP[state];
   const strength = passwordStrength(password);
   const passwordOk = password.length >= MIN_PASSWORD_LENGTH;
@@ -145,10 +141,6 @@ export function PasswordResetCompletePage() {
 
   const copy = {
     ready: { title: 'Set a new password', intro: 'Choose a new password for your account. The link in your email works once.' },
-    missing: {
-      title: 'This link is incomplete',
-      intro: 'The page needs the one-time token from your email. Open the link exactly as received, or request a new one.',
-    },
     refused: {
       title: 'This reset link can’t be used',
       intro: 'It’s invalid, expired or was already used: the gateway doesn’t say which. Each link works once and expires, so request a new one.',
@@ -163,7 +155,6 @@ export function PasswordResetCompletePage() {
     event.preventDefault();
     setFailure(null);
     setServerError(null);
-    if (!token) return;
     if (!passwordOk || confirmation !== password) {
       setTouched(true);
       (!passwordOk ? passwordRef : confirmationRef).current?.focus();
@@ -193,7 +184,7 @@ export function PasswordResetCompletePage() {
 
   return (
     <AuthShell backTo="/login" backLabel="Back">
-      <span className={`auth-icon-tile${state === 'used' ? ' is-ok' : state === 'missing' || state === 'refused' ? ' is-bad' : ''}`} aria-hidden="true">
+      <span className={`auth-icon-tile${state === 'used' ? ' is-ok' : state === 'refused' ? ' is-bad' : ''}`} aria-hidden="true">
         <KeyRound />
       </span>
       <h1 className="auth-title">{copy.title}</h1>
@@ -251,7 +242,7 @@ export function PasswordResetCompletePage() {
         </>
       )}
 
-      {(state === 'missing' || state === 'refused') && (
+      {state === 'refused' && (
         <Link className="auth-btn auth-btn-primary auth-spaced" to="/password-reset" viewTransition>Request a new link</Link>
       )}
       {state === 'used' && (

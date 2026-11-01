@@ -2,7 +2,7 @@ import { expect, test, type Page, type Route, type TestInfo } from '@playwright/
 import { failureBody } from './helpers/problems';
 
 // S2 · authentication, invitations and the state gallery:
-// auth-login, auth-register, auth-reset-request, auth-reset-complete, auth-cas-callback, org-invite-accept, sys-states.
+// auth-login, auth-register, auth-reset-request (with and without a token), auth-cas-callback, org-invite-accept, sys-states.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 // One test per screen and viewport: each walks the states of its screen in order, on one page.
@@ -143,11 +143,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByLabel('Password')).toHaveAttribute('aria-invalid', 'true');
       await capture(page, testInfo, `login-${name}-401`);
 
-      // The accounts service is down: said as such, with the way to the status page.
+      // The accounts service is down: said as such, with the way to the service status on the About page.
       await page.route(`${API}/v1/auth/login`, detail(503, 'auth_unavailable', 'Accounts are not reachable.'));
       await main.getByRole('button', { name: 'Log in' }).click();
       await expect(main.getByRole('alert')).toContainText('Sign-in is unavailable right now (503)');
-      await expect(main.getByRole('alert').getByRole('link', { name: 'Service status' })).toHaveAttribute('href', '/status');
+      await expect(main.getByRole('alert').getByRole('link', { name: 'Service status' })).toHaveAttribute('href', '/about');
       await capture(page, testInfo, `login-${name}-503`);
 
       // A session that ended without being asked to is explained.
@@ -266,18 +266,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('auth-reset-complete /password-reset/complete', async ({ page }, testInfo) => {
+    test('auth-reset-request /password-reset?token=…', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto('/password-reset/complete');
       const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'This link is incomplete' })).toBeVisible();
-      await expect(main.getByText('Reset link · missing')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Request a new link' })).toHaveAttribute('href', '/password-reset');
-      await capture(page, testInfo, `reset-complete-${name}-no-token`);
+      // An empty token is no token: the request form.
+      await page.goto('/password-reset?token=');
+      await expect(main.getByRole('heading', { level: 1, name: 'Forgot your password?' })).toBeVisible();
+      await capture(page, testInfo, `reset-complete-${name}-empty-token`);
 
+      // The link of the reset e-mail keeps working and lands on the one screen, with its token in the address.
       await page.goto(`/password-reset/complete?token=${RESET_TOKEN}`);
+      await expect(page).toHaveURL(new RegExp(`/password-reset\\?token=${RESET_TOKEN}$`));
       await expect(main.getByRole('heading', { level: 1, name: 'Set a new password' })).toBeVisible();
       await expect(main.getByText('Reset link · ready to use')).toBeVisible();
       await main.getByLabel('New password').fill('short');
@@ -304,6 +305,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'This reset link can’t be used' })).toBeVisible();
       await expect(main.getByText('Reset link · not accepted')).toBeVisible();
       await expect(main.getByLabel('New password')).toHaveCount(0);
+      await expect(main.getByRole('link', { name: 'Request a new link' })).toHaveAttribute('href', '/password-reset');
       await capture(page, testInfo, `reset-complete-${name}-refused`);
 
       // A good link spends the token it was given, with the password that was typed.
@@ -312,7 +314,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         spent = route.request().postDataJSON() as { token: string; new_password: string };
         return route.fulfill({ status: 204 });
       });
-      await page.goto(`/password-reset/complete?token=${RESET_TOKEN}`);
+      await page.goto(`/password-reset?token=${RESET_TOKEN}`);
       await main.getByLabel('New password').fill('a-long-enough-password');
       await main.getByLabel('Confirm password').fill('a-long-enough-password');
       await expect(main.getByText('Strength: Good')).toBeVisible();
@@ -326,6 +328,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     });
 
     test('auth-cas-callback /auth/cas/callback', async ({ page }, testInfo) => {
+      // It loads many pages through a development server that compiles on demand; a loaded machine needs longer than the default.
+      test.setTimeout(180_000);
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       const main = page.locator('main');
@@ -362,7 +366,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.route(`${API}/v1/auth/cas/exchange`, detail(503, 'institutional_pricing_invalid', 'The active iPricing must declare the CAS-only RESEARCH plan.'));
       await page.goto(`/auth/cas/callback?code=${CAS_CODE}`);
       await expect(main.getByRole('alert')).toContainText('503 · institutional_pricing_invalid');
-      await expect(main.getByRole('link', { name: 'Service status' })).toHaveAttribute('href', '/status');
+      await expect(main.getByRole('link', { name: 'Service status' })).toHaveAttribute('href', '/about');
       await capture(page, testInfo, `cas-${name}-503`);
 
       await page.route(`${API}/v1/auth/cas/exchange`, detail(409, 'identity_in_use', 'That UVUS identity belongs to another account.'));
@@ -452,7 +456,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // Without a link: paste the token. A short one is refused locally; the gateway refuses the rest.
       // (Opening the same address again would be a reload, which keeps the token in the entry's state on purpose.)
-      await page.goto('/status');
+      await page.goto('/about');
       await page.goto('/invitations/accept');
       // A full page load again, on a development server that is compiling for other workers: the session is read before the page shows.
       await expect(main.getByRole('heading', { level: 1, name: 'Paste your invitation' })).toBeVisible({ timeout: 20_000 });

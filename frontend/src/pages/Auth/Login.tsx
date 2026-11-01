@@ -144,12 +144,12 @@ export function Login() {
             {failure === 'unavailable' && (
               <Notice tone="error">
                 Sign-in is unavailable right now (503). Accounts aren’t reachable from this deployment; public pages still work.{' '}
-                <Link to="/status">Service status</Link>
+                <Link to="/about">Service status</Link>
               </Notice>
             )}
             {failure === 'network' && (
               <Notice tone="error">
-                OpenBinding couldn’t be reached. Check your connection and try again. <Link to="/status">Service status</Link>
+                OpenBinding couldn’t be reached. Check your connection and try again. <Link to="/about">Service status</Link>
               </Notice>
             )}
             {failure === 'busy' && <Notice tone="error">Too many sign-in attempts. Wait a moment and try again.</Notice>}

@@ -35,12 +35,29 @@ const areas = {
 
 export type AreaName = keyof typeof areas;
 
-/** One list of screens per area. */
-export const routesByArea = Object.fromEntries(
-  Object.entries(areas).map(([name, area]) => [name, area.routes]),
-) as Record<AreaName, RouteDefinition[]>;
+export interface Registry {
+  /** One list of screens per area. */
+  routesByArea: Record<AreaName, RouteDefinition[]>;
+  routeDefinitions: RouteDefinition[];
+}
 
-export const routeDefinitions: RouteDefinition[] = Object.values(routesByArea).flat();
+/**
+ * The registry of a build. A production build leaves out the screens marked `devOnly`; a development build holds them all.
+ * Tests build both registries from here instead of mocking the flag.
+ */
+// [impl->req~frontend-nav-system-states-dev-only~1]
+export function buildRegistry(development: boolean): Registry {
+  const routesByArea = Object.fromEntries(
+    Object.entries(areas).map(([name, area]) => [name, area.routes.filter((route) => development || !route.devOnly)]),
+  ) as Record<AreaName, RouteDefinition[]>;
+  return { routesByArea, routeDefinitions: Object.values(routesByArea).flat() };
+}
+
+const current = buildRegistry(import.meta.env.DEV);
+
+export const routesByArea = current.routesByArea;
+
+export const routeDefinitions: RouteDefinition[] = current.routeDefinitions;
 
 /** The addresses that moved, from every area. */
 export const movedRoutes: MovedRoute[] = Object.values(areas).flatMap((area) => area.moved);

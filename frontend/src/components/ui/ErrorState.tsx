@@ -160,7 +160,7 @@ function defaultActionsFor(variant: ErrorVariant, options: { onRetry?: () => voi
       return (
         <>
           {options.onRetry && <StateAction onClick={options.onRetry} disabled={options.checking}>Try again</StateAction>}
-          <StateAction tone="link" to="/status">Service status</StateAction>
+          <StateAction tone="link" to="/about">Service status</StateAction>
         </>
       );
   }

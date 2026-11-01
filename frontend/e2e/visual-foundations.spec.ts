@@ -83,7 +83,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await footer.scrollIntoViewIfNeeded();
       const footerNav = footer.getByRole('navigation', { name: 'Footer navigation' });
-      await expect(footerNav.getByRole('link', { name: 'Status' })).toHaveAttribute('href', '/status');
+      await expect(footerNav.getByRole('link', { name: 'Status' })).toHaveCount(0);
+      await expect(footer.locator('a[href="/status"]')).toHaveCount(0);
       await expect(footerNav.getByRole('link', { name: 'Changelog' })).toHaveAttribute('href', '/about?tab=changelog');
       await expect(footer.getByRole('link', { name: 'SCORE Lab' })).toBeVisible();
       await expect(footer.getByRole('link', { name: 'Universidad de Sevilla' })).toBeVisible();

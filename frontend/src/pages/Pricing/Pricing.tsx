@@ -375,7 +375,8 @@ export function Pricing() {
                   </div>
                 ))}
               </div>
-              {user && <Link to="/app/system/states" viewTransition>See every state in the gallery</Link>}
+              {/* The states gallery is a development screen: production builds do not route it. */}
+              {import.meta.env.DEV && user && <Link to="/app/system/states" viewTransition>See every state in the gallery</Link>}
             </section>
 
             {view.researchDescription !== null && (

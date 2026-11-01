@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError, apiClient } from '../../api/client';
 import { passwordStrength } from './passwordStrength';
-import { PasswordResetCompletePage, PasswordResetRequestPage } from './PasswordReset';
+import { PasswordResetPage } from './PasswordReset';
 
 const strictRequest = vi.spyOn(apiClient, 'request');
 
@@ -22,8 +22,7 @@ function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/password-reset" element={<PasswordResetRequestPage />} />
-        <Route path="/password-reset/complete" element={<PasswordResetCompletePage />} />
+        <Route path="/password-reset" element={<PasswordResetPage />} />
         <Route path="/login" element={<h1>Log in page</h1>} />
       </Routes>
       <Where />
@@ -31,7 +30,8 @@ function renderAt(path: string) {
   );
 }
 
-describe('PasswordResetRequestPage', () => {
+// [utest->req~frontend-nav-reset-single-screen~1]
+describe('PasswordResetPage without a token', () => {
   // Braces matter: a function returned from beforeEach is run as the teardown.
   beforeEach(() => {
     strictRequest.mockReset();
@@ -118,7 +118,8 @@ describe('PasswordResetRequestPage', () => {
   });
 });
 
-describe('PasswordResetCompletePage', () => {
+// [utest->req~frontend-nav-reset-single-screen~1]
+describe('PasswordResetPage with a token', () => {
   beforeEach(() => {
     strictRequest.mockReset();
   });
@@ -129,18 +130,25 @@ describe('PasswordResetCompletePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Set new password' }));
   };
 
-  it('explains that the page needs the token from the email when there is none', () => {
-    renderAt('/password-reset/complete');
+  it('shows the request form for an empty token', () => {
+    renderAt('/password-reset?token=');
 
-    expect(screen.getByRole('heading', { level: 1, name: 'This link is incomplete' })).toBeInTheDocument();
-    expect(screen.getByText('Reset link · missing')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Forgot your password?' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Email address')).toBeInTheDocument();
     expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Request a new link' })).toHaveAttribute('href', '/password-reset');
+  });
+
+  it('shows the new-password form and no request form for a token', () => {
+    renderAt('/password-reset?token=abc123');
+
+    expect(screen.getByLabelText('New password')).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirm password')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Email address')).not.toBeInTheDocument();
   });
 
   it('spends the token from the URL with the new password and then offers the log in', async () => {
     strictRequest.mockResolvedValue(undefined);
-    renderAt('/password-reset/complete?token=obr_abc_def');
+    renderAt('/password-reset?token=obr_abc_def');
 
     expect(screen.getByRole('heading', { level: 1, name: 'Set a new password' })).toBeInTheDocument();
     expect(screen.getByText('Reset link · ready to use')).toBeInTheDocument();
@@ -157,12 +165,11 @@ describe('PasswordResetCompletePage', () => {
     expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
   });
 
-  it('takes the token out of the address as soon as the page has read it', async () => {
+  it('keeps the token in the address and spends it', async () => {
     strictRequest.mockResolvedValue(undefined);
-    renderAt('/password-reset/complete?token=obr_abc_def&from=email');
+    renderAt('/password-reset?token=obr_abc_def&from=email');
 
-    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/password-reset/complete?from=email'));
-    expect(screen.getByTestId('where')).not.toHaveTextContent('obr_abc_def');
+    expect(screen.getByTestId('where')).toHaveTextContent('/password-reset?token=obr_abc_def&from=email');
     expect(screen.getByRole('heading', { level: 1, name: 'Set a new password' })).toBeInTheDocument();
 
     fill('a-long-enough-password');
@@ -175,7 +182,7 @@ describe('PasswordResetCompletePage', () => {
   });
 
   it('checks length and confirmation before spending the token', () => {
-    renderAt('/password-reset/complete?token=obr_abc_def');
+    renderAt('/password-reset?token=obr_abc_def');
 
     fill('short', 'different');
 
@@ -186,7 +193,7 @@ describe('PasswordResetCompletePage', () => {
   });
 
   it('asks for the confirmation to match even when the password is long enough', () => {
-    renderAt('/password-reset/complete?token=obr_abc_def');
+    renderAt('/password-reset?token=obr_abc_def');
 
     fill('a-long-enough-password', 'a-long-enough-passwor');
 
@@ -195,7 +202,7 @@ describe('PasswordResetCompletePage', () => {
   });
 
   it('shows how strong the password is as it is typed', () => {
-    renderAt('/password-reset/complete?token=obr_abc_def');
+    renderAt('/password-reset?token=obr_abc_def');
     const password = screen.getByLabelText('New password');
 
     expect(screen.getByText('Strength: Not set')).toBeInTheDocument();
@@ -209,7 +216,7 @@ describe('PasswordResetCompletePage', () => {
 
   it('retires the form when the token is invalid, expired or used, and offers a new link', async () => {
     strictRequest.mockRejectedValue(problem(401, 'reset_token_invalid'));
-    renderAt('/password-reset/complete?token=obr_abc_def');
+    renderAt('/password-reset?token=obr_abc_def');
 
     fill('a-long-enough-password');
 
@@ -221,7 +228,7 @@ describe('PasswordResetCompletePage', () => {
 
   it('keeps the form and the token when the gateway calls the password too weak', async () => {
     strictRequest.mockRejectedValue(problem(422, 'weak_password', 'Password is on the common-passwords list.'));
-    renderAt('/password-reset/complete?token=obr_abc_def');
+    renderAt('/password-reset?token=obr_abc_def');
 
     fill('password1234');
 
@@ -232,7 +239,7 @@ describe('PasswordResetCompletePage', () => {
 
   it('says the link is still valid when the gateway is unavailable', async () => {
     strictRequest.mockRejectedValue(problem(503));
-    renderAt('/password-reset/complete?token=obr_abc_def');
+    renderAt('/password-reset?token=obr_abc_def');
 
     fill('a-long-enough-password');
 

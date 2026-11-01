@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Public routes of the redesigned site. About and Status are still placeholders but must already fit the viewport.
+// Public routes of the redesigned site. About holds the service-status note; /status itself only redirects to it.
 const PUBLIC_ROUTES = [
   '/',
   '/language',
@@ -10,7 +10,6 @@ const PUBLIC_ROUTES = [
   '/engines',
   '/pricing',
   '/about',
-  '/status',
   '/login',
   '/register',
 ];

@@ -179,7 +179,7 @@ export function CasCallback() {
                 : <a className="auth-btn auth-btn-secondary" href={apiClient.casStartUrl('login')} onClick={() => rememberCasFlow('login', flow?.returnTo)}>Try again</a>)}
               {phase.failure === 'linked-elsewhere' || phase.failure === 'collision'
                 ? <Link className="auth-btn auth-btn-secondary" to="/app/account/identities" viewTransition>Go to Account › Identities</Link>
-                : SERVICE.has(phase.failure) && <Link className="auth-btn auth-btn-secondary" to="/status" viewTransition>Service status</Link>}
+                : SERVICE.has(phase.failure) && <Link className="auth-btn auth-btn-secondary" to="/about" viewTransition>Service status</Link>}
             </div>
           </>
         )}

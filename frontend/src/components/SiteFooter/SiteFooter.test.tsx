@@ -25,7 +25,7 @@ describe('SiteFooter', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Footer navigation' });
     for (const [name, href] of [
-      ['Explore', '/explore'], ['Engines', '/engines'], ['Pricing', '/pricing'], ['Status', '/status'],
+      ['Explore', '/explore'], ['Engines', '/engines'], ['Pricing', '/pricing'],
       ['Profiles & dialects', '/language'], ['Schemas', '/language/schemas/application'],
       ['Examples', '/examples'], ['Workbench', '/workbench'],
       ['Team', '/about?tab=team'], ['Research', '/about?tab=research'],
@@ -33,7 +33,15 @@ describe('SiteFooter', () => {
     ] as const) {
       expect(within(nav).getByRole('link', { name })).toHaveAttribute('href', href);
     }
-    expect(within(nav).getAllByRole('link')).toHaveLength(12);
+    expect(within(nav).getAllByRole('link')).toHaveLength(11);
+  });
+
+  // [utest->req~frontend-nav-status-retired~1]
+  it('links to no status page', () => {
+    renderFooter();
+
+    expect(screen.queryByRole('link', { name: 'Status' })).not.toBeInTheDocument();
+    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toBe('/status');
   });
 
   it('renders the colour band and a dynamic copyright year', () => {

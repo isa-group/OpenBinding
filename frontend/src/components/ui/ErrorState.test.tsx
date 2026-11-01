@@ -15,7 +15,7 @@ describe('ErrorState', () => {
     ['402', 'You’ve used all of an allowance', 'See your plan', '/app/account/usage', 'quota_exceeded'],
     ['403', 'You can’t do this', 'Back to the workspace', '/app', 'forbidden'],
     ['404', 'Not found', 'Back to the workspace', '/app', 'not_found'],
-    ['503', 'This isn’t available right now', 'Service status', '/status', 'unavailable'],
+    ['503', 'This isn’t available right now', 'Service status', '/about', 'unavailable'],
   ])('says what the %s variant means by default and where to go next', (variant, title, action, href, code) => {
     renderState(<ErrorState variant={variant} />);
 

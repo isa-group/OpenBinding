@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-// S1a · public screens: pub-home, pub-explore, verify, pub-status, pub-about.
+// S1a · public screens: pub-home, pub-explore, verify, pub-about (with the service-status note that took the place of /status).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 
@@ -393,52 +393,37 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.screenshot({ path: testInfo.outputPath(`verify-${name}-unavailable.png`), fullPage: true, animations: 'disabled' });
     });
 
-    test('pub-status /status', async ({ page }, testInfo) => {
+    test('/status is replaced by /about, which holds the service-status note', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto('/status');
+      await page.goto('/pricing');
+      await page.goto('/status?probe=1');
       const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { name: 'All systems operational' })).toBeVisible();
-      const probes = main.getByRole('list', { name: 'Probes' });
-      await expect(probes).toContainText('GET /health');
-      await expect(probes).toContainText('GET /health/live');
-      await expect(probes).toContainText('GET /health/ready');
-      const dependencies = main.getByRole('region', { name: 'Required dependencies' });
-      await expect(dependencies).toContainText('database');
-      await expect(dependencies).toContainText('configured');
-      await expect(dependencies).toContainText('not required');
+      // The query of the retired address is dropped.
+      await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).search).toBe('/about');
+      await expect(main.getByText('Service status: All systems operational')).toBeVisible();
+      await expect(page.locator('footer a[href="/status"], header a[href="/status"]')).toHaveCount(0);
       await ready(page);
       await page.screenshot({ path: testInfo.outputPath(`status-${name}-ok.png`), fullPage: true, animations: 'disabled' });
 
-      // The incident guide opens on request.
-      const guide = main.getByRole('button', { name: 'What to do during an incident' });
-      await expect(guide).toHaveAttribute('aria-expanded', 'false');
-      await guide.click();
-      await expect(main.getByText(/nothing is retried automatically for you/)).toBeVisible();
-
-      // Check again, now that the database is down.
+      // The same check, now that the database is down.
       await page.route(`${API}/health/ready`, json(DEGRADED_READY, 503));
-      await main.getByRole('button', { name: 'Check again' }).click();
-      await expect(main.getByRole('heading', { name: 'Degraded' })).toBeVisible();
-      await expect(main.getByText(/database is unavailable/).first()).toBeVisible();
-      await expect(dependencies).toContainText('sign-in and private pages answer 503');
-      await page.screenshot({ path: testInfo.outputPath(`status-${name}-degraded.png`), fullPage: true, animations: 'disabled' });
+      await page.goto('/about');
+      await expect(main.getByText('Service status: Degraded')).toBeVisible();
 
       await expectNoHorizontalOverflow(page);
       expect(critical).toEqual([]);
     });
 
-    test('pub-status · no connection with the gateway is not a failing dependency', async ({ page }, testInfo) => {
+    test('/about · a gateway that does not answer is said so, and the page still renders', async ({ page }, testInfo) => {
       await mockApi(page, { offline: true });
-      await page.goto('/status');
+      await page.goto('/about');
       const main = page.locator('main');
 
-      const alert = main.getByRole('alert');
-      await expect(alert).toContainText('No connection with the gateway');
-      await expect(alert).toContainText('we can’t tell whether any dependency is down');
-      await expect(main.getByRole('heading', { name: 'Degraded' })).toHaveCount(0);
-      await expect(main.getByRole('region', { name: 'Required dependencies' })).toHaveCount(0);
+      await expect(main.getByText('Service status: not available right now')).toBeVisible();
+      await expect(main.getByRole('heading', { level: 1, name: 'People, research and changes behind OpenBinding' })).toBeVisible();
+      await expect(main.getByRole('tab', { name: 'Team' })).toHaveAttribute('aria-selected', 'true');
       await ready(page);
       await page.screenshot({ path: testInfo.outputPath(`status-${name}-unreachable.png`), fullPage: true, animations: 'disabled' });
     });

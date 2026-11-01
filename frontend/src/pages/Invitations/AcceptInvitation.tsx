@@ -230,7 +230,7 @@ export function AcceptInvitation() {
             )}
             {failure?.kind === 'unavailable' && (
               <Notice tone="error" title="Invitations are unavailable right now (503).">
-                Nothing was changed. Try again in a moment. <Link to="/status">Service status</Link>
+                Nothing was changed. Try again in a moment. <Link to="/about">Service status</Link>
               </Notice>
             )}
             {failure?.kind === 'network' && (

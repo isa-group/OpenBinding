@@ -5,6 +5,7 @@ import {
   ChangelogPanel, ContributionsPanel, FundingPanel, ResearchPanel, TeamPanel,
 } from './AboutPanels';
 import { ABOUT_TABS, aboutData, parseAboutTab, type AboutData } from './aboutModel';
+import { ServiceStatus } from './ServiceStatus';
 import './About.css';
 
 /** Team, research, funding, contribution tracks and changelog: reviewed data in the repository, not served by the API. */
@@ -19,6 +20,7 @@ export function About({ data = aboutData }: { data?: AboutData }) {
         title="People, research and changes behind OpenBinding"
         lede="This content is reviewed as data in the repository, not served by the API."
       />
+      <ServiceStatus />
       <TabBar
         prefix="about"
         ariaLabel="About sections"

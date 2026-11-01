@@ -1,27 +1,42 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { routeDefinitions, routesByArea } from '../registry';
+import { buildRegistry } from '../registry';
 
-// One pair per line: screenBudget.test.ts counts them.
-const PROTOTYPE: Array<[string, string]> = [
-  ['sys-states', '/app/system/states'],
-];
+// The screens of this area exist in development builds only, so the list of the production screens that
+// screenBudget.test.ts counts is empty: no `['id', '/path']` pair appears here.
+const production = buildRegistry(false);
+const development = buildRegistry(true);
 
 describe('area system', () => {
-  // [utest->req~frontend-nav-route-areas~1]
-  it('has 1 screen, with the id and route of the prototype', () => {
-    expect(routesByArea.system).toHaveLength(1);
-    expect(routesByArea.system.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
+  // [utest->req~frontend-nav-system-states-dev-only~1]
+  it('declares no screen in the production registry', () => {
+    expect(production.routesByArea.system).toEqual([]);
+    expect(production.routeDefinitions.map((definition) => definition.id)).not.toContain('sys-states');
+    expect(production.routeDefinitions.map((definition) => definition.path)).not.toContain('/app/system/states');
+  });
+
+  // [utest->req~frontend-nav-system-states-dev-only~1]
+  it('declares sys-states at /app/system/states in the development registry, marked for development only', () => {
+    // On one line: the pair-per-line scan of screenBudget.test.ts must not count it as a production screen.
+    expect(development.routesByArea.system.map((definition) => [definition.id, definition.path])).toEqual([['sys-states', '/app/system/states']]);
+    expect(development.routesByArea.system[0].devOnly).toBe(true);
+    expect(development.routeDefinitions.map((definition) => definition.id)).toContain('sys-states');
+  });
+
+  // [utest->req~frontend-nav-system-states-dev-only~1]
+  it('leaves every other screen to both registries', () => {
+    const others = development.routeDefinitions.filter((definition) => !definition.devOnly);
+    expect(production.routeDefinitions).toEqual(others);
   });
 
   describe('address resolution', () => {
-    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+    const resolve = (registry: typeof production, path: string) =>
+      matchRoutes(registry.routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path })), path)?.at(-1)?.route.id ?? null;
 
-    // [utest->req~frontend-nav-route-areas~1]
-    it.each([
-      ['/app/system/states', 'sys-states'],
-    ])('%s -> %s', (path, id) => {
-      expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
+    // [utest->req~frontend-nav-system-states-dev-only~1]
+    it('resolves /app/system/states in development, and to no screen in production', () => {
+      expect(resolve(development, '/app/system/states')).toBe('sys-states');
+      expect(resolve(production, '/app/system/states')).not.toBe('sys-states');
     });
   });
 });

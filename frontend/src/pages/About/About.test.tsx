@@ -1,8 +1,34 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { checkGateway, type GatewayStatus, type ProbeName, type ProbeResult } from '../../api/health';
 import { About } from './About';
 import { aboutData, type AboutData } from './aboutModel';
+
+vi.mock('../../api/health', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../api/health')>()), checkGateway: vi.fn() }));
+
+const probe = (name: ProbeName, state: 'ok' | 'failed' | 'unreached', status = 200): ProbeResult => ({
+  name,
+  request: `GET /${name}`,
+  reached: state !== 'unreached',
+  status: state === 'unreached' ? null : status,
+  ok: state === 'ok',
+  ms: state === 'unreached' ? null : 3,
+  body: null,
+});
+
+function gatewayStatus(probes: Record<ProbeName, ProbeResult>, dependencies: GatewayStatus['dependencies'] = []): GatewayStatus {
+  return { checkedAt: new Date('2026-11-01T10:00:00Z'), probes, dependencies };
+}
+
+const OPERATIONAL = gatewayStatus({ health: probe('health', 'ok'), live: probe('live', 'ok'), ready: probe('ready', 'ok') }, [
+  { name: 'database', value: 'ok', state: 'ok' },
+]);
+
+beforeEach(() => {
+  vi.mocked(checkGateway).mockReset();
+  vi.mocked(checkGateway).mockResolvedValue(OPERATIONAL);
+});
 
 function Search() {
   return <output data-testid="search">{useLocation().search}</output>;
@@ -182,6 +208,63 @@ describe('About', () => {
 
       expect(screen.getByText('Pending editorial review')).toBeInTheDocument();
       expect(screen.getByText(`Entries for ${noun} appear once they’re reviewed.`)).toBeInTheDocument();
+    });
+  });
+
+  // [utest->req~frontend-nav-status-retired~1]
+  describe('service status note', () => {
+    it('says that every system is operational when the check reports every dependency up', async () => {
+      renderAbout();
+
+      expect(await screen.findByText('Service status: All systems operational')).toBeInTheDocument();
+    });
+
+    it('is checking while the gateway has not answered', () => {
+      vi.mocked(checkGateway).mockReturnValue(new Promise(() => {}));
+      renderAbout();
+
+      expect(screen.getByText('Service status: checking…')).toBeInTheDocument();
+    });
+
+    it('says Degraded when readiness fails', async () => {
+      vi.mocked(checkGateway).mockResolvedValue(gatewayStatus({ health: probe('health', 'ok'), live: probe('live', 'ok'), ready: probe('ready', 'failed', 503) }));
+      renderAbout();
+
+      expect(await screen.findByText('Service status: Degraded')).toBeInTheDocument();
+    });
+
+    it('says Degraded when a dependency is down although every probe answered', async () => {
+      vi.mocked(checkGateway).mockResolvedValue(gatewayStatus(
+        { health: probe('health', 'ok'), live: probe('live', 'ok'), ready: probe('ready', 'ok') },
+        [{ name: 'space', value: 'unavailable', state: 'down' }],
+      ));
+      renderAbout();
+
+      expect(await screen.findByText('Service status: Degraded')).toBeInTheDocument();
+    });
+
+    it('says the gateway reports errors when the health or live probe fails', async () => {
+      vi.mocked(checkGateway).mockResolvedValue(gatewayStatus({ health: probe('health', 'failed', 500), live: probe('live', 'ok'), ready: probe('ready', 'ok') }));
+      renderAbout();
+
+      expect(await screen.findByText('Service status: Gateway reporting errors')).toBeInTheDocument();
+    });
+
+    it('says it is not available when no probe answers, and still renders the page', async () => {
+      vi.mocked(checkGateway).mockResolvedValue(gatewayStatus({ health: probe('health', 'unreached'), live: probe('live', 'unreached'), ready: probe('ready', 'unreached') }));
+      renderAbout();
+
+      expect(await screen.findByText('Service status: not available right now')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1, name: 'People, research and changes behind OpenBinding' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Team' })).toBeInTheDocument();
+    });
+
+    it('says it is not available when the check throws, and still renders the page', async () => {
+      vi.mocked(checkGateway).mockRejectedValue(new Error('boom'));
+      renderAbout();
+
+      expect(await screen.findByText('Service status: not available right now')).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Team' })).toBeInTheDocument();
     });
   });
 

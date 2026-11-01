@@ -1,22 +1,28 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { routeDefinitions, routesByArea } from '../registry';
+import { movedRoutes, routeDefinitions, routesByArea } from '../registry';
 
 // One pair per line: screenBudget.test.ts counts them.
 const PROTOTYPE: Array<[string, string]> = [
   ['auth-login', '/login'],
   ['auth-register', '/register'],
   ['auth-reset-request', '/password-reset'],
-  ['auth-reset-complete', '/password-reset/complete'],
   ['auth-cas-callback', '/auth/cas/callback'],
   ['org-invite-accept', '/invitations/accept'],
 ];
 
 describe('area auth', () => {
   // [utest->req~frontend-nav-route-areas~1]
-  it('has 6 screens, with the ids and routes of the prototype', () => {
-    expect(routesByArea.auth).toHaveLength(6);
+  // [utest->req~frontend-nav-reset-single-screen~1]
+  it('has 5 screens, with the ids and routes of the prototype', () => {
+    expect(routesByArea.auth).toHaveLength(5);
     expect(routesByArea.auth.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
+  });
+
+  // [utest->req~frontend-nav-reset-single-screen~1]
+  it('does not route the second password-reset screen', () => {
+    expect(routeDefinitions.map((definition) => definition.id)).not.toContain('auth-reset-complete');
+    expect(routeDefinitions.map((definition) => definition.path)).not.toContain('/password-reset/complete');
   });
 
   it('serves every screen in the public layout, and only the invitation link switches header with the session', () => {
@@ -31,9 +37,24 @@ describe('area auth', () => {
 
     // [utest->req~frontend-nav-route-areas~1]
     it.each([
-      ['/password-reset/complete', 'auth-reset-complete'],
+      ['/password-reset', 'auth-reset-request'],
     ])('%s -> %s', (path, id) => {
       expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
     });
+
+    // [utest->req~frontend-nav-reset-single-screen~1]
+    it('leaves /password-reset/complete to the moved-routes table', () => {
+      expect(matchRoutes(config, '/password-reset/complete')).toBeNull();
+    });
+  });
+
+  // [utest->req~frontend-nav-reset-single-screen~1]
+  // [utest->req~frontend-nav-redirects~1]
+  it('moves /password-reset/complete to /password-reset for good, with the token', () => {
+    const route = movedRoutes.find((entry) => entry.path === '/password-reset/complete');
+    expect(route?.id).toBe('reset-complete-link');
+    expect(route?.permanent).toBe(true);
+    expect(route?.target(new URLSearchParams('token=abc123'), {})).toBe('/password-reset?token=abc123');
+    expect(route?.target(new URLSearchParams(''), {})).toBe('/password-reset');
   });
 });
