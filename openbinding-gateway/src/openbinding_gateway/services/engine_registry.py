@@ -1188,6 +1188,9 @@ async def set_credential(
     return summary
 
 
+# [impl->req~gateway-api-optimistic-concurrency-covered~1]
+# [impl->req~gateway-api-optimistic-concurrency-order-access~1]
+# [impl->req~gateway-api-optimistic-concurrency-order-state~1]
 async def set_credential_revision(
     key: RegistrationKey,
     secret: str,

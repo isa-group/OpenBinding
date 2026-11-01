@@ -126,6 +126,9 @@ async def read_own_profile(
     return await profile_of(session, user)
 
 
+# [impl->req~gateway-api-optimistic-concurrency-covered~1]
+# [impl->req~gateway-api-optimistic-concurrency-order-access~1]
+# [impl->req~gateway-api-optimistic-concurrency-order-state~1]
 @router.patch(
     "/me",
     response_model=UserProfile,

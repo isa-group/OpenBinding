@@ -41,9 +41,11 @@ ETAG_HEADER: dict[str, Any] = {
     "schema": {"type": "string"},
 }
 
+# [impl->req~gateway-api-optimistic-concurrency-openapi~1]
 #: Fragment merged into the 200 of a read or edit: the response declares its ``ETag``.
 ETAG_RESPONSE: dict[int | str, dict[str, Any]] = {200: {"headers": {"ETag": ETAG_HEADER}}}
 
+# [impl->req~gateway-api-optimistic-concurrency-openapi~1]
 #: The shared ``If-Match`` request header (optional).
 IF_MATCH_HEADER = Header(None, alias="If-Match", description=IF_MATCH_DESCRIPTION)
 
@@ -62,6 +64,7 @@ PRECONDITION_RESPONSES: dict[int | str, dict[str, Any]] = {
     },
 }
 
+# [impl->req~gateway-api-optimistic-concurrency-openapi~1]
 #: Responses of a guarded edit: 400, 412 and the ``ETag`` of the 200.
 EDIT_RESPONSES: dict[int | str, dict[str, Any]] = {**PRECONDITION_RESPONSES, **ETAG_RESPONSE}
 
@@ -83,18 +86,25 @@ def normalise(moment: datetime) -> datetime:
     return moment.astimezone(timezone.utc)
 
 
+# [impl->req~gateway-api-optimistic-concurrency-etag-format~1]
 def etag_for(row: Any) -> str:
     """The strong ETag of the row's current revision."""
 
     return _etag(row, row.updated_at)
 
 
+# [impl->req~gateway-api-optimistic-concurrency-etag-format~1]
 def _etag(row: Any, updated_at: datetime) -> str:
     stamp = normalise(updated_at).isoformat(timespec="microseconds")
     digest = hashlib.sha256(f"{row.__tablename__}:{row.id}:{stamp}".encode()).hexdigest()
     return f'"{digest[:32]}"'
 
 
+# [impl->req~gateway-api-optimistic-concurrency-if-match-any~1]
+# [impl->req~gateway-api-optimistic-concurrency-if-match-list~1]
+# [impl->req~gateway-api-optimistic-concurrency-if-match-weak~1]
+# [impl->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
+# [impl->req~gateway-api-optimistic-concurrency-if-match-absent~1]
 def parse_if_match(value: str | None) -> list[str] | None:
     """``None`` when the header is absent, else its entity-tags (``["*"]`` for the wildcard).
 
@@ -114,6 +124,8 @@ def parse_if_match(value: str | None) -> list[str] | None:
     return _TAG.findall(value)
 
 
+# [impl->req~gateway-api-optimistic-concurrency-precondition-failed~1]
+# [impl->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
 def precondition(row: Any, if_match: str | None) -> None:
     """Refuse a stale ``If-Match`` with 412 and the current ETag; absent header passes."""
 
@@ -130,6 +142,10 @@ def precondition(row: Any, if_match: str | None) -> None:
         )
 
 
+# [impl->req~gateway-api-optimistic-concurrency-atomic~1]
+# [impl->req~gateway-api-optimistic-concurrency-revision-bump~1]
+# [impl->req~gateway-api-optimistic-concurrency-precondition-failed-unchanged~1]
+# [impl->req~gateway-api-optimistic-concurrency-no-current-revision~1]
 async def guard(session: AsyncSession, row: Any, if_match: str | None) -> None:
     """Check ``If-Match`` and, when the header is present, claim the row for this transaction.
 
@@ -187,5 +203,7 @@ def _release_claims(session: Session, transaction: Any) -> None:
         session.info.pop(_CLAIMS, None)
 
 
+# [impl->req~gateway-api-optimistic-concurrency-etag-on-read~1]
+# [impl->req~gateway-api-optimistic-concurrency-etag-on-write~1]
 def set_etag(response: Response, row: Any) -> None:
     response.headers["ETag"] = etag_for(row)

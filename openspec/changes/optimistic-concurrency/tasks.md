@@ -110,12 +110,12 @@ Owned: `docs/ERRORS.md`.
 Traceability: tests carry `[utest->req~gateway-api-optimistic-concurrency-…~1]` tags and the code carries
 `[impl->req~gateway-api-optimistic-concurrency-…~1]` tags (another task adds them).
 
-- [ ] R.1 Cap `If-Match` at 2048 characters: 400 `invalid_if_match` (code task).
-- [ ] R.2 Keep the claimed instant through the final flush so `onupdate` does not overwrite the monotonic floor (code
+- [x] R.1 Cap `If-Match` at 2048 characters: 400 `invalid_if_match` (code task).
+- [x] R.2 Keep the claimed instant through the final flush so `onupdate` does not overwrite the monotonic floor (code
   task).
-- [ ] R.3 A row deleted between the load and the claim answers 404 `not_found` (code task; scenario "Row deleted before
+- [x] R.3 A row deleted between the load and the claim answers 404 `not_found` (code task; scenario "Row deleted before
   the claim").
-- [ ] R.4 Add `[utest->…]` and `[impl->…]` tags (tagging task).
+- [x] R.4 Add `[utest->…]` and `[impl->…]` tags (tagging task).
 - [x] R.5 Docs: design.md D3, D4, §9 and §10 (decision record, to promote to
   `docs/adr/0023-optimistic-concurrency-with-etag-if-match.md`), the delta spec and `docs/ERRORS.md`.
 

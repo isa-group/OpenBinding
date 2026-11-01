@@ -548,6 +548,9 @@ async def create_study(
     return _study_view(value)
 
 
+# [impl->req~gateway-api-optimistic-concurrency-covered~1]
+# [impl->req~gateway-api-optimistic-concurrency-order-access~1]
+# [impl->req~gateway-api-optimistic-concurrency-order-state~1]
 @router.patch(
     "/studies/{study}", response_model=StudyView, operation_id="updateStudy",
     responses=revision.EDIT_RESPONSES,

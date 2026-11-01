@@ -108,6 +108,9 @@ async def get_preferences(response: Response, user: User = Depends(get_current_u
     return NotificationPreferences(**(user.preferences or {}))
 
 
+# [impl->req~gateway-api-optimistic-concurrency-covered~1]
+# [impl->req~gateway-api-optimistic-concurrency-order-access~1]
+# [impl->req~gateway-api-optimistic-concurrency-order-state~1]
 @router.put(
     "/preferences",
     response_model=NotificationPreferences,

@@ -19,7 +19,7 @@ difference is the value of `DEMO_PYTEST_ARGS` given to `seed`:
 DEMO_PYTEST_ARGS='-rsfExX --tb=short tests/concurrency tests/test_federated_engines_pg.py tests/test_duplicate_copy_purge_pg.py tests/test_optimistic_guard_pg.py'
 ```
 
-`tests/test_optimistic_guard_pg.py` (7 tests, optimistic concurrency) was added to this command after the recorded run below and has **not yet had a recorded real run**: the counts in this document do not include it.
+`tests/test_optimistic_guard_pg.py` (8 tests, optimistic concurrency) was added to this command after the recorded run below and has **not yet had a recorded real run**: the counts in this document do not include it.
 
 - Paths are relative to `/app` (the `test` stage of the image copies `tests/`). Do **not** add `tests` or
   `tests/test_pg_harness.py`: the container has no checkout, so the compose-shape tests fail there by design.
@@ -104,7 +104,7 @@ unique-index waits, several connections, real foreign keys and triggers.
 | Reconciler cycle on the real database, once an hour | `test_the_reconciler_purges_once_an_hour_on_the_real_database` |
 | Cycle lock: the replica without it purges nothing | `test_the_replica_without_the_cycle_lock_purges_nothing` |
 
-### `tests/test_optimistic_guard_pg.py` (7 tests; no recorded real run yet)
+### `tests/test_optimistic_guard_pg.py` (8 tests; no recorded real run yet)
 
 | Rule | Test |
 | --- | --- |
@@ -115,11 +115,12 @@ unique-index waits, several connections, real foreign keys and triggers.
 | ETag of a Python timestamp with microseconds and an offset survives the round trip | `test_a_python_timestamp_written_with_microseconds_and_an_offset_keeps_its_etag_when_read_back` |
 | Route: two concurrent PATCHes of one project with the same ETag, one 200 and one 412, stored name is the winner's | `test_over_http_two_concurrent_patches_with_the_same_etag_give_one_200_and_one_412` |
 | Route: a PATCH refused after its claim (422 `sponsor_must_be_caller`) leaves the ETag unchanged | `test_over_http_a_patch_refused_after_its_claim_leaves_the_etag_unchanged` |
+| Route: a profile edit refused after its claim leaves the ETag unchanged | `test_over_http_a_profile_edit_refused_after_its_claim_leaves_the_etag_unchanged` |
 
 ## What to expect
 
 - Exit code 0; **0 skipped**; **36 passed and 0 `xfail`** for the two phase-17 modules (20 + 16), inside a total of **113
-  passed** with `tests/concurrency` (which includes the 7 `test_cancel_running_pg`); with the command above, add the 7 tests of `test_optimistic_guard_pg.py`, which has no recorded run, so the expected total is 120 once they pass. There is no `xfail`: an `x` or `X` in the
+  passed** with `tests/concurrency` (which includes the 7 `test_cancel_running_pg`); with the command above, add the 8 tests of `test_optimistic_guard_pg.py`, which has no recorded run, so the expected total is 121 once they pass. There is no `xfail`: an `x` or `X` in the
   `-rsfExX` summary would be a defect, as a failure of either of the two tests described under
   [Findings](#findings-of-the-first-read-fixed-in-servicesengine_registrypy) would be. (Earlier figure, history: 70 passed at
   `bef53047` for `tests/concurrency` alone.)
