@@ -21,6 +21,7 @@ from pydantic import ValidationError
 from openbinding_gateway import space_client
 from openbinding_gateway.core.settings import DEFAULT_SPACE_SERVICE_NAME, Settings
 from openbinding_gateway.space_client import SpacePricingGate, feature_id
+from space_client import SpaceError
 
 PRODUCTION = "openbinding"
 DEV = "openbinding-dev"
@@ -137,9 +138,15 @@ async def test_a_new_contract_is_created_for_the_configured_service_only(monkeyp
 
 async def test_a_refused_contract_names_the_configured_service(monkeypatch):
     recorder = ServiceRecorder(DEV)
-    recorder.contracts.add_contract = lambda contract: setattr(recorder, "contract", None)
 
-    with pytest.raises(space_client.PricingUnavailable) as error:
+    def refuse(contract):
+        error = SpaceError("Space answered 400 to POST /contracts: plan not found")
+        error.status_code = 400
+        raise error
+
+    recorder.contracts.add_contract = refuse
+
+    with pytest.raises(space_client.SubscriptionRejected) as error:
         await gate_for(DEV, recorder, monkeypatch).create_contract(uuid.uuid4(), PLAN, "someone@example.org")
 
     assert f"'{DEV}'" in str(error.value)

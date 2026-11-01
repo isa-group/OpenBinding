@@ -35,6 +35,10 @@ from .gate import (
 
 T = TypeVar("T")
 
+# HTTP statuses with which SPACE refuses a request. Anything else that goes wrong
+# (401/403 credentials, 429, 5xx, no connection) says nothing about the request.
+_REJECTION_STATUSES = frozenset({400, 404, 409, 422})
+
 
 class SpacePricingGate:
     """A ``PricingGate`` backed by a real SPACE deployment."""
@@ -67,11 +71,8 @@ class SpacePricingGate:
         Accepting a plain value keeps injected test doubles tiny; the
         production factory always returns native awaitables.
         """
-        try:
-            from space_client import SpaceError
-        except ImportError:
-            class SpaceError(Exception):
-                pass
+        from space_client import SpaceError
+
         try:
             result = operation()
             return await result if inspect.isawaitable(result) else result
@@ -79,6 +80,13 @@ class SpacePricingGate:
             # The text of these errors names the host or address that failed. It
             # goes to the log, masked; the exception that travels says only what kind.
             log_internal_failure("SPACE request", error)
+            status = getattr(error, "status_code", None)
+            if status in _REJECTION_STATUSES:
+                # SPACE answered and refused the request itself (unknown plan or
+                # contract, a conflict, an invalid body): not an outage.
+                raise SubscriptionRejected(
+                    f"SPACE rejected the request for service '{self._service}' (HTTP {status})"
+                ) from error
             raise PricingUnavailable(f"SPACE is not reachable ({type(error).__name__})") from error
 
     # -- Reading the contract --------------------------------------------
@@ -161,16 +169,12 @@ class SpacePricingGate:
             )
         # SPACE owns plan/add-on validation; duplicating it here would be a
         # second source of truth. Without a plan, SPACE assigns the contract's.
+        # The client raises when SPACE refuses the contract, and ``_call`` maps
+        # that to ``SubscriptionRejected`` (or ``PricingUnavailable`` for an outage).
         await self._call(
             lambda: self._client.contracts.add_contract(ContractToCreate(
-                # `phone` is spelled out, empty, on purpose. Left unset the
-                # client serialises it as JSON null, and SPACE's validator
-                # marks the field optional in a way that accepts a missing key
-                # but not an explicit null - so the contract is refused with
-                # "phone must be a string". An empty string satisfies both.
-                # Worth reporting upstream; it needs no local patch.
                 user_contact=UserContact(
-                    user_id=str(user_id), username=str(user_id), email=email, phone=""
+                    user_id=str(user_id), username=str(user_id), email=email, phone=None
                 ),
                 billing_period=BillingPeriodToCreate(auto_renew=True, renewal_days=30),
                 contracted_services={self._service: pricing_version},
@@ -178,18 +182,6 @@ class SpacePricingGate:
                 subscription_add_ons={},
             )),
         )
-
-        # Read it back, because ``add_contract`` returns None whether it worked
-        # or not: the client turns a 4xx into a quiet None rather than raising.
-        # That is how a pricing version drift - the plans were renamed and the
-        # gateway still asked for the old one - produced accounts with no
-        # contract while every call reported success.
-        if await self._contract(user_id) is None:
-            raise PricingUnavailable(
-                f"SPACE accepted no contract for this account on plan {plan!r}. The usual "
-                f"cause is that pricing version {pricing_version} of '{self._service}' is not "
-                f"deployed in SPACE or does not declare that plan - check it in the SPACE console."
-            )
 
     async def change_plan(
         self, user_id: uuid.UUID, plan: str, pricing_version: Optional[str] = None
