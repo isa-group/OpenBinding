@@ -13372,6 +13372,24 @@
               "title": "Digest",
               "type": "string"
             }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
           }
         ],
         "requestBody": {
@@ -13394,7 +13412,25 @@
                 }
               }
             },
-            "description": "Credential stored; registration is inactive and private."
+            "description": "Credential stored; registration is inactive and private.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
           },
           "401": {
             "content": {
@@ -13435,6 +13471,24 @@
               }
             },
             "description": "Published registration credentials are immutable."
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the stored credential (code `precondition_failed`), or no credential is stored yet: nothing was applied. The `ETag` header carries the current revision when one exists.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "413": {
             "content": {
@@ -16600,7 +16654,15 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "401": {
             "content": {
@@ -16651,6 +16713,26 @@
       },
       "put": {
         "operationId": "updateNotificationPreferences",
+        "parameters": [
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -16670,7 +16752,25 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
           },
           "401": {
             "content": {
@@ -16691,6 +16791,24 @@
               }
             },
             "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {
@@ -17123,7 +17241,15 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "401": {
             "content": {
@@ -17193,6 +17319,24 @@
               "title": "Org",
               "type": "string"
             }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
           }
         ],
         "requestBody": {
@@ -17214,7 +17358,25 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
           },
           "401": {
             "content": {
@@ -17245,6 +17407,24 @@
               }
             },
             "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {
@@ -18290,7 +18470,15 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "401": {
             "content": {
@@ -18370,6 +18558,24 @@
               "title": "Project",
               "type": "string"
             }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
           }
         ],
         "requestBody": {
@@ -18391,7 +18597,25 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
           },
           "401": {
             "content": {
@@ -18412,6 +18636,24 @@
               }
             },
             "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {
@@ -19183,7 +19425,15 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "401": {
             "content": {
@@ -19272,6 +19522,24 @@
               "title": "Case",
               "type": "string"
             }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
           }
         ],
         "requestBody": {
@@ -19293,7 +19561,25 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
           },
           "401": {
             "content": {
@@ -19314,6 +19600,24 @@
               }
             },
             "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {
@@ -21662,6 +21966,24 @@
               "title": "Study",
               "type": "string"
             }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
           }
         ],
         "requestBody": {
@@ -21683,7 +22005,25 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
           },
           "401": {
             "content": {
@@ -21704,6 +22044,24 @@
               }
             },
             "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {
@@ -23661,7 +24019,15 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "401": {
             "content": {
@@ -23711,8 +24077,28 @@
         ]
       },
       "patch": {
-        "description": "Change what the account holder is allowed to change.\n\nBoth changes need the current password. Email is included in that because\nthe email address is one of the two ways to sign in, so changing it is a\nchange of credential, not of contact details.",
+        "description": "Change what the account holder is allowed to change.\n\nBoth changes need the current password. Email is included in that because\nthe email address is one of the two ways to sign in, so changing it is a\nchange of credential, not of contact details.\n\nThe revision is the account row's, shared with the notification preferences.",
         "operationId": "updateOwnProfile",
+        "parameters": [
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -23732,7 +24118,25 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
           },
           "401": {
             "content": {
@@ -23763,6 +24167,24 @@
               }
             },
             "description": "The request conflicts with something that already exists."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {

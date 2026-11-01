@@ -281,7 +281,11 @@ def test_compose_has_no_real_secret_shapes(compose):
 TESTS_DIR = REPO_ROOT / "openbinding-gateway" / "tests"
 PG_RUN_DOC = REPO_ROOT / "docs" / "qa" / "PG_REAL_RUN.md"
 #: The modules beside the ordinary suite that run on PostgreSQL; ``tests/concurrency`` has its own guard.
-PG_MODULES = ("test_federated_engines_pg.py", "test_duplicate_copy_purge_pg.py")
+PG_MODULES = (
+    "test_federated_engines_pg.py",
+    "test_duplicate_copy_purge_pg.py",
+    "test_optimistic_guard_pg.py",
+)
 
 
 def _read(path):
