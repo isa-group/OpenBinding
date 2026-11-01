@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountNav, type AccountSection } from './AccountNav';
-import { OrgNav, type OrgSection } from './OrgNav';
+import { OrgNav } from './OrgNav';
 import { ProjectTabs, type ProjectSection } from './ProjectTabs';
 
 const currentOf = (nav: HTMLElement) => within(nav).queryAllByRole('link').filter((link) => link.getAttribute('aria-current') === 'page');
@@ -32,40 +32,6 @@ describe('AccountNav', () => {
 
     const current = currentOf(screen.getByRole('navigation', { name: 'Account' }));
     expect(current.map((link) => link.textContent)).toEqual([label]);
-  });
-});
-
-describe('OrgNav', () => {
-  it('links back to the organization and to its settings screens', () => {
-    render(<MemoryRouter><OrgNav orgName="ISA Demo Group" orgSlug="isa-demo" /></MemoryRouter>);
-
-    const nav = screen.getByRole('navigation', { name: 'Organization settings' });
-    expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
-      ['ISA Demo Group', '/app/isa-demo'],
-      ['General', '/app/isa-demo/settings'],
-      ['Members & invitations', '/app/isa-demo/settings/members'],
-      ['Audit log', '/app/isa-demo/settings/audit'],
-    ]);
-    expect(within(nav).queryByText('ADMIN')).toBeNull();
-  });
-
-  it.each([
-    ['general', 'General'],
-    ['members', 'Members & invitations'],
-    ['audit', 'Audit log'],
-  ] as Array<[OrgSection, string]>)('marks only %s as the current page', (active, label) => {
-    render(<MemoryRouter><OrgNav active={active} orgName="ISA Demo Group" orgSlug="isa-demo" /></MemoryRouter>);
-
-    const current = currentOf(screen.getByRole('navigation', { name: 'Organization settings' }));
-    expect(current.map((link) => link.textContent)).toEqual([label]);
-  });
-
-  it('flags the audit log as needing ADMIN when the member cannot read it', () => {
-    render(<MemoryRouter><OrgNav orgName="ISA Demo Group" orgSlug="isa-demo" canAudit={false} /></MemoryRouter>);
-
-    const audit = screen.getByRole('link', { name: /Audit log/ });
-    expect(within(audit).getByText('ADMIN')).toHaveAttribute('title', 'Needs ADMIN');
-    expect(screen.getByRole('link', { name: 'General' })).not.toHaveTextContent('ADMIN');
   });
 });
 

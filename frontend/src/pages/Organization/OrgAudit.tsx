@@ -255,7 +255,7 @@ function AuditBody({ organization }: { organization: Organization }) {
   );
 }
 
-/** The audit log of an organization (`org-audit`, `/app/:org/settings/audit`); ADMIN or above. */
+/** The audit log of an organization (the `audit` section of `org-settings`, `/app/:org/settings/audit`); ADMIN or above. */
 export function OrgAudit() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <div className="org-page"><PageSkeleton /></div>;

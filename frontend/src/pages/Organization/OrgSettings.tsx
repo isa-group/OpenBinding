@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CheckCircle2, Lock, TriangleAlert } from 'lucide-react';
 import { platformApi } from '../../api/platform';
 import type { Organization } from '../../api/platform';
@@ -12,6 +12,9 @@ import { useResource } from '../../utils/useResource';
 import { ancestorsOf, atLeast, descendantsOf, initialsOf, pathOf, sponsorName } from './orgModel';
 import { classifyAuthError, generalFailure, marker, type AuthFailure } from './orgErrors';
 import { Choice, NeutralGate, PageSkeleton, RoleChip } from './parts';
+import { NotFoundScreen } from '../../routes/NotFoundScreen';
+import { OrgAudit } from './OrgAudit';
+import { OrgMembers } from './OrgMembers';
 import { OrgSettingsLayout } from './OrgSettingsLayout';
 import { sponsorRefusal } from './sponsorModel';
 import { useRouteOrganization } from './useRouteOrganization';
@@ -366,10 +369,23 @@ function DeleteDialog({ organization, summary, onClose, onDeleted }: {
   );
 }
 
-/** Organization settings (`org-settings`, `/app/:org/settings`): name, place, sponsor and deletion. */
-export function OrgSettings() {
+/** General section: name, place, sponsor and deletion. */
+function GeneralSection() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <div className="org-page"><PageSkeleton /></div>;
   if (!organization) return <div className="org-page"><NeutralGate /></div>;
   return <SettingsBody organization={organization} />;
+}
+
+/**
+ * Organization settings (`org-settings`, `/app/:org/settings/:section?`): General, Members (`members`) and Audit (`audit`).
+ * Any other section is a page that does not exist.
+ */
+// [impl->req~frontend-nav-org-settings-sections~1]
+export function OrgSettings() {
+  const { section } = useParams();
+  if (section === undefined) return <GeneralSection />;
+  if (section === 'members') return <OrgMembers />;
+  if (section === 'audit') return <OrgAudit />;
+  return <NotFoundScreen />;
 }

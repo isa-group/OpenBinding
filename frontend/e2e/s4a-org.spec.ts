@@ -2,7 +2,7 @@ import { expect as baseExpect, test, type Locator, type Page, type Route, type T
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 
-// S4a · organization and collaboration, part 1: app-home, org-create, org-overview, org-settings, org-members, org-audit.
+// S4a · organization and collaboration, part 1: app-home, org-create, org-overview, org-settings (General, with the members and audit sections at /settings/members and /settings/audit).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 // One test per screen and viewport: each walks the states of its screen in order, on one page. The phone gets the
@@ -279,10 +279,11 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
 async function expectSettingsNav(main: Locator, slug: string, current: string) {
   const nav = main.getByRole('navigation', { name: 'Organization settings' });
   const destinations: Array<[string, string]> = [
-    ['General', `/app/${slug}/settings`], ['Members & invitations', `/app/${slug}/settings/members`], ['Audit log', `/app/${slug}/settings/audit`],
+    ['General', `/app/${slug}/settings`], ['Members', `/app/${slug}/settings/members`], ['Audit', `/app/${slug}/settings/audit`],
   ];
   for (const [label, href] of destinations) await expect(nav.getByRole('link', { name: new RegExp(`^${label}`) })).toHaveAttribute('href', href);
   await expect(nav.getByRole('link', { name: new RegExp(`^${current}`) })).toHaveAttribute('aria-current', 'page');
+  await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
 }
 
 const request = (page: Page, method: string, path: string) => page.waitForRequest((candidate) => candidate.method() === method && candidate.url() === `${API}${path}`);
@@ -648,7 +649,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('org-members /app/:org/settings/members', async ({ page }, testInfo) => {
+    test('org-settings members section /app/:org/settings/members', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/isa-demo/settings/members');
@@ -656,7 +657,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Members' })).toBeVisible();
       await expect(main.getByText('ISA Demo Group · 3 people with a role')).toBeVisible();
-      await expectSettingsNav(main, 'isa-demo', 'Members & invitations');
+      await expectSettingsNav(main, 'isa-demo', 'Members');
       const table = main.getByRole('table');
       await expect(table.getByRole('columnheader')).toHaveText(['Person', 'Role here', 'Effective role', 'Added', 'Actions']);
       await expect(table.getByRole('row', { name: /lucia\.vega@example\.org/ }).getByText('(you)')).toBeVisible();
@@ -782,7 +783,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('org-audit /app/:org/settings/audit', async ({ page }, testInfo) => {
+    test('org-settings audit section /app/:org/settings/audit', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/isa-demo/settings/audit');
@@ -790,7 +791,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Audit log' })).toBeVisible();
       await expect(main.getByText('Who did what in ISA Demo Group.')).toBeVisible();
-      await expectSettingsNav(main, 'isa-demo', 'Audit log');
+      await expectSettingsNav(main, 'isa-demo', 'Audit');
       const timeline = main.getByRole('list', { name: 'Audit events, newest first' });
       await expect(timeline.getByRole('listitem')).toHaveCount(4);
       await expect(timeline.getByRole('listitem').first()).toContainText('Invitation created');

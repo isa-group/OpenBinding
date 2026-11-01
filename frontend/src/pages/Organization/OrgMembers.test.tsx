@@ -97,7 +97,7 @@ describe('Members', () => {
     expect(within(queue).getByRole('button', { name: 'Apply 0 changes' })).toBeDisabled();
     expect(reload).toHaveBeenCalledOnce();
     // The side navigation and the confirmation both lead to the audit log.
-    const toAudit = screen.getAllByRole('link', { name: 'Audit log' });
+    const toAudit = screen.getAllByRole('link', { name: /^Audit/ });
     expect(toAudit).toHaveLength(2);
     expect(toAudit.every((link) => link.getAttribute('href') === '/app/isa-demo/settings/audit')).toBe(true);
   });

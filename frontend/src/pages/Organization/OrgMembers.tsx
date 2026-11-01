@@ -514,7 +514,7 @@ function MembersBody({ organization }: { organization: Organization }) {
   );
 }
 
-/** Members and invitations (`org-members`, `/app/:org/settings/members`). */
+/** Members and invitations (the `members` section of `org-settings`, `/app/:org/settings/members`). */
 export function OrgMembers() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <div className="org-page"><PageSkeleton /></div>;
