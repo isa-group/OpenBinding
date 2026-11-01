@@ -5,7 +5,7 @@ const PUBLIC_ROUTES = [
   '/',
   '/language',
   '/language/schemas/application',
-  '/examples',
+  '/explore/examples',
   '/workbench',
   '/engines',
   '/pricing',
@@ -47,7 +47,7 @@ test('mobile navigation exposes the complete journey and closes after navigation
   await expect(menu.getByRole('link', { name: 'Schemas' })).toHaveAttribute('href', '/language/schemas/application');
 
   await menu.getByRole('link', { name: 'Examples' }).click();
-  await expect(page).toHaveURL(/\/examples$/);
+  await expect(page).toHaveURL(/\/explore\/examples$/);
   await expect(header.getByRole('button', { name: 'Open menu' })).toHaveAttribute('aria-expanded', 'false');
   await expect(menu).toBeHidden();
 });

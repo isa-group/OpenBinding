@@ -52,7 +52,7 @@ describe('Public header', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('link', { name: /^Profiles & dialects/ })).toHaveAttribute('href', '/language');
     expect(screen.getByRole('link', { name: /^Schemas/ })).toHaveAttribute('href', '/language/schemas/application');
-    expect(screen.getByRole('link', { name: /^Examples/ })).toHaveAttribute('href', '/examples');
+    expect(screen.getByRole('link', { name: /^Examples/ })).toHaveAttribute('href', '/explore/examples');
     expect(screen.getByRole('link', { name: /^Workbench/ })).toHaveAttribute('href', '/workbench');
   });
 
@@ -119,7 +119,7 @@ describe('Public header', () => {
     expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute('aria-expanded', 'true');
     for (const [name, href] of [
       ['Explore', '/explore'], ['Engines', '/engines'], ['Profiles & dialects', '/language'],
-      ['Schemas', '/language/schemas/application'], ['Examples', '/examples'], ['Workbench', '/workbench'],
+      ['Schemas', '/language/schemas/application'], ['Examples', '/explore/examples'], ['Workbench', '/workbench'],
       ['Pricing', '/pricing'], ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
     ] as const) {
       expect(within(mobile).getByRole('link', { name })).toHaveAttribute('href', href);

@@ -215,7 +215,7 @@ function IntegrityStrip({ items }: { items: IntegrityItem[] }) {
 
 function GetStarted({ root, canCreate }: { root: string; canCreate: boolean }) {
   const steps: Array<{ title: string; detail: string; cta: string; to: string; needsMember?: boolean }> = [
-    { title: 'Import an example', detail: 'Start from a ready package and adapt it.', cta: 'Browse examples', to: '/examples' },
+    { title: 'Import an example', detail: 'Start from a ready package and adapt it.', cta: 'Browse examples', to: '/explore/examples' },
     { title: 'Create a case', detail: 'Compose a workflow, candidates, constraints and goal.', cta: 'New case', to: `${root}/cases`, needsMember: true },
     { title: 'Validate a package', detail: 'Check a .bim.zip you already have.', cta: 'Open Workbench', to: '/workbench' },
   ];

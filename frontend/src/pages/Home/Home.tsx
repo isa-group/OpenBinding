@@ -109,7 +109,7 @@ function Hero({ signedIn, name, plan, runtime }: { signedIn: boolean; name: stri
         )}
       </div>
       <div className="home-quick">
-        <Link to="/examples" viewTransition className="link-arrow">Learn with an example <ArrowRight aria-hidden="true" /></Link>
+        <Link to="/explore/examples" viewTransition className="link-arrow">Learn with an example <ArrowRight aria-hidden="true" /></Link>
         <Link to="/language" viewTransition className="link-arrow">Explore extensibility <ArrowRight aria-hidden="true" /></Link>
         <div className="home-runtime" role="status" aria-label="Runtime catalogue status">
           {counts ? (
@@ -206,7 +206,7 @@ function RecentlyPublic() {
       <div className="home-section-head">
         <div>
           <Eyebrow>Recently public</Eyebrow>
-          <h2 id="home-recent-title">Publications and public projects</h2>
+          <h2 id="home-recent-title">Published results and public projects</h2>
         </div>
         <Link to="/explore" viewTransition>View all in Explore</Link>
       </div>

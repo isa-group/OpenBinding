@@ -22,8 +22,8 @@ const languageLinks = [
     isActive: (pathname: string) => underPath(pathname, '/language/schemas'),
   },
   {
-    to: '/examples', label: 'Examples', description: 'Official BIM packages to start from',
-    isActive: (pathname: string) => underPath(pathname, '/examples'),
+    to: '/explore/examples', label: 'Examples', description: 'Official BIM packages to start from',
+    isActive: (pathname: string) => underPath(pathname, '/explore/examples'),
   },
   {
     to: '/workbench', label: 'Workbench', description: 'Validate a package without an account',

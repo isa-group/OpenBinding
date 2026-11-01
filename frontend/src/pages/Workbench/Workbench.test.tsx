@@ -107,7 +107,7 @@ describe('Workbench', () => {
       await openWorkbench();
       fireEvent.click(screen.getByRole('tab', { name: 'Example' }));
       expect(await screen.findByRole('option', { name: 'demo/01_simple_seq' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Examples' })).toHaveAttribute('href', '/examples');
+      expect(screen.getByRole('link', { name: 'Examples' })).toHaveAttribute('href', '/explore/examples');
     });
 
     it('keeps the package import control keyboard-focusable', async () => {

@@ -235,7 +235,7 @@ describe('Project overview', () => {
     const guide = await screen.findByRole('region', { name: 'Get started' });
     const steps = within(guide).getAllByRole('listitem');
     expect(steps).toHaveLength(3);
-    expect(within(guide).getByRole('link', { name: 'Browse examples' })).toHaveAttribute('href', '/examples');
+    expect(within(guide).getByRole('link', { name: 'Browse examples' })).toHaveAttribute('href', '/explore/examples');
     expect(within(guide).getByRole('link', { name: 'New case' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases');
     expect(within(guide).getByRole('link', { name: 'Open Workbench' })).toHaveAttribute('href', '/workbench');
     expect(screen.queryByRole('region', { name: 'Recent jobs' })).not.toBeInTheDocument();

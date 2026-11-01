@@ -101,7 +101,7 @@ describe('public workbench', () => {
     expect(screen.getByText('No package yet')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Log in to run' })).toHaveAttribute('href', '/login');
     expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/register');
-    expect(screen.getByRole('link', { name: 'Browse official examples' })).toHaveAttribute('href', '/examples');
+    expect(screen.getByRole('link', { name: 'Browse official examples' })).toHaveAttribute('href', '/explore/examples');
     expect(screen.getByRole('navigation', { name: 'Language sections' })).toHaveTextContent('Workbench');
     expect(await screen.findByRole('button', { name: /demo\/01_simple_seq/ })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /Official example package/ })).toHaveLength(3);

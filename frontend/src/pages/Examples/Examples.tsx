@@ -7,7 +7,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { FilterPills } from '../../components/ui/FilterPills';
 import { Notice } from '../../components/ui/Notice';
 import { ProjectPicker } from '../../components/ui/ProjectPicker';
-import { LanguageNav } from '../../components/ui/SectionNav';
+import { ExploreNav } from '../../components/ui/SectionNav';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
@@ -58,6 +58,7 @@ type Download =
   | { status: 'done'; digest: string | null; bytes: number }
   | { status: 'error'; code: string | null; message: string };
 
+// [impl->req~frontend-nav-examples-in-explore~1]
 export function Examples() {
   const { user } = useAuth();
   const list = useResource('examples', () => apiClient.getBimExamples());
@@ -113,10 +114,10 @@ export function Examples() {
   return (
     <div className="examples-page">
       <div className="examples-head">
-        <LanguageNav current="examples" />
-        <h1>Example packages</h1>
+        <ExploreNav current="examples" />
+        <h1>BIM examples</h1>
         <p>
-          Official BIM packages to learn from or start a case with. Download the .bim.zip or open it straight in the workbench to see its
+          Official BIM packages to learn from or start a problem with. Download the .bim.zip or open it straight in the workbench to see its
           structure. All shipped lessons select <code>qos-binding/v1</code>; Placement demonstrates a compatible Dialect, not another Profile.
         </p>
       </div>
@@ -191,7 +192,7 @@ export function Examples() {
                         {state?.status === 'loading' ? 'Downloading…' : 'Download .bim.zip'}
                       </button>
                       {user
-                        ? <ProjectPicker label="Import as case" destination={(org, project) => `/app/${org}/${project}/workbench?example=${encodeURIComponent(path)}`} />
+                        ? <ProjectPicker label="Import as problem" destination={(org, project) => `/app/${org}/${project}/workbench?example=${encodeURIComponent(path)}`} />
                         : <Link className="examples-login" to="/login" title="Log in to import into a project">Log in to import</Link>}
                     </div>
                   </article>

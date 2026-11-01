@@ -31,7 +31,7 @@ function HubNav({ current }: { current: Section | null }) {
           ? <span key={section.id} aria-current="page">{section.label}</span>
           : <Link key={section.id} to={section.to}>{section.label}</Link>
       ))}
-      <Link to="/examples">Examples</Link>
+      <Link to="/explore/examples">Examples</Link>
       <Link to="/workbench">Workbench</Link>
     </nav>
   );

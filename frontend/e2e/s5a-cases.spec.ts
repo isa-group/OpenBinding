@@ -388,7 +388,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // A project with no case explains how to start.
       await page.goto('/app/isa-demo/checkout-privado/cases');
       const guide = main.getByRole('region', { name: 'No cases yet' });
-      await expect(guide.getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/examples');
+      await expect(guide.getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/explore/examples');
       await expect(guide.getByRole('link', { name: 'Open the library' })).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-empty`);
 

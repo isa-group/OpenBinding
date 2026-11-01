@@ -168,7 +168,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'Validate a package' }).last()).toHaveAttribute('href', '/workbench');
 
       // Recently public, from /v1/explore/*.
-      const recent = main.getByRole('region', { name: 'Publications and public projects' });
+      const recent = main.getByRole('region', { name: 'Published results and public projects' });
       await expect(recent.getByRole('link', { name: /Engine comparison at checkout/ })).toHaveAttribute('href', `/resolve/report/${DIGEST}`);
       await expect(recent.getByRole('link', { name: /Engine comparison at checkout/ })).toContainText('ISA Demo Group / QoS Benchmarks');
       await expect(recent.locator('a[href="/explore?tab=projects"]').filter({ hasText: 'Service corpus' })).toBeVisible();

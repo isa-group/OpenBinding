@@ -11,7 +11,7 @@ export interface PipelineStage {
 }
 
 export const PIPELINE: readonly PipelineStage[] = [
-  { id: 'package', step: '01', title: 'Package', short: '.bim.zip of BIM v1 resources', long: 'A portable package of modular BIM v1 resources: the application workflow, candidate catalogs, constraints and the optimization objective.', pin: 'instance.json + resource digests', href: '/examples', cta: 'Browse example packages' },
+  { id: 'package', step: '01', title: 'Package', short: '.bim.zip of BIM v1 resources', long: 'A portable package of modular BIM v1 resources: the application workflow, candidate catalogs, constraints and the optimization objective.', pin: 'instance.json + resource digests', href: '/explore/examples', cta: 'Browse example packages' },
   { id: 'validation', step: '02', title: 'Validation', short: 'Localized diagnostics', long: 'Every problem is reported where it lives: the resource, a JSON Pointer, a CEL span or a BPMN element, with a suggested fix.', pin: 'diagnostics with JSON Pointer paths', href: '/workbench', cta: 'Validate a package' },
   { id: 'profile', step: '03', title: 'Profile & dialects', short: 'Roles and resource types', long: 'The Profile fixes which roles the instance must fill and with what cardinality; installed dialects contribute resource types and IR features.', pin: 'schema + adapter digests', href: '/language', cta: 'Open the language guide' },
   { id: 'problem', step: '04', title: 'Binding problem', short: 'IR with its own digest', long: 'The instance is compiled into a BindingProblem IR. Its digest identifies exactly what any engine was asked to solve.', pin: 'bim/v1 BindingProblem digest', href: '/language/schemas/BindingProblem', cta: 'See the BindingProblem schema' },

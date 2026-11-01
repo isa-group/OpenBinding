@@ -82,7 +82,7 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
         {canCreate && (
           <div className="proj-actions">
             <Action to={`${root}/workbench`} variant="secondary">Workbench</Action>
-            <Action to="/examples" variant="secondary">Import from example</Action>
+            <Action to="/explore/examples" variant="secondary">Import from example</Action>
             <Action variant="primary" onClick={() => setCreating(true)}>New case</Action>
           </div>
         )}
@@ -129,7 +129,7 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
             <>
               <p>Start from a ready example, or create a case and save its first revision from the workbench.</p>
               <div className="proj-actions">
-                <Action to="/examples" variant="primary">Import an example</Action>
+                <Action to="/explore/examples" variant="primary">Import an example</Action>
               </div>
             </>
           )}

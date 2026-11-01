@@ -88,7 +88,7 @@ describe('Home', () => {
     it('keeps the shortcuts the previous home offered', () => {
       renderHome();
 
-      expect(screen.getByRole('link', { name: /Learn with an example/ })).toHaveAttribute('href', '/examples');
+      expect(screen.getByRole('link', { name: /Learn with an example/ })).toHaveAttribute('href', '/explore/examples');
       expect(screen.getByRole('link', { name: /Explore extensibility/ })).toHaveAttribute('href', '/language');
       expect(screen.getByRole('heading', { name: 'A stable core, plural problem families.' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Inspect engine modes/ })).toHaveAttribute('href', '/engines');
@@ -111,7 +111,7 @@ describe('Home', () => {
       const tabs = within(screen.getByRole('tablist', { name: 'Pipeline stages' })).getAllByRole('tab');
 
       expect(tabs).toHaveLength(6);
-      expect(screen.getByRole('link', { name: 'Browse example packages' })).toHaveAttribute('href', '/examples');
+      expect(screen.getByRole('link', { name: 'Browse example packages' })).toHaveAttribute('href', '/explore/examples');
       fireEvent.click(screen.getByRole('tab', { name: /Engine/ }));
       expect(screen.getByRole('tab', { name: /Engine/ })).toHaveAttribute('aria-selected', 'true');
       expect(screen.getByRole('link', { name: 'Browse engines' })).toHaveAttribute('href', '/engines');

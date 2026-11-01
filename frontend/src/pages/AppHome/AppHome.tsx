@@ -101,7 +101,7 @@ function ActivityBlock() {
         <div className="home-guide">
           <strong>No jobs yet. Here’s a way to your first run.</strong>
           <ol>
-            <li><Link to="/workbench">Open the Workbench</Link> and validate a package, or <Link to="/examples">start from an example</Link>.</li>
+            <li><Link to="/workbench">Open the Workbench</Link> and validate a package, or <Link to="/explore/examples">start from an example</Link>.</li>
             <li>Open or create a project to keep its cases, runs and reports together.</li>
             <li>Launch a run from the project; it appears here while it works.</li>
           </ol>

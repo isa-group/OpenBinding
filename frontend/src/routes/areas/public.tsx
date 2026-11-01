@@ -7,6 +7,7 @@ import type { RouteDefinition } from '../types';
 
 // Area: public. The pages anybody can open without an account.
 // [impl->req~frontend-nav-status-retired~1]
+// [impl->req~frontend-nav-examples-in-explore~1]
 
 const ExplorePage = lazy(() => import('../../pages/Public/Explore').then((module) => ({ default: module.ExplorePage })));
 const About = lazy(() => import('../../pages/About/About').then((module) => ({ default: module.About })));
@@ -15,7 +16,7 @@ const Pricing = lazy(() => import('../../pages/Pricing/Pricing').then((module) =
 
 export const routes: RouteDefinition[] = [
   live('pub-home', '/', <Home />),
-  live('pub-explore', '/explore', <ExplorePage />),
+  live('pub-explore', '/explore/:section?', <ExplorePage />),
   live('pub-workbench', '/workbench', <WorkbenchPage />),
   live('pub-about', '/about', <About />),
   live('pub-pricing', '/pricing', <Pricing />),

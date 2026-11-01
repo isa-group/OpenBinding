@@ -5,15 +5,31 @@ import { movedRoutes, routeDefinitions, routesByArea } from '../registry';
 // One pair per line: screenBudget.test.ts counts them.
 const PROTOTYPE: Array<[string, string]> = [
   ['lang-profiles', '/language/:section?/:item?'],
-  ['lang-examples', '/examples'],
 ];
 
 describe('area language', () => {
   // [utest->req~frontend-nav-route-areas~1]
   // [utest->req~frontend-nav-language-hub~1]
-  it('has 2 screens: the hub and the examples', () => {
-    expect(routesByArea.language).toHaveLength(2);
+  it('has 1 screen: the hub', () => {
+    expect(routesByArea.language).toHaveLength(1);
     expect(routesByArea.language.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
+  });
+
+  // [utest->req~frontend-nav-examples-in-explore~1]
+  it('removes lang-examples from the registry', () => {
+    const ids = routeDefinitions.map((definition) => definition.id);
+    expect(ids).not.toContain('lang-examples');
+    expect(routeDefinitions.map((definition) => definition.path)).not.toContain('/examples');
+  });
+
+  // [utest->req~frontend-nav-examples-in-explore~1]
+  // [utest->req~frontend-nav-redirects~1]
+  it('moves /examples to /explore/examples and keeps the query', () => {
+    const route = movedRoutes.find((entry) => entry.id === 'lang-examples');
+    expect(route?.path).toBe('/examples');
+    expect(route?.permanent).toBeFalsy();
+    expect(route?.target(new URLSearchParams('profile=placement'), {})).toBe('/explore/examples?profile=placement');
+    expect(route?.target(new URLSearchParams(''), {})).toBe('/explore/examples');
   });
 
   // [utest->req~frontend-nav-language-hub~1]

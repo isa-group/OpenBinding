@@ -103,7 +103,7 @@ describe('Case list', () => {
     // [utest->req~frontend-retire-composer-entry-points-repointed~1]
     expect(guide).toHaveTextContent('Start from a ready example, or create a case and save its first revision from the workbench.');
     expect(guide.textContent).not.toMatch(/composer|compose one/);
-    expect(within(guide).getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/examples');
+    expect(within(guide).getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/explore/examples');
     // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(within(guide).queryByRole('link', { name: /library/i })).toBeNull();
   });
@@ -138,7 +138,7 @@ describe('Case list', () => {
 
     await screen.findByRole('list', { name: 'Cases' });
     expect(screen.getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', `${root}/workbench`);
-    expect(screen.getByRole('link', { name: 'Import from example' })).toHaveAttribute('href', '/examples');
+    expect(screen.getByRole('link', { name: 'Import from example' })).toHaveAttribute('href', '/explore/examples');
     expect(screen.getByRole('button', { name: 'New case' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Delete/ })).not.toBeInTheDocument();
   });

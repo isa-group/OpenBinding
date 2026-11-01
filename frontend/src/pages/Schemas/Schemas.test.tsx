@@ -180,7 +180,7 @@ describe('schema reference', () => {
     renderAt('/language/schemas/Application');
     await screen.findByRole('tree', { name: 'Application fields' });
     expect(screen.getByRole('link', { name: /Validate a package that uses it/ })).toHaveAttribute('href', '/workbench?example=demo%2F02_parallel');
-    expect(screen.getByRole('link', { name: 'Open examples' })).toHaveAttribute('href', '/examples');
+    expect(screen.getByRole('link', { name: 'Open examples' })).toHaveAttribute('href', '/explore/examples');
     expect(screen.getByRole('link', { name: 'BindingProblem' })).toHaveAttribute('href', '/language/schemas/BindingProblem');
   });
 });

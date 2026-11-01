@@ -2,7 +2,7 @@ import { expect, test, type Page, type Route, type TestInfo } from '@playwright/
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { zipStore } from '../src/utils/bimZip';
 
-// S1b · public screens, part 2: eng-catalog, eng-detail, lang-profiles, lang-schemas, lang-examples, pub-workbench.
+// S1b · public screens, part 2: eng-catalog, eng-detail, lang-profiles, lang-schemas, the examples section of pub-explore, pub-workbench.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 
@@ -655,13 +655,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(page).toHaveURL(/\/language\/extensions\?tab=resources$/);
     });
 
-    test('lang-examples /examples', async ({ page }, testInfo) => {
+    // [utest->req~frontend-nav-examples-in-explore~1]
+    test('pub-explore /explore/examples', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto('/examples');
+      await page.goto('/explore/examples');
       const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Example packages' })).toBeVisible();
+      await expect(main.getByRole('heading', { level: 1, name: 'BIM examples' })).toBeVisible();
+      await expect(main.getByRole('navigation', { name: 'Explore' }).getByRole('link', { name: 'BIM examples' })).toHaveAttribute('aria-current', 'page');
       await expect(main.getByRole('heading', { name: 'Demo · 3 packages' })).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Placement · 1 package' })).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Literature · 1 package' })).toBeVisible();
@@ -686,24 +688,26 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('lang-examples for a signed-in account imports into a chosen project', async ({ page }, testInfo) => {
+    // [utest->req~frontend-nav-examples-in-explore~1]
+    test('pub-explore examples for a signed-in account imports into a chosen project', async ({ page }, testInfo) => {
       await mockApi(page, { signedIn: true });
-      await page.goto('/examples');
+      await page.goto('/explore/examples');
       const main = page.locator('main');
       const first = main.locator('article').filter({ hasText: 'demo/01_simple_seq' });
 
       await expect(main.getByRole('link', { name: 'Log in to import' })).toHaveCount(0);
-      await first.getByRole('button', { name: 'Import as case' }).click();
+      await first.getByRole('button', { name: 'Import as problem' }).click();
       await expect(first.getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' }))
         .toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/workbench?example=demo%2F01_simple_seq');
       await ready(page);
       await shot(page, testInfo, 'examples-signed-in');
     });
 
-    test('lang-examples names a corrupt example (422) and survives a failed list', async ({ page }, testInfo) => {
+    // [utest->req~frontend-nav-examples-in-explore~1]
+    test('pub-explore examples names a corrupt example (422) and survives a failed list', async ({ page }, testInfo) => {
       await mockApi(page);
       await page.route(`${API}/v1/examples/**`, json({ title: 'invalid_example', detail: 'corrupt package' }, 422));
-      await page.goto('/examples');
+      await page.goto('/explore/examples');
       const main = page.locator('main');
       const second = main.locator('article').filter({ hasText: 'demo/02_parallel' });
       await second.getByRole('button', { name: 'Download .bim.zip' }).click();
@@ -712,7 +716,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await shot(page, testInfo, 'examples-corrupt');
 
       await page.route(`${API}/v1/examples`, json({ detail: 'down' }, 503));
-      await page.goto('/examples');
+      await page.goto('/explore/examples');
       await expect(main.getByText('Live catalogue unavailable')).toBeVisible();
       await expect(main.getByRole('heading', { name: /^Demo · \d+ packages$/ })).toBeVisible();
     });

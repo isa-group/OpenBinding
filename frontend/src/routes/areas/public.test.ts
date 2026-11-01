@@ -5,7 +5,7 @@ import { movedRoutes, routeDefinitions, routesByArea } from '../registry';
 // One pair per line: screenBudget.test.ts counts them.
 const PROTOTYPE: Array<[string, string]> = [
   ['pub-home', '/'],
-  ['pub-explore', '/explore'],
+  ['pub-explore', '/explore/:section?'],
   ['pub-workbench', '/workbench'],
   ['pub-about', '/about'],
   ['pub-pricing', '/pricing'],
@@ -39,8 +39,17 @@ describe('area public', () => {
     it.each([
       ['/', 'pub-home'],
       ['/about', 'pub-about'],
+      ['/explore', 'pub-explore'],
+      ['/explore/examples', 'pub-explore'],
+      ['/explore/everything', 'pub-explore'],
     ])('%s -> %s', (path, id) => {
       expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
+    });
+
+    // [utest->req~frontend-nav-status-retired~1]
+    // [utest->req~frontend-nav-examples-in-explore~1]
+    it('leaves /examples to the moved-routes table', () => {
+      expect(matchRoutes(config, '/examples')).toBeNull();
     });
 
     // [utest->req~frontend-nav-status-retired~1]

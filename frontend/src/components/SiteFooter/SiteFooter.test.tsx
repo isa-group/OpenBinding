@@ -27,7 +27,7 @@ describe('SiteFooter', () => {
     for (const [name, href] of [
       ['Explore', '/explore'], ['Engines', '/engines'], ['Pricing', '/pricing'],
       ['Profiles & dialects', '/language'], ['Schemas', '/language/schemas/application'],
-      ['Examples', '/examples'], ['Workbench', '/workbench'],
+      ['Examples', '/explore/examples'], ['Workbench', '/workbench'],
       ['Team', '/about?tab=team'], ['Research', '/about?tab=research'],
       ['Funding', '/about?tab=funding'], ['Changelog', '/about?tab=changelog'],
     ] as const) {

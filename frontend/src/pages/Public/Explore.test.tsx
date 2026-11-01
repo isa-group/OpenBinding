@@ -1,11 +1,11 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { ExplorePage } from './Explore';
 
-const api = vi.hoisted(() => ({ getPublicEngines: vi.fn() }));
+const api = vi.hoisted(() => ({ getPublicEngines: vi.fn(), getBimExamples: vi.fn() }));
 const platform = vi.hoisted(() => ({ publicProjects: vi.fn(), publicPublications: vi.fn() }));
 const auth = vi.hoisted(() => ({ user: null as UserProfile | null }));
 
@@ -34,6 +34,14 @@ const engines = [{
 
 function renderExplore(path = '/explore') {
   return render(<MemoryRouter initialEntries={[path]}><ExplorePage /></MemoryRouter>);
+}
+
+function renderSection(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes><Route path="/explore/:section?" element={<ExplorePage />} /></Routes>
+    </MemoryRouter>,
+  );
 }
 
 describe('Explore', () => {
@@ -160,6 +168,36 @@ describe('Explore', () => {
     expect(await screen.findByRole('button', { name: /Engines at checkout/ })).toBeInTheDocument();
     expect(platform.publicProjects).toHaveBeenCalledOnce();
     expect(platform.publicPublications).toHaveBeenCalledTimes(2);
+  });
+
+  // [utest->req~frontend-nav-examples-in-explore~1]
+  it('shows the BIM examples as the section examples, marked in the Explore navigation', async () => {
+    api.getBimExamples.mockResolvedValue(['demo/01_simple_seq']);
+    renderSection('/explore/examples');
+
+    expect(screen.getByRole('heading', { level: 1, name: 'BIM examples' })).toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Explore' })).getByRole('link', { name: 'BIM examples' })).toHaveAttribute('aria-current', 'page');
+    expect(await screen.findByRole('link', { name: 'Open in workbench' })).toHaveAttribute('href', '/workbench?example=demo%2F01_simple_seq');
+    expect(api.getPublicEngines).not.toHaveBeenCalled();
+  });
+
+  // [utest->req~frontend-nav-examples-in-explore~1]
+  it('marks Public work on /explore and links to the examples', async () => {
+    renderSection('/explore');
+
+    const nav = screen.getByRole('navigation', { name: 'Explore' });
+    expect(within(nav).getByRole('link', { name: 'Public work' })).toHaveAttribute('aria-current', 'page');
+    expect(within(nav).getByRole('link', { name: 'BIM examples' })).toHaveAttribute('href', '/explore/examples');
+    expect(await screen.findByRole('button', { name: /Engines at checkout/ })).toBeInTheDocument();
+  });
+
+  // [utest->req~frontend-nav-examples-in-explore~1]
+  it('shows Page not found for any other section', () => {
+    renderSection('/explore/everything');
+
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'BIM examples' })).not.toBeInTheDocument();
+    expect(platform.publicProjects).not.toHaveBeenCalled();
   });
 
   it('switches tabs with the arrow keys', async () => {
