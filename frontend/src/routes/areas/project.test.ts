@@ -1,40 +1,47 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { routeDefinitions, routesByArea } from '../registry';
+import { movedRoutes, routeDefinitions, routesByArea } from '../registry';
+import { moved as moves } from './project';
 
 // One pair per line: screenBudget.test.ts counts them.
-const PROTOTYPE: Array<[string, string]> = [
+const SCREENS: Array<[string, string]> = [
   ['proj-create', '/app/:org/new-project'],
   ['proj-overview', '/app/:org/:project'],
-  ['proj-settings', '/app/:org/:project/settings'],
-  ['proj-package', '/app/:org/:project/package'],
-  ['proj-files', '/app/:org/:project/files'],
-  ['proj-publications', '/app/:org/:project/publications'],
+  ['proj-settings', '/app/:org/:project/settings/:section?'],
+  ['proj-publications', '/app/:org/:project/published'],
 ];
 
 const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
 const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id;
+const entry = (path: string) => moves.find((route) => route.path === path);
+const idsOfScreens = routeDefinitions.map((definition) => definition.id);
 
 describe('area project', () => {
   // [utest->req~frontend-nav-route-areas~1]
-  it('has 6 screens, with the ids and routes of the prototype', () => {
-    expect(routesByArea.project).toHaveLength(6);
-    expect(routesByArea.project.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
+  // [utest->req~frontend-nav-project-tabs~1]
+  it('has 4 screens: the creation screen that the dialogs replace later, the overview, the settings and the published results', () => {
+    expect(routesByArea.project).toHaveLength(4);
+    expect(routesByArea.project.map((definition) => [definition.id, definition.path])).toEqual(SCREENS);
   });
 
-  // [utest->req~frontend-retire-library-screens-not-routed~1]
-  it('keeps the files', () => {
-    expect(routeDefinitions.map((definition) => definition.id)).toContain('proj-files');
+  // [utest->req~frontend-nav-files-retired~1]
+  it('declares neither proj-files nor proj-package', () => {
+    expect(idsOfScreens).not.toContain('proj-files');
+    expect(idsOfScreens).not.toContain('proj-package');
+    expect(routeDefinitions.map((definition) => definition.path)).not.toContain('/app/:org/:project/files');
+    expect(routeDefinitions.map((definition) => definition.path)).not.toContain('/app/:org/:project/package');
   });
 
   // [utest->req~frontend-retire-reports-screen-count~1]
-  it('keeps the publications, which hold nothing about reports', () => {
-    expect(routeDefinitions.map((definition) => definition.id)).toContain('proj-publications');
+  it('keeps the published results, which hold nothing about reports', () => {
+    expect(idsOfScreens).toContain('proj-publications');
   });
 
   // [utest->req~frontend-retire-reports-publications-stay~1]
-  it('still resolves the publications address through the route definitions', () => {
-    expect(resolve('/app/acme/atlas/publications')).toBe('proj-publications');
+  // [utest->req~frontend-nav-project-tabs~1]
+  it('resolves the published address through the route definitions, and no longer the publications one', () => {
+    expect(resolve('/app/acme/atlas/published')).toBe('proj-publications');
+    expect(resolve('/app/acme/atlas/publications') ?? null).toBeNull();
   });
 
   it('keeps the fixed project screen from being read as an organization or project', () => {
@@ -43,16 +50,66 @@ describe('area project', () => {
 
   describe('address resolution', () => {
     // [utest->req~frontend-nav-route-areas~1]
+    // [utest->req~frontend-nav-project-tabs~1]
     it.each([
       ['/app/acme/new-project', 'proj-create'],
       ['/app/new-project/new-project', 'proj-create'],
       ['/app/acme/atlas', 'proj-overview'],
       ['/app/acme/atlas/settings', 'proj-settings'],
-      ['/app/acme/atlas/package', 'proj-package'],
-      ['/app/acme/atlas/files', 'proj-files'],
-      ['/app/acme/atlas/publications', 'proj-publications'],
+      ['/app/acme/atlas/settings/members', 'proj-settings'],
+      ['/app/acme/atlas/settings/anything', 'proj-settings'],
+      ['/app/acme/atlas/published', 'proj-publications'],
+      ['/app/acme/atlas/package', null],
+      ['/app/acme/atlas/files', null],
+      ['/app/acme/atlas/publications', null],
     ])('%s -> %s', (path, id) => {
       expect(resolve(path) ?? null).toBe(id);
     });
+  });
+});
+
+describe('the moved addresses of the project area', () => {
+  const org = 'acme';
+  const project = 'atlas';
+  const target = (path: string, search = '') => entry(path)?.target(new URLSearchParams(search), { org, project });
+
+  // [utest->req~frontend-nav-project-tabs~1]
+  // [utest->req~frontend-nav-files-retired~1]
+  it('declares publications, files and package, with ids of their own', () => {
+    expect(moves.map((route) => route.path)).toEqual([
+      '/app/:org/:project/publications',
+      '/app/:org/:project/files',
+      '/app/:org/:project/package',
+    ]);
+    for (const route of moves) expect(idsOfScreens).not.toContain(route.id);
+  });
+
+  // [utest->req~frontend-nav-project-tabs~1]
+  it('moves the publications to the published results and keeps the query', () => {
+    expect(target('/app/:org/:project/publications')).toBe('/app/acme/atlas/published');
+    expect(target('/app/:org/:project/publications', 'a=1')).toBe('/app/acme/atlas/published?a=1');
+    expect(entry('/app/:org/:project/publications')?.permanent).toBeUndefined();
+  });
+
+  // [utest->req~frontend-nav-files-retired~1]
+  it('moves the files to the project overview, as a permanent address, and the package to the settings', () => {
+    expect(target('/app/:org/:project/files', 'a=1')).toBe('/app/acme/atlas');
+    expect(entry('/app/:org/:project/files')?.permanent).toBe(true);
+    expect(target('/app/:org/:project/package', 'a=1')).toBe('/app/acme/atlas/settings');
+    expect(entry('/app/:org/:project/package')?.permanent).toBeUndefined();
+  });
+
+  // [utest->req~frontend-nav-project-tabs~1]
+  it('leads every entry to a screen of the registry', () => {
+    for (const route of moves) {
+      const address = route.target(new URLSearchParams(''), { org, project });
+      expect(resolve(address.split(/[?#]/)[0]), address).toBeDefined();
+    }
+  });
+
+  // [utest->req~frontend-nav-redirects~1]
+  it('gives every moved entry an id that no screen and no other entry uses', () => {
+    const ids = [...idsOfScreens, ...movedRoutes.map((route) => route.id)];
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

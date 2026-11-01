@@ -10,15 +10,15 @@ import './Resources.css';
 interface ResourceFrameProps {
   organization: Organization;
   project: Project;
-  /** The project tab that is open: the files, or the collections. */
-  section: Extract<ProjectSection, 'files' | 'collections'>;
+  /** The project tab that is open: the collections. */
+  section: Extract<ProjectSection, 'collections'>;
   /** The crumbs below the project; the last one is where you are. */
   trail: Crumb[];
   width?: 'md' | 'lg' | 'wide';
   children: ReactNode;
 }
 
-/** The frame of the files and collections: breadcrumb, project tabs and one live content column. */
+/** The frame of the collections: breadcrumb, project tabs and one live content column. */
 export function ResourceFrame({ organization, project, section, trail, width = 'wide', children }: ResourceFrameProps) {
   const root = `/app/${organization.slug}/${project.slug}`;
   const items: Crumb[] = [

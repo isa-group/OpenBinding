@@ -5,10 +5,10 @@ import { HttpError } from '../../api/client';
 import { ProjectSettings } from './ProjectSettings';
 import { caseOf, org, project, renderProjectScreen, revisionOf, usageWithProjects } from './testKit';
 
-const api = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
+const api = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn() }));
 const platform = vi.hoisted(() => ({
   project: vi.fn(), updateProject: vi.fn(), deleteProject: vi.fn(), cases: vi.fn(), revisions: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(),
-  reports: vi.fn(), publications: vi.fn(), publicProjects: vi.fn(),
+  reports: vi.fn(), publications: vi.fn(), publicProjects: vi.fn(), members: vi.fn(),
 }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
@@ -20,11 +20,13 @@ const qos = project('qos-benchmarks', { name: 'QoS Benchmarks', description: 'Re
 
 const refusal = (status: number, code: string) => Object.assign(new HttpError(status, 'refused'), { code });
 
-function renderSettings(slug = 'isa-demo') {
+function renderSettings(slug = 'isa-demo', section = '') {
   return renderProjectScreen(<ProjectSettings />, {
-    path: '/app/:org/:project/settings', url: `/app/${slug}/qos-benchmarks/settings`, organizations: [group, member],
+    path: '/app/:org/:project/settings/:section?', url: `/app/${slug}/qos-benchmarks/settings${section ? `/${section}` : ''}`, organizations: [group, member],
   });
 }
+
+const sectionsNav = () => screen.getByRole('navigation', { name: 'Settings sections' });
 
 describe('Project settings', () => {
   beforeEach(() => {
@@ -39,7 +41,12 @@ describe('Project settings', () => {
     platform.reports.mockResolvedValue([]);
     platform.publications.mockResolvedValue([]);
     platform.publicProjects.mockResolvedValue([]);
+    platform.members.mockResolvedValue([
+      { id: 'm1', organization_id: group.id, user_id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'OWNER', created_at: '2026-01-01T00:00:00Z' },
+      { id: 'm2', organization_id: group.id, user_id: 'user-2', username: 'tomas', email: 'tomas@example.org', role: 'MEMBER', created_at: '2026-01-01T00:00:00Z' },
+    ]);
     api.getOwnUsage.mockResolvedValue(usageWithProjects());
+    api.getPricingCatalog.mockResolvedValue({});
   });
 
   it('is for members: a visitor of a public project gets the neutral gate, with nothing of the settings', async () => {
@@ -130,7 +137,78 @@ describe('Project settings', () => {
     });
   });
 
+  describe('sections', () => {
+    // [utest->req~frontend-nav-project-tabs~1]
+    it('marks General at /settings and offers Members', async () => {
+      renderSettings();
+
+      await screen.findByRole('heading', { level: 1, name: 'Project settings' });
+      const nav = within(sectionsNav());
+      expect(nav.getByRole('link', { name: 'General' })).toHaveAttribute('aria-current', 'page');
+      expect(nav.getByRole('link', { name: 'General' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/settings');
+      expect(nav.getByRole('link', { name: 'Members' })).not.toHaveAttribute('aria-current');
+      expect(nav.getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/settings/members');
+      expect(platform.members).not.toHaveBeenCalled();
+    });
+
+    // [utest->req~frontend-nav-project-tabs~1]
+    it('lists the members of the organization at /settings/members, and links to manage them', async () => {
+      renderSettings('isa-demo', 'members');
+
+      const list = await screen.findByRole('list', { name: 'Members of ISA Demo Group' });
+      expect(platform.members).toHaveBeenCalledWith('isa-demo');
+      expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+        expect.stringContaining('lucia'), expect.stringContaining('tomas'),
+      ]);
+      expect(within(list).getByText('OWNER')).toBeInTheDocument();
+      expect(within(list).getByText('MEMBER')).toBeInTheDocument();
+      const nav = within(sectionsNav());
+      expect(nav.getByRole('link', { name: 'Members' })).toHaveAttribute('aria-current', 'page');
+      expect(nav.getByRole('link', { name: 'General' })).not.toHaveAttribute('aria-current');
+      expect(screen.getByRole('link', { name: 'Manage members' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
+      expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
+      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    // [utest->req~frontend-nav-project-tabs~1]
+    it('says the members could not be loaded, and tries again', async () => {
+      platform.members.mockRejectedValueOnce(refusal(503, 'unavailable'));
+      renderSettings('isa-demo', 'members');
+
+      expect(await screen.findByText('The members couldn’t be loaded.')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(await screen.findByText('tomas')).toBeInTheDocument();
+    });
+
+    // [utest->req~frontend-nav-project-tabs~1]
+    it('is for members at /settings/members too: a visitor of a public project gets the neutral gate', async () => {
+      platform.project.mockResolvedValue({ ...qos, visibility: 'public', organization_id: 'org-open', created_by_id: null, access: 'public_read', effective_role: null });
+      renderSettings('open-lab', 'members');
+
+      expect(await screen.findByRole('heading', { name: 'Members only' })).toBeInTheDocument();
+      expect(platform.members).not.toHaveBeenCalled();
+    });
+
+    // [utest->req~frontend-nav-project-tabs~1]
+    it('shows Page not found for any other section', async () => {
+      renderSettings('isa-demo', 'billing');
+
+      expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'Settings sections' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('below ADMIN', () => {
+    // [utest->req~frontend-nav-files-retired~1]
+    it('offers no package export or import', async () => {
+      platform.project.mockResolvedValue({ ...qos, organization_id: member.id });
+      renderSettings('member-lab');
+
+      await screen.findByRole('heading', { level: 1, name: 'Project settings' });
+      expect(screen.queryByRole('heading', { name: 'Export package' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Import package' })).not.toBeInTheDocument();
+    });
+
     it('is read-only, with the role named and nothing to save or delete', async () => {
       platform.project.mockResolvedValue({ ...qos, organization_id: member.id });
       renderSettings('member-lab');

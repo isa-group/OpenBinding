@@ -73,7 +73,8 @@ describe('Project overview', () => {
     // [utest->req~frontend-retire-reports-entry-points-removed~1]
     expect(within(band).queryByText('New report')).not.toBeInTheDocument();
     expect(within(band).getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', `${root}/workbench`);
-    expect(within(band).getByRole('link', { name: 'Export package' })).toHaveAttribute('href', `${root}/package`);
+    // [utest->req~frontend-nav-files-retired~1]
+    expect(within(band).getByRole('link', { name: 'Export package' })).toHaveAttribute('href', `${root}/settings`);
     const crumbs = within(band).getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo');
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
@@ -208,7 +209,8 @@ describe('Project overview', () => {
       platform.project.mockResolvedValue(project('qos-benchmarks', { name: 'QoS Benchmarks', organization_id: viewing.id }));
     });
 
-    it('reads everything and exports, but cannot create', async () => {
+    // [utest->req~frontend-nav-files-retired~1]
+    it('reads everything, but cannot create and has no link to the package export of the settings', async () => {
       renderOverview({ slug: 'read-lab' });
 
       const title = await screen.findByRole('heading', { level: 1, name: 'QoS Benchmarks' });
@@ -218,8 +220,8 @@ describe('Project overview', () => {
       expect(within(band).getByText('New case')).toHaveAttribute('aria-disabled', 'true');
       expect(within(band).getByText('New case')).toHaveAttribute('title', 'Needs MEMBER');
       expect(within(band).getByText('Run')).toHaveAttribute('aria-disabled', 'true');
-      expect(within(band).getByRole('link', { name: 'Export package' })).toBeEnabled();
-      expect(within(band).getByText('You’re a VIEWER: you can read everything here and export the package; creating needs MEMBER.')).toBeInTheDocument();
+      expect(within(band).queryByRole('link', { name: 'Export package' })).not.toBeInTheDocument();
+      expect(within(band).getByText('You’re a VIEWER: you can read everything here; creating needs MEMBER.')).toBeInTheDocument();
     });
   });
 
@@ -261,10 +263,11 @@ describe('Project overview', () => {
       }
       expect(within(band).getByRole('link', { name: 'Browse cases' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/cases');
       const tabs = within(screen.getByRole('navigation', { name: 'Project sections' }));
-      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Cases', 'Collections', 'Studies', 'Publications', 'Files']);
-      expect(tabs.getByRole('link', { name: 'Publications' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/publications');
+      // [utest->req~frontend-nav-project-tabs~1]
+      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Problems', 'Collections', 'Studies', 'Published']);
+      expect(tabs.getByRole('link', { name: 'Published' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/published');
       expect(tabs.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
-      expect(tabs.queryByRole('link', { name: 'Jobs' })).not.toBeInTheDocument();
+      expect(tabs.queryByRole('link', { name: 'Runs' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Package' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
     });

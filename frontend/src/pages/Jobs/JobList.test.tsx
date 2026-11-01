@@ -56,7 +56,7 @@ describe('Jobs of a project', () => {
     expect(within(table).getByRole('row', { name: /minizinc.*No feasible binding/ })).toBeInTheDocument();
     expect(screen.getByText('Kept for 180 days on your RESEARCH plan')).toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
-    expect(within(tabs).getByRole('link', { name: 'Jobs' })).toHaveAttribute('aria-current', 'page');
+    expect(within(tabs).getByRole('link', { name: 'Runs' })).toHaveAttribute('aria-current', 'page');
     expect(platform.projectJobs).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks');
   });
 

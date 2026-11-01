@@ -57,7 +57,7 @@ describe('One run', () => {
     expect(within(header).queryByRole('link', { name: 'Analyze' })).not.toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', `${ROOT}/jobs`);
-    expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Jobs' })).toHaveAttribute('aria-current', 'page');
+    expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Runs' })).toHaveAttribute('aria-current', 'page');
     expect(jobsApi.detail).toHaveBeenCalledWith('job-done-3');
   });
 

@@ -55,7 +55,7 @@ describe('Case list', () => {
     expect(second.getByText('No description.')).toBeInTheDocument();
     expect(second.queryByRole('link', { name: 'Run latest' })).not.toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
-    expect(within(tabs).getByRole('link', { name: 'Cases' })).toHaveAttribute('aria-current', 'page');
+    expect(within(tabs).getByRole('link', { name: 'Problems' })).toHaveAttribute('aria-current', 'page');
     for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
   });
 
@@ -73,7 +73,7 @@ describe('Case list', () => {
     expect(screen.queryByText(/Your role here/)).not.toBeInTheDocument();
     expect(screen.getByText('You are viewing a public project (read-only).')).toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
-    expect(within(tabs).queryByRole('link', { name: 'Jobs' })).not.toBeInTheDocument();
+    expect(within(tabs).queryByRole('link', { name: 'Runs' })).not.toBeInTheDocument();
   });
 
   it('finds a case by name or address and says when none matches', async () => {

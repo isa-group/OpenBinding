@@ -23,14 +23,23 @@ describe('buildCommands', () => {
   });
 
   // [utest->req~frontend-retire-reports-navigation~1]
-  it('offers Publications instead of Reports in a project', () => {
+  // [utest->req~frontend-nav-project-tabs~1]
+  it('offers Published instead of Reports and Publications in a project', () => {
     const commands = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
 
-    expect(commands.filter((command) => command.label === 'Reports')).toEqual([]);
-    expect(commands.filter((command) => /\/reports([/?#]|$)/.test(command.href))).toEqual([]);
-    const publications = commands.filter((command) => command.label === 'Publications');
-    expect(publications.map((command) => [command.group, command.href])).toEqual([['Project', '/app/isa-demo/qos-benchmarks/publications']]);
-    expect(publications[0]?.desc).toContain('QoS benchmarks');
+    expect(commands.filter((command) => command.label === 'Reports' || command.label === 'Publications')).toEqual([]);
+    expect(commands.filter((command) => /\/(reports|publications)([/?#]|$)/.test(command.href))).toEqual([]);
+    const published = commands.filter((command) => command.label === 'Published');
+    expect(published.map((command) => [command.group, command.href])).toEqual([['Project', '/app/isa-demo/qos-benchmarks/published']]);
+    expect(published[0]?.desc).toContain('QoS benchmarks');
+  });
+
+  // [utest->req~frontend-nav-files-retired~1]
+  it('offers no Files command and keeps the package with the project settings', () => {
+    const commands = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
+
+    expect(commands.filter((command) => command.label === 'Files' || /\/(files|package)([/?#]|$)/.test(command.href))).toEqual([]);
+    expect(commands.filter((command) => command.label === 'Project settings').map((command) => command.href)).toEqual(['/app/isa-demo/qos-benchmarks/settings']);
   });
 
   // [utest->req~frontend-retire-library-navigation~1]

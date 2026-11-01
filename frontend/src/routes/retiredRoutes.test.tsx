@@ -134,7 +134,7 @@ describe('the table of retired addresses', () => {
     const encodedQuery = 'org=a%20b&project=p%2Fq&study=s%23t&run=r%3Fx';
     // The address of the encoded sample: the shape the table promises, the screens behind it are the area's business.
     const fixedTarget: Record<number, (route: RetiredRoute) => string> = {
-      2: () => '/app/a%20b/p%2Fq/publications',
+      2: () => '/app/a%20b/p%2Fq/published',
       3: (route) => (route.id.startsWith('lib-') ? '/app/a%20b' : '/app/a%20b/p%2Fq/collections'),
       4: () => '/app/a%20b/p%2Fq/workbench?case=c%3Fx',
       5: () => '/app/admin',
@@ -230,14 +230,15 @@ describe('the table of retired addresses', () => {
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]
-  it.each(RETIRED_ROUTES.filter((route) => route.slice === 2))('sends $path to the publications of the project, whatever the query and the report', (route) => {
+  // [utest->req~frontend-nav-project-tabs~1]
+  it.each(RETIRED_ROUTES.filter((route) => route.slice === 2))('sends $path to the published results of the project, whatever the query and the report', (route) => {
     const to = (query: string, params: Params) => targetOf(route, query, params);
 
-    expect(to('', { org: 'acme', project: 'demo', report: 'engines' })).toBe('/app/acme/demo/publications');
-    expect(to('', { org: 'acme', project: 'demo' })).toBe('/app/acme/demo/publications');
-    expect(to('org=other&project=other&report=x&tab=blocks', { org: 'acme', project: 'demo', report: 'engines' })).toBe('/app/acme/demo/publications');
-    expect(to('', { org: 'a/b', project: 'p q', report: 'r#1' })).toBe('/app/a%2Fb/p%20q/publications');
-    expect(to('', { org: 'isa-demo', project: 'qos-benchmarks', report: 'engines-vs-seeds-informe' })).toBe('/app/isa-demo/qos-benchmarks/publications');
+    expect(to('', { org: 'acme', project: 'demo', report: 'engines' })).toBe('/app/acme/demo/published');
+    expect(to('', { org: 'acme', project: 'demo' })).toBe('/app/acme/demo/published');
+    expect(to('org=other&project=other&report=x&tab=blocks', { org: 'acme', project: 'demo', report: 'engines' })).toBe('/app/acme/demo/published');
+    expect(to('', { org: 'a/b', project: 'p q', report: 'r#1' })).toBe('/app/a%2Fb/p%20q/published');
+    expect(to('', { org: 'isa-demo', project: 'qos-benchmarks', report: 'engines-vs-seeds-informe' })).toBe('/app/isa-demo/qos-benchmarks/published');
     expect(to('', {})).toBe('/app');
     expect(to('', { org: 'a' })).toBe('/app');
     expect(to('', { org: '', project: 'b' })).toBe('/app');
@@ -283,12 +284,12 @@ describe('the redirect of a retired address', () => {
 
   // [utest->req~frontend-retire-reports-redirect~1]
   it.each([
-    ['/app/acme/demo/reports', '/app/acme/demo/publications'],
-    ['/app/acme/demo/reports/engines-vs-seeds-informe', '/app/acme/demo/publications'],
-    ['/app/acme/demo/reports/x?tab=blocks&report=y#top', '/app/acme/demo/publications'],
-    ['/app/acme/demo/reports?x=1', '/app/acme/demo/publications'],
-    ['/app/a%2Fb/my%20proj/reports', '/app/a%2Fb/my%20proj/publications'],
-    ['/app/a%2Fb/my%20proj/reports/r%2F1', '/app/a%2Fb/my%20proj/publications'],
+    ['/app/acme/demo/reports', '/app/acme/demo/published'],
+    ['/app/acme/demo/reports/engines-vs-seeds-informe', '/app/acme/demo/published'],
+    ['/app/acme/demo/reports/x?tab=blocks&report=y#top', '/app/acme/demo/published'],
+    ['/app/acme/demo/reports?x=1', '/app/acme/demo/published'],
+    ['/app/a%2Fb/my%20proj/reports', '/app/a%2Fb/my%20proj/published'],
+    ['/app/a%2Fb/my%20proj/reports/r%2F1', '/app/a%2Fb/my%20proj/published'],
   ])('sends the report address %s to %s, without a query', async (old, expected) => {
     renderAt([old]);
 
@@ -464,7 +465,7 @@ describe('the redirect of a retired address', () => {
   it('replaces the history entry, so going back skips the report address', async () => {
     renderAt(['/app/account', '/app/acme/demo/reports/x']);
 
-    await landsOn('/app/acme/demo/publications');
+    await landsOn('/app/acme/demo/published');
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
 
     await landsOn('/app/account');
@@ -480,14 +481,14 @@ describe('the redirect of a retired address', () => {
     signedOut.unmount();
 
     renderAt([old]);
-    await landsOn('/app/acme/demo/publications');
+    await landsOn('/app/acme/demo/published');
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]
   it('renders no report screen', async () => {
     renderAt(['/app/acme/demo/reports/x']);
 
-    await landsOn('/app/acme/demo/publications');
+    await landsOn('/app/acme/demo/published');
     expect(document.querySelector('[data-screen^="rep-"]')).toBeNull();
   });
 });

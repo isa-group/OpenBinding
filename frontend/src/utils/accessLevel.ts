@@ -28,8 +28,8 @@ export function canWrite(level: AccessLevel | null | undefined, minimum: Exclude
   return level != null && level !== 'public_read' && RANK[level] >= RANK[minimum];
 }
 
-/** The parts of a project a visitor never sees (the backend refuses them: jobs, the package export, the settings). */
-const MEMBER_ONLY = ['jobs', 'package', 'settings'] as const;
+/** The parts of a project a visitor never sees (the backend refuses them: the runs and the settings, which hold the package export). */
+const MEMBER_ONLY = ['jobs', 'settings'] as const;
 
 export function isMemberOnly(section: string): boolean {
   return (MEMBER_ONLY as readonly string[]).includes(section);

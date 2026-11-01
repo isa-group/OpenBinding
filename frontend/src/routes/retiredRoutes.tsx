@@ -31,11 +31,12 @@ function decisionSpaceTarget(query: URLSearchParams): string {
 }
 
 // [impl->req~frontend-retire-reports-redirect~1]
-/** The report editor rule: the project's publications. The report, the query and the hash are dropped. */
+/** The report editor rule: the project's published results. The report, the query and the hash are dropped. */
+// [impl->req~frontend-nav-project-tabs~1]
 function publicationsTarget(_query: URLSearchParams, params: RetiredParams): string {
   const { org, project } = params;
   if (!org || !project) return '/app';
-  return `/app/${encodeURIComponent(org)}/${encodeURIComponent(project)}/publications`;
+  return `/app/${encodeURIComponent(org)}/${encodeURIComponent(project)}/published`;
 }
 
 // [impl->req~frontend-retire-library-redirect~1]

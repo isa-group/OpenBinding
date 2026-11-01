@@ -56,11 +56,12 @@ export function buildCommands({ organizations = [], projects = [], organization,
       ['Cases', 'Binding cases and their revisions', '/cases'],
       // [impl->req~frontend-retire-library-navigation~1]
       ['Collections', 'Problems grouped into suites', '/collections'],
-      ['Files', 'Files stored in this project', '/files'],
       ['Studies', 'Cases × engines × parameters × seeds', '/studies'],
       // [impl->req~frontend-retire-reports-navigation~1]
-      ['Publications', 'Published editions and how to cite them', '/publications'],
-      ['Project settings', 'Name, visibility and members', '/settings'],
+      // [impl->req~frontend-nav-project-tabs~1]
+      ['Published', 'Published editions and how to cite them', '/published'],
+      // [impl->req~frontend-nav-files-retired~1]
+      ['Project settings', 'Name, visibility, members and package', '/settings'],
     ];
     for (const [label, desc, suffix] of sections) {
       commands.push(command('Project', label, `${desc} · ${project.name}`, `${root}${suffix}`));

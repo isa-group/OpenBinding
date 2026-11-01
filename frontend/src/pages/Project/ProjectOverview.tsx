@@ -241,8 +241,8 @@ function GetStarted({ root, canCreate }: { root: string; canCreate: boolean }) {
   );
 }
 
-function OverviewBody({ organization, project, canCreate, publicRead, role, roleTitle }: {
-  organization: Organization; project: Project; canCreate: boolean; publicRead: boolean; role: Organization['effective_role'] | 'PLATFORM ADMIN'; roleTitle?: string;
+function OverviewBody({ organization, project, canCreate, canAdminister, publicRead, role, roleTitle }: {
+  organization: Organization; project: Project; canCreate: boolean; canAdminister: boolean; publicRead: boolean; role: Organization['effective_role'] | 'PLATFORM ADMIN'; roleTitle?: string;
 }) {
   const { isAdmin } = useAuth();
   const org = organization.slug;
@@ -292,11 +292,12 @@ function OverviewBody({ organization, project, canCreate, publicRead, role, role
             </>
           )}
           <Action to={`${root}/workbench`} variant="secondary">Workbench</Action>
-          {!publicRead && <Action to={`${root}/package`} variant="secondary">Export package</Action>}
+          {/* The package export lives in the settings, which show it to the people who may change the project. */}
+          {!publicRead && canAdminister && <Action to={`${root}/settings`} variant="secondary">Export package</Action>}
         </div>
       </div>
       {publicRead && <small className="org-muted">Cases, studies, the files marked public and the published reports are open to read. Only members can change anything or see jobs.</small>}
-      {!publicRead && !canCreate && <small className="org-muted">You’re a VIEWER: you can read everything here and export the package; creating needs MEMBER.</small>}
+      {!publicRead && !canCreate && <small className="org-muted">You’re a VIEWER: you can read everything here; creating needs MEMBER.</small>}
     </>
   );
 
@@ -330,6 +331,7 @@ export function ProjectOverview() {
       organization={organization}
       project={project}
       canCreate={access.canCreate}
+      canAdminister={access.canAdminister}
       publicRead={access.publicRead}
       role={role}
       roleTitle={roleSource(organization, context.organizations).text}

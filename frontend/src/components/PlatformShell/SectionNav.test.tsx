@@ -86,47 +86,45 @@ describe('a side navigation that becomes a row that scrolls sideways', () => {
 });
 
 describe('ProjectTabs', () => {
+  // [utest->req~frontend-nav-project-tabs~1]
   // [utest->req~frontend-retire-reports-navigation~1]
   // [utest->req~frontend-retire-library-navigation~1]
-  it('links the project sections', () => {
+  it('links the seven project tabs', () => {
     render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
     const nav = screen.getByRole('navigation', { name: 'Project sections' });
+    // Problems and Runs lead to /cases and /jobs until the address slices move them.
     expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Overview', '/app/isa-demo/qos'],
-      ['Cases', '/app/isa-demo/qos/cases'],
+      ['Problems', '/app/isa-demo/qos/cases'],
       ['Collections', '/app/isa-demo/qos/collections'],
-      ['Jobs', '/app/isa-demo/qos/jobs'],
+      ['Runs', '/app/isa-demo/qos/jobs'],
       ['Studies', '/app/isa-demo/qos/studies'],
-      ['Publications', '/app/isa-demo/qos/publications'],
-      ['Files', '/app/isa-demo/qos/files'],
-      ['Package', '/app/isa-demo/qos/package'],
+      ['Published', '/app/isa-demo/qos/published'],
       ['Settings', '/app/isa-demo/qos/settings'],
     ]);
   });
 
-  // [utest->req~frontend-retire-reports-navigation~1]
-  // [utest->req~frontend-retire-library-navigation~1]
-  it('has no Reports or Library tab and no tab that leads to a retired address', () => {
+  // [utest->req~frontend-nav-project-tabs~1]
+  // [utest->req~frontend-nav-files-retired~1]
+  it('has no Cases, Jobs, Publications, Files, Package, Reports or Library tab', () => {
     render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
     const nav = screen.getByRole('navigation', { name: 'Project sections' });
-    expect(within(nav).queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
-    expect(within(nav).queryByRole('link', { name: 'Library' })).not.toBeInTheDocument();
-    for (const link of within(nav).getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(reports|library|resources)([/?#]|$)/);
-    expect(within(nav).getByRole('link', { name: 'Publications' })).toHaveAttribute('href', '/app/isa-demo/qos/publications');
+    for (const former of ['Cases', 'Jobs', 'Publications', 'Files', 'Package', 'Reports', 'Library']) {
+      expect(within(nav).queryByRole('link', { name: former }), former).not.toBeInTheDocument();
+    }
+    for (const link of within(nav).getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(reports|library|resources|files|package|publications)([/?#]|$)/);
   });
 
-  // [utest->req~frontend-retire-reports-navigation~1]
+  // [utest->req~frontend-nav-project-tabs~1]
   it.each([
     ['overview', 'Overview'],
-    ['cases', 'Cases'],
+    ['cases', 'Problems'],
     ['collections', 'Collections'],
-    ['jobs', 'Jobs'],
+    ['jobs', 'Runs'],
     ['studies', 'Studies'],
-    ['publications', 'Publications'],
-    ['files', 'Files'],
-    ['package', 'Package'],
+    ['published', 'Published'],
     ['settings', 'Settings'],
   ] as Array<[ProjectSection, string]>)('marks only %s as the current page', (active, label) => {
     render(<MemoryRouter><ProjectTabs active={active} orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
@@ -136,24 +134,24 @@ describe('ProjectTabs', () => {
   });
 
   describe('for someone who reads a public project without being a member', () => {
-    // [utest->req~frontend-retire-reports-navigation~1]
-    // [utest->req~frontend-retire-library-navigation~1]
-    it('drops the tabs only members can open and says the project is read-only, and still shows Publications', () => {
+    // [utest->req~frontend-nav-project-tabs~1]
+    it('drops the tabs only members can open and says the project is read-only, and still shows Published', () => {
       render(<MemoryRouter><ProjectTabs orgSlug="open" projectSlug="qos" access="public_read" /></MemoryRouter>);
 
       const nav = screen.getByRole('navigation', { name: 'Project sections' });
-      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Cases', 'Collections', 'Studies', 'Publications', 'Files']);
-      expect(within(nav).getByRole('link', { name: 'Publications' })).toHaveAttribute('href', '/app/open/qos/publications');
+      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Problems', 'Collections', 'Studies', 'Published']);
+      expect(within(nav).getByRole('link', { name: 'Published' })).toHaveAttribute('href', '/app/open/qos/published');
       expect(screen.getByRole('note')).toHaveTextContent('You are viewing a public project (read-only).');
     });
 
+    // [utest->req~frontend-nav-project-tabs~1]
     it('shows every tab and no strip to a member, or when nothing says otherwise', () => {
       const { rerender } = render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" access="member" /></MemoryRouter>);
-      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(9);
+      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(7);
       expect(screen.queryByRole('note')).not.toBeInTheDocument();
 
       rerender(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
-      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(9);
+      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(7);
     });
   });
 
@@ -172,7 +170,7 @@ describe('ProjectTabs', () => {
       Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
     });
 
-    it.each(['jobs', 'studies', 'publications', 'files', 'settings'] as ProjectSection[])('brings the current tab (%s) into view', (active) => {
+    it.each(['jobs', 'studies', 'published', 'settings'] as ProjectSection[])('brings the current tab (%s) into view', (active) => {
       render(<MemoryRouter><ProjectTabs active={active} orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
       expect(scrolled.map((tab) => tab.getAttribute('aria-current'))).toEqual(['page']);
@@ -181,9 +179,9 @@ describe('ProjectTabs', () => {
 
     it('follows the current tab when the section changes', () => {
       const { rerender } = render(<MemoryRouter><ProjectTabs active="cases" orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
-      rerender(<MemoryRouter><ProjectTabs active="files" orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
+      rerender(<MemoryRouter><ProjectTabs active="published" orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
-      expect(scrolled.map((tab) => tab.textContent)).toEqual(['Cases', 'Files']);
+      expect(scrolled.map((tab) => tab.textContent)).toEqual(['Problems', 'Published']);
     });
   });
 });

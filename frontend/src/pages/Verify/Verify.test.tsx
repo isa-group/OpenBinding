@@ -172,7 +172,7 @@ describe('Verify', () => {
       renderVerify(`/verify/report/${DIGEST}`);
       const locations = within(await screen.findByRole('region', { name: 'Locations' }));
 
-      expect(locations.getByRole('link', { name: 'Open in platform' })).toHaveAttribute('href', '/app/isa-demo/qos/publications');
+      expect(locations.getByRole('link', { name: 'Open in platform' })).toHaveAttribute('href', '/app/isa-demo/qos/published');
     });
 
     // [utest->req~frontend-retire-library-no-link~1]
@@ -566,7 +566,7 @@ describe('Verify', () => {
       expect(within(matches).getByText('Report edition')).toBeInTheDocument();
       expect(within(matches).getByText('Comparativa de engines en checkout')).toBeInTheDocument();
       // [utest->req~frontend-retire-reports-publications-stay~1]
-      expect(within(matches).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/publications');
+      expect(within(matches).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/published');
       expect(within(matches).getByRole('link', { name: 'Public record' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
 
       // Written from the record, not from the gateway's citation, whose DOI and venue are made up.

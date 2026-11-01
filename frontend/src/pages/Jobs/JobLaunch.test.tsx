@@ -114,7 +114,7 @@ describe('Start a run', () => {
     expect(within(source).getByRole('radio', { name: /Flujo de checkout · revision 1/ })).not.toBeChecked();
     expect(screen.getByRole('link', { name: 'Upload a new package in the Workbench' })).toHaveAttribute('href', `${ROOT}/workbench`);
     expect(screen.getByRole('link', { name: 'Cancel' })).toHaveAttribute('href', `${ROOT}/jobs`);
-    expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Jobs' })).toHaveAttribute('aria-current', 'page');
+    expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Runs' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('checks which engines can run the snapshot and lists the ones that cannot, with the reason', async () => {

@@ -132,7 +132,7 @@ describe('the retired decision-space workspace', () => {
   });
 });
 
-// M2.4 slice 2: the report list and the report editor are retired. Their addresses redirect to the publications of the project.
+// M2.4 slice 2: the report list and the report editor are retired. Their addresses redirect to the published results of the project.
 describe('the retired report editor', () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -155,10 +155,11 @@ describe('the retired report editor', () => {
   // no longer here; each area test (areas/project.test.ts, areas/verify.test.ts) holds what its own screens need.
 
   // [utest->req~frontend-retire-reports-redirect~1]
-  it('sends the report list and a report to the publications of their project', async () => {
-    await endsAt('/app/acme/atlas/reports', '/app/acme/atlas/publications');
-    await endsAt('/app/acme/atlas/reports/engines-vs-seeds-informe', '/app/acme/atlas/publications');
-    await endsAt('/app/acme/atlas/reports/engines-vs-seeds-informe?x=1', '/app/acme/atlas/publications');
+  // [utest->req~frontend-nav-project-tabs~1]
+  it('sends the report list and a report to the published results of their project', async () => {
+    await endsAt('/app/acme/atlas/reports', '/app/acme/atlas/published');
+    await endsAt('/app/acme/atlas/reports/engines-vs-seeds-informe', '/app/acme/atlas/published');
+    await endsAt('/app/acme/atlas/reports/engines-vs-seeds-informe?x=1', '/app/acme/atlas/published');
   });
 });
 

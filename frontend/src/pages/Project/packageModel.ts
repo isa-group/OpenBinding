@@ -190,7 +190,8 @@ function failed(base: Omit<PackageInspection, 'rows' | 'cases' | 'readable'>, pr
 
 /**
  * Open a package on this device and check every fingerprint that can be recomputed, before anything is sent. Nothing is
- * written. A YAML package can't be opened here (the app has no YAML reader), so it is checked by the gateway when it is imported.
+ * written. A YAML package can't be opened here (the app has no YAML reader), nor can a ZIP that JSZip refuses; the gateway checks
+ * those when they are imported.
  */
 export async function inspectPackage(file: File): Promise<PackageInspection> {
   const buffer = await bytesOf(file);
@@ -200,9 +201,16 @@ export async function inspectPackage(file: File): Promise<PackageInspection> {
 
   let pkg: unknown;
   let archive: JSZip | null = null;
-  try {
-    if (format === 'zip') {
+  if (format === 'zip') {
+    // A ZIP this page cannot open at all is left to the gateway, which checks every fingerprint and refuses what does not match.
+    try {
       archive = await JSZip.loadAsync(buffer);
+    } catch {
+      return { ...base, readable: false, rows: [], cases: [] };
+    }
+  }
+  try {
+    if (archive) {
       const entry = archive.file('package.json') ?? archive.file('manifest.json');
       if (!entry) return failed(base, { kind: 'unreadable', title: 'Not an OpenBinding package', text: 'The ZIP has no package.json or manifest.json, so there is nothing to check. Nothing was imported.' });
       pkg = JSON.parse(await entry.async('string'));

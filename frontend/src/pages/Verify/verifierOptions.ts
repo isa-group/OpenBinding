@@ -35,9 +35,11 @@ export function entityHref(entity: VerifierEntity): string | null {
     case 'collection': return slug ? `${base}/collections/${slug}` : null;
     // [impl->req~frontend-retire-reports-no-link~1]
     // [impl->req~frontend-retire-reports-publications-stay~1]
-    case 'report': return `${base}/publications`;
+    case 'report': return `${base}/published`;
     case 'study_run': return slug ? `${base}/studies/${slug}/runs/${encodeURIComponent(entity.id)}` : null;
-    case 'artifact': return `${base}/files`;
+    // The project files list is retired (`/files` only redirects), so a file leads to its project.
+    // [impl->req~frontend-nav-files-retired~1]
+    case 'artifact': return base;
     default: return null;
   }
 }

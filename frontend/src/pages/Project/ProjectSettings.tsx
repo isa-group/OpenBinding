@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { CheckCircle2, Lock, TriangleAlert } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { platformApi } from '../../api/platform';
@@ -11,14 +11,18 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
-import { Gate, RoleChip } from '../Organization/parts';
+import { Gate } from '../Organization/parts';
 import { RoomBars } from '../Organization/room';
 import { roomFromUsage } from '../Organization/roomModel';
+import { NotFoundScreen } from '../../routes/NotFoundScreen';
 import { loadCases, loadReports, loadStudies } from './projectData';
 import { deleteRefusal, updateRefusal, type ProjectRefusal } from './projectErrors';
 import { countWord, DESCRIPTION_MAX, integrityOf, NAME_MAX, visibilityEffects, visibilityLabel } from './projectModel';
 import { canOpenSection } from './accessLevel';
-import { MembersOnlyGate, ProjectFrame, ProjectGate, ProjectSkeleton } from './parts';
+import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from './parts';
+import { ProjectMembers } from './ProjectMembers';
+import { ExportPackage, ImportPackage } from './ProjectPackageSections';
+import { ProjectSettingsLayout } from './ProjectSettingsLayout';
 import { useRouteProject } from './useRouteProject';
 import './Project.css';
 
@@ -70,8 +74,8 @@ function DeleteDialog({ organization, project, onClose, onDeleted }: {
   );
 }
 
-function SettingsBody({ organization, project, canEdit, reloadProject, reloadWorkspace }: {
-  organization: Organization; project: Project; canEdit: boolean; reloadProject: () => void; reloadWorkspace: () => Promise<void>;
+function SettingsBody({ organization, project, canEdit, canImport, reloadProject, reloadWorkspace }: {
+  organization: Organization; project: Project; canEdit: boolean; canImport: boolean; reloadProject: () => void; reloadWorkspace: () => Promise<void>;
 }) {
   const { user, isAdmin } = useAuth();
   const org = organization.slug;
@@ -165,14 +169,7 @@ function SettingsBody({ organization, project, canEdit, reloadProject, reloadWor
   }
 
   return (
-    <ProjectFrame organization={organization} project={project} section="settings" crumb="Settings" width="md">
-      <header className="org-head">
-        <div>
-          <h1>Project settings</h1>
-          <p>{project.name} · your role <RoleChip role={role} /></p>
-        </div>
-      </header>
-
+    <ProjectSettingsLayout organization={organization} project={project} section="general">
       {!canEdit && (
         <Notice tone="info">
           <Lock aria-hidden="true" className="org-inline-icon" /> You’re {role ? <>a <strong>{role}</strong></> : 'not a member'}, so this page is read-only.
@@ -254,6 +251,13 @@ function SettingsBody({ organization, project, canEdit, reloadProject, reloadWor
         </div>
       </section>
 
+      {canEdit && (
+        <div className="proj-transfer">
+          <ExportPackage organization={organization} project={project} />
+          <ImportPackage organization={organization} project={project} canImport={canImport} />
+        </div>
+      )}
+
       <section className="org-section" aria-labelledby="ps-danger">
         <h2 id="ps-danger">Danger zone</h2>
         <div className="org-card is-danger org-stack">
@@ -285,17 +289,39 @@ function SettingsBody({ organization, project, canEdit, reloadProject, reloadWor
           }}
         />
       )}
-    </ProjectFrame>
+    </ProjectSettingsLayout>
   );
 }
 
-/** Project settings (`proj-settings`, `/app/:org/:project/settings`): name, description, visibility and deletion. */
-export function ProjectSettings() {
+function SettingsPage({ section }: { section: 'general' | 'members' }) {
   const { context, orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   if (waiting) return <ProjectSkeleton />;
   if (!organization || !project) {
     return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
   }
   if (!canOpenSection(access.level, 'settings')) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
-  return <SettingsBody organization={organization} project={project} canEdit={access.canAdminister} reloadProject={reload} reloadWorkspace={context.reload} />;
+  if (section === 'members') return <ProjectMembers organization={organization} project={project} />;
+  return (
+    <SettingsBody
+      organization={organization}
+      project={project}
+      canEdit={access.canAdminister}
+      canImport={access.canCreate}
+      reloadProject={reload}
+      reloadWorkspace={context.reload}
+    />
+  );
+}
+
+/**
+ * Project settings (`proj-settings`, `/app/:org/:project/settings/:section?`): General (name, description, visibility, the package
+ * export and import, deletion) and Members (`members`). Any other section is a page that does not exist.
+ */
+// [impl->req~frontend-nav-project-tabs~1]
+// [impl->req~frontend-nav-files-retired~1]
+export function ProjectSettings() {
+  const { section } = useParams();
+  if (section === undefined) return <SettingsPage section="general" />;
+  if (section === 'members') return <SettingsPage section="members" />;
+  return <NotFoundScreen />;
 }
