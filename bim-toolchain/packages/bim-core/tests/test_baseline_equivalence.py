@@ -9,14 +9,15 @@ Two baselines are involved (``docs/qa/IR_NORMALIZATION.md``).  ``golden/bim_base
 toolchain that listed eligible candidates, constraints and placement in document order; it is frozen.  The normalized
 toolchain lists them in one canonical order, which moves the semantic digest of 64 packages and the enumeration order
 of their evaluations, so ``corpus.json`` and ``zip_equivalence.json`` are pinned in ``golden/bim_normalized``;
-``negatives``, ``vectors``, ``compat`` and ``protocol`` did not move and are compared with the frozen baseline.  How the
-two corpora relate, package by package and by identifier, is tested in ``test_ir_previous_baseline.py``.
+``negatives`` and ``vectors`` did not move and are compared with the frozen baseline.  How the two corpora relate,
+package by package and by identifier, is tested in ``test_ir_previous_baseline.py``.
 
 ``compat.json`` and ``protocol.json`` of OpenBinding list the Engine ``meta-router-csp``, whose manifest is not in
-the repository (only four manifests are).  They are compared with that Engine removed, and the four-Engine
-documents are pinned in ``golden/bim_core`` (see ``docs/DIGESTS.md``).  The Engines of ``CHANGED_MANIFESTS``
-(``minizinc-csp`` 1.1.1) changed their manifest after the freeze: they are left out of every comparison with the
-frozen baseline and pinned in ``golden/bim_core`` only.
+the repository (only four manifests are), and the ``minizinc-csp`` manifest they were computed with is not the 1.1.1
+one of the repository.  A second frozen baseline, ``golden/bim_baseline_1_1_1``, holds the two documents with the four
+Engines and ``minizinc-csp`` 1.1.1 (byte copies of ``golden/bim_core`` when it was created, pinned by SHA-256 here):
+``compat`` and ``protocol`` are compared with it with no Engine removed (see ``docs/DIGESTS.md``).  The tests
+``test_frozen_manifest_*`` relate it to ``golden/bim_baseline`` by identifier.
 
 The corpus is not part of this directory.  It is looked up under ``BIM_CORPUS_ROOT`` (default: the directory that
 contains ``bim-toolchain/``) and the tests that need it skip with a warning when it is absent, unless
@@ -26,6 +27,8 @@ ten-package sample.  The directory/ZIP equivalence on synthetic packages needs n
 (``test_zip_dir_equivalence.py``).
 """
 
+import copy
+import hashlib
 import json
 import os
 import warnings
@@ -43,6 +46,13 @@ from core_support import (
 GOLDEN_FILES = ("corpus.json", "negatives.json", "compat.json", "vectors.json", "protocol.json")
 CORE_GOLDEN_DIR = GOLDEN_DIR.parent / "bim_core"
 NORMALIZED_DIR = GOLDEN_DIR.parent / "bim_normalized"
+#: The second frozen baseline: ``compat.json`` and ``protocol.json`` with the Engines of the repository, minizinc-csp 1.1.1.
+FROZEN_MANIFEST_DIR = GOLDEN_DIR.parent / "bim_baseline_1_1_1"
+FROZEN_MANIFEST_SHA256 = {
+    "compat.json": "eb587a665ec2c30bef05dff6a54096ee721106e0939e9d33cc9cab6306d6d192",
+    "protocol.json": "6ae30623f5953e6cc94df401a48aaa797e1c024537c5430edda2ce76c50aebba",
+}
+MINIZINC_MOVES = FROZEN_MANIFEST_DIR / "minizinc_moves.json"
 SAMPLE_SIZE = 10
 SAMPLE_PER_ROOT = 4
 
@@ -62,6 +72,11 @@ def root():
 def golden(name: str) -> dict:
     """A document of the frozen previous baseline."""
     return json.loads((GOLDEN_DIR / name).read_text(encoding="utf-8"))
+
+
+def frozen_manifest(name: str) -> dict:
+    """A document of the second frozen baseline (``golden/bim_baseline_1_1_1``)."""
+    return json.loads((FROZEN_MANIFEST_DIR / name).read_text(encoding="utf-8"))
 
 
 def normalized(name: str) -> dict:
@@ -115,25 +130,19 @@ def test_the_normalized_goldens_match(baseline_tool, everything, name) -> None:
 def test_the_goldens_are_the_ones_recorded_in_openbinding(baseline_tool, root) -> None:
     """The gateway's ``corpus.json`` is the corpus golden of the normalized IR, copied from ``golden/bim_normalized``
     (the gateway moved to it with ``bim-core`` 0.2.0); ``negatives.json`` and ``vectors.json`` did not move and are
-    still the frozen baseline's."""
+    still the frozen baseline's; ``compat.json`` and ``protocol.json`` are those of ``golden/bim_baseline_1_1_1``."""
     original = root / "openbinding-gateway" / "tests" / "golden" / "bim_baseline"
     if not original.is_dir():
         pytest.skip(f"{original} is not available")
     assert (original / "corpus.json").read_bytes() == (NORMALIZED_DIR / "corpus.json").read_bytes(), "corpus.json"
     for name in ("negatives.json", "vectors.json"):
         assert (original / name).read_bytes() == (GOLDEN_DIR / name).read_bytes(), name
-    # The copy in this directory still lists the Engine meta-router-csp; OpenBinding's current goldens do
-    # not, and its manifest is not in the repository.  Apart from that Engine, whose entries are removed
-    # from the copy, and from the toolchain fields, the two copies of compat.json and protocol.json are
-    # the same document.
+    # OpenBinding's current compat.json and protocol.json list the four Engines of the repository, with the
+    # minizinc-csp 1.1.1 manifest: they are the documents of golden/bim_baseline_1_1_1, toolchain fields aside.
+    # (golden/bim_baseline lists meta-router-csp and the older minizinc-csp: see the test_frozen_manifest_* tests.)
     for name in ("compat.json", "protocol.json"):
-        mine = json.loads((GOLDEN_DIR / name).read_text(encoding="utf-8"))
         theirs = json.loads((original / name).read_text(encoding="utf-8"))
-        if mine != theirs:
-            changed = baseline_tool.CHANGED_MANIFESTS
-            assert baseline_tool.comparable(
-                baseline_tool.without_engines(mine, baseline_tool.MISSING_MANIFESTS + changed)
-            ) == baseline_tool.comparable(baseline_tool.without_engines(theirs, changed)), name
+        assert baseline_tool.comparable(frozen_manifest(name)) == baseline_tool.comparable(theirs), name
 
 
 def test_the_bim_core_goldens_equal_the_current_openbinding_ones(baseline_tool, root) -> None:
@@ -254,48 +263,31 @@ def test_reevaluation_and_validation_vectors_match_the_goldens(baseline_tool, ro
 
 def test_the_engine_contract_and_protocol_digest_match_the_goldens(baseline_tool) -> None:
     found = baseline_tool.build_protocol(engine_manifest_fixtures())
-    expected = golden("protocol.json")
+    expected = frozen_manifest("protocol.json")
 
     assert found["protocolDigest"] == expected["protocolDigest"]
     assert found["engineContract"] == expected["engineContract"]
     assert found["schemas"] == expected["schemas"]
     assert found["vendor"] == expected["vendor"]
-    changed = baseline_tool.CHANGED_MANIFESTS
-    assert baseline_tool.differences(
-        "protocol",
-        baseline_tool.without_engines(found, changed),
-        baseline_tool.without_engines(expected, baseline_tool.MISSING_MANIFESTS + changed),
-    ) == []
+    assert baseline_tool.differences("protocol", found, expected) == []
 
 
-def test_the_only_difference_with_the_protocol_golden_is_the_missing_engine_manifest(baseline_tool) -> None:
+def test_the_protocol_golden_lists_exactly_the_manifests_of_the_repository(baseline_tool) -> None:
     found = baseline_tool.build_protocol(engine_manifest_fixtures())
-    expected = golden("protocol.json")
+    expected = frozen_manifest("protocol.json")
 
-    assert set(expected["manifests"]) - set(found["manifests"]) == set(baseline_tool.MISSING_MANIFESTS)
-    assert set(found["manifests"]) <= set(expected["manifests"])
-    unchanged = [name for name in found["manifests"] if name not in baseline_tool.CHANGED_MANIFESTS]
-    assert {name: found["manifests"][name] for name in unchanged} == {
-        name: expected["manifests"][name] for name in unchanged
-    }
+    assert found["manifests"] == expected["manifests"]
+    assert sorted(expected["manifests"]) == sorted(engine_manifest_fixtures())
 
 
 @full_corpus_only
 def test_engine_compatibility_matches_the_goldens(baseline_tool, everything) -> None:
     found = everything["compat.json"]
-    expected = golden("compat.json")
-    assert set(expected["engines"]) - set(found["engines"]) == {"meta-router-csp"}
-    # Engines whose manifest changed after the freeze are pinned in golden/bim_core only.
-    found = baseline_tool.without_engines(found, baseline_tool.CHANGED_MANIFESTS)
-    available = set(found["engines"])
+    expected = frozen_manifest("compat.json")
 
-    assert {name: expected["engines"][name] for name in available} == found["engines"]
+    assert found["engines"] == expected["engines"]
     assert sorted(found["packages"]) == sorted(expected["packages"])
-    assert [
-        path
-        for path, engines in found["packages"].items()
-        if engines != {name: expected["packages"][path][name] for name in available}
-    ] == []
+    assert [path for path, entry in found["packages"].items() if entry != expected["packages"][path]] == []
     assert len(found["packages"]) == len(expected["packages"])
 
 
@@ -354,8 +346,9 @@ def test_the_command_line_writes_documents_equal_to_the_goldens(baseline_tool, r
         assert path.read_bytes() == baseline_tool.dump(json.loads(path.read_text(encoding="utf-8"))), name
         found = baseline_tool.comparable(json.loads(path.read_text(encoding="utf-8")))
         assert found == baseline_tool.comparable(json.loads(expected[name].read_text(encoding="utf-8"))), name
-    # The frozen previous baseline is never rewritten: nothing is written next to it.
+    # The frozen baselines are never rewritten: nothing is written next to them.
     assert not (output / "bim_baseline").exists()
+    assert not (output / FROZEN_MANIFEST_DIR.name).exists()
 
 
 def test_the_command_line_refuses_to_run_without_the_corpus(baseline_tool, tmp_path, capsys) -> None:
@@ -373,6 +366,109 @@ def test_the_bim_core_goldens_carry_the_four_engines_only(baseline_tool) -> None
     assert sorted(protocol["manifests"]) == sorted(engine_manifest_fixtures())
     assert "meta-router-csp" not in compat["engines"] and "meta-router-csp" not in protocol["manifests"]
     assert baseline_tool.dump(compat) == (CORE_GOLDEN_DIR / "compat.json").read_bytes()
+
+
+def minizinc_moves(old: dict, new: dict) -> dict:
+    """What the 1.1.1 manifest of ``minizinc-csp`` changed between two ``{"compat.json", "protocol.json"}`` pairs: its
+    manifest digest, its (single) mode and the packages whose entry moved, with their old codes and the one new entry."""
+    before_engine = old["compat.json"]["engines"]["minizinc-csp"]
+    after_engine = new["compat.json"]["engines"]["minizinc-csp"]
+    digest = {"old": before_engine["manifestDigest"], "new": after_engine["manifestDigest"]}
+    assert digest == {
+        "old": old["protocol.json"]["manifests"]["minizinc-csp"],
+        "new": new["protocol.json"]["manifests"]["minizinc-csp"],
+    }
+    assert before_engine["modes"] == after_engine["modes"] and len(after_engine["modes"]) == 1
+    mode = after_engine["modes"][0]
+    new_entries, old_codes = [], {}
+    for path in sorted(new["compat.json"]["packages"]):
+        before = old["compat.json"]["packages"][path]["minizinc-csp"]
+        after = new["compat.json"]["packages"][path]["minizinc-csp"]
+        assert sorted(before) == sorted(after) == [mode], path
+        if before[mode] != after[mode]:
+            assert before[mode]["compatible"] is False, path
+            new_entries.append(after[mode])
+            old_codes[path] = before[mode]["codes"]
+    assert new_entries and all(entry == new_entries[0] for entry in new_entries)
+    return {"manifestDigest": digest, "mode": mode, "newEntry": new_entries[0], "oldCodes": old_codes}
+
+
+def previous_and_frozen_manifest() -> tuple[dict, dict]:
+    """``compat.json`` and ``protocol.json`` of ``golden/bim_baseline`` and of ``golden/bim_baseline_1_1_1``."""
+    names = ("compat.json", "protocol.json")
+    return {n: golden(n) for n in names}, {n: frozen_manifest(n) for n in names}
+
+
+def test_frozen_manifest_files_have_the_pinned_sha256(baseline_tool) -> None:
+    assert sorted(FROZEN_MANIFEST_SHA256) == ["compat.json", "protocol.json"]
+    for name, digest in FROZEN_MANIFEST_SHA256.items():
+        data = (FROZEN_MANIFEST_DIR / name).read_bytes()
+        assert hashlib.sha256(data).hexdigest() == digest, name
+        assert baseline_tool.dump(json.loads(data)) == data, name
+
+
+def test_frozen_manifest_is_the_previous_baseline_apart_from_minizinc_csp(baseline_tool) -> None:
+    old, new = previous_and_frozen_manifest()
+    assert set(old["compat.json"]["engines"]) - set(new["compat.json"]["engines"]) == {"meta-router-csp"}
+    assert set(old["protocol.json"]["manifests"]) - set(new["protocol.json"]["manifests"]) == {"meta-router-csp"}
+    assert set(new["compat.json"]["engines"]) - set(old["compat.json"]["engines"]) == set()
+    assert sorted(new["compat.json"]["packages"]) == sorted(old["compat.json"]["packages"])
+    for name in ("compat.json", "protocol.json"):
+        before = baseline_tool.without_engines(old[name], ("meta-router-csp", "minizinc-csp"))
+        after = baseline_tool.without_engines(new[name], ("minizinc-csp",))
+        assert baseline_tool.differences(name, after, before) == [], name
+        assert baseline_tool.comparable(after) == baseline_tool.comparable(before), name
+
+
+def test_frozen_manifest_moves_are_exactly_the_pinned_list(baseline_tool) -> None:
+    pinned = json.loads(MINIZINC_MOVES.read_text(encoding="utf-8"))
+    old, new = previous_and_frozen_manifest()
+    found = minizinc_moves(old, new)
+
+    assert {key: value for key, value in pinned.items() if key != "note"} == found
+    assert len(found["oldCodes"]) == 65
+    assert found["newEntry"]["compatible"] is True and found["newEntry"]["codes"] == []
+
+
+def test_frozen_manifest_no_compatible_pair_became_incompatible(baseline_tool) -> None:
+    old, new = previous_and_frozen_manifest()
+    accepted: dict[str, int] = {}
+    for path, engines in old["compat.json"]["packages"].items():
+        for engine, modes in engines.items():
+            if engine not in new["compat.json"]["packages"][path]:
+                assert engine == "meta-router-csp", (path, engine)
+                continue
+            for mode, entry in modes.items():
+                if entry["compatible"] is True:
+                    accepted[engine] = accepted.get(engine, 0) + 1
+                    assert new["compat.json"]["packages"][path][engine][mode]["compatible"] is True, (path, engine, mode)
+    assert accepted.get("minizinc-csp", 0) > 0
+
+
+def test_frozen_manifest_comparison_removes_no_engine(baseline_tool) -> None:
+    # The name is spelled in two parts so that no file under tools/, packages/ or docs/ mentions the removed constant.
+    assert not hasattr(baseline_tool, "_".join(("CHANGED", "MANIFESTS")))
+    golden_root = FROZEN_MANIFEST_DIR.parent
+
+    def load(directory, name):
+        return json.loads((directory / name).read_text(encoding="utf-8"))
+
+    documents = {name: load(NORMALIZED_DIR, name) for name in baseline_tool.NORMALIZED_FILES}
+    documents.update({name: load(GOLDEN_DIR, name) for name in baseline_tool.UNCHANGED_FILES})
+    documents.update({name: frozen_manifest(name) for name in ("compat.json", "protocol.json")})
+    documents["evaluator_errors.json"] = load(CORE_GOLDEN_DIR, "evaluator_errors.json")
+    documents["vectors_extra.json"] = load(golden_root, "vectors_extra.json")
+    assert baseline_tool.mismatches(documents, golden_root) == []
+
+    path = sorted(documents["compat.json"]["packages"])[0]
+    changed = copy.deepcopy(documents)
+    mode = sorted(changed["compat.json"]["packages"][path]["minizinc-csp"])[0]
+    entry = changed["compat.json"]["packages"][path]["minizinc-csp"][mode]
+    entry["compatible"] = not entry["compatible"]
+    changed["protocol.json"]["manifests"]["minizinc-csp"] = "sha256-" + "0" * 64
+    found = baseline_tool.mismatches(changed, golden_root)
+    assert f"bim_baseline_1_1_1/compat.json packages/{path}" in found
+    assert "bim_baseline_1_1_1/protocol.json manifests" in found
 
 
 def test_the_evaluator_reports_the_same_binding_failures_as_an_evaluation_error(baseline_tool, root) -> None:

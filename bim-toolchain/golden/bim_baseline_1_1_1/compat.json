@@ -1,0 +1,2958 @@
+{
+ "engines": {
+  "evolutionary-heuristics": {
+   "manifestDigest": "sha256-049546e1a5a680457bd3591da15498174c328c466203ba78ef8d891ab6196530",
+   "modes": [
+    "elitist-genetic",
+    "pareto-genetic"
+   ]
+  },
+  "many-heuristic": {
+   "manifestDigest": "sha256-2e31adb73e054c7b210086b8bdbb6ec566efa146fecd8d2df67992f6dd69b75e",
+   "modes": [
+    "pareto-sampling"
+   ]
+  },
+  "minizinc-csp": {
+   "manifestDigest": "sha256-c8b669e994978a33c0c0ba17fb36b68fc799c1edc6280725482024dc66458e6c",
+   "modes": [
+    "exact-weighted"
+   ]
+  },
+  "random-search": {
+   "manifestDigest": "sha256-c7c395fecbab64c75391eb1c38a2074c9cd669c0192ac472965772e30ef70409",
+   "modes": [
+    "seeded"
+   ]
+  }
+ },
+ "packages": {
+  "engines/minizinc-csp/tests/fixtures/loops": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "engines/minizinc-csp/tests/fixtures/placement": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "engines/minizinc-csp/tests/fixtures/simple-sequence": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "engines/minizinc-csp/tests/fixtures/xor-choice": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/01_simple_seq": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/02_parallel": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/03_xor_choice": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/04_conflict": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/05_multi_obj": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/05_single_obj_various": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/06_loops": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/07_soft_constraints": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/08_dependencies": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/09_mixed": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/10_large_scale": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/11_multi_obj_negative": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/12_many_obj_pareto": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/13_fms": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/14_shared_candidates": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/15_bpmn_complete": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/16_json_complete": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/17_analysis_tradeoffs": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/18_analysis_constraints": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/demo/19_analysis_journey": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/literature/benatallah": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/literature/bultan": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/literature/cremaschi": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/literature/netedu": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/literature/pautasso": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/literature/zhang": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/placement/01_small_placement": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/placement/02_stock_market_sample": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/placement/03_cloud_only": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "examples/placement/04_edge_heavy": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_many_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_many_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_one_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_one_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_utility_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_mono_utility_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_multi_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_multi_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_many_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_many_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_mono_one_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_mono_one_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_mono_utility_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_mono_utility_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_multi_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/bultan2003-warehouse-example_multi_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_many_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_many_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_mono_one_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_mono_one_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_mono_utility_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_mono_utility_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_multi_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/cremaschi2018-textbook-access_multi_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_many_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_many_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_mono_one_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_mono_one_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_mono_utility_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_mono_utility_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_multi_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/netedu2020-transport-agency_multi_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_many_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_many_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_one_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_one_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_utility_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_mono_utility_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_multi_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/pautasso2009-restful-ecommerce_multi_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_many_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_many_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_one_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_one_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [
+      "engine_limit:minObjectives"
+     ],
+     "compatible": false,
+     "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_utility_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_mono_utility_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_multi_hard": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  },
+  "experimentation/icws/instances/zhang2014-entertainment-planner-running-example_multi_soft": {
+   "evolutionary-heuristics": {
+    "elitist-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "pareto-genetic": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "many-heuristic": {
+    "pareto-sampling": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "minizinc-csp": {
+    "exact-weighted": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   },
+   "random-search": {
+    "seeded": {
+     "codes": [],
+     "compatible": true,
+     "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+   }
+  }
+ },
+ "schema": "bim-baseline/compat/1"
+}
