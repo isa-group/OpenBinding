@@ -86,6 +86,14 @@ describe('mainLinks', () => {
     expect(addresses.filter((address) => /\/(library|resources)([/?#]|$)/.test(address))).toEqual([]);
   });
 
+  // [utest->req~frontend-nav-account-sections~1]
+  it('offers the API key item of the New menu as the dialog of the API keys section', () => {
+    const items = createItems().filter((item) => item.label === 'API key');
+
+    expect(items.map((item) => item.to)).toEqual(['/app/account/keys?create=key']);
+    expect(matchRoutes(routed, '/app/account/keys'), 'the section the dialog opens over').not.toBeNull();
+  });
+
   it('leads every entry of the tool and account menus to a routed address', () => {
     for (const link of [...toolLinks, ...accountLinks]) expect(matchRoutes(routed, link.to), `${link.label} ${link.to}`).not.toBeNull();
   });

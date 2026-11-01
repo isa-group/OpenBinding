@@ -25,7 +25,7 @@ describe('States gallery', () => {
     expect(screen.getByRole('heading', { name: 'Your session ended' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Log in again' })).toHaveAttribute('href', '/login');
     expect(screen.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
-    expect(screen.getByRole('link', { name: 'Create a key with this permission' })).toHaveAttribute('href', '/app/account/keys/new');
+    expect(screen.getByRole('link', { name: 'Create a key with this permission' })).toHaveAttribute('href', '/app/account/keys?create=key');
     expect(screen.getByRole('link', { name: 'Go to my jobs' })).toHaveAttribute('href', '/app/jobs');
   });
 

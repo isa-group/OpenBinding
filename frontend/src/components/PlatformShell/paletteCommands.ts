@@ -71,7 +71,7 @@ export function buildCommands({ organizations = [], projects = [], organization,
 
   commands.push(
     command('Create', 'New organization', 'Group projects and members', '/app/organizations/new', '+'),
-    command('Create', 'New API key', 'Scoped key for scripts and CI', '/app/account/keys/new', '+'),
+    command('Create', 'New API key', 'Scoped key for scripts and CI', '/app/account/keys?create=key', '+'),
     command('Create', 'Register an engine', 'Publish an engine you operate', '/app/engines/new', '+'),
     command('Account', 'Account', 'Profile and security', '/app/account'),
     command('Account', 'Plan & permissions', 'Your plan and the SPACE and SPHERE consoles', '/app/account/usage'),

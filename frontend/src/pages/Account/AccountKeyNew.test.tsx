@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError, type CreatedApiKey, type UserProfile } from '../../api/auth';
 import { HttpError, type EngineCatalogEntry } from '../../api/client';
@@ -26,17 +26,16 @@ const created: CreatedApiKey = {
 };
 
 function renderWizard(user: UserProfile = person()) {
+  const onClose = vi.fn();
+  const onCreated = vi.fn();
   render(
-    <MemoryRouter initialEntries={['/app/account/keys/new']}>
+    <MemoryRouter initialEntries={['/app/account/keys?create=key']}>
       <AuthContext.Provider value={{ user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: user.role === 'admin' }}>
-        <Routes>
-          <Route path="/app/account/keys/new" element={<AccountKeyNew />} />
-          <Route path="/app/account/keys" element={<h1>Keys screen</h1>} />
-          <Route path="/app/account" element={<h1>Profile screen</h1>} />
-        </Routes>
+        <AccountKeyNew onClose={onClose} onCreated={onCreated} />
       </AuthContext.Provider>
     </MemoryRouter>,
   );
+  return { onClose, onCreated };
 }
 
 const permission = (id: string) => screen.getByRole('checkbox', { name: new RegExp(`^${id}`) });
@@ -59,18 +58,32 @@ describe('New API key', () => {
     platform.projects.mockResolvedValue([{ id: 'p1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks' }]);
   });
 
-  it('starts with the name and expiry, in a five-step wizard inside the account navigation', async () => {
+  // [utest->req~frontend-nav-account-sections~1]
+  it('starts with the name and expiry, in a five-step wizard inside the dialog New API key', async () => {
     renderWizard();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'New API key' })).toBeInTheDocument();
-    const steps = within(screen.getByRole('list', { name: 'Steps' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'New API key' }));
+    const steps = within(dialog.getByRole('list', { name: 'Steps' }));
     expect(steps.getAllByRole('button')).toHaveLength(5);
     expect(steps.getByRole('button', { name: 'Name' })).toHaveAttribute('aria-current', 'step');
     expect(steps.getByRole('button', { name: 'Review' })).toBeDisabled();
-    expect(screen.getByRole('navigation', { name: 'Account' })).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent('Account/API keys/New key');
-    expect(screen.getByLabelText('Expires')).toHaveValue('90');
-    expect(screen.getByRole('link', { name: 'Cancel' })).toHaveAttribute('href', '/app/account/keys');
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
+    expect(dialog.getByLabelText('Expires')).toHaveValue('90');
+    expect(dialog.getByLabelText('Name')).toHaveFocus();
+  });
+
+  // [utest->req~frontend-nav-account-sections~1]
+  it('asks to be closed from Cancel, × and Escape, and creates nothing', async () => {
+    const { onClose, onCreated } = renderWizard();
+    const dialog = await screen.findByRole('dialog', { name: 'New API key' });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+
+    expect(onClose).toHaveBeenCalledTimes(3);
+    expect(onCreated).not.toHaveBeenCalled();
+    expect(api.createApiKey).not.toHaveBeenCalled();
   });
 
   it('will not go on without a name', async () => {
@@ -216,7 +229,7 @@ describe('New API key', () => {
 
   describe('creating', () => {
     async function toReview(options: { expiry?: string } = {}) {
-      renderWizard();
+      const wizard = renderWizard();
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'ci-nightly' } });
       if (options.expiry) fireEvent.change(screen.getByLabelText('Expires'), { target: { value: options.expiry } });
       next();
@@ -235,6 +248,7 @@ describe('New API key', () => {
       fireEvent.keyDown(field, { key: 'Enter' });
       next();
       await heading('Review');
+      return wizard;
     }
 
     it('reviews everything that was chosen before it creates anything', async () => {
@@ -276,11 +290,13 @@ describe('New API key', () => {
       expect(api.createApiKey.mock.calls[0][0]).not.toHaveProperty('expires_at');
     });
 
-    it('shows the secret once, and only goes on after it is confirmed as stored', async () => {
-      await toReview();
+    // [utest->req~frontend-nav-account-sections~1]
+    it('shows the secret once in place of the wizard, and only goes on after it is confirmed as stored', async () => {
+      const { onClose, onCreated } = await toReview();
       fireEvent.click(screen.getByRole('button', { name: 'Create key' }));
 
       const dialog = within(await screen.findByRole('dialog', { name: '“ci-nightly” is ready. Copy its secret now' }));
+      expect(screen.queryByRole('dialog', { name: 'New API key' })).not.toBeInTheDocument();
       expect(dialog.getByText('obk_demo0003_ONLY-SHOWN-ONCE')).toBeInTheDocument();
       expect(dialog.getByText('X-API-Key')).toBeInTheDocument();
       const go = dialog.getByRole('button', { name: 'Go to my keys' });
@@ -288,11 +304,15 @@ describe('New API key', () => {
       fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
       expect(screen.getByRole('dialog')).toBeInTheDocument();
 
+      // The list is stale as soon as the key exists, whichever way the secret dialog is left.
+      expect(onCreated).toHaveBeenCalledTimes(1);
+      expect(onClose).not.toHaveBeenCalled();
+
       fireEvent.click(dialog.getByLabelText('I’ve stored the secret somewhere safe'));
       fireEvent.click(go);
 
-      expect(await screen.findByRole('heading', { name: 'Keys screen' })).toBeInTheDocument();
-      expect(document.body.textContent).not.toContain('ONLY-SHOWN-ONCE');
+      expect(onCreated).toHaveBeenCalledTimes(1);
+      expect(onClose).toHaveBeenCalledTimes(1);
     });
 
     it('goes back a step and keeps what was chosen', async () => {
@@ -323,7 +343,7 @@ describe('New API key', () => {
       it('402: the plan’s key limit', async () => {
         const alert = await createAndRefuse(new QuotaError('quota_exceeded', 'Your plan allows 1 API key', { limit_id: 'apiKeys', limit: 1, used: 1 }));
         expect(alert).toHaveTextContent('402 · You’ve reached your plan’s API key limit.');
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: /is ready/ })).not.toBeInTheDocument();
       });
 
       it('403: a key cannot grant more than it has (escalation)', async () => {

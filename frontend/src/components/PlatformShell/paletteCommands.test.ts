@@ -57,6 +57,14 @@ describe('buildCommands', () => {
     }
   });
 
+  // [utest->req~frontend-nav-account-sections~1]
+  it('opens the New API key dialog of the API keys section, not the moved address', () => {
+    const commands = buildCommands({ organizations: [organization], isAdmin: false });
+
+    expect(commands.filter((command) => command.label === 'New API key').map((command) => command.href)).toEqual(['/app/account/keys?create=key']);
+    expect(commands.filter((command) => /^\/app\/account\/keys\/new([/?#]|$)/.test(command.href))).toEqual([]);
+  });
+
   // [utest->req~frontend-retire-reports-navigation~1]
   it('offers no report command without a project either', () => {
     const commands = buildCommands({ organizations: [organization], isAdmin: true });

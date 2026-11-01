@@ -174,7 +174,7 @@ describe('AppHeader', () => {
       ['Case', '/app/isa-demo/qos/cases'],
       ['Job', '/app/isa-demo/qos/jobs/new'],
       ['Study', '/app/isa-demo/qos/studies/new'],
-      ['API key', '/app/account/keys/new'],
+      ['API key', '/app/account/keys?create=key'],
       ['Engine', '/app/engines/new'],
     ]);
 
@@ -278,7 +278,7 @@ describe('AppHeader', () => {
         ...hrefs(mainNav()),
         ...toolsHrefs(),
         '/app/organizations/new', '/app/isa-demo/new-project', '/app/isa-demo/qos/cases',
-        '/app/isa-demo/qos/jobs/new', '/app/isa-demo/qos/studies/new', '/app/account/keys/new', '/app/engines/new',
+        '/app/isa-demo/qos/jobs/new', '/app/isa-demo/qos/studies/new', '/app/account/keys?create=key', '/app/engines/new',
       ]);
       const mobile = new Set(hrefs(mobileNav()));
 

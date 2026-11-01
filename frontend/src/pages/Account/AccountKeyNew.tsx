@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { Check, Lock, Plus } from 'lucide-react';
 import { apiClient, bimResourceKey } from '../../api/client';
 import type { ApiKeyPermission, CreateApiKeyRequest, CreatedApiKey } from '../../api/auth';
@@ -7,12 +6,12 @@ import type { EngineCatalogEntry } from '../../api/client';
 import { platformApi } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
+import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { useAuth } from '../../contexts/auth';
 import { shortDigest } from '../../utils/digest';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, fallbackMessage } from './accountErrors';
-import { AccountLayout } from './AccountLayout';
 import {
   ADMIN_ONLY, EXPIRY_PRESETS, PERMISSION_GROUPS, PRESETS, describeDescription, expiryFor, needsEngines,
   type ExpiryId,
@@ -73,10 +72,17 @@ function BoundaryPicker({ label, options, selected, onChange, hint, freeText = t
   );
 }
 
-/** New API key (`acct-key-new`, `/app/account/keys/new`): a five-step wizard. */
-export function AccountKeyNew() {
+interface AccountKeyNewProps {
+  /** Cancel, the × button, Escape, the backdrop and “Go to my keys” all end here: the address goes back to `/app/account/keys`. */
+  onClose: () => void;
+  /** A key was created: the list of keys is stale. Called as soon as the gateway answers, before the secret is shown. */
+  onCreated?: () => void;
+}
+
+/** New API key: a five-step wizard in a dialog over the API keys section, open at `/app/account/keys?create=key`. */
+// [impl->req~frontend-nav-account-sections~1]
+export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
 
   const [step, setStep] = useState(1);
@@ -160,6 +166,8 @@ export function AccountKeyNew() {
     setError(null);
     try {
       setCreated(await apiClient.createApiKey(request()));
+      // The list under the dialog is stale from here on, however the secret dialog is left.
+      onCreated?.();
     } catch (caught) {
       const failure = classifyAuthError(caught);
       if (failure.kind === 'quota') setError('402 · You’ve reached your plan’s API key limit. Revoke a key or ask for an agreement with more keys.');
@@ -180,19 +188,23 @@ export function AccountKeyNew() {
   const adminLocked = !isAdmin;
   const expiryLabel = EXPIRY_PRESETS.find((item) => item.id === expiry)?.label ?? '';
 
+  // The secret is shown once, in a dialog of its own that takes the place of the wizard.
+  if (created) {
+    return (
+      <SecretDialog
+        title={`“${created.name}” is ready. Copy its secret now`}
+        secret={created.secret}
+        doneLabel="Go to my keys"
+        onDone={onClose}
+      >
+        <p>This is the only time the secret is shown. Use it as <code>X-API-Key</code> or <code>Authorization: Bearer</code>.</p>
+      </SecretDialog>
+    );
+  }
+
   return (
-    <AccountLayout
-      section="keys"
-      title="New API key"
-      lede="Give the key only what it needs. It can never exceed your own account."
-      above={(
-        <nav aria-label="Breadcrumb" className="keynew-crumbs">
-          <Link to="/app/account" viewTransition>Account</Link><span aria-hidden="true">/</span>
-          <Link to="/app/account/keys" viewTransition>API keys</Link><span aria-hidden="true">/</span>
-          <span aria-current="page">New key</span>
-        </nav>
-      )}
-    >
+    <Modal title="New API key" size="lg" onClose={() => !busy && onClose()}>
+      <p className="keynew-lede">Give the key only what it needs. It can never exceed your own account.</p>
       <ol aria-label="Steps" className="keynew-steps">
         {STEPS.map((label, index) => {
           const number = index + 1;
@@ -363,23 +375,12 @@ export function AccountKeyNew() {
         )}
 
         <div className="keynew-nav">
-          {step > 1 ? <Action variant="secondary" onClick={() => { setStep(step - 1); setError(null); }}>Back</Action> : <Action to="/app/account/keys" variant="secondary">Cancel</Action>}
+          {step > 1 ? <Action variant="secondary" onClick={() => { setStep(step - 1); setError(null); }}>Back</Action> : <Action variant="secondary" onClick={onClose}>Cancel</Action>}
           {step < STEPS.length
             ? <Action variant="primary" onClick={next}>Continue</Action>
             : <Action variant="primary" onClick={() => void create()} busy={busy}>{busy ? 'Creating…' : 'Create key'}</Action>}
         </div>
       </section>
-
-      {created && (
-        <SecretDialog
-          title={`“${created.name}” is ready. Copy its secret now`}
-          secret={created.secret}
-          doneLabel="Go to my keys"
-          onDone={() => navigate('/app/account/keys')}
-        >
-          <p>This is the only time the secret is shown. Use it as <code>X-API-Key</code> or <code>Authorization: Bearer</code>.</p>
-        </SecretDialog>
-      )}
-    </AccountLayout>
+    </Modal>
   );
 }

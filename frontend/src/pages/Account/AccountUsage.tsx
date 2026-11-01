@@ -19,7 +19,7 @@ import { NO_LIMIT_TEXT, exactValueText, usageRows, type UsageRow } from './usage
 import './AccountUsage.css';
 
 const ALLOWANCE_NOTES: Record<string, { note: string; link?: { to: string; label: string } }> = {
-  concurrentJobs: { note: 'Jobs that may run at once' },
+  concurrentJobs: { note: 'Runs that may run at once' },
   federatedEngines: { note: 'Engine revisions you may register', link: { to: '/app/engines/registrations', label: 'My engines' } },
   apiKeys: { note: 'Active keys', link: { to: '/app/account/keys', label: 'Manage keys' } },
 };
@@ -248,7 +248,7 @@ function UsageBody({ usage, catalog, release, token }: {
   );
 }
 
-/** Plan & permissions (`acct-usage`, `/app/account/usage`: the address is kept). */
+/** Plan & permissions (section `usage` of `acct-profile`, `/app/account/usage`: the address is kept). */
 export function AccountUsage() {
   const { user } = useAuth();
   const token = usePricingTokenStatus();

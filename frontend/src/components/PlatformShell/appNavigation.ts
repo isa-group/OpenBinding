@@ -96,7 +96,7 @@ export function createItems(organization?: Organization, project?: Project): Cre
     root
       ? { label: 'Study', to: `${root}/studies/new`, hint: `in ${project?.name}` }
       : { label: 'Study', hint: 'Needs a project' },
-    { label: 'API key', to: '/app/account/keys/new', hint: '' },
+    { label: 'API key', to: '/app/account/keys?create=key', hint: '' },
     { label: 'Engine', to: '/app/engines/new', hint: '' },
   ];
 }

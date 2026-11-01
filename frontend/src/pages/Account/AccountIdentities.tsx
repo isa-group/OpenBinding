@@ -141,7 +141,7 @@ function UnlinkDialog({ identity, researching, onClose, onUnlinked }: {
   );
 }
 
-/** Identities (`acct-identities`, `/app/account/identities`): the Universidad de Sevilla CAS identity and any other linked sign-in. */
+/** Identities (section `identities` of `acct-profile`, `/app/account/identities`): the Universidad de Sevilla CAS identity and any other linked sign-in. */
 export function AccountIdentities() {
   const { user, refresh } = useAuth();
   const institutional = useInstitutionalBranding();

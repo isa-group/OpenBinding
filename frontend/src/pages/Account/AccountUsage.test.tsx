@@ -64,7 +64,7 @@ describe('Plan & permissions', () => {
     expect(await plan.findByText('Free')).toBeInTheDocument();
     expect(await plan.findByText(/Published pricing 0\.1\.0 · A new pricing version applies when your contract is renewed in SPACE/)).toBeInTheDocument();
     expect(plan.getByRole('link', { name: 'See plans' })).toHaveAttribute('href', '/pricing');
-    expect(screen.getByRole('link', { name: 'Plan & permissions' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Plan' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('renders no empty tile when there is no plan name, and names the local demo', async () => {
@@ -125,7 +125,8 @@ describe('Plan & permissions', () => {
     expect(within(keys).getByText('1')).toBeInTheDocument();
     expect(within(keys).getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/app/account/keys');
     expect(section.getByRole('link', { name: 'My engines' })).toHaveAttribute('href', '/app/engines/registrations');
-    expect(section.getByText('Jobs that may run at once')).toBeInTheDocument();
+    expect(section.getByText('Runs that may run at once')).toBeInTheDocument();
+    expect(section.queryByText('Jobs that may run at once')).not.toBeInTheDocument();
   });
 
   it('lists the per-request ceilings with their exact values, and links to the job history', async () => {

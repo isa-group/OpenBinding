@@ -14,7 +14,7 @@ import { classifyAuthError } from './accountErrors';
 import { AccountLayout, PermissionNotice } from './AccountLayout';
 import { DeleteAccountDialog, EmailForm, PasswordForm } from './ProfileForms';
 
-/** Profile & security (`acct-profile`, `/app/account`). */
+/** Profile & security (the section of `acct-profile` that has no segment, `/app/account`). */
 export function Account() {
   const { user, refresh, signOut } = useAuth();
   const navigate = useNavigate();

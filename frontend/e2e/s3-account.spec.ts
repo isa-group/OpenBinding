@@ -2,7 +2,7 @@ import { expect as baseExpect, test, type Locator, type Page, type Route, type T
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 
-// S3 · pricing and account: acct-profile, acct-usage, acct-keys, acct-key-new, acct-identities, acct-notifications.
+// S3 · pricing and account: acct-profile (five sections: profile, usage, keys with the New API key dialog, identities, notifications).
 // (pub-pricing has its own file, pricing.spec.ts.) There is no backend: the API origin is answered by page.route().
 // Screenshots go to testInfo.outputPath() (test-results/, ignored by git) so they can be looked at after a run.
 // One test per screen and viewport: each walks the states of its screen in order, on one page.
@@ -240,11 +240,11 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
 async function expectAccountNav(main: Locator, current: string) {
   const nav = main.getByRole('navigation', { name: 'Account' });
   const destinations: Array<[string, string]> = [
-    ['Profile & security', '/app/account'], ['Plan & permissions', '/app/account/usage'], ['API keys', '/app/account/keys'],
+    ['Profile', '/app/account'], ['Plan', '/app/account/usage'], ['API keys', '/app/account/keys'],
     ['Identities', '/app/account/identities'], ['Notifications', '/app/account/notifications'],
   ];
-  for (const [label, href] of destinations) await expect(nav.getByRole('link', { name: label })).toHaveAttribute('href', href);
-  await expect(nav.getByRole('link', { name: current })).toHaveAttribute('aria-current', 'page');
+  for (const [label, href] of destinations) await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute('href', href);
+  await expect(nav.getByRole('link', { name: current, exact: true })).toHaveAttribute('aria-current', 'page');
 }
 
 // Each test walks a screen through its states while the dev server compiles on demand.
@@ -267,7 +267,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(page.locator('header.app-header')).toBeVisible();
       await expect(main.getByRole('heading', { level: 1, name: 'Account' })).toBeVisible();
-      await expectAccountNav(main, 'Profile & security');
+      await expectAccountNav(main, 'Profile');
       await expect(main.getByText('lucia.vega', { exact: true })).toBeVisible();
       await expect(main.getByText('lucia@example.org · member since Mar 2, 2026')).toBeVisible();
       await expect(main.getByText('Role · user')).toBeVisible();
@@ -380,7 +380,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('#platform-main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Plan & permissions' })).toBeVisible();
-      await expectAccountNav(main, 'Plan & permissions');
+      await expectAccountNav(main, 'Plan');
       const plan = main.getByRole('region', { name: 'Your plan' });
       await expect(plan.getByText('RESEARCH', { exact: true })).toBeVisible();
       await expect(plan.getByText('Free with verified CAS')).toBeVisible();
@@ -463,7 +463,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'API keys' })).toBeVisible();
       await expectAccountNav(main, 'API keys');
-      await expect(main.getByRole('link', { name: 'New key' })).toHaveAttribute('href', '/app/account/keys/new');
+      await expect(main.getByRole('link', { name: 'New key' })).toHaveAttribute('href', '/app/account/keys?create=key');
       await expect(main.getByText('2 of 25 keys')).toBeVisible();
       const first = main.getByRole('article', { name: 'ci-lectura-resultados' });
       await expect(first.getByText('obk_demo0001…')).toBeVisible();
@@ -527,7 +527,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.keys = [];
       await page.reload();
       await expect(main.getByText('No API keys')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Create your first key' })).toHaveAttribute('href', '/app/account/keys/new');
+      await expect(main.getByRole('link', { name: 'Create your first key' })).toHaveAttribute('href', '/app/account/keys?create=key');
       await capture(page, testInfo, `keys-${name}-empty`);
 
       state.refuse.list = detail(503, 'unavailable', 'Accounts are not reachable.');
@@ -537,16 +537,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('alert')).toContainText('keys:read');      expect(critical).toEqual([]);
     });
 
-    test('acct-key-new /app/account/keys/new', async ({ page }, testInfo) => {
+    test('acct-profile /app/account/keys?create=key · the New API key dialog, reached from the moved /app/account/keys/new', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, marco);
       await page.goto('/app/account/keys/new');
-      const main = page.locator('#platform-main');
+      await expect(page).toHaveURL(/\/app\/account\/keys\?create=key$/);
+      // The wizard is a dialog over the API keys section: the queries below start at the dialog.
+      const main = page.getByRole('dialog', { name: 'New API key' });
       const next = () => main.getByRole('button', { name: 'Continue' }).click();
 
-      await expect(main.getByRole('heading', { level: 1, name: 'New API key' })).toBeVisible();
-      await expectAccountNav(main, 'API keys');
-      await expect(main.getByRole('navigation', { name: 'Breadcrumb' })).toContainText('New key');
+      await expect(main).toBeVisible();
+      await expectAccountNav(page.locator('#platform-main'), 'API keys');
       const steps = main.getByRole('list', { name: 'Steps' });
       await expect(steps.getByRole('button')).toHaveCount(5);
       await expect(steps.getByRole('button', { name: 'Name' })).toHaveAttribute('aria-current', 'step');
@@ -645,16 +646,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await secret.getByLabel('I’ve stored the secret somewhere safe').check();
       await secret.getByRole('button', { name: 'Go to my keys' }).click();
       await expect(page).toHaveURL(/\/app\/account\/keys$/);
-      await expect(main.getByRole('article', { name: 'ci-nightly' })).toBeVisible();
+      await expect(page.locator('#platform-main').getByRole('article', { name: 'ci-nightly' })).toBeVisible();
       await expect(page.getByText('SECRETO-UNICO-DE-PRUEBA')).toHaveCount(0);
       expect(critical).toEqual([]);
     });
 
-    test('acct-key-new: an administrator can grant the admin-only permissions', async ({ page }, testInfo) => {
+    test('New API key dialog: an administrator can grant the admin-only permissions', async ({ page }, testInfo) => {
       test.skip(isMobile, 'A desktop check: the phone shows the same step, laid out by the capture above.');
       await mockApi(page, iker);
-      await page.goto('/app/account/keys/new');
-      const main = page.locator('#platform-main');
+      await page.goto('/app/account/keys?create=key');
+      const main = page.getByRole('dialog', { name: 'New API key' });
 
       await main.getByLabel('Name').fill('admin-audit-reader');
       await main.getByRole('button', { name: 'Continue' }).click();

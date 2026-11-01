@@ -131,7 +131,7 @@ export function States() {
               code="insufficient_api_key_permission"
               title="This API key can’t do that"
               details={<span className="states-chips"><span className="states-missing">missing · engines:execute</span></span>}
-              actions={<StateAction tone="link" to="/app/account/keys/new">Create a key with this permission</StateAction>}
+              actions={<StateAction tone="link" to="/app/account/keys?create=key">Create a key with this permission</StateAction>}
             >
               The request needs <code>engines:execute</code>, which this key doesn’t include. A key can never exceed its account; create a key with the permission instead.
             </ErrorState>

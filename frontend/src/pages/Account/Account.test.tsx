@@ -65,7 +65,7 @@ describe('Profile & security', () => {
     expect(screen.getByText('Role · user')).toBeInTheDocument();
     expect(screen.getByText('Plan · BASIC')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Account' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Profile & security' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'API keys' })).toHaveAttribute('href', '/app/account/keys');
     expect(screen.queryByText(/Universidad de Sevilla/)).not.toBeInTheDocument();
   });
