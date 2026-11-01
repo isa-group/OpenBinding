@@ -248,6 +248,20 @@ describe('the retired composer', () => {
     await waitFor(() => expect(shown()).toBe(screenAt(want.pathname)));
     view.unmount();
   });
+
+  // [utest->req~frontend-retire-composer-redirect~1]
+  // [utest->req~frontend-nav-problem-page~1]
+  it.each([
+    ['/app/acme/atlas/cases/flujo/compare?from=1&to=3', '/app/acme/atlas/cases/flujo/versions', '?from=1&to=3'],
+    ['/app/acme/atlas/cases/flujo/revisions/2?x=1', '/app/acme/atlas/cases/flujo', '?version=2'],
+  ])('sends the neighbouring case screen %s on to the problem page (M2.6: the compare and version screens are tabs of it)', async (old, pathname, search) => {
+    const view = renderAt(old);
+
+    await waitFor(() => expect(view.getByTestId('pathname').textContent).toBe(pathname));
+    expect(view.getByTestId('search').textContent).toBe(search);
+    await waitFor(() => expect(shown()).toBe('case-detail'));
+    view.unmount();
+  });
 });
 
 // M2.4 slice 5: the sponsorship screen is retired. Its address redirects to the administration overview.

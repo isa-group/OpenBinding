@@ -5,10 +5,10 @@ import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { shortDigest } from '../../utils/digest';
 import { caseOf, lucia, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
+import { CaseDetail } from './CaseDetail';
 import { digestOf, irDocument } from './fixtures';
-import { SnapshotDetail } from './SnapshotDetail';
 
-const platform = vi.hoisted(() => ({ project: vi.fn(), snapshot: vi.fn(), snapshotArchive: vi.fn(), cases: vi.fn(), revisions: vi.fn(), publicProjects: vi.fn() }));
+const platform = vi.hoisted(() => ({ project: vi.fn(), case: vi.fn(), snapshot: vi.fn(), snapshotArchive: vi.fn(), revisions: vi.fn() }));
 const cases = vi.hoisted(() => ({ instance: vi.fn(), analyseSnapshot: vi.fn(), instanceSource: vi.fn(), instanceIr: vi.fn() }));
 const download = vi.hoisted(() => ({ saveBytes: vi.fn() }));
 
@@ -32,8 +32,9 @@ const snapshotOf = (over: Record<string, unknown> = {}) => ({
   ir: { id: 'ir', digest: digestOf('c'), document: irDocument(), sourceMap: null, compilerVersion: '1.0.0', createdAt: null }, ...over,
 });
 
-function renderSnapshot() {
-  return renderProjectScreen(<SnapshotDetail />, { path: '/app/:org/:project/snapshots/:snapshot', url: `${root}/snapshots/${id}`, organizations: [group] });
+/** The Source tab of the problem page, showing revision 2, which was sealed from the snapshot. */
+function renderSnapshot(address = '/source?version=2') {
+  return renderProjectScreen(<CaseDetail />, { path: '/app/:org/:project/cases/:case/:tab?', url: `${root}/cases/flujo-checkout${address}`, organizations: [group] });
 }
 
 async function zipBuffer() {
@@ -43,13 +44,13 @@ async function zipBuffer() {
   return zip.generateAsync({ type: 'arraybuffer' });
 }
 
-describe('Snapshot detail', () => {
+// [utest->req~frontend-nav-problem-page~1]
+describe('Source tab of the problem page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.publicProjects.mockResolvedValue([]);
+    platform.case.mockResolvedValue(checkout);
     platform.snapshot.mockResolvedValue(snapshotOf());
-    platform.cases.mockResolvedValue([checkout]);
     platform.revisions.mockResolvedValue([revisionOf(checkout, 1), revisionOf(checkout, 2, { source_snapshot_id: id })]);
     platform.snapshotArchive.mockResolvedValue(new ArrayBuffer(8));
     cases.instance.mockResolvedValue({
@@ -63,24 +64,22 @@ describe('Snapshot detail', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
   });
 
-  it('opens with who made it, when, from which revision, and that it never changes', async () => {
+  it('opens the snapshot of the version on show, and reads that version’s snapshot only', async () => {
     renderSnapshot();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Compiled snapshot' })).toBeInTheDocument();
-    const line = screen.getByText(/Made by you/);
-    await waitFor(() => expect(line).toHaveTextContent('Made by you · Aug 20, 2026, 10:05 UTC · from Flujo de checkout revision 2 · never changes'));
-    expect(within(line).getByRole('link', { name: 'Flujo de checkout' })).toHaveAttribute('href', `${root}/cases/flujo-checkout`);
-    expect(screen.getByRole('link', { name: 'Run from this snapshot' })).toHaveAttribute('href', `${root}/jobs/new?snapshot=${id}`);
-    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(crumbs).getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', `${root}/workbench`);
-    expect(within(crumbs).getByText('Snapshot 0000…e1')).toHaveAttribute('aria-current', 'page');
+    expect(await screen.findByRole('region', { name: 'Compiled form (JSON)' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Source' })).toHaveAttribute('aria-selected', 'true');
+    expect(platform.snapshot).toHaveBeenCalledWith(id);
+    expect(platform.snapshot).toHaveBeenCalledTimes(1);
   });
 
-  it('says a member made it when the account is not the owner', async () => {
-    platform.snapshot.mockResolvedValue(snapshotOf({ ownerId: 'someone-else' }));
-    renderSnapshot();
+  it('shows the sealed document of a version without a snapshot, and reads no snapshot', async () => {
+    renderSnapshot('/source?version=1');
 
-    expect(await screen.findByText(/Made by a member/)).toBeInTheDocument();
+    const view = await screen.findByRole('region', { name: 'Sealed document (JSON)' });
+    expect(view).toHaveTextContent('{}');
+    expect(screen.getByText(/sealed without a compiled snapshot/)).toBeInTheDocument();
+    expect(platform.snapshot).not.toHaveBeenCalled();
   });
 
   it('shows the three fingerprints and copies each one whole, or all together', async () => {
@@ -120,7 +119,7 @@ describe('Snapshot detail', () => {
     expect(within(section).getByText('Adapters · qos-adapter@1.0.0')).toBeInTheDocument();
   });
 
-  it('summarizes what the engines receive and links to the model of its revision', async () => {
+  it('summarizes what the engines receive', async () => {
     renderSnapshot();
 
     const section = await screen.findByRole('region', { name: 'What the engines receive' });
@@ -130,7 +129,6 @@ describe('Snapshot detail', () => {
     ]);
     expect(within(section).getByText('Exactly 1,920 possible bindings.')).toBeInTheDocument();
     expect(within(section).getByText('2 engine modes can run it.')).toBeInTheDocument();
-    expect(await within(section).findByRole('link', { name: 'See the full model of revision 2' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/revisions/2`);
     expect(cases.analyseSnapshot).toHaveBeenCalledWith(id);
   });
 
@@ -231,33 +229,15 @@ describe('Snapshot detail', () => {
     });
   });
 
-  describe('source tab', () => {
-    const openSourceTab = async () => {
-      await screen.findByRole('heading', { level: 1, name: 'Compiled snapshot' });
-      fireEvent.click(screen.getByRole('tab', { name: 'Source' }));
-    };
-
-    // [utest->req~frontend-snapshot-source-tab~1]
-    it('opens on the overview, with the source in its own tab and the archive untouched', async () => {
-      renderSnapshot();
-      await screen.findByRole('heading', { level: 1, name: 'Compiled snapshot' });
-
-      expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
-      expect(screen.getByRole('tab', { name: 'Source' })).toHaveAttribute('aria-selected', 'false');
-      expect(screen.getByRole('heading', { name: 'Fingerprints' })).toBeInTheDocument();
-      expect(screen.queryByRole('region', { name: 'Compiled form (JSON)' })).not.toBeInTheDocument();
-      expect(screen.queryByText('View source')).not.toBeInTheDocument();
-      expect(platform.snapshotArchive).not.toHaveBeenCalled();
-    });
-
+  describe('source viewer', () => {
     // [utest->req~frontend-snapshot-source-tab~1]
     it('shows the compiled form as a source view with a download, without requesting the archive', async () => {
       renderSnapshot();
-      await openSourceTab();
 
-      const view = screen.getByRole('region', { name: 'Compiled form (JSON)' });
+      const view = await screen.findByRole('region', { name: 'Compiled form (JSON)' });
       expect(view).toHaveTextContent('"kind": "BindingProblem"');
-      expect(screen.queryByRole('heading', { name: 'Fingerprints' })).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Fingerprints' })).toBeInTheDocument();
+      expect(platform.snapshotArchive).not.toHaveBeenCalled();
       fireEvent.click(within(view).getByRole('button', { name: 'Download Compiled form (JSON)' }));
       expect(saveText).toHaveBeenCalledWith(expect.stringContaining('"kind": "BindingProblem"'), `snapshot-${id}-compiled.json`, 'application/json');
       expect(platform.snapshotArchive).not.toHaveBeenCalled();
@@ -267,7 +247,7 @@ describe('Snapshot detail', () => {
     it('browses the files of the package, loading the archive only when that view opens', async () => {
       platform.snapshotArchive.mockResolvedValue(await zipBuffer());
       renderSnapshot();
-      await openSourceTab();
+      await screen.findByRole('region', { name: 'Compiled form (JSON)' });
       expect(platform.snapshotArchive).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole('button', { name: 'Files in the package' }));
@@ -307,7 +287,7 @@ describe('Snapshot detail', () => {
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('The snapshot couldn’t be loaded (503 · unavailable).');
       fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
-      expect(await screen.findByRole('heading', { level: 1, name: 'Compiled snapshot' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Fingerprints' })).toBeInTheDocument();
     });
 
     it('shows the project gate when the project is not there for this account', async () => {

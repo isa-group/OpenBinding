@@ -375,15 +375,17 @@ describe('the redirect of a retired address', () => {
   });
 
   // [utest->req~frontend-retire-composer-redirect~1]
+  // [utest->req~frontend-nav-problem-page~1]
   it.each([
-    '/app/isa-demo/qos/cases/x/compare',
-    '/app/isa-demo/qos/cases/x/revisions/2',
-  ])('leaves %s out of the composer path, so there is no tie with the composer', (address) => {
+    ['/app/isa-demo/qos/cases/x/compare', '/app/isa-demo/qos/cases/x/versions'],
+    ['/app/isa-demo/qos/cases/x/revisions/2', '/app/isa-demo/qos/cases/x?version=2'],
+  ])('leaves %s out of the composer path, so there is no tie with the composer, and moves it to the problem page', (address, page) => {
     const composer = RETIRED_ROUTES.find((route) => route.id === 'case-composer');
     expect(composer).toBeDefined();
     expect(matchRoutes([{ path: composer?.path ?? '/never' }], address)).toBeNull();
-    // Whatever the address becomes (a screen, or a moved address followed to one), it is a routed screen, never the composer's redirect.
-    expect(matchRoutes(config, new URL(settled(address), 'http://localhost').pathname)).not.toBeNull();
+    // The M2.6 problem page took the compare and version screens (design.md §7): the old addresses are moved addresses that end on it.
+    expect(settled(address)).toBe(page);
+    expect(matchRoutes(config, new URL(settled(address), 'http://localhost').pathname)?.at(-1)?.route.id).toBe('case-detail');
   });
 
   // [utest->req~frontend-retire-composer-redirect~1]

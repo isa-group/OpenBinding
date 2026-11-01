@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { caseOf, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
-import { CaseCompare } from './CaseCompare';
+import { CaseDetail } from './CaseDetail';
 import { digestOf, irDocument, refOf, revisionDocument } from './fixtures';
 
 const platform = vi.hoisted(() => ({ project: vi.fn(), case: vi.fn(), revisions: vi.fn(), snapshot: vi.fn() }));
@@ -27,13 +27,15 @@ const snapshotOf = (id: string, pay: number) => ({
   ir: { id: `ir-${id}`, digest: digestOf('c'), document: irDocument(pay), sourceMap: null, compilerVersion: '1', createdAt: null },
 });
 
+/** The Versions tab of the problem page, which compares the pair named by `from` and `to`. */
 function renderCompare(query = '') {
-  return renderProjectScreen(<CaseCompare />, {
-    path: '/app/:org/:project/cases/:case/compare', url: `${root}/cases/flujo-checkout/compare${query}`, organizations: [group],
+  return renderProjectScreen(<CaseDetail />, {
+    path: '/app/:org/:project/cases/:case/:tab?', url: `${root}/cases/flujo-checkout/versions${query}`, organizations: [group],
   });
 }
 
-describe('Case compare', () => {
+// [utest->req~frontend-nav-problem-page~1]
+describe('Versions tab of the problem page: compare', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
@@ -46,7 +48,7 @@ describe('Case compare', () => {
   it('compares the previous revision with the latest by default', async () => {
     renderCompare();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Compare revisions' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Compare revisions' })).toBeInTheDocument();
     expect(screen.getByLabelText('From')).toHaveValue('1');
     expect(screen.getByLabelText('To')).toHaveValue('2');
     const table = await screen.findByRole('table');
@@ -54,8 +56,15 @@ describe('Case compare', () => {
     const row = within(table).getByRole('row', { name: /Candidates for pay-card/ });
     expect(within(row).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['5', '8', 'Changed']);
     expect(within(table).getByRole('row', { name: /Workflow/ })).toHaveTextContent('Same');
-    expect(screen.getByRole('link', { name: 'Open revision 2' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/revisions/2`);
-    expect(screen.getByRole('link', { name: 'All revisions' })).toHaveAttribute('href', `${root}/cases/flujo-checkout`);
+    expect(screen.getByRole('link', { name: 'Open revision 2' })).toHaveAttribute('href', `${root}/cases/flujo-checkout?version=2`);
+  });
+
+  it('shows the sealed document of each side of the pair', async () => {
+    renderCompare('?from=1&to=2');
+
+    await screen.findByRole('table');
+    expect(screen.getByRole('region', { name: 'Revision 1 document' })).toHaveTextContent('"kind": "Instance"');
+    expect(screen.getByRole('region', { name: 'Revision 2 document' })).toHaveTextContent('providers-eu');
   });
 
   it('counts the changes per category and narrows the table to one of them', async () => {
@@ -128,21 +137,18 @@ describe('Case compare', () => {
     renderCompare();
 
     expect(await screen.findByRole('heading', { name: 'Comparing needs two revisions' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'New revision' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Back to the case' })).toHaveAttribute('href', `${root}/cases/flujo-checkout`);
-    expect(screen.getAllByRole('link').filter((a) => a.getAttribute('href')?.includes('/workbench?case='))).toEqual([]);
+    expect(screen.queryByRole('link', { name: /New revision|Compose the first revision/ })).toBeNull();
   });
 
   // [utest->req~frontend-retire-composer-entry-points-repointed~1]
   it('asks a member for a second revision when the case has only one', async () => {
     platform.revisions.mockResolvedValue([r1]);
-    renderProjectScreen(<CaseCompare />, {
-      path: '/app/:org/:project/cases/:case/compare', url: `${root}/cases/flujo-checkout/compare`, organizations: [org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' })],
+    renderProjectScreen(<CaseDetail />, {
+      path: '/app/:org/:project/cases/:case/:tab?', url: `${root}/cases/flujo-checkout/versions`, organizations: [org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' })],
     });
 
-    expect(await screen.findByRole('heading', { name: 'Comparing needs two revisions' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${root}/workbench?case=flujo-checkout`);
-    expect(screen.getByRole('link', { name: 'Back to the case' })).toHaveAttribute('href', `${root}/cases/flujo-checkout`);
+    const guide = (await screen.findByRole('heading', { name: 'Comparing needs two revisions' })).closest('div') as HTMLElement;
+    expect(within(guide).getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${root}/workbench?case=flujo-checkout`);
   });
 
   it('compares only the library versions when a compiled form cannot be read', async () => {
@@ -165,6 +171,6 @@ describe('Case compare', () => {
     expect(await screen.findByRole('heading', { name: 'No case with this address in QoS Benchmarks (404)' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Compare revisions' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Compare revisions' })).toBeInTheDocument();
   });
 });

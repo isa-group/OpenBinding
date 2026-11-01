@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Lock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { casesApi } from '../../api/cases';
 import type { ArtifactVersion } from '../../api/library';
 import type { CaseRevision as Revision, Organization, Project } from '../../api/platform';
@@ -8,18 +7,18 @@ import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
+import { problemPath } from '../../routes/paths/problems';
 import { shortDigest } from '../../utils/digest';
 import { formatBytes, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { ProjectGate, ProjectSkeleton } from '../Project/parts';
 import { formatFeature } from '../../utils/featureRange';
 import type { BindingModel, FeatureValue, TaskInfo } from './bindingModel';
 import { classifyAuthError, isMissing, marker } from './caseErrors';
 import { plural, refLabel, resourceUses, roleLabel, type ResourceUse } from './casesModel';
 import { loadModel, type ModelState } from './modelLoader';
-import { CaseFrame, CaseMissing, DigestLine, FlowDrawing, Power } from './parts';
+import { DigestLine, FlowDrawing, Power } from './parts';
 import { useLoadedMap, type Loaded } from './useLoadedMap';
-import { useRouteCase, type RouteCaseContent } from './useRouteCase';
+import type { RouteCaseContent } from './useRouteCase';
 
 /** The finite ends of a value, which the bars of a column are drawn against. */
 const finiteEnds = (value: FeatureValue | undefined): number[] => {
@@ -222,15 +221,14 @@ function ResourceCards({ uses, resolved }: {
   );
 }
 
-function RevisionBody({ organization, project, content, revision }: {
+/** The Overview tab of the problem page: the model of the problem version on show, in plain language. */
+// [impl->req~frontend-nav-problem-page~1]
+export function VersionOverview({ organization, project, content, revision }: {
   organization: Organization; project: Project; content: RouteCaseContent; revision: Revision;
 }) {
-  const navigate = useNavigate();
   const { copy, status } = useCopy();
-  const { item, revisions } = content;
+  const { item } = content;
   const root = `/app/${organization.slug}/${project.slug}`;
-  const base = `${root}/cases/${item.slug}`;
-  const publicRead = project.access === 'public_read';
   const uses = resourceUses(revision.document);
   const modelState = useResource<ModelState>(`model:${revision.source_snapshot_id ?? 'none'}`, () => loadModel(revision.source_snapshot_id));
   const resolved = useLoadedMap(uses.map((use) => `${use.role}/${use.alias}`), (key) => {
@@ -242,31 +240,9 @@ function RevisionBody({ organization, project, content, revision }: {
   const snapshot = modelState.data?.state === 'ready' ? modelState.data.snapshot : null;
   const unresolved = modelState.data?.state === 'failed' || Object.values(resolved).some((answer) => answer.status === 'error');
   const profile = model?.profile ?? (typeof (revision.document.spec as { profile?: unknown } | undefined)?.profile === 'string' ? String((revision.document.spec as { profile: string }).profile) : null);
-  const previous = revisions.find((candidate) => candidate.revision === revision.revision - 1);
-  const compare = `${base}/compare?from=${previous ? previous.revision : revision.revision}&to=${revision.revision}`;
 
   return (
-    <CaseFrame organization={organization} project={project} trail={[{ label: 'Cases', to: `${root}/cases` }, { label: item.name, to: base }, { label: `Revision ${revision.revision}` }]}>
-      <header className="proj-title-row">
-        <div className="proj-title">
-          <div className="proj-title-line">
-            <h1>{item.name} · revision {revision.revision}</h1>
-            <span className="case-sealed"><Lock aria-hidden="true" />Sealed</span>
-          </div>
-          <label className="case-sort">
-            Show revision
-            <select value={String(revision.revision)} onChange={(event) => navigate(`${base}/revisions/${event.target.value}`)}>
-              {revisions.map((candidate, index) => <option key={candidate.id} value={candidate.revision}>Revision {candidate.revision}{index === 0 ? ' · latest' : ''}</option>)}
-            </select>
-          </label>
-        </div>
-        <div className="proj-actions">
-          {!publicRead && <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="primary">Run this revision</Action>}
-          <Action to={compare} variant={publicRead ? 'primary' : 'secondary'}>Compare</Action>
-          {!publicRead && <Action to={`${root}/studies/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="secondary">Add to study</Action>}
-        </div>
-      </header>
-
+    <>
       {unresolved && (
         <Notice tone="warning">
           Some resources of this revision couldn’t be loaded right now, so the model below may be incomplete. The fingerprint and identity are still exact.
@@ -286,7 +262,7 @@ function RevisionBody({ organization, project, content, revision }: {
             <dt>Compiled snapshot</dt>
             <dd>
               {revision.source_snapshot_id
-                ? <>{snapshot ? `${formatDateTime(snapshot.createdAt) ?? ''} · ${formatBytes(snapshot.archiveSize)?.split(' (')[0] ?? ''}` : 'Sealed with this revision'} <Link to={`${root}/snapshots/${revision.source_snapshot_id}`} viewTransition>Open snapshot</Link></>
+                ? <>{snapshot ? `${formatDateTime(snapshot.createdAt) ?? ''} · ${formatBytes(snapshot.archiveSize)?.split(' (')[0] ?? ''}` : 'Sealed with this revision'} <Link to={problemPath(root, item.slug, 'source', { version: revision.revision })} viewTransition>Open snapshot</Link></>
                 : 'None: this revision was sealed without one'}
             </dd>
           </div>
@@ -335,49 +311,6 @@ function RevisionBody({ organization, project, content, revision }: {
         <h2 id="rv-resources">Resources it’s built from</h2>
         <ResourceCards uses={uses} resolved={resolved} />
       </section>
-    </CaseFrame>
+    </>
   );
-}
-
-/** A revision (`case-revision`, `/app/:org/:project/cases/:case/revisions/:revision`): the model of one sealed revision in plain language. */
-export function CaseRevision() {
-  const route = useRouteCase();
-  const { revision: revisionParam = '' } = useParams();
-  const { orgSlug, projectSlug, caseSlug, organization, project, waiting, failure, reload, content, loaded, caseFailure } = route;
-  const found = loaded?.revisions.find((candidate) => String(candidate.revision) === revisionParam);
-  const remote = useResource<Revision | null>(
-    `revision:${orgSlug}/${projectSlug}/${caseSlug}/${revisionParam}:${content.status === 'ready' && !found ? 'ask' : 'skip'}`,
-    async () => (organization && project && content.status === 'ready' && !found ? casesApi.revision(organization.slug, project.slug, caseSlug, revisionParam) : null),
-  );
-
-  if (waiting) return <ProjectSkeleton />;
-  if (!organization || !project) {
-    return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
-  }
-  const root = `/app/${organization.slug}/${project.slug}`;
-  const trail = [{ label: 'Cases', to: `${root}/cases` }, { label: caseSlug, to: `${root}/cases/${caseSlug}` }, { label: `Revision ${revisionParam}` }];
-
-  if ((content.status === 'loading' && !loaded) || (!found && content.status === 'ready' && remote.status === 'loading')) {
-    return (
-      <CaseFrame organization={organization} project={project} trail={trail}>
-        <div role="status" aria-busy="true"><span className="sr-only">Loading the revision…</span><Skeleton variant="panel" /><Skeleton variant="panel" /></div>
-      </CaseFrame>
-    );
-  }
-  const revision = found ?? remote.data ?? undefined;
-  if (caseFailure || !loaded || !revision) {
-    const remoteFailure = remote.status === 'error' ? classifyAuthError(remote.error) : null;
-    const missing = isMissing(caseFailure) || isMissing(remoteFailure) || (!caseFailure && !remoteFailure);
-    return (
-      <CaseFrame organization={organization} project={project} trail={trail}>
-        <CaseMissing
-          title={missing ? 'This revision doesn’t exist (404)' : `The revision couldn’t be loaded${marker(caseFailure ?? remoteFailure ?? { kind: 'unknown' })}`}
-          actions={<Action to={`${root}/cases/${caseSlug}`} variant="primary">See all revisions</Action>}
-        >
-          {missing ? 'It may belong to another case, or the case may have been renamed. We answer the same way when you can’t see it.' : 'The gateway didn’t answer. Try again in a moment.'}
-        </CaseMissing>
-      </CaseFrame>
-    );
-  }
-  return <RevisionBody key={revision.id} organization={organization} project={project} content={loaded} revision={revision} />;
 }

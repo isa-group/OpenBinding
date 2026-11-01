@@ -1,12 +1,13 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { caseOf, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
 import { CaseDetail } from './CaseDetail';
 import { irDocument, refOf, revisionDocument } from './fixtures';
 
-const platform = vi.hoisted(() => ({ project: vi.fn(), case: vi.fn(), revisions: vi.fn(), snapshot: vi.fn(), deleteCase: vi.fn() }));
-const cases = vi.hoisted(() => ({ updateCase: vi.fn() }));
+const platform = vi.hoisted(() => ({ project: vi.fn(), case: vi.fn(), revisions: vi.fn(), snapshot: vi.fn(), deleteCase: vi.fn(), projectJobs: vi.fn() }));
+const cases = vi.hoisted(() => ({ updateCase: vi.fn(), revision: vi.fn(), resolveVersion: vi.fn(), instance: vi.fn(), analyseSnapshot: vi.fn() }));
 
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/cases', () => ({ casesApi: cases }));
@@ -30,22 +31,36 @@ const root = '/app/isa-demo/qos-benchmarks';
 
 const refusal = (status: number, code = 'refused') => Object.assign(new HttpError(status, 'refused'), { code });
 
-function renderDetail(organization = owner, slug = 'flujo-checkout') {
-  return renderProjectScreen(<CaseDetail />, {
-    path: '/app/:org/:project/cases/:case', url: `/app/${organization.slug}/qos-benchmarks/cases/${slug}`, organizations: [organization],
+function Where() {
+  const where = useLocation();
+  return <output data-testid="where">{where.pathname + where.search}</output>;
+}
+
+/** `orgSlug` other than the organization's own: the address of an organization the account is not in. */
+function renderDetail(organization = owner, slug = 'flujo-checkout', address = '', orgSlug = organization.slug) {
+  return renderProjectScreen(<><CaseDetail /><Where /></>, {
+    path: '/app/:org/:project/cases/:case/:tab?', url: `/app/${orgSlug}/qos-benchmarks/cases/${slug}${address}`, organizations: [organization],
   });
 }
 
-describe('Case detail', () => {
+const where = () => screen.getByTestId('where').textContent;
+const tabNames = () => screen.getAllByRole('tab').map((tab) => tab.textContent);
+
+describe('Problem page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
     platform.case.mockResolvedValue(checkout);
     platform.revisions.mockResolvedValue([r1, r2]);
+    platform.projectJobs.mockResolvedValue([]);
     platform.snapshot.mockResolvedValue({ id: 'snap-2', ownerId: null, instanceDigest: 'x', packageDigest: 'y', archiveSize: 10, createdAt: null, ir: { id: 'ir', digest: 'z', document: irDocument(), sourceMap: null, compilerVersion: '1', createdAt: null } });
+    cases.resolveVersion.mockRejectedValue(refusal(404, 'not_found'));
+    cases.instance.mockRejectedValue(refusal(404, 'not_found'));
+    cases.analyseSnapshot.mockRejectedValue(refusal(404, 'not_found'));
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
   });
 
+  // [utest->req~frontend-nav-problem-page~1]
   it('opens with the name, the address, the description and the number of revisions', async () => {
     renderDetail();
 
@@ -58,76 +73,152 @@ describe('Case detail', () => {
     expect(platform.case).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'flujo-checkout');
   });
 
-  it('draws the revisions as a timeline, newest first, with what changed between them', async () => {
+  // [utest->req~frontend-nav-problem-page~1]
+  it('serves the tabs Overview, Runs, Versions, Source and Settings, Overview first, showing the latest version', async () => {
     renderDetail();
 
-    const region = await screen.findByRole('region', { name: 'Revisions' });
-    expect(within(region).getAllByRole('link', { name: /^Revision \d$/ }).map((link) => link.textContent)).toEqual(['Revision 2', 'Revision 1']);
-    expect(within(region).getByText('Latest')).toBeInTheDocument();
-    expect(within(region).getByText('Candidate catalog · providers: providers-eu v2 → providers-eu v3')).toBeInTheDocument();
-    expect(within(region).getByText('First revision.')).toBeInTheDocument();
-    const used = within(region).getByRole('list', { name: 'Library versions of revision 2' });
-    expect(within(used).getByText('providers-eu v3').closest('li')).toHaveClass('is-changed');
-    expect(within(used).getByText('checkout-app v3').closest('li')).not.toHaveClass('is-changed');
-    expect(within(region).getAllByRole('link', { name: 'Open' })[0]).toHaveAttribute('href', `${root}/cases/flujo-checkout/revisions/2`);
-    expect(within(region).getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${root}/snapshots/snap-2`);
+    await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
+    expect(tabNames()).toEqual(['Overview', 'Runs', 'Versions', 'Source', 'Settings']);
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+    const version = screen.getByRole('combobox', { name: 'Version' });
+    expect(version).toHaveValue('2');
+    expect(within(version).getAllByRole('option').map((option) => option.textContent)).toEqual(['Version 2 · latest', 'Version 1']);
+    expect(await screen.findByRole('region', { name: 'Identity' })).toBeInTheDocument();
   });
 
-  it('copies the exact reference of a revision', async () => {
-    renderDetail();
+  // [utest->req~frontend-nav-problem-page~1]
+  it.each([
+    ['/runs', 'Runs'], ['/versions', 'Versions'], ['/source', 'Source'], ['/settings', 'Settings'],
+  ])('selects the tab named by the address %s', async (address, label) => {
+    renderDetail(owner, 'flujo-checkout', address);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Copy exact reference of revision 2' }));
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`flujo-checkout@2 ${r2.digest}`));
-    expect(await screen.findByText('Copied')).toBeInTheDocument();
+    await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
+    expect(screen.getByRole('tab', { name: label })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'false');
   });
 
-  it('shows the latest revision at a glance: the workflow and four figures', async () => {
-    renderDetail();
+  // [utest->req~frontend-nav-problem-page~1]
+  it('moves between the tabs by address and keeps the version it shows', async () => {
+    renderDetail(owner, 'flujo-checkout', '?version=1');
 
-    const glance = await screen.findByRole('region', { name: 'Latest revision at a glance' });
-    expect(await within(glance).findByRole('img', { name: /^Workflow: authenticate, then inventory and shipping in parallel, then pay-card \(70%\) or pay-transfer \(30%\), then notify$/ })).toBeInTheDocument();
-    const figures = within(within(glance).getByRole('list', { name: 'Latest revision figures' })).getAllByRole('listitem');
-    expect(figures.map((item) => item.textContent)).toEqual(['6tasks (5 get a provider)', '24candidates in total', '2rules (1 must, 1 should)', '2things to optimize']);
-    expect(within(glance).getByRole('link', { name: 'See the full revision' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/revisions/2`);
-    expect(platform.snapshot).toHaveBeenCalledWith('snap-2');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Source' }));
+    await waitFor(() => expect(where()).toBe(`${root}/cases/flujo-checkout/source?version=1`));
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    await waitFor(() => expect(where()).toBe(`${root}/cases/flujo-checkout?version=1`));
   });
 
-  it('keeps the timeline when the model of the latest revision cannot be read, and offers a retry', async () => {
-    platform.snapshot.mockRejectedValueOnce(refusal(404, 'not_found'));
-    renderDetail();
+  // [utest->req~frontend-nav-problem-page~1]
+  it('shows the version the query names, and a version chosen in the header sets the query', async () => {
+    renderDetail(owner, 'flujo-checkout', '/source');
 
-    const glance = await screen.findByRole('region', { name: 'Latest revision at a glance' });
-    expect(await within(glance).findByText(/couldn’t be read \(404 · not_found\)/)).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Revisions' })).toBeInTheDocument();
-    fireEvent.click(within(glance).getByRole('button', { name: 'Retry' }));
-    expect(await within(glance).findByRole('img', { name: /^Workflow: authenticate/ })).toBeInTheDocument();
+    const version = await screen.findByRole('combobox', { name: 'Version' });
+    expect(version).toHaveValue('2');
+    expect(await screen.findByRole('region', { name: 'Compiled form (JSON)' })).toBeInTheDocument();
+    fireEvent.change(version, { target: { value: '1' } });
+
+    await waitFor(() => expect(where()).toBe(`${root}/cases/flujo-checkout/source?version=1`));
+    expect(screen.getByRole('combobox', { name: 'Version' })).toHaveValue('1');
+    expect(await screen.findByRole('region', { name: 'Sealed document (JSON)' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-retire-composer-entry-points-repointed~1]
-  it('says so when the latest revision has no compiled snapshot', async () => {
-    platform.revisions.mockResolvedValue([r1]);
-    renderDetail();
+  // [utest->req~frontend-nav-problem-page~1]
+  it('answers an unknown tab with Page not found, before reading the problem', async () => {
+    renderDetail(owner, 'flujo-checkout', '/history');
 
-    const note = await screen.findByText(/Revision 1 has no compiled snapshot/);
-    expect(note).toHaveTextContent(/Save a new revision from the workbench to get one\.$/);
-    expect(note.textContent).not.toMatch(/composer/i);
-    expect(document.body.textContent).not.toMatch(/composer/i);
-    expect(platform.snapshot).not.toHaveBeenCalled();
-    expect(screen.getByText('1 revision')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Flujo de checkout' })).not.toBeInTheDocument();
+    expect(platform.case).not.toHaveBeenCalled();
+  });
+
+  // [utest->req~frontend-nav-problem-page~1]
+  it('answers a missing version in neutral words, with a way to all of them', async () => {
+    cases.revision.mockRejectedValue(refusal(404, 'not_found'));
+    renderDetail(owner, 'flujo-checkout', '?version=9');
+
+    expect(await screen.findByRole('heading', { name: 'This revision doesn’t exist (404)' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See all revisions' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/versions`);
+    expect(cases.revision).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'flujo-checkout', '9');
+  });
+
+  // [utest->req~frontend-nav-problem-page~1]
+  it('finds a version named by its fingerprint when the query is not a number', async () => {
+    cases.revision.mockResolvedValue(r1);
+    renderDetail(owner, 'flujo-checkout', `?version=${r1.digest}`);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Version' })).toHaveValue('1');
+    expect(cases.revision).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'flujo-checkout', r1.digest);
+  });
+
+  describe('a visitor of a public project', () => {
+    beforeEach(() => platform.project.mockResolvedValue({ ...qos, organization_id: 'org-open', created_by_id: null, access: 'public_read', effective_role: null }));
+
+    // [utest->req~frontend-nav-problem-page~1]
+    it('sees only Overview, Versions and Source, and nothing to run or change', async () => {
+      renderDetail(owner, 'flujo-checkout', '', 'open-lab');
+
+      await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
+      expect(tabNames()).toEqual(['Overview', 'Versions', 'Source']);
+      expect(screen.queryByRole('link', { name: 'New revision' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Run this revision' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Add to study' })).not.toBeInTheDocument();
+    });
+
+    // [utest->req~frontend-nav-problem-page~1]
+    it.each(['/runs', '/settings'])('answers %s with Page not found', async (address) => {
+      renderDetail(owner, 'flujo-checkout', address, 'open-lab');
+
+      expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    });
+  });
+
+  describe('Versions tab', () => {
+    // [utest->req~frontend-nav-problem-page~1]
+    it('draws the revisions as a timeline, newest first, with what changed between them', async () => {
+      renderDetail(owner, 'flujo-checkout', '/versions');
+
+      const region = await screen.findByRole('region', { name: 'Revisions' });
+      expect(within(region).getAllByRole('link', { name: /^Revision \d$/ }).map((link) => link.textContent)).toEqual(['Revision 2', 'Revision 1']);
+      expect(within(region).getByText('Latest')).toBeInTheDocument();
+      expect(within(region).getByText('Candidate catalog · providers: providers-eu v2 → providers-eu v3')).toBeInTheDocument();
+      expect(within(region).getByText('First revision.')).toBeInTheDocument();
+      const used = within(region).getByRole('list', { name: 'Library versions of revision 2' });
+      expect(within(used).getByText('providers-eu v3').closest('li')).toHaveClass('is-changed');
+      expect(within(used).getByText('checkout-app v3').closest('li')).not.toHaveClass('is-changed');
+      expect(within(region).getAllByRole('link', { name: 'Open' })[0]).toHaveAttribute('href', `${root}/cases/flujo-checkout?version=2`);
+      expect(within(region).getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/source?version=2`);
+      expect(within(region).getByRole('link', { name: 'Compare with r1' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/versions?from=1&to=2`);
+    });
+
+    it('copies the exact reference of a revision', async () => {
+      renderDetail(owner, 'flujo-checkout', '/versions');
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Copy exact reference of revision 2' }));
+      await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`flujo-checkout@2 ${r2.digest}`));
+      expect(await screen.findByText('Copied')).toBeInTheDocument();
+    });
+
+    // [utest->req~frontend-nav-problem-page~1]
+    it('keeps the history and does not ask for a comparison before there are two revisions', async () => {
+      platform.revisions.mockResolvedValue([r1]);
+      renderDetail(owner, 'flujo-checkout', '/versions');
+
+      expect(await screen.findByRole('region', { name: 'Revisions' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Comparing needs two revisions' })).toBeInTheDocument();
+    });
   });
 
   describe('roles', () => {
     // [utest->req~frontend-retire-composer-entry-points-repointed~1]
-    it('gives a MEMBER a new revision in the workbench, the comparison, a run and the workbench, but not deleting', async () => {
+    it('gives a MEMBER a new revision in the workbench, a run and the workbench, but not deleting', async () => {
       renderDetail(member);
 
       await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
       const base = '/app/member-lab/qos-benchmarks';
       expect(screen.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${base}/workbench?case=flujo-checkout`);
-      expect(screen.getByRole('link', { name: 'Compare revisions' })).toHaveAttribute('href', `${base}/cases/flujo-checkout/compare`);
-      expect(screen.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', `${base}/jobs/new?case=flujo-checkout&revision=2`);
+      expect(screen.getByRole('link', { name: 'Run this revision' })).toHaveAttribute('href', `${base}/jobs/new?case=flujo-checkout&revision=2`);
       expect(screen.getByRole('link', { name: 'Open in Workbench' })).toHaveAttribute('href', `${base}/workbench?case=flujo-checkout&revision=${r2.id}`);
-      expect(screen.getByRole('button', { name: 'Edit description' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', `${base}/studies/new?case=flujo-checkout&revision=2`);
       expect(screen.queryByRole('button', { name: 'Delete case' })).not.toBeInTheDocument();
       for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
     });
@@ -141,57 +232,7 @@ describe('Case detail', () => {
       for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
       expect(screen.getByRole('note')).toHaveTextContent('You can read and compare revisions. New revisions need MEMBER; deleting needs ADMIN.');
       expect(screen.queryByRole('link', { name: 'New revision' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Edit description' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Delete case' })).not.toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Compare revisions' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Open in Workbench' })).toHaveAttribute('href', `/app/read-lab/qos-benchmarks/workbench?case=flujo-checkout&revision=${r2.id}`);
-    });
-
-    it('does not offer a comparison before there are two revisions', async () => {
-      platform.revisions.mockResolvedValue([r1]);
-      renderDetail();
-
-      await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
-      expect(screen.queryByRole('link', { name: 'Compare revisions' })).not.toBeInTheDocument();
-      expect(screen.getByText('Compare revisions')).toHaveAttribute('aria-disabled', 'true');
-    });
-  });
-
-  describe('description', () => {
-    it('is edited in place by a MEMBER and saved with the gateway', async () => {
-      cases.updateCase.mockResolvedValue({ ...checkout, description: 'Catalog grown to eight candidates.' });
-      renderDetail(member);
-
-      fireEvent.click(await screen.findByRole('button', { name: 'Edit description' }));
-      const box = screen.getByLabelText('Description');
-      expect(box).toHaveValue('Payments with parallel stock and shipping.');
-      fireEvent.change(box, { target: { value: '  Catalog grown to eight candidates.  ' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-      await waitFor(() => expect(cases.updateCase).toHaveBeenCalledWith('member-lab', 'qos-benchmarks', 'flujo-checkout', { description: 'Catalog grown to eight candidates.' }));
-      expect(await screen.findByText('Description saved.')).toBeInTheDocument();
-      expect(screen.getByText('Catalog grown to eight candidates.')).toBeInTheDocument();
-      expect(screen.queryByLabelText('Description')).not.toBeInTheDocument();
-    });
-
-    it('keeps the editor open and says why when the gateway refuses', async () => {
-      cases.updateCase.mockRejectedValue(refusal(403, 'forbidden'));
-      renderDetail(member);
-
-      fireEvent.click(await screen.findByRole('button', { name: 'Edit description' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-      expect(await screen.findByRole('alert')).toHaveTextContent('You need MEMBER in the organization to edit a case (403 · forbidden). Nothing changed.');
-      expect(screen.getByLabelText('Description')).toBeInTheDocument();
-    });
-
-    it('can be abandoned', async () => {
-      renderDetail(member);
-
-      fireEvent.click(await screen.findByRole('button', { name: 'Edit description' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-      expect(screen.queryByLabelText('Description')).not.toBeInTheDocument();
-      expect(cases.updateCase).not.toHaveBeenCalled();
     });
   });
 
@@ -199,12 +240,12 @@ describe('Case detail', () => {
     beforeEach(() => platform.revisions.mockResolvedValue([]));
 
     // [utest->req~frontend-retire-composer-entry-points-repointed~1]
-    it('points a MEMBER to the workbench instead of the timeline', async () => {
+    it('points a MEMBER to the workbench instead of the version tabs', async () => {
       renderDetail(member);
 
       const guide = await screen.findByRole('region', { name: 'No revisions yet' });
       expect(within(guide).getByRole('link', { name: 'Compose the first revision' })).toHaveAttribute('href', '/app/member-lab/qos-benchmarks/workbench?case=flujo-checkout');
-      expect(screen.queryByRole('region', { name: 'Revisions' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('combobox', { name: 'Version' })).not.toBeInTheDocument();
       for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
     });
 
@@ -218,9 +259,9 @@ describe('Case detail', () => {
       for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)|\/workbench\?case=/);
     });
 
-    it('lets an ADMIN delete it, and goes back to the list', async () => {
+    it('lets an ADMIN delete it from Settings, and goes back to the list', async () => {
       platform.deleteCase.mockResolvedValue(undefined);
-      renderDetail(admin);
+      renderDetail(admin, 'flujo-checkout', '/settings');
 
       fireEvent.click(await screen.findByRole('button', { name: 'Delete case' }));
       const dialog = await screen.findByRole('dialog', { name: 'Delete Flujo de checkout?' });
@@ -232,8 +273,9 @@ describe('Case detail', () => {
     });
   });
 
+  // [utest->req~frontend-nav-problem-page~1]
   it('does not let an ADMIN delete a case that holds sealed revisions', async () => {
-    renderDetail(admin);
+    renderDetail(admin, 'flujo-checkout', '/settings');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete case' }));
     const dialog = await screen.findByRole('dialog', { name: 'Delete Flujo de checkout?' });

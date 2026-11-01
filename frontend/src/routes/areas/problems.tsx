@@ -1,26 +1,45 @@
 import { lazy } from 'react';
 import { live } from '../define';
-import type { MovedRoute } from '../moved';
+import { moved, type MovedRoute } from '../moved';
+import { problemPath, problemsPath } from '../paths/problems';
 import type { RouteDefinition } from '../types';
 
-// Area: problems. The cases of a project, their revisions, the snapshots and the workbench.
+// Area: problems. The problems of a project, the problem page with its tabs, and the workbench.
 
 const CaseList = lazy(() => import('../../pages/Cases/CaseList').then((module) => ({ default: module.CaseList })));
 const CaseDetail = lazy(() => import('../../pages/Cases/CaseDetail').then((module) => ({ default: module.CaseDetail })));
-const SnapshotDetail = lazy(() => import('../../pages/Cases/SnapshotDetail').then((module) => ({ default: module.SnapshotDetail })));
-const CaseRevision = lazy(() => import('../../pages/Cases/CaseRevision').then((module) => ({ default: module.CaseRevision })));
-const CaseCompare = lazy(() => import('../../pages/Cases/CaseCompare').then((module) => ({ default: module.CaseCompare })));
 const Workbench = lazy(() => import('../../pages/Workbench/Workbench').then((module) => ({ default: module.Workbench })));
 
 // [impl->req~frontend-retire-composer-screen-not-routed~1]
 // [impl->req~frontend-retire-composer-screen-count~1]
+// [impl->req~frontend-nav-problem-page~1]
 export const routes: RouteDefinition[] = [
   live('case-list', '/app/:org/:project/cases', <CaseList />),
-  live('case-detail', '/app/:org/:project/cases/:case', <CaseDetail />),
-  live('case-revision', '/app/:org/:project/cases/:case/revisions/:revision', <CaseRevision />),
-  live('case-compare', '/app/:org/:project/cases/:case/compare', <CaseCompare />),
+  live('case-detail', '/app/:org/:project/cases/:case/:tab?', <CaseDetail />),
   live('wb-workbench', '/app/:org/:project/workbench', <Workbench />),
-  live('snap-detail', '/app/:org/:project/snapshots/:snapshot', <SnapshotDetail />),
 ];
 
-export const moved: MovedRoute[] = [];
+const projectRoot = (params: Readonly<Partial<Record<string, string>>>) => `/app/${encodeURIComponent(params.org ?? '')}/${encodeURIComponent(params.project ?? '')}`;
+
+// [impl->req~frontend-nav-problem-page~1]
+const movedAddresses: MovedRoute[] = [
+  // A problem version: the Overview of the problem page, showing that version. The version is a number, or a digest or id that the page resolves.
+  moved('case-revision-moved', '/app/:org/:project/cases/:case/revisions/:revision', '/app/:org/:project/cases/:case', {
+    target: (_query, params) => problemPath(projectRoot(params), params.case ?? '', undefined, { version: params.revision }), permanent: true, keepQuery: false,
+  }),
+  // The comparison of two versions: the Versions tab, with the pair (`from`, `to`) it already carries.
+  moved('case-compare-moved', '/app/:org/:project/cases/:case/compare', '/app/:org/:project/cases/:case/versions', {
+    target: (query, params) => {
+      const address = problemPath(projectRoot(params), params.case ?? '', 'versions');
+      const search = query.toString();
+      return search ? `${address}?${search}` : address;
+    },
+  }),
+  // A snapshot has no page of its own: the project's problems. The snapshot id is dropped.
+  moved('snap-detail-moved', '/app/:org/:project/snapshots/:snapshot', '/app/:org/:project/cases', {
+    target: (_query, params) => problemsPath(projectRoot(params)), permanent: true, keepQuery: false,
+  }),
+];
+
+// The registry reads `moved` from every area module.
+export { movedAddresses as moved };

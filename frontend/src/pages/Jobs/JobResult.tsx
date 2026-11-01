@@ -7,6 +7,7 @@ import { SourceView } from '../../components/rendering/SourceView';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
+import { problemPath } from '../../routes/paths/problems';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import { normalizeStatus, numberText, violationsOf } from './jobsModel';
 import { useRunProblem } from './useRunProblem';
@@ -46,7 +47,7 @@ function Infeasible({ solution, root, origin }: { solution: JobSolution | undefi
       {origin && (
         <span className="job-links">{/* [impl->req~frontend-retire-composer-entry-points-repointed~1] */}
           <Link to={`${root}/workbench?case=${encodeURIComponent(origin.caseSlug)}`} viewTransition>Try faster providers</Link>
-          <Link to={`${root}/cases/${encodeURIComponent(origin.caseSlug)}/revisions/${origin.revision}`} viewTransition>See the rules</Link>
+          <Link to={problemPath(root, origin.caseSlug, undefined, { version: origin.revision })} viewTransition>See the rules</Link>
         </span>
       )}
     </section>

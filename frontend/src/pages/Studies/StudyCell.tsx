@@ -9,6 +9,7 @@ import { Notice } from '../../components/ui/Notice';
 import { SourceView } from '../../components/rendering/SourceView';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
+import { problemPath } from '../../routes/paths/problems';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
@@ -208,12 +209,12 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
   };
 
   const inputs: Array<[string, ReactNode]> = [
-    ['Case', info ? <Link to={`${root}/cases/${encodeURIComponent(info.caseSlug)}/revisions/${info.revision}`} viewTransition>{revisionLabel(index, cell.binding_case_revision_id)}</Link> : revisionLabel(index, cell.binding_case_revision_id)],
+    ['Case', info ? <Link to={problemPath(root, info.caseSlug, undefined, { version: info.revision })} viewTransition>{revisionLabel(index, cell.binding_case_revision_id)}</Link> : revisionLabel(index, cell.binding_case_revision_id)],
     ['Engine', engineTitle(ref)],
     ['Mode', ref.mode ?? '—'],
     ['Settings', describeParameters(cell.parameters)],
     ['Seed', String(cell.seed)],
-    ['Snapshot', info?.snapshotId ? <Link to={`${root}/snapshots/${info.snapshotId}`} viewTransition>{info.snapshotId.slice(0, 8)}…</Link> : '—'],
+    ['Snapshot', info?.snapshotId ? <Link to={problemPath(root, info.caseSlug, 'source', { version: info.revision })} viewTransition>{info.snapshotId.slice(0, 8)}…</Link> : '—'],
   ];
 
   return (
