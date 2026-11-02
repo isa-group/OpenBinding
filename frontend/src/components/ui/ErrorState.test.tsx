@@ -28,7 +28,7 @@ describe('ErrorState', () => {
 
   it('lets a screen replace the wording and the actions', () => {
     renderState(
-      <ErrorState variant="404" code="job_not_found" title="Job not found" actions={<StateAction to="/app/jobs" tone="link">Go to my jobs</StateAction>}>
+      <ErrorState variant="404" code="job_not_found" title="Job not found" actions={<StateAction to="/app/runs" tone="link">Go to my jobs</StateAction>}>
         Nothing to open here.
       </ErrorState>,
     );
@@ -37,7 +37,7 @@ describe('ErrorState', () => {
     expect(screen.getByText('job_not_found')).toBeInTheDocument();
     expect(screen.getByText('Nothing to open here.')).toBeInTheDocument();
     expect(screen.queryByText('Back to the workspace')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Go to my jobs' })).toHaveAttribute('href', '/app/jobs');
+    expect(screen.getByRole('link', { name: 'Go to my jobs' })).toHaveAttribute('href', '/app/runs');
   });
 
   it('shows no actions when told to', () => {

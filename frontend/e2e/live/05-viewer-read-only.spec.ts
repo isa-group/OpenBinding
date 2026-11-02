@@ -30,7 +30,7 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
   test('starting a run is for members: the viewer is told so and has no way to send one', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
-    await page.goto(`${PROJECT_PATH}/jobs/new?case=${CASE}`);
+    await page.goto(`${PROJECT_PATH}/runs/new?case=${CASE}`);
 
     await expect(page.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
     await expect(page.getByText('starting a run needs MEMBER')).toBeVisible();
@@ -44,7 +44,7 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
   test('the list of runs of the project offers no way to start one', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
-    await page.goto(`${PROJECT_PATH}/jobs`);
+    await page.goto(`${PROJECT_PATH}/runs`);
 
     await expect(page.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'New run' })).toHaveCount(0);

@@ -70,7 +70,7 @@ function ProblemBody({ organization, project, content, revision, tab, canCreate,
         </div>
         <div className="proj-actions">
           {canCreate && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">New version</Action>}
-          {revision && !publicRead && <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="secondary">Run this version</Action>}
+          {revision && !publicRead && <Action to={`${root}/runs/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="secondary">Run this version</Action>}
           {revision && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}&revision=${revision.id}`} variant="secondary">Open in Workbench</Action>}
           {revision && !publicRead && <Action to={`${root}/studies/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="secondary">Add to study</Action>}
         </div>

@@ -52,9 +52,9 @@ describe('Runs tab of the problem page', () => {
     const table = await runsTable();
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(2);
-    expect(within(rows[0]).getByRole('link', { name: 'Run job-new' })).toHaveAttribute('href', `${root}/jobs/job-new`);
+    expect(within(rows[0]).getByRole('link', { name: 'Run job-new' })).toHaveAttribute('href', `${root}/runs/job-new`);
     expect(within(rows[0]).getByRole('link', { name: 'Version 2' })).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=2`);
-    expect(within(rows[1]).getByRole('link', { name: 'Run job-old' })).toHaveAttribute('href', `${root}/jobs/job-old`);
+    expect(within(rows[1]).getByRole('link', { name: 'Run job-old' })).toHaveAttribute('href', `${root}/runs/job-old`);
     expect(within(rows[1]).getByRole('link', { name: 'Version 1' })).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=1`);
     expect(screen.queryByRole('link', { name: 'Run job-other' })).not.toBeInTheDocument();
     expect(platform.projectJobs).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks');
@@ -77,7 +77,7 @@ describe('Runs tab of the problem page', () => {
     renderRuns();
 
     expect(await screen.findByText('No runs of this problem yet')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', `${root}/jobs/new?case=flujo-checkout`);
+    expect(screen.getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', `${root}/runs/new?case=flujo-checkout`);
   });
 
   it('says the runs cannot be loaded, and retries', async () => {

@@ -17,7 +17,7 @@ function carried(query: URLSearchParams, key: string): string | undefined {
 }
 
 // [impl->req~frontend-retire-redirect-decision-space~1]
-/** The decision-space rule: the run, else the study, else the job history. Every other parameter is dropped. */
+/** The decision-space rule: the run, else the study, else the run history. Every other parameter is dropped. */
 function decisionSpaceTarget(query: URLSearchParams): string {
   const org = carried(query, 'org');
   const project = carried(query, 'project');
@@ -27,7 +27,7 @@ function decisionSpaceTarget(query: URLSearchParams): string {
     const studyPath = `/app/${encodeURIComponent(org)}/${encodeURIComponent(project)}/studies/${encodeURIComponent(study)}`;
     return run ? `${studyPath}/progress?run=${encodeURIComponent(run)}` : studyPath;
   }
-  return '/app/jobs';
+  return '/app/runs';
 }
 
 // [impl->req~frontend-retire-reports-redirect~1]

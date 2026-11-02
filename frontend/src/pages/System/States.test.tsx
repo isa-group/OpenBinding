@@ -26,7 +26,7 @@ describe('States gallery', () => {
     expect(screen.getByRole('link', { name: 'Log in again' })).toHaveAttribute('href', '/login');
     expect(screen.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
     expect(screen.getByRole('link', { name: 'Create a key with this permission' })).toHaveAttribute('href', '/app/account/keys?create=key');
-    expect(screen.getByRole('link', { name: 'Go to my runs' })).toHaveAttribute('href', '/app/jobs');
+    expect(screen.getByRole('link', { name: 'Go to my runs' })).toHaveAttribute('href', '/app/runs');
   });
 
   it('narrows the gallery to one family at a time', () => {

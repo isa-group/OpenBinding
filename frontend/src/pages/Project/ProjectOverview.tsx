@@ -123,7 +123,7 @@ function JobsCard({ root, resource, platformAdmin }: { root: string; resource: R
   const rows = (resource.data?.rows ?? []).slice(0, 5);
   const mine = resource.data?.mine ?? null;
   return (
-    <Card id="po-jobs" title="Recent runs" allLabel="All runs" allTo={`${root}/jobs`} resource={resource} noun="runs">
+    <Card id="po-jobs" title="Recent runs" allLabel="All runs" allTo={`${root}/runs`} resource={resource} noun="runs">
       {rows.length === 0 && <p className="org-muted">No runs in this project yet.</p>}
       {rows.length > 0 && (
         <ul className="proj-jobs" aria-label="Recent runs">
@@ -140,7 +140,7 @@ function JobsCard({ root, resource, platformAdmin }: { root: string; resource: R
                 </span>
                 <span className={`proj-status is-${status.tone}`}>{status.label}</span>
                 {own
-                  ? <Link to={`${root}/jobs/${job.id}`} viewTransition aria-label={`Open ${job.engine_id} run from ${formatDateTime(job.created_at) ?? 'an unknown time'}`}>Open</Link>
+                  ? <Link to={`${root}/runs/${job.id}`} viewTransition aria-label={`Open ${job.engine_id} run from ${formatDateTime(job.created_at) ?? 'an unknown time'}`}>Open</Link>
                   : <small className="proj-owner-only" title="Runs open only for whoever launched them">Owner only</small>}
               </li>
             );
@@ -288,7 +288,7 @@ function OverviewBody({ organization, project, canCreate, canAdminister, publicR
           ) : (
             <>
               <RoleAction allowed={canCreate} to={problemsPath(root)} variant="primary">New problem</RoleAction>
-              <RoleAction allowed={canCreate} to={`${root}/jobs/new`} variant="secondary">Run</RoleAction>
+              <RoleAction allowed={canCreate} to={`${root}/runs/new`} variant="secondary">Run</RoleAction>
               <RoleAction allowed={canCreate} to={`${root}/studies/new`} variant="secondary">New study</RoleAction>
             </>
           )}

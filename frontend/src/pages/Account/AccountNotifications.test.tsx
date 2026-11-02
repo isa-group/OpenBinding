@@ -143,7 +143,7 @@ describe('Notifications', () => {
   it('points a job notice to the job history', async () => {
     renderNotifications();
     fireEvent.click(await row('Job completed'));
-    expect(screen.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/jobs');
+    expect(screen.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/runs');
   });
 
   it('says when it is all caught up and when a filter hides everything', async () => {

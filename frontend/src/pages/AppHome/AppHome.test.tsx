@@ -78,8 +78,8 @@ describe('Home', () => {
     expect(await within(activity).findByText('Running')).toBeInTheDocument();
     expect(within(activity).getByText('No feasible binding')).toBeInTheDocument();
     expect(within(activity).getByText(/finished in 40 s/)).toBeInTheDocument();
-    expect(within(activity).getAllByRole('link', { name: /minizinc/ })[0]).toHaveAttribute('href', '/app/jobs');
-    expect(within(activity).getByRole('link', { name: 'All runs' })).toHaveAttribute('href', '/app/jobs');
+    expect(within(activity).getAllByRole('link', { name: /minizinc/ })[0]).toHaveAttribute('href', '/app/runs');
+    expect(within(activity).getByRole('link', { name: 'All runs' })).toHaveAttribute('href', '/app/runs');
 
     const plan = screen.getByRole('region', { name: 'Your plan' });
     expect(await within(plan).findByText('RESEARCH')).toBeInTheDocument();

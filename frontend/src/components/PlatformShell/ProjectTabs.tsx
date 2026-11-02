@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Eye } from 'lucide-react';
 import type { ProjectAccessKind } from '../../api/platform';
 import { PROBLEMS_SEGMENT } from '../../routes/paths/problems';
+import { RUNS_SEGMENT } from '../../routes/paths/runs';
 import { canOpenSection, levelOf } from '../../utils/accessLevel';
 import './SectionNav.css';
 
@@ -20,7 +21,7 @@ interface ProjectTabsProps {
 interface Tab {
   key: ProjectSection;
   label: string;
-  /** Appended to the project address. Runs lead to `/jobs` until the run address slice moves them to `/runs`. */
+  /** Appended to the project address. */
   suffix: string;
   /** Shown at the end of the row, apart from the others. */
   trailing?: true;
@@ -33,7 +34,7 @@ const TABS: readonly Tab[] = [
   { key: 'overview', label: 'Overview', suffix: '' },
   { key: 'cases', label: 'Problems', suffix: `/${PROBLEMS_SEGMENT}` },
   { key: 'collections', label: 'Collections', suffix: '/collections' },
-  { key: 'jobs', label: 'Runs', suffix: '/jobs' },
+  { key: 'jobs', label: 'Runs', suffix: `/${RUNS_SEGMENT}` },
   { key: 'studies', label: 'Studies', suffix: '/studies' },
   { key: 'published', label: 'Published', suffix: '/published' },
   { key: 'settings', label: 'Settings', suffix: '/settings', trailing: true },

@@ -63,7 +63,7 @@ const analysis = (over: Record<string, unknown> = {}) => ({
 
 function renderLaunch(search = '?case=flujo&revision=2', slug = 'isa-demo') {
   return renderProjectScreen(<JobLaunch />, {
-    path: '/app/:org/:project/jobs/new', url: `/app/${slug}/qos-benchmarks/jobs/new${search}`, organizations: [group, viewing],
+    path: '/app/:org/:project/runs/new', url: `/app/${slug}/qos-benchmarks/runs/new${search}`, organizations: [group, viewing],
   });
 }
 
@@ -113,7 +113,7 @@ describe('Start a run', () => {
     expect(within(source).getByRole('radio', { name: /Flujo de checkout · version 2/ })).toBeChecked();
     expect(within(source).getByRole('radio', { name: /Flujo de checkout · version 1/ })).not.toBeChecked();
     expect(screen.getByRole('link', { name: 'Upload a new package in the Workbench' })).toHaveAttribute('href', `${ROOT}/workbench`);
-    expect(screen.getByRole('link', { name: 'Cancel' })).toHaveAttribute('href', `${ROOT}/jobs`);
+    expect(screen.getByRole('link', { name: 'Cancel' })).toHaveAttribute('href', `${ROOT}/runs`);
     expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Runs' })).toHaveAttribute('aria-current', 'page');
   });
 
@@ -286,7 +286,7 @@ describe('Start a run', () => {
       expect.any(String),
     );
     expect(screen.getByText(/Nothing was reduced\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Follow the run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-7`);
+    expect(screen.getByRole('link', { name: 'Follow the run' })).toHaveAttribute('href', `${ROOT}/runs/job-new-7`);
   });
 
   it('sends the optimization the gateway requires: one criterion and a weighted-sum mode make a SINGLE weighted-sum run', async () => {

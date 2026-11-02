@@ -399,7 +399,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(ceilings.getByRole('row', { name: /Max time per run/ })).toContainText('15 min');
       await expect(ceilings.getByRole('row', { name: /Max time per run/ })).toContainText('900 s');
       await expect(ceilings.getByRole('row', { name: /Max problem size/ })).toContainText('10²⁰');
-      await expect(main.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/jobs');
+      await expect(main.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/runs');
       await expect(main.getByRole('heading', { name: 'Organizations you sponsor' })).toBeVisible();
       await expect(main.getByText('Confirmed by your plan check')).toBeVisible();
       await expect(main.getByText('Authoring', { exact: true }).locator('..')).toContainText('Enabled');

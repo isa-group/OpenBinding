@@ -113,11 +113,11 @@ describe('the table of retired addresses', () => {
 
     expect(to(`${study}&run=run-1&cell=cell-3`)).toBe('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds/progress?run=run-1');
     expect(to(study)).toBe('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds');
-    expect(to('org=isa-demo&project=qos-benchmarks&run=run-1')).toBe('/app/jobs');
-    expect(to('job=job-done-1&job=job-done-3')).toBe('/app/jobs');
-    expect(to('report=isa-demo%2Fqos-benchmarks%2Fdecision-choice')).toBe('/app/jobs');
-    expect(to('')).toBe('/app/jobs');
-    expect(to('org=isa-demo&project=qos-benchmarks&study=&run=run-1')).toBe('/app/jobs');
+    expect(to('org=isa-demo&project=qos-benchmarks&run=run-1')).toBe('/app/runs');
+    expect(to('job=job-done-1&job=job-done-3')).toBe('/app/runs');
+    expect(to('report=isa-demo%2Fqos-benchmarks%2Fdecision-choice')).toBe('/app/runs');
+    expect(to('')).toBe('/app/runs');
+    expect(to('org=isa-demo&project=qos-benchmarks&study=&run=run-1')).toBe('/app/runs');
     expect(to('org=isa-demo&project=qos-benchmarks&study=seeds%2F2026&study=other')).toBe('/app/isa-demo/qos-benchmarks/studies/seeds%2F2026');
   });
 
@@ -252,7 +252,7 @@ describe('the redirect of a retired address', () => {
   it('replaces the history entry, so going back skips the retired address', async () => {
     renderAt(['/app/account', '/app/analysis/workspace?job=job-done-3']);
 
-    await landsOn('/app/jobs');
+    await landsOn('/app/runs');
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     await landsOn('/app/account');
@@ -276,7 +276,7 @@ describe('the redirect of a retired address', () => {
   it('renders no retired screen and no organization page', async () => {
     renderAt(['/app/analysis']);
 
-    await landsOn('/app/jobs');
+    await landsOn('/app/runs');
     expect(document.querySelector('[data-screen^="analysis-"]')).toBeNull();
     // Without its screen the address would read as an organization called `analysis`.
     expect(shown()).not.toBe(screenAt('/app/analysis'));

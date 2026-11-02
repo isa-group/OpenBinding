@@ -35,7 +35,7 @@ describe('address resolution across the registry', () => {
     }
   });
 
-  // A fixed segment under /app (`/app/jobs`, `/app/account`, …) is the first segment of a screen of some area. An address one level below
+  // A fixed segment under /app (`/app/runs`, `/app/account`, …) is the first segment of a screen of some area. An address one level below
   // it that no screen of that area claims is read as an organization and a project: the screen of the plain `/app/:org/:project` address,
   // or a screen of the area itself when the area takes any section there.
   const fixedSegments = [...new Set(routeDefinitions.flatMap((definition) => {

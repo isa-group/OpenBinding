@@ -378,7 +378,7 @@ export function EngRegistrationDetail() {
           {engineRef && (
             <ProjectPicker
               label="Launch a run with it"
-              destination={(org, project) => `/app/${org}/${project}/jobs/new?engine=${encodeURIComponent(bimResourceKey(engineRef))}`}
+              destination={(org, project) => `/app/${org}/${project}/runs/new?engine=${encodeURIComponent(bimResourceKey(engineRef))}`}
             />
           )}
         </div>

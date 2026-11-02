@@ -18,7 +18,7 @@ test.describe('live · the problem simple-seq', () => {
     await expect(page.locator('code.case-slug')).toHaveText(CASE);
     await expect(page.getByRole('tab', { name: 'Versions' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'New version' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', new RegExp(`/jobs/new\\?case=${CASE}&revision=\\d+`));
+    await expect(page.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', new RegExp(`/runs/new\\?case=${CASE}&revision=\\d+`));
     // The owner is not told the page is read-only.
     await expect(page.getByRole('note').filter({ hasText: 'need MEMBER' })).toHaveCount(0);
     await capture(page, testInfo, 'case-simple-seq-owner');

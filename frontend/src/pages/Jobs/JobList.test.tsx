@@ -25,7 +25,7 @@ const rows = [
 
 function renderList(options: { organizations?: ReturnType<typeof org>[]; slug?: string; user?: Parameters<typeof renderProjectScreen>[1]['user'] } = {}) {
   return renderProjectScreen(<JobList />, {
-    path: '/app/:org/:project/jobs', url: `/app/${options.slug ?? 'isa-demo'}/qos-benchmarks/jobs`, organizations: options.organizations ?? [group, viewing], user: options.user,
+    path: '/app/:org/:project/runs', url: `/app/${options.slug ?? 'isa-demo'}/qos-benchmarks/runs`, organizations: options.organizations ?? [group, viewing], user: options.user,
   });
 }
 
@@ -75,7 +75,7 @@ describe('Jobs of a project', () => {
 
     const table = await screen.findByRole('region', { name: 'Runs of the project' });
     const opens = within(table).getAllByRole('link', { name: /^Open run/ });
-    expect(opens.map((link) => link.getAttribute('href'))).toEqual([`${ROOT}/jobs/job-running-1`, `${ROOT}/jobs/job-done-3`, `${ROOT}/jobs/job-failed-4`]);
+    expect(opens.map((link) => link.getAttribute('href'))).toEqual([`${ROOT}/runs/job-running-1`, `${ROOT}/runs/job-done-3`, `${ROOT}/runs/job-failed-4`]);
     expect(within(table).getByText('Owner only')).toHaveAttribute('title', 'Runs open only for whoever launched them');
     expect(within(table).getByText('Another member')).toBeInTheDocument();
   });
@@ -117,7 +117,7 @@ describe('Jobs of a project', () => {
 
     expect(await screen.findByText('Retry queued.')).toBeInTheDocument();
     expect(jobsApi.retry).toHaveBeenCalledWith('job-failed-4');
-    expect(screen.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-5`);
+    expect(screen.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/runs/job-new-5`);
   });
 
   it('says why a retry was refused', async () => {
@@ -140,7 +140,7 @@ describe('Jobs of a project', () => {
 
   it('offers a new run to members and not to a viewer', async () => {
     const view = renderList();
-    expect(await screen.findByRole('link', { name: 'New run' })).toHaveAttribute('href', `${ROOT}/jobs/new`);
+    expect(await screen.findByRole('link', { name: 'New run' })).toHaveAttribute('href', `${ROOT}/runs/new`);
     view.unmount();
 
     renderList({ slug: 'read-lab' });
@@ -154,7 +154,7 @@ describe('Jobs of a project', () => {
 
     expect(await screen.findByText('No runs yet')).toBeInTheDocument();
     expect(screen.getByText('Pick a problem version and an engine to run it.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', `${ROOT}/jobs/new`);
+    expect(screen.getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', `${ROOT}/runs/new`);
   });
 
   it('keeps a failure to read the list apart from an empty one, and tries again', async () => {

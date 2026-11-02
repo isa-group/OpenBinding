@@ -4,7 +4,7 @@
  */
 export const RESERVED_SLUGS = new Set([
   // Fixed screens of the prototype
-  'system', 'generator', 'language', 'organizations', 'invitations', 'jobs', 'analysis', 'verifier',
+  'system', 'generator', 'language', 'organizations', 'invitations', 'jobs', 'runs', 'analysis', 'verifier',
   'account', 'admin', 'engines', 'workbench',
   // Section names that earlier layouts and links used at this level
   'cases', 'resources', 'collections', 'studies', 'analytics', 'reports', 'artifacts', 'settings',

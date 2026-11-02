@@ -8,7 +8,7 @@ describe('safeReturnPath', () => {
   it.each([
     '/app',
     '/app/account',
-    '/app/isa-demo/atlas/jobs?tab=queue',
+    '/app/isa-demo/atlas/runs?tab=queue',
     '/invitations/accept',
     '/invitations/accept?token=obi_abc_def',
   ])('lets a sign-in return to %s', (path) => {

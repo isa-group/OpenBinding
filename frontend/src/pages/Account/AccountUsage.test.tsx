@@ -138,7 +138,7 @@ describe('Plan & permissions', () => {
     expect(within(table.getByRole('row', { name: /Max package size/ })).getByText('8,388,608 bytes')).toBeInTheDocument();
     expect(within(table.getByRole('row', { name: /Max problem size/ })).getByText('10⁹')).toBeInTheDocument();
     expect(screen.getByText(/Finished runs are kept for 7 days\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/jobs');
+    expect(screen.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/runs');
   });
 
   it('says "No limit" for the exact value of an unlimited ceiling, and never shows the YAML artefact `.inf`', async () => {

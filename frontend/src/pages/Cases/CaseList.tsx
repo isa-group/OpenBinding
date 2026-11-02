@@ -44,7 +44,7 @@ function CaseRow({ root, entry, canCreate, canAdminister, publicRead, onDelete }
         </span>
       </Link>
       <span className="case-row-actions">
-        {latest && !publicRead && <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}&revision=${latest.revision}`} variant="secondary" size="sm">Run latest</Action>}
+        {latest && !publicRead && <Action to={`${root}/runs/new?case=${encodeURIComponent(item.slug)}&revision=${latest.revision}`} variant="secondary" size="sm">Run latest</Action>}
         {canCreate && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="secondary" size="sm">New version</Action>}
         {canAdminister && <Action variant="danger-outline" size="sm" onClick={onDelete} aria-label={`Delete ${item.name}`}>Delete</Action>}
       </span>

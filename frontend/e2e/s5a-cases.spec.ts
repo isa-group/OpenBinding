@@ -426,7 +426,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(tabs.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
       await expect(main.getByRole('combobox', { name: 'Version', exact: true })).toHaveValue('2');
       await expect(main.getByRole('link', { name: 'New version' })).toHaveAttribute('href', `${ROOT}/workbench?case=flujo-checkout`);
-      await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${ROOT}/jobs/new?case=flujo-checkout&revision=2`);
+      await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${ROOT}/runs/new?case=flujo-checkout&revision=2`);
 
       // The history of the versions is its own tab.
       await tabs.getByRole('tab', { name: 'Versions' }).click();

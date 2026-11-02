@@ -24,7 +24,7 @@ const ROOT = '/app/isa-demo/qos-benchmarks';
 const refusal = (status: number, code = 'refused') => Object.assign(new HttpError(status, 'refused'), { code });
 
 function renderJob(id = 'job-done-3') {
-  return renderProjectScreen(<JobDetail />, { path: '/app/:org/:project/jobs/:job', url: `${ROOT}/jobs/${id}`, organizations: [group] });
+  return renderProjectScreen(<JobDetail />, { path: '/app/:org/:project/runs/:job', url: `${ROOT}/runs/${id}`, organizations: [group] });
 }
 
 const meta = (status: string, over: Partial<Job> = {}) => jobOf('job-done-3', 'random-search', status, status === 'completed' ? 'FEASIBLE' : null, '2026-09-30T09:00:00Z', status === 'completed' ? '2026-09-30T09:01:05Z' : null, over);
@@ -56,7 +56,7 @@ describe('One run', () => {
     // [utest->req~frontend-retire-no-link-to-retired~1]
     expect(within(header).queryByRole('link', { name: 'Analyze' })).not.toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(crumbs).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', `${ROOT}/jobs`);
+    expect(within(crumbs).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', `${ROOT}/runs`);
     expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Runs' })).toHaveAttribute('aria-current', 'page');
     expect(jobsApi.detail).toHaveBeenCalledWith('job-done-3');
   });
@@ -267,7 +267,7 @@ describe('One run', () => {
 
     expect(await screen.findByRole('heading', { name: 'Run not found' })).toBeInTheDocument();
     expect(screen.getByText(/Everyone else, including platform administrators, gets this same answer\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', `${ROOT}/jobs`);
+    expect(screen.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', `${ROOT}/runs`);
     expect(jobsApi.inProject).not.toHaveBeenCalled();
     expect(jobsApi.instance).not.toHaveBeenCalled();
   });
@@ -329,7 +329,7 @@ describe('One run', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
     expect(await screen.findByText('Retry queued as a new attempt.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-5`);
+    expect(screen.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/runs/job-new-5`);
   });
 
   it('explains a run that failed because the engine takes single values only, and points at Engines', async () => {

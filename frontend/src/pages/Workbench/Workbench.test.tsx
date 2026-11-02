@@ -781,7 +781,7 @@ describe('Workbench', () => {
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('The run did not finish');
       expect(alert).toHaveTextContent('The deployment didn’t answer within the budget.');
-      expect(within(alert).getByRole('link', { name: 'See runs' })).toHaveAttribute('href', `${ROOT}/jobs`);
+      expect(within(alert).getByRole('link', { name: 'See runs' })).toHaveAttribute('href', `${ROOT}/runs`);
     });
 
     describe('with range features', () => {

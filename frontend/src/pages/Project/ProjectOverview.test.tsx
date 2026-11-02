@@ -68,7 +68,7 @@ describe('Project overview', () => {
     expect(within(band).getByText('Reference binding cases.')).toBeInTheDocument();
     const root = '/app/isa-demo/qos-benchmarks';
     expect(within(band).getByRole('link', { name: 'New problem' })).toHaveAttribute('href', `${root}/problems`);
-    expect(within(band).getByRole('link', { name: 'Run' })).toHaveAttribute('href', `${root}/jobs/new`);
+    expect(within(band).getByRole('link', { name: 'Run' })).toHaveAttribute('href', `${root}/runs/new`);
     expect(within(band).getByRole('link', { name: 'New study' })).toHaveAttribute('href', `${root}/studies/new`);
     // [utest->req~frontend-retire-reports-entry-points-removed~1]
     expect(within(band).queryByText('New report')).not.toBeInTheDocument();
@@ -115,7 +115,7 @@ describe('Project overview', () => {
     expect(within(list).getByText(/Oct 1, 2026, 09:00 UTC · 40 s/)).toBeInTheDocument();
     const opens = within(list).getAllByRole('link');
     expect(opens.map((link) => link.getAttribute('href'))).toEqual([
-      '/app/isa-demo/qos-benchmarks/jobs/job-1', '/app/isa-demo/qos-benchmarks/jobs/job-3',
+      '/app/isa-demo/qos-benchmarks/runs/job-1', '/app/isa-demo/qos-benchmarks/runs/job-3',
     ]);
     expect(within(list).getAllByText('Owner only')).toHaveLength(1);
     expect(within(list).getByText('Owner only')).toHaveAttribute('title', 'Runs open only for whoever launched them');

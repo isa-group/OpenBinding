@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { scanAddresses } from './vocabulary';
+import { OLD_ADDRESS_SEGMENTS, scanAddresses } from './vocabulary';
 
-// The addresses the frontend builds hold no `cases` segment (`req~frontend-nav-vocabulary-urls~1`, slice 13). The gateway API paths in
-// `src/api/` keep it. The route areas, the moved table and the retired table name the old addresses on purpose, to redirect them.
+// The addresses the frontend builds hold no `cases` or `jobs` segment (`req~frontend-nav-vocabulary-urls~1`, slices 13 and 14). The gateway
+// API paths in `src/api/` keep them. The route areas, the moved table and the retired table name the old addresses on purpose, to redirect them.
 
 describe('the address scan', () => {
   // [utest->req~frontend-nav-vocabulary-urls~1]
@@ -46,6 +46,8 @@ describe('the address scan', () => {
         "export const b = '/app/acme/demo/cases-and-more';",
         "export const c = '/app/acme/demo/showcases';",
         "export const d = 'GET /v1/organizations/acme/projects/demo/problems';",
+        "export const e = '/internal/v1/jobs/{id}';",
+        "export const f = 'POST /v1/cases';",
       ].join('\n'),
       'a.test.tsx': "expect(href).toBe('/app/acme/demo/cases');",
       'fixtures/b.ts': "export const old = '/app/acme/demo/cases';",
@@ -56,8 +58,28 @@ describe('the address scan', () => {
   // [utest->req~frontend-nav-vocabulary-urls~1]
   it('takes the segments as a parameter and reads the files in order', () => {
     const files = { 'b.ts': "export const b = '/app/runs/jobs';", 'a.ts': "export const a = `${root}/jobs/new`;" };
-    expect(scanAddresses(files)).toEqual([]);
+    expect(scanAddresses(files, ['cases'])).toEqual([]);
     expect(scanAddresses(files, ['cases', 'jobs'])).toEqual(['a.ts: ${root}/jobs/new', 'b.ts: /app/runs/jobs']);
+  });
+
+  // [utest->req~frontend-nav-vocabulary-urls~1]
+  it('holds the old cases and jobs segments by default, and reports a jobs address in a page but not the API client or the new one', () => {
+    expect(OLD_ADDRESS_SEGMENTS).toEqual(['cases', 'jobs']);
+    const files = {
+      'pages/J.tsx': [
+        "export const history = '/app/jobs';",
+        'export const one = `${root}/jobs/${id}`;',
+        "export const launch = '/app/:org/:project/jobs/new';",
+        "export const fine = '/app/runs';",
+        'export const fineToo = `${root}/runs/${id}`;',
+      ].join('\n'),
+      'src/api/jobs.ts': 'export const list = (org, project) => `${projectRoot(org, project)}/jobs?include_results=false`;',
+    };
+    expect(scanAddresses(files)).toEqual([
+      'pages/J.tsx: /app/jobs',
+      'pages/J.tsx: ${root}/jobs/${id}',
+      'pages/J.tsx: /app/:org/:project/jobs/new',
+    ]);
   });
 });
 
@@ -77,7 +99,7 @@ describe('the addresses of the application sources', () => {
   });
 
   // [utest->req~frontend-nav-vocabulary-urls~1]
-  it('builds no address with a cases segment', () => {
+  it('builds no address with a cases or jobs segment', () => {
     expect(scanAddresses(scanned)).toEqual([]);
   });
 

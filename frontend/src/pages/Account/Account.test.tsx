@@ -36,7 +36,7 @@ function renderAccount(user: UserProfile = alice, entry = '/app/account') {
           <Route path="/app/account" element={<Account />} />
           <Route path="/app/account/keys" element={<h1>Keys screen</h1>} />
           <Route path="/app/account/identities" element={<h1>Identities screen</h1>} />
-          <Route path="/app/jobs" element={<h1>Job history screen</h1>} />
+          <Route path="/app/runs" element={<h1>Job history screen</h1>} />
           <Route path="/login" element={<h1>Sign in screen</h1>} />
         </Routes>
       </AuthContext.Provider>

@@ -140,15 +140,18 @@ export function scanSource(source: string, words: RegExp, file = 'source.tsx'): 
   return [...found.values()].sort((a, b) => a.line - b.line);
 }
 
-/** The path segments that addresses no longer hold; slice 14 adds `jobs` and the publications slice `publications`. */
-export const OLD_ADDRESS_SEGMENTS: readonly string[] = ['cases'];
+/** The path segments that addresses no longer hold; the publications slice adds `publications`. */
+export const OLD_ADDRESS_SEGMENTS: readonly string[] = ['cases', 'jobs'];
+
+/** A path of an HTTP API (`/v1/…`, `/internal/v1/…`), not an address of the application. */
+const API_PATH = /(^|\/)v\d+\//;
 
 /**
  * The addresses in the sources that hold one of the old path `segments`: a string or template literal with `/<segment>` followed by the end
  * of the text, `/`, `?`, `#` or a `${` substitution (``${root}/cases/${slug}``, `'/app/:org/:project/cases'`). Each is reported as `file: text`, the text as
- * written between the quotes. Comments, imports, a single word such as `'cases'` (a section key) and the HTTP client layer (`src/api/`, which
- * names the gateway's paths) are not reported, nor are test files, test kits and fixtures. The files that name old addresses on purpose
- * (the route areas, the moved and retired tables) are left out by the caller.
+ * written between the quotes. Comments, imports, a single word such as `'cases'` (a section key), a versioned HTTP path (`/v1/jobs/{id}`, an
+ * engine's endpoint) and the HTTP client layer (`src/api/`, which names the gateway's paths) are not reported, nor are test files, test kits
+ * and fixtures. The files that name old addresses on purpose (the route areas, the moved and retired tables) are left out by the caller.
  */
 // [impl->req~frontend-nav-vocabulary-urls~1]
 export function scanAddresses(files: Readonly<Record<string, string>>, segments: readonly string[] = OLD_ADDRESS_SEGMENTS): string[] {
@@ -163,7 +166,7 @@ export function scanAddresses(files: Readonly<Record<string, string>>, segments:
         if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node)) {
           // The text between the quotes or backticks, the substitutions as written.
           const text = node.getText(tree).slice(1, -1);
-          if (old.test(text)) hits.push(`${path}: ${text}`);
+          if (old.test(text) && !API_PATH.test(text)) hits.push(`${path}: ${text}`);
           if (!ts.isTemplateExpression(node)) return;
         }
         ts.forEachChild(node, visit);

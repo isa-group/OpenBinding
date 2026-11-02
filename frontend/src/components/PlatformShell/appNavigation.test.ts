@@ -51,7 +51,7 @@ describe('problemsEntry and labEntries', () => {
   it('lead into the current project, and Runs and Generator do not need one', () => {
     expect(problemsEntry(organization, project)).toEqual({ label: 'Problems', to: '/app/isa-demo/qos/problems' });
     expect(labEntries(organization, project).map(({ id, label, to }) => [id, label, to])).toEqual([
-      ['runs', 'Runs', '/app/jobs'], ['studies', 'Studies', '/app/isa-demo/qos/studies'], ['generator', 'Generator', '/app/generator'],
+      ['runs', 'Runs', '/app/runs'], ['studies', 'Studies', '/app/isa-demo/qos/studies'], ['generator', 'Generator', '/app/generator'],
     ]);
     for (const address of [...addressesOf([problemsEntry(organization, project)]), ...addressesOf(labEntries(organization, project))]) {
       expect(matchRoutes(routed, address), address).not.toBeNull();
@@ -76,7 +76,7 @@ describe('createItems', () => {
       ['Problem', '/app/isa-demo/qos/problems?create=problem'],
       ['Collection', '/app/isa-demo/qos/collections?create=collection'],
       ['Study', '/app/isa-demo/qos/studies/new'],
-      ['Run', '/app/isa-demo/qos/jobs/new'],
+      ['Run', '/app/isa-demo/qos/runs/new'],
     ]);
     for (const address of addressesOf(createItems(organization, project))) {
       expect(matchRoutes(routed, pathOf(address)), address).not.toBeNull();
@@ -120,9 +120,9 @@ describe('currentSection', () => {
     ['/app/isa-demo/settings/members', 'home'],
     ['/app/isa-demo/qos/problems', 'problems'],
     ['/app/isa-demo/qos/problems/routing', 'problems'],
-    ['/app/jobs', 'lab'],
-    ['/app/isa-demo/qos/jobs', 'lab'],
-    ['/app/isa-demo/qos/jobs/new', 'lab'],
+    ['/app/runs', 'lab'],
+    ['/app/isa-demo/qos/runs', 'lab'],
+    ['/app/isa-demo/qos/runs/new', 'lab'],
     ['/app/isa-demo/qos/studies', 'lab'],
     ['/app/isa-demo/qos/studies/engines-vs-seeds', 'lab'],
     ['/app/generator', 'lab'],
@@ -162,8 +162,8 @@ describe('currentSection', () => {
 
 describe('labEntryOf', () => {
   it('tells the entry of the Lab menu an address belongs to', () => {
-    expect(labEntryOf('/app/jobs')).toBe('runs');
-    expect(labEntryOf('/app/isa-demo/qos/jobs/job-1')).toBe('runs');
+    expect(labEntryOf('/app/runs')).toBe('runs');
+    expect(labEntryOf('/app/isa-demo/qos/runs/job-1')).toBe('runs');
     expect(labEntryOf('/app/isa-demo/qos/studies/s1')).toBe('studies');
     expect(labEntryOf('/app/generator')).toBe('generator');
     expect(labEntryOf('/app/isa-demo/qos/problems')).toBeNull();

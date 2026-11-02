@@ -93,12 +93,12 @@ describe('ProjectTabs', () => {
     render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
     const nav = screen.getByRole('navigation', { name: 'Project sections' });
-    // Runs lead to /jobs until the run address slice moves them.
+    // [utest->req~frontend-nav-vocabulary-urls~1]
     expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Overview', '/app/isa-demo/qos'],
       ['Problems', '/app/isa-demo/qos/problems'],
       ['Collections', '/app/isa-demo/qos/collections'],
-      ['Runs', '/app/isa-demo/qos/jobs'],
+      ['Runs', '/app/isa-demo/qos/runs'],
       ['Studies', '/app/isa-demo/qos/studies'],
       ['Published', '/app/isa-demo/qos/published'],
       ['Settings', '/app/isa-demo/qos/settings'],

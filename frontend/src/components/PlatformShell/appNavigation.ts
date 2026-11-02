@@ -1,5 +1,6 @@
 import type { Organization, Project } from '../../api/platform';
 import { PROBLEMS_SEGMENT } from '../../routes/paths/problems';
+import { RUN_HISTORY_PATH, RUNS_SEGMENT } from '../../routes/paths/runs';
 
 export interface NavLinkItem {
   to: string;
@@ -14,8 +15,6 @@ export interface MenuEntry {
   hint?: string;
 }
 
-// Until the slice that renames the run screens lands, their address keeps the interim segment; that slice switches it to `runs`.
-const RUNS_SEGMENT = 'jobs';
 const COLLECTIONS_SEGMENT = 'collections';
 const STUDIES_SEGMENT = 'studies';
 
@@ -37,7 +36,7 @@ export const mainLinks = {
 } as const satisfies Record<string, NavLinkItem>;
 
 export const labLinks = {
-  runs: { to: `/app/${RUNS_SEGMENT}`, label: 'Runs' },
+  runs: { to: RUN_HISTORY_PATH, label: 'Runs' },
   generator: { to: '/app/generator', label: 'Generator' },
 } as const satisfies Record<string, NavLinkItem>;
 
@@ -87,7 +86,7 @@ export function createItems(organization?: Organization, project?: Project): Men
 }
 
 /** The first segments under `/app` that name a place of their own, not an organization. */
-const APP_PLACES = new Set(['admin', 'jobs', 'generator', 'engines', 'language', 'account', 'system', 'verifier', 'analysis', 'organizations']);
+const APP_PLACES = new Set(['admin', RUNS_SEGMENT, 'jobs', 'generator', 'engines', 'language', 'account', 'system', 'verifier', 'analysis', 'organizations']);
 /** Of those, the places that belong to no entry of the header. */
 const UNMARKED_PLACES = new Set(['account', 'system', 'verifier', 'analysis']);
 /** `/app/:org/…` screens that belong to the organization, not to one of its projects. */
@@ -102,7 +101,7 @@ function projectSegment(pathname: string): string | undefined {
 /** Which entry of the Lab menu the address belongs to. */
 export function labEntryOf(pathname: string): LabEntryId | null {
   if (under(pathname, labLinks.generator.to)) return 'generator';
-  if (under(pathname, labLinks.runs.to) || sameSegment(projectSegment(pathname), RUNS_SEGMENT, 'runs')) return 'runs';
+  if (under(pathname, labLinks.runs.to) || sameSegment(projectSegment(pathname), RUNS_SEGMENT)) return 'runs';
   if (sameSegment(projectSegment(pathname), STUDIES_SEGMENT)) return 'studies';
   return null;
 }

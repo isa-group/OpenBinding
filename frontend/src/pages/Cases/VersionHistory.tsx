@@ -66,7 +66,7 @@ function VersionCard({ root, caseSlug, revision, previous, latest, model, public
         <div className="case-rev-links">
           <Link to={href} viewTransition>Open</Link>
           {previous && <Link to={problemPath(root, caseSlug, 'versions', { from: previous.revision, to: revision.revision })} viewTransition>Compare with v{previous.revision}</Link>}
-          {!publicRead && <Link to={`${root}/jobs/new?case=${encodeURIComponent(caseSlug)}&revision=${revision.revision}`} viewTransition>Run</Link>}
+          {!publicRead && <Link to={`${root}/runs/new?case=${encodeURIComponent(caseSlug)}&revision=${revision.revision}`} viewTransition>Run</Link>}
           {!publicRead && <Link to={`${root}/studies/new?case=${encodeURIComponent(caseSlug)}&revision=${revision.revision}`} viewTransition>Add to study</Link>}
           {!publicRead && <Link to={`${root}/collections`} viewTransition>Add to collection</Link>}
           {revision.source_snapshot_id && <Link to={problemPath(root, caseSlug, 'source', { version: revision.revision })} viewTransition>Compiled snapshot</Link>}

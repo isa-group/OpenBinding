@@ -111,7 +111,7 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
           <>
             <CheckResult wb={wb} plan={plan} pricingHref="/pricing" />
             <PackageEditor wb={wb} />
-            <RunPanel wb={wb} orgSlug={organization.slug} jobsHref={`${root}/jobs`} />
+            <RunPanel wb={wb} orgSlug={organization.slug} jobsHref={`${root}/runs`} />
             <ActionBar
               wb={wb}
               canSave={canSave}

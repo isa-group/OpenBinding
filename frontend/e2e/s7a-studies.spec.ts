@@ -820,7 +820,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const result = main.getByRole('region', { name: 'Result' });
       await expect(result.getByText('0.121')).toBeVisible();
       await expect(result.getByText('430')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open run' })).toHaveAttribute('href', `${ROOT}/jobs/00000000-0000-4000-8000-000000000302`);
+      await expect(main.getByRole('link', { name: 'Open run' })).toHaveAttribute('href', `${ROOT}/runs/00000000-0000-4000-8000-000000000302`);
       const rivals = main.getByRole('list', { name: 'Cost of each engine on this input' });
       await expect(rivals.getByRole('listitem')).toHaveCount(2);
       await expect(rivals.getByRole('link', { name: 'evolutionary' })).toHaveAttribute('href', cellPath(0));

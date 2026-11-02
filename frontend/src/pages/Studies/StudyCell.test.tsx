@@ -73,7 +73,7 @@ describe('One cell of a run, inside the Results tab', () => {
     expect(within(result).getByText('0.121')).toBeInTheDocument();
     expect(within(result).getByText('430')).toBeInTheDocument();
     expect(within(result).getByText('58 s')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open run' })).toHaveAttribute('href', `${ROOT}/jobs/00000000-0000-4000-8000-000000000302`);
+    expect(screen.getByRole('link', { name: 'Open run' })).toHaveAttribute('href', `${ROOT}/runs/00000000-0000-4000-8000-000000000302`);
     expect(screen.getByRole('link', { name: 'Back to the results' })).toHaveAttribute('href', RESULTS);
     expect(screen.getByRole('link', { name: 'Back to the progress' })).toHaveAttribute('href', `${STUDY}/progress?run=${RUN_ID}`);
     expect(screen.getByRole('tab', { name: 'Results' })).toHaveAttribute('aria-selected', 'true');

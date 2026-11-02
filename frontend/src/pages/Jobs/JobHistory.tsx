@@ -100,8 +100,8 @@ function HistoryBody() {
 
   const hrefOf = (job: JobSummary): string | null => {
     const project = data?.projectOf.get(job.id);
-    if (project) return `/app/${project.org}/${project.slug}/jobs/${job.id}`;
-    return fallback ? `${fallback}/jobs/${job.id}` : null;
+    if (project) return `/app/${project.org}/${project.slug}/runs/${job.id}`;
+    return fallback ? `${fallback}/runs/${job.id}` : null;
   };
 
   const act = async (job: JobSummary, kind: 'cancel' | 'retry') => {
@@ -115,7 +115,7 @@ function HistoryBody() {
         const made = await jobsApi.retry(job.id);
         const project = data?.projectOf.get(job.id);
         const base = project ? `/app/${project.org}/${project.slug}` : fallback;
-        setNotice({ tone: 'success', text: 'Retry queued.', follow: base ? `${base}/jobs/${made.id}` : undefined });
+        setNotice({ tone: 'success', text: 'Retry queued.', follow: base ? `${base}/runs/${made.id}` : undefined });
       }
       history.reload();
     } catch (caught) {
@@ -133,7 +133,7 @@ function HistoryBody() {
           <p>Everything you’ve run, across projects.</p>
         </div>
         <div className="proj-actions">
-          <ProjectPicker label="See a project’s runs instead" destination={(org, project) => `/app/${org}/${project}/jobs`} />
+          <ProjectPicker label="See a project’s runs instead" destination={(org, project) => `/app/${org}/${project}/runs`} />
         </div>
       </header>
 
@@ -168,7 +168,7 @@ function HistoryBody() {
           {history.status === 'loading' && !data && <div role="status" aria-busy="true"><span className="sr-only">Loading your runs…</span><Skeleton variant="panel" /></div>}
 
           {data && data.jobs.length === 0 && (
-            <EmptyState icon={<History />} title="Nothing within your retention window" dashed action={<ProjectPicker label="Start a run" variant="primary" destination={(org, project) => `/app/${org}/${project}/jobs/new`} />}>
+            <EmptyState icon={<History />} title="Nothing within your retention window" dashed action={<ProjectPicker label="Start a run" variant="primary" destination={(org, project) => `/app/${org}/${project}/runs/new`} />}>
               No runs within your retention window.
             </EmptyState>
           )}
@@ -217,7 +217,7 @@ function HistoryBody() {
   );
 }
 
-/** Your own runs across projects (`job-history`, `/app/jobs`), as far back as your plan keeps them. */
+/** Your own runs across projects (`job-history`, `/app/runs`), as far back as your plan keeps them. */
 export function JobHistory() {
   return <HistoryBody />;
 }

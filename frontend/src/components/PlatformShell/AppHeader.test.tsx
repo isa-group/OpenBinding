@@ -135,7 +135,7 @@ describe('AppHeader', () => {
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const menu = document.getElementById('app-lab-menu') as HTMLElement;
-    expect(entriesOf(menu)).toEqual([['Runs', '/app/jobs'], ['Studies', '/app/isa-demo/qos/studies'], ['Generator', '/app/generator']]);
+    expect(entriesOf(menu)).toEqual([['Runs', '/app/runs'], ['Studies', '/app/isa-demo/qos/studies'], ['Generator', '/app/generator']]);
 
     within(menu).getByRole('link', { name: 'Runs' }).focus();
     fireEvent.keyDown(within(menu).getByRole('link', { name: 'Runs' }), { key: 'Escape' });
@@ -160,7 +160,7 @@ describe('AppHeader', () => {
     expect(studies).toHaveAttribute('aria-disabled', 'true');
     expect(studies).not.toHaveAttribute('href');
     expect(studies).toHaveAccessibleDescription('Needs a project');
-    expect(within(menu).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/jobs');
+    expect(within(menu).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/runs');
     expect(within(menu).getByRole('link', { name: 'Generator' })).toHaveAttribute('href', '/app/generator');
   });
 
@@ -178,7 +178,7 @@ describe('AppHeader', () => {
     ['/app', 'Home'],
     ['/app/isa-demo/settings/members', 'Home'],
     ['/app/isa-demo/qos/problems', 'Problems'],
-    ['/app/isa-demo/qos/jobs/job-1', 'Lab'],
+    ['/app/isa-demo/qos/runs/job-1', 'Lab'],
     ['/app/isa-demo/qos/studies/engines-vs-seeds', 'Lab'],
     ['/app/generator', 'Lab'],
     ['/app/engines/registrations', 'Engines'],
@@ -217,7 +217,7 @@ describe('AppHeader', () => {
       ['Problem', '/app/isa-demo/qos/problems?create=problem'],
       ['Collection', '/app/isa-demo/qos/collections?create=collection'],
       ['Study', '/app/isa-demo/qos/studies/new'],
-      ['Run', '/app/isa-demo/qos/jobs/new'],
+      ['Run', '/app/isa-demo/qos/runs/new'],
     ]);
 
     fireEvent.keyDown(within(menu).getAllByRole('link')[0], { key: 'Escape' });
@@ -328,10 +328,10 @@ describe('AppHeader', () => {
       expect(entriesOf(mobileNav())).toEqual([
         ['ISA Demo Group / QoS Benchmarks', '/app'],
         ['Home', '/app'], ['Problems', '/app/isa-demo/qos/problems'],
-        ['Runs', '/app/jobs'], ['Studies', '/app/isa-demo/qos/studies'], ['Generator', '/app/generator'],
+        ['Runs', '/app/runs'], ['Studies', '/app/isa-demo/qos/studies'], ['Generator', '/app/generator'],
         ['Engines', '/engines'], ['Language', '/language'], ['Admin', '/app/admin'],
         ['Problem', '/app/isa-demo/qos/problems?create=problem'], ['Collection', '/app/isa-demo/qos/collections?create=collection'],
-        ['Study', '/app/isa-demo/qos/studies/new'], ['Run', '/app/isa-demo/qos/jobs/new'],
+        ['Study', '/app/isa-demo/qos/studies/new'], ['Run', '/app/isa-demo/qos/runs/new'],
       ]);
       expect(within(mobileNav()).getByRole('button', { name: 'Search' })).toBeInTheDocument();
     });

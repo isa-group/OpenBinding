@@ -152,7 +152,7 @@ export function States() {
               variant="404"
               code="not_found"
               title="Run not found"
-              actions={<StateAction tone="link" to="/app/jobs">Go to my runs</StateAction>}
+              actions={<StateAction tone="link" to="/app/runs">Go to my runs</StateAction>}
             />
           </>
         )}
@@ -197,7 +197,7 @@ export function States() {
               code="concurrency_limit_exceeded · Retry-After 15"
               retryAfter={15}
               onRetry={() => undefined}
-              actions={<StateAction tone="link" to="/app/jobs">View the running run</StateAction>}
+              actions={<StateAction tone="link" to="/app/runs">View the running run</StateAction>}
             >
               You have 1 of 1 concurrent runs going. Waiting helps here: a slot frees up as soon as one of your runs finishes.
             </ErrorState>

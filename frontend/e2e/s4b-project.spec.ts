@@ -459,7 +459,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `overview-${name}-public-read`);
 
       // Its members-only parts show the neutral gate, not the screens (the old package address leads to the settings).
-      for (const part of ['jobs', 'package', 'settings']) {
+      for (const part of ['runs', 'package', 'settings']) {
         await page.goto(`/app/open-lab/open-bench/${part}`);
         await expect(main.getByRole('heading', { name: 'Members only' })).toBeVisible();
         await expect(main.getByRole('link', { name: 'Back to the project' })).toHaveAttribute('href', '/app/open-lab/open-bench');

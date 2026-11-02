@@ -176,9 +176,9 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   ];
 
   if (receipt) {
-    const followed = `${root}/jobs/${receipt.id}`;
+    const followed = `${root}/runs/${receipt.id}`;
     return (
-      <JobFrame organization={organization} project={project} trail={[{ label: 'Runs', to: `${root}/jobs` }, { label: 'New run' }]} width="lg">
+      <JobFrame organization={organization} project={project} trail={[{ label: 'Runs', to: `${root}/runs` }, { label: 'New run' }]} width="lg">
         <section className="job-sent" aria-live="polite" aria-label="Run accepted">
           <span className="job-sent-mark" aria-hidden="true">✓</span>
           <div>
@@ -199,7 +199,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   const casesFailure = cases.status === 'error' ? classifyAuthError(cases.error) : null;
 
   return (
-    <JobFrame organization={organization} project={project} trail={[{ label: 'Runs', to: `${root}/jobs` }, { label: 'New run' }]} width="lg">
+    <JobFrame organization={organization} project={project} trail={[{ label: 'Runs', to: `${root}/runs` }, { label: 'New run' }]} width="lg">
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>New run</h1>
@@ -292,7 +292,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
 
             <div className="job-footer">
               <span className="job-footer-side">
-                <Action to={`${root}/jobs`} variant="ghost">Cancel</Action>
+                <Action to={`${root}/runs`} variant="ghost">Cancel</Action>
                 {step > 1 && <Action variant="secondary" onClick={() => setStep(step - 1)}>Back</Action>}
               </span>
               <span className="job-footer-side">
@@ -317,7 +317,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   );
 }
 
-/** Start a run (`job-launch`, `/app/:org/:project/jobs/new`): what to solve, the exact engine, its settings, and what the plan reduces. */
+/** Start a run (`job-launch`, `/app/:org/:project/runs/new`): what to solve, the exact engine, its settings, and what the plan reduces. */
 export function JobLaunch() {
   const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   if (waiting) return <ProjectSkeleton />;

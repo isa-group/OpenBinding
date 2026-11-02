@@ -120,7 +120,7 @@ export function Provenance({ provenance, instance, origin, root, created, retryO
         <Fact label="Checked by">{pins.checkedBy ?? 'bim-reference-evaluator'}</Fact>
         <Fact label="Limits applied">{pins.limits.length ? pins.limits.join(' · ') : 'Plan defaults'}</Fact>
         {created && <Fact label="Sent">{formatDateTime(created) ?? '—'}</Fact>}
-        {retryOf && <Fact label="Retry of"><Link to={`${root}/jobs/${retryOf}`} viewTransition>{retryOf.slice(0, 8)}…</Link></Fact>}
+        {retryOf && <Fact label="Retry of"><Link to={`${root}/runs/${retryOf}`} viewTransition>{retryOf.slice(0, 8)}…</Link></Fact>}
       </div>
       <span className="job-buttons">{actions}</span>
     </section>

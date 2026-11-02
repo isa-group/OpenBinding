@@ -60,7 +60,7 @@ export function VersionRuns({ organization, project, content, canCreate }: {
           icon={<Play />}
           title="No runs of this problem yet"
           dashed
-          action={canCreate ? <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}`} variant="primary">Start a run</Action> : undefined}
+          action={canCreate ? <Action to={`${root}/runs/new?case=${encodeURIComponent(item.slug)}`} variant="primary">Start a run</Action> : undefined}
         >
           Runs you can open that started from a version of {item.name} are listed here.
         </EmptyState>
@@ -79,7 +79,7 @@ export function VersionRuns({ organization, project, content, canCreate }: {
           <tbody>
             {data.map(({ job, revision }) => (
               <tr key={job.id}>
-                <td><Link to={`${root}/jobs/${encodeURIComponent(job.id)}`} viewTransition>Run {job.id.slice(0, 8)}</Link></td>
+                <td><Link to={`${root}/runs/${encodeURIComponent(job.id)}`} viewTransition>Run {job.id.slice(0, 8)}</Link></td>
                 <td><Link to={problemPath(root, item.slug, undefined, { version: revision })} viewTransition>Version {revision}</Link></td>
                 <td>{job.engine_id}</td>
                 <td><StatusChip status={job.status} termination={job.termination} /></td>

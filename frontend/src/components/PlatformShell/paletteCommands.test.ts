@@ -80,7 +80,7 @@ describe('buildCommands', () => {
 
     expect(commands.filter((command) => command.group === 'Tools')).toEqual([]);
     expect(goTo.map((command) => [command.label, command.href])).toEqual([
-      ['Home', '/app'], ['Runs', '/app/jobs'], ['Generator', '/app/generator'], ['Engines', '/engines'], ['Language', '/language'],
+      ['Home', '/app'], ['Runs', '/app/runs'], ['Generator', '/app/generator'], ['Engines', '/engines'], ['Language', '/language'],
       ['Explore', '/explore'], ['Verify', '/verify'], ['Pricing', '/pricing'],
     ]);
     expect(commands.filter((command) => ['Jobs', 'Verifier', 'Engine catalog', 'My engines', 'Generator lab', 'Workbench'].includes(command.label))).toEqual([]);
@@ -98,7 +98,7 @@ describe('buildCommands', () => {
       ['New problem', '/app/isa-demo/qos-benchmarks/problems?create=problem'],
       ['New collection', '/app/isa-demo/qos-benchmarks/collections?create=collection'],
       ['New study', '/app/isa-demo/qos-benchmarks/studies/new'],
-      ['New run', '/app/isa-demo/qos-benchmarks/jobs/new'],
+      ['New run', '/app/isa-demo/qos-benchmarks/runs/new'],
     ]);
     expect(created(without)).toEqual([]);
     expect(inProject.filter((command) => command.label === 'New job' || command.label === 'New case')).toEqual([]);

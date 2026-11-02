@@ -217,7 +217,7 @@ describe('Problem page', () => {
       await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
       const base = '/app/member-lab/qos-benchmarks';
       expect(screen.getByRole('link', { name: 'New version' })).toHaveAttribute('href', `${base}/workbench?case=flujo-checkout`);
-      expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${base}/jobs/new?case=flujo-checkout&revision=2`);
+      expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${base}/runs/new?case=flujo-checkout&revision=2`);
       expect(screen.getByRole('link', { name: 'Open in Workbench' })).toHaveAttribute('href', `${base}/workbench?case=flujo-checkout&revision=${r2.id}`);
       expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', `${base}/studies/new?case=flujo-checkout&revision=2`);
       expect(screen.queryByRole('button', { name: 'Delete problem' })).not.toBeInTheDocument();

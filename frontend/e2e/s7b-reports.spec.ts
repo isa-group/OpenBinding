@@ -249,14 +249,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test.describe.configure({ mode: 'default' });
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('retired analysis screens · old links land on the jobs list or on the study run', async ({ page }, testInfo) => {
+    test('retired analysis screens · old links land on the run history or on the study run', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
 
       await page.goto('/app/analysis');
-      await expect(page).toHaveURL(/\/app\/jobs$/);
+      await expect(page).toHaveURL(/\/app\/runs$/);
       await page.goto('/app/analysis/workspace?job=x');
-      await expect(page).toHaveURL(/\/app\/jobs$/);
+      await expect(page).toHaveURL(/\/app\/runs$/);
 
       await page.goto(`/app/analysis?org=isa-demo&project=qos-benchmarks&study=engines-vs-seeds&run=${RUN_ID}`);
       await expect(page).toHaveURL(new RegExp(`${ROOT}/studies/engines-vs-seeds/progress\\?run=${RUN_ID}$`));

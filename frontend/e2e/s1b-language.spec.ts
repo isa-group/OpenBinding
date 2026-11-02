@@ -493,7 +493,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The run action asks which project.
       await main.getByRole('button', { name: 'Run with this engine' }).click();
       await expect(main.getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' }))
-        .toHaveAttribute('href', `/app/isa-demo/qos-benchmarks/jobs/new?engine=${encodeURIComponent(`lucia/edge-solver@0.3.1#${EDGE_DIGEST}`)}`);
+        .toHaveAttribute('href', `/app/isa-demo/qos-benchmarks/runs/new?engine=${encodeURIComponent(`lucia/edge-solver@0.3.1#${EDGE_DIGEST}`)}`);
 
       await main.getByRole('tab', { name: /Modes/ }).click();
       await expect(main.getByLabel('Plan to preview')).toHaveValue('RESEARCH');

@@ -189,13 +189,13 @@ describe('Overview tab of the problem page', () => {
     renderRevision();
 
     await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
-    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${root}/jobs/new?case=flujo-checkout&revision=2`);
+    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${root}/runs/new?case=flujo-checkout&revision=2`);
     expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', `${root}/studies/new?case=flujo-checkout&revision=2`);
     const select = screen.getByLabelText('Version');
     expect(within(select).getAllByRole('option').map((option) => option.textContent)).toEqual(['Version 2 · latest', 'Version 1']);
     fireEvent.change(select, { target: { value: '1' } });
     await waitFor(() => expect(screen.getByLabelText('Version')).toHaveValue('1'));
-    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${root}/jobs/new?case=flujo-checkout&revision=1`);
+    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${root}/runs/new?case=flujo-checkout&revision=1`);
   });
 
   it('says there is no compiled model when the version has no snapshot, and keeps the resources', async () => {

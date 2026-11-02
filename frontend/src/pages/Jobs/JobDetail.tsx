@@ -54,7 +54,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
 
   const meta: Job | null = inProject.data ?? own.data?.find((row) => row.id === jobId) ?? null;
   const failure = live.phase === 'error' ? classifyAuthError(live.error) : null;
-  const trail = [{ label: 'Runs', to: `${root}/jobs` }, { label: `Run ${shortJobId(jobId)}` }];
+  const trail = [{ label: 'Runs', to: `${root}/runs` }, { label: `Run ${shortJobId(jobId)}` }];
 
   if (live.phase === 'loading') {
     return (
@@ -76,7 +76,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
         )}
         {failure?.status === 401 && <Notice tone="warning">Your session ended{marker(failure)}. Log in again to see this run.</Notice>}
         {(!failure || failure.kind === 'not-found') && (
-          <JobMissing title="Run not found" actions={<Action to={`${root}/jobs`} variant="primary">All runs</Action>}>
+          <JobMissing title="Run not found" actions={<Action to={`${root}/runs`} variant="primary">All runs</Action>}>
             Runs open only for whoever launched them. Everyone else, including platform administrators, gets this same answer.
           </JobMissing>
         )}
@@ -122,7 +122,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
     setOutcome(null);
     try {
       const made = await jobsApi.retry(jobId);
-      setOutcome({ tone: 'success', text: 'Retry queued as a new attempt.', follow: `${root}/jobs/${made.id}` });
+      setOutcome({ tone: 'success', text: 'Retry queued as a new attempt.', follow: `${root}/runs/${made.id}` });
     } catch (caught) {
       setOutcome({ tone: 'error', refusal: refusalOf(caught, 'retry') });
     } finally {
@@ -158,7 +158,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
           {siblings.length > 0 && (
             <label className="job-select">
               <span>Another of your runs</span>
-              <select aria-label="Another of your runs" value={jobId} onChange={(event) => navigate(`${root}/jobs/${event.target.value}`, { viewTransition: true })}>
+              <select aria-label="Another of your runs" value={jobId} onChange={(event) => navigate(`${root}/runs/${event.target.value}`, { viewTransition: true })}>
                 <option value={jobId}>This run</option>
                 {siblings.map((row) => <option key={row.id} value={row.id}>{row.engine_id} · {formatDateTime(row.created_at) ?? row.id.slice(0, 8)}</option>)}
               </select>
@@ -172,7 +172,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
           <Action variant="secondary" onClick={() => void copy(`run ${jobId}`, 'ref')}>
             {status('ref') === 'copied' ? 'Copied' : status('ref') === 'failed' ? 'Copy failed' : 'Copy reference'}
           </Action>
-          <Action variant="ghost" onClick={() => void copy(`${window.location.origin}${root}/jobs/${jobId}`, 'link')}>
+          <Action variant="ghost" onClick={() => void copy(`${window.location.origin}${root}/runs/${jobId}`, 'link')}>
             {status('link') === 'copied' ? 'Link copied' : status('link') === 'failed' ? 'Copy failed' : 'Copy link'}
           </Action>
         </div>
@@ -214,7 +214,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
   );
 }
 
-/** One run (`job-detail`, `/app/:org/:project/jobs/:job`): live state, the authoritative result, the settings and what it ran on. */
+/** One run (`job-detail`, `/app/:org/:project/runs/:job`): live state, the authoritative result, the settings and what it ran on. */
 export function JobDetail() {
   const { job: jobId = '' } = useParams();
   const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();

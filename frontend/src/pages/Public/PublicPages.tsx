@@ -231,7 +231,7 @@ export function WorkbenchPage() {
                 <span>Save this package as a problem version in one of your projects, then run it with an exact engine.</span>
                 <div className="workbench-account-actions">
                   <ProjectPicker variant="primary" label="Save to a project" destination={(org, project) => `/app/${org}/${project}/workbench${selected?.example ? `?example=${encodeURIComponent(selected.example)}` : ''}`} />
-                  <ProjectPicker label="Run" destination={(org, project) => `/app/${org}/${project}/jobs/new`} />
+                  <ProjectPicker label="Run" destination={(org, project) => `/app/${org}/${project}/runs/new`} />
                 </div>
                 {selected && !selected.example && <small>An uploaded file isn’t carried across: add it again in the project workbench.</small>}
               </>

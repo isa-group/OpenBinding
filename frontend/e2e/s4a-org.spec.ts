@@ -322,7 +322,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const activity = main.getByRole('region', { name: 'Recent activity' });
       await expect(activity.getByText('Running')).toBeVisible();
       await expect(activity.getByText('No feasible binding')).toBeVisible();
-      await expect(activity.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', '/app/jobs');
+      await expect(activity.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', '/app/runs');
       const plan = main.getByRole('region', { name: 'Your plan' });
       await expect(plan.getByText('RESEARCH', { exact: true })).toBeVisible();
       await expect(plan.getByText('Up to 3')).toBeVisible();

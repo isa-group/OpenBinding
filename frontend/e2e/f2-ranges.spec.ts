@@ -140,7 +140,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         : route.fallback()));
       const main = page.locator('#platform-main');
 
-      await page.goto(`${ROOT}/jobs/new?case=checkout-flow&revision=2`);
+      await page.goto(`${ROOT}/runs/new?case=checkout-flow&revision=2`);
       await main.getByRole('button', { name: 'Continue' }).click();
       const engines = main.getByRole('radiogroup', { name: 'Engine' });
       const off = engines.getByRole('radio', { name: /^random-search/ });
@@ -220,7 +220,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     }));
     const main = page.locator('#platform-main');
 
-    await page.goto(`${ROOT}/jobs/job-range-failed`);
+    await page.goto(`${ROOT}/runs/job-range-failed`);
     const alert = main.getByRole('alert').filter({ hasText: 'This engine only accepts single values' });
     await expect(alert).toContainText(`featureValues interval is not declared by this mode (${pointer})`);
     await expect(alert).not.toContainText('Nothing was started.');

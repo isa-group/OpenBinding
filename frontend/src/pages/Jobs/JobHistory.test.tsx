@@ -36,7 +36,7 @@ const catalog = { plans: { BASIC: plan(7), ADVANCED: plan(90), RESEARCH: plan(18
 const refusal = (status: number, code = 'refused') => Object.assign(new HttpError(status, 'refused'), { code });
 
 function renderHistory() {
-  return renderProjectScreen(<JobHistory />, { path: '/app/jobs', url: '/app/jobs', organizations: [group] });
+  return renderProjectScreen(<JobHistory />, { path: '/app/runs', url: '/app/runs', organizations: [group] });
 }
 
 describe('My jobs', () => {
@@ -61,7 +61,7 @@ describe('My jobs', () => {
     const list = await screen.findByRole('list', { name: 'Your runs' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(5);
     const links = await within(list).findAllByRole('link', { name: 'random-search on QoS Benchmarks' });
-    expect(links.map((link) => link.getAttribute('href'))).toEqual([`${ROOT}/jobs/job-done-1`, `${ROOT}/jobs/job-cancelled-4`]);
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([`${ROOT}/runs/job-done-1`, `${ROOT}/runs/job-cancelled-4`]);
     expect(within(list).getByText('Sep 30, 2026, 09:00 UTC · 1 min 5 s · feasible · 1 solution')).toBeInTheDocument();
     expect(within(list).getByText(/Oct 7, 2026, 15:00 UTC · 20 s · no conclusion/)).toBeInTheDocument();
     expect(within(list).getByText(/Oct 8, 2026, 08:00 UTC · running · no result yet/)).toBeInTheDocument();
@@ -143,7 +143,7 @@ describe('My jobs', () => {
     fireEvent.click(within(within(list).getAllByRole('listitem')[2]).getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('Retry queued.')).toBeInTheDocument();
     expect(jobsApi.retry).toHaveBeenCalledWith('job-failed-3');
-    expect(screen.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-9`);
+    expect(screen.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/runs/job-new-9`);
   });
 
   it('refuses a retry when an allowance is used up and says so (402)', async () => {

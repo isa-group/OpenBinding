@@ -10,7 +10,7 @@ import { followMoved } from './followMoved';
 import { AppRoutes } from './index';
 import { movedRoutes, routeDefinitions } from './registry';
 
-// M2.4 slice 1 (ADR-0020): the decision-space workspace is retired. Its addresses redirect to the jobs list or to the study run.
+// M2.4 slice 1 (ADR-0020): the decision-space workspace is retired. Its addresses redirect to the run history or to the study run.
 //
 // The tests name the retired ids and files, and the addresses the redirects lead to. They name no screen of a live area: a screen is
 // found by the address it ends on, and an address that a later change moves on is followed through the moved routes (followMoved).
@@ -106,9 +106,10 @@ describe('the retired decision-space workspace', () => {
     expect(Object.keys(import.meta.glob('../pages/Analysis/**'))).toEqual([]);
   });
 
-  it('sends the old addresses to the jobs list', async () => {
-    await endsAt('/app/analysis', '/app/jobs');
-    await endsAt('/app/analysis/workspace?job=j1', '/app/jobs');
+  // [utest->req~frontend-nav-vocabulary-urls~1]
+  it('sends the old addresses to the run history', async () => {
+    await endsAt('/app/analysis', '/app/runs');
+    await endsAt('/app/analysis/workspace?job=j1', '/app/runs');
   });
 
   it('sends a workspace link that names a run to that run', async () => {

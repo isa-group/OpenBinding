@@ -298,7 +298,7 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
       <p className="st-job-line">
         <span className="org-muted">Ran as:</span>{' '}
         {cell.job_id
-          ? <><span>{shortJobId(cell.job_id)}</span>{' · '}<Link to={`${root}/jobs/${cell.job_id}`} viewTransition title="A run opens for whoever launched it">Open run</Link></>
+          ? <><span>{shortJobId(cell.job_id)}</span>{' · '}<Link to={`${root}/runs/${cell.job_id}`} viewTransition title="A run opens for whoever launched it">Open run</Link></>
           : <span>none yet</span>}
         {' · '}<Link to={resultsHref} viewTransition>Back to the results</Link>
         {' · '}<Link to={studyPageHref(studyPath, 'progress', { run: runId })} viewTransition>Back to the progress</Link>

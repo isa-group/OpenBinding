@@ -641,7 +641,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The project picker is the way into a run with this engine.
       await main.getByRole('button', { name: 'Launch a run with it' }).click();
-      await expect(main.getByRole('link', { name: /ISA Demo Group \/ QoS Benchmarks/ })).toHaveAttribute('href', /\/app\/isa-demo\/qos-benchmarks\/jobs\/new\?engine=/);
+      await expect(main.getByRole('link', { name: /ISA Demo Group \/ QoS Benchmarks/ })).toHaveAttribute('href', /\/app\/isa-demo\/qos-benchmarks\/runs\/new\?engine=/);
 
       // Someone else’s private registration, or one that does not exist, answer the same.
       state.refuse.detail = problem(404, 'not_found', 'Engine registration not found');

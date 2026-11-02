@@ -317,9 +317,9 @@ Owns: `R/runs`+t, `P/runs.ts`, every file with a `/jobs` link literal,
 `E/s6a-jobs.spec.ts`, `G/runs.ts`.
 
 Tasks:
-- [ ] 14.1 T-UR acceptance spec. Then tests: the registry paths; the moved entries `/app/jobs`, `…/jobs`,
+- [x] 14.1 T-UR acceptance spec. Then tests: the registry paths; the moved entries `/app/jobs`, `…/jobs`,
   `…/jobs/new` and `…/jobs/:job`; `runs` as a reserved organization slug.
-- [ ] 14.2 `job-*` moves to `…/runs`, and `job-history` to `/app/runs`. The builders and the literals follow. The
+- [x] 14.2 `job-*` moves to `…/runs`, and `job-history` to `/app/runs`. The builders and the literals follow. The
   decision-space rule's fallback target becomes `/app/runs`, with its tests (design.md §7).
 
 ## 15. Final budget and empty allow-list (high, last)

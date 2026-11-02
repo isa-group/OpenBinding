@@ -238,7 +238,7 @@ export function EngineDetail() {
         <div className="engine-detail-actions">
           {user ? (
             <>
-              <ProjectPicker variant="primary" label="Run with this engine" destination={(org, project) => `/app/${org}/${project}/jobs/new?engine=${encodeURIComponent(ref)}`} />
+              <ProjectPicker variant="primary" label="Run with this engine" destination={(org, project) => `/app/${org}/${project}/runs/new?engine=${encodeURIComponent(ref)}`} />
               <ProjectPicker label="Add to a study" destination={(org, project) => `/app/${org}/${project}/studies/new?engine=${encodeURIComponent(ref)}`} />
             </>
           ) : (
