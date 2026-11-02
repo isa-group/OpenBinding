@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.contracts import live_pricing_version
 from ..access.dependencies import require_admin, session_dependency
+from ..core.like import LIKE_ESCAPE, like_contains
 from ..core.settings import Settings, get_settings
 from ..db.models import (
     ApiErrorEvent,
@@ -192,9 +193,10 @@ async def list_users(
     """
     conditions = []
     if search:
-        pattern = f"%{search.strip().lower()}%"
+        pattern = like_contains(search.strip().lower())
         conditions.append(
-            func.lower(User.username).like(pattern) | func.lower(User.email).like(pattern)
+            func.lower(User.username).like(pattern, escape=LIKE_ESCAPE)
+            | func.lower(User.email).like(pattern, escape=LIKE_ESCAPE)
         )
 
     total = await session.scalar(select(func.count()).select_from(User).where(*conditions))
@@ -961,10 +963,10 @@ async def list_error_events(
     if to_date:
         filters.append(ApiErrorEvent.created_at <= to_date)
     if search:
-        search_pattern = f"%{search}%"
+        search_pattern = like_contains(search)
         filters.append(
-            ApiErrorEvent.error_code.ilike(search_pattern)
-            | ApiErrorEvent.endpoint.ilike(search_pattern)
+            ApiErrorEvent.error_code.ilike(search_pattern, escape=LIKE_ESCAPE)
+            | ApiErrorEvent.endpoint.ilike(search_pattern, escape=LIKE_ESCAPE)
         )
 
     if filters:

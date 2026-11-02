@@ -19,6 +19,7 @@ from ..access.dependencies import get_current_user, get_optional_user, session_d
 from ..artifacts import (artifact_view, can_read, owned_artifact, reference, resolve_version, version_content,
     version_view)
 from ..collaboration import organization_by_ref, require_role
+from ..core.like import LIKE_ESCAPE, like_contains
 from ..db.models import (Artifact, ArtifactDependency, ArtifactPublication, ArtifactVersion, ArtifactCaseReference,
     BindingCase, BindingCaseRevision, Project, Visibility, CaseArtifact, OrganizationRole, User)
 from ..models.artifacts import ArtifactRef, ArtifactView, ArtifactVersionView, PublishVersion
@@ -57,7 +58,7 @@ async def list_artifacts(org: str, kind: str | None = None, q: str = '',
     if kind:
         query = query.where(Artifact.kind == kind)
     if q:
-        query = query.where(Artifact.display_name.ilike('%' + q.replace('%', '\\%').replace('_', '\\_') + '%', escape='\\'))
+        query = query.where(Artifact.display_name.ilike(like_contains(q), escape=LIKE_ESCAPE))
     rows = (await session.scalars(query.order_by(Artifact.display_name))).all()
     return [artifact_view(row) for row in rows if await can_read(session, row, user)]
 
