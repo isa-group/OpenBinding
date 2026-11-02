@@ -8,7 +8,7 @@ test.use({ viewport: { width: 1280, height: 800 } });
 
 const PROBLEM = `${PROBLEMS}/${PROBLEM_SLUG}`;
 const TABS = ['Overview', 'Runs', 'Versions', 'Source', 'Settings'];
-// The old addresses keep their literal `cases` segment; only the target follows the interim segment.
+// The old address keeps its literal `cases` segment: it is a redirect input.
 const OLD_PROBLEM = `/app/acme/demo/cases/${PROBLEM_SLUG}`;
 
 // [utest->req~frontend-nav-problem-page~1]
@@ -38,6 +38,7 @@ test('choosing version 2 in the header sets ?version=2 and the Source tab shows 
 
 // [utest->req~frontend-nav-problem-page~1]
 test('the old version and compare addresses redirect into the problem page and Versions compares 1 with 3', async ({ page }) => {
+  test.slow(); // several full page loads in one test
   await mockProblems(page);
   await page.goto(`${OLD_PROBLEM}/revisions/2`);
   await expect.poll(() => pathAndSearch(page)).toBe(`${PROBLEM}?version=2`);

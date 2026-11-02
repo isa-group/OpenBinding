@@ -43,10 +43,9 @@ const members = [
   { id: 'm1', organization_id: 'org-acme', user_id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'OWNER', created_at: NOW },
 ];
 
-// Until slices 13 and 14 rename the segments, the problem and run addresses are built in their interim forms
-// (tasks.md, Conventions); those two slices switch these constants to `problems` and `runs`.
-export const PROBLEMS_SEGMENT = 'cases';
-export const RUNS_SEGMENT = 'jobs';
+// Slices 13 and 14 renamed the app address segments to `problems` and `runs`; the HTTP API keeps `cases` and `jobs`.
+export const PROBLEMS_SEGMENT = 'problems';
+export const RUNS_SEGMENT = 'runs';
 export const PROBLEMS = `/app/acme/demo/${PROBLEMS_SEGMENT}`;
 export const RUN_NEW = `/app/acme/demo/${RUNS_SEGMENT}/new`;
 export const RUNS_ALL = `/app/${RUNS_SEGMENT}`;

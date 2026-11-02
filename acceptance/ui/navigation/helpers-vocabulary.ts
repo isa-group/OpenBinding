@@ -5,8 +5,8 @@ import { PROBLEM_SLUG, selectorOf } from './helpers-problems';
 // Mocks and locators of the vocabulary acceptance specs. There is no backend: the API origin is answered by page.route();
 // routes added here win over the catch-all of mockApi() because they are registered later.
 //
-// The addresses of these specs are the LITERAL final ones (`/problems`, `/runs`), not the interim constants of
-// helpers.ts: the slices that rename the segments make them true. The HTTP API keeps `cases` and `jobs`.
+// The addresses of these specs are the LITERAL final ones (`/problems`, `/runs`), which match the constants of
+// helpers.ts. The HTTP API keeps `cases` and `jobs`.
 
 export const PROBLEMS_FINAL = '/app/acme/demo/problems';
 export const RUNS_FINAL = '/app/acme/demo/runs';

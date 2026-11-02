@@ -25,6 +25,7 @@ for (const [path, name] of SECTIONS) {
 
 // [utest->req~frontend-nav-account-sections~1]
 test('new API key opens as a dialog over the API keys section', async ({ page }) => {
+  test.slow(); // two full page loads in one test
   await mockApi(page);
   await page.goto('/app/account/keys');
   await expect(current(page, 'API keys')).toBeVisible();

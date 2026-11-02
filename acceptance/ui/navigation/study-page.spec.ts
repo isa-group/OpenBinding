@@ -44,6 +44,7 @@ test('choosing r1 in the run selector sets ?run=r1 and shows the results of r1',
 
 // [utest->req~frontend-nav-study-page~1]
 test('the three old study run addresses redirect into the study page', async ({ page }) => {
+  test.slow(); // three full page loads in one test
   await mockStudies(page);
   const cases: Array<[string, string]> = [
     [`${STUDY}/runs/r1`, `${STUDY}/progress?run=r1`],
