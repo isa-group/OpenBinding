@@ -27,45 +27,27 @@ const MEASUREMENTS = fileURLToPath(new URL('../node_modules/.cache/qa-gallery/',
 const HEADING: Record<string, RegExp> = {
   'pub-home': /Describe\. Bind\. Reproduce\./,
   'pub-explore': /Public work on OpenBinding/,
-  'pub-resolve': /Verify by digest/,
   'eng-catalog': /Engine catalog/,
   'eng-detail': /bim\.builtin\/random-search@1\.0\.0/,
   'lang-profiles': /The BIM language/,
-  'lang-examples': /Example packages/,
   'pub-workbench': /Workbench/,
   'pub-about': /People, research and changes behind OpenBinding/,
-  'pub-status': /Service status/,
   'auth-login': /Welcome back/,
   'auth-register': /Create your account/,
   'auth-reset-request': /Forgot your password\?/,
-  'auth-reset-complete': /Set a new password/,
   'auth-cas-callback': /no code to finish sign-in/,
   'org-invite-accept': /Paste your invitation/,
   'sys-states': /States and recoverable errors/,
   'pub-pricing': /Plans for every kind of binding work/,
   'acct-profile': /^Account$/,
-  'acct-usage': /Plan & permissions/,
-  'acct-keys': /^API keys$/,
-  'acct-key-new': /New API key/,
-  'acct-identities': /^Identities$/,
-  'acct-notifications': /^Notifications$/,
   'app-home': /Hello, alex\.rivera/,
-  'org-create': /New organization/,
   'org-overview': /ISA Demo Group/,
   'org-settings': /^Settings$/,
-  'org-members': /^Members$/,
-  'org-audit': /Audit log/,
-  'proj-create': /New project in ISA Demo Group/,
   'proj-overview': /QoS Benchmarks/,
   'proj-settings': /Project settings/,
-  'proj-package': /Portable package/,
   'case-list': /^Problems$/,
   'case-detail': /Checkout flow/,
-  'case-revision': /Checkout flow · version 2/,
-  'case-compare': /Compare versions/,
   'wb-workbench': /Workbench/,
-  'snap-detail': /Compiled snapshot/,
-  'proj-files': /^Files$/,
   'coll-list': /^Collections$/,
   'coll-detail': /Checkout references/,
   'gen-lab': /Generator lab/,
@@ -76,11 +58,7 @@ const HEADING: Record<string, RegExp> = {
   'study-list': /^Studies$/,
   'study-builder': /New study/,
   'study-detail': /Engines × seeds/,
-  'study-run': /Run #1/,
-  'study-cell': /Cell 2/,
-  'study-analytics': /Compare results · run #1/,
   'proj-publications': /^Published$/,
-  verifier: /Verifier/,
   'eng-register': /Register a private engine/,
   'eng-registrations': /My engines/,
   'eng-registration-detail': /edge-solver/,
@@ -181,18 +159,6 @@ function watchCriticalErrors(page: Page) {
   return critical;
 }
 
-/**
- * The status screen shows how long each probe took, measured with the browser's own clock: it differs on every run. The picture shows
- * the same plausible figure each time instead.
- */
-async function freezeProbeTimes(page: Page) {
-  await page.evaluate(() => {
-    for (const element of document.querySelectorAll('small')) {
-      if (/^\d+ ms$/.test(element.textContent ?? '')) element.textContent = '120 ms';
-    }
-  });
-}
-
 /** A session for /app and for the invitation link; the other public addresses are visited by nobody in particular. */
 const sessionOf = (screen: GalleryScreen) => (screen.underApp || screen.sessionHeader ? 'admin' : 'none');
 
@@ -234,7 +200,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of VIEWPORTS) {
 
           waiting = await waitUntilSettled(page);
           await prepareCapture(page);
-          if (screen.id === 'pub-status') await freezeProbeTimes(page);
           measured = await measurePage(page);
           await page.screenshot({ path: `${SCREENSHOTS}${name}/${screen.id}.png`, animations: 'disabled', fullPage: false });
 

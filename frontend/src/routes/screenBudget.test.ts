@@ -51,5 +51,30 @@ describe('screen budget', () => {
   });
 
   // [utest->req~frontend-nav-screen-budget~1]
-  it.todo('has at most 45 screens');
+  it('has at most 45 screens', () => {
+    expect(routeDefinitions.length, `${routeDefinitions.length} screens against a ceiling of 45`).toBeLessThanOrEqual(45);
+  });
+
+  // [utest->req~frontend-nav-screen-budget~1]
+  // The spec (and design.md §2) count `pub-workbench` under problems (public 4, problems 4); the registry declares it in the public area.
+  it('has the area sizes of the registry, 45 screens in all', () => {
+    const sizes = Object.fromEntries(Object.entries(routesByArea).map(([area, routes]) => [area, routes.length]));
+    expect(sizes).toEqual({
+      public: 5,
+      auth: 5,
+      verify: 1,
+      system: 0,
+      language: 1,
+      engines: 5,
+      account: 1,
+      organizations: 3,
+      project: 3,
+      problems: 3,
+      collections: 2,
+      runs: 5,
+      studies: 3,
+      admin: 8,
+    });
+    expect(routeDefinitions).toHaveLength(45);
+  });
 });

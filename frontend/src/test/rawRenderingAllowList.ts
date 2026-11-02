@@ -30,12 +30,5 @@ export const UNLISTED_REASON = 'found by the detector, not in ROADMAP M2; to be 
 
 export const RAW_RENDERING_ALLOW_LIST: RawRenderingOffender[] = [];
 
-export const UNLISTED_FINDINGS: UnlistedFinding[] = [
-  {
-    offender: 16,
-    file: 'pages/Workbench/SourcePanel.tsx',
-    lines: [{ line: 108, text: '<pre className="wb-diff" aria-label={`Changes to ${path}`}>' }],
-    reason: UNLISTED_REASON,
-    retiredBy: null,
-  },
-];
+// [impl->req~frontend-nav-allow-list-empty~1]
+export const UNLISTED_FINDINGS: UnlistedFinding[] = [];

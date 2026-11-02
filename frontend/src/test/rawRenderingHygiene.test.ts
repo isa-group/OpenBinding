@@ -391,9 +391,25 @@ describe('the allow-list', () => {
     expect(RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender)).toEqual([]);
     expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => /^pages\/(Reports\/Verifier|Verify\/)/.test(entry.file))).toEqual([]);
     expect(unlistedFindings(Object.fromEntries(Object.entries(sources).filter(([path]) => path.startsWith('/src/pages/Verify/'))), [])).toEqual([]);
-    expect(UNLISTED_FINDINGS.map((entry) => entry.offender)).toEqual([16]);
-    expect(UNLISTED_FINDINGS.map((entry) => entry.file)).toEqual(['pages/Workbench/SourcePanel.tsx']);
     expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('pages/Analysis'))).toEqual([]);
+  });
+
+  // [utest->req~frontend-nav-allow-list-empty~1]
+  it('holds no offender and no unlisted finding, with a ceiling of 0', () => {
+    expect(RAW_RENDERING_ALLOW_LIST).toEqual([]);
+    expect(UNLISTED_FINDINGS).toEqual([]);
+    expect(MAX_ALLOWED_OFFENDERS).toBe(0);
+    expect(unlistedFindings(sources, [])).toEqual([]);
+    expect(staleEntries(sources, [])).toEqual([]);
+    expect(wrongLineNumbers(sources, [])).toEqual([]);
+  });
+
+  // [utest->req~frontend-nav-allow-list-empty~1]
+  it('renders the workbench diff through SourceView, with no <pre> of its own', () => {
+    const panel = Object.entries(sources).find(([path]) => path.endsWith('/pages/Workbench/SourcePanel.tsx'))?.[1];
+    expect(panel).toBeDefined();
+    expect(panel).toContain('<SourceView');
+    expect(panel).not.toMatch(/<pre[\s>]/);
   });
 
   // [utest->req~frontend-retire-reports-allow-list~1]

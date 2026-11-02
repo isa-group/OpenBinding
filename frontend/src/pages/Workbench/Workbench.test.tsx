@@ -952,7 +952,14 @@ describe('Workbench', () => {
       fireEvent.click(screen.getByRole('button', { name: /instance\.json/i }));
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'diffed' } });
       expect(screen.getByText('Modified')).toBeInTheDocument();
-      expect(screen.getByLabelText('Changes to instance.json')).toHaveTextContent('"name": "diffed"');
+      // [utest->req~frontend-nav-allow-list-empty~1]
+      const changes = screen.getByRole('region', { name: 'Changes to instance.json' });
+      expect(changes).toHaveTextContent('"name": "diffed"');
+      const text = changes.querySelector('pre')?.textContent ?? '';
+      expect(text).toMatch(/^\+ *"name": "diffed",?$/m);
+      expect(text).toMatch(/^- *"name": "(?!diffed")/m);
+      expect(changes.querySelector('pre')).not.toBeNull();
+      expect(within(changes).getByRole('button', { name: 'Copy Changes to instance.json' })).toBeInTheDocument();
     });
 
     it('reports invalid BPMN XML without replacing the last valid source or diagram', async () => {

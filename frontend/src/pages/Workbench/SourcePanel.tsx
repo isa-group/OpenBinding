@@ -5,7 +5,8 @@ import { Notice } from '../../components/ui/Notice';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpaceBadge';
 import { pretty } from './bimDocuments';
-import type { SourceView, Workbench } from './useWorkbench';
+import { SourceView } from '../../components/rendering/SourceView';
+import type { SourceView as SourceViewId, Workbench } from './useWorkbench';
 
 const CodeEditor = lazy(() => import('../../components/CodeEditor/CodeEditor').then((module) => ({ default: module.CodeEditor })));
 
@@ -18,7 +19,7 @@ function EditorLoading() {
  * the compiled form and what changed against the baseline. Everything above this works without opening it.
  */
 export function SourcePanel({ wb }: { wb: Workbench }) {
-  const views: Array<{ id: SourceView; label: string }> = [
+  const views: Array<{ id: SourceViewId; label: string }> = [
     { id: 'json', label: 'JSON source' },
     ...(wb.selectedDocument ? [{ id: 'yaml' as const, label: 'YAML view' }] : []),
     { id: 'workflow', label: 'Workflow JSON' },
@@ -31,7 +32,7 @@ export function SourcePanel({ wb }: { wb: Workbench }) {
 
   return (
     <section id="wb-view-source" className="wb-source" aria-label="Source">
-      <TabBar items={views} value={view} onChange={(id) => wb.setSourceView(id as SourceView)} ariaLabel="Source views" prefix="wb-source-view" />
+      <TabBar items={views} value={view} onChange={(id) => wb.setSourceView(id as SourceViewId)} ariaLabel="Source views" prefix="wb-source-view" />
       <TabPanel prefix="wb-source-view" active={view}>
         {view === 'json' && (
           <div className="wb-source-pane">
@@ -105,15 +106,12 @@ export function SourcePanel({ wb }: { wb: Workbench }) {
           <div className="wb-source-pane">
             <div className="wb-pane-head"><div><span className="wb-eyebrow">Current source against the loaded baseline</span><h3>{path}</h3></div><Chip tone={wb.selectedChanged ? 'accent' : 'success'}>{wb.selectedChanged ? 'Modified' : 'Unchanged'}</Chip></div>
             {wb.selectedChanged ? (
-              <pre className="wb-diff" aria-label={`Changes to ${path}`}>
-                <code>
-                  {wb.selectedDiff.map((line, index) => (
-                    <span className={`diff-${line.kind}`} key={`${line.kind}-${index}`}>
-                      <b aria-hidden="true">{line.kind === 'added' ? '+' : line.kind === 'removed' ? '−' : ' '}</b>{line.value || ' '}
-                    </span>
-                  ))}
-                </code>
-              </pre>
+              <SourceView
+                label={`Changes to ${path}`}
+                language="diff"
+                maxHeight="420px"
+                source={wb.selectedDiff.map((line) => `${line.kind === 'added' ? '+' : line.kind === 'removed' ? '-' : ' '}${line.value}`).join('\n')}
+              />
             ) : <Notice tone="info">This file matches the baseline loaded into the workbench.</Notice>}
           </div>
         )}

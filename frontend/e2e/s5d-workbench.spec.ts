@@ -457,7 +457,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByLabel('instance.json YAML view')).toContainText('edited-in-the-browser');
       await main.getByRole('tab', { name: 'Source diff' }).click();
       await expect(main.getByText('Modified')).toBeVisible();
-      await expect(main.getByLabel('Changes to instance.json')).toContainText('edited-in-the-browser');
+      const changes = main.getByRole('region', { name: 'Changes to instance.json' });
+      await expect(changes).toContainText('edited-in-the-browser');
+      expect(await changes.locator('pre').textContent()).toMatch(/^\+.*edited-in-the-browser/m);
+      await expect(changes.getByRole('button', { name: 'Copy Changes to instance.json' })).toBeVisible();
       await capture(page, testInfo, `editor-${name}-source`);
 
       // What was edited is what the gateway receives.

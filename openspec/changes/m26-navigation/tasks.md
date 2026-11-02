@@ -331,12 +331,12 @@ Owns: `F/routes/screenBudget.test.ts`, `E/routes-smoke.spec.ts`, `F/test/rawRend
 `F/test/rawRenderingHygiene.test.ts`, `F/pages/Workbench/SourcePanel*`.
 
 Tasks:
-- [ ] 15.1 Tests:
+- [x] 15.1 Tests:
   - the budget at `≤ 45`, with the area sizes;
   - an empty allow-list and an empty unlisted list;
   - the diff in `SourceView`;
   - the route smoke rejects the six words, and every redirect lands on a screen.
-- [ ] 15.2 `SourcePanel` shows its diff through `SourceView`, labelled `Changes to <path>`. `UNLISTED_FINDINGS`
+- [x] 15.2 `SourcePanel` shows its diff through `SourceView`, labelled `Changes to <path>`. `UNLISTED_FINDINGS`
   becomes empty.
 - Check: E2E with no arguments, which runs every mocked spec.
 

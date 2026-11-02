@@ -105,10 +105,6 @@ const QUERY_OF: Record<string, string> = {
   'job-launch': '?case=checkout-flow&revision=2',
   'study-builder': '?case=checkout-flow&revision=2',
   'wb-workbench': '?case=checkout-flow&revision=2',
-  'case-compare': '?from=1&to=2',
-  verifier: `?digest=sha256-${'e'.repeat(64)}`,
-  // The link of the reset e-mail carries its one-time token; the screen shows the form it opens.
-  'auth-reset-complete': '?token=gallery-reset-token',
 };
 
 export function readGalleryScreens(): GalleryScreen[] {
