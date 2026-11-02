@@ -664,6 +664,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'BIM examples' })).toBeVisible();
       await expect(main.getByRole('navigation', { name: 'Explore' }).getByRole('link', { name: 'BIM examples' })).toHaveAttribute('aria-current', 'page');
+      // The header keeps the active style of Explore but leaves aria-current to the page's own link.
+      const headerExplore = page.locator('header.site-header .public-nav a[href="/explore"]');
+      await expect(headerExplore).not.toHaveAttribute('aria-current', 'page');
+      await expect(headerExplore).toHaveClass(/is-active/);
       await expect(main.getByRole('heading', { name: 'Demo · 3 packages' })).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Placement · 1 package' })).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Literature · 1 package' })).toBeVisible();

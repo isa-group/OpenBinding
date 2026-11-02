@@ -85,7 +85,7 @@ describe('Home', () => {
     expect(await within(plan).findByText('RESEARCH')).toBeInTheDocument();
     expect(within(plan).getByText('Up to 3')).toBeInTheDocument();
     expect(within(plan).queryByRole('meter')).not.toBeInTheDocument();
-    expect(within(plan).getByRole('link', { name: 'Plan & permissions' })).toHaveAttribute('href', '/app/account/usage');
+    expect(within(plan).getByRole('link', { name: 'Plan' })).toHaveAttribute('href', '/app/account/usage');
     expect(within(plan).getByRole('link', { name: 'SPACE' })).toHaveAttribute('href', config.spaceFrontendUrl);
     expect(within(plan).getByRole('link', { name: 'SPHERE' })).toHaveAttribute('href', config.sphereUrl);
 

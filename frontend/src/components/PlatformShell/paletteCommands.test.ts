@@ -73,6 +73,49 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => /^\/app\/organizations\/new([/?#]|$)/.test(command.href))).toEqual([]);
   });
 
+  // [utest->req~frontend-nav-signed-in-navigation~1]
+  it('has no Tools group and goes where the header goes', () => {
+    const commands = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
+    const goTo = commands.filter((command) => command.group === 'Go to');
+
+    expect(commands.filter((command) => command.group === 'Tools')).toEqual([]);
+    expect(goTo.map((command) => [command.label, command.href])).toEqual([
+      ['Home', '/app'], ['Runs', '/app/jobs'], ['Generator', '/app/generator'], ['Engines', '/engines'], ['Language', '/language'],
+      ['Explore', '/explore'], ['Verify', '/verify'], ['Pricing', '/pricing'],
+    ]);
+    expect(commands.filter((command) => ['Jobs', 'Verifier', 'Engine catalog', 'My engines', 'Generator lab', 'Workbench'].includes(command.label))).toEqual([]);
+    expect(commands.filter((command) => command.label === 'Problems').map((command) => command.href)).toEqual(['/app/isa-demo/qos-benchmarks/cases']);
+  });
+
+  // [utest->req~frontend-nav-new-menu~1]
+  it('offers New problem, collection, study and run in the current project, and none without one', () => {
+    const inProject = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
+    const without = buildCommands({ organizations: [organization], isAdmin: false });
+    const created = (commands: typeof inProject) => commands
+      .filter((command) => /^New (problem|collection|study|run)$/.test(command.label)).map((command) => [command.label, command.href]);
+
+    expect(created(inProject)).toEqual([
+      ['New problem', '/app/isa-demo/qos-benchmarks/cases?create=problem'],
+      ['New collection', '/app/isa-demo/qos-benchmarks/collections?create=collection'],
+      ['New study', '/app/isa-demo/qos-benchmarks/studies/new'],
+      ['New run', '/app/isa-demo/qos-benchmarks/jobs/new'],
+    ]);
+    expect(created(without)).toEqual([]);
+    expect(inProject.filter((command) => command.label === 'New job' || command.label === 'New case')).toEqual([]);
+  });
+
+  // [utest->req~frontend-nav-account-menu~1]
+  it('names the account commands as the account menu does', () => {
+    const commands = buildCommands({ organizations: [organization], isAdmin: false });
+    const account = commands.filter((command) => command.group === 'Account');
+
+    expect(account.map((command) => [command.label, command.href])).toEqual([
+      ['Profile', '/app/account'], ['Plan', '/app/account/usage'], ['API keys', '/app/account/keys'],
+      ['Identities', '/app/account/identities'], ['Notifications', '/app/account/notifications'],
+    ]);
+    expect(commands.filter((command) => command.label === 'Account' || command.label === 'Plan & permissions')).toEqual([]);
+  });
+
   // [utest->req~frontend-retire-reports-navigation~1]
   it('offers no report command without a project either', () => {
     const commands = buildCommands({ organizations: [organization], isAdmin: true });

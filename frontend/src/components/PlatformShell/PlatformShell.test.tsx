@@ -210,7 +210,8 @@ describe('PlatformShell (application layout)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
     const menu = document.getElementById('app-account-menu') as HTMLElement;
-    expect(within(menu).getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/app/account');
+    expect(within(menu).getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '/app/account');
+    expect(within(menu).getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
     expect(menu.textContent).not.toMatch(/theme|dark|light/i);
     expect(document.documentElement).not.toHaveAttribute('data-theme');
   });

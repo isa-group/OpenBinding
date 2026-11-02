@@ -70,9 +70,14 @@ function renderHeader(
 
 const mainNav = () => screen.getByRole('navigation', { name: 'Main' });
 const mobileNav = () => screen.getByRole('navigation', { name: 'Mobile navigation' });
-const hrefs = (scope: HTMLElement) => within(scope).getAllByRole('link')
-  .map((link) => link.getAttribute('href'))
-  .filter((href): href is string => href !== null);
+const labToggle = () => within(mainNav()).getByRole('button', { name: /^Lab/ });
+const newToggle = () => screen.getByRole('button', { name: /^New/ });
+/** The entries of a header scope in document order: links by name and address, disabled entries by name and hint. */
+const entriesOf = (scope: HTMLElement) => [...scope.querySelectorAll<HTMLElement>('a[href], [aria-disabled="true"]')].map((item) => {
+  if (item.hasAttribute('href')) return [item.textContent, item.getAttribute('href')];
+  const hint = document.getElementById(item.getAttribute('aria-describedby') ?? '');
+  return [item.textContent, `disabled: ${hint?.textContent}`];
+});
 
 describe('AppHeader', () => {
   beforeEach(() => {
@@ -80,24 +85,83 @@ describe('AppHeader', () => {
     api.listNotifications.mockResolvedValue([]);
   });
 
-  it('links the wordmark and the main navigation to the application screens', () => {
-    renderHeader();
+  // [utest->req~frontend-nav-signed-in-navigation~1]
+  it('lists Home, Problems, Lab, Engines, Language and, for an administrator, Admin, in this order', () => {
+    renderHeader(adminUser, { path: '/app/isa-demo/qos/cases' });
 
     expect(screen.getByRole('link', { name: 'OpenBinding home' })).toHaveAttribute('href', '/app');
+    const items = [...mainNav().children].map((item) => item.textContent?.trim());
+    expect(items).toEqual(['Home', 'Problems', 'Lab', 'Engines', 'Language', 'Admin']);
     const nav = within(mainNav());
     expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/app');
-    expect(nav.getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', '/app/jobs');
-    expect(nav.getByRole('link', { name: 'Explore' })).toHaveAttribute('href', '/explore');
+    expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/qos/cases');
+    expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
+    expect(nav.getByRole('link', { name: 'Language' })).toHaveAttribute('href', '/language');
+    expect(nav.getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/app/admin');
   });
 
-  // [utest->req~frontend-retire-navigation~1]
-  it('offers no Analysis entry and no link to a retired address', () => {
-    renderHeader();
+  // [utest->req~frontend-nav-signed-in-navigation~1]
+  it('offers the Admin entry only to administrators, and no Administration link in the account menu', () => {
+    const { unmount } = renderHeader(user);
+    expect(within(mainNav()).queryByRole('link', { name: 'Admin' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Admin' })).toBeNull();
+    unmount();
 
-    expect(within(mainNav()).queryByRole('link', { name: 'Analysis' })).not.toBeInTheDocument();
-    expect(within(mobileNav()).queryByRole('link', { name: 'Analysis' })).not.toBeInTheDocument();
+    renderHeader(adminUser);
+    expect(within(mainNav()).getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/app/admin');
+    fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
+    expect(screen.queryByRole('link', { name: 'Administration' })).toBeNull();
+  });
+
+  // [utest->req~frontend-nav-signed-in-navigation~1]
+  it('has none of the former entries', () => {
+    renderHeader(adminUser);
+
+    for (const name of ['Jobs', 'Explore', 'Tools', 'Verifier', 'Engine catalog', 'Analysis']) {
+      expect(screen.queryByRole('link', { name })).toBeNull();
+      expect(screen.queryByRole('button', { name })).toBeNull();
+    }
     const retired = screen.getAllByRole('link').filter((link) => (link.getAttribute('href') ?? '').startsWith('/app/analysis'));
     expect(retired).toEqual([]);
+  });
+
+  // [utest->req~frontend-nav-signed-in-navigation~1]
+  it('opens the Lab menu with Runs, Studies and Generator, and closes it with Escape, returning focus', () => {
+    renderHeader(user);
+    const toggle = labToggle();
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    toggle.focus();
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const menu = document.getElementById('app-lab-menu') as HTMLElement;
+    expect(entriesOf(menu)).toEqual([['Runs', '/app/jobs'], ['Studies', '/app/isa-demo/qos/studies'], ['Generator', '/app/generator']]);
+
+    within(menu).getByRole('link', { name: 'Runs' }).focus();
+    fireEvent.keyDown(within(menu).getByRole('link', { name: 'Runs' }), { key: 'Escape' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(document.getElementById('app-lab-menu')).toBeNull();
+    expect(toggle).toHaveFocus();
+  });
+
+  // [utest->req~frontend-nav-signed-in-navigation~1]
+  it('disables Problems and Studies with the hint "Needs a project" and keeps Runs and Generator without a project', () => {
+    renderHeader(user, { withProject: false });
+
+    const problems = within(mainNav()).getByText('Problems');
+    expect(problems).toHaveAttribute('role', 'link');
+    expect(problems).toHaveAttribute('aria-disabled', 'true');
+    expect(problems).not.toHaveAttribute('href');
+    expect(problems).toHaveAccessibleDescription('Needs a project');
+
+    fireEvent.click(labToggle());
+    const menu = document.getElementById('app-lab-menu') as HTMLElement;
+    const studies = within(menu).getByText('Studies');
+    expect(studies).toHaveAttribute('aria-disabled', 'true');
+    expect(studies).not.toHaveAttribute('href');
+    expect(studies).toHaveAccessibleDescription('Needs a project');
+    expect(within(menu).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/jobs');
+    expect(within(menu).getByRole('link', { name: 'Generator' })).toHaveAttribute('href', '/app/generator');
   });
 
   it('shows the organization and project as a context chip that leads to /app', () => {
@@ -109,105 +173,84 @@ describe('AppHeader', () => {
     expect(within(mobileNav()).getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' })).toHaveAttribute('href', '/app');
   });
 
-  it('marks the section of the current address', () => {
-    const { unmount } = renderHeader(user, { path: '/app/isa-demo/qos/jobs' });
-    expect(within(mainNav()).getByRole('link', { name: 'Jobs' })).toHaveAttribute('aria-current', 'page');
-    expect(within(mainNav()).getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
-    unmount();
-
-    renderHeader(user, { path: '/app/verifier' });
-    expect(within(mainNav()).getByRole('button', { name: /Tools/ })).toHaveClass('is-active');
-  });
-
+  // [utest->req~frontend-nav-signed-in-navigation~1]
   it.each([
-    ['D1', '/app/system/states', null],
-    ['D2', '/app/account/usage', null],
-    ['D3', '/app/isa-demo/settings/members', 'Home'],
-    ['D4', '/app/isa-demo/qos/cases', null],
-    ['D5', '/app/isa-demo/qos/jobs/job-1', 'Jobs'],
-    ['D6 studies', '/app/isa-demo/qos/studies/engines-vs-seeds', null],
-    ['D7', '/app/engines/registrations', 'Tools'],
-    ['D8', '/app/admin/audit', 'Admin'],
-  ] as const)('marks one entry of the main navigation for a screen of %s (%s)', (_domain, path, expected) => {
+    ['/app', 'Home'],
+    ['/app/isa-demo/settings/members', 'Home'],
+    ['/app/isa-demo/qos/cases', 'Problems'],
+    ['/app/isa-demo/qos/jobs/job-1', 'Lab'],
+    ['/app/isa-demo/qos/studies/engines-vs-seeds', 'Lab'],
+    ['/app/generator', 'Lab'],
+    ['/app/engines/registrations', 'Engines'],
+    ['/language/extensions', 'Language'],
+    ['/app/admin/audit', 'Admin'],
+    ['/app/isa-demo/qos/published', null],
+    ['/app/account/usage', null],
+    ['/app/system/states', null],
+  ] as const)('marks one entry of the header for %s: %s', (path, expected) => {
     renderHeader(adminUser, { path });
 
-    const marked = within(mainNav()).getAllByRole('link').concat(within(mainNav()).getAllByRole('button', { name: /Tools/ }))
+    const marked = [...mainNav().querySelectorAll<HTMLElement>('a, button')]
       .filter((item) => item.getAttribute('aria-current') === 'page' || item.classList.contains('is-active'))
-      .map((item) => item.textContent?.trim().replace(/\s+/g, ' '));
+      .map((item) => item.textContent?.trim());
     expect(marked).toEqual(expected ? [expected] : []);
   });
 
-  it('opens the Tools menu with the keyboard and closes it with Escape, returning focus', () => {
-    renderHeader();
-    const tools = within(mainNav()).getByRole('button', { name: /Tools/ });
-    expect(tools).toHaveAttribute('aria-expanded', 'false');
+  // [utest->req~frontend-nav-signed-in-navigation~1]
+  it('marks the entry of the Lab menu that matches the address', () => {
+    renderHeader(user, { path: '/app/isa-demo/qos/studies' });
+    fireEvent.click(labToggle());
 
-    tools.focus();
-    fireEvent.click(tools);
-    expect(tools).toHaveAttribute('aria-expanded', 'true');
-    const menu = document.getElementById('app-tools-menu') as HTMLElement;
-    expect(within(menu).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
-      ['Verifier', '/app/verifier'],
-      ['Engine catalog', '/engines'],
-      ['My engines', '/app/engines/registrations'],
-      ['Language extensions', '/language/extensions'],
-      ['Generator lab', '/app/generator'],
-      ['Language docs', '/language'],
-    ]);
-
-    within(menu).getByRole('link', { name: 'Verifier' }).focus();
-    fireEvent.keyDown(within(menu).getByRole('link', { name: 'Verifier' }), { key: 'Escape' });
-    expect(tools).toHaveAttribute('aria-expanded', 'false');
-    expect(document.getElementById('app-tools-menu')).toBeNull();
-    expect(tools).toHaveFocus();
+    const menu = document.getElementById('app-lab-menu') as HTMLElement;
+    expect(within(menu).getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');
+    expect(within(menu).getByRole('link', { name: 'Runs' })).not.toHaveAttribute('aria-current');
   });
 
-  // [utest->req~frontend-nav-create-dialogs~1]
-  it('lists what can be created from the New menu', () => {
+  // [utest->req~frontend-nav-new-menu~1]
+  it('lists Problem, Collection, Study and Run in the current project from the New menu', () => {
     renderHeader();
-    const toggle = screen.getByRole('button', { name: /^New/ });
+    const toggle = newToggle();
     fireEvent.click(toggle);
 
     const menu = document.getElementById('app-new-menu') as HTMLElement;
-    expect(within(menu).getAllByRole('link').map((link) => [link.firstChild?.textContent, link.getAttribute('href')])).toEqual([
-      ['Organization', '/app?create=organization'],
-      ['Project', '/app/isa-demo?create=project'],
-      ['Case', '/app/isa-demo/qos/cases'],
-      ['Job', '/app/isa-demo/qos/jobs/new'],
+    expect(entriesOf(menu)).toEqual([
+      ['Problem', '/app/isa-demo/qos/cases?create=problem'],
+      ['Collection', '/app/isa-demo/qos/collections?create=collection'],
       ['Study', '/app/isa-demo/qos/studies/new'],
-      ['API key', '/app/account/keys?create=key'],
-      ['Engine', '/app/engines/new'],
+      ['Run', '/app/isa-demo/qos/jobs/new'],
     ]);
 
     fireEvent.keyDown(within(menu).getAllByRole('link')[0], { key: 'Escape' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('disables the project items of the New menu when there is no project', () => {
+  // [utest->req~frontend-nav-new-menu~1]
+  it('disables the four items of the New menu with the hint "Needs a project" when there is no project', () => {
     renderHeader(user, { withProject: false });
-    fireEvent.click(screen.getByRole('button', { name: /^New/ }));
+    fireEvent.click(newToggle());
 
     const menu = document.getElementById('app-new-menu') as HTMLElement;
-    expect(within(menu).queryByRole('link', { name: /^Job/ })).toBeNull();
-    const disabled = menu.querySelectorAll('[aria-disabled="true"]');
-    expect([...disabled].map((item) => item.firstChild?.textContent)).toEqual(['Case', 'Job', 'Study']);
-    expect(within(menu).getByRole('link', { name: /^Project/ })).toHaveAttribute('href', '/app/isa-demo?create=project');
+    expect(within(menu).queryAllByRole('link', { hidden: false }).filter((link) => link.hasAttribute('href'))).toEqual([]);
+    expect(entriesOf(menu)).toEqual([
+      ['Problem', 'disabled: Needs a project'], ['Collection', 'disabled: Needs a project'],
+      ['Study', 'disabled: Needs a project'], ['Run', 'disabled: Needs a project'],
+    ]);
+    for (const item of menu.querySelectorAll('[aria-disabled="true"]')) expect(item).toHaveAccessibleDescription('Needs a project');
   });
 
-  it('offers the Admin entry only to administrators', () => {
-    const { unmount } = renderHeader(user);
-    expect(within(mainNav()).queryByRole('link', { name: 'Admin' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
-    expect(screen.queryByRole('link', { name: 'Administration' })).toBeNull();
-    unmount();
+  // [utest->req~frontend-nav-new-menu~1]
+  it('has none of the former New items', () => {
+    renderHeader();
+    fireEvent.click(newToggle());
 
-    renderHeader(adminUser);
-    expect(within(mainNav()).getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/app/admin');
-    fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
-    expect(screen.getByRole('link', { name: 'Administration' })).toHaveAttribute('href', '/app/admin');
+    const menu = document.getElementById('app-new-menu') as HTMLElement;
+    for (const former of ['Organization', 'Project', 'Case', 'Job', 'API key', 'Engine']) {
+      expect(within(menu).queryByRole('link', { name: former })).toBeNull();
+    }
   });
 
-  it('opens the account menu with the profile links and signs out', () => {
+  // [utest->req~frontend-nav-account-menu~1]
+  it('opens the account menu with the five sections then Sign out', () => {
     renderHeader();
     const toggle = screen.getByRole('button', { name: 'Account menu' });
     expect(toggle).toHaveTextContent('AL');
@@ -216,32 +259,36 @@ describe('AppHeader', () => {
     const menu = document.getElementById('app-account-menu') as HTMLElement;
     expect(within(menu).getByText('alice')).toBeInTheDocument();
     expect(within(menu).getByText('alice@example.com')).toBeInTheDocument();
-    expect(within(menu).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
-      ['Account', '/app/account'],
-      ['Plan & permissions', '/app/account/usage'],
+    expect(entriesOf(menu)).toEqual([
+      ['Profile', '/app/account'],
+      ['Plan', '/app/account/usage'],
       ['API keys', '/app/account/keys'],
+      ['Identities', '/app/account/identities'],
       ['Notifications', '/app/account/notifications'],
     ]);
+    const last = [...menu.querySelectorAll('a, button')].at(-1);
+    expect(last).toHaveTextContent('Sign out');
+    for (const former of ['Account', 'Plan & permissions', 'Log out']) expect(within(menu).queryByText(former)).toBeNull();
     expect(within(menu).queryByText(/Institutional account/)).toBeNull();
 
-    fireEvent.click(within(menu).getByRole('button', { name: 'Log out' }));
+    fireEvent.click(within(menu).getByRole('button', { name: 'Sign out' }));
     expect(signOut).toHaveBeenCalledOnce();
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('closes an open menu when another menu is opened', () => {
     renderHeader();
-    const tools = within(mainNav()).getByRole('button', { name: /Tools/ });
-    fireEvent.click(tools);
+    const lab = labToggle();
+    fireEvent.click(lab);
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
 
-    expect(tools).toHaveAttribute('aria-expanded', 'false');
+    expect(lab).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('button', { name: 'Account menu' })).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('shows the unread count on the bell', async () => {
     api.listNotifications.mockResolvedValue([{
-      id: 'n1', kind: 'info', subject: 'Job completed', body: 'Done', payload: {},
+      id: 'n1', kind: 'info', subject: 'Run completed', body: 'Done', payload: {},
       read_at: null, created_at: new Date().toISOString(),
     }]);
     renderHeader();
@@ -273,24 +320,37 @@ describe('AppHeader', () => {
       expect(screen.getByRole('button', { name: 'Open menu' })).toHaveFocus();
     });
 
-    it('carries the same destinations as the desktop navigation, Tools and New', () => {
+    // [utest->req~frontend-nav-signed-in-navigation~1]
+    // [utest->req~frontend-nav-new-menu~1]
+    it('mirrors the entries of the desktop header, the Lab menu and the New menu', () => {
       renderHeader(adminUser);
-      const desktop = new Set([
-        ...hrefs(mainNav()),
-        ...toolsHrefs(),
-        '/app?create=organization', '/app/isa-demo?create=project', '/app/isa-demo/qos/cases',
-        '/app/isa-demo/qos/jobs/new', '/app/isa-demo/qos/studies/new', '/app/account/keys?create=key', '/app/engines/new',
-      ]);
-      const mobile = new Set(hrefs(mobileNav()));
 
-      for (const href of desktop) expect(mobile, href).toContain(href);
+      expect(entriesOf(mobileNav())).toEqual([
+        ['ISA Demo Group / QoS Benchmarks', '/app'],
+        ['Home', '/app'], ['Problems', '/app/isa-demo/qos/cases'],
+        ['Runs', '/app/jobs'], ['Studies', '/app/isa-demo/qos/studies'], ['Generator', '/app/generator'],
+        ['Engines', '/engines'], ['Language', '/language'], ['Admin', '/app/admin'],
+        ['Problem', '/app/isa-demo/qos/cases?create=problem'], ['Collection', '/app/isa-demo/qos/collections?create=collection'],
+        ['Study', '/app/isa-demo/qos/studies/new'], ['Run', '/app/isa-demo/qos/jobs/new'],
+      ]);
       expect(within(mobileNav()).getByRole('button', { name: 'Search' })).toBeInTheDocument();
+    });
+
+    it('disables the project entries with their hint when there is no project, with ids of their own', () => {
+      renderHeader(user, { withProject: false });
+
+      const disabled = [...document.querySelectorAll<HTMLElement>('[aria-disabled="true"]')];
+      // Problems in the header and in the phone menu, Studies and the four New items in the phone menu.
+      expect(disabled.length).toBeGreaterThanOrEqual(6);
+      const hints = disabled.map((item) => item.getAttribute('aria-describedby'));
+      expect(new Set(hints).size).toBe(hints.length);
+      for (const item of disabled) expect(item).toHaveAccessibleDescription('Needs a project');
     });
 
     it('closes after following a link', () => {
       renderHeader();
       fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
-      fireEvent.click(within(mobileNav()).getByRole('link', { name: 'Jobs' }));
+      fireEvent.click(within(mobileNav()).getByRole('link', { name: 'Engines' }));
       expect(mobileNav()).not.toHaveClass('is-open');
     });
   });
@@ -319,11 +379,3 @@ describe('AppHeader', () => {
     });
   });
 });
-
-function toolsHrefs() {
-  fireEvent.click(within(mainNav()).getByRole('button', { name: /Tools/ }));
-  const menu = document.getElementById('app-tools-menu') as HTMLElement;
-  const found = hrefs(menu);
-  fireEvent.click(within(mainNav()).getByRole('button', { name: /Tools/ }));
-  return found;
-}

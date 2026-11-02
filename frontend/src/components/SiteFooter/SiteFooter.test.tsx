@@ -25,7 +25,7 @@ describe('SiteFooter', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Footer navigation' });
     for (const [name, href] of [
-      ['Explore', '/explore'], ['Engines', '/engines'], ['Pricing', '/pricing'],
+      ['Explore', '/explore'], ['Engines', '/engines'], ['Pricing', '/pricing'], ['Verify', '/verify'],
       ['Profiles & dialects', '/language'], ['Schemas', '/language/schemas/application'],
       ['Examples', '/explore/examples'], ['Workbench', '/workbench'],
       ['Team', '/about?tab=team'], ['Research', '/about?tab=research'],
@@ -33,7 +33,15 @@ describe('SiteFooter', () => {
     ] as const) {
       expect(within(nav).getByRole('link', { name })).toHaveAttribute('href', href);
     }
-    expect(within(nav).getAllByRole('link')).toHaveLength(11);
+    expect(within(nav).getAllByRole('link')).toHaveLength(12);
+  });
+
+  // [utest->req~frontend-nav-public-navigation~1]
+  it('lists Verify in the Platform column', () => {
+    renderFooter();
+
+    const platform = screen.getByText('Platform').closest('section') as HTMLElement;
+    expect(within(platform).getAllByRole('link').map((link) => link.textContent)).toEqual(['Explore', 'Engines', 'Pricing', 'Verify']);
   });
 
   // [utest->req~frontend-nav-status-retired~1]

@@ -142,7 +142,7 @@ function PlanBlock() {
     <section className="apphome-card is-padded" aria-labelledby="home-plan-title" aria-busy={usage.status === 'loading'}>
       <header className="home-card-head is-bare">
         <h2 id="home-plan-title">Your plan</h2>
-        <Link to="/app/account/usage" viewTransition>Plan &amp; permissions</Link>
+        <Link to="/app/account/usage" viewTransition>Plan</Link>
       </header>
       {usage.status === 'loading' && <Skeleton variant="panel" />}
       {failure && isForbidden(failure) && <p className="home-blocked">Not available with this key (needs account: read).</p>}

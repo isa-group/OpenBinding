@@ -66,7 +66,7 @@ describe('CommandPalette', () => {
 
   it('filters by label, description and group', () => {
     const commands = commandsOf(false);
-    const tools = commands.filter((command) => command.group === 'Tools');
+    const tools = commands.filter((command) => command.group === 'Go to');
     expect(tools.length).toBeGreaterThan(1);
     const [first] = tools;
     renderPalette();
@@ -143,7 +143,7 @@ describe('CommandPalette', () => {
   });
 
   it('opens the first result with Enter', () => {
-    const [first] = commandsOf(false).filter((command) => command.group === 'Tools');
+    const [first] = commandsOf(false).filter((command) => command.group === 'Go to');
     renderPalette();
     openWithShortcut();
     fireEvent.change(search(), { target: { value: first.desc } });

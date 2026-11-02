@@ -1,58 +1,30 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import type { Organization, Project } from '../../api/platform';
-import { movedRoutes, routeDefinitions, routesByArea, type AreaName } from '../../routes/registry';
-import type { RouteDefinition } from '../../routes/types';
-import { accountLinks, createItems, currentSection, isToolActive, mainLinks, toolLinks, type MainSection } from './appNavigation';
+import { movedRoutes, routeDefinitions } from '../../routes/registry';
+import {
+  accountLinks, createItems, currentSection, labEntries, labEntryOf, labLinks, mainLinks, NEEDS_PROJECT, problemsEntry,
+  type MenuEntry,
+} from './appNavigation';
 
-// The expectations come from the registry (routes/areas) and from the navigation data under test (mainLinks, toolLinks, accountLinks), not
-// from the id of any screen: a change that merges, moves or removes the screens of one area leaves them alone.
-
-const under = (path: string, root: string) => path === root || path.startsWith(`${root}/`);
-/** The part of an address that names a place of its own: `/app/<place>` under the application, the first segment elsewhere. */
-const rootOf = (to: string) => to.split('/').slice(0, to.startsWith('/app/') ? 3 : 2).join('/');
-
-/** An address the path leads to: an optional segment dropped, the example organization and project, any other parameter filled. */
-const example = (path: string) => path
-  .replace(/\/:[A-Za-z]+\?/g, '')
-  .replace(':org', 'isa-demo')
-  .replace(':project', 'qos')
-  .replace(/:[A-Za-z]+/g, 'sample') || '/';
-
-const toolRoots = toolLinks.map((link) => rootOf(link.to));
-/** The segment that names the jobs below a project: the last segment of the Jobs entry's address. */
-const jobsSegment = mainLinks.jobs.to.split('/').at(-1);
-const isProjectJobs = (address: string) => new RegExp(`^/app/[^/]+/[^/]+/${jobsSegment}(/|$)`).test(address);
-
-const areaOf = Object.fromEntries(
-  Object.entries(routesByArea).flatMap(([area, screens]) => screens.map((screen) => [screen.id, area as AreaName] as const)),
-);
-
-/** The entry of the main navigation a screen of the registry belongs to. Every other screen leaves them all unmarked. */
-function expectedSection(definition: RouteDefinition): MainSection {
-  const address = example(definition.path);
-  if (definition.requireAdmin) return 'admin';
-  if (under(address, mainLinks.jobs.to) || isProjectJobs(address)) return 'jobs';
-  if (toolRoots.some((root) => under(address, root))) return 'tools';
-  if (under(address, mainLinks.explore.to)) return 'explore';
-  const area = areaOf[definition.id];
-  // The workspace home is where organizations and projects are browsed: the screens of an organization, and a project's overview. The
-  // sections inside a project mark themselves in the project tabs.
-  if (area === 'organizations') return 'home';
-  if (area === 'project') return address.split('/').filter(Boolean).length <= 3 ? 'home' : null;
-  return null;
-}
+const organization = { slug: 'isa-demo', name: 'ISA demo' } as Organization;
+const project = { slug: 'qos', name: 'QoS' } as Project;
 
 /** The screens, and the old addresses that stay valid on purpose (`permanent`): a link of the navigation may lead to either. */
 const routed = [
   ...routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path })),
   ...movedRoutes.filter((route) => route.permanent).map((route) => ({ id: route.id, path: route.path })),
 ];
+const pathOf = (address: string) => address.split(/[?#]/)[0];
+const addressesOf = (entries: readonly MenuEntry[]) => entries.flatMap((entry) => (entry.to ? [entry.to] : []));
 
 describe('mainLinks', () => {
-  // [utest->req~frontend-retire-navigation~1]
-  it('lists Home, Jobs, Explore and Admin, each leading to a routed address and none to a retired path', () => {
-    expect(Object.keys(mainLinks)).toEqual(['home', 'jobs', 'explore', 'admin']);
+  // [utest->req~frontend-nav-signed-in-navigation~1]
+  it('lists Home, Engines, Language and Admin, each leading to a routed address and none to a retired path', () => {
+    expect(Object.keys(mainLinks)).toEqual(['home', 'engines', 'language', 'admin']);
+    expect(Object.values(mainLinks).map((link) => [link.label, link.to])).toEqual([
+      ['Home', '/app'], ['Engines', '/engines'], ['Language', '/language'], ['Admin', '/app/admin'],
+    ]);
     for (const link of Object.values(mainLinks)) {
       expect(link.to).not.toMatch(/^\/app\/analysis([/?#]|$)/);
       expect(matchRoutes(routed, link.to), link.to).not.toBeNull();
@@ -60,98 +32,141 @@ describe('mainLinks', () => {
   });
 
   // [utest->req~frontend-retire-reports-navigation~1]
-  it('offers no entry of the main, tool, account or New menus that leads to a report address', () => {
-    const organization = { slug: 'isa-demo', name: 'ISA demo' } as Organization;
-    const project = { slug: 'qos', name: 'QoS' } as Project;
+  // [utest->req~frontend-retire-library-navigation~1]
+  it('offers no entry of the header, Lab, New or account menus that leads to a report, library or resources address', () => {
     const addresses = [
       ...Object.values(mainLinks).map((link) => link.to),
-      ...toolLinks.map((link) => link.to),
+      ...addressesOf([problemsEntry(organization, project)]),
+      ...addressesOf(labEntries(organization, project)),
+      ...addressesOf(createItems(organization, project)),
       ...accountLinks.map((link) => link.to),
-      ...createItems(organization, project).flatMap((item) => (item.to ? [item.to] : [])),
     ];
     expect(addresses.length).toBeGreaterThan(15);
-    expect(addresses.filter((address) => /\/reports([/?#]|$)/.test(address))).toEqual([]);
+    expect(addresses.filter((address) => /\/(reports|library|resources)([/?#]|$)/.test(address))).toEqual([]);
+  });
+});
+
+describe('problemsEntry and labEntries', () => {
+  // [utest->req~frontend-nav-signed-in-navigation~1]
+  it('lead into the current project, and Runs and Generator do not need one', () => {
+    expect(problemsEntry(organization, project)).toEqual({ label: 'Problems', to: '/app/isa-demo/qos/cases' });
+    expect(labEntries(organization, project).map(({ id, label, to }) => [id, label, to])).toEqual([
+      ['runs', 'Runs', '/app/jobs'], ['studies', 'Studies', '/app/isa-demo/qos/studies'], ['generator', 'Generator', '/app/generator'],
+    ]);
+    for (const address of [...addressesOf([problemsEntry(organization, project)]), ...addressesOf(labEntries(organization, project))]) {
+      expect(matchRoutes(routed, address), address).not.toBeNull();
+    }
   });
 
-  // [utest->req~frontend-retire-library-navigation~1]
-  it('offers no entry of the main, tool, account or New menus that leads to the library catalogue or the resources', () => {
-    const organization = { slug: 'isa-demo', name: 'ISA demo' } as Organization;
-    const project = { slug: 'qos', name: 'QoS' } as Project;
-    const addresses = [
-      ...Object.values(mainLinks).map((link) => link.to),
-      ...toolLinks.map((link) => link.to),
-      ...accountLinks.map((link) => link.to),
-      ...createItems(organization, project).flatMap((item) => (item.to ? [item.to] : [])),
-    ];
-    expect(addresses.filter((address) => /\/(library|resources)([/?#]|$)/.test(address))).toEqual([]);
+  // [utest->req~frontend-nav-signed-in-navigation~1]
+  it('disables Problems and Studies with the hint "Needs a project" without a current project', () => {
+    expect(NEEDS_PROJECT).toBe('Needs a project');
+    expect(problemsEntry(organization)).toEqual({ label: 'Problems', hint: 'Needs a project' });
+    expect(problemsEntry()).toEqual({ label: 'Problems', hint: 'Needs a project' });
+    expect(labEntries(organization).map(({ label, to, hint }) => [label, to, hint])).toEqual([
+      ['Runs', labLinks.runs.to, undefined], ['Studies', undefined, 'Needs a project'], ['Generator', labLinks.generator.to, undefined],
+    ]);
+  });
+});
+
+describe('createItems', () => {
+  // [utest->req~frontend-nav-new-menu~1]
+  it('offers Problem, Collection, Study and Run in the current project, in this order', () => {
+    expect(createItems(organization, project).map((item) => [item.label, item.to])).toEqual([
+      ['Problem', '/app/isa-demo/qos/cases?create=problem'],
+      ['Collection', '/app/isa-demo/qos/collections?create=collection'],
+      ['Study', '/app/isa-demo/qos/studies/new'],
+      ['Run', '/app/isa-demo/qos/jobs/new'],
+    ]);
+    for (const address of addressesOf(createItems(organization, project))) {
+      expect(matchRoutes(routed, pathOf(address)), address).not.toBeNull();
+    }
   });
 
-  // [utest->req~frontend-nav-account-sections~1]
-  it('offers the API key item of the New menu as the dialog of the API keys section', () => {
-    const items = createItems().filter((item) => item.label === 'API key');
-
-    expect(items.map((item) => item.to)).toEqual(['/app/account/keys?create=key']);
-    expect(matchRoutes(routed, '/app/account/keys'), 'the section the dialog opens over').not.toBeNull();
+  // [utest->req~frontend-nav-new-menu~1]
+  it('disables the four items with the hint "Needs a project" when no project is current', () => {
+    for (const items of [createItems(), createItems(organization)]) {
+      expect(items.map((item) => [item.label, item.to, item.hint])).toEqual([
+        ['Problem', undefined, 'Needs a project'], ['Collection', undefined, 'Needs a project'],
+        ['Study', undefined, 'Needs a project'], ['Run', undefined, 'Needs a project'],
+      ]);
+    }
   });
 
-  // [utest->req~frontend-nav-create-dialogs~1]
-  it('offers the Organization and Project items of the New menu as the creation dialogs', () => {
-    const organization = { slug: 'isa-demo', name: 'ISA demo' } as Organization;
-    const items = createItems(organization);
-
-    expect(items.filter((item) => item.label === 'Organization' || item.label === 'Project').map((item) => item.to))
-      .toEqual(['/app?create=organization', '/app/isa-demo?create=project']);
-    expect(matchRoutes(routed, '/app'), 'the screen the organization dialog opens over').not.toBeNull();
-    expect(matchRoutes(routed, '/app/isa-demo'), 'the screen the project dialog opens over').not.toBeNull();
+  // [utest->req~frontend-nav-new-menu~1]
+  it('has none of the former items', () => {
+    const labels = createItems(organization, project).map((item) => item.label);
+    for (const former of ['Organization', 'Project', 'Case', 'Job', 'API key', 'Engine']) expect(labels).not.toContain(former);
   });
+});
 
-  it('leads every entry of the tool and account menus to a routed address', () => {
-    for (const link of [...toolLinks, ...accountLinks]) expect(matchRoutes(routed, link.to), `${link.label} ${link.to}`).not.toBeNull();
+describe('accountLinks', () => {
+  // [utest->req~frontend-nav-account-menu~1]
+  it('lists Profile, Plan, API keys, Identities and Notifications with their addresses, all routed', () => {
+    expect(accountLinks.map((link) => [link.label, link.to])).toEqual([
+      ['Profile', '/app/account'], ['Plan', '/app/account/usage'], ['API keys', '/app/account/keys'],
+      ['Identities', '/app/account/identities'], ['Notifications', '/app/account/notifications'],
+    ]);
+    for (const link of accountLinks) expect(matchRoutes(routed, link.to), link.to).not.toBeNull();
   });
 });
 
 describe('currentSection', () => {
-  it('marks the entry of each main link at its own address', () => {
-    for (const [section, link] of Object.entries(mainLinks)) expect(currentSection(link.to), link.to).toBe(section);
+  // [utest->req~frontend-nav-signed-in-navigation~1]
+  it.each([
+    ['/app', 'home'],
+    ['/app/isa-demo', 'home'],
+    ['/app/isa-demo/qos', 'home'],
+    ['/app/isa-demo/settings/members', 'home'],
+    ['/app/isa-demo/qos/cases', 'problems'],
+    ['/app/isa-demo/qos/problems/routing', 'problems'],
+    ['/app/jobs', 'lab'],
+    ['/app/isa-demo/qos/jobs', 'lab'],
+    ['/app/isa-demo/qos/jobs/new', 'lab'],
+    ['/app/isa-demo/qos/studies', 'lab'],
+    ['/app/isa-demo/qos/studies/engines-vs-seeds', 'lab'],
+    ['/app/generator', 'lab'],
+    ['/engines', 'engines'],
+    ['/app/engines/registrations', 'engines'],
+    ['/language', 'language'],
+    ['/language/extensions', 'language'],
+    ['/app/admin', 'admin'],
+    ['/app/admin/audit', 'admin'],
+    ['/app/isa-demo/qos/published', null],
+    ['/app/isa-demo/qos/settings', null],
+    ['/app/account/usage', null],
+    ['/app/system/states', null],
+    ['/explore', null],
+    ['/verify', null],
+  ] as const)('marks %s as %s', (pathname, expected) => {
+    expect(currentSection(pathname)).toBe(expected);
   });
 
-  it('marks the tools entry at the address of each tool', () => {
-    for (const link of toolLinks) expect(currentSection(link.to), link.to).toBe('tools');
-  });
-
-  it.each(Object.keys(routesByArea))('marks the entry of every screen of area %s', (area) => {
-    for (const screen of routesByArea[area as AreaName]) {
-      expect(currentSection(example(screen.path)), `${screen.id} ${screen.path}`).toBe(expectedSection(screen));
+  it('marks every admin screen of the registry as Admin', () => {
+    const admin = routeDefinitions.filter((definition) => definition.requireAdmin);
+    expect(admin.length).toBeGreaterThan(0);
+    for (const definition of admin) {
+      expect(currentSection(definition.path.replace(/:[A-Za-z]+\??/g, 'sample')), definition.path).toBe('admin');
     }
   });
 
-  it('leaves Home alone inside a project: its tabs say where it is', () => {
-    const inside = routeDefinitions.filter((definition) => /^\/app\/:org\/:project\/[^/]/.test(definition.path) && !isProjectJobs(example(definition.path)));
-    expect(inside.length).toBeGreaterThan(0);
-    for (const definition of inside) expect(currentSection(example(definition.path)), definition.path).toBeNull();
-    expect(currentSection('/app/isa-demo/qos')).toBe('home');
-  });
-
-  it('keeps the jobs of a project under Jobs', () => {
-    expect(currentSection(`/app/isa-demo/qos/${jobsSegment}`)).toBe('jobs');
-    expect(currentSection(`/app/isa-demo/qos/${jobsSegment}/new`)).toBe('jobs');
+  it('marks the entry of each header link at its own address', () => {
+    expect(currentSection(mainLinks.home.to)).toBe('home');
+    expect(currentSection(mainLinks.engines.to)).toBe('engines');
+    expect(currentSection(mainLinks.language.to)).toBe('language');
+    expect(currentSection(mainLinks.admin.to)).toBe('admin');
+    expect(currentSection(labLinks.runs.to)).toBe('lab');
+    expect(currentSection(labLinks.generator.to)).toBe('lab');
   });
 });
 
-describe('isToolActive', () => {
-  const marked = (pathname: string) => toolLinks.filter((link) => isToolActive(pathname, link)).map((link) => link.label);
-
-  it('marks the tool whose address the page is under, and no other', () => {
-    for (const link of toolLinks) {
-      expect(marked(link.to), link.to).toEqual([link.label]);
-      expect(marked(`${link.to}/something/else`), `${link.to}/something/else`).toEqual([link.label]);
-    }
-    expect(marked('/app/isa-demo/qos')).toEqual([]);
-  });
-
-  it('marks a tool for every screen of the registry that sits under the tools entry', () => {
-    const screens = routeDefinitions.filter((definition) => expectedSection(definition) === 'tools');
-    expect(screens.length).toBeGreaterThan(0);
-    for (const screen of screens) expect(marked(example(screen.path)).length, `${screen.id} ${screen.path}`).toBe(1);
+describe('labEntryOf', () => {
+  it('tells the entry of the Lab menu an address belongs to', () => {
+    expect(labEntryOf('/app/jobs')).toBe('runs');
+    expect(labEntryOf('/app/isa-demo/qos/jobs/job-1')).toBe('runs');
+    expect(labEntryOf('/app/isa-demo/qos/studies/s1')).toBe('studies');
+    expect(labEntryOf('/app/generator')).toBe('generator');
+    expect(labEntryOf('/app/isa-demo/qos/cases')).toBeNull();
+    expect(labEntryOf('/app')).toBeNull();
   });
 });

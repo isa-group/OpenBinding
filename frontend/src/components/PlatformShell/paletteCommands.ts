@@ -1,4 +1,5 @@
 import type { Organization, Project } from '../../api/platform';
+import { accountLinks, createItems, labEntries, labLinks, mainLinks, problemsEntry, projectRoot } from './appNavigation';
 
 export interface PaletteContext {
   organizations?: Organization[];
@@ -28,20 +29,17 @@ const glyphOf = (label: string) => label
 /** Everything the palette can reach comes from the screen map and from data the workspace already loaded. */
 export function buildCommands({ organizations = [], projects = [], organization, project, isAdmin }: PaletteContext): Command[] {
   const command = (group: string, label: string, desc: string, href: string, glyph = glyphOf(label)): Command => ({ group, label, desc, href, glyph });
-  const root = organization && project ? `/app/${organization.slug}/${project.slug}` : undefined;
+  const root = projectRoot(organization, project);
 
   const commands: Command[] = [
-    command('Go to', 'Home', 'Organizations and recent activity', '/app'),
-    command('Go to', 'Jobs', 'Every job you can see', '/app/jobs'),
-    command('Go to', 'Explore', 'Public projects, publications and engines', '/explore'),
-    command('Go to', 'Engine catalog', 'Engines by exact identity', '/engines'),
-    command('Go to', 'Language: profiles & dialects', 'How instances become binding problems', '/language'),
-    command('Go to', 'Workbench', 'Validate a .bim.zip package', '/workbench'),
+    command('Go to', 'Home', 'Organizations and recent activity', mainLinks.home.to),
+    command('Go to', 'Runs', 'Every run you can see', labLinks.runs.to),
+    command('Go to', 'Generator', 'Generate benchmark instances', labLinks.generator.to),
+    command('Go to', 'Engines', 'Engines by exact identity', mainLinks.engines.to),
+    command('Go to', 'Language', 'How instances become binding problems', mainLinks.language.to),
+    command('Go to', 'Explore', 'Public projects, published results and engines', '/explore'),
+    command('Go to', 'Verify', 'Resolve a digest and check its provenance', '/verify'),
     command('Go to', 'Pricing', 'Plans, limits and add-ons', '/pricing'),
-    command('Tools', 'Verifier', 'Resolve a digest and check its provenance', '/app/verifier'),
-    command('Tools', 'My engines', 'Engines registered by your account', '/app/engines/registrations'),
-    command('Tools', 'Language extensions', 'Dialects and profiles you maintain', '/language/extensions'),
-    command('Tools', 'Generator lab', 'Generate benchmark instances', '/app/generator'),
   ];
 
   for (const item of organizations) {
@@ -52,36 +50,48 @@ export function buildCommands({ organizations = [], projects = [], organization,
     if (owner) commands.push(command('Project', item.name, `Project in ${owner.name}`, `/app/${owner.slug}/${item.slug}`));
   }
   if (root && project) {
-    const sections: Array<[string, string, string]> = [
-      ['Cases', 'Binding cases and their revisions', '/cases'],
+    const problems = problemsEntry(organization, project);
+    const studies = labEntries(organization, project).find((entry) => entry.id === 'studies');
+    const sections: Array<[string, string, string | undefined]> = [
+      ['Problems', 'Binding problems and their versions', problems.to],
       // [impl->req~frontend-retire-library-navigation~1]
-      ['Collections', 'Problems grouped into suites', '/collections'],
-      ['Studies', 'Cases × engines × parameters × seeds', '/studies'],
+      ['Collections', 'Problems grouped into suites', `${root}/collections`],
+      ['Studies', 'Problems × engines × parameters × seeds', studies?.to],
       // [impl->req~frontend-retire-reports-navigation~1]
       // [impl->req~frontend-nav-project-tabs~1]
-      ['Published', 'Published editions and how to cite them', '/published'],
+      ['Published', 'Published editions and how to cite them', `${root}/published`],
       // [impl->req~frontend-nav-files-retired~1]
-      ['Project settings', 'Name, visibility, members and package', '/settings'],
+      ['Project settings', 'Name, visibility, members and package', `${root}/settings`],
     ];
-    for (const [label, desc, suffix] of sections) {
-      commands.push(command('Project', label, `${desc} · ${project.name}`, `${root}${suffix}`));
+    for (const [label, desc, href] of sections) {
+      if (href) commands.push(command('Project', label, `${desc} · ${project.name}`, href));
     }
-    commands.push(command('Create', 'New job', `Launch an engine run in ${project.name}`, `${root}/jobs/new`, '+'));
+    // [impl->req~frontend-nav-new-menu~1]
+    const where = `in ${project.name}`;
+    const created = createItems(organization, project);
+    const describe: Record<string, string> = {
+      Problem: 'Add a binding problem', Collection: 'Group problems into a suite', Study: 'Compare engines on problems', Run: 'Launch an engine run',
+    };
+    for (const item of created) {
+      if (item.to) commands.push(command('Create', `New ${item.label.toLowerCase()}`, `${describe[item.label]} ${where}`, item.to, '+'));
+    }
   }
 
+  // [impl->req~frontend-nav-account-menu~1]
+  const accountDesc: Record<string, string> = {
+    Profile: 'Your details and security', Plan: 'Your plan and the SPACE and SPHERE consoles', 'API keys': 'Keys for scripts and CI',
+    Identities: 'Accounts you sign in with', Notifications: 'Everything sent to your account',
+  };
   commands.push(
     command('Create', 'New organization', 'Group projects and members', '/app?create=organization', '+'),
     command('Create', 'New API key', 'Scoped key for scripts and CI', '/app/account/keys?create=key', '+'),
     command('Create', 'Register an engine', 'Publish an engine you operate', '/app/engines/new', '+'),
-    command('Account', 'Account', 'Profile and security', '/app/account'),
-    command('Account', 'Plan & permissions', 'Your plan and the SPACE and SPHERE consoles', '/app/account/usage'),
-    command('Account', 'API keys', 'Keys for scripts and CI', '/app/account/keys'),
-    command('Account', 'Notifications', 'Everything sent to your account', '/app/account/notifications'),
+    ...accountLinks.map((link) => command('Account', link.label, accountDesc[link.label] ?? link.label, link.to)),
   );
 
   if (isAdmin) {
     commands.push(
-      command('Admin', 'Administration', 'Users, queues and system health', '/app/admin'),
+      command('Admin', mainLinks.admin.label, 'Users, queues and system health', mainLinks.admin.to),
     );
   }
   return commands;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
-import { ChevronDown, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth';
 import { config } from '../../config';
@@ -8,46 +8,47 @@ import { InstitutionMark } from '../InstitutionMark';
 import { INSTITUTION_NAME, useInstitutionalBranding } from '../InstitutionMark/institution';
 import './Navigation.css';
 
-type MenuName = 'language' | 'account' | 'mobile';
+type MenuName = 'account' | 'mobile';
 
 const underPath = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`);
 
-const languageLinks = [
+interface PublicLink {
+  to: string;
+  label: string;
+  active: (pathname: string) => boolean;
+  /** Addresses where a link of the page carries `aria-current`, so the header link keeps only its active style. */
+  pageMarks?: (pathname: string) => boolean;
+}
+
+// [impl->req~frontend-nav-public-navigation~1]
+const publicLinks: readonly PublicLink[] = [
+  { to: '/', label: 'Home', active: (pathname) => pathname === '/' },
   {
-    to: '/language', label: 'Profiles & dialects', description: 'How an instance becomes a binding problem',
-    isActive: (pathname: string) => pathname === '/language',
+    to: '/explore', label: 'Explore', active: (pathname) => underPath(pathname, '/explore'),
+    pageMarks: (pathname) => underPath(pathname, '/explore/examples'),
   },
-  {
-    to: '/language/schemas/application', label: 'Schemas', description: 'Field reference for every resource kind',
-    isActive: (pathname: string) => underPath(pathname, '/language/schemas'),
-  },
-  {
-    to: '/explore/examples', label: 'Examples', description: 'Official BIM packages to start from',
-    isActive: (pathname: string) => underPath(pathname, '/explore/examples'),
-  },
-  {
-    to: '/workbench', label: 'Workbench', description: 'Validate a package without an account',
-    isActive: (pathname: string) => underPath(pathname, '/workbench'),
-  },
-] as const;
+  { to: '/engines', label: 'Engines', active: (pathname) => underPath(pathname, '/engines') },
+  { to: '/language', label: 'Language', active: (pathname) => underPath(pathname, '/language') },
+  { to: '/pricing', label: 'Pricing', active: (pathname) => underPath(pathname, '/pricing') },
+  { to: '/verify', label: 'Verify', active: (pathname) => underPath(pathname, '/verify') },
+  { to: '/about', label: 'About', active: (pathname) => underPath(pathname, '/about') },
+];
 
 export function Navigation() {
   const { user, isAdmin, signOut } = useAuth();
   const institutional = useInstitutionalBranding();
   const location = useLocation();
   const header = useRef<HTMLElement>(null);
-  const languageToggle = useRef<HTMLButtonElement>(null);
   const accountToggle = useRef<HTMLButtonElement>(null);
   const mobileToggle = useRef<HTMLButtonElement>(null);
   // Menus belong to the location they were opened on, so navigating closes them.
   const [opened, setOpened] = useState<{ menu: MenuName | null; at: string }>({ menu: null, at: location.key });
   const openMenu = opened.at === location.key ? opened.menu : null;
 
-  const isCurrent = (root: string) => underPath(location.pathname, root);
-  const languageActive = languageLinks.some((link) => link.isActive(location.pathname));
   const closeMenus = () => setOpened({ menu: null, at: location.key });
   const toggleMenu = (menu: MenuName) => setOpened({ menu: openMenu === menu ? null : menu, at: location.key });
-  const current = (active: boolean) => (active ? 'page' : undefined);
+  const isActive = (link: PublicLink) => link.active(location.pathname);
+  const current = (link: PublicLink) => (isActive(link) && !link.pageMarks?.(location.pathname) ? 'page' : undefined);
 
   useEffect(() => {
     if (!openMenu) return undefined;
@@ -62,7 +63,7 @@ export function Navigation() {
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== 'Escape' || !openMenu) return;
     closeMenus();
-    const toggle = { language: languageToggle, account: accountToggle, mobile: mobileToggle }[openMenu];
+    const toggle = { account: accountToggle, mobile: mobileToggle }[openMenu];
     toggle.current?.focus();
   };
   const closeWhenFocusLeaves = (event: FocusEvent<HTMLElement>) => {
@@ -84,31 +85,17 @@ export function Navigation() {
         </Link>
 
         <nav className="public-nav" aria-label="Primary navigation">
-          <Link to="/explore" viewTransition className="public-nav-link" aria-current={current(isCurrent('/explore'))}>Explore</Link>
-          <Link to="/engines" viewTransition className="public-nav-link" aria-current={current(isCurrent('/engines'))}>Engines</Link>
-          <div className="public-nav-menu" onBlur={openMenu === 'language' ? closeWhenFocusLeaves : undefined}>
-            <button
-              ref={languageToggle}
-              type="button"
-              className={`public-nav-link${languageActive ? ' is-active' : ''}`}
-              aria-expanded={openMenu === 'language'}
-              aria-controls="public-language-menu"
-              onClick={() => toggleMenu('language')}
+          {publicLinks.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              viewTransition
+              className={`public-nav-link${isActive(link) ? ' is-active' : ''}`}
+              aria-current={current(link)}
             >
-              Language <ChevronDown aria-hidden="true" />
-            </button>
-            {openMenu === 'language' && (
-              <div id="public-language-menu" className="public-menu-panel public-language-panel">
-                {languageLinks.map((link) => (
-                  <Link key={link.to} to={link.to} viewTransition aria-current={current(link.isActive(location.pathname))}>
-                    <strong>{link.label}</strong><span>{link.description}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-          <Link to="/pricing" viewTransition className="public-nav-link" aria-current={current(isCurrent('/pricing'))}>Pricing</Link>
-          <Link to="/about" viewTransition className="public-nav-link" aria-current={current(isCurrent('/about'))}>About</Link>
+              {link.label}
+            </Link>
+          ))}
         </nav>
 
         <div className="public-actions">
@@ -170,16 +157,17 @@ export function Navigation() {
       {openMenu === 'mobile' && (
         <nav id="public-mobile-menu" className="public-mobile-menu" aria-label="Mobile navigation">
           <InstitutionMark variant="wide" className="public-mobile-institution" />
-          <Link to="/explore" viewTransition aria-current={current(isCurrent('/explore'))}>Explore</Link>
-          <Link to="/engines" viewTransition aria-current={current(isCurrent('/engines'))}>Engines</Link>
-          <div className="public-mobile-group">
-            <span>Language</span>
-            {languageLinks.map((link) => (
-              <Link key={link.to} to={link.to} viewTransition aria-current={current(link.isActive(location.pathname))}>{link.label}</Link>
-            ))}
-          </div>
-          <Link to="/pricing" viewTransition aria-current={current(isCurrent('/pricing'))}>Pricing</Link>
-          <Link to="/about" viewTransition aria-current={current(isCurrent('/about'))}>About</Link>
+          {publicLinks.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              viewTransition
+              className={isActive(link) ? 'is-active' : undefined}
+              aria-current={current(link)}
+            >
+              {link.label}
+            </Link>
+          ))}
           {user ? (
             <>
               <Link to="/app" viewTransition className="public-button public-button-primary">Open workspace</Link>

@@ -8,6 +8,7 @@ const columns = [
       { label: 'Explore', to: '/explore' },
       { label: 'Engines', to: '/engines' },
       { label: 'Pricing', to: '/pricing' },
+      { label: 'Verify', to: '/verify' },
     ],
   },
   {
