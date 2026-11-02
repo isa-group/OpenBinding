@@ -28,6 +28,7 @@ from . import space_client
 from .access import public_read
 from .jobs import reconciler as job_reconciler
 from .access.dependencies import session_dependency
+from .core import revision
 from .core.settings import Settings, get_settings
 from .core.logging import configure_logging
 from .db import base as db_base
@@ -1295,6 +1296,7 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     credential["responses"]["200"] = json_response(
         "EngineRegistrationRevision", "Credential stored; registration is inactive and private."
     )
+    credential["responses"]["200"]["headers"] = {"ETag": revision.ETAG_HEADER}
 
     validation = paths["/v1/instances/validate"]["post"]
     validation["requestBody"] = package_body(

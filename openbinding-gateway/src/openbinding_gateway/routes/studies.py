@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..access import public_read
 from ..access.dependencies import get_current_user, session_dependency
 from ..collaboration import enforce_sponsor_capacity, organization_by_ref, require_project
+from ..core import revision
 from ..core.settings import get_settings
 from ..domain import usage_counters
 from ..db.models import (
@@ -243,16 +244,16 @@ async def list_collection_revisions(
     revisions = (await session.scalars(select(ArtifactVersion).where(
         ArtifactVersion.artifact_id == found.id).order_by(ArtifactVersion.ordinal))).all()
     result = []
-    for revision in revisions:
-        content, _ = await version_content(session, revision)
+    for version in revisions:
+        content, _ = await version_content(session, version)
         members = CollectionArtifactContent.model_validate(json.loads(content)).members
         items = [CollectionItemInput(target_kind="case" if hasattr(item, "caseRevisionId") else "resource",
             target_digest=(item.compositionDigest if hasattr(item, "compositionDigest") else item.versionDigest),
             target_ref=(item.model_dump(mode="json"))) for item in members]
         result.append(CollectionRevisionView(
-            id=revision.id, collection_id=found.id, revision=revision.ordinal,
-            digest=revision.content_digest, items=items,
-            created_at=revision.created_at,
+            id=version.id, collection_id=found.id, revision=version.ordinal,
+            digest=version.content_digest, items=items,
+            created_at=version.created_at,
         ))
     return result
 
@@ -345,13 +346,13 @@ async def create_collection_revision(
     manifest = {"apiVersion": "openbinding/artifact/v1", "kind": "Collection",
         "identity": {"namespace": found.namespace, "name": found.name, "version": str(ordinal)},
         "contentDigest": revision_digest, "mediaType": "application/json", "contracts": [], "dependencies": []}
-    revision = ArtifactVersion(artifact_id=found.id, ordinal=ordinal, version=str(ordinal), blob_id=blob.id,
+    created = ArtifactVersion(artifact_id=found.id, ordinal=ordinal, version=str(ordinal), blob_id=blob.id,
         content_digest=revision_digest, version_digest=digest(manifest), manifest=manifest, created_by_id=user.id)
-    session.add(revision)
+    session.add(created)
     await session.flush()
-    _audit(session, user, "collection.revision.created", revision, organization.id, digest=revision_digest)
-    return CollectionRevisionView(id=revision.id, collection_id=found.id, revision=revision.ordinal,
-        digest=revision.content_digest, items=payload.items, created_at=revision.created_at)
+    _audit(session, user, "collection.revision.created", created, organization.id, digest=revision_digest)
+    return CollectionRevisionView(id=created.id, collection_id=found.id, revision=created.ordinal,
+        digest=created.content_digest, items=payload.items, created_at=created.created_at)
 
 
 @router.get(
@@ -547,14 +548,22 @@ async def create_study(
     return _study_view(value)
 
 
-@router.patch("/studies/{study}", response_model=StudyView, operation_id="updateStudy")
+# [impl->req~gateway-api-optimistic-concurrency-covered~1]
+# [impl->req~gateway-api-optimistic-concurrency-order-access~1]
+# [impl->req~gateway-api-optimistic-concurrency-order-state~1]
+@router.patch(
+    "/studies/{study}", response_model=StudyView, operation_id="updateStudy",
+    responses=revision.EDIT_RESPONSES,
+)
 async def update_study(
-    org: str, project: str, study: str, payload: StudyUpdate,
+    org: str, project: str, study: str, payload: StudyUpdate, response: Response,
+    if_match: str | None = revision.IF_MATCH_HEADER,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> StudyView:
     organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
     found = await _study(session, found_project.id, study, user)
+    await revision.guard(session, found, if_match)
     if payload.definition_version_id is not None:
         from ..artifacts import resolve_version, reference
         from ..db.models import Artifact, ArtifactVersion
@@ -577,6 +586,8 @@ async def update_study(
     if payload.description is not None:
         found.description = payload.description
     await session.flush()
+    await session.refresh(found, ["updated_at"])
+    revision.set_etag(response, found)
     _audit(session, user, "study.updated", found, organization.id)
     return _study_view(found)
 

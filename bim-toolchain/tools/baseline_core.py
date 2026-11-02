@@ -19,10 +19,15 @@ placement in the order the JSON objects were written (commit ``b2780381``).  It 
 moved with it live in ``golden/bim_normalized`` (``corpus.json`` and ``zip_equivalence.json``); ``negatives.json`` and
 ``vectors.json`` did not move and are still compared with the frozen baseline.
 
+``golden/bim_baseline_1_1_1`` is a second frozen baseline: ``compat.json`` and ``protocol.json`` with the four Engine
+manifests of the repository, among them ``minizinc-csp`` 1.1.1, which changed its manifest after the first freeze (and
+``meta-router-csp``, whose manifest is not in the repository, is gone).  They are byte copies of ``golden/bim_core``
+when they were created, are pinned by SHA-256 in ``test_baseline_equivalence.py`` and are compared with no Engine
+removed.  The tool never writes them; ``test_frozen_manifest_*`` relates them to ``golden/bim_baseline`` by identifier.
+
 * ``golden/bim_core/compat.json`` and ``golden/bim_core/protocol.json``: the same two documents computed
-  with the four Engine manifests that exist in the repository.  The OpenBinding goldens also list
-  ``meta-router-csp``, whose manifest is not in the repository, so those two cannot be reproduced
-  byte for byte; every other byte is compared with the originals.
+  with the four Engine manifests that exist in the repository.  They are regenerable regression pins of this
+  toolchain's output; ``golden/bim_baseline_1_1_1`` is the frozen copy they are compared with while no manifest moves.
 * ``golden/bim_core/evaluator_errors.json``: the binding negatives seen through ``bim_core.evaluator``,
   which raises ``EvaluationError`` where ``BindingProblem.validate_binding`` raises ``ValueError``.
 * ``golden/vectors_extra.json``: adversarial re-evaluation and result-validation vectors.
@@ -40,8 +45,8 @@ Compare against the goldens::
 
     python bim-toolchain/tools/baseline_core.py --check
 
-Regenerate them (only when a change of meaning is intended and reviewed; ``golden/bim_baseline`` is never
-rewritten)::
+Regenerate them (only when a change of meaning is intended and reviewed; ``golden/bim_baseline`` and
+``golden/bim_baseline_1_1_1`` are never rewritten)::
 
     python bim-toolchain/tools/baseline_core.py
 """
@@ -120,13 +125,14 @@ UNCHANGED_FILES = ("negatives.json", "vectors.json")
 #: Documents written to ``golden/bim_normalized``.
 NORMALIZED_FILES = ("corpus.json", "zip_equivalence.json")
 CORE_GOLDEN_FILES = ("compat.json", "protocol.json", "evaluator_errors.json")
-#: Engines whose manifest is in the OpenBinding goldens but not in the repository.
+#: The second frozen baseline: ``compat.json`` and ``protocol.json`` with the ``minizinc-csp`` 1.1.1 manifest
+#: (multiplicative aggregations, soft constraints, ``and``, ``repeat.expectedCount``, the ``product_constraints``
+#: option) and the four Engines of the repository.  Byte copies of ``golden/bim_core`` when they were created, pinned by
+#: SHA-256 in the tests, never written by this tool and compared with no Engine removed.
+FROZEN_MANIFEST_DIR = GOLDEN_ROOT / "bim_baseline_1_1_1"
+FROZEN_MANIFEST_FILES = ("compat.json", "protocol.json")
+#: Engines whose manifest is in the OpenBinding goldens but not in the repository (only to read the old frozen copy).
 MISSING_MANIFESTS = ("meta-router-csp",)
-#: Engines whose manifest changed after ``golden/bim_baseline`` was frozen, so that their mode compatibility and
-#: manifest digest moved with the manifest, not with the toolchain: ``minizinc-csp`` 1.1.1 (multiplicative
-#: aggregations, soft constraints, ``and``, ``repeat.expectedCount``, the ``product_constraints`` option).  They are
-#: left out of the comparison with the frozen baseline and pinned in ``golden/bim_core`` only.
-CHANGED_MANIFESTS = ("minizinc-csp",)
 DEMO_RELATIVE = Path("examples") / "demo" / "01_simple_seq"
 NON_SEMANTIC = frozenset({"profile", "dialects", "instance", "sourceMap"})
 SKIPPED_DIRECTORIES = {".git", ".pnpm-store", "node_modules", "target", "dist", ".venv", "__pycache__"}
@@ -1357,23 +1363,20 @@ def mismatches(documents: dict[str, Any], golden_root: Path = GOLDEN_ROOT) -> li
 
     ``corpus`` and ``zip_equivalence`` are compared with ``bim_normalized``, the baseline of the normalized IR.
     ``negatives`` and ``vectors``, which normalization did not move, are compared with the frozen previous baseline
-    ``bim_baseline`` (OpenBinding's goldens); so are ``compat`` and ``protocol`` once the Engines whose manifest is not
-    in the repository are removed from the originals.  The documents that have no original are compared with their own
+    ``bim_baseline`` (OpenBinding's goldens).  ``compat`` and ``protocol`` are compared with the second frozen baseline
+    ``bim_baseline_1_1_1``, which holds them with the four Engines of the repository and the ``minizinc-csp`` 1.1.1
+    manifest: no Engine is removed from either side.  The documents that have no original are compared with their own
     goldens.
     """
     baseline_dir, normalized_dir = golden_root / GOLDEN_DIR.name, golden_root / NORMALIZED_DIR.name
-    core_dir = golden_root / CORE_GOLDEN_DIR.name
+    frozen_dir, core_dir = golden_root / FROZEN_MANIFEST_DIR.name, golden_root / CORE_GOLDEN_DIR.name
     found: list[str] = []
     for name in NORMALIZED_FILES:
         found.extend(differences(f"bim_normalized/{name}", documents[name], _golden(normalized_dir, name)))
     for name in UNCHANGED_FILES:
         found.extend(differences(name, documents[name], _golden(baseline_dir, name)))
-    for name in ("compat.json", "protocol.json"):
-        found.extend(differences(
-            f"{name} (openbinding)",
-            without_engines(documents[name], CHANGED_MANIFESTS),
-            without_engines(_golden(baseline_dir, name), MISSING_MANIFESTS + CHANGED_MANIFESTS),
-        ))
+    for name in FROZEN_MANIFEST_FILES:
+        found.extend(differences(f"{FROZEN_MANIFEST_DIR.name}/{name}", documents[name], _golden(frozen_dir, name)))
     for name in CORE_GOLDEN_FILES:
         found.extend(differences(f"bim_core/{name}", documents[name], _golden(core_dir, name)))
     found.extend(
@@ -1389,7 +1392,8 @@ def main(argv: list[str] | None = None) -> int:
         "--output",
         type=Path,
         default=GOLDEN_ROOT,
-        help="the golden/ directory the documents are written to or checked against (bim_baseline is never written)",
+        help="the golden/ directory the documents are written to or checked against "
+        "(bim_baseline and bim_baseline_1_1_1 are never written)",
     )
     parser.add_argument("--manifests", type=Path, default=MANIFEST_DIR, help="directory with the Engine manifests")
     parser.add_argument("--expected", type=int, default=82)

@@ -16,8 +16,10 @@ Same sequence as `PG_HARNESS.md` (`lab_compose`, `file=compose.pgtest.json`: `up
 difference is the value of `DEMO_PYTEST_ARGS` given to `seed`:
 
 ```text
-DEMO_PYTEST_ARGS='-rsfExX --tb=short tests/concurrency tests/test_federated_engines_pg.py tests/test_duplicate_copy_purge_pg.py'
+DEMO_PYTEST_ARGS='-rsfExX --tb=short tests/concurrency tests/test_federated_engines_pg.py tests/test_duplicate_copy_purge_pg.py tests/test_optimistic_guard_pg.py'
 ```
+
+`tests/test_optimistic_guard_pg.py` (8 tests, optimistic concurrency) was added to this command after the recorded run below and has **not yet had a recorded real run**: the counts in this document do not include it.
 
 - Paths are relative to `/app` (the `test` stage of the image copies `tests/`). Do **not** add `tests` or
   `tests/test_pg_harness.py`: the container has no checkout, so the compose-shape tests fail there by design.
@@ -26,7 +28,7 @@ DEMO_PYTEST_ARGS='-rsfExX --tb=short tests/concurrency tests/test_federated_engi
 - Each `lab_compose` operation has a 420 s limit. The existing `tests/concurrency` took 12 s for 58 tests; the new
   modules are expected to take a similar order of magnitude (several tests wait for a lock on purpose, never more than
   the 20 s of `_pg_support.WAIT_SECONDS`, and every test is cut at 60 s by the watchdog). If a run does not fit, split it
-  in two `seed` runs: `tests/concurrency`, then the two new files.
+  in two `seed` runs: `tests/concurrency`, then the three PG modules.
 - `OPENBINDING_PG_TEST_TIMEOUT` (seconds) changes the per-test limit, as for `tests/concurrency`.
 
 ## What these tests are, and where the originals are
@@ -102,10 +104,23 @@ unique-index waits, several connections, real foreign keys and triggers.
 | Reconciler cycle on the real database, once an hour | `test_the_reconciler_purges_once_an_hour_on_the_real_database` |
 | Cycle lock: the replica without it purges nothing | `test_the_replica_without_the_cycle_lock_purges_nothing` |
 
+### `tests/test_optimistic_guard_pg.py` (8 tests; no recorded real run yet)
+
+| Rule | Test |
+| --- | --- |
+| Race: the second writer with the same tag waits (seen in `pg_stat_activity`), then gets 412 with the new ETag | `test_the_second_writer_with_the_same_tag_waits_for_the_first_and_then_gets_412` |
+| `If-Match: *`: both writers pass, one after the other | `test_if_match_star_lets_both_writers_through_one_after_the_other` |
+| Rollback after the claim leaves the revision untouched | `test_a_writer_that_rolls_back_after_its_claim_leaves_the_revision_untouched` |
+| ETag of a value read back from PostgreSQL equals the one computed after the write | `test_the_etag_of_a_value_read_back_from_postgresql_equals_the_one_computed_after_the_write` |
+| ETag of a Python timestamp with microseconds and an offset survives the round trip | `test_a_python_timestamp_written_with_microseconds_and_an_offset_keeps_its_etag_when_read_back` |
+| Route: two concurrent PATCHes of one project with the same ETag, one 200 and one 412, stored name is the winner's | `test_over_http_two_concurrent_patches_with_the_same_etag_give_one_200_and_one_412` |
+| Route: a PATCH refused after its claim (422 `sponsor_must_be_caller`) leaves the ETag unchanged | `test_over_http_a_patch_refused_after_its_claim_leaves_the_etag_unchanged` |
+| Route: a profile edit refused after its claim leaves the ETag unchanged | `test_over_http_a_profile_edit_refused_after_its_claim_leaves_the_etag_unchanged` |
+
 ## What to expect
 
 - Exit code 0; **0 skipped**; **36 passed and 0 `xfail`** for the two phase-17 modules (20 + 16), inside a total of **113
-  passed** with `tests/concurrency` (which includes the 7 `test_cancel_running_pg`). There is no `xfail`: an `x` or `X` in the
+  passed** with `tests/concurrency` (which includes the 7 `test_cancel_running_pg`); with the command above, add the 8 tests of `test_optimistic_guard_pg.py`, which has no recorded run, so the expected total is 121 once they pass. There is no `xfail`: an `x` or `X` in the
   `-rsfExX` summary would be a defect, as a failure of either of the two tests described under
   [Findings](#findings-of-the-first-read-fixed-in-servicesengine_registrypy) would be. (Earlier figure, history: 70 passed at
   `bef53047` for `tests/concurrency` alone.)

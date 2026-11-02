@@ -17,9 +17,9 @@ need the owner), the develop preview at `https://openbinding.home.javiercavlop.c
 |---|---|---|---|---|---|
 | M0 | Foundation: integration landed, gates, previews, storage, Docker Compose only | — | develop preview reachable from the Mac and the iPhone | — | in progress (M0.3 done; M0.1 unverified; M0.5 in progress; CI also runs on pushes to `develop`, manually and nightly; flaky-test register in `docs/qa/FLAKY_TESTS.md`) |
 | M1 | Specification v2 (this document set) | — | — | — | done (PR #25, merged 2026-10-23) |
-| M2 | Render, never dump; retirements, navigation and vocabulary | M0 | every screen in the QA gallery, desktop and mobile, within the screen budget | R1 = M0–M2 | in progress (M2.1 and M2.2 merged, PR #38; M2.4 in progress, slices 1 to 4 merged, PR #51, #53, #55 and #65; slice 5 under review) |
+| M2 | Render, never dump; retirements, navigation and vocabulary | M0 | every screen in the QA gallery, desktop and mobile, within the screen budget | R1 = M0–M2 | in progress (M2.1 and M2.2 merged, PR #38; M2.3 merged, PR #70; M2.4 screens merged, slices 1 to 5, PR #51, #53, #55, #65 and #66, endpoint sunset pending; M2.5 merged, PR #71; M2.6 and M2.7 in flight, not merged) |
 | M3 | Problem repository | M2 (catalogue) | Explore → problem page → versions → runs | R2 = M3–M4 | planned |
-| M4 | Plans: SPHERE remote, SPACE local then remote | M0; pricing 0.2.0 published | the pricing-change scenario of M4 | R2 | in progress (M4.0 done; M4.1 partly, PR #36) |
+| M4 | Plans: SPHERE remote, SPACE local then remote | M0; pricing 0.2.0 published | the pricing-change scenario of M4 | R2 | in progress (M4.0 done; M4.1 partly, PR #36 and #40; remote SPACE instead of a local SPACE, PR #69) |
 | M5 | Language extensibility | M0; bim-toolchain release | placement as an extension; a tier-1 dialect installed | R3 = M5–M6 | planned |
 | M6 | Laboratory, published results and QACOBench inside the platform | M3 | a study reproducing an icws suite, published and verified | R3 | planned |
 | M7 | Engines | M5 (profile support) | engine health and onboarding | R4 | planned |
@@ -47,8 +47,8 @@ Goal: `develop` is green, gated and previewable, and the lab does not fill up.
 Slice status (2026-10-24): M0.1 in progress, unverified (PR #24 work is recorded in `docs/agent-work/`, but no
 record of its merge or of the fast-forward of `develop` is in the repository); M0.3 done (PR #37, gate tooling,
 merged 2026-10-24); M0.5 in progress (PR #34 planner and contract tests merged; S4, the isolation probe and the PR
-previews docs, landed in PR #39; S1a and S2 (`DEMO_LAB_PORT`) are in open PR #41, not yet merged); the other
-slices have no recorded progress.
+previews docs, landed in PR #39; S1a and S2 (`DEMO_LAB_PORT`) merged in PR #41; the factory-side acceptance is not
+recorded); the other slices have no recorded progress in this file.
 
 ## M1 — Specification v2
 
@@ -72,13 +72,14 @@ vocabulary of `INTENT.md` §5; names instead of digests.
 | M2.7 | Names, not digests (INTENT principle 13, ARCHITECTURE §5.4): identity labels in `shared/lib`; digests, fingerprints and UUIDs removed from cards, lists, headers and badges; `CitationPanel` and `VerifyResult` | the hygiene test finds no digest-shaped text or UUID outside the allowed components |
 | M2.8 | QA gallery refreshed and reviewed by ui-qa | desktop and mobile screenshots attached to the release PR |
 
-Slice status (2026-10-26): M2.1 and M2.2 merged (PR #38); M2.4 in progress: slice 1 (decision-space workspace) is
-merged (PR #51); slice 2 (report editor) is merged (PR #53); slice 3 (library catalogue and project resources; offender
-11 gone with its screens) is merged (PR #55); slice 4 (composer) is merged (PR #65); slice 5 (sponsorship, the
-last one) is under review in the pull request of change `m24-retire-sponsorship`. The endpoints and their `Deprecation` and
-`Sunset` headers are a separate step that needs an owner CRP. M2.3 is built (change `m23-run-result`): the shared
-`RunResult` renders the Jobs run and the Workbench "Authoritative result"; offenders 1 to 4 are off the allow-list, which
-now holds 8. The other slices have no recorded progress.
+Slice status (2026-10-28): M2.1 and M2.2 merged (PR #38); M2.3 merged (PR #70, change `m23-run-result`): the shared
+`RunResult` renders the Jobs run and the Workbench "Authoritative result"; offenders 1 to 4 are off the allow-list.
+M2.4 screens are all merged: slice 1 (decision-space workspace, PR #51), slice 2 (report editor, PR #53), slice 3
+(library catalogue and project resources; offender 11 gone with its screens, PR #55), slice 4 (composer, PR #65) and
+slice 5 (sponsorship, PR #66, change `m24-retire-sponsorship`). The endpoints and their `Deprecation` and `Sunset`
+headers were not done as a separate step: the 41 retired operations were removed in M9.6 (change `m96-remove-retired`).
+M2.5 merged (PR #71): studies, engines, audit, registration and generator rendered. M2.6 and M2.7 are in flight under
+leads and are not merged. M2.8 has no recorded progress.
 
 Raw-rendering offenders at 912648c (INTENT O5):
 
@@ -134,7 +135,10 @@ own-88f5fc0a772945149100023a6a783368: the SPHERE public manifest
 https://sphere.score.us.es/api/v1/public/pricings/6ab0a323697330667ccce891 lists 0.2.0 as the latest version,
 latestVersionId `6ada6dbd4b2b5b01c587d17f`, createdAt 2026-10-22, contentHash
 `3db4ad99b33f0a591fcc71167bb7410e10a477429d48a0105afd17bf629b182c`, equal to `docs/pricing/openbinding-0.2.0.yml`); M4.1 partly merged (PR #36: optional pricing profile, static tests,
-narrowed no-local-space test); the other slices have no recorded progress.
+narrowed no-local-space test; PR #40: SPACE image from the pinned v1.7.1 commit and lab bootstrap). PR #69 (2026-10-28)
+moves the lab to the remote SPACE `space.score.us.es` instead of a local SPACE; the milestone text above is the
+owner's and still describes the local SPACE until the owner applies the wording proposed in
+`docs/agent-work/m4-remote-space/roadmap-m4.md`. The other slices have no recorded progress.
 
 Acceptance scenario (end to end, in a preview): when a new public version of the OpenBinding pricing appears in
 SPHERE (0.2.0 is the first), the stack's SPACE migrates the contracts within its synchronization cycle (five minutes,
@@ -191,7 +195,7 @@ Goal: profiles that extend profiles, installable dialects, one language API and 
 | M9.5 | BIM toolchain extracted to `isa-group/bim-toolchain` and consumed as a pinned release (ADR-0004) | consumer contracts green on both sides |
 | M9.6 | Retired endpoints, code and data (ADR-0020, after the Sunset of M2.4): endpoints removed (CRP); the `analysis` queue and worker removed; report drafts, decision-space workspaces and sponsorship proposals exported and dropped (CRP) | `docs/openapi.json` shrinks; every sealed problem version compiles to the same IR; existing publications still answer at their permanent links |
 
-Slice status (2026-10-27): M9.6 done in change `m96-remove-retired`. The owner skipped the Deprecation/Sunset period because nothing ran in production, so the 41 retired operations, the analysis queue and worker, the sponsor proposals and the deprecation middleware are removed, and docs/openapi.json shrinks accordingly; the retired data (report drafts, decision-space workspaces, sponsorship proposals) is exported with the export tool and dropped by a guarded migration.
+Slice status (2026-10-28): M9.6 done and merged in `develop` (change `m96-remove-retired`). The owner skipped the Deprecation/Sunset period because nothing ran in production, so the 41 retired operations, the analysis queue and worker, the sponsor proposals and the deprecation middleware are removed, and docs/openapi.json shrinks accordingly; the retired data (report drafts, decision-space workspaces, sponsorship proposals) is exported with the export tool and dropped by a guarded migration.
 
 ## Releases
 
