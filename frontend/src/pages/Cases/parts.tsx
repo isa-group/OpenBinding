@@ -144,7 +144,7 @@ function Step({ node, vertical }: { node: FlowNode; vertical: boolean }) {
 
 /** The workflow of a revision drawn as boxes and arrows: what runs in sequence, in parallel or as alternatives. */
 export function FlowDrawing({ flow, caption }: { flow: FlowNode | null; caption?: ReactNode }) {
-  if (!flow) return <p className="org-muted">The workflow isn’t available for this revision.</p>;
+  if (!flow) return <p className="org-muted">The workflow isn’t available for this version.</p>;
   return (
     <div className="flow">
       <div className="flow-scroll">

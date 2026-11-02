@@ -242,7 +242,7 @@ export function diffRevisions(from: RevisionView, to: RevisionView): DiffRow[] {
 export function diffSummary(caseSlug: string, from: RevisionView, to: RevisionView, rows: readonly DiffRow[]): string {
   const changed = rows.filter((item) => item.changed).map((item) => `${item.what} ${item.a} → ${item.b}`);
   const size = from.model && to.model ? `; combinations ${powerText(from.model.log10)} → ${powerText(to.model.log10)}` : '';
-  return `${caseSlug} r${from.revision} → r${to.revision}: ${changed.length ? changed.join('; ') : 'no changes'}${size}.`;
+  return `${caseSlug} v${from.revision} → v${to.revision}: ${changed.length ? changed.join('; ') : 'no changes'}${size}.`;
 }
 
 /** How much bigger or smaller the second revision's problem is, in words. */

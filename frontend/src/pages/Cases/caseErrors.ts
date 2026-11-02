@@ -11,9 +11,9 @@ export interface Refusal {
 /** The words for each way the gateway can refuse a new case. */
 export function createRefusal(caught: unknown): Refusal {
   const failure = classifyAuthError(caught);
-  if (failure.status === 409) return { kind: 'address', text: `That address is already used by another case in this project${marker(failure)}.` };
+  if (failure.status === 409) return { kind: 'address', text: `That address is already used by another problem in this project${marker(failure)}.` };
   if (failure.kind === 'invalid') return { kind: 'invalid', text: `Give it a name and a valid address${marker(failure)}: lowercase letters, numbers and hyphens.` };
-  if (failure.status === 403) return { kind: 'forbidden', text: `You need MEMBER in the organization to create a case${marker(failure)}. Nothing was created.` };
+  if (failure.status === 403) return { kind: 'forbidden', text: `You need MEMBER in the organization to create a problem${marker(failure)}. Nothing was created.` };
   if (failure.kind === 'not-found') return { kind: 'gone', text: `The project no longer exists, or you’re not in its organization${marker(failure)}. Nothing was created.` };
   return { kind: 'other', text: generalFailure(failure, 'nothing was created') };
 }
@@ -22,8 +22,8 @@ export function createRefusal(caught: unknown): Refusal {
 export function updateRefusal(caught: unknown): Refusal {
   const failure = classifyAuthError(caught);
   if (failure.kind === 'invalid') return { kind: 'invalid', text: `The gateway refused that text${marker(failure)}. A description can have up to 2,000 characters.` };
-  if (failure.status === 403) return { kind: 'forbidden', text: `You need MEMBER in the organization to edit a case${marker(failure)}. Nothing changed.` };
-  if (failure.kind === 'not-found') return { kind: 'gone', text: `The case no longer exists${marker(failure)}. Nothing changed.` };
+  if (failure.status === 403) return { kind: 'forbidden', text: `You need MEMBER in the organization to edit a problem${marker(failure)}. Nothing changed.` };
+  if (failure.kind === 'not-found') return { kind: 'gone', text: `The problem no longer exists${marker(failure)}. Nothing changed.` };
   return { kind: 'other', text: generalFailure(failure, 'nothing changed') };
 }
 
@@ -33,11 +33,11 @@ export function deleteRefusal(caught: unknown): Refusal {
   if (failure.status === 409) {
     return {
       kind: 'sealed',
-      text: `This case has sealed revisions, so it can’t be deleted${marker(failure)}. Sealed history stays reachable so people can still verify it.`,
+      text: `This problem has sealed versions, so it can’t be deleted${marker(failure)}. Sealed history stays reachable so people can still verify it.`,
     };
   }
-  if (failure.status === 403) return { kind: 'forbidden', text: `You need ADMIN in the organization to delete a case${marker(failure)}. Nothing was deleted.` };
-  if (failure.kind === 'not-found') return { kind: 'gone', text: `The case no longer exists${marker(failure)}.` };
+  if (failure.status === 403) return { kind: 'forbidden', text: `You need ADMIN in the organization to delete a problem${marker(failure)}. Nothing was deleted.` };
+  if (failure.kind === 'not-found') return { kind: 'gone', text: `The problem no longer exists${marker(failure)}.` };
   return { kind: 'other', text: generalFailure(failure, 'nothing was deleted') };
 }
 

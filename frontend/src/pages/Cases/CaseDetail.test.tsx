@@ -61,15 +61,16 @@ describe('Problem page', () => {
   });
 
   // [utest->req~frontend-nav-problem-page~1]
-  it('opens with the name, the address, the description and the number of revisions', async () => {
+  // [utest->req~frontend-nav-vocabulary-text~1]
+  it('opens with the name, the address, the description and the number of versions', async () => {
     renderDetail();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeInTheDocument();
     expect(screen.getByText('flujo-checkout')).toBeInTheDocument();
-    expect(screen.getByText('2 revisions')).toBeInTheDocument();
+    expect(screen.getByText('2 versions')).toBeInTheDocument();
     expect(screen.getByText('Payments with parallel stock and shipping.')).toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(crumbs).getByRole('link', { name: 'Cases' })).toHaveAttribute('href', `${root}/cases`);
+    expect(within(crumbs).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', `${root}/cases`);
     expect(platform.case).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'flujo-checkout');
   });
 
@@ -135,8 +136,8 @@ describe('Problem page', () => {
     cases.revision.mockRejectedValue(refusal(404, 'not_found'));
     renderDetail(owner, 'flujo-checkout', '?version=9');
 
-    expect(await screen.findByRole('heading', { name: 'This revision doesn’t exist (404)' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See all revisions' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/versions`);
+    expect(await screen.findByRole('heading', { name: 'This version doesn’t exist (404)' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See all versions' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/versions`);
     expect(cases.revision).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'flujo-checkout', '9');
   });
 
@@ -159,8 +160,8 @@ describe('Problem page', () => {
 
       await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
       expect(tabNames()).toEqual(['Overview', 'Versions', 'Source']);
-      expect(screen.queryByRole('link', { name: 'New revision' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('link', { name: 'Run this revision' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'New version' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Run this version' })).not.toBeInTheDocument();
       expect(screen.queryByRole('link', { name: 'Add to study' })).not.toBeInTheDocument();
     });
 
@@ -174,52 +175,52 @@ describe('Problem page', () => {
 
   describe('Versions tab', () => {
     // [utest->req~frontend-nav-problem-page~1]
-    it('draws the revisions as a timeline, newest first, with what changed between them', async () => {
+    it('draws the versions as a timeline, newest first, with what changed between them', async () => {
       renderDetail(owner, 'flujo-checkout', '/versions');
 
-      const region = await screen.findByRole('region', { name: 'Revisions' });
-      expect(within(region).getAllByRole('link', { name: /^Revision \d$/ }).map((link) => link.textContent)).toEqual(['Revision 2', 'Revision 1']);
+      const region = await screen.findByRole('region', { name: 'Versions' });
+      expect(within(region).getAllByRole('link', { name: /^Version \d$/ }).map((link) => link.textContent)).toEqual(['Version 2', 'Version 1']);
       expect(within(region).getByText('Latest')).toBeInTheDocument();
       expect(within(region).getByText('Candidate catalog · providers: providers-eu v2 → providers-eu v3')).toBeInTheDocument();
-      expect(within(region).getByText('First revision.')).toBeInTheDocument();
-      const used = within(region).getByRole('list', { name: 'Library versions of revision 2' });
+      expect(within(region).getByText('First version.')).toBeInTheDocument();
+      const used = within(region).getByRole('list', { name: 'Library versions in version 2' });
       expect(within(used).getByText('providers-eu v3').closest('li')).toHaveClass('is-changed');
       expect(within(used).getByText('checkout-app v3').closest('li')).not.toHaveClass('is-changed');
       expect(within(region).getAllByRole('link', { name: 'Open' })[0]).toHaveAttribute('href', `${root}/cases/flujo-checkout?version=2`);
       expect(within(region).getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/source?version=2`);
-      expect(within(region).getByRole('link', { name: 'Compare with r1' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/versions?from=1&to=2`);
+      expect(within(region).getByRole('link', { name: 'Compare with v1' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/versions?from=1&to=2`);
     });
 
-    it('copies the exact reference of a revision', async () => {
+    it('copies the exact reference of a version', async () => {
       renderDetail(owner, 'flujo-checkout', '/versions');
 
-      fireEvent.click(await screen.findByRole('button', { name: 'Copy exact reference of revision 2' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Copy exact reference of version 2' }));
       await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`flujo-checkout@2 ${r2.digest}`));
       expect(await screen.findByText('Copied')).toBeInTheDocument();
     });
 
     // [utest->req~frontend-nav-problem-page~1]
-    it('keeps the history and does not ask for a comparison before there are two revisions', async () => {
+    it('keeps the history and does not ask for a comparison before there are two versions', async () => {
       platform.revisions.mockResolvedValue([r1]);
       renderDetail(owner, 'flujo-checkout', '/versions');
 
-      expect(await screen.findByRole('region', { name: 'Revisions' })).toBeInTheDocument();
-      expect(await screen.findByRole('heading', { name: 'Comparing needs two revisions' })).toBeInTheDocument();
+      expect(await screen.findByRole('region', { name: 'Versions' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Comparing needs two versions' })).toBeInTheDocument();
     });
   });
 
   describe('roles', () => {
     // [utest->req~frontend-retire-composer-entry-points-repointed~1]
-    it('gives a MEMBER a new revision in the workbench, a run and the workbench, but not deleting', async () => {
+    it('gives a MEMBER a new version in the workbench, a run and the workbench, but not deleting', async () => {
       renderDetail(member);
 
       await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
       const base = '/app/member-lab/qos-benchmarks';
-      expect(screen.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${base}/workbench?case=flujo-checkout`);
-      expect(screen.getByRole('link', { name: 'Run this revision' })).toHaveAttribute('href', `${base}/jobs/new?case=flujo-checkout&revision=2`);
+      expect(screen.getByRole('link', { name: 'New version' })).toHaveAttribute('href', `${base}/workbench?case=flujo-checkout`);
+      expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${base}/jobs/new?case=flujo-checkout&revision=2`);
       expect(screen.getByRole('link', { name: 'Open in Workbench' })).toHaveAttribute('href', `${base}/workbench?case=flujo-checkout&revision=${r2.id}`);
       expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', `${base}/studies/new?case=flujo-checkout&revision=2`);
-      expect(screen.queryByRole('button', { name: 'Delete case' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Delete problem' })).not.toBeInTheDocument();
       for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
     });
 
@@ -228,34 +229,34 @@ describe('Problem page', () => {
       renderDetail(viewer);
 
       await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
-      expect(screen.queryByRole('link', { name: /Compose the first revision/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /Compose the first version/ })).not.toBeInTheDocument();
       for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
-      expect(screen.getByRole('note')).toHaveTextContent('You can read and compare revisions. New revisions need MEMBER; deleting needs ADMIN.');
-      expect(screen.queryByRole('link', { name: 'New revision' })).not.toBeInTheDocument();
+      expect(screen.getByRole('note')).toHaveTextContent('You can read and compare versions. New versions need MEMBER; deleting needs ADMIN.');
+      expect(screen.queryByRole('link', { name: 'New version' })).not.toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Open in Workbench' })).toHaveAttribute('href', `/app/read-lab/qos-benchmarks/workbench?case=flujo-checkout&revision=${r2.id}`);
     });
   });
 
-  describe('a case without revisions', () => {
+  describe('a problem without versions', () => {
     beforeEach(() => platform.revisions.mockResolvedValue([]));
 
     // [utest->req~frontend-retire-composer-entry-points-repointed~1]
     it('points a MEMBER to the workbench instead of the version tabs', async () => {
       renderDetail(member);
 
-      const guide = await screen.findByRole('region', { name: 'No revisions yet' });
-      expect(within(guide).getByRole('link', { name: 'Compose the first revision' })).toHaveAttribute('href', '/app/member-lab/qos-benchmarks/workbench?case=flujo-checkout');
+      const guide = await screen.findByRole('region', { name: 'No versions yet' });
+      expect(within(guide).getByRole('link', { name: 'Compose the first version' })).toHaveAttribute('href', '/app/member-lab/qos-benchmarks/workbench?case=flujo-checkout');
       expect(screen.queryByRole('combobox', { name: 'Version' })).not.toBeInTheDocument();
       for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
     });
 
     // [utest->req~frontend-retire-composer-entry-points-repointed~1]
-    it('does not offer a VIEWER a way to create the first revision', async () => {
+    it('does not offer a VIEWER a way to create the first version', async () => {
       renderDetail(viewer);
 
-      const guide = await screen.findByRole('region', { name: 'No revisions yet' });
+      const guide = await screen.findByRole('region', { name: 'No versions yet' });
       expect(within(guide).queryByRole('link')).not.toBeInTheDocument();
-      expect(screen.queryByRole('link', { name: /New revision|Compose the first revision/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /New version|Compose the first version/ })).not.toBeInTheDocument();
       for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)|\/workbench\?case=/);
     });
 
@@ -263,10 +264,10 @@ describe('Problem page', () => {
       platform.deleteCase.mockResolvedValue(undefined);
       renderDetail(admin, 'flujo-checkout', '/settings');
 
-      fireEvent.click(await screen.findByRole('button', { name: 'Delete case' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Delete problem' }));
       const dialog = await screen.findByRole('dialog', { name: 'Delete Flujo de checkout?' });
       fireEvent.change(within(dialog).getByLabelText('Type flujo-checkout to confirm'), { target: { value: 'flujo-checkout' } });
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete case' }));
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete problem' }));
 
       await waitFor(() => expect(platform.deleteCase).toHaveBeenCalledWith('qos-lab', 'qos-benchmarks', 'flujo-checkout'));
       expect(await screen.findByText('elsewhere')).toBeInTheDocument();
@@ -274,31 +275,31 @@ describe('Problem page', () => {
   });
 
   // [utest->req~frontend-nav-problem-page~1]
-  it('does not let an ADMIN delete a case that holds sealed revisions', async () => {
+  it('does not let an ADMIN delete a problem that holds sealed versions', async () => {
     renderDetail(admin, 'flujo-checkout', '/settings');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete case' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete problem' }));
     const dialog = await screen.findByRole('dialog', { name: 'Delete Flujo de checkout?' });
-    expect(within(dialog).getByText(/2 sealed revisions, so it can’t be deleted/)).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: 'Delete case' })).toBeDisabled();
+    expect(within(dialog).getByText(/2 sealed versions, so it can’t be deleted/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Delete problem' })).toBeDisabled();
   });
 
-  describe('when the case cannot be read', () => {
-    it('says there is no such case (404) and offers a way back and a retry', async () => {
+  describe('when the problem cannot be read', () => {
+    it('says there is no such problem (404) and offers a way back and a retry', async () => {
       platform.case.mockRejectedValueOnce(refusal(404, 'not_found'));
       renderDetail(owner, 'ghost');
 
-      expect(await screen.findByRole('heading', { name: 'No case with this address in QoS Benchmarks (404)' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'All cases' })).toHaveAttribute('href', `${root}/cases`);
+      expect(await screen.findByRole('heading', { name: 'No problem with this address in QoS Benchmarks (404)' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', `${root}/cases`);
       fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
       expect(await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeInTheDocument();
     });
 
-    it('tells a failure of the gateway from a missing case', async () => {
+    it('tells a failure of the gateway from a missing problem', async () => {
       platform.case.mockRejectedValueOnce(refusal(503, 'unavailable'));
       renderDetail();
 
-      expect(await screen.findByRole('heading', { name: /The case couldn’t be loaded \(503 · unavailable\)/ })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: /The problem couldn’t be loaded \(503 · unavailable\)/ })).toBeInTheDocument();
       expect(screen.getByText(/This says nothing about your access/)).toBeInTheDocument();
     });
   });

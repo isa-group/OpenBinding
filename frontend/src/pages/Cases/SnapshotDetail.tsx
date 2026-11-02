@@ -206,8 +206,8 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
           <Notice tone="warning">This API key doesn’t include “read instances” (403). Use a session or a key with that permission.</Notice>
         )}
         {kind === 'missing' && (
-          <CaseMissing title="Snapshot not found" actions={<Action to={problemsPath(root)} variant="primary">All cases</Action>}>
-            Snapshots open for whoever made them, or for members of an organization whose cases use them. Otherwise we answer as if it didn’t exist (404).
+          <CaseMissing title="Snapshot not found" actions={<Action to={problemsPath(root)} variant="primary">All problems</Action>}>
+            Snapshots open for whoever made them, or for members of an organization whose problems use them. Otherwise we answer as if it didn’t exist (404).
           </CaseMissing>
         )}
         {kind === 'other' && failure && (
@@ -318,7 +318,7 @@ export function VersionSource({ organization, project, revision }: { organizatio
   if (!revision.source_snapshot_id) {
     return (
       <>
-        <p className="org-muted">This revision was sealed without a compiled snapshot, so only its sealed document is shown.</p>
+        <p className="org-muted">This version was sealed without a compiled snapshot, so only its sealed document is shown.</p>
         <SourceView source={revision.document} label="Sealed document (JSON)" language="json" filename={`revision-${revision.revision}.json`} maxHeight="30rem" />
       </>
     );

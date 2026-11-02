@@ -43,7 +43,7 @@ async function items() {
   return screen.findByRole('list', { name: 'Items' });
 }
 
-const labels = (list: HTMLElement) => within(list).getAllByRole('listitem').map((item) => within(item).getByText(/ · revision \d$/).textContent);
+const labels = (list: HTMLElement) => within(list).getAllByRole('listitem').map((item) => within(item).getByText(/ · (revision|version) \d$/).textContent);
 
 describe('Collection detail', () => {
   beforeEach(() => {
@@ -58,6 +58,7 @@ describe('Collection detail', () => {
     platform.resourceRevisions.mockResolvedValue([w1]);
   });
 
+  // [utest->req~frontend-nav-vocabulary-text~1]
   it('shows the items of the latest revision in order, each with its type and fingerprint', async () => {
     renderDetail();
 
@@ -66,10 +67,10 @@ describe('Collection detail', () => {
     expect(screen.getByText('Revision 2 · 3 items · What a reviewer needs.')).toBeInTheDocument();
     const rows = within(list).getAllByRole('listitem');
     expect(rows).toHaveLength(3);
-    expect(within(rows[0]).getByRole('link', { name: 'Flujo de checkout · revision 1' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/revisions/1`);
-    expect(within(rows[0]).getByText('Case')).toBeInTheDocument();
-    expect(within(rows[0]).getByRole('button', { name: 'Copy fingerprint of Flujo de checkout · revision 1' })).toHaveTextContent('sha256-1111…1111');
-    expect(within(rows[1]).getByRole('link', { name: 'Flujo de checkout · revision 2' })).toBeInTheDocument();
+    expect(within(rows[0]).getByRole('link', { name: 'Flujo de checkout · version 1' })).toHaveAttribute('href', `${root}/cases/flujo-checkout?version=1`);
+    expect(within(rows[0]).getByText('Problem')).toBeInTheDocument();
+    expect(within(rows[0]).getByRole('button', { name: 'Copy fingerprint of Flujo de checkout · version 1' })).toHaveTextContent('sha256-1111…1111');
+    expect(within(rows[1]).getByRole('link', { name: 'Flujo de checkout · version 2' })).toBeInTheDocument();
     // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(within(rows[2]).queryByRole('link')).toBeNull();
     for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(library|resources)([/?#]|$)/);
@@ -98,12 +99,12 @@ describe('Collection detail', () => {
     renderDetail();
     const list = await items();
     expect(screen.getByRole('button', { name: 'Save as revision 3' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Move Flujo de checkout · revision 1 up' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move Flujo de checkout · version 1 up' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Move Weights · revision 1 down' })).toBeDisabled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move Flujo de checkout · revision 2 up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move Flujo de checkout · version 2 up' }));
 
-    expect(labels(list)).toEqual(['Flujo de checkout · revision 2', 'Flujo de checkout · revision 1', 'Weights · revision 1']);
+    expect(labels(list)).toEqual(['Flujo de checkout · version 2', 'Flujo de checkout · version 1', 'Weights · revision 1']);
     expect(screen.getByText('Unsaved changes to the list. Saving creates a new sealed revision; the previous one stays as it was.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save as revision 3' }));
 
@@ -113,7 +114,7 @@ describe('Collection detail', () => {
     expect(screen.queryByText(/Unsaved changes/)).not.toBeInTheDocument();
   });
 
-  it('adds an item from the project’s cases and resources, leaving out what is already there', async () => {
+  it('adds an item from the project’s problems and resources, leaving out what is already there', async () => {
     const rev3 = collectionRevisionOf(checkout, 3, []);
     platform.createCollectionRevision.mockResolvedValue(rev3);
     renderDetail();
@@ -121,14 +122,14 @@ describe('Collection detail', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
     const dialog = await screen.findByRole('dialog', { name: 'Add an item' });
-    const cases = await within(dialog).findByRole('list', { name: 'Cases' });
-    expect(within(cases).getAllByRole('button')).toHaveLength(1);
-    expect(within(dialog).queryByRole('button', { name: 'Add Flujo de checkout · revision 1' })).not.toBeInTheDocument();
+    const problems = await within(dialog).findByRole('list', { name: 'Problems' });
+    expect(within(problems).getAllByRole('button')).toHaveLength(1);
+    expect(within(dialog).queryByRole('button', { name: 'Add Flujo de checkout · version 1' })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole('list', { name: 'Resources' })).not.toBeInTheDocument();
     fireEvent.change(within(dialog).getByLabelText('Search'), { target: { value: 'zzz' } });
     expect(within(dialog).getByText('Nothing matches.')).toBeInTheDocument();
-    fireEvent.change(within(dialog).getByLabelText('Search'), { target: { value: 'revision 3' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Add Flujo de checkout · revision 3' }));
+    fireEvent.change(within(dialog).getByLabelText('Search'), { target: { value: 'version 3' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add Flujo de checkout · version 3' }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(within(await items()).getAllByRole('listitem')).toHaveLength(4);
@@ -155,7 +156,7 @@ describe('Collection detail', () => {
     renderDetail();
 
     expect(await screen.findByText('No items yet')).toBeInTheDocument();
-    expect(screen.getByText('Add cases or resources to make the first revision.')).toBeInTheDocument();
+    expect(screen.getByText('Add problems or resources to make the first revision.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save as revision 1' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
     const dialog = await screen.findByRole('dialog', { name: 'Add an item' });
@@ -171,11 +172,11 @@ describe('Collection detail', () => {
     renderDetail();
     const list = await items();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move Flujo de checkout · revision 2 up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move Flujo de checkout · version 2 up' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save as revision 3' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('An item appears twice (422): a revision can’t repeat a target. Remove the duplicate. Nothing was saved.');
-    expect(labels(list)).toEqual(['Flujo de checkout · revision 2', 'Flujo de checkout · revision 1', 'Weights · revision 1']);
+    expect(labels(list)).toEqual(['Flujo de checkout · version 2', 'Flujo de checkout · version 1', 'Weights · revision 1']);
   });
 
   it('says an item whose fingerprint is no longer valid is refused (422)', async () => {
@@ -183,7 +184,7 @@ describe('Collection detail', () => {
     renderDetail();
     await items();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move Flujo de checkout · revision 2 up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move Flujo de checkout · version 2 up' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save as revision 3' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('An item’s fingerprint isn’t valid any more (422 · collection_target_mismatch): it doesn’t belong to this project or its content changed. Remove it and add it again from its page. Nothing was saved.');
@@ -194,7 +195,7 @@ describe('Collection detail', () => {
     renderDetail();
     await items();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Flujo de checkout · revision 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Flujo de checkout · version 2' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save as revision 3' }));
 
     expect(await screen.findByText('That exact list is already revision 1; the latest revision is still 2.')).toBeInTheDocument();
@@ -206,7 +207,7 @@ describe('Collection detail', () => {
     const list = await items();
     expect(within(list).getByText('Pinned from the library · can’t be re-pinned here')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move Flujo de checkout · revision 1 down' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move Flujo de checkout · version 1 down' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save as revision 2' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('1 item here was pinned from the library and can’t be re-pinned from this page: library-catalog · revision 3. Remove it to save.');
@@ -223,7 +224,7 @@ describe('Collection detail', () => {
     const changes = within(panel).getByRole('list', { name: 'Differences' });
     expect(within(changes).getAllByRole('listitem')).toHaveLength(1);
     expect(within(changes).getByText('Added')).toBeInTheDocument();
-    expect(within(changes).getByText('Flujo de checkout · revision 2')).toBeInTheDocument();
+    expect(within(changes).getByText('Flujo de checkout · version 2')).toBeInTheDocument();
     fireEvent.change(within(panel).getByLabelText('From'), { target: { value: '2' } });
     expect(await within(panel).findByText('No differences.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Hide comparison' })).toHaveAttribute('aria-expanded', 'true');
@@ -234,13 +235,13 @@ describe('Collection detail', () => {
     await items();
     fireEvent.click(screen.getByRole('button', { name: 'Compare revisions' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move Flujo de checkout · revision 2 up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move Flujo de checkout · version 2 up' }));
 
     const panel = await screen.findByRole('region', { name: 'Your changes vs revision 2' });
     const rows = within(within(panel).getByRole('list', { name: 'Differences' })).getAllByRole('listitem');
     expect(rows).toHaveLength(2);
-    expect(rows[0]).toHaveTextContent('MovedFlujo de checkout · revision 2 · position 2 → 1');
-    expect(rows[1]).toHaveTextContent('MovedFlujo de checkout · revision 1 · position 1 → 2');
+    expect(rows[0]).toHaveTextContent('MovedFlujo de checkout · version 2 · position 2 → 1');
+    expect(rows[1]).toHaveTextContent('MovedFlujo de checkout · version 1 · position 1 → 2');
   });
 
   it('says there is nothing to compare with a single revision', async () => {
@@ -354,17 +355,17 @@ describe('Collection detail', () => {
     expect(screen.getByRole('note')).toHaveTextContent('You’re a VIEWER. You can read every revision and compare them; adding, reordering and saving need MEMBER.');
   });
 
-  it('shows what it can when the project’s cases and resources cannot be read', async () => {
+  it('shows what it can when the project’s problems and resources cannot be read', async () => {
     platform.cases.mockRejectedValue(refusal(503, 'unavailable'));
     platform.resources.mockRejectedValue(refusal(503, 'unavailable'));
     renderDetail();
     const list = await items();
 
-    expect(within(list).getAllByText('Case revision case-flu', { selector: 'span' })).toHaveLength(2);
+    expect(within(list).getAllByText('Problem version case-flu', { selector: 'span' })).toHaveLength(2);
     expect(screen.getByText(/couldn’t be read, so some items show only their fingerprint/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
     const dialog = await screen.findByRole('dialog', { name: 'Add an item' });
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('The project’s cases and resources couldn’t be read (503 · unavailable).');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('The project’s problems and resources couldn’t be read (503 · unavailable).');
   });
 
   it('says a collection that is not in the project is not there (404)', async () => {

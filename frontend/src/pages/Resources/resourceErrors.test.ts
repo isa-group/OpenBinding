@@ -118,7 +118,7 @@ describe('collections', () => {
 
     it('tells an item that names no exact revision, and one the gateway cannot pin', () => {
       expect(collectionSaveRefusal(http(422, 'invalid_collection_target')).kind).toBe('target');
-      expect(collectionSaveRefusal(http(422, 'unsupported_collection_target')).text).toContain('Only case revisions and resource versions can be pinned');
+      expect(collectionSaveRefusal(http(422, 'unsupported_collection_target')).text).toContain('Only problem versions and resource versions can be pinned');
     });
 
     it('tells a repeated item from the validation body, which has no machine code', () => {

@@ -57,7 +57,7 @@ describe('Settings tab of the problem page', () => {
     fireEvent.change(await screen.findByLabelText('Description'), { target: { value: 'Another text' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('You need MEMBER in the organization to edit a case (403 · forbidden). Nothing changed.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('You need MEMBER in the organization to edit a problem (403 · forbidden). Nothing changed.');
     expect(screen.getByLabelText('Description')).toHaveValue('Another text');
   });
 
@@ -77,7 +77,7 @@ describe('Settings tab of the problem page', () => {
     expect(name).toBeDisabled();
     expect(screen.getByLabelText('Description')).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
-    expect(screen.getByRole('note')).toHaveTextContent('New revisions need MEMBER; deleting needs ADMIN.');
-    expect(screen.queryByRole('button', { name: 'Delete case' })).not.toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent('New versions need MEMBER; deleting needs ADMIN.');
+    expect(screen.queryByRole('button', { name: 'Delete problem' })).not.toBeInTheDocument();
   });
 });

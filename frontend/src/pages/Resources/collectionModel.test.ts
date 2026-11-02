@@ -17,13 +17,15 @@ const pins = buildPins([{ item: flujo, revisions: [c1, c2] }], [{ resource: weig
 const entry = (key: string): Entry => ({ kind: 'case', key, label: key, sub: '', digest: key, pin: null });
 
 describe('buildPins', () => {
-  it('offers the newest revision of each case and resource first, cases before resources', () => {
-    expect(pins.map((pin) => pin.label)).toEqual(['Flujo de checkout · revision 2', 'Flujo de checkout · revision 1', 'Weights · revision 2', 'Weights · revision 1']);
+  // [utest->req~frontend-nav-vocabulary-text~1]
+  it('offers the newest version of each problem and revision of each resource first, problems before resources', () => {
+    expect(pins.map((pin) => pin.label)).toEqual(['Flujo de checkout · version 2', 'Flujo de checkout · version 1', 'Weights · revision 2', 'Weights · revision 1']);
   });
 
-  it('pins a case by its revision id and fingerprint', () => {
+  // [utest->req~frontend-nav-vocabulary-text~1]
+  it('pins a problem version by its id and fingerprint, and links to the problem page at that version', () => {
     expect(pins[0]).toMatchObject({
-      kind: 'case', key: `case:${c2.digest}`, sub: 'Case revision', href: `${root}/cases/flujo-checkout/revisions/2`,
+      kind: 'case', key: `case:${c2.digest}`, sub: 'Problem version', href: `${root}/cases/flujo-checkout?version=2`,
       item: { target_kind: 'case', target_digest: c2.digest, target_ref: { caseRevisionId: c2.id } },
     });
   });
@@ -40,15 +42,17 @@ describe('buildPins', () => {
 });
 
 describe('entryOf', () => {
-  it('matches a stored case item with its revision', () => {
+  // [utest->req~frontend-nav-vocabulary-text~1]
+  it('matches a stored problem item with its version', () => {
     const found = entryOf(caseItem(c1.id, c1.digest), pins);
-    expect(found).toMatchObject({ kind: 'case', label: 'Flujo de checkout · revision 1', href: `${root}/cases/flujo-checkout/revisions/1` });
+    expect(found).toMatchObject({ kind: 'case', label: 'Flujo de checkout · version 1', href: `${root}/cases/flujo-checkout?version=1` });
     expect(found.pin).toEqual({ target_kind: 'case', target_digest: c1.digest, target_ref: { caseRevisionId: c1.id } });
   });
 
-  it('keeps a case item whose revision is no longer listed, and can still send it back', () => {
+  // [utest->req~frontend-nav-vocabulary-text~1]
+  it('keeps a problem item whose version is no longer listed, and can still send it back', () => {
     const found = entryOf(caseItem('case-gone-r9', digestOf('9')), pins);
-    expect(found.label).toBe('Case revision case-gon');
+    expect(found.label).toBe('Problem version case-gon');
     expect(found.pin).toEqual({ target_kind: 'case', target_digest: digestOf('9'), target_ref: { caseRevisionId: 'case-gone-r9' } });
   });
 
@@ -74,7 +78,7 @@ describe('entryOf', () => {
 
   it('reads a whole revision in order', () => {
     const revision = collectionRevisionOf(collectionOf('c'), 1, [caseItem(c2.id, c2.digest), caseItem(c1.id, c1.digest)]);
-    expect(entriesOf(revision, pins).map((item) => item.label)).toEqual(['Flujo de checkout · revision 2', 'Flujo de checkout · revision 1']);
+    expect(entriesOf(revision, pins).map((item) => item.label)).toEqual(['Flujo de checkout · version 2', 'Flujo de checkout · version 1']);
     expect(entriesOf(undefined, pins)).toEqual([]);
   });
 
@@ -144,8 +148,8 @@ describe('differences', () => {
 describe('typeSummary', () => {
   it('counts what a collection points to, by kind', () => {
     const items = [caseItem(c1.id, c1.digest), caseItem(c2.id, c2.digest), resourceItem('weights', '1', digestOf('a'))];
-    expect(typeSummary(items)).toEqual(['2 case revisions', '1 resource version']);
-    expect(typeSummary(items.slice(0, 1))).toEqual(['1 case revision']);
+    expect(typeSummary(items)).toEqual(['2 problem versions', '1 resource version']);
+    expect(typeSummary(items.slice(0, 1))).toEqual(['1 problem version']);
     expect(typeSummary([])).toEqual([]);
   });
 

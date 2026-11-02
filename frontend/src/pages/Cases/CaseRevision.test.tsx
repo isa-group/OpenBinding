@@ -50,7 +50,7 @@ describe('Overview tab of the problem page', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
   });
 
-  it('opens with the case, the revision, its seal and what it identifies', async () => {
+  it('opens with the problem, the version, its seal and what it identifies', async () => {
     renderRevision();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeInTheDocument();
@@ -63,7 +63,7 @@ describe('Overview tab of the problem page', () => {
     expect(snapshot).toHaveAttribute('href', `${root}/cases/flujo-checkout/source?version=2`);
     await waitFor(() => expect(identity).toHaveTextContent('47.1 KiB'));
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(crumbs).getByRole('link', { name: 'Cases' })).toHaveAttribute('href', `${root}/cases`);
+    expect(within(crumbs).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', `${root}/cases`);
   });
 
   it('draws the workflow with its alternatives and says how many providers each task has', async () => {
@@ -136,7 +136,7 @@ describe('Overview tab of the problem page', () => {
     expect(goal).toHaveTextContent('lower is better · scaled 0–1000');
     expect(goal).toHaveTextContent('Breaking a “should” rule costs');
     expect(goal).toHaveTextContent('weight 5');
-    expect(screen.getByText(/not declared in this revision \(no pools, network or events\)/)).toBeInTheDocument();
+    expect(screen.getByText(/not declared in this version \(no pools, network or events\)/)).toBeInTheDocument();
   });
 
   it('summarizes a declared placement', async () => {
@@ -189,23 +189,23 @@ describe('Overview tab of the problem page', () => {
     renderRevision();
 
     await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
-    expect(screen.getByRole('link', { name: 'Run this revision' })).toHaveAttribute('href', `${root}/jobs/new?case=flujo-checkout&revision=2`);
+    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${root}/jobs/new?case=flujo-checkout&revision=2`);
     expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', `${root}/studies/new?case=flujo-checkout&revision=2`);
     const select = screen.getByLabelText('Version');
     expect(within(select).getAllByRole('option').map((option) => option.textContent)).toEqual(['Version 2 · latest', 'Version 1']);
     fireEvent.change(select, { target: { value: '1' } });
     await waitFor(() => expect(screen.getByLabelText('Version')).toHaveValue('1'));
-    expect(screen.getByRole('link', { name: 'Run this revision' })).toHaveAttribute('href', `${root}/jobs/new?case=flujo-checkout&revision=1`);
+    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${root}/jobs/new?case=flujo-checkout&revision=1`);
   });
 
-  it('says there is no compiled model when the revision has no snapshot, and keeps the resources', async () => {
+  it('says there is no compiled model when the version has no snapshot, and keeps the resources', async () => {
     renderRevision('1');
 
     expect(await screen.findByLabelText('Version')).toHaveValue('1');
     expect(await screen.findByText(/has no compiled snapshot, so there is no workflow to draw/)).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Providers, rules and goal' })).not.toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Resources it’s built from' })).toBeInTheDocument();
-    expect(screen.getByText('None: this revision was sealed without one')).toBeInTheDocument();
+    expect(screen.getByText('None: this version was sealed without one')).toBeInTheDocument();
   });
 
   it('warns that the model may be incomplete when the compiled form or a resource cannot be loaded', async () => {
@@ -213,7 +213,7 @@ describe('Overview tab of the problem page', () => {
     cases.resolveVersion.mockRejectedValue(refusal(404, 'not_found'));
     renderRevision();
 
-    const warning = await screen.findByText(/Some resources of this revision couldn’t be loaded right now, so the model below may be incomplete/);
+    const warning = await screen.findByText(/Some resources of this version couldn’t be loaded right now, so the model below may be incomplete/);
     expect(warning).toHaveTextContent('The fingerprint and identity are still exact.');
     expect(await screen.findByText(/The compiled form couldn’t be read \(503 · unavailable\)/)).toBeInTheDocument();
     const section = screen.getByRole('region', { name: 'Resources it’s built from' });
@@ -221,16 +221,16 @@ describe('Overview tab of the problem page', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeInTheDocument();
   });
 
-  it('answers a missing revision in neutral words', async () => {
+  it('answers a missing version in neutral words', async () => {
     cases.revision.mockRejectedValue(refusal(404, 'not_found'));
     renderRevision('9');
 
-    expect(await screen.findByRole('heading', { name: 'This revision doesn’t exist (404)' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See all revisions' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/versions`);
+    expect(await screen.findByRole('heading', { name: 'This version doesn’t exist (404)' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See all versions' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/versions`);
     expect(cases.revision).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'flujo-checkout', '9');
   });
 
-  it('finds a revision named by its fingerprint when it is not a number', async () => {
+  it('finds a version named by its fingerprint when it is not a number', async () => {
     cases.revision.mockResolvedValue(r1);
     renderRevision(r1.digest);
 
@@ -242,13 +242,13 @@ describe('Overview tab of the problem page', () => {
     renderRevision();
 
     expect(await screen.findByRole('region', { name: 'Rules' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Run this revision' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Run this version' })).toBeInTheDocument();
   });
 
-  it('answers a missing case with the missing case, whatever version the address names', async () => {
+  it('answers a missing problem with the missing problem, whatever version the address names', async () => {
     platform.case.mockRejectedValue(refusal(404, 'not_found'));
     renderRevision();
 
-    expect(await screen.findByRole('heading', { name: 'No case with this address in QoS Benchmarks (404)' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'No problem with this address in QoS Benchmarks (404)' })).toBeInTheDocument();
   });
 });

@@ -83,7 +83,7 @@ const REFERENCE_NAMES: Record<string, [singular: string, plural: string]> = {
   library_version: ['library version', 'library versions'],
   report: ['report', 'reports'],
   collection_revision: ['collection revision', 'collection revisions'],
-  case_revision: ['case revision', 'case revisions'],
+  case_revision: ['problem version', 'problem versions'],
   snapshot: ['snapshot', 'snapshots'],
   project_resource_revision: ['resource revision', 'resource revisions'],
   publication: ['publication', 'publications'],
@@ -191,7 +191,7 @@ export function collectionSaveRefusal(caught: unknown): Refusal {
     return { kind: 'target', text: `An item doesn’t point to an exact revision${marker(failure)}. Remove it and add it again from the picker. Nothing was saved.` };
   }
   if (failure.status === 422 && code === 'unsupported_collection_target') {
-    return { kind: 'unsupported', text: `Only case revisions and resource versions can be pinned in a collection${marker(failure)}. Nothing was saved.` };
+    return { kind: 'unsupported', text: `Only problem versions and resource versions can be pinned in a collection${marker(failure)}. Nothing was saved.` };
   }
   if (failure.status === 422 && /repeat/.test(detailText(caught))) {
     return { kind: 'duplicate', text: `An item appears twice${marker(failure)}: a revision can’t repeat a target. Remove the duplicate. Nothing was saved.` };

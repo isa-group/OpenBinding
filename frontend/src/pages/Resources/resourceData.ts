@@ -26,7 +26,7 @@ export async function loadCollections(org: string, project: string): Promise<Arr
   }));
 }
 
-/** Everything a collection can point at: the project’s case revisions and resource revisions. */
+/** Everything a collection can point at: the project’s problem versions and resource revisions. */
 export async function loadPins(org: string, project: string, root: string): Promise<Pin[]> {
   const [cases, resources] = await Promise.allSettled([loadCases(org, project), loadResources(org, project)]);
   // Either half may be out of reach (a key that can read one and not the other); only losing both is a failure.

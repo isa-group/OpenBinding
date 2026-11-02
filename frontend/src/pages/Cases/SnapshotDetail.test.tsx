@@ -269,7 +269,7 @@ describe('Source tab of the problem page', () => {
 
       expect(await screen.findByRole('heading', { name: 'Snapshot not found' })).toBeInTheDocument();
       expect(screen.getByText(/Otherwise we answer as if it didn’t exist \(404\)/)).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'All cases' })).toHaveAttribute('href', `${root}/cases`);
+      expect(screen.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', `${root}/cases`);
       expect(screen.queryByRole('region', { name: 'Fingerprints' })).not.toBeInTheDocument();
     });
 

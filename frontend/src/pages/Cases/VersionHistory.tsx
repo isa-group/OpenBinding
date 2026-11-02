@@ -25,30 +25,30 @@ function VersionCard({ root, caseSlug, revision, previous, latest, model, public
   const changes = previous ? changesBetween(before, uses) : [];
   const changed = new Set(changes.filter((change) => change.to !== null).map((change) => change.label));
   const summary = !previous
-    ? 'First revision.'
+    ? 'First version.'
     : uses.length === 0 && before.length === 0
       ? 'Its inputs aren’t recorded as library versions.'
-      : changes.length === 0 ? `Same library versions as r${previous.revision}.` : changes.map(describeChange).join(' · ');
+      : changes.length === 0 ? `Same library versions as v${previous.revision}.` : changes.map(describeChange).join(' · ');
   const href = problemPath(root, caseSlug, undefined, { version: revision.revision });
   const key = `r${revision.revision}`;
   const log10 = model?.state === 'ready' ? model.model?.log10 ?? null : null;
 
   return (
     <li className="case-rev">
-      <span className={`case-rev-dot${latest ? ' is-latest' : ''}`} aria-hidden="true">r{revision.revision}</span>
+      <span className={`case-rev-dot${latest ? ' is-latest' : ''}`} aria-hidden="true">v{revision.revision}</span>
       <div className="case-rev-card">
         <div className="case-rev-head">
-          <Link to={href} viewTransition><strong>Revision {revision.revision}</strong></Link>
+          <Link to={href} viewTransition><strong>Version {revision.revision}</strong></Link>
           {latest && <Chip tone="accent">Latest</Chip>}
           <span className="case-rev-date">{formatDate(revision.created_at) ?? '—'}</span>
           <code title={revision.digest}>{shortDigest(revision.digest)}</code>
-          <button type="button" className="case-link-button" onClick={() => void copy(exactReference(caseSlug, revision), key)} aria-label={`Copy exact reference of revision ${revision.revision}`}>
+          <button type="button" className="case-link-button" onClick={() => void copy(exactReference(caseSlug, revision), key)} aria-label={`Copy exact reference of version ${revision.revision}`}>
             {status(key) === 'copied' ? 'Copied' : status(key) === 'failed' ? 'Copy failed' : 'Copy reference'}
           </button>
         </div>
         <p className="case-rev-change">{summary}</p>
         {uses.length > 0 && (
-          <ul className="case-uses" aria-label={`Library versions of revision ${revision.revision}`}>
+          <ul className="case-uses" aria-label={`Library versions in version ${revision.revision}`}>
             {uses.map((use) => (
               <li key={`${use.role}/${use.alias}`} className={changed.has(`${roleLabel(use.role)} · ${use.alias}`) ? 'is-changed' : undefined}>
                 <span>{roleLabel(use.role)}</span> <b>{refLabel(use.ref)}</b>
@@ -65,7 +65,7 @@ function VersionCard({ root, caseSlug, revision, previous, latest, model, public
         )}
         <div className="case-rev-links">
           <Link to={href} viewTransition>Open</Link>
-          {previous && <Link to={problemPath(root, caseSlug, 'versions', { from: previous.revision, to: revision.revision })} viewTransition>Compare with r{previous.revision}</Link>}
+          {previous && <Link to={problemPath(root, caseSlug, 'versions', { from: previous.revision, to: revision.revision })} viewTransition>Compare with v{previous.revision}</Link>}
           {!publicRead && <Link to={`${root}/jobs/new?case=${encodeURIComponent(caseSlug)}&revision=${revision.revision}`} viewTransition>Run</Link>}
           {!publicRead && <Link to={`${root}/studies/new?case=${encodeURIComponent(caseSlug)}&revision=${revision.revision}`} viewTransition>Add to study</Link>}
           {!publicRead && <Link to={`${root}/collections`} viewTransition>Add to collection</Link>}
@@ -84,7 +84,7 @@ export function VersionHistory({ root, content, publicRead }: { root: string; co
   const glanceState = useResource<ModelState>(`glance:${latest?.source_snapshot_id ?? 'none'}`, () => loadModel(latest?.source_snapshot_id ?? null));
   return (
     <section className="org-section" aria-labelledby="cd-revisions">
-      <h2 id="cd-revisions">Revisions</h2>
+      <h2 id="cd-revisions">Versions</h2>
       <ol className="case-timeline">
         {revisions.map((revision, index) => (
           <VersionCard

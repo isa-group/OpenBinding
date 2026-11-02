@@ -324,24 +324,25 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto(`${ROOT}/cases`);
       const main = page.locator('#platform-main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Cases' })).toBeVisible();
-      const list = main.getByRole('list', { name: 'Cases' });
+      await expect(main.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
+      const list = main.getByRole('list', { name: 'Problems' });
       await expect(list.getByRole('listitem')).toHaveCount(2);
       await expect(list.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', CASE);
       await expect(list.getByText('Ready to run')).toBeVisible();
-      await expect(list.getByText('No revision yet')).toBeVisible();
-      await expect(list.getByText('2 revisions')).toBeVisible();
+      await expect(list.getByText('No version yet')).toBeVisible();
+      await expect(list.getByText('2 versions')).toBeVisible();
       await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Problems' })).toHaveAttribute('aria-current', 'page');
       await capture(page, testInfo, `list-${name}-success`);
 
-      // The dialog of a new case, with the address suggested from the name and the gateway's 409.
-      await main.getByRole('button', { name: 'New case' }).click();
-      const dialog = page.getByRole('dialog', { name: 'New case' });
+      // The dialog of a new problem, open in the address, with the address suggested from the name and the gateway's 409.
+      await main.getByRole('button', { name: 'New problem' }).click();
+      await expect(page).toHaveURL(`${ROOT}/cases?create=problem`);
+      const dialog = page.getByRole('dialog', { name: 'New problem' });
       await dialog.getByLabel('Name', { exact: true }).fill('Análisis de latencia');
       await expect(dialog.getByLabel('Address')).toHaveValue('analisis-de-latencia');
-      state.refuse.createCase = detail(409, 'slug_conflict', 'That case slug is in use.');
-      await dialog.getByRole('button', { name: 'Create case' }).click();
-      await expect(dialog.getByRole('alert')).toContainText('That address is already used by another case in this project (409 · slug_conflict).');
+      state.refuse.createCase = detail(409, 'slug_conflict', 'That problem slug is in use.');
+      await dialog.getByRole('button', { name: 'Create problem' }).click();
+      await expect(dialog.getByRole('alert')).toContainText('That address is already used by another problem in this project (409 · slug_conflict).');
       await capture(page, testInfo, `list-${name}-dialog-409`);
       if (isMobile) {
         expect(critical).toEqual([]);
@@ -350,45 +351,47 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       state.refuse.createCase = undefined;
       const posted = request(page, 'POST', '/v1/organizations/isa-demo/projects/qos-benchmarks/cases');
-      await dialog.getByRole('button', { name: 'Create case' }).click();
+      await dialog.getByRole('button', { name: 'Create problem' }).click();
       expect((await posted).postDataJSON()).toEqual({ slug: 'analisis-de-latencia', name: 'Análisis de latencia', description: '' });
-      await expect(main.getByText('Case “Análisis de latencia” created. Compose its first revision when you’re ready.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Compose its first revision' })).toHaveAttribute('href', `${ROOT}/workbench?case=analisis-de-latencia`);
+      await expect(main.getByText('Problem “Análisis de latencia” created. Compose its first version when you’re ready.')).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Compose its first version' })).toHaveAttribute('href', `${ROOT}/workbench?case=analisis-de-latencia`);
+      await expect(page).toHaveURL(`${ROOT}/cases`);
       await expect(list.getByRole('listitem')).toHaveCount(3);
       await capture(page, testInfo, `list-${name}-created`);
 
       // Search narrows the list.
-      await main.getByLabel('Search cases').fill('borra');
+      await main.getByLabel('Search problems').fill('borra');
       await expect(list.getByRole('listitem')).toHaveCount(1);
-      await main.getByLabel('Search cases').fill('');
+      await main.getByLabel('Search problems').fill('');
 
-      // An ADMIN deletes: a case with sealed revisions is refused up front, an empty one goes after typing its address.
+      // An ADMIN deletes: a problem with sealed versions is refused up front, an empty one goes after typing its address.
       await list.getByRole('button', { name: 'Delete Flujo de checkout' }).click();
       const sealed = page.getByRole('dialog', { name: 'Delete Flujo de checkout?' });
-      await expect(sealed.getByText(/2 sealed revisions, so it can’t be deleted/)).toBeVisible();
-      await expect(sealed.getByRole('button', { name: 'Delete case' })).toBeDisabled();
+      await expect(sealed.getByText(/2 sealed versions, so it can’t be deleted/)).toBeVisible();
+      await expect(sealed.getByRole('button', { name: 'Delete problem' })).toBeDisabled();
       await capture(page, testInfo, `list-${name}-delete-sealed`);
       await sealed.getByRole('button', { name: 'Cancel' }).click();
       await list.getByRole('button', { name: 'Delete Borrador' }).click();
       const empty = page.getByRole('dialog', { name: 'Delete Borrador?' });
       await empty.getByLabel('Type borrador to confirm').fill('borrador');
       const deleted = request(page, 'DELETE', '/v1/organizations/isa-demo/projects/qos-benchmarks/cases/borrador');
-      await empty.getByRole('button', { name: 'Delete case' }).click();
+      await empty.getByRole('button', { name: 'Delete problem' }).click();
       await deleted;
-      await expect(main.getByText('Case “Borrador” deleted.')).toBeVisible();
+      await expect(main.getByText('Problem “Borrador” deleted.')).toBeVisible();
       await expect(list.getByRole('listitem')).toHaveCount(2);
 
-      // A VIEWER reads and compares, and has no buttons that write.
-      await page.goto('/app/consultora-demo/client-case/cases');
-      await expect(main.getByRole('note')).toContainText('You’re a VIEWER. You can open and compare cases here; creating and editing need MEMBER.');
-      await expect(main.getByRole('button', { name: 'New case' })).toHaveCount(0);
+      // A VIEWER reads and compares, and has no buttons that write; the address cannot open the dialog for them.
+      await page.goto('/app/consultora-demo/client-case/cases?create=problem');
+      await expect(main.getByRole('note')).toContainText('You’re a VIEWER. You can open and compare problems here; creating and editing need MEMBER.');
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(main.getByRole('button', { name: 'New problem' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: /^Delete/ })).toHaveCount(0);
-      await expect(main.getByRole('link', { name: 'New revision' })).toHaveCount(0);
+      await expect(main.getByRole('link', { name: 'New version' })).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-viewer`);
 
-      // A project with no case explains how to start.
+      // A project with no problem explains how to start.
       await page.goto('/app/isa-demo/checkout-privado/cases');
-      const guide = main.getByRole('region', { name: 'No cases yet' });
+      const guide = main.getByRole('region', { name: 'No problems yet' });
       await expect(guide.getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/explore/examples');
       await expect(guide.getByRole('link', { name: 'Open the library' })).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-empty`);
@@ -396,7 +399,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The list fails and comes back.
       state.refuse.cases = unavailable;
       await page.goto(`${ROOT}/cases`);
-      await expect(main.getByRole('alert')).toContainText('Cases couldn’t be loaded (503)');
+      await expect(main.getByRole('alert')).toContainText('Problems couldn’t be loaded (503)');
       await capture(page, testInfo, `list-${name}-error`);
       state.refuse.cases = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
@@ -420,16 +423,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(tabs.getByRole('tab')).toHaveText(['Overview', 'Runs', 'Versions', 'Source', 'Settings']);
       await expect(tabs.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
       await expect(main.getByRole('combobox', { name: 'Version', exact: true })).toHaveValue('2');
-      await expect(main.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${ROOT}/workbench?case=flujo-checkout`);
-      await expect(main.getByRole('link', { name: 'Run this revision' })).toHaveAttribute('href', `${ROOT}/jobs/new?case=flujo-checkout&revision=2`);
+      await expect(main.getByRole('link', { name: 'New version' })).toHaveAttribute('href', `${ROOT}/workbench?case=flujo-checkout`);
+      await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${ROOT}/jobs/new?case=flujo-checkout&revision=2`);
 
       // The history of the versions is its own tab.
       await tabs.getByRole('tab', { name: 'Versions' }).click();
       await expect(page).toHaveURL(`${CASE}/versions`);
-      const timeline = main.getByRole('region', { name: 'Revisions' });
-      await expect(timeline.getByRole('link', { name: /^Revision \d$/ })).toHaveText(['Revision 2', 'Revision 1']);
+      const timeline = main.getByRole('region', { name: 'Versions' });
+      await expect(timeline.getByRole('link', { name: /^Version \d$/ })).toHaveText(['Version 2', 'Version 1']);
       await expect(timeline.getByText('Candidate catalog · providers: providers-eu v2 → providers-eu v3')).toBeVisible();
-      await expect(timeline.getByText('First revision.')).toBeVisible();
+      await expect(timeline.getByText('First version.')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-success`);
 
       // The runs of the problem: none started from it in this project.
@@ -440,10 +443,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto(`${CASE}/history`);
       await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
 
-      // A case without revisions points to the workbench.
+      // A problem without versions points to the workbench.
       await page.goto(`${ROOT}/cases/borrador`);
-      const guide = main.getByRole('region', { name: 'No revisions yet' });
-      await expect(guide.getByRole('link', { name: 'Compose the first revision' })).toHaveAttribute('href', `${ROOT}/workbench?case=borrador`);
+      const guide = main.getByRole('region', { name: 'No versions yet' });
+      await expect(guide.getByRole('link', { name: 'Compose the first version' })).toHaveAttribute('href', `${ROOT}/workbench?case=borrador`);
       await capture(page, testInfo, `detail-${name}-empty`);
       expect(critical).toEqual([]);
     });
@@ -470,37 +473,37 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto(CASE);
       await expect(main.getByText('Catalog grown from 5 to 8 candidates.')).toBeVisible();
 
-      // Deleting is for an ADMIN, and a case that holds sealed revisions says why it can't go.
+      // Deleting is for an ADMIN, and a problem that holds sealed versions says why it can't go.
       await page.goto(`${CASE}/settings`);
-      await main.getByRole('button', { name: 'Delete case' }).click();
+      await main.getByRole('button', { name: 'Delete problem' }).click();
       const sealed = page.getByRole('dialog', { name: 'Delete Flujo de checkout?' });
-      await expect(sealed.getByText(/2 sealed revisions, so it can’t be deleted/)).toBeVisible();
-      await expect(sealed.getByRole('button', { name: 'Delete case' })).toBeDisabled();
+      await expect(sealed.getByText(/2 sealed versions, so it can’t be deleted/)).toBeVisible();
+      await expect(sealed.getByRole('button', { name: 'Delete problem' })).toBeDisabled();
       await capture(page, testInfo, `detail-${name}-delete-sealed`);
       await sealed.getByRole('button', { name: 'Cancel' }).click();
 
-      // An empty case is deleted and the list takes its place.
+      // An empty problem is deleted and the list takes its place.
       await page.goto(`${ROOT}/cases/borrador/settings`);
-      await main.getByRole('button', { name: 'Delete case' }).click();
+      await main.getByRole('button', { name: 'Delete problem' }).click();
       const dialog = page.getByRole('dialog', { name: 'Delete Borrador?' });
       await dialog.getByLabel('Type borrador to confirm').fill('borrador');
-      await dialog.getByRole('button', { name: 'Delete case' }).click();
+      await dialog.getByRole('button', { name: 'Delete problem' }).click();
       await expect(page).toHaveURL(`${ROOT}/cases`);
-      await expect(main.getByText('Case “Borrador” deleted.')).toBeVisible();
+      await expect(main.getByText('Problem “Borrador” deleted.')).toBeVisible();
 
-      // A VIEWER reads: no new revision, no editing.
+      // A VIEWER reads: no new version, no editing.
       await page.goto('/app/consultora-demo/client-case/cases/flujo-checkout');
-      await expect(main.getByRole('note')).toContainText('You can read and compare revisions. New revisions need MEMBER; deleting needs ADMIN.');
-      await expect(main.getByRole('link', { name: 'New revision' })).toHaveCount(0);
+      await expect(main.getByRole('note')).toContainText('You can read and compare versions. New versions need MEMBER; deleting needs ADMIN.');
+      await expect(main.getByRole('link', { name: 'New version' })).toHaveCount(0);
       await page.goto('/app/consultora-demo/client-case/cases/flujo-checkout/settings');
       await expect(main.getByLabel('Description', { exact: true })).toBeDisabled();
       await expect(main.getByRole('button', { name: 'Save' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-viewer`);
 
-      // A case that isn't there.
+      // A problem that isn't there.
       await page.goto(`${ROOT}/cases/ghost`);
-      await expect(main.getByRole('heading', { name: 'No case with this address in QoS Benchmarks (404)' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'All cases' })).toHaveAttribute('href', `${ROOT}/cases`);
+      await expect(main.getByRole('heading', { name: 'No problem with this address in QoS Benchmarks (404)' })).toBeVisible();
+      await expect(main.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', `${ROOT}/cases`);
       await capture(page, testInfo, `detail-${name}-404`);
       expect(critical).toEqual([]);
     });
@@ -524,7 +527,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(providers.getByRole('row')).toHaveCount(1 + 4);
       await expect(main.getByRole('region', { name: 'Rules' }).getByText('MUST')).toBeVisible();
       await expect(main.getByRole('region', { name: 'Goal' }).getByText('lower is better').first()).toBeVisible();
-      await expect(main.getByText(/not declared in this revision \(no pools, network or events\)/)).toBeVisible();
+      await expect(main.getByText(/not declared in this version \(no pools, network or events\)/)).toBeVisible();
       const resources = main.getByRole('region', { name: 'Resources it’s built from' });
       const catalogCard = resources.getByRole('listitem').filter({ hasText: /Candidate catalog.*providers-eu v3/ });
       await expect(catalogCard).toContainText('Published');
@@ -550,15 +553,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.refuse.snapshot = unavailable;
       state.refuse.resolve = detail(404, 'not_found', 'Artifact version not found.');
       await page.goto(`${CASE}?version=2`);
-      await expect(main.getByText(/Some resources of this revision couldn’t be loaded right now, so the model below may be incomplete/)).toBeVisible();
+      await expect(main.getByText(/Some resources of this version couldn’t be loaded right now, so the model below may be incomplete/)).toBeVisible();
       await expect(main.getByText('The fingerprint and identity are still exact.')).toBeVisible();
       await expect(main.getByText(/The compiled form couldn’t be read \(503\)/)).toBeVisible();
       await capture(page, testInfo, `revision-${name}-unresolved`);
 
-      // A revision that doesn't exist.
+      // A version that doesn't exist.
       await page.goto(`${CASE}?version=9`);
-      await expect(main.getByRole('heading', { name: 'This revision doesn’t exist (404)' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'See all revisions' })).toHaveAttribute('href', `${CASE}/versions`);
+      await expect(main.getByRole('heading', { name: 'This version doesn’t exist (404)' })).toBeVisible();
+      await expect(main.getByRole('link', { name: 'See all versions' })).toHaveAttribute('href', `${CASE}/versions`);
       await capture(page, testInfo, `revision-${name}-404`);
       expect(critical).toEqual([]);
     });
@@ -570,7 +573,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('#platform-main');
 
       await expect(page).toHaveURL(`${CASE}/versions`);
-      await expect(main.getByRole('heading', { level: 2, name: 'Compare revisions' })).toBeVisible();
+      await expect(main.getByRole('heading', { level: 2, name: 'Compare versions' })).toBeVisible();
       await expect(main.getByRole('combobox', { name: 'From', exact: true })).toHaveValue('1');
       await expect(main.getByRole('combobox', { name: 'To', exact: true })).toHaveValue('2');
       const table = main.getByRole('table');
@@ -591,25 +594,25 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         return;
       }
 
-      // Swapped, the second revision is the smaller one.
-      await main.getByRole('button', { name: 'Swap revisions' }).click();
+      // Swapped, the second version is the smaller one.
+      await main.getByRole('button', { name: 'Swap versions' }).click();
       await expect(main.getByRole('combobox', { name: 'From', exact: true })).toHaveValue('2');
       await expect(main.getByText('≈ 3.2× fewer combinations (10^0.5)')).toBeVisible();
 
-      // The same revision on both sides has nothing to compare.
+      // The same version on both sides has nothing to compare.
       await page.goto(`${CASE}/compare?from=2&to=2`);
       await expect(page).toHaveURL(`${CASE}/versions?from=2&to=2`);
-      await expect(main.getByText('Both sides are the same revision, so there’s nothing to compare. Choose two different revisions.')).toBeVisible();
+      await expect(main.getByText('Both sides are the same version, so there’s nothing to compare. Choose two different versions.')).toBeVisible();
       await capture(page, testInfo, `compare-${name}-same`);
 
-      // A revision that doesn't exist.
+      // A version that doesn't exist.
       await page.goto(`${CASE}/versions?from=1&to=7`);
-      await expect(main.getByRole('alert')).toContainText('One of these revisions doesn’t exist (404). Pick another pair.');
+      await expect(main.getByRole('alert')).toContainText('One of these versions doesn’t exist (404). Pick another pair.');
       await capture(page, testInfo, `compare-${name}-404`);
 
-      // A case that isn't there.
+      // A problem that isn't there.
       await page.goto(`${ROOT}/cases/ghost/versions`);
-      await expect(main.getByRole('heading', { name: 'No case with this address in QoS Benchmarks (404)' })).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'No problem with this address in QoS Benchmarks (404)' })).toBeVisible();
       expect(critical).toEqual([]);
     });
 

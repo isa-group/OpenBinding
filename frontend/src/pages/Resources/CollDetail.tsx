@@ -29,7 +29,7 @@ import { DESCRIPTION_MAX, NAME_MAX, plural } from './resourceModel';
 const DRAFT = 'draft';
 
 const TYPE_TONE: Record<string, 'accent' | 'success' | 'warning' | 'plain'> = { case: 'accent', resource: 'success' };
-const typeName = (kind: string) => (kind === 'case' ? 'Case' : kind === 'resource' ? 'Resource' : kind);
+const typeName = (kind: string) => (kind === 'case' ? 'Problem' : kind === 'resource' ? 'Resource' : kind);
 
 function Rename({ organization, project, collection, onSaved, onCancel }: {
   organization: Organization; project: Project; collection: Collection; onSaved: () => void; onCancel: () => void;
@@ -327,7 +327,7 @@ function Body({ organization, project, access, collectionSlug }: { organization:
       {ready && items.length === 0 && (
         <section className="lib-dashed lib-nothing" aria-labelledby="cd-empty">
           <strong id="cd-empty">No items yet</strong>
-          <span>{access.canCreate ? 'Add cases or resources to make the first revision.' : 'A member can add cases or resources to make the first revision.'}</span>
+          <span>{access.canCreate ? 'Add problems or resources to make the first revision.' : 'A member can add problems or resources to make the first revision.'}</span>
         </section>
       )}
       {ready && items.length > 0 && (
@@ -369,14 +369,14 @@ function Body({ organization, project, access, collectionSlug }: { organization:
           </ul>
         </section>
       )}
-      <p className="lib-footnote">Each revision is sealed with a fingerprint over its exact list and order. {pins.status === 'error' && 'The project’s cases and resources couldn’t be read, so some items show only their fingerprint.'}</p>
+      <p className="lib-footnote">Each revision is sealed with a fingerprint over its exact list and order. {pins.status === 'error' && 'The project’s problems and resources couldn’t be read, so some items show only their fingerprint.'}</p>
 
       {picking && (
         <ItemPickerDialog
           pins={known}
           taken={new Set(items.map((entry) => entry.key))}
           loading={pins.status === 'loading'}
-          problem={pins.status === 'error' ? `The project’s cases and resources couldn’t be read${marker(classifyAuthError(pins.error))}.` : undefined}
+          problem={pins.status === 'error' ? `The project’s problems and resources couldn’t be read${marker(classifyAuthError(pins.error))}.` : undefined}
           onClose={() => setPicking(false)}
           onPick={(pin) => { edit([...items, entryFromPin(pin)]); setPicking(false); }}
         />
@@ -390,7 +390,7 @@ function Body({ organization, project, access, collectionSlug }: { organization:
           refusal={(caught) => collectionDeleteRefusal(caught).text}
           onDone={() => { setRemoving(false); void navigate(`${root}/collections`, { state: { toast: `${collection.name} deleted. The things it pointed to are untouched.` } }); }}
         >
-          <p>The collection and its revisions leave {project.name}. The cases and resources it pinned are not touched.</p>
+          <p>The collection and its revisions leave {project.name}. The problems and resources it pinned are not touched.</p>
         </ConfirmDialog>
       )}
     </ResourceFrame>

@@ -63,8 +63,8 @@ export function ProblemSettings({ organization, project, item, sealed, canEdit, 
       {canAdminister && (
         <section className="org-section" aria-labelledby="ps-delete">
           <h2 id="ps-delete">Delete</h2>
-          <p className="org-muted">A problem with sealed revisions can’t be deleted, because revisions are history.</p>
-          <div className="proj-actions"><Action variant="danger-outline" onClick={() => setDeleting(true)}>Delete case</Action></div>
+          <p className="org-muted">A problem with sealed versions can’t be deleted, because versions are history.</p>
+          <div className="proj-actions"><Action variant="danger-outline" onClick={() => setDeleting(true)}>Delete problem</Action></div>
         </section>
       )}
 

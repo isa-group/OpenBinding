@@ -71,21 +71,21 @@ export function VersionCompare({ root, content, canCreate }: { root: string; con
     <section className="org-section" aria-labelledby="cc-title">
       <header className="proj-title-row">
         <div className="proj-title">
-          <h2 id="cc-title">Compare revisions</h2>
-          <p>{item.name} · what changed between two sealed revisions.</p>
+          <h2 id="cc-title">Compare versions</h2>
+          <p>{item.name} · what changed between two sealed versions.</p>
         </div>
         <div className="case-pickers">
           <label className="case-pick">
             From
             <select value={fromNumber ?? ''} onChange={(event) => update({ from: event.target.value })}>
-              {options.map((number) => <option key={number} value={number}>Revision {number}</option>)}
+              {options.map((number) => <option key={number} value={number}>Version {number}</option>)}
             </select>
           </label>
-          <Action variant="secondary" aria-label="Swap revisions" onClick={() => update({ from: String(toNumber ?? ''), to: String(fromNumber ?? '') })}>⇄</Action>
+          <Action variant="secondary" aria-label="Swap versions" onClick={() => update({ from: String(toNumber ?? ''), to: String(fromNumber ?? '') })}>⇄</Action>
           <label className="case-pick">
             To
             <select value={toNumber ?? ''} onChange={(event) => update({ to: event.target.value })}>
-              {options.map((number) => <option key={number} value={number}>Revision {number}</option>)}
+              {options.map((number) => <option key={number} value={number}>Version {number}</option>)}
             </select>
           </label>
         </div>
@@ -93,26 +93,26 @@ export function VersionCompare({ root, content, canCreate }: { root: string; con
 
       {revisions.length < 2 && (
         <div className="case-guide">
-          <h2>Comparing needs two revisions</h2>
-          <p>{item.name} has {revisions.length === 0 ? 'no sealed revision' : 'one sealed revision'} so far. Seal another one to see what changed.</p>
-          {canCreate && <div className="proj-actions"><Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">New revision</Action></div>}
+          <h2>Comparing needs two versions</h2>
+          <p>{item.name} has {revisions.length === 0 ? 'no sealed version' : 'one sealed version'} so far. Seal another one to see what changed.</p>
+          {canCreate && <div className="proj-actions"><Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">New version</Action></div>}
         </div>
       )}
       {revisions.length >= 2 && missingSide && (
-        <Notice tone="error">One of these revisions doesn’t exist (404). Pick another pair.</Notice>
+        <Notice tone="error">One of these versions doesn’t exist (404). Pick another pair.</Notice>
       )}
       {revisions.length >= 2 && same && (
-        <div className="case-guide is-plain">Both sides are the same revision, so there’s nothing to compare. Choose two different revisions.</div>
+        <div className="case-guide is-plain">Both sides are the same version, so there’s nothing to compare. Choose two different versions.</div>
       )}
       {waitingModels && (
-        <div role="status" aria-busy="true"><span className="sr-only">Reading both revisions…</span><Skeleton variant="card" /><Skeleton variant="panel" /></div>
+        <div role="status" aria-busy="true"><span className="sr-only">Reading both versions…</span><Skeleton variant="card" /><Skeleton variant="panel" /></div>
       )}
 
       {left && right && !same && !missingSide && (
         <>
           {modelsMissing && (
             <Notice tone="info">
-              Providers, tasks, rules and goal are compared from the compiled snapshot of each revision, and {!left.model ? `revision ${left.revision}` : `revision ${right.revision}`} has none that can be read.
+              Providers, tasks, rules and goal are compared from the compiled snapshot of each version, and {!left.model ? `version ${left.revision}` : `version ${right.revision}`} has none that can be read.
               Only the library versions are compared.
             </Notice>
           )}
@@ -136,7 +136,7 @@ export function VersionCompare({ root, content, canCreate }: { root: string; con
               <div className="case-size-bars">
                 {[left, right].map((side, index) => (
                   <div key={side.revision} className="case-size-row">
-                    <span>Revision {side.revision}</span>
+                    <span>Version {side.revision}</span>
                     <span className="case-bar" aria-hidden="true"><i className={index === 0 ? 'is-from' : undefined} style={{ width: `${Math.min(100, Math.round(((side.model?.log10 ?? 0) / 20) * 100))}%` }} /></span>
                     <span>≈ <Power log10={side.model?.log10 ?? null} /></span>
                   </div>
@@ -158,8 +158,8 @@ export function VersionCompare({ root, content, canCreate }: { root: string; con
                 <thead>
                   <tr>
                     <th scope="col">What</th>
-                    <th scope="col">Revision {left.revision}</th>
-                    <th scope="col">Revision {right.revision}</th>
+                    <th scope="col">Version {left.revision}</th>
+                    <th scope="col">Version {right.revision}</th>
                     <th scope="col">Change</th>
                   </tr>
                 </thead>
@@ -176,7 +176,7 @@ export function VersionCompare({ root, content, canCreate }: { root: string; con
                 </tbody>
               </table>
             </div>
-            <span className="case-links"><Link to={problemPath(root, item.slug, undefined, { version: right.revision })} viewTransition>Open revision {right.revision}</Link></span>
+            <span className="case-links"><Link to={problemPath(root, item.slug, undefined, { version: right.revision })} viewTransition>Open version {right.revision}</Link></span>
           </section>
 
           <section className="org-section" aria-labelledby="cc-documents">
@@ -184,7 +184,7 @@ export function VersionCompare({ root, content, canCreate }: { root: string; con
             <div className="case-docs">
               {[left, right].map((side) => {
                 const document = revisions.find((revision) => revision.revision === side.revision)?.document ?? {};
-                return <SourceView key={side.revision} source={document} label={`Revision ${side.revision} document`} language="json" maxHeight="20rem" />;
+                return <SourceView key={side.revision} source={document} label={`Version ${side.revision} document`} language="json" maxHeight="20rem" />;
               })}
             </div>
           </section>

@@ -52,7 +52,7 @@ function CandidateTable({ model }: { model: BindingModel }) {
     return (
       <div className="proj-panel">
         <h3>Providers</h3>
-        <p className="org-muted">No task of this revision has candidates to list.</p>
+        <p className="org-muted">No task of this version has candidates to list.</p>
       </div>
     );
   }
@@ -111,7 +111,7 @@ function RulesCard({ model }: { model: BindingModel }) {
   return (
     <section className="proj-panel" aria-labelledby="rv-rules">
       <h3 id="rv-rules">Rules</h3>
-      {model.rules.length === 0 && <p className="org-muted">This revision declares no rules.</p>}
+      {model.rules.length === 0 && <p className="org-muted">This version declares no rules.</p>}
       <ul className="case-rules">
         {model.rules.map((rule) => (
           <li key={rule.id}>
@@ -134,7 +134,7 @@ function GoalCard({ model }: { model: BindingModel }) {
   return (
     <section className="proj-panel" aria-labelledby="rv-goal">
       <h3 id="rv-goal">Goal</h3>
-      {model.criteria.length === 0 && <p className="org-muted">This revision declares no criteria to optimize.</p>}
+      {model.criteria.length === 0 && <p className="org-muted">This version declares no criteria to optimize.</p>}
       <ul className="case-criteria">
         {model.criteria.map((criterion) => (
           <li key={criterion.id}>
@@ -159,7 +159,7 @@ function GoalCard({ model }: { model: BindingModel }) {
           </ul>
         </>
       )}
-      <span className="org-muted">How the criteria trade off against each other is chosen when the revision is run, so no weights are shown here.</span>
+      <span className="org-muted">How the criteria trade off against each other is chosen when the version is run, so no weights are shown here.</span>
     </section>
   );
 }
@@ -168,7 +168,7 @@ function PlacementCard({ model }: { model: BindingModel }) {
   const { placement } = model;
   if (!placement) {
     return (
-      <div className="case-dashed"><b>Placement</b> · not declared in this revision (no pools, network or events).</div>
+      <div className="case-dashed"><b>Placement</b> · not declared in this version (no pools, network or events).</div>
     );
   }
   return (
@@ -193,7 +193,7 @@ function ResourceCards({ uses, resolved }: {
   uses: ResourceUse[]; resolved: Record<string, Loaded<ArtifactVersion>>;
 }) {
   if (uses.length === 0) {
-    return <p className="org-muted">This revision doesn’t record its inputs as library versions, so there is nothing to link to. Its compiled form is still exact.</p>;
+    return <p className="org-muted">This version doesn’t record its inputs as library versions, so there is nothing to link to. Its compiled form is still exact.</p>;
   }
   return (
     <ul className="case-resources">
@@ -245,14 +245,14 @@ export function VersionOverview({ organization, project, content, revision }: {
     <>
       {unresolved && (
         <Notice tone="warning">
-          Some resources of this revision couldn’t be loaded right now, so the model below may be incomplete. The fingerprint and identity are still exact.
+          Some resources of this version couldn’t be loaded right now, so the model below may be incomplete. The fingerprint and identity are still exact.
         </Notice>
       )}
 
       <section aria-labelledby="rv-identity">
         <h2 id="rv-identity" className="sr-only">Identity</h2>
         <dl className="case-identity">
-          <div><dt>Fingerprint</dt><dd><DigestLine digest={revision.digest} label={`revision ${revision.revision}`} copyKey="digest" /></dd></div>
+          <div><dt>Fingerprint</dt><dd><DigestLine digest={revision.digest} label={`version ${revision.revision}`} copyKey="digest" /></dd></div>
           <div><dt>Sealed</dt><dd>{formatDateTime(revision.created_at) ?? '—'}</dd></div>
           <div>
             <dt>Language profile</dt>
@@ -262,8 +262,8 @@ export function VersionOverview({ organization, project, content, revision }: {
             <dt>Compiled snapshot</dt>
             <dd>
               {revision.source_snapshot_id
-                ? <>{snapshot ? `${formatDateTime(snapshot.createdAt) ?? ''} · ${formatBytes(snapshot.archiveSize)?.split(' (')[0] ?? ''}` : 'Sealed with this revision'} <Link to={problemPath(root, item.slug, 'source', { version: revision.revision })} viewTransition>Open snapshot</Link></>
-                : 'None: this revision was sealed without one'}
+                ? <>{snapshot ? `${formatDateTime(snapshot.createdAt) ?? ''} · ${formatBytes(snapshot.archiveSize)?.split(' (')[0] ?? ''}` : 'Sealed with this version'} <Link to={problemPath(root, item.slug, 'source', { version: revision.revision })} viewTransition>Open snapshot</Link></>
+                : 'None: this version was sealed without one'}
             </dd>
           </div>
         </dl>
@@ -278,7 +278,7 @@ export function VersionOverview({ organization, project, content, revision }: {
       <section className="org-section" aria-labelledby="rv-workflow">
         <h2 id="rv-workflow">How the service works</h2>
         {modelState.status === 'loading' && <div role="status" aria-busy="true"><span className="sr-only">Reading the compiled form…</span><Skeleton variant="panel" /></div>}
-        {modelState.data?.state === 'none' && <p className="org-muted">This revision has no compiled snapshot, so there is no workflow to draw.</p>}
+        {modelState.data?.state === 'none' && <p className="org-muted">This version has no compiled snapshot, so there is no workflow to draw.</p>}
         {modelState.data?.state === 'failed' && (
           <Notice tone="warning" action={<Action variant="secondary" size="sm" onClick={modelState.reload}>Retry</Action>}>
             The compiled form couldn’t be read{marker(modelState.data.failure)}.

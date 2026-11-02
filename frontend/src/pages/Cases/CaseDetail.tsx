@@ -50,14 +50,14 @@ function ProblemBody({ organization, project, content, revision, tab, canCreate,
   const open = (id: TabId, show: { version?: string } = { version: named }) => void navigate(problemPath(root, item.slug, id === 'overview' ? undefined : id, show), { viewTransition: true });
 
   return (
-    <CaseFrame organization={organization} project={project} trail={[{ label: 'Cases', to: problemsPath(root) }, { label: item.name }]}>
+    <CaseFrame organization={organization} project={project} trail={[{ label: 'Problems', to: problemsPath(root) }, { label: item.name }]}>
       <header className="proj-title-row">
         <div className="proj-title">
           <div className="proj-title-line">
             <h1>{item.name}</h1>
             {revision && <span className="case-sealed"><Lock aria-hidden="true" />Sealed</span>}
           </div>
-          <div className="proj-title-line"><code className="case-slug">{item.slug}</code><Chip tone={revisions.length > 0 ? 'success' : 'plain'}>{plural(revisions.length, 'revision')}</Chip></div>
+          <div className="proj-title-line"><code className="case-slug">{item.slug}</code><Chip tone={revisions.length > 0 ? 'success' : 'plain'}>{plural(revisions.length, 'version')}</Chip></div>
           <p className="case-description">{item.description || <span className="org-muted">No description.</span>}</p>
           {revision && (
             <label className="case-sort">
@@ -69,14 +69,14 @@ function ProblemBody({ organization, project, content, revision, tab, canCreate,
           )}
         </div>
         <div className="proj-actions">
-          {canCreate && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">New revision</Action>}
-          {revision && !publicRead && <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="secondary">Run this revision</Action>}
+          {canCreate && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">New version</Action>}
+          {revision && !publicRead && <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="secondary">Run this version</Action>}
           {revision && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}&revision=${revision.id}`} variant="secondary">Open in Workbench</Action>}
           {revision && !publicRead && <Action to={`${root}/studies/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="secondary">Add to study</Action>}
         </div>
       </header>
 
-      {!canCreate && <ReadOnlyNote role={role}>You can read and compare revisions. New revisions need MEMBER; deleting needs ADMIN.</ReadOnlyNote>}
+      {!canCreate && <ReadOnlyNote role={role}>You can read and compare versions. New versions need MEMBER; deleting needs ADMIN.</ReadOnlyNote>}
 
       <TabBar items={tabs} value={active} onChange={(id) => open(id as TabId)} ariaLabel="Problem sections" prefix="pp-tab" />
       <TabPanel prefix="pp-tab" active={active}>
@@ -91,14 +91,14 @@ function ProblemBody({ organization, project, content, revision, tab, canCreate,
             canEdit={canCreate}
             canAdminister={canAdminister}
             onSaved={reload}
-            onDeleted={(name) => navigate(problemsPath(root), { state: { toast: `Case “${name}” deleted.` } })}
+            onDeleted={(name) => navigate(problemsPath(root), { state: { toast: `Problem “${name}” deleted.` } })}
           />
         )}
         {(active === 'overview' || active === 'versions' || active === 'source') && !revision && (
           <section className="case-guide" aria-labelledby="cd-empty">
-            <h2 id="cd-empty">No revisions yet</h2>
-            <p>A revision pins exact versions of an application, candidate catalog, rules and goal. Compose the first one to be able to run this case.</p>
-            {canCreate && <div className="proj-actions"><Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">Compose the first revision</Action></div>}
+            <h2 id="cd-empty">No versions yet</h2>
+            <p>A problem version pins exact library versions of an application, candidate catalog, rules and goal. Compose the first one to be able to run this problem.</p>
+            {canCreate && <div className="proj-actions"><Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">Compose the first version</Action></div>}
           </section>
         )}
         {revision && active === 'overview' && <VersionOverview key={revision.id} organization={organization} project={project} content={content} revision={revision} />}
@@ -133,12 +133,12 @@ function ProblemPage({ tab }: { tab: ProblemTabSegment | undefined }) {
   }
   if (project.access === 'public_read' && tab !== undefined && MEMBERS_ONLY.includes(tab)) return <NotFoundScreen />;
   const root = `/app/${organization.slug}/${project.slug}`;
-  const trail = [{ label: 'Cases', to: problemsPath(root) }, { label: caseSlug }];
+  const trail = [{ label: 'Problems', to: problemsPath(root) }, { label: caseSlug }];
 
   if ((content.status === 'loading' && !loaded) || (ask && remote.status === 'loading')) {
     return (
       <CaseFrame organization={organization} project={project} trail={trail}>
-        <div role="status" aria-busy="true"><span className="sr-only">Loading the case…</span><Skeleton variant="panel" /><Skeleton variant="card" /></div>
+        <div role="status" aria-busy="true"><span className="sr-only">Loading the problem…</span><Skeleton variant="panel" /><Skeleton variant="card" /></div>
       </CaseFrame>
     );
   }
@@ -147,15 +147,15 @@ function ProblemPage({ tab }: { tab: ProblemTabSegment | undefined }) {
     return (
       <CaseFrame organization={organization} project={project} trail={trail}>
         <CaseMissing
-          title={missing ? `No case with this address in ${project.name} (404)` : `The case couldn’t be loaded${caseFailure ? marker(caseFailure) : ''}`}
+          title={missing ? `No problem with this address in ${project.name} (404)` : `The problem couldn’t be loaded${caseFailure ? marker(caseFailure) : ''}`}
           actions={(
             <>
-              <Action to={problemsPath(root)} variant="primary">All cases</Action>
+              <Action to={problemsPath(root)} variant="primary">All problems</Action>
               <Action variant="secondary" onClick={content.reload}>Retry</Action>
             </>
           )}
         >
-          {missing ? 'It may have been deleted or renamed.' : 'The gateway didn’t answer for this case. This says nothing about your access. Try again in a moment.'}
+          {missing ? 'It may have been deleted or renamed.' : 'The gateway didn’t answer for this problem. This says nothing about your access. Try again in a moment.'}
         </CaseMissing>
       </CaseFrame>
     );
@@ -167,10 +167,10 @@ function ProblemPage({ tab }: { tab: ProblemTabSegment | undefined }) {
     return (
       <CaseFrame organization={organization} project={project} trail={trail}>
         <CaseMissing
-          title={missing ? 'This revision doesn’t exist (404)' : `The revision couldn’t be loaded${marker(remoteFailure ?? { kind: 'unknown' })}`}
-          actions={<Action to={problemPath(root, caseSlug, 'versions')} variant="primary">See all revisions</Action>}
+          title={missing ? 'This version doesn’t exist (404)' : `The version couldn’t be loaded${marker(remoteFailure ?? { kind: 'unknown' })}`}
+          actions={<Action to={problemPath(root, caseSlug, 'versions')} variant="primary">See all versions</Action>}
         >
-          {missing ? 'It may belong to another case, or the case may have been renamed. We answer the same way when you can’t see it.' : 'The gateway didn’t answer. Try again in a moment.'}
+          {missing ? 'It may belong to another problem, or the problem may have been renamed. We answer the same way when you can’t see it.' : 'The gateway didn’t answer. Try again in a moment.'}
         </CaseMissing>
       </CaseFrame>
     );

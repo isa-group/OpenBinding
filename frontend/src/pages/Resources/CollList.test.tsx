@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
@@ -25,8 +26,22 @@ const empty = collectionOf('vacia', 'Vacía');
 const checkoutRevision = collectionRevisionOf(checkout, 1, [caseItem('case-r1', digestOf('1')), caseItem('case-r2', digestOf('2')), resourceItem('weights', '1', digestOf('3'))]);
 const refusal = (status: number, code?: string) => Object.assign(new HttpError(status, 'refused'), code ? { code } : {});
 
-function renderList(organization = member) {
-  return renderProjectScreen(<CollList />, { path: '/app/:org/:project/collections', url: `${root}/collections`, organizations: [organization] });
+/** Shows the address the router is at, and a way to press the browser's Back button. */
+function Where() {
+  const where = useLocation();
+  const navigate = useNavigate();
+  return (
+    <>
+      <output data-testid="where">{where.pathname + where.search}</output>
+      <button type="button" onClick={() => void navigate(-1)}>Browser back</button>
+    </>
+  );
+}
+
+const where = () => screen.getByTestId('where').textContent;
+
+function renderList(organization = member, search = '') {
+  return renderProjectScreen(<><CollList /><Where /></>, { path: '/app/:org/:project/collections', url: `${root}/collections${search}`, organizations: [organization] });
 }
 
 describe('Collections', () => {
@@ -39,6 +54,7 @@ describe('Collections', () => {
     client.getOwnUsage.mockResolvedValue(usageOf());
   });
 
+  // [utest->req~frontend-nav-vocabulary-text~1]
   it('lists the collections as cards with what they pin and their latest revision', async () => {
     renderList();
 
@@ -47,7 +63,7 @@ describe('Collections', () => {
     expect(cards).toHaveLength(2);
     expect(within(cards[0]).getByRole('link', { name: 'Referencias checkout' })).toHaveAttribute('href', `${root}/collections/referencias-checkout`);
     expect(within(cards[0]).getByText('What a reviewer needs to reproduce the published comparison.')).toBeInTheDocument();
-    expect(within(cards[0]).getByText('2 case revisions')).toBeInTheDocument();
+    expect(within(cards[0]).getByText('2 problem versions')).toBeInTheDocument();
     expect(within(cards[0]).getByText('1 resource version')).toBeInTheDocument();
     expect(within(cards[0]).getByText('3 items · revision 1')).toBeInTheDocument();
     expect(within(cards[1]).getByText('No revision yet')).toBeInTheDocument();
@@ -78,7 +94,7 @@ describe('Collections', () => {
     renderList();
 
     expect(await screen.findByText('No collections')).toBeInTheDocument();
-    expect(screen.getByText(/Group the cases and resources you want to keep together, each pinned to an exact revision/)).toBeInTheDocument();
+    expect(screen.getByText(/Group the problems and resources you want to keep together, each pinned to an exact version or revision/)).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Collections' })).not.toBeInTheDocument();
   });
 
@@ -97,7 +113,75 @@ describe('Collections', () => {
     expect(platform.createCollection).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', { slug: 'mi-lista', name: 'Mi lista', description: '' });
     expect(screen.getByRole('link', { name: 'Add its first items' })).toHaveAttribute('href', `${root}/collections/mi-lista`);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // [utest->req~frontend-nav-new-menu~1]
+    expect(where()).toBe(`${root}/collections`);
     await waitFor(() => expect(platform.collections).toHaveBeenCalledTimes(2));
+  });
+
+  describe('the dialog in the address', () => {
+    // [utest->req~frontend-nav-new-menu~1]
+    it('opens from the New collection button with create=collection in the address', async () => {
+      renderList();
+      await screen.findByRole('list', { name: 'Collections' });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'New collection' }));
+
+      expect(await screen.findByRole('dialog', { name: 'New collection' })).toBeInTheDocument();
+      expect(where()).toBe(`${root}/collections?create=collection`);
+    });
+
+    // [utest->req~frontend-nav-new-menu~1]
+    it('is open when the address holds create=collection, over the list', async () => {
+      renderList(member, '?create=collection');
+
+      expect(await screen.findByRole('dialog', { name: 'New collection' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1, name: 'Collections' })).toBeInTheDocument();
+    });
+
+    // [utest->req~frontend-nav-new-menu~1]
+    it.each([
+      ['Cancel', (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))],
+      ['the close button', (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))],
+      ['Escape', (dialog: HTMLElement) => fireEvent.keyDown(dialog, { key: 'Escape' })],
+    ])('removes the query and returns the focus to New collection on %s', async (_name, close) => {
+      renderList(member, '?create=collection');
+      const dialog = await screen.findByRole('dialog', { name: 'New collection' });
+
+      close(dialog);
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(where()).toBe(`${root}/collections`);
+      expect(screen.getByRole('button', { name: 'New collection' })).toHaveFocus();
+      expect(platform.createCollection).not.toHaveBeenCalled();
+    });
+
+    // [utest->req~frontend-nav-new-menu~1]
+    it('closes by replacing the entry, so Back does not open the dialog again', async () => {
+      renderList();
+      await screen.findByRole('list', { name: 'Collections' });
+      const opener = screen.getByRole('button', { name: 'New collection' });
+      opener.focus();
+      fireEvent.click(opener);
+      const dialog = await screen.findByRole('dialog', { name: 'New collection' });
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(screen.getByRole('button', { name: 'New collection' })).toHaveFocus();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
+      await waitFor(() => expect(where()).toBe(`${root}/collections`));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    // [utest->req~frontend-nav-new-menu~1]
+    it('gives a VIEWER no dialog when the address asks for one', async () => {
+      renderList(viewer, '?create=collection');
+
+      await screen.findByRole('list', { name: 'Collections' });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'New collection' })).not.toBeInTheDocument();
+      expect(platform.createCollection).not.toHaveBeenCalled();
+    });
   });
 
   it('says the sponsor has no collections left (402) and keeps the dialog', async () => {
@@ -145,7 +229,7 @@ describe('Collections', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete Referencias checkout' }));
     const dialog = await screen.findByRole('dialog', { name: 'Delete Referencias checkout?' });
-    expect(dialog).toHaveTextContent('The cases and resources it pinned are not touched.');
+    expect(dialog).toHaveTextContent('The problems and resources it pinned are not touched.');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete collection' }));
 
     expect(await screen.findByText('Referencias checkout deleted. The things it pointed to are untouched.')).toBeInTheDocument();

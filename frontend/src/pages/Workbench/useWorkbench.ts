@@ -116,7 +116,7 @@ async function hydrate({ scope, requestedExample, caseRef, revisionRef, orgSlug,
     try {
       const revisions = await platformApi.caseRevisions(orgSlug, projectSlug, caseRef);
       const revision = revisions.find((item) => item.id === revisionRef || String(item.revision) === revisionRef);
-      if (!revision) throw new HttpError(404, 'The selected case revision is unavailable.');
+      if (!revision) throw new HttpError(404, 'The selected problem version is unavailable.');
       draft = await packageOfRevision(revision);
     } catch (reason: unknown) {
       return { scope, kind: 'revision-refused', failure: refusalOf(reason) };

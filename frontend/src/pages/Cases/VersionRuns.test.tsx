@@ -53,9 +53,9 @@ describe('Runs tab of the problem page', () => {
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByRole('link', { name: 'Run job-new' })).toHaveAttribute('href', `${root}/jobs/job-new`);
-    expect(within(rows[0]).getByRole('link', { name: 'Revision 2' })).toHaveAttribute('href', `${root}/cases/flujo-checkout?version=2`);
+    expect(within(rows[0]).getByRole('link', { name: 'Version 2' })).toHaveAttribute('href', `${root}/cases/flujo-checkout?version=2`);
     expect(within(rows[1]).getByRole('link', { name: 'Run job-old' })).toHaveAttribute('href', `${root}/jobs/job-old`);
-    expect(within(rows[1]).getByRole('link', { name: 'Revision 1' })).toHaveAttribute('href', `${root}/cases/flujo-checkout?version=1`);
+    expect(within(rows[1]).getByRole('link', { name: 'Version 1' })).toHaveAttribute('href', `${root}/cases/flujo-checkout?version=1`);
     expect(screen.queryByRole('link', { name: 'Run job-other' })).not.toBeInTheDocument();
     expect(platform.projectJobs).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks');
   });

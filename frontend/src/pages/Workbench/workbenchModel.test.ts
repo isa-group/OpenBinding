@@ -4,7 +4,7 @@ import { HttpError } from '../../api/client';
 import { DEFAULT_FILES, instanceResources, parseJson, type CompatibleMode } from './bimDocuments';
 import {
   complexityCeiling, engineRows, filesHaveRanges, goalTerms, isRangeRefusal, loadRefusalText, packageFileList, rangePointers, refusalMarker, refusalOf,
-  refusalText, refusesRanges, saveRefusalText, whyNot, workbenchDraftScope,
+  refusalText, refusesRanges, saveRefusalText, snapshotHref, whyNot, workbenchDraftScope,
 } from './workbenchModel';
 
 const failure = (status: number, code?: string, diagnostics?: unknown[]) => Object.assign(new HttpError(status, 'No'), { code, diagnostics });
@@ -118,19 +118,21 @@ describe('the words for a refusal', () => {
     expect(refusalText(refusalOf(new Error('The deployment did not answer.')), 'the run did not finish')).toBe('The deployment did not answer.');
   });
 
-  it('words the refusals of saving a revision, each ending in nothing being saved', () => {
+  // [utest->req~frontend-nav-vocabulary-text~1]
+  it('words the refusals of saving a problem version, each ending in nothing being saved', () => {
     expect(saveRefusalText(refusalOf(failure(403, 'forbidden')))).toBe(
-      'You need MEMBER in the organization to save a revision, and an API key needs projects:write (403 · forbidden). Nothing was saved.',
+      'You need MEMBER in the organization to save a version, and an API key needs projects:write (403 · forbidden). Nothing was saved.',
     );
-    expect(saveRefusalText(refusalOf(failure(404)))).toBe('That case no longer exists, or you’re not in its organization (404). Nothing was saved.');
-    expect(saveRefusalText(refusalOf(failure(422)))).toContain('The gateway refused to seal a revision from this package (422).');
+    expect(saveRefusalText(refusalOf(failure(404)))).toBe('That problem no longer exists, or you’re not in its organization (404). Nothing was saved.');
+    expect(saveRefusalText(refusalOf(failure(422)))).toContain('The gateway refused to seal a version from this package (422).');
     expect(saveRefusalText(refusalOf(new QuotaError('instance_complexity', 'x')))).toContain('bigger than your plan can compile (402');
     expect(saveRefusalText(refusalOf(failure(401)))).toContain('Nothing was saved.');
   });
 
-  it('words a case revision that could not be opened', () => {
+  // [utest->req~frontend-nav-vocabulary-text~1]
+  it('words a problem version that could not be opened', () => {
     expect(loadRefusalText(refusalOf(failure(404)))).toBe(
-      'That case revision doesn’t exist any more, or you’re not in the organization it belongs to (404). The package was not loaded.',
+      'That problem version doesn’t exist any more, or you’re not in the organization it belongs to (404). The package was not loaded.',
     );
     expect(loadRefusalText(refusalOf(failure(503)))).toContain('the package was not loaded');
   });
@@ -191,8 +193,30 @@ describe('the engines of an analysis', () => {
   });
 });
 
+describe('Open snapshot', () => {
+  const root = '/app/acme/demo';
+  const versions = [
+    { revision: 2, source_snapshot_id: 'snap-b' },
+    { revision: 1, source_snapshot_id: 'snap-a' },
+    { revision: 0, source_snapshot_id: null },
+  ];
+
+  // [utest->req~frontend-nav-vocabulary-text~1]
+  it('leads to the Source tab of the problem at the sealed version made from the snapshot', () => {
+    expect(snapshotHref(root, 'routing', versions, 'snap-a')).toBe(`${root}/cases/routing/source?version=1`);
+    expect(snapshotHref(root, 'routing', versions, 'snap-b')).toBe(`${root}/cases/routing/source?version=2`);
+  });
+
+  // [utest->req~frontend-nav-vocabulary-text~1]
+  it('leads to the problem list when no version came from the snapshot, or no problem is chosen', () => {
+    expect(snapshotHref(root, 'routing', versions, 'snap-z')).toBe(`${root}/cases`);
+    expect(snapshotHref(root, 'routing', [], 'snap-a')).toBe(`${root}/cases`);
+    expect(snapshotHref(root, '', versions, 'snap-a')).toBe(`${root}/cases`);
+  });
+});
+
 describe('where the unsaved edits of a workspace are kept', () => {
-  it('keeps them per person, per address and per case revision', () => {
+  it('keeps them per person, per address and per problem version', () => {
     expect(workbenchDraftScope('user-1', '/app/a/b/workbench', null, null)).toBe('user-1:/app/a/b/workbench::');
     expect(workbenchDraftScope('user-1', '/app/a/b/workbench', 'checkout', 'rev-2')).toBe('user-1:/app/a/b/workbench:checkout:rev-2');
     expect(workbenchDraftScope(undefined, '/x', null, null)).toBe('anonymous:/x::');
