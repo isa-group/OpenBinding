@@ -396,8 +396,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(allowances.getByText('25', { exact: true })).toBeVisible();
       await expect(allowances.getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/app/account/keys');
       const ceilings = main.getByRole('region', { name: 'Ceilings table' });
-      await expect(ceilings.getByRole('row', { name: /Max time per job/ })).toContainText('15 min');
-      await expect(ceilings.getByRole('row', { name: /Max time per job/ })).toContainText('900 s');
+      await expect(ceilings.getByRole('row', { name: /Max time per run/ })).toContainText('15 min');
+      await expect(ceilings.getByRole('row', { name: /Max time per run/ })).toContainText('900 s');
       await expect(ceilings.getByRole('row', { name: /Max problem size/ })).toContainText('10²⁰');
       await expect(main.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/jobs');
       await expect(main.getByRole('heading', { name: 'Organizations you sponsor' })).toBeVisible();

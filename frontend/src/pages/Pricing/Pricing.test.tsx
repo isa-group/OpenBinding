@@ -131,8 +131,8 @@ describe('Pricing', () => {
     expect(screen.queryByRole('table', { name: /Per request/ })).not.toBeInTheDocument();
 
     fireEvent.click(perRequest);
-    const table = within(screen.getByRole('table', { name: 'Per request: Ceilings for each job' }));
-    const timeout = within(table.getByRole('row', { name: /Max time per job/ }));
+    const table = within(screen.getByRole('table', { name: 'Per request: Ceilings for each run' }));
+    const timeout = within(table.getByRole('row', { name: /Max time per run/ }));
     expect(timeout.getByText('15 min')).toBeInTheDocument();
     expect(timeout.getByText('900 s')).toBeInTheDocument();
     expect(table.getByText('8 MiB')).toBeInTheDocument();

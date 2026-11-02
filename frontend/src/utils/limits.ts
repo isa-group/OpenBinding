@@ -22,14 +22,14 @@ export interface LimitInfo {
 const KNOWN: Record<string, LimitInfo> = {
   // Only a label for the published pricing document, which the Pricing page renders as it is; the gateway counts none of it.
   studyRuns: { label: 'Study runs', short: 'study runs', group: 'monthly', kind: 'count' },
-  concurrentJobs: { label: 'Concurrent jobs', short: 'jobs', group: 'capacity', kind: 'count' },
+  concurrentJobs: { label: 'Concurrent runs', short: 'runs', group: 'capacity', kind: 'count' },
   federatedEngines: { label: 'Federated engines', short: 'federated engines', group: 'capacity', kind: 'count' },
   apiKeys: { label: 'API keys', short: 'API keys', group: 'capacity', kind: 'count' },
-  maxTimeoutSeconds: { label: 'Max time per job', short: 'jobs', group: 'ceiling', kind: 'seconds' },
-  maxIterations: { label: 'Max iterations', short: 'jobs', group: 'ceiling', kind: 'count' },
+  maxTimeoutSeconds: { label: 'Max time per run', short: 'runs', group: 'ceiling', kind: 'seconds' },
+  maxIterations: { label: 'Max iterations', short: 'runs', group: 'ceiling', kind: 'count' },
   maxPayloadBytes: { label: 'Max package size', short: 'requests', group: 'ceiling', kind: 'bytes' },
   maxInstanceComplexityLog10: { label: 'Max problem size', short: 'problems', group: 'ceiling', kind: 'log10' },
-  jobHistoryDays: { label: 'Job history', short: 'history', group: 'ceiling', kind: 'days' },
+  jobHistoryDays: { label: 'Run history', short: 'history', group: 'ceiling', kind: 'days' },
   organizations: { label: 'Organizations', short: 'organizations', group: 'sponsored', kind: 'count' },
   members: { label: 'Members', short: 'members', group: 'sponsored', kind: 'count' },
   projects: { label: 'Projects', short: 'projects', group: 'sponsored', kind: 'count' },
@@ -70,7 +70,7 @@ export function limitInfo(id: string, definition?: LimitDefinition): LimitInfo {
 export const LIMIT_GROUPS: ReadonlyArray<{ id: LimitGroup; title: string; note: string }> = [
   { id: 'monthly', title: 'Monthly', note: 'Renew each month' },
   { id: 'capacity', title: 'Capacity', note: 'Freed when work ends' },
-  { id: 'ceiling', title: 'Per request', note: 'Ceilings for each job' },
+  { id: 'ceiling', title: 'Per request', note: 'Ceilings for each run' },
   { id: 'sponsored', title: 'Sponsored', note: 'Counted across a sponsor’s organizations' },
 ];
 

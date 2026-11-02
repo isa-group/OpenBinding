@@ -19,18 +19,9 @@ const WORDS_WITHOUT_PUBLICATION = wordPattern(['case', 'cases', 'job', 'jobs']);
 // they are scanned for the other four words only.
 const ENGINE_REGISTRATION = /^\/src\/pages\/(RegisterEngine\/|Engines\/(EngRegistrations|EngRegistrationDetail|registrationModel)\.)/;
 
-// Files that still show a forbidden word and that a later task owns. Each entry is removed when the scope is widened to its file.
+// Files that still show a forbidden word and that a later task owns; none is left. An entry is a path with the reason.
 // The test below fails when an entry no longer matches, so the list cannot go stale.
-const EXEMPT: Readonly<Record<string, string>> = {
-  // Removed when the scope is widened to src/content/**: 'concurrent job(s)' in the plan descriptions.
-  '/src/content/plans.ts': 'plan limits text',
-  // Removed when the scope is widened to src/content/**: 'composition cases' in the platform text.
-  '/src/content/platform.ts': 'literature-derived composition cases',
-  // Removed when the scope is widened to src/utils/**: the limit names ('Concurrent jobs', 'Job history').
-  '/src/utils/limits.ts': 'limit names',
-  // Removed when the scope is widened to src/utils/**: the refusals ('You have no free job slot.').
-  '/src/utils/limitRefusals.ts': 'limit refusals',
-};
+const EXEMPT: Readonly<Record<string, string>> = {};
 
 const scan = (files: Record<string, string>, words: RegExp): Finding[] => scanFiles(files, words);
 
@@ -64,6 +55,14 @@ describe('the vocabulary of every source file', () => {
     const registration = pick((path) => ENGINE_REGISTRATION.test(path));
     expect(scan(registration, wordPattern(['publication', 'publications'])).length).toBeGreaterThan(0);
     expect(scan(registration, WORDS_WITHOUT_PUBLICATION).map(formatFinding)).toEqual([]);
+  });
+
+  // [utest->req~frontend-nav-vocabulary-text~1]
+  it('keeps the message strings of the HTTP client free of the word job', () => {
+    const client = sources['/src/api/client.ts'];
+    expect(client).toBeDefined();
+    expect(client).not.toContain('Job failed');
+    expect(client).not.toContain('The job could not be found');
   });
 
   // [utest->req~frontend-nav-vocabulary-text~1]

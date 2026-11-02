@@ -603,7 +603,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       });
       await send.click();
       await expect(refusal).toContainText('All your run slots are busy (429 · concurrency_limit_exceeded)');
-      await expect(refusal).toContainText('You can run 3 jobs at once.');
+      await expect(refusal).toContainText('You can have 3 runs going at once.');
       await expect(refusal.getByRole('timer')).toContainText('A slot should free up in about');
       await capture(page, testInfo, `launch-${name}-429`);
 

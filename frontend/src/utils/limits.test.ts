@@ -45,7 +45,7 @@ describe('describeLimit', () => {
 describe('limitInfo', () => {
   it('knows the limits of the OpenBinding pricing', () => {
     expect(limitInfo('studyRuns')).toMatchObject({ label: 'Study runs', group: 'monthly', kind: 'count' });
-    expect(limitInfo('concurrentJobs')).toMatchObject({ label: 'Concurrent jobs', group: 'capacity', kind: 'count' });
+    expect(limitInfo('concurrentJobs')).toMatchObject({ label: 'Concurrent runs', group: 'capacity', kind: 'count' });
     expect(limitInfo('apiKeys')).toMatchObject({ label: 'API keys', group: 'capacity' });
     expect(limitInfo('maxPayloadBytes')).toMatchObject({ label: 'Max package size', group: 'ceiling', kind: 'bytes' });
     expect(limitInfo('storageBytes')).toMatchObject({ label: 'Storage', group: 'sponsored', kind: 'bytes' });

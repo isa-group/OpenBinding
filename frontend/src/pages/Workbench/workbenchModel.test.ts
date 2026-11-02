@@ -93,7 +93,7 @@ describe('how a refusal is sorted', () => {
 
   it('reads a request that never got an answer as the service being unreachable, and anything else by its message', () => {
     expect(refusalOf(new TypeError('Failed to fetch'))).toMatchObject({ kind: 'unavailable' });
-    expect(refusalOf(new Error('Job failed'))).toEqual({ kind: 'other', message: 'Job failed', diagnostics: [] });
+    expect(refusalOf(new Error('Run failed'))).toEqual({ kind: 'other', message: 'Run failed', diagnostics: [] });
     expect(refusalOf('odd')).toEqual({ kind: 'other', message: 'odd', diagnostics: [] });
   });
 

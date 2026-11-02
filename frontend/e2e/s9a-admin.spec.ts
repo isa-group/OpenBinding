@@ -386,8 +386,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'sam.okafor', exact: true })).toBeVisible();
       await expect(main.getByText(/sam-okafor@example\.invalid · since Jun 15, 2026/)).toBeVisible();
       await expect(main.getByText(/Pinned to pricing 0\.1\.0 · renews Nov 1, 2026/)).toBeVisible();
-      await expect(main.getByRole('group', { name: 'Allowances' }).getByText('Concurrent jobs')).toBeVisible();
-      await expect(main.getByRole('group', { name: 'Ceilings for each request' }).getByText('Max time per job')).toBeVisible();
+      await expect(main.getByRole('group', { name: 'Allowances' }).getByText('Concurrent runs')).toBeVisible();
+      await expect(main.getByRole('group', { name: 'Ceilings for each request' }).getByText('Max time per run')).toBeVisible();
       const plans = main.getByRole('radiogroup', { name: 'New plan' });
       await expect(plans.getByRole('radio')).toHaveCount(4);
       await expect(plans.getByRole('radio', { name: /^BASIC · current/ })).toBeChecked();

@@ -44,7 +44,7 @@ describe('refusals of a launch', () => {
   it('429 gives the slots and how long to wait', () => {
     const refusal = refusalOf(refused(429, 'concurrency_limit_exceeded', { retryAfter: 15, concurrency: { limit_id: 'concurrentJobs', limit: 1, used: 1 } }));
     expect(refusal).toMatchObject({ kind: 'busy', retryAfter: 15, title: 'All your run slots are busy (429 · concurrency_limit_exceeded)' });
-    expect(refusal.text).toContain('You can run 1 job at once.');
+    expect(refusal.text).toContain('You can have 1 run going at once.');
   });
 
   it('403 tells a plan that does not include the feature from a credential without the permission', () => {
@@ -230,11 +230,11 @@ describe('refusals over a limit that is exhausted, unknown, capped by the deploy
   it('429 says whose limit it is: the plan’s, or the deployment’s whatever the plan', () => {
     const plan = refusalOf(refused(429, 'concurrency_limit_exceeded', { retryAfter: 15, concurrency: { limit_id: 'concurrentJobs', limit: 2, used: 2, source: 'plan', unit: 'job' } }));
     expect(plan).toMatchObject({ kind: 'busy', source: 'plan' });
-    expect(plan.text).toContain('Your plan lets you run 2 jobs at once.');
+    expect(plan.text).toContain('Your plan allows 2 runs going at once.');
 
     const technical = refusalOf(refused(429, 'concurrency_limit_exceeded', { retryAfter: 15, concurrency: { limit_id: 'concurrentJobs', limit: 1, used: 1, source: 'technical' } }));
     expect(technical).toMatchObject({ kind: 'busy', source: 'technical' });
-    expect(technical.text).toContain('This deployment lets one account run 1 job at once, whatever its plan.');
+    expect(technical.text).toContain('This deployment allows one account 1 run going at once, whatever its plan.');
   });
 
   it('never speaks of credits, balance or capacity units, whatever the refusal', () => {

@@ -47,7 +47,7 @@ describe('readCatalog', () => {
     expect(view.groups.find((group) => group.title === 'Solving')?.note).toBe('Feature');
     expect(view.groups.find((group) => group.title === 'Monthly')?.rows.map((item) => item.name)).toEqual(['Study runs']);
     expect(view.groups.find((group) => group.title === 'Capacity')?.rows.map((item) => item.name)).toEqual([
-      'Concurrent jobs', 'Federated engines', 'API keys',
+      'Concurrent runs', 'Federated engines', 'API keys',
     ]);
   });
 

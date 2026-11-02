@@ -963,7 +963,7 @@ export class ApiClient {
           if (status.status === 'completed') {
             resolve(status.result);
           } else if (status.status === 'failed') {
-            reject(new Error(status.result?.error || 'Job failed'));
+            reject(new Error(status.result?.error || 'Run failed'));
           } else {
             setTimeout(poll, interval);
           }
@@ -974,7 +974,7 @@ export class ApiClient {
           // or the engine restarted. Don't retry indefinitely.
           if (error instanceof HttpError && error.status === 404) {
             reject(new Error(
-              'The job could not be found on the server. ' +
+              'The run could not be found on the server. ' +
               'It may have completed synchronously or the engine may have restarted.'
             ));
             return;

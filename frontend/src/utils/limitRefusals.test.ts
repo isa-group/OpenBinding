@@ -62,10 +62,10 @@ describe('the sentences about a limit', () => {
   });
 
   it('says whose limit a job limit is', () => {
-    expect(slotsText()).toBe('You have no free job slot.');
-    expect(slotsText({ limit: 1 })).toBe('You can run 1 job at once.');
-    expect(slotsText({ limit: 1, source: 'plan' })).toBe('Your plan lets you run 1 job at once.');
-    expect(slotsText({ limit: 3, source: 'technical' })).toBe('This deployment lets one account run 3 jobs at once, whatever its plan.');
+    expect(slotsText()).toBe('You have no free run slot.');
+    expect(slotsText({ limit: 1 })).toBe('You can have 1 run going at once.');
+    expect(slotsText({ limit: 1, source: 'plan' })).toBe('Your plan allows 1 run going at once.');
+    expect(slotsText({ limit: 3, source: 'technical' })).toBe('This deployment allows one account 3 runs going at once, whatever its plan.');
   });
 
   it('never talks about money, a balance or capacity units', () => {

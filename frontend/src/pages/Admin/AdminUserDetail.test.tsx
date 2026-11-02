@@ -64,11 +64,11 @@ describe('admin-user-detail · one account', () => {
     expect(screen.queryByText('Institutional identity verified')).not.toBeInTheDocument();
     expect(screen.getByText(/Pinned to pricing 0\.1\.0 · renews Nov 1, 2026/)).toBeInTheDocument();
     const allowances = within(await screen.findByRole('group', { name: 'Allowances' }));
-    expect(allowances.getByText('Concurrent jobs')).toBeInTheDocument();
+    expect(allowances.getByText('Concurrent runs')).toBeInTheDocument();
     expect(screen.queryByText(/\d+ of \d+/)).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Usage' })).not.toBeInTheDocument();
     const ceilings = screen.getByRole('group', { name: 'Ceilings for each request' });
-    expect(within(ceilings).getByText('Max time per job')).toBeInTheDocument();
+    expect(within(ceilings).getByText('Max time per run')).toBeInTheDocument();
     expect(within(ceilings).getByText('1 min')).toBeInTheDocument();
     expect(api.adminGetSubscription).toHaveBeenCalledWith(SAM.id);
     expect(api.adminGetUserUsage).toHaveBeenCalledWith(SAM.id);

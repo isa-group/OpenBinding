@@ -25,7 +25,7 @@ describe('why the gateway refuses a study', () => {
     const refusal = studyRefusal(refused(429, 'concurrency_limit_exceeded', 'busy', { concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 }, retryAfter: 15 }), 'run');
     expect(refusal.kind).toBe('busy');
     expect(refusal.retryAfter).toBe(15);
-    expect(refusal.text).toContain('You can run 3 jobs at once.');
+    expect(refusal.text).toContain('You can have 3 runs going at once.');
   });
 
   it('tells a plan without studies from a key that lacks an engine or a permission', () => {
@@ -126,7 +126,7 @@ describe('why the gateway refuses a study', () => {
 
   it('a 429 for a cell says whose limit it is', () => {
     const refusal = studyRefusal(refused(429, 'concurrency_limit_exceeded', 'busy', { concurrency: { limit_id: 'concurrentJobs', limit: 1, used: 1, source: 'technical' }, retryAfter: 15 }), 'run');
-    expect(refusal.text).toContain('This deployment lets one account run 1 job at once, whatever its plan.');
+    expect(refusal.text).toContain('This deployment allows one account 1 run going at once, whatever its plan.');
     expect(refusal.source).toBe('technical');
   });
 

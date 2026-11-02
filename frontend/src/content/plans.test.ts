@@ -35,7 +35,7 @@ describe('the plan summaries of the home page', () => {
 
     expect(plan.chips).toEqual([
       keys === null ? 'Unlimited API keys' : plural(keys, 'API key'),
-      plural(jobs, 'concurrent job'),
+      plural(jobs, 'concurrent run'),
     ]);
 
     const price = pricing.plans[id]?.price;

@@ -449,7 +449,7 @@ describe('Start a run', () => {
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('All your run slots are busy (429 · concurrency_limit_exceeded)');
-      expect(alert).toHaveTextContent('You can run 3 jobs at once.');
+      expect(alert).toHaveTextContent('You can have 3 runs going at once.');
       expect(within(alert).getByRole('timer')).toHaveTextContent('A slot should free up in about 15 s.');
     });
 

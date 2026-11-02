@@ -119,13 +119,14 @@ export function limitProblemOf(caught: unknown, nothing: string, at: string): Li
   }
 }
 
-/** Who sets a concurrency limit, as the sentence about how many jobs may run at once. */
+/** Who sets a concurrency limit, as the sentence about how many runs may go at once. */
 export function slotsText(concurrency?: { limit: number; source?: string }): string {
-  if (!concurrency) return 'You have no free job slot.';
-  const jobs = `${concurrency.limit} job${concurrency.limit === 1 ? '' : 's'}`;
-  if (concurrency.source === 'technical') return `This deployment lets one account run ${jobs} at once, whatever its plan.`;
-  if (concurrency.source === 'plan') return `Your plan lets you run ${jobs} at once.`;
-  return `You can run ${jobs} at once.`;
+  if (!concurrency) return 'You have no free run slot.';
+  const n = concurrency.limit;
+  const s = n === 1 ? '' : 's';
+  if (concurrency.source === 'technical') return `This deployment allows one account ${n} run${s} going at once, whatever its plan.`;
+  if (concurrency.source === 'plan') return `Your plan allows ${n} run${s} going at once.`;
+  return `You can have ${n} run${s} going at once.`;
 }
 
 /** The sentence for an unreadable period counter (503): a moment's wait, not an account problem. */

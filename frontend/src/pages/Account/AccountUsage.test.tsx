@@ -133,8 +133,8 @@ describe('Plan & permissions', () => {
     renderPlan();
     const table = within(await screen.findByRole('region', { name: 'Ceilings table' }));
 
-    expect(within(table.getByRole('row', { name: /Max time per job/ })).getByText('1 min')).toBeInTheDocument();
-    expect(within(table.getByRole('row', { name: /Max time per job/ })).getByText('60 s')).toBeInTheDocument();
+    expect(within(table.getByRole('row', { name: /Max time per run/ })).getByText('1 min')).toBeInTheDocument();
+    expect(within(table.getByRole('row', { name: /Max time per run/ })).getByText('60 s')).toBeInTheDocument();
     expect(within(table.getByRole('row', { name: /Max package size/ })).getByText('8,388,608 bytes')).toBeInTheDocument();
     expect(within(table.getByRole('row', { name: /Max problem size/ })).getByText('10⁹')).toBeInTheDocument();
     expect(screen.getByText(/Finished runs are kept for 7 days\./)).toBeInTheDocument();
@@ -151,7 +151,7 @@ describe('Plan & permissions', () => {
     renderPlan();
     const table = within(await screen.findByRole('region', { name: 'Ceilings table' }));
 
-    for (const name of [/Max time per job/, /Max package size/]) {
+    for (const name of [/Max time per run/, /Max package size/]) {
       const row = within(table.getByRole('row', { name }));
       expect(row.getByText('Unlimited')).toBeInTheDocument();
       expect(row.getByText('No limit')).toBeInTheDocument();
