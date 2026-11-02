@@ -1,5 +1,6 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
+import { followMoved } from '../followMoved';
 import { movedRoutes, routeDefinitions, routesByArea } from '../registry';
 import { moved as moves } from './project';
 
@@ -90,6 +91,16 @@ describe('the moved addresses of the project area', () => {
     expect(target('/app/:org/new-project', 'a=1')).toBe('/app/acme?create=project');
     expect(entry('/app/:org/new-project')?.permanent).toBeUndefined();
     expect(resolve('/app/acme')).toBe('org-overview');
+  });
+
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it('keeps no hash on the creation address either', () => {
+    expect(entry('/app/:org/new-project')?.keepQuery).toBe(false);
+    for (const address of ['/app/acme/new-project?a=1#x', '/app/acme/new-project#x']) {
+      const end = followMoved(address, routeDefinitions, movedRoutes);
+      expect(end).toBe('/app/acme?create=project');
+      expect(new URL(end, 'http://localhost').hash).toBe('');
+    }
   });
 
   // [utest->req~frontend-nav-project-tabs~1]

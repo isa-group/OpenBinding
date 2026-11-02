@@ -1,5 +1,5 @@
 import { matchRoutes } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildRegistry } from '../registry';
 
 // The screens of this area exist in development builds only, so the list of the production screens that
@@ -27,6 +27,36 @@ describe('area system', () => {
   it('leaves every other screen to both registries', () => {
     const others = development.routeDefinitions.filter((definition) => !definition.devOnly);
     expect(production.routeDefinitions).toEqual(others);
+  });
+
+  describe('the registry module as a build loads it', () => {
+    const load = async (dev: boolean) => {
+      vi.stubEnv('DEV', dev);
+      vi.resetModules();
+      return import('../registry');
+    };
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    });
+
+    // [utest->req~frontend-nav-system-states-dev-only~1]
+    // [utest->req~frontend-nav-screen-budget~1]
+    it('leaves sys-states out of a production build and counts 45 screens', async () => {
+      const registry = await load(false);
+      expect(registry.routeDefinitions.map((definition) => definition.id)).not.toContain('sys-states');
+      expect(registry.routesByArea.system).toEqual([]);
+      expect(registry.routeDefinitions).toHaveLength(45);
+    });
+
+    // [utest->req~frontend-nav-system-states-dev-only~1]
+    // [utest->req~frontend-nav-screen-budget~1]
+    it('adds sys-states to a development build, on top of the 45 screens', async () => {
+      const registry = await load(true);
+      expect(registry.routeDefinitions.map((definition) => definition.id)).toContain('sys-states');
+      expect(registry.routeDefinitions.filter((definition) => !definition.devOnly)).toHaveLength(45);
+      expect(registry.routeDefinitions).toHaveLength(46);
+    });
   });
 
   describe('address resolution', () => {

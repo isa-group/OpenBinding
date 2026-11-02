@@ -118,6 +118,20 @@ describe('Collections', () => {
     await waitFor(() => expect(platform.collections).toHaveBeenCalledTimes(2));
   });
 
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it('shows the toast with no dialog left open after a successful create', async () => {
+    platform.createCollection.mockResolvedValue(collectionOf('mi-lista', 'Mi lista'));
+    renderList();
+    await screen.findByRole('list', { name: 'Collections' });
+    fireEvent.click(screen.getByRole('button', { name: 'New collection' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New collection' });
+    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Mi lista' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create' }));
+
+    expect(await screen.findByText('Collection “Mi lista” created.')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   describe('the dialog in the address', () => {
     // [utest->req~frontend-nav-new-menu~1]
     it('opens from the New collection button with create=collection in the address', async () => {

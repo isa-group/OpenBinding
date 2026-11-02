@@ -50,6 +50,9 @@ function Body({ organization, project, access }: { organization: Organization; p
   const location = useLocation();
   const sponsor = useSponsorUsage(organization);
   const dialog = useCreateDialog('collection', `${root}/collections`, access.canCreate);
+  // The navigation that closes the dialog can land after the toast renders, so `closing` hides the dialog at once until the address has lost `?create=`.
+  const [closing, setClosing] = useState(false);
+  if (closing && !dialog.open) setClosing(false);
   const [removing, setRemoving] = useState<Collection | null>(null);
   const [toast, setToast] = useState<{ text: string; open?: string }>(() => ({ text: (location.state as { toast?: string } | null)?.toast ?? '' }));
   const collections = useResource(`collections:${slug}/${project.slug}`, () => loadCollections(slug, project.slug));
@@ -112,12 +115,13 @@ function Body({ organization, project, access }: { organization: Organization; p
         <p className="org-muted">Your role here: <RoleChip role={access.role} />. Deleting needs ADMIN and leaves everything a collection pointed to untouched.</p>
       )}
 
-      {dialog.open && (
+      {dialog.open && !closing && (
         <NewCollectionDialog
           organization={organization}
           project={project}
           onClose={dialog.close}
           onCreated={(created) => {
+            setClosing(true);
             dialog.close();
             setToast({ text: `Collection “${created.name}” created.`, open: `${root}/collections/${encodeURIComponent(created.slug)}` });
             collections.reload();

@@ -61,6 +61,9 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'recent' | 'name'>('recent');
   const dialog = useCreateDialog('problem', problemsPath(root), canCreate);
+  // The navigation that closes the dialog can land after the toast renders, so `closing` hides the dialog at once until the address has lost `?create=`.
+  const [closing, setClosing] = useState(false);
+  if (closing && !dialog.open) setClosing(false);
   const [removing, setRemoving] = useState<CaseContent | null>(null);
   const [toast, setToast] = useState<{ text: string; compose?: string }>(() => ({
     text: (location.state as { toast?: string } | null)?.toast ?? '',
@@ -149,12 +152,13 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
         <p className="org-muted">Your role here: <RoleChip role={role} />. Deleting needs ADMIN and works only while a problem has no sealed version.</p>
       )}
 
-      {dialog.open && (
+      {dialog.open && !closing && (
         <NewCaseDialog
           organization={organization}
           project={project}
           onClose={dialog.close}
           onCreated={(created) => {
+            setClosing(true);
             dialog.close();
             setToast({ text: `Problem “${created.name}” created. Compose its first version when you’re ready.`, compose: `${root}/workbench?case=${encodeURIComponent(created.slug)}` });
             cases.reload();

@@ -18,7 +18,10 @@ export interface MovedRoute {
    * old address is on its way out and the code must not link to it.
    */
   permanent?: boolean;
-  /** `false` drops the query string of the old address. Applies to the default target only. */
+  /**
+   * `false` drops what the old address carried: its query string (the default target) and its hash (the redirect in index.tsx and
+   * followMoved.ts). A custom `target` decides about the query itself, but the hash is dropped all the same.
+   */
   keepQuery?: boolean;
 }
 

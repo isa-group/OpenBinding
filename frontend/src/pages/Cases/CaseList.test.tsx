@@ -192,6 +192,17 @@ describe('Problem list', () => {
       await waitFor(() => expect(platform.cases).toHaveBeenCalledTimes(2));
     });
 
+    // [utest->req~frontend-nav-create-dialogs~1]
+    it('shows the toast with no dialog left open after a successful create', async () => {
+      cases.createCase.mockResolvedValue(caseOf('analisis-de-latencia', 'Análisis de latencia'));
+      const dialog = await openDialog();
+      fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Análisis de latencia' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Create problem' }));
+
+      expect(await screen.findByText(/created\. Compose its first version when you’re ready\./)).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
     it('does not send a form without a name or with an address the gateway would refuse', async () => {
       const dialog = await openDialog();
 

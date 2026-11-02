@@ -23,7 +23,7 @@ export const routes: RouteDefinition[] = [
 // [impl->req~frontend-nav-files-retired~1]
 // [impl->req~frontend-nav-project-tabs~1]
 const movedAddresses: MovedRoute[] = [
-  moved('proj-moved-create', '/app/:org/new-project', '/app/:org', { target: (_query, params) => `${fillPath('/app/:org', params)}?create=project` }),
+  moved('proj-moved-create', '/app/:org/new-project', '/app/:org', { target: (_query, params) => `${fillPath('/app/:org', params)}?create=project`, keepQuery: false }),
   moved('proj-moved-publications', '/app/:org/:project/publications', '/app/:org/:project/published'),
   moved('proj-moved-files', '/app/:org/:project/files', '/app/:org/:project', { permanent: true, keepQuery: false }),
   moved('proj-moved-package', '/app/:org/:project/package', '/app/:org/:project/settings', { keepQuery: false }),

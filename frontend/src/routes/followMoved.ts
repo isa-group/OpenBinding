@@ -4,7 +4,8 @@ import type { MovedRoute } from './moved';
 /**
  * Test support. Where an address ends once the moved addresses on its way have redirected it, so a test of a redirect can state the
  * address it expects as the code names it, and stay true when a later change moves that address on. A screen wins a tie of rank over
- * a moved entry, as in `AppRoutes`. The query and the hash of the old address go on to the new one, as `MovedRedirect` carries them.
+ * a moved entry, as in `AppRoutes`. The query and the hash of the old address go on to the new one, as `MovedRedirect` carries them
+ * (unless the entry sets `keepQuery: false`).
  */
 export function followMoved(
   address: string,
@@ -22,7 +23,7 @@ export function followMoved(
     const entry = table.find((route) => `moved:${route.id}` === last?.route.id);
     if (!entry || !last) return current;
     const target = entry.target(url.searchParams, last.params);
-    current = target.includes('#') ? target : `${target}${url.hash}`;
+    current = target.includes('#') || entry.keepQuery === false ? target : `${target}${url.hash}`;
   }
   throw new Error(`the moved addresses lead ${address} round in a circle`);
 }

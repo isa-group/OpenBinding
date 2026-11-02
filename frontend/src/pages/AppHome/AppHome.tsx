@@ -257,7 +257,7 @@ export function AppHome() {
     shortcuts.push({ label: 'New problem', to: problemsPath(`/app/${organization.slug}/${project.slug}`), icon: FilePlus2 });
     shortcuts.push({ label: 'Run', to: `/app/${organization.slug}/${project.slug}/runs/new`, icon: Play });
   }
-  shortcuts.push({ label: 'Verify a digest', to: '/app/verifier', icon: ShieldCheck });
+  shortcuts.push({ label: 'Verify a digest', to: '/verify', icon: ShieldCheck });
 
   const subtitle = isAdmin
     ? 'You’re a platform administrator. Admin tools are in the header.'

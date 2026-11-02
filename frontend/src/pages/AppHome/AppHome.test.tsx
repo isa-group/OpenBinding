@@ -46,7 +46,7 @@ describe('Home', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Hello, lucia.vega' })).toBeInTheDocument();
     expect(await screen.findByText('Pick up where you left off.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/isa-demo?create=project');
-    expect(screen.getByRole('link', { name: 'Verify a digest' })).toHaveAttribute('href', '/app/verifier');
+    expect(screen.getByRole('link', { name: 'Verify a digest' })).toHaveAttribute('href', '/verify');
     // No project is selected in the workspace, so there is nothing to run or to add a problem to.
     expect(screen.queryByRole('link', { name: 'Run' })).not.toBeInTheDocument();
   });
