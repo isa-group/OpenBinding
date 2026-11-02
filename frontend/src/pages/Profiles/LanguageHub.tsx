@@ -1,9 +1,10 @@
 import { Link, useParams } from 'react-router-dom';
-import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
+import { NotFoundScreen } from '../../routes/NotFoundScreen';
 import { LangExtensions } from '../Engines/LangExtensions';
 import { Schemas } from '../Schemas/Schemas';
+import { LanguageNav } from './languageSections';
 import { Profiles } from './Profiles';
 import './LanguageHub.css';
 
@@ -11,30 +12,10 @@ import './LanguageHub.css';
 
 type Section = 'profiles' | 'schemas' | 'extensions';
 
-const SECTIONS: ReadonlyArray<{ id: Section; label: string; to: string }> = [
-  { id: 'profiles', label: 'Profiles and dialects', to: '/language' },
-  { id: 'schemas', label: 'Schemas', to: '/language/schemas' },
-  { id: 'extensions', label: 'Extensions', to: '/language/extensions' },
-];
-
 /** The section an address names: none is the default one, an unknown name is `null`. */
 function sectionOf(segment: string | undefined): Section | null {
   if (segment === undefined) return 'profiles';
-  return SECTIONS.find((section) => section.id === segment && section.id !== 'profiles')?.id ?? null;
-}
-
-function HubNav({ current }: { current: Section | null }) {
-  return (
-    <nav className="language-hub-nav" aria-label="Language sections">
-      {SECTIONS.map((section) => (
-        section.id === current
-          ? <span key={section.id} aria-current="page">{section.label}</span>
-          : <Link key={section.id} to={section.to}>{section.label}</Link>
-      ))}
-      <Link to="/explore/examples">Examples</Link>
-      <Link to="/workbench">Workbench</Link>
-    </nav>
-  );
+  return segment === 'schemas' || segment === 'extensions' ? segment : null;
 }
 
 /** The extensions of the language need a session: signed out, the section explains that and offers the login. */
@@ -53,28 +34,21 @@ function ExtensionsSection() {
       </section>
     );
   }
-  return <LangExtensions embedded />;
+  return <LangExtensions />;
 }
 
 /** lang-profiles: one screen for the language, with Profiles & dialects, Schemas (by kind) and Extensions as sections. */
 export function LanguageHub() {
   const { section: segment, item } = useParams();
   const section = sectionOf(segment);
+  if (section === null || (item !== undefined && section !== 'schemas')) return <NotFoundScreen />;
 
   return (
     <div className="language-hub">
-      <HubNav current={section} />
-      {section === 'profiles' && <Profiles embedded />}
-      {section === 'schemas' && <Schemas embedded kind={item ?? 'application'} />}
+      <LanguageNav current={section} className="language-hub-nav" />
+      {section === 'profiles' && <Profiles />}
+      {section === 'schemas' && <Schemas kind={item ?? 'application'} />}
       {section === 'extensions' && <ExtensionsSection />}
-      {section === null && (
-        <section className="language-hub-unknown" aria-label="Unknown section">
-          <h1>Language</h1>
-          <Notice tone="error" title={`There is no “${segment}” section (404)`}>
-            The language has Profiles &amp; dialects, Schemas and Extensions. Pick one above.
-          </Notice>
-        </section>
-      )}
     </div>
   );
 }

@@ -7,7 +7,6 @@ import { Chip } from '../../components/ui/Chip';
 import { DataTable } from '../../components/ui/DataTable';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Notice } from '../../components/ui/Notice';
-import { LanguageNav } from '../../components/ui/SectionNav';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
@@ -120,8 +119,7 @@ function ProfileContract({ profile }: { profile: BimProfile }) {
   );
 }
 
-/** `embedded`: shown inside the language hub, which draws the section navigation itself. */
-export function Profiles({ embedded = false }: { embedded?: boolean } = {}) {
+export function Profiles() {
   const { user } = useAuth();
   const { copy, status: copyStatus } = useCopy();
   const profiles = useResource('profiles', () => apiClient.getProfiles());
@@ -164,7 +162,6 @@ export function Profiles({ embedded = false }: { embedded?: boolean } = {}) {
   return (
     <div className="profiles-page">
       <div className="profiles-head">
-        {!embedded && <LanguageNav current="profiles" />}
         <h1>The BIM language</h1>
         <p>
           An instance selects a Profile. The Profile says which roles must be filled and how many times; installed dialects add resource

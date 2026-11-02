@@ -649,7 +649,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('lang-profiles hub: an unknown section answers 404 and the old extensions address moves', async ({ page }) => {
       await mockApi(page, { signedIn: true });
       await page.goto('/language/nowhere');
-      await expect(page.locator('main').getByText(/no “nowhere” section \(404\)/)).toBeVisible();
+      await expect(page.locator('main').getByRole('heading', { name: 'Page not found' })).toBeVisible();
 
       await page.goto('/app/language/extensions?tab=resources');
       await expect(page).toHaveURL(/\/language\/extensions\?tab=resources$/);

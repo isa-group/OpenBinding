@@ -5,7 +5,7 @@ import { apiClient, HttpError, type PackageValidationOutcome } from '../../api/c
 import { Button } from '../../components/ui/Button';
 import { Notice } from '../../components/ui/Notice';
 import { ProjectPicker } from '../../components/ui/ProjectPicker';
-import { LanguageNav } from '../../components/ui/SectionNav';
+import { LanguageNav } from '../Profiles/languageSections';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';

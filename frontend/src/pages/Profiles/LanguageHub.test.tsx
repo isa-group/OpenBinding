@@ -114,9 +114,20 @@ describe('language hub', () => {
   });
 
   // [utest->req~frontend-nav-language-hub~1]
-  it('an unknown section shows a heading and a 404 notice', () => {
+  it('an unknown section shows the shared Page not found screen without the section navigation', () => {
     renderHub('/language/nowhere');
-    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
-    expect(screen.getByText(/no “nowhere” section \(404\)/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Language sections' })).not.toBeInTheDocument();
+  });
+
+  // [utest->req~frontend-nav-language-hub~1]
+  it.each([
+    '/language/profiles',
+    '/language/extensions/anything',
+    '/language/profiles/anything',
+    '/language/nowhere/anything',
+  ])('%s shows Page not found', (path) => {
+    renderHub(path);
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
   });
 });

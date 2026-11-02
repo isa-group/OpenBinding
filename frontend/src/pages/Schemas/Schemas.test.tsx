@@ -61,7 +61,7 @@ describe('schema reference', () => {
     expect(api.getBimSchema).toHaveBeenCalledWith('Application');
     expect(screen.getByRole('heading', { level: 1, name: 'Schemas' })).toBeInTheDocument();
     expect(screen.getByText(/Tasks, typed metrics and the native or externally represented workflow/)).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Language sections' })).toHaveTextContent('Schemas');
+    expect(screen.queryByRole('navigation', { name: 'Language sections' })).not.toBeInTheDocument();
   });
 
   it('lists every kind and marks the current one', async () => {

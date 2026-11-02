@@ -7,7 +7,6 @@ import { Chip } from '../../components/ui/Chip';
 import { CopyField } from '../../components/ui/CopyField';
 import { DataTable } from '../../components/ui/DataTable';
 import { Notice } from '../../components/ui/Notice';
-import { LanguageNav } from '../../components/ui/SectionNav';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
 import { useResource } from '../../utils/useResource';
@@ -228,8 +227,8 @@ function SchemaView({ kind, item }: { kind: BimSchemaKind; item: SchemaCatalogIt
   );
 }
 
-/** `embedded`: shown inside the language hub, which draws the section navigation and gives the kind (`kind`) from its address. */
-export function Schemas({ embedded = false, kind: kindProp }: { embedded?: boolean; kind?: string } = {}) {
+/** `kind`: the kind the language hub takes from its address; without it the kind comes from the route parameter. */
+export function Schemas({ kind: kindProp }: { kind?: string } = {}) {
   const { kind: paramKind = '' } = useParams();
   const segment = kindProp ?? paramKind;
   const kind = resolveSchemaKind(segment);
@@ -238,7 +237,6 @@ export function Schemas({ embedded = false, kind: kindProp }: { embedded?: boole
   return (
     <div className="schemas-page">
       <div className="schemas-head">
-        {!embedded && <LanguageNav current="schemas" />}
         <h1>Schemas</h1>
         <p>
           What each part of a package contains: every field with its kind, whether it’s required, its unit and its allowed values. Use
