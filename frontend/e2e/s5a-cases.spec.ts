@@ -312,16 +312,18 @@ const viewports = [
 ] as const;
 
 const ROOT = '/app/isa-demo/qos-benchmarks';
-const CASE = `${ROOT}/cases/flujo-checkout`;
+const CASE = `${ROOT}/problems/flujo-checkout`;
+// The address of the problem before the segment became `problems`: the two tests of the old version and compare addresses visit it on purpose.
+const OLD_CASE = `${ROOT}/cases/flujo-checkout`;
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S5a cases`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('case-list /app/:org/:project/cases', async ({ page }, testInfo) => {
+    test('case-list /app/:org/:project/problems', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/cases`);
+      await page.goto(`${ROOT}/problems`);
       const main = page.locator('#platform-main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
@@ -336,7 +338,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The dialog of a new problem, open in the address, with the address suggested from the name and the gateway's 409.
       await main.getByRole('button', { name: 'New problem' }).click();
-      await expect(page).toHaveURL(`${ROOT}/cases?create=problem`);
+      await expect(page).toHaveURL(`${ROOT}/problems?create=problem`);
       const dialog = page.getByRole('dialog', { name: 'New problem' });
       await dialog.getByLabel('Name', { exact: true }).fill('Análisis de latencia');
       await expect(dialog.getByLabel('Address')).toHaveValue('analisis-de-latencia');
@@ -355,7 +357,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect((await posted).postDataJSON()).toEqual({ slug: 'analisis-de-latencia', name: 'Análisis de latencia', description: '' });
       await expect(main.getByText('Problem “Análisis de latencia” created. Compose its first version when you’re ready.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Compose its first version' })).toHaveAttribute('href', `${ROOT}/workbench?case=analisis-de-latencia`);
-      await expect(page).toHaveURL(`${ROOT}/cases`);
+      await expect(page).toHaveURL(`${ROOT}/problems`);
       await expect(list.getByRole('listitem')).toHaveCount(3);
       await capture(page, testInfo, `list-${name}-created`);
 
@@ -381,7 +383,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(list.getByRole('listitem')).toHaveCount(2);
 
       // A VIEWER reads and compares, and has no buttons that write; the address cannot open the dialog for them.
-      await page.goto('/app/consultora-demo/client-case/cases?create=problem');
+      await page.goto('/app/consultora-demo/client-case/problems?create=problem');
       await expect(main.getByRole('note')).toContainText('You’re a VIEWER. You can open and compare problems here; creating and editing need MEMBER.');
       await expect(page.getByRole('dialog')).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'New problem' })).toHaveCount(0);
@@ -390,7 +392,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `list-${name}-viewer`);
 
       // A project with no problem explains how to start.
-      await page.goto('/app/isa-demo/checkout-privado/cases');
+      await page.goto('/app/isa-demo/checkout-privado/problems');
       const guide = main.getByRole('region', { name: 'No problems yet' });
       await expect(guide.getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/explore/examples');
       await expect(guide.getByRole('link', { name: 'Open the library' })).toHaveCount(0);
@@ -398,7 +400,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The list fails and comes back.
       state.refuse.cases = unavailable;
-      await page.goto(`${ROOT}/cases`);
+      await page.goto(`${ROOT}/problems`);
       await expect(main.getByRole('alert')).toContainText('Problems couldn’t be loaded (503)');
       await capture(page, testInfo, `list-${name}-error`);
       state.refuse.cases = undefined;
@@ -406,12 +408,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(list.getByRole('listitem')).toHaveCount(2);
 
       // A project the account is not in reads like one that is missing.
-      await page.goto('/app/isa-demo/ghost/cases');
+      await page.goto('/app/isa-demo/ghost/problems');
       await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
       expect(critical).toEqual([]);
     });
 
-    test('case-detail /app/:org/:project/cases/:case/:tab? · header, tabs, Versions and Settings', async ({ page }, testInfo) => {
+    test('case-detail /app/:org/:project/problems/:case/:tab? · header, tabs, Versions and Settings', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       await page.goto(CASE);
@@ -444,14 +446,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
 
       // A problem without versions points to the workbench.
-      await page.goto(`${ROOT}/cases/borrador`);
+      await page.goto(`${ROOT}/problems/borrador`);
       const guide = main.getByRole('region', { name: 'No versions yet' });
       await expect(guide.getByRole('link', { name: 'Compose the first version' })).toHaveAttribute('href', `${ROOT}/workbench?case=borrador`);
       await capture(page, testInfo, `detail-${name}-empty`);
       expect(critical).toEqual([]);
     });
 
-    test('case-detail Settings /app/:org/:project/cases/:case/settings', async ({ page }, testInfo) => {
+    test('case-detail Settings /app/:org/:project/problems/:case/settings', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
@@ -483,27 +485,27 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await sealed.getByRole('button', { name: 'Cancel' }).click();
 
       // An empty problem is deleted and the list takes its place.
-      await page.goto(`${ROOT}/cases/borrador/settings`);
+      await page.goto(`${ROOT}/problems/borrador/settings`);
       await main.getByRole('button', { name: 'Delete problem' }).click();
       const dialog = page.getByRole('dialog', { name: 'Delete Borrador?' });
       await dialog.getByLabel('Type borrador to confirm').fill('borrador');
       await dialog.getByRole('button', { name: 'Delete problem' }).click();
-      await expect(page).toHaveURL(`${ROOT}/cases`);
+      await expect(page).toHaveURL(`${ROOT}/problems`);
       await expect(main.getByText('Problem “Borrador” deleted.')).toBeVisible();
 
       // A VIEWER reads: no new version, no editing.
-      await page.goto('/app/consultora-demo/client-case/cases/flujo-checkout');
+      await page.goto('/app/consultora-demo/client-case/problems/flujo-checkout');
       await expect(main.getByRole('note')).toContainText('You can read and compare versions. New versions need MEMBER; deleting needs ADMIN.');
       await expect(main.getByRole('link', { name: 'New version' })).toHaveCount(0);
-      await page.goto('/app/consultora-demo/client-case/cases/flujo-checkout/settings');
+      await page.goto('/app/consultora-demo/client-case/problems/flujo-checkout/settings');
       await expect(main.getByLabel('Description', { exact: true })).toBeDisabled();
       await expect(main.getByRole('button', { name: 'Save' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-viewer`);
 
       // A problem that isn't there.
-      await page.goto(`${ROOT}/cases/ghost`);
+      await page.goto(`${ROOT}/problems/ghost`);
       await expect(main.getByRole('heading', { name: 'No problem with this address in QoS Benchmarks (404)' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', `${ROOT}/cases`);
+      await expect(main.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', `${ROOT}/problems`);
       await capture(page, testInfo, `detail-${name}-404`);
       expect(critical).toEqual([]);
     });
@@ -511,7 +513,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('case-detail Overview ?version= (the old revision address moves to it)', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${CASE}/revisions/2`);
+      await page.goto(`${OLD_CASE}/revisions/2`);
       const main = page.locator('#platform-main');
 
       await expect(page).toHaveURL(`${CASE}?version=2`);
@@ -569,7 +571,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('case-detail Versions · compare (the old compare address moves to it)', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto(`${CASE}/compare`);
+      await page.goto(`${OLD_CASE}/compare`);
       const main = page.locator('#platform-main');
 
       await expect(page).toHaveURL(`${CASE}/versions`);
@@ -600,7 +602,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('≈ 3.2× fewer combinations (10^0.5)')).toBeVisible();
 
       // The same version on both sides has nothing to compare.
-      await page.goto(`${CASE}/compare?from=2&to=2`);
+      await page.goto(`${OLD_CASE}/compare?from=2&to=2`);
       await expect(page).toHaveURL(`${CASE}/versions?from=2&to=2`);
       await expect(main.getByText('Both sides are the same version, so there’s nothing to compare. Choose two different versions.')).toBeVisible();
       await capture(page, testInfo, `compare-${name}-same`);
@@ -611,7 +613,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `compare-${name}-404`);
 
       // A problem that isn't there.
-      await page.goto(`${ROOT}/cases/ghost/versions`);
+      await page.goto(`${ROOT}/problems/ghost/versions`);
       await expect(main.getByRole('heading', { name: 'No problem with this address in QoS Benchmarks (404)' })).toBeVisible();
       expect(critical).toEqual([]);
     });
@@ -620,7 +622,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/snapshots/${S2}`);
-      await expect(page).toHaveURL(`${ROOT}/cases`);
+      await expect(page).toHaveURL(`${ROOT}/problems`);
       await page.goto(`${CASE}/source?version=2`);
       const main = page.locator('#platform-main');
 

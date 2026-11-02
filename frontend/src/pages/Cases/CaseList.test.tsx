@@ -36,7 +36,7 @@ const where = () => screen.getByTestId('where').textContent;
 
 function renderList(organization = group, slug = organization.slug, search = '') {
   return renderProjectScreen(<><CaseList /><Where /></>, {
-    path: '/app/:org/:project/cases', url: `/app/${slug}/qos-benchmarks/cases${search}`, organizations: [organization],
+    path: '/app/:org/:project/problems', url: `/app/${slug}/qos-benchmarks/problems${search}`, organizations: [organization],
   });
 }
 
@@ -61,7 +61,7 @@ describe('Problem list', () => {
     const rows = within(list).getAllByRole('listitem');
     expect(rows).toHaveLength(2);
     const first = within(rows[0]);
-    expect(first.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', `${root}/cases/flujo-checkout`);
+    expect(first.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', `${root}/problems/flujo-checkout`);
     expect(first.getByText('Ready to run')).toBeInTheDocument();
     expect(first.getByText('2 versions')).toBeInTheDocument();
     expect(first.getByText(/latest v2 · /)).toBeInTheDocument();
@@ -84,7 +84,7 @@ describe('Problem list', () => {
 
     const list = await screen.findByRole('list', { name: 'Problems' });
     const first = within(within(list).getAllByRole('listitem')[0]);
-    expect(first.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/cases/flujo-checkout');
+    expect(first.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/problems/flujo-checkout');
     expect(first.queryByRole('link', { name: 'Run latest' })).not.toBeInTheDocument();
     expect(first.queryByRole('link', { name: 'New version' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'New problem' })).not.toBeInTheDocument();
@@ -188,7 +188,7 @@ describe('Problem list', () => {
       for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       // [utest->req~frontend-nav-new-menu~1]
-      expect(where()).toBe(`${root}/cases`);
+      expect(where()).toBe(`${root}/problems`);
       await waitFor(() => expect(platform.cases).toHaveBeenCalledTimes(2));
     });
 
@@ -213,7 +213,7 @@ describe('Problem list', () => {
 
       expect(await within(dialog).findByRole('alert')).toHaveTextContent('That address is already used by another problem in this project (409 · slug_conflict).');
       expect(screen.getByRole('dialog', { name: 'New problem' })).toBeInTheDocument();
-      expect(where()).toBe(`${root}/cases?create=problem`);
+      expect(where()).toBe(`${root}/problems?create=problem`);
     });
 
     it('closes with Cancel and creates nothing', async () => {
@@ -233,7 +233,7 @@ describe('Problem list', () => {
       fireEvent.click(screen.getByRole('button', { name: 'New problem' }));
 
       expect(await screen.findByRole('dialog', { name: 'New problem' })).toBeInTheDocument();
-      expect(where()).toBe(`${root}/cases?create=problem`);
+      expect(where()).toBe(`${root}/problems?create=problem`);
     });
 
     // [utest->req~frontend-nav-new-menu~1]
@@ -256,7 +256,7 @@ describe('Problem list', () => {
       close(dialog);
 
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(where()).toBe(`${root}/cases`);
+      expect(where()).toBe(`${root}/problems`);
       expect(screen.getByRole('button', { name: 'New problem' })).toHaveFocus();
       expect(cases.createCase).not.toHaveBeenCalled();
     });
@@ -275,7 +275,7 @@ describe('Problem list', () => {
       expect(screen.getByRole('button', { name: 'New problem' })).toHaveFocus();
 
       fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
-      await waitFor(() => expect(where()).toBe(`${root}/cases`));
+      await waitFor(() => expect(where()).toBe(`${root}/problems`));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 

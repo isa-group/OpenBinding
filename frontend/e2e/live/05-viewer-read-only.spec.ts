@@ -7,7 +7,7 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
   test('the problem list and the problem have no editing control and say why', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
-    await page.goto(`${PROJECT_PATH}/cases`);
+    await page.goto(`${PROJECT_PATH}/problems`);
 
     await expect(page.getByRole('list', { name: 'Problems' })).toBeVisible();
     const note = page.getByRole('note').filter({ hasText: 'creating and editing need MEMBER' });
@@ -17,7 +17,7 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(0);
     await capture(page, testInfo, 'viewer-case-list');
 
-    await page.goto(`${PROJECT_PATH}/cases/${CASE}`);
+    await page.goto(`${PROJECT_PATH}/problems/${CASE}`);
     await expect(page.locator('code.case-slug')).toHaveText(CASE);
     await expect(page.getByRole('tab', { name: 'Versions' })).toBeVisible();
     await expect(page.getByRole('note').filter({ hasText: 'New versions need MEMBER; deleting needs ADMIN' })).toBeVisible();
@@ -51,7 +51,7 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     await expect(page.getByRole('link', { name: 'Start a run' })).toHaveCount(0);
     // The problem offers "Run this version" to a member of the project, a viewer included, but it only leads to the steps above, read-only. That
     // is noted rather than failed: the entry point is the interface's, the refusal is the gateway's and the launch page's.
-    await page.goto(`${PROJECT_PATH}/cases/${CASE}`);
+    await page.goto(`${PROJECT_PATH}/problems/${CASE}`);
     await expect(page.locator('code.case-slug')).toHaveText(CASE);
     const entries = await page.getByRole('link', { name: 'Run this version' }).count();
     if (entries > 0) {

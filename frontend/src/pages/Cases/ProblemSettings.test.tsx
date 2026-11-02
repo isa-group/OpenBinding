@@ -19,7 +19,7 @@ const refusal = (status: number, code = 'refused') => Object.assign(new HttpErro
 
 function renderSettings(organization = member) {
   return renderProjectScreen(<CaseDetail />, {
-    path: '/app/:org/:project/cases/:case/:tab?', url: `/app/${organization.slug}/qos-benchmarks/cases/flujo-checkout/settings`, organizations: [organization],
+    path: '/app/:org/:project/problems/:case/:tab?', url: `/app/${organization.slug}/qos-benchmarks/problems/flujo-checkout/settings`, organizations: [organization],
   });
 }
 

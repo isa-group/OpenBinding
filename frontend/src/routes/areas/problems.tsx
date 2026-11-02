@@ -14,8 +14,8 @@ const Workbench = lazy(() => import('../../pages/Workbench/Workbench').then((mod
 // [impl->req~frontend-retire-composer-screen-count~1]
 // [impl->req~frontend-nav-problem-page~1]
 export const routes: RouteDefinition[] = [
-  live('case-list', '/app/:org/:project/cases', <CaseList />),
-  live('case-detail', '/app/:org/:project/cases/:case/:tab?', <CaseDetail />),
+  live('case-list', '/app/:org/:project/problems', <CaseList />),
+  live('case-detail', '/app/:org/:project/problems/:case/:tab?', <CaseDetail />),
   live('wb-workbench', '/app/:org/:project/workbench', <Workbench />),
 ];
 
@@ -23,12 +23,17 @@ const projectRoot = (params: Readonly<Partial<Record<string, string>>>) => `/app
 
 // [impl->req~frontend-nav-problem-page~1]
 const movedAddresses: MovedRoute[] = [
+  // The addresses of the problem list and the problem page before the segment became `problems` (slice 13). The tab, the query and the
+  // hash go on. The static entries below (`revisions`, `compare`) and the retired composer outrank `:tab`, so every redirect is one hop.
+  moved('case-list-moved', '/app/:org/:project/cases', '/app/:org/:project/problems'),
+  moved('case-moved', '/app/:org/:project/cases/:case', '/app/:org/:project/problems/:case'),
+  moved('case-tab-moved', '/app/:org/:project/cases/:case/:tab', '/app/:org/:project/problems/:case/:tab'),
   // A problem version: the Overview of the problem page, showing that version. The version is a number, or a digest or id that the page resolves.
-  moved('case-revision-moved', '/app/:org/:project/cases/:case/revisions/:revision', '/app/:org/:project/cases/:case', {
+  moved('case-revision-moved', '/app/:org/:project/cases/:case/revisions/:revision', '/app/:org/:project/problems/:case', {
     target: (_query, params) => problemPath(projectRoot(params), params.case ?? '', undefined, { version: params.revision }), permanent: true, keepQuery: false,
   }),
   // The comparison of two versions: the Versions tab, with the pair (`from`, `to`) it already carries.
-  moved('case-compare-moved', '/app/:org/:project/cases/:case/compare', '/app/:org/:project/cases/:case/versions', {
+  moved('case-compare-moved', '/app/:org/:project/cases/:case/compare', '/app/:org/:project/problems/:case/versions', {
     target: (query, params) => {
       const address = problemPath(projectRoot(params), params.case ?? '', 'versions');
       const search = query.toString();
@@ -36,7 +41,7 @@ const movedAddresses: MovedRoute[] = [
     },
   }),
   // A snapshot has no page of its own: the project's problems. The snapshot id is dropped.
-  moved('snap-detail-moved', '/app/:org/:project/snapshots/:snapshot', '/app/:org/:project/cases', {
+  moved('snap-detail-moved', '/app/:org/:project/snapshots/:snapshot', '/app/:org/:project/problems', {
     target: (_query, params) => problemsPath(projectRoot(params)), permanent: true, keepQuery: false,
   }),
 ];

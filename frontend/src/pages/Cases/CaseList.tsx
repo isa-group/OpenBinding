@@ -180,7 +180,7 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
 }
 
 /**
- * Problems (`case-list`, `/app/:org/:project/cases`): the project’s problems, how many versions each has, and the way to create one. The dialog
+ * Problems (`case-list`, `/app/:org/:project/problems`): the project’s problems, how many versions each has, and the way to create one. The dialog
  * `New problem` is open while the address holds `?create=problem`, for the people who may create.
  */
 // [impl->req~frontend-nav-new-menu~1]

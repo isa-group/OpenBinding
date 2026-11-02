@@ -328,7 +328,7 @@ describe('Generator lab', () => {
       const [preview1, saved] = generator.instance.mock.calls.map(([params]) => params);
       expect(saved).toEqual({ ...preview1, persist: true, project_id: 'project-placement-edge', case_name: 'generated_qaco' });
       expect(saved.seed).toBe(9);
-      expect(within(keepIt()).getByRole('link', { name: 'See the project’s problems' })).toHaveAttribute('href', '/app/qos-lab/placement-edge/cases');
+      expect(within(keepIt()).getByRole('link', { name: 'See the project’s problems' })).toHaveAttribute('href', '/app/qos-lab/placement-edge/problems');
     });
 
     it.each([

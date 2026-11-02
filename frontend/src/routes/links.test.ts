@@ -134,12 +134,13 @@ export function addressHits(
 }
 
 type MovedTable = ReadonlyArray<Pick<MovedRoute, 'path' | 'permanent'>>;
-const declaresMoved = (name: string) => name === 'routes/moved.ts' || name.startsWith('routes/areas/');
+const declaresMoved = (name: string) => name === 'routes/moved.ts' || name === 'routes/retiredRoutes.tsx' || name.startsWith('routes/areas/');
 
 // [impl->req~frontend-nav-redirects~1]
 /**
  * Like `retiredAddresses`, for the old addresses of the moved routes (`moved.ts`): the code must link to the new address. An entry marked
- * `permanent: true` is left out, and so are the files that declare moved routes (the area files and `routes/moved.ts`).
+ * `permanent: true` is left out, and so are the files that declare moved routes (the area files and `routes/moved.ts`) and the table of
+ * retired addresses (`routes/retiredRoutes.tsx`), which names the composer under the old `cases` segment.
  */
 export function movedAddresses(sources: Record<string, string>, table: MovedTable): string[] {
   return movedAddressHits(sources, table).map(({ file, literal }) => `${file}: ${literal}`);
@@ -487,6 +488,8 @@ describe('the scan for retired addresses', () => {
       const declaration = "moved('m', '/app/:org/:project/files', '/app/:org/:project');";
       expect(scanMoved('routes/areas/project.tsx', declaration)).toEqual([]);
       expect(scanMoved('routes/moved.ts', declaration)).toEqual([]);
+      expect(scanMoved('routes/retiredRoutes.tsx', declaration)).toEqual([]);
+      expect(scanMoved('pages/retiredRoutes.tsx', declaration)).toHaveLength(1);
       expect(scanMoved('pages/areas/project.tsx', declaration)).toHaveLength(1);
       expect(scanMoved('routes/index.tsx', declaration)).toHaveLength(1);
     });

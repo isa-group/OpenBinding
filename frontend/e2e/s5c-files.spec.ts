@@ -408,7 +408,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Referencias checkout' })).toBeVisible();
       await expect(items.getByRole('listitem')).toHaveCount(3);
-      await expect(items.getByRole('link', { name: 'Flujo de checkout · version 1' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout?version=1`);
+      await expect(items.getByRole('link', { name: 'Flujo de checkout · version 1' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=1`);
       // A resource pin is plain text: the resource screens are retired, so it leads nowhere.
       const pin = items.getByRole('listitem').filter({ hasText: 'Weights · revision 1' });
       await expect(pin).toHaveCount(1);

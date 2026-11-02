@@ -85,7 +85,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await answerSnapshots(page);
       const main = page.locator('#platform-main');
 
-      await page.goto(`${ROOT}/cases/checkout-flow?version=2`);
+      await page.goto(`${ROOT}/problems/checkout-flow?version=2`);
       const providers = main.getByRole('region', { name: 'Candidates' });
       await expect(providers.getByRole('table')).toBeVisible();
       await expect(providers.getByRole('row', { name: /auth-1/ })).toContainText('≤ 60 ms');
@@ -104,7 +104,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         return;
       }
 
-      await page.goto(`${ROOT}/cases/checkout-flow/versions?from=1&to=2`);
+      await page.goto(`${ROOT}/problems/checkout-flow/versions?from=1&to=2`);
       const row = (what: RegExp) => main.getByRole('row', { name: what });
       await expect(row(/authenticate-1 · latency \(now a range\)/)).toContainText('40 ms');
       await expect(row(/authenticate-1 · latency \(now a range\)/)).toContainText('≤ 60 ms');

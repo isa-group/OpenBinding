@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye } from 'lucide-react';
 import type { ProjectAccessKind } from '../../api/platform';
+import { PROBLEMS_SEGMENT } from '../../routes/paths/problems';
 import { canOpenSection, levelOf } from '../../utils/accessLevel';
 import './SectionNav.css';
 
-// The keys `cases` and `jobs` are the section names the problem and run screens pass today; the slices that rename their addresses
-// rename the keys with them.
+// The keys `cases` and `jobs` are the section names the problem and run screens pass today, not addresses.
 export type ProjectSection = 'overview' | 'cases' | 'collections' | 'jobs' | 'studies' | 'published' | 'settings';
 
 interface ProjectTabsProps {
@@ -20,7 +20,7 @@ interface ProjectTabsProps {
 interface Tab {
   key: ProjectSection;
   label: string;
-  /** Appended to the project address. Problems and Runs lead to `/cases` and `/jobs` until the address slices move them to `/problems` and `/runs`. */
+  /** Appended to the project address. Runs lead to `/jobs` until the run address slice moves them to `/runs`. */
   suffix: string;
   /** Shown at the end of the row, apart from the others. */
   trailing?: true;
@@ -31,7 +31,7 @@ interface Tab {
 // [impl->req~frontend-retire-library-navigation~1]
 const TABS: readonly Tab[] = [
   { key: 'overview', label: 'Overview', suffix: '' },
-  { key: 'cases', label: 'Problems', suffix: '/cases' },
+  { key: 'cases', label: 'Problems', suffix: `/${PROBLEMS_SEGMENT}` },
   { key: 'collections', label: 'Collections', suffix: '/collections' },
   { key: 'jobs', label: 'Runs', suffix: '/jobs' },
   { key: 'studies', label: 'Studies', suffix: '/studies' },

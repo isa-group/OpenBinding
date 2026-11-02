@@ -46,7 +46,7 @@ test.describe('live · lab-outsider has no access to lab-main', () => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'outsider');
 
-    for (const path of [`${PROJECT_PATH}/cases`, `${PROJECT_PATH}/cases/simple-seq`, `${PROJECT_PATH}/jobs/new`, `${PROJECT_PATH}/studies`]) {
+    for (const path of [`${PROJECT_PATH}/problems`, `${PROJECT_PATH}/problems/simple-seq`, `${PROJECT_PATH}/jobs/new`, `${PROJECT_PATH}/studies`]) {
       await page.goto(path);
       await expect(page.getByRole('heading', { name: 'Project not found' }), path).toBeVisible();
       await expect(page.getByRole('heading', { level: 1, name: 'Problems' }), path).toHaveCount(0);

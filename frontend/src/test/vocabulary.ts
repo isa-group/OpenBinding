@@ -140,6 +140,39 @@ export function scanSource(source: string, words: RegExp, file = 'source.tsx'): 
   return [...found.values()].sort((a, b) => a.line - b.line);
 }
 
+/** The path segments that addresses no longer hold; slice 14 adds `jobs` and the publications slice `publications`. */
+export const OLD_ADDRESS_SEGMENTS: readonly string[] = ['cases'];
+
+/**
+ * The addresses in the sources that hold one of the old path `segments`: a string or template literal with `/<segment>` followed by the end
+ * of the text, `/`, `?`, `#` or a `${` substitution (``${root}/cases/${slug}``, `'/app/:org/:project/cases'`). Each is reported as `file: text`, the text as
+ * written between the quotes. Comments, imports, a single word such as `'cases'` (a section key) and the HTTP client layer (`src/api/`, which
+ * names the gateway's paths) are not reported, nor are test files, test kits and fixtures. The files that name old addresses on purpose
+ * (the route areas, the moved and retired tables) are left out by the caller.
+ */
+// [impl->req~frontend-nav-vocabulary-urls~1]
+export function scanAddresses(files: Readonly<Record<string, string>>, segments: readonly string[] = OLD_ADDRESS_SEGMENTS): string[] {
+  const old = new RegExp(`/(?:${segments.map(escapeRegExp).join('|')})(?=$|[/?#$])`);
+  return Object.keys(files).sort()
+    .filter((path) => /\.tsx?$/.test(path) && !isTestSupport(path) && !/(^|\/)src\/api\//.test(path))
+    .flatMap((path) => {
+      const tree = ts.createSourceFile(path, files[path], ts.ScriptTarget.ES2022, true, /\.tsx$/.test(path) ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+      const hits: string[] = [];
+      const visit = (node: ts.Node): void => {
+        if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node) || ts.isImportEqualsDeclaration(node) || ts.isTypeNode(node)) return;
+        if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node)) {
+          // The text between the quotes or backticks, the substitutions as written.
+          const text = node.getText(tree).slice(1, -1);
+          if (old.test(text)) hits.push(`${path}: ${text}`);
+          if (!ts.isTemplateExpression(node)) return;
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(tree);
+      return hits;
+    });
+}
+
 /** `file:line  where: "text"`. */
 export const formatFinding = (finding: Finding): string => `${finding.file}:${finding.line}  ${finding.where}: "${finding.text}"`;
 

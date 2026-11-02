@@ -1,4 +1,5 @@
 import type { Organization, Project } from '../../api/platform';
+import { PROBLEMS_SEGMENT } from '../../routes/paths/problems';
 
 export interface NavLinkItem {
   to: string;
@@ -13,9 +14,7 @@ export interface MenuEntry {
   hint?: string;
 }
 
-// Until the slices that rename the problem and run screens land, their addresses keep the interim segments; those slices
-// switch these two constants to `problems` and `runs`.
-const PROBLEMS_SEGMENT = 'cases';
+// Until the slice that renames the run screens lands, their address keeps the interim segment; that slice switches it to `runs`.
 const RUNS_SEGMENT = 'jobs';
 const COLLECTIONS_SEGMENT = 'collections';
 const STUDIES_SEGMENT = 'studies';
@@ -127,6 +126,6 @@ export function currentSection(pathname: string): MainSection {
   if (under(pathname, '/app/language') || under(pathname, mainLinks.language.to)) return 'language';
   const [root, place] = pathname.split('/').filter(Boolean);
   if (root !== 'app' || UNMARKED_PLACES.has(place)) return null;
-  if (sameSegment(projectSegment(pathname), PROBLEMS_SEGMENT, 'problems')) return 'problems';
+  if (sameSegment(projectSegment(pathname), PROBLEMS_SEGMENT)) return 'problems';
   return isWorkspaceHome(pathname) ? 'home' : null;
 }

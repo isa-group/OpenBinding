@@ -513,7 +513,7 @@ describe('Workbench', () => {
       expect(await screen.findByText('Snapshot created. It is private to your account and never changes.')).toBeInTheDocument();
       expect(within(bar).getByRole('button', { name: 'Snapshot created' })).toBeInTheDocument();
       // [utest->req~frontend-nav-vocabulary-text~1]
-      expect(screen.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/cases`);
+      expect(screen.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems`);
       expect(await screen.findByRole('img', { name: /^Workflow:/ })).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
@@ -547,7 +547,7 @@ describe('Workbench', () => {
       await waitFor(() => expect(screen.getByRole('button', { name: 'Save as problem version' })).toBeEnabled());
       fireEvent.click(screen.getByRole('button', { name: 'Create snapshot' }));
 
-      expect(await screen.findByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/source?version=3`);
+      expect(await screen.findByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=3`);
     });
 
     // [utest->req~frontend-nav-vocabulary-text~1]
@@ -558,7 +558,7 @@ describe('Workbench', () => {
       await waitFor(() => expect(screen.getByRole('button', { name: 'Save as problem version' })).toBeEnabled());
       fireEvent.click(screen.getByRole('button', { name: 'Create snapshot' }));
 
-      expect(await screen.findByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/cases`);
+      expect(await screen.findByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems`);
     });
 
     it('saves the package as a version of the chosen problem, with the snapshot it came from', async () => {
@@ -578,9 +578,9 @@ describe('Workbench', () => {
         'isa-demo', 'qos-benchmarks', 'flujo-checkout', expect.objectContaining({ apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: 'hello-bim' } }), 'snapshot-1',
       );
       // [utest->req~frontend-nav-vocabulary-text~1]
-      expect(screen.getByRole('link', { name: 'Open it' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout?version=3`);
+      expect(screen.getByRole('link', { name: 'Open it' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=3`);
       // [utest->req~frontend-nav-vocabulary-text~1]
-      expect(screen.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/source?version=3`);
+      expect(screen.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=3`);
     });
 
     it('says when the same content was already a version, and asks for a problem first', async () => {
@@ -596,7 +596,7 @@ describe('Workbench', () => {
 
       expect(await screen.findByText('Same content as version 2, so no new version was needed.')).toBeInTheDocument();
       // [utest->req~frontend-nav-vocabulary-text~1]
-      expect(screen.getByRole('link', { name: 'See versions' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/versions`);
+      expect(screen.getByRole('link', { name: 'See versions' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/versions`);
     });
 
     it('keeps the package and says why a version was not saved (403)', async () => {

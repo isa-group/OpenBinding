@@ -25,7 +25,7 @@ describe('buildPins', () => {
   // [utest->req~frontend-nav-vocabulary-text~1]
   it('pins a problem version by its id and fingerprint, and links to the problem page at that version', () => {
     expect(pins[0]).toMatchObject({
-      kind: 'case', key: `case:${c2.digest}`, sub: 'Problem version', href: `${root}/cases/flujo-checkout?version=2`,
+      kind: 'case', key: `case:${c2.digest}`, sub: 'Problem version', href: `${root}/problems/flujo-checkout?version=2`,
       item: { target_kind: 'case', target_digest: c2.digest, target_ref: { caseRevisionId: c2.id } },
     });
   });
@@ -45,7 +45,7 @@ describe('entryOf', () => {
   // [utest->req~frontend-nav-vocabulary-text~1]
   it('matches a stored problem item with its version', () => {
     const found = entryOf(caseItem(c1.id, c1.digest), pins);
-    expect(found).toMatchObject({ kind: 'case', label: 'Flujo de checkout · version 1', href: `${root}/cases/flujo-checkout?version=1` });
+    expect(found).toMatchObject({ kind: 'case', label: 'Flujo de checkout · version 1', href: `${root}/problems/flujo-checkout?version=1` });
     expect(found.pin).toEqual({ target_kind: 'case', target_digest: c1.digest, target_ref: { caseRevisionId: c1.id } });
   });
 

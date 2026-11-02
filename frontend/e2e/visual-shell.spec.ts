@@ -118,7 +118,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/app');
           // A project screen is not the workspace home: its own tabs say where you are, and Home is not marked.
           await expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current', 'page');
-          await expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases');
+          await expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
           await expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
           await expect(nav.getByRole('link', { name: 'Language' })).toHaveAttribute('href', '/language');
           for (const label of ['Jobs', 'Analysis', 'Explore', 'Admin']) await expect(nav.getByRole('link', { name: label })).toHaveCount(0);

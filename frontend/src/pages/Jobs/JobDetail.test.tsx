@@ -177,8 +177,8 @@ describe('One run', () => {
     renderJob();
 
     const where = (await screen.findByRole('heading', { name: 'Where this result comes from' })).closest('section') as HTMLElement;
-    expect(await within(where).findByRole('link', { name: /^Snapshot snapshot/ })).toHaveAttribute('href', `${ROOT}/cases/flujo/source?version=2`);
-    expect(await within(where).findByRole('link', { name: 'Flujo de checkout · version 2' })).toHaveAttribute('href', `${ROOT}/cases/flujo?version=2`);
+    expect(await within(where).findByRole('link', { name: /^Snapshot snapshot/ })).toHaveAttribute('href', `${ROOT}/problems/flujo/source?version=2`);
+    expect(await within(where).findByRole('link', { name: 'Flujo de checkout · version 2' })).toHaveAttribute('href', `${ROOT}/problems/flujo?version=2`);
     expect(within(where).getByText('bim.builtin/random-search 1.0.0 · mode sampling', { exact: false })).toBeInTheDocument();
     expect(within(where).getByText('bim-reference-evaluator/v1')).toBeInTheDocument();
     expect(within(where).getByText('60 s per run')).toBeInTheDocument();
@@ -400,7 +400,7 @@ describe('One run', () => {
     const heading = await within(run).findByRole('heading', { name: 'Why no combination works' });
     const why = heading.closest('section') as HTMLElement;
     expect(within(why).getByText(/Total latency is 742 ms/)).toBeInTheDocument();
-    expect(await within(why).findByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/cases/flujo?version=2`);
+    expect(await within(why).findByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/problems/flujo?version=2`);
     expect(within(why).getByRole('link', { name: 'Try faster providers' })).toHaveAttribute('href', `${ROOT}/workbench?case=flujo`);
 
     const badge = within(run).getByText('INFEASIBLE');

@@ -813,9 +813,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 2, name: 'Cell 2' })).toBeVisible();
       const inputs = main.getByRole('region', { name: 'Frozen inputs' });
-      await expect(inputs.getByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute('href', `${ROOT}/cases/checkout-flow?version=1`);
+      await expect(inputs.getByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow?version=1`);
       await expect(inputs.getByText('random-search 1.0.0')).toBeVisible();
-      await expect(inputs.getByRole('link', { name: 'snapshot…' })).toHaveAttribute('href', `${ROOT}/cases/checkout-flow/source?version=1`);
+      await expect(inputs.getByRole('link', { name: 'snapshot…' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow/source?version=1`);
       await expect(inputs.getByRole('button', { name: 'Copy cell fingerprint' })).toBeVisible();
       const result = main.getByRole('region', { name: 'Result' });
       await expect(result.getByText('0.121')).toBeVisible();

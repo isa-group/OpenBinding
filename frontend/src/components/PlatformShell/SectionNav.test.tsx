@@ -93,10 +93,10 @@ describe('ProjectTabs', () => {
     render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
     const nav = screen.getByRole('navigation', { name: 'Project sections' });
-    // Problems and Runs lead to /cases and /jobs until the address slices move them.
+    // Runs lead to /jobs until the run address slice moves them.
     expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Overview', '/app/isa-demo/qos'],
-      ['Problems', '/app/isa-demo/qos/cases'],
+      ['Problems', '/app/isa-demo/qos/problems'],
       ['Collections', '/app/isa-demo/qos/collections'],
       ['Runs', '/app/isa-demo/qos/jobs'],
       ['Studies', '/app/isa-demo/qos/studies'],

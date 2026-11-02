@@ -39,7 +39,7 @@ function Where() {
 /** `orgSlug` other than the organization's own: the address of an organization the account is not in. */
 function renderDetail(organization = owner, slug = 'flujo-checkout', address = '', orgSlug = organization.slug) {
   return renderProjectScreen(<><CaseDetail /><Where /></>, {
-    path: '/app/:org/:project/cases/:case/:tab?', url: `/app/${orgSlug}/qos-benchmarks/cases/${slug}${address}`, organizations: [organization],
+    path: '/app/:org/:project/problems/:case/:tab?', url: `/app/${orgSlug}/qos-benchmarks/problems/${slug}${address}`, organizations: [organization],
   });
 }
 
@@ -70,7 +70,7 @@ describe('Problem page', () => {
     expect(screen.getByText('2 versions')).toBeInTheDocument();
     expect(screen.getByText('Payments with parallel stock and shipping.')).toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(crumbs).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', `${root}/cases`);
+    expect(within(crumbs).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', `${root}/problems`);
     expect(platform.case).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'flujo-checkout');
   });
 
@@ -103,9 +103,9 @@ describe('Problem page', () => {
     renderDetail(owner, 'flujo-checkout', '?version=1');
 
     fireEvent.click(await screen.findByRole('tab', { name: 'Source' }));
-    await waitFor(() => expect(where()).toBe(`${root}/cases/flujo-checkout/source?version=1`));
+    await waitFor(() => expect(where()).toBe(`${root}/problems/flujo-checkout/source?version=1`));
     fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
-    await waitFor(() => expect(where()).toBe(`${root}/cases/flujo-checkout?version=1`));
+    await waitFor(() => expect(where()).toBe(`${root}/problems/flujo-checkout?version=1`));
   });
 
   // [utest->req~frontend-nav-problem-page~1]
@@ -117,7 +117,7 @@ describe('Problem page', () => {
     expect(await screen.findByRole('region', { name: 'Compiled form (JSON)' })).toBeInTheDocument();
     fireEvent.change(version, { target: { value: '1' } });
 
-    await waitFor(() => expect(where()).toBe(`${root}/cases/flujo-checkout/source?version=1`));
+    await waitFor(() => expect(where()).toBe(`${root}/problems/flujo-checkout/source?version=1`));
     expect(screen.getByRole('combobox', { name: 'Version' })).toHaveValue('1');
     expect(await screen.findByRole('region', { name: 'Sealed document (JSON)' })).toBeInTheDocument();
   });
@@ -137,7 +137,7 @@ describe('Problem page', () => {
     renderDetail(owner, 'flujo-checkout', '?version=9');
 
     expect(await screen.findByRole('heading', { name: 'This version doesn’t exist (404)' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See all versions' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/versions`);
+    expect(screen.getByRole('link', { name: 'See all versions' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/versions`);
     expect(cases.revision).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'flujo-checkout', '9');
   });
 
@@ -186,9 +186,9 @@ describe('Problem page', () => {
       const used = within(region).getByRole('list', { name: 'Library versions in version 2' });
       expect(within(used).getByText('providers-eu v3').closest('li')).toHaveClass('is-changed');
       expect(within(used).getByText('checkout-app v3').closest('li')).not.toHaveClass('is-changed');
-      expect(within(region).getAllByRole('link', { name: 'Open' })[0]).toHaveAttribute('href', `${root}/cases/flujo-checkout?version=2`);
-      expect(within(region).getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/source?version=2`);
-      expect(within(region).getByRole('link', { name: 'Compare with v1' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/versions?from=1&to=2`);
+      expect(within(region).getAllByRole('link', { name: 'Open' })[0]).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=2`);
+      expect(within(region).getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/source?version=2`);
+      expect(within(region).getByRole('link', { name: 'Compare with v1' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/versions?from=1&to=2`);
     });
 
     it('copies the exact reference of a version', async () => {
@@ -290,7 +290,7 @@ describe('Problem page', () => {
       renderDetail(owner, 'ghost');
 
       expect(await screen.findByRole('heading', { name: 'No problem with this address in QoS Benchmarks (404)' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', `${root}/cases`);
+      expect(screen.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', `${root}/problems`);
       fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
       expect(await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeInTheDocument();
     });

@@ -203,15 +203,15 @@ describe('Open snapshot', () => {
 
   // [utest->req~frontend-nav-vocabulary-text~1]
   it('leads to the Source tab of the problem at the sealed version made from the snapshot', () => {
-    expect(snapshotHref(root, 'routing', versions, 'snap-a')).toBe(`${root}/cases/routing/source?version=1`);
-    expect(snapshotHref(root, 'routing', versions, 'snap-b')).toBe(`${root}/cases/routing/source?version=2`);
+    expect(snapshotHref(root, 'routing', versions, 'snap-a')).toBe(`${root}/problems/routing/source?version=1`);
+    expect(snapshotHref(root, 'routing', versions, 'snap-b')).toBe(`${root}/problems/routing/source?version=2`);
   });
 
   // [utest->req~frontend-nav-vocabulary-text~1]
   it('leads to the problem list when no version came from the snapshot, or no problem is chosen', () => {
-    expect(snapshotHref(root, 'routing', versions, 'snap-z')).toBe(`${root}/cases`);
-    expect(snapshotHref(root, 'routing', [], 'snap-a')).toBe(`${root}/cases`);
-    expect(snapshotHref(root, '', versions, 'snap-a')).toBe(`${root}/cases`);
+    expect(snapshotHref(root, 'routing', versions, 'snap-z')).toBe(`${root}/problems`);
+    expect(snapshotHref(root, 'routing', [], 'snap-a')).toBe(`${root}/problems`);
+    expect(snapshotHref(root, '', versions, 'snap-a')).toBe(`${root}/problems`);
   });
 });
 

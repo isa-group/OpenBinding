@@ -27,7 +27,7 @@ test.describe('live · organizations and the project lab-main/bim-demo', () => {
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     const sections = page.getByRole('navigation', { name: 'Project sections' });
     await expect(sections).toBeVisible();
-    await expect(sections.locator(`a[href="${PROJECT_PATH}/cases"]`)).toBeVisible();
+    await expect(sections.locator(`a[href="${PROJECT_PATH}/problems"]`)).toBeVisible();
     await capture(page, testInfo, 'navigation-project');
     expect(errors).toEqual([]);
   });
@@ -41,9 +41,9 @@ test.describe('live · organizations and the project lab-main/bim-demo', () => {
     await expect(main).toBeVisible();
     await expect(main).toContainText('MEMBER');
 
-    await page.goto(`${PROJECT_PATH}/cases`);
+    await page.goto(`${PROJECT_PATH}/problems`);
     await expect(page.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
-    await expect(page.getByRole('list', { name: 'Problems' }).locator(`a[href="${PROJECT_PATH}/cases/${CASE}"]`).first()).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Problems' }).locator(`a[href="${PROJECT_PATH}/problems/${CASE}"]`).first()).toBeVisible();
     await capture(page, testInfo, 'navigation-cases-member');
     expect(errors).toEqual([]);
   });

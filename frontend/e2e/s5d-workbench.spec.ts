@@ -518,7 +518,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await bar.getByRole('button', { name: 'Create snapshot' }).click();
       await expect(main.getByText('Snapshot created. It is private to your account and never changes.')).toBeVisible();
       // No version of the problem was sealed from this snapshot yet, so the link leads to the list of problems.
-      await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/cases`);
+      await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems`);
       await expect(bar.getByRole('button', { name: 'Snapshot created' })).toBeVisible();
       await expect(main.getByRole('img', { name: /^Workflow: authenticate/ })).toBeVisible();
       await capture(page, testInfo, `bar-${name}-snapshot`);
@@ -527,9 +527,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(bar.getByRole('button', { name: 'Save as problem version' })).toBeEnabled();
       await bar.getByRole('button', { name: 'Save as problem version' }).click();
       await expect(main.getByText('Version 3 of Flujo de checkout saved and sealed.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open it' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout?version=3`);
+      await expect(main.getByRole('link', { name: 'Open it' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=3`);
       // The snapshot is now the source of version 3, so it opens that version's Source tab.
-      await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/source?version=3`);
+      await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=3`);
       const saved = state.sent.saveRevision as { document: { metadata: { name: string } }; source_snapshot_id: string; resources: unknown[] };
       expect(saved.source_snapshot_id).toBe('snapshot-1');
       expect(saved.document.metadata.name).toBe('hello-bim');
@@ -643,7 +643,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await keep.getByRole('combobox', { name: 'Project' }).selectOption({ label: 'Bench · Member Lab' });
       await keep.getByRole('button', { name: 'Save to project' }).click();
       await expect(keep.getByText('Saved to Bench · Member Lab as a synthetic instance.')).toBeVisible();
-      await expect(keep.getByRole('link', { name: 'See the project’s problems' })).toHaveAttribute('href', '/app/member-lab/bench/cases');
+      await expect(keep.getByRole('link', { name: 'See the project’s problems' })).toHaveAttribute('href', '/app/member-lab/bench/problems');
       const saved = (state.sent.instances as Array<Record<string, unknown>>).at(-1) as Record<string, unknown>;
       expect(saved).toMatchObject({ persist: true, project_id: 'project-4', case_name: 'generated_qaco', seed: 7 });
       await capture(page, testInfo, `lab-${name}-saved`);

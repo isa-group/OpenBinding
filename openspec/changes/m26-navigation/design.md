@@ -74,6 +74,7 @@ removed, and the link scan allows links to it.
 | project | `/app/:org/:project/publications` | `/app/<org>/<project>/published` | kept | no | |
 | problems | `/app/:org/:project/cases` | `…/problems` | kept | no | |
 | problems | `/app/:org/:project/cases/:case` | `…/problems/<case>` | kept | no | |
+| problems | `/app/:org/:project/cases/:case/:tab` | `…/problems/<case>/<tab>` | kept | no | the static `revisions`, `compare` and `compose` entries outrank it |
 | problems | `/app/:org/:project/cases/:case/revisions/:revision` | `…/problems/<case>?version=<revision>` | dropped | yes | resolve `web_url` |
 | problems | `/app/:org/:project/cases/:case/compare` | `…/problems/<case>/versions` | kept (`from`, `to`) | no | |
 | problems | `/app/:org/:project/snapshots/:snapshot` | `…/problems` | dropped | yes | resolve `web_url` |

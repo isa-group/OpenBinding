@@ -62,11 +62,11 @@ describe('One cell of a run, inside the Results tab', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Cell 2' })).toBeInTheDocument();
     expect(screen.getAllByText('Completed').length).toBeGreaterThan(0);
     const inputs = screen.getByRole('region', { name: 'Frozen inputs' });
-    expect(await within(inputs).findByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute('href', `${ROOT}/cases/checkout-flow?version=1`);
+    expect(await within(inputs).findByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow?version=1`);
     expect(within(inputs).getByText('random-search 1.0.0')).toBeInTheDocument();
     expect(within(inputs).getByText('sampling')).toBeInTheDocument();
     expect(within(inputs).getByText('Engine defaults')).toBeInTheDocument();
-    expect(within(inputs).getByRole('link', { name: 'snapshot…' })).toHaveAttribute('href', `${ROOT}/cases/checkout-flow/source?version=1`);
+    expect(within(inputs).getByRole('link', { name: 'snapshot…' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow/source?version=1`);
     expect(within(inputs).getByRole('button', { name: 'Copy cell fingerprint' })).toBeInTheDocument();
     const result = screen.getByRole('region', { name: 'Result' });
     expect(within(result).getByText('Feasible')).toBeInTheDocument();

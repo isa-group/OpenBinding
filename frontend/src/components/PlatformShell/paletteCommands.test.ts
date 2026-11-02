@@ -84,7 +84,7 @@ describe('buildCommands', () => {
       ['Explore', '/explore'], ['Verify', '/verify'], ['Pricing', '/pricing'],
     ]);
     expect(commands.filter((command) => ['Jobs', 'Verifier', 'Engine catalog', 'My engines', 'Generator lab', 'Workbench'].includes(command.label))).toEqual([]);
-    expect(commands.filter((command) => command.label === 'Problems').map((command) => command.href)).toEqual(['/app/isa-demo/qos-benchmarks/cases']);
+    expect(commands.filter((command) => command.label === 'Problems').map((command) => command.href)).toEqual(['/app/isa-demo/qos-benchmarks/problems']);
   });
 
   // [utest->req~frontend-nav-new-menu~1]
@@ -95,7 +95,7 @@ describe('buildCommands', () => {
       .filter((command) => /^New (problem|collection|study|run)$/.test(command.label)).map((command) => [command.label, command.href]);
 
     expect(created(inProject)).toEqual([
-      ['New problem', '/app/isa-demo/qos-benchmarks/cases?create=problem'],
+      ['New problem', '/app/isa-demo/qos-benchmarks/problems?create=problem'],
       ['New collection', '/app/isa-demo/qos-benchmarks/collections?create=collection'],
       ['New study', '/app/isa-demo/qos-benchmarks/studies/new'],
       ['New run', '/app/isa-demo/qos-benchmarks/jobs/new'],

@@ -191,7 +191,7 @@ function ProblemPage({ tab }: { tab: ProblemTabSegment | undefined }) {
 }
 
 /**
- * A problem (`case-detail`, `/app/:org/:project/cases/:case/:tab?`): Overview, Runs, Versions, Source and Settings of the problem version named by
+ * A problem (`case-detail`, `/app/:org/:project/problems/:case/:tab?`): Overview, Runs, Versions, Source and Settings of the problem version named by
  * `?version=` (the latest when none). Any other tab is a page that does not exist.
  */
 // [impl->req~frontend-nav-problem-page~1]

@@ -49,7 +49,7 @@ describe('mainLinks', () => {
 describe('problemsEntry and labEntries', () => {
   // [utest->req~frontend-nav-signed-in-navigation~1]
   it('lead into the current project, and Runs and Generator do not need one', () => {
-    expect(problemsEntry(organization, project)).toEqual({ label: 'Problems', to: '/app/isa-demo/qos/cases' });
+    expect(problemsEntry(organization, project)).toEqual({ label: 'Problems', to: '/app/isa-demo/qos/problems' });
     expect(labEntries(organization, project).map(({ id, label, to }) => [id, label, to])).toEqual([
       ['runs', 'Runs', '/app/jobs'], ['studies', 'Studies', '/app/isa-demo/qos/studies'], ['generator', 'Generator', '/app/generator'],
     ]);
@@ -73,7 +73,7 @@ describe('createItems', () => {
   // [utest->req~frontend-nav-new-menu~1]
   it('offers Problem, Collection, Study and Run in the current project, in this order', () => {
     expect(createItems(organization, project).map((item) => [item.label, item.to])).toEqual([
-      ['Problem', '/app/isa-demo/qos/cases?create=problem'],
+      ['Problem', '/app/isa-demo/qos/problems?create=problem'],
       ['Collection', '/app/isa-demo/qos/collections?create=collection'],
       ['Study', '/app/isa-demo/qos/studies/new'],
       ['Run', '/app/isa-demo/qos/jobs/new'],
@@ -118,7 +118,7 @@ describe('currentSection', () => {
     ['/app/isa-demo', 'home'],
     ['/app/isa-demo/qos', 'home'],
     ['/app/isa-demo/settings/members', 'home'],
-    ['/app/isa-demo/qos/cases', 'problems'],
+    ['/app/isa-demo/qos/problems', 'problems'],
     ['/app/isa-demo/qos/problems/routing', 'problems'],
     ['/app/jobs', 'lab'],
     ['/app/isa-demo/qos/jobs', 'lab'],
@@ -166,7 +166,7 @@ describe('labEntryOf', () => {
     expect(labEntryOf('/app/isa-demo/qos/jobs/job-1')).toBe('runs');
     expect(labEntryOf('/app/isa-demo/qos/studies/s1')).toBe('studies');
     expect(labEntryOf('/app/generator')).toBe('generator');
-    expect(labEntryOf('/app/isa-demo/qos/cases')).toBeNull();
+    expect(labEntryOf('/app/isa-demo/qos/problems')).toBeNull();
     expect(labEntryOf('/app')).toBeNull();
   });
 });

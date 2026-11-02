@@ -30,7 +30,7 @@ const snapshotOf = (id: string, pay: number) => ({
 /** The Versions tab of the problem page, which compares the pair named by `from` and `to`. */
 function renderCompare(query = '') {
   return renderProjectScreen(<CaseDetail />, {
-    path: '/app/:org/:project/cases/:case/:tab?', url: `${root}/cases/flujo-checkout/versions${query}`, organizations: [group],
+    path: '/app/:org/:project/problems/:case/:tab?', url: `${root}/problems/flujo-checkout/versions${query}`, organizations: [group],
   });
 }
 
@@ -57,7 +57,7 @@ describe('Versions tab of the problem page: compare', () => {
     const row = within(table).getByRole('row', { name: /Candidates for pay-card/ });
     expect(within(row).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['5', '8', 'Changed']);
     expect(within(table).getByRole('row', { name: /Workflow/ })).toHaveTextContent('Same');
-    expect(screen.getByRole('link', { name: 'Open version 2' })).toHaveAttribute('href', `${root}/cases/flujo-checkout?version=2`);
+    expect(screen.getByRole('link', { name: 'Open version 2' })).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=2`);
   });
 
   it('shows the sealed document of each side of the pair', async () => {
@@ -145,7 +145,7 @@ describe('Versions tab of the problem page: compare', () => {
   it('asks a member for a second version when the problem has only one', async () => {
     platform.revisions.mockResolvedValue([r1]);
     renderProjectScreen(<CaseDetail />, {
-      path: '/app/:org/:project/cases/:case/:tab?', url: `${root}/cases/flujo-checkout/versions`, organizations: [org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' })],
+      path: '/app/:org/:project/problems/:case/:tab?', url: `${root}/problems/flujo-checkout/versions`, organizations: [org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' })],
     });
 
     const guide = (await screen.findByRole('heading', { name: 'Comparing needs two versions' })).closest('div') as HTMLElement;

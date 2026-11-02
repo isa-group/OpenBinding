@@ -4,6 +4,7 @@ import type { Artifact, ArtifactVersion } from '../../api/library';
 import type { CaseContent } from '../Project/projectModel';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
+import { problemsPath } from '../../routes/paths/problems';
 import { formatDate } from '../../utils/format';
 import { shortDigest } from '../../utils/digest';
 import {
@@ -36,7 +37,7 @@ export function CasesField({
       <legend>1 · Problems</legend>
       {offered.length === 0 && (
         <p className="st-empty-line">
-          This project has no problem versions yet. <Link to={`${root}/cases`} viewTransition>Open Problems</Link> to seal one.
+          This project has no problem versions yet. <Link to={problemsPath(root)} viewTransition>Open Problems</Link> to seal one.
         </p>
       )}
       {offered.length > 0 && (

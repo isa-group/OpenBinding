@@ -34,7 +34,7 @@ const snapshotOf = (over: Record<string, unknown> = {}) => ({
 
 /** The Source tab of the problem page, showing revision 2, which was sealed from the snapshot. */
 function renderSnapshot(address = '/source?version=2') {
-  return renderProjectScreen(<CaseDetail />, { path: '/app/:org/:project/cases/:case/:tab?', url: `${root}/cases/flujo-checkout${address}`, organizations: [group] });
+  return renderProjectScreen(<CaseDetail />, { path: '/app/:org/:project/problems/:case/:tab?', url: `${root}/problems/flujo-checkout${address}`, organizations: [group] });
 }
 
 async function zipBuffer() {
@@ -269,7 +269,7 @@ describe('Source tab of the problem page', () => {
 
       expect(await screen.findByRole('heading', { name: 'Snapshot not found' })).toBeInTheDocument();
       expect(screen.getByText(/Otherwise we answer as if it didn’t exist \(404\)/)).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', `${root}/cases`);
+      expect(screen.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', `${root}/problems`);
       expect(screen.queryByRole('region', { name: 'Fingerprints' })).not.toBeInTheDocument();
     });
 

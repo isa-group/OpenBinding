@@ -18,7 +18,7 @@ describe('workspaceSlugs', () => {
   it('reads the organization and project from the address', () => {
     expect(workspaceSlugs('/app/isa-demo')).toEqual({ org: 'isa-demo', project: undefined });
     expect(workspaceSlugs('/app/isa-demo/qos')).toEqual({ org: 'isa-demo', project: 'qos' });
-    expect(workspaceSlugs('/app/isa-demo/qos/cases/checkout')).toEqual({ org: 'isa-demo', project: 'qos' });
+    expect(workspaceSlugs('/app/isa-demo/qos/problems/checkout')).toEqual({ org: 'isa-demo', project: 'qos' });
   });
 
   it('does not take organization-level sections for projects', () => {

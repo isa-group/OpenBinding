@@ -142,7 +142,7 @@ describe('PlatformShell (application layout)', () => {
   });
 
   it('selects the organization and project named by the address', async () => {
-    renderShell(user, '/app/other-org/delta/cases');
+    renderShell(user, '/app/other-org/delta/problems');
     await ready();
 
     expect(screen.getByTestId('organization')).toHaveTextContent('other-org');

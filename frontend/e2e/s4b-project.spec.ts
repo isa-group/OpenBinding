@@ -399,7 +399,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const band = main.locator('.proj-band');
       await expect(band.getByText('Public', { exact: true })).toBeVisible();
       await expect(band.getByText('OWNER')).toBeVisible();
-      await expect(band.getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases');
+      await expect(band.getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
       await expect(band.getByRole('link', { name: 'Export package' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/settings');
       const tabs = main.getByRole('navigation', { name: 'Project sections' });
       await expect(tabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Collections', 'Runs', 'Studies', 'Published', 'Settings']);
@@ -409,7 +409,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const strip = main.getByRole('region', { name: 'What’s sealed and what’s still a draft' });
       await expect(strip.getByRole('list', { name: 'Sealed and draft items' }).getByRole('listitem')).toHaveText(['2 problem versions', '1 study run', '1 frozen report', '1 report draft']);
       const cases = main.getByRole('region', { name: 'Problems' });
-      await expect(cases.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases/flujo-checkout');
+      await expect(cases.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems/flujo-checkout');
       await expect(cases.getByText('2 revisions')).toBeVisible();
       const jobs = main.getByRole('list', { name: 'Recent runs' });
       await expect(jobs.getByRole('listitem')).toHaveCount(3);
@@ -452,7 +452,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('You are viewing a public project (read-only).')).toBeVisible();
       const publicTabs = main.getByRole('navigation', { name: 'Project sections' });
       await expect(publicTabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Collections', 'Studies', 'Published']);
-      await expect(band.getByRole('link', { name: 'Browse problems' })).toHaveAttribute('href', '/app/open-lab/open-bench/cases');
+      await expect(band.getByRole('link', { name: 'Browse problems' })).toHaveAttribute('href', '/app/open-lab/open-bench/problems');
       for (const hidden of ['New problem', 'Run', 'New study', 'New report', 'Export package']) await expect(band.getByText(hidden, { exact: true })).toHaveCount(0);
       await expect(main.getByRole('region', { name: 'Recent runs' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: /Flujo de checkout/ })).toBeVisible();

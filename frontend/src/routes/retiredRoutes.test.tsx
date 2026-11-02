@@ -377,8 +377,8 @@ describe('the redirect of a retired address', () => {
   // [utest->req~frontend-retire-composer-redirect~1]
   // [utest->req~frontend-nav-problem-page~1]
   it.each([
-    ['/app/isa-demo/qos/cases/x/compare', '/app/isa-demo/qos/cases/x/versions'],
-    ['/app/isa-demo/qos/cases/x/revisions/2', '/app/isa-demo/qos/cases/x?version=2'],
+    ['/app/isa-demo/qos/cases/x/compare', '/app/isa-demo/qos/problems/x/versions'],
+    ['/app/isa-demo/qos/cases/x/revisions/2', '/app/isa-demo/qos/problems/x?version=2'],
   ])('leaves %s out of the composer path, so there is no tie with the composer, and moves it to the problem page', (address, page) => {
     const composer = RETIRED_ROUTES.find((route) => route.id === 'case-composer');
     expect(composer).toBeDefined();

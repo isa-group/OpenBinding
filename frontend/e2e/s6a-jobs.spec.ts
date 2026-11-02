@@ -402,8 +402,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // What it ran on.
       const where = main.getByRole('region', { name: 'Where this result comes from' });
-      await expect(where.getByRole('link', { name: /^Snapshot snapshot/ })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/source?version=2`);
-      await expect(where.getByRole('link', { name: 'Flujo de checkout · version 2' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout?version=2`);
+      await expect(where.getByRole('link', { name: /^Snapshot snapshot/ })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=2`);
+      await expect(where.getByRole('link', { name: 'Flujo de checkout · version 2' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=2`);
       await expect(where.getByRole('link', { name: 'Add to a report' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-provenance`, { area: where });
       const downloaded = page.waitForEvent('download');
@@ -481,7 +481,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto(`${ROOT}/jobs/job-infeasible-6`);
       const why = main.getByRole('region', { name: 'Why no combination works' });
       await expect(why).toContainText('Total latency is 742 ms');
-      await expect(why.getByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout?version=2`);
+      await expect(why.getByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=2`);
       await expect(main.getByRole('heading', { name: 'What if one task used another provider?' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-infeasible`, { height: 1700 });
       expect(critical).toEqual([]);

@@ -67,7 +67,7 @@ describe('Project overview', () => {
     expect(within(band).getByText('OWNER')).toBeInTheDocument();
     expect(within(band).getByText('Reference binding cases.')).toBeInTheDocument();
     const root = '/app/isa-demo/qos-benchmarks';
-    expect(within(band).getByRole('link', { name: 'New problem' })).toHaveAttribute('href', `${root}/cases`);
+    expect(within(band).getByRole('link', { name: 'New problem' })).toHaveAttribute('href', `${root}/problems`);
     expect(within(band).getByRole('link', { name: 'Run' })).toHaveAttribute('href', `${root}/jobs/new`);
     expect(within(band).getByRole('link', { name: 'New study' })).toHaveAttribute('href', `${root}/studies/new`);
     // [utest->req~frontend-retire-reports-entry-points-removed~1]
@@ -95,12 +95,12 @@ describe('Project overview', () => {
 
     const cases = await screen.findByRole('region', { name: 'Problems' });
     const card = await within(cases).findByRole('link', { name: /Flujo de checkout/ });
-    expect(card).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases/flujo');
+    expect(card).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems/flujo');
     expect(within(card).getByText('2 revisions')).toBeInTheDocument();
     expect(within(card).getByText('r1')).toBeInTheDocument();
     expect(within(card).getByText('r2')).toHaveAttribute('title', expect.stringContaining('latest'));
     expect(within(card).getByText('Catalog grown from 5 to 8 candidates.')).toBeInTheDocument();
-    expect(within(cases).getByRole('link', { name: 'All problems' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases');
+    expect(within(cases).getByRole('link', { name: 'All problems' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
   });
 
   it('lists every job as a summary but opens only the ones this account launched', async () => {
@@ -236,7 +236,7 @@ describe('Project overview', () => {
     const steps = within(guide).getAllByRole('listitem');
     expect(steps).toHaveLength(3);
     expect(within(guide).getByRole('link', { name: 'Browse examples' })).toHaveAttribute('href', '/explore/examples');
-    expect(within(guide).getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases');
+    expect(within(guide).getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
     expect(within(guide).getByRole('link', { name: 'Open Workbench' })).toHaveAttribute('href', '/workbench');
     expect(screen.queryByRole('region', { name: 'Recent runs' })).not.toBeInTheDocument();
   });
@@ -261,7 +261,7 @@ describe('Project overview', () => {
       for (const name of ['New problem', 'Run', 'New study', 'New report', 'Export package']) {
         expect(within(band).queryByText(name)).not.toBeInTheDocument();
       }
-      expect(within(band).getByRole('link', { name: 'Browse problems' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/cases');
+      expect(within(band).getByRole('link', { name: 'Browse problems' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/problems');
       const tabs = within(screen.getByRole('navigation', { name: 'Project sections' }));
       // [utest->req~frontend-nav-project-tabs~1]
       expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Problems', 'Collections', 'Studies', 'Published']);

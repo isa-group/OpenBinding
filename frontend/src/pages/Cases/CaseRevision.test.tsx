@@ -34,7 +34,7 @@ const snapshotOf = (document: Record<string, unknown> | null = irDocument()) => 
 /** The Overview tab of the problem page, showing the version named by the query. */
 function renderRevision(revision = '2') {
   return renderProjectScreen(<CaseDetail />, {
-    path: '/app/:org/:project/cases/:case/:tab?', url: `${root}/cases/flujo-checkout?version=${revision}`, organizations: [group],
+    path: '/app/:org/:project/problems/:case/:tab?', url: `${root}/problems/flujo-checkout?version=${revision}`, organizations: [group],
   });
 }
 
@@ -60,10 +60,10 @@ describe('Overview tab of the problem page', () => {
     expect(within(identity).getByText('sha256-2222…2222')).toBeInTheDocument();
     expect(within(identity).getByText('qos-binding/v1', { exact: false })).toBeInTheDocument();
     const snapshot = await within(identity).findByRole('link', { name: 'Open snapshot' });
-    expect(snapshot).toHaveAttribute('href', `${root}/cases/flujo-checkout/source?version=2`);
+    expect(snapshot).toHaveAttribute('href', `${root}/problems/flujo-checkout/source?version=2`);
     await waitFor(() => expect(identity).toHaveTextContent('47.1 KiB'));
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(crumbs).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', `${root}/cases`);
+    expect(within(crumbs).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', `${root}/problems`);
   });
 
   it('draws the workflow with its alternatives and says how many providers each task has', async () => {
@@ -226,7 +226,7 @@ describe('Overview tab of the problem page', () => {
     renderRevision('9');
 
     expect(await screen.findByRole('heading', { name: 'This version doesn’t exist (404)' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See all versions' })).toHaveAttribute('href', `${root}/cases/flujo-checkout/versions`);
+    expect(screen.getByRole('link', { name: 'See all versions' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/versions`);
     expect(cases.revision).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'flujo-checkout', '9');
   });
 

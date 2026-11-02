@@ -7,6 +7,7 @@ import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
+import { problemPath, problemsPath } from '../../routes/paths/problems';
 import { shortDigest } from '../../utils/digest';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
@@ -69,13 +70,13 @@ function Card({ id, title, allLabel, allTo, resource, noun, children }: CardProp
 function CasesCard({ root, resource }: { root: string; resource: Resource<CaseContent[]> }) {
   const cases = resource.data ?? [];
   return (
-    <Card id="po-cases" title="Problems" allLabel="All problems" allTo={`${root}/cases`} resource={resource} noun="problems">
+    <Card id="po-cases" title="Problems" allLabel="All problems" allTo={problemsPath(root)} resource={resource} noun="problems">
       {cases.length === 0 && <p className="org-muted">No problems yet. A problem holds a workflow, its candidates, constraints and goal.</p>}
       {cases.slice(0, RECENT).map(({ item, revisions }) => {
         const ordered = [...revisions].sort((a, b) => a.revision - b.revision);
         const shown = ordered.slice(-4);
         return (
-          <Link key={item.id} to={`${root}/cases/${item.slug}`} viewTransition className="proj-row-card">
+          <Link key={item.id} to={problemPath(root, item.slug)} viewTransition className="proj-row-card">
             <span className="proj-row-top">
               <strong>{item.name}</strong>
               <small>{revisions.length === 1 ? '1 revision' : `${revisions.length} revisions`}</small>
@@ -216,7 +217,7 @@ function IntegrityStrip({ items }: { items: IntegrityItem[] }) {
 function GetStarted({ root, canCreate }: { root: string; canCreate: boolean }) {
   const steps: Array<{ title: string; detail: string; cta: string; to: string; needsMember?: boolean }> = [
     { title: 'Import an example', detail: 'Start from a ready package and adapt it.', cta: 'Browse examples', to: '/explore/examples' },
-    { title: 'Create a problem', detail: 'Compose a workflow, candidates, constraints and goal.', cta: 'New problem', to: `${root}/cases`, needsMember: true },
+    { title: 'Create a problem', detail: 'Compose a workflow, candidates, constraints and goal.', cta: 'New problem', to: problemsPath(root), needsMember: true },
     { title: 'Validate a package', detail: 'Check a .bim.zip you already have.', cta: 'Open Workbench', to: '/workbench' },
   ];
   return (
@@ -283,10 +284,10 @@ function OverviewBody({ organization, project, canCreate, canAdminister, publicR
         {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
         <div className="proj-actions">
           {publicRead ? (
-            <Action to={`${root}/cases`} variant="primary">Browse problems</Action>
+            <Action to={problemsPath(root)} variant="primary">Browse problems</Action>
           ) : (
             <>
-              <RoleAction allowed={canCreate} to={`${root}/cases`} variant="primary">New problem</RoleAction>
+              <RoleAction allowed={canCreate} to={problemsPath(root)} variant="primary">New problem</RoleAction>
               <RoleAction allowed={canCreate} to={`${root}/jobs/new`} variant="secondary">Run</RoleAction>
               <RoleAction allowed={canCreate} to={`${root}/studies/new`} variant="secondary">New study</RoleAction>
             </>

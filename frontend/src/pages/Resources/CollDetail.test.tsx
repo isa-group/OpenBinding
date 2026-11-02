@@ -67,7 +67,7 @@ describe('Collection detail', () => {
     expect(screen.getByText('Revision 2 · 3 items · What a reviewer needs.')).toBeInTheDocument();
     const rows = within(list).getAllByRole('listitem');
     expect(rows).toHaveLength(3);
-    expect(within(rows[0]).getByRole('link', { name: 'Flujo de checkout · version 1' })).toHaveAttribute('href', `${root}/cases/flujo-checkout?version=1`);
+    expect(within(rows[0]).getByRole('link', { name: 'Flujo de checkout · version 1' })).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=1`);
     expect(within(rows[0]).getByText('Problem')).toBeInTheDocument();
     expect(within(rows[0]).getByRole('button', { name: 'Copy fingerprint of Flujo de checkout · version 1' })).toHaveTextContent('sha256-1111…1111');
     expect(within(rows[1]).getByRole('link', { name: 'Flujo de checkout · version 2' })).toBeInTheDocument();

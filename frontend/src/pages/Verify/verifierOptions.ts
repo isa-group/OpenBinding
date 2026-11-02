@@ -1,4 +1,5 @@
 import type { VerifierEntity } from '../../api/platform';
+import { PROBLEMS_SEGMENT } from '../../routes/paths/problems';
 
 export interface EntityKind {
   /** `entity_type` of a match, as the gateway writes it. */
@@ -31,7 +32,7 @@ export function entityHref(entity: VerifierEntity): string | null {
   const base = `/app/${org}/${project}`;
   const slug = entity.slug ? encodeURIComponent(entity.slug) : null;
   switch (entity.entity_type) {
-    case 'case': return slug ? `${base}/cases/${slug}` : null;
+    case 'case': return slug ? `${base}/${PROBLEMS_SEGMENT}/${slug}` : null;
     case 'collection': return slug ? `${base}/collections/${slug}` : null;
     // [impl->req~frontend-retire-reports-no-link~1]
     // [impl->req~frontend-retire-reports-publications-stay~1]

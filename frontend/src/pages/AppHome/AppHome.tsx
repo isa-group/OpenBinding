@@ -13,6 +13,7 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { config } from '../../config';
 import { useAuth } from '../../contexts/auth';
+import { problemsPath } from '../../routes/paths/problems';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { formatCount, formatDuration } from '../../utils/limits';
 import { useResource } from '../../utils/useResource';
@@ -253,7 +254,7 @@ export function AppHome() {
   const shortcuts: Shortcut[] = [];
   if (organization) shortcuts.push({ label: 'New project', to: createAddress(`/app/${organization.slug}`, 'project'), icon: Plus });
   if (organization && project) {
-    shortcuts.push({ label: 'New problem', to: `/app/${organization.slug}/${project.slug}/cases`, icon: FilePlus2 });
+    shortcuts.push({ label: 'New problem', to: problemsPath(`/app/${organization.slug}/${project.slug}`), icon: FilePlus2 });
     shortcuts.push({ label: 'Run', to: `/app/${organization.slug}/${project.slug}/jobs/new`, icon: Play });
   }
   shortcuts.push({ label: 'Verify a digest', to: '/app/verifier', icon: ShieldCheck });

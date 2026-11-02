@@ -1,8 +1,8 @@
 // Address builders of the problems area (M2.6). Code that links to a problem, a problem version or the problem list builds the address here,
-// so the rename of the segment (`cases` to `problems`, slice 13) is one edit.
+// so the segment is named once. The old segment (`cases`) only survives as the moved addresses of routes/areas/problems.tsx.
 
-/** The segment of the problem list and the problem page. Slice 13 changes it to `problems`. */
-export const PROBLEMS_SEGMENT = 'cases';
+/** The segment of the problem list and the problem page. */
+export const PROBLEMS_SEGMENT = 'problems';
 
 /** The segments of the problem page after the problem: no segment is the Overview tab. */
 export const PROBLEM_TAB_SEGMENTS = ['runs', 'versions', 'source', 'settings'] as const;

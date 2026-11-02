@@ -300,12 +300,12 @@ Owns: `R/{problems,collections}`, `P/problems.ts`, every file with a `/cases` li
 them.
 
 Tasks:
-- [ ] 13.1 T-UP acceptance spec. Then tests:
+- [x] 13.1 T-UP acceptance spec. Then tests:
   - the registry paths;
   - the address scan on synthetic sources;
   - the API paths unchanged;
   - the moved entries `/cases` and `/cases/:case`.
-- [ ] 13.2 `case-list` moves to `…/problems`, and `case-detail` to `…/problems/:case/:tab?`. The builders and the
+- [x] 13.2 `case-list` moves to `…/problems`, and `case-detail` to `…/problems/:case/:tab?`. The builders and the
   literals follow, and the earlier moved entries now target `/problems`.
 
 ## 14. Run addresses (high, serial)

@@ -252,8 +252,8 @@ describe('the retired composer', () => {
   // [utest->req~frontend-retire-composer-redirect~1]
   // [utest->req~frontend-nav-problem-page~1]
   it.each([
-    ['/app/acme/atlas/cases/flujo/compare?from=1&to=3', '/app/acme/atlas/cases/flujo/versions', '?from=1&to=3'],
-    ['/app/acme/atlas/cases/flujo/revisions/2?x=1', '/app/acme/atlas/cases/flujo', '?version=2'],
+    ['/app/acme/atlas/cases/flujo/compare?from=1&to=3', '/app/acme/atlas/problems/flujo/versions', '?from=1&to=3'],
+    ['/app/acme/atlas/cases/flujo/revisions/2?x=1', '/app/acme/atlas/problems/flujo', '?version=2'],
   ])('sends the neighbouring case screen %s on to the problem page (M2.6: the compare and version screens are tabs of it)', async (old, pathname, search) => {
     const view = renderAt(old);
 
