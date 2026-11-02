@@ -140,8 +140,8 @@ export function scanSource(source: string, words: RegExp, file = 'source.tsx'): 
   return [...found.values()].sort((a, b) => a.line - b.line);
 }
 
-/** The path segments that addresses no longer hold; the publications slice adds `publications`. */
-export const OLD_ADDRESS_SEGMENTS: readonly string[] = ['cases', 'jobs'];
+/** The path segments that addresses no longer hold. */
+export const OLD_ADDRESS_SEGMENTS: readonly string[] = ['cases', 'jobs', 'publications'];
 
 /** A path of an HTTP API (`/v1/…`, `/internal/v1/…`), not an address of the application. */
 const API_PATH = /(^|\/)v\d+\//;

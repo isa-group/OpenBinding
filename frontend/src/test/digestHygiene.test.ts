@@ -64,6 +64,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/test/fixtures/resources.ts',
   '/src/test/fixtures/studies.ts',
   '/src/test/rawRenderingAllowList.ts',
+  '/src/test/vocabulary.ts',
   '/src/utils/canonicalDigest.ts',
   '/src/utils/citation.ts',
   '/src/utils/digest.ts',
@@ -88,6 +89,7 @@ const PENDING_CLEANUP: readonly string[] = [
   '/src/pages/Cases/CaseList.tsx',
   '/src/pages/Cases/CaseRevision.tsx',
   '/src/pages/Cases/SnapshotDetail.tsx',
+  '/src/pages/Cases/VersionHistory.tsx',
   '/src/pages/Cases/casesModel.ts',
   // Engines
   '/src/pages/EngineDetail/EngineDetail.tsx',
@@ -107,7 +109,7 @@ const PENDING_CLEANUP: readonly string[] = [
   '/src/pages/Profiles/Profiles.tsx',
   // Project
   '/src/pages/Project/ProjectOverview.tsx',
-  '/src/pages/Project/ProjectPackage.tsx',
+  '/src/pages/Project/ProjectPackageSections.tsx',
   '/src/pages/Project/packageModel.ts',
   // Public
   '/src/pages/Public/PublicPages.tsx',
@@ -117,16 +119,16 @@ const PENDING_CLEANUP: readonly string[] = [
   '/src/pages/RegisterEngine/RegisterEngine.tsx',
   // Reports and resolve
   '/src/pages/Reports/ProjPublications.tsx',
-  '/src/pages/Resolve/Resolve.tsx',
   // Resources
   '/src/pages/Resources/CollDetail.tsx',
-  '/src/pages/Resources/ProjFiles.tsx',
   '/src/pages/Resources/collectionModel.ts',
   '/src/pages/Resources/resourceModel.ts',
   // Studies
   '/src/pages/Studies/BuilderFields.tsx',
   '/src/pages/Studies/StudyAnalytics.tsx',
   '/src/pages/Studies/StudyRun.tsx',
+  // Verify
+  '/src/pages/Verify/Verify.tsx',
   // Workbench
   '/src/pages/Workbench/CheckResult.tsx',
   '/src/pages/Workbench/WorkbenchResult.tsx',

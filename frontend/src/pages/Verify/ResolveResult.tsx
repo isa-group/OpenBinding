@@ -91,8 +91,7 @@ function InvalidState({ digest, kind }: { digest: string; kind: string }) {
         <>The resolver supports: {RESOLVE_KINDS.map((item) => item.id).join(', ')}.</>
       ) : (
         <>
-          A digest is <code>sha256-</code> followed by 64 lowercase hexadecimal characters, for example{' '}
-          <code>sha256-e5f60718e5f60718…e5f60718</code>.{digest ? '' : ' Paste one above to verify it.'}
+          A digest is <code>sha256-</code> followed by 64 lowercase hexadecimal characters.{digest ? '' : ' Paste one above to verify it.'}
         </>
       )}
     </Notice>

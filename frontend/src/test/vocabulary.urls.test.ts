@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { OLD_ADDRESS_SEGMENTS, scanAddresses } from './vocabulary';
 
-// The addresses the frontend builds hold no `cases` or `jobs` segment (`req~frontend-nav-vocabulary-urls~1`, slices 13 and 14). The gateway
+// The addresses the frontend builds hold no `cases`, `jobs` or `publications` segment (`req~frontend-nav-vocabulary-urls~1`, slices 13 and 14). The gateway
 // API paths in `src/api/` keep them. The route areas, the moved table and the retired table name the old addresses on purpose, to redirect them.
 
 describe('the address scan', () => {
@@ -63,8 +63,8 @@ describe('the address scan', () => {
   });
 
   // [utest->req~frontend-nav-vocabulary-urls~1]
-  it('holds the old cases and jobs segments by default, and reports a jobs address in a page but not the API client or the new one', () => {
-    expect(OLD_ADDRESS_SEGMENTS).toEqual(['cases', 'jobs']);
+  it('holds the old cases, jobs and publications segments by default, and reports a jobs address in a page but not the API client or the new one', () => {
+    expect(OLD_ADDRESS_SEGMENTS).toEqual(['cases', 'jobs', 'publications']);
     const files = {
       'pages/J.tsx': [
         "export const history = '/app/jobs';",
@@ -73,12 +73,28 @@ describe('the address scan', () => {
         "export const fine = '/app/runs';",
         'export const fineToo = `${root}/runs/${id}`;',
       ].join('\n'),
-      'src/api/jobs.ts': 'export const list = (org, project) => `${projectRoot(org, project)}/jobs?include_results=false`;',
+      'src/api/runsClient.ts': 'export const list = (org, project) => `${projectRoot(org, project)}/jobs?include_results=false`;',
     };
     expect(scanAddresses(files)).toEqual([
       'pages/J.tsx: /app/jobs',
       'pages/J.tsx: ${root}/jobs/${id}',
       'pages/J.tsx: /app/:org/:project/jobs/new',
+    ]);
+  });
+
+  // [utest->req~frontend-nav-vocabulary-urls~1]
+  it('reports a publications address in a page but not /published or the API client', () => {
+    const files = {
+      'pages/P.tsx': [
+        'export const list = `${root}/publications`;',
+        'export const one = `${root}/publications/${id}`;',
+        "export const fine = '/app/published';",
+      ].join('\n'),
+      'src/api/publications.ts': 'export const list = (org) => `${orgRoot(org)}/publications`;',
+    };
+    expect(scanAddresses(files)).toEqual([
+      'pages/P.tsx: ${root}/publications',
+      'pages/P.tsx: ${root}/publications/${id}',
     ]);
   });
 });
@@ -99,7 +115,7 @@ describe('the addresses of the application sources', () => {
   });
 
   // [utest->req~frontend-nav-vocabulary-urls~1]
-  it('builds no address with a cases or jobs segment', () => {
+  it('builds no address with a cases, jobs or publications segment', () => {
     expect(scanAddresses(scanned)).toEqual([]);
   });
 

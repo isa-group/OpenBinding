@@ -56,7 +56,7 @@ describe('screen budget', () => {
   });
 
   // [utest->req~frontend-nav-screen-budget~1]
-  // The spec (and design.md §2) count `pub-workbench` under problems (public 4, problems 4); the registry declares it in the public area.
+  // `pub-workbench` is registered in the public area (public 5, problems 3).
   it('has the area sizes of the registry, 45 screens in all', () => {
     const sizes = Object.fromEntries(Object.entries(routesByArea).map(([area, routes]) => [area, routes.length]));
     expect(sizes).toEqual({
@@ -76,5 +76,34 @@ describe('screen budget', () => {
       admin: 8,
     });
     expect(routeDefinitions).toHaveLength(45);
+  });
+
+  // [utest->req~frontend-nav-route-areas~1]
+  it('keeps no per-domain route file and no mention of routesByDomain under routes/', () => {
+    const files = import.meta.glob('./**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+    const paths = Object.keys(files);
+    expect(paths.length).toBeGreaterThan(5);
+    expect(paths.filter((path) => /^\.\/d[1-8]\.tsx$/.test(path))).toEqual([]);
+    // This file names the identifier to forbid it; every other file must not.
+    expect(paths.filter((path) => !path.endsWith('screenBudget.test.ts') && files[path].includes('routesByDomain'))).toEqual([]);
+  });
+
+  // [utest->req~frontend-nav-screen-budget~1]
+  it('reports an id registered in two areas, naming both', () => {
+    const duplicates = (areas: Record<string, readonly { id: string }[]>): string[] => {
+      const seen = new Map<string, string>();
+      const found: string[] = [];
+      for (const [area, routes] of Object.entries(areas)) {
+        for (const { id } of routes) {
+          const first = seen.get(id);
+          if (first !== undefined) found.push(`${id}: ${first}, ${area}`);
+          else seen.set(id, area);
+        }
+      }
+      return found;
+    };
+    expect(duplicates({ public: [{ id: 'a' }, { id: 'b' }], runs: [{ id: 'b' }, { id: 'c' }] })).toEqual(['b: public, runs']);
+    expect(duplicates(routesByArea)).toEqual([]);
+    expect(duplicates(buildRegistry(true).routesByArea)).toEqual([]);
   });
 });
