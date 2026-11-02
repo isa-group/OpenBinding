@@ -15,9 +15,9 @@ need the owner), the develop preview at `https://openbinding.home.javiercavlop.c
 
 | Id | Milestone | Depends on | Preview checkpoint | Release | Status |
 |---|---|---|---|---|---|
-| M0 | Foundation: integration landed, gates, previews, storage, Docker Compose only | — | develop preview reachable from the Mac and the iPhone | — | in progress (M0.3 done; M0.1 unverified; M0.5 in progress; CI also runs on pushes to `develop`, manually and nightly; flaky-test register in `docs/qa/FLAKY_TESTS.md`) |
+| M0 | Foundation: integration landed, gates, previews, storage, Docker Compose only | — | develop preview reachable from the Mac and the iPhone | — | in progress (M0.2 done, PR #56; M0.3 done; M0.1 unverified; M0.5 repository slices merged, PR #34, #39 and #41, live acceptance not recorded; M0.8 partly, PR #78: refusals classified by code, frozen minizinc-csp 1.1.1 baseline; the `engine_incompatible` code waits on CRP-M08-1, release 1.1.2 on CRP-M08-2; M0.9 partly, PR #60 and #75: Kubernetes removed, production overlay and runbook, nginx request-time resolver; production `compose config` is not in CI yet (CRP-M09-3), `prod` profile and non-root engines wait on CRP-M09-2; CI also runs on pushes to `develop`, manually and nightly; flaky-test register in `docs/qa/FLAKY_TESTS.md`) |
 | M1 | Specification v2 (this document set) | — | — | — | done (PR #25, merged 2026-10-23) |
-| M2 | Render, never dump; retirements, navigation and vocabulary | M0 | every screen in the QA gallery, desktop and mobile, within the screen budget | R1 = M0–M2 | in progress (M2.1 and M2.2 merged, PR #38; M2.3 merged, PR #70; M2.4 screens merged, slices 1 to 5, PR #51, #53, #55, #65 and #66, endpoint sunset pending; M2.5 merged, PR #71; M2.6 and M2.7 in flight, not merged) |
+| M2 | Render, never dump; retirements, navigation and vocabulary | M0 | every screen in the QA gallery, desktop and mobile, within the screen budget | R1 = M0–M2 | in progress (M2.1 and M2.2 merged, PR #38; M2.3 merged, PR #70; M2.4 screens merged, slices 1 to 5, PR #51, #53, #55, #65 and #66, endpoint sunset pending; M2.5 merged, PR #71; M2.7 part 1 merged, PR #74: identity labels, `CitationPanel`, `VerifyResult`, digest hygiene test with 40 page files still pending; the page sweep follows M2.6; M2.6 in flight, not merged) |
 | M3 | Problem repository | M2 (catalogue) | Explore → problem page → versions → runs | R2 = M3–M4 | planned |
 | M4 | Plans: SPHERE remote, SPACE local then remote | M0; pricing 0.2.0 published | the pricing-change scenario of M4 | R2 | in progress (M4.0 done; M4.1 partly, PR #36 and #40; remote SPACE instead of a local SPACE, PR #69) |
 | M5 | Language extensibility | M0; bim-toolchain release | placement as an extension; a tier-1 dialect installed | R3 = M5–M6 | planned |
@@ -44,11 +44,17 @@ Goal: `develop` is green, gated and previewable, and the lab does not fill up.
 | M0.8 | QACOBench after the integration: capability refusals get their own error code `engine_incompatible` (additive, in `docs/ERRORS.md` and the OpenAPI snapshot) instead of `campaign.py` parsing messages; `minizinc-csp` 1.1.1 gets a new frozen baseline and the `CHANGED_MANIFESTS` exception goes; `reference/1.1.1` stays the historical reference and 1.1.2 is released from a green `develop` (CRP for the release itself) | no baseline exceptions left; a `reference/1.1.2` whose provenance digests match the platform; `reference/1.1.1` unchanged |
 | M0.9 | Docker Compose only (ADR-0021): `deploy/kubernetes/`, its CI step and its documentation removed; a `deploy/compose/production` overlay (images pinned by digest, secrets as files, health checks, backups, limits) with its runbook | no Kubernetes file or step left; `docker compose config` passes in CI for development, lab and production |
 
-Slice status (2026-10-24): M0.1 in progress, unverified (PR #24 work is recorded in `docs/agent-work/`, but no
-record of its merge or of the fast-forward of `develop` is in the repository); M0.3 done (PR #37, gate tooling,
+Slice status (2026-11-02): M0.1 in progress, unverified (PR #24 work is recorded in `docs/agent-work/`, but no
+record of its merge or of the fast-forward of `develop` is in the repository); M0.2 done (PR #56, merged 2026-10-26,
+with the batches of shortened requirements before it); M0.3 done (PR #37, gate tooling,
 merged 2026-10-24); M0.5 in progress (PR #34 planner and contract tests merged; S4, the isolation probe and the PR
 previews docs, landed in PR #39; S1a and S2 (`DEMO_LAB_PORT`) merged in PR #41; the factory-side acceptance is not
-recorded); the other slices have no recorded progress in this file.
+recorded); M0.8 partly (PR #78, merged 2026-10-28: QACOBench classifies refusals by error code and the frozen
+minizinc-csp 1.1.1 baseline exists; the `engine_incompatible` code is not built and waits on CRP-M08-1, and the 1.1.2
+release waits on CRP-M08-2); M0.9 partly (PR #60, merged 2026-10-26: Compose-only production definition and runbook;
+PR #75, merged 2026-10-28: nginx resolves the gateway at request time, runbook and docs; no Kubernetes file is left;
+production `compose config` is not in CI yet (CRP-M09-3), and the `prod` profile and non-root engines wait on
+CRP-M09-2); the other slices have no recorded progress in this file.
 
 ## M1 — Specification v2
 
@@ -72,14 +78,15 @@ vocabulary of `INTENT.md` §5; names instead of digests.
 | M2.7 | Names, not digests (INTENT principle 13, ARCHITECTURE §5.4): identity labels in `shared/lib`; digests, fingerprints and UUIDs removed from cards, lists, headers and badges; `CitationPanel` and `VerifyResult` | the hygiene test finds no digest-shaped text or UUID outside the allowed components |
 | M2.8 | QA gallery refreshed and reviewed by ui-qa | desktop and mobile screenshots attached to the release PR |
 
-Slice status (2026-10-28): M2.1 and M2.2 merged (PR #38); M2.3 merged (PR #70, change `m23-run-result`): the shared
+Slice status (2026-11-02): M2.1 and M2.2 merged (PR #38); M2.3 merged (PR #70, change `m23-run-result`): the shared
 `RunResult` renders the Jobs run and the Workbench "Authoritative result"; offenders 1 to 4 are off the allow-list.
 M2.4 screens are all merged: slice 1 (decision-space workspace, PR #51), slice 2 (report editor, PR #53), slice 3
 (library catalogue and project resources; offender 11 gone with its screens, PR #55), slice 4 (composer, PR #65) and
 slice 5 (sponsorship, PR #66, change `m24-retire-sponsorship`). The endpoints and their `Deprecation` and `Sunset`
 headers were not done as a separate step: the 41 retired operations were removed in M9.6 (change `m96-remove-retired`).
-M2.5 merged (PR #71): studies, engines, audit, registration and generator rendered. M2.6 and M2.7 are in flight under
-leads and are not merged. M2.8 has no recorded progress.
+M2.5 merged (PR #71): studies, engines, audit, registration and generator rendered. M2.7 part 1 merged (PR #74, merged 2026-10-28):
+identity labels, `CitationPanel`, `VerifyResult` and the digest hygiene test, with 40 page files still on its
+pending list, so the M2.7 acceptance is not met; the page sweep follows M2.6. M2.6 is in flight and not merged. M2.8 has no recorded progress.
 
 Raw-rendering offenders at 912648c (INTENT O5):
 

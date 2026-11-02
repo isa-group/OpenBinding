@@ -49,6 +49,18 @@ still blocks M0.8, M0.9 and M2.7 (INTENT O7, `INTENT.md:168`). Milestone text st
 3. Coordinator: add the `chore(changelog)` commit, run check 4, then send the PR to the reviewer with the
    `how_to_review` of `intake.md` §5 (G13).
 
+## Update 2026-11-02 (doc-steward, S1 applied)
+- Changed: `ROADMAP.md` M0 and M2 Status cells and the two dated paragraphs only (now dated 2026-11-02).
+- Q1 = fold: M0.2 done (#56), M0.5 repository slices merged (#34, #39, #41; live acceptance not recorded),
+  M0.9 via #60 and #75. Q2: "production `compose config` is not in CI yet (CRP-M09-3)". Q3: PR numbers and CRP ids
+  only, no new change ids.
+- Evidence, check 1 (`git log`, committer dates): #74 ff3c2188 2026-10-28; #75 c1e7b9f5 2026-10-28; #78 aa4c98d5
+  2026-10-28; #56 49f6cba0 2026-10-26; #60 058b4e1b 2026-10-26; #34 and #39 2026-10-24; #41 2026-10-26.
+  No M2.6 squash is shown, so "M2.6 in flight, not merged" stays.
+- Check 5: `engine_incompatible: absent` in `docs/ERRORS.md` and `docs/openapi.json`; `deploy/kubernetes` has 0 files.
+- Wording: M0.8, M0.9 and M2.7 say "partly", never "done". M0.5 stays "in progress" in the paragraph.
+- Left out: nothing; every requested PR appeared in check 1. The changelog is not regenerated (the lead does it last).
+
 ## Evidence
 - Task: this intake (planner; no registered checks, none run). Base head `5b4c68a6`.
 - The repo tool was refused for this role (`pr_get` 74: "this role cannot use repository operations").
