@@ -113,11 +113,13 @@ The study and problem tab addresses are new.
 
 ### Tie checked
 
-Three addresses each match `org-settings` (as an unknown section) and a moved project entry (with the project
+Five addresses each match `org-settings` (as an unknown section) and a moved project entry (with the project
 `settings`):
 - `/app/<org>/settings/files`;
 - `/app/<org>/settings/package`;
-- `/app/<org>/settings/publications`.
+- `/app/<org>/settings/publications`;
+- `/app/<org>/settings/cases`;
+- `/app/<org>/settings/jobs`.
 
 Both routes have two static and two dynamic segments, so they have the same rank. The screen wins, as the mounting
 rule says, and the organization settings page shows `Page not found` for the unknown section. Today these addresses
@@ -128,7 +130,7 @@ open sections of a project named `settings`, a project that the organization set
 
 | Decision | Choice | Considered |
 |---|---|---|
-| Redirect table | One `redirects` list per area file, concatenated into `MOVED_ROUTES`. Each entry is `{ id, path, target(query, params) → string, keep: 'all' \| 'none', permanent?: true }`. The hash is appended when `keep` is `'all'` | Growing `RETIRED_ROUTES`: it is guarded and app-only, and its rows are pinned by unarchived M2.4 requirements |
+| Redirect table | One `redirects` list per area file, concatenated into `MOVED_ROUTES`. Each entry is `{ id, path, target(query, params) → string, keepQuery?: boolean, permanent?: true }`. `keepQuery` governs the query and the hash | Growing `RETIRED_ROUTES`: it is guarded and app-only, and its rows are pinned by unarchived M2.4 requirements |
 | Guard on moved routes | None; the target's guard applies | Behind the guard as in M2.4: a signed-out reader of a citation link would have to log in, against journey 1 |
 | Sections | One optional trailing segment (`:section?`, `:tab?`), plus `:item?` for Language schemas. An unknown segment renders `Page not found` | A redirect per section (about 40 link edits across areas, ruled out in the handoff); a query `?tab=` (breaks the existing section addresses) |
 | Language schemas | `/language/:section?/:item?`, so `/language/schemas/<Kind>` stays valid | Redirect to `?kind=`: the Home and Profiles screens link many schema addresses |

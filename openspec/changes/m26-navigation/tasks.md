@@ -48,11 +48,11 @@ The slice splits into three PRs:
 - 1c `m26-e2e-areas`, which follows 1a.
 
 Tasks:
-- [ ] 1.1 Characterization: a test that lists today's 69 ids and paths, unchanged after the move.
-- [ ] 1.2 Move `d1..d8` into the fourteen files `R/<area>.tsx` (design.md §2), each with `R/<area>.test.ts`.
+- [x] 1.1 Characterization: a test that lists today's 69 ids and paths, unchanged after the move.
+- [x] 1.2 Move `d1..d8` into the fourteen files `R/<area>.tsx` (design.md §2), each with `R/<area>.test.ts`.
   - Add the test that rejects an area file without its test, and a screen declared in two areas.
   - `registry.ts` concatenates the areas; delete `d1..d8` and `routesByDomain`.
-- [ ] 1.3 The moved-routes table and its redirect component (design.md §3, mounting):
+- [x] 1.3 The moved-routes table and its redirect component (design.md §3, mounting):
   - `MOVED_ROUTES` is the concatenation of the areas' `redirects`;
   - the redirect component sits outside `ProtectedRoute`, after the screens;
   - the `keep` and `permanent` flags;
@@ -60,15 +60,16 @@ Tasks:
   - the permanent-entry test.
 
   The table starts empty; each later slice adds its rows.
-- [ ] 1.4 `routes/links.test.ts` also reads `MOVED_ROUTES` and skips `permanent` entries.
-- [ ] 1.5 `F/routes/screenBudget.test.ts` with a ceiling of 69. Each slice lowers it to its count.
+- [x] 1.4 `routes/links.test.ts` also reads `MOVED_ROUTES` and skips `permanent` entries.
+- [x] 1.5 `F/routes/screenBudget.test.ts` with a ceiling of 69. Each slice lowers it to its count.
   - The M2.4 domain lists and sizes in `routes.test.ts` and `retiredScreens.test.tsx` become area lists and sizes
     (design.md §7).
-- [ ] 1.6 (1b) Address builders `P/<area>.ts`. The hub files use them: `components/PlatformShell/{appNavigation,
+- [x] 1.6 (1b) Address builders `P/<area>.ts`. Deliberately, path helpers live in `routes/paths/problems.ts` and
+  `runs.ts`; Verify uses its own builder. The hub files use them: `components/PlatformShell/{appNavigation,
   paletteCommands,workspacePath}.ts`, `{OrgNav,AccountNav,ProjectTabs,PlatformShell}.tsx`, `components/Navigation`,
   `SiteFooter`, `NotificationDropdown`, `ui/ErrorState`, `ui/SectionNav`, `pages/AppHome/AppHome.tsx`,
   `pages/System/States.tsx` and `pages/Home/homeContent.ts`.
-- [ ] 1.7 (1c) `E/routes-smoke.spec.ts` reads the area files and visits every redirect entry. The QA gallery reads the
+- [x] 1.7 (1c) `E/routes-smoke.spec.ts` reads the area files and visits every redirect entry. The QA gallery reads the
   per-area maps `G/<area>.ts`.
 - Checks: FI, UNIT, LINT, BUILD, E2E(`routes-smoke.spec.ts`, `qa-gallery.spec.ts`).
 
@@ -96,9 +97,9 @@ Tasks:
 - [x] 2.2 The `verify` screen; the moved entries `/resolve/:kind/:digest` and `/app/verifier` (`permanent`); delete
   `pub-resolve` and `verifier`.
 - [x] 2.3 Remove offender 6 and set `MAX_ALLOWED_OFFENDERS` to 0 (finding 16 stays unlisted until slice 15).
-- [ ] 2.4 Repoint the links to `/app/verifier` in the hub files through `P/verify.ts`. Links to `/resolve/...` may stay.
-  Not done in this attempt: the hub files are other slices' files, and the links keep working through the `permanent`
-  entry. `P/verify.ts` and `G/verify.ts` are not created either.
+- [x] 2.4 Repoint the links to `/app/verifier` in the hub files. Links to `/resolve/...` may stay.
+  Path helpers live in `routes/paths/problems.ts` and `runs.ts`; Verify uses its own builder. There is no
+  `P/verify.ts` or `G/verify.ts`, deliberately.
 - [x] 2.5 The kind names of the Verify page use the glossary: `case-revision` reads `Problem version`
   (`frontend-nav-vocabulary-text`).
 - Budget: 68.
@@ -111,10 +112,10 @@ Owns: `R/account`+t, `P/account.ts`, `F/pages/Account/**`, `F/components/Platfor
 `E/s3-account.spec.ts`, `G/account.ts`.
 
 Tasks:
-- [ ] 3.1 T-AC acceptance spec. Then unit tests: each section, an unknown section, the `create=key` dialog.
-- [ ] 3.2 `acct-profile` at `/app/account/:section?`. The new key becomes a dialog, with the moved entry
+- [x] 3.1 T-AC acceptance spec. Then unit tests: each section, an unknown section, the `create=key` dialog.
+- [x] 3.2 `acct-profile` at `/app/account/:section?`. The new key becomes a dialog, with the moved entry
   `/app/account/keys/new`.
-- [ ] 3.3 The account text uses the glossary, for example `Runs that may run at once` in the usage section
+- [x] 3.3 The account text uses the glossary, for example `Runs that may run at once` in the usage section
   (`frontend-nav-vocabulary-text`).
 - Budget: 63.
 
@@ -127,12 +128,12 @@ Owns: `R/language`+t, `P/language.ts`, `F/pages/{Profiles,Schemas,Examples}/**`,
 Explore entry of `R/public`.
 
 Tasks:
-- [ ] 4.1 T-LH and T-EX acceptance specs. Then unit tests: the hub sections; Extensions signed out;
+- [x] 4.1 T-LH and T-EX acceptance specs. Then unit tests: the hub sections; Extensions signed out;
   `/language/schemas/<Kind>` kept; Explore `examples`; an unknown Explore section.
-- [ ] 4.2 `lang-profiles` at `/language/:section?/:item?` and `pub-explore` at `/explore/:section?`.
+- [x] 4.2 `lang-profiles` at `/language/:section?/:item?` and `pub-explore` at `/explore/:section?`.
   - Moved entries: `/app/language/extensions` and `/examples`.
   - Delete `lang-schemas`, `lang-extensions` and `lang-examples`.
-- [ ] 4.3 The Explore, examples and public-home text uses the glossary, for example `Published results and public
+- [x] 4.3 The Explore, examples and public-home text uses the glossary, for example `Published results and public
   projects` and `Import as problem` (`frontend-nav-vocabulary-text`).
 - Budget: 60.
 
@@ -146,15 +147,15 @@ Owns: `R/project`+t (not `proj-create`), `P/project.ts`, `F/components/PlatformS
 (the reports target), `E/s4b-project.spec.ts`, `E/s5c-files.spec.ts` (removed), `G/project.ts`.
 
 Tasks:
-- [ ] 5.1 T-PT acceptance spec. Then unit tests: the tab labels and `href` values, the public visitor, the Settings
+- [x] 5.1 T-PT acceptance spec. Then unit tests: the tab labels and `href` values, the public visitor, the Settings
   sections, Export and Import in General, Members.
-- [ ] 5.2 Tab labels: Problems, Runs, Published.
+- [x] 5.2 Tab labels: Problems, Runs, Published.
   - The `href` values come from the builders. `/problems` and `/runs` take effect with slices 13 and 14; until then
     the builders return `/cases` and `/jobs`.
   - `proj-publications` moves to `/published`, with the moved entry `/publications`.
   - Moved entries `/files` (`permanent`) and `/package`.
   - `proj-settings` at `/settings/:section?`.
-- [ ] 5.3 The reports rule of `RETIRED_ROUTES` targets `…/published`. Update its tests: the "every target is a routed
+- [x] 5.3 The reports rule of `RETIRED_ROUTES` targets `…/published`. Update its tests: the "every target is a routed
   screen" case, and the M2.4 publications and tab-label cases (design.md §7).
 - Budget: 58.
 
@@ -167,9 +168,9 @@ Owns: `R/organizations`+t, the `proj-create` entry of `R/project`, `P/{organizat
 `F/components/PlatformShell/OrgNav*`, `E/{s4a-org,s4b-project}.spec.ts`, `G/organizations.ts`.
 
 Tasks:
-- [ ] 6.1 T-OS and T-CD acceptance specs. Then unit tests: the sections, an unknown section, the dialogs opened from
+- [x] 6.1 T-OS and T-CD acceptance specs. Then unit tests: the sections, an unknown section, the dialogs opened from
   buttons and from `create=`, Cancel, the old creation addresses.
-- [ ] 6.2 `org-settings` at `/app/:org/settings/:section?`. The `create=organization` and `create=project` dialogs.
+- [x] 6.2 `org-settings` at `/app/:org/settings/:section?`. The `create=organization` and `create=project` dialogs.
   - Moved entries: `/app/organizations/new` and `/app/:org/new-project`.
   - Delete `org-members`, `org-audit`, `org-create` and `proj-create`.
 - Budget: 54.
@@ -183,11 +184,11 @@ Owns: `R/{system,auth,public}`+t, `P/{auth,public}.ts`, `F/routes/{define.tsx,ty
 `E/{s2-auth,s1a-public}.spec.ts`, `G/{system,auth,public}.ts`.
 
 Tasks:
-- [ ] 7.1 T-AR and T-RS acceptance specs. Then unit tests: the token rule; the moved entry `/password-reset/complete`
+- [x] 7.1 T-AR and T-RS acceptance specs. Then unit tests: the token rule; the moved entry `/password-reset/complete`
   (`permanent`); `/status` to `/about`; the About note in its three states; the production registry without
   `sys-states`.
-- [ ] 7.2 A development-only flag in `define.tsx` and `types.ts`. The lazy import sits behind `import.meta.env.DEV`.
-- [ ] 7.3 Merge `auth-reset-complete` into `auth-reset-request`. Delete `pub-status`, and add the About note.
+- [x] 7.2 A development-only flag in `define.tsx` and `types.ts`. The lazy import sits behind `import.meta.env.DEV`.
+- [x] 7.3 Merge `auth-reset-complete` into `auth-reset-request`. Delete `pub-status`, and add the About note.
 - Check, in addition, NOSTATES:
   `["bash","-c","set -euo pipefail; cd frontend; pnpm build > \"$TMPDIR/build.log\" 2>&1 || { tail -n 80 \"$TMPDIR/build.log\"; exit 1; }; if grep -rl 'States and recoverable errors' dist; then echo 'states screen in production bundle'; exit 1; fi"]`
 - Budget: 51.
@@ -201,16 +202,16 @@ Owns: `R/studies`+t, `P/studies.ts`, `F/pages/Studies/**`,
 `E/s7a-studies.spec.ts`, `G/studies.ts`.
 
 Tasks:
-- [ ] 8.1 T-SP acceptance spec. Then unit tests:
+- [x] 8.1 T-SP acceptance spec. Then unit tests:
   - the tabs and the default tab;
   - the run selector and the `run` query;
   - the three moved study-run addresses;
   - a cell inside Results with `Open run`;
   - an unknown tab;
   - the Setup tab keeping the M2.5 Overview/Source pair.
-- [ ] 8.2 `study-detail` at `…/studies/:study/:tab?`. Delete `study-run`, `study-analytics` and `study-cell`. Publish
+- [x] 8.2 `study-detail` at `…/studies/:study/:tab?`. Delete `study-run`, `study-analytics` and `study-cell`. Publish
   holds the CSV export and a link to Published.
-- [ ] 8.3 The decision-space rule's study-run target becomes `…/studies/<s>/progress?run=<r>`, with its tests
+- [x] 8.3 The decision-space rule's study-run target becomes `…/studies/<s>/progress?run=<r>`, with its tests
   (design.md §7). The studies text uses the glossary (`frontend-nav-vocabulary-text`).
 - Budget: 48.
 
@@ -222,7 +223,7 @@ Owns: `R/problems`+t, `P/problems.ts`, `F/pages/Cases/**`, `F/pages/Platform/Cas
 `F/routes/retiredScreens.test.tsx` (the composer's neighbouring case screens), `E/s5a-cases.spec.ts`, `G/problems.ts`.
 
 Tasks:
-- [ ] 9.1 T-PP acceptance spec. Then unit tests:
+- [x] 9.1 T-PP acceptance spec. Then unit tests:
   - the tabs, and the tabs of a visitor;
   - the version selector and the `version` query;
   - the Source tab with `SourceView`;
@@ -230,7 +231,7 @@ Tasks:
   - Settings (name, description);
   - the moved revision, compare and snapshot addresses;
   - an unknown tab.
-- [ ] 9.2 `case-detail` at `…/cases/:case/:tab?`, which becomes `…/problems/:case/:tab?` with slice 13.
+- [x] 9.2 `case-detail` at `…/cases/:case/:tab?`, which becomes `…/problems/:case/:tab?` with slice 13.
   - Moved entries: revisions (`permanent`), compare, snapshots (`permanent`).
   - Delete `case-revision`, `case-compare` and `snap-detail`.
   - The links in `pages/Jobs/**`, `pages/Studies/**` and `pages/Workbench/ActionBar.tsx` that open snapshots or
@@ -251,8 +252,8 @@ Owns:
 - `E/{s5a-cases,s5b-library,s5d-workbench}.spec.ts`.
 
 Tasks:
-- [ ] 10.1 T-VP acceptance spec. Then the scanner test: the problem-area files hold none of the six words outside code.
-- [ ] 10.2 Change the text: Case(s) becomes Problem(s), a problem's revision becomes its version, and `New case`
+- [x] 10.1 T-VP acceptance spec. Then the scanner test: the problem-area files hold none of the six words outside code.
+- [x] 10.2 Change the text: Case(s) becomes Problem(s), a problem's revision becomes its version, and `New case`
   becomes `New problem`.
 
 ## 11. Application navigation (medium)
@@ -264,14 +265,14 @@ Owns: `F/components/PlatformShell/{AppHeader,appNavigation,paletteCommands,Comma
 only), `E/{visual-shell,responsive}.spec.ts`.
 
 Tasks:
-- [ ] 11.1 T-N acceptance spec. Then unit tests:
+- [x] 11.1 T-N acceptance spec. Then unit tests:
   - the public header order and its `href` values, desktop and phone;
   - the signed-in header with and without a current project;
   - Admin shown only to administrators;
   - the New menu items, their targets, and the hint `Needs a project`;
   - the account menu.
-- [ ] 11.2 Replace the Tools menu and the old New items. The palette commands follow the header.
-- [ ] 11.3 The problem list opens its dialog `New problem` for `create=problem`, and the collection list opens
+- [x] 11.2 Replace the Tools menu and the old New items. The palette commands follow the header.
+- [x] 11.3 The problem list opens its dialog `New problem` for `create=problem`, and the collection list opens
   `New collection` for `create=collection`. Closing a dialog removes the query.
 
 ## 12. Run vocabulary (medium)
@@ -287,8 +288,8 @@ Owns:
 - `E/{s6a-jobs,s9a-admin}.spec.ts`.
 
 Tasks:
-- [ ] 12.1 T-VR acceptance spec. Then scanner tests, first for the run area and then for every other source.
-- [ ] 12.2 Change the text: Job(s) becomes Run(s), and Publication(s) becomes Published result(s). The edits cover
+- [x] 12.1 T-VR acceptance spec. Then scanner tests, first for the run area and then for every other source.
+- [x] 12.2 Change the text: Job(s) becomes Run(s), and Publication(s) becomes Published result(s). The edits cover
   `pages/Jobs/**` and then every file the scanner still reports. Examples: `Jobs by state`, `Job queue` and
   `Reconcile jobs` in `pages/Admin/**`. The engine-registration publication text stays (design.md §11.18).
 
@@ -355,3 +356,15 @@ Tasks:
 - Returning to `/verify` after sign-in: `utils/authFlow.ts` has to keep the Verify address across the login. The Verify
   page's `Log in` link goes to `/login` until then, and the visitor lands on `/app`.
 - `ROADMAP.md`: the M2.6 slice status (never its `Status: PROPOSED` lines).
+- An ADR 'Routed screens, sections and moved addresses': the counting rule for the 45-screen budget, permanent moved
+  entries never removed, and redirects before the sign-in guard (decisions D-M26-1 and D-M26-6 in
+  `docs/agent-work/m26-navigation/intake.md`).
+- `SourceView` diff mode, to bring back the +/- colouring of the workbench diff (M2.7, `components/rendering`).
+- Neutralise a leading `=`, `+`, `-` or `@` in the analytics CSV export
+  (`frontend/src/pages/Studies/analyticsModel.ts`, `cellsCsv`).
+- Consider rejecting reserved organization slugs in the gateway at creation.
+- Split the three `test.slow` acceptance tests, and narrow the smoke and acceptance text-scan exemptions by loading
+  detail data (R1-TST-003, R1-TST-004).
+- `inInterfaceWords` belongs in `utils`.
+- Explore's inner `TabBar` against path sections.
+- A production-bundle check for the system-states screen (NOSTATES), if CI does not run it.
