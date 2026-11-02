@@ -30,7 +30,7 @@ The fixed inputs are:
 
 | Area | Screens after M2.6 | Count | Leaves the production registry |
 |---|---|---|---|
-| public | `pub-home` `/`, `pub-explore` `/explore/:section?`, `pub-about` `/about`, `pub-pricing` `/pricing` | 4 | `pub-status` (retired) |
+| public | `pub-home` `/`, `pub-explore` `/explore/:section?`, `pub-about` `/about`, `pub-pricing` `/pricing`, `pub-workbench` | 5 | `pub-status` (retired) |
 | auth | `auth-login`, `auth-register`, `auth-reset-request` `/password-reset`, `auth-cas-callback`, `org-invite-accept` | 5 | `auth-reset-complete` |
 | verify | `verify` `/verify/:kind?/:digest?` | 1 | `pub-resolve`, `verifier` (merged) |
 | system | `sys-states`, development builds only | 0 | `sys-states` (production) |
@@ -39,7 +39,7 @@ The fixed inputs are:
 | account | `acct-profile` `/app/account/:section?` | 1 | `acct-usage`, `acct-keys`, `acct-key-new`, `acct-identities`, `acct-notifications` |
 | organizations | `app-home` `/app`, `org-overview` `/app/:org`, `org-settings` `/app/:org/settings/:section?` | 3 | `org-members`, `org-audit` (sections); `org-create` (dialog) |
 | project | `proj-overview`, `proj-settings` `/app/:org/:project/settings/:section?`, `proj-publications` `/app/:org/:project/published` | 3 | `proj-files`, `proj-package` (retired); `proj-create` (dialog) |
-| problems | `case-list` `/app/:org/:project/problems`, `case-detail` `/app/:org/:project/problems/:case/:tab?`, `wb-workbench`, `pub-workbench` | 4 | `case-revision`, `case-compare`, `snap-detail` |
+| problems | `case-list` `/app/:org/:project/problems`, `case-detail` `/app/:org/:project/problems/:case/:tab?`, `wb-workbench` | 3 | `case-revision`, `case-compare`, `snap-detail` |
 | collections | `coll-list`, `coll-detail` | 2 | — |
 | runs | `job-launch` `…/runs/new`, `job-list` `…/runs`, `job-detail` `…/runs/:job`, `job-history` `/app/runs`, `gen-lab` | 5 | — |
 | studies | `study-list`, `study-builder`, `study-detail` `/app/:org/:project/studies/:study/:tab?` | 3 | `study-run`, `study-analytics`, `study-cell` |

@@ -88,7 +88,7 @@ Notes: design.md §11.3; the count per area is in design.md §2.
 - **GIVEN** the production route registry after the change
 - **WHEN** the budget test counts `routeDefinitions`
 - **THEN** it counts 45 screens
-- **AND** the area sizes read public 4, auth 5, verify 1, system 0, language 1, engines 5, account 1, organizations 3, project 3, problems 4, collections 2, runs 5, studies 3 and admin 8
+- **AND** the area sizes read public 5, auth 5, verify 1, system 0, language 1, engines 5, account 1, organizations 3, project 3, problems 3, collections 2, runs 5, studies 3 and admin 8
 
 #### Scenario: One screen too many
 - **GIVEN** a production registry that declares a 46th screen `x-extra` at `/x-extra`
@@ -508,7 +508,8 @@ Notes: design.md §11.14.
 #### Scenario: Former problem screens are not routed
 - **GIVEN** the route registry after the change
 - **WHEN** the problems area test lists its screens
-- **THEN** it lists `case-list`, `case-detail`, `wb-workbench` and `pub-workbench`
+- **THEN** it lists `case-list`, `case-detail`, `wb-workbench`
+- **AND** `pub-workbench` is registered in the public area
 - **AND** none of `case-revision`, `case-compare` and `snap-detail` is declared
 
 #### Scenario: Unknown tab
