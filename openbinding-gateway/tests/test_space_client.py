@@ -7,7 +7,7 @@ each would fail silently rather than loudly if it regressed:
 
 * plan ceilings come from the pricing token, because a contract records only
   what has been consumed, never the allowance;
-* a contract the client quietly refused is read back and reported;
+* a contract SPACE refused is reported as a rejection, never as success;
 * the gateway only reads and manages contracts - it consumes nothing.
 """
 
@@ -21,6 +21,7 @@ import pytest
 
 from _fake_space import FakePricingGate
 from _pricing import largest_plan, pricing_catalog
+from space_client import SpaceError
 from openbinding_gateway.core.settings import Settings
 from openbinding_gateway.space_client import (
     OpenGate,
@@ -37,6 +38,14 @@ API_KEYS = "apiKeys"
 MAX_TIMEOUT = "maxTimeoutSeconds"
 MAX_PAYLOAD = "maxPayloadBytes"
 MISSING = object()
+
+
+class SpaceApiError(SpaceError):
+    """An answer from SPACE with an HTTP status, as the client raises it."""
+
+    def __init__(self, status_code: int, detail: str = ""):
+        super().__init__(f"Space answered {status_code} to POST https://space.example.org/api: {detail}")
+        self.status_code = status_code
 
 
 def contract_for(
@@ -100,9 +109,7 @@ class Recorder:
 
         def add_contract(self, contract):
             self._outer._record("add_contract", contract)
-            # A working SPACE has the contract afterwards, and the gate reads it
-            # back to tell "created" from "silently refused" - which the real
-            # client cannot express, since it returns None either way.
+            # A working SPACE has the contract afterwards.
             self._outer._contract = contract
             return contract
 
@@ -225,27 +232,28 @@ async def test_a_contract_is_created_for_the_service_and_plan(user_id):
     assert contract.user_contact.email == "someone@example.org"
 
 
-async def test_a_contract_that_space_quietly_refused_is_an_error(user_id):
+async def test_a_contract_that_space_refused_is_an_error(user_id):
     """The failure mode that produced accounts with no contract at all.
 
-    ``add_contract`` returns None whether SPACE created the contract or refused
-    it - the client turns a 400 into a quiet None. So when the plans were
-    renamed and the gateway kept asking for a pricing version that no longer
-    declared them, SPACE answered "Plan BASIC for service openbinding not found"
-    and registration reported success for days.
-
-    Reading the contract back is what tells the two apart.
+    When the plans were renamed and the gateway kept asking for a pricing
+    version that no longer declared them, SPACE answered "Plan BASIC for service
+    openbinding not found" and registration must not report success. The client
+    raises on that answer and the adapter turns it into a rejection.
     """
     recorder = Recorder(contract=None)
-    recorder.contracts.add_contract = lambda contract: None  # accepted nothing
 
-    with pytest.raises(PricingUnavailable) as error:
+    def refuse(contract):
+        raise SpaceApiError(400, "Plan BASIC for service openbinding not found")
+
+    recorder.contracts.add_contract = refuse
+
+    with pytest.raises(SubscriptionRejected) as error:
         await gate_over(recorder).create_contract(
             user_id, DEFAULT_PLAN, "someone@example.org", CATALOG.version
         )
 
-    # The message has to name the likely cause, because the API says nothing.
-    assert "pricing version" in str(error.value)
+    assert "400" in str(error.value)
+    assert "space.example.org" not in str(error.value)
 
 
 async def test_a_contract_requires_a_pricing_version_from_the_call_or_the_configuration(user_id):
@@ -275,16 +283,15 @@ async def test_a_contract_without_a_plan_leaves_the_plan_to_space(user_id):
     assert contract.contracted_services == {"openbinding": CATALOG.version}
 
 
-async def test_a_new_contract_spells_out_an_empty_phone(user_id):
-    # Left unset the client serialises it as null, and SPACE rejects that with
-    # "phone must be a string". An empty string satisfies both.
+async def test_a_new_contract_has_no_phone(user_id):
+    # The gateway knows no phone number: it is left unset, not made up as an empty string.
     recorder = Recorder()
 
     await gate_over(recorder).create_contract(
         user_id, DEFAULT_PLAN, "someone@example.org", CATALOG.version
     )
 
-    assert recorder.calls[0][1].user_contact.phone == ""
+    assert recorder.calls[0][1].user_contact.phone is None
 
 
 async def test_changing_plan_novates_the_subscription(user_id):
