@@ -125,7 +125,7 @@ describe('Home', () => {
       platform.publicPublications.mockReturnValue(new Promise(() => undefined));
       renderHome();
 
-      expect(screen.getByText('Loading recent publications')).toBeInTheDocument();
+      expect(screen.getByText('Loading recent published results')).toBeInTheDocument();
     });
 
     it('lists publications, projects and engines with the places they open', async () => {
@@ -158,7 +158,7 @@ describe('Home', () => {
       renderHome();
 
       const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('Recent publications couldn’t be loaded (HTTP 503)');
+      expect(alert).toHaveTextContent('Recent published results couldn’t be loaded (HTTP 503)');
       expect(screen.getByRole('heading', { name: 'Free to start, institutional when you scale' })).toBeInTheDocument();
 
       platform.publicProjects.mockResolvedValue([project]);

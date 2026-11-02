@@ -78,8 +78,8 @@ describe('readCatalog', () => {
 
   it('derives what must have room before something starts from the expressions of the document', () => {
     expect(view.gates).toEqual([
-      { starts: 'a solve', needs: ['A free job slot'] },
-      { starts: 'a federated solve', needs: ['A free job slot'] },
+      { starts: 'a solve', needs: ['A free run slot'] },
+      { starts: 'a federated solve', needs: ['A free run slot'] },
       { starts: 'a study run', needs: ['Study runs left this month'] },
     ]);
   });

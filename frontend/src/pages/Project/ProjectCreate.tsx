@@ -24,7 +24,7 @@ const ROOM_FOR_PROJECT = ['projects', 'privateProjects'] as const;
 
 const CHOICES: ReadonlyArray<{ value: Visibility; label: string; icon: typeof Lock; points: ReadonlyArray<[string, string]> }> = [
   { value: 'private', label: 'Private', icon: Lock, points: [['✓', 'Only members of the organization see it'], ['✓', 'Counts as a private project for the sponsor'], ['–', 'Not listed in Explore']] },
-  { value: 'public', label: 'Public', icon: Globe2, points: [['✓', 'Its card appears in Explore'], ['✓', 'Published results can be verified by anyone'], ['–', 'Drafts and cases still need membership to open']] },
+  { value: 'public', label: 'Public', icon: Globe2, points: [['✓', 'Its card appears in Explore'], ['✓', 'Published results can be verified by anyone'], ['–', 'Drafts and problems still need membership to open']] },
 ];
 
 interface ProjectCreateProps {
@@ -106,7 +106,7 @@ export function ProjectCreate({ onClose, onCreated }: ProjectCreateProps) {
 
   return (
     <Modal title="New project" size="lg" onClose={() => !creating && onClose()}>
-      <p className="org-muted proj-create-lede">In {organization.name}. A project holds the cases, runs, studies and reports for one piece of work.</p>
+      <p className="org-muted proj-create-lede">In {organization.name}. A project holds the problems, runs, studies and reports for one piece of work.</p>
 
       {viewerOnly && (
         <div className="proj-note" role="note">

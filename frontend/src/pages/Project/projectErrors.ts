@@ -75,7 +75,7 @@ export function deleteRefusal(caught: unknown): ProjectRefusal {
   if (failure.status === 409) {
     return {
       kind: 'slug',
-      text: `This project has sealed history (published reports, study runs or case revisions), so it can’t be deleted${marker(failure)}. Sealed history must stay reachable so people can still verify it.`,
+      text: `This project has sealed history (published reports, study runs or problem versions), so it can’t be deleted${marker(failure)}. Sealed history must stay reachable so people can still verify it.`,
     };
   }
   if (failure.status === 403) {
@@ -113,7 +113,7 @@ export function importRefusal(caught: unknown): ImportRefusal {
     return {
       kind: 'forbidden',
       title: `This account or API key can’t import${marker(failure)}`,
-      text: 'Importing writes cases and artifacts, so it needs MEMBER in the organization and, for a key, the projects:write permission. Export still works.',
+      text: 'Importing writes problems and artifacts, so it needs MEMBER in the organization and, for a key, the projects:write permission. Export still works.',
     };
   }
   if (failure.kind === 'not-found') {

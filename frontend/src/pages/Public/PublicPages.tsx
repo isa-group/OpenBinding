@@ -228,7 +228,7 @@ export function WorkbenchPage() {
             {user ? (
               <>
                 <strong>Signed in as {user.username}</strong>
-                <span>Save this package as a case revision in one of your projects, then run it with an exact engine.</span>
+                <span>Save this package as a problem version in one of your projects, then run it with an exact engine.</span>
                 <div className="workbench-account-actions">
                   <ProjectPicker variant="primary" label="Save to a project" destination={(org, project) => `/app/${org}/${project}/workbench${selected?.example ? `?example=${encodeURIComponent(selected.example)}` : ''}`} />
                   <ProjectPicker label="Run" destination={(org, project) => `/app/${org}/${project}/jobs/new`} />
@@ -238,7 +238,7 @@ export function WorkbenchPage() {
             ) : (
               <>
                 <strong>Want to run an engine on it?</strong>
-                <span>Validation is free. Running engines and saving packages as cases needs an account.</span>
+                <span>Validation is free. Running engines and saving packages as problems needs an account.</span>
                 <div className="workbench-account-actions">
                   <Link className="workbench-login" to="/login">Log in to run</Link>
                   <Link className="workbench-secondary" to="/register">Create account</Link>

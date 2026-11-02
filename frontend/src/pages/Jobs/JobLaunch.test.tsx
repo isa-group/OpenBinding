@@ -110,8 +110,8 @@ describe('Start a run', () => {
 
     const source = await screen.findByRole('radiogroup', { name: 'Source' });
     expect(within(source).getAllByRole('radio')).toHaveLength(2);
-    expect(within(source).getByRole('radio', { name: /Flujo de checkout · revision 2/ })).toBeChecked();
-    expect(within(source).getByRole('radio', { name: /Flujo de checkout · revision 1/ })).not.toBeChecked();
+    expect(within(source).getByRole('radio', { name: /Flujo de checkout · version 2/ })).toBeChecked();
+    expect(within(source).getByRole('radio', { name: /Flujo de checkout · version 1/ })).not.toBeChecked();
     expect(screen.getByRole('link', { name: 'Upload a new package in the Workbench' })).toHaveAttribute('href', `${ROOT}/workbench`);
     expect(screen.getByRole('link', { name: 'Cancel' })).toHaveAttribute('href', `${ROOT}/jobs`);
     expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Runs' })).toHaveAttribute('aria-current', 'page');
@@ -259,7 +259,7 @@ describe('Start a run', () => {
 
     fireEvent.change(within(table).getByLabelText('Time budget'), { target: { value: '600' } });
     expect(within(table).getByText('60 s (reduced)')).toBeInTheDocument();
-    expect(screen.getByText('Values above your plan run at the ceiling and the job carries a note; it isn’t an error.')).toBeInTheDocument();
+    expect(screen.getByText('Values above your plan run at the ceiling and the run carries a note; it isn’t an error.')).toBeInTheDocument();
 
     fireEvent.change(within(table).getByLabelText('Time budget'), { target: { value: 'soon' } });
     expect(within(table).getByLabelText('Time budget')).toHaveAttribute('aria-invalid', 'true');
@@ -271,7 +271,7 @@ describe('Start a run', () => {
     await toReview();
 
     const review = screen.getByText('Solve').closest('dl') as HTMLElement;
-    expect(within(review).getByText('Flujo de checkout · revision 2')).toBeInTheDocument();
+    expect(within(review).getByText('Flujo de checkout · version 2')).toBeInTheDocument();
     expect(within(review).getByText('random-search 1.0.0 · mode sampling')).toBeInTheDocument();
     expect(within(review).getByText('Time budget 30 s · Iterations 100,000 iterations')).toBeInTheDocument();
     expect(screen.queryByText(/used \+ up to/)).not.toBeInTheDocument();
@@ -329,7 +329,7 @@ describe('Start a run', () => {
     expect(await screen.findByText('Time budget 60 s (reduced) · Iterations 100,000 iterations')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
-    expect(await screen.findByText(/Time budget was reduced to 60 s, what your plan allows; the job carries that note\./)).toBeInTheDocument();
+    expect(await screen.findByText(/Time budget was reduced to 60 s, what your plan allows; the run carries that note\./)).toBeInTheDocument();
     // The request carries what was asked; the gateway reduces it and records that on the job.
     expect(jobsApi.launch).toHaveBeenCalledWith(expect.objectContaining({ options: { time_budget_ms: 600000, iterations: 100000 } }), expect.any(String));
   });
@@ -448,7 +448,7 @@ describe('Start a run', () => {
       await send();
 
       const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('All your job slots are busy (429 · concurrency_limit_exceeded)');
+      expect(alert).toHaveTextContent('All your run slots are busy (429 · concurrency_limit_exceeded)');
       expect(alert).toHaveTextContent('You can run 3 jobs at once.');
       expect(within(alert).getByRole('timer')).toHaveTextContent('A slot should free up in about 15 s.');
     });

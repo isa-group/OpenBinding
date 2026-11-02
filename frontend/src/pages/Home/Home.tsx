@@ -98,13 +98,13 @@ function Hero({ signedIn, name, plan, runtime }: { signedIn: boolean; name: stri
           <Link to="/app" viewTransition className="home-card is-accent">
             <span className="home-card-top"><span className="home-card-icon is-round">{name.slice(0, 2).toUpperCase()}</span><span className="home-card-go is-filled" aria-hidden="true">↗</span></span>
             <strong>Go to your workspace</strong>
-            <span>Signed in as {name} · {plan} plan. Organizations, projects and jobs live there.</span>
+            <span>Signed in as {name} · {plan} plan. Organizations, projects and runs live there.</span>
           </Link>
         ) : (
           <Link to="/register" viewTransition className="home-card is-accent">
             <span className="home-card-top"><span className="home-card-icon"><User aria-hidden="true" /></span><span className="home-card-go is-filled" aria-hidden="true">↗</span></span>
             <strong>Create an account</strong>
-            <span>Start on BASIC: compose cases, run engines and publish studies. Verified Universidad de Sevilla accounts can get RESEARCH.</span>
+            <span>Start on BASIC: compose problems, run engines and publish studies. Verified Universidad de Sevilla accounts can get RESEARCH.</span>
           </Link>
         )}
       </div>
@@ -214,12 +214,12 @@ function RecentlyPublic() {
         {loading && (
           <>
             <div className="home-recent"><Skeleton /><Skeleton /><Skeleton /></div>
-            <span className="sr-only">Loading recent publications</span>
+            <span className="sr-only">Loading recent published results</span>
           </>
         )}
         {!loading && failed && (
           <Notice tone="error" action={<Button size="sm" variant="secondary" onClick={reload}>Retry</Button>}>
-            Recent publications couldn’t be loaded ({publications.error instanceof HttpError ? `HTTP ${publications.error.status}` : 'the gateway can’t be reached'}).
+            Recent published results couldn’t be loaded ({publications.error instanceof HttpError ? `HTTP ${publications.error.status}` : 'the gateway can’t be reached'}).
             The rest of the page still works.
           </Notice>
         )}

@@ -205,7 +205,7 @@ function UsageBody({ usage, catalog, release, token }: {
           </DataTable>
           {retention && retention.limit !== null && (
             <p className="usage-retention">
-              Finished jobs are kept for {valueText(retention)}. <Link to="/app/jobs" viewTransition>Open job history</Link>
+              Finished runs are kept for {valueText(retention)}. <Link to="/app/jobs" viewTransition>Open run history</Link>
             </p>
           )}
         </section>

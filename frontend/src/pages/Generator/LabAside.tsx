@@ -115,7 +115,7 @@ export function KeepIt({ signedIn, projects, projectsLoading, selected, onSelect
         </>
       )}
       {keep && (
-        <Notice tone={keep.tone} action={keep.href ? <Link to={keep.href} viewTransition>See the project’s cases</Link> : undefined}>{keep.text}</Notice>
+        <Notice tone={keep.tone} action={keep.href ? <Link to={keep.href} viewTransition>See the project’s problems</Link> : undefined}>{keep.text}</Notice>
       )}
     </section>
   );

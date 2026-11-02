@@ -13,7 +13,7 @@ describe('the matrix of a study', () => {
   it('multiplies cases, engines, settings and seeds, and says so in words', () => {
     const size = definitionSize(studyFixture().definition);
     expect(size).toEqual({ cases: 2, engines: 2, settings: 1, seeds: 2, cells: 8 });
-    expect(formulaOf(size)).toBe('2 case revisions × 2 engines × 1 setting × 2 seeds');
+    expect(formulaOf(size)).toBe('2 problem versions × 2 engines × 1 setting × 2 seeds');
   });
 
   it('lays the definition out in the order the gateway expands it', () => {
@@ -136,9 +136,9 @@ describe('the optimization of each engine of a study', () => {
 describe('case revisions', () => {
   it('names the revisions of the project and falls back to the start of an id', () => {
     const index = revisionIndex(cases);
-    expect(revisionLabel(index, REVISION_2.id)).toBe('Checkout flow · revision 2');
+    expect(revisionLabel(index, REVISION_2.id)).toBe('Checkout flow · version 2');
     expect(revisionLabel(index, REVISION_2.id, true)).toBe('Checkout flow r2');
-    expect(revisionLabel(index, 'abcdef0123456789')).toBe('Revision abcdef01…');
+    expect(revisionLabel(index, 'abcdef0123456789')).toBe('Version abcdef01…');
   });
 
   it('starts the builder from the case, revision or collection another screen named', () => {

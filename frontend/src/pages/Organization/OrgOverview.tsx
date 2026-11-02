@@ -148,7 +148,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
             <div className="org-empty">
               <strong>No projects yet</strong>
               <span>
-                A project groups the cases, runs, studies and reports for one piece of work. Public projects can be found in Explore;
+                A project groups the problems, runs, studies and reports for one piece of work. Public projects can be found in Explore;
                 private ones are only for members.
               </span>
               {canCreate && <Action to={createAddress(`/app/${slug}`, 'project')} variant="primary" size="sm">Create the first project</Action>}

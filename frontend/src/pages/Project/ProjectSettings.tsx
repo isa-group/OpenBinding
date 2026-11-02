@@ -53,7 +53,7 @@ function DeleteDialog({ organization, project, onClose, onDeleted }: {
   return (
     <Modal title={`Delete ${project.name}?`} tone="danger" size="md" onClose={() => !busy && onClose()}>
       <form className="org-dialog-form" onSubmit={submit} noValidate>
-        <p>This removes its cases, runs, studies and drafts from {organization.name}. It is refused (409) if anything inside has sealed history. This can’t be undone.</p>
+        <p>This removes its problems, runs, studies and drafts from {organization.name}. It is refused (409) if anything inside has sealed history. This can’t be undone.</p>
         <FormField
           label={`Type ${project.slug} to confirm`}
           value={typed}
@@ -162,7 +162,7 @@ function SettingsBody({ organization, project, canEdit, canImport, reloadProject
     return (
       <div className="proj-body is-md">
         <Gate title={`${project.name} was deleted`} action={<Action to={`/app/${org}`} variant="primary">Back to {organization.name}</Action>}>
-          Its cases, runs, studies and drafts are gone. The deletion is recorded in the audit log.
+          Its problems, runs, studies and drafts are gone. The deletion is recorded in the audit log.
         </Gate>
       </div>
     );
@@ -271,7 +271,7 @@ function SettingsBody({ organization, project, canEdit, canImport, reloadProject
               </span>
             </div>
           )}
-          <span className="org-muted">Removes its cases, runs, studies and drafts. This can’t be undone.</span>
+          <span className="org-muted">Removes its problems, runs, studies and drafts. This can’t be undone.</span>
           {history.status === 'loading' && canEdit && <Skeleton variant="tile" />}
           {canEdit && <Action variant="danger-outline" onClick={() => setDeleting(true)} disabled={sealed} className="org-danger-button">Delete project</Action>}
         </div>

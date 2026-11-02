@@ -105,10 +105,10 @@ export function Provenance({ provenance, instance, origin, root, created, retryO
               : `Snapshot ${instance.id.slice(0, 8)}…`)
             : 'Not kept for this run'}
         </Fact>
-        <Fact label="Case revision">
+        <Fact label="Problem version">
           {origin
-            ? <Link to={problemPath(root, origin.caseSlug, undefined, { version: origin.revision })} viewTransition>{origin.caseName} · revision {origin.revision}</Link>
-            : 'Not from a revision of this project'}
+            ? <Link to={problemPath(root, origin.caseSlug, undefined, { version: origin.revision })} viewTransition>{origin.caseName} · version {origin.revision}</Link>
+            : 'Not from a version of this project'}
         </Fact>
         <Fact label="Compiled problem">{digest(pins.compiledForm, 'ir', 'compiled problem') || '—'}</Fact>
         <Fact label="Instance">{digest(instance?.instanceDigest ?? pins.instance, 'instance', 'instance') || '—'}</Fact>

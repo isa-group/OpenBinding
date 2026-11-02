@@ -99,9 +99,9 @@ function OverviewScreen() {
     ['Account agreement', 'Plan, add-ons, plan limits and keys of one account: open it from Accounts.', '/app/admin/users'],
     ['Audit log', 'Every contract, pricing and maintenance change.', '/app/admin/audit'],
     ['Errors', 'Error codes, routes and trends, without request bodies.', '/app/admin/errors'],
-    ['Queues', 'Jobs by state and the oldest ones waiting.', '/app/admin/queues'],
-    ['Moderation', 'Review engine publication requests, and approve dialects and resources.', '/app/admin/moderation'],
-    ['Maintenance', 'Preview, then purge expired data or reconcile abandoned jobs.', '/app/admin/maintenance'],
+    ['Queues', 'Runs by state and the oldest ones waiting.', '/app/admin/queues'],
+    ['Moderation', 'Review engine catalogue requests, and approve dialects and resources.', '/app/admin/moderation'],
+    ['Maintenance', 'Preview, then purge expired data or reconcile abandoned runs.', '/app/admin/maintenance'],
   ];
 
   return (
@@ -129,7 +129,7 @@ function OverviewScreen() {
           <span className="adm-muted">{count(counts.apiKeys)} API keys · {count(counts.identities)} linked identities</span>
         </Block>
 
-        <Block title="Job queue" to="/app/admin/queues" resource={queues}>
+        <Block title="Run queue" to="/app/admin/queues" resource={queues}>
           <div className="adm-queue-bars" role="img" aria-label={QUEUE_STATES.map((state) => `${state.label}: ${queueCounts[state.id] ?? 0}`).join(', ')}>
             {QUEUE_STATES.map((state) => (
               <span key={state.id} className="adm-queue-bar">
@@ -140,14 +140,14 @@ function OverviewScreen() {
             ))}
           </div>
           <span className="adm-muted">
-            {oldest ? `Oldest waiting: ${oldest.engine} job, ${oldest.state} for ${ageLabel(oldest.createdAt, queue?.at ?? 0)}` : 'Nothing waiting or running.'}
+            {oldest ? `Oldest waiting: ${oldest.engine} run, ${oldest.state} for ${ageLabel(oldest.createdAt, queue?.at ?? 0)}` : 'Nothing waiting or running.'}
           </span>
         </Block>
 
         <Block title="Moderation" to="/app/admin/moderation" resource={moderation} className={waiting > 0 ? 'is-attention' : ''}>
           <strong className="adm-big">{waiting}</strong>
           <ul className="adm-lines" aria-label="Waiting for review">
-            <li><span>Engine publication requests</span><strong>{pending.registrations}</strong></li>
+            <li><span>Engine catalogue requests</span><strong>{pending.registrations}</strong></li>
             <li><span>Engine revisions</span><strong>{pending.engines}</strong></li>
             <li><span>Dialects</span><strong>{pending.dialects}</strong></li>
           </ul>
@@ -188,7 +188,7 @@ function OverviewScreen() {
       </div>
 
       <section className="adm-numbers" aria-label="The platform in numbers">
-        {([['Organizations', counts.organizations], ['Projects', counts.projects], ['Binding cases', counts.cases], ['Studies', counts.studies], ['Study runs', counts.studyRuns], ['Stored artifacts', counts.artifacts]] as const).map(([label, value]) => (
+        {([['Organizations', counts.organizations], ['Projects', counts.projects], ['Problems', counts.cases], ['Studies', counts.studies], ['Study runs', counts.studyRuns], ['Stored artifacts', counts.artifacts]] as const).map(([label, value]) => (
           <div key={label}><strong>{count(value)}</strong><span>{label}</span></div>
         ))}
       </section>

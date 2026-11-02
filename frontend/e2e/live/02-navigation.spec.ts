@@ -32,7 +32,7 @@ test.describe('live · organizations and the project lab-main/bim-demo', () => {
     expect(errors).toEqual([]);
   });
 
-  test('a member sees the same organization with the role it has, and opens the list of cases of the project', async ({ page }, testInfo) => {
+  test('a member sees the same organization with the role it has, and opens the list of problems of the project', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'member');
     await page.goto('/app');
@@ -42,8 +42,8 @@ test.describe('live · organizations and the project lab-main/bim-demo', () => {
     await expect(main).toContainText('MEMBER');
 
     await page.goto(`${PROJECT_PATH}/cases`);
-    await expect(page.getByRole('heading', { level: 1, name: 'Cases' })).toBeVisible();
-    await expect(page.getByRole('list', { name: 'Cases' }).locator(`a[href="${PROJECT_PATH}/cases/${CASE}"]`).first()).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Problems' }).locator(`a[href="${PROJECT_PATH}/cases/${CASE}"]`).first()).toBeVisible();
     await capture(page, testInfo, 'navigation-cases-member');
     expect(errors).toEqual([]);
   });

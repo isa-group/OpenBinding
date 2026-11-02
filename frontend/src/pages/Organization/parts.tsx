@@ -78,7 +78,7 @@ export function NeutralGate({ withExplore = false }: { withExplore?: boolean }) 
         </>
       )}
     >
-      It doesn’t exist, or you’re not a member. We show the same message in both cases so organization names stay private.
+      It doesn’t exist, or you’re not a member. We show the same message either way so organization names stay private.
     </Gate>
   );
 }

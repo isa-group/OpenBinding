@@ -382,7 +382,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const list = main.getByRole('list', { name: 'Studies of the project' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'Studies' })).toBeVisible();
-      await expect(main.getByText(/A study runs every combination of cases × engines × settings × seeds/)).toBeVisible();
+      await expect(main.getByText(/A study runs every combination of problems × engines × settings × seeds/)).toBeVisible();
       await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Studies', exact: true })).toHaveAttribute('aria-current', 'page');
       await expect(main.getByRole('link', { name: 'New study' })).toHaveAttribute('href', `${ROOT}/studies/new`);
       await expect(list.getByRole('listitem')).toHaveCount(3);
@@ -425,7 +425,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await page.goto('/app/isa-demo/checkout-privado/studies');
       await expect(main.getByText('No studies yet')).toBeVisible();
-      await expect(main.getByText('2 case revisions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.')).toBeVisible();
+      await expect(main.getByText('2 problem versions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Build a study' })).toHaveAttribute('href', '/app/isa-demo/checkout-privado/studies/new');
       await capture(page, testInfo, `list-${name}-empty`);
 
@@ -463,15 +463,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const create = main.getByRole('button', { name: 'Create study' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'New study' })).toBeVisible();
-      await expect(main.getByText('Pick the cases, engines, settings and seeds. Every combination becomes one cell.')).toBeVisible();
-      await expect(main.getByRole('checkbox', { name: /Checkout flow · revision 3/ })).toBeDisabled();
+      await expect(main.getByText('Pick the problems, engines, settings and seeds. Every combination becomes one cell.')).toBeVisible();
+      await expect(main.getByRole('checkbox', { name: /Checkout flow · version 3/ })).toBeDisabled();
       await expect(main.getByText(/No compiled snapshot yet, so engines have nothing to run/)).toBeVisible();
       await expect(create).toBeDisabled();
       await expect(main.getByRole('list', { name: 'Still needed' })).toContainText('Choose at least one engine mode.');
       await capture(page, testInfo, `builder-${name}-empty`);
 
-      await main.getByRole('checkbox', { name: /Checkout flow · revision 1/ }).check();
-      await main.getByRole('checkbox', { name: /Checkout flow · revision 2/ }).check();
+      await main.getByRole('checkbox', { name: /Checkout flow · version 1/ }).check();
+      await main.getByRole('checkbox', { name: /Checkout flow · version 2/ }).check();
       await main.getByRole('checkbox', { name: /random-search 1\.0\.0/ }).check();
       await main.getByRole('checkbox', { name: /evolutionary 1\.0\.0/ }).check();
       await main.getByLabel('Study name').fill('Budgets and seeds');
@@ -482,7 +482,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel(/Seeds \(comma-separated/).fill('1-3');
 
       const aside = main.getByRole('complementary', { name: 'Matrix and plan' });
-      await expect(aside.getByText('2 case revisions × 2 engines × 2 settings × 3 seeds')).toBeVisible();
+      await expect(aside.getByText('2 problem versions × 2 engines × 2 settings × 3 seeds')).toBeVisible();
       await expect(aside.getByText(/used \+ up to|study runs this month/)).toHaveCount(0);
       await expect(aside.getByText(/your plan lets one solve run for up to 60 s/)).toBeVisible();
       await expect(create).toBeEnabled();
@@ -515,8 +515,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const create = main.getByRole('button', { name: 'Create study' });
 
       // The revision another screen named is already chosen.
-      await expect(main.getByRole('checkbox', { name: /Checkout flow · revision 2/ })).toBeChecked();
-      await expect(main.getByRole('checkbox', { name: /Checkout flow · revision 1/ })).not.toBeChecked();
+      await expect(main.getByRole('checkbox', { name: /Checkout flow · version 2/ })).toBeChecked();
+      await expect(main.getByRole('checkbox', { name: /Checkout flow · version 1/ })).not.toBeChecked();
       await main.getByRole('checkbox', { name: /random-search 1\.0\.0/ }).check();
       await main.getByLabel('Study name').fill('Refused study');
 
@@ -528,7 +528,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel(/Seeds \(comma-separated/).fill('1-100');
       for (let n = 0; n < 25; n += 1) await main.getByRole('button', { name: 'Add a setting' }).click();
       await main.getByRole('checkbox', { name: /evolutionary 1\.0\.0/ }).check();
-      await main.getByRole('checkbox', { name: /Checkout flow · revision 1/ }).check();
+      await main.getByRole('checkbox', { name: /Checkout flow · version 1/ }).check();
       await expect(main.getByRole('list', { name: 'Still needed' })).toContainText('10,000 limit');
       await expect(create).toBeDisabled();
       await capture(page, testInfo, `builder-${name}-422-too-big`, { area: main.getByRole('complementary', { name: 'Matrix and plan' }) });
@@ -571,7 +571,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await page.goto('/app/read-lab/bench/studies/new');
       await expect(main.getByText(/Creating studies needs MEMBER; you’re a VIEWER of Read Lab/)).toBeVisible();
-      await main.getByRole('checkbox', { name: /Checkout flow · revision 1/ }).check();
+      await main.getByRole('checkbox', { name: /Checkout flow · version 1/ }).check();
       await expect(main.getByRole('button', { name: 'Create study' })).toBeDisabled();
       await expect(main.getByLabel('Study name')).toBeDisabled();
       await capture(page, testInfo, `builder-${name}-viewer`, { height: 1500 });
@@ -602,7 +602,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const grid = main.getByRole('region', { name: 'The cells of the matrix' });
       await expect(grid.getByRole('columnheader')).toHaveCount(5);
       await expect(grid.getByText('cell 7')).toBeVisible();
-      await expect(main.getByText(/2 case revisions × 2 engines × 1 setting × 2 seeds = 8 cells\. Settings: 1 · engine defaults\./)).toBeVisible();
+      await expect(main.getByText(/2 problem versions × 2 engines × 1 setting × 2 seeds = 8 cells\. Settings: 1 · engine defaults\./)).toBeVisible();
       await expect(main.getByRole('link', { name: /Run #1/ })).toHaveAttribute('href', RUN);
       await expect(main.getByRole('link', { name: 'Open the definition in the library' })).toHaveCount(0);
       await expect(main.getByRole('region', { name: 'Study definition source' })).toHaveCount(0);
@@ -616,7 +616,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // A run is accepted and can be followed.
       await main.getByRole('button', { name: 'Run study' }).click();
-      await expect(main.getByText('Run #2 accepted (202). Cells start as job slots free up.')).toBeVisible();
+      await expect(main.getByText('Run #2 accepted (202). Cells start as run slots free up.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Follow run #2' })).toHaveAttribute('href', `${STUDY}/progress?run=${NEW_RUN_ID}`);
       expect(state.sent.run).toBe(VERSION_ID);
       await expect(main.getByRole('link', { name: /Run #2/ }).first()).toBeVisible();
@@ -633,7 +633,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 } } },
       });
       await main.getByRole('button', { name: 'Run study' }).click();
-      await expect(main.getByText('All your job slots are busy (429 · concurrency_limit_exceeded)')).toBeVisible();
+      await expect(main.getByText('All your run slots are busy (429 · concurrency_limit_exceeded)')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-429`, { height: 1300 });
       state.refuse.run = detail(403, 'feature_not_entitled', 'The plan does not entitle studies.');
       await main.getByRole('button', { name: 'Run study' }).click();
@@ -813,9 +813,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 2, name: 'Cell 2' })).toBeVisible();
       const inputs = main.getByRole('region', { name: 'Frozen inputs' });
-      await expect(inputs.getByRole('link', { name: 'Checkout flow · revision 1' })).toHaveAttribute('href', `${ROOT}/cases/checkout-flow/revisions/1`);
+      await expect(inputs.getByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute('href', `${ROOT}/cases/checkout-flow?version=1`);
       await expect(inputs.getByText('random-search 1.0.0')).toBeVisible();
-      await expect(inputs.getByRole('link', { name: 'snapshot…' })).toHaveAttribute('href', `${ROOT}/snapshots/snapshot-1`);
+      await expect(inputs.getByRole('link', { name: 'snapshot…' })).toHaveAttribute('href', `${ROOT}/cases/checkout-flow/source?version=1`);
       await expect(inputs.getByRole('button', { name: 'Copy cell fingerprint' })).toBeVisible();
       const result = main.getByRole('region', { name: 'Result' });
       await expect(result.getByText('0.121')).toBeVisible();
@@ -863,7 +863,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 } } },
       });
       await main.getByRole('button', { name: 'Retry this cell' }).click();
-      await expect(main.getByText('All your job slots are busy (429 · concurrency_limit_exceeded)')).toBeVisible();
+      await expect(main.getByText('All your run slots are busy (429 · concurrency_limit_exceeded)')).toBeVisible();
       state.refuse.retry = undefined;
       await main.getByRole('button', { name: 'Retry this cell' }).click();
       await expect(main.getByText('Cell queued again.')).toBeVisible();
@@ -871,10 +871,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // A cancelled cell can take the result of a job that was already run.
       await page.goto(cellPath(5));
-      await expect(main.getByText('Cancelled before it ran. Retry it, or attach the result of a job you already ran with the same inputs.')).toBeVisible();
-      await main.getByRole('button', { name: 'Use an existing job’s result' }).click();
-      const dialog = page.getByRole('dialog', { name: 'Use an existing job’s result' });
-      const choices = dialog.getByRole('radiogroup', { name: 'Finished jobs' });
+      await expect(main.getByText('Cancelled before it ran. Retry it, or attach the result of a run you already did with the same inputs.')).toBeVisible();
+      await main.getByRole('button', { name: 'Use an existing run’s result' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Use an existing run’s result' });
+      const choices = dialog.getByRole('radiogroup', { name: 'Finished runs' });
       await expect(choices.getByRole('radio')).toHaveCount(2);
       await expect(dialog.getByRole('button', { name: 'Attach this result' })).toBeDisabled();
       await choices.getByRole('radio', { name: /random-search · completed/ }).check();
@@ -937,7 +937,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('combobox', { name: 'Measure' }).selectOption('runtime');
       await expect(main.getByRole('heading', { name: 'Time taken, per engine' })).toBeVisible();
       await main.getByRole('combobox', { name: 'Measure' }).selectOption('cost');
-      await main.getByRole('combobox', { name: 'Case' }).selectOption(REVISION_2.id);
+      await main.getByRole('combobox', { name: 'Problem' }).selectOption(REVISION_2.id);
       await expect(main.getByText(/Best trade-offs:/)).toContainText('cell 4 (0.104, 420); cell 6 (0.109, 398).');
 
       // The CSV file is in the Publish tab.
@@ -1010,18 +1010,18 @@ test.describe('desktop · S7a study-cell, a job that is not a run of the cell', 
     const main = page.locator('#platform-main');
 
     await page.goto(cellPath(5));
-    await main.getByRole('button', { name: 'Use an existing job’s result' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Use an existing job’s result' });
-    await dialog.getByRole('radiogroup', { name: 'Finished jobs' }).getByRole('radio', { name: /random-search · completed/ }).check();
+    await main.getByRole('button', { name: 'Use an existing run’s result' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Use an existing run’s result' });
+    await dialog.getByRole('radiogroup', { name: 'Finished runs' }).getByRole('radio', { name: /random-search · completed/ }).check();
     state.refuse.attach = detail(409, 'cell_job_mismatch', 'The job did not run this cell.', {
       fields: ['engine', 'seed'],
       details: { engine: { cell: 'evolutionary', job: 'random-search' }, seed: { cell: 2, job: 9 } },
     });
     await dialog.getByRole('button', { name: 'Attach this result' }).click();
-    await expect(dialog.getByText('That job isn’t a run of this cell (409 · cell_job_mismatch)')).toBeVisible();
+    await expect(dialog.getByText('That run isn’t a run of this cell (409 · cell_job_mismatch)')).toBeVisible();
     await expect(dialog.getByText(/It differs in the engine and seed\./)).toBeVisible();
-    await expect(dialog.getByText('Engine: the cell has evolutionary, the job ran random-search')).toBeVisible();
-    await expect(dialog.getByText('Seed: the cell has 2, the job ran 9')).toBeVisible();
+    await expect(dialog.getByText('Engine: the cell has evolutionary, the run had random-search')).toBeVisible();
+    await expect(dialog.getByText('Seed: the cell has 2, the run had 9')).toBeVisible();
     await capture(page, testInfo, 'cell-desktop-attach-409-mismatch');
 
     // The dialog stays open, and the same choice goes through once the gateway accepts it.

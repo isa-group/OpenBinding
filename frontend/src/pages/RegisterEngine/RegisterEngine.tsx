@@ -507,7 +507,7 @@ function Wizard({ username, setup, allowance, allowanceLoading, onAllowanceChang
             <span aria-hidden="true" className="rg-done-ring"><Check /></span>
             <span>
               <strong>{registration.name} {registration.version} is active</strong>
-              <span>Only you can pick it when launching a job. It counts as 1 of your {allowance?.limit ?? 'plan’s'} federated engines.</span>
+              <span>Only you can pick it when launching a run. It counts as 1 of your {allowance?.limit ?? 'plan’s'} federated engines.</span>
             </span>
           </div>
           <dl className="rg-summary">
@@ -530,7 +530,7 @@ function Wizard({ username, setup, allowance, allowanceLoading, onAllowanceChang
           </div>
           <div className="rg-actions">
             <Action to={registrationHref(registration)} variant="primary">Open registration</Action>
-            <ProjectPicker label="Launch a job with it" destination={(org, project) => `/app/${org}/${project}/jobs/new?engine=${encodeURIComponent(bimResourceKey(engine))}`} />
+            <ProjectPicker label="Launch a run with it" destination={(org, project) => `/app/${org}/${project}/jobs/new?engine=${encodeURIComponent(bimResourceKey(engine))}`} />
             <Action to="/app/engines/registrations" variant="secondary">All my engines</Action>
           </div>
         </section>

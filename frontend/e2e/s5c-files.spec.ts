@@ -312,7 +312,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(cards.getByRole('listitem')).toHaveCount(2);
       const first = cards.getByRole('listitem').first();
       await expect(first.getByRole('link', { name: 'Referencias checkout' })).toHaveAttribute('href', `${COLLECTIONS}/referencias-checkout`);
-      await expect(first.getByText('2 case revisions')).toBeVisible();
+      await expect(first.getByText('2 problem versions')).toBeVisible();
       await expect(first.getByText('1 resource version')).toBeVisible();
       await expect(first.getByText('3 items · revision 2')).toBeVisible();
       await expect(cards.getByRole('listitem').nth(1).getByText('No revision yet')).toBeVisible();
@@ -371,7 +371,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // An empty project explains what a collection is.
       await page.goto('/app/isa-demo/checkout-privado/collections');
       await expect(main.getByText('No collections')).toBeVisible();
-      await expect(main.getByText(/Group the cases and resources you want to keep together/)).toBeVisible();
+      await expect(main.getByText(/Group the problems and resources you want to keep together/)).toBeVisible();
       await capture(page, testInfo, `collections-${name}-empty`);
 
       // A VIEWER reads, and does not see the sponsor’s allowance.
@@ -408,7 +408,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Referencias checkout' })).toBeVisible();
       await expect(items.getByRole('listitem')).toHaveCount(3);
-      await expect(items.getByRole('link', { name: 'Flujo de checkout · revision 1' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/revisions/1`);
+      await expect(items.getByRole('link', { name: 'Flujo de checkout · version 1' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout?version=1`);
       // A resource pin is plain text: the resource screens are retired, so it leads nowhere.
       const pin = items.getByRole('listitem').filter({ hasText: 'Weights · revision 1' });
       await expect(pin).toHaveCount(1);
@@ -420,7 +420,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `collection-${name}-success`);
 
       // Reordering marks the list as unsaved; the comparison names what moved.
-      await main.getByRole('button', { name: 'Move Flujo de checkout · revision 2 up' }).click();
+      await main.getByRole('button', { name: 'Move Flujo de checkout · version 2 up' }).click();
       await expect(main.getByText('Unsaved changes to the list. Saving creates a new sealed revision; the previous one stays as it was.')).toBeVisible();
       await main.getByRole('button', { name: 'Compare revisions' }).click();
       const compare = main.getByRole('region', { name: 'Your changes vs revision 2' });
@@ -431,15 +431,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The picker offers what is not in the list yet, from the project’s cases and resources.
       await main.getByRole('button', { name: 'Add item' }).click();
       const picker = page.getByRole('dialog', { name: 'Add an item' });
-      await expect(picker.getByRole('list', { name: 'Cases' }).getByRole('button')).toHaveCount(1);
-      await expect(picker.getByRole('button', { name: 'Add Flujo de checkout · revision 3' })).toBeVisible();
+      await expect(picker.getByRole('list', { name: 'Problems' }).getByRole('button')).toHaveCount(1);
+      await expect(picker.getByRole('button', { name: 'Add Flujo de checkout · version 3' })).toBeVisible();
       await capture(page, testInfo, `collection-${name}-picker`);
       if (isMobile) {
         expect(critical).toEqual([]);
         return;
       }
 
-      await picker.getByRole('button', { name: 'Add Flujo de checkout · revision 3' }).click();
+      await picker.getByRole('button', { name: 'Add Flujo de checkout · version 3' }).click();
       await expect(items.getByRole('listitem')).toHaveCount(4);
 
       // The gateway’s 422s keep the list: a repeated item, then a fingerprint that is no longer valid.
@@ -484,7 +484,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // A collection with no revision says how to get one.
       await page.goto(`${COLLECTIONS}/vacia`);
       await expect(main.getByText('No items yet')).toBeVisible();
-      await expect(main.getByText('Add cases or resources to make the first revision.')).toBeVisible();
+      await expect(main.getByText('Add problems or resources to make the first revision.')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Save as revision 1' })).toBeDisabled();
       await capture(page, testInfo, `collection-${name}-empty`);
 

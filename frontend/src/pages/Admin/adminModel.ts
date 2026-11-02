@@ -2,6 +2,7 @@ import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import type { AdminAuditPage, PricingCatalog } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { diagnosticsOf } from '../../api/problem';
+import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { formatDate } from '../../utils/format';
 import { describeLimit, LIMIT_ORDER, limitInfo, type LimitText } from '../../utils/limits';
 import type { ApiErrorEventItem } from './types';
@@ -196,9 +197,10 @@ const dictOf = (value: unknown): Dict => (isDict(value) ? value : {});
 const textOf = (value: unknown): string => (typeof value === 'string' ? value : '');
 const textsOf = (value: unknown): string[] => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []);
 
-/** `expiredApiKeys` and `STORAGE_PACK` as a sentence: “Expired api keys”, “Storage pack”. */
+/** `expiredApiKeys` and `STORAGE_PACK` as a sentence: “Expired api keys”, “Storage pack”. `terminalJobs` reads “Terminal runs”. */
+// [impl->req~frontend-nav-vocabulary-text~1]
 export function humanize(id: string): string {
-  const words = id.replace(/[_-]+/g, ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  const words = inInterfaceWords(id.replace(/[_-]+/g, ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase());
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
@@ -398,7 +400,7 @@ export function describeAuditEvent(event: AuditEvent): AuditView {
     case 'maintenance.jobs.reconciled': {
       const settled = typeof detail.settled === 'number' ? detail.settled : null;
       return {
-        text: settled === null ? 'Abandoned jobs were reconciled.' : `${settled} abandoned ${settled === 1 ? 'job was' : 'jobs were'} reconciled.`,
+        text: settled === null ? 'Abandoned runs were reconciled.' : `${settled} abandoned ${settled === 1 ? 'run was' : 'runs were'} reconciled.`,
         before: null, after: null, facts: settled === null ? [] : [['Settled', String(settled)]],
       };
     }
@@ -441,9 +443,9 @@ export function describeAuditEvent(event: AuditEvent): AuditView {
       const facts: Array<[string, string]> = [];
       if (textOf(detail.plan)) facts.push(['Plan', textOf(detail.plan)]);
       if (typeof before === 'number' && typeof after === 'number') facts.push(['Slots recorded', `${before} → ${after}`]);
-      if (typeof detail.slots_in_flight === 'number') facts.push(['Jobs in flight', String(detail.slots_in_flight)]);
+      if (typeof detail.slots_in_flight === 'number') facts.push(['Runs in flight', String(detail.slots_in_flight)]);
       return {
-        text: `Running-job slots${who ? ` of ${who}` : ''} were recounted${corrected === null ? '' : corrected === 0 ? ' (no drift)' : ` (corrected by ${corrected})`}.`,
+        text: `Run slots${who ? ` of ${who}` : ''} were recounted${corrected === null ? '' : corrected === 0 ? ' (no drift)' : ` (corrected by ${corrected})`}.`,
         before: null, after: null, facts,
       };
     }
@@ -572,7 +574,7 @@ const MEANINGS: Record<string, string> = {
   study_run_too_large: 'A study run expanded to more cells than this deployment allows per run. Refused whole, before anything was created.',
   usage_limit_exceeded: 'A period counter reported by the pricing service is spent. Nothing was started.',
   usage_limit_unknown: 'The pricing service did not report the usage of the account, so the request was refused. Retryable; worth a look if it persists.',
-  concurrency_limit_exceeded: 'Too many jobs were running at once, under the plan’s limit or the deployment’s cap (the lower applies). Clients are told to retry after 15 s.',
+  concurrency_limit_exceeded: 'Too many runs were going at once, under the plan’s limit or the deployment’s cap (the lower applies). Clients are told to retry after 15 s.',
   not_found: 'Something private or missing was asked for. The answer is the same either way, by design.',
   insufficient_api_key_permission: 'An API key lacked a permission the route needs.',
   unauthorized: 'A credential was missing or had expired.',

@@ -408,7 +408,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByText(/Showing engines visible to your account/)).toBeVisible();
       const edge = main.getByRole('region', { name: 'Engines' }).getByRole('link', { name: /edge-solver/ });
-      for (const chip of ['Private · yours', 'Registration active', 'Conformance passed', 'Publication not requested']) await expect(edge.getByText(chip)).toBeVisible();
+      for (const chip of ['Private · yours', 'Registration active', 'Conformance passed', 'Listing not requested']) await expect(edge.getByText(chip)).toBeVisible();
       await expect(main.getByRole('link', { name: 'My registrations' })).toHaveAttribute('href', '/app/engines/registrations');
       await expect(main.getByRole('link', { name: 'Register engine' })).toHaveAttribute('href', '/app/engines/new');
       await expect(main.getByRole('heading', { name: 'My deployments' })).toBeVisible();

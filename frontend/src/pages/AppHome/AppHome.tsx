@@ -53,7 +53,7 @@ function jobStatus(job: JobSummary): { label: string; tone: StatusTone } {
 function jobMeta(job: JobSummary): string {
   const started = formatDateTime(job.created_at) ?? job.created_at;
   const seconds = job.finished_at ? (Date.parse(job.finished_at) - Date.parse(job.created_at)) / 1000 : null;
-  return `Job ${job.id.slice(0, 8)}… · started ${started}${seconds !== null && seconds >= 0 ? ` · finished in ${formatDuration(seconds)}` : ''}`;
+  return `Run ${job.id.slice(0, 8)}… · started ${started}${seconds !== null && seconds >= 0 ? ` · finished in ${formatDuration(seconds)}` : ''}`;
 }
 
 function OrgBranch({ node, all, userId }: { node: TreeNode; all: Organization[]; userId: string | undefined }) {
@@ -88,23 +88,23 @@ function ActivityBlock() {
     <section className="apphome-card" aria-labelledby="home-activity-title" aria-busy={jobs.status === 'loading'}>
       <header className="home-card-head">
         <h2 id="home-activity-title">Recent activity</h2>
-        <Link to="/app/jobs" viewTransition>All jobs</Link>
+        <Link to="/app/jobs" viewTransition>All runs</Link>
       </header>
-      {jobs.status === 'loading' && <div className="home-skeleton" role="status"><span className="sr-only">Loading recent jobs…</span><Skeleton variant="tile" /><Skeleton variant="tile" /><Skeleton variant="tile" /></div>}
-      {failure && isForbidden(failure) && <p className="home-blocked">Not available with this key (needs jobs: read).</p>}
+      {jobs.status === 'loading' && <div className="home-skeleton" role="status"><span className="sr-only">Loading recent runs…</span><Skeleton variant="tile" /><Skeleton variant="tile" /><Skeleton variant="tile" /></div>}
+      {failure && isForbidden(failure) && <p className="home-blocked">Not available with this key (needs <code>jobs:read</code>).</p>}
       {failure && !isForbidden(failure) && (
         <div className="home-pad">
           <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={jobs.reload}>Retry</Action>}>
-            Recent jobs couldn’t be loaded{marker(failure)}. The other blocks are unaffected.
+            Recent runs couldn’t be loaded{marker(failure)}. The other blocks are unaffected.
           </Notice>
         </div>
       )}
       {jobs.status === 'ready' && items.length === 0 && (
         <div className="home-guide">
-          <strong>No jobs yet. Here’s a way to your first run.</strong>
+          <strong>No runs yet. Here’s a way to your first run.</strong>
           <ol>
             <li><Link to="/workbench">Open the Workbench</Link> and validate a package, or <Link to="/explore/examples">start from an example</Link>.</li>
-            <li>Open or create a project to keep its cases, runs and reports together.</li>
+            <li>Open or create a project to keep its problems, runs and reports together.</li>
             <li>Launch a run from the project; it appears here while it works.</li>
           </ol>
         </div>
@@ -135,7 +135,7 @@ function PlanBlock() {
   const data = usage.data;
   const rows = data ? usageRows(data) : [];
   const picks: Array<{ id: string; label: string; format: (value: number) => string }> = [
-    { id: 'concurrentJobs', label: 'Jobs at once', format: formatCount },
+    { id: 'concurrentJobs', label: 'Runs at once', format: formatCount },
     { id: 'apiKeys', label: 'API keys', format: formatCount },
   ];
   return (
@@ -253,7 +253,7 @@ export function AppHome() {
   const shortcuts: Shortcut[] = [];
   if (organization) shortcuts.push({ label: 'New project', to: createAddress(`/app/${organization.slug}`, 'project'), icon: Plus });
   if (organization && project) {
-    shortcuts.push({ label: 'New case', to: `/app/${organization.slug}/${project.slug}/cases`, icon: FilePlus2 });
+    shortcuts.push({ label: 'New problem', to: `/app/${organization.slug}/${project.slug}/cases`, icon: FilePlus2 });
     shortcuts.push({ label: 'Run', to: `/app/${organization.slug}/${project.slug}/jobs/new`, icon: Play });
   }
   shortcuts.push({ label: 'Verify a digest', to: '/app/verifier', icon: ShieldCheck });
@@ -291,7 +291,7 @@ export function AppHome() {
             <h2 id="home-first-title">Create your first organization</h2>
             <span>
               Organizations hold projects and members. You can nest them: a lab inside a group inherits the group’s roles.
-              Projects, inside an organization, hold your cases, studies and reports.
+              Projects, inside an organization, hold your problems, studies and reports.
               {' '}You’ll sponsor it: it counts against your plan’s organization limit{typeof limit === 'number' ? ` (${limit} on ${usage.data?.plan})` : ''}.
             </span>
             <span className="home-first-actions">

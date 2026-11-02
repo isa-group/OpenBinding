@@ -118,7 +118,7 @@ describe('One run of a study, in the Progress tab', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retry 2 unfinished cells' }));
 
-    expect(await screen.findByText(/All your job slots are busy \(429 · concurrency_limit_exceeded\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/All your run slots are busy \(429 · concurrency_limit_exceeded\)/)).toBeInTheDocument();
     expect(screen.getByText(/1 cell queued again before this stopped\./)).toBeInTheDocument();
     expect(platform.retryStudyCell).toHaveBeenCalledTimes(2);
   });

@@ -117,13 +117,13 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
   if (!effectiveName.trim()) blockers.push('Give the study a name.');
   else if (!SLUG_PATTERN.test(effectiveAddress)) blockers.push('Give it an address of lowercase letters, numbers and hyphens.');
   if (mode === 'new') {
-    if (caseCount === 0) blockers.push('Choose at least one case revision, or a sealed collection.');
+    if (caseCount === 0) blockers.push('Choose at least one problem version, or a sealed collection.');
     if (chosen.length === 0) blockers.push('Choose at least one engine mode.');
     if (seeds.error) blockers.push(seeds.error);
     if (readings.some((reading) => reading.error)) blockers.push('Fix the settings marked in red.');
     if (duplicateSettings) blockers.push('Two settings are identical.');
     if (size.cells > MAX_CELLS) blockers.push(`${size.cells.toLocaleString('en-US')} cells is over the ${MAX_CELLS.toLocaleString('en-US')} limit. Remove an engine, a setting or some seeds.`);
-    if (caseCount > MAX_CASES) blockers.push(`A study takes at most ${MAX_CASES} case revisions.`);
+    if (caseCount > MAX_CASES) blockers.push(`A study takes at most ${MAX_CASES} problem versions.`);
     if (chosen.length > MAX_ENGINES) blockers.push(`A study takes at most ${MAX_ENGINES} engine modes.`);
     if (variants.length > MAX_SETTINGS) blockers.push(`A study takes at most ${MAX_SETTINGS} settings.`);
   } else if (!adoptVersion) {
@@ -160,15 +160,15 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
   const loading = cases.status === 'loading' && !caseList;
   const collectionNote = !collectionVersion ? null
     : members.status === 'loading' ? 'Reading the collection…'
-      : members.data ? `${plural(members.data.length, 'case revision')} join the study from this collection.`
-        : 'Its cases are counted by the gateway when the study is created.';
+      : members.data ? `${plural(members.data.length, 'problem version')} join the study from this collection.`
+        : 'Its problems are counted by the gateway when the study is created.';
 
   return (
     <StudyFrame organization={organization} project={project} trail={[{ label: 'Studies', to: `${root}/studies` }, { label: 'New study' }]}>
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>New study</h1>
-          <p>Pick the cases, engines, settings and seeds. Every combination becomes one cell.</p>
+          <p>Pick the problems, engines, settings and seeds. Every combination becomes one cell.</p>
         </div>
       </header>
 
@@ -187,7 +187,7 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
         </section>
       )}
 
-      {!created && loading && <div role="status" aria-busy="true"><span className="sr-only">Loading the project’s cases…</span><Skeleton variant="panel" /></div>}
+      {!created && loading && <div role="status" aria-busy="true"><span className="sr-only">Loading the project’s problems…</span><Skeleton variant="panel" /></div>}
 
       {!created && !loading && (
         <>
@@ -201,10 +201,10 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
           </fieldset>
 
           {pinned.data && (
-            <Notice tone="info">The cases of the collection {pinned.data.name} are chosen below. Add engines, settings and seeds to finish the matrix.</Notice>
+            <Notice tone="info">The problems of the collection {pinned.data.name} are chosen below. Add engines, settings and seeds to finish the matrix.</Notice>
           )}
           {wantedCollection && pinned.status === 'ready' && !pinned.data && (
-            <Notice tone="warning">The collection “{wantedCollection}” couldn’t be read, so no cases were chosen for you.</Notice>
+            <Notice tone="warning">The collection “{wantedCollection}” couldn’t be read, so no problems were chosen for you.</Notice>
           )}
 
           <div className="st-builder">
@@ -278,11 +278,11 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
                   {Array.from({ length: Math.min(cells, 48) }, (_, position) => <i key={position} />)}
                 </span>
                 <span className="st-cap" aria-hidden="true"><i className={cells > MAX_CELLS ? 'is-over' : undefined} style={{ width: `${Math.min(100, Math.max(cells > 0 ? 1 : 0, Math.round((cells / MAX_CELLS) * 100)))}%` }} /></span>
-                <small className="org-muted">Up to {MAX_CELLS.toLocaleString('en-US')} cells, {MAX_CASES} case revisions, {MAX_ENGINES} engine modes and {MAX_SETTINGS} settings per study</small>
+                <small className="org-muted">Up to {MAX_CELLS.toLocaleString('en-US')} cells, {MAX_CASES} problem versions, {MAX_ENGINES} engine modes and {MAX_SETTINGS} settings per study</small>
               </section>
               <section className="st-plan" aria-label="How a run proceeds">
                 <p className="st-plan-note">
-                  Cells start as job slots free up{ceilings.seconds !== null ? `; your plan lets one solve run for up to ${ceilings.seconds} s` : ''}.
+                  Cells start as run slots free up{ceilings.seconds !== null ? `; your plan lets one solve run for up to ${ceilings.seconds} s` : ''}.
                 </p>
               </section>
               {refusal && <RefusalNotice refusal={refusal} usageTo />}

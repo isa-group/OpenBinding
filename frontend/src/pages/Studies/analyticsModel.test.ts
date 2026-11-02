@@ -96,7 +96,7 @@ describe('the CSV of a run', () => {
     const lines = text.split('\n');
     expect(lines[0]).toBe('cell,case_revision,engine,engine_version,mode,setting,seed,state,feasible,cost,latency,runtime_seconds,job_id,fingerprint');
     expect(lines).toHaveLength(5);
-    expect(lines[1]).toContain('Checkout flow · revision 1,evolutionary,1.0.0,genetic,Engine defaults,1,completed,true,0.112,440,120');
+    expect(lines[1]).toContain('Checkout flow · version 1,evolutionary,1.0.0,genetic,Engine defaults,1,completed,true,0.112,440,120');
     expect(lines[4]).toContain('"note a ""b"", c"');
   });
 });

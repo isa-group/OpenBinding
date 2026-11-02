@@ -15,7 +15,7 @@ const deploymentStates: Record<EngineRegistrationState, {
   badge: 'default' | 'success' | 'warning' | 'error' | 'info';
 }> = {
   private: { label: 'Private', hint: 'Visible only to your account; administrators cannot discover it.', badge: 'info' },
-  pending_review: { label: 'In review', hint: 'Visible to administrators because you requested publication.', badge: 'warning' },
+  pending_review: { label: 'In review', hint: 'Visible to administrators because you requested a listing.', badge: 'warning' },
   published: { label: 'Published', hint: 'Available to every authenticated compatible account.', badge: 'success' },
   rejected: { label: 'Rejected', hint: 'Not published; it remains private to your account.', badge: 'error' },
 };
@@ -106,7 +106,7 @@ export function MyDeployments({ username, onChanged }: { username: string; onCha
     <section className="engines-section" aria-labelledby="deployment-title">
       <div className="engines-section-heading">
         <h2 id="deployment-title">My deployments</h2>
-        <span>You control private activation independently from publication. A deployment reaches administrators only after you submit it for review.</span>
+        <span>You control private activation independently from its listing. A deployment reaches administrators only after you submit it for review.</span>
       </div>
 
       {error && (
@@ -147,17 +147,17 @@ export function MyDeployments({ username, onChanged }: { username: string; onCha
                   )}
                   {registration.active && (
                     <Button size="sm" variant="secondary" disabled={working} aria-label={`Deactivate ${registration.name}`} onClick={() => {
-                      if (window.confirm(`Deactivate ${registration.name} for your account? Its publication state will not change.`)) {
+                      if (window.confirm(`Deactivate ${registration.name} for your account? Its listing state will not change.`)) {
                         void change(registration, (ref) => apiClient.deactivateEngineRegistration(ref), `${registration.name} is inactive for your account.`);
                       }
                     }}>Deactivate</Button>
                   )}
                   {registration.active && (registration.status === 'private' || registration.status === 'rejected') && (
-                    <Button size="sm" variant="ghost" disabled={working} aria-label={`Request publication for ${registration.name}`} onClick={() => {
-                      if (window.confirm(`Submit ${registration.name} for publication? Administrators will then be able to discover and review this exact revision.`)) {
-                        void change(registration, (ref) => apiClient.requestEngineRegistrationPublication(ref), `${registration.name} was submitted for publication review.`);
+                    <Button size="sm" variant="ghost" disabled={working} aria-label={`Request listing for ${registration.name}`} onClick={() => {
+                      if (window.confirm(`Submit ${registration.name} for listing? Administrators will then be able to discover and review this exact revision.`)) {
+                        void change(registration, (ref) => apiClient.requestEngineRegistrationPublication(ref), `${registration.name} was submitted for listing review.`);
                       }
-                    }}>Request publication</Button>
+                    }}>Request listing</Button>
                   )}
                   {registration.status !== 'published' && (
                     <Button size="sm" variant="ghost" disabled={working} aria-label={`Replace credential for ${registration.name}`} onClick={() => {
@@ -182,7 +182,7 @@ export function MyDeployments({ username, onChanged }: { username: string; onCha
                         placeholder="Bearer token or username:password"
                       />
                     </label>
-                    <p>Use the token alone for bearer auth or <code>username:password</code> for Basic. Replacing it makes the deployment private and inactive, so activation and publication review must be repeated.</p>
+                    <p>Use the token alone for bearer auth or <code>username:password</code> for Basic. Replacing it makes the deployment private and inactive, so activation and listing review must be repeated.</p>
                     <div>
                       <Button type="submit" size="sm" disabled={working}>Store encrypted credential</Button>
                       <Button type="button" size="sm" variant="ghost" disabled={working} onClick={() => {

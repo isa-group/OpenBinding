@@ -519,7 +519,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `states-${name}-warnings`);
 
       await main.getByRole('button', { name: 'All', exact: true }).click();
-      await expect(main.getByText('Headline: “All your job slots are busy”')).toBeVisible();
+      await expect(main.getByText('Headline: “All your run slots are busy”')).toBeVisible();
       expect(critical).toEqual([]);
     });
   });

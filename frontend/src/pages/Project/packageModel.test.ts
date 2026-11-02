@@ -26,8 +26,8 @@ describe('inspecting a package before it is sent', () => {
     expect(inspection.problem).toBeUndefined();
     expect(inspection.rows.map((row) => [row.kind, row.outcome])).toEqual([
       ['Manifest', 'verified'],
-      ['Case revision', 'later'],
-      ['Case revision', 'later'],
+      ['Problem version', 'later'],
+      ['Problem version', 'later'],
       ['Frozen report', 'verified'],
       ['File · text/plain', 'verified'],
     ]);
@@ -116,8 +116,8 @@ describe('comparing with what the project holds', () => {
     const result = compareWithProject(await inspected(), [{ slug: 'flujo', revisions: [{ revision: 2, digest: `sha256-${'f'.repeat(64)}` }] }]);
 
     expect(result.problem).toMatchObject({ kind: 'collision', title: 'Name already used with different content' });
-    expect(result.problem?.text).toContain('Flujo de checkout · revision 2');
-    expect(result.rows.find((row) => row.outcome === 'collision')?.name).toBe('Flujo de checkout · revision 2');
+    expect(result.problem?.text).toContain('Flujo de checkout · version 2');
+    expect(result.rows.find((row) => row.outcome === 'collision')?.name).toBe('Flujo de checkout · version 2');
   });
 
   it('does not compare a package that is already refused or unreadable', async () => {
@@ -141,7 +141,10 @@ describe('reading what an import answers', () => {
   });
 
   it('words a count', () => {
-    expect(humanizeCount('caseRevisions')).toBe('case revisions');
+    expect(humanizeCount('caseRevisions')).toBe('problem versions');
+    expect(humanizeCount('cases')).toBe('problems');
+    expect(humanizeCount('jobs')).toBe('runs');
+    expect(humanizeCount('publications')).toBe('published results');
     expect(humanizeCount('studyRuns')).toBe('study runs');
   });
 });

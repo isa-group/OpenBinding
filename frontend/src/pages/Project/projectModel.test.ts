@@ -82,7 +82,7 @@ describe('what is sealed and what is a draft', () => {
 
     expect(items.map((item) => [item.id, item.kind, item.count])).toEqual([['revisions', 'sealed', 2], ['runs', 'sealed', 1], ['frozen', 'sealed', 1], ['drafts', 'draft', 2]]);
     expect(sealedShare(items)).toEqual({ sealed: 4, drafts: 2, sealedPct: 67, draftPct: 33 });
-    expect(countWord(items[0])).toBe('case revisions');
+    expect(countWord(items[0])).toBe('problem versions');
     expect(countWord(items[1])).toBe('study run');
   });
 

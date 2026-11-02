@@ -153,7 +153,7 @@ export function SeedTable({ groups, measure, cellHref }: { groups: readonly Seed
     <DataTable label="Results by seed" minWidth={640}>
       <thead>
         <tr>
-          <th scope="col">Case · engine</th>
+          <th scope="col">Problem · engine</th>
           <th scope="col">{measureTitle(measure)} by seed</th>
           <th scope="col">Difference</th>
         </tr>

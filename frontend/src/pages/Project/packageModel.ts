@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import type { PackageFormat, PackageImportResult } from '../../api/platform';
+import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { computeCanonicalDigest, computeRawSha256 } from '../../utils/canonicalDigest';
 import { shortDigest } from '../../utils/digest';
 
@@ -129,9 +130,9 @@ async function rowsOf(pkg: Dict, archive: JSZip | null): Promise<VerificationRow
   }
 
   for (const entry of list(pkg.cases)) {
-    const caseName = text(entry.name) ?? text(entry.slug) ?? 'Case';
+    const caseName = text(entry.name) ?? text(entry.slug) ?? 'Problem';
     for (const revision of list(entry.revisions)) {
-      rows.push(row(`case:${text(entry.slug)}:${String(revision.revision)}`, `${caseName} · revision ${String(revision.revision ?? '?')}`, 'Case revision', text(revision.digest), 'later'));
+      rows.push(row(`case:${text(entry.slug)}:${String(revision.revision)}`, `${caseName} · version ${String(revision.revision ?? '?')}`, 'Problem version', text(revision.digest), 'later'));
     }
   }
 
@@ -155,7 +156,7 @@ async function rowsOf(pkg: Dict, archive: JSZip | null): Promise<VerificationRow
   }
 
   for (const entry of list(pkg.publications)) {
-    rows.push(row(`publication:${text(entry.slug)}`, text(entry.slug) ?? 'Publication', 'Publication', null, 'later'));
+    rows.push(row(`publication:${text(entry.slug)}`, text(entry.slug) ?? 'Published result', 'Published result', null, 'later'));
   }
 
   for (const entry of list(pkg.artifacts)) {
@@ -179,7 +180,7 @@ async function rowsOf(pkg: Dict, archive: JSZip | null): Promise<VerificationRow
 function casesOf(pkg: Dict): DeclaredCase[] {
   return list(pkg.cases).map((entry) => ({
     slug: text(entry.slug) ?? '',
-    name: text(entry.name) ?? text(entry.slug) ?? 'Case',
+    name: text(entry.name) ?? text(entry.slug) ?? 'Problem',
     revisions: list(entry.revisions).flatMap((revision) => (typeof revision.revision === 'number' && text(revision.digest) ? [{ revision: revision.revision, digest: text(revision.digest)! }] : [])),
   }));
 }
@@ -290,7 +291,8 @@ export function packageImportCounts(result: PackageImportResult | null | undefin
   return { total: parts.reduce((sum, part) => sum + part.count, 0), parts };
 }
 
-/** `caseRevisions` → `case revisions`. */
+/** `caseRevisions` → `problem versions`, `jobs` → `runs`, `publications` → `published results`. */
+// [impl->req~frontend-nav-vocabulary-text~1]
 export function humanizeCount(id: string): string {
-  return id.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  return inInterfaceWords(id.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase()).replace(/\brevision(s?)\b/g, 'version$1');
 }

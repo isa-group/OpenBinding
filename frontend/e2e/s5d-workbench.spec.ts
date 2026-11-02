@@ -643,7 +643,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await keep.getByRole('combobox', { name: 'Project' }).selectOption({ label: 'Bench · Member Lab' });
       await keep.getByRole('button', { name: 'Save to project' }).click();
       await expect(keep.getByText('Saved to Bench · Member Lab as a synthetic instance.')).toBeVisible();
-      await expect(keep.getByRole('link', { name: 'See the project’s cases' })).toHaveAttribute('href', '/app/member-lab/bench/cases');
+      await expect(keep.getByRole('link', { name: 'See the project’s problems' })).toHaveAttribute('href', '/app/member-lab/bench/cases');
       const saved = (state.sent.instances as Array<Record<string, unknown>>).at(-1) as Record<string, unknown>;
       expect(saved).toMatchObject({ persist: true, project_id: 'project-4', case_name: 'generated_qaco', seed: 7 });
       await capture(page, testInfo, `lab-${name}-saved`);

@@ -142,7 +142,7 @@ describe('Export package and Import package in the General section of the projec
       const rows = within(report).getAllByRole('listitem');
       expect(rows).toHaveLength(5);
       expect(within(rows[0]).getByText('Package manifest')).toBeInTheDocument();
-      expect(within(rows[1]).getByText('Flujo de checkout · revision 1')).toBeInTheDocument();
+      expect(within(rows[1]).getByText('Flujo de checkout · version 1')).toBeInTheDocument();
       expect(within(rows[1]).getByText('Will be added')).toBeInTheDocument();
       expect(within(rows[3]).getByText('Verified')).toBeInTheDocument();
       expect(platform.importPackage).not.toHaveBeenCalled();
@@ -152,7 +152,7 @@ describe('Export package and Import package in the General section of the projec
 
       await waitFor(() => expect(platform.importPackage).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', file, 'json'));
       const done = await screen.findByText('Import complete');
-      expect(done.parentElement).toHaveTextContent('3 items added (1 cases, 2 case revisions).');
+      expect(done.parentElement).toHaveTextContent('3 items added (1 problems, 2 problem versions).');
       expect(screen.getByRole('link', { name: 'Back to the project' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks');
     });
 
@@ -186,7 +186,7 @@ describe('Export package and Import package in the General section of the projec
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('Name already used with different content');
-      expect(alert).toHaveTextContent('“Flujo de checkout · revision 2” exists in this project with a different fingerprint.');
+      expect(alert).toHaveTextContent('“Flujo de checkout · version 2” exists in this project with a different fingerprint.');
       expect(platform.importPackage).not.toHaveBeenCalled();
     });
 

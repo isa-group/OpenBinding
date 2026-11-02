@@ -38,7 +38,7 @@ const LIMIT_OUTCOMES = [
   {
     mark: 'Wait',
     title: 'A plan allowance reached or busy slots',
-    body: 'A plan allowance that is full (402) stays full until you free something or change plan. Busy job slots (429) free up in seconds.',
+    body: 'A plan allowance that is full (402) stays full until you free something or change plan. Busy run slots (429) free up in seconds.',
   },
   {
     mark: 'Rejected',
@@ -189,7 +189,7 @@ function ContactDialog({ plan, onClose }: { plan: string; onClose: () => void })
       <p>{plan} is arranged as an institutional agreement. An administrator updates your contract; nothing is charged here.</p>
       <ul className="pricing-contact-list">
         <li>Who it’s for: your organization or group</li>
-        <li>What you need: concurrent jobs, studies, storage</li>
+        <li>What you need: concurrent runs, studies, storage</li>
         <li>Add-ons you’d need</li>
       </ul>
       <p className="pricing-contact-note">This page doesn’t send anything. Take these details to the people who run this OpenBinding deployment, or to your institution’s administrator.</p>
@@ -307,7 +307,7 @@ export function Pricing() {
             <Matrix view={view} highlight={highlight} plan={plan} />
             <p className="pricing-legend">
               Rounded figures show the exact value underneath. Monthly limits renew each month; capacity limits are freed when
-              work finishes; per-request ceilings apply to each job. Sponsored limits count across every organization a sponsor backs.
+              work finishes; per-request ceilings apply to each run. Sponsored limits count across every organization a sponsor backs.
             </p>
 
             {view.gates.length > 0 && (

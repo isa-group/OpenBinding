@@ -399,7 +399,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(ceilings.getByRole('row', { name: /Max time per job/ })).toContainText('15 min');
       await expect(ceilings.getByRole('row', { name: /Max time per job/ })).toContainText('900 s');
       await expect(ceilings.getByRole('row', { name: /Max problem size/ })).toContainText('10²⁰');
-      await expect(main.getByRole('link', { name: 'Open job history' })).toHaveAttribute('href', '/app/jobs');
+      await expect(main.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/jobs');
       await expect(main.getByRole('heading', { name: 'Organizations you sponsor' })).toBeVisible();
       await expect(main.getByText('Confirmed by your plan check')).toBeVisible();
       await expect(main.getByText('Authoring', { exact: true }).locator('..')).toContainText('Enabled');
@@ -607,7 +607,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const review = main.locator('dl.keynew-review');
       await expect(review).toContainText('ci-nightly');
       await expect(review).toContainText('In 30 days');
-      await expect(review).toContainText('Launch, cancel and retry jobs (engines:execute)');
+      await expect(review).toContainText('Launch, cancel and retry runs (engines:execute)');
       await expect(review).toContainText('GET · isa-demo · qos-benchmarks · jobs · latency-study');
       await capture(page, testInfo, `keynew-${name}-5-review`);
 
@@ -687,7 +687,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `identities-${name}-linked`);
       if (isMobile) {
         await main.getByRole('button', { name: 'Unlink' }).click();
-        await expect(page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' }).getByLabel('Plan change')).toContainText('3 concurrent jobs');
+        await expect(page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' }).getByLabel('Plan change')).toContainText('3 concurrent runs');
         await capture(page, testInfo, `identities-${name}-unlink-dialog`);
         expect(critical).toEqual([]);
         return;
@@ -696,8 +696,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // Leaving RESEARCH is typed: the dialog says what changes and refuses anything but the exact phrase.
       await main.getByRole('button', { name: 'Unlink' }).click();
       const dialog = page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' });
-      await expect(dialog.getByLabel('Plan change')).toContainText('3 concurrent jobs');
-      await expect(dialog.getByLabel('Plan change')).toContainText('1 concurrent job');
+      await expect(dialog.getByLabel('Plan change')).toContainText('3 concurrent runs');
+      await expect(dialog.getByLabel('Plan change')).toContainText('1 concurrent run');
       const unlink = dialog.getByRole('button', { name: 'Unlink' });
       await expect(unlink).toBeDisabled();
       await dialog.getByLabel('Type DOWNGRADE RESEARCH to confirm').fill('downgrade research');
@@ -789,7 +789,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('You have 1 unread notification')).toBeVisible();
 
       // Filters.
-      await main.getByRole('button', { name: 'Jobs' }).click();
+      await main.getByRole('button', { name: 'Runs' }).click();
       await expect(list.getByRole('listitem')).toHaveCount(1);
       await expect(list.getByText('Job completed')).toBeVisible();
       await main.getByRole('button', { name: 'Invitations' }).click();

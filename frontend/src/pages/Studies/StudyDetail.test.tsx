@@ -171,7 +171,7 @@ describe('One study', () => {
     expect(within(grid).getByRole('columnheader', { name: 'random-search (sampling) · seed 2' })).toBeInTheDocument();
     expect(within(grid).getByRole('rowheader', { name: 'Checkout flow r2' })).toBeInTheDocument();
     expect(within(grid).getByText('cell 7')).toBeInTheDocument();
-    expect(screen.getByText(/2 case revisions × 2 engines × 1 setting × 2 seeds = 8 cells\. Settings: 1 · engine defaults\. Seeds: 1, 2\. Every run repeats exactly these cells\./)).toBeInTheDocument();
+    expect(screen.getByText(/2 problem versions × 2 engines × 1 setting × 2 seeds = 8 cells\. Settings: 1 · engine defaults\. Seeds: 1, 2\. Every run repeats exactly these cells\./)).toBeInTheDocument();
 
     expect(await screen.findByRole('region', { name: 'Runs' })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Run #1/ })).toHaveAttribute('href', `${STUDY}/progress?run=00000000-0000-4000-8000-000000000101`);
@@ -214,14 +214,14 @@ describe('One study', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Run study' }));
 
-    expect(await screen.findByText('Run #2 accepted (202). Cells start as job slots free up.')).toBeInTheDocument();
+    expect(await screen.findByText('Run #2 accepted (202). Cells start as run slots free up.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Follow run #2' })).toHaveAttribute('href', `${STUDY}/progress?run=run-2`);
     expect(platform.runStudy).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', VERSION_ID);
   });
 
   it.each([
     ['402 out of storage', new QuotaError('quota_exceeded', 'full', { limit_id: 'storageBytes', limit: 100, used: 100 }), 'Out of storage (402 · quota_exceeded)'],
-    ['429 job slots busy', refusal(429, 'concurrency_limit_exceeded', 'busy', { concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 }, retryAfter: 15 }), 'All your job slots are busy (429 · concurrency_limit_exceeded)'],
+    ['429 job slots busy', refusal(429, 'concurrency_limit_exceeded', 'busy', { concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 }, retryAfter: 15 }), 'All your run slots are busy (429 · concurrency_limit_exceeded)'],
     ['403 feature', refusal(403, 'feature_not_entitled', 'No studies.'), 'Your plan doesn’t include studies right now (403 · feature_not_entitled)'],
     ['409 evidence only', refusal(409, 'evidence_only_study'), 'This study only holds stored evidence (409 · evidence_only_study)'],
     ['403 key engine', refusal(403, 'api_key_engine_forbidden', 'This key does not grant Evolutionary.'), 'This API key isn’t allowed to use one of the study’s engines (403 · api_key_engine_forbidden)'],

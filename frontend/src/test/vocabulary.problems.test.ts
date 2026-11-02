@@ -122,7 +122,7 @@ describe('the vocabulary scanner', () => {
 
   // [utest->req~frontend-nav-vocabulary-text~1]
   it('tells application code from test support files', () => {
-    for (const path of ['/src/a/X.test.tsx', '/src/a/xTestKit.tsx', '/src/a/testUtils.ts', '/src/test/fixtures/jobs.ts', '/src/a/fixtures.ts', '/src/test/setup.ts', '/src/a/x.d.ts']) {
+    for (const path of ['/src/a/X.test.tsx', '/src/a/xTestKit.tsx', '/src/a/testUtils.ts', '/src/test/fixtures/jobs.ts', '/src/a/fixtures.ts', '/src/pages/Pricing/pricingFixture.ts', '/src/components/rendering/runResultFixtures.ts', '/src/test/setup.ts', '/src/a/x.d.ts']) {
       expect(isTestSupport(path), path).toBe(true);
     }
     for (const path of ['/src/pages/Cases/CaseList.tsx', '/src/pages/Workbench/workbenchModel.ts', '/src/pages/Resources/parts.tsx']) {

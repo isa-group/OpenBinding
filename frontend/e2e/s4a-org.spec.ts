@@ -322,7 +322,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const activity = main.getByRole('region', { name: 'Recent activity' });
       await expect(activity.getByText('Running')).toBeVisible();
       await expect(activity.getByText('No feasible binding')).toBeVisible();
-      await expect(activity.getByRole('link', { name: 'All jobs' })).toHaveAttribute('href', '/app/jobs');
+      await expect(activity.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', '/app/jobs');
       const plan = main.getByRole('region', { name: 'Your plan' });
       await expect(plan.getByText('RESEARCH', { exact: true })).toBeVisible();
       await expect(plan.getByText('Up to 3')).toBeVisible();
@@ -339,7 +339,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // A block that fails does not take the others with it, and can be asked again.
       state.refuse.jobs = unavailable;
       await page.reload();
-      await expect(main.getByRole('region', { name: 'Recent activity' }).getByRole('alert')).toContainText('Recent jobs couldn’t be loaded (503). The other blocks are unaffected.');
+      await expect(main.getByRole('region', { name: 'Recent activity' }).getByRole('alert')).toContainText('Recent runs couldn’t be loaded (503). The other blocks are unaffected.');
       await expect(main.getByRole('list', { name: 'Organizations' }).getByRole('link')).toHaveCount(5);
       await expect(main.getByRole('region', { name: 'Your plan' }).getByText('RESEARCH', { exact: true })).toBeVisible();
       await capture(page, testInfo, `home-${name}-activity-503`);
@@ -369,7 +369,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'I have an invitation' })).toHaveAttribute('href', '/invitations/accept');
       await expect(main.getByText(/organization limit \(5 on RESEARCH\)/)).toBeVisible();
       await expect(main.getByText('You’re not in any organization yet.')).toBeVisible();
-      await expect(main.getByText(/No jobs yet/)).toBeVisible();
+      await expect(main.getByText(/No runs yet/)).toBeVisible();
       await capture(page, testInfo, `home-${name}-first-organization`);
       expect(critical).toEqual([]);
     });

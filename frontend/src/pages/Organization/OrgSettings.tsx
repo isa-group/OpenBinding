@@ -286,7 +286,7 @@ function SettingsBody({ organization }: { organization: Organization }) {
           <strong>Delete this organization</strong>
           <span className="org-muted">
             Deletes everything inside it, including sub-organizations. An organization with sealed history (published reports,
-            study runs, case revisions or library versions) can’t be deleted. This can’t be undone.
+            study runs, problem versions or library versions) can’t be deleted. This can’t be undone.
           </span>
           <dl className="org-impact" aria-label="What deleting removes">
             {impact.map((item) => <div key={item.l}><dt>{item.l}</dt><dd>{item.n}</dd></div>)}

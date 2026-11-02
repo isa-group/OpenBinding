@@ -52,7 +52,7 @@ function BoundaryPicker({ label, options, selected, onChange, hint, freeText = t
       <span className="keynew-bound-label">{label}</span>
       <span className="keynew-pills">
         {shown.map((value) => (
-          <button key={value} type="button" aria-pressed={selected.includes(value)} onClick={() => toggle(value)}>{value}</button>
+          <button key={value} type="button" aria-pressed={selected.includes(value)} onClick={() => toggle(value)}><code>{value}</code></button>
         ))}
         {shown.length === 0 && <span className="acct-muted">{hint ?? 'None to pick from.'}</span>}
       </span>
@@ -183,7 +183,9 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
     }
   };
 
-  const canList = permissions.length ? permissions.map((permission) => `${describeDescription(permission)} (${permission})`) : ['Nothing yet'];
+  const canList = permissions.length
+    ? permissions.map((permission) => ({ key: permission, item: <>{describeDescription(permission)} (<code>{permission}</code>)</> }))
+    : [{ key: 'nothing', item: <>Nothing yet</> }];
   const boundSummary = Object.values(boundary).flat();
   const adminLocked = !isAdmin;
   const expiryLabel = EXPIRY_PRESETS.find((item) => item.id === expiry)?.label ?? '';
@@ -288,7 +290,7 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
                         />
                         <span>
                           <span className="keynew-perm-id">
-                            {permission.id}
+                            <code>{permission.id}</code>
                             {ADMIN_ONLY.has(permission.id) && <span className="keynew-admin-badge">ADMIN</span>}
                           </span>
                           <span id={noteId} className="keynew-perm-desc">
@@ -311,7 +313,7 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
         {step === 3 && (
           <>
             <h2>Engine access</h2>
-            <p>Permissions that run or read engine work (engines:*, jobs:read, instances:validate, studies:*) need all engines or at least one exact engine.</p>
+            <p>Permissions that run or read engine work (<code>engines:*</code>, <code>jobs:read</code>, <code>instances:validate</code>, <code>studies:*</code>) need all engines or at least one exact engine.</p>
             <div role="radiogroup" aria-label="Engine access" className="keynew-radios">
               <label className={allEngines ? 'is-on' : undefined}>
                 <input type="radio" name="engine-access" checked={allEngines} onChange={() => { setAllEngines(true); setError(null); }} />
@@ -353,7 +355,7 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
             <BoundaryPicker label="Organizations" options={orgSlugs} selected={boundary.organizations} onChange={setBoundaryValues('organizations')} hint="You don’t belong to an organization yet." />
             <BoundaryPicker label="Projects" options={projectSlugs} selected={boundary.projects} onChange={setBoundaryValues('projects')} hint="No projects to pick from." />
             <BoundaryPicker label="Resource kinds" options={KIND_SUGGESTIONS} selected={boundary.resource_kinds} onChange={setBoundaryValues('resource_kinds')} />
-            <BoundaryPicker label="Slugs" options={[]} selected={boundary.slugs} onChange={setBoundaryValues('slugs')} hint="Exact resource slugs, such as a case or study." />
+            <BoundaryPicker label="Slugs" options={[]} selected={boundary.slugs} onChange={setBoundaryValues('slugs')} hint="Exact resource slugs, such as a problem or study." />
           </>
         )}
 
@@ -363,9 +365,9 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
             <dl className="keynew-review">
               <dt>Name</dt><dd><strong>{name.trim()}</strong></dd>
               <dt>Expires</dt><dd>{expiryLabel}</dd>
-              <dt>Can</dt><dd><ul>{canList.map((item) => <li key={item}>{item}</li>)}</ul></dd>
+              <dt>Can</dt><dd><ul>{canList.map(({ key, item }) => <li key={key}>{item}</li>)}</ul></dd>
               <dt>Engines</dt><dd>{allEngines ? 'All engines, including future ones' : selectedEngines.length ? selectedEngines.map((engine) => `${engine.namespace}/${engine.name}@${engine.version}`).join(', ') : 'None'}</dd>
-              <dt>Limited to</dt><dd>{boundSummary.length ? boundSummary.join(' · ') : 'No extra limits'}</dd>
+              <dt>Limited to</dt><dd>{boundSummary.length ? boundSummary.map((value, index) => <span key={`${value}-${index}`}>{index > 0 && ' · '}<code>{value}</code></span>) : 'No extra limits'}</dd>
             </dl>
             <Notice tone="info">
               After creation the key’s authority can’t be edited. Rotating keeps it; to change it, create a new key and revoke this one.

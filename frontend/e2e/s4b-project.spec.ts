@@ -399,7 +399,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const band = main.locator('.proj-band');
       await expect(band.getByText('Public', { exact: true })).toBeVisible();
       await expect(band.getByText('OWNER')).toBeVisible();
-      await expect(band.getByRole('link', { name: 'New case' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases');
+      await expect(band.getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases');
       await expect(band.getByRole('link', { name: 'Export package' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/settings');
       const tabs = main.getByRole('navigation', { name: 'Project sections' });
       await expect(tabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Collections', 'Runs', 'Studies', 'Published', 'Settings']);
@@ -407,11 +407,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(tabs.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/settings');
 
       const strip = main.getByRole('region', { name: 'What’s sealed and what’s still a draft' });
-      await expect(strip.getByRole('list', { name: 'Sealed and draft items' }).getByRole('listitem')).toHaveText(['2 case revisions', '1 study run', '1 frozen report', '1 report draft']);
-      const cases = main.getByRole('region', { name: 'Cases' });
+      await expect(strip.getByRole('list', { name: 'Sealed and draft items' }).getByRole('listitem')).toHaveText(['2 problem versions', '1 study run', '1 frozen report', '1 report draft']);
+      const cases = main.getByRole('region', { name: 'Problems' });
       await expect(cases.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases/flujo-checkout');
       await expect(cases.getByText('2 revisions')).toBeVisible();
-      const jobs = main.getByRole('list', { name: 'Recent jobs' });
+      const jobs = main.getByRole('list', { name: 'Recent runs' });
       await expect(jobs.getByRole('listitem')).toHaveCount(3);
       await expect(jobs.getByRole('link')).toHaveCount(2);
       await expect(jobs.getByText('Owner only')).toBeVisible();
@@ -429,7 +429,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto('/app/consultora-demo/client-case');
       await expect(main.getByRole('heading', { level: 1, name: 'Client case' })).toBeVisible();
       await expect(band.getByText('VIEWER', { exact: true })).toBeVisible();
-      await expect(band.getByText('New case')).toHaveAttribute('aria-disabled', 'true');
+      await expect(band.getByText('New problem')).toHaveAttribute('aria-disabled', 'true');
       await expect(band.getByRole('link', { name: 'Export package' })).toHaveCount(0);
       await expect(main.getByText('You’re a VIEWER: you can read everything here; creating needs MEMBER.')).toBeVisible();
       await expect(main.getByRole('region', { name: 'Get started' })).toBeVisible();
@@ -452,9 +452,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('You are viewing a public project (read-only).')).toBeVisible();
       const publicTabs = main.getByRole('navigation', { name: 'Project sections' });
       await expect(publicTabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Collections', 'Studies', 'Published']);
-      await expect(band.getByRole('link', { name: 'Browse cases' })).toHaveAttribute('href', '/app/open-lab/open-bench/cases');
-      for (const hidden of ['New case', 'Run', 'New study', 'New report', 'Export package']) await expect(band.getByText(hidden, { exact: true })).toHaveCount(0);
-      await expect(main.getByRole('region', { name: 'Recent jobs' })).toHaveCount(0);
+      await expect(band.getByRole('link', { name: 'Browse problems' })).toHaveAttribute('href', '/app/open-lab/open-bench/cases');
+      for (const hidden of ['New problem', 'Run', 'New study', 'New report', 'Export package']) await expect(band.getByText(hidden, { exact: true })).toHaveCount(0);
+      await expect(main.getByRole('region', { name: 'Recent runs' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: /Flujo de checkout/ })).toBeVisible();
       await capture(page, testInfo, `overview-${name}-public-read`);
 
@@ -492,14 +492,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The jobs card fails on its own: the rest of the page is there, and it loads on retry.
       state.refuse.jobs = unavailable;
       await page.goto('/app/isa-demo/qos-benchmarks');
-      const jobsCard = main.getByRole('region', { name: 'Recent jobs' });
-      await expect(jobsCard.getByRole('alert')).toContainText('Jobs couldn’t be loaded (503). The rest of the page is unaffected.');
+      const jobsCard = main.getByRole('region', { name: 'Recent runs' });
+      await expect(jobsCard.getByRole('alert')).toContainText('Runs couldn’t be loaded (503). The rest of the page is unaffected.');
       await expect(main.getByRole('link', { name: /Flujo de checkout/ })).toBeVisible();
       await expect(main.getByRole('region', { name: 'Studies' }).getByText('Run #1 · partial')).toBeVisible();
       await capture(page, testInfo, `overview-${name}-jobs-503`);
       state.refuse.jobs = undefined;
       await jobsCard.getByRole('button', { name: 'Retry' }).click();
-      await expect(jobsCard.getByRole('list', { name: 'Recent jobs' }).getByRole('listitem')).toHaveCount(3);
+      await expect(jobsCard.getByRole('list', { name: 'Recent runs' }).getByRole('listitem')).toHaveCount(3);
       expect(critical).toEqual([]);
     });
 
@@ -524,7 +524,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('/app/isa-demo/qos-benchmarks', { exact: true })).toBeVisible();
       await expect(main.getByRole('button', { name: 'Save' })).toBeDisabled();
       // The project has case revisions, study runs and a frozen report: deleting is blocked up front, and says why.
-      await expect(main.getByRole('note')).toContainText('Deleting is blocked: this project has sealed history (2 case revisions, 1 study run, 1 frozen report), including 1 published report.');
+      await expect(main.getByRole('note')).toContainText('Deleting is blocked: this project has sealed history (2 problem versions, 1 study run, 1 frozen report), including 1 published report.');
       await expect(main.getByRole('button', { name: 'Delete project' })).toBeDisabled();
       await capture(page, testInfo, `settings-${name}-success`);
 
@@ -655,7 +655,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Import into QoS Benchmarks' }).click();
       expect((await imported).headers()['content-type']).toContain('application/json');
       await expect(main.getByText('Import complete')).toBeVisible();
-      await expect(main.getByText('5 items added (1 cases, 2 case revisions, 1 reports, 1 artifacts).')).toBeVisible();
+      await expect(main.getByText('5 items added (1 problems, 2 problem versions, 1 reports, 1 artifacts).')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Back to the project' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks');
       await capture(page, testInfo, `package-${name}-done`);
 
@@ -670,7 +670,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Choose another package' }).click();
       await upload(await samplePackage({ caseSlug: 'flujo-checkout', conflicting: true }));
       await expect(main.getByRole('alert')).toContainText('Name already used with different content');
-      await expect(main.getByRole('alert')).toContainText('“Flujo de checkout · revision 2” exists in this project with a different fingerprint.');
+      await expect(main.getByRole('alert')).toContainText('“Flujo de checkout · version 2” exists in this project with a different fingerprint.');
       await capture(page, testInfo, `package-${name}-collision`);
       await main.getByRole('button', { name: 'Choose another package' }).click();
 

@@ -21,7 +21,7 @@ configure({ asyncUtilTimeout: 5000 });
 const PREVIEW = { expiredArtifacts: 2, expiredApiKeys: 1, terminalJobs: 14, abandonedJobs: 1, terminalJobCutoff: '2025-10-09T00:00:00Z' };
 const NOTHING = { expiredArtifacts: 0, expiredApiKeys: 0, terminalJobs: 0, abandonedJobs: 0, terminalJobCutoff: '2025-10-09T00:00:00Z' };
 
-const retention = () => screen.getByLabelText('Keep finished jobs for (days)');
+const retention = () => screen.getByLabelText('Keep finished runs for (days)');
 const tile = async (label: string) => {
   const list = await screen.findByRole('list', { name: 'Maintenance preview' });
   return within(within(list).getByText(label).closest('[role="listitem"]') as HTMLElement);
@@ -45,10 +45,10 @@ describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30
     expect(screen.getByRole('heading', { level: 1, name: 'Maintenance' })).toBeInTheDocument();
     expect((await tile('Expired artifacts')).getByText('2')).toBeInTheDocument();
     expect((await tile('Expired API keys')).getByText('1')).toBeInTheDocument();
-    const jobs = await tile('Finished jobs to purge');
+    const jobs = await tile('Finished runs to purge');
     expect(jobs.getByText('14')).toBeInTheDocument();
     expect(jobs.getByText('Finished before Oct 9, 2025, more than 365 days ago.')).toBeInTheDocument();
-    expect((await tile('Abandoned jobs')).getByText('1')).toBeInTheDocument();
+    expect((await tile('Abandoned runs')).getByText('1')).toBeInTheDocument();
     expect(api.adminMaintenancePreview).toHaveBeenCalledWith(365);
     expect(retention()).toHaveValue('365');
   });
@@ -81,7 +81,7 @@ describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30
     await tile('Expired artifacts');
     const purge = screen.getByRole('button', { name: 'Purge…' });
     await waitFor(() => expect(purge).toBeEnabled());
-    expect(screen.getByRole('list', { name: 'What a purge would remove' })).toHaveTextContent('14 finished jobs older than 365 days');
+    expect(screen.getByRole('list', { name: 'What a purge would remove' })).toHaveTextContent('14 finished runs older than 365 days');
     fireEvent.click(purge);
 
     const dialog = screen.getByRole('dialog', { name: 'Purge expired data?' });
@@ -130,24 +130,24 @@ describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30
 
   it('settles abandoned jobs and says how many', async () => {
     renderAdmin(<AdminMaintenance />);
-    await tile('Abandoned jobs');
-    fireEvent.click(screen.getByRole('button', { name: 'Reconcile jobs' }));
-    expect(await screen.findByText('1 abandoned job settled. Recorded in the audit log.')).toBeInTheDocument();
+    await tile('Abandoned runs');
+    fireEvent.click(screen.getByRole('button', { name: 'Reconcile runs' }));
+    expect(await screen.findByText('1 abandoned run settled. Recorded in the audit log.')).toBeInTheDocument();
     await waitFor(() => expect(api.adminMaintenancePreview).toHaveBeenCalledTimes(2));
   });
 
   it('says when job reconciliation fails', async () => {
     api.adminReconcileJobs.mockRejectedValue(refusal(503, 'space_unavailable', 'SPACE did not answer.'));
     renderAdmin(<AdminMaintenance />);
-    await tile('Abandoned jobs');
-    fireEvent.click(screen.getByRole('button', { name: 'Reconcile jobs' }));
+    await tile('Abandoned runs');
+    fireEvent.click(screen.getByRole('button', { name: 'Reconcile runs' }));
     expect(await screen.findByText('A dependency is down (503 · space_unavailable)')).toBeInTheDocument();
     expect(screen.getByText(/Inspect the worker and SPACE health before retrying/)).toBeInTheDocument();
   });
 
   it('offers no contract or pricing action: contracts live in SPACE', async () => {
     renderAdmin(<AdminMaintenance />);
-    await tile('Abandoned jobs');
+    await tile('Abandoned runs');
     expect(screen.queryByRole('button', { name: /contract/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/LIVE/)).not.toBeInTheDocument();
   });

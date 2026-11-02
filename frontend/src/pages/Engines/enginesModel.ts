@@ -140,7 +140,7 @@ export function engineRows(engines: EngineCatalogEntry[], context: RowContext): 
     if (registration) chips.push(registration.active ? 'Registration active' : 'Registration inactive');
     if (revision?.registration?.verificationReport?.status === 'verified') chips.push('Conformance passed');
     else if (revision?.registration?.verificationReport?.status === 'failed') chips.push('Conformance failed');
-    if (visibility === 'private') chips.push(`Publication ${publication}`);
+    if (visibility === 'private') chips.push(`Listing ${publication}`);
     return {
       key,
       engine,

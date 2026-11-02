@@ -85,7 +85,7 @@ export function RunPanel({ wb, orgSlug, jobsHref }: { wb: Workbench; orgSlug: st
         </div>
       )}
       {wb.runError && (
-        <Notice tone="error" title={wb.runRange ? 'This engine only accepts single values' : 'The run did not finish'} action={<Link to={jobsHref} viewTransition>See jobs</Link>}>
+        <Notice tone="error" title={wb.runRange ? 'This engine only accepts single values' : 'The run did not finish'} action={<Link to={jobsHref} viewTransition>See runs</Link>}>
           {wb.runError}
           {wb.runRange && (
             <span className="wb-range-note">

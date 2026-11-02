@@ -44,9 +44,9 @@ describe('Jobs of a project', () => {
   it('lists every run with its state, engine, outcome and time, and says how long they are kept', async () => {
     renderList();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Jobs' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Runs' })).toBeInTheDocument();
     expect(screen.getByText(/Every run in QoS Benchmarks\. Anyone in the project sees the summary/)).toBeInTheDocument();
-    const table = await screen.findByRole('region', { name: 'Jobs of the project' });
+    const table = await screen.findByRole('region', { name: 'Runs of the project' });
     expect(within(table).getAllByRole('row')).toHaveLength(5);
     const done = within(table).getByRole('row', { name: /random-search/ });
     expect(within(done).getByText('Completed')).toBeInTheDocument();
@@ -67,31 +67,31 @@ describe('Jobs of a project', () => {
     expect(await screen.findByRole('heading', { name: 'Members only' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to the project' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks');
     expect(platform.projectJobs).not.toHaveBeenCalled();
-    expect(screen.queryByRole('region', { name: 'Jobs of the project' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Runs of the project' })).not.toBeInTheDocument();
   });
 
   it('opens only the runs this account launched; the others are summaries', async () => {
     renderList();
 
-    const table = await screen.findByRole('region', { name: 'Jobs of the project' });
-    const opens = within(table).getAllByRole('link', { name: /^Open job/ });
+    const table = await screen.findByRole('region', { name: 'Runs of the project' });
+    const opens = within(table).getAllByRole('link', { name: /^Open run/ });
     expect(opens.map((link) => link.getAttribute('href'))).toEqual([`${ROOT}/jobs/job-running-1`, `${ROOT}/jobs/job-done-3`, `${ROOT}/jobs/job-failed-4`]);
-    expect(within(table).getByText('Owner only')).toHaveAttribute('title', 'Jobs open only for whoever launched them');
+    expect(within(table).getByText('Owner only')).toHaveAttribute('title', 'Runs open only for whoever launched them');
     expect(within(table).getByText('Another member')).toBeInTheDocument();
   });
 
   it('lets a platform administrator open every run', async () => {
     renderList({ user: iker });
 
-    const table = await screen.findByRole('region', { name: 'Jobs of the project' });
-    expect(within(table).getAllByRole('link', { name: /^Open job/ })).toHaveLength(4);
+    const table = await screen.findByRole('region', { name: 'Runs of the project' });
+    expect(within(table).getAllByRole('link', { name: /^Open run/ })).toHaveLength(4);
     expect(within(table).queryByText('Owner only')).not.toBeInTheDocument();
   });
 
   it('narrows the list by status and by engine, with counts on the pills', async () => {
     renderList();
 
-    const table = await screen.findByRole('region', { name: 'Jobs of the project' });
+    const table = await screen.findByRole('region', { name: 'Runs of the project' });
     expect(screen.getByRole('button', { name: 'All (4)' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Completed (2)' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Running (1)' }));
@@ -111,7 +111,7 @@ describe('Jobs of a project', () => {
     jobsApi.retry.mockResolvedValue(jobOf('job-new-5', 'evolutionary', 'queued', null, '2026-10-09T08:00:00Z', null, { retry_of_id: 'job-failed-4' }));
     renderList();
 
-    const table = await screen.findByRole('region', { name: 'Jobs of the project' });
+    const table = await screen.findByRole('region', { name: 'Runs of the project' });
     expect(within(table).getAllByRole('button', { name: 'Retry' })).toHaveLength(1);
     fireEvent.click(within(table).getByRole('button', { name: 'Retry' }));
 
@@ -125,14 +125,14 @@ describe('Jobs of a project', () => {
     renderList();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
-    expect(await screen.findByText(/All your job slots are busy \(429/)).toBeInTheDocument();
+    expect(await screen.findByText(/All your run slots are busy \(429/)).toBeInTheDocument();
   });
 
   // [utest->req~frontend-retire-no-link-to-retired~1]
   it('offers no selection and no Analyze action', async () => {
     renderList();
 
-    await screen.findByRole('region', { name: 'Jobs of the project' });
+    await screen.findByRole('region', { name: 'Runs of the project' });
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Analyze/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^Analyze/ })).not.toBeInTheDocument();
@@ -144,7 +144,7 @@ describe('Jobs of a project', () => {
     view.unmount();
 
     renderList({ slug: 'read-lab' });
-    await screen.findByRole('region', { name: 'Jobs of the project' });
+    await screen.findByRole('region', { name: 'Runs of the project' });
     expect(screen.queryByRole('link', { name: 'New run' })).not.toBeInTheDocument();
   });
 
@@ -153,7 +153,7 @@ describe('Jobs of a project', () => {
     renderList();
 
     expect(await screen.findByText('No runs yet')).toBeInTheDocument();
-    expect(screen.getByText('Pick a case revision and an engine to run it.')).toBeInTheDocument();
+    expect(screen.getByText('Pick a problem version and an engine to run it.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', `${ROOT}/jobs/new`);
   });
 
@@ -161,10 +161,10 @@ describe('Jobs of a project', () => {
     platform.projectJobs.mockRejectedValueOnce(refusal(503, 'unavailable'));
     renderList();
 
-    expect(await screen.findByText(/Jobs can’t be loaded right now \(503/)).toBeInTheDocument();
+    expect(await screen.findByText(/Runs can’t be loaded right now \(503/)).toBeInTheDocument();
     expect(screen.queryByText('No runs yet')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('region', { name: 'Jobs of the project' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Runs of the project' })).toBeInTheDocument();
   });
 
   it('gives a project the account is not in the neutral not-found answer', async () => {
@@ -180,7 +180,7 @@ describe('Jobs of a project', () => {
     jobsApi.mine.mockResolvedValue([]);
     renderList();
 
-    const table = await screen.findByRole('region', { name: 'Jobs of the project' });
+    const table = await screen.findByRole('region', { name: 'Runs of the project' });
     expect(within(table).getAllByRole('row')).toHaveLength(21);
     expect(screen.getByText('Showing 1–20 of 25')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));

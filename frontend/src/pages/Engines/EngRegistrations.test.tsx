@@ -200,7 +200,7 @@ describe('eng-registrations · my engines', () => {
     renderPage();
     await screen.findByRole('row', { name: 'edge-solver 0.3.1' });
     fireEvent.click(screen.getByRole('button', { name: 'Deactivate edge-solver 0.3.1' }));
-    expect(await screen.findByText('Deactivated. You can’t pick it for new jobs until you activate it again.')).toBeInTheDocument();
+    expect(await screen.findByText('Deactivated. You can’t pick it for new runs until you activate it again.')).toBeInTheDocument();
     expect(api.deactivateEngineRegistration).toHaveBeenCalledWith(expect.objectContaining({ name: 'edge-solver' }));
   });
 
@@ -261,6 +261,6 @@ describe('eng-registrations · my engines', () => {
     expect(api.deactivateEngineRegistration).not.toHaveBeenCalled();
     const dialog = screen.getByRole('dialog', { name: 'Deactivate edge-solver?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Deactivate' }));
-    expect(await screen.findByText('Deactivated. Nobody can pick it for new jobs until you activate it again.')).toBeInTheDocument();
+    expect(await screen.findByText('Deactivated. Nobody can pick it for new runs until you activate it again.')).toBeInTheDocument();
   });
 });

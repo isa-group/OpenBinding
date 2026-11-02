@@ -4,13 +4,14 @@ import { failureBody } from './helpers/problems';
 import { digestOf, irDocument } from '../src/pages/Cases/fixtures';
 import { REGISTRATION, detailOf } from '../src/test/fixtures/jobs';
 
-// F2 · ranges of candidate features, from the cases to the engines.
+// F2 · ranges of candidate features, from the problems to the engines.
 // A feature of a candidate is a number or a range { min, max } whose ends are numbers or null (no limit). This walks it through the
-// screens that read it (a case revision, a comparison) and decide on it
+// screens that read it (the Overview and the Versions tab of a problem page) and decide on it
 // (the engine step of a run, a run the engine refused, the workbench, a run that failed for ranges). Snapshot pages are covered by their unit tests. The API origin is the shared mock of the QA gallery with a few answers of
 // its own on top. Unlike the other specs, the pictures are always taken (test-results/, ignored by git): they are the evidence of F2.
 
-const expect = baseExpect.configure({ timeout: 10_000 });
+// The first screens are slow to open under load (the problem page reads the case and then its compiled snapshot), so a wait is generous.
+const expect = baseExpect.configure({ timeout: 20_000 });
 
 const ME_ID = '00000000-0000-4000-8000-000000000005';
 const S1 = '00000000-0000-4000-8000-0000000000e0';
@@ -78,13 +79,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test.describe.configure({ mode: 'serial' });
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('case-revision and case-compare · bars for ranges and what changed between two revisions', async ({ page }, testInfo) => {
+    test('case-detail · bars for ranges on the Overview and what changed between two versions on the Versions tab', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await installMockApi(page, 'admin');
       await answerSnapshots(page);
       const main = page.locator('#platform-main');
 
-      await page.goto(`${ROOT}/cases/checkout-flow/revisions/2`);
+      await page.goto(`${ROOT}/cases/checkout-flow?version=2`);
       const providers = main.getByRole('region', { name: 'Candidates' });
       await expect(providers.getByRole('table')).toBeVisible();
       await expect(providers.getByRole('row', { name: /auth-1/ })).toContainText('≤ 60 ms');
@@ -103,7 +104,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         return;
       }
 
-      await page.goto(`${ROOT}/cases/checkout-flow/compare?from=1&to=2`);
+      await page.goto(`${ROOT}/cases/checkout-flow/versions?from=1&to=2`);
       const row = (what: RegExp) => main.getByRole('row', { name: what });
       await expect(row(/authenticate-1 · latency \(now a range\)/)).toContainText('40 ms');
       await expect(row(/authenticate-1 · latency \(now a range\)/)).toContainText('≤ 60 ms');

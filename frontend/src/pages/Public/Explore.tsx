@@ -23,7 +23,7 @@ import './Explore.css';
 
 const EMPTY: Record<ExploreTab, { title: string; hint: string }> = {
   projects: { title: 'No public projects yet', hint: 'Projects appear here when an organization makes one public.' },
-  publications: { title: 'No public publications yet', hint: 'A publication appears when a project admin publishes a frozen report edition.' },
+  publications: { title: 'No published results yet', hint: 'A published result appears when a project admin publishes a frozen report edition.' },
   engines: { title: 'No public engines', hint: 'Private engines need an account and are never listed here.' },
 };
 
@@ -179,8 +179,8 @@ function ExploreTabContent({ tab, data, initialQuery, onShowPublications }: Cont
         {data.status === 'ready' && data.items.length > 0 && (
           <div className="explore-layout">
             <div className="explore-results">
-              <span className="explore-count">{visible.length} public {visible.length === 1 ? meta.singular : meta.noun}</span>
-              {visible.length === 0 && <div className="explore-none">No public {meta.noun} match “{query}”.</div>}
+              <span className="explore-count">{visible.length} {visible.length === 1 ? meta.singular : meta.noun}</span>
+              {visible.length === 0 && <div className="explore-none">No {meta.noun} match “{query}”.</div>}
               <ul className="explore-grid">
                 {visible.map((item) => (
                   <li key={item.id}>
@@ -214,7 +214,7 @@ function PublicationDetails({ item }: { item: PublicationItem }) {
   const { copy, status } = useCopy();
   return (
     <>
-      <span className="explore-kind">Publication</span>
+      <span className="explore-kind">Published result</span>
       <h2>{item.title}</h2>
       <dl>
         <dt>Authors</dt><dd>{item.authors ?? 'Not listed'}</dd>
@@ -236,7 +236,7 @@ function PublicationDetails({ item }: { item: PublicationItem }) {
       <small>BibTeX and a ready-made reference are generated on the verification page.</small>
       {item.digest
         ? <Link className="explore-action" to={`/resolve/report/${item.digest}`}>Open verification</Link>
-        : <span className="explore-details-empty">This publication lists no digest, so it cannot be verified from here.</span>}
+        : <span className="explore-details-empty">This published result lists no digest, so it cannot be verified from here.</span>}
     </>
   );
 }
@@ -250,16 +250,16 @@ function ProjectDetails({ item, signedIn, onShowPublications }: { item: ProjectI
       <dl>
         <dt>Organization</dt><dd>{item.organization.name} ({item.organization.slug})</dd>
         <dt>Slug</dt><dd className="is-mono">{item.project.slug}</dd>
-        <dt>Publications</dt><dd>{item.publications}</dd>
+        <dt>Published results</dt><dd>{item.publications}</dd>
       </dl>
       <div className="explore-info">
         <Info aria-hidden="true" />
-        <span>Public projects are listed here and their publications verify by digest. Opening the project itself requires membership.</span>
+        <span>Public projects are listed here and their published results verify by digest. Opening the project itself requires membership.</span>
       </div>
       {signedIn
         ? <Link className="explore-action" to={`/app/${item.organization.slug}/${item.project.slug}`}>Open project</Link>
         : <Link className="explore-action" to="/login">Log in to open as a member</Link>}
-      <Button variant="secondary" onClick={() => onShowPublications(item)}>See its publications</Button>
+      <Button variant="secondary" onClick={() => onShowPublications(item)}>See its published results</Button>
     </>
   );
 }

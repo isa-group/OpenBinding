@@ -50,7 +50,7 @@ export function visibilityEffects(next: Visibility): { changes: string[]; stays:
       ? ['Its card (name, description) appears in Explore', 'It stops counting as a private project for the sponsor']
       : ['It disappears from Explore', 'It counts as a private project for the sponsor'],
     stays: [
-      'Cases, drafts and runs still need membership to open',
+      'Problems, drafts and runs still need membership to open',
       'Nothing gets published: publishing is a separate step per report',
       'Already-published reports stay verifiable by fingerprint',
     ],
@@ -105,7 +105,7 @@ export function integrityOf(input: { cases?: CaseContent[]; reports?: Report[]; 
   const frozen = (input.reports ?? []).filter((item) => item.state === 'frozen').length;
   const drafts = (input.reports ?? []).filter((item) => item.state === 'draft').length;
   const items: IntegrityItem[] = [
-    { id: 'revisions', kind: 'sealed', count: revisions, singular: 'case revision', plural: 'case revisions' },
+    { id: 'revisions', kind: 'sealed', count: revisions, singular: 'problem version', plural: 'problem versions' },
     { id: 'runs', kind: 'sealed', count: runs, singular: 'study run', plural: 'study runs' },
     { id: 'frozen', kind: 'sealed', count: frozen, singular: 'frozen report', plural: 'frozen reports' },
     { id: 'drafts', kind: 'draft', count: drafts, singular: 'report draft', plural: 'report drafts' },

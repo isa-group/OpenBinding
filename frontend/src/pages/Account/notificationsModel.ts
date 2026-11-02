@@ -9,7 +9,7 @@ export const NOTIFICATIONS_UPDATED = 'openbinding:notifications-updated';
 export const NOTIFICATION_FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'contract', label: 'Contract changes' },
-  { id: 'job', label: 'Jobs' },
+  { id: 'job', label: 'Runs' },
   { id: 'invite', label: 'Invitations' },
 ] as const;
 

@@ -40,16 +40,16 @@ function SpacePanel({ space }: { space: BindingSpaceAnalytics }) {
       <div className="st-card-head">
         <h2 id="st-space-title">{several ? 'Largest search space' : 'Search space'}</h2>
         <small className="org-muted">
-          {several ? `${space.cases?.length} case revisions · largest cardinality` : space.case_name ? `${space.case_name} · revision ${space.revision}` : 'Analyzed instance'}
+          {several ? `${space.cases?.length} problem versions · largest cardinality` : space.case_name ? `${space.case_name} · version ${space.revision}` : 'Analyzed instance'}
           {' · '}{parseBindingSpace(space.cardinality).formatted} ≈ 10{toSuperscript(Math.round(space.log10))} combinations, {plural(space.tasks, 'task')}
         </small>
       </div>
       <BindingSpaceBadge cardinality={space.cardinality} breakdown={space.breakdown} variant="card" />
       {several && space.cases && (
-        <ul className="st-space-cases" aria-label="Search space of each case revision">
+        <ul className="st-space-cases" aria-label="Search space of each problem version">
           {space.cases.map((item) => (
             <li key={item.id}>
-              <span><strong>{item.name}</strong><small>revision {item.revision} · {plural(item.tasks, 'task')}</small></span>
+              <span><strong>{item.name}</strong><small>version {item.revision} · {plural(item.tasks, 'task')}</small></span>
               <BindingSpaceBadge cardinality={item.cardinality} breakdown={item.breakdown} />
             </li>
           ))}
@@ -71,7 +71,7 @@ function CellSolutions({ cells, index }: { cells: readonly StudyCell[]; index: R
   return (
     <section className="st-card" aria-labelledby="st-explore-title">
       <h2 id="st-explore-title">Explore the solutions of one cell</h2>
-      <p className="org-muted">Choose one execution to keep its instance, objective and normalization together. Different cases are never pooled into one front.</p>
+      <p className="org-muted">Choose one execution to keep its instance, objective and normalization together. Different problems are never pooled into one front.</p>
       <div className="st-explore-pick">
         <label className="job-select">
           <span>Cell</span>
@@ -85,9 +85,9 @@ function CellSolutions({ cells, index }: { cells: readonly StudyCell[]; index: R
         </label>
         <Action variant="secondary" size="sm" disabled={!chosen || asked === chosen} busy={Boolean(asked) && result.status === 'loading'} onClick={() => setAsked(chosen)}>Load the solutions</Action>
       </div>
-      {failure && <Notice tone="error">{failure.status === 404 ? 'That job opens only for whoever launched it' : 'The solutions couldn’t be loaded'}{marker(failure)}.</Notice>}
+      {failure && <Notice tone="error">{failure.status === 404 ? 'That run opens only for whoever launched it' : 'The solutions couldn’t be loaded'}{marker(failure)}.</Notice>}
       {asked && result.status === 'ready' && result.data && <BindingAnalysis result={result.data} jobId={asked} />}
-      {asked && result.status === 'ready' && !result.data && <p className="org-muted">That job has no stored result.</p>}
+      {asked && result.status === 'ready' && !result.data && <p className="org-muted">That run has no stored result.</p>}
     </section>
   );
 }
@@ -215,8 +215,8 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
                   <div className="st-card-tools">
                     {caseIds.length > 1 && (
                       <label className="job-select">
-                        <span>Case</span>
-                        <select aria-label="Case" value={scatterCase} onChange={(event) => setCaseChoice(event.target.value)}>
+                        <span>Problem</span>
+                        <select aria-label="Problem" value={scatterCase} onChange={(event) => setCaseChoice(event.target.value)}>
                           {caseIds.map((id) => <option key={id} value={id}>{revisionLabel(index, id, true)}</option>)}
                         </select>
                       </label>
@@ -239,7 +239,7 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
                     )}
                   </div>
                   {points.length === 0
-                    ? <p className="org-muted">No completed cell of this case has both objectives.</p>
+                    ? <p className="org-muted">No completed cell of this problem has both objectives.</p>
                     : <TradeoffPlot points={points} xName={xName} yName={yName} />}
                   {points.some((point) => point.front) && (
                     <p className="st-caption">
@@ -255,7 +255,7 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
             <section className="st-card st-wide" aria-labelledby="st-rank-title">
               <h2 id="st-rank-title">Engine ranking</h2>
               <RankingTable rows={rows} measure={measure} />
-              <small className="org-muted">Ranked by the mean of {measureLabel(measure).toLowerCase()} over completed cells. Cases are pooled here; open one case in the trade-offs to compare like with like.</small>
+              <small className="org-muted">Ranked by the mean of {measureLabel(measure).toLowerCase()} over completed cells. Problems are pooled here; open one problem in the trade-offs to compare like with like.</small>
             </section>
 
             <section className="st-card st-wide" aria-labelledby="st-seed-title">

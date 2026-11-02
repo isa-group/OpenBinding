@@ -40,9 +40,9 @@ const escapeRegExp = (word: string): string => word.replace(/[.*+?^${}()|[\]\\]/
 // [impl->req~frontend-nav-vocabulary-text~1]
 export const wordPattern = (words: readonly string[]): RegExp => new RegExp(`\\b(?:${words.map(escapeRegExp).join('|')})\\b`, 'i');
 
-/** True for a file that is not application code: tests, test kits and utilities, fixtures, declarations and everything under `test/`. */
+/** True for a file that is not application code: tests, test kits and utilities, fixtures (`fixtures.ts`, `pricingFixture.ts`), declarations and everything under `test/`. */
 export const isTestSupport = (path: string): boolean => (
-  /(\.test\.[cm]?[jt]sx?$|[Tt]est[Kk]it\.[jt]sx?$|[Tt]est[Uu]tils\.[jt]sx?$|\.d\.ts$|(^|\/)fixtures?\.[jt]sx?$|(^|\/)(test|__tests__|fixtures)\/)/
+  /(\.test\.[cm]?[jt]sx?$|[Tt]est[Kk]it\.[jt]sx?$|[Tt]est[Uu]tils\.[jt]sx?$|\.d\.ts$|[Ff]ixtures?\.[jt]sx?$|(^|\/)(test|__tests__|fixtures)\/)/
 ).test(path);
 
 const PATH_LIKE = /^\s*(?:https?:|mailto:|\/|\.{1,2}\/|#)|:\/\//;

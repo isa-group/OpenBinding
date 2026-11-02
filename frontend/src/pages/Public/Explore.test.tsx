@@ -58,7 +58,7 @@ describe('Explore', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Public work on OpenBinding' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /Engines at checkout/ })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('tab', { name: /Publications/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /Published results/ })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: /Projects/ })).toHaveTextContent('2');
     expect(screen.getByRole('tab', { name: /Engines/ })).toHaveTextContent('1');
 
@@ -85,7 +85,7 @@ describe('Explore', () => {
     renderExplore('/explore?tab=projects');
 
     const card = await screen.findByRole('button', { name: /QoS Benchmarks/ });
-    await waitFor(() => expect(card).toHaveTextContent('1 publication'));
+    await waitFor(() => expect(card).toHaveTextContent('1 published result'));
     const details = screen.getByRole('complementary', { name: 'Details' });
     expect(within(details).getByRole('link', { name: 'Log in to open as a member' })).toHaveAttribute('href', '/login');
     expect(within(details).queryByRole('link', { name: 'Open project' })).not.toBeInTheDocument();
@@ -98,9 +98,9 @@ describe('Explore', () => {
     const details = await screen.findByRole('complementary', { name: 'Details' });
     expect(within(details).getByRole('link', { name: 'Open project' })).toHaveAttribute('href', '/app/isa-demo/qos');
 
-    fireEvent.click(within(details).getByRole('button', { name: 'See its publications' }));
+    fireEvent.click(within(details).getByRole('button', { name: 'See its published results' }));
 
-    expect(await screen.findByRole('tab', { name: /Publications/ })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('tab', { name: /Published results/ })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('searchbox', { name: 'Search this tab' })).toHaveValue('QoS Benchmarks');
     expect(screen.getByRole('button', { name: /Engines at checkout/ })).toBeInTheDocument();
   });
@@ -138,7 +138,7 @@ describe('Explore', () => {
     renderExplore();
 
     expect(document.querySelector('[aria-busy="true"]')).toBeInTheDocument();
-    expect(await screen.findByText('No public publications yet')).toBeInTheDocument();
+    expect(await screen.findByText('No published results yet')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: /Engines/ }));
     expect(await screen.findByText('No public engines')).toBeInTheDocument();
@@ -158,9 +158,9 @@ describe('Explore', () => {
     renderExplore('/explore?tab=publications');
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Publications couldn’t be loaded (HTTP 503). Your search and filters are kept.');
+    expect(alert).toHaveTextContent('Published results couldn’t be loaded (HTTP 503). Your search and filters are kept.');
     expect(screen.getByRole('tab', { name: /Projects/ })).toHaveTextContent('2');
-    expect(screen.getByRole('tab', { name: /Publications/ })).toHaveTextContent('–');
+    expect(screen.getByRole('tab', { name: /Published results/ })).toHaveTextContent('–');
 
     platform.publicPublications.mockResolvedValue(publications);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
@@ -204,7 +204,7 @@ describe('Explore', () => {
     renderExplore();
     await screen.findByRole('button', { name: /Engines at checkout/ });
 
-    fireEvent.keyDown(screen.getByRole('tab', { name: /Publications/ }), { key: 'ArrowRight' });
+    fireEvent.keyDown(screen.getByRole('tab', { name: /Published results/ }), { key: 'ArrowRight' });
 
     expect(await screen.findByRole('tab', { name: /Engines/ })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'explore-tab-engines');

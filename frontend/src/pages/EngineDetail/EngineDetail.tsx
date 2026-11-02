@@ -434,7 +434,7 @@ function ModePanel({ mode, ceilings, loading, failed, plan, signedIn, ownPlan, o
       </div>
       <p className="engine-detail-muted">
         Time and effort options (<code>time_budget_ms</code>, <code>iterations</code>, <code>max_evaluations</code>) are reduced to the plan’s
-        ceiling and the job carries an OPTION_CLAMPED warning; it isn’t an error. Every other option applies as requested.
+        ceiling and the run carries an OPTION_CLAMPED warning; it isn’t an error. Every other option applies as requested.
       </p>
 
       <section className="engine-detail-card engine-detail-pad" aria-label="Mode contract">
@@ -501,7 +501,7 @@ function CapabilitiesPanel({ modes, signedIn }: { modes: EngineMode[]; signedIn:
       </DataTable>
       <Notice tone="info">
         {signedIn
-          ? 'Compatibility with your last validated package is checked when you launch a job.'
+          ? 'Compatibility with your last validated package is checked when you launch a run.'
           : 'Validate a package in the Workbench, then log in to check it against this mode.'}
       </Notice>
       <small className="engine-detail-muted"><code>none</code> rejects the dimension. <code>only</code> names exact values. <code>all</code> is valid only when the Profile closes the vocabulary.</small>

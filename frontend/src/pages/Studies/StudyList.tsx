@@ -97,7 +97,7 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Studies</h1>
-          <p>A study runs every combination of cases × engines × settings × seeds, so results can be compared fairly and repeated.</p>
+          <p>A study runs every combination of problems × engines × settings × seeds, so results can be compared fairly and repeated.</p>
         </div>
         {canCreate && <div className="proj-actions"><Action to={`${root}/studies/new`} variant="primary">New study</Action></div>}
       </header>
@@ -126,7 +126,7 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
           <DemoGrid />
           <div>
             <strong>No studies yet</strong>
-            <span>2 case revisions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.</span>
+            <span>2 problem versions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.</span>
             {canCreate
               ? <Action to={`${root}/studies/new`} variant="primary">Build a study</Action>
               : <small className="org-muted">{publicRead ? 'This project hasn’t shared a study yet.' : `Creating a study needs MEMBER in ${organization.name}.`}</small>}

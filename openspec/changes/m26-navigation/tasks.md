@@ -283,7 +283,7 @@ Owns:
 - `F/pages/Account/notificationsModel*`;
 - text-only edits in `F/pages/{Admin,Engines,Generator,Platform}/**`, and in any other file the scanner reports that
   no running slice holds;
-- `F/test/vocabulary.runs.test.ts` and `F/test/vocabulary.rest.test.ts`;
+- `F/test/vocabulary.all.test.ts`;
 - `E/{s6a-jobs,s9a-admin}.spec.ts`.
 
 Tasks:

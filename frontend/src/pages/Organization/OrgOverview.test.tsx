@@ -202,7 +202,7 @@ describe('Organization overview', () => {
     renderOverview([group], 'ghost');
 
     expect(await screen.findByRole('heading', { name: 'Organization not available' })).toBeInTheDocument();
-    expect(screen.getByText(/It doesn’t exist, or you’re not a member\. We show the same message in both cases/)).toBeInTheDocument();
+    expect(screen.getByText(/It doesn’t exist, or you’re not a member\. We show the same message either way/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/app');
     expect(screen.getByRole('link', { name: 'Explore public projects' })).toHaveAttribute('href', '/explore');
     expect(platform.projects).not.toHaveBeenCalled();

@@ -245,8 +245,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const accounts = main.getByRole('region', { name: 'Accounts', exact: true });
       await expect(accounts.getByText('7', { exact: true })).toBeVisible();
       await expect(accounts.getByText('3 BASIC', { exact: true })).toBeVisible();
-      await expect(main.getByRole('region', { name: 'Job queue', exact: true }).getByText(/Oldest waiting: minizinc job, running for about 1 day/)).toBeVisible();
-      await expect(main.getByRole('region', { name: 'Moderation', exact: true }).getByText('Engine publication requests')).toBeVisible();
+      await expect(main.getByRole('region', { name: 'Run queue', exact: true }).getByText(/Oldest waiting: minizinc run, running for about 1 day/)).toBeVisible();
+      await expect(main.getByRole('region', { name: 'Moderation', exact: true }).getByText('Engine catalogue requests')).toBeVisible();
       await expect(main.getByRole('region', { name: 'Errors, last 24 h', exact: true }).getByText('9 events in total')).toBeVisible();
       const pricing = main.getByRole('region', { name: 'Pricing', exact: true });
       await expect(pricing.getByText('0.1.0', { exact: true })).toBeVisible();
@@ -275,7 +275,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // One block failing leaves the rest of the page as it was.
       state.refuse.queues = detail(503, 'accounts_unavailable', 'down');
       await page.goto('/app/admin');
-      const queue = main.getByRole('region', { name: 'Job queue', exact: true });
+      const queue = main.getByRole('region', { name: 'Run queue', exact: true });
       await expect(queue.getByText('This block couldn’t load')).toBeVisible();
       await expect(main.getByRole('region', { name: 'Accounts', exact: true }).getByText('7', { exact: true })).toBeVisible();
       await capture(page, testInfo, `overview-${name}-block-fails`, { height: tall(1300) });
@@ -469,7 +469,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Audit log', exact: true })).toBeVisible();
       await expect(main.getByRole('list', { name: 'Events, newest first' }).getByRole('listitem')).toHaveCount(3);
-      await expect(main.getByText('2 abandoned jobs were reconciled.')).toBeVisible();
+      await expect(main.getByText('2 abandoned runs were reconciled.')).toBeVisible();
       await expect(main.getByText('Pricing live activated: 0.1.0.')).toBeVisible();
       await capture(page, testInfo, `audit-${name}-list`, { height: tall(1500) });
 
@@ -483,7 +483,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `audit-${name}-detail`, { height: tall(1700) });
 
       await main.getByRole('group', { name: 'Kind of event' }).getByRole('button', { name: 'Pricing' }).click();
-      await expect(main.getByText('2 abandoned jobs were reconciled.')).toHaveCount(0);
+      await expect(main.getByText('2 abandoned runs were reconciled.')).toHaveCount(0);
       await main.getByRole('group', { name: 'Kind of event' }).getByRole('button', { name: 'All', exact: true }).click();
       await main.getByLabel('Exact action').fill('pricing.live.activated');
       await main.getByRole('button', { name: 'Filter', exact: true }).click();
@@ -534,7 +534,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `audit-${name}-503`, { height: tall(900) });
       state.refuse.audit = undefined;
       await main.getByRole('button', { name: 'Try again' }).click();
-      await expect(main.getByText('2 abandoned jobs were reconciled.')).toBeVisible();
+      await expect(main.getByText('2 abandoned runs were reconciled.')).toBeVisible();
       state.refuse.audit = forbidden;
       await page.goto('/app/admin/audit');
       await expect(main.getByText('This key can’t use administration (403)')).toBeVisible();
@@ -595,25 +595,25 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('admin-queues /app/admin/queues · jobs by state, the oldest ones, and what the gateway does not let an administrator do', async ({ page }, testInfo) => {
+    test('admin-queues /app/admin/queues · runs by state, the oldest ones, and what the gateway does not let an administrator do', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin/queues');
       const main = page.locator('#platform-main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Queues', exact: true })).toBeVisible();
-      await expect(main.getByRole('list', { name: 'Jobs by state' }).getByRole('listitem')).toHaveCount(5);
-      await expect(main.getByText('One job has run far past its time budget')).toBeVisible();
-      const jobs = main.getByRole('list', { name: 'Jobs in flight, oldest first' });
+      await expect(main.getByRole('list', { name: 'Runs by state' }).getByRole('listitem')).toHaveCount(5);
+      await expect(main.getByText('One run has gone far past its time budget')).toBeVisible();
+      const jobs = main.getByRole('list', { name: 'Runs in flight, oldest first' });
       await expect(jobs.getByRole('listitem', { name: 'minizinc running' }).getByText('Age about 1 day · past its budget')).toBeVisible();
       await expect(jobs.getByRole('listitem', { name: 'random-search queued' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Reconcile abandoned jobs' })).toHaveAttribute('href', '/app/admin/maintenance');
+      await expect(main.getByRole('link', { name: 'Reconcile abandoned runs' })).toHaveAttribute('href', '/app/admin/maintenance');
       await expect(main.getByRole('heading', { name: 'What this screen can’t do' })).toBeVisible();
       await capture(page, testInfo, `queues-${name}-list`, { height: tall(1700) });
       await capture(page, testInfo, `queues-${name}-full`);
 
       await main.getByRole('button', { name: 'Refresh', exact: true }).click();
-      await expect(main.getByText('One job has run far past its time budget')).toBeVisible();
+      await expect(main.getByText('One run has gone far past its time budget')).toBeVisible();
       await main.getByLabel('Refresh every 10 s').check();
       await expect(main.getByLabel('Refresh every 10 s')).toBeChecked();
       await main.getByLabel('Refresh every 10 s').uncheck();
@@ -628,7 +628,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `queues-${name}-503`, { height: tall(900) });
       state.refuse.queues = undefined;
       await main.getByRole('button', { name: 'Try again' }).click();
-      await expect(main.getByRole('list', { name: 'Jobs by state' })).toBeVisible();
+      await expect(main.getByRole('list', { name: 'Runs by state' })).toBeVisible();
       state.refuse.queues = forbidden;
       await page.goto('/app/admin/queues');
       await expect(main.getByText('This key can’t use administration (403)')).toBeVisible();

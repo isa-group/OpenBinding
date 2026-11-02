@@ -3,7 +3,7 @@ import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { catalogFixture } from '../Pricing/pricingFixture';
 import {
-  ageLabel, agreementIssues, auditFamily, compareLimits, describeAdminFailure, describeAuditEvent, errorMeaning, groupErrors, limitsOf,
+  ageLabel, agreementIssues, auditFamily, compareLimits, describeAdminFailure, describeAuditEvent, errorMeaning, groupErrors, humanize, limitsOf,
   planTone, readContractCatalog, readErrorEvent, shortId, statusTone, type ContractCatalog,
 } from './adminModel';
 import { AUDIT, ERROR_EVENTS, SAM } from '../../test/fixtures/admin';
@@ -123,7 +123,7 @@ describe('audit events in words', () => {
     expect(describeAuditEvent({ ...base, action: 'admin.user.updated', detail: {} }).text).toBe('An account was updated.');
     expect(describeAuditEvent({ ...base, action: 'admin.api_key.revoked', detail: { key: { id: 'k1', name: 'ci', prefix: 'obk_1', hash: 'must-not-show', secret: 'must-not-show' } } }))
       .toMatchObject({ text: 'API key “ci” (obk_1…) was revoked.', facts: [['Key name', 'ci'], ['Key prefix', 'obk_1'], ['Key id', 'k1']] });
-    expect(describeAuditEvent({ ...base, action: 'admin.usage.resynced', detail: { corrected_by: 0, username: 'sam' } }).text).toBe('Running-job slots of sam were recounted (no drift).');
+    expect(describeAuditEvent({ ...base, action: 'admin.usage.resynced', detail: { corrected_by: 0, username: 'sam' } }).text).toBe('Run slots of sam were recounted (no drift).');
     expect(describeAuditEvent({ ...base, action: 'account.cas.linked', detail: { plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false } } }))
       .toMatchObject({ before: 'BASIC', after: 'RESEARCH', facts: [['Plan', 'BASIC → RESEARCH · no extra cost']] });
     expect(describeAuditEvent({ ...base, action: 'account.cas.linked', detail: {} }).text).toBe('An institutional identity was linked.');
@@ -157,10 +157,17 @@ describe('audit events in words', () => {
   });
 
   it('describes the maintenance and pricing events the gateway writes', () => {
-    expect(describeAuditEvent(AUDIT.events[0]).text).toBe('2 abandoned jobs were reconciled.');
-    expect(describeAuditEvent({ ...AUDIT.events[0], detail: { settled: 1 } }).text).toBe('1 abandoned job was reconciled.');
+    expect(describeAuditEvent(AUDIT.events[0]).text).toBe('2 abandoned runs were reconciled.');
+    expect(describeAuditEvent({ ...AUDIT.events[0], detail: { settled: 1 } }).text).toBe('1 abandoned run was reconciled.');
     expect(describeAuditEvent({ ...AUDIT.events[0], action: 'maintenance.expired.purged', detail: { terminalJobs: 4, expiredApiKeys: 1 } }).facts)
-      .toEqual([['Expired api keys', '1'], ['Terminal jobs', '4']]);
+      .toEqual([['Expired api keys', '1'], ['Terminal runs', '4']]);
+    expect(humanize('abandonedJobs')).toBe('Abandoned runs');
+    expect(humanize('jobs')).toBe('Runs');
+    expect(humanize('binding_cases')).toBe('Binding problems');
+    expect(humanize('publications')).toBe('Published results');
+    expect(humanize('STORAGE_PACK')).toBe('Storage pack');
+    expect(describeAuditEvent({ ...AUDIT.events[0], action: 'job.retried', detail: {} }).text).toBe('Run retried.');
+    expect(describeAuditEvent({ ...AUDIT.events[0], action: 'case.created', detail: {} }).text).toBe('Problem created.');
     expect(describeAuditEvent(AUDIT.events[1]).text).toBe('Pricing live activated: 0.1.0.');
   });
 

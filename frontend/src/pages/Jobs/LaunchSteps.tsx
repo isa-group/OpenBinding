@@ -32,7 +32,7 @@ export function SourceStep({ choices, value, onChange, workbenchHref }: {
     <>
       <h2>What to solve</h2>
       {choices.length === 0 && (
-        <div className="job-empty">Nothing to solve yet. This project has no case revision, and no snapshot was chosen.</div>
+        <div className="job-empty">Nothing to solve yet. This project has no problem version, and no snapshot was chosen.</div>
       )}
       {choices.length > 0 && (
         <div role="radiogroup" aria-label="Source" className="job-choices">
@@ -126,7 +126,7 @@ function OptionsTable({ plans, values, onChange }: { plans: readonly OptionPlan[
           </tbody>
         </table>
       </div>
-      <span className="org-muted">Values above your plan run at the ceiling and the job carries a note; it isn’t an error.</span>
+      <span className="org-muted">Values above your plan run at the ceiling and the run carries a note; it isn’t an error.</span>
     </>
   );
 }

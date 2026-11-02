@@ -47,8 +47,8 @@ const create = () => screen.getByRole('button', { name: 'Create study' });
 const SEEDS = /Seeds \(comma-separated, ranges like 1-5 work\)/;
 
 async function chooseMatrix() {
-  fireEvent.click(await checkbox(/Checkout flow · revision 1/));
-  fireEvent.click(await checkbox(/Checkout flow · revision 2/));
+  fireEvent.click(await checkbox(/Checkout flow · version 1/));
+  fireEvent.click(await checkbox(/Checkout flow · version 2/));
   fireEvent.click(await checkbox(/random-search 1\.0\.0/));
   fireEvent.click(await checkbox(/evolutionary 1\.0\.0/));
 }
@@ -72,9 +72,9 @@ describe('A new study', () => {
     renderBuilder();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'New study' })).toBeInTheDocument();
-    expect(screen.getByText('Pick the cases, engines, settings and seeds. Every combination becomes one cell.')).toBeInTheDocument();
-    expect(await checkbox(/Checkout flow · revision 2/)).toBeEnabled();
-    expect(await checkbox(/Checkout flow · revision 3/)).toBeDisabled();
+    expect(screen.getByText('Pick the problems, engines, settings and seeds. Every combination becomes one cell.')).toBeInTheDocument();
+    expect(await checkbox(/Checkout flow · version 2/)).toBeEnabled();
+    expect(await checkbox(/Checkout flow · version 3/)).toBeDisabled();
     expect(screen.getByText(/No compiled snapshot yet, so engines have nothing to run/)).toBeInTheDocument();
     expect(await checkbox(/random-search 1\.0\.0/)).not.toBeChecked();
     expect(screen.getByLabelText(SEEDS)).toHaveValue('1, 2');
@@ -83,7 +83,7 @@ describe('A new study', () => {
     expect(create()).toBeDisabled();
     const needed = screen.getByRole('list', { name: 'Still needed' });
     expect(within(needed).getByText('Give the study a name.')).toBeInTheDocument();
-    expect(within(needed).getByText('Choose at least one case revision, or a sealed collection.')).toBeInTheDocument();
+    expect(within(needed).getByText('Choose at least one problem version, or a sealed collection.')).toBeInTheDocument();
     expect(within(needed).getByText('Choose at least one engine mode.')).toBeInTheDocument();
   });
 
@@ -92,11 +92,11 @@ describe('A new study', () => {
     await chooseMatrix();
 
     const aside = screen.getByRole('complementary', { name: 'Matrix and plan' });
-    expect(within(aside).getByText('2 case revisions × 2 engines × 1 setting × 2 seeds')).toBeInTheDocument();
+    expect(within(aside).getByText('2 problem versions × 2 engines × 1 setting × 2 seeds')).toBeInTheDocument();
     expect(within(aside).queryByText(/used \+ up to|study runs this month|Study definitions of the sponsor/)).not.toBeInTheDocument();
     expect(within(aside).getByText(/your plan lets one solve run for up to 60 s/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(SEEDS), { target: { value: '1-5' } });
-    expect(within(aside).getByText('2 case revisions × 2 engines × 1 setting × 5 seeds')).toBeInTheDocument();
+    expect(within(aside).getByText('2 problem versions × 2 engines × 1 setting × 5 seeds')).toBeInTheDocument();
   });
 
   it('creates the study with exactly the cases, engines, settings and seeds chosen', async () => {
@@ -132,7 +132,7 @@ describe('A new study', () => {
   it('turns a time budget into a setting of the definition and says when the plan reduces it', async () => {
     platform.createStudy.mockResolvedValue(studyFixture());
     renderBuilder();
-    fireEvent.click(await checkbox(/Checkout flow · revision 2/));
+    fireEvent.click(await checkbox(/Checkout flow · version 2/));
     fireEvent.click(await checkbox(/random-search 1\.0\.0/));
     fireEvent.change(screen.getByLabelText('Study name'), { target: { value: 'Budgets' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add a setting' }));
@@ -204,8 +204,8 @@ describe('A new study', () => {
   it('starts from the revision another screen named', async () => {
     renderBuilder({ query: '?case=checkout-flow&revision=1' });
 
-    expect(await checkbox(/Checkout flow · revision 1/)).toBeChecked();
-    expect(await checkbox(/Checkout flow · revision 2/)).not.toBeChecked();
+    expect(await checkbox(/Checkout flow · version 1/)).toBeChecked();
+    expect(await checkbox(/Checkout flow · version 2/)).not.toBeChecked();
   });
 
   it('starts from the cases a project collection pins', async () => {
@@ -219,9 +219,9 @@ describe('A new study', () => {
     ]);
     renderBuilder({ query: '?collection=core' });
 
-    expect(await screen.findByText(/The cases of the collection Core set are chosen below/)).toBeInTheDocument();
-    expect(await checkbox(/Checkout flow · revision 2/)).toBeChecked();
-    expect(await checkbox(/Checkout flow · revision 1/)).not.toBeChecked();
+    expect(await screen.findByText(/The problems of the collection Core set are chosen below/)).toBeInTheDocument();
+    expect(await checkbox(/Checkout flow · version 2/)).toBeChecked();
+    expect(await checkbox(/Checkout flow · version 1/)).not.toBeChecked();
     expect(platform.collection).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'core');
   });
 
@@ -255,7 +255,7 @@ describe('A new study', () => {
     renderBuilder({ slug: 'read-lab' });
 
     expect(await screen.findByText(/Creating studies needs MEMBER; you’re a VIEWER of Read Lab/)).toBeInTheDocument();
-    fireEvent.click(await checkbox(/Checkout flow · revision 1/));
+    fireEvent.click(await checkbox(/Checkout flow · version 1/));
     fireEvent.click(await checkbox(/random-search 1\.0\.0/));
     expect(create()).toBeDisabled();
     expect(screen.getByLabelText('Study name')).toBeDisabled();

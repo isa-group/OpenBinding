@@ -62,13 +62,13 @@ function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: Stud
     }
   };
   return (
-    <Modal title="Use an existing job’s result" size="lg" onClose={() => !busy && onClose()}>
-      <p>A job you already ran becomes this cell’s result as it is. It has to be a run of this cell: the same case revision, engine, mode and seed. The gateway checks, and names what differs if it isn’t.</p>
-      {jobs.status === 'loading' && <div role="status" aria-busy="true"><span className="sr-only">Loading your jobs…</span><Skeleton variant="tile" /></div>}
-      {jobs.status === 'error' && <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={jobs.reload}>Retry</Action>}>Your jobs couldn’t be loaded{marker(classifyAuthError(jobs.error))}.</Notice>}
-      {jobs.status === 'ready' && list.length === 0 && <p className="org-muted">You have no finished job in this project to attach.</p>}
+    <Modal title="Use an existing run’s result" size="lg" onClose={() => !busy && onClose()}>
+      <p>A run you already did becomes this cell’s result as it is. It has to be a run of this cell: the same problem version, engine, mode and seed. The gateway checks, and names what differs if it isn’t.</p>
+      {jobs.status === 'loading' && <div role="status" aria-busy="true"><span className="sr-only">Loading your runs…</span><Skeleton variant="tile" /></div>}
+      {jobs.status === 'error' && <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={jobs.reload}>Retry</Action>}>Your runs couldn’t be loaded{marker(classifyAuthError(jobs.error))}.</Notice>}
+      {jobs.status === 'ready' && list.length === 0 && <p className="org-muted">You have no finished run in this project to attach.</p>}
       {list.length > 0 && (
-        <div className="st-choices" role="radiogroup" aria-label="Finished jobs">
+        <div className="st-choices" role="radiogroup" aria-label="Finished runs">
           {list.map((job) => (
             <Choice
               key={job.id}
@@ -114,7 +114,7 @@ function RivalsCard({ cell, cells, measure, onMeasure, measures, cellHref }: {
         )}
       </div>
       {rivals.length < 2 ? (
-        <p className="org-muted">No other engine ran this case with the same setting and seed in this run.</p>
+        <p className="org-muted">No other engine ran this problem with the same setting and seed in this run.</p>
       ) : (
         <ul className="st-rivals" aria-label={`${measureLabel(measure)} of each engine on this input`}>
           {rivals.map((item) => {
@@ -209,7 +209,7 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
   };
 
   const inputs: Array<[string, ReactNode]> = [
-    ['Case', info ? <Link to={problemPath(root, info.caseSlug, undefined, { version: info.revision })} viewTransition>{revisionLabel(index, cell.binding_case_revision_id)}</Link> : revisionLabel(index, cell.binding_case_revision_id)],
+    ['Problem', info ? <Link to={problemPath(root, info.caseSlug, undefined, { version: info.revision })} viewTransition>{revisionLabel(index, cell.binding_case_revision_id)}</Link> : revisionLabel(index, cell.binding_case_revision_id)],
     ['Engine', engineTitle(ref)],
     ['Mode', ref.mode ?? '—'],
     ['Settings', describeParameters(cell.parameters)],
@@ -241,7 +241,7 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
         {access.canCreate && (
           <div className="proj-actions">
             {isRetryable(cell.state) && <Action variant="primary" busy={retrying} onClick={() => void retry()}>Retry this cell</Action>}
-            <Action variant="secondary" disabled={retrying} onClick={() => setAttaching(true)}>Use an existing job’s result</Action>
+            <Action variant="secondary" disabled={retrying} onClick={() => setAttaching(true)}>Use an existing run’s result</Action>
           </div>
         )}
       </header>
@@ -290,8 +290,8 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
           {metrics.code ? `Code ${metrics.code}${failure.detail ? ` · ${failure.detail}` : ''}. ` : ''}Retrying usually helps.
         </Notice>
       )}
-      {cell.state === 'cancelled' && <Notice tone="info">Cancelled before it ran. Retry it, or attach the result of a job you already ran with the same inputs.</Notice>}
-      {isActiveState(cell.state) && <Notice tone="info">{cell.state === 'queued' ? 'Waiting for a job slot.' : 'The engine is solving it.'} This page updates by itself.</Notice>}
+      {cell.state === 'cancelled' && <Notice tone="info">Cancelled before it ran. Retry it, or attach the result of a run you already did with the same inputs.</Notice>}
+      {isActiveState(cell.state) && <Notice tone="info">{cell.state === 'queued' ? 'Waiting for a run slot.' : 'The engine is solving it.'} This page updates by itself.</Notice>}
 
       {cell.state === 'completed' && <RivalsCard cell={cell} cells={cells} measure={measure} onMeasure={setMeasureChoice} measures={measures} cellHref={cellHref} />}
 

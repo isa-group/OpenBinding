@@ -472,7 +472,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('row', { name: 'paused-solver 1.2.0' }).getByText('Passed')).toBeVisible();
 
       await main.getByRole('button', { name: 'Deactivate edge-solver 0.3.1' }).click();
-      await expect(main.getByText('Deactivated. You can’t pick it for new jobs until you activate it again.')).toBeVisible();
+      await expect(main.getByText('Deactivated. You can’t pick it for new runs until you activate it again.')).toBeVisible();
       expect(state.sent.deactivated).toEqual(['edge-solver@0.3.1']);
 
       // Publication is asked for with a confirmation, and refused while the registration is inactive.
@@ -506,7 +506,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await page.goto('/app/engines/registrations');
       await expect(main.getByText('You haven’t registered an engine')).toBeVisible();
-      await expect(main.getByText('Bring your own solver: register its deployment and use it in your jobs. It stays private until reviewed.')).toBeVisible();
+      await expect(main.getByText('Bring your own solver: register its deployment and use it in your runs. It stays private until reviewed.')).toBeVisible();
       await capture(page, testInfo, `registrations-${name}-empty`, { height: tall(1300) });
 
       state.refuse.list = unavailable;
@@ -632,15 +632,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await page.goto(`/app/engines/registrations/shared-solver?namespace=${SHARED_SOLVER.namespace}&version=${SHARED_SOLVER.version}&digest=${SHARED_SOLVER.digest}`);
       await expect(main.getByRole('heading', { level: 1, name: 'shared-solver' })).toBeVisible();
-      await expect(main.getByText('Published by priya.nair. You can pick it when launching a job.')).toBeVisible();
+      await expect(main.getByText('Published by priya.nair. You can pick it when launching a run.')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Deactivate' })).toHaveCount(0);
       await expect(main.getByRole('heading', { name: 'Credential' })).toHaveCount(0);
       await expect(main.getByRole('heading', { name: 'Delete this registration' })).toHaveCount(0);
-      await expect(main.getByRole('button', { name: 'Launch a job with it' })).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Launch a run with it' })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-readonly`, { height: tall(1800) });
 
-      // The project picker is the way into a job with this engine.
-      await main.getByRole('button', { name: 'Launch a job with it' }).click();
+      // The project picker is the way into a run with this engine.
+      await main.getByRole('button', { name: 'Launch a run with it' }).click();
       await expect(main.getByRole('link', { name: /ISA Demo Group \/ QoS Benchmarks/ })).toHaveAttribute('href', /\/app\/isa-demo\/qos-benchmarks\/jobs\/new\?engine=/);
 
       // Someone else’s private registration, or one that does not exist, answer the same.

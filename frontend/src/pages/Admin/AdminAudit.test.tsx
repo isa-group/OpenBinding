@@ -47,7 +47,7 @@ describe('admin-audit · the platform audit log', () => {
   it('lists the events newest first, each in a sentence', async () => {
     renderAdmin(<AdminAudit />);
     expect(screen.getByRole('heading', { level: 1, name: 'Audit log' })).toBeInTheDocument();
-    expect(await screen.findByText('2 abandoned jobs were reconciled.')).toBeInTheDocument();
+    expect(await screen.findByText('2 abandoned runs were reconciled.')).toBeInTheDocument();
     expect(screen.getByText('Pricing live activated: 0.1.0.')).toBeInTheDocument();
     expect(screen.getByText('Agreement changed from BASIC to RESEARCH (no add-ons).')).toBeInTheDocument();
     const timeline = screen.getByRole('list', { name: 'Events, newest first' });
@@ -68,7 +68,7 @@ describe('admin-audit · the platform audit log', () => {
       expect(await screen.findByText('A request to become the billing sponsor was sent.')).toBeInTheDocument();
       expect(screen.getByText('Account sam.okafor was updated: role user → admin; status active → inactive.')).toBeInTheDocument();
       expect(screen.getByText('API key “ci pipeline” (obk_ab12…) was revoked.')).toBeInTheDocument();
-      expect(screen.getByText('Running-job slots of sam.okafor were recounted (corrected by -1).')).toBeInTheDocument();
+      expect(screen.getByText('Run slots of sam.okafor were recounted (corrected by -1).')).toBeInTheDocument();
       expect(screen.getByText('An institutional identity was linked and the plan went from BASIC to RESEARCH at no extra cost.')).toBeInTheDocument();
       expect(screen.getByText('The organization’s billing sponsor was changed.')).toBeInTheDocument();
       expect(screen.getByText('A request to become the billing sponsor was accepted.')).toBeInTheDocument();
@@ -145,7 +145,7 @@ describe('admin-audit · the platform audit log', () => {
 
   it('shows the detail of the event you pick, with what it changed from and to', async () => {
     renderAdmin(<AdminAudit />);
-    await screen.findByText('2 abandoned jobs were reconciled.');
+    await screen.findByText('2 abandoned runs were reconciled.');
     const aside = screen.getByRole('complementary', { name: 'Event detail' });
     expect(within(aside).getByText('maintenance.jobs.reconciled')).toBeInTheDocument();
     expect(within(aside).queryByLabelText('Before and after')).not.toBeInTheDocument();
@@ -164,20 +164,20 @@ describe('admin-audit · the platform audit log', () => {
 
   it('narrows the page by kind of event', async () => {
     renderAdmin(<AdminAudit />);
-    await screen.findByText('2 abandoned jobs were reconciled.');
+    await screen.findByText('2 abandoned runs were reconciled.');
     const kinds = screen.getByRole('group', { name: 'Kind of event' });
     fireEvent.click(within(kinds).getByRole('button', { name: 'Pricing' }));
     expect(screen.getByText('Pricing live activated: 0.1.0.')).toBeInTheDocument();
-    expect(screen.queryByText('2 abandoned jobs were reconciled.')).not.toBeInTheDocument();
+    expect(screen.queryByText('2 abandoned runs were reconciled.')).not.toBeInTheDocument();
     fireEvent.click(within(kinds).getByRole('button', { name: 'Other' }));
     expect(screen.getByText('No events for this filter')).toBeInTheDocument();
     fireEvent.click(within(kinds).getByRole('button', { name: 'All' }));
-    expect(screen.getByText('2 abandoned jobs were reconciled.')).toBeInTheDocument();
+    expect(screen.getByText('2 abandoned runs were reconciled.')).toBeInTheDocument();
   });
 
   it('asks the gateway for an exact action, and can drop the filter again', async () => {
     renderAdmin(<AdminAudit />);
-    await screen.findByText('2 abandoned jobs were reconciled.');
+    await screen.findByText('2 abandoned runs were reconciled.');
     fireEvent.change(screen.getByLabelText('Exact action'), { target: { value: 'contract.subscription.changed' } });
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
     await waitFor(() => expect(api.adminAudit).toHaveBeenLastCalledWith({ action: 'contract.subscription.changed', offset: 0, limit: 100 }));
@@ -206,7 +206,7 @@ describe('admin-audit · the platform audit log', () => {
     expect(await screen.findByText('A service isn’t available right now (503 · accounts_unavailable)')).toBeInTheDocument();
     expect(screen.queryByText('No events for this filter')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByText('2 abandoned jobs were reconciled.')).toBeInTheDocument();
+    expect(await screen.findByText('2 abandoned runs were reconciled.')).toBeInTheDocument();
   });
 
   it('says when the API key cannot read the log (403)', async () => {

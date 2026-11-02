@@ -41,7 +41,7 @@ export function RunHeatmap({ cells, measure, where }: { cells: readonly StudyCel
       <table className="st-grid is-heat">
         <thead>
           <tr>
-            <th scope="col">Case</th>
+            <th scope="col">Problem</th>
             {view.columns.map((column) => <th key={column.key} scope="col" className="st-grid-head">{column.label}</th>)}
           </tr>
         </thead>
@@ -138,7 +138,7 @@ export function CellTable({ cells, where, canRetry, retrying, onRetry }: CellTab
           <thead>
             <tr>
               <th scope="col">Cell</th>
-              <th scope="col">Case</th>
+              <th scope="col">Problem</th>
               <th scope="col">Engine · seed</th>
               <th scope="col">State</th>
               {objectives.map((name) => <th key={name} scope="col">{measureLabel(name)}</th>)}

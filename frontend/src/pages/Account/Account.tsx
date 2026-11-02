@@ -138,7 +138,7 @@ export function Account() {
             <span className="acct-danger-icon" aria-hidden="true"><TriangleAlert /></span>
             <div>
               <strong>Delete account</strong>
-              <p>Permanently deletes your account, its API keys and its jobs. Organizations where you’re the last owner must be handed over first.</p>
+              <p>Permanently deletes your account, its API keys and its runs. Organizations where you’re the last owner must be handed over first.</p>
             </div>
           </div>
           <Action variant="danger-outline" className="acct-danger-button" onClick={() => setDeleting(true)}>Delete my account</Action>

@@ -128,6 +128,9 @@
   cursor: pointer;
 }
 
+/* The names of the API (permission ids, resource kinds, slugs) sit in code elements; inside a pill or a row they take the text style around them. */
+.keynew-pills button code, .keynew-perm-id code, .keynew-review code { padding: 0; border: 0; background: none; color: inherit; font: inherit; }
+
 .keynew-pills button[aria-pressed='true'] { border-color: rgb(0 119 182 / 0.3); background: rgb(0 119 182 / 0.08); color: var(--tp-primary); font-weight: 500; }
 
 .keynew-add { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); }

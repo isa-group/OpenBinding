@@ -41,9 +41,9 @@ export function definitionSize(definition: Study['definition']): MatrixSize {
   });
 }
 
-/** `2 case revisions × 2 engines × 1 setting × 2 seeds`. */
+/** `2 problem versions × 2 engines × 1 setting × 2 seeds`. */
 export function formulaOf(size: MatrixSize): string {
-  return `${plural(size.cases, 'case revision')} × ${plural(size.engines, 'engine')} × ${plural(size.settings, 'setting')} × ${plural(size.seeds, 'seed')}`;
+  return `${plural(size.cases, 'problem version')} × ${plural(size.engines, 'engine')} × ${plural(size.settings, 'setting')} × ${plural(size.seeds, 'seed')}`;
 }
 
 // --- seeds
@@ -227,11 +227,11 @@ export function revisionsOf(cases: readonly CaseContent[], ids: readonly string[
   return cases.flatMap((entry) => entry.revisions.filter((revision) => wanted.has(revision.id)));
 }
 
-/** `Flujo de checkout · revision 2`; a revision this project doesn't hold reads by the start of its id. */
+/** `Flujo de checkout · version 2`; a version this project doesn't hold reads by the start of its id. */
 export function revisionLabel(index: ReadonlyMap<string, RevisionInfo>, id: string, short = false): string {
   const found = index.get(id);
-  if (!found) return `Revision ${id.slice(0, 8)}…`;
-  return short ? `${found.caseName} r${found.revision}` : `${found.caseName} · revision ${found.revision}`;
+  if (!found) return `Version ${id.slice(0, 8)}…`;
+  return short ? `${found.caseName} r${found.revision}` : `${found.caseName} · version ${found.revision}`;
 }
 
 /** A revision can be in a study only when a BIM snapshot backs it: that is what the engines receive. */
@@ -360,11 +360,11 @@ export function metricsOf(cell: Pick<StudyCell, 'metrics'>): CellMetrics {
 const FAILURES: Record<string, string> = {
   engine_unreachable: 'The engine deployment didn’t answer in time.',
   invalid_engine: 'The engine or mode this cell pins was refused.',
-  executable_snapshot_required: 'The case revision has no compiled snapshot for the engines to run.',
-  snapshot_not_found: 'The snapshot behind the case revision no longer exists.',
-  invalid_case_revision: 'The case revision could not be read as a problem.',
-  job_rejected: 'The job pipeline refused to start this cell.',
-  job_not_persisted: 'The job for this cell could not be stored.',
+  executable_snapshot_required: 'The problem version has no compiled snapshot for the engines to run.',
+  snapshot_not_found: 'The snapshot behind the problem version no longer exists.',
+  invalid_case_revision: 'The problem version could not be read as a problem.',
+  job_rejected: 'The run pipeline refused to start this cell.',
+  job_not_persisted: 'The run for this cell could not be stored.',
   snapshot_persistence_failed: 'The snapshot could not be prepared for this account.',
 };
 

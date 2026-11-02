@@ -24,7 +24,7 @@ export const MAPPING_FIELDS = [
   { id: 'request', label: 'Solve', required: true, help: 'Where we send problems (POST).' },
   { id: 'health', label: 'Health', required: true, help: 'Must answer when it’s up (GET).' },
   { id: 'openapi', label: 'Contract', required: true, help: 'Where it serves its OpenAPI; checked at every verification.' },
-  { id: 'job', label: 'Job status', required: false, help: 'For long runs: a path with {id}, only if solving answers 202.' },
+  { id: 'job', label: 'Run status', required: false, help: 'For long runs: a path with {id}, only if solving answers 202.' },
 ] as const;
 
 export function newDeployment(): DeploymentDraft {

@@ -56,9 +56,9 @@ describe('My jobs', () => {
   it('lists everything the account ran, across projects, newest as the gateway orders them', async () => {
     renderHistory();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'My jobs' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'My runs' })).toBeInTheDocument();
     expect(screen.getByText('Everything you’ve run, across projects.')).toBeInTheDocument();
-    const list = await screen.findByRole('list', { name: 'Your jobs' });
+    const list = await screen.findByRole('list', { name: 'Your runs' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(5);
     const links = await within(list).findAllByRole('link', { name: 'random-search on QoS Benchmarks' });
     expect(links.map((link) => link.getAttribute('href'))).toEqual([`${ROOT}/jobs/job-done-1`, `${ROOT}/jobs/job-cancelled-4`]);
@@ -66,13 +66,13 @@ describe('My jobs', () => {
     expect(within(list).getByText(/Oct 7, 2026, 15:00 UTC · 20 s · no conclusion/)).toBeInTheDocument();
     expect(within(list).getByText(/Oct 8, 2026, 08:00 UTC · running · no result yet/)).toBeInTheDocument();
     expect(screen.getByText('5 in total')).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent('My jobs');
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent('My runs');
   });
 
   it('keeps a run that belongs to no project listed, without a link it cannot honour', async () => {
     renderHistory();
 
-    const list = await screen.findByRole('list', { name: 'Your jobs' });
+    const list = await screen.findByRole('list', { name: 'Your runs' });
     await within(list).findAllByRole('link', { name: 'random-search on QoS Benchmarks' });
     const loose = within(list).getAllByRole('listitem')[4];
     expect(within(loose).getByText('minizinc')).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe('My jobs', () => {
     renderHistory();
 
     const card = await screen.findByRole('region', { name: 'How long runs are kept' });
-    expect(within(card).getByText('Finished jobs are kept 180 days on your RESEARCH plan')).toBeInTheDocument();
+    expect(within(card).getByText('Finished runs are kept 180 days on your RESEARCH plan')).toBeInTheDocument();
     expect(within(card).getByText('Longer retention comes with larger plans, arranged by agreement.')).toBeInTheDocument();
     expect(await within(card).findByText('PRO')).toBeInTheDocument();
     expect(within(card).getByText('BAS')).toBeInTheDocument();
@@ -101,7 +101,7 @@ describe('My jobs', () => {
   it('narrows by status and by engine', async () => {
     renderHistory();
 
-    const list = await screen.findByRole('list', { name: 'Your jobs' });
+    const list = await screen.findByRole('list', { name: 'Your runs' });
     expect(screen.getByRole('button', { name: 'All (5)' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Completed (2)' }));
     expect(within(list).getAllByRole('listitem')).toHaveLength(2);
@@ -116,7 +116,7 @@ describe('My jobs', () => {
   it('offers cancel and retry only where they apply, and no link to analyze', async () => {
     renderHistory();
 
-    const list = await screen.findByRole('list', { name: 'Your jobs' });
+    const list = await screen.findByRole('list', { name: 'Your runs' });
     const rows = within(list).getAllByRole('listitem');
     expect(within(rows[0]).queryByRole('link', { name: 'Analyze' })).not.toBeInTheDocument();
     expect(within(rows[1]).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
@@ -138,7 +138,7 @@ describe('My jobs', () => {
     jobsApi.retry.mockResolvedValue(jobOf('job-new-9', 'evolutionary', 'queued', null, '2026-10-09T08:00:00Z', null));
     renderHistory();
 
-    const list = await screen.findByRole('list', { name: 'Your jobs' });
+    const list = await screen.findByRole('list', { name: 'Your runs' });
     await within(list).findByRole('link', { name: 'evolutionary on QoS Benchmarks' });
     fireEvent.click(within(within(list).getAllByRole('listitem')[2]).getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('Retry queued.')).toBeInTheDocument();
@@ -150,7 +150,7 @@ describe('My jobs', () => {
     jobsApi.retry.mockRejectedValue(new QuotaError('quota_exceeded', 'API keys exhausted.', { limit_id: 'apiKeys', limit: 10, used: 10 }));
     renderHistory();
 
-    const list = await screen.findByRole('list', { name: 'Your jobs' });
+    const list = await screen.findByRole('list', { name: 'Your runs' });
     fireEvent.click(within(within(list).getAllByRole('listitem')[2]).getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('Retry refused: Out of API keys (402 · quota_exceeded)')).toBeInTheDocument();
     expect(screen.getByText(/You’ve used 10 of 10 API keys\./)).toBeInTheDocument();
@@ -178,21 +178,21 @@ describe('My jobs', () => {
     jobsApi.history.mockRejectedValue(refusal(401, 'unauthorized'));
     const view = renderHistory();
     expect(await screen.findByText(/Your session ended \(401/)).toBeInTheDocument();
-    expect(screen.queryByRole('list', { name: 'Your jobs' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Your runs' })).not.toBeInTheDocument();
     view.unmount();
 
     jobsApi.history.mockRejectedValue(refusal(403, 'api_key_forbidden'));
     renderHistory();
-    expect(await screen.findByText(/This API key doesn’t include “read jobs” \(403/)).toBeInTheDocument();
+    expect(await screen.findByText(/This API key doesn’t include “read runs” \(403/)).toBeInTheDocument();
   });
 
   it('keeps a failure to read the list apart from an empty one, and tries again', async () => {
     jobsApi.history.mockRejectedValueOnce(refusal(503, 'unavailable'));
     renderHistory();
 
-    expect(await screen.findByText(/Your jobs can’t be loaded right now \(503/)).toBeInTheDocument();
+    expect(await screen.findByText(/Your runs can’t be loaded right now \(503/)).toBeInTheDocument();
     expect(screen.queryByText('Nothing within your retention window')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByRole('list', { name: 'Your jobs' })).toBeInTheDocument();
+    expect(await screen.findByRole('list', { name: 'Your runs' })).toBeInTheDocument();
   });
 });

@@ -106,7 +106,7 @@ export function DeploymentForm({ draft, onChange, reading, issues, locked, proto
             </button>
           ))}
         </div>
-        <small className="eng-muted">The sign-in method must match the security of the solve, health and optional job operations in the contract.</small>
+        <small className="eng-muted">The sign-in method must match the security of the solve, health and optional run operations in the contract.</small>
       </div>
 
       <div className="rg-block">

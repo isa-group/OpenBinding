@@ -26,7 +26,7 @@ describe('States gallery', () => {
     expect(screen.getByRole('link', { name: 'Log in again' })).toHaveAttribute('href', '/login');
     expect(screen.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
     expect(screen.getByRole('link', { name: 'Create a key with this permission' })).toHaveAttribute('href', '/app/account/keys?create=key');
-    expect(screen.getByRole('link', { name: 'Go to my jobs' })).toHaveAttribute('href', '/app/jobs');
+    expect(screen.getByRole('link', { name: 'Go to my runs' })).toHaveAttribute('href', '/app/jobs');
   });
 
   it('narrows the gallery to one family at a time', () => {
@@ -99,7 +99,7 @@ describe('States gallery', () => {
 
     const section = screen.getByRole('region', { name: 'How an error becomes a message' });
     expect(within(section).getAllByRole('article')).toHaveLength(2);
-    expect(within(section).getByText('Busy job slots (429)')).toBeInTheDocument();
+    expect(within(section).getByText('Busy run slots (429)')).toBeInTheDocument();
     expect(within(section).getAllByText(/is shown as/)).toHaveLength(10);
   });
 });

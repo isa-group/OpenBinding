@@ -1,5 +1,6 @@
 import { HttpError } from '../../api/client';
 import { problemField } from '../../api/problem';
+import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { formatByteSize } from '../../utils/format';
 import { quotaOf } from '../Organization/orgErrors';
 import { classifyAuthError, generalFailure, marker, type AuthFailure } from '../Project/projectErrors';
@@ -86,7 +87,7 @@ const REFERENCE_NAMES: Record<string, [singular: string, plural: string]> = {
   case_revision: ['problem version', 'problem versions'],
   snapshot: ['snapshot', 'snapshots'],
   project_resource_revision: ['resource revision', 'resource revisions'],
-  publication: ['publication', 'publications'],
+  publication: ['published result', 'published results'],
 };
 
 /** What still refers to a file (`409 blob_in_use`): `[{ type: 'report', count: 1 }]` → `[{ type, count, label: '1 report' }]`. */
@@ -98,7 +99,8 @@ export function fileReferences(caught: unknown): Array<{ type: string; count: nu
     const { type, count } = entry as { type?: unknown; count?: unknown };
     if (typeof type !== 'string') return [];
     const amount = typeof count === 'number' && count > 0 ? count : 1;
-    const [singular, plural] = REFERENCE_NAMES[type] ?? [type.replace(/_/g, ' '), `${type.replace(/_/g, ' ')}s`];
+    const words = inInterfaceWords(type.replace(/_/g, ' '));
+    const [singular, plural] = REFERENCE_NAMES[type] ?? [words, `${words}s`];
     return [{ type, count: amount, label: `${amount} ${amount === 1 ? singular : plural}` }];
   });
 }

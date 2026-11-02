@@ -47,7 +47,7 @@ describe('Home', () => {
     expect(await screen.findByText('Pick up where you left off.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/isa-demo?create=project');
     expect(screen.getByRole('link', { name: 'Verify a digest' })).toHaveAttribute('href', '/app/verifier');
-    // No project is selected in the workspace, so there is nothing to run or to add a case to.
+    // No project is selected in the workspace, so there is nothing to run or to add a problem to.
     expect(screen.queryByRole('link', { name: 'Run' })).not.toBeInTheDocument();
   });
 
@@ -79,7 +79,7 @@ describe('Home', () => {
     expect(within(activity).getByText('No feasible binding')).toBeInTheDocument();
     expect(within(activity).getByText(/finished in 40 s/)).toBeInTheDocument();
     expect(within(activity).getAllByRole('link', { name: /minizinc/ })[0]).toHaveAttribute('href', '/app/jobs');
-    expect(within(activity).getByRole('link', { name: 'All jobs' })).toHaveAttribute('href', '/app/jobs');
+    expect(within(activity).getByRole('link', { name: 'All runs' })).toHaveAttribute('href', '/app/jobs');
 
     const plan = screen.getByRole('region', { name: 'Your plan' });
     expect(await within(plan).findByText('RESEARCH')).toBeInTheDocument();
@@ -117,7 +117,7 @@ describe('Home', () => {
     renderHome();
 
     const activity = await screen.findByRole('region', { name: 'Recent activity' });
-    expect(await within(activity).findByRole('alert')).toHaveTextContent('Recent jobs couldn’t be loaded (503). The other blocks are unaffected.');
+    expect(await within(activity).findByRole('alert')).toHaveTextContent('Recent runs couldn’t be loaded (503). The other blocks are unaffected.');
     // The tree and the plan are on the page regardless.
     expect(await screen.findByRole('list', { name: 'Organizations' })).toBeInTheDocument();
     expect(await screen.findByText('Up to 3')).toBeInTheDocument();
@@ -148,7 +148,7 @@ describe('Home', () => {
     renderHome([]);
 
     expect(await screen.findByText('Not available with this key (needs organizations: read).')).toBeInTheDocument();
-    expect(await screen.findByText('Not available with this key (needs jobs: read).')).toBeInTheDocument();
+    expect((await screen.findByText('jobs:read')).closest('p')).toHaveTextContent('Not available with this key (needs jobs:read).');
     // A refusal is not an empty account: the first-organization guide must not appear.
     expect(screen.queryByRole('heading', { name: 'Create your first organization' })).not.toBeInTheDocument();
   });
@@ -165,7 +165,7 @@ describe('Home', () => {
     expect(await screen.findByText(/organization limit \(5 on RESEARCH\)/)).toBeInTheDocument();
     expect(screen.getByText('You’re not in any organization yet.')).toBeInTheDocument();
     // With no jobs either, the activity block shows a way to the first run.
-    expect(await screen.findByText(/No jobs yet/)).toBeInTheDocument();
+    expect(await screen.findByText(/No runs yet/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the Workbench' })).toHaveAttribute('href', '/workbench');
     expect(screen.queryByRole('link', { name: 'New project' })).not.toBeInTheDocument();
   });

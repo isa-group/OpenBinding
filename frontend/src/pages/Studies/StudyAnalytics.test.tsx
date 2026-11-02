@@ -84,7 +84,7 @@ describe('Analytics of a run, in the Results tab', () => {
     expect(await screen.findByRole('img', { name: /3 results plotted by Cost and Latency; 2 are best trade-offs: 0\.112 and 440; 0\.118 and 412/ })).toBeInTheDocument();
     expect(screen.getByText(/Best trade-offs:/)).toHaveTextContent('cell 0 (0.112, 440); cell 3 (0.118, 412).');
     expect(screen.getByRole('link', { name: 'cell 3' })).toHaveAttribute('href', `${RESULTS}&cell=${cells[3].id}`);
-    fireEvent.change(screen.getByRole('combobox', { name: 'Case' }), { target: { value: REVISION_2.id } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Problem' }), { target: { value: REVISION_2.id } });
     expect(screen.getByText(/Best trade-offs:/)).toHaveTextContent('cell 4 (0.104, 420); cell 6 (0.109, 398).');
   });
 
@@ -119,9 +119,9 @@ describe('Analytics of a run, in the Results tab', () => {
     renderAnalytics();
 
     expect(await screen.findByRole('heading', { name: 'Largest search space' })).toBeInTheDocument();
-    const list = screen.getByRole('list', { name: 'Search space of each case revision' });
+    const list = screen.getByRole('list', { name: 'Search space of each problem version' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(2);
-    expect(within(list).getByText('revision 2 · 6 tasks')).toBeInTheDocument();
+    expect(within(list).getByText('version 2 · 6 tasks')).toBeInTheDocument();
   });
 
   it('lists every plotted cell with its fingerprint to copy and its page to open', async () => {
@@ -193,7 +193,7 @@ describe('Analytics of a run, in the Results tab', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Load the solutions' }));
 
-    expect(await screen.findByText(/That job opens only for whoever launched it \(404 · not_found\)\./)).toBeInTheDocument();
+    expect(await screen.findByText(/That run opens only for whoever launched it \(404 · not_found\)\./)).toBeInTheDocument();
   });
 
   it('explains there is nothing to chart before any cell completes', async () => {

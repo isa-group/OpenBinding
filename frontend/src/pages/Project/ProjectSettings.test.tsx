@@ -233,7 +233,7 @@ describe('Project settings', () => {
       renderSettings();
 
       const note = await screen.findByRole('note');
-      expect(note).toHaveTextContent('Deleting is blocked: this project has sealed history (2 case revisions).');
+      expect(note).toHaveTextContent('Deleting is blocked: this project has sealed history (2 problem versions).');
       expect(note).toHaveTextContent('Sealed history must stay reachable so people can still verify it.');
       expect(screen.getByRole('button', { name: 'Delete project' })).toBeDisabled();
     });

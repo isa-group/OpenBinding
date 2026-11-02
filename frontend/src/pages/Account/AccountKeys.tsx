@@ -84,7 +84,7 @@ function KeyCard({ apiKey, expired, onRotate, onRevoke }: {
         <dd>{describeEngineAccess(apiKey.engine_access)}</dd>
         <dt>Limited to</dt>
         <dd className="key-chips">
-          {bounds.length > 0 ? bounds.map((label) => <span key={label} className="key-bound">{label}</span>) : <span className="acct-muted">No extra limits</span>}
+          {bounds.length > 0 ? bounds.map((label) => <span key={label} className="key-bound"><code>{label}</code></span>) : <span className="acct-muted">No extra limits</span>}
         </dd>
       </dl>
     </article>

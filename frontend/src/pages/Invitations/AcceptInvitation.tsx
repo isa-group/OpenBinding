@@ -20,7 +20,7 @@ const PATH = '/invitations/accept';
 const ROLE_COPY: Record<OrganizationRole, string> = {
   OWNER: 'As an owner you manage the organization, its members and its settings.',
   ADMIN: 'As an admin you can manage members and settings. Owners can change your role later.',
-  MEMBER: 'As a member you can create projects and cases. Sub-organizations inherit your role unless they grant you a higher one. Admins can change your role later.',
+  MEMBER: 'As a member you can create projects and problems. Sub-organizations inherit your role unless they grant you a higher one. Admins can change your role later.',
   VIEWER: 'As a viewer you can read what the organization shares with you. Admins can change your role later.',
 };
 

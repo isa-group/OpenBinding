@@ -257,9 +257,9 @@ describe('New API key', () => {
 
       expect(review.getByText('ci-nightly')).toBeInTheDocument();
       expect(review.getByText('In 90 days')).toBeInTheDocument();
-      expect(review.getByText('Read jobs and results (jobs:read)')).toBeInTheDocument();
+      expect(review.getByText('jobs:read').closest('li')).toHaveTextContent('Read runs and results (jobs:read)');
       expect(review.getByText('bim.builtin/random-search@1.0.0')).toBeInTheDocument();
-      expect(review.getByText('GET · isa-demo · my-slug')).toBeInTheDocument();
+      expect(review.getByText('my-slug').closest('dd')).toHaveTextContent('GET · isa-demo · my-slug');
       expect(screen.getByText(/After creation the key’s authority can’t be edited/)).toBeInTheDocument();
       expect(api.createApiKey).not.toHaveBeenCalled();
     });

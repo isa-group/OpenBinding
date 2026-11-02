@@ -1,4 +1,5 @@
 import type { PricingCatalog } from '../../api/auth';
+import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { describeLimit, limitInfo, LIMIT_GROUPS, type LimitGroup } from '../../utils/limits';
 
 /**
@@ -106,7 +107,7 @@ const DISPLAY_NAMES: Record<string, string> = {
 };
 
 function humanize(id: string): string {
-  const words = id.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  const words = inInterfaceWords(id.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase());
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
@@ -154,7 +155,7 @@ function gateNeeds(expression: string, limits: Dict): string[] {
   return ids.map((id) => {
     const definition = dictOf(limits[id]);
     const info = limitInfo(id, definition);
-    if (id === 'concurrentJobs') return 'A free job slot';
+    if (id === 'concurrentJobs') return 'A free run slot';
     if (definition.type === 'RENEWABLE') return `${info.label} left this month`;
     return `Room in ${info.label.toLowerCase()}`;
   });

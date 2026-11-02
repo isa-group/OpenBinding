@@ -212,7 +212,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Public work on OpenBinding' })).toBeVisible();
-      await expect(main.getByRole('tab', { name: /Publications/ })).toHaveAttribute('aria-selected', 'true');
+      await expect(main.getByRole('tab', { name: /Published results/ })).toHaveAttribute('aria-selected', 'true');
       await expect(main.getByRole('tab', { name: /Projects/ })).toContainText('2');
       await expect(main.getByRole('tab', { name: /Engines/ })).toContainText('3');
       const details = main.getByRole('complementary', { name: 'Details' });
@@ -227,9 +227,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(details.getByRole('heading', { name: 'Baseline results on the service corpus' })).toBeVisible();
       await expect(details.getByText('Marco Díaz, Sofía Rey', { exact: true })).toBeVisible();
       await main.getByRole('searchbox', { name: 'Search this tab' }).fill('checkout');
-      await expect(main.getByText('1 public publication')).toBeVisible();
+      await expect(main.getByText('1 published result')).toBeVisible();
       await main.getByRole('searchbox', { name: 'Search this tab' }).fill('no such thing');
-      await expect(main.getByText('No public publications match “no such thing”.')).toBeVisible();
+      await expect(main.getByText('No published results match “no such thing”.')).toBeVisible();
       await expect(details.getByText('Select an item to see its citation, digest and where to verify it.')).toBeVisible();
 
       // Projects: a visitor can see them but must log in to open one.
@@ -261,7 +261,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const alert = main.getByRole('alert');
       await expect(alert).toContainText('Projects couldn’t be loaded (HTTP 503). Your search and filters are kept.');
       await expect(main.getByRole('tab', { name: /Projects/ })).toContainText('–');
-      await expect(main.getByRole('tab', { name: /Publications/ })).toContainText('2');
+      await expect(main.getByRole('tab', { name: /Published results/ })).toContainText('2');
       await ready(page);
       await page.screenshot({ path: testInfo.outputPath(`explore-${name}-error.png`), fullPage: true, animations: 'disabled' });
 

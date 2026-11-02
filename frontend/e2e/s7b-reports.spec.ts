@@ -259,36 +259,36 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(page).toHaveURL(/\/app\/jobs$/);
 
       await page.goto(`/app/analysis?org=isa-demo&project=qos-benchmarks&study=engines-vs-seeds&run=${RUN_ID}`);
-      await expect(page).toHaveURL(new RegExp(`${ROOT}/studies/engines-vs-seeds/runs/${RUN_ID}$`));
+      await expect(page).toHaveURL(new RegExp(`${ROOT}/studies/engines-vs-seeds/progress\\?run=${RUN_ID}$`));
       await capture(page, testInfo, `analysis-${name}-old-link`, { height: 900 });
       expect(critical).toEqual([]);
     });
 
-    test('retired report editor · old links land on the publications list, with or without a slug, a query or an encoded slug', async ({ page }, testInfo) => {
+    test('retired report editor · old links land on the published results, with or without a slug, a query or an encoded slug', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
 
       await page.goto(`${ROOT}/reports/engine-comparison`);
-      await expect(page).toHaveURL(new RegExp(`${ROOT}/publications$`));
-      await expect(page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Publications' })).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(`${ROOT}/published$`));
+      await expect(page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Published' })).toBeVisible();
       await capture(page, testInfo, `reports-${name}-old-link`, { height: 900 });
 
       await page.goto(`${ROOT}/reports?filter=drafts#top`);
-      await expect(page).toHaveURL(new RegExp(`${ROOT}/publications$`));
+      await expect(page).toHaveURL(new RegExp(`${ROOT}/published$`));
       await page.goto(`${ROOT}/reports/hallazgos%20de%20checkout`);
-      await expect(page).toHaveURL(new RegExp(`${ROOT}/publications$`));
+      await expect(page).toHaveURL(new RegExp(`${ROOT}/published$`));
       expect(critical).toEqual([]);
     });
 
-    test('proj-publications /app/:org/:project/publications · citing, verifying, withdrawing', async ({ page }, testInfo) => {
+    test('proj-publications /app/:org/:project/published · citing, verifying, withdrawing', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/publications`);
+      await page.goto(`${ROOT}/published`);
       const main = page.locator('#platform-main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Publications' })).toBeVisible();
+      await expect(main.getByRole('heading', { level: 1, name: 'Published' })).toBeVisible();
       await expect(main.getByText(/Report editions made public from QoS Benchmarks\. Withdrawing hides one from listings but keeps every link and fingerprint working\./)).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Publications', exact: true })).toHaveAttribute('aria-current', 'page');
+      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Published', exact: true })).toHaveAttribute('aria-current', 'page');
       await expect(main.getByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeVisible();
       await expect(main.getByText('checkout-comparison · published Sep 25, 2026 · sha256-eeee…eeee')).toBeVisible();
       await expect(main.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeVisible();
@@ -313,29 +313,29 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('proj-publications /app/:org/:project/publications · nothing yet, a viewer, 503 and a project that is not there', async ({ page }, testInfo) => {
+    test('proj-publications /app/:org/:project/published · nothing yet, a viewer, 503 and a project that is not there', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
-      await page.goto('/app/isa-demo/checkout-privado/publications');
+      await page.goto('/app/isa-demo/checkout-privado/published');
       await expect(main.getByText('Nothing published yet')).toBeVisible();
       await expect(main.getByText(/Nothing published from this project yet\./)).toBeVisible();
       await capture(page, testInfo, `publications-${name}-empty`, { height: 900 });
 
-      await page.goto('/app/read-lab/bench/publications');
-      await expect(main.getByRole('heading', { level: 1, name: 'Publications' })).toBeVisible();
+      await page.goto('/app/read-lab/bench/published');
+      await expect(main.getByRole('heading', { level: 1, name: 'Published' })).toBeVisible();
       await expect(main.getByRole('button', { name: 'Withdraw' })).toHaveCount(0);
       state.refuse.publications = unavailable;
-      await page.goto(`${ROOT}/publications`);
-      await expect(main.getByText(/Publications couldn’t be loaded \(503\)/)).toBeVisible();
+      await page.goto(`${ROOT}/published`);
+      await expect(main.getByText(/Published results couldn’t be loaded \(503\)/)).toBeVisible();
       await expect(main.getByText('Nothing published yet')).toHaveCount(0);
       await capture(page, testInfo, `publications-${name}-503`, { height: 900 });
       state.refuse.publications = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
       await expect(main.getByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeVisible();
 
-      await page.goto('/app/isa-demo/ghost/publications');
+      await page.goto('/app/isa-demo/ghost/published');
       await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
       expect(critical).toEqual([]);
     });
@@ -373,7 +373,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(verdict.getByText('OpenBinding recorded an element with this fingerprint.')).toBeVisible();
       const matches = main.getByRole('region', { name: 'Matches' });
       await expect(matches.getByText('Engine comparison at checkout')).toBeVisible();
-      await expect(matches.getByRole('link', { name: 'Open' })).toHaveAttribute('href', `${ROOT}/publications`);
+      await expect(matches.getByRole('link', { name: 'Open' })).toHaveAttribute('href', `${ROOT}/published`);
       await expect(matches.getByRole('link', { name: 'Public record' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
       await expect(main.getByText('OpenBinding (2026). Engine comparison at checkout. OpenBinding report edition, digest sha256-eeee…eeee.')).toBeVisible();
       expect(state.sent.verify.at(-1)).toEqual({ digest: EDITION });

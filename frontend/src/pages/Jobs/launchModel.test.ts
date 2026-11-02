@@ -37,13 +37,13 @@ describe('what to solve', () => {
   it('offers the snapshot or revision the person came from first, then the latest revisions', () => {
     const choices = sourceChoices({ cases, caseSlug: null, revision: null, snapshot: 'snap-9' });
     expect(choices.map((choice) => choice.id)).toEqual(['snapshot:snap-9', 'revision:rev-2']);
-    expect(choices[1]).toMatchObject({ label: 'Flujo de checkout · revision 2', latest: true, snapshotId: 'snap-2' });
+    expect(choices[1]).toMatchObject({ label: 'Flujo de checkout · version 2', latest: true, snapshotId: 'snap-2' });
     expect(choices[1].detail).toMatch(/^Latest · Sealed Aug 2, 2026 · sha256-2222…2222$/);
   });
 
   it('lists every revision of the case named by the address', () => {
     const choices = sourceChoices({ cases, caseSlug: 'flujo', revision: '1', snapshot: null });
-    expect(choices.map((choice) => choice.label)).toEqual(['Flujo de checkout · revision 2', 'Flujo de checkout · revision 1']);
+    expect(choices.map((choice) => choice.label)).toEqual(['Flujo de checkout · version 2', 'Flujo de checkout · version 1']);
     expect(initialChoice(choices, '1', null)).toBe('revision:rev-1');
     expect(initialChoice(choices, null, null)).toBe('revision:rev-2');
     expect(initialChoice([], null, null)).toBe('');

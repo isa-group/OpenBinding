@@ -129,7 +129,7 @@ describe('what a registration points at', () => {
       digestOf('f0'),
     );
     expect(deployment.auth).toBe('Username and password (stored encrypted)');
-    expect(deployment.mappings.map((item) => `${item.label} ${item.path}`)).toEqual(['Solve /solve', 'Health /health', 'Contract /openapi.json', 'Job status /jobs/{id}']);
+    expect(deployment.mappings.map((item) => `${item.label} ${item.path}`)).toEqual(['Solve /solve', 'Health /health', 'Contract /openapi.json', 'Run status /jobs/{id}']);
     expect(deployment).toMatchObject({ contractTitle: 'edge', contractVersion: '1.0.0', contractPaths: 2, endpoint: 'https://edge.example.org' });
   });
 

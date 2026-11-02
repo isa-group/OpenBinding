@@ -47,7 +47,7 @@ export function DeregisterDialog({ name, version, published, busy = false, onCon
   return (
     <Modal title={`Delete ${name} ${version}?`} tone="danger" onClose={busy ? () => undefined : onClose} dismissible={!busy}>
       <form className="eng-dialog-form" onSubmit={submit}>
-        <p>Its stored credential goes with it, and you can no longer pick it for jobs. This can’t be undone.</p>
+        <p>Its stored credential goes with it, and you can no longer pick it for runs. This can’t be undone.</p>
         {published && (
           <p className="eng-dialog-warning">
             It’s published, so other people may rely on it. Administrators are told when you delete a published registration.

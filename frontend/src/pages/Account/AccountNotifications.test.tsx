@@ -85,7 +85,7 @@ describe('Notifications', () => {
     expect(within(list()).getAllByRole('listitem')).toHaveLength(1);
     expect(within(list()).getByText('Your OpenBinding agreement changed')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Jobs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Runs' }));
     expect(within(list()).getByText('Job completed')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Invitations' }));
     expect(within(list()).getByText('You were invited')).toBeInTheDocument();
@@ -143,7 +143,7 @@ describe('Notifications', () => {
   it('points a job notice to the job history', async () => {
     renderNotifications();
     fireEvent.click(await row('Job completed'));
-    expect(screen.getByRole('link', { name: 'Open job history' })).toHaveAttribute('href', '/app/jobs');
+    expect(screen.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/jobs');
   });
 
   it('says when it is all caught up and when a filter hides everything', async () => {
@@ -190,7 +190,7 @@ describe('Notifications', () => {
       const first = await switchFor('Email me about contract changes');
       expect(first).toHaveAttribute('aria-checked', 'true');
       expect(screen.getByRole('switch', { name: 'Email me about invitations' })).toHaveAttribute('aria-checked', 'true');
-      expect(screen.getByRole('switch', { name: 'Email me about failed jobs' })).toHaveAttribute('aria-checked', 'false');
+      expect(screen.getByRole('switch', { name: 'Email me about failed runs' })).toHaveAttribute('aria-checked', 'false');
       expect(screen.getByRole('switch', { name: 'Keep notifications in the account inbox' })).toHaveAttribute('aria-checked', 'true');
       expect(screen.getAllByRole('switch')[0]).toBe(first);
       expect(screen.getByText('In-app notifications are always on.')).toBeInTheDocument();
@@ -217,7 +217,7 @@ describe('Notifications', () => {
     it('does not claim a save that failed', async () => {
       api.updateNotificationPreferences.mockRejectedValue(new HttpError(503, 'down'));
       renderNotifications();
-      fireEvent.click(await switchFor('Email me about failed jobs'));
+      fireEvent.click(await switchFor('Email me about failed runs'));
       fireEvent.click(screen.getByRole('button', { name: 'Save preferences' }));
 
       expect(await screen.findByText(/Nothing was saved/)).toBeInTheDocument();

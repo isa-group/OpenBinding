@@ -58,7 +58,7 @@ export function sourceChoices({ cases, caseSlug, revision, snapshot }: SourceInp
     for (const candidate of shown) {
       const latest = candidate === revisions[0];
       choices.push({
-        id: `revision:${candidate.id}`, kind: 'revision', label: `${entry.item.name} · revision ${candidate.revision}`,
+        id: `revision:${candidate.id}`, kind: 'revision', label: `${entry.item.name} · version ${candidate.revision}`,
         detail: `${latest ? 'Latest · ' : ''}Sealed ${formatDate(candidate.created_at) ?? 'on an unknown date'} · ${shortDigest(candidate.digest)}`,
         snapshotId: candidate.source_snapshot_id, revision: candidate, caseSlug: entry.item.slug, latest,
       });

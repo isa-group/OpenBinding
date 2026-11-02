@@ -1,6 +1,7 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { diagnosticLines, problemField } from '../../api/problem';
+import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import {
   CELLS_CODE, COMPLEXITY_CODE, USAGE_UNKNOWN_CODE, complexityText, limitProblemOf, noticeOf, slotsText, usageUnknownText,
 } from '../../utils/limitRefusals';
@@ -28,7 +29,7 @@ function detailsOf(caught: unknown): string[] {
 }
 
 /** What a mismatch between a cell and a job can differ in (`cell_job_mismatch.fields`), in the words of the cell. */
-const MISMATCH_FIELDS: Record<string, string> = { case_revision: 'case', engine: 'engine', mode: 'mode', seed: 'seed' };
+const MISMATCH_FIELDS: Record<string, string> = { case_revision: 'problem', engine: 'engine', mode: 'mode', seed: 'seed' };
 
 function shown(value: unknown): string {
   if (value === null || value === undefined) return 'none';
@@ -79,6 +80,7 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
   if (failure.status === 402) {
     const limitId = quota?.limit_id ?? notice?.limit_id ?? 'studies';
     const info = limitInfo(limitId);
+    const noun = inInterfaceWords(info.short);
     const limit = quota?.limit ?? notice?.limit;
     const spentCount = quota?.used ?? notice?.used;
     const used = limit !== undefined ? ` ${(spentCount ?? limit).toLocaleString('en-US')} of ${limit.toLocaleString('en-US')} used.` : '';
@@ -86,7 +88,7 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
       // A run is refused whole, before any cell exists, when one of its cases is over the plan's size limit.
       return {
         ...base, kind: 'too-big', limitId, source: notice?.source,
-        title: `A case is too big for your plan${at}`,
+        title: `A problem is too big for your plan${at}`,
         text: complexityText(caught, nothing),
       };
     }
@@ -99,8 +101,8 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
     }
     return {
       ...base, kind: 'quota', limitId, source: notice?.source,
-      title: `Out of ${info.short}${at}`,
-      text: `${limit !== undefined ? `You’ve used ${(spentCount ?? limit).toLocaleString('en-US')} of ${limit.toLocaleString('en-US')} ${info.short}.` : `You’ve used all your ${info.short}.`} ${nothing}`,
+      title: `Out of ${noun}${at}`,
+      text: `${limit !== undefined ? `You’ve used ${(spentCount ?? limit).toLocaleString('en-US')} of ${limit.toLocaleString('en-US')} ${noun}.` : `You’ve used all your ${noun}.`} ${nothing}`,
     };
   }
 
@@ -108,7 +110,7 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
     const concurrency = caught instanceof HttpError ? caught.concurrency : undefined;
     return {
       ...base, kind: 'busy', limitId: concurrency?.limit_id ?? 'concurrentJobs', source: concurrency?.source, retryAfter: failure.retryAfter ?? 15,
-      title: `All your job slots are busy${at}`,
+      title: `All your run slots are busy${at}`,
       text: `${slotsText(concurrency)} Try again in about ${failure.retryAfter ?? 15} s. ${nothing}`,
     };
   }
@@ -134,7 +136,7 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
     return {
       ...base, kind: 'not-found', title: `Not found${at}`,
       text: action === 'attach'
-        ? `The cell, or the job, doesn’t exist or isn’t yours: only a finished job you launched can be attached. ${nothing}`
+        ? `The cell, or the run, doesn’t exist or isn’t yours: only a finished run you launched can be attached. ${nothing}`
         : `It no longer exists, or you’re not in the organization it belongs to. ${nothing}`,
     };
   }
@@ -154,11 +156,11 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
       case 'cell_not_retryable':
         return { ...base, kind: 'terminal', title: `This cell can’t be retried${at}`, text: `Only failed or cancelled cells can. ${nothing}` };
       case 'job_not_finished':
-        return { ...base, kind: 'terminal', title: `That job hasn’t finished${at}`, text: `Attach a job that completed, failed or was cancelled. ${nothing}` };
+        return { ...base, kind: 'terminal', title: `That run hasn’t finished${at}`, text: `Attach a run that completed, failed or was cancelled. ${nothing}` };
       case 'job_result_missing':
-        return { ...base, kind: 'terminal', title: `That job finished without a result${at}`, text: `There is nothing to attach. Pick a job that produced a result. ${nothing}` };
+        return { ...base, kind: 'terminal', title: `That run finished without a result${at}`, text: `There is nothing to attach. Pick a run that produced a result. ${nothing}` };
       case 'job_already_attached':
-        return { ...base, kind: 'conflict', title: `That job is already the result of another cell${at}`, text: `A job stands for one cell only. Pick another job. ${nothing}` };
+        return { ...base, kind: 'conflict', title: `That run is already the result of another cell${at}`, text: `A run stands for one cell only. Pick another run. ${nothing}` };
       case 'cell_job_mismatch': {
         const differing = mismatchedFields(caught);
         const names = differing.map((item) => item.label);
@@ -166,10 +168,10 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
         return {
           ...base,
           kind: 'conflict',
-          title: `That job isn’t a run of this cell${at}`,
-          text: `A cell takes the result of a job that ran its case revision with its engine, mode and seed.${list} Pick a job that matches. ${nothing}`,
+          title: `That run isn’t a run of this cell${at}`,
+          text: `A cell takes the result of a run of its problem version with its engine, mode and seed.${list} Pick a run that matches. ${nothing}`,
           details: differing.length
-            ? differing.map((item) => `${item.label[0].toUpperCase()}${item.label.slice(1)}: ${item.cell !== undefined || item.job !== undefined ? `the cell has ${item.cell ?? 'unknown'}, the job ran ${item.job ?? 'unknown'}` : 'does not match'}`)
+            ? differing.map((item) => `${item.label[0].toUpperCase()}${item.label.slice(1)}: ${item.cell !== undefined || item.job !== undefined ? `the cell has ${item.cell ?? 'unknown'}, the run had ${item.job ?? 'unknown'}` : 'does not match'}`)
             : base.details,
         };
       }
@@ -183,7 +185,7 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
   if (failure.status === 422) {
     switch (failure.code) {
       case 'study_matrix_too_large':
-        return { ...base, kind: 'too-big', title: `The matrix is too large${at}`, text: `A study may pin at most 250 cases and expand to at most 10,000 cells. Remove an engine, a setting or some seeds. ${nothing}` };
+        return { ...base, kind: 'too-big', title: `The matrix is too large${at}`, text: `A study may pin at most 250 problems and expand to at most 10,000 cells. Remove an engine, a setting or some seeds. ${nothing}` };
       case CELLS_CODE: {
         const cap = notice?.limit;
         const cells = notice?.used;
@@ -194,16 +196,16 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
         };
       }
       case 'empty_study_cases':
-        return { ...base, kind: 'other', title: `The study needs a case${at}`, text: `Choose at least one case revision, or a sealed collection with cases in it. ${nothing}` };
+        return { ...base, kind: 'other', title: `The study needs a problem${at}`, text: `Choose at least one problem version, or a sealed collection with problems in it. ${nothing}` };
       case 'foreign_case_revision':
-        return { ...base, kind: 'other', title: `A case revision isn’t in this organization${at}`, text: `Every case revision of a study must belong to this organization. ${nothing}` };
+        return { ...base, kind: 'other', title: `A problem version isn’t in this organization${at}`, text: `Every problem version of a study must belong to this organization. ${nothing}` };
       case 'unavailable_collection':
         return { ...base, kind: 'other', title: `That collection isn’t available${at}`, text: `Choose a sealed collection version you can read. ${nothing}` };
       case 'engine_mode_incompatible':
       case 'invalid_engine':
         return { ...base, kind: 'incompatible', title: `An engine can’t run this${at}`, text: `${gateway}Pick another engine or mode. ${nothing}` };
       default:
-        return { ...base, kind: 'other', title: `The gateway refused these choices${at}`, text: `${gateway}Check the cases, engines, settings and seeds. ${nothing}` };
+        return { ...base, kind: 'other', title: `The gateway refused these choices${at}`, text: `${gateway}Check the problems, engines, settings and seeds. ${nothing}` };
     }
   }
 

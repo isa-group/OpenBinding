@@ -40,8 +40,8 @@ const PRESETS: Record<ErrorVariant, Preset> = {
   },
   '429': {
     code: 'concurrency_limit_exceeded',
-    title: 'All your job slots are busy',
-    body: 'Every concurrent slot is in use. A slot frees up as soon as one of your jobs finishes, so waiting helps here.',
+    title: 'All your run slots are busy',
+    body: 'Every concurrent slot is in use. A slot frees up as soon as one of your runs finishes, so waiting helps here.',
   },
   '503': {
     code: 'unavailable',

@@ -45,10 +45,10 @@ const TOKEN_STATES: Record<TokenState, { label: string; verdict: string; text: s
 
 const ANATOMY = [
   {
-    title: 'Busy job slots (429)',
+    title: 'Busy run slots (429)',
     format: 'Format used by most routes',
     rows: [
-      ['Error name', 'Headline: “All your job slots are busy”'],
+      ['Error name', 'Headline: “All your run slots are busy”'],
       ['Status 429', 'Code chip “429”'],
       ['Explanation', 'Body text'],
       ['Limit 1 · used 1', 'Gauge: 1 of 1 slots'],
@@ -151,8 +151,8 @@ export function States() {
             <ErrorState
               variant="404"
               code="not_found"
-              title="Job not found"
-              actions={<StateAction tone="link" to="/app/jobs">Go to my jobs</StateAction>}
+              title="Run not found"
+              actions={<StateAction tone="link" to="/app/jobs">Go to my runs</StateAction>}
             />
           </>
         )}
@@ -197,9 +197,9 @@ export function States() {
               code="concurrency_limit_exceeded · Retry-After 15"
               retryAfter={15}
               onRetry={() => undefined}
-              actions={<StateAction tone="link" to="/app/jobs">View the running job</StateAction>}
+              actions={<StateAction tone="link" to="/app/jobs">View the running run</StateAction>}
             >
-              You have 1 of 1 concurrent jobs running. Waiting helps here: a slot frees up as soon as one of your jobs finishes.
+              You have 1 of 1 concurrent runs going. Waiting helps here: a slot frees up as soon as one of your runs finishes.
             </ErrorState>
             <ErrorState
               variant="503"
@@ -219,7 +219,7 @@ export function States() {
               status="OPTION_CLAMPED"
               tone="warning"
               code="warning, not an error"
-              title="Your job ran with a smaller budget"
+              title="Your run used a smaller budget"
               details={(
                 <table className="states-table">
                   <caption className="sr-only">Options that were reduced to the plan’s ceiling</caption>
@@ -233,7 +233,7 @@ export function States() {
               )}
               actions={null}
             >
-              The plan’s ceiling for this option applied. The job was created; its result says it used the reduced budget.
+              The plan’s ceiling for this option applied. The run was created; its result says it used the reduced budget.
             </ErrorState>
             <ErrorState
               status="token"

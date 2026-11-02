@@ -165,7 +165,7 @@ describe('Pricing', () => {
     expect(await screen.findByRole('heading', { name: 'What has to have room before you start' })).toBeInTheDocument();
     expect(screen.getByText(/Three features also check your limits/)).toBeInTheDocument();
     const solve = screen.getByText('Start a solve').closest('.pricing-gate') as HTMLElement;
-    expect(within(solve).getByText('A free job slot')).toBeInTheDocument();
+    expect(within(solve).getByText('A free run slot')).toBeInTheDocument();
     expect(within(screen.getByText('Start a study run').closest('.pricing-gate') as HTMLElement).getByText('Study runs left this month')).toBeInTheDocument();
   });
 

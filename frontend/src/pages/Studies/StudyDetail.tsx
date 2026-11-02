@@ -51,7 +51,7 @@ function DefinitionMatrix({ study, org, project }: { study: Study; org: string; 
           <table className="st-grid">
             <thead>
               <tr>
-                <th scope="col">Case ↓ · engine × seed →</th>
+                <th scope="col">Problem ↓ · engine × seed →</th>
                 {grid.columns.map((column) => <th key={column.key} scope="col" className="st-grid-head">{column.label}</th>)}
               </tr>
             </thead>
@@ -231,7 +231,7 @@ function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | 
     setOutcome(null);
     try {
       const made = await platformApi.runStudy(org, slug, study.slug, study.definition_version_id);
-      settle({ tone: 'success', text: `Run #${made.run_number} accepted (202). Cells start as job slots free up.`, follow: { to: studyPageHref(studyPath, 'progress', { run: made.id }), label: `Follow run #${made.run_number}` } });
+      settle({ tone: 'success', text: `Run #${made.run_number} accepted (202). Cells start as run slots free up.`, follow: { to: studyPageHref(studyPath, 'progress', { run: made.id }), label: `Follow run #${made.run_number}` } });
       runs.reload();
     } catch (caught) {
       settle({ tone: 'error', refusal: studyRefusal(caught, 'run') });
