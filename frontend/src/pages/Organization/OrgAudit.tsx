@@ -84,7 +84,7 @@ function EventCard({ event, who, nameOf, open, onToggle }: {
             <dl>
               <dt>Who</dt><dd>{who}</dd>
               <dt>Action</dt><dd><code>{event.action}</code></dd>
-              <dt>Target</dt><dd>{event.targetType}{event.targetId ? <> · <code>{event.targetId}</code></> : null}</dd>
+              <dt>Target</dt><dd>{event.targetType}</dd>
               {batch.length > 0 && (
                 <>
                   <dt>Changes</dt>
