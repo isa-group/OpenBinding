@@ -169,7 +169,9 @@ describe('New API key', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent('422 · The permissions you chose need all engines or at least one exact engine.');
       expect(screen.getByRole('heading', { name: 'Engine access' })).toBeInTheDocument();
 
-      fireEvent.click(await screen.findByRole('checkbox', { name: /bim\.builtin\/random-search@1\.0\.0/ }));
+      const pick = await screen.findByRole('checkbox', { name: /bim\.builtin\/random-search@1\.0\.0/ });
+      expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
+      fireEvent.click(pick);
       next();
       expect(await heading(/^Limits/)).toBeInTheDocument();
     });

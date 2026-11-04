@@ -68,6 +68,8 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
     expect(await screen.findByText('Contract matches bim-engine/v1')).toBeInTheDocument();
     expect(screen.getByText('Health path answered')).toBeInTheDocument();
     expect(screen.getByText('Verification report')).toBeInTheDocument();
+    expect(screen.getByText('edge-solver 0.3.1', { selector: 'dd' })).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     expect(api.getEngineRegistrationReport).toHaveBeenCalledOnce();
     fireEvent.click(within(request()).getByRole('button', { name: 'Hide verification report' }));
     expect(screen.queryByText('Contract matches bim-engine/v1')).not.toBeInTheDocument();
@@ -159,7 +161,7 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
     fireEvent.change(within(form).getByLabelText('Name'), { target: { value: 'edge-annotations' } });
     fireEvent.change(within(form).getByLabelText('Version'), { target: { value: '1.0.0' } });
     expect(approve).toBeDisabled();
-    fireEvent.change(within(form).getByLabelText('Revision (digest)'), { target: { value: 'sha256-abc' } });
+    fireEvent.change(within(form).getByLabelText('Revision'), { target: { value: 'sha256-abc' } });
     expect(approve).toBeEnabled();
     fireEvent.click(approve);
     const dialog = screen.getByRole('dialog', { name: 'Approve dialect maria-santos/edge-annotations@1.0.0?' });
@@ -176,7 +178,7 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
     renderAdmin(<AdminModeration />);
     const form = await screen.findByRole('form', { name: 'Approve a dialect or resource' });
     fireEvent.change(within(form).getByLabelText('Kind'), { target: { value: 'resource' } });
-    for (const [label, value] of [['Namespace', 'maria-santos'], ['Name', 'eu-edge-placement'], ['Version', '1.0.0'], ['Revision (digest)', 'sha256-abc']]) {
+    for (const [label, value] of [['Namespace', 'maria-santos'], ['Name', 'eu-edge-placement'], ['Version', '1.0.0'], ['Revision', 'sha256-abc']]) {
       fireEvent.change(within(form).getByLabelText(label), { target: { value } });
     }
     fireEvent.click(within(form).getByRole('button', { name: 'Approve…' }));

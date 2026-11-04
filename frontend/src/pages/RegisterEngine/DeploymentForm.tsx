@@ -1,7 +1,6 @@
 import { useId, useState, type ChangeEvent, type DragEvent } from 'react';
 import { AlertTriangle, Check, X } from 'lucide-react';
 import { FormField } from '../../components/ui/FormField';
-import { shortDigest } from '../../utils/digest';
 import { issueAt, type Issue } from './engineDraft';
 import {
   MAPPING_FIELDS, endpointProblem,
@@ -20,12 +19,10 @@ interface DeploymentFormProps {
   reading: ContractReading;
   issues: Issue[];
   locked: boolean;
-  /** The bim-engine/v1 fingerprint the gateway publishes, if it could be read. */
-  protocolDigest: string | null;
 }
 
 /** Step 2: where the deployment is and the contract it follows. Nothing on this step may carry a secret. */
-export function DeploymentForm({ draft, onChange, reading, issues, locked, protocolDigest }: DeploymentFormProps) {
+export function DeploymentForm({ draft, onChange, reading, issues, locked }: DeploymentFormProps) {
   const [dragging, setDragging] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const editorId = useId();
@@ -118,7 +115,7 @@ export function DeploymentForm({ draft, onChange, reading, issues, locked, proto
           onDrop={onDrop}
         >
           <strong>{draft.fileName ? `Read ${draft.fileName}` : 'Drop your deployment’s OpenAPI file'}</strong>
-          <span>We pin it by fingerprint, so later changes on your side are detected. It has to be the same document the deployment serves at its contract path.</span>
+          <span>We pin this exact document, so later changes on your side are detected. It has to be the same document the deployment serves at its contract path.</span>
           <label className="rg-file">
             <span>{draft.contract ? 'Choose another file' : 'Choose file'}</span>
             <input type="file" accept="application/json,.json" aria-label="Deployment OpenAPI file" disabled={locked} onChange={onPick} />
@@ -136,7 +133,7 @@ export function DeploymentForm({ draft, onChange, reading, issues, locked, proto
             value={draft.contract}
             disabled={locked}
             spellCheck={false}
-            placeholder={'{\n  "openapi": "3.1.0",\n  "info": { "title": "My engine", "version": "1.0.0" },\n  "x-bim-protocol": "bim-engine/v1",\n  "x-bim-protocol-digest": "sha256-…",\n  "paths": { … }\n}'}
+            placeholder={'{\n  "openapi": "3.1.0",\n  "info": { "title": "My engine", "version": "1.0.0" },\n  "x-bim-protocol": "bim-engine/v1",\n  "x-bim-protocol-digest": "…",\n  "paths": { … }\n}'}
             onChange={(event) => patch({ contract: event.target.value, fileName: '' })}
           />
         </details>
@@ -153,7 +150,7 @@ export function DeploymentForm({ draft, onChange, reading, issues, locked, proto
               ))}
             </ul>
             <small className="eng-muted">
-              Read from the document you gave. Protocol: bim-engine/v1{protocolDigest ? ` · fingerprint ${shortDigest(protocolDigest)}` : ''}.
+              Read from the document you gave. Protocol: bim-engine/v1.
             </small>
           </>
         )}

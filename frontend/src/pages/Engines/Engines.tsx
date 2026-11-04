@@ -18,7 +18,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
 import {
-  BUILTIN_NAMESPACE, engineRows, familyOptions, glyphOf, modeRows, shortDigest,
+  BUILTIN_NAMESPACE, engineRows, familyOptions, glyphOf, modeRows,
   type EngineRow, type ModeRow,
 } from './enginesModel';
 import { MyDeployments } from './MyDeployments';
@@ -91,7 +91,7 @@ export function Engines() {
       <PageHeader
         eyebrow="Engines"
         title="Engine catalog"
-        lede="Every engine is addressed by its exact identity: namespace, name, version and digest. Pick the revision and mode you’ll run or study."
+        lede="Every engine is addressed by its exact identity: namespace, name and version. Pick the revision and mode you’ll run or study."
         actions={user && (
           <>
             <Link className="engines-action" to="/app/engines/registrations">My registrations</Link>
@@ -217,7 +217,6 @@ export function Engines() {
                     <th scope="col">Namespace</th>
                     <th scope="col">Name</th>
                     <th scope="col">Version</th>
-                    <th scope="col">Digest</th>
                     <th scope="col">Visibility</th>
                     <th scope="col">Listing</th>
                     <th scope="col"><span className="sr-only">Open</span></th>
@@ -229,7 +228,6 @@ export function Engines() {
                       <td className="is-mono">{row.engine.namespace}</td>
                       <td className="is-mono">{row.engine.name}</td>
                       <td>{row.engine.version}</td>
-                      <td className="is-mono" title={row.engine.digest}>{shortDigest(row.engine.digest)}</td>
                       <td>{row.visibility === 'public' ? 'Public' : 'Private'}</td>
                       <td>{row.publication.charAt(0).toUpperCase() + row.publication.slice(1)}</td>
                       <td><Link to={row.href} aria-label={`Open ${row.engine.name} ${row.engine.version}`}>Open</Link></td>
@@ -263,7 +261,6 @@ function EngineCard({ row }: { row: EngineRow }) {
           {engine.modes.map((mode) => <span key={mode.id} className="engines-mode">mode · {mode.id}</span>)}
         </span>
         <span className="engines-card-tags">
-          <span className="is-mono" title={engine.digest}>{shortDigest(engine.digest)}</span>
           {row.chips.map((chip) => <span key={chip}>{chip}</span>)}
         </span>
       </Link>

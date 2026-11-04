@@ -86,7 +86,7 @@ describe('eng-registration-detail', () => {
     const identity = screen.getByRole('region', { name: 'Exact identity' });
     expect(within(identity).getByText('alex.rivera')).toBeInTheDocument();
     expect(within(identity).getByText('0.3.1')).toBeInTheDocument();
-    expect(within(identity).getByText(/sha256-e5f6…e5f6/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     expect(screen.getByRole('button', { name: 'Deactivate' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check again' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Edit as a new version' })).toHaveAttribute('href', expect.stringContaining('/app/engines/new?from=edge-solver'));
@@ -110,7 +110,7 @@ describe('eng-registration-detail', () => {
     expect(within(card).getByText('Contract matches bim-engine/v1')).toBeInTheDocument();
     expect(within(card).getByText('Health path answered')).toBeInTheDocument();
     expect(within(card).getByText('Sample problem solved')).toBeInTheDocument();
-    expect(within(card).getByText(/Protocol bim-engine\/v1 · fingerprint sha256-c3d4…c3d4/)).toBeInTheDocument();
+    expect(within(card).getByText(/^Protocol bim-engine\/v1$/)).toBeInTheDocument();
     expect(within(card).getAllByText('Passed')).toHaveLength(3);
   });
 

@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Layers, Search } from 'lucide-react';
 import { apiClient, HttpError } from '../../api/client';
 import { Action } from '../../components/ui/Action';
-import { CopyField } from '../../components/ui/CopyField';
 import { DataTable } from '../../components/ui/DataTable';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
@@ -13,9 +12,8 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useAuth } from '../../contexts/auth';
-import { shortDigest } from '../../utils/digest';
 import { useResource, type Resource } from '../../utils/useResource';
-import { StatusChip, ViewSource } from './EngineParts';
+import { CopyButton, StatusChip, ViewSource } from './EngineParts';
 import {
   adapterRows, dialectRows, mediaLabel, resourceRows,
   type AdapterRow, type DialectRow, type ResourceRow,
@@ -53,7 +51,7 @@ function DialectCard({ row, open, onToggle }: { row: DialectRow; open: boolean; 
       <header>
         <div className="lang-card-title">
           <h3>{row.name} <span>{row.version}</span></h3>
-          <span className="lang-ref is-mono">{row.namespace} · <span title={row.digest}>{shortDigest(row.digest)}</span></span>
+          <span className="lang-ref is-mono">{row.namespace}</span>
         </div>
         <span className="lang-chips">
           <StatusChip tone="success">Installed</StatusChip>
@@ -75,14 +73,13 @@ function DialectCard({ row, open, onToggle }: { row: DialectRow; open: boolean; 
           <h4>Resource types it adds</h4>
           {row.resourceTypes.length === 0 ? <span className="eng-muted">None. This dialect adds extension points instead.</span> : (
             <DataTable label={`Resource types of ${row.name}`} minWidth={560}>
-              <thead><tr><th scope="col">Kind</th><th scope="col">Roles</th><th scope="col">File format</th><th scope="col">Schema fingerprint</th></tr></thead>
+              <thead><tr><th scope="col">Kind</th><th scope="col">Roles</th><th scope="col">File format</th></tr></thead>
               <tbody>
                 {row.resourceTypes.map((type) => (
                   <tr key={`${type.apiVersion}/${type.kind}/${type.mediaType}`}>
                     <td className="is-mono">{type.kind}</td>
                     <td>{type.roles.join(', ') || '—'}</td>
                     <td>{mediaLabel(type.mediaType)}{type.xmlRoot ? ` · root ${type.xmlRoot.localName}` : ''}</td>
-                    <td className="is-mono" title={type.schemaDigest}>{shortDigest(type.schemaDigest)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -97,7 +94,6 @@ function DialectCard({ row, open, onToggle }: { row: DialectRow; open: boolean; 
                     <StatusChip tone="info">{point.target.kind}</StatusChip>
                     <span aria-hidden="true">→</span>
                     <code>{point.pointer}</code>
-                    <small title={point.schemaDigest}>schema {shortDigest(point.schemaDigest)}</small>
                   </li>
                 ))}
               </ul>
@@ -116,7 +112,7 @@ function DialectCard({ row, open, onToggle }: { row: DialectRow; open: boolean; 
             <div><dt>Id</dt><dd className="is-mono">{row.adapter.id}</dd></div>
             <div><dt>Version</dt><dd className="is-mono">{row.adapter.version}</dd></div>
           </dl>
-          <CopyField value={row.adapter.binaryDigest} label={`${row.adapter.id} binary fingerprint`} truncate />
+          <CopyButton value={row.adapter.binaryDigest} label={`${row.adapter.id} binary fingerprint`} />
           <ViewSource value={row.document} sourceLabel={`${row.name} dialect source`} filename={`${row.name}.dialect.json`} />
         </div>
       )}
@@ -127,13 +123,12 @@ function DialectCard({ row, open, onToggle }: { row: DialectRow; open: boolean; 
 function AdaptersTable({ rows }: { rows: AdapterRow[] }) {
   return (
     <DataTable label="Installed adapters" minWidth={640}>
-      <thead><tr><th scope="col">Adapter</th><th scope="col">Version</th><th scope="col">Binary fingerprint</th><th scope="col">Used by</th><th scope="col">Status</th></tr></thead>
+      <thead><tr><th scope="col">Adapter</th><th scope="col">Version</th><th scope="col">Used by</th><th scope="col">Status</th></tr></thead>
       <tbody>
         {rows.map((row) => (
           <tr key={row.key}>
             <td className="is-mono">{row.id}</td>
             <td>{row.version}</td>
-            <td className="is-mono" title={row.binaryDigest}>{shortDigest(row.binaryDigest)}</td>
             <td>
               <span className="lang-chips">
                 {row.usedBy.map((use) => <span key={`${use.kind}${use.label}`} className="eng-value">{use.kind} · {use.label}</span>)}
@@ -160,7 +155,7 @@ function ResourcesTable({ rows }: { rows: ResourceRow[] }) {
           <tr key={row.key}>
             <td>
               <strong>{row.name}</strong> <span className="lang-version">{row.version}</span>
-              <span className="lang-ref is-mono">{row.namespace} · <span title={row.digest}>{shortDigest(row.digest)}</span></span>
+              <span className="lang-ref is-mono">{row.namespace}</span>
             </td>
             <td className="is-mono">{row.kind}</td>
             <td>{row.role}</td>

@@ -5,7 +5,6 @@ import type {
   EngineRegistrationRevision,
 } from '../../api/client';
 import type { EngineRevision } from '../../api/platform';
-import { shortDigest } from '../../utils/digest';
 
 export const BUILTIN_NAMESPACE = 'bim.builtin';
 
@@ -167,5 +166,3 @@ export function glyphOf(name: string): string {
   const words = name.split(/[\s._/-]+/).filter(Boolean);
   return (words.length > 1 ? words[0][0] + words[1][0] : name.slice(0, 2)).toUpperCase();
 }
-
-export { shortDigest };

@@ -87,7 +87,7 @@ describe('engine revision detail', () => {
     renderAt(PATH);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'bim.builtin/random-search@1.0.0' })).toBeInTheDocument();
-    expect(screen.getByText(DIGEST)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     expect(screen.getByRole('link', { name: 'Log in to run' })).toHaveAttribute('href', '/login');
     expect(api.listEngineRegistrations).not.toHaveBeenCalled();
     expect(platform.engineRevision).not.toHaveBeenCalled();
@@ -229,6 +229,10 @@ describe('engine revision detail', () => {
     expect(within(item).getByRole('row', { name: /health.*passed/ })).toBeInTheDocument();
     expect(within(item).getByRole('row', { name: /schema.*failed.*Missing field/ })).toBeInTheDocument();
     expect(within(item).getByText('2 checks · 120 ms')).toBeInTheDocument();
+    // The registration row and the exact-reference panel name the engine, never a digest.
+    for (const shown of [item.querySelector('.engine-detail-registration'), screen.getByRole('region', { name: 'Exact reference' })]) {
+      expect(shown?.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
+    }
     expect(api.getEngineRegistrationReport).toHaveBeenCalledWith(expect.objectContaining({ name: 'edge-solver', digest: DIGEST }));
   });
 

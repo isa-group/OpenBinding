@@ -191,7 +191,8 @@ describe('API keys', () => {
     const second = within(await card('ejecucion-engine-fijo'));
     expect(second.getByText('last used never')).toBeInTheDocument();
     expect(second.getByText('no expiry')).toBeInTheDocument();
-    expect(second.getByText('Only bim.builtin/random-search@1.0.0 (sha256-b2c3…d4e5)')).toBeInTheDocument();
+    expect(second.getByText('Only bim.builtin/random-search@1.0.0')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(second.getByText('No extra limits')).toBeInTheDocument();
   });
 

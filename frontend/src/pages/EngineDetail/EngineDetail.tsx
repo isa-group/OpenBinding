@@ -24,7 +24,6 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
-import { shortDigest } from '../../utils/digest';
 import { useResource } from '../../utils/useResource';
 import { engineHref, engineKey, optionFacts, selectorText } from '../Engines/enginesModel';
 import { planCeilings, previewOption, type PlanCeilings, type PlanLimits } from './planCeilings';
@@ -215,9 +214,8 @@ export function EngineDetail() {
           </span>
           <h1>{entry.namespace}/{entry.name}<span>@{entry.version}</span></h1>
           <div className="engine-detail-digest">
-            <code>{entry.digest}</code>
             <button type="button" className={copyStatus() === 'copied' ? 'is-copied' : undefined} onClick={() => void copy(ref)}>
-              {copyStatus() === 'copied' ? 'Copied' : copyStatus() === 'failed' ? 'Failed' : 'Copy ref'}
+              {copyStatus() === 'copied' ? 'Copied' : copyStatus() === 'failed' ? 'Failed' : 'Copy exact reference'}
             </button>
           </div>
           {data.siblings.length > 1 && (
@@ -326,7 +324,6 @@ export function EngineDetail() {
               <dt>Namespace</dt><dd className="is-mono">{entry.namespace}</dd>
               <dt>Name</dt><dd className="is-mono">{entry.name}</dd>
               <dt>Version</dt><dd>{entry.version}</dd>
-              <dt>Digest</dt><dd className="is-mono" title={entry.digest}>{shortDigest(entry.digest)}</dd>
               <dt>Visibility</dt><dd><Chip tone={visibility === 'Public' ? 'success' : 'plain'}>{visibility}</Chip></dd>
               <dt>Modes</dt>
               <dd>{entry.modes.length} · {entry.modes.map((item) => `${item.id} (${optionFacts(item).length} option${optionFacts(item).length === 1 ? '' : 's'})`).join(', ') || 'none'}</dd>
@@ -570,7 +567,6 @@ function RegistrationItem({ registration }: { registration: EngineRegistrationRe
       <div className="engine-detail-registration">
         <div>
           <strong className="is-mono">{registration.namespace}/{registration.name}@{registration.version}</strong>
-          <small className="is-mono" title={registration.digest}>{shortDigest(registration.digest)}</small>
         </div>
         <Chip tone={registration.status === 'published' ? 'success' : registration.status === 'rejected' ? 'warning' : 'plain'}>{registration.status.replace('_', ' ')}</Chip>
         <Chip tone={registration.active ? 'success' : 'plain'}>{registration.active ? 'active for you' : 'inactive for you'}</Chip>

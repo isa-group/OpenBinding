@@ -11,7 +11,6 @@ import { Notice, type NoticeTone } from '../../components/ui/Notice';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
-import { shortDigest } from '../../utils/digest';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ConfirmDialog, DeregisterDialog } from './EngineDialogs';
@@ -301,7 +300,7 @@ export function EngRegistrations() {
                     <td>
                       <Link className="reg-name" to={registrationHref(row)}>{row.name}</Link>{' '}
                       <span className="reg-version">{row.version}</span>
-                      <span className="reg-ref">{row.namespace} · <span title={row.digest}>{shortDigest(row.digest)}</span>{!mine && ' · published by another account'}</span>
+                      <span className="reg-ref">{row.namespace}{!mine && ' · published by another account'}</span>
                     </td>
                     <td data-label="Use"><StatusChip tone={activity.tone}>{activity.label}</StatusChip></td>
                     <td data-label="Publication"><StatusChip tone={publication.tone}>{publication.label}</StatusChip></td>

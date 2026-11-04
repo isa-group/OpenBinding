@@ -5,7 +5,7 @@ import { Action } from '../../components/ui/Action';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { shortDigest } from '../../utils/digest';
+import { engineLabel } from '../../shared/lib/identity';
 import { useResource } from '../../utils/useResource';
 import { ConfirmDialog } from '../Engines/EngineDialogs';
 import { ConformanceChecklist, ViewSource } from '../Engines/EngineParts';
@@ -105,7 +105,7 @@ export function AdminEngineReview({ onDecided }: Props) {
                 <div className="adm-request-head">
                   <strong>{row.name}</strong>
                   <span>{row.version}</span>
-                  <code title={row.digest}>{row.namespace} · {shortDigest(row.digest)}</code>
+                  <code>{row.namespace}</code>
                   <Tag tone="warning">Waiting for review</Tag>
                   <span className="adm-request-by">Requested by <strong>{row.namespace}</strong></span>
                 </div>
@@ -120,8 +120,8 @@ export function AdminEngineReview({ onDecided }: Props) {
                       <>
                         <ConformanceChecklist probe={readProbe(report.report.report)} pendingText="The gateway hasn’t verified this deployment yet; approving verifies it again." failedText="A check failed. Approving verifies the live deployment again before anything is published." />
                         <dl className="adm-detail">
-                          <div><dt>Registration digest</dt><dd className="is-mono">{report.report.digest}</dd></div>
-                          <div><dt>OpenAPI digest</dt><dd className="is-mono">{report.report.openapiDigest || 'not verified'}</dd></div>
+                          <div><dt>Engine</dt><dd>{engineLabel({ name: row.name, version: row.version })}</dd></div>
+                          <div><dt>OpenAPI document</dt><dd>{report.report.openapiDigest ? 'pinned' : 'not verified'}</dd></div>
                         </dl>
                         <ViewSource value={report.report.report} label="Verification report" />
                         <ViewSource value={report.report.engine} label="Submitted Engine" />

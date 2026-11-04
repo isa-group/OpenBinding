@@ -11,7 +11,6 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { ProjectPicker } from '../../components/ui/ProjectPicker';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
-import { shortDigest } from '../../utils/digest';
 import { useResource } from '../../utils/useResource';
 import { ConformanceChecklist, Crumbs, PlanMeter, StatusChip, ViewSource } from '../Engines/EngineParts';
 import {
@@ -405,7 +404,7 @@ function Wizard({ username, setup, allowance, allowanceLoading, onAllowanceChang
               You’ve registered {full.used} of {full.limit} federated engines. Creating another is likely to be refused (402); delete one you no longer use first.
             </Notice>
           )}
-          <DeploymentForm draft={deployment} onChange={setDeployment} reading={reading} issues={deployIssues} locked={Boolean(registration)} protocolDigest={protocolDigest} />
+          <DeploymentForm draft={deployment} onChange={setDeployment} reading={reading} issues={deployIssues} locked={Boolean(registration)} />
           <div className="rg-actions">
             <Action variant="secondary" onClick={() => go(1)}>Back</Action>
             {!registration ? (
@@ -485,12 +484,11 @@ function Wizard({ username, setup, allowance, allowanceLoading, onAllowanceChang
             <span aria-hidden="true" className="rg-done-ring"><Check /></span>
             <span>
               <strong>{engine.name} {engine.version} is saved</strong>
-              <span>A private engine revision. Only your account can discover it. A material change needs a new version and digest.</span>
+              <span>A private engine revision. Only your account can discover it. A material change needs a new version.</span>
             </span>
           </div>
           <dl className="rg-summary">
             <div><dt>Engine</dt><dd>{engine.namespace}/{engine.name} {engine.version}</dd></div>
-            <div><dt>Fingerprint</dt><dd className="is-mono" title={engine.digest}>{shortDigest(engine.digest)}</dd></div>
             <div><dt>State</dt><dd>{engine.status}</dd></div>
           </dl>
           <div className="rg-actions">
@@ -512,7 +510,6 @@ function Wizard({ username, setup, allowance, allowanceLoading, onAllowanceChang
           </div>
           <dl className="rg-summary">
             <div><dt>Engine</dt><dd>{engine.namespace}/{engine.name} {engine.version}</dd></div>
-            <div><dt>Fingerprint</dt><dd className="is-mono" title={registration.digest}>{shortDigest(registration.digest)}</dd></div>
             <div><dt>Endpoint</dt><dd className="is-mono">{deployment.endpoint.trim()}</dd></div>
             <div><dt>Sign-in</dt><dd>{authLabel}</dd></div>
           </dl>

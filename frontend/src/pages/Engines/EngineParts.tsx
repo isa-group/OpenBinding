@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { SourceView } from '../../components/rendering/SourceView';
 import { DataTable } from '../../components/ui/DataTable';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
+import { useCopy } from '../../components/ui/useCopy';
 import { formatDateTime } from '../../utils/format';
 import { dimensionLabel, readManifest, valueLabel, type CapabilityRow, type ModeView } from './manifestModel';
 import type { Allowance, ChipTone, Probe } from './registrationModel';
@@ -38,6 +39,17 @@ export function Crumbs({ items }: { items: Crumb[] }) {
 /** A small rounded status label: the prototype's chips for use, publication and conformance. */
 export function StatusChip({ tone = 'plain', children }: { tone?: ChipTone; children: ReactNode }) {
   return <span className={`eng-chip is-${tone}`}>{children}</span>;
+}
+
+/** Copies a value without showing it: the button says in words what it copies. */
+export function CopyButton({ value, label }: { value: string; label: string }) {
+  const { copy, status } = useCopy();
+  const state = status();
+  return (
+    <button type="button" className="eng-copy" aria-label={`Copy ${label}`} onClick={() => void copy(value)}>
+      {state === 'copied' ? 'Copied' : state === 'failed' ? 'Failed' : `Copy ${label}`}
+    </button>
+  );
 }
 
 /** JSON or YAML as written, folded away: the readable views are the way in, this is for people who want the bytes. */

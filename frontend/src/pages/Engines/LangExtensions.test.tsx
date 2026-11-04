@@ -121,14 +121,14 @@ describe('lang-extensions', () => {
     expect(screen.getByText('No dialect matches')).toBeInTheDocument();
   });
 
-  it('lists the adapters with their version, fingerprint and everything that relies on them', async () => {
+  it('lists the adapters with their version and everything that relies on them', async () => {
     renderPage();
     fireEvent.click(await screen.findByRole('tab', { name: /^Adapters/ }));
     const table = await screen.findByRole('region', { name: 'Installed adapters' });
     await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(4));
     const profile = within(table).getByRole('row', { name: /qos-binding-profile/ });
     expect(profile).toHaveTextContent('Profile · qos-binding/v1');
-    expect(profile).toHaveTextContent('sha256-ad01…ad01');
+    expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     expect(within(table).getByRole('row', { name: /edge-annotations-adapter/ })).toHaveTextContent('Dialect · edge-annotations 1.0.0');
     expect(screen.getByText(/Approving a dialect never installs code/)).toBeInTheDocument();
   });

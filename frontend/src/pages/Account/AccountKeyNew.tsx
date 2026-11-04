@@ -9,7 +9,6 @@ import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { useAuth } from '../../contexts/auth';
-import { shortDigest } from '../../utils/digest';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, fallbackMessage } from './accountErrors';
 import {
@@ -321,7 +320,7 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
               </label>
               <label className={!allEngines ? 'is-on' : undefined}>
                 <input type="radio" name="engine-access" checked={!allEngines} onChange={() => setAllEngines(false)} />
-                <span><strong>Only these engines</strong><small>Exact revisions with digest. Others answer 404 to this key.</small></span>
+                <span><strong>Only these engines</strong><small>Exact revisions. Others answer 404 to this key.</small></span>
               </label>
             </div>
             {!allEngines && (
@@ -338,7 +337,6 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
                         onChange={() => { setError(null); setEngineKeys((current) => (current.includes(key) ? current.filter((item) => item !== key) : [...current, key])); }}
                       />
                       <span className="keynew-engine-ref">{engine.namespace}/{engine.name}@{engine.version}</span>
-                      <span className="keynew-engine-digest">{shortDigest(engine.digest)}</span>
                     </label>
                   );
                 })}
