@@ -815,8 +815,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const inputs = main.getByRole('region', { name: 'Frozen inputs' });
       await expect(inputs.getByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow?version=1`);
       await expect(inputs.getByText('random-search 1.0.0')).toBeVisible();
-      await expect(inputs.getByRole('link', { name: 'snapshot…' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow/source?version=1`);
-      await expect(inputs.getByRole('button', { name: 'Copy cell fingerprint' })).toBeVisible();
+      await expect(inputs.getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow/source?version=1`);
+      await expect(inputs.getByRole('button', { name: 'Copy cell digest' })).toHaveText('Copy digest');
+      await expect(inputs).not.toContainText(/sha256-|[0-9a-f]{12}/);
       const result = main.getByRole('region', { name: 'Result' });
       await expect(result.getByText('0.121')).toBeVisible();
       await expect(result.getByText('430')).toBeVisible();
@@ -944,8 +945,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('button', { name: 'Export CSV' })).toHaveCount(0);
 
       // Provenance of each cell.
-      await expect(main.getByRole('region', { name: 'Provenance of every cell' }).getByRole('row')).toHaveCount(9);
-      await expect(main.getByRole('button', { name: 'Copy fingerprint of cell 2' })).toBeVisible();
+      const provenance = main.getByRole('region', { name: 'Provenance of every cell' });
+      await expect(provenance.getByRole('row')).toHaveCount(9);
+      await expect(provenance.getByRole('button', { name: 'Copy digest of cell 2' })).toBeVisible();
+      await expect(provenance).not.toContainText(/sha256-|[0-9a-f]{12}/);
       expect(critical).toEqual([]);
     });
 
