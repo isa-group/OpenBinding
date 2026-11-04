@@ -134,8 +134,13 @@ describe('route registry', () => {
   });
 
   // [utest->req~frontend-nav-redirects~1]
+  it('declares moved addresses, so the table below is never empty', () => {
+    expect(movedRoutes.length).toBeGreaterThan(0);
+  });
+
+  // [utest->req~frontend-nav-redirects~1]
   it.each(movedRoutes.map((route) => [route.id, route] as const))('sends the moved address %s to a routed screen in one hop', (_id, route) => {
-    const params = Object.fromEntries([...route.path.matchAll(/:([A-Za-z]+)/g)].map((match) => [match[1], 'sample']));
+    const params = Object.fromEntries([...route.path.matchAll(/:([A-Za-z]+)/g)].map((match) => [match[1], `${match[1]}-value`]));
     const address = route.target(new URLSearchParams(), params);
     const pathname = address.split(/[?#]/)[0] ?? '';
     const config = [
