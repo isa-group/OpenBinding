@@ -555,7 +555,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'edge-solver' })).toBeVisible();
       await expect(main.getByText('Your deployment of the edge-solver engine. Only you can use it.')).toBeVisible();
-      await expect(main.getByRole('region', { name: 'Exact identity' }).getByText('sha256-e5f6…e5f6')).toBeVisible();
+      const identity = main.getByRole('region', { name: 'Exact identity' });
+      await expect(identity.getByText('Namespace', { exact: true })).toBeVisible();
+      await expect(identity.getByText('edge-solver', { exact: true })).toBeVisible();
+      await expect(identity.getByText('0.3.1', { exact: true })).toBeVisible();
+      await expect(identity).not.toContainText(/sha256-|[0-9a-f]{12}/);
       const verification = main.locator('section').filter({ has: page.getByRole('heading', { name: 'Last verification' }) });
       await expect(verification.getByText('Sample problem solved')).toBeVisible();
       await expect(verification.getByText('Verified', { exact: true })).toBeVisible();
