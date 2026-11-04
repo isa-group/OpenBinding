@@ -1,6 +1,6 @@
 # Flaky tests
 
-Last reviewed: 2026-10-25
+Last reviewed: 2026-11-04
 
 Register of known flaky, quarantined (deselected) and recently fixed tests. It serves INTENT O6, "no flaky test older
 than 7 days" (`INTENT.md:167`), and the quarantine rule "only through this file with an owner and a deadline"
@@ -16,33 +16,40 @@ date is estimated. An entry with an unknown date cannot be aged until a date is 
 | ID | Test | First seen | Status | PR | Owner | Deadline | Evidence |
 |---|---|---|---|---|---|---|---|
 | E1 | `frontend/src/pages/Library/LibArtifact.test.tsx` · "starts a draft from a sealed version, keeping its content and links" | unknown (no record) | fixed | none recorded | n/a | n/a | `docs/qa/FLAKY_TESTS.md` (section E1 below) |
-| E2 | `bim-toolchain/packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval` | unknown (no record) | deselected in the `bim-toolchain` CI job | none | the project owner | 2026-11-24 | `.github/workflows/ci.yml:100-110`; `test_analysis_b8_evidence.py:128`; `openspec/changes/m03-gate-tooling/design.md:248` |
-| E3 | `bim-toolchain/packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]` | unknown (no record) | deselected in the `bim-toolchain` CI job | none | the project owner | 2026-11-24 | `.github/workflows/ci.yml:100-110`; `test_analysis_b8_probe.py:213-214,232,263`; `design.md:248` |
+| E2 | `bim-toolchain/packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval` | unknown (no record) | deselected in the `bim-toolchain` CI job | none | the project owner | 2026-11-24 | `.github/workflows/ci.yml:162-180`; `test_analysis_b8_evidence.py:128`; `openspec/changes/archive/2026-10-26-m03-gate-tooling/design.md:248` |
+| E3 | `bim-toolchain/packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]` | unknown (no record) | deselected in the `bim-toolchain` CI job | none | the project owner | 2026-11-24 | `.github/workflows/ci.yml:162-180`; `test_analysis_b8_probe.py:213-214,232,263`; archived m03 `design.md:248` |
 | E4 | `.../analysis/test_analysis_b8_probe.py::test_a_shorter_switch_interval_keeps_healthz_fast_under_the_same_cpu_load` | unknown (no record) | fixed | #43 (`f2e18c6f`) | n/a | n/a | `test_analysis_b8_probe.py:140,201-202`; `docs/agent-work/flaky-b8-probe/report.md:1-79` |
 | E5 | `bim-toolchain/packages/bim-service/tests/test_execution_in_the_pool.py::test_healthz_stays_responsive_under_cpu_load_with_the_configured_interval` | unknown (no record) | fixed | #43 (`f2e18c6f`) | n/a | n/a | `test_execution_in_the_pool.py:506,561-562`; `flaky-b8-probe/report.md:8-10,32-34` |
-| E6 | `openbinding-gateway/tests/test_engine_cancel_contract.py::test_the_credential_of_another_tenant_cannot_stop_the_job_and_the_404_is_not_retried` | unknown (no record) | fixed | #42 (`716f8d13`) | n/a | n/a | `test_engine_cancel_contract.py:228,244-247`; `docs/agent-work/flaky-engine-cancel/report.md:1-70`; `design.md:249` |
+| E6 | `openbinding-gateway/tests/test_engine_cancel_contract.py::test_the_credential_of_another_tenant_cannot_stop_the_job_and_the_404_is_not_retried` | unknown (no record) | fixed | #42 (`716f8d13`) | n/a | n/a | `test_engine_cancel_contract.py:233,249`; `docs/agent-work/flaky-engine-cancel/report.md:1-70`; archived m03 `design.md:249` |
 | E7 | Six `frozen` + `lose_and_sweep` tests in `openbinding-gateway/tests/test_remote_cancel.py` (the "P2 race") | unknown (no record); no CI failure of these tests is recorded | fixed | #45 (`9273978d`) | n/a | n/a | `openbinding-gateway/tests/analysis_b3_b4_b6/_helpers.py:111-117`; `test_remote_cancel.py:701`; `docs/agent-work/prop-20261025-2/report.md:1-26` |
-| E8 | `openbinding-gateway/tests/test_process_probe.py::test_the_timeout_step_sees_the_503_the_healthz_and_the_next_request` | 2026-10-25 (first push-triggered CI run on develop, `5cf72550`, job `test`) | fixed in this change, pending the next develop push run | pending PR (fix commit on branch task `d0035241`) | n/a | n/a | section E8 below |
-| E9 | `openbinding-gateway/tests/test_process_probe.py::test_the_whole_probe_passes_against_worker_processes_with_the_n2_figures` | 2026-10-25 (CI run of PR 51, job `test`; passed on develop at `7707a532` and on PR 50) | fixed in this change, pending CI | pending PR (fix commit on branch task `a8b3a4fa`) | n/a | n/a | section E9 below |
+| E8 | `openbinding-gateway/tests/test_process_probe.py::test_the_timeout_step_sees_the_503_the_healthz_and_the_next_request` | 2026-10-25 (first push-triggered CI run on develop, `5cf72550`, job `test`) | fixed, pending develop push run (PR #50 merged 2026-10-25, PR CI green; no green develop push run after the merge is recorded) | #50 | n/a | n/a | section E8 below |
+| E9 | `openbinding-gateway/tests/test_process_probe.py::test_the_whole_probe_passes_against_worker_processes_with_the_n2_figures` | 2026-10-25 (CI run of PR 51, job `test`; passed on develop at `7707a532` and on PR 50) | fixed, pending develop push run (PR #52 merged 2026-10-25, PR CI green; no green develop push run after the merge is recorded) | #52 | n/a | n/a | section E9 below |
 
 **O6 status.** E2 and E3 (the two tests deselected in the `bim-toolchain` CI job) are classified as measurements that
 depend on the CI runner's CPU, not as correctness tests. Owner: the project owner. Review date: 2026-11-24 (30 days,
 proposed by the planner and accepted by the owner's choice). They are not counted toward O6. This is the owner's
-decision, option `runner-measurement` of `crp-flaky-b8-classification` (2026-10-25). Until the "First seen" dates are filled from git history, no entry can be aged against
-the 7-day target.
+decision, option `runner-measurement` of `crp-flaky-b8-classification` (2026-10-25). At present every other entry has
+status `fixed`, so no entry is aged against the 7-day target. E2 and E3 can be aged only when they are counted again
+(at the 2026-11-24 review, or with `--not-counted ""` in `tools/flow_metrics.py`), and that needs their "First seen"
+dates.
 
-**Verification limits.** This update was written without `git`. Dates, merge commits and PR numbers come only from
-the files cited; the PR numbers and short SHAs of E4-E7 are taken from the intake of this change
-(`docs/agent-work/prop-20261025-3/intake.md`) and from the reports it cites, and were not checked against the history.
+**Verification limits.** The "First seen" dates of E1-E7 could not be established in the lab, because the clone is
+partial (history blobs are missing and there is no network). They need a run in a full clone, before the 2026-11-24
+review for E2 and E3; until then the cells read `unknown (no record)` and no date is estimated. The PR numbers and short
+SHAs of E4-E7 are taken from the intake of the earlier update (`docs/agent-work/prop-20261025-3/intake.md`) and from the
+reports it cites, and were not checked against the history here. E8 and E9 PR numbers (#50, #52) come from the fix
+commit subjects and from `ci_status` on the PR heads (green); the develop push runs after the merges were not verified, so E8 and E9 read `fixed, pending develop push run` until a
+green develop push run is recorded for each. The tool does not age that status (it ages only `open` and `deselected`).
+Line references were checked against the files at this base.
 
 ## Details
 
 ### E2, E3 · two B8 timing tests deselected in the `bim-toolchain` job
 
-`.github/workflows/ci.yml:100-110` deselects both (`--deselect`; these are the only deselects, as `ci.yml:103` says).
+`.github/workflows/ci.yml:162-180` deselects both (`--deselect`; these are the only deselects, as `ci.yml:165` says).
 E2 is a throughput ratio that depends on the runner's CPU (47.6 % against a 50 % bound). E3 is a strict xfail (an open
 defect) that XPASSes on the runner. Both still run in the toolchain's own CI. Removal condition, from
-`design.md:248`: "when the toolchain makes its B8 timing tests robust". Classification: runner-CPU measurements, not
+the archived `openspec/changes/archive/2026-10-26-m03-gate-tooling/design.md:248`: "when the toolchain makes its B8 timing tests robust". Classification: runner-CPU measurements, not
 correctness tests, and not counted toward O6 (owner's decision, `crp-flaky-b8-classification`, option
 `runner-measurement`, 2026-10-25). Owner: the project owner. Review date: 2026-11-24.
 
@@ -55,9 +62,9 @@ Test names are unchanged.
 
 ### E6 · cancel contract, fixed in PR #42
 
-Failed once in CI on a gateway file the change did not touch (`design.md:249`). Fixed in PR #42 with the regression
+Failed once in CI on a gateway file the change did not touch (archived m03 `design.md:249`). Fixed in PR #42 with the regression
 test `test_a_slow_setup_behind_the_frozen_clock_still_gets_its_lost_attempt_cancelled`
-(`test_engine_cancel_contract.py:244`). See `docs/agent-work/flaky-engine-cancel/report.md`.
+(`test_engine_cancel_contract.py:249`). See `docs/agent-work/flaky-engine-cancel/report.md`.
 
 ### E7 · remote cancel, the "P2 race"
 
@@ -81,14 +88,17 @@ replacement requests run and, on a slow runner, starve the event loop.
 **Fix.** The helper `stuck_neighborhood` in `openbinding-gateway/tests/test_process_probe.py` blocks the abandoned
 threads on a `threading.Event`, released in a `finally` after the probe, so nothing computes. The 0.5 s budget,
 `--hold 0.2` and all assertions are unchanged; no threshold was raised and the test is not skipped. The fix commit is on
-the branch of task `d0035241` (PR: pending PR).
+PR #50.
 
 **Verification.** The target test passed 5 of 5 repeated runs in the lab check environment. The lab Python has no
 `os.pidfd_open`, so the two worker-process tests of the file
 (`test_the_probe_runs_its_non_costly_scenarios_against_worker_processes` and
 `test_the_whole_probe_passes_against_worker_processes_with_the_n2_figures`) cannot run there and are verified only by CI.
 
-**Status.** Fixed in this change, pending the next develop push run.
+**Status.** Fixed, pending develop push run. PR #50 merged on 2026-10-25 and its CI was green on the PR head. Still
+unverified: that the develop push run after the merge passed this test. E8 first failed on a push-triggered run, which
+PR runs did not reproduce, so only a green develop push run confirms the fix. Until one is recorded here the entry is not
+confirmed fixed.
 
 **Not changed.** The cold first `validate` of the demo package is still measured against 0.5 s. No warm-up was added,
 since it did not fail.
@@ -157,7 +167,10 @@ that the body lasts longer than the budget, without a margin.
 rest of the file with those two deselected (21 passed, 2 deselected), which includes the new test of the worker module.
 The new test checks the mechanism, not the whole probe.
 
-**Status.** Fixed in this change, pending CI.
+**Status.** Fixed, pending develop push run. PR #52 merged on 2026-10-25 and its CI was green on the PR head. Still
+unverified: that the develop push run after the merge passed this test, and that the whole probe passes against worker
+processes on the CI runner (the lab cannot run it). Until a green develop push run is recorded here the entry is not
+confirmed fixed.
 
 ### E1 · `LibArtifact.test.tsx` · "starts a draft from a sealed version, keeping its content and links"
 

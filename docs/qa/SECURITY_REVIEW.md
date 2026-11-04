@@ -1,4 +1,119 @@
-# Security review (bounded, 2026-10-13)
+# Security register
+
+The register of known security findings of OpenBinding: one row per finding, with a severity, a status, an owner,
+evidence and the date it was last checked. It answers objective O8 of [`INTENT.md`](../../INTENT.md) ("0 open high or
+critical findings at each release to `main`") with a yes or no. The file keeps its path because `INTENT.md` points at
+it. Register created 2026-11-03.
+
+## How to read
+
+**Severity** (provisional: scale and rule decided by the owner in CRP-1). **Every rating in this register is
+proposed, owner confirms** (CRP-2, option a): the editor proposes a rating from recorded evidence, the security-auditor
+confirms it, and the owner can override it. No rating is final until the owner confirms it:
+
+| Severity | Meaning |
+|---|---|
+| critical | Exploitable now, with no or low privilege, to read or change another party's data, or to take over a host or the service |
+| high | An authorization, secret-handling or SSRF weakness, or a service-wide denial of service, reachable by an ordinary user with no mitigating control |
+| medium | A weakness with limited reach or a mitigating control. **Floor:** a confirmed authorization, secret-handling or SSRF finding is never rated below medium, because [`REVIEW.md`](../../REVIEW.md) section 4 item 5 blocks a merge on those at medium or higher. `>= medium (floor)` means the finding is at least medium and the evidence does not yet bound it from above |
+| low | A hardening gap, a disclosure of the caller's own data, or a test or documentation gap |
+| unrated | The recorded evidence does not decide the rating. `unrated (owner)` means the owner has to rate it |
+
+**Status.** `open`: not fixed, or fixed but not verified. `closed`: fixed, and the row names the evidence.
+`obsolete`: the code the finding was about no longer exists; the row names where that is recorded.
+
+**O8 rule.** O8 passes at a release only if no row is `open` with severity critical or high. An `open` row that is
+`unrated`, or `>= medium (floor)` with no upper bound, counts as failing O8 until it is rated. Rows that are `closed` or `obsolete` never count. For that reason a
+`closed` or `obsolete` row carries a severity only where the recorded evidence decides it; otherwise it stays
+`unrated`.
+
+**Last checked.** `2026-11-03` means the row was re-read against the tree in the change that created the register.
+Any other date is the date of the source the row was taken from. "Not re-checked" in a row means the statement is
+repeated from that source and was not compared with the code again.
+
+**Owner column.** A role (`security-auditor`, `doc-steward`, `owner`) or a change id.
+
+## Register (2026-11-03)
+
+O8 count at this date: no row is rated high or critical, but 12 open rows are `unrated` and 1 is `>= medium (floor)`
+with no upper bound (M5-K), so **O8 is not met until they are rated and the owner confirms the proposed ratings**.
+Open rows: 27 in total (12 low, 2 medium, 1 `>= medium`, 12 unrated). The 12 unrated open rows are B6-1, M5-S, B8,
+SPHERE-1, LIC-1, m08-SEC-003, m08-SEC-004, R2-SEC-006, R2-SEC-007, R3-SEC-003, R3-SEC-004 and m09 R1-SEC-003.
+
+| Id | Finding | Severity | Status | Owner | Evidence | Last checked |
+|---|---|---|---|---|---|---|
+| A1 | Denial of service by integer exponentiation in `bim-core` expressions | unrated | closed | doc-steward | `Limits.max_integer_bits`; `test_expression_limits.py` (History, Fixed) | 2026-10-14 |
+| A2 | ZIP bomb in package uploads | unrated | closed | doc-steward | Compression allow-list and bounded reads; `test_package_bomb.py` in both projects (History, Fixed) | 2026-10-14 |
+| M2 | Insecure flags accepted in production | unrated | closed | doc-steward | `tests/test_prod_insecure_flags.py` (History, Fixed) | 2026-10-14 |
+| M3 | A job-read scope was enough for the analysis task routes | >= medium (floor, authorization) | obsolete | doc-steward | The routes were removed in M9.6: `ROADMAP.md:204,206`; expected 404 for the three routes in `openbinding-gateway/tests/test_removed_operations.py:59-61`. It was fixed before that (History, Fixed) | 2026-11-03 |
+| B1 | `result.error` visible to a VIEWER | >= medium (floor, authorization) | closed | doc-steward | Redaction for VIEWER (History, Fixed); not re-checked | 2026-10-14 |
+| B2 | Payload ceiling bypassed with a chunked body | unrated | closed | doc-steward | Ceiling enforced for chunked bodies (History, Fixed); not re-checked | 2026-10-14 |
+| B7 | Lab nginx appended to a client-supplied `X-Forwarded-For` | unrated | closed | doc-steward | `frontend/nginx.lab.conf` (History, Fixed); not re-checked | 2026-10-14 |
+| M1 | A VIEWER could launch a job on an organization-shared snapshot; the same for retry and cancel of jobs | >= medium (floor, authorization) | closed | doc-steward | `require_work_role`; `test_viewer_read_only.py` (History, Fixed). The part about the analysis task routes is obsolete, see M3 | 2026-11-03 |
+| M1-F | A study run kept launching cells after its owner lost the role; retry of a personal job on a shared snapshot checked no role | >= medium (floor, authorization) | closed | doc-steward | `study_jobs._sync` owner check; `test_viewer_read_only_followup.py` (History, Fixed). The full-suite failure noted there (`test_bim_baseline.py`) was not explained: not re-checked | 2026-10-14 |
+| B6-C | Internal error text reached public responses (C1, C2, C3); no `correlationId` | unrated | closed | doc-steward | `core/public_errors.py`; `test_public_errors.py`, `test_job_error_text.py`, `test_pricing_public_errors.py` (History, Fixed); not re-checked | 2026-10-14 |
+| B4 | A BIM failure during re-evaluation lost the engine's raw result (C4) | unrated | closed | doc-steward | `job_engine_evidence`; `test_job_evidence.py` (History, Fixed); not re-checked | 2026-10-14 |
+| B3 | The remote job of an attempt that lost its lease kept running (C5) | unrated | closed | doc-steward | Best effort, only for an Engine that declares the capability; `test_remote_cancel.py` (History, Fixed). Limits listed there stay true as written: not re-checked | 2026-10-14 |
+| M5-L | Legacy `lab/nginx/default.conf` | unrated | closed | doc-steward | File removed (History, Fixed); not re-checked | 2026-10-14 |
+| M5-I | Gateway image ran as root and installed an unpinned `uv` | unrated | closed | doc-steward | Read in the Dockerfiles, never built or observed (History, Fixed); not re-checked | 2026-10-14 |
+| T1-S | The PostgreSQL harness ran its `seed` as root with a bind of `tests/` | unrated | closed | doc-steward | `compose.pgtest.json` read, not run; the `test`-stage version has not run (History, Fixed); not re-checked | 2026-10-14 |
+| T1 | 26 compose-shape checks were skipped in the lab PostgreSQL run | low | closed | doc-steward | Moved to `tests/test_pg_harness.py`; [PG_HARNESS.md](PG_HARNESS.md) (History, Pending) | 2026-10-14 |
+| B5 | The per-tenant limit of `bim-service` could be evaded by rotating `X-BIM-Tenant` | unrated | closed | doc-steward | `bim_service/auth.py`, `Authenticator.identify` (History, Fixed). Residual: the limit is per deployed caller and per process; the lab uses one token: not re-checked | 2026-10-14 |
+| B8-F | Work in the event loop of `bim-service` (B8-1, B8-2, Phase A, Phase B) | unrated | closed | doc-steward | Memory admission and opt-in process mode (History, Fixed). What stays open is B8 below | 2026-10-14 |
+| M4-A1 | Directory, ZIP and canonical-ZIP equivalence measured on 10 packages only | unrated | closed | doc-steward | Superseded 2026-10-14: decided and applied in `f98a7a1e`; [IR_NORMALIZATION.md](IR_NORMALIZATION.md) (History) | 2026-10-14 |
+| M4-1 | The IR MAJOR decision for the 64 canonical-ZIP divergences | unrated | closed | owner | Decided and applied in `f98a7a1e` (History, Pending) | 2026-10-14 |
+| IR-1 | IR order: 64 of 82 packages gave another IR from the canonical ZIP | unrated | closed | owner | [IR_NORMALIZATION.md](IR_NORMALIZATION.md); [CORPUS_RUN.md](CORPUS_RUN.md) (History, Residual) | 2026-10-14 |
+| B6-1 | Rows written before C2 keep the raw `str(exc)` in `jobs.result.error`; the owner reads it, a VIEWER does not; no migration rewrites them | unrated (owner) | open | security-auditor | History, Pending, B6 (rest) item 1; not re-checked. The VIEWER redaction (B1) limits who reads it, but the old rows are not shown to be free of engine host names or driver text, so no rating is proposed | 2026-10-14 |
+| B6-2 | `RemoteEngineError` raised from the engine result validator and transport has no category of its own; `services/engine_registry.py` puts `str(exc)` in the registration verification report | low (proposed) | open | security-auditor | History, Pending, B6 (rest) item 2. Who reads the report is not recorded. The files exist (`openbinding-gateway`, `services/engines.py`, `services/engine_registry.py`); the text was not re-read | 2026-10-14 |
+| B6-3 | The analysis task error stored `str(detail)` and was returned by the analysis routes | unrated | obsolete | doc-steward | Removed in M9.6: `ROADMAP.md:204,206`; `openbinding-gateway/tests/test_worker_queues.py:57` (the analysis job module is gone) and `tests/test_removed_operations.py:59-61` | 2026-11-03 |
+| B6-4 | The 422 of input validation quotes `str(exc)` of the caller's own input (`routes/v1.py`, `services/instances.py`, `routes/artifacts.py`, `services/job_submission.py`) | low (own input, proposed) | open | security-auditor | Re-checked: `str(exc)` still goes into the 422 text in `routes/v1.py` (for example lines 171, 218, 379, 1199), `services/instances.py` (132, 187), `routes/artifacts.py` (150, 830, 897, 1066) and `services/job_submission.py` (398, 416, 437). Whether the text can carry anything beyond the caller's own input was not re-checked | 2026-11-03 |
+| B6-5 | `routes/cas.py` answers `503 pricing_unavailable` naming the setting `SPACE_DEFAULT_PLAN` | low (names a setting, no value; proposed) | open | security-auditor | History, Pending, B6 (rest) item 5; not re-checked | 2026-10-14 |
+| B6-6 | Stale tests still fix the old error text: `tests/test_entitlement_service.py`, `tests/test_job_leases.py::test_a_failure_with_the_lease_is_recorded`, two tests of `tests/test_published_pricing.py` | low (test gap; proposed) | open | security-auditor | History, Pending, B6 (rest) item 6; the files exist, whether the tests still fail was not re-checked | 2026-10-14 |
+| M5-K | Real `SPACE_API_KEY` and `SPHERE_API_KEY` reach the containers by lab design | >= medium (floor, secret-handling) | open | security-auditor | Re-checked: `compose.lab.json:195,201,267,273,383,395` and the four `compose.lab-process*.json` files pass both keys from the environment. Which SPACE the key belongs to after PR #69 (remote SPACE, `ROADMAP.md:22,146-147`) was not re-checked | 2026-11-03 |
+| M5-S | The bind of `tools/` in `seed` is read-only only because the supervisor enforces it, not the repository | unrated (owner) | open | owner | History, Pending, M5 (rest). Partly re-checked 2026-11-03: `compose.lab.json` and the `compose.lab-process*.json` files run `python tools/${DEMO_SEED_TOOL}` in `seed` and declare no bind of `tools/` there, so the finding may be obsolete; the other compose files and the supervisor side were not read, so the row stays open and unrated until the owner decides | 2026-11-03 |
+| B8 | In thread mode (the default, what the lab runs) `bim-service` cannot interrupt CPU-bound work; 3 strict `xfail` in `packages/bim-service/tests/analysis/test_analysis_b8_probe.py`; process mode is opt-in. Cases the probe did not reach: a worker killed from outside, 413 `pending_body_too_large` and `memory_budget_exceeded`, client disconnect. `MemoryError` handling in `bim-core` was not changed (stated by the controller). Two more limitations: process mode with the thread-lab settings (body 16 MiB, budget 128 MiB) does not fit the 256 MiB lab container, only the N2 profile (body 2 MiB) does; and the natural `SIGXCPU` with equal budgets needs native multithreaded code without the GIL, and the kernel counts CPU in whole seconds | unrated (owner) | open | owner | History, Pending, B8 (rest), and Residual risks; [PROCESS_DEPLOYMENT.md](PROCESS_DEPLOYMENT.md). Not re-checked | 2026-10-14 |
+| M4-2 | The `bim-toolchain` corpus CI job never ran (nested `.github/`, not run by GitHub in this monorepo); no root job compares the 82 packages with the goldens | low (test gap; proposed) | open | owner | History, Pending, M4 item 2, citing `docs/qa/analysis/BIM_B5_B8_M4_IR.md`. Re-checked 2026-11-03: the job `golden-corpus` is only in `bim-toolchain/.github/workflows/ci.yml:137`, the nested file; the root-level comparison was not searched for again | 2026-11-03 |
+| M4-3 | The figure "51 of the 82 evaluated with a sample of 16 bindings" was not re-verified | low (test gap; proposed) | open | owner | History, Pending, M4 item 3 | 2026-10-14 |
+| RR-1 | Delivery is at-least-once for jobs and for effects on remote Engines; B3 cancellation is best effort and no engine in the tree implements `DELETE`; exactly-once is not claimed | low (documented limit; proposed) | open | owner | History, Residual risks; [../IDEMPOTENCY.md](../IDEMPOTENCY.md) (G3, G4); not re-checked | 2026-10-14 |
+| SPACE-1 | Class B usage counters are not measured against a real SPACE: the `UsageCounterSource` port has only a synthetic source. The page said SPACE was "on hold, zero calls"; since PR #69 (2026-10-28) the lab moves to the remote SPACE `space.score.us.es` instead of a local one | low (measurement gap; proposed) | open | owner | `ROADMAP.md:22,139,146-149`. The wording on hold and zero calls is superseded. Whether the port still has only a synthetic source, and whether any test now talks to SPACE: not re-checked | 2026-11-03 |
+| SPHERE-1 | The anonymous privacy observation of the private SPHERE pricing is one observation of one version; the by-id route is unverified; the monthly counters of the private development pricing are unresolved as a remote fact | unrated (owner) | open | security-auditor | History, Residual risks; [SPHERE_PRIVACY.md](SPHERE_PRIVACY.md); not re-checked | 2026-10-14 |
+| LIC-1 | Licences and the limited Git credential, named as still open in the 2026-10-14 status line, with no detail on the page | unrated (owner) | open | owner | History, Pending, status line; the detail is not recorded here | 2026-10-14 |
+| OPS-1 | `lab_compose up` with an `environment` replaces the stored private environment; one partial `up` lost the lab PostgreSQL password (recovered, no data loss) | low (operational; proposed) | open | owner | History, Residual risks; [PG_ROLE_RESET.md](PG_ROLE_RESET.md); not re-checked | 2026-10-14 |
+| LOAD-1 | `bim-service` was not measured under real load or container memory pressure (in-process ASGI with `tracemalloc` only) | low (measurement gap; proposed) | open | owner | History, Related; [BIM_LOAD.md](BIM_LOAD.md); [FINAL_VALIDATION.md](FINAL_VALIDATION.md) | 2026-10-14 |
+| CI-PIN | GitHub Actions are pinned by tag, not by commit SHA (m03 SEC-006, ci-speed SEC-001). `SECURITY.md` requires SHA pins | low (hardening gap; proposed) | open | owner | Re-checked: `.github/workflows/ci.yml:33` (`actions/checkout@v4`) and every other `uses:` line of the file carry a major tag; `SECURITY.md:38`; `openspec/changes/archive/2026-10-26-m03-gate-tooling/tasks.md:140`; `docs/agent-work/ci-speed/handoff.md:7` | 2026-11-03 |
+| CI-CRED | Checkouts persist the Git credential (ci-speed SEC-004) | medium (secret-handling; proposed) | open | owner | Re-checked: `.github/workflows/ci.yml` sets `persist-credentials: false` only at lines 241 and 268; 12 `actions/checkout` steps exist. `docs/agent-work/ci-speed/handoff.md:7` | 2026-11-03 |
+| CI-SCAN | No secret scanning, SAST or dependency audit in CI | low (hardening gap; proposed) | open | owner | Re-checked: `.agentic/project.yaml:84-88` (`semgrep`, `pip-audit`, `pnpm-audit`, `gitleaks` all `todo: true`); no such step in `.github/workflows` | 2026-11-03 |
+| WEB-1 | The frontend keeps the bearer session in `localStorage`, which raises the impact of an XSS | medium (secret-handling, mitigating control not recorded; proposed) | open | owner | Re-checked: documented choice at `frontend/src/contexts/AuthContext.tsx:13`; `SECURITY.md:48` | 2026-11-03 |
+| m08-SEC-003 | The engine-not-installed case is recorded INCOMPATIBLE (QACOBench baseline) | unrated | open | security-auditor | `docs/agent-work/m08-qacobench-baseline/handoff.md:1` (deferred); finding text not recorded beyond that line; not re-checked | 2026-10-28 |
+| m08-SEC-004 | Malformed-body hardening (QACOBench baseline), together with SEC-005, `NaN` in `elapsed_ms` | unrated | open | security-auditor | `docs/agent-work/m08-qacobench-baseline/handoff.md:1` (deferred as "SEC-004/005"); not re-checked | 2026-10-28 |
+| R2-SEC-006 | Description not recorded. Deferred in m09 | unrated | open | owner | `docs/agent-work/m09-compose-only/review/round2.md:25` ("not now"); the finding text and severity are not in the tree | 2026-10-26 |
+| R2-SEC-007 | Description not recorded. Deferred in m09 | unrated | open | owner | `docs/agent-work/m09-compose-only/review/round2.md:26`; as above | 2026-10-26 |
+| R3-SEC-003 | Description not recorded. The only hint is the label "tag vs ordered tag" in the m09 handoff. Deferred in m09 | unrated | open | owner | `docs/agent-work/m09-compose-only/review/round3.md:11`; `docs/agent-work/m09-compose-only/handoff.md:9` | 2026-10-26 |
+| R3-SEC-004 | Description not recorded. Deferred in m09 | unrated | open | owner | `docs/agent-work/m09-compose-only/review/round3.md:12`; `docs/agent-work/m09-compose-only/handoff.md:9` | 2026-10-26 |
+| m09 R1-SEC-003 | Compose services in the m09 production definition run without verified non-root `user` and `cap_drop` (follow-up F7). Keyed by the change (m09-compose-only) because the id R1-SEC-003 is reused in m0-infra-close | unrated (owner) | open | owner | `docs/agent-work/m09-compose-only/review/round1.md:34` ("cannot be verified without Docker"; recorded as F7 in `openspec/changes/m09-compose-only/tasks.md` and in the runbook "What stays blocked"); `docs/agent-work/m09-compose-only/handoff.md:9`. Severity and whether F7 was later closed: not re-checked | 2026-10-26 |
+
+Notes on the register:
+
+- Closed and obsolete rows are taken from the History sections below. Nothing marked "not re-checked" was compared
+  with the code in this change.
+- The `SECURITY.md` open items are rows CI-PIN, CI-SCAN, WEB-1, B6-1 to B6-6 (B6), B8 and M5-K and M5-S (M5).
+  `SECURITY.md` still lists the removed analysis task errors; this page does not change it.
+- The follow-ups of the m09 handoff (`docs/agent-work/m09-compose-only/handoff.md:9`) are: F7 (row m09 R1-SEC-003),
+  F8, F9, R2-SEC-006, R2-SEC-007, R2-TST-005, R3-SEC-003 and R3-SEC-004 (rows above, except F8, F9 and R2-TST-005),
+  and items with no finding id: nginx resolver, non-superuser database role, trusted proxy and Redis authentication,
+  `SPACE_URL` validator, base image digests, `docker compose config` never run, and local SPACE against
+  `INTENT.md:180`. F8, F9 and R2-TST-005 and the items without an id are not rows here: their text and severity are
+  not recorded as security findings. The nginx resolver item was delivered in PR #75 (`ROADMAP.md:54-55`).
+- Rating columns: the ratings are proposals for the owner to confirm (see "How to read"). The dates of the m08 rows
+  (2026-10-28) and the m09 rows (2026-10-26) are the merge dates of their changes in `ROADMAP.md:52,54`.
+- The History below covers every section after the register: "Fixed in this SHA", "Pending", the residual risks, the
+  related note and "Not covered".
+- The m08 findings SEC-004 and SEC-005 were deferred as one item and are one row.
+
+## History (2026-10-13 to 2026-10-14): bounded review of `5aebc7c8`
+
+**Superseded:** the status in the sections below is superseded by the register above. They are kept as they were
+written, as history.
 
 A bounded security review of the tree at SHA `5aebc7c8` was done on 2026-10-13.
 This page records the findings and what happened to each. It is a summary of the
