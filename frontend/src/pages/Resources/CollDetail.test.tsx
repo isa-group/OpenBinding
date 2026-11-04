@@ -69,7 +69,8 @@ describe('Collection detail', () => {
     expect(rows).toHaveLength(3);
     expect(within(rows[0]).getByRole('link', { name: 'Flujo de checkout · version 1' })).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=1`);
     expect(within(rows[0]).getByText('Problem')).toBeInTheDocument();
-    expect(within(rows[0]).getByRole('button', { name: 'Copy fingerprint of Flujo de checkout · version 1' })).toHaveTextContent('sha256-1111…1111');
+    expect(within(rows[0]).getByRole('button', { name: 'Copy digest of Flujo de checkout · version 1' })).toHaveTextContent('Copy digest');
+    expect(list.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(within(rows[1]).getByRole('link', { name: 'Flujo de checkout · version 2' })).toBeInTheDocument();
     // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(within(rows[2]).queryByRole('link')).toBeNull();
@@ -361,8 +362,9 @@ describe('Collection detail', () => {
     renderDetail();
     const list = await items();
 
-    expect(within(list).getAllByText('Problem version case-flu', { selector: 'span' })).toHaveLength(2);
-    expect(screen.getByText(/couldn’t be read, so some items show only their fingerprint/)).toBeInTheDocument();
+    expect(within(list).getAllByText('Problem version', { selector: 'span' })).toHaveLength(2);
+    expect(list.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
+    expect(screen.getByText(/couldn’t be read, so some items show only their type/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
     const dialog = await screen.findByRole('dialog', { name: 'Add an item' });
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('The project’s problems and resources couldn’t be read (503 · unavailable).');

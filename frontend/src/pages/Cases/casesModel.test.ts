@@ -67,6 +67,7 @@ describe('diffRevisions', () => {
     const resources = rows.filter((row) => row.category === 'Resources');
     expect(resources.find((row) => row.what === 'Candidate catalog · providers')).toMatchObject({ a: expect.stringContaining('providers-eu v2'), b: expect.stringContaining('providers-eu v3'), changed: true });
     expect(resources.find((row) => row.what === 'Rules · sla')?.changed).toBe(false);
+    expect(JSON.stringify(resources)).not.toMatch(/sha256-|[0-9a-f]{12}/);
   });
 
   it('compares the providers of each task', () => {

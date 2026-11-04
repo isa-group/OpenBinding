@@ -7,7 +7,6 @@ import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { problemPath, problemsPath } from '../../routes/paths/problems';
-import { shortDigest } from '../../utils/digest';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { RoleChip } from '../Organization/parts';
@@ -39,9 +38,7 @@ function CaseRow({ root, entry, canCreate, canAdminister, publicRead, onDelete }
         <span className="case-row-meta">
           <span>{plural(revisions.length, 'version')}</span>
           <span aria-hidden="true">·</span>
-          <span>{latest ? `latest v${latest.revision} · ${formatDate(latest.created_at) ?? '—'}` : 'latest none yet'}</span>
-          {latest && <><span aria-hidden="true">·</span><code>{shortDigest(latest.digest)}</code></>}
-        </span>
+          <span>{latest ? `latest v${latest.revision} · ${formatDate(latest.created_at) ?? '—'}` : 'latest none yet'}</span>        </span>
       </Link>
       <span className="case-row-actions">
         {latest && !publicRead && <Action to={`${root}/runs/new?case=${encodeURIComponent(item.slug)}&revision=${latest.revision}`} variant="secondary" size="sm">Run latest</Action>}

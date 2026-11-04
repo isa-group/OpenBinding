@@ -52,7 +52,8 @@ describe('entryOf', () => {
   // [utest->req~frontend-nav-vocabulary-text~1]
   it('keeps a problem item whose version is no longer listed, and can still send it back', () => {
     const found = entryOf(caseItem('case-gone-r9', digestOf('9')), pins);
-    expect(found.label).toBe('Problem version case-gon');
+    expect(found.label).toBe('Problem version');
+    expect(`${found.label} ${found.sub}`).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(found.pin).toEqual({ target_kind: 'case', target_digest: digestOf('9'), target_ref: { caseRevisionId: 'case-gone-r9' } });
   });
 

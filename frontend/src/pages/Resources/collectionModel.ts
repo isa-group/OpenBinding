@@ -1,6 +1,5 @@
 import type { Collection, CollectionItem, CollectionRevision, ProjectResource, ProjectResourceRevision } from '../../api/platform';
 import { problemPath } from '../../routes/paths/problems';
-import { shortDigest } from '../../utils/digest';
 import type { CaseContent } from '../Project/projectModel';
 import { plural } from './resourceModel';
 
@@ -93,7 +92,7 @@ export function entryOf(item: CollectionItem, pins: readonly Pin[]): Entry {
     const found = pins.find((pin) => pin.kind === 'case' && (pin.item.target_ref.caseRevisionId === id || pin.digest === item.target_digest));
     if (found) return { kind: 'case', key: found.key, label: found.label, sub: found.sub, digest: found.digest, href: found.href, pin: found.item };
     return {
-      kind: 'case', key: pinKey('case', item.target_digest), label: `Problem version ${id ? id.slice(0, 8) : shortDigest(item.target_digest)}`,
+      kind: 'case', key: pinKey('case', item.target_digest), label: 'Problem version',
       sub: 'Problem version', digest: item.target_digest, pin: id ? { target_kind: 'case', target_digest: item.target_digest, target_ref: { caseRevisionId: id } } : null,
     };
   }
@@ -108,7 +107,7 @@ export function entryOf(item: CollectionItem, pins: readonly Pin[]): Entry {
     };
   }
   return {
-    kind: item.target_kind, key: pinKey(item.target_kind, item.target_digest), label: `${item.target_kind} ${shortDigest(item.target_digest)}`,
+    kind: item.target_kind, key: pinKey(item.target_kind, item.target_digest), label: `${item.target_kind} item`,
     sub: 'Not supported', digest: item.target_digest, pin: null,
   };
 }

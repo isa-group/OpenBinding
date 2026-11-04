@@ -99,6 +99,7 @@ describe('Project overview', () => {
     expect(within(card).getByText('2 revisions')).toBeInTheDocument();
     expect(within(card).getByText('r1')).toBeInTheDocument();
     expect(within(card).getByText('r2')).toHaveAttribute('title', expect.stringContaining('latest'));
+    expect(within(card).getByText('r2').getAttribute('title')).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(within(card).getByText('Catalog grown from 5 to 8 candidates.')).toBeInTheDocument();
     expect(within(cases).getByRole('link', { name: 'All problems' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
   });

@@ -62,14 +62,14 @@ export function Power({ log10 }: { log10: number | null }) {
   return <>10<sup>{(Math.round(log10 * 10) / 10).toString()}</sup></>;
 }
 
-/** A fingerprint in short form with a button that copies the whole of it. */
+/** A fingerprint named in words, with a button that copies the whole of it. */
 export function DigestLine({ digest, label, copyKey }: { digest: string; label: string; copyKey: string }) {
   const { copy, status } = useCopy();
   return (
     <span className="case-digest">
-      <code title={digest}>{digest.length > 24 ? `${digest.slice(0, 11)}…${digest.slice(-4)}` : digest}</code>
+      <span>Recorded</span>
       <button type="button" className="case-link-button" onClick={() => void copy(digest, copyKey)} aria-label={`Copy ${label} fingerprint`}>
-        {status(copyKey) === 'copied' ? 'Copied' : status(copyKey) === 'failed' ? 'Copy failed' : 'Copy'}
+        {status(copyKey) === 'copied' ? 'Copied' : status(copyKey) === 'failed' ? 'Copy failed' : 'Copy digest'}
       </button>
     </span>
   );

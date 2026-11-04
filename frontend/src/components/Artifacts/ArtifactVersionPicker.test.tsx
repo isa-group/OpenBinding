@@ -33,6 +33,7 @@ describe('ArtifactVersionPicker', () => {
     fireEvent.change(artifactSelect, { target: { value: 'a1' } });
     await waitFor(() => expect(screen.getByRole('option', { name: /1\.0\.v1/ })).toBeInTheDocument());
     expect(screen.queryByRole('option', { name: /1\.0\.v2/ })).toBeNull();
+    expect(screen.getByLabelText('Version').textContent).not.toMatch(/sha256|[0-9a-f]{12}/);
 
     fireEvent.change(screen.getByLabelText('Version'), { target: { value: 'v1' } });
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'a1' }), expect.objectContaining({ id: 'v1' }));

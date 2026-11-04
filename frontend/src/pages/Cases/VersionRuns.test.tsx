@@ -52,11 +52,11 @@ describe('Runs tab of the problem page', () => {
     const table = await runsTable();
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(2);
-    expect(within(rows[0]).getByRole('link', { name: 'Run job-new' })).toHaveAttribute('href', `${root}/runs/job-new`);
+    expect(within(rows[0]).getByRole('link', { name: 'Run 2' })).toHaveAttribute('href', `${root}/runs/job-new`);
     expect(within(rows[0]).getByRole('link', { name: 'Version 2' })).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=2`);
-    expect(within(rows[1]).getByRole('link', { name: 'Run job-old' })).toHaveAttribute('href', `${root}/runs/job-old`);
+    expect(within(rows[1]).getByRole('link', { name: 'Run 1' })).toHaveAttribute('href', `${root}/runs/job-old`);
     expect(within(rows[1]).getByRole('link', { name: 'Version 1' })).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=1`);
-    expect(screen.queryByRole('link', { name: 'Run job-other' })).not.toBeInTheDocument();
+    expect(table.textContent).not.toMatch(/job-|sha256-|[0-9a-f]{12}/);
     expect(platform.projectJobs).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks');
   });
 
@@ -69,7 +69,7 @@ describe('Runs tab of the problem page', () => {
 
     const table = await runsTable();
     expect(within(table).getAllByRole('row').slice(1)).toHaveLength(1);
-    expect(within(table).getByRole('link', { name: 'Run job-old' })).toBeInTheDocument();
+    expect(within(table).getByRole('link', { name: 'Run 1' })).toBeInTheDocument();
   });
 
   it('says so when no run started from the problem, and offers to start one to a MEMBER', async () => {

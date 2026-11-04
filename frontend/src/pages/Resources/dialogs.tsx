@@ -109,7 +109,7 @@ export function ItemPickerDialog({ pins, taken, loading, problem, onClose, onPic
               {group.items.map((pin) => (
                 <li key={pin.key}>
                   <button type="button" className="lib-pick" onClick={() => onPick(pin)} aria-label={`Add ${pin.label}`}>
-                    <span><strong>{pin.label}</strong><small>{pin.sub} · {pin.digest.length > 24 ? `${pin.digest.slice(0, 11)}…${pin.digest.slice(-4)}` : pin.digest}</small></span>
+                    <span><strong>{pin.label}</strong><small>{pin.sub}</small></span>
                     <span className="lib-pick-add">Add</span>
                   </button>
                 </li>

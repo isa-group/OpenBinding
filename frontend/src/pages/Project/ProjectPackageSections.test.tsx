@@ -139,6 +139,7 @@ describe('Export package and Import package in the General section of the projec
       expect(within(importCard()).getByText('3 verified')).toBeInTheDocument();
       expect(within(importCard()).getByText('0 already here · reused')).toBeInTheDocument();
       expect(within(importCard()).getByText('2 new')).toBeInTheDocument();
+      expect(report.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
       const rows = within(report).getAllByRole('listitem');
       expect(rows).toHaveLength(5);
       expect(within(rows[0]).getByText('Package manifest')).toBeInTheDocument();

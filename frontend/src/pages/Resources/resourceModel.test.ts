@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { blobOf, digestOf, usageOf } from '../../test/fixtures/resources';
+import { formatDate } from '../../utils/format';
 import {
   allowanceOf, downloadName, fileTitle, GATEWAY_BLOB_LIMIT, isZipFile, plural, totalBytes, typeLabel, uploadCeiling,
 } from './resourceModel';
@@ -59,17 +60,18 @@ describe('files', () => {
     expect(typeLabel('model/gltf+binary')).toBe('model/gltf+binary');
   });
 
-  it('titles a file by the name it had here, else by its type and the start of its fingerprint', () => {
+  it('titles a file by the name it had here, else by its type and the date it was stored', () => {
     const blob = blobOf('a');
-    expect(fileTitle(blob, {})).toBe('ZIP archive · sha256-aaaa…aaaa');
+    expect(fileTitle(blob, {})).toBe(`ZIP archive · stored ${formatDate(blob.created_at)}`);
     expect(fileTitle(blob, { [blob.digest]: 'results.zip' })).toBe('results.zip');
+    expect(fileTitle(blob, {})).not.toMatch(/sha256-|[0-9a-f]{12}/);
   });
 
-  it('saves a download under its name, or under its fingerprint with a fitting extension', () => {
+  it('saves a download under its name, or under a plain name with the day and a fitting extension', () => {
     expect(downloadName(blobOf('a'), { [digestOf('a')]: 'results.zip' })).toBe('results.zip');
-    expect(downloadName(blobOf('a'), {})).toBe('sha256-aaaaaaaaaaaa.zip');
-    expect(downloadName(blobOf('b', { media_type: 'text/csv' }), {})).toBe('sha256-bbbbbbbbbbbb.csv');
-    expect(downloadName(blobOf('c', { media_type: 'application/octet-stream' }), {})).toBe('sha256-cccccccccccc');
+    expect(downloadName(blobOf('a'), {})).toBe('file-2026-08-20.zip');
+    expect(downloadName(blobOf('b', { media_type: 'text/csv' }), {})).toBe('file-2026-08-20.csv');
+    expect(downloadName(blobOf('c', { media_type: 'application/octet-stream' }), {})).toBe('file-2026-08-20');
   });
 
   it('recognises a ZIP and adds up sizes', () => {

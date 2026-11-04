@@ -8,7 +8,6 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
 import { problemPath } from '../../routes/paths/problems';
-import { shortDigest } from '../../utils/digest';
 import { formatBytes, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { formatFeature } from '../../utils/featureRange';
@@ -208,7 +207,6 @@ function ResourceCards({ uses, resolved }: {
             <span className="case-resource-role">{roleLabel(use.role)}</span>
             <strong>{refLabel(use.ref)}</strong>
             <small>{note}</small>
-            <code>{shortDigest(use.ref.versionDigest)}</code>
           </>
         );
         return (

@@ -42,7 +42,8 @@ describe('inspecting a package before it is sent', () => {
     const inspection = await inspectPackage(jsonFile(await samplePackage({ tamperAfterSealing: true })));
 
     expect(inspection.problem).toMatchObject({ kind: 'fingerprint', title: 'Fingerprint doesn’t match' });
-    expect(inspection.problem?.text).toContain('“Package manifest” says');
+    expect(inspection.problem?.text).toContain('“Package manifest” carries a fingerprint');
+    expect(inspection.problem?.text).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(inspection.rows[0].outcome).toBe('mismatch');
   });
 
@@ -51,7 +52,8 @@ describe('inspecting a package before it is sent', () => {
 
     expect(inspection.rows.find((row) => row.kind.startsWith('File'))?.outcome).toBe('mismatch');
     expect(inspection.problem?.kind).toBe('fingerprint');
-    expect(inspection.problem?.text).toContain(`says ${(await fileDigest()).slice(0, 11)}…`);
+    expect(inspection.problem?.text).toContain('“File” carries a fingerprint');
+    expect(inspection.problem?.text).not.toMatch(/sha256-|[0-9a-f]{12}/);
   });
 
   it('reads a ZIP, taking each file from its path', async () => {

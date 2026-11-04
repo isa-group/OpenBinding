@@ -57,7 +57,8 @@ describe('Overview tab of the problem page', () => {
     expect(screen.getByLabelText('Version')).toHaveValue('2');
     expect(screen.getAllByText('Sealed')).toHaveLength(2);
     const identity = screen.getByRole('region', { name: 'Identity' });
-    expect(within(identity).getByText('sha256-2222…2222')).toBeInTheDocument();
+    expect(within(identity).getByRole('button', { name: 'Copy version 2 fingerprint' })).toHaveTextContent('Copy digest');
+    expect(identity.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(within(identity).getByText('qos-binding/v1', { exact: false })).toBeInTheDocument();
     const snapshot = await within(identity).findByRole('link', { name: 'Open snapshot' });
     expect(snapshot).toHaveAttribute('href', `${root}/problems/flujo-checkout/source?version=2`);
@@ -159,6 +160,7 @@ describe('Overview tab of the problem page', () => {
     await waitFor(() => expect(section).toHaveTextContent('Published'));
     expect(section).toHaveTextContent('providers-eu v3');
     expect(section).toHaveTextContent('Not published');
+    expect(section.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(section.textContent).not.toMatch(/open in library/i);
     expect(within(section).queryAllByRole('link')).toEqual([]);
     expect(cases.resolveVersion).toHaveBeenCalledWith(catalog3);
