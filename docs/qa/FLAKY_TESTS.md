@@ -22,8 +22,8 @@ date is estimated. An entry with an unknown date cannot be aged until a date is 
 | E5 | `bim-toolchain/packages/bim-service/tests/test_execution_in_the_pool.py::test_healthz_stays_responsive_under_cpu_load_with_the_configured_interval` | unknown (no record) | fixed | #43 (`f2e18c6f`) | n/a | n/a | `test_execution_in_the_pool.py:506,561-562`; `flaky-b8-probe/report.md:8-10,32-34` |
 | E6 | `openbinding-gateway/tests/test_engine_cancel_contract.py::test_the_credential_of_another_tenant_cannot_stop_the_job_and_the_404_is_not_retried` | unknown (no record) | fixed | #42 (`716f8d13`) | n/a | n/a | `test_engine_cancel_contract.py:233,249`; `docs/agent-work/flaky-engine-cancel/report.md:1-70`; archived m03 `design.md:249` |
 | E7 | Six `frozen` + `lose_and_sweep` tests in `openbinding-gateway/tests/test_remote_cancel.py` (the "P2 race") | unknown (no record); no CI failure of these tests is recorded | fixed | #45 (`9273978d`) | n/a | n/a | `openbinding-gateway/tests/analysis_b3_b4_b6/_helpers.py:111-117`; `test_remote_cancel.py:701`; `docs/agent-work/prop-20261025-2/report.md:1-26` |
-| E8 | `openbinding-gateway/tests/test_process_probe.py::test_the_timeout_step_sees_the_503_the_healthz_and_the_next_request` | 2026-10-25 (first push-triggered CI run on develop, `5cf72550`, job `test`) | fixed (PR #50 CI green; the develop push run after the merge was not checked) | #50 | n/a | n/a | section E8 below |
-| E9 | `openbinding-gateway/tests/test_process_probe.py::test_the_whole_probe_passes_against_worker_processes_with_the_n2_figures` | 2026-10-25 (CI run of PR 51, job `test`; passed on develop at `7707a532` and on PR 50) | fixed (PR #52 CI green; the develop push run after the merge was not checked) | #52 | n/a | n/a | section E9 below |
+| E8 | `openbinding-gateway/tests/test_process_probe.py::test_the_timeout_step_sees_the_503_the_healthz_and_the_next_request` | 2026-10-25 (first push-triggered CI run on develop, `5cf72550`, job `test`) | fixed, pending develop push run (PR #50 merged 2026-10-25, PR CI green; no green develop push run after the merge is recorded) | #50 | n/a | n/a | section E8 below |
+| E9 | `openbinding-gateway/tests/test_process_probe.py::test_the_whole_probe_passes_against_worker_processes_with_the_n2_figures` | 2026-10-25 (CI run of PR 51, job `test`; passed on develop at `7707a532` and on PR 50) | fixed, pending develop push run (PR #52 merged 2026-10-25, PR CI green; no green develop push run after the merge is recorded) | #52 | n/a | n/a | section E9 below |
 
 **O6 status.** E2 and E3 (the two tests deselected in the `bim-toolchain` CI job) are classified as measurements that
 depend on the CI runner's CPU, not as correctness tests. Owner: the project owner. Review date: 2026-11-24 (30 days,
@@ -38,7 +38,8 @@ partial (history blobs are missing and there is no network). They need a run in 
 review for E2 and E3; until then the cells read `unknown (no record)` and no date is estimated. The PR numbers and short
 SHAs of E4-E7 are taken from the intake of the earlier update (`docs/agent-work/prop-20261025-3/intake.md`) and from the
 reports it cites, and were not checked against the history here. E8 and E9 PR numbers (#50, #52) come from the fix
-commit subjects and from `ci_status` on the PR heads (green); the develop push runs after the merges were not verified.
+commit subjects and from `ci_status` on the PR heads (green); the develop push runs after the merges were not verified, so E8 and E9 read `fixed, pending develop push run` until a
+green develop push run is recorded for each. The tool does not age that status (it ages only `open` and `deselected`).
 Line references were checked against the files at this base.
 
 ## Details
@@ -94,7 +95,10 @@ PR #50.
 (`test_the_probe_runs_its_non_costly_scenarios_against_worker_processes` and
 `test_the_whole_probe_passes_against_worker_processes_with_the_n2_figures`) cannot run there and are verified only by CI.
 
-**Status.** Fixed in PR #50 (CI green on the PR head). The develop push run after the merge was not verified.
+**Status.** Fixed, pending develop push run. PR #50 merged on 2026-10-25 and its CI was green on the PR head. Still
+unverified: that the develop push run after the merge passed this test. E8 first failed on a push-triggered run, which
+PR runs did not reproduce, so only a green develop push run confirms the fix. Until one is recorded here the entry is not
+confirmed fixed.
 
 **Not changed.** The cold first `validate` of the demo package is still measured against 0.5 s. No warm-up was added,
 since it did not fail.
@@ -163,7 +167,10 @@ that the body lasts longer than the budget, without a margin.
 rest of the file with those two deselected (21 passed, 2 deselected), which includes the new test of the worker module.
 The new test checks the mechanism, not the whole probe.
 
-**Status.** Fixed in PR #52 (CI green on the PR head). The develop push run after the merge was not verified.
+**Status.** Fixed, pending develop push run. PR #52 merged on 2026-10-25 and its CI was green on the PR head. Still
+unverified: that the develop push run after the merge passed this test, and that the whole probe passes against worker
+processes on the CI runner (the lab cannot run it). Until a green develop push run is recorded here the entry is not
+confirmed fixed.
 
 ### E1 · `LibArtifact.test.tsx` · "starts a draft from a sealed version, keeping its content and links"
 
