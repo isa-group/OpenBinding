@@ -630,6 +630,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('region', { name: 'Compiled form (JSON)' })).toBeVisible();
       const fingerprints = main.getByRole('region', { name: 'Fingerprints' });
       await expect(fingerprints.locator('.snap-digest')).toHaveCount(3);
+      await expect(fingerprints).not.toContainText(/sha256-|[0-9a-f]{12}/);
       const language = main.getByRole('region', { name: 'Exact language used' });
       await expect(language.getByText('Profile · qos-binding/v1')).toBeVisible();
       const engines = main.getByRole('region', { name: 'What the engines receive' });
@@ -643,10 +644,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The files, as the browser receives them.
       const download = page.waitForEvent('download');
       await main.getByRole('button', { name: /^Package archive/ }).click();
-      expect((await download).suggestedFilename()).toBe(`snapshot-${S2}.bim.zip`);
+      expect((await download).suggestedFilename()).toBe('snapshot.bim.zip');
       const compiled = page.waitForEvent('download');
       await main.getByRole('button', { name: /^Compiled form\s*For tools/ }).click();
-      expect((await compiled).suggestedFilename()).toBe(`snapshot-${S2}-compiled.json`);
+      expect((await compiled).suggestedFilename()).toBe('snapshot-compiled.json');
 
       // The files of the package, next to the compiled form.
       await main.getByRole('button', { name: 'Files in the package' }).click();

@@ -402,13 +402,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // What it ran on.
       const where = main.getByRole('region', { name: 'Where this result comes from' });
-      await expect(where.getByRole('link', { name: /^Snapshot snapshot/ })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=2`);
+      await expect(where.getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=2`);
+      await expect(where).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await expect(where.getByRole('link', { name: 'Flujo de checkout · version 2' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=2`);
       await expect(where.getByRole('link', { name: 'Add to a report' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-provenance`, { area: where });
       const downloaded = page.waitForEvent('download');
       await where.getByRole('button', { name: 'Download compiled problem' }).click();
-      expect((await downloaded).suggestedFilename()).toBe('job-job-feas-compiled-problem.json');
+      expect((await downloaded).suggestedFilename()).toBe('run-compiled-problem.json');
 
       // Single swaps on request; the engine's own report is loaded with the run and shown as the claimed and evaluated values.
       const swaps = main.getByRole('region', { name: 'What if one task used another provider?' });
@@ -571,7 +572,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('#platform-main');
       const next = main.getByRole('button', { name: 'Continue' });
 
-      await expect(main.getByRole('radio', { name: /Snapshot snapshot/ })).toBeChecked();
+      const source = main.getByRole('radio', { name: /Compiled snapshot/ });
+      await expect(source).toBeChecked();
+      await expect(source).not.toHaveAccessibleName(/sha256-|[0-9a-f]{12}/);
       await next.click();
       await expect(main.getByRole('radiogroup', { name: 'Engine' }).getByRole('radio', { name: /^random-search/ })).toBeChecked();
       await next.click();

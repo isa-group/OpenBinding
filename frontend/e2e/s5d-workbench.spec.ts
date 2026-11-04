@@ -334,7 +334,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { name: 'Valid package' })).toBeVisible();
       await expect(main.getByText('hello-bim · qos-binding/v1')).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Copy the instance fingerprint' })).toContainText('sha256-aaaa…aaaa');
+      await expect(main.getByRole('button', { name: 'Copy the instance digest' })).toHaveText('Copy instance digest');
+      await expect(main.getByRole('region', { name: 'Validation result' })).not.toContainText(/sha256-|[0-9a-f]{12}/);
       const counts = main.getByRole('list', { name: 'What the package holds' }).getByRole('listitem');
       await expect(counts).toHaveCount(5);
       await expect(counts.nth(0)).toContainText('tasks');
@@ -624,7 +625,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       generating.release();
       await expect(preview.getByRole('list', { name: 'Workflow of 6 tasks, in sequence' }).getByRole('listitem')).toHaveCount(6);
       await expect(preview).toContainText('≈ 10^4.2');
-      await expect(preview).toContainText('Synthetic · fingerprint sha256-1111…1111');
+      await expect(preview.getByText('Synthetic', { exact: true })).toBeVisible();
+      await expect(preview).not.toContainText(/sha256-|[0-9a-f]{12}/);
       const sent = (state.sent.instances as Array<Record<string, unknown>>).at(-1) as { seed: number; features: Array<{ id: string; distribution: { kind: string } }> };
       expect(sent.seed).toBe(7);
       expect(sent.features.find((feature) => feature.id === 'latency')?.distribution.kind).toBe('normal');
